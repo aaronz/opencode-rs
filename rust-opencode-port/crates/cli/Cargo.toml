@@ -1,0 +1,17 @@
+[package]
+name = "opencode-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "opencode-rs"
+path = "src/main.rs"
+
+[dependencies]
+opencode-core.workspace = true
+clap = { version = "4.5", features = ["derive"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tokio.workspace = true

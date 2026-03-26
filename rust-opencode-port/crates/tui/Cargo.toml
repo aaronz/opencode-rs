@@ -1,0 +1,13 @@
+[package]
+name = "opencode-tui"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+opencode-core.workspace = true
+ratatui = { version = "0.28", default-features = false, features = ["crossterm"] }
+crossterm = { version = "0.28", features = ["event-stream"] }
+tokio.workspace = true
+futures = "0.3"

@@ -1,0 +1,13 @@
+[package]
+name = "opencode-lsp"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+opencode-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+futures = "0.3"

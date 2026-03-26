@@ -1,0 +1,87 @@
+# =========================
+# Rust / Cargo
+# =========================
+**/target/
+**/*.rs.bk
+*.rlib
+*.prof*
+*.log
+
+# Cargo lock:
+# Keep Cargo.lock for applications; ignore for libraries if you prefer
+# (uncomment next line if this is a library crate)
+# Cargo.lock
+
+# =========================
+# Environment / Secrets
+# =========================
+.env
+.env.*
+*.env
+*.secret
+*.key
+
+# =========================
+# macOS
+# =========================
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# =========================
+# Windows
+# =========================
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# =========================
+# Linux
+# =========================
+*~
+
+# =========================
+# Editors / IDEs
+# =========================
+
+# VS Code
+.vscode/
+
+# JetBrains (IntelliJ / CLion / RustRover)
+.idea/
+*.iml
+
+# Vim
+*.swp
+*.swo
+
+# Emacs
+*~
+
+# =========================
+# Testing / Coverage
+# =========================
+/coverage/
+*.gcda
+*.gcno
+*.gcov
+
+# Tarpaulin (Rust coverage tool)
+tarpaulin-report.html
+
+# =========================
+# Benchmarks / Profiling
+# =========================
+flamegraph.svg
+
+# =========================
+# Documentation builds
+# =========================
+/doc/
+
+# =========================
+# Misc
+# =========================
+*.tmp
+*.bak
+*.old
