@@ -10,6 +10,10 @@ pub enum AgentType {
     Build,
     Plan,
     General,
+    Explore,
+    Compaction,
+    Title,
+    Summary,
 }
 
 impl std::fmt::Display for AgentType {
@@ -18,6 +22,10 @@ impl std::fmt::Display for AgentType {
             AgentType::Build => write!(f, "build"),
             AgentType::Plan => write!(f, "plan"),
             AgentType::General => write!(f, "general"),
+            AgentType::Explore => write!(f, "explore"),
+            AgentType::Compaction => write!(f, "compaction"),
+            AgentType::Title => write!(f, "title"),
+            AgentType::Summary => write!(f, "summary"),
         }
     }
 }
