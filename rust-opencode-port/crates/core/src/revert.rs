@@ -72,3 +72,68 @@ impl Default for RevertManager {
         Self::new(10)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Message, Session};
+
+    #[test]
+    fn test_revert_manager_new() {
+        let rm = RevertManager::new(5);
+        assert!(rm.list_points().is_empty());
+    }
+
+    #[test]
+    fn test_revert_manager_create_point() {
+        let mut rm = RevertManager::new(5);
+        let point = rm.create_point(0, "Initial".to_string());
+
+        assert!(!point.id.is_empty());
+        assert_eq!(point.message_index, 0);
+        assert_eq!(point.description, "Initial");
+    }
+
+    #[test]
+    fn test_revert_manager_get_point() {
+        let mut rm = RevertManager::new(5);
+        let point = rm.create_point(0, "Test".to_string());
+        let id = point.id.clone();
+
+        assert!(rm.get_point(&id).is_some());
+    }
+
+    #[test]
+    fn test_revert_manager_list_points() {
+        let mut rm = RevertManager::new(5);
+        rm.create_point(0, "point1".to_string());
+        rm.create_point(1, "point2".to_string());
+
+        assert_eq!(rm.list_points().len(), 2);
+    }
+
+    #[test]
+    fn test_revert_manager_max_points() {
+        let mut rm = RevertManager::new(2);
+        rm.create_point(0, "p1".to_string());
+        rm.create_point(1, "p2".to_string());
+        rm.create_point(2, "p3".to_string());
+
+        assert_eq!(rm.list_points().len(), 2);
+    }
+
+    #[test]
+    fn test_revert_manager_revert_to() {
+        let mut rm = RevertManager::new(5);
+        let point = rm.create_point(1, "Revert here".to_string());
+
+        let mut session = Session::new();
+        session.add_message(Message::user("msg1".to_string()));
+        session.add_message(Message::assistant("msg2".to_string()));
+        session.add_message(Message::user("msg3".to_string()));
+
+        rm.revert_to(&mut session, &point.id).unwrap();
+
+        assert_eq!(session.messages.len(), 1);
+    }
+}

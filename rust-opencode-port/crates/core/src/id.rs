@@ -18,3 +18,26 @@ impl IdGenerator {
         format!("{}-{}", now.timestamp(), &uuid.to_string()[..8])
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new_uuid() {
+        let id = IdGenerator::new_uuid();
+        assert_eq!(id.len(), 36);
+    }
+
+    #[test]
+    fn test_new_short() {
+        let id = IdGenerator::new_short();
+        assert_eq!(id.len(), 8);
+    }
+
+    #[test]
+    fn test_new_timestamped() {
+        let id = IdGenerator::new_timestamped();
+        assert!(id.contains('-'));
+    }
+}

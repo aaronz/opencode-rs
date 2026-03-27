@@ -7,11 +7,16 @@ pub struct LspTool;
 
 #[derive(Deserialize)]
 struct LspArgs {
-    action: String,
-    symbol: Option<String>,
-    file: Option<String>,
+    #[serde(rename = "operation")]
+    operation: String,
+    #[serde(rename = "filePath")]
+    file_path: Option<String>,
+    #[serde(rename = "line")]
     line: Option<u32>,
-    column: Option<u32>,
+    #[serde(rename = "character")]
+    character: Option<u32>,
+    #[serde(rename = "symbol")]
+    symbol: Option<String>,
 }
 
 #[async_trait]
@@ -21,58 +26,65 @@ impl Tool for LspTool {
     }
 
     fn description(&self) -> &str {
-        "Query LSP for symbols"
+        "Query LSP for code navigation and analysis"
     }
 
     fn clone_tool(&self) -> Box<dyn Tool> {
         Box::new(LspTool)
     }
 
-    async fn execute(&self, args: serde_json::Value) -> Result<ToolResult, OpenCodeError> {
+    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
         let args: LspArgs = serde_json::from_value(args)
             .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
-        match args.action.as_str() {
-            "goto_definition" => {
-                let file = args.file.unwrap_or_default();
-                let line = args.line.unwrap_or(0);
-                let column = args.column.unwrap_or(0);
+        let file = args.file_path.as_deref().unwrap_or("");
+        let line = args.line.unwrap_or(1);
+        let character = args.character.unwrap_or(1);
+        let symbol = args.symbol.as_deref().unwrap_or("");
 
-                Ok(ToolResult::ok(format!(
-                    "Go to definition at {}:{}:{} (placeholder)",
-                    file, line, column
+        match args.operation.as_str() {
+            "goToDefinition" => {
+                let result = format!("Go to definition at {}:{}:{} (LSP placeholder)", file, line, character);
+                Ok(ToolResult::ok(result).with_title(format!("Go to Definition {}", file)))
+            }
+            "findReferences" => {
+                let result = format!("Find references for '{}' (LSP placeholder)", symbol);
+                Ok(ToolResult::ok(result).with_title(format!("Find References {}", symbol)))
+            }
+            "hover" => {
+                let result = format!("Hover at {}:{}:{} (LSP placeholder)", file, line, character);
+                Ok(ToolResult::ok(result).with_title(format!("Hover {}", file)))
+            }
+            "documentSymbol" => {
+                let result = format!("Document symbols in {} (LSP placeholder)", file);
+                Ok(ToolResult::ok(result).with_title(format!("Document Symbols {}", file)))
+            }
+            "workspaceSymbol" => {
+                let result = format!("Workspace symbol '{}' (LSP placeholder)", symbol);
+                Ok(ToolResult::ok(result).with_title("Workspace Symbols"))
+            }
+            "goToImplementation" => {
+                let result = format!("Go to implementation at {}:{}:{} (LSP placeholder)", file, line, character);
+                Ok(ToolResult::ok(result).with_title(format!("Go to Implementation {}", file)))
+            }
+            "prepareCallHierarchy" => {
+                let result = format!("Prepare call hierarchy at {}:{}:{} (LSP placeholder)", file, line, character);
+                Ok(ToolResult::ok(result).with_title(format!("Call Hierarchy {}", file)))
+            }
+            "incomingCalls" => {
+                let result = format!("Incoming calls at {}:{}:{} (LSP placeholder)", file, line, character);
+                Ok(ToolResult::ok(result).with_title(format!("Incoming Calls {}", file)))
+            }
+            "outgoingCalls" => {
+                let result = format!("Outgoing calls at {}:{}:{} (LSP placeholder)", file, line, character);
+                Ok(ToolResult::ok(result).with_title(format!("Outgoing Calls {}", file)))
+            }
+            _ => {
+                Err(OpenCodeError::Tool(format!(
+                    "Unknown LSP operation: {}. Supported: goToDefinition, findReferences, hover, documentSymbol, workspaceSymbol, goToImplementation, prepareCallHierarchy, incomingCalls, outgoingCalls",
+                    args.operation
                 )))
             }
-            "find_references" => {
-                let symbol = args.symbol.unwrap_or_default();
-
-                Ok(ToolResult::ok(format!(
-                    "Find references for '{}' (placeholder)",
-                    symbol
-                )))
-            }
-            "completion" => {
-                let file = args.file.unwrap_or_default();
-                let line = args.line.unwrap_or(0);
-                let column = args.column.unwrap_or(0);
-
-                Ok(ToolResult::ok(format!(
-                    "Code completion at {}:{}:{} (placeholder)",
-                    file, line, column
-                )))
-            }
-            "diagnostics" => {
-                let file = args.file.unwrap_or_default();
-
-                Ok(ToolResult::ok(format!(
-                    "Diagnostics for '{}' (placeholder)",
-                    file
-                )))
-            }
-            _ => Err(OpenCodeError::Tool(format!(
-                "Unknown LSP action: {}",
-                args.action
-            ))),
         }
     }
 }

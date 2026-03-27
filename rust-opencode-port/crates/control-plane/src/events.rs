@@ -1,0 +1,35 @@
+use tokio::sync::broadcast;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum Event {
+    FileChanged(String),
+    SessionUpdated(String),
+    ConfigChanged,
+    AgentStatusChanged(String),
+}
+
+pub struct EventBus {
+    tx: broadcast::Sender<Event>,
+}
+
+impl EventBus {
+    pub fn new() -> Self {
+        let (tx, _) = broadcast::channel(100);
+        Self { tx }
+    }
+
+    pub fn subscribe(&self) -> broadcast::Receiver<Event> {
+        self.tx.subscribe()
+    }
+
+    pub fn publish(&self, event: Event) {
+        let _ = self.tx.send(event);
+    }
+}
+
+impl Default for EventBus {
+    fn default() -> Self {
+        Self::new()
+    }
+}

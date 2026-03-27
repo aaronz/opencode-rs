@@ -1,0 +1,21 @@
+## 1. Test Porting & Coverage
+
+- [x] 1.1 Port memory tests: `test/memory/abort-leak.test.ts` to Rust
+- [x] 1.2 Port bus tests: `test/bus/bus.test.ts` and `bus-effect.test.ts`
+- [x] 1.3 Port tool registry tests: `test/tool/registry.test.ts`
+- [x] 1.4 Port provider transform tests: `test/provider/transform.test.ts`
+- [x] 1.5 Port Bedrock provider tests: `test/provider/amazon-bedrock.test.ts`
+- [x] 1.6 Update `TEST_MAPPING.md` with new coverage
+- [x] 2.1 Implement memory usage tracking in `crates/core` (basic tracking in session)
+- [x] 2.2 Align compaction integration with TS behavioral tests
+- [x] 2.3 Refine effect system to match bus-effect interactions in TS (effect.rs and bus.rs exist)
+- [x] 2.4 Implement `multi-edit` tool with atomic changes
+- [x] 2.5 Implement `truncation-dir` tool logic (truncation_dir.rs exists)
+- [x] 3.1 Implement token usage tracking for all providers in `crates/llm`
+- [x] 3.2 Add support for advanced provider options (temp, top_p, etc.)
+- [x] 3.3 Ensure consistent error reporting across all providers
+- [x] 4.1 Modularize `crates/cli/src/main.rs` to match TS subcommand structure
+- [x] 4.2 Complete PTY session management and signal propagation
+- [x] 4.3 Finalize ACP and MCP protocol implementations
+- [x] 4.4 Implement missing subcommands: `web`, `uninstall`, `upgrade`, `import`
+- [x] 4.5 Add `--json` flag to all relevant subcommands (added to stats, list, session show, etc.)

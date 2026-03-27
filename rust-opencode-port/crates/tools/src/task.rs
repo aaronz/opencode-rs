@@ -1,14 +1,18 @@
 use async_trait::async_trait;
 use serde::Deserialize;
-use crate::{Tool, ToolResult};
-use opencode_core::OpenCodeError;
+use uuid::Uuid;
+use crate::{Tool, ToolContext, ToolResult};
+use opencode_core::{Session, Message, OpenCodeError};
 
 pub struct TaskTool;
 
 #[derive(Deserialize)]
 struct TaskArgs {
     description: String,
-    _prompt: String,
+    prompt: String,
+    subagent_type: String,
+    task_id: Option<String>,
+    command: Option<String>,
 }
 
 #[async_trait]
@@ -18,21 +22,36 @@ impl Tool for TaskTool {
     }
 
     fn description(&self) -> &str {
-        "Spawn subagents"
+        "Spawn subagents to perform specialized tasks. The subagent will execute in a new session context."
     }
 
     fn clone_tool(&self) -> Box<dyn Tool> {
         Box::new(TaskTool)
     }
 
-    async fn execute(&self, args: serde_json::Value) -> Result<ToolResult, OpenCodeError> {
+    async fn execute(&self, args: serde_json::Value, ctx: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
         let args: TaskArgs = serde_json::from_value(args)
             .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
+        let session_id = match args.task_id.as_ref() {
+            Some(id) => Uuid::parse_str(id).unwrap_or_else(|_| Uuid::new_v4()),
+            None => Uuid::new_v4(),
+        };
+
+        let mut session = Session::new();
+        session.id = session_id;
+        
+        session.add_message(Message::user(format!(
+            "Task: {}\n\nInstructions:\n{}",
+            args.description, args.prompt
+        )));
+
         Ok(ToolResult::ok(format!(
-            "Task '{}' spawned (placeholder).\n\n\
-            Subagents provide specialized task execution.",
-            args.description
-        )))
+            "task_id: {}\n\nSubagent '{}' task created with description: {}\n\nThe subagent will process the following instructions:\n{}\n\nTo continue this task later, use the task_id: {}",
+            session.id, args.subagent_type, args.description, args.prompt, session.id
+        )).with_metadata(serde_json::json!({
+            "sessionId": session.id.to_string(),
+            "subagentType": args.subagent_type
+        })))
     }
 }

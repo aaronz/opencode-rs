@@ -37,3 +37,37 @@ impl Message {
         Self::new(Role::System, content.into())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_message_user() {
+        let msg = Message::user("Hello");
+        assert_eq!(msg.role, Role::User);
+        assert_eq!(msg.content, "Hello");
+    }
+
+    #[test]
+    fn test_message_assistant() {
+        let msg = Message::assistant("Response");
+        assert_eq!(msg.role, Role::Assistant);
+        assert_eq!(msg.content, "Response");
+    }
+
+    #[test]
+    fn test_message_system() {
+        let msg = Message::system("System prompt");
+        assert_eq!(msg.role, Role::System);
+        assert_eq!(msg.content, "System prompt");
+    }
+
+    #[test]
+    fn test_message_serialization() {
+        let msg = Message::user("test");
+        let json = serde_json::to_string(&msg).unwrap();
+        assert!(json.contains("user"));
+        assert!(json.contains("test"));
+    }
+}

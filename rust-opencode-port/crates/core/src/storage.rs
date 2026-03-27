@@ -53,3 +53,69 @@ impl Storage {
         Ok(keys)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_storage_save_load() {
+        let tmp = TempDir::new().unwrap();
+        let storage = Storage::new(tmp.path().to_path_buf());
+
+        #[derive(Serialize, Deserialize, PartialEq, Debug)]
+        struct Data {
+            value: i32,
+        }
+
+        storage.save("test", &Data { value: 42 }).unwrap();
+        let loaded: Data = storage.load("test").unwrap();
+
+        assert_eq!(loaded.value, 42);
+    }
+
+    #[test]
+    fn test_storage_exists() {
+        let tmp = TempDir::new().unwrap();
+        let storage = Storage::new(tmp.path().to_path_buf());
+
+        assert!(!storage.exists("test"));
+        storage.save("test", &"data").unwrap();
+        assert!(storage.exists("test"));
+    }
+
+    #[test]
+    fn test_storage_delete() {
+        let tmp = TempDir::new().unwrap();
+        let storage = Storage::new(tmp.path().to_path_buf());
+
+        storage.save("test", &"data").unwrap();
+        assert!(storage.exists("test"));
+
+        storage.delete("test").unwrap();
+        assert!(!storage.exists("test"));
+    }
+
+    #[test]
+    fn test_storage_list_keys() {
+        let tmp = TempDir::new().unwrap();
+        let storage = Storage::new(tmp.path().to_path_buf());
+
+        storage.save("key1", &"data1").unwrap();
+        storage.save("key2", &"data2").unwrap();
+
+        let keys = storage.list_keys().unwrap();
+        assert!(keys.contains(&"key1".to_string()));
+        assert!(keys.contains(&"key2".to_string()));
+    }
+
+    #[test]
+    fn test_storage_load_not_found() {
+        let tmp = TempDir::new().unwrap();
+        let storage = Storage::new(tmp.path().to_path_buf());
+
+        let result: Result<String, _> = storage.load("nonexistent");
+        assert!(result.is_err());
+    }
+}

@@ -1,5 +1,29 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::env;
+
+fn truthy(key: &str) -> bool {
+    env::var(key)
+        .map(|v| v.to_lowercase() == "true" || v == "1")
+        .unwrap_or(false)
+}
+
+fn falsy(key: &str) -> bool {
+    env::var(key)
+        .map(|v| v.to_lowercase() == "false" || v == "0")
+        .unwrap_or(false)
+}
+
+fn get_string(key: &str) -> Option<String> {
+    env::var(key).ok()
+}
+
+fn get_number(key: &str) -> Option<u64> {
+    env::var(key)
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .filter(|n: &u64| *n > 0)
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Flag {
@@ -11,12 +35,17 @@ pub struct Flag {
 
 pub struct FlagManager {
     flags: HashMap<String, Flag>,
+    string_flags: HashMap<String, Option<String>>,
+    number_flags: HashMap<String, Option<u64>>,
 }
 
 impl FlagManager {
     pub fn new() -> Self {
         let mut flags = HashMap::new();
+        let mut string_flags = HashMap::new();
+        let mut number_flags = HashMap::new();
 
+        // Basic flags
         flags.insert(
             "OPENCODE_EXPERIMENTAL".to_string(),
             Flag {
@@ -37,11 +66,315 @@ impl FlagManager {
             },
         );
 
-        Self { flags }
+        // Client type flags
+        flags.insert(
+            "OPENCODE_AUTO_SHARE".to_string(),
+            Flag {
+                name: "OPENCODE_AUTO_SHARE".to_string(),
+                description: "Auto-share sessions".to_string(),
+                default: false,
+                value: false,
+            },
+        );
+
+        flags.insert(
+            "OPENCODE_DISABLE_AUTOUPDATE".to_string(),
+            Flag {
+                name: "OPENCODE_DISABLE_AUTOUPDATE".to_string(),
+                description: "Disable auto-update".to_string(),
+                default: false,
+                value: false,
+            },
+        );
+
+        flags.insert(
+            "OPENCODE_ALWAYS_NOTIFY_UPDATE".to_string(),
+            Flag {
+                name: "OPENCODE_ALWAYS_NOTIFY_UPDATE".to_string(),
+                description: "Always notify about updates".to_string(),
+                default: false,
+                value: false,
+            },
+        );
+
+        flags.insert(
+            "OPENCODE_DISABLE_PRUNE".to_string(),
+            Flag {
+                name: "OPENCODE_DISABLE_PRUNE".to_string(),
+                description: "Disable pruning".to_string(),
+                default: false,
+                value: false,
+            },
+        );
+
+        flags.insert(
+            "OPENCODE_DISABLE_TERMINAL_TITLE".to_string(),
+            Flag {
+                name: "OPENCODE_DISABLE_TERMINAL_TITLE".to_string(),
+                description: "Disable terminal title".to_string(),
+                default: false,
+                value: false,
+            },
+        );
+
+        flags.insert(
+            "OPENCODE_DISABLE_DEFAULT_PLUGINS".to_string(),
+            Flag {
+                name: "OPENCODE_DISABLE_DEFAULT_PLUGINS".to_string(),
+                description: "Disable default plugins".to_string(),
+                default: false,
+                value: false,
+            },
+        );
+
+        flags.insert(
+            "OPENCODE_DISABLE_LSP_DOWNLOAD".to_string(),
+            Flag {
+                name: "OPENCODE_DISABLE_LSP_DOWNLOAD".to_string(),
+                description: "Disable LSP download".to_string(),
+                default: false,
+                value: false,
+            },
+        );
+
+        flags.insert(
+            "OPENCODE_ENABLE_EXPERIMENTAL_MODELS".to_string(),
+            Flag {
+                name: "OPENCODE_ENABLE_EXPERIMENTAL_MODELS".to_string(),
+                description: "Enable experimental models".to_string(),
+                default: false,
+                value: false,
+            },
+        );
+
+        flags.insert(
+            "OPENCODE_DISABLE_AUTOCOMPACT".to_string(),
+            Flag {
+                name: "OPENCODE_DISABLE_AUTOCOMPACT".to_string(),
+                description: "Disable auto-compaction".to_string(),
+                default: false,
+                value: false,
+            },
+        );
+
+        flags.insert(
+            "OPENCODE_DISABLE_MODELS_FETCH".to_string(),
+            Flag {
+                name: "OPENCODE_DISABLE_MODELS_FETCH".to_string(),
+                description: "Disable models fetch".to_string(),
+                default: false,
+                value: false,
+            },
+        );
+
+        flags.insert(
+            "OPENCODE_DISABLE_CLAUDE_CODE".to_string(),
+            Flag {
+                name: "OPENCODE_DISABLE_CLAUDE_CODE".to_string(),
+                description: "Disable Claude Code features".to_string(),
+                default: false,
+                value: false,
+            },
+        );
+
+        flags.insert(
+            "OPENCODE_ENABLE_QUESTION_TOOL".to_string(),
+            Flag {
+                name: "OPENCODE_ENABLE_QUESTION_TOOL".to_string(),
+                description: "Enable question tool".to_string(),
+                default: false,
+                value: false,
+            },
+        );
+
+        // Experimental flags
+        flags.insert(
+            "OPENCODE_EXPERIMENTAL_FILEWATCHER".to_string(),
+            Flag {
+                name: "OPENCODE_EXPERIMENTAL_FILEWATCHER".to_string(),
+                description: "Enable experimental file watcher".to_string(),
+                default: false,
+                value: false,
+            },
+        );
+
+        flags.insert(
+            "OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER".to_string(),
+            Flag {
+                name: "OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER".to_string(),
+                description: "Disable file watcher".to_string(),
+                default: false,
+                value: false,
+            },
+        );
+
+        flags.insert(
+            "OPENCODE_EXPERIMENTAL_ICON_DISCOVERY".to_string(),
+            Flag {
+                name: "OPENCODE_EXPERIMENTAL_ICON_DISCOVERY".to_string(),
+                description: "Enable icon discovery".to_string(),
+                default: false,
+                value: false,
+            },
+        );
+
+        flags.insert(
+            "OPENCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT".to_string(),
+            Flag {
+                name: "OPENCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT".to_string(),
+                description: "Disable copy on select".to_string(),
+                default: cfg!(windows),
+                value: cfg!(windows),
+            },
+        );
+
+        flags.insert(
+            "OPENCODE_ENABLE_EXA".to_string(),
+            Flag {
+                name: "OPENCODE_ENABLE_EXA".to_string(),
+                description: "Enable Exa web search".to_string(),
+                default: false,
+                value: false,
+            },
+        );
+
+        flags.insert(
+            "OPENCODE_EXPERIMENTAL_OXFMT".to_string(),
+            Flag {
+                name: "OPENCODE_EXPERIMENTAL_OXFMT".to_string(),
+                description: "Enable oxfmt".to_string(),
+                default: false,
+                value: false,
+            },
+        );
+
+        flags.insert(
+            "OPENCODE_EXPERIMENTAL_LSP_TY".to_string(),
+            Flag {
+                name: "OPENCODE_EXPERIMENTAL_LSP_TY".to_string(),
+                description: "Enable LSP ty".to_string(),
+                default: false,
+                value: false,
+            },
+        );
+
+        flags.insert(
+            "OPENCODE_EXPERIMENTAL_LSP_TOOL".to_string(),
+            Flag {
+                name: "OPENCODE_EXPERIMENTAL_LSP_TOOL".to_string(),
+                description: "Enable LSP tool".to_string(),
+                default: false,
+                value: false,
+            },
+        );
+
+        flags.insert(
+            "OPENCODE_DISABLE_FILETIME_CHECK".to_string(),
+            Flag {
+                name: "OPENCODE_DISABLE_FILETIME_CHECK".to_string(),
+                description: "Disable file time check".to_string(),
+                default: false,
+                value: false,
+            },
+        );
+
+        flags.insert(
+            "OPENCODE_EXPERIMENTAL_PLAN_MODE".to_string(),
+            Flag {
+                name: "OPENCODE_EXPERIMENTAL_PLAN_MODE".to_string(),
+                description: "Enable plan mode".to_string(),
+                default: false,
+                value: false,
+            },
+        );
+
+        flags.insert(
+            "OPENCODE_EXPERIMENTAL_WORKSPACES".to_string(),
+            Flag {
+                name: "OPENCODE_EXPERIMENTAL_WORKSPACES".to_string(),
+                description: "Enable workspaces".to_string(),
+                default: false,
+                value: false,
+            },
+        );
+
+        flags.insert(
+            "OPENCODE_EXPERIMENTAL_MARKDOWN".to_string(),
+            Flag {
+                name: "OPENCODE_EXPERIMENTAL_MARKDOWN".to_string(),
+                description: "Enable markdown".to_string(),
+                default: true,
+                value: true,
+            },
+        );
+
+        flags.insert(
+            "OPENCODE_DISABLE_CHANNEL_DB".to_string(),
+            Flag {
+                name: "OPENCODE_DISABLE_CHANNEL_DB".to_string(),
+                description: "Disable channel DB".to_string(),
+                default: false,
+                value: false,
+            },
+        );
+
+        flags.insert(
+            "OPENCODE_SKIP_MIGRATIONS".to_string(),
+            Flag {
+                name: "OPENCODE_SKIP_MIGRATIONS".to_string(),
+                description: "Skip migrations".to_string(),
+                default: false,
+                value: false,
+            },
+        );
+
+        flags.insert(
+            "OPENCODE_STRICT_CONFIG_DEPS".to_string(),
+            Flag {
+                name: "OPENCODE_STRICT_CONFIG_DEPS".to_string(),
+                description: "Strict config deps".to_string(),
+                default: false,
+                value: false,
+            },
+        );
+
+        // String flags
+        string_flags.insert("OPENCODE_GIT_BASH_PATH".to_string(), None);
+        string_flags.insert("OPENCODE_CONFIG".to_string(), None);
+        string_flags.insert("OPENCODE_CONFIG_CONTENT".to_string(), None);
+        string_flags.insert("OPENCODE_PERMISSION".to_string(), None);
+        string_flags.insert("OPENCODE_FAKE_VCS".to_string(), None);
+        string_flags.insert("OPENCODE_CLIENT".to_string(), None);
+        string_flags.insert("OPENCODE_SERVER_PASSWORD".to_string(), None);
+        string_flags.insert("OPENCODE_SERVER_USERNAME".to_string(), None);
+        string_flags.insert("OPENCODE_MODELS_URL".to_string(), None);
+        string_flags.insert("OPENCODE_MODELS_PATH".to_string(), None);
+        string_flags.insert("OPENCODE_DB".to_string(), None);
+
+        // Number flags
+        number_flags.insert(
+            "OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS".to_string(),
+            None,
+        );
+        number_flags.insert("OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX".to_string(), None);
+
+        Self {
+            flags,
+            string_flags,
+            number_flags,
+        }
     }
 
     pub fn get(&self, name: &str) -> Option<bool> {
         self.flags.get(name).map(|f| f.value)
+    }
+
+    pub fn get_string(&self, name: &str) -> Option<String> {
+        self.string_flags.get(name).and_then(|v| v.clone())
+    }
+
+    pub fn get_number(&self, name: &str) -> Option<u64> {
+        self.number_flags.get(name).and_then(|v| *v)
     }
 
     pub fn set(&mut self, name: &str, value: bool) {
@@ -55,11 +388,67 @@ impl FlagManager {
     }
 
     pub fn load_from_env(&mut self) {
+        // Load boolean flags
         for (name, flag) in self.flags.iter_mut() {
-            if let Ok(val) = std::env::var(name) {
+            if let Ok(val) = env::var(name) {
                 flag.value = val == "1" || val.to_lowercase() == "true";
             }
         }
+
+        // Load string flags
+        for (name, value) in self.string_flags.iter_mut() {
+            if let Ok(val) = env::var(name) {
+                *value = Some(val);
+            }
+        }
+
+        // Load number flags
+        for (name, value) in self.number_flags.iter_mut() {
+            if let Ok(val) = env::var(name) {
+                if let Ok(parsed) = val.parse::<u64>() {
+                    if parsed > 0 {
+                        *value = Some(parsed);
+                    }
+                }
+            }
+        }
+    }
+
+    // Convenience methods that match TypeScript API
+    pub fn opencode_auto_share(&self) -> bool {
+        self.get("OPENCODE_AUTO_SHARE").unwrap_or(false)
+    }
+
+    pub fn opencode_client(&self) -> String {
+        self.get_string("OPENCODE_CLIENT")
+            .unwrap_or_else(|| "cli".to_string())
+    }
+
+    pub fn opencode_enable_question_tool(&self) -> bool {
+        self.get("OPENCODE_ENABLE_QUESTION_TOOL").unwrap_or(false)
+    }
+
+    pub fn opencode_experimental(&self) -> bool {
+        self.get("OPENCODE_EXPERIMENTAL").unwrap_or(false)
+    }
+
+    pub fn opencode_enable_exa(&self) -> bool {
+        self.get("OPENCODE_ENABLE_EXA").unwrap_or(false)
+            || self.opencode_experimental()
+            || truthy("OPENCODE_EXPERIMENTAL_EXA")
+    }
+
+    pub fn opencode_experimental_plan_mode(&self) -> bool {
+        self.opencode_experimental() || self.get("OPENCODE_EXPERIMENTAL_PLAN_MODE").unwrap_or(false)
+    }
+
+    pub fn opencode_experimental_lsp_tool(&self) -> bool {
+        self.opencode_experimental() || self.get("OPENCODE_EXPERIMENTAL_LSP_TOOL").unwrap_or(false)
+    }
+
+    pub fn opencode_experimental_bash_timeout_ms(&self) -> Option<u64> {
+        self.get_number("OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS")
+            .or(Some(120000)) // Default 2 minutes
     }
 }
 

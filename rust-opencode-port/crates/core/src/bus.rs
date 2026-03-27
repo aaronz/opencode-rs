@@ -58,3 +58,52 @@ impl Clone for EventBus {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Debug, Clone)]
+    struct TestEvent {
+        message: String,
+    }
+
+    impl Event for TestEvent {
+        fn event_type(&self) -> &'static str {
+            "TestEvent"
+        }
+    }
+
+    #[tokio::test]
+    async fn test_event_bus_subscribe() {
+        let bus = EventBus::new();
+        let mut rx = bus.subscribe::<TestEvent>().await;
+        
+        bus.publish(TestEvent { message: "test".to_string() }).await;
+        
+        let event = rx.recv().await.unwrap();
+        assert_eq!(event.message, "test");
+    }
+
+    #[tokio::test]
+    async fn test_event_bus_publish_multiple() {
+        let bus = EventBus::new();
+        let mut rx1 = bus.subscribe::<TestEvent>().await;
+        let mut rx2 = bus.subscribe::<TestEvent>().await;
+        
+        bus.publish(TestEvent { message: "hello".to_string() }).await;
+        
+        let event1 = rx1.recv().await.unwrap();
+        let event2 = rx2.recv().await.unwrap();
+        
+        assert_eq!(event1.message, "hello");
+        assert_eq!(event2.message, "hello");
+    }
+
+    #[tokio::test]
+    async fn test_event_bus_no_subscribers() {
+        let bus = EventBus::new();
+        
+        bus.publish(TestEvent { message: "no subscriber".to_string() }).await;
+    }
+}

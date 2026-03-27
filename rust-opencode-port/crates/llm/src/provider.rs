@@ -2,6 +2,40 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use opencode_core::{Message, OpenCodeError};
 
+pub type StreamingCallback = Box<dyn FnMut(String) + Send>;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Model {
+    pub id: String,
+    pub name: String,
+}
+
+impl Model {
+    pub fn new(id: &str, name: &str) -> Self {
+        Self {
+            id: id.to_string(),
+            name: name.to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProviderConfig {
+    pub model: String,
+    pub api_key: String,
+    pub temperature: f32,
+}
+
+impl Default for ProviderConfig {
+    fn default() -> Self {
+        Self {
+            model: "gpt-4o".to_string(),
+            api_key: String::new(),
+            temperature: 0.7,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatMessage {
     pub role: String,
@@ -35,9 +69,89 @@ pub struct StreamChunk {
 
 #[async_trait]
 pub trait Provider: Send + Sync {
-    async fn chat(&self, messages: &[ChatMessage]) -> Result<ChatResponse, OpenCodeError>;
-    async fn stream_chat(
+    async fn complete(&self, prompt: &str, context: Option<&str>) -> Result<String, OpenCodeError>;
+    async fn complete_streaming(
         &self,
-        messages: &[ChatMessage],
-    ) -> Result<tokio::sync::mpsc::Receiver<Result<StreamChunk, OpenCodeError>>, OpenCodeError>;
+        prompt: &str,
+        mut callback: StreamingCallback,
+    ) -> Result<(), OpenCodeError> {
+        let content = self.complete(prompt, None).await?;
+        callback(content);
+        Ok(())
+    }
+
+    async fn chat(&self, messages: &[ChatMessage]) -> Result<ChatResponse, OpenCodeError> {
+        let prompt = messages
+            .iter()
+            .map(|m| format!("{}: {}", m.role, m.content))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let content = self.complete(&prompt, None).await?;
+        Ok(ChatResponse {
+            content,
+            model: String::new(),
+        })
+    }
+
+    fn get_models(&self) -> Vec<Model> {
+        vec![]
+    }
+
+    fn provider_name(&self) -> &str {
+        "unknown"
+    }
+}
+
+pub trait SimpleProvider: Send + Sync {
+    fn get_models(&self) -> Vec<Model>;
+    fn provider_name(&self) -> &str;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_model_new() {
+        let model = Model::new("gpt-4", "GPT-4");
+        assert_eq!(model.id, "gpt-4");
+        assert_eq!(model.name, "GPT-4");
+    }
+
+    #[test]
+    fn test_chat_message_from_message() {
+        let msg = opencode_core::Message {
+            role: opencode_core::Role::User,
+            content: "Hello".to_string(),
+            timestamp: chrono::Utc::now(),
+        };
+        let chat_msg = ChatMessage::from(&msg);
+        assert_eq!(chat_msg.role, "user");
+        assert_eq!(chat_msg.content, "Hello");
+    }
+
+    #[test]
+    fn test_provider_config_default() {
+        let config = ProviderConfig::default();
+        assert_eq!(config.model, "gpt-4o");
+        assert_eq!(config.temperature, 0.7);
+        assert!(config.api_key.is_empty());
+    }
+
+    #[test]
+    fn test_simple_provider_trait() {
+        struct TestProvider;
+        impl SimpleProvider for TestProvider {
+            fn get_models(&self) -> Vec<Model> {
+                vec![Model::new("test-model", "Test Model")]
+            }
+            fn provider_name(&self) -> &str {
+                "test"
+            }
+        }
+        
+        let provider = TestProvider;
+        assert_eq!(provider.provider_name(), "test");
+        assert_eq!(provider.get_models().len(), 1);
+    }
 }

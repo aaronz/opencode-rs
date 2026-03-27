@@ -125,3 +125,54 @@ impl Session {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_session_new() {
+        let session = Session::new();
+        assert!(!session.id.is_nil());
+        assert!(session.messages.is_empty());
+        assert_eq!(session.created_at, session.updated_at);
+    }
+
+    #[test]
+    fn test_session_add_message() {
+        let mut session = Session::new();
+        let msg = Message::user("Hello".to_string());
+        session.add_message(msg);
+
+        assert_eq!(session.messages.len(), 1);
+        assert!(session.updated_at >= session.created_at);
+    }
+
+    #[test]
+    fn test_session_save_load() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("session.json");
+
+        let mut session = Session::new();
+        session.add_message(Message::user("Test message".to_string()));
+
+        session.save(&path).unwrap();
+        let loaded = Session::load(&path).unwrap();
+
+        assert_eq!(loaded.id, session.id);
+        assert_eq!(loaded.messages.len(), 1);
+        assert_eq!(loaded.messages[0].content, "Test message");
+    }
+
+    #[test]
+    fn test_session_truncate() {
+        let mut session = Session::new();
+        session.add_message(Message::user("A".repeat(100)));
+        session.add_message(Message::assistant("B".repeat(100)));
+
+        session.truncate_for_context(10);
+
+        assert!(session.messages.len() < 2);
+    }
+}

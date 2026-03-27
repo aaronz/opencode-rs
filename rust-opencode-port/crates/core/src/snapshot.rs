@@ -50,3 +50,61 @@ impl Default for SnapshotManager {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_snapshot_manager_new() {
+        let sm = SnapshotManager::new();
+        assert!(sm.list().is_empty());
+    }
+
+    #[test]
+    fn test_snapshot_manager_create() {
+        let mut sm = SnapshotManager::new();
+        let mut files = HashMap::new();
+        files.insert("test.txt".to_string(), "content".to_string());
+
+        let snapshot = sm.create("Test snapshot".to_string(), files);
+
+        assert!(!snapshot.id.is_empty());
+        assert_eq!(snapshot.description, "Test snapshot");
+    }
+
+    #[test]
+    fn test_snapshot_manager_get() {
+        let mut sm = SnapshotManager::new();
+        let mut files = HashMap::new();
+        files.insert("test.txt".to_string(), "content".to_string());
+
+        let snapshot = sm.create("Test".to_string(), files);
+        let id = snapshot.id.clone();
+
+        assert!(sm.get(&id).is_some());
+    }
+
+    #[test]
+    fn test_snapshot_manager_list() {
+        let mut sm = SnapshotManager::new();
+        let files: HashMap<String, String> = HashMap::new();
+        sm.create("snapshot1".to_string(), files.clone());
+        sm.create("snapshot2".to_string(), files);
+
+        assert_eq!(sm.list().len(), 2);
+    }
+
+    #[test]
+    fn test_snapshot_manager_revert() {
+        let mut sm = SnapshotManager::new();
+        let mut files = HashMap::new();
+        files.insert("file.txt".to_string(), "content".to_string());
+
+        let snapshot = sm.create("Test".to_string(), files);
+
+        let reverted = sm.revert(&snapshot.id);
+        assert!(reverted.is_some());
+    }
+}

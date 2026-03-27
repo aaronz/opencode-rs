@@ -1,0 +1,10 @@
+[package]
+name = "opencode-git"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+opencode-core = { path = "../core" }
+git2 = { workspace = true }

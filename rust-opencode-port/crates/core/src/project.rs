@@ -84,3 +84,78 @@ impl Default for ProjectManager {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_project_manager_new() {
+        let pm = ProjectManager::new();
+        assert!(pm.current().is_none());
+    }
+
+    #[test]
+    fn test_project_detect_rust() {
+        let tmp = TempDir::new().unwrap();
+        std::fs::write(tmp.path().join("Cargo.toml"), "").unwrap();
+
+        let info = ProjectManager::detect(tmp.path().to_path_buf()).unwrap();
+        assert_eq!(info.language, "rust");
+    }
+
+    #[test]
+    fn test_project_detect_javascript() {
+        let tmp = TempDir::new().unwrap();
+        std::fs::write(tmp.path().join("package.json"), "{}").unwrap();
+
+        let info = ProjectManager::detect(tmp.path().to_path_buf()).unwrap();
+        assert_eq!(info.language, "javascript");
+    }
+
+    #[test]
+    fn test_project_detect_git() {
+        let tmp = TempDir::new().unwrap();
+        std::fs::create_dir(tmp.path().join(".git")).unwrap();
+
+        let info = ProjectManager::detect(tmp.path().to_path_buf()).unwrap();
+        assert!(info.has_git);
+    }
+
+    #[test]
+    fn test_project_detect_nonexistent() {
+        let info = ProjectManager::detect(PathBuf::from("/nonexistent/path"));
+        assert!(info.is_none());
+    }
+
+    #[test]
+    fn test_project_manager_set_current() {
+        let mut pm = ProjectManager::new();
+        let info = ProjectInfo {
+            root: PathBuf::from("/test"),
+            name: "test".to_string(),
+            language: "rust".to_string(),
+            has_git: false,
+            has_tests: false,
+            has_docs: false,
+        };
+        pm.set_current(info);
+        assert!(pm.current().is_some());
+    }
+
+    #[test]
+    fn test_project_is_rust() {
+        let mut pm = ProjectManager::new();
+        pm.set_current(ProjectInfo {
+            root: PathBuf::from("/test"),
+            name: "test".to_string(),
+            language: "rust".to_string(),
+            has_git: false,
+            has_tests: false,
+            has_docs: false,
+        });
+        assert!(pm.is_rust());
+        assert!(!pm.is_typescript());
+    }
+}

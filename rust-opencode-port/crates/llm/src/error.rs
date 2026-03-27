@@ -10,6 +10,10 @@ pub enum LlmError {
     ServerError(String),
     NetworkError(String),
     ValidationError(String),
+    Parse(String),
+    Provider(String),
+    Auth(String),
+    Other(String),
 }
 
 impl std::fmt::Display for LlmError {
@@ -28,6 +32,10 @@ impl std::fmt::Display for LlmError {
             LlmError::ServerError(msg) => write!(f, "Server error: {}", msg),
             LlmError::NetworkError(msg) => write!(f, "Network error: {}", msg),
             LlmError::ValidationError(msg) => write!(f, "Validation error: {}", msg),
+            LlmError::Parse(msg) => write!(f, "Parse error: {}", msg),
+            LlmError::Provider(msg) => write!(f, "Provider error: {}", msg),
+            LlmError::Auth(msg) => write!(f, "Auth error: {}", msg),
+            LlmError::Other(msg) => write!(f, "Error: {}", msg),
         }
     }
 }

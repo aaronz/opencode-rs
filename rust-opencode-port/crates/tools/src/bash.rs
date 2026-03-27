@@ -48,7 +48,7 @@ impl Tool for BashTool {
         Box::new(BashTool::new())
     }
 
-    async fn execute(&self, args: serde_json::Value) -> Result<ToolResult, OpenCodeError> {
+    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
         let args: BashArgs = serde_json::from_value(args)
             .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
@@ -106,6 +106,12 @@ impl Tool for BashTool {
                     } else {
                         None
                     },
+                    title: None,
+                    metadata: Some(serde_json::json!({
+                        "exitCode": output.status.code(),
+                        "time": elapsed.as_secs_f64(),
+                        "description": description
+                    })),
                 })
             }
             Ok(Err(e)) => Err(e),

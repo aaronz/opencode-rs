@@ -1,0 +1,24 @@
+use async_trait::async_trait;
+use crate::{Tool, ToolResult};
+use opencode_core::OpenCodeError;
+
+pub struct PlanExitTool;
+
+#[async_trait]
+impl Tool for PlanExitTool {
+    fn name(&self) -> &str {
+        "plan_exit"
+    }
+
+    fn description(&self) -> &str {
+        "Use this tool when you have completed the planning phase and are ready to exit plan agent.\n\nThis tool will ask the user if they want to switch to build agent to start implementing the plan.\n\nCall this tool:\n- After you have written a complete plan to the plan file\n- After you have clarified any questions with the user\n- When you are confident the plan is ready for implementation\n\nDo NOT call this tool:\n- Before you have created or finalized the plan\n- If you still have unanswered questions about the implementation\n- If the user has indicated they want to continue planning"
+    }
+
+    fn clone_tool(&self) -> Box<dyn Tool> {
+        Box::new(PlanExitTool)
+    }
+
+    async fn execute(&self, _args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
+        Ok(ToolResult::ok("Plan exit: switch to build agent to start implementing"))
+    }
+}

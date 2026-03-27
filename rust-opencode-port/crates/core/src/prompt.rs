@@ -72,3 +72,56 @@ impl Default for PromptManager {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_prompt_manager_new() {
+        let pm = PromptManager::new();
+        assert!(pm.get("system").is_some());
+        assert!(pm.get("user").is_some());
+    }
+
+    #[test]
+    fn test_prompt_manager_get() {
+        let pm = PromptManager::new();
+        let template = pm.get("system");
+        assert!(template.is_some());
+        assert!(template.unwrap().content.contains("OpenCode"));
+    }
+
+    #[test]
+    fn test_prompt_manager_add_template() {
+        let mut pm = PromptManager::new();
+        pm.add_template(PromptTemplate {
+            name: "custom".to_string(),
+            content: "Hello {{name}}".to_string(),
+            variables: vec!["name".to_string()],
+        });
+
+        assert!(pm.get("custom").is_some());
+    }
+
+    #[test]
+    fn test_prompt_manager_render() {
+        let pm = PromptManager::new();
+        let mut vars = HashMap::new();
+        vars.insert("message".to_string(), "Hello World".to_string());
+
+        let result = pm.render("user", &vars);
+        assert!(result.is_some());
+        assert!(result.unwrap().contains("Hello World"));
+    }
+
+    #[test]
+    fn test_prompt_manager_render_missing_template() {
+        let pm = PromptManager::new();
+        let vars = HashMap::new();
+
+        let result = pm.render("nonexistent", &vars);
+        assert!(result.is_none());
+    }
+}

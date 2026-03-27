@@ -64,3 +64,44 @@ impl SummaryGenerator {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Message;
+
+    #[test]
+    fn test_summary_generator_empty_session() {
+        let session = Session::new();
+        let summary = SummaryGenerator::generate(&session);
+        assert_eq!(summary.message_count, 0);
+        assert_eq!(summary.user_messages, 0);
+        assert_eq!(summary.assistant_messages, 0);
+    }
+
+    #[test]
+    fn test_summary_generator_with_messages() {
+        let mut session = Session::new();
+        session.add_message(Message::user(
+            "Hello, this is a long message about coding in Rust".to_string(),
+        ));
+        session.add_message(Message::assistant(
+            "I can help you with Rust programming".to_string(),
+        ));
+
+        let summary = SummaryGenerator::generate(&session);
+        assert_eq!(summary.message_count, 2);
+        assert_eq!(summary.user_messages, 1);
+        assert_eq!(summary.assistant_messages, 1);
+    }
+
+    #[test]
+    fn test_summarize_text() {
+        let mut session = Session::new();
+        session.add_message(Message::user("Test message".to_string()));
+
+        let result = SummaryGenerator::summarize_text(&session);
+        assert!(result.contains("Session"));
+        assert!(result.contains("Messages:"));
+    }
+}

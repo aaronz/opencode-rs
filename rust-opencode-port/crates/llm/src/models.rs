@@ -118,6 +118,200 @@ impl ModelRegistry {
             },
         );
 
+        // Azure OpenAI models
+        models.insert(
+            "gpt-4o-azure".to_string(),
+            ModelInfo {
+                name: "gpt-4o-azure".to_string(),
+                provider: "azure".to_string(),
+                max_tokens: 16384,
+                max_input_tokens: 128000,
+                supports_functions: true,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.005,
+            },
+        );
+
+        // Google models
+        models.insert(
+            "gemini-1.5-pro".to_string(),
+            ModelInfo {
+                name: "gemini-1.5-pro".to_string(),
+                provider: "google".to_string(),
+                max_tokens: 8192,
+                max_input_tokens: 2000000,
+                supports_functions: false,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.00125,
+            },
+        );
+
+        models.insert(
+            "gemini-1.5-flash".to_string(),
+            ModelInfo {
+                name: "gemini-1.5-flash".to_string(),
+                provider: "google".to_string(),
+                max_tokens: 8192,
+                max_input_tokens: 1000000,
+                supports_functions: false,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.0,
+            },
+        );
+
+        // OpenRouter models
+        models.insert(
+            "openrouter/gpt-4o".to_string(),
+            ModelInfo {
+                name: "openrouter/gpt-4o".to_string(),
+                provider: "openrouter".to_string(),
+                max_tokens: 16384,
+                max_input_tokens: 128000,
+                supports_functions: true,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.004,
+            },
+        );
+
+        // Anthropic models
+        models.insert(
+            "claude-opus-4-20250514".to_string(),
+            ModelInfo {
+                name: "claude-opus-4-20250514".to_string(),
+                provider: "anthropic".to_string(),
+                max_tokens: 4096,
+                max_input_tokens: 200000,
+                supports_functions: false,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.015,
+            },
+        );
+
+        // XAI models
+        models.insert(
+            "grok-2".to_string(),
+            ModelInfo {
+                name: "grok-2".to_string(),
+                provider: "xai".to_string(),
+                max_tokens: 8192,
+                max_input_tokens: 131072,
+                supports_functions: false,
+                supports_vision: false,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.002,
+            },
+        );
+
+        // Mistral models
+        models.insert(
+            "mistral-large-latest".to_string(),
+            ModelInfo {
+                name: "mistral-large-latest".to_string(),
+                provider: "mistral".to_string(),
+                max_tokens: 16384,
+                max_input_tokens: 128000,
+                supports_functions: true,
+                supports_vision: false,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.002,
+            },
+        );
+
+        // Groq models
+        models.insert(
+            "llama-3.1-70b-versatile".to_string(),
+            ModelInfo {
+                name: "llama-3.1-70b-versatile".to_string(),
+                provider: "groq".to_string(),
+                max_tokens: 8192,
+                max_input_tokens: 32768,
+                supports_functions: false,
+                supports_vision: false,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.00059,
+            },
+        );
+
+        // DeepInfra models
+        models.insert(
+            "deepinfra/llama-3.1-70b".to_string(),
+            ModelInfo {
+                name: "deepinfra/llama-3.1-70b".to_string(),
+                provider: "deepinfra".to_string(),
+                max_tokens: 8192,
+                max_input_tokens: 32768,
+                supports_functions: false,
+                supports_vision: false,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.0005,
+            },
+        );
+
+        // Cerebras models
+        models.insert(
+            "cerebras/llama-3.1-70b".to_string(),
+            ModelInfo {
+                name: "cerebras/llama-3.1-70b".to_string(),
+                provider: "cerebras".to_string(),
+                max_tokens: 8192,
+                max_input_tokens: 32768,
+                supports_functions: false,
+                supports_vision: false,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.0006,
+            },
+        );
+
+        // Cohere models
+        models.insert(
+            "cohere-command-r-plus".to_string(),
+            ModelInfo {
+                name: "cohere-command-r-plus".to_string(),
+                provider: "cohere".to_string(),
+                max_tokens: 4096,
+                max_input_tokens: 128000,
+                supports_functions: true,
+                supports_vision: false,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.003,
+            },
+        );
+
+        // TogetherAI models
+        models.insert(
+            "togetherai/llama-3.1-70b".to_string(),
+            ModelInfo {
+                name: "togetherai/llama-3.1-70b".to_string(),
+                provider: "togetherai".to_string(),
+                max_tokens: 8192,
+                max_input_tokens: 32768,
+                supports_functions: false,
+                supports_vision: false,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.00088,
+            },
+        );
+
+        // Perplexity models
+        models.insert(
+            "perplexity/llama-3.1-sonar-large".to_string(),
+            ModelInfo {
+                name: "perplexity/llama-3.1-sonar-large".to_string(),
+                provider: "perplexity".to_string(),
+                max_tokens: 4096,
+                max_input_tokens: 127072,
+                supports_functions: false,
+                supports_vision: false,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.001,
+            },
+        );
+
         Self { models }
     }
 

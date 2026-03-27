@@ -1,9 +1,8 @@
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use tokio::sync::mpsc;
 
-use super::{ChatMessage, ChatResponse, Provider, StreamChunk};
+use crate::provider::{Provider, StreamingCallback};
 use opencode_core::OpenCodeError;
 
 pub struct OpenAiProvider {
@@ -16,8 +15,14 @@ pub struct OpenAiProvider {
 #[derive(Serialize)]
 struct ChatRequest {
     model: String,
-    messages: Vec<ChatMessage>,
+    messages: Vec<Message>,
     stream: bool,
+}
+
+#[derive(Serialize)]
+struct Message {
+    role: String,
+    content: String,
 }
 
 #[derive(Deserialize)]
@@ -35,6 +40,21 @@ struct MessageContent {
     content: String,
 }
 
+#[derive(Deserialize)]
+struct StreamChunk {
+    choices: Vec<StreamChoice>,
+}
+
+#[derive(Deserialize)]
+struct StreamChoice {
+    delta: StreamDelta,
+}
+
+#[derive(Deserialize)]
+struct StreamDelta {
+    content: Option<String>,
+}
+
 impl OpenAiProvider {
     pub fn new(api_key: String, model: String) -> Self {
         Self {
@@ -48,10 +68,15 @@ impl OpenAiProvider {
 
 #[async_trait]
 impl Provider for OpenAiProvider {
-    async fn chat(&self, messages: &[ChatMessage]) -> Result<ChatResponse, OpenCodeError> {
+    async fn complete(&self, prompt: &str, _context: Option<&str>) -> Result<String, OpenCodeError> {
+        let messages = vec![Message {
+            role: "user".to_string(),
+            content: prompt.to_string(),
+        }];
+        
         let request = ChatRequest {
             model: self.model.clone(),
-            messages: messages.to_vec(),
+            messages,
             stream: false,
         };
 
@@ -65,6 +90,12 @@ impl Provider for OpenAiProvider {
             .await
             .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
 
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(OpenCodeError::Llm(format!("OpenAI API error {}: {}", status, error_text)));
+        }
+
         let completion: ChatCompletion = response
             .json()
             .await
@@ -76,22 +107,95 @@ impl Provider for OpenAiProvider {
             .map(|c| c.message.content.clone())
             .unwrap_or_default();
 
-        Ok(ChatResponse {
-            content,
-            model: self.model.clone(),
-        })
+        Ok(content)
     }
 
-    async fn stream_chat(
+    async fn complete_streaming(
         &self,
-        _messages: &[ChatMessage],
-    ) -> Result<mpsc::Receiver<Result<StreamChunk, OpenCodeError>>, OpenCodeError> {
-        let (tx, rx) = mpsc::channel(100);
+        prompt: &str,
+        mut callback: StreamingCallback,
+    ) -> Result<(), OpenCodeError> {
+        let messages = vec![Message {
+            role: "user".to_string(),
+            content: prompt.to_string(),
+        }];
         
-        tx.send(Err(OpenCodeError::Llm("Streaming not implemented".to_string())))
+        let request = ChatRequest {
+            model: self.model.clone(),
+            messages,
+            stream: true,
+        };
+
+        let response = self
+            .client
+            .post(format!("{}/chat/completions", self.base_url))
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .header("Content-Type", "application/json")
+            .json(&request)
+            .send()
             .await
-            .ok();
-            
-        Ok(rx)
+            .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(OpenCodeError::Llm(format!("OpenAI API error {}: {}", status, error_text)));
+        }
+
+        let mut lines = response.bytes_stream();
+        
+        use futures_util::StreamExt;
+        while let Some(item) = lines.next().await {
+            match item {
+                Ok(bytes) => {
+                    let text = String::from_utf8_lossy(&bytes);
+                    for line in text.lines() {
+                        if line.starts_with("data: ") {
+                            let data = line.strip_prefix("data: ").unwrap_or("");
+                            if data == "[DONE]" {
+                                callback(String::new());
+                                return Ok(());
+                            }
+                            if let Ok(chunk) = serde_json::from_str::<StreamChunk>(data) {
+                                if let Some(content) = chunk.choices.first().and_then(|c| c.delta.content.clone()) {
+                                    callback(content);
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    return Err(OpenCodeError::Llm(format!("Stream error: {}", e)));
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_openai_provider_new() {
+        let provider = OpenAiProvider::new("test-key".to_string(), "gpt-4".to_string());
+        assert_eq!(provider.model, "gpt-4");
+        assert_eq!(provider.api_key, "test-key");
+    }
+
+    #[tokio::test]
+    async fn test_openai_complete_returns_error_without_api_key() {
+        let provider = OpenAiProvider::new("invalid-key".to_string(), "gpt-4".to_string());
+        let result = provider.complete("test prompt", None).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_openai_streaming_returns_error_without_valid_key() {
+        let provider = OpenAiProvider::new("invalid-key".to_string(), "gpt-4".to_string());
+        let result = provider.complete_streaming("test", Box::new(|_| {})).await;
+        assert!(result.is_err());
     }
 }

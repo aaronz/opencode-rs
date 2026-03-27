@@ -8,6 +8,13 @@ members = [
     "crates/tui",
     "crates/agent",
     "crates/lsp",
+    "crates/storage",
+    "crates/server",
+    "crates/permission",
+    "crates/auth",
+    "crates/control-plane",
+    "crates/plugin",
+    "crates/git",
 ]
 
 [workspace.package]
@@ -25,12 +32,39 @@ thiserror = "2.0"
 anyhow = "1.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.12", features = ["json", "stream", "blocking"] }
+futures-util = "0.3"
 async-trait = "0.1"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
 
+# Git dependencies
+git2 = "0.20"
+
+# Auth dependencies
+argon2 = "0.5"
+jsonwebtoken = "9"
+bcrypt = "0.15"
+
+# Test dependencies
+tempfile = "3"
+assert_cmd = "2"
+predicates = "3"
+
+# Storage dependencies
+rusqlite = { version = "0.32", features = ["bundled"] }
+deadpool = { version = "0.12", features = ["rt_tokio_1"] }
+deadpool-sqlite = { version = "0.9" }
 opencode-core = { path = "crates/core" }
 opencode-llm = { path = "crates/llm" }
 opencode-tools = { path = "crates/tools" }
 opencode-tui = { path = "crates/tui" }
 opencode-agent = { path = "crates/agent" }
 opencode-lsp = { path = "crates/lsp" }
+opencode-storage = { path = "crates/storage" }
+opencode-server = { path = "crates/server" }
+
+# Server dependencies
+actix-web = "4"
+actix-cors = "0.7"
+actix-web-lab = "0.20"

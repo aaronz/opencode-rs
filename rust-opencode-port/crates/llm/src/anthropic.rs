@@ -1,9 +1,8 @@
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use tokio::sync::mpsc;
 
-use super::{ChatMessage, ChatResponse, Provider, StreamChunk};
+use crate::provider::{Provider, StreamingCallback};
 use opencode_core::OpenCodeError;
 
 pub struct AnthropicProvider {
@@ -36,6 +35,18 @@ struct AnthropicContent {
     text: String,
 }
 
+#[derive(Deserialize)]
+struct StreamEvent {
+    #[serde(rename = "type")]
+    event_type: String,
+    delta: Option<StreamDelta>,
+}
+
+#[derive(Deserialize)]
+struct StreamDelta {
+    text: Option<String>,
+}
+
 impl AnthropicProvider {
     pub fn new(api_key: String, model: String) -> Self {
         Self {
@@ -48,18 +59,15 @@ impl AnthropicProvider {
 
 #[async_trait]
 impl Provider for AnthropicProvider {
-    async fn chat(&self, messages: &[ChatMessage]) -> Result<ChatResponse, OpenCodeError> {
-        let anthropic_messages: Vec<AnthropicMessage> = messages
-            .iter()
-            .map(|m| AnthropicMessage {
-                role: m.role.clone(),
-                content: m.content.clone(),
-            })
-            .collect();
+    async fn complete(&self, prompt: &str, _context: Option<&str>) -> Result<String, OpenCodeError> {
+        let messages = vec![AnthropicMessage {
+            role: "user".to_string(),
+            content: prompt.to_string(),
+        }];
 
         let request = AnthropicRequest {
             model: self.model.clone(),
-            messages: anthropic_messages,
+            messages,
             max_tokens: 4096,
             stream: false,
         };
@@ -75,6 +83,12 @@ impl Provider for AnthropicProvider {
             .await
             .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
 
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(OpenCodeError::Llm(format!("Anthropic API error {}: {}", status, error_text)));
+        }
+
         let result: AnthropicResponse = response
             .json()
             .await
@@ -86,20 +100,69 @@ impl Provider for AnthropicProvider {
             .map(|c| c.text.clone())
             .unwrap_or_default();
 
-        Ok(ChatResponse {
-            content,
-            model: self.model.clone(),
-        })
+        Ok(content)
     }
 
-    async fn stream_chat(
-        &self,
-        _messages: &[ChatMessage],
-    ) -> Result<mpsc::Receiver<Result<StreamChunk, OpenCodeError>>, OpenCodeError> {
-        let (tx, rx) = mpsc::channel(100);
-        tx.send(Err(OpenCodeError::Llm("Streaming not yet implemented".to_string())))
+    async fn complete_streaming(&self, prompt: &str, mut callback: StreamingCallback) -> Result<(), OpenCodeError> {
+        let messages = vec![AnthropicMessage {
+            role: "user".to_string(),
+            content: prompt.to_string(),
+        }];
+
+        let request = AnthropicRequest {
+            model: self.model.clone(),
+            messages,
+            max_tokens: 4096,
+            stream: true,
+        };
+
+        let response = self
+            .client
+            .post("https://api.anthropic.com/v1/messages")
+            .header("x-api-key", &self.api_key)
+            .header("anthropic-version", "2023-06-01")
+            .header("Content-Type", "application/json")
+            .json(&request)
+            .send()
             .await
-            .ok();
-        Ok(rx)
+            .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(OpenCodeError::Llm(format!("Anthropic API error {}: {}", status, error_text)));
+        }
+
+        let mut lines = response.bytes_stream();
+        
+        use futures_util::StreamExt;
+        while let Some(item) = lines.next().await {
+            match item {
+                Ok(bytes) => {
+                    let text = String::from_utf8_lossy(&bytes);
+                    for line in text.lines() {
+                        if line.starts_with("data: ") {
+                            let data = line.strip_prefix("data: ").unwrap_or("");
+                            if let Ok(event) = serde_json::from_str::<StreamEvent>(data) {
+                                if event.event_type == "content_block_delta" {
+                                    if let Some(delta) = event.delta {
+                                        if let Some(text) = delta.text {
+                                            callback(text);
+                                        }
+                                    }
+                                } else if event.event_type == "message_stop" {
+                                    return Ok(());
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    return Err(OpenCodeError::Llm(format!("Stream error: {}", e)));
+                }
+            }
+        }
+
+        Ok(())
     }
 }

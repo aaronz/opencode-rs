@@ -1,44 +1,56 @@
-use crate::language::Language;
-use crate::types::Diagnostic;
-use std::collections::HashMap;
-use std::path::PathBuf;
+use tower_lsp::jsonrpc::Result;
+use tower_lsp::lsp_types::*;
+use tower_lsp::{Client, LanguageServer};
+
+pub struct Backend {
+    client: Client,
+}
+
+#[tower_lsp::async_trait]
+impl LanguageServer for Backend {
+    async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
+        Ok(InitializeResult {
+            server_info: None,
+            capabilities: ServerCapabilities {
+                text_document_sync: Some(TextDocumentSyncCapability::Kind(
+                    TextDocumentSyncKind::FULL,
+                )),
+                completion_provider: Some(CompletionOptions::default()),
+                hover_provider: Some(HoverProviderCapability::Simple(true)),
+                definition_provider: Some(OneOf::Left(true)),
+                references_provider: Some(OneOf::Left(true)),
+                ..Default::default()
+            },
+        })
+    }
+
+    async fn initialized(&self, _: InitializedParams) {
+        self.client
+            .log_message(MessageType::INFO, "LSP server initialized")
+            .await;
+    }
+
+    async fn shutdown(&self) -> Result<()> {
+        Ok(())
+    }
+
+    async fn completion(&self, _: CompletionParams) -> Result<Option<CompletionResponse>> {
+        Ok(None)
+    }
+
+    async fn hover(&self, _: HoverParams) -> Result<Option<Hover>> {
+        Ok(None)
+    }
+}
 
 pub struct LspServer {
-    language: Language,
-    root: PathBuf,
-    diagnostics: HashMap<String, Vec<Diagnostic>>,
+    pub backend: Backend,
 }
 
 impl LspServer {
-    pub fn new(language: Language, root: PathBuf) -> Self {
+    pub fn new(client: Client) -> Self {
         Self {
-            language,
-            root,
-            diagnostics: HashMap::new(),
+            backend: Backend { client },
         }
-    }
-
-    pub fn language(&self) -> &Language {
-        &self.language
-    }
-
-    pub fn root(&self) -> &PathBuf {
-        &self.root
-    }
-
-    pub fn update_diagnostics(&mut self, uri: String, diags: Vec<Diagnostic>) {
-        self.diagnostics.insert(uri, diags);
-    }
-
-    pub fn get_diagnostics(&self, uri: &str) -> Vec<Diagnostic> {
-        self.diagnostics.get(uri).cloned().unwrap_or_default()
-    }
-
-    pub fn all_diagnostics(&self) -> &HashMap<String, Vec<Diagnostic>> {
-        &self.diagnostics
-    }
-
-    pub fn clear_diagnostics(&mut self, uri: &str) {
-        self.diagnostics.remove(uri);
     }
 }

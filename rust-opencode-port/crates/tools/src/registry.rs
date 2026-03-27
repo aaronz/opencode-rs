@@ -1,17 +1,62 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use crate::Tool;
+use crate::{Tool, ToolContext, ToolResult};
 use opencode_core::OpenCodeError;
+
+/// Provider ID for filtering tools
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ProviderId {
+    OpenAI,
+    Anthropic,
+    OpenCode,
+    GitHubCopilot,
+    Azure,
+    Custom(String),
+}
+
+impl ProviderId {
+    pub fn from_string(s: &str) -> Self {
+        match s.to_lowercase().as_str() {
+            "openai" => ProviderId::OpenAI,
+            "anthropic" => ProviderId::Anthropic,
+            "opencode" => ProviderId::OpenCode,
+            "github-copilot" | "github_copilot" => ProviderId::GitHubCopilot,
+            "azure" | "azure-cognitive-services" => ProviderId::Azure,
+            other => ProviderId::Custom(other.to_string()),
+        }
+    }
+
+    pub fn is_opencode(&self) -> bool {
+        matches!(self, ProviderId::OpenCode)
+    }
+}
+
+/// Model info for tool filtering
+pub struct ModelInfo {
+    pub provider_id: ProviderId,
+    pub model_id: String,
+}
+
+impl ModelInfo {
+    /// Check if model should use apply_patch tool (GPT models except GPT-4 and OSS)
+    pub fn use_apply_patch(&self) -> bool {
+        let model_id = self.model_id.to_lowercase();
+        model_id.starts_with("gpt-") 
+            && !model_id.contains("gpt-4") 
+            && !model_id.contains("oss")
+    }
+}
 
 pub struct ToolCall {
     pub name: String,
     pub args: serde_json::Value,
+    pub ctx: Option<ToolContext>,
 }
 
 pub struct ToolCallResult {
     pub name: String,
-    pub result: Result<crate::ToolResult, OpenCodeError>,
+    pub result: Result<ToolResult, OpenCodeError>,
 }
 
 pub struct ToolRegistry {
@@ -35,10 +80,24 @@ impl ToolRegistry {
         tools.get(name).map(|t| t.clone_tool())
     }
 
-    pub async fn list(&self) -> Vec<(String, String)> {
+    pub async fn list_filtered(&self, model: Option<&ModelInfo>) -> Vec<(String, String)> {
         let tools = self.tools.read().await;
-        tools
-            .iter()
+        
+        let Some(model_info) = model else {
+            return tools.iter()
+                .map(|(name, tool)| (name.clone(), tool.description().to_string()))
+                .collect();
+        };
+
+        tools.iter()
+            .filter(|(name, _)| {
+                match name.as_str() {
+                    "codesearch" | "websearch" => model_info.provider_id.is_opencode(),
+                    "apply_patch" => model_info.use_apply_patch(),
+                    "edit" | "write" => !model_info.use_apply_patch(),
+                    _ => true,
+                }
+            })
             .map(|(name, tool)| (name.clone(), tool.description().to_string()))
             .collect()
     }
@@ -47,10 +106,11 @@ impl ToolRegistry {
         &self,
         name: &str,
         args: serde_json::Value,
-    ) -> Result<crate::ToolResult, OpenCodeError> {
+        ctx: Option<ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
         let tool = self.get(name).await
             .ok_or_else(|| OpenCodeError::Tool(format!("Tool '{}' not found", name)))?;
-        tool.execute(args).await
+        tool.execute(args, ctx).await
     }
 
     pub async fn execute_parallel(
@@ -63,6 +123,7 @@ impl ToolRegistry {
             let registry = Arc::clone(&self.tools);
             let name = call.name.clone();
             let args = call.args;
+            let ctx = call.ctx;
 
             handles.push(tokio::spawn(async move {
                 let tool = {
@@ -71,7 +132,7 @@ impl ToolRegistry {
                 };
 
                 let result = match tool {
-                    Some(t) => t.execute(args).await,
+                    Some(t) => t.execute(args, ctx).await,
                     None => Err(OpenCodeError::Tool(format!("Tool '{}' not found", name))),
                 };
 

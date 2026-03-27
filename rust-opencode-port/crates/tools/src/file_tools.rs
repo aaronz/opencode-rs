@@ -27,7 +27,7 @@ impl Tool for FileReadTool {
         Box::new(FileReadTool)
     }
 
-    async fn execute(&self, args: serde_json::Value) -> Result<ToolResult, OpenCodeError> {
+    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
         let args: ReadArgs = serde_json::from_value(args)
             .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
@@ -79,7 +79,7 @@ impl Tool for FileWriteTool {
         Box::new(FileWriteTool)
     }
 
-    async fn execute(&self, args: serde_json::Value) -> Result<ToolResult, OpenCodeError> {
+    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
         let args: WriteArgs = serde_json::from_value(args)
             .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
@@ -119,7 +119,7 @@ impl Tool for GlobTool {
         Box::new(GlobTool)
     }
 
-    async fn execute(&self, args: serde_json::Value) -> Result<ToolResult, OpenCodeError> {
+    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
         let args: GlobArgs = serde_json::from_value(args)
             .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 

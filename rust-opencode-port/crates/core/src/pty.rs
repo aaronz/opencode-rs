@@ -1,28 +1,30 @@
-use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PtyConfig {
-    pub rows: u16,
-    pub cols: u16,
-    pub env: std::collections::HashMap<String, String>,
-}
+use std::process::{Child, Command, Stdio};
+use std::io;
+use crate::error::OpenCodeError;
 
 pub struct PtySession {
-    config: PtyConfig,
-    cwd: PathBuf,
+    child: Child,
 }
 
 impl PtySession {
-    pub fn new(config: PtyConfig, cwd: PathBuf) -> Self {
-        Self { config, cwd }
+    pub fn new(command: &str) -> Result<Self, OpenCodeError> {
+        let child = Command::new("sh")
+            .arg("-c")
+            .arg(command)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| OpenCodeError::Io(e))?;
+
+        Ok(Self { child })
     }
 
-    pub fn config(&self) -> &PtyConfig {
-        &self.config
+    pub fn kill(&mut self) -> io::Result<()> {
+        self.child.kill()
     }
 
-    pub fn cwd(&self) -> &PathBuf {
-        &self.cwd
+    pub fn wait(&mut self) -> io::Result<std::process::ExitStatus> {
+        self.child.wait()
     }
 }

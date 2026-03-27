@@ -26,7 +26,7 @@ impl Tool for LsTool {
         Box::new(LsTool)
     }
 
-    async fn execute(&self, args: serde_json::Value) -> Result<ToolResult, OpenCodeError> {
+    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
         let args: LsArgs = serde_json::from_value(args)
             .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 

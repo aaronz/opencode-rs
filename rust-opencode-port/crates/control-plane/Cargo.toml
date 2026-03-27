@@ -1,0 +1,15 @@
+[package]
+name = "opencode-control-plane"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+opencode-core = { path = "../core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+notify = "6.1"
+async-trait = { workspace = true }
+futures = "0.3"

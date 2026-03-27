@@ -8,8 +8,21 @@ pub struct ApplyPatchTool;
 
 #[derive(Deserialize)]
 struct ApplyPatchArgs {
+    #[serde(rename = "patchText")]
     patch_text: String,
-    _workdir: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+enum HunkType {
+    Add { path: String, contents: String },
+    Delete { path: String },
+    Update { path: String, chunks: Vec<UpdateChunk> },
+}
+
+#[derive(Debug, Clone)]
+struct UpdateChunk {
+    old_lines: Vec<String>,
+    new_lines: Vec<String>,
 }
 
 #[async_trait]
@@ -26,7 +39,7 @@ impl Tool for ApplyPatchTool {
         Box::new(ApplyPatchTool)
     }
 
-    async fn execute(&self, args: serde_json::Value) -> Result<ToolResult, OpenCodeError> {
+    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
         let args: ApplyPatchArgs = serde_json::from_value(args)
             .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
@@ -43,66 +56,200 @@ impl Tool for ApplyPatchTool {
             return Ok(ToolResult::err("Empty patch".to_string()));
         }
 
-        let mut hunks = Vec::new();
-        let mut current_file: Option<String> = None;
-        let mut current_lines = Vec::new();
-
-        for line in trimmed.lines() {
-            if line.starts_with("*** Update File: ") {
-                if let Some(file) = current_file.take() {
-                    hunks.push((file, current_lines.clone()));
-                    current_lines.clear();
-                }
-                current_file = Some(line.trim_start_matches("*** Update File: ").to_string());
-            } else if line.starts_with("*** Add File: ") {
-                if let Some(file) = current_file.take() {
-                    hunks.push((file, current_lines.clone()));
-                    current_lines.clear();
-                }
-                current_file = Some(line.trim_start_matches("*** Add File: ").to_string());
-            } else if line.starts_with("*** Delete File: ") {
-                if let Some(file) = current_file.take() {
-                    hunks.push((file, current_lines.clone()));
-                    current_lines.clear();
-                }
-                current_file = Some(line.trim_start_matches("*** Delete File: ").to_string());
-            } else if line == "*** End Patch" {
-                if let Some(file) = current_file.take() {
-                    hunks.push((file, current_lines.clone()));
-                    current_lines.clear();
-                }
-            } else if let Some(_file) = &current_file {
-                current_lines.push(line.to_string());
-            }
-        }
+        let hunks = parse_hunks(trimmed).map_err(|e| OpenCodeError::Tool(e))?;
 
         if hunks.is_empty() {
             return Ok(ToolResult::err("No hunks found in patch".to_string()));
         }
 
         let mut results: Vec<String> = Vec::new();
-        let errors: Vec<String> = Vec::new();
+        let mut errors: Vec<String> = Vec::new();
 
-        for (file_path, _lines) in &hunks {
-            let path = PathBuf::from(file_path);
+        for hunk in &hunks {
+            match hunk {
+                HunkType::Add { path, contents } => {
+                    let file_path = PathBuf::from(path);
+                    if let Some(parent) = file_path.parent() {
+                        if !parent.as_os_str().is_empty() {
+                            let _ = std::fs::create_dir_all(parent);
+                        }
+                    }
+                    match std::fs::write(&file_path, contents) {
+                        Ok(_) => results.push(format!("A {}", path)),
+                        Err(e) => errors.push(format!("Failed to write {}: {}", path, e)),
+                    }
+                }
+                HunkType::Delete { path } => {
+                    let file_path = PathBuf::from(path);
+                    match std::fs::remove_file(&file_path) {
+                        Ok(_) => results.push(format!("D {}", path)),
+                        Err(e) => errors.push(format!("Failed to delete {}: {}", path, e)),
+                    }
+                }
+                HunkType::Update { path, chunks } => {
+                    let file_path = PathBuf::from(path);
+                    if !file_path.exists() {
+                        errors.push(format!("File not found: {}", path));
+                        continue;
+                    }
 
-            if path.exists() {
-                results.push(format!("M {}", file_path));
-            } else {
-                results.push(format!("A {}", file_path));
+                    let old_content = match std::fs::read_to_string(&file_path) {
+                        Ok(c) => c,
+                        Err(e) => {
+                            errors.push(format!("Failed to read {}: {}", path, e));
+                            continue;
+                        }
+                    };
+
+                    let new_content = apply_chunks(&old_content, chunks).map_err(|e| OpenCodeError::Tool(e))?;
+                    
+                    match std::fs::write(&file_path, &new_content) {
+                        Ok(_) => results.push(format!("M {}", path)),
+                        Err(e) => errors.push(format!("Failed to write {}: {}", path, e)),
+                    }
+                }
             }
         }
 
         if !errors.is_empty() {
-            return Ok(ToolResult::err(format!(
-                "Patch errors:\n{}",
-                errors.join("\n")
-            )));
+            return Ok(ToolResult::err(format!("Patch errors:\n{}", errors.join("\n"))));
         }
 
         Ok(ToolResult::ok(format!(
-            "Patch applied successfully.\n\n{}",
+            "Success. Updated the following files:\n\n{}",
             results.join("\n")
         )))
     }
+}
+
+fn parse_hunks(patch: &str) -> Result<Vec<HunkType>, String> {
+    let mut hunks = Vec::new();
+    let mut current_file: Option<String> = None;
+    let mut current_type: Option<&str> = None;
+    let mut current_lines: Vec<String> = Vec::new();
+
+    for line in patch.lines() {
+        if line.starts_with("*** Update File: ") {
+            if let Some(file) = current_file.take() {
+                if !current_lines.is_empty() {
+                    hunks.push(process_file_entry(&file, current_type.unwrap_or("update"), &current_lines));
+                }
+                current_lines.clear();
+            }
+            current_file = Some(line.trim_start_matches("*** Update File: ").to_string());
+            current_type = Some("update");
+        } else if line.starts_with("*** Add File: ") {
+            if let Some(file) = current_file.take() {
+                if !current_lines.is_empty() {
+                    hunks.push(process_file_entry(&file, current_type.unwrap_or("add"), &current_lines));
+                }
+                current_lines.clear();
+            }
+            current_file = Some(line.trim_start_matches("*** Add File: ").to_string());
+            current_type = Some("add");
+        } else if line.starts_with("*** Delete File: ") {
+            if let Some(file) = current_file.take() {
+                if !current_lines.is_empty() {
+                    hunks.push(process_file_entry(&file, current_type.unwrap_or("delete"), &current_lines));
+                }
+                current_lines.clear();
+            }
+            current_file = Some(line.trim_start_matches("*** Delete File: ").to_string());
+            current_type = Some("delete");
+        } else if line.starts_with("*** ") {
+            // Skip other markers
+        } else if let Some(_) = current_file {
+            current_lines.push(line.to_string());
+        }
+    }
+
+    if let Some(file) = current_file {
+        if !current_lines.is_empty() {
+            hunks.push(process_file_entry(&file, current_type.unwrap_or("update"), &current_lines));
+        }
+    }
+
+    Ok(hunks)
+}
+
+fn process_file_entry(path: &str, hunk_type: &str, lines: &[String]) -> HunkType {
+    match hunk_type {
+        "delete" => HunkType::Delete { path: path.to_string() },
+        "add" => {
+            let contents: String = lines.iter()
+                .filter(|l| l.starts_with('+'))
+                .map(|l| l[1..].to_string())
+                .collect::<Vec<_>>()
+                .join("\n");
+            HunkType::Add { path: path.to_string(), contents }
+        }
+        _ => {
+            let chunks = parse_update_chunks(lines);
+            HunkType::Update { path: path.to_string(), chunks }
+        }
+    }
+}
+
+fn parse_update_chunks(lines: &[String]) -> Vec<UpdateChunk> {
+    let mut chunks = Vec::new();
+    let mut current_old = Vec::new();
+    let mut current_new = Vec::new();
+    let mut in_chunk = false;
+
+    for line in lines {
+        if line.starts_with("@@") {
+            if !current_old.is_empty() || !current_new.is_empty() {
+                chunks.push(UpdateChunk {
+                    old_lines: current_old.clone(),
+                    new_lines: current_new.clone(),
+                });
+                current_old.clear();
+                current_new.clear();
+            }
+            in_chunk = true;
+        } else if in_chunk {
+            if line.starts_with('-') {
+                current_old.push(line[1..].to_string());
+            } else if line.starts_with('+') {
+                current_new.push(line[1..].to_string());
+            } else if line.starts_with(' ') || line.is_empty() {
+                current_old.push(line[1..].to_string());
+                current_new.push(line[1..].to_string());
+            }
+        }
+    }
+
+    if !current_old.is_empty() || !current_new.is_empty() {
+        chunks.push(UpdateChunk {
+            old_lines: current_old,
+            new_lines: current_new,
+        });
+    }
+
+    chunks
+}
+
+fn apply_chunks(content: &str, chunks: &[UpdateChunk]) -> Result<String, String> {
+    let mut lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
+    
+    let mut offset = 0;
+    for chunk in chunks {
+        let mut found = false;
+        for i in offset..lines.len() {
+            if lines[i..].join("\n").contains(&chunk.old_lines.join("\n")) {
+                let start = i;
+                let end = std::cmp::min(i + chunk.old_lines.len(), lines.len());
+                
+                lines.splice(start..end, chunk.new_lines.iter().cloned());
+                found = true;
+                offset = start + chunk.new_lines.len();
+                break;
+            }
+        }
+        if !found {
+            return Err(format!("Could not find chunk to replace"));
+        }
+    }
+
+    Ok(lines.join("\n"))
 }

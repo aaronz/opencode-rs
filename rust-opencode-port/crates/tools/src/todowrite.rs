@@ -20,7 +20,7 @@ struct TodoItem {
 #[async_trait]
 impl Tool for TodowriteTool {
     fn name(&self) -> &str {
-        "todowrite"
+        "todo"
     }
 
     fn description(&self) -> &str {
@@ -31,7 +31,7 @@ impl Tool for TodowriteTool {
         Box::new(TodowriteTool)
     }
 
-    async fn execute(&self, args: serde_json::Value) -> Result<ToolResult, OpenCodeError> {
+    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
         let args: TodowriteArgs = serde_json::from_value(args)
             .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
