@@ -1,3 +1,4 @@
+use crate::theme::{Theme, ThemeManager};
 use crossterm::{
     event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
     terminal::{disable_raw_mode, enable_raw_mode},
@@ -5,27 +6,83 @@ use crossterm::{
 use ratatui::{
     backend::CrosstermBackend,
     layout::Rect,
-    text::Line,
-    widgets::{Block, Borders, Paragraph},
+    style::{Color, Modifier, Style},
+    text::{Line, Span},
+    widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph},
     Frame, Terminal,
 };
 use std::io;
 
+#[derive(Debug, Clone)]
+pub struct MessageMeta {
+    pub content: String,
+    pub is_user: bool,
+    pub token_count: Option<usize>,
+    pub duration_ms: Option<u64>,
+    pub tool_calls: Vec<String>,
+}
+
+impl MessageMeta {
+    pub fn user(content: impl Into<String>) -> Self {
+        Self {
+            content: content.into(),
+            is_user: true,
+            token_count: None,
+            duration_ms: None,
+            tool_calls: Vec::new(),
+        }
+    }
+
+    pub fn assistant(content: impl Into<String>) -> Self {
+        Self {
+            content: content.into(),
+            is_user: false,
+            token_count: None,
+            duration_ms: None,
+            tool_calls: Vec::new(),
+        }
+    }
+
+    pub fn with_tokens(mut self, tokens: usize) -> Self {
+        self.token_count = Some(tokens);
+        self
+    }
+
+    pub fn with_duration(mut self, ms: u64) -> Self {
+        self.duration_ms = Some(ms);
+        self
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum AppMode {
+    Chat,
+    Timeline,
+    ForkDialog,
+    CommandPalette,
+}
+
 pub struct App {
-    pub messages: Vec<(String, bool)>,
+    pub messages: Vec<MessageMeta>,
     pub tool_output: Vec<String>,
     pub input: String,
     pub history: Vec<String>,
     pub history_index: usize,
     pub agent: String,
     pub provider: String,
-    pub show_command_palette: bool,
+    pub mode: AppMode,
     pub command_palette_input: String,
     pub scroll_offset: usize,
+    pub timeline_state: ListState,
+    pub fork_name_input: String,
+    pub show_metadata: bool,
+    pub theme_manager: ThemeManager,
 }
 
 impl App {
     pub fn new() -> Self {
+        let mut timeline_state = ListState::default();
+        timeline_state.select(None);
         Self {
             messages: Vec::new(),
             tool_output: Vec::new(),
@@ -34,14 +91,26 @@ impl App {
             history_index: 0,
             agent: "build".to_string(),
             provider: "openai".to_string(),
-            show_command_palette: false,
+            mode: AppMode::Chat,
             command_palette_input: String::new(),
             scroll_offset: 0,
+            timeline_state,
+            fork_name_input: String::new(),
+            show_metadata: false,
+            theme_manager: ThemeManager::new(),
         }
     }
 
     pub fn add_message(&mut self, content: String, is_user: bool) {
-        self.messages.push((content, is_user));
+        self.messages.push(if is_user {
+            MessageMeta::user(content)
+        } else {
+            MessageMeta::assistant(content)
+        });
+    }
+
+    pub fn add_message_with_meta(&mut self, meta: MessageMeta) {
+        self.messages.push(meta);
     }
 
     pub fn add_tool_output(&mut self, output: String) {
@@ -52,6 +121,18 @@ impl App {
         self.tool_output.clear();
     }
 
+    pub fn load_theme(&mut self, path: &str) -> Result<(), String> {
+        self.theme_manager.load_theme_file(path)
+    }
+
+    pub fn set_theme(&mut self, theme: Theme) {
+        self.theme_manager.set_theme(theme);
+    }
+
+    fn theme(&self) -> &Theme {
+        self.theme_manager.current()
+    }
+
     pub fn run(&mut self) -> io::Result<()> {
         enable_raw_mode()?;
         let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
@@ -59,12 +140,104 @@ impl App {
         loop {
             terminal.draw(|f| self.draw(f))?;
 
-            if self.show_command_palette {
-                self.handle_command_palette(&mut terminal)?;
-            } else {
-                self.handle_input(&mut terminal)?;
+            match self.mode {
+                AppMode::CommandPalette => self.handle_command_palette(&mut terminal)?,
+                AppMode::Timeline => self.handle_timeline(&mut terminal)?,
+                AppMode::ForkDialog => self.handle_fork_dialog(&mut terminal)?,
+                AppMode::Chat => self.handle_input(&mut terminal)?,
             }
         }
+    }
+
+    fn handle_timeline(
+        &mut self,
+        _terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    ) -> io::Result<()> {
+        if let Event::Key(key) = event::read()? {
+            if key.kind == KeyEventKind::Press {
+                match key.code {
+                    KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        disable_raw_mode()?;
+                        std::process::exit(0);
+                    }
+                    KeyCode::Esc | KeyCode::Char('t') => {
+                        self.mode = AppMode::Chat;
+                    }
+                    KeyCode::Down | KeyCode::Char('j') => {
+                        let len = self.messages.len();
+                        if len > 0 {
+                            let next = self
+                                .timeline_state
+                                .selected()
+                                .map(|i| (i + 1).min(len - 1))
+                                .unwrap_or(0);
+                            self.timeline_state.select(Some(next));
+                        }
+                    }
+                    KeyCode::Up | KeyCode::Char('k') => {
+                        if let Some(i) = self.timeline_state.selected() {
+                            if i > 0 {
+                                self.timeline_state.select(Some(i - 1));
+                            }
+                        }
+                    }
+                    KeyCode::Char('m') => {
+                        self.show_metadata = !self.show_metadata;
+                    }
+                    KeyCode::Char('f') => {
+                        self.mode = AppMode::ForkDialog;
+                        self.fork_name_input.clear();
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn handle_fork_dialog(
+        &mut self,
+        _terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    ) -> io::Result<()> {
+        if let Event::Key(key) = event::read()? {
+            if key.kind == KeyEventKind::Press {
+                match key.code {
+                    KeyCode::Esc => {
+                        self.mode = AppMode::Timeline;
+                        self.fork_name_input.clear();
+                    }
+                    KeyCode::Enter => {
+                        let fork_point = self
+                            .timeline_state
+                            .selected()
+                            .unwrap_or(self.messages.len().saturating_sub(1));
+                        self.execute_fork(fork_point);
+                        self.mode = AppMode::Chat;
+                        self.fork_name_input.clear();
+                    }
+                    KeyCode::Char(c) => {
+                        self.fork_name_input.push(c);
+                    }
+                    KeyCode::Backspace => {
+                        self.fork_name_input.pop();
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn execute_fork(&mut self, fork_point: usize) {
+        let forked: Vec<MessageMeta> =
+            self.messages[..=fork_point.min(self.messages.len().saturating_sub(1))].to_vec();
+        let name = if self.fork_name_input.is_empty() {
+            format!("Fork at message {}", fork_point + 1)
+        } else {
+            self.fork_name_input.clone()
+        };
+        self.messages = forked;
+        self.add_message(format!("[Session forked: {}]", name), false);
     }
 
     fn handle_command_palette(
@@ -79,12 +252,12 @@ impl App {
                         std::process::exit(0);
                     }
                     KeyCode::Esc => {
-                        self.show_command_palette = false;
+                        self.mode = AppMode::Chat;
                         self.command_palette_input.clear();
                     }
-                    KeyCode::Char('\n') => {
+                    KeyCode::Enter => {
                         self.execute_command();
-                        self.show_command_palette = false;
+                        self.mode = AppMode::Chat;
                         self.command_palette_input.clear();
                     }
                     KeyCode::Char(c) => {
@@ -101,8 +274,8 @@ impl App {
     }
 
     fn execute_command(&mut self) {
-        let cmd = self.command_palette_input.trim();
-        match cmd {
+        let cmd = self.command_palette_input.trim().to_string();
+        match cmd.as_str() {
             "/plan" => {
                 self.agent = "plan".to_string();
             }
@@ -115,9 +288,19 @@ impl App {
             }
             "/help" => {
                 self.add_message(
-                    "Available commands: /plan, /build, /clear, /help".to_string(),
+                    "Commands: /plan, /build, /clear, /timeline, /fork, /meta, /help".to_string(),
                     false,
                 );
+            }
+            "/timeline" => {
+                self.mode = AppMode::Timeline;
+            }
+            "/fork" => {
+                self.mode = AppMode::ForkDialog;
+                self.fork_name_input.clear();
+            }
+            "/meta" => {
+                self.show_metadata = !self.show_metadata;
             }
             _ => {
                 if !cmd.is_empty() {
@@ -139,10 +322,16 @@ impl App {
                         std::process::exit(0);
                     }
                     KeyCode::Char('p') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        self.show_command_palette = true;
+                        self.mode = AppMode::CommandPalette;
                         self.command_palette_input.clear();
                     }
-                    KeyCode::Char('\n') => {
+                    KeyCode::Char('t') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        self.mode = AppMode::Timeline;
+                        if !self.messages.is_empty() {
+                            self.timeline_state.select(Some(self.messages.len() - 1));
+                        }
+                    }
+                    KeyCode::Enter => {
                         let input = self.input.clone();
                         if !input.is_empty() {
                             self.history.push(input.clone());
@@ -193,25 +382,34 @@ impl App {
         Ok(())
     }
 
-    fn draw(&self, f: &mut Frame) {
-        let area = f.area();
-
-        if self.show_command_palette {
-            self.draw_command_palette(f);
-            return;
+    fn draw(&mut self, f: &mut Frame) {
+        match self.mode.clone() {
+            AppMode::Timeline => self.draw_timeline(f),
+            AppMode::ForkDialog => {
+                self.draw_timeline(f);
+                self.draw_fork_dialog(f);
+            }
+            AppMode::CommandPalette => {
+                self.draw_chat(f);
+                self.draw_command_palette(f);
+            }
+            AppMode::Chat => self.draw_chat(f),
         }
+    }
+
+    fn draw_chat(&self, f: &mut Frame) {
+        let area = f.area();
+        let theme = self.theme();
 
         let (messages_height, tool_height) = if self.tool_output.is_empty() {
-            (area.height.saturating_sub(2), 0)
+            (area.height.saturating_sub(3), 0)
         } else {
             let tool_height = 5.min(area.height / 3);
-            (area.height.saturating_sub(tool_height + 2), tool_height)
+            (area.height.saturating_sub(tool_height + 3), tool_height)
         };
 
         let messages_area = Rect::new(area.x, area.y, area.width, messages_height);
-
-        let input_area = Rect::new(area.x, messages_height, area.width, 1);
-
+        let input_area = Rect::new(area.x, messages_height, area.width, 2);
         let status_area = Rect::new(area.x, area.height - 1, area.width, 1);
 
         let messages: Vec<Line> = self
@@ -219,17 +417,43 @@ impl App {
             .iter()
             .skip(self.scroll_offset)
             .take(messages_height as usize)
-            .map(|(content, is_user)| {
-                if *is_user {
-                    Line::from(format!("> {}", content))
+            .flat_map(|msg| {
+                let prefix = if msg.is_user { "> " } else { "  " };
+                let color = if msg.is_user {
+                    theme.primary_color()
                 } else {
-                    Line::from(content.clone())
+                    theme.foreground_color()
+                };
+                let mut lines = vec![Line::from(vec![
+                    Span::styled(
+                        prefix,
+                        Style::default().fg(color).add_modifier(Modifier::BOLD),
+                    ),
+                    Span::raw(msg.content.clone()),
+                ])];
+                if self.show_metadata {
+                    let mut meta_parts = Vec::new();
+                    if let Some(tokens) = msg.token_count {
+                        meta_parts.push(format!("tokens:{}", tokens));
+                    }
+                    if let Some(dur) = msg.duration_ms {
+                        meta_parts.push(format!("{}ms", dur));
+                    }
+                    if !meta_parts.is_empty() {
+                        lines.push(Line::from(Span::styled(
+                            format!("  [{}]", meta_parts.join(" ")),
+                            Style::default().fg(theme.muted_color()),
+                        )));
+                    }
                 }
+                lines
             })
             .collect();
 
-        let messages_block = Block::default().title("Messages").borders(Borders::ALL);
-
+        let messages_block = Block::default()
+            .title("Messages")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(theme.border_color()));
         f.render_widget(
             Paragraph::new(messages).block(messages_block),
             messages_area,
@@ -237,57 +461,176 @@ impl App {
 
         if tool_height > 0 {
             let tool_area = Rect::new(area.x, messages_height, area.width, tool_height);
-
             let tool_output = self.tool_output.join("\n\n");
-            let tool_block = Block::default().title("Tool Output").borders(Borders::ALL);
-
+            let tool_block = Block::default()
+                .title("Tool Output")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(theme.border_color()));
             f.render_widget(Paragraph::new(tool_output).block(tool_block), tool_area);
         }
 
-        let input_block = Block::default().title("Input").borders(Borders::ALL);
-
+        let input_block = Block::default()
+            .title("Input")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(theme.primary_color()));
         f.render_widget(
             Paragraph::new(format!("> {}", self.input)).block(input_block),
             input_area,
         );
 
         let status = format!(
-            "Agent: {} | Provider: {} | Ctrl+P: Commands | Ctrl+C: Quit | ↑↓: History",
+            " Agent: {} | Provider: {} | ^P: Commands | ^T: Timeline | ^C: Quit",
             self.agent, self.provider
         );
-        f.render_widget(Paragraph::new(status), status_area);
+        f.render_widget(
+            Paragraph::new(status).style(Style::default().fg(theme.muted_color())),
+            status_area,
+        );
+    }
+
+    fn draw_timeline(&mut self, f: &mut Frame) {
+        let area = f.area();
+        let theme = self.theme_manager.current().clone();
+
+        let items: Vec<ListItem> = self
+            .messages
+            .iter()
+            .enumerate()
+            .map(|(i, msg)| {
+                let role = if msg.is_user { "USER" } else { " AI " };
+                let color = if msg.is_user {
+                    theme.primary_color()
+                } else {
+                    theme.secondary_color()
+                };
+                let preview: String = msg.content.chars().take(area.width as usize - 20).collect();
+
+                let mut spans = vec![
+                    Span::styled(
+                        format!("[{:3}] ", i + 1),
+                        Style::default().fg(theme.muted_color()),
+                    ),
+                    Span::styled(
+                        format!("[{}] ", role),
+                        Style::default().fg(color).add_modifier(Modifier::BOLD),
+                    ),
+                    Span::raw(preview),
+                ];
+
+                if self.show_metadata {
+                    if let Some(tokens) = msg.token_count {
+                        spans.push(Span::styled(
+                            format!(" ~{}t", tokens),
+                            Style::default().fg(theme.muted_color()),
+                        ));
+                    }
+                }
+
+                ListItem::new(Line::from(spans))
+            })
+            .collect();
+
+        let block = Block::default()
+            .title(format!(
+                "Timeline ({} messages) | ↑↓: navigate | m: metadata | f: fork | Esc: back",
+                self.messages.len()
+            ))
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(theme.border_color()));
+
+        let list = List::new(items)
+            .block(block)
+            .highlight_style(Style::default().bg(theme.primary_color()).fg(Color::Black));
+
+        f.render_stateful_widget(list, area, &mut self.timeline_state);
+    }
+
+    fn draw_fork_dialog(&self, f: &mut Frame) {
+        let area = f.area();
+        let theme = self.theme();
+        let dialog_width = 50.min(area.width - 4);
+        let dialog_height = 6;
+        let x = (area.width - dialog_width) / 2;
+        let y = (area.height - dialog_height) / 2;
+        let dialog_area = Rect::new(x, y, dialog_width, dialog_height);
+
+        f.render_widget(Clear, dialog_area);
+
+        let fork_point = self
+            .timeline_state
+            .selected()
+            .unwrap_or(self.messages.len().saturating_sub(1));
+        let block = Block::default()
+            .title(format!("Fork Session at message {}", fork_point + 1))
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(theme.accent_color()));
+
+        let content = vec![
+            Line::from(Span::raw(format!("Fork name: {}_", self.fork_name_input))),
+            Line::from(""),
+            Line::from(Span::styled(
+                "Enter: confirm | Esc: cancel",
+                Style::default().fg(theme.muted_color()),
+            )),
+        ];
+
+        f.render_widget(Paragraph::new(content).block(block), dialog_area);
     }
 
     fn draw_command_palette(&self, f: &mut Frame) {
         let area = f.area();
-        let palette_width = 40;
-        let palette_height = 10;
+        let theme = self.theme();
+        let palette_width = 44.min(area.width - 4);
+        let palette_height = 12;
         let x = (area.width - palette_width) / 2;
         let y = (area.height - palette_height) / 2;
-
         let palette_area = Rect::new(x, y, palette_width, palette_height);
+
+        f.render_widget(Clear, palette_area);
 
         let block = Block::default()
             .title("Command Palette")
-            .borders(Borders::ALL);
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(theme.primary_color()));
 
-        f.render_widget(block, palette_area);
-
-        let input_area = Rect::new(x + 1, y + 1, palette_width - 2, 1);
-        f.render_widget(
-            Paragraph::new(format!("> {}", self.command_palette_input)),
-            input_area,
-        );
-
-        let help_area = Rect::new(x + 1, y + 3, palette_width - 2, palette_height - 4);
-        let help_text = vec![
-            Line::from("/plan  - Switch to plan agent"),
-            Line::from("/build - Switch to build agent"),
-            Line::from("/clear - Clear messages"),
-            Line::from("/help  - Show help"),
-            Line::from("Esc   - Close palette"),
+        let commands = vec![
+            Line::from(format!("> {}", self.command_palette_input)),
+            Line::from(""),
+            Line::from(Span::styled(
+                "/plan      Switch to plan agent",
+                Style::default().fg(theme.muted_color()),
+            )),
+            Line::from(Span::styled(
+                "/build     Switch to build agent",
+                Style::default().fg(theme.muted_color()),
+            )),
+            Line::from(Span::styled(
+                "/clear     Clear messages",
+                Style::default().fg(theme.muted_color()),
+            )),
+            Line::from(Span::styled(
+                "/timeline  Open timeline view",
+                Style::default().fg(theme.muted_color()),
+            )),
+            Line::from(Span::styled(
+                "/fork      Fork at current message",
+                Style::default().fg(theme.muted_color()),
+            )),
+            Line::from(Span::styled(
+                "/meta      Toggle metadata display",
+                Style::default().fg(theme.muted_color()),
+            )),
+            Line::from(Span::styled(
+                "/help      Show help",
+                Style::default().fg(theme.muted_color()),
+            )),
+            Line::from(Span::styled(
+                "Esc        Close",
+                Style::default().fg(theme.muted_color()),
+            )),
         ];
-        f.render_widget(Paragraph::new(help_text), help_area);
+
+        f.render_widget(Paragraph::new(commands).block(block), palette_area);
     }
 }
 

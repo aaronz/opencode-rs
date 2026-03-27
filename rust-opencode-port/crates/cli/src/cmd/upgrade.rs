@@ -1,4 +1,5 @@
 use clap::Args;
+use serde_json::json;
 
 #[derive(Args, Debug)]
 pub struct UpgradeArgs {
@@ -7,11 +8,34 @@ pub struct UpgradeArgs {
 
     #[arg(short, long)]
     pub force: bool,
+
+    #[arg(long)]
+    pub json: bool,
 }
 
 pub fn run(args: UpgradeArgs) {
-    println!(
-        "Upgrading opencode to version {:?}, force: {}",
-        args.version, args.force
-    );
+    let current_version = env!("CARGO_PKG_VERSION");
+    let target_version = args.version.as_deref().unwrap_or("latest");
+
+    if args.json {
+        let result = json!({
+            "action": "upgrade",
+            "current_version": current_version,
+            "target_version": target_version,
+            "force": args.force,
+            "status": "not_implemented"
+        });
+        println!("{}", serde_json::to_string_pretty(&result).unwrap());
+        return;
+    }
+
+    println!("opencode-rs upgrade");
+    println!("  Current version : {}", current_version);
+    println!("  Target version  : {}", target_version);
+    if args.force {
+        println!("  Mode: force");
+    }
+    println!();
+    println!("To upgrade, run:");
+    println!("  cargo install opencode-rs");
 }

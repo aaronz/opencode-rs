@@ -1,8 +1,8 @@
+use crate::events::{Event, EventBus};
+use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use notify::{Watcher, RecursiveMode, Config, RecommendedWatcher, EventKind};
 use tokio::sync::mpsc;
-use crate::events::{Event, EventBus};
 
 pub struct WorkspaceManager {
     root: PathBuf,
@@ -18,20 +18,23 @@ impl WorkspaceManager {
         let event_bus = self.event_bus.clone();
         let root = self.root.clone();
 
-        let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
-            if let Ok(event) = res {
-                match event.kind {
-                    EventKind::Modify(_) | EventKind::Create(_) | EventKind::Remove(_) => {
-                        for path in event.paths {
-                            if let Ok(rel_path) = path.strip_prefix(&root) {
-                                event_bus.publish(Event::FileChanged(rel_path.to_string_lossy().to_string()));
+        let mut watcher =
+            notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
+                if let Ok(event) = res {
+                    match event.kind {
+                        EventKind::Modify(_) | EventKind::Create(_) | EventKind::Remove(_) => {
+                            for path in event.paths {
+                                if let Ok(rel_path) = path.strip_prefix(&root) {
+                                    event_bus.publish(Event::FileChanged(
+                                        rel_path.to_string_lossy().to_string(),
+                                    ));
+                                }
                             }
                         }
+                        _ => {}
                     }
-                    _ => {}
                 }
-            }
-        })?;
+            })?;
 
         watcher.watch(&self.root, RecursiveMode::Recursive)?;
         Ok(watcher)

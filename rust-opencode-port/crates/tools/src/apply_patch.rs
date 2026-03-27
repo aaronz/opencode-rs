@@ -212,9 +212,13 @@ fn parse_update_chunks(lines: &[String]) -> Vec<UpdateChunk> {
                 current_old.push(line[1..].to_string());
             } else if line.starts_with('+') {
                 current_new.push(line[1..].to_string());
-            } else if line.starts_with(' ') || line.is_empty() {
-                current_old.push(line[1..].to_string());
-                current_new.push(line[1..].to_string());
+            } else if line.starts_with(' ') {
+                let ctx = line[1..].to_string();
+                current_old.push(ctx.clone());
+                current_new.push(ctx);
+            } else if line.is_empty() {
+                current_old.push(String::new());
+                current_new.push(String::new());
             }
         }
     }
@@ -232,24 +236,52 @@ fn parse_update_chunks(lines: &[String]) -> Vec<UpdateChunk> {
 fn apply_chunks(content: &str, chunks: &[UpdateChunk]) -> Result<String, String> {
     let mut lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
     
-    let mut offset = 0;
-    for chunk in chunks {
-        let mut found = false;
-        for i in offset..lines.len() {
-            if lines[i..].join("\n").contains(&chunk.old_lines.join("\n")) {
-                let start = i;
-                let end = std::cmp::min(i + chunk.old_lines.len(), lines.len());
-                
-                lines.splice(start..end, chunk.new_lines.iter().cloned());
-                found = true;
-                offset = start + chunk.new_lines.len();
-                break;
-            }
+    let mut search_start = 0;
+    for (chunk_idx, chunk) in chunks.iter().enumerate() {
+        if chunk.old_lines.is_empty() {
+            continue;
         }
-        if !found {
-            return Err(format!("Could not find chunk to replace"));
+
+        let found_pos = find_chunk_position(&lines, &chunk.old_lines, search_start);
+
+        match found_pos {
+            Some(start) => {
+                let end = start + chunk.old_lines.len();
+                lines.splice(start..end, chunk.new_lines.iter().cloned());
+                search_start = start + chunk.new_lines.len();
+            }
+            None => {
+                let context_lines: Vec<&str> = chunk.old_lines.iter()
+                    .take(3)
+                    .map(|s| s.as_str())
+                    .collect();
+                return Err(format!(
+                    "Chunk {} context not found in file (searched from line {}).\nExpected lines starting with:\n{}",
+                    chunk_idx + 1,
+                    search_start + 1,
+                    context_lines.join("\n")
+                ));
+            }
         }
     }
 
-    Ok(lines.join("\n"))
+    let mut result = lines.join("\n");
+    if content.ends_with('\n') && !result.ends_with('\n') {
+        result.push('\n');
+    }
+    Ok(result)
+}
+
+fn find_chunk_position(lines: &[String], needle: &[String], start: usize) -> Option<usize> {
+    if needle.is_empty() || lines.len() < needle.len() {
+        return None;
+    }
+
+    let max_start = lines.len() - needle.len();
+    for i in start..=max_start {
+        if lines[i..i + needle.len()].iter().zip(needle.iter()).all(|(a, b)| a == b) {
+            return Some(i);
+        }
+    }
+    None
 }

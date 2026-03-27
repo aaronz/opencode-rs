@@ -11,3 +11,5 @@ ratatui = { version = "0.28", default-features = false, features = ["crossterm"]
 crossterm = { version = "0.28", features = ["event-stream"] }
 tokio.workspace = true
 futures = "0.3"
+serde.workspace = true
+serde_json.workspace = true

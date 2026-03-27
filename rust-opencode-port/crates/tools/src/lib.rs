@@ -1,5 +1,6 @@
 pub mod tool;
 pub mod registry;
+pub mod schema_validation;
 pub mod file_tools;
 pub mod grep_tool;
 pub mod grep_tool_test;
@@ -31,6 +32,7 @@ pub mod plan;
 pub mod external_directory;
 pub mod truncation_dir;
 
+pub use schema_validation::{SchemaValidator, ToolSchema};
 pub use tool::{Tool, ToolResult, ToolContext};
 pub use registry::ToolRegistry;
 pub use codesearch::CodeSearchTool;

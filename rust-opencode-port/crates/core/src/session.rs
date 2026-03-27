@@ -1,3 +1,4 @@
+use crate::compaction::{CompactionConfig, CompactionResult, Compactor};
 use crate::message::Message;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -123,6 +124,39 @@ impl Session {
             }
             self.messages.remove(0);
         }
+    }
+
+    pub fn compact_messages(&mut self, max_tokens: usize) -> CompactionResult {
+        let config = CompactionConfig {
+            max_tokens,
+            preserve_system_messages: true,
+            preserve_recent_messages: 10,
+            ..Default::default()
+        };
+        let compactor = Compactor::new(config);
+        let messages = std::mem::take(&mut self.messages);
+        let result = compactor.compact_to_fit(messages);
+        self.messages = result.messages.clone();
+        if result.was_compacted {
+            self.updated_at = Utc::now();
+        }
+        result
+    }
+
+    pub fn needs_compaction(&self, max_tokens: usize) -> bool {
+        let config = CompactionConfig {
+            max_tokens,
+            ..Default::default()
+        };
+        let compactor = Compactor::new(config);
+        compactor.needs_compaction(&self.messages)
+    }
+
+    pub fn prepare_messages_for_prompt(&mut self, max_tokens: usize) -> Vec<Message> {
+        if self.needs_compaction(max_tokens) {
+            self.compact_messages(max_tokens);
+        }
+        self.messages.clone()
     }
 }
 

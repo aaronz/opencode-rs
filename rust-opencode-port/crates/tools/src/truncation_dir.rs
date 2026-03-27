@@ -13,6 +13,21 @@ pub struct TruncationDirArgs {
 
 pub struct TruncationDirTool;
 
+fn count_recursive(path: &Path) -> usize {
+    let mut count = 0;
+    if let Ok(rd) = fs::read_dir(path) {
+        for entry in rd.flatten() {
+            let ep = entry.path();
+            if ep.is_dir() {
+                count += count_recursive(&ep);
+            } else {
+                count += 1;
+            }
+        }
+    }
+    count
+}
+
 #[async_trait]
 impl Tool for TruncationDirTool {
     fn name(&self) -> &str {
@@ -20,7 +35,7 @@ impl Tool for TruncationDirTool {
     }
 
     fn description(&self) -> &str {
-        "List files in a directory with truncation for large directory sets"
+        "List files in a directory with truncation for large directory sets. Returns total file count and a sorted subset of entries."
     }
 
     fn clone_tool(&self) -> Box<dyn Tool> {
@@ -28,32 +43,49 @@ impl Tool for TruncationDirTool {
     }
 
     async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let args: TruncationDirArgs = serde_json::from_value(args).map_err(|e| OpenCodeError::Parse(e.to_string()))?;
+        let args: TruncationDirArgs = serde_json::from_value(args)
+            .map_err(|e| OpenCodeError::Parse(e.to_string()))?;
         let max_files = args.max_files.unwrap_or(50);
         let path = Path::new(&args.path);
 
         if !path.exists() {
-            return Err(OpenCodeError::Tool(format!("Directory not found: {}", args.path)));
+            return Err(OpenCodeError::Tool(format!("Path not found: {}", args.path)));
         }
 
-        let mut entries = Vec::new();
-        for entry in fs::read_dir(path).map_err(|e| OpenCodeError::Io(e))? {
-            let entry = entry.map_err(|e| OpenCodeError::Io(e))?;
-            entries.push(entry.file_name().to_string_lossy().to_string());
+        if !path.is_dir() {
+            return Err(OpenCodeError::Tool(format!("Not a directory: {}", args.path)));
         }
 
-        let total = entries.len();
-        let mut result = format!("Total files: {}\n", total);
-        
-        if total > max_files {
-            entries.truncate(max_files);
-            for name in entries {
-                result.push_str(&format!("- {}\n", name));
-            }
-            result.push_str("... (truncated)");
+        let mut entries: Vec<String> = fs::read_dir(path)
+            .map_err(|e| OpenCodeError::Io(e))?
+            .flatten()
+            .map(|e| {
+                let name = e.file_name().to_string_lossy().to_string();
+                if e.path().is_dir() { format!("{}/", name) } else { name }
+            })
+            .collect();
+
+        entries.sort();
+        let total_direct = entries.len();
+        let total_recursive = count_recursive(path);
+
+        let mut result = if total_recursive != total_direct {
+            format!("Directory: {}\nEntries: {} (direct), {} (total recursive)\n\n",
+                args.path, total_direct, total_recursive)
         } else {
-            for name in entries {
-                result.push_str(&format!("- {}\n", name));
+            format!("Directory: {}\nEntries: {}\n\n", args.path, total_direct)
+        };
+
+        if total_direct > max_files {
+            let shown = &entries[..max_files];
+            for name in shown {
+                result.push_str(&format!("  {}\n", name));
+            }
+            result.push_str(&format!("\n... and {} more entries (showing first {})",
+                total_direct - max_files, max_files));
+        } else {
+            for name in &entries {
+                result.push_str(&format!("  {}\n", name));
             }
         }
 

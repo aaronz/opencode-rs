@@ -1,5 +1,5 @@
-use tokio::sync::broadcast;
 use serde::{Deserialize, Serialize};
+use tokio::sync::broadcast;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Event {

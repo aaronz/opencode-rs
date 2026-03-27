@@ -1,0 +1,67 @@
+mod common;
+use common::TestHarness;
+
+#[test]
+fn test_cli_account_status() {
+    let harness = TestHarness::setup();
+    let result = harness.run_cli_json(&["account", "status"]);
+
+    assert!(result.get("action").is_some());
+    assert_eq!(result["action"], "status");
+    assert!(result.get("logged_in").is_some());
+}
+
+#[test]
+fn test_cli_list_sessions() {
+    let harness = TestHarness::setup();
+    let result = harness.run_cli_json(&["list"]);
+
+    assert!(result.get("action").is_some());
+    assert_eq!(result["action"], "list");
+    assert!(result.get("sessions").unwrap().is_array());
+}
+
+#[test]
+fn test_cli_providers_list() {
+    let harness = TestHarness::setup();
+    let result = harness.run_cli_json(&["providers"]);
+
+    assert!(result.get("action").is_some());
+    assert_eq!(result["action"], "list");
+    assert!(result.get("providers").unwrap().is_array());
+
+    let providers = result["providers"].as_array().unwrap();
+    let has_openai = providers.iter().any(|p| p["id"] == "openai");
+    let has_anthropic = providers.iter().any(|p| p["id"] == "anthropic");
+    assert!(has_openai);
+    assert!(has_anthropic);
+}
+
+#[test]
+fn test_cli_acp_start() {
+    let harness = TestHarness::setup();
+    let result = harness.run_cli_json(&["acp", "--action", "start"]);
+
+    assert_eq!(result["component"], "acp");
+    assert_eq!(result["action"], "start");
+    assert_eq!(result["status"], "ready");
+}
+
+#[test]
+fn test_cli_mcp_list() {
+    let harness = TestHarness::setup();
+    let result = harness.run_cli_json(&["mcp", "list"]);
+
+    assert_eq!(result["action"], "list");
+    assert!(result.get("servers").unwrap().is_array());
+}
+
+#[test]
+fn test_cli_uninstall_dry_run() {
+    let harness = TestHarness::setup();
+    let result = harness.run_cli_json(&["uninstall"]);
+
+    assert_eq!(result["action"], "uninstall");
+    assert_eq!(result["status"], "dry_run");
+    assert_eq!(result["force"], false);
+}

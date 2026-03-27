@@ -84,7 +84,13 @@ impl StorageService {
             .collect();
         Ok(messages)
     }
-    
+
+    pub async fn count_session_messages(&self, id: &str) -> Result<usize, OpenCodeError> {
+        let session = self.load_session(id).await?
+            .ok_or_else(|| OpenCodeError::Storage("Session not found".to_string()))?;
+        Ok(session.messages.len())
+    }
+
     pub async fn delete_session(&self, id: &str) -> Result<(), OpenCodeError> {
         let conn = self.pool.get().await?;
         let id_str = id.to_string();
