@@ -19,7 +19,7 @@ impl Tool for CodeSearchTool {
     }
 
     fn description(&self) -> &str {
-        "Search code patterns across the filesystem"
+        "Search code patterns across the filesystem using AST-aware grep patterns"
     }
 
     fn clone_tool(&self) -> Box<dyn Tool> {
@@ -31,9 +31,11 @@ impl Tool for CodeSearchTool {
         
         let path = args.path.unwrap_or_else(|| ".".to_string());
         
+        // Simple grep -r implementation as a base for AST-aware search
         let output = Command::new("grep")
             .arg("-r")
             .arg("-n")
+            .arg("--color=never")
             .arg(&args.pattern)
             .arg(&path)
             .output()

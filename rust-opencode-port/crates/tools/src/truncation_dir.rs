@@ -20,7 +20,7 @@ impl Tool for TruncationDirTool {
     }
 
     fn description(&self) -> &str {
-        "List files in a directory with truncation and summary for large lists"
+        "List files in a directory with truncation for large directory sets"
     }
 
     fn clone_tool(&self) -> Box<dyn Tool> {
@@ -44,10 +44,9 @@ impl Tool for TruncationDirTool {
 
         let total = entries.len();
         let mut result = format!("Total files: {}\n", total);
-
+        
         if total > max_files {
             entries.truncate(max_files);
-            result.push_str(&format!("Showing first {} files:\n", max_files));
             for name in entries {
                 result.push_str(&format!("- {}\n", name));
             }
