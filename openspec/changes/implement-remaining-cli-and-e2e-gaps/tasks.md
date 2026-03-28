@@ -60,21 +60,21 @@
 
 ## 8. E2E Prompt Tests
 
-- [ ] 8.1 Create e2e_prompt_async.rs with async operation scenarios
-- [ ] 8.2 Create e2e_prompt_shell.rs with shell command scenarios
-- [ ] 8.3 Create e2e_prompt_multiline.rs with multiline input scenarios
-- [ ] 8.4 Create e2e_prompt_history.rs with history navigation scenarios
-- [ ] 8.5 Create e2e_prompt_mentions.rs with @ mention scenarios
-- [ ] 8.6 Add tests for prompt submission and cancellation
+- [x] 8.1 Create e2e_prompt_async.rs with async operation scenarios
+- [x] 8.2 Create e2e_prompt_shell.rs with shell command scenarios
+- [x] 8.3 Create e2e_prompt_multiline.rs with multiline input scenarios
+- [x] 8.4 Create e2e_prompt_history.rs with history navigation scenarios
+- [x] 8.5 Create e2e_prompt_mentions.rs with @ mention scenarios
+- [x] 8.6 Add tests for prompt submission and cancellation
 - [x] 8.7 Add tests for prompt basic functionality
 
 ## 9. E2E Projects Tests
 
-- [ ] 9.1 Create e2e_projects_management.rs with project CRUD scenarios
-- [ ] 9.2 Create e2e_projects_workspace.rs with workspace scenarios
-- [ ] 9.3 Create e2e_projects_edit.rs with project editing scenarios
-- [ ] 9.4 Add tests for project switching
-- [ ] 9.5 Add tests for workspace persistence
+- [x] 9.1 Create e2e_projects_management.rs with project CRUD scenarios
+- [x] 9.2 Create e2e_projects_workspace.rs with workspace scenarios
+- [x] 9.3 Create e2e_projects_edit.rs with project editing scenarios
+- [x] 9.4 Add tests for project switching
+- [x] 9.5 Add tests for workspace persistence
 
 ## 10. E2E File Management Tests
 
@@ -86,11 +86,11 @@
 
 ## 11. E2E Command Palette Tests
 
-- [ ] 11.1 Create e2e_command_palette.rs with palette scenarios
-- [ ] 11.2 Create e2e_quick_actions.rs with quick action scenarios
-- [ ] 11.3 Create e2e_keyboard_shortcuts.rs with shortcut scenarios
-- [ ] 11.4 Add tests for command search and filtering
-- [ ] 11.5 Add tests for custom keyboard shortcuts
+- [x] 11.1 Create e2e_command_palette.rs with palette scenarios
+- [x] 11.2 Create e2e_quick_actions.rs with quick action scenarios
+- [x] 11.3 Create e2e_keyboard_shortcuts.rs with shortcut scenarios
+- [x] 11.4 Add tests for command search and filtering
+- [x] 11.5 Add tests for custom keyboard shortcuts
 
 ## 12. Integration and Verification
 
