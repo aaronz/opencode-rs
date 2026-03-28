@@ -125,6 +125,14 @@ pub struct Config {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub experimental: Option<ExperimentalConfig>,
 
+    /// Keybind configuration
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub keybinds: Option<KeybindConfig>,
+
+    /// Theme configuration
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub theme: Option<ThemeConfig>,
+
     // Legacy fields for backwards compatibility
     /// API key for the provider
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -693,29 +701,49 @@ pub struct CompactionConfig {
 /// Experimental features configuration
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct ExperimentalConfig {
-    /// Disable paste summary
     #[serde(skip_serializing_if = "Option::is_none")]
     pub disable_paste_summary: Option<bool>,
 
-    /// Enable the batch tool
     #[serde(skip_serializing_if = "Option::is_none")]
     pub batch_tool: Option<bool>,
 
-    /// Enable OpenTelemetry spans for AI SDK calls
     #[serde(skip_serializing_if = "Option::is_none")]
     pub open_telemetry: Option<bool>,
 
-    /// Tools that should only be available to primary agents
     #[serde(skip_serializing_if = "Option::is_none")]
     pub primary_tools: Option<Vec<String>>,
 
-    /// Continue the agent loop when a tool call is denied
     #[serde(skip_serializing_if = "Option::is_none")]
     pub continue_loop_on_deny: Option<bool>,
 
-    /// Timeout in milliseconds for model context protocol (MCP) requests
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mcp_timeout: Option<u64>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+pub struct KeybindConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub commands: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timeline: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub settings: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub models: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub files: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub terminal: Option<String>,
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub custom: Option<std::collections::HashMap<String, String>>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+pub struct ThemeConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path: Option<std::path::PathBuf>,
 }
 
 /// Legacy provider configuration enum for backwards compatibility
