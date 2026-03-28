@@ -22,10 +22,10 @@
 ## 3. Configuration System Expansion
 
 - [x] 3.1 Extend Config struct to support all TS settings categories
-- [ ] 3.2 Add settings validation logic
+- [x] 3.2 Add settings validation logic
 - [x] 3.3 Implement keybind configuration storage
-- [ ] 3.4 Add provider settings persistence
-- [ ] 3.5 Create settings migration from TS format
+- [x] 3.4 Add provider settings persistence
+- [x] 3.5 Create settings migration from TS format
 
 ## 4. E2E Test Suite - Session Workflows
 
