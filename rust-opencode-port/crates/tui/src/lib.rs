@@ -5,8 +5,8 @@ pub mod theme;
 
 pub use app::{App, AppMode, MessageMeta};
 pub use components::{
-    FileTree, InputAction, InputWidget, StatusBar, StatusPopoverType, TerminalPanel, TitleBar,
-    TitleBarAction,
+    ConnectionStatus, FileTree, InputAction, InputWidget, StatusBar, StatusPopoverType,
+    TerminalPanel, TitleBar, TitleBarAction, VirtualList,
 };
 pub use dialogs::*;
 pub use theme::{Theme, ThemeManager};
