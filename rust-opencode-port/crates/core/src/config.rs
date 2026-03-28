@@ -386,6 +386,10 @@ pub struct ModelConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub variants: Option<HashMap<String, VariantConfig>>,
 
+    /// Visibility status
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub visible: Option<bool>,
+
     /// Additional model properties
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
     pub extra: Option<HashMap<String, serde_json::Value>>,

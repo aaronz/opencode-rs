@@ -59,42 +59,10 @@ pub fn run(args: SessionArgs) {
         }
         Some(SessionAction::Review { file, format }) => {
             if let Some(id) = args.id {
-                println!("Reviewing session {} (file: {:?}, format: {})", id, file, format);
-            } else {
-                eprintln!("Error: Session ID required for review");
-                std::process::exit(1);
-            }
-        }
-        Some(SessionAction::Diff { file, context }) => {
-            if let Some(id) = args.id {
-                println!("Showing diff for {} in session {} (context: {})", file, id, context);
-            } else {
-                eprintln!("Error: Session ID required for diff");
-                std::process::exit(1);
-            }
-        }
-        _ => {
-            println!("Session action: {:?}", args.action);
-        }
-    }
-}
-        }
-        Some(SessionAction::Redo { steps }) => {
-            if let Some(id) = args.id {
-                println!("Redoing {} steps in session {}", steps, id);
-                // TODO: Implement actual redo logic
-            } else {
-                eprintln!("Error: Session ID required for redo");
-                std::process::exit(1);
-            }
-        }
-        Some(SessionAction::Review { file, format }) => {
-            if let Some(id) = args.id {
                 println!(
                     "Reviewing session {} (file: {:?}, format: {})",
                     id, file, format
                 );
-                // TODO: Implement actual review logic
             } else {
                 eprintln!("Error: Session ID required for review");
                 std::process::exit(1);
@@ -106,7 +74,6 @@ pub fn run(args: SessionArgs) {
                     "Showing diff for {} in session {} (context: {})",
                     file, id, context
                 );
-                // TODO: Implement actual diff logic
             } else {
                 eprintln!("Error: Session ID required for diff");
                 std::process::exit(1);

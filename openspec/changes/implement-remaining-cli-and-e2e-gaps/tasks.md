@@ -18,12 +18,12 @@
 
 ## 3. CLI Model Visibility Commands
 
-- [ ] 3.1 Add visibility subcommand to models command
-- [ ] 3.2 Implement --hide option to hide models
-- [ ] 3.3 Implement --show option to unhide models
-- [ ] 3.4 Add --list-hidden option to show hidden models
-- [ ] 3.5 Add visibility field to model configuration
-- [ ] 3.6 Implement --visibility filter for models list
+- [x] 3.1 Add visibility subcommand to models command
+- [x] 3.2 Implement --hide option to hide models
+- [x] 3.3 Implement --show option to unhide models
+- [x] 3.4 Add --list-hidden option to show hidden models
+- [x] 3.5 Add visibility field to model configuration
+- [x] 3.6 Implement --visibility filter for models list
 
 ## 4. E2E Test Infrastructure
 
