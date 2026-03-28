@@ -1,6 +1,7 @@
+use crate::dialogs::*;
 use crate::theme::{Theme, ThemeManager};
 use crossterm::{
-    event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
+    event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     terminal::{disable_raw_mode, enable_raw_mode},
 };
 use ratatui::{
@@ -60,6 +61,12 @@ pub enum AppMode {
     Timeline,
     ForkDialog,
     CommandPalette,
+    Settings,
+    ModelSelection,
+    ProviderManagement,
+    FileSelection,
+    DirectorySelection,
+    ReleaseNotes,
 }
 
 pub struct App {
@@ -77,12 +84,20 @@ pub struct App {
     pub fork_name_input: String,
     pub show_metadata: bool,
     pub theme_manager: ThemeManager,
+    pub settings_dialog: SettingsDialog,
+    pub model_selection_dialog: ModelSelectionDialog,
+    pub provider_management_dialog: ProviderManagementDialog,
+    pub file_selection_dialog: FileSelectionDialog,
+    pub directory_selection_dialog: DirectorySelectionDialog,
+    pub release_notes_dialog: ReleaseNotesDialog,
 }
 
 impl App {
     pub fn new() -> Self {
         let mut timeline_state = ListState::default();
         timeline_state.select(None);
+        let theme_manager = ThemeManager::new();
+        let theme = theme_manager.current().clone();
         Self {
             messages: Vec::new(),
             tool_output: Vec::new(),
@@ -97,7 +112,13 @@ impl App {
             timeline_state,
             fork_name_input: String::new(),
             show_metadata: false,
-            theme_manager: ThemeManager::new(),
+            theme_manager,
+            settings_dialog: SettingsDialog::new(theme.clone()),
+            model_selection_dialog: ModelSelectionDialog::new(theme.clone()),
+            provider_management_dialog: ProviderManagementDialog::new(theme.clone()),
+            file_selection_dialog: FileSelectionDialog::new(theme.clone()),
+            directory_selection_dialog: DirectorySelectionDialog::new(theme.clone()),
+            release_notes_dialog: ReleaseNotesDialog::new(theme),
         }
     }
 
@@ -145,6 +166,16 @@ impl App {
                 AppMode::Timeline => self.handle_timeline(&mut terminal)?,
                 AppMode::ForkDialog => self.handle_fork_dialog(&mut terminal)?,
                 AppMode::Chat => self.handle_input(&mut terminal)?,
+                AppMode::Settings => self.handle_settings_dialog(&mut terminal)?,
+                AppMode::ModelSelection => self.handle_model_selection_dialog(&mut terminal)?,
+                AppMode::ProviderManagement => {
+                    self.handle_provider_management_dialog(&mut terminal)?
+                }
+                AppMode::FileSelection => self.handle_file_selection_dialog(&mut terminal)?,
+                AppMode::DirectorySelection => {
+                    self.handle_directory_selection_dialog(&mut terminal)?
+                }
+                AppMode::ReleaseNotes => self.handle_release_notes_dialog(&mut terminal)?,
             }
         }
     }
@@ -302,6 +333,18 @@ impl App {
             "/meta" => {
                 self.show_metadata = !self.show_metadata;
             }
+            "/settings" => {
+                self.mode = AppMode::Settings;
+            }
+            "/models" => {
+                self.mode = AppMode::ModelSelection;
+            }
+            "/providers" => {
+                self.mode = AppMode::ProviderManagement;
+            }
+            "/release-notes" => {
+                self.mode = AppMode::ReleaseNotes;
+            }
             _ => {
                 if !cmd.is_empty() {
                     self.add_message(format!("Unknown command: {}", cmd), false);
@@ -330,6 +373,12 @@ impl App {
                         if !self.messages.is_empty() {
                             self.timeline_state.select(Some(self.messages.len() - 1));
                         }
+                    }
+                    KeyCode::Char(',') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        self.mode = AppMode::Settings;
+                    }
+                    KeyCode::Char('m') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        self.mode = AppMode::ModelSelection;
                     }
                     KeyCode::Enter => {
                         let input = self.input.clone();
@@ -394,6 +443,30 @@ impl App {
                 self.draw_command_palette(f);
             }
             AppMode::Chat => self.draw_chat(f),
+            AppMode::Settings => {
+                self.draw_chat(f);
+                self.settings_dialog.draw(f, f.area());
+            }
+            AppMode::ModelSelection => {
+                self.draw_chat(f);
+                self.model_selection_dialog.draw(f, f.area());
+            }
+            AppMode::ProviderManagement => {
+                self.draw_chat(f);
+                self.provider_management_dialog.draw(f, f.area());
+            }
+            AppMode::FileSelection => {
+                self.draw_chat(f);
+                self.file_selection_dialog.draw(f, f.area());
+            }
+            AppMode::DirectorySelection => {
+                self.draw_chat(f);
+                self.directory_selection_dialog.draw(f, f.area());
+            }
+            AppMode::ReleaseNotes => {
+                self.draw_chat(f);
+                self.release_notes_dialog.draw(f, f.area());
+            }
         }
     }
 
@@ -479,7 +552,7 @@ impl App {
         );
 
         let status = format!(
-            " Agent: {} | Provider: {} | ^P: Commands | ^T: Timeline | ^C: Quit",
+            " Agent: {} | Provider: {} | ^P: Commands | ^T: Timeline | ^,: Settings | ^M: Models | ^C: Quit",
             self.agent, self.provider
         );
         f.render_widget(
@@ -621,6 +694,18 @@ impl App {
                 Style::default().fg(theme.muted_color()),
             )),
             Line::from(Span::styled(
+                "/settings  Open settings dialog",
+                Style::default().fg(theme.muted_color()),
+            )),
+            Line::from(Span::styled(
+                "/models    Open model selection",
+                Style::default().fg(theme.muted_color()),
+            )),
+            Line::from(Span::styled(
+                "/providers Open provider management",
+                Style::default().fg(theme.muted_color()),
+            )),
+            Line::from(Span::styled(
                 "/help      Show help",
                 Style::default().fg(theme.muted_color()),
             )),
@@ -631,6 +716,117 @@ impl App {
         ];
 
         f.render_widget(Paragraph::new(commands).block(block), palette_area);
+    }
+
+    fn handle_settings_dialog(
+        &mut self,
+        _terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    ) -> io::Result<()> {
+        if let Event::Key(key) = event::read()? {
+            if key.kind == KeyEventKind::Press {
+                let action = self.settings_dialog.handle_input(key);
+                match action {
+                    DialogAction::Close => self.mode = AppMode::Chat,
+                    _ => {}
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn handle_model_selection_dialog(
+        &mut self,
+        _terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    ) -> io::Result<()> {
+        if let Event::Key(key) = event::read()? {
+            if key.kind == KeyEventKind::Press {
+                let action = self.model_selection_dialog.handle_input(key);
+                match action {
+                    DialogAction::Close => self.mode = AppMode::Chat,
+                    DialogAction::Confirm(model_id) => {
+                        self.add_message(format!("Selected model: {}", model_id), false);
+                        self.mode = AppMode::Chat;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn handle_provider_management_dialog(
+        &mut self,
+        _terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    ) -> io::Result<()> {
+        if let Event::Key(key) = event::read()? {
+            if key.kind == KeyEventKind::Press {
+                let action = self.provider_management_dialog.handle_input(key);
+                match action {
+                    DialogAction::Close => self.mode = AppMode::Chat,
+                    DialogAction::Navigate(nav) => {
+                        self.add_message(format!("Navigating to: {}", nav), false);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn handle_file_selection_dialog(
+        &mut self,
+        _terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    ) -> io::Result<()> {
+        if let Event::Key(key) = event::read()? {
+            if key.kind == KeyEventKind::Press {
+                let action = self.file_selection_dialog.handle_input(key);
+                match action {
+                    DialogAction::Close => self.mode = AppMode::Chat,
+                    DialogAction::Confirm(path) => {
+                        self.add_message(format!("Selected file: {}", path), false);
+                        self.mode = AppMode::Chat;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn handle_directory_selection_dialog(
+        &mut self,
+        _terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    ) -> io::Result<()> {
+        if let Event::Key(key) = event::read()? {
+            if key.kind == KeyEventKind::Press {
+                let action = self.directory_selection_dialog.handle_input(key);
+                match action {
+                    DialogAction::Close => self.mode = AppMode::Chat,
+                    DialogAction::Confirm(path) => {
+                        self.add_message(format!("Selected directory: {}", path), false);
+                        self.mode = AppMode::Chat;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn handle_release_notes_dialog(
+        &mut self,
+        _terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    ) -> io::Result<()> {
+        if let Event::Key(key) = event::read()? {
+            if key.kind == KeyEventKind::Press {
+                let action = self.release_notes_dialog.handle_input(key);
+                match action {
+                    DialogAction::Close => self.mode = AppMode::Chat,
+                    _ => {}
+                }
+            }
+        }
+        Ok(())
     }
 }
 
