@@ -891,6 +891,303 @@ impl Config {
             .and_then(|e| e.open_telemetry)
             .unwrap_or(false)
     }
+
+    /// Validate the configuration and return a list of validation errors
+    pub fn validate(&self) -> Vec<ValidationError> {
+        let mut errors = Vec::new();
+
+        // Validate model format (should be provider/model)
+        if let Some(model) = &self.model {
+            if !model.contains('/') {
+                errors.push(ValidationError {
+                    field: "model".to_string(),
+                    message: format!("Model '{}' should be in format 'provider/model'", model),
+                    severity: ValidationSeverity::Warning,
+                });
+            }
+        }
+
+        // Validate temperature range
+        if let Some(temp) = self.temperature {
+            if temp < 0.0 || temp > 2.0 {
+                errors.push(ValidationError {
+                    field: "temperature".to_string(),
+                    message: format!("Temperature {} should be between 0.0 and 2.0", temp),
+                    severity: ValidationSeverity::Error,
+                });
+            }
+        }
+
+        // Validate agent configurations
+        if let Some(agents) = &self.agent {
+            if let Some(custom) = &agents.custom {
+                for (name, agent) in custom {
+                    if let Some(temp) = agent.temperature {
+                        if temp < 0.0 || temp > 2.0 {
+                            errors.push(ValidationError {
+                                field: format!("agent.{}.temperature", name),
+                                message: format!(
+                                    "Temperature {} should be between 0.0 and 2.0",
+                                    temp
+                                ),
+                                severity: ValidationSeverity::Error,
+                            });
+                        }
+                    }
+                    if let Some(top_p) = agent.top_p {
+                        if top_p < 0.0 || top_p > 1.0 {
+                            errors.push(ValidationError {
+                                field: format!("agent.{}.top_p", name),
+                                message: format!("Top-p {} should be between 0.0 and 1.0", top_p),
+                                severity: ValidationSeverity::Error,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        // Validate provider configurations
+        if let Some(providers) = &self.provider {
+            for (name, provider) in providers {
+                // Check for required fields in provider options
+                if let Some(options) = &provider.options {
+                    if name != "ollama" && options.api_key.is_none() {
+                        // API key is typically required for cloud providers
+                        // but we'll just warn since it might be set via env
+                        errors.push(ValidationError {
+                            field: format!("provider.{}.options.api_key", name),
+                            message: format!(
+                                "API key not set for provider '{}' (may be set via environment)",
+                                name
+                            ),
+                            severity: ValidationSeverity::Warning,
+                        });
+                    }
+                }
+            }
+        }
+
+        // Validate server configuration
+        if let Some(server) = &self.server {
+            if let Some(port) = server.port {
+                if port == 0 {
+                    errors.push(ValidationError {
+                        field: "server.port".to_string(),
+                        message: "Server port cannot be 0".to_string(),
+                        severity: ValidationSeverity::Error,
+                    });
+                }
+            }
+        }
+
+        // Validate compaction configuration
+        if let Some(compaction) = &self.compaction {
+            if let Some(reserved) = compaction.reserved {
+                if reserved > 10000 {
+                    errors.push(ValidationError {
+                        field: "compaction.reserved".to_string(),
+                        message: format!("Reserved tokens {} seems excessively high", reserved),
+                        severity: ValidationSeverity::Warning,
+                    });
+                }
+            }
+        }
+
+        errors
+    }
+
+    /// Check if configuration is valid (no errors)
+    pub fn is_valid(&self) -> bool {
+        self.validate().iter().all(|e| !e.is_error())
+    }
+
+    /// Save configuration to a file path
+    pub fn save(&self, path: &PathBuf) -> Result<(), crate::OpenCodeError> {
+        let content = toml::to_string_pretty(self)
+            .map_err(|e| crate::OpenCodeError::Config(e.to_string()))?;
+
+        // Ensure parent directory exists
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| crate::OpenCodeError::Config(e.to_string()))?;
+        }
+
+        std::fs::write(path, content).map_err(|e| crate::OpenCodeError::Config(e.to_string()))?;
+
+        Ok(())
+    }
+
+    /// Save provider settings to config file
+    pub fn save_provider_settings(
+        &mut self,
+        provider_id: &str,
+        config: ProviderConfig,
+    ) -> Result<(), crate::OpenCodeError> {
+        let mut providers = self.provider.clone().unwrap_or_default();
+        providers.insert(provider_id.to_string(), config);
+        self.provider = Some(providers);
+
+        // Save to default config path
+        self.save(&Self::config_path())
+    }
+
+    /// Migrate from TypeScript-style JSON config format
+    pub fn migrate_from_ts_format(json_content: &str) -> Result<Self, crate::OpenCodeError> {
+        // Parse as generic JSON first
+        let json_value: serde_json::Value = serde_json::from_str(json_content)
+            .map_err(|e| crate::OpenCodeError::Config(e.to_string()))?;
+
+        let mut config = Config::default();
+
+        // Map common fields from TS format
+        if let Some(obj) = json_value.as_object() {
+            // Map logLevel -> log_level
+            if let Some(log_level) = obj.get("logLevel").and_then(|v| v.as_str()) {
+                config.log_level = match log_level.to_lowercase().as_str() {
+                    "trace" => Some(LogLevel::Trace),
+                    "debug" => Some(LogLevel::Debug),
+                    "info" => Some(LogLevel::Info),
+                    "warn" => Some(LogLevel::Warn),
+                    "error" => Some(LogLevel::Error),
+                    _ => None,
+                };
+            }
+
+            // Map model
+            if let Some(model) = obj.get("model").and_then(|v| v.as_str()) {
+                config.model = Some(model.to_string());
+            }
+
+            // Map smallModel -> small_model
+            if let Some(small_model) = obj.get("smallModel").and_then(|v| v.as_str()) {
+                config.small_model = Some(small_model.to_string());
+            }
+
+            // Map defaultAgent -> default_agent
+            if let Some(default_agent) = obj.get("defaultAgent").and_then(|v| v.as_str()) {
+                config.default_agent = Some(default_agent.to_string());
+            }
+
+            // Map username
+            if let Some(username) = obj.get("username").and_then(|v| v.as_str()) {
+                config.username = Some(username.to_string());
+            }
+
+            // Map apiKey -> api_key
+            if let Some(api_key) = obj.get("apiKey").and_then(|v| v.as_str()) {
+                config.api_key = Some(api_key.to_string());
+            }
+
+            // Map temperature
+            if let Some(temp) = obj.get("temperature").and_then(|v| v.as_f64()) {
+                config.temperature = Some(temp as f32);
+            }
+
+            // Map maxTokens -> max_tokens
+            if let Some(max_tokens) = obj.get("maxTokens").and_then(|v| v.as_u64()) {
+                config.max_tokens = Some(max_tokens as u32);
+            }
+
+            // Map providers
+            if let Some(providers) = obj.get("providers").and_then(|v| v.as_object()) {
+                let mut provider_map: HashMap<String, ProviderConfig> = HashMap::new();
+                for (name, provider_json) in providers {
+                    if let Some(provider_obj) = provider_json.as_object() {
+                        let mut provider_config = ProviderConfig {
+                            id: Some(name.clone()),
+                            ..Default::default()
+                        };
+
+                        // Map provider options
+                        let mut options = ProviderOptions::default();
+                        if let Some(api_key) = provider_obj.get("apiKey").and_then(|v| v.as_str()) {
+                            options.api_key = Some(api_key.to_string());
+                        }
+                        if let Some(base_url) = provider_obj.get("baseUrl").and_then(|v| v.as_str())
+                        {
+                            options.base_url = Some(base_url.to_string());
+                        }
+                        provider_config.options = Some(options);
+
+                        provider_map.insert(name.clone(), provider_config);
+                    }
+                }
+                config.provider = Some(provider_map);
+            }
+
+            // Map disabledProviders -> disabled_providers
+            if let Some(disabled) = obj.get("disabledProviders").and_then(|v| v.as_array()) {
+                config.disabled_providers = Some(
+                    disabled
+                        .iter()
+                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                        .collect(),
+                );
+            }
+
+            // Map enabledProviders -> enabled_providers
+            if let Some(enabled) = obj.get("enabledProviders").and_then(|v| v.as_array()) {
+                config.enabled_providers = Some(
+                    enabled
+                        .iter()
+                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                        .collect(),
+                );
+            }
+
+            // Map share mode
+            if let Some(share) = obj.get("share").and_then(|v| v.as_str()) {
+                config.share = match share.to_lowercase().as_str() {
+                    "manual" => Some(ShareMode::Manual),
+                    "auto" => Some(ShareMode::Auto),
+                    "disabled" => Some(ShareMode::Disabled),
+                    _ => None,
+                };
+            }
+
+            // Map autoUpdate -> autoupdate
+            if let Some(autoupdate) = obj.get("autoUpdate") {
+                if let Some(b) = autoupdate.as_bool() {
+                    config.autoupdate = Some(AutoUpdate::Bool(b));
+                } else if let Some(s) = autoupdate.as_str() {
+                    config.autoupdate = Some(AutoUpdate::Notify(s.to_string()));
+                }
+            }
+
+            // Map snapshot
+            if let Some(snapshot) = obj.get("snapshot").and_then(|v| v.as_bool()) {
+                config.snapshot = Some(snapshot);
+            }
+        }
+
+        Ok(config)
+    }
+}
+
+/// Validation error structure
+#[derive(Debug, Clone)]
+pub struct ValidationError {
+    pub field: String,
+    pub message: String,
+    pub severity: ValidationSeverity,
+}
+
+impl ValidationError {
+    pub fn is_error(&self) -> bool {
+        matches!(self.severity, ValidationSeverity::Error)
+    }
+
+    pub fn is_warning(&self) -> bool {
+        matches!(self.severity, ValidationSeverity::Warning)
+    }
+}
+
+/// Validation severity level
+#[derive(Debug, Clone)]
+pub enum ValidationSeverity {
+    Error,
+    Warning,
 }
 
 #[cfg(test)]

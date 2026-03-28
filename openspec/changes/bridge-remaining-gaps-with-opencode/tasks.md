@@ -15,15 +15,15 @@
 - [x] 2.2 Add File Tree panel toggle (`Ctrl+Shift+F`)
 - [x] 2.3 Implement Title Bar with session history dropdown
 - [x] 2.4 Add Status Popover system (connection, tokens, context)
-- [ ] 2.5 Implement Terminal Panel (`Ctrl+~`)
-- [ ] 2.6 Add Prompt Input enhancements (history, multiline)
-- [ ] 2.7 Implement virtual scrolling for large lists
+- [x] 2.5 Implement Terminal Panel (`Ctrl+~`)
+- [x] 2.6 Add Prompt Input enhancements (history, multiline)
+- [x] 2.7 Implement virtual scrolling for large lists
 
 ## 3. Configuration System Expansion
 
-- [ ] 3.1 Extend Config struct to support all TS settings categories
+- [x] 3.1 Extend Config struct to support all TS settings categories
 - [ ] 3.2 Add settings validation logic
-- [ ] 3.3 Implement keybind configuration storage
+- [x] 3.3 Implement keybind configuration storage
 - [ ] 3.4 Add provider settings persistence
 - [ ] 3.5 Create settings migration from TS format
 
