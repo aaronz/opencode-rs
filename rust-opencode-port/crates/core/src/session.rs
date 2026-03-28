@@ -11,6 +11,24 @@ pub struct Session {
     pub messages: Vec<Message>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub undo_history: Vec<HistoryEntry>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub redo_history: Vec<HistoryEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HistoryEntry {
+    pub action: Action,
+    pub messages: Vec<Message>,
+    pub timestamp: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum Action {
+    AddMessage,
+    RemoveMessage,
+    ClearSession,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,12 +48,64 @@ impl Session {
             messages: Vec::new(),
             created_at: now,
             updated_at: now,
+            undo_history: Vec::new(),
+            redo_history: Vec::new(),
         }
     }
 
     pub fn add_message(&mut self, message: Message) {
+        self.undo_history.push(HistoryEntry {
+            action: Action::AddMessage,
+            messages: self.messages.clone(),
+            timestamp: Utc::now(),
+        });
+        self.redo_history.clear();
         self.messages.push(message);
         self.updated_at = Utc::now();
+    }
+
+    pub fn undo(&mut self, steps: usize) -> Result<usize, String> {
+        let mut undone = 0;
+        for _ in 0..steps {
+            if let Some(entry) = self.undo_history.pop() {
+                self.redo_history.push(HistoryEntry {
+                    action: entry.action.clone(),
+                    messages: self.messages.clone(),
+                    timestamp: Utc::now(),
+                });
+                self.messages = entry.messages;
+                self.updated_at = Utc::now();
+                undone += 1;
+            } else {
+                break;
+            }
+        }
+        if undone == 0 {
+            return Err("Nothing to undo".to_string());
+        }
+        Ok(undone)
+    }
+
+    pub fn redo(&mut self, steps: usize) -> Result<usize, String> {
+        let mut redone = 0;
+        for _ in 0..steps {
+            if let Some(entry) = self.redo_history.pop() {
+                self.undo_history.push(HistoryEntry {
+                    action: entry.action.clone(),
+                    messages: self.messages.clone(),
+                    timestamp: Utc::now(),
+                });
+                self.messages = entry.messages;
+                self.updated_at = Utc::now();
+                redone += 1;
+            } else {
+                break;
+            }
+        }
+        if redone == 0 {
+            return Err("Nothing to redo".to_string());
+        }
+        Ok(redone)
     }
 
     pub fn save(&self, path: &PathBuf) -> Result<(), crate::OpenCodeError> {
@@ -208,5 +278,97 @@ mod tests {
         session.truncate_for_context(10);
 
         assert!(session.messages.len() < 2);
+    }
+
+    #[test]
+    fn test_session_undo_single() {
+        let mut session = Session::new();
+        session.add_message(Message::user("First".to_string()));
+        session.add_message(Message::assistant("Second".to_string()));
+
+        assert_eq!(session.messages.len(), 2);
+
+        let result = session.undo(1);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 1);
+        assert_eq!(session.messages.len(), 1);
+        assert_eq!(session.messages[0].content, "First");
+    }
+
+    #[test]
+    fn test_session_undo_multiple() {
+        let mut session = Session::new();
+        session.add_message(Message::user("First".to_string()));
+        session.add_message(Message::assistant("Second".to_string()));
+        session.add_message(Message::user("Third".to_string()));
+
+        let result = session.undo(2);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 2);
+        assert_eq!(session.messages.len(), 1);
+    }
+
+    #[test]
+    fn test_session_undo_nothing() {
+        let mut session = Session::new();
+        let result = session.undo(1);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Nothing to undo");
+    }
+
+    #[test]
+    fn test_session_redo() {
+        let mut session = Session::new();
+        session.add_message(Message::user("First".to_string()));
+        session.add_message(Message::assistant("Second".to_string()));
+
+        session.undo(1).unwrap();
+        assert_eq!(session.messages.len(), 1);
+
+        let result = session.redo(1);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 1);
+        assert_eq!(session.messages.len(), 2);
+        assert_eq!(session.messages[1].content, "Second");
+    }
+
+    #[test]
+    fn test_session_redo_nothing() {
+        let mut session = Session::new();
+        let result = session.redo(1);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Nothing to redo");
+    }
+
+    #[test]
+    fn test_session_undo_redo_clears_redo() {
+        let mut session = Session::new();
+        session.add_message(Message::user("First".to_string()));
+        session.add_message(Message::assistant("Second".to_string()));
+
+        session.undo(1).unwrap();
+        assert_eq!(session.redo_history.len(), 1);
+
+        session.add_message(Message::user("New".to_string()));
+        assert!(session.redo_history.is_empty());
+    }
+
+    #[test]
+    fn test_session_undo_persistence() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("session.json");
+
+        let mut session = Session::new();
+        session.add_message(Message::user("Test".to_string()));
+
+        assert_eq!(session.undo_history.len(), 1);
+
+        session.undo(1).unwrap();
+
+        session.save(&path).unwrap();
+        let loaded = Session::load(&path).unwrap();
+
+        assert!(!loaded.redo_history.is_empty());
+        assert!(loaded.messages.is_empty());
     }
 }

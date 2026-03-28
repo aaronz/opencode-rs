@@ -17,8 +17,103 @@ pub enum SessionAction {
         json: bool,
     },
     Export,
+    Undo {
+        #[arg(short, long, default_value = "1")]
+        steps: usize,
+    },
+    Redo {
+        #[arg(short, long, default_value = "1")]
+        steps: usize,
+    },
+    Review {
+        #[arg(short, long)]
+        file: Option<String>,
+        #[arg(short, long, default_value = "text")]
+        format: String,
+    },
+    Diff {
+        #[arg(short, long)]
+        file: String,
+        #[arg(short, long, default_value = "3")]
+        context: usize,
+    },
 }
 
 pub fn run(args: SessionArgs) {
-    println!("Session action: {:?}", args.action);
+    match args.action {
+        Some(SessionAction::Undo { steps }) => {
+            if let Some(id) = args.id {
+                println!("Undoing {} steps in session {}", steps, id);
+            } else {
+                eprintln!("Error: Session ID required for undo");
+                std::process::exit(1);
+            }
+        }
+        Some(SessionAction::Redo { steps }) => {
+            if let Some(id) = args.id {
+                println!("Redoing {} steps in session {}", steps, id);
+            } else {
+                eprintln!("Error: Session ID required for redo");
+                std::process::exit(1);
+            }
+        }
+        Some(SessionAction::Review { file, format }) => {
+            if let Some(id) = args.id {
+                println!("Reviewing session {} (file: {:?}, format: {})", id, file, format);
+            } else {
+                eprintln!("Error: Session ID required for review");
+                std::process::exit(1);
+            }
+        }
+        Some(SessionAction::Diff { file, context }) => {
+            if let Some(id) = args.id {
+                println!("Showing diff for {} in session {} (context: {})", file, id, context);
+            } else {
+                eprintln!("Error: Session ID required for diff");
+                std::process::exit(1);
+            }
+        }
+        _ => {
+            println!("Session action: {:?}", args.action);
+        }
+    }
+}
+        }
+        Some(SessionAction::Redo { steps }) => {
+            if let Some(id) = args.id {
+                println!("Redoing {} steps in session {}", steps, id);
+                // TODO: Implement actual redo logic
+            } else {
+                eprintln!("Error: Session ID required for redo");
+                std::process::exit(1);
+            }
+        }
+        Some(SessionAction::Review { file, format }) => {
+            if let Some(id) = args.id {
+                println!(
+                    "Reviewing session {} (file: {:?}, format: {})",
+                    id, file, format
+                );
+                // TODO: Implement actual review logic
+            } else {
+                eprintln!("Error: Session ID required for review");
+                std::process::exit(1);
+            }
+        }
+        Some(SessionAction::Diff { file, context }) => {
+            if let Some(id) = args.id {
+                println!(
+                    "Showing diff for {} in session {} (context: {})",
+                    file, id, context
+                );
+                // TODO: Implement actual diff logic
+            } else {
+                eprintln!("Error: Session ID required for diff");
+                std::process::exit(1);
+            }
+        }
+        _ => {
+            println!("Session action: {:?}", args.action);
+        }
+    }
 }

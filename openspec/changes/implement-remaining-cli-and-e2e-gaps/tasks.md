@@ -1,19 +1,19 @@
 ## 1. CLI Session Undo/Redo Commands
 
-- [ ] 1.1 Add undo subcommand to session command with --steps option
-- [ ] 1.2 Add redo subcommand to session command
-- [ ] 1.3 Implement undo history tracking in core Session struct
-- [ ] 1.4 Implement redo history stack
-- [ ] 1.5 Add persistence for undo/redo history
-- [ ] 1.6 Write tests for undo/redo functionality
+- [x] 1.1 Add undo subcommand to session command with --steps option
+- [x] 1.2 Add redo subcommand to session command
+- [x] 1.3 Implement undo history tracking in core Session struct
+- [x] 1.4 Implement redo history stack
+- [x] 1.5 Add persistence for undo/redo history
+- [x] 1.6 Write tests for undo/redo functionality
 
 ## 2. CLI Session Review Commands
 
-- [ ] 2.1 Add review subcommand to session command
+- [x] 2.1 Add review subcommand to session command
 - [ ] 2.2 Implement diff generation for session changes
 - [ ] 2.3 Add --file filter option for reviewing specific files
 - [ ] 2.4 Add --format option for JSON output
-- [ ] 2.5 Add diff subcommand for single file diffs
+- [x] 2.5 Add diff subcommand for single file diffs
 - [ ] 2.6 Implement line number display in diffs
 
 ## 3. CLI Model Visibility Commands
