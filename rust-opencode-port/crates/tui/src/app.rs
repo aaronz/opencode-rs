@@ -1,4 +1,4 @@
-use crate::components::FileTree;
+use crate::components::{FileTree, TitleBar, TitleBarAction};
 use crate::dialogs::*;
 use crate::theme::{Theme, ThemeManager};
 use crossterm::{
@@ -93,6 +93,8 @@ pub struct App {
     pub release_notes_dialog: ReleaseNotesDialog,
     pub file_tree: Option<FileTree>,
     pub show_file_tree: bool,
+    pub title_bar: TitleBar,
+    pub show_title_bar: bool,
 }
 
 impl App {
@@ -121,9 +123,11 @@ impl App {
             provider_management_dialog: ProviderManagementDialog::new(theme.clone()),
             file_selection_dialog: FileSelectionDialog::new(theme.clone()),
             directory_selection_dialog: DirectorySelectionDialog::new(theme.clone()),
-            release_notes_dialog: ReleaseNotesDialog::new(theme),
+            release_notes_dialog: ReleaseNotesDialog::new(theme.clone()),
             file_tree: None,
             show_file_tree: false,
+            title_bar: TitleBar::new(theme),
+            show_title_bar: true,
         }
     }
 
@@ -367,6 +371,17 @@ impl App {
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
+                if self.title_bar.show_dropdown {
+                    let action = self.title_bar.handle_input(key);
+                    match action {
+                        TitleBarAction::Select(session_id) => {
+                            self.add_message(format!("Switched to session: {}", session_id), false);
+                        }
+                        _ => {}
+                    }
+                    return Ok(());
+                }
+
                 match key.code {
                     KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         disable_raw_mode()?;
@@ -393,6 +408,9 @@ impl App {
                             && key.modifiers.contains(KeyModifiers::SHIFT) =>
                     {
                         self.toggle_file_tree();
+                    }
+                    KeyCode::Char('h') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        self.title_bar.toggle_dropdown();
                     }
                     KeyCode::Enter => {
                         let input = self.input.clone();
@@ -495,25 +513,40 @@ impl App {
     fn draw_chat(&mut self, f: &mut Frame) {
         let area = f.area();
 
-        let main_area = if self.show_file_tree {
-            let file_tree_width = 30.min(area.width / 3);
-            let file_tree_area = Rect::new(
+        let (title_area, main_area) = if self.show_title_bar {
+            let title_height = if self.title_bar.show_dropdown { 12 } else { 1 };
+            let title_area = Rect::new(area.x, area.y, area.width, title_height);
+            self.title_bar.draw(f, title_area);
+            let remaining = Rect::new(
                 area.x,
-                area.y,
+                area.y + title_height,
+                area.width,
+                area.height.saturating_sub(title_height),
+            );
+            (Some(title_area), remaining)
+        } else {
+            (None, area)
+        };
+
+        let main_area = if self.show_file_tree {
+            let file_tree_width = 30.min(main_area.width / 3);
+            let file_tree_area = Rect::new(
+                main_area.x,
+                main_area.y,
                 file_tree_width,
-                area.height.saturating_sub(1),
+                main_area.height.saturating_sub(1),
             );
             if let Some(ref mut file_tree) = self.file_tree {
                 file_tree.draw(f, file_tree_area, "Files");
             }
             Rect::new(
-                area.x + file_tree_width,
-                area.y,
-                area.width - file_tree_width,
-                area.height,
+                main_area.x + file_tree_width,
+                main_area.y,
+                main_area.width - file_tree_width,
+                main_area.height,
             )
         } else {
-            area
+            main_area
         };
 
         let theme = self.theme();
