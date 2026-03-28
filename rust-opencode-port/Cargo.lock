@@ -2317,6 +2317,7 @@ dependencies = [
 name = "opencode-tui"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "crossterm",
  "futures",
  "opencode-core",

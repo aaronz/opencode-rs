@@ -1,4 +1,6 @@
-use crate::components::{FileTree, StatusBar, StatusPopoverType, TitleBar, TitleBarAction};
+use crate::components::{
+    FileTree, StatusBar, StatusPopoverType, TerminalPanel, TitleBar, TitleBarAction,
+};
 use crate::dialogs::*;
 use crate::theme::{Theme, ThemeManager};
 use crossterm::{
@@ -96,6 +98,8 @@ pub struct App {
     pub title_bar: TitleBar,
     pub show_title_bar: bool,
     pub status_bar: StatusBar,
+    pub terminal_panel: TerminalPanel,
+    pub show_terminal: bool,
 }
 
 impl App {
@@ -129,7 +133,9 @@ impl App {
             show_file_tree: false,
             title_bar: TitleBar::new(theme.clone()),
             show_title_bar: true,
-            status_bar: StatusBar::new(theme),
+            status_bar: StatusBar::new(theme.clone()),
+            terminal_panel: TerminalPanel::new(theme),
+            show_terminal: false,
         }
     }
 
@@ -424,6 +430,9 @@ impl App {
                     KeyCode::Char('3') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         self.status_bar.toggle_popover(StatusPopoverType::Context);
                     }
+                    KeyCode::Char('`') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        self.show_terminal = !self.show_terminal;
+                    }
                     KeyCode::Enter => {
                         let input = self.input.clone();
                         if !input.is_empty() {
@@ -563,25 +572,42 @@ impl App {
 
         let theme = self.theme();
 
-        let (messages_height, tool_height) = if self.tool_output.is_empty() {
-            (main_area.height.saturating_sub(3), 0)
+        let terminal_height = if self.show_terminal {
+            10.min(main_area.height / 3)
         } else {
-            let tool_height = 5.min(main_area.height / 3);
+            0
+        };
+        let remaining_height = main_area.height.saturating_sub(terminal_height);
+
+        let (messages_height, tool_height) = if self.tool_output.is_empty() {
+            (remaining_height.saturating_sub(3), 0)
+        } else {
+            let tool_height = 5.min(remaining_height / 3);
             (
-                main_area.height.saturating_sub(tool_height + 3),
+                remaining_height.saturating_sub(tool_height + 3),
                 tool_height,
             )
         };
 
         let messages_area = Rect::new(main_area.x, main_area.y, main_area.width, messages_height);
         let input_area = Rect::new(main_area.x, messages_height, main_area.width, 2);
-        let status_area = Rect::new(main_area.x, main_area.height - 1, main_area.width - 30, 1);
+        let status_area = Rect::new(main_area.x, remaining_height - 1, main_area.width - 30, 1);
         let status_indicator_area = Rect::new(
             main_area.x + main_area.width - 30,
-            main_area.height - 1,
+            remaining_height - 1,
             30,
             1,
         );
+
+        if self.show_terminal {
+            let terminal_area = Rect::new(
+                main_area.x,
+                remaining_height,
+                main_area.width,
+                terminal_height,
+            );
+            self.terminal_panel.draw(f, terminal_area);
+        }
 
         let messages: Vec<Line> = self
             .messages
