@@ -1,4 +1,4 @@
-use crate::components::{FileTree, TitleBar, TitleBarAction};
+use crate::components::{FileTree, StatusBar, StatusPopoverType, TitleBar, TitleBarAction};
 use crate::dialogs::*;
 use crate::theme::{Theme, ThemeManager};
 use crossterm::{
@@ -95,6 +95,7 @@ pub struct App {
     pub show_file_tree: bool,
     pub title_bar: TitleBar,
     pub show_title_bar: bool,
+    pub status_bar: StatusBar,
 }
 
 impl App {
@@ -126,8 +127,9 @@ impl App {
             release_notes_dialog: ReleaseNotesDialog::new(theme.clone()),
             file_tree: None,
             show_file_tree: false,
-            title_bar: TitleBar::new(theme),
+            title_bar: TitleBar::new(theme.clone()),
             show_title_bar: true,
+            status_bar: StatusBar::new(theme),
         }
     }
 
@@ -412,6 +414,16 @@ impl App {
                     KeyCode::Char('h') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         self.title_bar.toggle_dropdown();
                     }
+                    KeyCode::Char('1') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        self.status_bar
+                            .toggle_popover(StatusPopoverType::Connection);
+                    }
+                    KeyCode::Char('2') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        self.status_bar.toggle_popover(StatusPopoverType::Tokens);
+                    }
+                    KeyCode::Char('3') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        self.status_bar.toggle_popover(StatusPopoverType::Context);
+                    }
                     KeyCode::Enter => {
                         let input = self.input.clone();
                         if !input.is_empty() {
@@ -563,7 +575,13 @@ impl App {
 
         let messages_area = Rect::new(main_area.x, main_area.y, main_area.width, messages_height);
         let input_area = Rect::new(main_area.x, messages_height, main_area.width, 2);
-        let status_area = Rect::new(main_area.x, main_area.height - 1, main_area.width, 1);
+        let status_area = Rect::new(main_area.x, main_area.height - 1, main_area.width - 30, 1);
+        let status_indicator_area = Rect::new(
+            main_area.x + main_area.width - 30,
+            main_area.height - 1,
+            30,
+            1,
+        );
 
         let messages: Vec<Line> = self
             .messages
@@ -639,6 +657,8 @@ impl App {
             Paragraph::new(status).style(Style::default().fg(theme.muted_color())),
             status_area,
         );
+
+        self.status_bar.draw(f, status_indicator_area);
     }
 
     fn draw_timeline(&mut self, f: &mut Frame) {

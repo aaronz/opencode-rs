@@ -4,6 +4,6 @@ pub mod dialogs;
 pub mod theme;
 
 pub use app::{App, AppMode, MessageMeta};
-pub use components::{FileTree, TitleBar, TitleBarAction};
+pub use components::{FileTree, StatusBar, StatusPopoverType, TitleBar, TitleBarAction};
 pub use dialogs::*;
 pub use theme::{Theme, ThemeManager};
