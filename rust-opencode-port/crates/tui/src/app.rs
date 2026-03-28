@@ -1,3 +1,4 @@
+use crate::components::FileTree;
 use crate::dialogs::*;
 use crate::theme::{Theme, ThemeManager};
 use crossterm::{
@@ -90,6 +91,8 @@ pub struct App {
     pub file_selection_dialog: FileSelectionDialog,
     pub directory_selection_dialog: DirectorySelectionDialog,
     pub release_notes_dialog: ReleaseNotesDialog,
+    pub file_tree: Option<FileTree>,
+    pub show_file_tree: bool,
 }
 
 impl App {
@@ -119,6 +122,8 @@ impl App {
             file_selection_dialog: FileSelectionDialog::new(theme.clone()),
             directory_selection_dialog: DirectorySelectionDialog::new(theme.clone()),
             release_notes_dialog: ReleaseNotesDialog::new(theme),
+            file_tree: None,
+            show_file_tree: false,
         }
     }
 
@@ -342,6 +347,9 @@ impl App {
             "/providers" => {
                 self.mode = AppMode::ProviderManagement;
             }
+            "/files" => {
+                self.toggle_file_tree();
+            }
             "/release-notes" => {
                 self.mode = AppMode::ReleaseNotes;
             }
@@ -379,6 +387,12 @@ impl App {
                     }
                     KeyCode::Char('m') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         self.mode = AppMode::ModelSelection;
+                    }
+                    KeyCode::Char('f')
+                        if key.modifiers.contains(KeyModifiers::CONTROL)
+                            && key.modifiers.contains(KeyModifiers::SHIFT) =>
+                    {
+                        self.toggle_file_tree();
                     }
                     KeyCode::Enter => {
                         let input = self.input.clone();
@@ -470,20 +484,53 @@ impl App {
         }
     }
 
-    fn draw_chat(&self, f: &mut Frame) {
+    fn toggle_file_tree(&mut self) {
+        self.show_file_tree = !self.show_file_tree;
+        if self.show_file_tree && self.file_tree.is_none() {
+            let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+            self.file_tree = Some(FileTree::new(cwd));
+        }
+    }
+
+    fn draw_chat(&mut self, f: &mut Frame) {
         let area = f.area();
+
+        let main_area = if self.show_file_tree {
+            let file_tree_width = 30.min(area.width / 3);
+            let file_tree_area = Rect::new(
+                area.x,
+                area.y,
+                file_tree_width,
+                area.height.saturating_sub(1),
+            );
+            if let Some(ref mut file_tree) = self.file_tree {
+                file_tree.draw(f, file_tree_area, "Files");
+            }
+            Rect::new(
+                area.x + file_tree_width,
+                area.y,
+                area.width - file_tree_width,
+                area.height,
+            )
+        } else {
+            area
+        };
+
         let theme = self.theme();
 
         let (messages_height, tool_height) = if self.tool_output.is_empty() {
-            (area.height.saturating_sub(3), 0)
+            (main_area.height.saturating_sub(3), 0)
         } else {
-            let tool_height = 5.min(area.height / 3);
-            (area.height.saturating_sub(tool_height + 3), tool_height)
+            let tool_height = 5.min(main_area.height / 3);
+            (
+                main_area.height.saturating_sub(tool_height + 3),
+                tool_height,
+            )
         };
 
-        let messages_area = Rect::new(area.x, area.y, area.width, messages_height);
-        let input_area = Rect::new(area.x, messages_height, area.width, 2);
-        let status_area = Rect::new(area.x, area.height - 1, area.width, 1);
+        let messages_area = Rect::new(main_area.x, main_area.y, main_area.width, messages_height);
+        let input_area = Rect::new(main_area.x, messages_height, main_area.width, 2);
+        let status_area = Rect::new(main_area.x, main_area.height - 1, main_area.width, 1);
 
         let messages: Vec<Line> = self
             .messages
@@ -552,7 +599,7 @@ impl App {
         );
 
         let status = format!(
-            " Agent: {} | Provider: {} | ^P: Commands | ^T: Timeline | ^,: Settings | ^M: Models | ^C: Quit",
+            " Agent: {} | Provider: {} | ^P: Commands | ^T: Timeline | ^,: Settings | ^M: Models | ^Shift+F: Files | ^C: Quit",
             self.agent, self.provider
         );
         f.render_widget(
@@ -703,6 +750,10 @@ impl App {
             )),
             Line::from(Span::styled(
                 "/providers Open provider management",
+                Style::default().fg(theme.muted_color()),
+            )),
+            Line::from(Span::styled(
+                "/files     Toggle file tree panel",
                 Style::default().fg(theme.muted_color()),
             )),
             Line::from(Span::styled(
