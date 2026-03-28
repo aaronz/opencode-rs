@@ -1,4 +1,5 @@
-use crate::common::TestHarness;
+mod common;
+use common::TestHarness;
 use std::time::Duration;
 
 #[test]

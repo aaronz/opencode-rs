@@ -1,5 +1,5 @@
-use crate::common::TestHarness;
-use serde_json::json;
+mod common;
+use common::TestHarness;
 
 #[test]
 fn test_session_create_new() {

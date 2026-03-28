@@ -1,4 +1,5 @@
-use crate::common::TestHarness;
+mod common;
+use common::TestHarness;
 
 #[test]
 fn test_settings_general() {
