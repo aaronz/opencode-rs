@@ -112,6 +112,84 @@ impl TestHarness {
         let full_path = self.temp_dir.path().join(path);
         std::fs::read_to_string(full_path).expect("Failed to read file")
     }
+
+    pub fn create_session(&self, name: &str) -> String {
+        let output = self.run_cli(&["session", "create", "--name", name]);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        stdout
+            .lines()
+            .find(|l| l.contains("Session ID:"))
+            .and_then(|l| l.split(':').nth(1))
+            .map(|s| s.trim().to_string())
+            .unwrap_or_else(|| format!("session-{}", name))
+    }
+
+    pub fn send_message(&self, session_id: &str, content: &str) {
+        self.run_cli(&[
+            "session",
+            "message",
+            "--id",
+            session_id,
+            "--content",
+            content,
+        ]);
+    }
+
+    pub fn get_session_messages(&self, session_id: &str) -> Vec<serde_json::Value> {
+        let output = self.run_cli(&["session", "show", "--id", session_id, "--json"]);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let json: serde_json::Value = serde_json::from_str(&stdout).unwrap_or_default();
+        json.get("messages")
+            .and_then(|m| m.as_array())
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    pub fn wait_for_async<F>(&self, timeout_ms: u64, check: F) -> bool
+    where
+        F: Fn() -> bool,
+    {
+        let start = std::time::Instant::now();
+        let timeout = std::time::Duration::from_millis(timeout_ms);
+
+        while start.elapsed() < timeout {
+            if check() {
+                return true;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+        false
+    }
+
+    pub fn setup_project(&self, name: &str) -> PathBuf {
+        let project_path = self.temp_dir.path().join("projects").join(name);
+        std::fs::create_dir_all(&project_path).unwrap();
+
+        std::fs::write(project_path.join("README.md"), format!("# {}", name)).unwrap();
+        std::fs::write(project_path.join(".gitignore"), "target/\nnode_modules/\n").unwrap();
+
+        project_path
+    }
+
+    pub fn create_mock_provider(&self, name: &str, models: &[&str]) {
+        let provider_dir = self.temp_dir.path().join("providers");
+        std::fs::create_dir_all(&provider_dir).unwrap();
+
+        let provider_config = serde_json::json!({
+            "name": name,
+            "models": models.iter().map(|m| serde_json::json!({
+                "id": m,
+                "name": m,
+                "visible": true
+            })).collect::<Vec<_>>()
+        });
+
+        std::fs::write(
+            provider_dir.join(format!("{}.json", name)),
+            serde_json::to_string_pretty(&provider_config).unwrap(),
+        )
+        .unwrap();
+    }
 }
 
 #[cfg(test)]

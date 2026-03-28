@@ -24,37 +24,38 @@
 - [x] 3.4 Add --list-hidden option to show hidden models
 - [x] 3.5 Add visibility field to model configuration
 - [x] 3.6 Implement --visibility filter for models list
+- [x] 3.7 Add tests for model visibility
 
 ## 4. E2E Test Infrastructure
 
-- [ ] 4.1 Enhance E2E test fixtures with session state helpers
-- [ ] 4.2 Add terminal interaction helpers for E2E tests
-- [ ] 4.3 Create mock providers for deterministic testing
-- [ ] 4.4 Add file system fixtures for file management tests
-- [ ] 4.5 Implement async operation wait helpers
+- [x] 4.1 Enhance E2E test fixtures with session state helpers
+- [x] 4.2 Add terminal interaction helpers for E2E tests
+- [x] 4.3 Create mock providers for deterministic testing
+- [x] 4.4 Add file system fixtures for file management tests
+- [x] 4.5 Implement async operation wait helpers
 
 ## 5. E2E Session Advanced Tests
 
-- [ ] 5.1 Create e2e_session_undo_redo.rs with undo scenarios
+- [x] 5.1 Create e2e_session_undo_redo.rs with undo scenarios
 - [ ] 5.2 Create e2e_session_review.rs with review scenarios
-- [ ] 5.3 Create e2e_session_persistence.rs with persistence scenarios
-- [ ] 5.4 Add tests for undo/redo UI interactions
+- [x] 5.3 Create e2e_session_persistence.rs with persistence scenarios
+- [x] 5.4 Add tests for undo/redo UI interactions
 - [ ] 5.5 Add tests for diff viewing UI
 
 ## 6. E2E Terminal Advanced Tests
 
-- [ ] 6.1 Create e2e_terminal_tabs.rs with tab scenarios
+- [x] 6.1 Create e2e_terminal_tabs.rs with tab scenarios
 - [ ] 6.2 Create e2e_terminal_reconnect.rs with reconnect scenarios
 - [ ] 6.3 Create e2e_terminal_init.rs with initialization scenarios
-- [ ] 6.4 Add tests for terminal output verification
+- [x] 6.4 Add tests for terminal output verification
 - [ ] 6.5 Add tests for multi-terminal workflows
 
 ## 7. E2E Sidebar Tests
 
-- [ ] 7.1 Create e2e_sidebar_navigation.rs with navigation scenarios
-- [ ] 7.2 Create e2e_sidebar_sessions.rs with session link scenarios
+- [x] 7.1 Create e2e_sidebar_navigation.rs with navigation scenarios
+- [x] 7.2 Create e2e_sidebar_sessions.rs with session link scenarios
 - [ ] 7.3 Create e2e_sidebar_popover.rs with popover action scenarios
-- [ ] 7.4 Add tests for sidebar toggle functionality
+- [x] 7.4 Add tests for sidebar toggle functionality
 - [ ] 7.5 Add tests for context menu interactions
 
 ## 8. E2E Prompt Tests
@@ -65,6 +66,7 @@
 - [ ] 8.4 Create e2e_prompt_history.rs with history navigation scenarios
 - [ ] 8.5 Create e2e_prompt_mentions.rs with @ mention scenarios
 - [ ] 8.6 Add tests for prompt submission and cancellation
+- [x] 8.7 Add tests for prompt basic functionality
 
 ## 9. E2E Projects Tests
 
@@ -76,11 +78,11 @@
 
 ## 10. E2E File Management Tests
 
-- [ ] 10.1 Create e2e_file_tree.rs with file tree navigation scenarios
-- [ ] 10.2 Create e2e_file_viewer.rs with file viewer scenarios
-- [ ] 10.3 Create e2e_file_open.rs with file opening scenarios
+- [x] 10.1 Create e2e_file_tree.rs with file tree navigation scenarios
+- [x] 10.2 Create e2e_file_viewer.rs with file viewer scenarios
+- [x] 10.3 Create e2e_file_open.rs with file opening scenarios
 - [ ] 10.4 Add tests for drag and drop file operations
-- [ ] 10.5 Add tests for file search and filtering
+- [x] 10.5 Add tests for file search and filtering
 
 ## 11. E2E Command Palette Tests
 
