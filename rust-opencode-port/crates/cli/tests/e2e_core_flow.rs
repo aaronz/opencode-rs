@@ -26,15 +26,15 @@ fn test_cli_providers_list() {
     let harness = TestHarness::setup();
     let result = harness.run_cli_json(&["providers"]);
 
-    assert!(result.get("action").is_some());
     assert_eq!(result["action"], "list");
-    assert!(result.get("providers").unwrap().is_array());
-
     let providers = result["providers"].as_array().unwrap();
-    let has_openai = providers.iter().any(|p| p["id"] == "openai");
-    let has_anthropic = providers.iter().any(|p| p["id"] == "anthropic");
-    assert!(has_openai);
-    assert!(has_anthropic);
+    assert!(providers.iter().any(|provider| provider["id"] == "openai"));
+    assert!(providers
+        .iter()
+        .any(|provider| provider["id"] == "anthropic"));
+    assert!(providers
+        .iter()
+        .all(|provider| provider.get("status").is_some()));
 }
 
 #[test]

@@ -32,7 +32,9 @@ fn test_session_list_shows_all_sessions() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let json: serde_json::Value = serde_json::from_str(&stdout).unwrap_or_default();
 
-    let sessions = json.as_array().expect("Expected array of sessions");
+    let sessions = json["sessions"]
+        .as_array()
+        .expect("Expected sessions array");
     assert!(sessions.len() >= 2);
 }
 

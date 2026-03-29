@@ -23,6 +23,9 @@ pub mod error;
 pub mod transform;
 
 pub use provider::{Provider, ChatMessage, ChatResponse, StreamChunk, Model, ProviderConfig, SimpleProvider, StreamingCallback};
+pub use openai::OpenAiProvider;
+pub use anthropic::AnthropicProvider;
+pub use ollama::OllamaProvider;
 pub use auth::AuthManager;
 pub use models::ModelRegistry;
 pub use error::{LlmError, RetryConfig, with_retry};

@@ -11,6 +11,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, LeaveAlternateScreen},
 };
+use opencode_llm::{Provider, ProviderConfig};
 use ratatui::{
     backend::CrosstermBackend,
     layout::Rect,
@@ -20,7 +21,14 @@ use ratatui::{
     Frame, Terminal,
 };
 use std::io;
+use std::sync::mpsc;
 use std::time::{Duration, Instant};
+
+pub enum LlmEvent {
+    Chunk(String),
+    Done,
+    Error(String),
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LeaderKeyState {
@@ -240,6 +248,8 @@ pub struct App {
     history_file: std::path::PathBuf,
     pub agent: String,
     pub provider: String,
+    llm_provider: Option<std::sync::Arc<dyn Provider + Send + Sync>>,
+    llm_rx: Option<mpsc::Receiver<LlmEvent>>,
     pub mode: AppMode,
     pub command_palette_input: String,
     pub command_registry: CommandRegistry,
@@ -302,6 +312,8 @@ impl App {
             history_file,
             agent: "build".to_string(),
             provider: "openai".to_string(),
+            llm_provider: None,
+            llm_rx: None,
             mode: AppMode::Chat,
             command_palette_input: String::new(),
             command_registry: CommandRegistry::new(),
@@ -334,6 +346,51 @@ impl App {
             partial_response: String::new(),
             dropped_files: Vec::new(),
         }
+    }
+
+    /// Initialize the LLM provider based on the provider name
+    pub fn init_llm_provider(&mut self) -> Result<(), String> {
+        let api_key = std::env::var("OPENCODE_API_KEY")
+            .or_else(|_| std::env::var("OPENAI_API_KEY"))
+            .unwrap_or_else(|_| "".to_string());
+
+        if api_key.is_empty() {
+            return Err("No API key found. Set OPENCODE_API_KEY or OPENAI_API_KEY".to_string());
+        }
+
+        let model = std::env::var("OPENCODE_MODEL")
+            .or_else(|_| std::env::var("OPENAI_MODEL"))
+            .unwrap_or_else(|_| "gpt-4o".to_string());
+
+        let config = ProviderConfig {
+            model: model.clone(),
+            api_key,
+            temperature: 0.7,
+        };
+
+        self.llm_provider = match self.provider.as_str() {
+            "openai" => Some(std::sync::Arc::new(opencode_llm::OpenAiProvider::new(
+                config.api_key.clone(),
+                config.model.clone(),
+            ))),
+            "anthropic" => Some(std::sync::Arc::new(opencode_llm::AnthropicProvider::new(
+                config.api_key.clone(),
+                config.model.clone(),
+            ))),
+            "ollama" => Some(std::sync::Arc::new(opencode_llm::OllamaProvider::new(
+                config.model.clone(),
+                Some("http://localhost:11434".to_string()),
+            ))),
+            _ => {
+                // Default to OpenAI
+                Some(std::sync::Arc::new(opencode_llm::OpenAiProvider::new(
+                    config.api_key.clone(),
+                    config.model.clone(),
+                )))
+            }
+        };
+
+        Ok(())
     }
 
     pub fn add_message(&mut self, content: String, is_user: bool) {
@@ -505,6 +562,7 @@ impl App {
             terminal.draw(|f| self.draw(f))?;
 
             self.check_leader_key_timeout();
+            self.check_llm_events();
 
             match self.mode {
                 AppMode::CommandPalette => self.handle_command_palette(&mut terminal)?,
@@ -524,6 +582,42 @@ impl App {
                     self.handle_directory_selection_dialog(&mut terminal)?
                 }
                 AppMode::ReleaseNotes => self.handle_release_notes_dialog(&mut terminal)?,
+            }
+        }
+    }
+
+    fn check_llm_events(&mut self) {
+        if let Some(ref mut rx) = self.llm_rx {
+            // Process all available events
+            let mut events = Vec::new();
+            while let Ok(event) = rx.try_recv() {
+                events.push(event);
+            }
+
+            // Handle events outside the borrow scope
+            for event in events {
+                match event {
+                    LlmEvent::Chunk(chunk) => {
+                        self.update_partial_response(chunk);
+                    }
+                    LlmEvent::Done => {
+                        let response = self.partial_response.clone();
+                        if !response.is_empty() {
+                            self.add_message(response, false);
+                        } else {
+                            self.add_message("[Empty response from LLM]".to_string(), false);
+                        }
+                        self.is_llm_generating = false;
+                        self.partial_response.clear();
+                        self.llm_rx = None;
+                    }
+                    LlmEvent::Error(err) => {
+                        self.add_message(format!("[Error: {}]", err), false);
+                        self.is_llm_generating = false;
+                        self.partial_response.clear();
+                        self.llm_rx = None;
+                    }
+                }
             }
         }
     }
@@ -1078,13 +1172,49 @@ impl App {
                                 }
                                 self.add_message(context_content, true);
                             } else {
-                                self.add_message(input, true);
+                                self.add_message(input.clone(), true);
                             }
 
-                            self.input.clear();
-                        }
-                    }
-                    KeyCode::Char(c) => {
+                             self.input.clear();
+                             self.input_widget.clear();
+
+                             // Call LLM in background task if provider is initialized
+                             if let Some(ref provider) = self.llm_provider {
+                                 self.is_llm_generating = true;
+                                 self.partial_response.clear();
+
+                                 let (tx, rx) = mpsc::channel();
+                                 self.llm_rx = Some(rx);
+                                 let provider_clone = provider.clone();
+                                 let llm_input = input.clone();
+                                  
+                                  std::thread::spawn(move || {
+                                      let rt = tokio::runtime::Runtime::new().unwrap();
+                                      let _ = rt.block_on(async {
+                                         let tx_callback = tx.clone();
+                                         let callback = move |chunk: String| {
+                                             let _ = tx_callback.send(LlmEvent::Chunk(chunk));
+                                         };
+                                         match provider_clone.complete_streaming(&llm_input, Box::new(callback)).await {
+                                             Ok(_) => {
+                                                 let _ = tx.send(LlmEvent::Done);
+                                             }
+                                             Err(e) => {
+                                                 let _ = tx.send(LlmEvent::Error(e.to_string()));
+                                             }
+                                         }
+                                     });
+                                 });
+                             } else {
+                                 // Show hint if no provider
+                                 self.add_message(
+                                     "[LLM provider not initialized. Call init_llm_provider() first or set OPENCODE_API_KEY]".to_string(),
+                                     false,
+                                 );
+                             }
+                         }
+                     }
+                     KeyCode::Char(c) => {
                         self.input.push(c);
                         if c == '/' && self.input.len() == 1 {
                             self.mode = AppMode::SlashCommand;

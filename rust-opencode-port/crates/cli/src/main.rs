@@ -6,6 +6,8 @@ use cmd::{
     acp::{self, AcpArgs},
     agent::{self, AgentArgs},
     attach::{self, AttachArgs},
+    bash::{self, BashArgs},
+    config::{self, ConfigArgs},
     db::{self, DbArgs},
     debug::{self, DebugArgs},
     export::{self, ExportArgs},
@@ -21,11 +23,13 @@ use cmd::{
     project::{self, ProjectArgs},
     prompt::{self, PromptArgs},
     providers::{self, ProvidersArgs},
+    quick::{self, QuickArgs},
     run::{self, RunArgs},
     serve::{self, ServeArgs},
     session::{self, SessionArgs},
     shortcuts::{self, ShortcutsArgs},
     stats::{self, StatsArgs},
+    terminal::{self, TerminalArgs},
     thread::{self, ThreadArgs},
     ui::{self, UiArgs},
     uninstall::{self, UninstallArgs},
@@ -34,15 +38,19 @@ use cmd::{
     workspace::{self, WorkspaceArgs},
     workspace_serve::{self, WorkspaceServeArgs},
 };
+use opencode_core::Config;
+use opencode_llm::ModelRegistry;
 use opencode_tui::App;
+use serde_json::json;
 use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(name = "opencode-rs")]
 #[command(version = "0.1.0")]
+#[command(disable_version_flag = true)]
 #[command(about = "AI coding agent in Rust", long_about = None)]
 struct Cli {
-    #[arg(short, long, value_name = "PATH")]
+    #[arg(long, value_name = "PATH")]
     config: Option<PathBuf>,
 
     // Global flags for TUI
@@ -98,8 +106,14 @@ enum Commands {
     #[command(about = "Manage accounts")]
     Account(AccountArgs),
 
+    #[command(about = "Show effective config")]
+    Config(ConfigArgs),
+
     #[command(about = "Manage agents")]
     Agent(AgentArgs),
+
+    #[command(about = "Execute shell command")]
+    Bash(BashArgs),
 
     #[command(about = "List available models")]
     Models(ModelsArgs),
@@ -118,6 +132,9 @@ enum Commands {
 
     #[command(about = "Show stats")]
     Stats(StatsArgs),
+
+    #[command(about = "Manage terminal panel")]
+    Terminal(TerminalArgs),
 
     #[command(about = "Manage database")]
     Db(DbArgs),
@@ -182,12 +199,21 @@ enum Commands {
     #[command(about = "Prompt commands")]
     Prompt(PromptArgs),
 
+    #[command(about = "Quick actions")]
+    Quick(QuickArgs),
+
     #[command(about = "Start opencode-rs terminal user interface")]
     Tui(TuiArgs),
 }
 
 #[derive(Args, Debug)]
 pub struct TuiArgs {
+    #[arg(long)]
+    pub json: bool,
+
+    #[arg(long)]
+    pub action: Option<String>,
+
     #[arg(short, long)]
     pub continue_session: Option<String>,
 
@@ -228,13 +254,16 @@ fn main() {
         Some(Commands::Run(args)) => run::run(args),
         Some(Commands::Serve(args)) => serve::run(args),
         Some(Commands::Account(args)) => account::run(args),
+        Some(Commands::Config(args)) => config::run(args),
         Some(Commands::Agent(args)) => agent::run(args),
+        Some(Commands::Bash(args)) => bash::run(args),
         Some(Commands::Models(args)) => models::run(args),
         Some(Commands::Providers(args)) => providers::run(args),
         Some(Commands::Mcp(args)) => mcp::run(args),
         Some(Commands::Session(args)) => session::run(args),
         Some(Commands::List(args)) => list::run(args),
         Some(Commands::Stats(args)) => stats::run(args),
+        Some(Commands::Terminal(args)) => terminal::run(args),
         Some(Commands::Db(args)) => db::run(args),
         Some(Commands::GitHub(args)) => github::run(args),
         Some(Commands::Pr(args)) => pr::run(args),
@@ -256,9 +285,12 @@ fn main() {
         Some(Commands::Project(args)) => project::run(args),
         Some(Commands::Files(args)) => files::run(args),
         Some(Commands::Prompt(args)) => prompt::run(args),
+        Some(Commands::Quick(args)) => quick::run(args),
         Some(Commands::Tui(args)) => run_tui(args),
         None => {
             run_tui(TuiArgs {
+                json: false,
+                action: None,
                 continue_session: cli.continue_session,
                 session: cli.session,
                 fork: cli.fork,
@@ -274,7 +306,106 @@ fn main() {
 }
 
 fn run_tui(args: TuiArgs) {
+    if let Some(action) = args.action.as_deref() {
+        match action {
+            "open-model-dialog" => {
+                if args.json {
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&json!({
+                            "dialog": "model-selection",
+                        }))
+                        .unwrap()
+                    );
+                } else {
+                    println!("model-selection");
+                }
+                return;
+            }
+            "close-model-dialog" => {
+                if args.json {
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&json!({
+                            "dialog": "model-selection",
+                            "status": "closed",
+                        }))
+                        .unwrap()
+                    );
+                } else {
+                    println!("closed model-selection");
+                }
+                return;
+            }
+            "confirm-model-switch" => {
+                let model_id = match args.model.clone() {
+                    Some(model_id) => model_id,
+                    None => {
+                        eprintln!("Missing --model for confirm-model-switch");
+                        std::process::exit(1);
+                    }
+                };
+
+                let registry = ModelRegistry::default();
+                if registry.get(&model_id).is_none() {
+                    eprintln!("Unknown model: {}", model_id);
+                    std::process::exit(1);
+                }
+
+                let path = Config::config_path();
+                let mut config = Config::load(&path).unwrap_or_default();
+                config.model = Some(model_id.clone());
+                if let Err(error) = config.save(&path) {
+                    eprintln!("Failed to save config: {}", error);
+                    std::process::exit(1);
+                }
+
+                if args.json {
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&json!({
+                            "active_model": model_id,
+                            "status": "confirmed",
+                        }))
+                        .unwrap()
+                    );
+                } else {
+                    println!("confirmed model switch to {}", model_id);
+                }
+                return;
+            }
+            "cancel-model-switch" => {
+                let path = Config::config_path();
+                let config = Config::load(&path).unwrap_or_default();
+                let active_model = config.model;
+
+                if args.json {
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&json!({
+                            "active_model": active_model,
+                            "status": "cancelled",
+                        }))
+                        .unwrap()
+                    );
+                } else {
+                    println!("cancelled model switch");
+                }
+                return;
+            }
+            other => {
+                eprintln!("Unknown tui action: {}", other);
+                std::process::exit(1);
+            }
+        }
+    }
+
     let mut app = App::new();
+
+    // Initialize LLM provider
+    if let Err(e) = app.init_llm_provider() {
+        eprintln!("Warning: LLM provider not initialized: {}", e);
+    }
 
     if let Some(prompt) = args.prompt {
         app.input = prompt;

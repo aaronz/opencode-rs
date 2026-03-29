@@ -2609,6 +2609,7 @@ dependencies = [
  "dirs 5.0.1",
  "futures",
  "opencode-core",
+ "opencode-llm",
  "ratatui 0.28.1",
  "ratatui-testing",
  "serde",

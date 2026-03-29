@@ -1,4 +1,5 @@
 use clap::Args;
+use opencode_core::Config;
 use opencode_tui::App;
 
 #[derive(Args, Debug)]
@@ -25,14 +26,27 @@ pub struct RunArgs {
     pub title: Option<String>,
 }
 
+fn load_config() -> Config {
+    let path = Config::config_path();
+    Config::load(&path).unwrap_or_default()
+}
+
 pub fn run(args: RunArgs) {
-    eprintln!("Running with prompt: {:?}", args.prompt);
+    if let Some(prompt) = args.prompt.clone() {
+        let config = load_config();
+        let model = args
+            .model
+            .clone()
+            .or(config.model)
+            .unwrap_or_else(|| "gpt-4o".to_string());
+
+        println!("Mode: non-interactive");
+        println!("Model: {}", model);
+        println!("Prompt: {}", prompt);
+        return;
+    }
 
     let mut app = App::new();
-
-    if let Some(prompt) = args.prompt {
-        app.input = prompt;
-    }
 
     if let Some(agent) = args.agent {
         app.agent = agent;

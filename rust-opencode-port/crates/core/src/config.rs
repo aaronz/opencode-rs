@@ -780,6 +780,10 @@ impl Config {
     }
 
     pub fn config_path() -> PathBuf {
+        if let Ok(config_dir) = std::env::var("OPENCODE_CONFIG_DIR") {
+            return PathBuf::from(config_dir).join("config.toml");
+        }
+
         directories::ProjectDirs::from("com", "opencode", "rs")
             .map(|dirs| dirs.config_dir().join("config.toml"))
             .unwrap_or_else(|| PathBuf::from("~/.config/opencode-rs/config.toml"))

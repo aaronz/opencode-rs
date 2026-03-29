@@ -1,5 +1,6 @@
 use clap::{Args, Subcommand};
 use once_cell::sync::Lazy;
+use std::path::PathBuf;
 use std::sync::Mutex;
 
 pub static WORKSPACE_SESSIONS: Lazy<Mutex<Vec<SessionInfo>>> = Lazy::new(|| Mutex::new(Vec::new()));
@@ -8,6 +9,35 @@ pub static WORKSPACE_SESSIONS: Lazy<Mutex<Vec<SessionInfo>>> = Lazy::new(|| Mute
 pub struct SessionInfo {
     pub id: String,
     pub name: String,
+}
+
+fn workspace_sessions_path() -> PathBuf {
+    if let Ok(data_dir) = std::env::var("OPENCODE_DATA_DIR") {
+        let path = PathBuf::from(data_dir);
+        let _ = std::fs::create_dir_all(&path);
+        return path.join("workspace-sessions.json");
+    }
+
+    directories::ProjectDirs::from("com", "opencode", "rs")
+        .map(|dirs| dirs.data_dir().join("workspace-sessions.json"))
+        .unwrap_or_else(|| PathBuf::from("./workspace-sessions.json"))
+}
+
+pub fn load_workspace_sessions() -> Vec<SessionInfo> {
+    let path = workspace_sessions_path();
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|content| serde_json::from_str::<Vec<SessionInfo>>(&content).ok())
+        .unwrap_or_default()
+}
+
+pub fn save_workspace_sessions(sessions: &[SessionInfo]) {
+    let path = workspace_sessions_path();
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let serialized = serde_json::to_string_pretty(sessions).unwrap();
+    std::fs::write(path, serialized).unwrap();
 }
 
 #[derive(Args, Debug)]
@@ -40,7 +70,7 @@ pub enum WorkspaceAction {
 pub fn run(args: WorkspaceArgs) {
     match args.action {
         Some(WorkspaceAction::Sessions { json }) => {
-            let sessions = WORKSPACE_SESSIONS.lock().unwrap();
+            let sessions = load_workspace_sessions();
             if json {
                 let output: Vec<_> = sessions
                     .iter()
@@ -55,9 +85,9 @@ pub fn run(args: WorkspaceArgs) {
             }
         }
         Some(WorkspaceAction::Status { json }) => {
-            use crate::cmd::project::PROJECT_STATE;
-            let state = PROJECT_STATE.lock().unwrap();
-            let sessions = WORKSPACE_SESSIONS.lock().unwrap();
+            use crate::cmd::project::load_project_state;
+            let state = load_project_state();
+            let sessions = load_workspace_sessions();
             if json {
                 let status = serde_json::json!({
                     "project": state.current_project.as_deref().unwrap_or("none"),
