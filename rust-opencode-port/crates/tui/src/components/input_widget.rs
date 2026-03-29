@@ -2,141 +2,146 @@ use crate::theme::Theme;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
     layout::Rect,
-    style::{Modifier, Style},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
     Frame,
 };
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum InputElement {
+    Text(String),
+    Chip {
+        display: String,
+        value: String,
+        color: Color,
+    },
+}
+
+impl InputElement {
+    pub fn text(content: impl Into<String>) -> Self {
+        InputElement::Text(content.into())
+    }
+
+    pub fn chip(display: impl Into<String>, value: impl Into<String>, color: Color) -> Self {
+        InputElement::Chip {
+            display: display.into(),
+            value: value.into(),
+            color,
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        match self {
+            InputElement::Text(s) => s.len(),
+            InputElement::Chip { display, .. } => display.len() + 2,
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        match self {
+            InputElement::Text(s) => s.is_empty(),
+            InputElement::Chip { .. } => false,
+        }
+    }
+}
+
 pub struct InputWidget {
-    pub lines: Vec<String>,
-    pub cursor_line: usize,
-    pub cursor_col: usize,
+    pub elements: Vec<InputElement>,
+    pub cursor_pos: usize,
     pub history: Vec<String>,
     pub history_index: usize,
     pub theme: Theme,
     pub multiline: bool,
+    pub leader_active: bool,
 }
 
 impl InputWidget {
     pub fn new(theme: Theme) -> Self {
         Self {
-            lines: vec![String::new()],
-            cursor_line: 0,
-            cursor_col: 0,
+            elements: vec![InputElement::text("")],
+            cursor_pos: 0,
             history: Vec::new(),
             history_index: 0,
             theme,
             multiline: false,
+            leader_active: false,
         }
     }
 
     pub fn new_multiline(theme: Theme) -> Self {
         Self {
-            lines: vec![String::new()],
-            cursor_line: 0,
-            cursor_col: 0,
+            elements: vec![InputElement::text("")],
+            cursor_pos: 0,
             history: Vec::new(),
             history_index: 0,
             theme,
             multiline: true,
+            leader_active: false,
         }
     }
 
     pub fn handle_input(&mut self, key: KeyEvent) -> InputAction {
+        if self.leader_active {
+            return InputAction::None;
+        }
+
         match key.code {
             KeyCode::Char(c) => {
                 if key.modifiers.contains(KeyModifiers::CONTROL) {
                     match c {
                         'c' => return InputAction::Cancel,
                         'a' => {
-                            self.cursor_col = 0;
+                            self.cursor_pos = 0;
                             return InputAction::None;
                         }
                         'e' => {
-                            self.cursor_col = self.lines[self.cursor_line].len();
+                            self.cursor_pos = self.get_content().len();
                             return InputAction::None;
                         }
                         'k' => {
-                            self.lines[self.cursor_line].truncate(self.cursor_col);
+                            self.truncate_at_cursor();
                             return InputAction::None;
                         }
                         _ => return InputAction::None,
                     }
                 }
 
-                let line = &mut self.lines[self.cursor_line];
-                if self.cursor_col >= line.len() {
-                    line.push(c);
-                } else {
-                    line.insert(self.cursor_col, c);
-                }
-                self.cursor_col += 1;
+                self.insert_char(c);
                 InputAction::None
             }
             KeyCode::Backspace => {
-                if self.cursor_col > 0 {
-                    let line = &mut self.lines[self.cursor_line];
-                    line.remove(self.cursor_col - 1);
-                    self.cursor_col -= 1;
-                } else if self.cursor_line > 0 {
-                    let line = self.lines.remove(self.cursor_line);
-                    self.cursor_line -= 1;
-                    self.cursor_col = self.lines[self.cursor_line].len();
-                    self.lines[self.cursor_line].push_str(&line);
-                }
+                self.delete_backward();
                 InputAction::None
             }
             KeyCode::Delete => {
-                let line = &mut self.lines[self.cursor_line];
-                if self.cursor_col < line.len() {
-                    line.remove(self.cursor_col);
-                }
+                self.delete_forward();
                 InputAction::None
             }
             KeyCode::Left => {
-                if self.cursor_col > 0 {
-                    self.cursor_col -= 1;
-                } else if self.cursor_line > 0 {
-                    self.cursor_line -= 1;
-                    self.cursor_col = self.lines[self.cursor_line].len();
+                if key.modifiers.contains(KeyModifiers::CONTROL) {
+                    self.move_word_backward();
+                } else if self.cursor_pos > 0 {
+                    self.cursor_pos -= 1;
                 }
                 InputAction::None
             }
             KeyCode::Right => {
-                if self.cursor_col < self.lines[self.cursor_line].len() {
-                    self.cursor_col += 1;
-                } else if self.cursor_line < self.lines.len() - 1 {
-                    self.cursor_line += 1;
-                    self.cursor_col = 0;
+                if key.modifiers.contains(KeyModifiers::CONTROL) {
+                    self.move_word_forward();
+                } else {
+                    let content_len = self.get_content().len();
+                    if self.cursor_pos < content_len {
+                        self.cursor_pos += 1;
+                    }
                 }
                 InputAction::None
             }
-            KeyCode::Up => {
-                if self.multiline && self.cursor_line > 0 {
-                    self.cursor_line -= 1;
-                    self.cursor_col = self.cursor_col.min(self.lines[self.cursor_line].len());
-                    InputAction::None
-                } else {
-                    self.history_previous()
-                }
-            }
-            KeyCode::Down => {
-                if self.multiline && self.cursor_line < self.lines.len() - 1 {
-                    self.cursor_line += 1;
-                    self.cursor_col = self.cursor_col.min(self.lines[self.cursor_line].len());
-                    InputAction::None
-                } else {
-                    self.history_next()
-                }
-            }
+            KeyCode::Up => self.history_previous(),
+            KeyCode::Down => self.history_next(),
             KeyCode::Enter => {
                 if self.multiline && key.modifiers.contains(KeyModifiers::SHIFT) {
-                    let line = &mut self.lines[self.cursor_line];
-                    let remaining: String = line.split_off(self.cursor_col);
-                    self.cursor_line += 1;
-                    self.cursor_col = 0;
-                    self.lines.insert(self.cursor_line, remaining);
+                    self.insert_char('\n');
                     InputAction::None
                 } else {
                     self.submit()
@@ -147,13 +152,126 @@ impl InputWidget {
         }
     }
 
+    fn insert_char(&mut self, c: char) {
+        let content = self.get_content();
+        let mut chars: Vec<char> = content.chars().collect();
+        if self.cursor_pos > chars.len() {
+            self.cursor_pos = chars.len();
+        }
+        chars.insert(self.cursor_pos, c);
+        self.cursor_pos += 1;
+        self.elements = vec![InputElement::Text(chars.into_iter().collect())];
+    }
+
+    fn delete_backward(&mut self) {
+        if self.cursor_pos > 0 {
+            let content = self.get_content();
+            let mut chars: Vec<char> = content.chars().collect();
+
+            let element_at_pos = self.get_element_at_pos(self.cursor_pos - 1);
+            if let Some(InputElement::Chip { .. }) = element_at_pos {
+                self.delete_chip_at_pos(self.cursor_pos - 1);
+            } else {
+                chars.remove(self.cursor_pos - 1);
+                self.cursor_pos -= 1;
+                self.elements = vec![InputElement::Text(chars.into_iter().collect())];
+            }
+        }
+    }
+
+    fn delete_forward(&mut self) {
+        let content = self.get_content();
+        let chars: Vec<char> = content.chars().collect();
+        if self.cursor_pos < chars.len() {
+            let element_at_pos = self.get_element_at_pos(self.cursor_pos);
+            if let Some(InputElement::Chip { .. }) = element_at_pos {
+                self.delete_chip_at_pos(self.cursor_pos);
+            } else {
+                let mut chars = chars;
+                chars.remove(self.cursor_pos);
+                self.elements = vec![InputElement::Text(chars.into_iter().collect())];
+            }
+        }
+    }
+
+    fn get_element_at_pos(&self, pos: usize) -> Option<&InputElement> {
+        let mut current_pos = 0;
+        for element in &self.elements {
+            let element_len = match element {
+                InputElement::Text(s) => s.len(),
+                InputElement::Chip { display, .. } => display.len() + 4,
+            };
+            if pos >= current_pos && pos < current_pos + element_len {
+                return Some(element);
+            }
+            current_pos += element_len;
+        }
+        None
+    }
+
+    fn delete_chip_at_pos(&mut self, pos: usize) {
+        let mut current_pos = 0;
+        let mut index_to_remove = None;
+
+        for (i, element) in self.elements.iter().enumerate() {
+            let element_len = match element {
+                InputElement::Text(s) => s.len(),
+                InputElement::Chip { display, .. } => display.len() + 4,
+            };
+            if pos >= current_pos && pos < current_pos + element_len {
+                if matches!(element, InputElement::Chip { .. }) {
+                    index_to_remove = Some(i);
+                    self.cursor_pos = current_pos;
+                }
+                break;
+            }
+            current_pos += element_len;
+        }
+
+        if let Some(idx) = index_to_remove {
+            self.elements.remove(idx);
+            if self.elements.is_empty() {
+                self.elements.push(InputElement::text(""));
+            }
+        }
+    }
+
+    fn truncate_at_cursor(&mut self) {
+        let content = self.get_content();
+        let chars: Vec<char> = content.chars().collect();
+        let truncated: String = chars[..self.cursor_pos].iter().collect();
+        self.elements = vec![InputElement::Text(truncated)];
+    }
+
+    fn move_word_backward(&mut self) {
+        let content = self.get_content();
+        let chars: Vec<char> = content.chars().collect();
+        while self.cursor_pos > 0 && chars[self.cursor_pos - 1].is_whitespace() {
+            self.cursor_pos -= 1;
+        }
+        while self.cursor_pos > 0 && !chars[self.cursor_pos - 1].is_whitespace() {
+            self.cursor_pos -= 1;
+        }
+    }
+
+    fn move_word_forward(&mut self) {
+        let content = self.get_content();
+        let chars: Vec<char> = content.chars().collect();
+        while self.cursor_pos < chars.len() && !chars[self.cursor_pos].is_whitespace() {
+            self.cursor_pos += 1;
+        }
+        while self.cursor_pos < chars.len() && chars[self.cursor_pos].is_whitespace() {
+            self.cursor_pos += 1;
+        }
+    }
+
     fn history_previous(&mut self) -> InputAction {
         if self.history_index < self.history.len() {
             self.history_index += 1;
             let idx = self.history.len() - self.history_index;
-            self.lines = vec![self.history[idx].clone()];
-            self.cursor_line = 0;
-            self.cursor_col = self.lines[0].len();
+            let content = self.history[idx].clone();
+            self.elements = vec![InputElement::Text(content)];
+            self.cursor_pos = self.get_content().len();
         }
         InputAction::None
     }
@@ -162,79 +280,161 @@ impl InputWidget {
         if self.history_index > 0 {
             self.history_index -= 1;
             if self.history_index == 0 {
-                self.lines = vec![String::new()];
+                self.elements = vec![InputElement::text("")];
             } else {
                 let idx = self.history.len() - self.history_index;
-                self.lines = vec![self.history[idx].clone()];
+                let content = self.history[idx].clone();
+                self.elements = vec![InputElement::Text(content)];
             }
-            self.cursor_line = 0;
-            self.cursor_col = self.lines[0].len();
+            self.cursor_pos = self.get_content().len();
         }
         InputAction::None
     }
 
     fn submit(&mut self) -> InputAction {
-        let content = self.lines.join("\n");
+        let content = self.get_content();
         if !content.is_empty() {
             self.history.push(content.clone());
             self.history_index = 0;
         }
-        self.lines = vec![String::new()];
-        self.cursor_line = 0;
-        self.cursor_col = 0;
+        self.elements = vec![InputElement::text("")];
+        self.cursor_pos = 0;
         InputAction::Submit(content)
     }
 
     pub fn get_content(&self) -> String {
-        self.lines.join("\n")
+        self.elements
+            .iter()
+            .map(|e| match e {
+                InputElement::Text(s) => s.clone(),
+                InputElement::Chip { value, .. } => format!("@{}", value),
+            })
+            .collect()
+    }
+
+    pub fn get_chips(&self) -> Vec<(String, String)> {
+        self.elements
+            .iter()
+            .filter_map(|e| match e {
+                InputElement::Chip { display, value, .. } => Some((display.clone(), value.clone())),
+                _ => None,
+            })
+            .collect()
+    }
+
+    pub fn insert_chip(&mut self, display: String, value: String, color: Color) {
+        let chip = InputElement::chip(display, value, color);
+        let chip_len = chip.len();
+
+        if self.elements.len() == 1 {
+            if let InputElement::Text(ref s) = self.elements[0] {
+                if s.is_empty() {
+                    self.elements = vec![chip, InputElement::text("")];
+                    self.cursor_pos = chip_len;
+                    return;
+                }
+            }
+        }
+
+        if self.elements.len() >= 20 {
+            return;
+        }
+
+        self.elements.push(InputElement::text(""));
+        self.elements.push(chip);
+        self.cursor_pos = self.get_content().len();
     }
 
     pub fn clear(&mut self) {
-        self.lines = vec![String::new()];
-        self.cursor_line = 0;
-        self.cursor_col = 0;
+        self.elements = vec![InputElement::text("")];
+        self.cursor_pos = 0;
+    }
+
+    pub fn set_leader_active(&mut self, active: bool) {
+        self.leader_active = active;
     }
 
     pub fn draw(&self, f: &mut Frame, area: Rect, title: &str) {
+        let border_color = if self.leader_active {
+            self.theme.warning_color()
+        } else {
+            self.theme.primary_color()
+        };
+
         let block = Block::default()
             .title(title)
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(self.theme.primary_color()));
+            .border_style(Style::default().fg(border_color));
 
         let inner = block.inner(area);
         f.render_widget(block, area);
 
-        let lines: Vec<Line> = self
-            .lines
-            .iter()
-            .enumerate()
-            .map(|(i, line)| {
-                if i == self.cursor_line {
-                    let mut spans = vec![];
-                    if self.cursor_col < line.len() {
-                        spans.push(Span::raw(&line[..self.cursor_col]));
-                        spans.push(Span::styled(
-                            &line[self.cursor_col..self.cursor_col + 1],
-                            Style::default().add_modifier(Modifier::REVERSED),
-                        ));
-                        if self.cursor_col + 1 < line.len() {
-                            spans.push(Span::raw(&line[self.cursor_col + 1..]));
-                        }
-                    } else {
-                        spans.push(Span::raw(line.as_str()));
-                        spans.push(Span::styled(
-                            " ",
-                            Style::default().add_modifier(Modifier::REVERSED),
-                        ));
-                    }
-                    Line::from(spans)
-                } else {
-                    Line::from(line.as_str())
-                }
-            })
-            .collect();
+        let mut spans: Vec<Span> = Vec::new();
+        let mut char_pos = 0;
 
-        let paragraph = Paragraph::new(lines);
+        let content = self.get_content();
+        let is_shell_command = content.starts_with('!');
+
+        for element in &self.elements {
+            match element {
+                InputElement::Text(text) => {
+                    for c in text.chars() {
+                        let style = if is_shell_command && char_pos == 0 {
+                            Style::default()
+                                .fg(Color::Yellow)
+                                .add_modifier(Modifier::BOLD)
+                        } else if is_shell_command {
+                            Style::default().fg(Color::Yellow)
+                        } else {
+                            Style::default()
+                        };
+
+                        if char_pos == self.cursor_pos {
+                            spans.push(Span::styled(
+                                c.to_string(),
+                                style.add_modifier(Modifier::REVERSED),
+                            ));
+                        } else {
+                            spans.push(Span::styled(c.to_string(), style));
+                        }
+                        char_pos += 1;
+                    }
+                }
+                InputElement::Chip { display, color, .. } => {
+                    let chip_text = format!("[@{}]", display);
+                    for c in chip_text.chars() {
+                        if char_pos == self.cursor_pos {
+                            spans.push(Span::styled(
+                                c.to_string(),
+                                Style::default()
+                                    .bg(*color)
+                                    .fg(Color::Black)
+                                    .add_modifier(Modifier::BOLD)
+                                    .add_modifier(Modifier::REVERSED),
+                            ));
+                        } else {
+                            spans.push(Span::styled(
+                                c.to_string(),
+                                Style::default()
+                                    .bg(*color)
+                                    .fg(Color::Black)
+                                    .add_modifier(Modifier::BOLD),
+                            ));
+                        }
+                        char_pos += 1;
+                    }
+                }
+            }
+        }
+
+        if char_pos == self.cursor_pos {
+            spans.push(Span::styled(
+                " ",
+                Style::default().add_modifier(Modifier::REVERSED),
+            ));
+        }
+
+        let paragraph = Paragraph::new(Line::from(spans));
         f.render_widget(paragraph, inner);
     }
 }
@@ -244,6 +444,7 @@ pub enum InputAction {
     None,
     Submit(String),
     Cancel,
+    ChipSelected(String),
 }
 
 #[cfg(test)]
@@ -254,8 +455,8 @@ mod tests {
     fn test_input_widget_new() {
         let theme = crate::theme::Theme::default();
         let input = InputWidget::new(theme);
-        assert_eq!(input.lines.len(), 1);
-        assert!(input.lines[0].is_empty());
+        assert_eq!(input.elements.len(), 1);
+        assert!(input.elements[0].is_empty());
     }
 
     #[test]
@@ -270,14 +471,32 @@ mod tests {
     }
 
     #[test]
-    fn test_input_widget_history() {
+    fn test_input_widget_chip() {
         let theme = crate::theme::Theme::default();
         let mut input = InputWidget::new(theme);
 
-        input.lines[0] = "test".to_string();
-        input.handle_input(KeyEvent::from(KeyCode::Enter));
+        input.insert_chip(
+            "main.rs".to_string(),
+            "src/main.rs".to_string(),
+            Color::Blue,
+        );
 
-        assert_eq!(input.history.len(), 1);
-        assert_eq!(input.history[0], "test");
+        assert_eq!(input.get_content(), "@src/main.rs");
+        assert_eq!(input.get_chips().len(), 1);
+    }
+
+    #[test]
+    fn test_input_widget_chip_deletion() {
+        let theme = crate::theme::Theme::default();
+        let mut input = InputWidget::new(theme);
+
+        input.insert_chip(
+            "main.rs".to_string(),
+            "src/main.rs".to_string(),
+            Color::Blue,
+        );
+        input.handle_input(KeyEvent::from(KeyCode::Backspace));
+
+        assert_eq!(input.get_chips().len(), 0);
     }
 }

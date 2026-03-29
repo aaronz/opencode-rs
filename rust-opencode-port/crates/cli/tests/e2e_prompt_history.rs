@@ -1,4 +1,4 @@
-use crate::common::TestHarness;
+use crate::common::{TestHarness, EMPTY_VEC};
 
 mod common;
 
@@ -18,7 +18,7 @@ fn test_prompt_history_navigation() {
     let stdout = String::from_utf8_lossy(&history_output.stdout);
     let json: serde_json::Value = serde_json::from_str(&stdout).unwrap_or_default();
 
-    let history = json.as_array().unwrap_or(&vec![]);
+    let history = json.as_array().unwrap_or(&EMPTY_VEC);
     assert!(history.len() >= 3);
 }
 

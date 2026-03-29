@@ -1,4 +1,4 @@
-use crate::common::TestHarness;
+use crate::common::{TestHarness, EMPTY_VEC};
 use std::time::Duration;
 
 mod common;
@@ -115,6 +115,6 @@ fn test_session_undo_persistence() {
 
     assert!(json
         .get("redo_history")
-        .map(|h| !h.as_array().unwrap_or(&vec![]).is_empty())
+        .map(|h| !h.as_array().unwrap_or(&EMPTY_VEC).is_empty())
         .unwrap_or(false));
 }

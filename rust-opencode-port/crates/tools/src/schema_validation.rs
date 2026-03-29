@@ -18,7 +18,7 @@ impl SchemaValidator {
         Ok(())
     }
 
-    pub fn validate_string(args: &Value, field: &str) -> Result<&str, String> {
+    pub fn validate_string<'a>(args: &'a Value, field: &str) -> Result<&'a str, String> {
         match args.get(field) {
             Some(Value::String(s)) => Ok(s.as_str()),
             Some(v) => Err(format!("Field '{}' must be a string, got {}", field, v)),
@@ -26,7 +26,7 @@ impl SchemaValidator {
         }
     }
 
-    pub fn validate_array(args: &Value, field: &str) -> Result<&Vec<Value>, String> {
+    pub fn validate_array<'a>(args: &'a Value, field: &str) -> Result<&'a Vec<Value>, String> {
         match args.get(field) {
             Some(Value::Array(a)) => Ok(a),
             Some(v) => Err(format!("Field '{}' must be an array, got {}", field, v)),
@@ -34,10 +34,10 @@ impl SchemaValidator {
         }
     }
 
-    pub fn validate_object(
-        args: &Value,
+    pub fn validate_object<'a>(
+        args: &'a Value,
         field: &str,
-    ) -> Result<&serde_json::Map<String, Value>, String> {
+    ) -> Result<&'a serde_json::Map<String, Value>, String> {
         match args.get(field) {
             Some(Value::Object(o)) => Ok(o),
             Some(v) => Err(format!("Field '{}' must be an object, got {}", field, v)),

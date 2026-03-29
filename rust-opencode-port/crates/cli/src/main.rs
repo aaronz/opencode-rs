@@ -1,6 +1,6 @@
 mod cmd;
 
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 use cmd::{
     account::{self, AccountArgs},
     acp::{self, AcpArgs},
@@ -9,22 +9,29 @@ use cmd::{
     db::{self, DbArgs},
     debug::{self, DebugArgs},
     export::{self, ExportArgs},
+    files::{self, FilesArgs},
     generate::{self, GenerateArgs},
     github::{self, GitHubArgs},
     import::{self, ImportArgs},
     list::{self, ListArgs},
     mcp::{self, McpArgs},
     models::{self, ModelsArgs},
+    palette::{self, PaletteArgs},
     pr::{self, PrArgs},
+    project::{self, ProjectArgs},
+    prompt::{self, PromptArgs},
     providers::{self, ProvidersArgs},
     run::{self, RunArgs},
     serve::{self, ServeArgs},
     session::{self, SessionArgs},
+    shortcuts::{self, ShortcutsArgs},
     stats::{self, StatsArgs},
     thread::{self, ThreadArgs},
+    ui::{self, UiArgs},
     uninstall::{self, UninstallArgs},
     upgrade::{self, UpgradeArgs},
     web::{self, WebArgs},
+    workspace::{self, WorkspaceArgs},
     workspace_serve::{self, WorkspaceServeArgs},
 };
 use opencode_core::{Config, Message, ProjectManager, Role, Session, SessionInfo};
@@ -40,6 +47,44 @@ use std::path::PathBuf;
 struct Cli {
     #[arg(short, long, value_name = "PATH")]
     config: Option<PathBuf>,
+
+    // Global flags for TUI
+    #[arg(short = 'v', long = "version")]
+    pub version: bool,
+
+    #[arg(short = 'c', long = "continue")]
+    pub continue_session: Option<String>,
+
+    #[arg(short = 's', long = "session")]
+    pub session: Option<String>,
+
+    #[arg(long = "fork")]
+    pub fork: bool,
+
+    #[arg(long = "prompt")]
+    pub prompt: Option<String>,
+
+    #[arg(short = 'm', long = "model")]
+    pub model: Option<String>,
+
+    #[arg(long = "agent")]
+    pub agent: Option<String>,
+
+    #[arg(long = "port")]
+    pub port: Option<u16>,
+
+    #[arg(long = "hostname")]
+    pub hostname: Option<String>,
+
+    #[arg(long = "log-level")]
+    pub log_level: Option<String>,
+
+    #[arg(long = "print-logs")]
+    pub print_logs: bool,
+
+    // Positional argument for project path
+    #[arg(value_name = "PROJECT")]
+    pub project: Option<PathBuf>,
 
     #[command(subcommand)]
     command: Option<Commands>,
@@ -118,10 +163,69 @@ enum Commands {
 
     #[command(about = "Workspace serve")]
     WorkspaceServe(WorkspaceServeArgs),
+
+    #[command(about = "Command palette")]
+    Palette(PaletteArgs),
+
+    #[command(about = "Manage keyboard shortcuts")]
+    Shortcuts(ShortcutsArgs),
+
+    #[command(about = "Manage workspace")]
+    Workspace(WorkspaceArgs),
+
+    #[command(about = "Manage UI")]
+    Ui(UiArgs),
+
+    #[command(about = "Manage projects")]
+    Project(ProjectArgs),
+
+    #[command(about = "Manage files")]
+    Files(FilesArgs),
+
+    #[command(about = "Prompt commands")]
+    Prompt(PromptArgs),
+
+    #[command(about = "Start opencode-rs terminal user interface")]
+    Tui(TuiArgs),
+}
+
+#[derive(Args, Debug)]
+pub struct TuiArgs {
+    #[arg(short, long)]
+    pub continue_session: Option<String>,
+
+    #[arg(short = 's', long)]
+    pub session: Option<String>,
+
+    #[arg(long)]
+    pub fork: bool,
+
+    #[arg(long)]
+    pub prompt: Option<String>,
+
+    #[arg(short = 'm', long)]
+    pub model: Option<String>,
+
+    #[arg(long)]
+    pub agent: Option<String>,
+
+    #[arg(long)]
+    pub port: Option<u16>,
+
+    #[arg(long)]
+    pub hostname: Option<String>,
+
+    #[arg(value_name = "PROJECT")]
+    pub project: Option<PathBuf>,
 }
 
 fn main() {
     let cli = Cli::parse();
+
+    if cli.version {
+        println!("opencode-rs 0.1.0");
+        return;
+    }
 
     match cli.command {
         Some(Commands::Run(args)) => run::run(args),
@@ -148,8 +252,42 @@ fn main() {
         Some(Commands::Debug(args)) => debug::run(args),
         Some(Commands::Acp(args)) => acp::run(args),
         Some(Commands::WorkspaceServe(args)) => workspace_serve::run(args),
+        Some(Commands::Palette(args)) => palette::run(args),
+        Some(Commands::Shortcuts(args)) => shortcuts::run(args),
+        Some(Commands::Workspace(args)) => workspace::run(args),
+        Some(Commands::Ui(args)) => ui::run(args),
+        Some(Commands::Project(args)) => project::run(args),
+        Some(Commands::Files(args)) => files::run(args),
+        Some(Commands::Prompt(args)) => prompt::run(args),
+        Some(Commands::Tui(args)) => run_tui(args),
         None => {
-            println!("No command specified. Use --help for usage.");
+            run_tui(TuiArgs {
+                continue_session: cli.continue_session,
+                session: cli.session,
+                fork: cli.fork,
+                prompt: cli.prompt,
+                model: cli.model,
+                agent: cli.agent,
+                port: cli.port,
+                hostname: cli.hostname,
+                project: cli.project,
+            });
         }
+    }
+}
+
+fn run_tui(args: TuiArgs) {
+    let mut app = App::new();
+
+    if let Some(prompt) = args.prompt {
+        app.input = prompt;
+    }
+
+    if let Some(agent) = args.agent {
+        app.agent = agent;
+    }
+
+    if let Err(e) = app.run() {
+        eprintln!("Error running TUI: {}", e);
     }
 }

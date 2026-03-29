@@ -9,6 +9,9 @@ pub struct UninstallArgs {
 
     #[arg(long)]
     pub json: bool,
+
+    #[arg(long)]
+    pub dry_run: bool,
 }
 
 pub fn run(args: UninstallArgs) {
@@ -19,6 +22,26 @@ pub fn run(args: UninstallArgs) {
     let config_dir = directories::ProjectDirs::from("com", "opencode", "rs")
         .map(|dirs| dirs.config_dir().to_path_buf())
         .unwrap_or_else(|| PathBuf::from("~/.config/opencode-rs"));
+
+    if args.dry_run || (!args.force) {
+        if args.json {
+            let result = json!({
+                "action": "uninstall",
+                "force": args.force,
+                "dry_run": true,
+                "data_dir": data_dir,
+                "config_dir": config_dir,
+                "status": "dry_run"
+            });
+            println!("{}", serde_json::to_string_pretty(&result).unwrap());
+            return;
+        }
+        println!("[DRY RUN] Uninstalling opencode-rs");
+        println!("The following directories will be removed:");
+        println!("  - Data  : {}", data_dir.display());
+        println!("  - Config: {}", config_dir.display());
+        return;
+    }
 
     if args.json {
         let result = json!({

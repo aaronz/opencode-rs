@@ -1,4 +1,4 @@
-use crate::common::TestHarness;
+use crate::common::{TestHarness, EMPTY_VEC};
 
 mod common;
 
@@ -12,7 +12,7 @@ fn test_keyboard_shortcut_display() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let json: serde_json::Value = serde_json::from_str(&stdout).unwrap_or_default();
 
-    let shortcuts = json.as_array().unwrap_or(&vec![]);
+    let shortcuts = json.as_array().unwrap_or(&EMPTY_VEC);
     assert!(!shortcuts.is_empty());
 
     let has_shortcut = shortcuts

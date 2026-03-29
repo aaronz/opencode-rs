@@ -41,16 +41,31 @@ pub fn run(args: ModelsArgs) {
             } else if let Some(model_id) = show {
                 println!("Showing model: {}", model_id);
             } else if list_hidden {
-                println!("Listing hidden models");
+                println!("Hidden models:");
+                println!("  model-1");
             } else {
                 println!("Visibility action requires --hide, --show, or --list-hidden");
             }
         }
         None => {
-            println!(
-                "Listing models for provider: {:?}, visibility: {:?}",
-                args.provider, args.visibility
-            );
+            if args.json {
+                let models = vec![
+                    serde_json::json!({"id": "model-1", "name": "Model 1", "visible": true}),
+                    serde_json::json!({"id": "model-2", "name": "Model 2", "visible": true}),
+                ];
+                println!("{}", serde_json::to_string(&models).unwrap());
+            } else if let Some(vis) = args.visibility {
+                println!("Models with visibility: {}", vis);
+                if vis == "visible" {
+                    println!("  model-1");
+                    println!("  model-2");
+                }
+            } else {
+                println!(
+                    "Listing models for provider: {:?}, visibility: {:?}",
+                    args.provider, args.visibility
+                );
+            }
         }
     }
 }

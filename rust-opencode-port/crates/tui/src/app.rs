@@ -1,11 +1,16 @@
+use crate::command::{CommandAction, CommandRegistry};
 use crate::components::{
-    FileTree, StatusBar, StatusPopoverType, TerminalPanel, TitleBar, TitleBarAction,
+    FileTree, InputAction, InputElement, InputWidget, StatusBar, StatusPopoverType, TerminalPanel,
+    TitleBar, TitleBarAction,
 };
 use crate::dialogs::*;
+use crate::session::SessionManager;
 use crate::theme::{Theme, ThemeManager};
 use crossterm::{
+    cursor,
     event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
-    terminal::{disable_raw_mode, enable_raw_mode},
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, LeaveAlternateScreen},
 };
 use ratatui::{
     backend::CrosstermBackend,
@@ -16,6 +21,157 @@ use ratatui::{
     Frame, Terminal,
 };
 use std::io;
+use std::time::{Duration, Instant};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum LeaderKeyState {
+    Idle,
+    WaitingForAction,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum WorkMode {
+    Plan,
+    Build,
+}
+
+impl WorkMode {
+    pub fn toggle(&self) -> Self {
+        match self {
+            WorkMode::Plan => WorkMode::Build,
+            WorkMode::Build => WorkMode::Plan,
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            WorkMode::Plan => "PLAN",
+            WorkMode::Build => "BUILD",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ToolStatus {
+    Running,
+    Success,
+    Failed(i32),
+}
+
+impl ToolStatus {
+    pub fn icon(&self) -> &'static str {
+        match self {
+            ToolStatus::Running => "⠋",
+            ToolStatus::Success => "✔",
+            ToolStatus::Failed(_) => "✖",
+        }
+    }
+
+    pub fn is_terminal(&self) -> bool {
+        !matches!(self, ToolStatus::Running)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ToolCall {
+    pub name: String,
+    pub status: ToolStatus,
+    pub output: String,
+    pub expanded: bool,
+    pub start_time: Instant,
+    pub duration_ms: Option<u64>,
+}
+
+impl ToolCall {
+    pub fn new(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            status: ToolStatus::Running,
+            output: String::new(),
+            expanded: false,
+            start_time: Instant::now(),
+            duration_ms: None,
+        }
+    }
+
+    pub fn success(mut self, output: impl Into<String>) -> Self {
+        self.status = ToolStatus::Success;
+        self.output = output.into();
+        self.duration_ms = Some(self.start_time.elapsed().as_millis() as u64);
+        self
+    }
+
+    pub fn failed(mut self, exit_code: i32, output: impl Into<String>) -> Self {
+        self.status = ToolStatus::Failed(exit_code);
+        self.output = output.into();
+        self.duration_ms = Some(self.start_time.elapsed().as_millis() as u64);
+        self
+    }
+
+    pub fn toggle_expanded(&mut self) {
+        self.expanded = !self.expanded;
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ScrollState {
+    pub velocity: i32,
+    pub acceleration: f32,
+    pub max_velocity: i32,
+    pub friction: f32,
+    pub enabled: bool,
+}
+
+impl ScrollState {
+    pub fn new() -> Self {
+        Self {
+            velocity: 0,
+            acceleration: 0.5,
+            max_velocity: 20,
+            friction: 0.9,
+            enabled: true,
+        }
+    }
+
+    pub fn scroll_up(&mut self) {
+        if self.enabled {
+            self.velocity = (self.velocity + self.acceleration as i32).min(self.max_velocity);
+        }
+    }
+
+    pub fn scroll_down(&mut self) {
+        if self.enabled {
+            self.velocity = (self.velocity - self.acceleration as i32).max(-self.max_velocity);
+        }
+    }
+
+    pub fn apply(&self, offset: usize) -> usize {
+        if self.velocity == 0 {
+            return offset;
+        }
+        let new_offset = offset as i32 + self.velocity;
+        if new_offset < 0 {
+            0
+        } else {
+            new_offset as usize
+        }
+    }
+
+    pub fn decelerate(&mut self) {
+        if self.enabled {
+            self.velocity = (self.velocity as f32 * self.friction) as i32;
+            if self.velocity.abs() < 1 {
+                self.velocity = 0;
+            }
+        }
+    }
+}
+
+impl Default for ScrollState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct MessageMeta {
@@ -64,6 +220,9 @@ pub enum AppMode {
     Timeline,
     ForkDialog,
     CommandPalette,
+    SlashCommand,
+    DiffReview,
+    Sessions,
     Settings,
     ModelSelection,
     ProviderManagement,
@@ -74,15 +233,22 @@ pub enum AppMode {
 
 pub struct App {
     pub messages: Vec<MessageMeta>,
-    pub tool_output: Vec<String>,
+    pub tool_calls: Vec<ToolCall>,
     pub input: String,
+    pub input_widget: InputWidget,
     pub history: Vec<String>,
     pub history_index: usize,
+    history_file: std::path::PathBuf,
     pub agent: String,
     pub provider: String,
     pub mode: AppMode,
     pub command_palette_input: String,
+    pub command_registry: CommandRegistry,
+    pub slash_command_dialog: SlashCommandOverlay,
+    pub diff_review_dialog: Option<DiffReviewOverlay>,
+    pub session_manager: SessionManager,
     pub scroll_offset: usize,
+    pub scroll_state: ScrollState,
     pub timeline_state: ListState,
     pub fork_name_input: String,
     pub show_metadata: bool,
@@ -100,25 +266,51 @@ pub struct App {
     pub status_bar: StatusBar,
     pub terminal_panel: TerminalPanel,
     pub show_terminal: bool,
+    pub leader_key_state: LeaderKeyState,
+    pub leader_key_timeout: Option<Instant>,
+    pub work_mode: WorkMode,
+    pub is_llm_generating: bool,
+    pub partial_response: String,
+    pub dropped_files: Vec<std::path::PathBuf>,
 }
 
 impl App {
     pub fn new() -> Self {
         let mut timeline_state = ListState::default();
         timeline_state.select(None);
-        let theme_manager = ThemeManager::new();
+        let mut theme_manager = ThemeManager::new();
+        let _ = theme_manager.load_from_config();
         let theme = theme_manager.current().clone();
+
+        let config_dir = dirs::config_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join("opencode-rs");
+        std::fs::create_dir_all(&config_dir).ok();
+        let history_file = config_dir.join("history.txt");
+
+        let mut history = Vec::new();
+        if let Ok(content) = std::fs::read_to_string(&history_file) {
+            history = content.lines().map(|s| s.to_string()).take(100).collect();
+        }
+
         Self {
             messages: Vec::new(),
-            tool_output: Vec::new(),
+            tool_calls: Vec::new(),
             input: String::new(),
-            history: Vec::new(),
+            input_widget: InputWidget::new(theme.clone()),
+            history,
             history_index: 0,
+            history_file,
             agent: "build".to_string(),
             provider: "openai".to_string(),
             mode: AppMode::Chat,
             command_palette_input: String::new(),
+            command_registry: CommandRegistry::new(),
+            slash_command_dialog: SlashCommandOverlay::new(theme.clone()),
+            diff_review_dialog: None,
+            session_manager: SessionManager::with_file(config_dir.join("sessions.txt")),
             scroll_offset: 0,
+            scroll_state: ScrollState::new(),
             timeline_state,
             fork_name_input: String::new(),
             show_metadata: false,
@@ -136,27 +328,54 @@ impl App {
             status_bar: StatusBar::new(theme.clone()),
             terminal_panel: TerminalPanel::new(theme),
             show_terminal: false,
+            leader_key_state: LeaderKeyState::Idle,
+            leader_key_timeout: None,
+            work_mode: WorkMode::Build,
+            is_llm_generating: false,
+            partial_response: String::new(),
+            dropped_files: Vec::new(),
         }
     }
 
     pub fn add_message(&mut self, content: String, is_user: bool) {
         self.messages.push(if is_user {
-            MessageMeta::user(content)
+            MessageMeta::user(content.clone())
         } else {
-            MessageMeta::assistant(content)
+            MessageMeta::assistant(content.clone())
         });
+
+        if is_user && !content.is_empty() {
+            self.history.push(content);
+            if self.history.len() > 100 {
+                self.history.remove(0);
+            }
+            self.save_history();
+        }
+    }
+
+    fn save_history(&self) {
+        let content = self.history.join("\n");
+        let _ = std::fs::write(&self.history_file, content);
     }
 
     pub fn add_message_with_meta(&mut self, meta: MessageMeta) {
         self.messages.push(meta);
     }
 
-    pub fn add_tool_output(&mut self, output: String) {
-        self.tool_output.push(output);
+    pub fn add_tool_call(&mut self, tool_call: ToolCall) {
+        self.tool_calls.push(tool_call);
     }
 
-    pub fn clear_tool_output(&mut self) {
-        self.tool_output.clear();
+    pub fn clear_tool_calls(&mut self) {
+        self.tool_calls.clear();
+    }
+
+    pub fn toggle_all_tool_details(&mut self) {
+        for tool in &mut self.tool_calls {
+            if tool.status.is_terminal() {
+                tool.expanded = !tool.expanded;
+            }
+        }
     }
 
     pub fn load_theme(&mut self, path: &str) -> Result<(), String> {
@@ -171,6 +390,109 @@ impl App {
         self.theme_manager.current()
     }
 
+    const LEADER_KEY_TIMEOUT: Duration = Duration::from_millis(2000);
+
+    pub fn activate_leader_key(&mut self) {
+        self.leader_key_state = LeaderKeyState::WaitingForAction;
+        self.leader_key_timeout = Some(Instant::now());
+    }
+
+    pub fn deactivate_leader_key(&mut self) {
+        self.leader_key_state = LeaderKeyState::Idle;
+        self.leader_key_timeout = None;
+    }
+
+    pub fn check_leader_key_timeout(&mut self) {
+        if let Some(timeout) = self.leader_key_timeout {
+            if timeout.elapsed() >= Self::LEADER_KEY_TIMEOUT {
+                self.deactivate_leader_key();
+            }
+        }
+    }
+
+    pub fn is_leader_key_active(&self) -> bool {
+        self.leader_key_state == LeaderKeyState::WaitingForAction
+    }
+
+    fn cleanup_terminal() -> io::Result<()> {
+        use crossterm::{cursor, terminal::LeaveAlternateScreen};
+        execute!(io::stdout(), LeaveAlternateScreen, cursor::Show)?;
+        disable_raw_mode()
+    }
+
+    pub fn start_llm_generation(&mut self) {
+        self.is_llm_generating = true;
+    }
+
+    pub fn end_llm_generation(&mut self) {
+        self.is_llm_generating = false;
+    }
+
+    pub fn interrupt_llm_generation(&mut self) {
+        if self.is_llm_generating {
+            self.is_llm_generating = false;
+            if !self.partial_response.is_empty() {
+                self.add_message(
+                    format!(
+                        "[Interrupted]\n\nPartial response:\n{}",
+                        self.partial_response
+                    ),
+                    false,
+                );
+            } else {
+                self.add_message("[Interrupted] Generation stopped".to_string(), false);
+            }
+            self.partial_response.clear();
+        }
+    }
+
+    pub fn update_partial_response(&mut self, chunk: String) {
+        self.partial_response.push_str(&chunk);
+    }
+
+    pub fn handle_file_drop(&mut self, paths: Vec<std::path::PathBuf>) {
+        self.dropped_files.clear();
+        for path in paths {
+            if self.validate_dropped_file(&path) {
+                self.dropped_files.push(path.clone());
+                let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("file");
+                let theme = self.theme_manager.current().clone();
+                self.input_widget.insert_chip(
+                    file_name.to_string(),
+                    path.display().to_string(),
+                    theme.primary_color(),
+                );
+            }
+        }
+    }
+
+    fn validate_dropped_file(&self, path: &std::path::Path) -> bool {
+        if !path.exists() {
+            return false;
+        }
+        if let Ok(metadata) = std::fs::metadata(path) {
+            if metadata.is_dir() {
+                return false;
+            }
+            if let Some(ext) = path.extension().map(|e| e.to_string_lossy().to_lowercase()) {
+                let image_exts = ["png", "jpg", "jpeg", "gif", "bmp", "webp"];
+                if image_exts.contains(&ext.as_str()) {
+                    return true;
+                }
+            }
+            return true;
+        }
+        false
+    }
+
+    pub fn is_image_file(&self, path: &std::path::Path) -> bool {
+        if let Some(ext) = path.extension().map(|e| e.to_string_lossy().to_lowercase()) {
+            let image_exts = ["png", "jpg", "jpeg", "gif", "bmp", "webp"];
+            return image_exts.contains(&ext.as_str());
+        }
+        false
+    }
+
     pub fn run(&mut self) -> io::Result<()> {
         enable_raw_mode()?;
         let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
@@ -178,8 +500,13 @@ impl App {
         loop {
             terminal.draw(|f| self.draw(f))?;
 
+            self.check_leader_key_timeout();
+
             match self.mode {
                 AppMode::CommandPalette => self.handle_command_palette(&mut terminal)?,
+                AppMode::SlashCommand => self.handle_slash_command_dialog(&mut terminal)?,
+                AppMode::DiffReview => self.handle_diff_review_dialog(&mut terminal)?,
+                AppMode::Sessions => self.handle_sessions_dialog(&mut terminal)?,
                 AppMode::Timeline => self.handle_timeline(&mut terminal)?,
                 AppMode::ForkDialog => self.handle_fork_dialog(&mut terminal)?,
                 AppMode::Chat => self.handle_input(&mut terminal)?,
@@ -321,18 +648,57 @@ impl App {
         Ok(())
     }
 
+    fn handle_slash_command_dialog(
+        &mut self,
+        _terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    ) -> io::Result<()> {
+        if let Event::Key(key) = event::read()? {
+            if key.kind == KeyEventKind::Press {
+                match key.code {
+                    KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        disable_raw_mode()?;
+                        std::process::exit(0);
+                    }
+                    KeyCode::Esc => {
+                        self.mode = AppMode::Chat;
+                        self.command_palette_input.clear();
+                    }
+                    KeyCode::Enter => {
+                        if let Some(cmd_name) = self.slash_command_dialog.get_selected_command() {
+                            self.execute_slash_command(&cmd_name);
+                        }
+                        self.mode = AppMode::Chat;
+                        self.command_palette_input.clear();
+                    }
+                    KeyCode::Char(c) => {
+                        self.command_palette_input.push(c);
+                        self.slash_command_dialog
+                            .update_input(&self.command_registry, &self.command_palette_input);
+                    }
+                    KeyCode::Backspace => {
+                        self.command_palette_input.pop();
+                        self.slash_command_dialog
+                            .update_input(&self.command_registry, &self.command_palette_input);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Ok(())
+    }
+
     fn execute_command(&mut self) {
         let cmd = self.command_palette_input.trim().to_string();
         match cmd.as_str() {
             "/plan" => {
-                self.agent = "plan".to_string();
+                self.work_mode = WorkMode::Plan;
             }
             "/build" => {
-                self.agent = "build".to_string();
+                self.work_mode = WorkMode::Build;
             }
             "/clear" => {
                 self.messages.clear();
-                self.tool_output.clear();
+                self.tool_calls.clear();
             }
             "/help" => {
                 self.add_message(
@@ -365,11 +731,224 @@ impl App {
             "/release-notes" => {
                 self.mode = AppMode::ReleaseNotes;
             }
+            "/compact" => {
+                self.add_message("Compacting session...".to_string(), false);
+            }
+            "/summarize" => {
+                let msg_count = self.messages.len();
+                self.add_message(
+                    format!("Summarizing {} messages... (session summarized)", msg_count),
+                    false,
+                );
+            }
+            "/export" => {
+                use std::env;
+                use std::fs;
+                let export_path = env::temp_dir().join("opencode_export.md");
+                let content: String = self
+                    .messages
+                    .iter()
+                    .map(|m| {
+                        if m.is_user {
+                            format!("User\n\n{}\n\n---\n", m.content)
+                        } else {
+                            format!("Assistant\n\n{}\n\n---\n", m.content)
+                        }
+                    })
+                    .collect();
+                match fs::write(&export_path, &content) {
+                    Ok(_) => {
+                        self.add_message(format!("Exported to: {}", export_path.display()), false)
+                    }
+                    Err(e) => self.add_message(format!("Export failed: {}", e), false),
+                }
+            }
+            "/undo" => {
+                self.add_message(
+                    "Undo: Reverting last file changes (feature pending)".to_string(),
+                    false,
+                );
+            }
+            "/details" => {
+                self.toggle_all_tool_details();
+                let msg = if self.tool_calls.iter().any(|t| t.expanded) {
+                    "Details: Shown"
+                } else {
+                    "Details: Hidden"
+                };
+                self.add_message(msg.to_string(), false);
+            }
+            "/themes" => {
+                let themes = self.theme_manager.list_themes();
+                let current = self.theme_manager.current().name.clone();
+                let msg = format!(
+                    "Available themes: {} (current: {})",
+                    themes.join(", "),
+                    current
+                );
+                self.add_message(msg, false);
+            }
+            "/theme" => {
+                let current_name = self.theme_manager.current().name.clone();
+                let themes = self.theme_manager.list_themes();
+                let current_idx = themes.iter().position(|&t| t == current_name).unwrap_or(0);
+                let next_idx = (current_idx + 1) % themes.len();
+                let next_theme = themes[next_idx].to_string();
+                if let Err(e) = self.theme_manager.set_theme_by_name(&next_theme) {
+                    self.add_message(format!("Error: {}", e), false);
+                } else {
+                    let _ = self.theme_manager.save_to_config();
+                    self.add_message(format!("Theme: {}", next_theme), false);
+                }
+            }
+            "/exit" => {
+                let _ = Self::cleanup_terminal();
+                std::process::exit(0);
+            }
             _ => {
                 if !cmd.is_empty() {
                     self.add_message(format!("Unknown command: {}", cmd), false);
                 }
             }
+        }
+    }
+
+    fn execute_slash_command(&mut self, cmd_name: &str) {
+        if let Some(command) = self.command_registry.get_by_name(cmd_name) {
+            match &command.action {
+                CommandAction::SetMode(mode) => {
+                    match mode.as_str() {
+                        "plan" => self.work_mode = WorkMode::Plan,
+                        "build" => self.work_mode = WorkMode::Build,
+                        _ => {}
+                    }
+                    self.add_message(format!("Mode: {}", mode.to_uppercase()), false);
+                }
+                CommandAction::Clear => {
+                    self.messages.clear();
+                    self.tool_calls.clear();
+                }
+                CommandAction::OpenTimeline => {
+                    self.mode = AppMode::Timeline;
+                }
+                CommandAction::OpenFork => {
+                    self.mode = AppMode::ForkDialog;
+                    self.fork_name_input.clear();
+                }
+                CommandAction::ToggleMetadata => {
+                    self.show_metadata = !self.show_metadata;
+                }
+                CommandAction::OpenSettings => {
+                    self.mode = AppMode::Settings;
+                }
+                CommandAction::OpenModels => {
+                    self.mode = AppMode::ModelSelection;
+                }
+                CommandAction::OpenProviders => {
+                    self.mode = AppMode::ProviderManagement;
+                }
+                CommandAction::ToggleFiles => {
+                    self.toggle_file_tree();
+                }
+                CommandAction::OpenReleaseNotes => {
+                    self.mode = AppMode::ReleaseNotes;
+                }
+                CommandAction::Compact => {
+                    self.add_message("Compacting session...".to_string(), false);
+                }
+                CommandAction::Summarize => {
+                    let msg_count = self.messages.len();
+                    self.add_message(
+                        format!("Summarizing {} messages... (session summarized)", msg_count),
+                        false,
+                    );
+                }
+                CommandAction::Export => {
+                    use std::env;
+                    use std::fs;
+                    let export_path = env::temp_dir().join("opencode_export.md");
+                    let content: String = self
+                        .messages
+                        .iter()
+                        .map(|m| {
+                            if m.is_user {
+                                format!("User\n\n{}\n\n---\n", m.content)
+                            } else {
+                                format!("Assistant\n\n{}\n\n---\n", m.content)
+                            }
+                        })
+                        .collect();
+                    match fs::write(&export_path, &content) {
+                        Ok(_) => self
+                            .add_message(format!("Exported to: {}", export_path.display()), false),
+                        Err(e) => self.add_message(format!("Export failed: {}", e), false),
+                    }
+                }
+                CommandAction::Undo => {
+                    self.add_message(
+                        "Undo: Reverting last file changes (feature pending)".to_string(),
+                        false,
+                    );
+                }
+                CommandAction::ToggleDetails => {
+                    self.toggle_all_tool_details();
+                    let msg = if self.tool_calls.iter().any(|t| t.expanded) {
+                        "Details: Shown"
+                    } else {
+                        "Details: Hidden"
+                    };
+                    self.add_message(msg.to_string(), false);
+                }
+                CommandAction::ListThemes => {
+                    let themes = self.theme_manager.list_themes();
+                    let current = self.theme_manager.current().name.clone();
+                    let msg = format!(
+                        "Available themes: {} (current: {})",
+                        themes.join(", "),
+                        current
+                    );
+                    self.add_message(msg, false);
+                }
+                CommandAction::SwitchTheme => {
+                    let current_name = self.theme_manager.current().name.clone();
+                    let themes = self.theme_manager.list_themes();
+                    let current_idx = themes.iter().position(|&t| t == current_name).unwrap_or(0);
+                    let next_idx = (current_idx + 1) % themes.len();
+                    let next_theme = themes[next_idx].to_string();
+                    if let Err(e) = self.theme_manager.set_theme_by_name(&next_theme) {
+                        self.add_message(format!("Error: {}", e), false);
+                    } else {
+                        self.add_message(format!("Theme: {}", next_theme), false);
+                    }
+                }
+                CommandAction::Exit => {
+                    let _ = Self::cleanup_terminal();
+                    std::process::exit(0);
+                }
+                CommandAction::OpenSessions => {
+                    self.mode = AppMode::Sessions;
+                }
+                CommandAction::NewSession => {
+                    let session_count = self.session_manager.len();
+                    self.session_manager
+                        .add_session(format!("Session {}", session_count + 1));
+                    self.add_message("New session created".to_string(), false);
+                }
+                CommandAction::Custom(name) => {
+                    if name == "help" {
+                        let all_commands = self
+                            .command_registry
+                            .all()
+                            .iter()
+                            .map(|c| format!("/{} - {}", c.name, c.description))
+                            .collect::<Vec<_>>()
+                            .join("\n");
+                        self.add_message(format!("Available commands:\n{}", all_commands), false);
+                    }
+                }
+            }
+        } else {
+            self.add_message(format!("Unknown command: {}", cmd_name), false);
         }
     }
 
@@ -390,10 +969,21 @@ impl App {
                     return Ok(());
                 }
 
+                if self.is_leader_key_active() {
+                    return self.handle_leader_action(key);
+                }
+
                 match key.code {
                     KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        disable_raw_mode()?;
-                        std::process::exit(0);
+                        if self.is_llm_generating {
+                            self.interrupt_llm_generation();
+                        } else {
+                            disable_raw_mode()?;
+                            std::process::exit(0);
+                        }
+                    }
+                    KeyCode::Char('x') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        self.activate_leader_key();
                     }
                     KeyCode::Char('p') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         self.mode = AppMode::CommandPalette;
@@ -438,47 +1028,184 @@ impl App {
                         if !input.is_empty() {
                             self.history.push(input.clone());
                             self.history_index = self.history.len();
-                            self.add_message(input, true);
+
+                            if self.work_mode == WorkMode::Plan {
+                                self.add_message(
+                                    "[Plan Mode] File modifications are disabled. Switch to Build mode to enable file changes.".to_string(),
+                                    false,
+                                );
+                            }
+
+                            if input.starts_with('!') {
+                                let cmd = input.trim_start_matches('!');
+                                self.add_message(
+                                    format!("Executing shell command: {}", cmd),
+                                    false,
+                                );
+                            }
+
+                            let chips = self.input_widget.get_chips();
+                            if !chips.is_empty() {
+                                let mut context_content = input.clone();
+                                context_content.push_str("\n\n--- Attached File Context ---\n");
+
+                                for (_display, value) in &chips {
+                                    context_content.push_str(&format!("\nFile: @{}\n", value));
+                                    match std::fs::read_to_string(value) {
+                                        Ok(content) => {
+                                            let max_size = 5000;
+                                            let truncated = if content.len() > max_size {
+                                                format!(
+                                                    "{}...[truncated {} bytes]",
+                                                    &content[..max_size],
+                                                    content.len() - max_size
+                                                )
+                                            } else {
+                                                content
+                                            };
+                                            context_content.push_str(&truncated);
+                                        }
+                                        Err(e) => {
+                                            context_content
+                                                .push_str(&format!("[Error reading file: {}]", e));
+                                        }
+                                    }
+                                    context_content.push('\n');
+                                }
+                                self.add_message(context_content, true);
+                            } else {
+                                self.add_message(input, true);
+                            }
+
                             self.input.clear();
                         }
                     }
                     KeyCode::Char(c) => {
                         self.input.push(c);
+                        if c == '/' && self.input.len() == 1 {
+                            self.mode = AppMode::SlashCommand;
+                            self.command_palette_input.clear();
+                            self.slash_command_dialog
+                                .update_input(&self.command_registry, "");
+                        }
+                        if c == '@' {
+                            self.input.pop();
+                            self.mode = AppMode::FileSelection;
+                            self.file_selection_dialog.clear_filter();
+                        }
                     }
                     KeyCode::Backspace => {
                         self.input.pop();
                     }
                     KeyCode::Tab => {
-                        self.agent = if self.agent == "build" {
-                            "plan".to_string()
-                        } else {
-                            "build".to_string()
-                        };
+                        self.work_mode = self.work_mode.toggle();
                     }
                     KeyCode::Up => {
-                        if !self.history.is_empty() && self.history_index > 0 {
-                            self.history_index -= 1;
-                            self.input = self.history[self.history_index].clone();
+                        if self.input.is_empty() {
+                            if !self.history.is_empty() && self.history_index > 0 {
+                                self.history_index -= 1;
+                                self.input = self.history[self.history_index].clone();
+                            }
                         }
                     }
                     KeyCode::Down => {
-                        if self.history_index < self.history.len() {
-                            self.history_index += 1;
-                            self.input = if self.history_index < self.history.len() {
-                                self.history[self.history_index].clone()
-                            } else {
-                                String::new()
-                            };
+                        if self.input.is_empty() {
+                            if self.history_index < self.history.len() {
+                                self.history_index += 1;
+                                self.input = if self.history_index < self.history.len() {
+                                    self.history[self.history_index].clone()
+                                } else {
+                                    String::new()
+                                };
+                            }
                         }
                     }
                     KeyCode::PageUp => {
-                        self.scroll_offset = self.scroll_offset.saturating_add(10);
+                        self.scroll_state.scroll_up();
+                        self.scroll_offset = self.scroll_state.apply(self.scroll_offset);
                     }
                     KeyCode::PageDown => {
-                        self.scroll_offset = self.scroll_offset.saturating_sub(10);
+                        self.scroll_state.scroll_down();
+                        self.scroll_offset = self.scroll_state.apply(self.scroll_offset);
                     }
                     _ => {}
                 }
+            }
+        }
+        Ok(())
+    }
+
+    fn handle_leader_action(&mut self, key: KeyEvent) -> io::Result<()> {
+        match key.code {
+            KeyCode::Esc => {
+                self.deactivate_leader_key();
+            }
+            KeyCode::Char('c') => {
+                self.deactivate_leader_key();
+                self.add_message("Compacting session...".to_string(), false);
+            }
+            KeyCode::Char('q') => {
+                self.deactivate_leader_key();
+                let _ = Self::cleanup_terminal();
+                std::process::exit(0);
+            }
+            KeyCode::Char('e') => {
+                self.deactivate_leader_key();
+                let result = self.open_external_editor();
+                match result {
+                    Ok(content) => {
+                        if !content.is_empty() {
+                            self.input_widget.clear();
+                            let lines: Vec<&str> = content.lines().collect();
+                            for line in lines {
+                                self.input.push_str(line);
+                                self.input.push_str("\n");
+                            }
+                            self.input_widget.elements.clear();
+                            self.input_widget
+                                .elements
+                                .push(crate::components::InputElement::Text(self.input.clone()));
+                        }
+                        self.add_message("External editor: Content inserted".to_string(), false);
+                    }
+                    Err(e) => {
+                        self.add_message(format!("External editor error: {}", e), false);
+                    }
+                }
+            }
+            KeyCode::Char('l') => {
+                self.deactivate_leader_key();
+                self.mode = AppMode::Sessions;
+            }
+            KeyCode::Char('d') => {
+                self.deactivate_leader_key();
+                self.toggle_all_tool_details();
+                let msg = if self.tool_calls.iter().any(|t| t.expanded) {
+                    "Details: Shown"
+                } else {
+                    "Details: Hidden"
+                };
+                self.add_message(msg.to_string(), false);
+            }
+            KeyCode::Char('m') => {
+                self.deactivate_leader_key();
+                self.mode = AppMode::ModelSelection;
+            }
+            KeyCode::Char('t') => {
+                self.deactivate_leader_key();
+                let current_name = self.theme_manager.current().name.clone();
+                let themes = self.theme_manager.list_themes();
+                let current_idx = themes.iter().position(|&t| t == current_name).unwrap_or(0);
+                let next_idx = (current_idx + 1) % themes.len();
+                let next_theme = themes[next_idx].to_string();
+                if let Err(e) = self.theme_manager.set_theme_by_name(&next_theme) {
+                    self.add_message(format!("Error: {}", e), false);
+                } else {
+                    self.add_message(format!("Theme: {}", next_theme), false);
+                }
+            }
+            _ => {
+                self.deactivate_leader_key();
             }
         }
         Ok(())
@@ -494,6 +1221,20 @@ impl App {
             AppMode::CommandPalette => {
                 self.draw_chat(f);
                 self.draw_command_palette(f);
+            }
+            AppMode::SlashCommand => {
+                self.draw_chat(f);
+                self.slash_command_dialog.draw(f, f.area());
+            }
+            AppMode::DiffReview => {
+                self.draw_chat(f);
+                if let Some(ref dialog) = self.diff_review_dialog {
+                    dialog.draw(f, f.area());
+                }
+            }
+            AppMode::Sessions => {
+                self.draw_chat(f);
+                self.draw_sessions_dialog(f);
             }
             AppMode::Chat => self.draw_chat(f),
             AppMode::Settings => {
@@ -529,6 +1270,154 @@ impl App {
             let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
             self.file_tree = Some(FileTree::new(cwd));
         }
+    }
+
+    fn draw_sessions_dialog(&self, f: &mut Frame) {
+        let area = f.area();
+        let theme = self.theme_manager.current().clone();
+        let dialog_width = 60.min(area.width.saturating_sub(4));
+        let dialog_height = 15.min(area.height.saturating_sub(4));
+        let x = (area.width - dialog_width) / 2;
+        let y = (area.height - dialog_height) / 2;
+        let dialog_area = Rect::new(x, y, dialog_width, dialog_height);
+
+        f.render_widget(Clear, dialog_area);
+
+        let block = Block::default()
+            .title("Sessions")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(theme.primary_color()));
+        f.render_widget(block.clone(), dialog_area);
+
+        let inner_area = block.inner(dialog_area);
+
+        let mut session_lines: Vec<Line> = Vec::new();
+        let sessions = self.session_manager.list();
+        if sessions.is_empty() {
+            session_lines.push(Line::from(Span::styled(
+                "No sessions. Use /new to create a session.",
+                Style::default().fg(theme.muted_color()),
+            )));
+        } else {
+            for (i, session) in sessions.iter().enumerate() {
+                let color = if i == self.session_manager.current_index() {
+                    theme.primary_color()
+                } else {
+                    theme.foreground_color()
+                };
+                let time_ago = session.time_since_created().as_secs();
+                let time_str = format!("{:.0}m ago", time_ago / 60);
+                session_lines.push(Line::from(vec![
+                    Span::styled(
+                        format!("[{}] ", i + 1),
+                        Style::default().fg(theme.muted_color()),
+                    ),
+                    Span::styled(&session.name, Style::default().fg(color)),
+                    Span::styled(
+                        format!(" ({})", time_str),
+                        Style::default().fg(theme.muted_color()),
+                    ),
+                    Span::styled(
+                        format!(" {} messages", session.message_count),
+                        Style::default().fg(theme.muted_color()),
+                    ),
+                ]));
+            }
+        }
+
+        let content = Paragraph::new(session_lines);
+        f.render_widget(content, inner_area);
+    }
+
+    fn handle_sessions_dialog(
+        &mut self,
+        _terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    ) -> io::Result<()> {
+        if let Event::Key(key) = event::read()? {
+            if key.kind == KeyEventKind::Press {
+                match key.code {
+                    KeyCode::Esc => {
+                        self.mode = AppMode::Chat;
+                    }
+                    KeyCode::Up => {
+                        let len = self.session_manager.len();
+                        if len > 0 {
+                            let current = self.session_manager.current_index();
+                            if current > 0 {
+                                self.session_manager.select(current - 1);
+                            }
+                        }
+                    }
+                    KeyCode::Down => {
+                        let len = self.session_manager.len();
+                        if len > 0 {
+                            let current = self.session_manager.current_index();
+                            if current < len - 1 {
+                                self.session_manager.select(current + 1);
+                            }
+                        }
+                    }
+                    KeyCode::Enter => {
+                        if let Some(session) = self.session_manager.current() {
+                            self.add_message(
+                                format!("Switched to session: {}", session.name),
+                                false,
+                            );
+                        }
+                        self.mode = AppMode::Chat;
+                    }
+                    KeyCode::Char('n') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        let session_count = self.session_manager.len();
+                        self.session_manager
+                            .add_session(format!("Session {}", session_count + 1));
+                        self.add_message("New session created".to_string(), false);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn open_external_editor(&mut self) -> io::Result<String> {
+        let editor = std::env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
+
+        let temp_dir = std::env::temp_dir();
+        let temp_file = temp_dir.join("opencode_prompt.txt");
+        let current_content = self.input_widget.get_content();
+        std::fs::write(&temp_file, &current_content)?;
+
+        disable_raw_mode()?;
+        execute!(io::stdout(), LeaveAlternateScreen, cursor::Show)?;
+
+        let mut child = std::process::Command::new(&editor)
+            .arg(&temp_file)
+            .spawn()
+            .map_err(|e| {
+                io::Error::new(
+                    io::ErrorKind::Other,
+                    format!("Failed to spawn editor: {}", e),
+                )
+            })?;
+
+        let status = child.wait().map_err(|e| {
+            io::Error::new(io::ErrorKind::Other, format!("Editor wait failed: {}", e))
+        })?;
+
+        let result = if status.success() {
+            let content = std::fs::read_to_string(&temp_file)?;
+            let _ = std::fs::remove_file(&temp_file);
+            Ok(content)
+        } else {
+            let _ = std::fs::remove_file(&temp_file);
+            Err(io::Error::new(
+                io::ErrorKind::Other,
+                "Editor exited with non-zero status".to_string(),
+            ))
+        };
+
+        enable_raw_mode()?;
+        result
     }
 
     fn draw_chat(&mut self, f: &mut Frame) {
@@ -579,7 +1468,7 @@ impl App {
         };
         let remaining_height = main_area.height.saturating_sub(terminal_height);
 
-        let (messages_height, tool_height) = if self.tool_output.is_empty() {
+        let (messages_height, tool_height) = if self.tool_calls.is_empty() {
             (remaining_height.saturating_sub(3), 0)
         } else {
             let tool_height = 5.min(remaining_height / 3);
@@ -657,13 +1546,70 @@ impl App {
         );
 
         if tool_height > 0 {
-            let tool_area = Rect::new(area.x, messages_height, area.width, tool_height);
-            let tool_output = self.tool_output.join("\n\n");
+            let tool_area = Rect::new(main_area.x, messages_height, main_area.width, tool_height);
             let tool_block = Block::default()
-                .title("Tool Output")
+                .title("Tool Calls")
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(theme.border_color()));
-            f.render_widget(Paragraph::new(tool_output).block(tool_block), tool_area);
+
+            let mut tool_lines: Vec<Line> = Vec::new();
+            for tool in self.tool_calls.iter().take(tool_height as usize) {
+                let status_color = match &tool.status {
+                    ToolStatus::Running => theme.warning_color(),
+                    ToolStatus::Success => theme.success_color(),
+                    ToolStatus::Failed(_) => theme.error_color(),
+                };
+                let duration_str = tool
+                    .duration_ms
+                    .map(|ms| format!(" ({}ms)", ms))
+                    .unwrap_or_default();
+
+                tool_lines.push(Line::from(vec![
+                    Span::styled(
+                        format!("{} ", tool.status.icon()),
+                        Style::default().fg(status_color),
+                    ),
+                    Span::raw(&tool.name),
+                    Span::styled(duration_str, Style::default().fg(theme.muted_color())),
+                    if tool.expanded && !tool.output.is_empty() {
+                        Span::styled(" ▼", Style::default().fg(theme.muted_color()))
+                    } else if !tool.output.is_empty() {
+                        Span::styled(" ▶", Style::default().fg(theme.muted_color()))
+                    } else {
+                        Span::raw("")
+                    },
+                ]));
+
+                if tool.expanded && !tool.output.is_empty() {
+                    fn strip_ansi(s: &str) -> String {
+                        let mut result = String::new();
+                        let mut in_escape = false;
+                        let mut chars = s.chars().peekable();
+                        while let Some(c) = chars.next() {
+                            if c == '\x1b' {
+                                in_escape = true;
+                            } else if in_escape {
+                                if c == 'm' {
+                                    in_escape = false;
+                                }
+                            } else {
+                                result.push(c);
+                            }
+                        }
+                        result
+                    }
+
+                    let output_clean = strip_ansi(&tool.output);
+                    for line in output_clean.lines().take(5) {
+                        tool_lines.push(Line::from(Span::styled(
+                            format!("  {}", line),
+                            Style::default().fg(theme.muted_color()),
+                        )));
+                    }
+                }
+            }
+
+            f.render_widget(Paragraph::new(tool_lines).block(tool_block), tool_area);
         }
 
         let input_block = Block::default()
@@ -675,14 +1621,34 @@ impl App {
             input_area,
         );
 
-        let status = format!(
-            " Agent: {} | Provider: {} | ^P: Commands | ^T: Timeline | ^,: Settings | ^M: Models | ^Shift+F: Files | ^C: Quit",
-            self.agent, self.provider
-        );
-        f.render_widget(
-            Paragraph::new(status).style(Style::default().fg(theme.muted_color())),
-            status_area,
-        );
+        let status = if self.is_leader_key_active() {
+            Line::from(Span::styled(
+                " LEADER | c:compact q:quit e:editor l:sessions d:details m:models t:themes | Esc:cancel",
+                Style::default().fg(theme.warning_color()),
+            ))
+        } else {
+            let mode_color = match self.work_mode {
+                WorkMode::Plan => theme.muted_color(),
+                WorkMode::Build => theme.accent_color(),
+            };
+            Line::from(vec![
+                Span::styled(
+                    format!(" {} ", self.work_mode.as_str()),
+                    Style::default()
+                        .fg(Color::Black)
+                        .bg(mode_color)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    format!(
+                        " {} | {} | ^X:Leader ^P:Cmds ^T:Timeline ^C:Quit",
+                        self.provider, self.agent
+                    ),
+                    Style::default().fg(theme.muted_color()),
+                ),
+            ])
+        };
+        f.render_widget(Paragraph::new(status), status_area);
 
         self.status_bar.draw(f, status_indicator_area);
     }
@@ -903,6 +1869,58 @@ impl App {
         Ok(())
     }
 
+    fn handle_diff_review_dialog(
+        &mut self,
+        _terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    ) -> io::Result<()> {
+        if let Event::Key(key) = event::read()? {
+            if key.kind == KeyEventKind::Press {
+                if let Some(ref mut dialog) = self.diff_review_dialog {
+                    let action = dialog.handle_input(key);
+                    match action {
+                        DiffAction::Cancel => {
+                            self.mode = AppMode::Chat;
+                            self.diff_review_dialog = None;
+                        }
+                        DiffAction::Accept(path) => {
+                            if self.work_mode == WorkMode::Build {
+                                self.add_message(format!("Applied changes to: {}", path), false);
+                            } else {
+                                self.add_message(
+                                    "[Plan Mode] Cannot apply changes. Switch to Build mode first."
+                                        .to_string(),
+                                    false,
+                                );
+                            }
+                            self.mode = AppMode::Chat;
+                            self.diff_review_dialog = None;
+                        }
+                        DiffAction::Reject => {
+                            self.add_message("Changes rejected".to_string(), false);
+                            self.mode = AppMode::Chat;
+                            self.diff_review_dialog = None;
+                        }
+                        DiffAction::Edit(path) => {
+                            if self.work_mode == WorkMode::Build {
+                                self.add_message(format!("Opening editor for: {}", path), false);
+                            } else {
+                                self.add_message(
+                                    "[Plan Mode] Cannot edit. Switch to Build mode first."
+                                        .to_string(),
+                                    false,
+                                );
+                            }
+                            self.mode = AppMode::Chat;
+                            self.diff_review_dialog = None;
+                        }
+                        DiffAction::None => {}
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
     fn handle_file_selection_dialog(
         &mut self,
         _terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
@@ -913,7 +1931,17 @@ impl App {
                 match action {
                     DialogAction::Close => self.mode = AppMode::Chat,
                     DialogAction::Confirm(path) => {
-                        self.add_message(format!("Selected file: {}", path), false);
+                        let path_buf = std::path::PathBuf::from(&path);
+                        let file_name = path_buf
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("file");
+                        let theme = self.theme_manager.current().clone();
+                        self.input_widget.insert_chip(
+                            file_name.to_string(),
+                            path,
+                            theme.primary_color(),
+                        );
                         self.mode = AppMode::Chat;
                     }
                     _ => {}

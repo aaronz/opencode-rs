@@ -1,4 +1,4 @@
-use crate::common::TestHarness;
+use crate::common::{TestHarness, EMPTY_VEC};
 
 mod common;
 
@@ -26,7 +26,7 @@ fn test_project_list() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let json: serde_json::Value = serde_json::from_str(&stdout).unwrap_or_default();
 
-    let projects = json.as_array().unwrap_or(&vec![]);
+    let projects = json.as_array().unwrap_or(&EMPTY_VEC);
     assert!(projects.len() >= 2);
 }
 

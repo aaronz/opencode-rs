@@ -1,16 +1,20 @@
+pub mod diff_review;
 pub mod directory_selection;
 pub mod file_selection;
 pub mod model_selection;
 pub mod provider_management;
 pub mod release_notes;
 pub mod settings;
+pub mod slash_command;
 
+pub use diff_review::{DiffAction, DiffReviewOverlay, DiffState};
 pub use directory_selection::DirectorySelectionDialog;
 pub use file_selection::FileSelectionDialog;
 pub use model_selection::ModelSelectionDialog;
 pub use provider_management::ProviderManagementDialog;
 pub use release_notes::ReleaseNotesDialog;
 pub use settings::SettingsDialog;
+pub use slash_command::SlashCommandOverlay;
 
 use ratatui::Frame;
 

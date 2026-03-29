@@ -1,4 +1,4 @@
-use crate::common::TestHarness;
+use crate::common::{TestHarness, EMPTY_VEC};
 
 mod common;
 
@@ -17,7 +17,7 @@ fn test_model_visibility_hide_show() {
     let stdout = String::from_utf8_lossy(&list_output.stdout);
     let json: serde_json::Value = serde_json::from_str(&stdout).unwrap_or_default();
 
-    let models = json.as_array().unwrap_or(&vec![]);
+    let models = json.as_array().unwrap_or(&EMPTY_VEC);
     let has_model_1 = models.iter().any(|m| m["id"] == "model-1");
     assert!(
         !has_model_1,
@@ -55,7 +55,7 @@ fn test_model_visibility_show_restores() {
     let stdout = String::from_utf8_lossy(&list_output.stdout);
     let json: serde_json::Value = serde_json::from_str(&stdout).unwrap_or_default();
 
-    let models = json.as_array().unwrap_or(&vec![]);
+    let models = json.as_array().unwrap_or(&EMPTY_VEC);
     let has_model_1 = models.iter().any(|m| m["id"] == "model-1");
     assert!(has_model_1, "Shown model should appear in visible list");
 }

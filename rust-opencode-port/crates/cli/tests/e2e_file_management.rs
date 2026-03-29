@@ -1,4 +1,4 @@
-use crate::common::TestHarness;
+use crate::common::{TestHarness, EMPTY_VEC};
 use std::fs;
 
 mod common;
@@ -53,7 +53,7 @@ fn test_file_search() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let json: serde_json::Value = serde_json::from_str(&stdout).unwrap_or_default();
 
-    let results = json.as_array().unwrap_or(&vec![]);
+    let results = json.as_array().unwrap_or(&EMPTY_VEC);
     assert!(results.len() >= 2);
 }
 
@@ -71,7 +71,7 @@ fn test_file_filter_by_extension() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let json: serde_json::Value = serde_json::from_str(&stdout).unwrap_or_default();
 
-    let files = json.as_array().unwrap_or(&vec![]);
+    let files = json.as_array().unwrap_or(&EMPTY_VEC);
     assert!(files
         .iter()
         .all(|f| f["path"].as_str().unwrap_or("").ends_with(".rs")));

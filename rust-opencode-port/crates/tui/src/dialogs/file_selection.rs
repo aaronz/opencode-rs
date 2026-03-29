@@ -25,6 +25,11 @@ struct FileEntry {
 }
 
 impl FileSelectionDialog {
+    pub fn clear_filter(&mut self) {
+        self.filter.clear();
+        self.selected_index = 0;
+    }
+
     pub fn new(theme: Theme) -> Self {
         let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
         let entries = Self::read_dir(&current_dir);

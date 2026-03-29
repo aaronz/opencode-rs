@@ -6,6 +6,8 @@ use tempfile::TempDir;
 
 static BUILD: Once = Once::new();
 
+pub static EMPTY_VEC: Vec<serde_json::Value> = Vec::new();
+
 pub struct TestHarness {
     pub workspace_root: PathBuf,
     pub binary_path: PathBuf,

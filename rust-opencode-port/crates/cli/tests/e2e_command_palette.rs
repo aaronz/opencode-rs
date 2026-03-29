@@ -1,4 +1,4 @@
-use crate::common::TestHarness;
+use crate::common::{TestHarness, EMPTY_VEC};
 
 mod common;
 
@@ -20,7 +20,7 @@ fn test_command_palette_search() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let json: serde_json::Value = serde_json::from_str(&stdout).unwrap_or_default();
 
-    let commands = json.as_array().unwrap_or(&vec![]);
+    let commands = json.as_array().unwrap_or(&EMPTY_VEC);
     assert!(commands.iter().any(|c| c["name"]
         .as_str()
         .unwrap_or("")
@@ -49,6 +49,6 @@ fn test_command_palette_recent() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let json: serde_json::Value = serde_json::from_str(&stdout).unwrap_or_default();
 
-    let recent = json.as_array().unwrap_or(&vec![]);
+    let recent = json.as_array().unwrap_or(&EMPTY_VEC);
     assert!(!recent.is_empty());
 }

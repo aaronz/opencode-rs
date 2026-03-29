@@ -1,4 +1,4 @@
-use crate::common::TestHarness;
+use crate::common::{TestHarness, EMPTY_VEC};
 
 mod common;
 
@@ -23,7 +23,7 @@ fn test_sidebar_sessions_list() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let json: serde_json::Value = serde_json::from_str(&stdout).unwrap_or_default();
 
-    let sessions = json.as_array().unwrap_or(&vec![]);
+    let sessions = json.as_array().unwrap_or(&EMPTY_VEC);
     assert!(sessions.len() >= 2);
 }
 
@@ -41,6 +41,6 @@ fn test_sidebar_recent_sessions() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let json: serde_json::Value = serde_json::from_str(&stdout).unwrap_or_default();
 
-    let sessions = json.as_array().unwrap_or(&vec![]);
+    let sessions = json.as_array().unwrap_or(&EMPTY_VEC);
     assert!(sessions.len() <= 2);
 }

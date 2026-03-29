@@ -1,4 +1,5 @@
 use clap::Args;
+use opencode_tui::App;
 
 #[derive(Args, Debug)]
 pub struct ThreadArgs {
@@ -7,5 +8,8 @@ pub struct ThreadArgs {
 }
 
 pub fn run(args: ThreadArgs) {
-    println!("Starting TUI thread mode for session {:?}", args.session_id);
+    let mut app = App::new();
+    if let Err(e) = app.run() {
+        eprintln!("Error running TUI: {}", e);
+    }
 }
