@@ -85,3 +85,8 @@ flamegraph.svg
 *.tmp
 *.bak
 *.old
+
+# =========================
+# Worktrees
+# =========================
+.worktrees/
