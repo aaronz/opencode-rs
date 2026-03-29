@@ -1,3 +1,6 @@
+pub mod connect_method;
+pub mod connect_model;
+pub mod connect_provider;
 pub mod diff_review;
 pub mod directory_selection;
 pub mod file_selection;
@@ -7,6 +10,9 @@ pub mod release_notes;
 pub mod settings;
 pub mod slash_command;
 
+pub use connect_method::ConnectMethodDialog;
+pub use connect_model::ConnectModelDialog;
+pub use connect_provider::ConnectProviderDialog;
 pub use diff_review::{DiffAction, DiffReviewOverlay, DiffState};
 pub use directory_selection::DirectorySelectionDialog;
 pub use file_selection::FileSelectionDialog;

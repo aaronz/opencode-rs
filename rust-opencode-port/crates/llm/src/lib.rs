@@ -21,12 +21,22 @@ pub mod auth;
 pub mod models;
 pub mod error;
 pub mod transform;
+pub mod openai_browser_auth;
 
 pub use provider::{Provider, ChatMessage, ChatResponse, StreamChunk, Model, ProviderConfig, SimpleProvider, StreamingCallback};
-pub use openai::OpenAiProvider;
+pub use openai::{BrowserAuthModelInfo, OpenAiProvider};
 pub use anthropic::AnthropicProvider;
 pub use ollama::OllamaProvider;
 pub use auth::AuthManager;
+pub use openai_browser_auth::{
+    extract_account_id_from_jwt,
+    LocalCallbackServer,
+    OpenAiBrowserAuthRequest,
+    OpenAiBrowserAuthService,
+    OpenAiBrowserAuthStore,
+    OpenAiBrowserCallback,
+    OpenAiBrowserSession,
+};
 pub use models::ModelRegistry;
 pub use error::{LlmError, RetryConfig, with_retry};
 pub use transform::{MessageTransform, TransformPipeline};

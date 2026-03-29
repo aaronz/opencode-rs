@@ -24,6 +24,7 @@ pub enum CommandAction {
     OpenModels,
     /// Open provider management dialog
     OpenProviders,
+    OpenConnect,
     /// Toggle file tree
     ToggleFiles,
     /// Open release notes dialog
@@ -115,6 +116,12 @@ impl CommandRegistry {
                 aliases: vec!["provider".to_string()],
                 description: "Open provider management".to_string(),
                 action: CommandAction::OpenProviders,
+            },
+            Command {
+                name: "connect".to_string(),
+                aliases: vec![],
+                description: "Connect a provider".to_string(),
+                action: CommandAction::OpenConnect,
             },
             Command {
                 name: "files".to_string(),
@@ -250,5 +257,13 @@ mod tests {
         let cmd = registry.get_by_name("h");
         assert!(cmd.is_some());
         assert_eq!(cmd.unwrap().name, "help");
+    }
+
+    #[test]
+    fn test_command_registry_connect_command() {
+        let registry = CommandRegistry::new();
+        let cmd = registry.get_by_name("connect");
+        assert!(cmd.is_some());
+        assert_eq!(cmd.unwrap().description, "Connect a provider");
     }
 }

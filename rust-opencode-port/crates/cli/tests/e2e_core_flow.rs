@@ -38,6 +38,16 @@ fn test_cli_providers_list() {
 }
 
 #[test]
+fn test_cli_providers_openai_browser_login_action() {
+    let harness = TestHarness::setup();
+    let result = harness.run_cli_json(&["providers", "--login", "openai", "--browser"]);
+
+    assert_eq!(result["action"], "login");
+    assert_eq!(result["provider"], "openai");
+    assert_eq!(result["method"], "browser");
+}
+
+#[test]
 fn test_cli_acp_start() {
     let harness = TestHarness::setup();
     let result = harness.run_cli_json(&["acp", "--action", "start"]);

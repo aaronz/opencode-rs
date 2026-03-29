@@ -472,14 +472,16 @@ mod tests {
     #[test]
     fn test_diff_review_action() {
         let theme = crate::theme::Theme::default();
-        let mut overlay = DiffReviewOverlay::new("test.rs".to_string(), theme);
+        let mut overlay = DiffReviewOverlay::new("test.rs".to_string(), theme.clone());
 
         let action = overlay.handle_input(KeyEvent::from(KeyCode::Char('y')));
         assert!(matches!(action, DiffAction::Accept(_)));
 
+        let mut overlay = DiffReviewOverlay::new("test.rs".to_string(), theme.clone());
         let action = overlay.handle_input(KeyEvent::from(KeyCode::Char('n')));
         assert!(matches!(action, DiffAction::Reject));
 
+        let mut overlay = DiffReviewOverlay::new("test.rs".to_string(), theme);
         let action = overlay.handle_input(KeyEvent::from(KeyCode::Esc));
         assert!(matches!(action, DiffAction::Cancel));
     }

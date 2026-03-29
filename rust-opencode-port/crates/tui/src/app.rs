@@ -11,7 +11,10 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, LeaveAlternateScreen},
 };
-use opencode_llm::{Provider, ProviderConfig};
+use opencode_llm::{
+    BrowserAuthModelInfo, OpenAiBrowserAuthService, OpenAiBrowserAuthStore, OpenAiBrowserSession,
+    OpenAiProvider, Provider, ProviderConfig,
+};
 use ratatui::{
     backend::CrosstermBackend,
     layout::Rect,
@@ -28,6 +31,12 @@ pub enum LlmEvent {
     Chunk(String),
     Done,
     Error(String),
+}
+
+pub enum ConnectEvent {
+    BrowserOpened(String),
+    AuthComplete(OpenAiBrowserSession, Vec<BrowserAuthModelInfo>),
+    Failed(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -233,6 +242,10 @@ pub enum AppMode {
     Settings,
     ModelSelection,
     ProviderManagement,
+    ConnectProvider,
+    ConnectMethod,
+    ConnectProgress,
+    ConnectModel,
     FileSelection,
     DirectorySelection,
     ReleaseNotes,
@@ -250,6 +263,7 @@ pub struct App {
     pub provider: String,
     llm_provider: Option<std::sync::Arc<dyn Provider + Send + Sync>>,
     llm_rx: Option<mpsc::Receiver<LlmEvent>>,
+    connect_rx: Option<mpsc::Receiver<ConnectEvent>>,
     pub mode: AppMode,
     pub command_palette_input: String,
     pub command_registry: CommandRegistry,
@@ -265,6 +279,9 @@ pub struct App {
     pub settings_dialog: SettingsDialog,
     pub model_selection_dialog: ModelSelectionDialog,
     pub provider_management_dialog: ProviderManagementDialog,
+    pub connect_provider_dialog: ConnectProviderDialog,
+    pub connect_method_dialog: Option<ConnectMethodDialog>,
+    pub connect_model_dialog: Option<ConnectModelDialog>,
     pub file_selection_dialog: FileSelectionDialog,
     pub directory_selection_dialog: DirectorySelectionDialog,
     pub release_notes_dialog: ReleaseNotesDialog,
@@ -281,6 +298,10 @@ pub struct App {
     pub is_llm_generating: bool,
     pub partial_response: String,
     pub dropped_files: Vec<std::path::PathBuf>,
+    pub pending_connect_provider: Option<String>,
+    pub pending_connect_method: Option<String>,
+    pub pending_browser_session: Option<OpenAiBrowserSession>,
+    pub pending_browser_models: Vec<BrowserAuthModelInfo>,
 }
 
 impl App {
@@ -314,6 +335,7 @@ impl App {
             provider: "openai".to_string(),
             llm_provider: None,
             llm_rx: None,
+            connect_rx: None,
             mode: AppMode::Chat,
             command_palette_input: String::new(),
             command_registry: CommandRegistry::new(),
@@ -329,6 +351,9 @@ impl App {
             settings_dialog: SettingsDialog::new(theme.clone()),
             model_selection_dialog: ModelSelectionDialog::new(theme.clone()),
             provider_management_dialog: ProviderManagementDialog::new(theme.clone()),
+            connect_provider_dialog: ConnectProviderDialog::new(theme.clone()),
+            connect_method_dialog: None,
+            connect_model_dialog: None,
             file_selection_dialog: FileSelectionDialog::new(theme.clone()),
             directory_selection_dialog: DirectorySelectionDialog::new(theme.clone()),
             release_notes_dialog: ReleaseNotesDialog::new(theme.clone()),
@@ -345,7 +370,170 @@ impl App {
             is_llm_generating: false,
             partial_response: String::new(),
             dropped_files: Vec::new(),
+            pending_connect_provider: None,
+            pending_connect_method: None,
+            pending_browser_session: None,
+            pending_browser_models: Vec::new(),
         }
+    }
+
+    fn begin_connect_flow(&mut self) {
+        self.pending_connect_provider = None;
+        self.pending_connect_method = None;
+        self.pending_browser_session = None;
+        self.pending_browser_models.clear();
+        self.connect_method_dialog = None;
+        self.connect_model_dialog = None;
+        self.mode = AppMode::ConnectProvider;
+    }
+
+    fn handle_connect_provider_confirm(&mut self, provider_id: String) {
+        self.pending_connect_provider = Some(provider_id.clone());
+        let theme = self.theme_manager.current().clone();
+        self.connect_method_dialog = Some(ConnectMethodDialog::new(theme, provider_id));
+        self.mode = AppMode::ConnectMethod;
+    }
+
+    fn handle_connect_method_confirm(&mut self, method: String) {
+        self.pending_connect_method = Some(method);
+        if self.pending_connect_provider.as_deref() == Some("openai")
+            && self.pending_connect_method.as_deref() == Some("browser")
+        {
+            self.start_openai_browser_connect();
+        } else {
+            self.add_message("Selected connect method is not implemented yet".to_string(), false);
+            self.mode = AppMode::Chat;
+        }
+    }
+
+    fn start_openai_browser_connect(&mut self) {
+        let (tx, rx) = mpsc::channel();
+        self.connect_rx = Some(rx);
+        self.mode = AppMode::ConnectProgress;
+
+        std::thread::spawn(move || {
+            let service = OpenAiBrowserAuthService::new();
+            let listener = match service.start_local_callback_listener() {
+                Ok(listener) => listener,
+                Err(error) => {
+                    let _ = tx.send(ConnectEvent::Failed(error.to_string()));
+                    return;
+                }
+            };
+
+            let request = listener.request();
+            let url = service.build_authorize_url(&request);
+            if let Err(error) = open_external(&url) {
+                let _ = tx.send(ConnectEvent::Failed(error));
+                return;
+            }
+            let _ = tx.send(ConnectEvent::BrowserOpened(url.clone()));
+
+            let callback = match listener.wait_for_callback() {
+                Ok(callback) => callback,
+                Err(error) => {
+                    let _ = tx.send(ConnectEvent::Failed(error.to_string()));
+                    return;
+                }
+            };
+
+            let session = match service.exchange_code(callback, &request) {
+                Ok(session) => session,
+                Err(error) => {
+                    let _ = tx.send(ConnectEvent::Failed(error.to_string()));
+                    return;
+                }
+            };
+
+            let provider = OpenAiProvider::new_browser_auth(
+                session.clone(),
+                "gpt-5.3-codex".to_string(),
+                OpenAiBrowserAuthStore::from_default_location(),
+            );
+
+            let runtime = match tokio::runtime::Runtime::new() {
+                Ok(runtime) => runtime,
+                Err(error) => {
+                    let _ = tx.send(ConnectEvent::Failed(error.to_string()));
+                    return;
+                }
+            };
+
+            let models = match runtime.block_on(provider.list_browser_auth_models()) {
+                Ok(models) => models,
+                Err(error) => {
+                    let _ = tx.send(ConnectEvent::Failed(error.to_string()));
+                    return;
+                }
+            };
+
+            let _ = tx.send(ConnectEvent::AuthComplete(session, models));
+        });
+    }
+
+    fn complete_browser_auth(
+        &mut self,
+        session: OpenAiBrowserSession,
+        models: Vec<BrowserAuthModelInfo>,
+    ) {
+        let store = OpenAiBrowserAuthStore::from_default_location();
+        let _ = store.save(&session);
+        self.pending_browser_session = Some(session);
+        self.pending_browser_models = models.clone();
+        self.connect_model_dialog = Some(ConnectModelDialog::new(
+            self.theme_manager.current().clone(),
+            models,
+        ));
+        self.mode = AppMode::ConnectModel;
+    }
+
+    fn handle_connect_model_confirm(&mut self, model_id: String) -> Result<(), String> {
+        let session = self
+            .pending_browser_session
+            .clone()
+            .ok_or_else(|| "missing browser session".to_string())?;
+        let store = OpenAiBrowserAuthStore::from_default_location();
+        store.save(&session).map_err(|e| e.to_string())?;
+
+        self.provider = "openai".to_string();
+        std::env::set_var("OPENAI_MODEL", &model_id);
+        std::env::set_var("OPENCODE_MODEL", &model_id);
+        self.llm_provider = Some(std::sync::Arc::new(OpenAiProvider::new_browser_auth(
+            session,
+            model_id,
+            store,
+        )));
+        self.mode = AppMode::Chat;
+        Ok(())
+    }
+
+    fn handle_connect_model_cancel(&mut self) {
+        self.mode = AppMode::Chat;
+    }
+
+    #[cfg(test)]
+    fn complete_browser_auth_for_test(
+        &mut self,
+        session: OpenAiBrowserSession,
+        models: Vec<BrowserAuthModelInfo>,
+    ) {
+        self.complete_browser_auth(session, models);
+    }
+
+    #[cfg(test)]
+    fn prime_connect_state_for_test(&mut self) {
+        self.complete_browser_auth(
+            OpenAiBrowserSession {
+                access_token: "access".to_string(),
+                refresh_token: "refresh".to_string(),
+                expires_at_epoch_ms: chrono::Utc::now().timestamp_millis() + 60_000,
+                account_id: Some("acct_123".to_string()),
+            },
+            vec![BrowserAuthModelInfo {
+                id: "gpt-5.3-codex".to_string(),
+                name: "GPT-5.3 Codex".to_string(),
+            }],
+        );
     }
 
     /// Initialize the LLM provider based on the provider name
@@ -563,6 +751,7 @@ impl App {
 
             self.check_leader_key_timeout();
             self.check_llm_events();
+            self.check_connect_events();
 
             match self.mode {
                 AppMode::CommandPalette => self.handle_command_palette(&mut terminal)?,
@@ -577,6 +766,10 @@ impl App {
                 AppMode::ProviderManagement => {
                     self.handle_provider_management_dialog(&mut terminal)?
                 }
+                AppMode::ConnectProvider => self.handle_connect_provider_dialog(&mut terminal)?,
+                AppMode::ConnectMethod => self.handle_connect_method_dialog(&mut terminal)?,
+                AppMode::ConnectProgress => self.handle_connect_progress_dialog(&mut terminal)?,
+                AppMode::ConnectModel => self.handle_connect_model_dialog(&mut terminal)?,
                 AppMode::FileSelection => self.handle_file_selection_dialog(&mut terminal)?,
                 AppMode::DirectorySelection => {
                     self.handle_directory_selection_dialog(&mut terminal)?
@@ -616,6 +809,30 @@ impl App {
                         self.is_llm_generating = false;
                         self.partial_response.clear();
                         self.llm_rx = None;
+                    }
+                }
+            }
+        }
+    }
+
+    fn check_connect_events(&mut self) {
+        if let Some(ref mut rx) = self.connect_rx {
+            let mut events = Vec::new();
+            while let Ok(event) = rx.try_recv() {
+                events.push(event);
+            }
+
+            for event in events {
+                match event {
+                    ConnectEvent::BrowserOpened(url) => {
+                        self.add_message(format!("Opened browser for OpenAI login: {}", url), false);
+                    }
+                    ConnectEvent::AuthComplete(session, models) => {
+                        self.complete_browser_auth(session, models);
+                    }
+                    ConnectEvent::Failed(error) => {
+                        self.add_message(format!("OpenAI connect failed: {}", error), false);
+                        self.mode = AppMode::Chat;
                     }
                 }
             }
@@ -944,6 +1161,9 @@ impl App {
                 }
                 CommandAction::OpenProviders => {
                     self.mode = AppMode::ProviderManagement;
+                }
+                CommandAction::OpenConnect => {
+                    self.begin_connect_flow();
                 }
                 CommandAction::ToggleFiles => {
                     self.toggle_file_tree();
@@ -1382,6 +1602,37 @@ impl App {
             AppMode::ProviderManagement => {
                 self.draw_chat(f);
                 self.provider_management_dialog.draw(f, f.area());
+            }
+            AppMode::ConnectProvider => {
+                self.draw_chat(f);
+                self.connect_provider_dialog.draw(f, f.area());
+            }
+            AppMode::ConnectMethod => {
+                self.draw_chat(f);
+                if let Some(dialog) = self.connect_method_dialog.as_ref() {
+                    dialog.draw(f, f.area());
+                }
+            }
+            AppMode::ConnectProgress => {
+                self.draw_chat(f);
+                let area = Rect::new(
+                    f.area().x + (f.area().width.saturating_sub(60)) / 2,
+                    f.area().y + (f.area().height.saturating_sub(6)) / 2,
+                    60.min(f.area().width.saturating_sub(2)),
+                    6.min(f.area().height.saturating_sub(2)),
+                );
+                f.render_widget(Clear, area);
+                f.render_widget(
+                    Paragraph::new(vec![Line::from("Waiting for browser authentication...")])
+                        .block(Block::default().title("Connect").borders(Borders::ALL)),
+                    area,
+                );
+            }
+            AppMode::ConnectModel => {
+                self.draw_chat(f);
+                if let Some(dialog) = self.connect_model_dialog.as_ref() {
+                    dialog.draw(f, f.area());
+                }
             }
             AppMode::FileSelection => {
                 self.draw_chat(f);
@@ -2012,6 +2263,80 @@ impl App {
         Ok(())
     }
 
+    fn handle_connect_provider_dialog(
+        &mut self,
+        _terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    ) -> io::Result<()> {
+        if let Event::Key(key) = event::read()? {
+            if key.kind == KeyEventKind::Press {
+                let action = self.connect_provider_dialog.handle_input(key);
+                match action {
+                    DialogAction::Close => self.mode = AppMode::Chat,
+                    DialogAction::Confirm(provider_id) => {
+                        self.handle_connect_provider_confirm(provider_id)
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn handle_connect_method_dialog(
+        &mut self,
+        _terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    ) -> io::Result<()> {
+        if let Event::Key(key) = event::read()? {
+            if key.kind == KeyEventKind::Press {
+                if let Some(dialog) = self.connect_method_dialog.as_mut() {
+                    let action = dialog.handle_input(key);
+                    match action {
+                        DialogAction::Close => self.mode = AppMode::ConnectProvider,
+                        DialogAction::Confirm(method) => self.handle_connect_method_confirm(method),
+                        _ => {}
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn handle_connect_progress_dialog(
+        &mut self,
+        _terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    ) -> io::Result<()> {
+        if let Event::Key(key) = event::read()? {
+            if key.kind == KeyEventKind::Press && key.code == KeyCode::Esc {
+                self.mode = AppMode::Chat;
+            }
+        }
+        Ok(())
+    }
+
+    fn handle_connect_model_dialog(
+        &mut self,
+        _terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    ) -> io::Result<()> {
+        if let Event::Key(key) = event::read()? {
+            if key.kind == KeyEventKind::Press {
+                if let Some(dialog) = self.connect_model_dialog.as_mut() {
+                    let action = dialog.handle_input(key);
+                    match action {
+                        DialogAction::Close => self.handle_connect_model_cancel(),
+                        DialogAction::Confirm(model_id) => {
+                            if let Err(error) = self.handle_connect_model_confirm(model_id) {
+                                self.add_message(format!("Failed to activate model: {}", error), false);
+                                self.mode = AppMode::Chat;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
     fn handle_diff_review_dialog(
         &mut self,
         _terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
@@ -2134,5 +2459,90 @@ impl App {
 impl Default for App {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+fn open_external(url: &str) -> Result<(), String> {
+    let status = if cfg!(target_os = "macos") {
+        std::process::Command::new("open").arg(url).status()
+    } else if cfg!(target_os = "windows") {
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", url])
+            .status()
+    } else {
+        std::process::Command::new("xdg-open").arg(url).status()
+    }
+    .map_err(|e| format!("Failed to open browser: {}", e))?;
+
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!("Browser open command failed with status {}", status))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use opencode_llm::BrowserAuthModelInfo;
+
+    #[test]
+    fn connect_command_opens_provider_dialog() {
+        let mut app = App::new();
+        app.execute_slash_command("connect");
+        assert_eq!(app.mode, AppMode::ConnectProvider);
+    }
+
+    #[test]
+    fn selecting_openai_opens_auth_method_dialog() {
+        let mut app = App::new();
+        app.begin_connect_flow();
+        app.handle_connect_provider_confirm("openai".into());
+        assert_eq!(app.mode, AppMode::ConnectMethod);
+    }
+
+    #[test]
+    fn successful_browser_auth_opens_model_picker_instead_of_chat() {
+        let mut app = App::new();
+        app.complete_browser_auth_for_test(
+            OpenAiBrowserSession {
+                access_token: "access".into(),
+                refresh_token: "refresh".into(),
+                expires_at_epoch_ms: chrono::Utc::now().timestamp_millis() + 60_000,
+                account_id: Some("acct_123".into()),
+            },
+            vec![BrowserAuthModelInfo {
+                id: "gpt-5.3-codex".into(),
+                name: "GPT-5.3 Codex".into(),
+            }],
+        );
+
+        assert_eq!(app.mode, AppMode::ConnectModel);
+    }
+
+    #[test]
+    fn selecting_model_rebinds_provider_and_returns_to_chat() {
+        let dir = tempfile::tempdir().unwrap();
+        std::env::set_var("OPENCODE_DATA_DIR", dir.path());
+
+        let mut app = App::new();
+        app.prime_connect_state_for_test();
+        app.handle_connect_model_confirm("gpt-5.3-codex".into()).unwrap();
+
+        assert_eq!(app.mode, AppMode::Chat);
+        assert_eq!(app.provider, "openai");
+        assert!(app.llm_provider.is_some());
+
+        std::env::remove_var("OPENCODE_DATA_DIR");
+    }
+
+    #[test]
+    fn model_selection_cancel_keeps_chat_unswitched() {
+        let mut app = App::new();
+        let original_provider = app.provider.clone();
+        app.prime_connect_state_for_test();
+        app.handle_connect_model_cancel();
+        assert_eq!(app.provider, original_provider);
+        assert_eq!(app.mode, AppMode::Chat);
     }
 }
