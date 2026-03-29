@@ -76,7 +76,7 @@ pub fn run(args: SessionArgs) {
         }
         Some(SessionAction::Message { content }) => {
             if let Some(id) = &args.id {
-                if let Some(content) = content {
+                if let Some(_content) = content {
                     println!("Message added to session {}", id);
                 }
             }

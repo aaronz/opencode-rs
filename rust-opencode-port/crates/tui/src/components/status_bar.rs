@@ -157,7 +157,7 @@ impl StatusBar {
     }
 
     pub fn draw(&self, f: &mut Frame, area: Rect) {
-        let connection_color = match self.connection_status {
+        let _connection_color = match self.connection_status {
             ConnectionStatus::Connected => Color::Green,
             ConnectionStatus::Disconnected => Color::Yellow,
             ConnectionStatus::Error => Color::Red,

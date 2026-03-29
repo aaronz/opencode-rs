@@ -1,8 +1,7 @@
 use crate::events::{Event, EventBus};
-use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tokio::sync::mpsc;
 
 pub struct WorkspaceManager {
     root: PathBuf,

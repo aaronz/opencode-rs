@@ -2,7 +2,7 @@ use crate::dialogs::{Dialog, DialogAction};
 use crate::theme::Theme;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
@@ -114,7 +114,7 @@ impl Dialog for ModelSelectionDialog {
         let items: Vec<ListItem> = filtered
             .iter()
             .enumerate()
-            .map(|(i, model)| {
+            .map(|(_i, model)| {
                 let paid_marker = if model.is_paid { " $" } else { "" };
                 let availability = if model.is_available {
                     ""

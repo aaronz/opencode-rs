@@ -1,7 +1,7 @@
 use opencode_core::OpenCodeError;
 use opencode_storage::{StorageService, models::AccountModel};
 use crate::password::{hash_password, verify_password};
-use crate::jwt::{create_token, validate_token, Claims};
+use crate::jwt::{create_token, validate_token};
 use chrono::Utc;
 use uuid::Uuid;
 

@@ -10,7 +10,7 @@ pub static PROJECT_STATE: Lazy<Mutex<ProjectState>> =
 pub struct ProjectState {
     pub projects: HashMap<String, String>,
     pub current_project: Option<String>,
-    pub sessions: HashMap<String, Vec<SessionInfo>>,
+    pub _sessions: HashMap<String, Vec<SessionInfo>>,
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]

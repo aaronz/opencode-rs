@@ -17,7 +17,7 @@ impl Provider for CohereProvider {
         let client = reqwest::Client::new();
         let url = "https://api.cohere.ai/v1/chat";
 
-        let messages = if let Some(ctx) = context {
+        let _messages = if let Some(ctx) = context {
             vec![
                 serde_json::json!({"role": "system", "content": ctx}),
                 serde_json::json!({"role": "user", "content": prompt})

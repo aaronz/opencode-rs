@@ -8,23 +8,6 @@ fn truthy(key: &str) -> bool {
         .unwrap_or(false)
 }
 
-fn falsy(key: &str) -> bool {
-    env::var(key)
-        .map(|v| v.to_lowercase() == "false" || v == "0")
-        .unwrap_or(false)
-}
-
-fn get_string(key: &str) -> Option<String> {
-    env::var(key).ok()
-}
-
-fn get_number(key: &str) -> Option<u64> {
-    env::var(key)
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .filter(|n: &u64| *n > 0)
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Flag {
     pub name: String,

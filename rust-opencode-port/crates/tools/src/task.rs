@@ -12,7 +12,7 @@ struct TaskArgs {
     prompt: String,
     subagent_type: String,
     task_id: Option<String>,
-    command: Option<String>,
+    _command: Option<String>,
 }
 
 #[async_trait]
@@ -29,7 +29,7 @@ impl Tool for TaskTool {
         Box::new(TaskTool)
     }
 
-    async fn execute(&self, args: serde_json::Value, ctx: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+    async fn execute(&self, args: serde_json::Value, _ctx: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
         let args: TaskArgs = serde_json::from_value(args)
             .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 

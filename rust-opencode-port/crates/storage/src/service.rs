@@ -1,6 +1,6 @@
 use crate::database::StoragePool;
 use crate::models::{SessionModel, ProjectModel, AccountModel};
-use opencode_core::{OpenCodeError, Session, SessionInfo, Message, Role};
+use opencode_core::{OpenCodeError, Session, SessionInfo, Message};
 use rusqlite::params;
 
 pub struct StorageService {

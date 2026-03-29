@@ -7,6 +7,7 @@ pub struct InvalidTool;
 
 #[derive(Deserialize)]
 struct InvalidArgs {
+    #[allow(dead_code)]
     tool: String,
     error: String,
 }

@@ -1,8 +1,8 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use deadpool_sqlite::{Config, Pool, PoolError, Runtime, Manager};
-use rusqlite::{Connection, OpenFlags};
+use deadpool_sqlite::{Config, Pool, Runtime, Manager};
+use rusqlite::Connection;
 
 use crate::OpenCodeError;
 

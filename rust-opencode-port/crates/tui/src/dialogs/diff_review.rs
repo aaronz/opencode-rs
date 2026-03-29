@@ -75,7 +75,7 @@ impl DiffReviewOverlay {
         };
     }
 
-    fn highlight_syntax(line: &str) -> Vec<Span> {
+    fn highlight_syntax(line: &str) -> Vec<Span<'_>> {
         let mut spans = Vec::new();
         let mut remaining = line;
 
@@ -239,7 +239,7 @@ impl DiffReviewOverlay {
         }
     }
 
-    fn render_stacked_diff(&self) -> Vec<Line> {
+    fn render_stacked_diff(&self) -> Vec<Line<'_>> {
         let mut lines = vec![Line::from("")];
 
         for diff_line in &self.diff_content {
@@ -260,7 +260,7 @@ impl DiffReviewOverlay {
         lines
     }
 
-    fn render_side_by_side_diff(&self, width: u16) -> Vec<Line> {
+    fn render_side_by_side_diff(&self, width: u16) -> Vec<Line<'_>> {
         let half_width = (width / 2).saturating_sub(2);
         let mut lines = vec![Line::from("")];
 

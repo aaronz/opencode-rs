@@ -1,5 +1,5 @@
+use opencode_core::plugin::Plugin;
 use std::collections::HashMap;
-use opencode_core::plugin::{Plugin, PluginConfig};
 
 pub struct PluginRegistry {
     plugins: HashMap<String, Box<dyn Plugin>>,
@@ -7,7 +7,9 @@ pub struct PluginRegistry {
 
 impl PluginRegistry {
     pub fn new() -> Self {
-        Self { plugins: HashMap::new() }
+        Self {
+            plugins: HashMap::new(),
+        }
     }
 
     pub fn register(&mut self, plugin: Box<dyn Plugin>) {

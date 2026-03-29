@@ -137,6 +137,7 @@ fn replace(content: &str, old_string: &str, new_string: &str, replace_all: bool)
 }
 
 // Replacer functions
+#[allow(dead_code)]
 type Replacer = fn(&str, &str) -> Vec<String>;
 
 fn simple_replacer(content: &str, find: &str) -> Vec<String> {
@@ -473,11 +474,11 @@ fn generate_diff(file_path: &str, old_content: &str, new_content: &str) -> Strin
 
 // Extension trait for whitespace normalization
 trait WhitespaceExt {
-    fn replace_whitespace(&self) -> ReplaceWhitespace;
+    fn replace_whitespace(&self) -> ReplaceWhitespace<'_>;
 }
 
 impl WhitespaceExt for str {
-    fn replace_whitespace(&self) -> ReplaceWhitespace {
+    fn replace_whitespace(&self) -> ReplaceWhitespace<'_> {
         ReplaceWhitespace(self)
     }
 }

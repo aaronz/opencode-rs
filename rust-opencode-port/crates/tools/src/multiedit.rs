@@ -34,7 +34,7 @@ impl Tool for MultiEditTool {
 
     async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
         // Support both {edits: [...]} and direct array formats
-        let edits: Vec<Edit> = if let Some(arr) = args.as_array() {
+        let edits: Vec<Edit> = if let Some(_arr) = args.as_array() {
             serde_json::from_value(args).map_err(|e| OpenCodeError::Parse(e.to_string()))?
         } else {
             let multi_args: MultiEditArgs = serde_json::from_value(args)

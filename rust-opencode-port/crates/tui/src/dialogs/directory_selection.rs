@@ -3,7 +3,7 @@ use crate::theme::Theme;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame,
@@ -19,7 +19,7 @@ pub struct DirectorySelectionDialog {
 
 struct DirEntry {
     name: String,
-    is_dir: bool,
+    _is_dir: bool,
 }
 
 impl DirectorySelectionDialog {
@@ -41,7 +41,7 @@ impl DirectorySelectionDialog {
         if path.parent().is_some() {
             entries.push(DirEntry {
                 name: "..".to_string(),
-                is_dir: true,
+                _is_dir: true,
             });
         }
 
@@ -51,7 +51,10 @@ impl DirectorySelectionDialog {
                 let is_dir = entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false);
 
                 if is_dir {
-                    entries.push(DirEntry { name, is_dir });
+                    entries.push(DirEntry {
+                        name,
+                        _is_dir: is_dir,
+                    });
                 }
             }
         }

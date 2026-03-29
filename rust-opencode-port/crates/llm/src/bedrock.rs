@@ -2,12 +2,12 @@ use crate::provider::{Provider, StreamingCallback, Model, ProviderConfig};
 use opencode_core::OpenCodeError;
 
 pub struct BedrockProvider {
-    config: ProviderConfig,
+    _config: ProviderConfig,
 }
 
 impl BedrockProvider {
     pub fn new(config: ProviderConfig) -> Self {
-        Self { config }
+        Self { _config: config }
     }
 }
 

@@ -7,7 +7,7 @@ pub struct ThreadArgs {
     pub session_id: Option<String>,
 }
 
-pub fn run(args: ThreadArgs) {
+pub fn run(_args: ThreadArgs) {
     let mut app = App::new();
     if let Err(e) = app.run() {
         eprintln!("Error running TUI: {}", e);

@@ -34,10 +34,7 @@ use cmd::{
     workspace::{self, WorkspaceArgs},
     workspace_serve::{self, WorkspaceServeArgs},
 };
-use opencode_core::{Config, Message, ProjectManager, Role, Session, SessionInfo};
 use opencode_tui::App;
-use serde::Serialize;
-use std::io::{Read, Write};
 use std::path::PathBuf;
 
 #[derive(Parser)]
