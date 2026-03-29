@@ -1,7 +1,6 @@
 use crate::command::{CommandAction, CommandRegistry};
 use crate::components::{
-    FileTree, InputAction, InputElement, InputWidget, StatusBar, StatusPopoverType, TerminalPanel,
-    TitleBar, TitleBarAction,
+    FileTree, InputWidget, StatusBar, StatusPopoverType, TerminalPanel, TitleBar, TitleBarAction,
 };
 use crate::dialogs::*;
 use crate::session::SessionManager;
@@ -496,6 +495,11 @@ impl App {
     pub fn run(&mut self) -> io::Result<()> {
         enable_raw_mode()?;
         let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
+        execute!(
+            io::stdout(),
+            cursor::SetCursorStyle::BlinkingBlock,
+            cursor::Show
+        )?;
 
         loop {
             terminal.draw(|f| self.draw(f))?;
@@ -1423,7 +1427,7 @@ impl App {
     fn draw_chat(&mut self, f: &mut Frame) {
         let area = f.area();
 
-        let (title_area, main_area) = if self.show_title_bar {
+        let (_title_area, main_area) = if self.show_title_bar {
             let title_height = if self.title_bar.show_dropdown { 12 } else { 1 };
             let title_area = Rect::new(area.x, area.y, area.width, title_height);
             self.title_bar.draw(f, title_area);
@@ -1439,7 +1443,7 @@ impl App {
         };
 
         let main_area = if self.show_file_tree {
-            let file_tree_width = 30.min(main_area.width / 3);
+            let file_tree_width = (main_area.width / 3).max(20).min(40);
             let file_tree_area = Rect::new(
                 main_area.x,
                 main_area.y,
@@ -1459,6 +1463,15 @@ impl App {
             main_area
         };
 
+        let content = self.input.clone();
+        if self.input_widget.get_content() != content {
+            self.input_widget.clear();
+            self.input_widget
+                .elements
+                .push(crate::components::InputElement::Text(content));
+            self.input_widget.cursor_pos = self.input.len();
+        }
+
         let theme = self.theme();
 
         let terminal_height = if self.show_terminal {
@@ -1469,22 +1482,29 @@ impl App {
         let remaining_height = main_area.height.saturating_sub(terminal_height);
 
         let (messages_height, tool_height) = if self.tool_calls.is_empty() {
-            (remaining_height.saturating_sub(3), 0)
+            (remaining_height.saturating_sub(4), 0)
         } else {
             let tool_height = 5.min(remaining_height / 3);
             (
-                remaining_height.saturating_sub(tool_height + 3),
+                remaining_height.saturating_sub(tool_height + 4),
                 tool_height,
             )
         };
 
         let messages_area = Rect::new(main_area.x, main_area.y, main_area.width, messages_height);
-        let input_area = Rect::new(main_area.x, messages_height, main_area.width, 2);
-        let status_area = Rect::new(main_area.x, remaining_height - 1, main_area.width - 30, 1);
-        let status_indicator_area = Rect::new(
-            main_area.x + main_area.width - 30,
+        let input_area = Rect::new(main_area.x, messages_height, main_area.width, 3);
+        let status_indicator_width = 30usize.min(main_area.width as usize);
+        let status_area_width = (main_area.width as usize).saturating_sub(status_indicator_width);
+        let status_area = Rect::new(
+            main_area.x,
             remaining_height - 1,
-            30,
+            status_area_width as u16,
+            1,
+        );
+        let status_indicator_area = Rect::new(
+            main_area.x + status_area_width as u16,
+            remaining_height - 1,
+            status_indicator_width as u16,
             1,
         );
 
@@ -1612,14 +1632,7 @@ impl App {
             f.render_widget(Paragraph::new(tool_lines).block(tool_block), tool_area);
         }
 
-        let input_block = Block::default()
-            .title("Input")
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(theme.primary_color()));
-        f.render_widget(
-            Paragraph::new(format!("> {}", self.input)).block(input_block),
-            input_area,
-        );
+        self.input_widget.draw(f, input_area, "Input");
 
         let status = if self.is_leader_key_active() {
             Line::from(Span::styled(

@@ -46,6 +46,19 @@ impl InputElement {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum OverflowMode {
+    Truncate, // Truncate overflow
+    Scroll,   // Horizontal scroll
+    Wrap,     // Auto wrap
+}
+
+impl Default for OverflowMode {
+    fn default() -> Self {
+        OverflowMode::Truncate
+    }
+}
+
 pub struct InputWidget {
     pub elements: Vec<InputElement>,
     pub cursor_pos: usize,
@@ -54,6 +67,8 @@ pub struct InputWidget {
     pub theme: Theme,
     pub multiline: bool,
     pub leader_active: bool,
+    pub scroll_x: usize,
+    pub overflow_mode: OverflowMode,
 }
 
 impl InputWidget {
@@ -66,6 +81,8 @@ impl InputWidget {
             theme,
             multiline: false,
             leader_active: false,
+            scroll_x: 0,
+            overflow_mode: OverflowMode::Truncate,
         }
     }
 
@@ -78,6 +95,8 @@ impl InputWidget {
             theme,
             multiline: true,
             leader_active: false,
+            scroll_x: 0,
+            overflow_mode: OverflowMode::Wrap,
         }
     }
 
@@ -369,65 +388,63 @@ impl InputWidget {
         let inner = block.inner(area);
         f.render_widget(block, area);
 
+        let visible_width = inner.width as usize;
+        let content = self.get_content();
+
+        let (display_start, display_end) = match self.overflow_mode {
+            OverflowMode::Scroll => {
+                let start = self.scroll_x.min(content.len());
+                let end = (start + visible_width).min(content.len());
+                (start, end)
+            }
+            _ => (0, content.len().min(visible_width)),
+        };
+
+        let display_content = if display_start < display_end {
+            content
+                .chars()
+                .skip(display_start)
+                .take(display_end - display_start)
+                .collect()
+        } else {
+            String::new()
+        };
+
         let mut spans: Vec<Span> = Vec::new();
         let mut char_pos = 0;
 
-        let content = self.get_content();
         let is_shell_command = content.starts_with('!');
 
-        for element in &self.elements {
-            match element {
-                InputElement::Text(text) => {
-                    for c in text.chars() {
-                        let style = if is_shell_command && char_pos == 0 {
-                            Style::default()
-                                .fg(Color::Yellow)
-                                .add_modifier(Modifier::BOLD)
-                        } else if is_shell_command {
-                            Style::default().fg(Color::Yellow)
-                        } else {
-                            Style::default()
-                        };
+        for c in display_content.chars() {
+            let style = if is_shell_command && char_pos == 0 {
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            } else if is_shell_command {
+                Style::default().fg(Color::Yellow)
+            } else {
+                Style::default()
+            };
 
-                        if char_pos == self.cursor_pos {
-                            spans.push(Span::styled(
-                                c.to_string(),
-                                style.add_modifier(Modifier::REVERSED),
-                            ));
-                        } else {
-                            spans.push(Span::styled(c.to_string(), style));
-                        }
-                        char_pos += 1;
-                    }
-                }
-                InputElement::Chip { display, color, .. } => {
-                    let chip_text = format!("[@{}]", display);
-                    for c in chip_text.chars() {
-                        if char_pos == self.cursor_pos {
-                            spans.push(Span::styled(
-                                c.to_string(),
-                                Style::default()
-                                    .bg(*color)
-                                    .fg(Color::Black)
-                                    .add_modifier(Modifier::BOLD)
-                                    .add_modifier(Modifier::REVERSED),
-                            ));
-                        } else {
-                            spans.push(Span::styled(
-                                c.to_string(),
-                                Style::default()
-                                    .bg(*color)
-                                    .fg(Color::Black)
-                                    .add_modifier(Modifier::BOLD),
-                            ));
-                        }
-                        char_pos += 1;
-                    }
-                }
+            let actual_cursor_pos =
+                if self.cursor_pos > display_start && self.cursor_pos <= display_end {
+                    self.cursor_pos - display_start
+                } else {
+                    usize::MAX
+                };
+
+            if char_pos == actual_cursor_pos {
+                spans.push(Span::styled(
+                    c.to_string(),
+                    style.add_modifier(Modifier::REVERSED),
+                ));
+            } else {
+                spans.push(Span::styled(c.to_string(), style));
             }
+            char_pos += 1;
         }
 
-        if char_pos == self.cursor_pos {
+        if self.cursor_pos >= display_end && char_pos < visible_width {
             spans.push(Span::styled(
                 " ",
                 Style::default().add_modifier(Modifier::REVERSED),
@@ -436,6 +453,35 @@ impl InputWidget {
 
         let paragraph = Paragraph::new(Line::from(spans));
         f.render_widget(paragraph, inner);
+
+        let display_len = display_content.len();
+        let cursor_display_pos = if self.cursor_pos > display_start {
+            (self.cursor_pos - display_start).min(display_len)
+        } else {
+            0
+        };
+        let cursor_x = inner.x + cursor_display_pos as u16;
+        let cursor_y = inner.y;
+        #[allow(deprecated)]
+        f.set_cursor(cursor_x, cursor_y);
+    }
+
+    pub fn scroll_left(&mut self) {
+        if self.scroll_x > 0 {
+            self.scroll_x -= 1;
+        }
+    }
+
+    pub fn scroll_right(&mut self) {
+        let content_len = self.get_content().len();
+        let visible_width = 78;
+        if self.scroll_x + visible_width < content_len {
+            self.scroll_x += 1;
+        }
+    }
+
+    pub fn reset_scroll(&mut self) {
+        self.scroll_x = 0;
     }
 }
 
