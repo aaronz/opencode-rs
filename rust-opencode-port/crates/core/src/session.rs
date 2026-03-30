@@ -14,9 +14,21 @@ pub struct Session {
     pub updated_at: DateTime<Utc>,
     pub state: SessionState,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub tool_invocations: Vec<ToolInvocationRecord>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub undo_history: Vec<HistoryEntry>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub redo_history: Vec<HistoryEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolInvocationRecord {
+    pub id: Uuid,
+    pub tool_name: String,
+    pub arguments: serde_json::Value,
+    pub result: Option<String>,
+    pub started_at: DateTime<Utc>,
+    pub completed_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -51,6 +63,7 @@ impl Session {
             created_at: now,
             updated_at: now,
             state: SessionState::Idle,
+            tool_invocations: Vec::new(),
             undo_history: Vec::new(),
             redo_history: Vec::new(),
         }

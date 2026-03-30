@@ -69,7 +69,7 @@ pub use pty::PtySession;
 pub use question::QuestionManager;
 pub use revert::RevertManager;
 pub use server::Server;
-pub use session::{Session, SessionInfo};
+pub use session::{Session, SessionInfo, ToolInvocationRecord};
 pub use session_state::{SessionState, StateTransitionError, is_valid_transition};
 pub use share::ShareManager;
 pub use shell::Shell;

@@ -1,6 +1,76 @@
 use chrono::{DateTime, Utc};
 use opencode_core::{OpenCodeError, Session};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum InvocationStatus {
+    Running,
+    Completed,
+    Failed,
+}
+
+impl Default for InvocationStatus {
+    fn default() -> Self {
+        InvocationStatus::Running
+    }
+}
+
+impl std::fmt::Display for InvocationStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InvocationStatus::Running => write!(f, "running"),
+            InvocationStatus::Completed => write!(f, "completed"),
+            InvocationStatus::Failed => write!(f, "failed"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolInvocation {
+    pub id: Uuid,
+    pub session_id: Uuid,
+    pub message_id: Uuid,
+    pub tool_name: String,
+    pub arguments: serde_json::Value,
+    pub result: Option<serde_json::Value>,
+    pub started_at: DateTime<Utc>,
+    pub completed_at: Option<DateTime<Utc>>,
+    pub status: InvocationStatus,
+}
+
+impl ToolInvocation {
+    pub fn new(
+        session_id: Uuid,
+        message_id: Uuid,
+        tool_name: String,
+        arguments: serde_json::Value,
+    ) -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            session_id,
+            message_id,
+            tool_name,
+            arguments,
+            result: None,
+            started_at: Utc::now(),
+            completed_at: None,
+            status: InvocationStatus::Running,
+        }
+    }
+
+    pub fn complete(&mut self, result: serde_json::Value) {
+        self.result = Some(result);
+        self.completed_at = Some(Utc::now());
+        self.status = InvocationStatus::Completed;
+    }
+
+    pub fn fail(&mut self) {
+        self.completed_at = Some(Utc::now());
+        self.status = InvocationStatus::Failed;
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionModel {
