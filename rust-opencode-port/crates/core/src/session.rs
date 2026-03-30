@@ -1,5 +1,6 @@
 use crate::compaction::{CompactionConfig, CompactionResult, Compactor};
 use crate::message::Message;
+use crate::session_state::{is_valid_transition, SessionState, StateTransitionError};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -11,6 +12,7 @@ pub struct Session {
     pub messages: Vec<Message>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub state: SessionState,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub undo_history: Vec<HistoryEntry>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
@@ -48,9 +50,22 @@ impl Session {
             messages: Vec::new(),
             created_at: now,
             updated_at: now,
+            state: SessionState::Idle,
             undo_history: Vec::new(),
             redo_history: Vec::new(),
         }
+    }
+
+    pub fn set_state(&mut self, new_state: SessionState) -> Result<(), StateTransitionError> {
+        if !is_valid_transition(self.state, new_state) {
+            return Err(StateTransitionError {
+                from: self.state,
+                to: new_state,
+            });
+        }
+        self.state = new_state;
+        self.updated_at = Utc::now();
+        Ok(())
     }
 
     pub fn add_message(&mut self, message: Message) {
