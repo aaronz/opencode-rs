@@ -1,6 +1,7 @@
 pub mod account;
 pub mod acp;
 pub mod bus;
+pub mod checkpoint;
 pub mod cli;
 pub mod command;
 pub mod compaction;
@@ -46,6 +47,7 @@ pub mod worktree;
 pub use account::AccountManager;
 pub use acp::AcpProtocol;
 pub use bus::EventBus;
+pub use checkpoint::{Checkpoint, CheckpointManager, CheckpointMetadata, create_checkpoint, restore_checkpoint};
 pub use cli::CliRegistry;
 pub use command::{Command, CommandRegistry};
 pub use config::Config;
