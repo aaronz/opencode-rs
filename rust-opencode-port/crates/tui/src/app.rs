@@ -3,7 +3,10 @@ use crate::components::{
     FileTree, InputWidget, StatusBar, StatusPopoverType, TerminalPanel, TitleBar, TitleBarAction,
 };
 use crate::dialogs::*;
+use crate::input_parser::{InputParser, InputType};
 use crate::session::SessionManager;
+use crate::shell_handler::ShellHandler;
+use crate::file_ref_handler::FileRefHandler;
 use crate::theme::{Theme, ThemeManager};
 use crossterm::{
     cursor,
@@ -302,6 +305,10 @@ pub struct App {
     pub pending_connect_method: Option<String>,
     pub pending_browser_session: Option<OpenAiBrowserSession>,
     pub pending_browser_models: Vec<BrowserAuthModelInfo>,
+    input_parser: InputParser,
+    shell_handler: ShellHandler,
+    #[allow(dead_code)]
+    file_ref_handler: FileRefHandler,
 }
 
 impl App {
@@ -374,6 +381,9 @@ impl App {
             pending_connect_method: None,
             pending_browser_session: None,
             pending_browser_models: Vec::new(),
+            input_parser: InputParser::new(),
+            shell_handler: ShellHandler::new(),
+            file_ref_handler: FileRefHandler::new(),
         }
     }
 
@@ -1347,6 +1357,8 @@ impl App {
                             self.history.push(input.clone());
                             self.history_index = self.history.len();
 
+                            let parse_result = self.input_parser.parse(&input);
+
                             if self.work_mode == WorkMode::Plan {
                                 self.add_message(
                                     "[Plan Mode] File modifications are disabled. Switch to Build mode to enable file changes.".to_string(),
@@ -1354,12 +1366,23 @@ impl App {
                                 );
                             }
 
-                            if input.starts_with('!') {
-                                let cmd = input.trim_start_matches('!');
-                                self.add_message(
-                                    format!("Executing shell command: {}", cmd),
-                                    false,
-                                );
+                            if parse_result.input_type == InputType::Shell {
+                                let cmd = parse_result.content.clone();
+                                let result = self.shell_handler.execute(&cmd);
+                                let mut output = format!("$ {}\n", cmd);
+                                if !result.stdout.is_empty() {
+                                    output.push_str(&result.stdout);
+                                }
+                                if !result.stderr.is_empty() {
+                                    output.push_str(&format!("\n[stderr]: {}", result.stderr));
+                                }
+                                if let Some(code) = result.exit_code {
+                                    output.push_str(&format!("\n[exit code: {}]", code));
+                                }
+                                if result.truncated {
+                                    output.push_str("\n[output truncated]");
+                                }
+                                self.add_message(output, false);
                             }
 
                             let chips = self.input_widget.get_chips();
