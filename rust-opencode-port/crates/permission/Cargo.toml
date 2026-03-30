@@ -10,3 +10,5 @@ opencode-core = { path = "../core" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 regex = "1.10"
+uuid = { workspace = true }
+chrono = { workspace = true }

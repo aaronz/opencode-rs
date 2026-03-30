@@ -29,10 +29,12 @@ impl UserPermissions {
     }
 
     pub fn add_permission(&mut self, permission: &str) {
-        self.explicit_permissions.insert(Permission(permission.to_string()));
+        self.explicit_permissions
+            .insert(Permission(permission.to_string()));
     }
 
     pub fn deny_permission(&mut self, permission: &str) {
-        self.denied_permissions.insert(Permission(permission.to_string()));
+        self.denied_permissions
+            .insert(Permission(permission.to_string()));
     }
 }
