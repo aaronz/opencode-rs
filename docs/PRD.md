@@ -790,13 +790,129 @@ pub trait ModelProvider {
 }
 ```
 
+### Provider 支持矩阵（v1 目标）
+
+| Provider 类型 | 典型 endpoint / 协议形态 | 认证方式 | v1 支持策略 | 备注 |
+|---|---|---|---|---|
+| OpenAI compatible | REST / OpenAI-style JSON schema | `Authorization: Bearer <api_key>` | 必须支持 | 作为通用适配层，覆盖官方 OpenAI 与大量兼容网关 |
+| Anthropic | REST / Claude Messages API | `x-api-key` + `anthropic-version` | 必须支持 | Header 语义与 OpenAI-compatible 不同，不能只靠 base URL 切换 |
+| Gemini | REST / Gemini API | API Key | 必须支持 | 认证模型更接近“显式 key”而非 Bearer-only 适配 |
+| OpenRouter | OpenAI-compatible API facade | `Authorization: Bearer <api_key>` | 必须支持 | 可额外携带站点标识 header，且可作为多模型路由层 |
+| Local OpenAI-compatible endpoint | 本地或内网 REST | Bearer / 无认证 / 反向代理认证 | 必须支持 | 必须允许关闭内建鉴权并交给企业网关处理 |
+| Enterprise AI Gateway | 公司内部统一网关 | API Key / Bearer / mTLS / 代理头 | 推荐支持 | 作为“OpenAI-compatible+自定义 header”的特例建模 |
+
+### 认证协议抽象
+
+Rust 版不能把“provider”与“auth”写死在一起，而应拆成两个层次：
+
+1. **Provider Protocol**：请求/响应 schema、streaming 事件格式、tool calling 语义、模型枚举方式
+2. **Auth Strategy**：请求如何签名、header 如何注入、token 是否过期、是否需要 refresh、是否涉及浏览器登录
+
+建议将认证抽象为独立策略：
+
+```rust
+enum AuthStrategy {
+    BearerApiKey,
+    HeaderApiKey,
+    QueryApiKey,
+    OAuthSession,
+    None,
+}
+```
+
+其中：
+
+* `BearerApiKey`：适用于 OpenAI-compatible、OpenRouter、部分企业网关
+* `HeaderApiKey`：适用于 Anthropic 这类需要专有 header 的协议
+* `QueryApiKey`：用于兼容少数显式 key 参数风格的 provider / gateway
+* `OAuthSession`：用于后续浏览器登录兼容层，不作为 v1 首发必选能力
+* `None`：用于本地无认证模型服务或已由 sidecar / reverse proxy 完成鉴权的场景
+
 ### v1 支持的 Provider
 
-* OpenAI compatible
-* Anthropic
-* Gemini
-* OpenRouter
-* Local OpenAI-compatible endpoint
+#### 1) OpenAI compatible
+
+支持范围应包含：
+
+* OpenAI 官方 API
+* OpenAI-compatible SaaS
+* 自建 gateway
+* 本地 OpenAI-compatible endpoint
+
+最低要求：
+
+* 可配置 `base_url`
+* 可配置 `Authorization: Bearer ...`
+* 可覆盖默认 header
+* 可声明是否支持 chat / responses / embeddings / streaming / tool calls
+
+#### 2) Anthropic
+
+最低要求：
+
+* 使用独立 provider adapter
+* 注入 `x-api-key`
+* 注入 `anthropic-version`
+* 明确其 tool use / streaming / token accounting 与 OpenAI-compatible 的差异
+
+#### 3) Gemini
+
+最低要求：
+
+* 支持 Gemini API 的 API Key 模式
+* 支持 endpoint/version 配置
+* 不假设其认证方式一定能完全复用 OpenAI-compatible 适配器
+
+#### 4) OpenRouter
+
+最低要求：
+
+* 使用 Bearer token
+* 支持 OpenAI-compatible client 方式接入
+* 支持可选 header（如来源站点标识）
+* 支持把 OpenRouter 视为“路由 provider”，而不是单一模型厂商
+
+#### 5) Local OpenAI-compatible endpoint
+
+最低要求：
+
+* 可将 `auth.strategy` 设为 `none`
+* 可配置本地 endpoint、超时、重试、并发限制
+* 可允许反向代理在 Runtime 之外完成鉴权
+
+### 认证协议细化
+
+#### API Key / Bearer 类
+
+这是 v1 的默认路线。要求：
+
+* Provider adapter 只接收“已解析好的 credential”，不直接读取环境变量
+* header 注入在 Model Gateway 内统一完成
+* 日志与 tracing 中默认脱敏，不记录完整 key
+* 权限/审计系统只记录 credential 来源与 credential id，不记录明文
+
+#### Header API Key 类
+
+对于 Anthropic 这类协议，Runtime 不能假设所有 provider 都是 `Authorization: Bearer`。因此必须支持：
+
+* provider-specific required headers
+* provider-specific API version header
+* provider-specific beta / capability header 扩展
+
+#### Browser / OAuth Session 类（非 v1 强制）
+
+为了兼容未来的“浏览器登录 + 本地 runtime”模式，架构上应预留：
+
+* OAuth authorization code + PKCE
+* 本地 localhost callback
+* access token / refresh token / expires_at 元数据
+* token refresh 与 session revoke
+
+但这类能力应放在 **v1.5+ 或兼容层**，不应阻塞 v1 首发。原因是：
+
+* 与商业账号体系耦合更强
+* 需要浏览器交互与 callback 安全校验
+* provider 条款、客户端 ID、账户权限模型都可能变化
 
 ### 模型配置
 
@@ -806,9 +922,35 @@ pub trait ModelProvider {
 * temperature / max_tokens / reasoning effort
 * fallback chain
 
+还应包含：
+
+* provider-specific `base_url`
+* auth strategy override
+* credential reference（而非明文 credential 本体）
+* default headers / extra headers
+* API version / feature flag
+* request timeout / retry policy / circuit breaker
+
+### Provider 凭证对象建议
+
+```jsonc
+{
+  "provider": "anthropic",
+  "auth": {
+    "strategy": "header_api_key",
+    "credentialRef": "cred_anthropic_default",
+    "headers": {
+      "anthropic-version": "2023-06-01"
+    }
+  }
+}
+```
+
 ### 建议
 
 先把 provider 抽象做好，再接多个供应商，不要把 prompt、streaming、tool schema 和单一厂商协议耦合。
+
+同样重要的是：**不要把 credential 读取、header 拼装、token refresh 逻辑散落在每个 provider 实现里。** 这些应由统一认证层或 gateway middleware 负责。
 
 ---
 
@@ -831,6 +973,91 @@ pub trait ModelProvider {
 * list：按策略合并（append / replace）
 * agent / command / mcp：按 key 合并
 
+### Provider 凭证配置与优先级
+
+对于 provider 相关配置，建议拆成：
+
+1. **provider definition**：这个 provider 是什么协议、默认 endpoint 是什么
+2. **credential binding**：这个 provider 当前绑定哪个 credential
+3. **runtime override**：本次启动是否临时覆盖 endpoint / model / auth strategy
+
+建议优先级：
+
+1. CLI 显式传参
+2. 环境变量
+3. 项目配置
+4. 全局配置
+5. 内建默认值
+
+其中敏感字段建议遵循：
+
+* 配置文件中允许写 `credentialRef`，不鼓励写明文 key
+* 环境变量适合注入明文密钥
+* CLI 允许传 credential alias，不建议直接传完整 secret
+* UI/TUI 输入的 secret 应直接进入本地 auth store，而不是回写 PRD 示例中的配置文件
+
+建议的 provider 配置结构：
+
+```jsonc
+{
+  "providers": {
+    "openai": {
+      "protocol": "openai-compatible",
+      "baseUrl": "https://api.openai.com/v1",
+      "auth": {
+        "strategy": "bearer_api_key",
+        "credentialRef": "cred_openai_default"
+      }
+    },
+    "anthropic": {
+      "protocol": "anthropic",
+      "baseUrl": "https://api.anthropic.com",
+      "auth": {
+        "strategy": "header_api_key",
+        "credentialRef": "cred_anthropic_default",
+        "headers": {
+          "anthropic-version": "2023-06-01"
+        }
+      }
+    },
+    "openrouter": {
+      "protocol": "openai-compatible",
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "auth": {
+        "strategy": "bearer_api_key",
+        "credentialRef": "cred_openrouter_default"
+      },
+      "headers": {
+        "HTTP-Referer": "https://example.dev",
+        "X-OpenRouter-Title": "OpenCode-RS"
+      }
+    }
+  }
+}
+```
+
+### 认证字段的环境变量约定
+
+建议支持两类环境变量：
+
+#### 1) 通用入口
+
+* `OPENCODE_PROVIDER`
+* `OPENCODE_MODEL`
+* `OPENCODE_BASE_URL`
+* `OPENCODE_API_KEY`
+
+用于快速启动单 provider 场景。
+
+#### 2) Provider-specific 入口
+
+* `OPENAI_API_KEY`
+* `ANTHROPIC_API_KEY`
+* `GEMINI_API_KEY`
+* `OPENROUTER_API_KEY`
+
+用于长期持有多 provider 配置时的自动绑定。
+
 ### 建议路径
 
 ```text
@@ -845,6 +1072,27 @@ pub trait ModelProvider {
   "$schema": "https://opencode-rs.dev/config.schema.json",
   "model": "openai/gpt-5.4-coding",
   "agent": "build",
+  "providers": {
+    "openai": {
+      "protocol": "openai-compatible",
+      "baseUrl": "https://api.openai.com/v1",
+      "auth": {
+        "strategy": "bearer_api_key",
+        "credentialRef": "cred_openai_default"
+      }
+    },
+    "anthropic": {
+      "protocol": "anthropic",
+      "baseUrl": "https://api.anthropic.com",
+      "auth": {
+        "strategy": "header_api_key",
+        "credentialRef": "cred_anthropic_default",
+        "headers": {
+          "anthropic-version": "2023-06-01"
+        }
+      }
+    }
+  },
   "permission": {
     "read": "allow",
     "edit": "ask",
@@ -959,6 +1207,60 @@ Runtime 是 server-first，TUI 只是一个 client。
 * `GET /providers`
 * `GET /models`
 
+### Runtime 与 Provider 认证边界
+
+Server-first 架构下必须明确两层认证边界：
+
+#### 1) Client → OpenCode-RS Server
+
+这是 Runtime 自身的访问控制，解决“谁可以操作本地/远程会话”。
+
+v1 可以支持：
+
+* localhost only（默认）
+* 本地 token / session cookie（可选）
+* 反向代理统一鉴权（企业部署推荐）
+
+这里的认证与上游 LLM provider 凭证必须隔离，不能混用。
+
+#### 2) OpenCode-RS Server → Upstream Provider
+
+这是 Runtime 代表用户调用上游模型时的 provider 认证层。要求：
+
+* provider credential 默认只保存在 server 本地
+* browser / IDE / TUI client 不直接持有全部 provider secret
+* SDK 不默认把 provider key 回传到前端
+* 可按 project / session / user 绑定默认 provider credential
+
+### Provider 管理 API 建议
+
+除了列出 provider / model，建议补充：
+
+* `GET /providers`：列出 provider、连接状态、默认模型、认证策略（脱敏）
+* `POST /providers/{id}/credentials`：设置或更新 credential
+* `POST /providers/{id}/test`：连通性与权限测试
+* `DELETE /providers/{id}/credentials`：撤销当前绑定
+
+返回值中应避免直接返回 secret，只返回：
+
+* provider id
+* auth strategy
+* 是否已配置 credential
+* credential 是否过期
+* 最近测试时间
+* 最近错误摘要
+
+### Browser / OAuth 登录协议预留
+
+若未来支持“浏览器账号登录”，建议在 server 侧采用：
+
+* authorization code + PKCE
+* localhost callback 或受控 redirect URI
+* access token / refresh token / expiry metadata
+* logout / revoke / refresh 接口
+
+但这类接口应标记为 **实验性或 v1.5+**，避免与 v1 的 API key 路线耦合。
+
 ### 流式协议
 
 建议同时支持：
@@ -1053,6 +1355,10 @@ Runtime 是 server-first，TUI 只是一个 client。
 * 远程 MCP 默认 ask
 * 分享前脱敏检查
 * 凭证本地加密存储
+* provider secret、access token、refresh token 不进入普通日志与 trace payload
+* browser/OAuth callback 必须校验 `state`，并优先使用 PKCE
+* credential rotation / revoke 后应立即使旧会话失效或进入重验状态
+* provider 凭证与 session transcript 必须物理隔离，避免导出 share 时误带 secret
 
 ## 8.4 可观测
 
@@ -1185,6 +1491,34 @@ opencode-rs/
 * logs
 * auth store
 
+### auth store 建议结构
+
+`auth store` 不应只是“provider -> api_key”的平面映射，而应保存：
+
+* credential id
+* provider id
+* auth strategy
+* secret ciphertext
+* expires_at / refreshed_at
+* scopes / account metadata（如有）
+* created_at / updated_at
+* revoked_at
+
+对于 API key 类 credential，只需保存 secret 与基础元数据。
+对于 OAuth/session 类 credential，需要额外保存：
+
+* access token
+* refresh token
+* expiry
+* account id / workspace id（若 provider 返回）
+
+建议：
+
+* 明文 secret 不落 SQLite 主表
+* 优先使用系统密钥链或本地加密封装
+* 文件权限默认收紧到当前用户
+* 导出 session / share / debug bundle 时默认排除 auth store
+
 公开文档显示当前 OpenCode 也将 session 与应用数据存到本地目录，并保留日志与认证数据。([opencode.ai][17])
 
 ## 11.2 关键表
@@ -1299,6 +1633,25 @@ Rust 版建议：
 * 同时输出人类可读文案
 * 支持 retry hint
 * 可归档到 session timeline
+
+### Provider / Auth 相关错误细分
+
+建议额外细分：
+
+* `provider_auth_missing`
+* `provider_auth_invalid`
+* `provider_auth_expired`
+* `provider_auth_refresh_failed`
+* `provider_header_invalid`
+* `provider_account_mismatch`
+* `provider_endpoint_unauthorized`
+
+错误处理策略：
+
+* **缺少 credential**：直接阻断并提示配置
+* **credential 失效/过期**：优先 refresh；失败后转人工确认
+* **provider 403/401**：记录 provider 维度错误，不自动切换到无关 provider
+* **header/schema 不兼容**：视为配置错误，不做盲目重试
 
 ---
 
