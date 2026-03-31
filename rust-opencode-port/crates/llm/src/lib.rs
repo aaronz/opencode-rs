@@ -3,31 +3,33 @@ pub mod openai;
 pub mod anthropic;
 pub mod ollama;
 pub mod azure;
-pub mod google;
 pub mod bedrock;
-pub mod openrouter;
-pub mod copilot;
-pub mod xai;
-pub mod mistral;
-pub mod groq;
-pub mod deepinfra;
 pub mod cerebras;
 pub mod cohere;
-pub mod togetherai;
+pub mod copilot;
+pub mod deepinfra;
+pub mod google;
+pub mod groq;
+pub mod mistral;
+pub mod openrouter;
 pub mod perplexity;
+pub mod togetherai;
+pub mod transform;
 pub mod vercel;
 pub mod vertex;
+pub mod xai;
 pub mod auth;
 pub mod models;
 pub mod error;
-pub mod transform;
 pub mod openai_browser_auth;
+pub mod provider_adapter;
 
 pub use provider::{Provider, ChatMessage, ChatResponse, StreamChunk, Model, ProviderConfig, SimpleProvider, StreamingCallback};
 pub use openai::{BrowserAuthModelInfo, OpenAiProvider};
 pub use anthropic::AnthropicProvider;
 pub use ollama::OllamaProvider;
-pub use auth::AuthManager;
+pub use auth::{AuthManager, AuthStrategy, Credential, CredentialStore, ProviderAuthConfig, AuthApplicator, OAuthSessionManager, OAuthTokenResponse};
+pub use provider_adapter::{ProviderAdapter, OpenAICompatibleAdapter, AnthropicAdapter, LocalEndpointAdapter};
 pub use openai_browser_auth::{
     extract_account_id_from_jwt,
     LocalCallbackServer,
