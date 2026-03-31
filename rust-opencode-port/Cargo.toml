@@ -15,6 +15,7 @@ members = [
     "crates/control-plane",
     "crates/plugin",
     "crates/git",
+    "crates/mcp",
 ]
 
 [workspace.package]
@@ -63,6 +64,7 @@ opencode-agent = { path = "crates/agent" }
 opencode-lsp = { path = "crates/lsp" }
 opencode-storage = { path = "crates/storage" }
 opencode-server = { path = "crates/server" }
+opencode-mcp = { path = "crates/mcp" }
 
 # Server dependencies
 actix-web = "4"

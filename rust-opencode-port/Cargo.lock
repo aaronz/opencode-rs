@@ -2545,6 +2545,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "opencode-mcp"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "opencode-core",
+ "opencode-tools",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "opencode-permission"
 version = "0.1.0"
 dependencies = [
@@ -2580,6 +2594,7 @@ dependencies = [
  "futures",
  "opencode-core",
  "opencode-llm",
+ "opencode-mcp",
  "opencode-storage",
  "serde",
  "serde_json",

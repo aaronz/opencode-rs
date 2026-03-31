@@ -9,6 +9,7 @@ license.workspace = true
 opencode-core = { path = "../core" }
 opencode-storage = { path = "../storage" }
 opencode-llm = { path = "../llm" }
+opencode-mcp = { path = "../mcp" }
 actix-web = { workspace = true }
 actix-cors = { workspace = true }
 actix-web-lab = { workspace = true }

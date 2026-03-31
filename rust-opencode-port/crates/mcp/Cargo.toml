@@ -1,0 +1,16 @@
+[package]
+name = "opencode-mcp"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+tracing = { workspace = true }
+opencode-tools = { path = "../tools" }
+opencode-core = { path = "../core" }
+
+[dev-dependencies]
+tempfile = { workspace = true }
