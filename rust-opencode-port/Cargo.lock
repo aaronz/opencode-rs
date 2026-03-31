@@ -104,6 +104,7 @@ version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92589714878ca59a7626ea19734f0e07a6a875197eec751bb5d3f99e64998c63"
 dependencies = [
+ "actix-macros",
  "futures-core",
  "tokio",
 ]
@@ -247,6 +248,20 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "actix-ws"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12d4f2fbee3ef7a22fa6cb0e416b962237a167ed0419f22d4e451da2d7f082f8"
+dependencies = [
+ "actix-codec",
+ "actix-http",
+ "actix-web",
+ "bytestring",
+ "futures-core",
+ "tokio",
 ]
 
 [[package]]
@@ -2557,8 +2572,10 @@ name = "opencode-server"
 version = "0.1.0"
 dependencies = [
  "actix-cors",
+ "actix-rt",
  "actix-web",
  "actix-web-lab",
+ "actix-ws",
  "chrono",
  "futures",
  "opencode-core",

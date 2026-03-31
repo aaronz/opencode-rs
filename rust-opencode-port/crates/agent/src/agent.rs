@@ -14,6 +14,9 @@ pub enum AgentType {
     Compaction,
     Title,
     Summary,
+    Review,
+    Refactor,
+    Debug,
 }
 
 impl std::fmt::Display for AgentType {
@@ -26,6 +29,9 @@ impl std::fmt::Display for AgentType {
             AgentType::Compaction => write!(f, "compaction"),
             AgentType::Title => write!(f, "title"),
             AgentType::Summary => write!(f, "summary"),
+            AgentType::Review => write!(f, "review"),
+            AgentType::Refactor => write!(f, "refactor"),
+            AgentType::Debug => write!(f, "debug"),
         }
     }
 }

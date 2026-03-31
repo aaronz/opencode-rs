@@ -297,6 +297,112 @@ pub fn build_default_registry() -> ToolRegistry {
         Arc::new(|_args| Err("Web search not yet implemented".to_string())),
     );
 
+    registry.register(
+        ToolDefinition {
+            name: "stat".to_string(),
+            description: "Get file or directory metadata".to_string(),
+            parameters: vec![ToolParameter {
+                name: "path".to_string(),
+                description: "Path to the file or directory".to_string(),
+                required: true,
+                schema: serde_json::json!({ "type": "string" }),
+            }],
+        },
+        Arc::new(|args| {
+            let path = args
+                .get("path")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing required parameter: path")?;
+            let metadata =
+                std::fs::metadata(path).map_err(|e| format!("Failed to get metadata: {}", e))?;
+            let result = serde_json::json!({
+                "size": metadata.len(),
+                "is_file": metadata.is_file(),
+                "is_dir": metadata.is_dir(),
+                "readonly": metadata.permissions().readonly(),
+            });
+            serde_json::to_string_pretty(&result).map_err(|e| format!("Failed to serialize: {}", e))
+        }),
+    );
+
+    registry.register(
+        ToolDefinition {
+            name: "move".to_string(),
+            description: "Move or rename a file".to_string(),
+            parameters: vec![
+                ToolParameter {
+                    name: "source".to_string(),
+                    description: "Source path".to_string(),
+                    required: true,
+                    schema: serde_json::json!({ "type": "string" }),
+                },
+                ToolParameter {
+                    name: "destination".to_string(),
+                    description: "Destination path".to_string(),
+                    required: true,
+                    schema: serde_json::json!({ "type": "string" }),
+                },
+            ],
+        },
+        Arc::new(|args| {
+            let source = args
+                .get("source")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing required parameter: source")?;
+            let destination = args
+                .get("destination")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing required parameter: destination")?;
+            std::fs::rename(source, destination).map_err(|e| format!("Failed to move: {}", e))?;
+            Ok(format!("Moved {} to {}", source, destination))
+        }),
+    );
+
+    registry.register(
+        ToolDefinition {
+            name: "delete".to_string(),
+            description: "Delete a file or directory".to_string(),
+            parameters: vec![
+                ToolParameter {
+                    name: "path".to_string(),
+                    description: "Path to delete".to_string(),
+                    required: true,
+                    schema: serde_json::json!({ "type": "string" }),
+                },
+                ToolParameter {
+                    name: "recursive".to_string(),
+                    description: "Delete directories recursively".to_string(),
+                    required: false,
+                    schema: serde_json::json!({ "type": "boolean" }),
+                },
+            ],
+        },
+        Arc::new(|args| {
+            let path = args
+                .get("path")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing required parameter: path")?;
+            let recursive = args
+                .get("recursive")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            let metadata =
+                std::fs::metadata(path).map_err(|e| format!("Failed to get metadata: {}", e))?;
+            if metadata.is_dir() {
+                if recursive {
+                    std::fs::remove_dir_all(path)
+                        .map_err(|e| format!("Failed to delete directory: {}", e))?;
+                } else {
+                    std::fs::remove_dir(path)
+                        .map_err(|e| format!("Failed to delete directory: {}", e))?;
+                }
+            } else {
+                std::fs::remove_file(path).map_err(|e| format!("Failed to delete file: {}", e))?;
+            }
+            Ok(format!("Deleted {}", path))
+        }),
+    );
+
     registry
 }
 

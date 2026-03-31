@@ -79,9 +79,16 @@ impl Tool for LspTool {
                 let result = format!("Outgoing calls at {}:{}:{} (LSP placeholder)", file, line, character);
                 Ok(ToolResult::ok(result).with_title(format!("Outgoing Calls {}", file)))
             }
+            "diagnostics" => {
+                if file.is_empty() {
+                    return Err(OpenCodeError::Tool("file_path is required for diagnostics".to_string()));
+                }
+                let result = format!("Diagnostics for {} (LSP placeholder - use cargo clippy or build for real diagnostics)", file);
+                Ok(ToolResult::ok(result).with_title(format!("Diagnostics {}", file)))
+            }
             _ => {
                 Err(OpenCodeError::Tool(format!(
-                    "Unknown LSP operation: {}. Supported: goToDefinition, findReferences, hover, documentSymbol, workspaceSymbol, goToImplementation, prepareCallHierarchy, incomingCalls, outgoingCalls",
+                    "Unknown LSP operation: {}. Supported: goToDefinition, findReferences, hover, documentSymbol, workspaceSymbol, goToImplementation, prepareCallHierarchy, incomingCalls, outgoingCalls, diagnostics",
                     args.operation
                 )))
             }
