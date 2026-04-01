@@ -2,8 +2,14 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+mod jsonc;
+mod merge;
+mod schema;
+pub use jsonc::{is_jsonc_extension, parse_jsonc, JsoncError};
+
 /// Main configuration structure matching the TypeScript Config.Info schema
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct Config {
     /// JSON schema reference for configuration validation
     #[serde(rename = "$schema", skip_serializing_if = "Option::is_none")]
@@ -132,6 +138,10 @@ pub struct Config {
     /// Theme configuration
     #[serde(skip_serializing_if = "Option::is_none")]
     pub theme: Option<ThemeConfig>,
+
+    /// TUI (Terminal UI) configuration
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tui: Option<TuiConfig>,
 
     // Legacy fields for backwards compatibility
     /// API key for the provider
@@ -433,6 +443,18 @@ pub struct ProviderOptions {
     /// Chunk timeout in milliseconds
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chunk_timeout: Option<u64>,
+
+    /// AWS region for Bedrock provider
+    #[serde(skip_serializing_if = "Option::is_none", rename = "awsRegion")]
+    pub aws_region: Option<String>,
+
+    /// AWS profile for Bedrock provider
+    #[serde(skip_serializing_if = "Option::is_none", rename = "awsProfile")]
+    pub aws_profile: Option<String>,
+
+    /// Custom endpoint for Bedrock provider
+    #[serde(skip_serializing_if = "Option::is_none", rename = "awsEndpoint")]
+    pub aws_endpoint: Option<String>,
 
     /// Additional options
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
@@ -750,6 +772,26 @@ pub struct ThemeConfig {
     pub path: Option<std::path::PathBuf>,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+pub struct TuiConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scroll_speed: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scroll_acceleration: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub diff_style: Option<DiffStyle>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DiffStyle {
+    SideBySide,
+    Inline,
+    Unified,
+    Auto,
+    Stacked,
+}
+
 /// Legacy provider configuration enum for backwards compatibility
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -772,21 +814,221 @@ impl Config {
             Config::default()
         } else {
             let content = std::fs::read_to_string(path)?;
-            toml::from_str(&content).map_err(|e| crate::OpenCodeError::Config(e.to_string()))?
+            let content = Self::substitute_variables(&content);
+            if path.extension().and_then(|s| s.to_str()) == Some("json")
+                || path.extension().and_then(|s| s.to_str()) == Some("jsonc")
+                || path.extension().and_then(|s| s.to_str()) == Some("json5")
+            {
+                Self::parse_json_content(&content)?
+            } else {
+                toml::from_str(&content).map_err(|e| crate::OpenCodeError::Config(e.to_string()))?
+            }
         };
 
         config.apply_env_overrides();
         Ok(config)
     }
 
+    /// Parse JSON content with JSONC fallback (handles comments)
+    fn parse_json_content(content: &str) -> Result<Self, crate::OpenCodeError> {
+        use crate::config::jsonc;
+
+        if let Ok(config) = serde_json::from_str::<Config>(content) {
+            return Ok(config);
+        }
+
+        let stripped = jsonc::strip_jsonc_comments(content);
+        serde_json::from_str(&stripped).map_err(|e| crate::OpenCodeError::Config(e.to_string()))
+    }
+
+    /// Substitute {env:VAR} and {file:path} patterns in config content
+    pub fn substitute_variables(input: &str) -> String {
+        let mut result = input.to_string();
+
+        // Pattern: {env:VARIABLE_NAME}
+        while let Some(start) = result.find("{env:") {
+            if let Some(end) = result[start..].find('}') {
+                let var_name = &result[start + 5..start + end];
+                let replacement =
+                    std::env::var(var_name).unwrap_or_else(|_| format!("{{env:{}}}", var_name));
+                result = format!(
+                    "{}{}{}",
+                    &result[..start],
+                    replacement,
+                    &result[start + end + 1..]
+                );
+            } else {
+                break;
+            }
+        }
+
+        // Pattern: {file:path/to/file}
+        while let Some(start) = result.find("{file:") {
+            if let Some(end) = result[start..].find('}') {
+                let file_path = &result[start + 6..start + end];
+                let replacement = std::fs::read_to_string(file_path)
+                    .unwrap_or_else(|_| format!("{{file:{}}}", file_path));
+                result = format!(
+                    "{}{}{}",
+                    &result[..start],
+                    replacement,
+                    &result[start + end + 1..]
+                );
+            } else {
+                break;
+            }
+        }
+
+        result
+    }
+
     pub fn config_path() -> PathBuf {
         if let Ok(config_dir) = std::env::var("OPENCODE_CONFIG_DIR") {
-            return PathBuf::from(config_dir).join("config.toml");
+            let ext = if std::env::var("OPENCODE_CONFIG_FORMAT").unwrap_or_default() == "json" {
+                "json"
+            } else {
+                "toml"
+            };
+            return PathBuf::from(config_dir).join(format!("config.{}", ext));
         }
 
         directories::ProjectDirs::from("com", "opencode", "rs")
-            .map(|dirs| dirs.config_dir().join("config.toml"))
+            .map(|dirs| {
+                let ext = if std::env::var("OPENCODE_CONFIG_FORMAT").unwrap_or_default() == "json" {
+                    "json"
+                } else {
+                    "toml"
+                };
+                dirs.config_dir().join(format!("config.{}", ext))
+            })
             .unwrap_or_else(|| PathBuf::from("~/.config/opencode-rs/config.toml"))
+    }
+
+    /// Load multi-tier config with precedence: remote → global → project → .opencode
+    pub fn load_multi() -> Result<Self, crate::OpenCodeError> {
+        let mut configs: Vec<(String, Config)> = Vec::new();
+
+        // Priority 1: Remote config from .well-known/opencode
+        if let Ok(remote_url) = std::env::var("OPENCODE_REMOTE_CONFIG") {
+            if let Ok(content) = Self::fetch_remote_config(&remote_url) {
+                if let Ok(config) = Self::parse_config_content(&content, "json") {
+                    configs.push(("remote".to_string(), config));
+                }
+            }
+        }
+
+        // Priority 2: OPENCODE_CONFIG_CONTENT env var
+        if let Ok(content) = std::env::var("OPENCODE_CONFIG_CONTENT") {
+            let content = Self::substitute_variables(&content);
+            if let Ok(config) = Self::parse_config_content(&content, "json") {
+                configs.push(("env-content".to_string(), config));
+            }
+        }
+
+        // Priority 3: OPENCODE_CONFIG path
+        if let Ok(config_path) = std::env::var("OPENCODE_CONFIG") {
+            let path = PathBuf::from(config_path);
+            if path.exists() {
+                let config = Self::load(&path)?;
+                configs.push(("env-path".to_string(), config));
+            }
+        }
+
+        // Priority 4: Global config (~/.config/opencode-rs/config.toml)
+        let global_path = Self::config_path();
+        if global_path.exists() {
+            let config = Self::load(&global_path)?;
+            configs.push(("global".to_string(), config));
+        }
+
+        // Priority 5: Project-level config (searching from current dir upwards)
+        // Supports: opencode.json, opencode.json5, opencode.jsonc, .opencode/config.json, .opencode/config.json5, .opencode/config.jsonc
+        if let Ok(cwd) = std::env::current_dir() {
+            for ancestor in cwd.ancestors() {
+                // Check for opencode.json, opencode.json5, opencode.jsonc
+                for ext in &["json", "json5", "jsonc"] {
+                    let project_config = ancestor.join(format!("opencode.{}", ext));
+                    if project_config.exists() {
+                        let config = Self::load(&project_config)?;
+                        configs.push(("project".to_string(), config));
+                        break;
+                    }
+                }
+                // Also check for .opencode/config.json/json5/jsonc
+                for ext in &["json", "json5", "jsonc"] {
+                    let opencode_dir = ancestor.join(".opencode").join(format!("config.{}", ext));
+                    if opencode_dir.exists() {
+                        let config = Self::load(&opencode_dir)?;
+                        configs.push((".opencode".to_string(), config));
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Merge all configs (later entries override earlier ones)
+        let mut result = Config::default();
+        for (_, config) in configs {
+            result = Self::merge_configs(result, config);
+        }
+
+        result.apply_env_overrides();
+        Ok(result)
+    }
+
+    /// Fetch remote configuration from URL
+    fn fetch_remote_config(url: &str) -> Result<String, crate::OpenCodeError> {
+        let runtime = tokio::runtime::Runtime::new().map_err(|e| crate::OpenCodeError::Config(e.to_string()))?;
+        runtime.block_on(Self::fetch_remote_config_async(url))
+    }
+
+    /// Fetch remote configuration from URL (async)
+    async fn fetch_remote_config_async(url: &str) -> Result<String, crate::OpenCodeError> {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .build()
+            .map_err(|e| crate::OpenCodeError::Config(e.to_string()))?;
+
+        let response = client
+            .get(url)
+            .header("Accept", "application/json")
+            .send()
+            .await
+            .map_err(|e| crate::OpenCodeError::Config(e.to_string()))?;
+
+        if response.status() == 401 || response.status() == 403 {
+            return Err(crate::OpenCodeError::Config("Remote config authentication failed".to_string()));
+        }
+
+        let content = response
+            .text()
+            .await
+            .map_err(|e| crate::OpenCodeError::Config(e.to_string()))?;
+
+        Ok(content)
+    }
+
+    /// Build remote config URL from domain
+    pub fn build_remote_url(domain: &str) -> String {
+        let domain = domain.trim_end_matches('/');
+        format!("{}/.well-known/opencode", domain)
+    }
+
+    /// Parse config content with specified format
+    fn parse_config_content(content: &str, format: &str) -> Result<Self, crate::OpenCodeError> {
+        if format == "json" || format == "jsonc" {
+            if let Ok(config) = serde_json::from_str::<Config>(content) {
+                return Ok(config);
+            }
+            let stripped = jsonc::strip_jsonc_comments(content);
+            serde_json::from_str(&stripped).map_err(|e| crate::OpenCodeError::Config(e.to_string()))
+        } else {
+            toml::from_str(content).map_err(|e| crate::OpenCodeError::Config(e.to_string()))
+        }
+    }
+
+    fn merge_configs(base: Config, override_config: Config) -> Config {
+        merge::merge_configs(&base, &override_config)
     }
 
     /// Apply environment variable overrides
@@ -1010,6 +1252,12 @@ impl Config {
         self.validate().iter().all(|e| !e.is_error())
     }
 
+    /// Validate config against JSON Schema
+    pub fn validate_json_schema(&self, schema_url: Option<&str>) -> ValidationResult {
+        let value = serde_json::to_value(self).unwrap_or(serde_json::Value::Null);
+        schema::validate_json_schema(&value, schema_url.unwrap_or(""))
+    }
+
     /// Save configuration to a file path
     pub fn save(&self, path: &PathBuf) -> Result<(), crate::OpenCodeError> {
         let content = toml::to_string_pretty(self)
@@ -1196,6 +1444,13 @@ impl ValidationError {
 pub enum ValidationSeverity {
     Error,
     Warning,
+}
+
+/// Result of validation
+#[derive(Debug, Clone, Default)]
+pub struct ValidationResult {
+    pub valid: bool,
+    pub errors: Vec<ValidationError>,
 }
 
 #[cfg(test)]

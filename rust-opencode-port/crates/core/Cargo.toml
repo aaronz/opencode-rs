@@ -16,6 +16,7 @@ tracing-subscriber.workspace = true
 async-trait.workspace = true
 uuid.workspace = true
 chrono.workspace = true
+reqwest.workspace = true
 directories = "6.0"
 toml = "0.8"
 walkdir = "2.5"
