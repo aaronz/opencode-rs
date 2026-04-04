@@ -4,8 +4,7 @@ use serde_json::Value;
 use opencode_tools::{Tool, ToolResult};
 use opencode_core::OpenCodeError;
 
-use crate::protocol::ToolDefinition;
-use crate::client::McpClient;
+use crate::client::{McpClient, McpTool};
 
 pub struct McpToolBridge {
     client: Arc<McpClient>,
@@ -15,7 +14,7 @@ pub struct McpToolBridge {
 }
 
 impl McpToolBridge {
-    pub fn new(client: Arc<McpClient>, tool_def: &ToolDefinition) -> Self {
+    pub fn new(client: Arc<McpClient>, tool_def: &McpTool) -> Self {
         Self {
             client,
             tool_name: tool_def.name.clone(),
@@ -45,31 +44,12 @@ impl Tool for McpToolBridge {
     }
 
     async fn execute(&self, args: Value, _ctx: Option<opencode_tools::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let request = self.client.call_tool(&self.tool_name, args).await;
-        
-        let request_json = serde_json::to_string(&request)
-            .map_err(|e| OpenCodeError::Tool(format!("Failed to serialize MCP request: {}", e)))?;
-
-        let response: crate::protocol::JsonRpcResponse = serde_json::from_str(&request_json)
-            .map_err(|e| OpenCodeError::Tool(format!("Failed to parse MCP response: {}", e)))?;
-
-        match self.client.handle_tool_call_response(response).await {
+        match self.client.call_tool(&self.tool_name, &args).await {
             Ok(result) => {
-                let content = result.content.iter()
-                    .map(|c| match c {
-                        crate::protocol::ToolContent::Text { text } => text.clone(),
-                        crate::protocol::ToolContent::Image { mime_type, .. } => format!("[Image: {}]", mime_type),
-                        crate::protocol::ToolContent::Resource { resource } => {
-                            format!("[Resource: {}]", resource.uri)
-                        }
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n");
-
-                if result.is_error.unwrap_or(false) {
-                    Ok(ToolResult::err(content))
+                if result.is_error {
+                    Ok(ToolResult::err(result.content))
                 } else {
-                    Ok(ToolResult::ok(content))
+                    Ok(ToolResult::ok(result.content))
                 }
             }
             Err(e) => Err(OpenCodeError::Tool(format!("MCP tool execution failed: {}", e))),

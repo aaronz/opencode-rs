@@ -6,9 +6,12 @@ authors.workspace = true
 license.workspace = true
 
 [dependencies]
-opencode-core = { path = "../core" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 regex = "1.10"
 uuid = { workspace = true }
 chrono = { workspace = true }
+rusqlite = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

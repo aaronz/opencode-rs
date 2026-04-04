@@ -1,19 +1,42 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Diagnostic {
-    pub severity: i32,
-    pub message: String,
-    pub range: Range,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Severity {
+    Error,
+    Warning,
+    Information,
+    Hint,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+impl From<i32> for Severity {
+    fn from(value: i32) -> Self {
+        match value {
+            1 => Severity::Error,
+            2 => Severity::Warning,
+            3 => Severity::Information,
+            4 => Severity::Hint,
+            _ => Severity::Warning,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct Diagnostic {
+    pub severity: Severity,
+    pub message: String,
+    pub range: Range,
+    pub source: Option<String>,
+    pub file_path: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Range {
     pub start: Position,
     pub end: Position,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Position {
     pub line: u32,
     pub character: u32,

@@ -1,3 +1,4 @@
+use crate::session::Session;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -299,6 +300,70 @@ pub fn build_default_registry() -> ToolRegistry {
 
     registry.register(
         ToolDefinition {
+            name: "session_load".to_string(),
+            description: "Load a session from local storage".to_string(),
+            parameters: vec![ToolParameter {
+                name: "session_id".to_string(),
+                description: "Session ID to load".to_string(),
+                required: true,
+                schema: serde_json::json!({ "type": "string" }),
+            }],
+        },
+        Arc::new(|args| {
+            let session_id = args
+                .get("session_id")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing required parameter: session_id")?;
+            let id = uuid::Uuid::parse_str(session_id)
+                .map_err(|e| format!("Invalid session_id: {}", e))?;
+            let session = Session::load_by_id(&id).map_err(|e| e.to_string())?;
+            serde_json::to_string_pretty(&session)
+                .map_err(|e| format!("Failed to serialize session: {}", e))
+        }),
+    );
+
+    registry.register(
+        ToolDefinition {
+            name: "session_save".to_string(),
+            description: "Save current session to local storage".to_string(),
+            parameters: vec![ToolParameter {
+                name: "session_id".to_string(),
+                description: "Optional session ID to persist".to_string(),
+                required: false,
+                schema: serde_json::json!({ "type": "string" }),
+            }],
+        },
+        Arc::new(|args| {
+            let session_id = args.get("session_id").and_then(|v| v.as_str());
+            let id = match session_id {
+                Some(raw) => {
+                    uuid::Uuid::parse_str(raw).map_err(|e| format!("Invalid session_id: {}", e))?
+                }
+                None => uuid::Uuid::new_v4(),
+            };
+
+            let path = Session::session_path(&id);
+            let mut session = if path.exists() {
+                Session::load(&path).map_err(|e| e.to_string())?
+            } else {
+                let mut s = Session::new();
+                s.id = id;
+                s
+            };
+
+            session.id = id;
+            session.save(&path).map_err(|e| e.to_string())?;
+
+            serde_json::to_string(&serde_json::json!({
+                "session_id": id.to_string(),
+                "saved": true,
+            }))
+            .map_err(|e| format!("Failed to serialize response: {}", e))
+        }),
+    );
+
+    registry.register(
+        ToolDefinition {
             name: "stat".to_string(),
             description: "Get file or directory metadata".to_string(),
             parameters: vec![ToolParameter {
@@ -459,5 +524,30 @@ mod tests {
         let executor = registry.get_executor("echo").unwrap();
         let result = executor(serde_json::json!({"test": "value"})).unwrap();
         assert!(result.contains("test"));
+    }
+
+    #[test]
+    fn test_session_tools_registered() {
+        let registry = build_default_registry();
+        assert!(registry.contains("session_load"));
+        assert!(registry.contains("session_save"));
+    }
+
+    #[test]
+    fn test_session_save_and_load_tools_execute() {
+        let registry = build_default_registry();
+        let session_id = uuid::Uuid::new_v4();
+
+        let save = registry.get_executor("session_save").unwrap()(
+            serde_json::json!({"session_id": session_id.to_string()}),
+        );
+        assert!(save.is_ok());
+
+        let load = registry.get_executor("session_load").unwrap()(
+            serde_json::json!({"session_id": session_id.to_string()}),
+        );
+        assert!(load.is_ok());
+
+        let _ = Session::delete(&session_id);
     }
 }

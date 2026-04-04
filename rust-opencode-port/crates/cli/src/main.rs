@@ -40,6 +40,7 @@ use cmd::{
 };
 use opencode_core::Config;
 use opencode_llm::ModelRegistry;
+use opencode_plugin::PluginManager;
 use opencode_tui::App;
 use serde_json::json;
 use std::path::PathBuf;
@@ -250,6 +251,8 @@ fn main() {
         return;
     }
 
+    init_plugins();
+
     match cli.command {
         Some(Commands::Run(args)) => run::run(args),
         Some(Commands::Serve(args)) => serve::run(args),
@@ -302,6 +305,18 @@ fn main() {
                 project: cli.project,
             });
         }
+    }
+}
+
+fn init_plugins() {
+    let mut plugin_manager = PluginManager::new();
+    if let Err(error) = plugin_manager.discover_default_dirs() {
+        tracing::warn!("Plugin discovery failed: {}", error);
+        return;
+    }
+
+    if let Err(error) = plugin_manager.init_all() {
+        tracing::warn!("Plugin initialization failed: {}", error);
     }
 }
 

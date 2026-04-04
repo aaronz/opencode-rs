@@ -1,12 +1,29 @@
 use crate::compaction::{
     CompactionConfig, CompactionResult, CompactionStatus, CompactionTrigger, Compactor, TokenBudget,
 };
+use crate::config::ShareMode;
+use crate::context::{Context, ContextBuilder};
 use crate::message::Message;
 use crate::session_state::{is_valid_transition, SessionState, StateTransitionError};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use uuid::Uuid;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ShareError {
+    SharingDisabled,
+}
+
+impl std::fmt::Display for ShareError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ShareError::SharingDisabled => write!(f, "sharing is disabled for this session"),
+        }
+    }
+}
+
+impl std::error::Error for ShareError {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Session {
@@ -25,6 +42,12 @@ pub struct Session {
     pub undo_history: Vec<HistoryEntry>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub redo_history: Vec<HistoryEntry>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub shared_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub share_mode: Option<ShareMode>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub share_expires_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -80,6 +103,9 @@ impl Session {
             tool_invocations: Vec::new(),
             undo_history: Vec::new(),
             redo_history: Vec::new(),
+            shared_id: None,
+            share_mode: None,
+            share_expires_at: None,
         }
     }
 
@@ -96,8 +122,67 @@ impl Session {
             tool_invocations: Vec::new(),
             undo_history: Vec::new(),
             redo_history: Vec::new(),
+            shared_id: None,
+            share_mode: self.share_mode.clone(),
+            share_expires_at: self.share_expires_at,
         };
         forked
+    }
+
+    pub fn generate_share_link(&mut self) -> Result<String, ShareError> {
+        if matches!(self.share_mode, Some(ShareMode::Disabled)) {
+            return Err(ShareError::SharingDisabled);
+        }
+
+        let shared_id = self
+            .shared_id
+            .get_or_insert_with(|| Uuid::new_v4().to_string())
+            .clone();
+
+        if self.share_mode.is_none() {
+            self.share_mode = Some(ShareMode::Manual);
+        }
+
+        self.updated_at = Utc::now();
+        Ok(format!("https://opencode-rs.local/share/{shared_id}"))
+    }
+
+    pub fn set_share_mode(&mut self, mode: ShareMode) {
+        if matches!(mode, ShareMode::Disabled) {
+            self.shared_id = None;
+            self.share_expires_at = None;
+        }
+        self.share_mode = Some(mode);
+        self.updated_at = Utc::now();
+    }
+
+    pub fn is_shared(&self) -> bool {
+        if self.shared_id.is_none() {
+            return false;
+        }
+        if matches!(self.share_mode, Some(ShareMode::Disabled)) {
+            return false;
+        }
+        !self.is_share_expired()
+    }
+
+    pub fn get_share_id(&self) -> Option<&str> {
+        if self.is_shared() {
+            self.shared_id.as_deref()
+        } else {
+            None
+        }
+    }
+
+    pub fn set_share_expiry(&mut self, expiry: Option<DateTime<Utc>>) {
+        self.share_expires_at = expiry;
+        self.updated_at = Utc::now();
+    }
+
+    fn is_share_expired(&self) -> bool {
+        self.share_expires_at
+            .map(|expiry| Utc::now() > expiry)
+            .unwrap_or(false)
     }
 
     pub fn set_state(&mut self, new_state: SessionState) -> Result<(), StateTransitionError> {
@@ -313,10 +398,23 @@ impl Session {
     }
 
     pub fn prepare_messages_for_prompt(&mut self, max_tokens: usize) -> Vec<Message> {
-        if self.needs_compaction(max_tokens) {
-            self.compact_messages(max_tokens);
+        let mut context = self.build_context();
+        if context.budget.max_tokens > max_tokens {
+            context.budget.max_tokens = max_tokens;
         }
+        self.messages = context.prompt_messages.clone();
         self.messages.clone()
+    }
+
+    pub fn build_context(&self) -> Context {
+        let token_budget = TokenBudget::default();
+        let registry = crate::tool::build_default_registry();
+
+        ContextBuilder::new(token_budget)
+            .collect_file_context(&[], &self.messages)
+            .collect_tool_context(&registry)
+            .collect_session_context(&self.messages)
+            .build()
     }
 }
 
@@ -460,5 +558,36 @@ mod tests {
 
         assert!(!loaded.redo_history.is_empty());
         assert!(loaded.messages.is_empty());
+    }
+
+    #[test]
+    fn test_generate_share_link_sets_shared_id() {
+        let mut session = Session::new();
+        let link = session.generate_share_link().unwrap();
+
+        assert!(link.contains("/share/"));
+        assert!(session.shared_id.is_some());
+        assert_eq!(session.share_mode, Some(ShareMode::Manual));
+        assert!(session.is_shared());
+    }
+
+    #[test]
+    fn test_generate_share_link_fails_when_disabled() {
+        let mut session = Session::new();
+        session.set_share_mode(ShareMode::Disabled);
+
+        let err = session.generate_share_link().unwrap_err();
+        assert_eq!(err, ShareError::SharingDisabled);
+        assert!(!session.is_shared());
+    }
+
+    #[test]
+    fn test_share_expiry_hides_share() {
+        let mut session = Session::new();
+        session.generate_share_link().unwrap();
+        session.set_share_expiry(Some(Utc::now() - chrono::Duration::minutes(1)));
+
+        assert!(!session.is_shared());
+        assert!(session.get_share_id().is_none());
     }
 }

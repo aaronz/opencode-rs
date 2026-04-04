@@ -1,297 +1,264 @@
-#[derive(Debug, Clone, PartialEq)]
-pub enum InputType {
-    Plain,
-    FileRef,
-    Shell,
-    Command,
-}
-
-impl InputType {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            InputType::Plain => "Plain",
-            InputType::FileRef => "FileRef",
-            InputType::Shell => "Shell",
-            InputType::Command => "Command",
-        }
-    }
-}
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ParseResult {
-    pub input_type: InputType,
-    pub raw: String,
-    pub content: String,
-    pub command: Option<String>,
-    pub args: Vec<String>,
+pub enum ParsedInput {
+    FileReference { paths: Vec<String> },
+    ShellCommand { cmd: String },
+    SlashCommand { name: String, args: Vec<String> },
+    PlainText { text: String },
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum ParseError {
-    InvalidInput(String),
-}
-
-pub struct InputParser {
-    max_content_length: usize,
-}
+#[derive(Debug, Clone, Default)]
+pub struct InputParser;
 
 impl InputParser {
     pub fn new() -> Self {
-        Self {
-            max_content_length: 100_000,
-        }
+        Self
     }
 
-    pub fn with_max_length(max_length: usize) -> Self {
-        Self {
-            max_content_length: max_length,
-        }
-    }
-
-    pub fn parse(&self, input: &str) -> ParseResult {
-        let trimmed = input.trim_start();
-
+    pub fn parse(&self, input: &str) -> Vec<ParsedInput> {
+        let trimmed = input.trim();
         if trimmed.is_empty() {
-            return ParseResult {
-                input_type: InputType::Plain,
-                raw: input.to_string(),
-                content: input.to_string(),
-                command: None,
-                args: vec![],
-            };
+            return vec![ParsedInput::PlainText {
+                text: input.to_string(),
+            }];
         }
 
-        let first_char = trimmed.chars().next().unwrap_or(' ');
-
-        if first_char == '@' {
-            self.parse_file_ref(input, trimmed)
-        } else if first_char == '!' {
-            self.parse_shell(input, trimmed)
-        } else if first_char == '/' {
-            self.parse_command(input, trimmed)
-        } else {
-            ParseResult {
-                input_type: InputType::Plain,
-                raw: input.to_string(),
-                content: input.to_string(),
-                command: None,
-                args: vec![],
-            }
+        if trimmed.starts_with('/') {
+            return vec![self.parse_slash(trimmed)];
         }
-    }
 
-    fn parse_file_ref(&self, raw: &str, trimmed: &str) -> ParseResult {
-        let content = trimmed[1..].trim_start().to_string();
-        let content = if content.len() > self.max_content_length {
-            content[..self.max_content_length].to_string()
-        } else {
-            content
-        };
-
-        ParseResult {
-            input_type: InputType::FileRef,
-            raw: raw.to_string(),
-            content,
-            command: None,
-            args: vec![],
+        if let Some(shell) = self.extract_shell_command(input) {
+            return vec![ParsedInput::ShellCommand { cmd: shell }];
         }
-    }
 
-    fn parse_shell(&self, raw: &str, trimmed: &str) -> ParseResult {
-        let content = trimmed[1..].trim_start().to_string();
-        let content = if content.len() > self.max_content_length {
-            content[..self.max_content_length].to_string()
-        } else {
-            content
-        };
+        let mut file_paths = Vec::new();
+        let mut plain_tokens = Vec::new();
 
-        ParseResult {
-            input_type: InputType::Shell,
-            raw: raw.to_string(),
-            content,
-            command: None,
-            args: vec![],
-        }
-    }
-
-    fn parse_command(&self, raw: &str, trimmed: &str) -> ParseResult {
-        let content = trimmed[1..].trim_start().to_string();
-        let parts: Vec<&str> = content.splitn(2, ' ').collect();
-        let command = if parts[0].is_empty() {
-            None
-        } else {
-            Some(parts[0].to_lowercase())
-        };
-
-        let args = if parts.len() > 1 {
-            self.parse_args(parts[1])
-        } else {
-            vec![]
-        };
-
-        ParseResult {
-            input_type: InputType::Command,
-            raw: raw.to_string(),
-            content,
-            command,
-            args,
-        }
-    }
-
-    fn parse_args(&self, args_str: &str) -> Vec<String> {
-        let mut args = Vec::new();
-        let mut current = String::new();
-        let mut in_quotes = false;
-        let mut quote_char = ' ';
-
-        for c in args_str.chars() {
-            if !in_quotes && (c == '"' || c == '\'') {
-                in_quotes = true;
-                quote_char = c;
-            } else if in_quotes && c == quote_char {
-                in_quotes = false;
-                quote_char = ' ';
-            } else if !in_quotes && c == ' ' {
-                if !current.is_empty() {
-                    args.push(current.clone());
-                    current.clear();
+        for token in input.split_whitespace() {
+            if let Some(path) = token.strip_prefix('@') {
+                if !path.is_empty() {
+                    file_paths.push(path.to_string());
+                    continue;
                 }
-            } else {
-                current.push(c);
+            }
+            plain_tokens.push(token.to_string());
+        }
+
+        let mut parsed = Vec::new();
+        if !file_paths.is_empty() {
+            parsed.push(ParsedInput::FileReference { paths: file_paths });
+        }
+
+        let plain = plain_tokens.join(" ");
+        if !plain.is_empty() || parsed.is_empty() {
+            parsed.push(ParsedInput::PlainText { text: plain });
+        }
+
+        parsed
+    }
+
+    pub fn complete_at(&self, input: &str, cwd: &Path) -> Vec<String> {
+        let Some(fragment) = current_at_fragment(input) else {
+            return Vec::new();
+        };
+
+        let (base_dir, prefix) = split_completion_target(&fragment, cwd);
+        let mut matches = Vec::new();
+
+        if let Ok(entries) = std::fs::read_dir(&base_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+                    continue;
+                };
+
+                if !name.starts_with(&prefix) {
+                    continue;
+                }
+
+                let candidate = if fragment.contains('/') {
+                    let parent = fragment
+                        .rsplit_once('/')
+                        .map(|(parent, _)| parent)
+                        .unwrap_or("");
+                    if parent.is_empty() {
+                        name.to_string()
+                    } else {
+                        format!("{}/{}", parent, name)
+                    }
+                } else {
+                    name.to_string()
+                };
+
+                if path.is_dir() {
+                    matches.push(format!("{}/", candidate));
+                } else {
+                    matches.push(candidate);
+                }
             }
         }
 
-        if !current.is_empty() {
-            args.push(current);
+        matches.sort();
+        matches
+    }
+
+    pub fn complete_slash(&self, input: &str, commands: &[&str]) -> Vec<String> {
+        let trimmed = input.trim_start();
+        if !trimmed.starts_with('/') {
+            return Vec::new();
         }
 
-        args
+        let prefix = trimmed
+            .trim_start_matches('/')
+            .split_whitespace()
+            .next()
+            .unwrap_or_default()
+            .to_lowercase();
+
+        let mut matches = commands
+            .iter()
+            .filter(|cmd| cmd.starts_with(&prefix))
+            .map(|cmd| format!("/{}", cmd))
+            .collect::<Vec<_>>();
+        matches.sort();
+        matches
+    }
+
+    fn parse_slash(&self, trimmed: &str) -> ParsedInput {
+        let without = trimmed.trim_start_matches('/');
+        let mut parts = without.split_whitespace();
+        let name = parts.next().unwrap_or_default().to_lowercase();
+        let args = parts.map(str::to_string).collect::<Vec<_>>();
+
+        ParsedInput::SlashCommand { name, args }
+    }
+
+    fn extract_shell_command(&self, input: &str) -> Option<String> {
+        let chars = input.char_indices().collect::<Vec<_>>();
+        for (idx, ch) in chars {
+            if ch != '!' {
+                continue;
+            }
+
+            let is_start = idx == 0;
+            let preceded_by_whitespace = !is_start
+                && input[..idx]
+                    .chars()
+                    .last()
+                    .map(|c| c.is_whitespace())
+                    .unwrap_or(false);
+
+            if is_start || preceded_by_whitespace {
+                let cmd = input[idx + 1..].trim().to_string();
+                return Some(cmd);
+            }
+        }
+        None
     }
 }
 
-impl Default for InputParser {
-    fn default() -> Self {
-        Self::new()
+fn current_at_fragment(input: &str) -> Option<String> {
+    let token = input.split_whitespace().last()?;
+    token.strip_prefix('@').map(str::to_string)
+}
+
+fn split_completion_target(fragment: &str, cwd: &Path) -> (PathBuf, String) {
+    if let Some((parent, prefix)) = fragment.rsplit_once('/') {
+        let dir = if parent.is_empty() {
+            cwd.to_path_buf()
+        } else {
+            cwd.join(parent)
+        };
+        (dir, prefix.to_string())
+    } else {
+        (cwd.to_path_buf(), fragment.to_string())
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use tempfile::tempdir;
+
     use super::*;
 
-    fn parser() -> InputParser {
-        InputParser::new()
+    #[test]
+    fn parse_plain_text() {
+        let parser = InputParser::new();
+        assert_eq!(
+            parser.parse("summarize this"),
+            vec![ParsedInput::PlainText {
+                text: "summarize this".to_string()
+            }]
+        );
     }
 
     #[test]
-    fn test_plain_text() {
-        let result = parser().parse("Hello world");
-        assert_eq!(result.input_type, InputType::Plain);
-        assert_eq!(result.raw, "Hello world");
-        assert_eq!(result.content, "Hello world");
+    fn parse_multiple_file_refs_with_text() {
+        let parser = InputParser::new();
+        assert_eq!(
+            parser.parse("@file1 @src/lib.rs summarize this code"),
+            vec![
+                ParsedInput::FileReference {
+                    paths: vec!["file1".to_string(), "src/lib.rs".to_string()]
+                },
+                ParsedInput::PlainText {
+                    text: "summarize this code".to_string()
+                }
+            ]
+        );
     }
 
     #[test]
-    fn test_plain_text_with_leading_space() {
-        let result = parser().parse("  Hello world");
-        assert_eq!(result.input_type, InputType::Plain);
-        assert_eq!(result.content, "  Hello world");
+    fn parse_shell_start_of_line() {
+        let parser = InputParser::new();
+        assert_eq!(
+            parser.parse("!cargo test"),
+            vec![ParsedInput::ShellCommand {
+                cmd: "cargo test".to_string()
+            }]
+        );
     }
 
     #[test]
-    fn test_file_reference() {
-        let result = parser().parse("@src/main.rs");
-        assert_eq!(result.input_type, InputType::FileRef);
-        assert_eq!(result.raw, "@src/main.rs");
-        assert_eq!(result.content, "src/main.rs");
+    fn parse_shell_after_whitespace() {
+        let parser = InputParser::new();
+        assert_eq!(
+            parser.parse("please run !ls -la"),
+            vec![ParsedInput::ShellCommand {
+                cmd: "ls -la".to_string()
+            }]
+        );
     }
 
     #[test]
-    fn test_file_reference_with_space() {
-        let result = parser().parse("@ src/main.rs");
-        assert_eq!(result.input_type, InputType::FileRef);
-        assert_eq!(result.content, "src/main.rs");
+    fn parse_slash_command() {
+        let parser = InputParser::new();
+        assert_eq!(
+            parser.parse("/models openai"),
+            vec![ParsedInput::SlashCommand {
+                name: "models".to_string(),
+                args: vec!["openai".to_string()]
+            }]
+        );
     }
 
     #[test]
-    fn test_file_reference_empty() {
-        let result = parser().parse("@");
-        assert_eq!(result.input_type, InputType::FileRef);
-        assert_eq!(result.content, "");
+    fn complete_at_returns_matches() {
+        let dir = tempdir().unwrap();
+        std::fs::write(dir.path().join("main.rs"), "fn main() {}").unwrap();
+        std::fs::create_dir_all(dir.path().join("src")).unwrap();
+
+        let parser = InputParser::new();
+        let suggestions = parser.complete_at("@m", dir.path());
+        assert!(suggestions.contains(&"main.rs".to_string()));
     }
 
     #[test]
-    fn test_shell_command() {
-        let result = parser().parse("!ls -la");
-        assert_eq!(result.input_type, InputType::Shell);
-        assert_eq!(result.raw, "!ls -la");
-        assert_eq!(result.content, "ls -la");
-    }
-
-    #[test]
-    fn test_shell_command_with_space() {
-        let result = parser().parse("! ls -la");
-        assert_eq!(result.input_type, InputType::Shell);
-        assert_eq!(result.content, "ls -la");
-    }
-
-    #[test]
-    fn test_shell_command_empty() {
-        let result = parser().parse("!");
-        assert_eq!(result.input_type, InputType::Shell);
-        assert_eq!(result.content, "");
-    }
-
-    #[test]
-    fn test_slash_command() {
-        let result = parser().parse("/help");
-        assert_eq!(result.input_type, InputType::Command);
-        assert_eq!(result.raw, "/help");
-        assert_eq!(result.content, "help");
-        assert_eq!(result.command, Some("help".to_string()));
-    }
-
-    #[test]
-    fn test_slash_command_uppercase() {
-        let result = parser().parse("/HELP");
-        assert_eq!(result.input_type, InputType::Command);
-        assert_eq!(result.command, Some("help".to_string()));
-    }
-
-    #[test]
-    fn test_slash_command_with_arg() {
-        let result = parser().parse("/model gpt-4");
-        assert_eq!(result.input_type, InputType::Command);
-        assert_eq!(result.command, Some("model".to_string()));
-        assert_eq!(result.args, vec!["gpt-4"]);
-    }
-
-    #[test]
-    fn test_slash_command_empty() {
-        let result = parser().parse("/");
-        assert_eq!(result.input_type, InputType::Command);
-        assert_eq!(result.command, None);
-    }
-
-    #[test]
-    fn test_slash_command_with_quoted_arg() {
-        let result = parser().parse("/command \"arg with spaces\"");
-        assert_eq!(result.input_type, InputType::Command);
-        assert_eq!(result.command, Some("command".to_string()));
-        assert_eq!(result.args, vec!["arg with spaces"]);
-    }
-
-    #[test]
-    fn test_empty_input() {
-        let result = parser().parse("");
-        assert_eq!(result.input_type, InputType::Plain);
-        assert_eq!(result.raw, "");
-        assert_eq!(result.content, "");
-    }
-
-    #[test]
-    fn test_prefix_in_middle() {
-        let result = parser().parse("Hello @world");
-        assert_eq!(result.input_type, InputType::Plain);
+    fn complete_slash_returns_matching_commands() {
+        let parser = InputParser::new();
+        let commands = ["help", "models", "agents", "clear"];
+        let suggestions = parser.complete_slash("/mo", &commands);
+        assert_eq!(suggestions, vec!["/models".to_string()]);
     }
 }

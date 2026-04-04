@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 mod directory_scanner;
 mod jsonc;
@@ -136,10 +137,12 @@ pub struct Config {
     pub experimental: Option<ExperimentalConfig>,
 
     /// Keybind configuration
+    #[deprecated(since = "3.0.0", note = "Move to tui.json")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub keybinds: Option<KeybindConfig>,
 
     /// Theme configuration
+    #[deprecated(since = "3.0.0", note = "Move to tui.json")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub theme: Option<ThemeConfig>,
 
@@ -256,32 +259,85 @@ pub enum AutoUpdate {
     Notify(String),
 }
 
-/// Agent map configuration with predefined agents
-#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct AgentMapConfig {
-    /// Primary agents
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub plan: Option<AgentConfig>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub build: Option<AgentConfig>,
+    pub agents: HashMap<String, AgentConfig>,
+    pub default_agent: Option<String>,
+}
 
-    /// Subagents
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub general: Option<AgentConfig>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub explore: Option<AgentConfig>,
+impl AgentMapConfig {
+    pub fn get_agent(&self, name: &str) -> Option<&AgentConfig> {
+        self.agents.get(name)
+    }
 
-    /// Specialized agents
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub title: Option<AgentConfig>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub summary: Option<AgentConfig>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub compaction: Option<AgentConfig>,
+    pub fn get_default_agent(&self) -> Option<&AgentConfig> {
+        self.default_agent
+            .as_deref()
+            .and_then(|name| self.get_agent(name))
+    }
+}
 
-    /// Additional custom agents
-    #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    pub custom: Option<HashMap<String, AgentConfig>>,
+impl<'de> Deserialize<'de> for AgentMapConfig {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = serde_json::Value::deserialize(deserializer)?;
+        let obj = value
+            .as_object()
+            .ok_or_else(|| serde::de::Error::custom("agent config must be an object"))?;
+
+        let mut agents: HashMap<String, AgentConfig> = HashMap::new();
+        let mut default_agent = None;
+
+        if let Some(raw_default) = obj.get("default_agent").or_else(|| obj.get("defaultAgent")) {
+            default_agent = Some(
+                serde_json::from_value::<String>(raw_default.clone())
+                    .map_err(serde::de::Error::custom)?,
+            );
+        }
+
+        for (key, raw_value) in obj {
+            if key == "agents" || key == "default_agent" || key == "defaultAgent" {
+                continue;
+            }
+
+            let agent = serde_json::from_value::<AgentConfig>(raw_value.clone())
+                .map_err(serde::de::Error::custom)?;
+            agents.insert(key.clone(), agent);
+        }
+
+        if let Some(raw_agents) = obj.get("agents") {
+            let parsed_agents: HashMap<String, AgentConfig> =
+                serde_json::from_value(raw_agents.clone()).map_err(serde::de::Error::custom)?;
+            agents.extend(parsed_agents);
+        }
+
+        Ok(Self {
+            agents,
+            default_agent,
+        })
+    }
+}
+
+impl Serialize for AgentMapConfig {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        #[derive(Serialize)]
+        struct AgentMapConfigOut<'a> {
+            agents: &'a HashMap<String, AgentConfig>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            default_agent: &'a Option<String>,
+        }
+
+        AgentMapConfigOut {
+            agents: &self.agents,
+            default_agent: &self.default_agent,
+        }
+        .serialize(serializer)
+    }
 }
 
 /// Agent configuration
@@ -470,7 +526,7 @@ pub struct ProviderOptions {
 #[serde(untagged)]
 pub enum TimeoutConfig {
     Milliseconds(u64),
-    Disabled(bool),
+    NoTimeout(bool),
 }
 
 /// MCP server configuration
@@ -771,17 +827,6 @@ pub struct KeybindConfig {
 impl KeybindConfig {
     pub fn merge_with_defaults(&self, defaults: &KeybindConfig) -> (KeybindConfig, Vec<String>) {
         let mut merged = defaults.clone();
-        let mut conflicts = Vec::new();
-
-        if let Some(ref custom) = self.custom {
-            let default_map = Self::to_flat_map(defaults);
-            for (key, value) in custom {
-                if default_map.contains_key(key) {
-                    conflicts.push(format!("Custom keybind '{}' overrides default '{}'", value, key));
-                }
-                merged.custom.get_or_insert_with(std::collections::HashMap::new).insert(key.clone(), value.clone());
-            }
-        }
 
         macro_rules! merge_field {
             ($field:ident) => {
@@ -797,22 +842,50 @@ impl KeybindConfig {
         merge_field!(files);
         merge_field!(terminal);
 
+        if let Some(ref custom) = self.custom {
+            merged
+                .custom
+                .get_or_insert_with(std::collections::HashMap::new)
+                .extend(custom.clone());
+        }
+
+        let mut conflicts = Vec::new();
+        let mut reverse: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+        for (action, binding) in Self::bindings_with_labels(&merged) {
+            reverse.entry(binding).or_default().push(action);
+        }
+        for (binding, mut actions) in reverse {
+            if actions.len() > 1 {
+                actions.sort();
+                actions.dedup();
+                for i in 1..actions.len() {
+                    conflicts.push(format!(
+                        "{} used by both '{}' and '{}'",
+                        binding, actions[0], actions[i]
+                    ));
+                }
+            }
+        }
+
         (merged, conflicts)
     }
 
-    fn to_flat_map(config: &KeybindConfig) -> std::collections::HashMap<String, String> {
-        let mut map = std::collections::HashMap::new();
-        if let Some(v) = &config.commands { map.insert("commands".to_string(), v.clone()); }
-        if let Some(v) = &config.timeline { map.insert("timeline".to_string(), v.clone()); }
-        if let Some(v) = &config.settings { map.insert("settings".to_string(), v.clone()); }
-        if let Some(v) = &config.models { map.insert("models".to_string(), v.clone()); }
-        if let Some(v) = &config.files { map.insert("files".to_string(), v.clone()); }
-        if let Some(v) = &config.terminal { map.insert("terminal".to_string(), v.clone()); }
+    fn bindings_with_labels(config: &KeybindConfig) -> Vec<(String, String)> {
+        let mut out = Vec::new();
+        if let Some(v) = &config.commands { out.push(("commands".to_string(), v.clone())); }
+        if let Some(v) = &config.timeline { out.push(("timeline".to_string(), v.clone())); }
+        if let Some(v) = &config.settings { out.push(("settings".to_string(), v.clone())); }
+        if let Some(v) = &config.models { out.push(("models".to_string(), v.clone())); }
+        if let Some(v) = &config.files { out.push(("files".to_string(), v.clone())); }
+        if let Some(v) = &config.terminal { out.push(("terminal".to_string(), v.clone())); }
         if let Some(custom) = &config.custom {
-            map.extend(custom.clone());
+            for (action, binding) in custom {
+                out.push((format!("custom '{}'", action), binding.clone()));
+            }
         }
-        map
+        out
     }
+
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
@@ -825,7 +898,32 @@ pub struct ThemeConfig {
     pub scan_dirs: Option<Vec<String>>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+impl ThemeConfig {
+    pub fn resolve_path(&self, config_dir: Option<&Path>) -> Option<PathBuf> {
+        let configured = self.path.as_ref()?;
+        let raw = configured.to_string_lossy();
+
+        let resolved = if raw == "~" {
+            dirs::home_dir()?
+        } else if let Some(stripped) = raw.strip_prefix("~/") {
+            dirs::home_dir()?.join(stripped)
+        } else if configured.is_relative() {
+            config_dir
+                .map(|dir| dir.join(configured))
+                .unwrap_or_else(|| configured.clone())
+        } else {
+            configured.clone()
+        };
+
+        if resolved.exists() {
+            Some(resolved)
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TuiConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scroll_speed: Option<u32>,
@@ -833,6 +931,22 @@ pub struct TuiConfig {
     pub scroll_acceleration: Option<ScrollAccelerationConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub diff_style: Option<DiffStyle>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub theme: Option<ThemeConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub keybinds: Option<KeybindConfig>,
+}
+
+impl Default for TuiConfig {
+    fn default() -> Self {
+        Self {
+            scroll_speed: None,
+            scroll_acceleration: None,
+            diff_style: None,
+            theme: None,
+            keybinds: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -941,7 +1055,7 @@ impl Config {
             Config::default()
         } else {
             let content = std::fs::read_to_string(path)?;
-            let content = Self::substitute_variables(&content);
+            let content = Self::substitute_variables(&content, path.parent());
             if path.extension().and_then(|s| s.to_str()) == Some("json")
                 || path.extension().and_then(|s| s.to_str()) == Some("jsonc")
                 || path.extension().and_then(|s| s.to_str()) == Some("json5")
@@ -951,6 +1065,8 @@ impl Config {
                 toml::from_str(&content).map_err(|e| crate::OpenCodeError::Config(e.to_string()))?
             }
         };
+
+        Self::log_schema_validation(&config);
 
         config.apply_env_overrides();
         Ok(config)
@@ -969,15 +1085,14 @@ impl Config {
     }
 
     /// Substitute {env:VAR} and {file:path} patterns in config content
-    pub fn substitute_variables(input: &str) -> String {
+    pub fn substitute_variables(input: &str, config_dir: Option<&Path>) -> String {
         let mut result = input.to_string();
 
         // Pattern: {env:VARIABLE_NAME}
         while let Some(start) = result.find("{env:") {
             if let Some(end) = result[start..].find('}') {
                 let var_name = &result[start + 5..start + end];
-                let replacement =
-                    std::env::var(var_name).unwrap_or_else(|_| format!("{{env:{}}}", var_name));
+                let replacement = std::env::var(var_name).unwrap_or_default();
                 result = format!(
                     "{}{}{}",
                     &result[..start],
@@ -993,8 +1108,11 @@ impl Config {
         while let Some(start) = result.find("{file:") {
             if let Some(end) = result[start..].find('}') {
                 let file_path = &result[start + 6..start + end];
-                let replacement = std::fs::read_to_string(file_path)
-                    .unwrap_or_else(|_| format!("{{file:{}}}", file_path));
+                let replacement = match Self::resolve_file_variable_path(file_path, config_dir) {
+                    Some(path) => std::fs::read_to_string(&path)
+                        .unwrap_or_else(|_| format!("{{file:{}}}", file_path)),
+                    None => String::new(),
+                };
                 result = format!(
                     "{}{}{}",
                     &result[..start],
@@ -1009,35 +1127,285 @@ impl Config {
         result
     }
 
-    pub fn config_path() -> PathBuf {
-        if let Ok(config_dir) = std::env::var("OPENCODE_CONFIG_DIR") {
-            let ext = if std::env::var("OPENCODE_CONFIG_FORMAT").unwrap_or_default() == "json" {
-                "json"
-            } else {
-                "toml"
+    fn resolve_file_variable_path(file_path: &str, config_dir: Option<&Path>) -> Option<PathBuf> {
+        if file_path.starts_with('~') {
+            let home = dirs::home_dir().or_else(|| std::env::var("HOME").ok().map(PathBuf::from));
+            let Some(home) = home else {
+                tracing::error!(
+                    "Failed to expand home directory for file variable: {}",
+                    file_path
+                );
+                return None;
             };
-            return PathBuf::from(config_dir).join(format!("config.{}", ext));
+
+            if file_path == "~" {
+                return Some(home);
+            }
+
+            if let Some(stripped) = file_path.strip_prefix("~/") {
+                return Some(home.join(stripped));
+            }
+
+            tracing::error!(
+                "Unsupported home-relative file variable path: {}",
+                file_path
+            );
+            return None;
         }
 
-        directories::ProjectDirs::from("com", "opencode", "rs")
-            .map(|dirs| {
-                let ext = if std::env::var("OPENCODE_CONFIG_FORMAT").unwrap_or_default() == "json" {
-                    "json"
-                } else {
-                    "toml"
-                };
-                dirs.config_dir().join(format!("config.{}", ext))
-            })
-            .unwrap_or_else(|| PathBuf::from("~/.config/opencode-rs/config.toml"))
+        let path = Path::new(file_path);
+        if path.is_absolute() {
+            return Some(path.to_path_buf());
+        }
+
+        if let Some(base) = config_dir {
+            return Some(base.join(path));
+        }
+
+        tracing::warn!(
+            "Relative file variable path without config directory context: {}",
+            file_path
+        );
+
+        match std::env::current_dir() {
+            Ok(cwd) => Some(cwd.join(path)),
+            Err(err) => {
+                tracing::error!(
+                    "Failed to resolve current directory for file variable {}: {}",
+                    file_path,
+                    err
+                );
+                None
+            }
+        }
+    }
+
+    fn preferred_config_path(config_root: &Path) -> PathBuf {
+        let json = config_root.join("config.json");
+        if json.exists() {
+            return json;
+        }
+
+        let jsonc = config_root.join("config.jsonc");
+        if jsonc.exists() {
+            return jsonc;
+        }
+
+        let toml = config_root.join("config.toml");
+        if toml.exists() {
+            return toml;
+        }
+
+        json
+    }
+
+    fn warn_legacy_config_dir_if_exists() {
+        if let Some(home) = dirs::home_dir().or_else(|| std::env::var("HOME").ok().map(PathBuf::from)) {
+            let legacy_dir = home.join(".config").join("opencode-rs");
+            if legacy_dir.exists() {
+                tracing::warn!(
+                    "Legacy config directory detected at {}. Please migrate to ~/.config/opencode/",
+                    legacy_dir.display()
+                );
+            }
+        }
+    }
+
+    pub fn config_path() -> PathBuf {
+        if let Ok(config_dir) = std::env::var("OPENCODE_CONFIG_DIR") {
+            return Self::preferred_config_path(Path::new(&config_dir));
+        }
+
+        directories::ProjectDirs::from("ai", "opencode", "opencode")
+            .map(|dirs| Self::preferred_config_path(dirs.config_dir()))
+            .unwrap_or_else(|| PathBuf::from("~/.config/opencode/config.json"))
+    }
+
+    fn default_tui_config_path() -> Option<PathBuf> {
+        dirs::home_dir().map(|home| home.join(".config/opencode/tui.json"))
+    }
+
+    fn expand_tilde_path(path: &str) -> PathBuf {
+        let home = dirs::home_dir().or_else(|| std::env::var("HOME").ok().map(PathBuf::from));
+
+        if path == "~" {
+            return home.unwrap_or_else(|| PathBuf::from(path));
+        }
+
+        if let Some(stripped) = path.strip_prefix("~/") {
+            return home
+                .map(|h| h.join(stripped))
+                .unwrap_or_else(|| PathBuf::from(path));
+        }
+
+        PathBuf::from(path)
+    }
+
+    fn load_tui_config_path_from_env() -> Option<PathBuf> {
+        std::env::var("OPENCODE_TUI_CONFIG")
+            .ok()
+            .map(|p| p.trim().to_string())
+            .filter(|p| !p.is_empty())
+            .map(|p| Self::expand_tilde_path(&p))
+    }
+
+    pub fn load_tui_config_path() -> Option<PathBuf> {
+        Self::load_tui_config_path_from_env().or_else(Self::default_tui_config_path)
+    }
+
+    fn find_project_config_directory() -> Option<PathBuf> {
+        let cwd = std::env::current_dir().ok()?;
+
+        for ancestor in cwd.ancestors() {
+            for ext in ["json", "json5", "jsonc"] {
+                let project_config = ancestor.join(format!("opencode.{}", ext));
+                if project_config.exists() {
+                    return project_config.parent().map(PathBuf::from);
+                }
+
+                let opencode_dir = ancestor.join(".opencode").join(format!("config.{}", ext));
+                if opencode_dir.exists() {
+                    return opencode_dir.parent().map(PathBuf::from);
+                }
+            }
+        }
+
+        None
+    }
+
+    pub fn validate_tui_config_no_runtime_fields(value: &Value) -> Vec<String> {
+        let Some(obj) = value.as_object() else {
+            return Vec::new();
+        };
+
+        const ALLOWED_TUI_FIELDS: &[&str] = &[
+            "scroll_speed",
+            "scrollSpeed",
+            "scroll_acceleration",
+            "scrollAcceleration",
+            "diff_style",
+            "diffStyle",
+            "theme",
+            "keybinds",
+        ];
+
+        obj.keys()
+            .filter(|key| !ALLOWED_TUI_FIELDS.contains(&key.as_str()))
+            .cloned()
+            .collect()
+    }
+
+    pub fn validate_runtime_no_tui_fields(value: &Value) -> Vec<String> {
+        let Some(obj) = value.as_object() else {
+            return Vec::new();
+        };
+
+        const TUI_FIELDS: &[&str] = &[
+            "tui",
+            "theme",
+            "keybinds",
+            "scroll_speed",
+            "scrollSpeed",
+            "scroll_acceleration",
+            "scrollAcceleration",
+            "diff_style",
+            "diffStyle",
+        ];
+
+        obj.keys()
+            .filter(|key| TUI_FIELDS.contains(&key.as_str()))
+            .cloned()
+            .collect()
+    }
+
+    fn parse_tui_config_file(path: &Path) -> Result<Option<TuiConfig>, crate::OpenCodeError> {
+        if !path.exists() {
+            return Ok(None);
+        }
+
+        let content = std::fs::read_to_string(path)?;
+        let value = parse_jsonc(&content).map_err(|e| crate::OpenCodeError::Config(e.to_string()))?;
+
+        let invalid_runtime_fields = Self::validate_tui_config_no_runtime_fields(&value);
+        if !invalid_runtime_fields.is_empty() {
+            tracing::warn!(
+                "Ignoring runtime fields in tui config {}: {}",
+                path.display(),
+                invalid_runtime_fields.join(", ")
+            );
+        }
+
+        let schema_errors = schema::validate_tui_schema(&value);
+        if !schema_errors.is_empty() {
+            return Err(crate::OpenCodeError::Config(format!(
+                "Invalid TUI config {}: {}",
+                path.display(),
+                schema_errors.join("; ")
+            )));
+        }
+
+        let config = serde_json::from_value::<TuiConfig>(value)
+            .map_err(|e| crate::OpenCodeError::Config(format!("Invalid TUI config {}: {}", path.display(), e)))?;
+
+        Ok(Some(config))
+    }
+
+    pub fn load_tui_config() -> Result<TuiConfig, crate::OpenCodeError> {
+        let mut paths: Vec<PathBuf> = Vec::new();
+
+        if let Some(primary) = Self::load_tui_config_path() {
+            paths.push(primary);
+        }
+
+        if let Some(home) = Self::default_tui_config_path() {
+            if !paths.contains(&home) {
+                paths.push(home);
+            }
+        }
+
+        if let Some(project_dir) = Self::find_project_config_directory() {
+            let project_tui = project_dir.join("tui.json");
+            if !paths.contains(&project_tui) {
+                paths.push(project_tui);
+            }
+        }
+
+        let mut merged = TuiConfig::default();
+        for path in paths {
+            if let Some(cfg) = Self::parse_tui_config_file(&path)? {
+                let base = serde_json::to_value(&merged).unwrap_or(Value::Object(serde_json::Map::new()));
+                let override_val = serde_json::to_value(&cfg).unwrap_or(Value::Object(serde_json::Map::new()));
+                let merged_json = merge::deep_merge(&base, &override_val);
+                merged = serde_json::from_value(merged_json).unwrap_or_default();
+            }
+        }
+
+        Ok(merged)
+    }
+
+    fn warn_runtime_tui_fields(path: &Path) {
+        if let Ok(content) = std::fs::read_to_string(path) {
+            if let Ok(value) = parse_jsonc(&content) {
+                let detected = Self::validate_runtime_no_tui_fields(&value);
+                if !detected.is_empty() {
+                    tracing::warn!(
+                        "TUI fields in runtime config {} are deprecated and will be migrated: {}",
+                        path.display(),
+                        detected.join(", ")
+                    );
+                }
+            }
+        }
     }
 
     /// Load multi-tier config with precedence: remote → global → project → .opencode
-    pub fn load_multi() -> Result<Self, crate::OpenCodeError> {
+    pub async fn load_multi() -> Result<Self, crate::OpenCodeError> {
+        Self::warn_legacy_config_dir_if_exists();
         let mut configs: Vec<(String, Config)> = Vec::new();
 
         // Priority 1: Remote config from .well-known/opencode
         if let Ok(remote_url) = std::env::var("OPENCODE_REMOTE_CONFIG") {
-            if let Ok(content) = Self::fetch_remote_config(&remote_url) {
+            if let Ok(content) = Self::fetch_remote_config(&remote_url).await {
                 if let Ok(config) = Self::parse_config_content(&content, "json") {
                     configs.push(("remote".to_string(), config));
                 }
@@ -1046,7 +1414,7 @@ impl Config {
 
         // Priority 2: OPENCODE_CONFIG_CONTENT env var
         if let Ok(content) = std::env::var("OPENCODE_CONFIG_CONTENT") {
-            let content = Self::substitute_variables(&content);
+            let content = Self::substitute_variables(&content, None);
             if let Ok(config) = Self::parse_config_content(&content, "json") {
                 configs.push(("env-content".to_string(), config));
             }
@@ -1056,14 +1424,16 @@ impl Config {
         if let Ok(config_path) = std::env::var("OPENCODE_CONFIG") {
             let path = PathBuf::from(config_path);
             if path.exists() {
+                Self::warn_runtime_tui_fields(&path);
                 let config = Self::load(&path)?;
                 configs.push(("env-path".to_string(), config));
             }
         }
 
-        // Priority 4: Global config (~/.config/opencode-rs/config.toml)
+        // Priority 4: Global config (~/.config/opencode/config.json)
         let global_path = Self::config_path();
         if global_path.exists() {
+            Self::warn_runtime_tui_fields(&global_path);
             let config = Self::load(&global_path)?;
             configs.push(("global".to_string(), config));
         }
@@ -1076,6 +1446,7 @@ impl Config {
                 for ext in &["json", "json5", "jsonc"] {
                     let project_config = ancestor.join(format!("opencode.{}", ext));
                     if project_config.exists() {
+                        Self::warn_runtime_tui_fields(&project_config);
                         let config = Self::load(&project_config)?;
                         configs.push(("project".to_string(), config));
                         break;
@@ -1085,6 +1456,7 @@ impl Config {
                 for ext in &["json", "json5", "jsonc"] {
                     let opencode_dir = ancestor.join(".opencode").join(format!("config.{}", ext));
                     if opencode_dir.exists() {
+                        Self::warn_runtime_tui_fields(&opencode_dir);
                         let config = Self::load(&opencode_dir)?;
                         configs.push((".opencode".to_string(), config));
                         break;
@@ -1099,18 +1471,41 @@ impl Config {
             result = Self::merge_configs(result, config);
         }
 
+        // Priority 6: .opencode/ directory scan (agents, commands, modes, skills, tools, themes, plugins)
+        // This merges discovered directory content into the final config.
+        // Directory scanning is error-tolerant: missing directories log warnings, never block loading.
+        Self::merge_opencode_directory_into_config(&mut result);
+
+        let mut migrated_tui = result.tui.clone().unwrap_or_default();
+        #[allow(deprecated)]
+        {
+            if result.theme.is_some() {
+                tracing::warn!("'theme' in main config is deprecated since 3.0.0. Move it to tui.json.");
+            }
+            if result.keybinds.is_some() {
+                tracing::warn!("'keybinds' in main config is deprecated since 3.0.0. Move it to tui.json.");
+            }
+
+            if migrated_tui.theme.is_none() {
+                migrated_tui.theme = result.theme.clone();
+            }
+            if migrated_tui.keybinds.is_none() {
+                migrated_tui.keybinds = result.keybinds.clone();
+            }
+        }
+
+        let file_tui = Self::load_tui_config()?;
+        let base = serde_json::to_value(&migrated_tui).unwrap_or(Value::Object(serde_json::Map::new()));
+        let override_val = serde_json::to_value(&file_tui).unwrap_or(Value::Object(serde_json::Map::new()));
+        let merged_tui = merge::deep_merge(&base, &override_val);
+        result.tui = Some(serde_json::from_value(merged_tui).unwrap_or_default());
+
         result.apply_env_overrides();
         Ok(result)
     }
 
     /// Fetch remote configuration from URL
-    fn fetch_remote_config(url: &str) -> Result<String, crate::OpenCodeError> {
-        let runtime = tokio::runtime::Runtime::new().map_err(|e| crate::OpenCodeError::Config(e.to_string()))?;
-        runtime.block_on(Self::fetch_remote_config_async(url))
-    }
-
-    /// Fetch remote configuration from URL (async)
-    async fn fetch_remote_config_async(url: &str) -> Result<String, crate::OpenCodeError> {
+    async fn fetch_remote_config(url: &str) -> Result<String, crate::OpenCodeError> {
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(10))
             .build()
@@ -1145,12 +1540,136 @@ impl Config {
     fn parse_config_content(content: &str, format: &str) -> Result<Self, crate::OpenCodeError> {
         if format == "json" || format == "jsonc" {
             if let Ok(config) = serde_json::from_str::<Config>(content) {
+                Self::log_schema_validation(&config);
                 return Ok(config);
             }
             let stripped = jsonc::strip_jsonc_comments(content);
-            serde_json::from_str(&stripped).map_err(|e| crate::OpenCodeError::Config(e.to_string()))
+            let config =
+                serde_json::from_str(&stripped).map_err(|e| crate::OpenCodeError::Config(e.to_string()))?;
+            Self::log_schema_validation(&config);
+            Ok(config)
         } else {
             toml::from_str(content).map_err(|e| crate::OpenCodeError::Config(e.to_string()))
+        }
+    }
+
+    fn log_schema_validation(config: &Config) {
+        if let Some(schema_url) = config.schema.as_deref() {
+            let validation = config.validate_json_schema(Some(schema_url));
+            if !validation.valid {
+                for error in validation.errors {
+                    tracing::warn!(
+                        "config schema validation error at {}: {}",
+                        error.field,
+                        error.message
+                    );
+                }
+            }
+        }
+    }
+
+    fn merge_opencode_directory_into_config(config: &mut Config) {
+        let Ok(cwd) = std::env::current_dir() else {
+            return;
+        };
+
+        let mut found_opencode_dir = None;
+        for ancestor in cwd.ancestors() {
+            let project_opencode = ancestor.join(".opencode");
+            if project_opencode.exists() && project_opencode.is_dir() {
+                found_opencode_dir = Some(project_opencode);
+                break;
+            }
+        }
+
+        let Some(opencode_path) = found_opencode_dir else {
+            return;
+        };
+
+        let scanner = directory_scanner::DirectoryScanner::new();
+        let scan = scanner.scan_all(&opencode_path);
+
+        let agent_count = scan.agents.len();
+        let command_count = scan.commands.len();
+        let mode_count = scan.modes.len();
+        let skill_count = scan.skills.len();
+        let tool_count = scan.tools.len();
+        let theme_count = scan.themes.len();
+        let plugin_count = scan.plugins.len();
+
+        if agent_count > 0 {
+            let agents = config.agent.get_or_insert_with(AgentMapConfig::default);
+            for agent_info in scan.agents {
+                agents.agents.entry(agent_info.name).or_insert_with(|| AgentConfig {
+                    prompt: Some(agent_info.content),
+                    ..Default::default()
+                });
+            }
+        }
+
+        if command_count > 0 {
+            let commands = config.command.get_or_insert_with(HashMap::new);
+            for cmd_info in scan.commands {
+                let name = cmd_info.name.clone();
+                let template = format!("# Command from {}\n{}", cmd_info.path.display(), cmd_info.content);
+                let description = format!("Loaded from .opencode/commands/{name}");
+                commands.entry(name).or_insert_with(|| CommandConfig {
+                    template,
+                    description: Some(description),
+                    ..Default::default()
+                });
+            }
+        }
+
+        if skill_count > 0 {
+            let skills = config.skills.get_or_insert_with(SkillsConfig::default);
+            let paths = skills.paths.get_or_insert_with(Vec::new);
+            for skill_info in scan.skills {
+                if let Some(parent) = skill_info.path.parent() {
+                    if let Some(path_str) = parent.to_str() {
+                        if !paths.iter().any(|p| p == path_str) {
+                            paths.push(path_str.to_string());
+                        }
+                    }
+                }
+            }
+        }
+
+        if plugin_count > 0 {
+            let plugins = config.plugin.get_or_insert_with(Vec::new);
+            for plugin_info in scan.plugins {
+                if let Some(path_str) = plugin_info.path.to_str() {
+                    if !plugins.iter().any(|p| p == path_str) {
+                        plugins.push(path_str.to_string());
+                    }
+                }
+            }
+        }
+
+        if tool_count > 0 {
+            let tools = config.tools.get_or_insert_with(HashMap::new);
+            for tool_info in scan.tools {
+                tools.entry(tool_info.name).or_insert(true);
+            }
+        }
+
+        if theme_count > 0 {
+            #[allow(deprecated)]
+            if config.theme.is_none() {
+                if let Some(first_theme) = scan.themes.first() {
+                    config.theme = Some(ThemeConfig {
+                        name: Some(first_theme.name.clone()),
+                        path: Some(first_theme.path.clone()),
+                        ..Default::default()
+                    });
+                }
+            }
+        }
+
+        if agent_count > 0 || mode_count > 0 {
+            tracing::info!(
+                "Loaded .opencode/ directory: {agent_count} agents, {command_count} commands, {mode_count} modes, {skill_count} skills, {tool_count} tools, {theme_count} themes, {plugin_count} plugins"
+            );
         }
     }
 
@@ -1326,29 +1845,40 @@ impl Config {
 
         // Validate agent configurations
         if let Some(agents) = &self.agent {
-            if let Some(custom) = &agents.custom {
-                for (name, agent) in custom {
-                    if let Some(temp) = agent.temperature {
-                        if temp < 0.0 || temp > 2.0 {
-                            errors.push(ValidationError {
-                                field: format!("agent.{}.temperature", name),
-                                message: format!(
-                                    "Temperature {} should be between 0.0 and 2.0",
-                                    temp
-                                ),
-                                severity: ValidationSeverity::Error,
-                            });
-                        }
+            for (name, agent) in &agents.agents {
+                if let Some(temp) = agent.temperature {
+                    if temp < 0.0 || temp > 2.0 {
+                        errors.push(ValidationError {
+                            field: format!("agent.{}.temperature", name),
+                            message: format!(
+                                "Temperature {} should be between 0.0 and 2.0",
+                                temp
+                            ),
+                            severity: ValidationSeverity::Error,
+                        });
                     }
-                    if let Some(top_p) = agent.top_p {
-                        if top_p < 0.0 || top_p > 1.0 {
-                            errors.push(ValidationError {
-                                field: format!("agent.{}.top_p", name),
-                                message: format!("Top-p {} should be between 0.0 and 1.0", top_p),
-                                severity: ValidationSeverity::Error,
-                            });
-                        }
+                }
+                if let Some(top_p) = agent.top_p {
+                    if top_p < 0.0 || top_p > 1.0 {
+                        errors.push(ValidationError {
+                            field: format!("agent.{}.top_p", name),
+                            message: format!("Top-p {} should be between 0.0 and 1.0", top_p),
+                            severity: ValidationSeverity::Error,
+                        });
                     }
+                }
+            }
+
+            if let Some(default_agent) = &agents.default_agent {
+                if !agents.agents.contains_key(default_agent) {
+                    errors.push(ValidationError {
+                        field: "agent.default_agent".to_string(),
+                        message: format!(
+                            "Default agent '{}' does not exist in agent map",
+                            default_agent
+                        ),
+                        severity: ValidationSeverity::Error,
+                    });
                 }
             }
         }
@@ -1377,10 +1907,10 @@ impl Config {
         // Validate server configuration
         if let Some(server) = &self.server {
             if let Some(port) = server.port {
-                if port == 0 {
+                if port < 1024 {
                     errors.push(ValidationError {
                         field: "server.port".to_string(),
-                        message: "Server port cannot be 0".to_string(),
+                        message: "Server port must be in range 1024-65535".to_string(),
                         severity: ValidationSeverity::Error,
                     });
                 }
@@ -1612,6 +2142,73 @@ pub struct ValidationResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::ffi::OsStr;
+    use std::fs;
+    use std::sync::{Arc, Mutex};
+    use std::time::{SystemTime, UNIX_EPOCH};
+    use tracing::field::{Field, Visit};
+    use tracing::{Event, Subscriber};
+    use tracing_subscriber::layer::{Context, Layer};
+    use tracing_subscriber::prelude::*;
+    use tracing_subscriber::registry::LookupSpan;
+
+    #[derive(Default)]
+    struct MessageVisitor {
+        message: Option<String>,
+    }
+
+    impl Visit for MessageVisitor {
+        fn record_str(&mut self, field: &Field, value: &str) {
+            if field.name() == "message" {
+                self.message = Some(value.to_string());
+            }
+        }
+
+        fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
+            if field.name() == "message" && self.message.is_none() {
+                self.message = Some(format!("{:?}", value));
+            }
+        }
+    }
+
+    struct WarnCaptureLayer {
+        sink: Arc<Mutex<Vec<String>>>,
+    }
+
+    impl<S> Layer<S> for WarnCaptureLayer
+    where
+        S: Subscriber + for<'lookup> LookupSpan<'lookup>,
+    {
+        fn on_event(&self, event: &Event<'_>, _ctx: Context<'_, S>) {
+            if *event.metadata().level() != tracing::Level::WARN {
+                return;
+            }
+
+            let mut visitor = MessageVisitor::default();
+            event.record(&mut visitor);
+            if let Some(message) = visitor.message {
+                self.sink.lock().unwrap().push(message);
+            }
+        }
+    }
+
+    fn unique_temp_dir(prefix: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("{}_{}", prefix, nanos));
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn set_env<K: AsRef<OsStr>, V: AsRef<OsStr>>(key: K, value: V) {
+        unsafe { std::env::set_var(key, value) }
+    }
+
+    fn remove_env<K: AsRef<OsStr>>(key: K) {
+        unsafe { std::env::remove_var(key) }
+    }
 
     #[test]
     fn test_default_config() {
@@ -1641,30 +2238,137 @@ mod tests {
 
     #[test]
     fn test_substitute_variables_env() {
-        std::env::set_var("TEST_VAR", "test_value");
+        set_env("TEST_VAR", "test_value");
         let input = "key: {env:TEST_VAR}";
-        let result = Config::substitute_variables(input);
+        let result = Config::substitute_variables(input, None);
         assert_eq!(result, "key: test_value");
-        std::env::remove_var("TEST_VAR");
+        remove_env("TEST_VAR");
     }
 
     #[test]
     fn test_substitute_variables_missing_env() {
-        std::env::remove_var("NONEXISTENT_VAR");
+        remove_env("NONEXISTENT_VAR");
         let input = "key: {env:NONEXISTENT_VAR}";
-        let result = Config::substitute_variables(input);
-        assert_eq!(result, "key: {env:NONEXISTENT_VAR}");
+        let result = Config::substitute_variables(input, None);
+        assert_eq!(result, "key: ");
     }
 
     #[test]
     fn test_substitute_variables_multiple() {
-        std::env::set_var("VAR1", "value1");
-        std::env::set_var("VAR2", "value2");
+        set_env("VAR1", "value1");
+        set_env("VAR2", "value2");
         let input = "{env:VAR1} and {env:VAR2}";
-        let result = Config::substitute_variables(input);
+        let result = Config::substitute_variables(input, None);
         assert_eq!(result, "value1 and value2");
-        std::env::remove_var("VAR1");
-        std::env::remove_var("VAR2");
+        remove_env("VAR1");
+        remove_env("VAR2");
+    }
+
+    #[test]
+    fn test_substitute_file_tilde_expansion() {
+        let temp_home = unique_temp_dir("opencode_home_expand");
+        let file_path = temp_home.join(".test_file");
+        fs::write(&file_path, "secret-value").unwrap();
+
+        let old_home = std::env::var("HOME").ok();
+        set_env("HOME", &temp_home);
+
+        let result = Config::substitute_variables("{file:~/.test_file}", None);
+        assert_eq!(result, "secret-value");
+
+        if let Some(home) = old_home {
+            set_env("HOME", home);
+        } else {
+            remove_env("HOME");
+        }
+        let _ = fs::remove_dir_all(temp_home);
+    }
+
+    #[test]
+    fn test_substitute_file_tilde_expansion_failure_returns_empty() {
+        let result = Config::substitute_variables("start-{file:~someone/path}-end", None);
+        assert_eq!(result, "start--end");
+    }
+
+    #[test]
+    fn test_substitute_file_relative_to_config_dir() {
+        let config_dir = unique_temp_dir("opencode_config_dir_relative");
+        let instructions = config_dir.join("instructions.md");
+        fs::write(&instructions, "relative-content").unwrap();
+
+        let result = Config::substitute_variables("{file:./instructions.md}", Some(&config_dir));
+        assert_eq!(result, "relative-content");
+
+        let _ = fs::remove_dir_all(config_dir);
+    }
+
+    #[test]
+    fn test_substitute_file_parent_relative_to_config_dir() {
+        let root_dir = unique_temp_dir("opencode_config_dir_parent");
+        let config_dir = root_dir.join("config");
+        let shared_dir = root_dir.join("shared");
+        fs::create_dir_all(&config_dir).unwrap();
+        fs::create_dir_all(&shared_dir).unwrap();
+        fs::write(shared_dir.join("config.md"), "parent-content").unwrap();
+
+        let result = Config::substitute_variables("{file:../shared/config.md}", Some(&config_dir));
+        assert_eq!(result, "parent-content");
+
+        let _ = fs::remove_dir_all(root_dir);
+    }
+
+    #[test]
+    fn test_substitute_file_relative_without_config_dir_uses_cwd() {
+        let cwd = std::env::current_dir().unwrap();
+        let temp_dir = unique_temp_dir("opencode_config_dir_cwd");
+        fs::write(temp_dir.join("instructions.md"), "cwd-content").unwrap();
+        std::env::set_current_dir(&temp_dir).unwrap();
+
+        let result = Config::substitute_variables("{file:instructions.md}", None);
+        assert_eq!(result, "cwd-content");
+
+        std::env::set_current_dir(cwd).unwrap();
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn test_config_path_uses_json_by_default_in_custom_config_dir() {
+        let temp_dir = unique_temp_dir("opencode_config_path_default_json");
+        let old_dir = std::env::var("OPENCODE_CONFIG_DIR").ok();
+        set_env("OPENCODE_CONFIG_DIR", &temp_dir);
+
+        let path = Config::config_path();
+        assert_eq!(path, temp_dir.join("config.json"));
+
+        if let Some(dir) = old_dir {
+            set_env("OPENCODE_CONFIG_DIR", dir);
+        } else {
+            remove_env("OPENCODE_CONFIG_DIR");
+        }
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn test_config_path_prefers_existing_jsonc_then_toml() {
+        let temp_dir = unique_temp_dir("opencode_config_path_existing");
+        let old_dir = std::env::var("OPENCODE_CONFIG_DIR").ok();
+        set_env("OPENCODE_CONFIG_DIR", &temp_dir);
+
+        fs::write(temp_dir.join("config.toml"), "model = \"x\"").unwrap();
+        assert_eq!(Config::config_path(), temp_dir.join("config.toml"));
+
+        fs::write(temp_dir.join("config.jsonc"), "{}").unwrap();
+        assert_eq!(Config::config_path(), temp_dir.join("config.jsonc"));
+
+        fs::write(temp_dir.join("config.json"), "{}").unwrap();
+        assert_eq!(Config::config_path(), temp_dir.join("config.json"));
+
+        if let Some(dir) = old_dir {
+            set_env("OPENCODE_CONFIG_DIR", dir);
+        } else {
+            remove_env("OPENCODE_CONFIG_DIR");
+        }
+        let _ = fs::remove_dir_all(temp_dir);
     }
 
     #[test]
@@ -1700,5 +2404,398 @@ mod tests {
         let config = ScrollAccelerationConfig::default();
         assert!(config.enabled);
         assert_eq!(config.speed, None);
+    }
+
+    #[test]
+    fn test_agent_map_deserialize_old_format() {
+        let agent_map: AgentMapConfig = serde_json::from_str(
+            r#"{
+                "plan": { "model": "openai/gpt-4o" },
+                "build": { "temperature": 0.8 },
+                "specialist": { "top_p": 0.7 }
+            }"#,
+        )
+        .unwrap();
+
+        assert!(agent_map.get_agent("plan").is_some());
+        assert!(agent_map.get_agent("build").is_some());
+        assert!(agent_map.get_agent("specialist").is_some());
+        assert_eq!(agent_map.agents.len(), 3);
+        assert!(agent_map.default_agent.is_none());
+    }
+
+    #[test]
+    fn test_agent_map_deserialize_new_format() {
+        let agent_map: AgentMapConfig = serde_json::from_str(
+            r#"{
+                "agents": {
+                    "arbitrary": { "model": "anthropic/claude-3-7-sonnet" },
+                    "deep_research": { "steps": 10 }
+                },
+                "default_agent": "arbitrary"
+            }"#,
+        )
+        .unwrap();
+
+        assert!(agent_map.get_agent("arbitrary").is_some());
+        assert!(agent_map.get_agent("deep_research").is_some());
+        assert!(agent_map.get_default_agent().is_some());
+    }
+
+    #[test]
+    fn test_agent_map_get_agent_arbitrary_names() {
+        let agent_map = AgentMapConfig {
+            agents: HashMap::from([
+                (
+                    "my-custom-agent".to_string(),
+                    AgentConfig {
+                        model: Some("openai/gpt-4.1".to_string()),
+                        ..Default::default()
+                    },
+                ),
+                (
+                    "agent_123".to_string(),
+                    AgentConfig {
+                        temperature: Some(0.5),
+                        ..Default::default()
+                    },
+                ),
+            ]),
+            default_agent: Some("agent_123".to_string()),
+        };
+
+        assert!(agent_map.get_agent("my-custom-agent").is_some());
+        assert!(agent_map.get_agent("agent_123").is_some());
+        assert!(agent_map.get_agent("missing").is_none());
+        assert_eq!(
+            agent_map
+                .get_default_agent()
+                .and_then(|a| a.temperature),
+            Some(0.5)
+        );
+    }
+
+    #[test]
+    fn test_agent_map_default_agent_validation_nonexistent_key() {
+        let config = Config {
+            agent: Some(AgentMapConfig {
+                agents: HashMap::from([(
+                    "plan".to_string(),
+                    AgentConfig {
+                        model: Some("openai/gpt-4o".to_string()),
+                        ..Default::default()
+                    },
+                )]),
+                default_agent: Some("does_not_exist".to_string()),
+            }),
+            ..Default::default()
+        };
+
+        let errors = config.validate();
+        assert!(errors.iter().any(|e| {
+            e.field == "agent.default_agent" && e.message.contains("does_not_exist")
+        }));
+    }
+
+    #[test]
+    fn test_agent_map_empty_agents_map() {
+        let agent_map: AgentMapConfig = serde_json::from_str(r#"{"agents":{}}"#).unwrap();
+        assert!(agent_map.agents.is_empty());
+        assert!(agent_map.get_agent("anything").is_none());
+        assert!(agent_map.get_default_agent().is_none());
+    }
+
+    #[test]
+    fn test_agent_map_serialization_round_trip_new_format() {
+        let original = AgentMapConfig {
+            agents: HashMap::from([
+                (
+                    "plan".to_string(),
+                    AgentConfig {
+                        model: Some("openai/gpt-4.1".to_string()),
+                        ..Default::default()
+                    },
+                ),
+                (
+                    "research".to_string(),
+                    AgentConfig {
+                        top_p: Some(0.9),
+                        ..Default::default()
+                    },
+                ),
+            ]),
+            default_agent: Some("research".to_string()),
+        };
+
+        let serialized = serde_json::to_value(&original).unwrap();
+        assert!(serialized.get("agents").is_some());
+        assert!(serialized.get("default_agent").is_some());
+        assert!(serialized.get("plan").is_none());
+
+        let round_trip: AgentMapConfig = serde_json::from_value(serialized).unwrap();
+        assert!(round_trip.get_agent("plan").is_some());
+        assert!(round_trip.get_agent("research").is_some());
+        assert_eq!(round_trip.default_agent.as_deref(), Some("research"));
+    }
+
+    #[test]
+    fn test_load_tui_config_path_uses_env_when_set() {
+        let old = std::env::var("OPENCODE_TUI_CONFIG").ok();
+        set_env("OPENCODE_TUI_CONFIG", "/tmp/custom-tui.json");
+
+        let path = Config::load_tui_config_path();
+        assert_eq!(path, Some(PathBuf::from("/tmp/custom-tui.json")));
+
+        if let Some(prev) = old {
+            set_env("OPENCODE_TUI_CONFIG", prev);
+        } else {
+            remove_env("OPENCODE_TUI_CONFIG");
+        }
+    }
+
+    #[test]
+    fn test_load_tui_config_path_expands_tilde() {
+        let old = std::env::var("OPENCODE_TUI_CONFIG").ok();
+        let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+        set_env("OPENCODE_TUI_CONFIG", "~/.config/opencode/test-tui.json");
+
+        let path = Config::load_tui_config_path();
+        assert_eq!(
+            path,
+            Some(PathBuf::from(home).join(".config/opencode/test-tui.json"))
+        );
+
+        if let Some(prev) = old {
+            set_env("OPENCODE_TUI_CONFIG", prev);
+        } else {
+            remove_env("OPENCODE_TUI_CONFIG");
+        }
+    }
+
+    #[test]
+    fn test_load_tui_config_path_fallback_when_env_unset() {
+        let old = std::env::var("OPENCODE_TUI_CONFIG").ok();
+        remove_env("OPENCODE_TUI_CONFIG");
+
+        let path = Config::load_tui_config_path();
+        let expected = dirs::home_dir().map(|h| h.join(".config/opencode/tui.json"));
+        assert_eq!(path, expected);
+
+        if let Some(prev) = old {
+            set_env("OPENCODE_TUI_CONFIG", prev);
+        }
+    }
+
+    #[test]
+    fn test_load_tui_config_missing_file_returns_default() {
+        let old = std::env::var("OPENCODE_TUI_CONFIG").ok();
+        let temp_dir = unique_temp_dir("opencode_tui_missing");
+        set_env("OPENCODE_TUI_CONFIG", temp_dir.join("does-not-exist.json"));
+
+        let tui = Config::load_tui_config().unwrap();
+        assert!(tui.scroll_speed.is_none());
+        assert!(tui.scroll_acceleration.is_none());
+        assert!(tui.diff_style.is_none());
+        assert!(tui.theme.is_none());
+        assert!(tui.keybinds.is_none());
+
+        if let Some(prev) = old {
+            set_env("OPENCODE_TUI_CONFIG", prev);
+        } else {
+            remove_env("OPENCODE_TUI_CONFIG");
+        }
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn test_deprecation_warning_detection_fields_present() {
+        let runtime_json = serde_json::json!({
+            "model": "openai/gpt-4.1",
+            "theme": { "name": "legacy-theme" },
+            "keybinds": { "commands": "ctrl+k" }
+        });
+
+        let fields = Config::validate_runtime_no_tui_fields(&runtime_json);
+        assert!(fields.contains(&"theme".to_string()));
+        assert!(fields.contains(&"keybinds".to_string()));
+    }
+
+    #[test]
+    fn test_migration_prefers_tui_values_over_legacy_main_fields() {
+        #[allow(deprecated)]
+        let runtime = Config {
+            theme: Some(ThemeConfig {
+                name: Some("legacy".to_string()),
+                ..Default::default()
+            }),
+            keybinds: Some(KeybindConfig {
+                commands: Some("ctrl+l".to_string()),
+                ..Default::default()
+            }),
+            tui: Some(TuiConfig {
+                theme: Some(ThemeConfig {
+                    name: Some("new".to_string()),
+                    ..Default::default()
+                }),
+                keybinds: Some(KeybindConfig {
+                    commands: Some("ctrl+n".to_string()),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let mut migrated = runtime.tui.clone().unwrap_or_default();
+        #[allow(deprecated)]
+        {
+            if migrated.theme.is_none() {
+                migrated.theme = runtime.theme.clone();
+            }
+            if migrated.keybinds.is_none() {
+                migrated.keybinds = runtime.keybinds.clone();
+            }
+        }
+
+        assert_eq!(migrated.theme.and_then(|t| t.name), Some("new".to_string()));
+        assert_eq!(
+            migrated.keybinds.and_then(|k| k.commands),
+            Some("ctrl+n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_tui_runtime_field_separation_validation() {
+        let tui_json = serde_json::json!({
+            "scroll_speed": 3,
+            "model": "openai/gpt-4.1"
+        });
+        let runtime_fields = Config::validate_tui_config_no_runtime_fields(&tui_json);
+        assert!(runtime_fields.contains(&"model".to_string()));
+
+        let runtime_json = serde_json::json!({
+            "model": "openai/gpt-4.1",
+            "tui": { "scroll_speed": 3 }
+        });
+        let tui_fields = Config::validate_runtime_no_tui_fields(&runtime_json);
+        assert!(tui_fields.contains(&"tui".to_string()));
+    }
+
+    #[test]
+    fn test_theme_config_resolve_path_relative_and_missing() {
+        let config_dir = unique_temp_dir("opencode_theme_path_relative");
+        let theme_file = config_dir.join("themes/custom.json");
+        fs::create_dir_all(theme_file.parent().unwrap()).unwrap();
+        fs::write(&theme_file, "{}").unwrap();
+
+        let config = ThemeConfig {
+            name: None,
+            path: Some(PathBuf::from("themes/custom.json")),
+            scan_dirs: None,
+        };
+
+        let resolved = config.resolve_path(Some(&config_dir));
+        assert_eq!(resolved, Some(theme_file.clone()));
+
+        let missing = ThemeConfig {
+            name: None,
+            path: Some(PathBuf::from("themes/does-not-exist.json")),
+            scan_dirs: None,
+        };
+        assert!(missing.resolve_path(Some(&config_dir)).is_none());
+
+        let _ = fs::remove_dir_all(config_dir);
+    }
+
+    #[test]
+    fn test_theme_config_resolve_path_tilde_expansion() {
+        let temp_home = unique_temp_dir("opencode_theme_home");
+        let old_home = std::env::var("HOME").ok();
+        set_env("HOME", &temp_home);
+
+        let theme_file = temp_home.join(".config/opencode/themes/home-theme.json");
+        fs::create_dir_all(theme_file.parent().unwrap()).unwrap();
+        fs::write(&theme_file, "{}").unwrap();
+
+        let config = ThemeConfig {
+            name: None,
+            path: Some(PathBuf::from("~/.config/opencode/themes/home-theme.json")),
+            scan_dirs: None,
+        };
+        assert_eq!(config.resolve_path(None), Some(theme_file));
+
+        if let Some(home) = old_home {
+            set_env("HOME", home);
+        } else {
+            remove_env("HOME");
+        }
+        let _ = fs::remove_dir_all(temp_home);
+    }
+
+    #[test]
+    fn test_load_with_hierarchy_emits_deprecation_warnings_for_theme_and_keybinds() {
+        let temp_dir = unique_temp_dir("opencode_deprecation_warnings");
+        let old_config_dir = std::env::var("OPENCODE_CONFIG_DIR").ok();
+
+        let config_json = serde_json::json!({
+            "model": "openai/gpt-4.1",
+            "theme": { "name": "legacy-theme" },
+            "keybinds": { "commands": "ctrl+k" }
+        });
+        fs::write(
+            temp_dir.join("config.json"),
+            serde_json::to_string_pretty(&config_json).unwrap(),
+        )
+        .unwrap();
+
+        set_env("OPENCODE_CONFIG_DIR", &temp_dir);
+
+        let sink = Arc::new(Mutex::new(Vec::<String>::new()));
+        let subscriber = tracing_subscriber::registry().with(WarnCaptureLayer { sink: sink.clone() });
+
+        tracing::subscriber::with_default(subscriber, || {
+            let _ = Config::load_with_hierarchy().unwrap();
+        });
+
+        let logs = sink.lock().unwrap().clone();
+        assert!(logs.iter().any(|msg| msg.contains("'theme' in main config is deprecated")));
+        assert!(logs.iter().any(|msg| msg.contains("'keybinds' in main config is deprecated")));
+
+        if let Some(prev) = old_config_dir {
+            set_env("OPENCODE_CONFIG_DIR", prev);
+        } else {
+            remove_env("OPENCODE_CONFIG_DIR");
+        }
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn test_keybind_merge_detects_conflicts_for_default_and_custom_actions() {
+        let defaults = KeybindConfig {
+            commands: Some("ctrl+k".to_string()),
+            timeline: Some("ctrl+t".to_string()),
+            ..Default::default()
+        };
+        let custom = KeybindConfig {
+            settings: Some("ctrl+k".to_string()),
+            custom: Some(std::collections::HashMap::from([(
+                "my_action".to_string(),
+                "ctrl+k".to_string(),
+            )])),
+            ..Default::default()
+        };
+
+        let (_merged, conflicts) = custom.merge_with_defaults(&defaults);
+
+        assert!(
+            conflicts
+                .iter()
+                .any(|c| c.contains("ctrl+k used by both 'commands' and 'settings'"))
+        );
+        assert!(
+            conflicts
+                .iter()
+                .any(|c| c.contains("ctrl+k used by both 'commands' and 'custom 'my_action''"))
+        );
     }
 }

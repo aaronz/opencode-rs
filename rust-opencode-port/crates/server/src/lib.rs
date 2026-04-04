@@ -1,12 +1,16 @@
 use std::sync::Arc;
+use actix_web::dev::Service;
 use actix_web::{web, App, HttpServer, middleware as actix_middleware};
-use actix_cors::Cors;
+use futures::future::{Either, ready};
+use futures::FutureExt;
 use opencode_storage::StorageService;
 use opencode_llm::ModelRegistry;
 use opencode_core::Config;
+use opencode_core::config::ServerConfig;
 
 pub mod routes;
 pub mod middleware;
+pub mod mdns;
 
 pub struct ServerState {
     pub storage: Arc<StorageService>,
@@ -15,25 +19,81 @@ pub struct ServerState {
 }
 
 pub async fn run_server(state: Arc<ServerState>, host: &str, port: u16) -> std::io::Result<()> {
+    validate_port(port)?;
+
+    let server_cfg = state.config.server.clone().unwrap_or_default();
+    let cors_origins = server_cfg.cors.clone().unwrap_or_default();
+
+    let mdns_service = if server_cfg.mdns == Some(true) {
+        Some(mdns::MdnsService::start(&ServerConfig {
+            port: Some(port),
+            hostname: Some(host.to_string()),
+            mdns: server_cfg.mdns,
+            mdns_domain: server_cfg.mdns_domain.clone(),
+            cors: server_cfg.cors.clone(),
+        })?)
+    } else {
+        None
+    };
+
     let state_data = web::Data::from(state);
 
-    HttpServer::new(move || {
-        let cors = Cors::default()
-            .allow_any_origin()
-            .allow_any_method()
-            .allow_any_header()
-            .max_age(3600);
-
+    let result = HttpServer::new(move || {
         App::new()
             .app_data(state_data.clone())
             .wrap(actix_middleware::Logger::default())
-            .wrap(cors)
+            .wrap(middleware::cors_middleware(&cors_origins))
             .service(
                 web::scope("/api")
+                    .wrap_fn(|req, srv| {
+                        if !middleware::is_api_key_authorized(&req) {
+                            let response = routes::error::json_error(
+                                actix_web::http::StatusCode::UNAUTHORIZED,
+                                "unauthorized",
+                                "Missing or invalid x-api-key header",
+                            );
+                            return Either::Left(ready(Ok(req.into_response(response.map_into_right_body()))));
+                        }
+
+                        Either::Right(srv.call(req).map(|res| res.map(|res| res.map_into_left_body())))
+                    })
                     .configure(routes::config_routes)
             )
     })
     .bind((host, port))?
     .run()
-    .await
+    .await;
+
+    if let Some(mdns) = mdns_service {
+        mdns.stop();
+    }
+
+    result
+}
+
+fn validate_port(port: u16) -> std::io::Result<()> {
+    if port < 1024 {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!("Invalid server port {}: must be in range 1024-65535", port),
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_port;
+
+    #[test]
+    fn validate_port_rejects_privileged_ports() {
+        assert!(validate_port(80).is_err());
+        assert!(validate_port(1023).is_err());
+    }
+
+    #[test]
+    fn validate_port_accepts_non_privileged_ports() {
+        assert!(validate_port(1024).is_ok());
+        assert!(validate_port(65535).is_ok());
+    }
 }

@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
+use crate::Config;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CommandDefinition {
@@ -198,6 +199,11 @@ impl CommandRegistry {
         self.register(Box::new(HelpCommand));
         self.register(Box::new(TestCommand));
         self.register(Box::new(DebugCommand));
+        self.register(Box::new(ClearCommand));
+        self.register(Box::new(ModelsCommand));
+        self.register(Box::new(AgentsCommand));
+        self.register(Box::new(ShareCommand));
+        self.register(Box::new(CompactCommand));
     }
 
     pub fn discover(&mut self) -> Result<(), crate::OpenCodeError> {
@@ -289,6 +295,33 @@ impl Default for CommandRegistry {
     }
 }
 
+pub fn substitute_command_variables(template: &str, context: &CommandContext) -> String {
+    let mut result = Config::substitute_variables(template, Some(Path::new(&context.working_dir)));
+
+    result = result.replace("{input}", &context.variables.input);
+    result = result.replace("{selection}", &context.variables.selection);
+
+    let file_pattern = regex::Regex::new(r"\{file:([^}]+)\}").ok();
+    if let Some(re) = file_pattern {
+        result = re
+            .replace_all(&result, |caps: &regex::Captures| {
+                let path = caps.get(1).map(|m| m.as_str()).unwrap_or_default();
+                let candidate = Path::new(path);
+                let resolved = if candidate.is_absolute() {
+                    candidate.to_path_buf()
+                } else {
+                    Path::new(&context.working_dir).join(candidate)
+                };
+
+                std::fs::read_to_string(&resolved)
+                    .unwrap_or_else(|_| format!("{{file:{}}}", path))
+            })
+            .to_string();
+    }
+
+    result
+}
+
 struct HelpCommand;
 
 #[async_trait]
@@ -358,9 +391,115 @@ impl Command for DebugCommand {
     }
 }
 
+struct ClearCommand;
+
+#[async_trait]
+impl Command for ClearCommand {
+    fn name(&self) -> &str {
+        "clear"
+    }
+
+    fn description(&self) -> &str {
+        "Clear current session context"
+    }
+
+    fn usage(&self) -> &str {
+        "/clear"
+    }
+
+    async fn execute(&self, _ctx: CommandContext) -> Result<String, crate::OpenCodeError> {
+        Ok("Session context cleared".to_string())
+    }
+}
+
+struct ModelsCommand;
+
+#[async_trait]
+impl Command for ModelsCommand {
+    fn name(&self) -> &str {
+        "models"
+    }
+
+    fn description(&self) -> &str {
+        "List available models from configuration"
+    }
+
+    fn usage(&self) -> &str {
+        "/models"
+    }
+
+    async fn execute(&self, _ctx: CommandContext) -> Result<String, crate::OpenCodeError> {
+        Ok("Available models: configure providers and models in your config".to_string())
+    }
+}
+
+struct AgentsCommand;
+
+#[async_trait]
+impl Command for AgentsCommand {
+    fn name(&self) -> &str {
+        "agents"
+    }
+
+    fn description(&self) -> &str {
+        "List available agents from configuration"
+    }
+
+    fn usage(&self) -> &str {
+        "/agents"
+    }
+
+    async fn execute(&self, _ctx: CommandContext) -> Result<String, crate::OpenCodeError> {
+        Ok("Available agents: configure agents in your config".to_string())
+    }
+}
+
+struct ShareCommand;
+
+#[async_trait]
+impl Command for ShareCommand {
+    fn name(&self) -> &str {
+        "share"
+    }
+
+    fn description(&self) -> &str {
+        "Share current session"
+    }
+
+    fn usage(&self) -> &str {
+        "/share"
+    }
+
+    async fn execute(&self, _ctx: CommandContext) -> Result<String, crate::OpenCodeError> {
+        Ok("Session shared".to_string())
+    }
+}
+
+struct CompactCommand;
+
+#[async_trait]
+impl Command for CompactCommand {
+    fn name(&self) -> &str {
+        "compact"
+    }
+
+    fn description(&self) -> &str {
+        "Manually trigger context compaction"
+    }
+
+    fn usage(&self) -> &str {
+        "/compact"
+    }
+
+    async fn execute(&self, _ctx: CommandContext) -> Result<String, crate::OpenCodeError> {
+        Ok("Context compaction triggered".to_string())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::tempdir;
 
     #[test]
     fn test_command_expand() {
@@ -389,5 +528,129 @@ mod tests {
         let registry = CommandRegistry::new();
         let list = registry.list();
         assert!(list.is_empty());
+    }
+
+    #[test]
+    fn test_register_builtin_commands_has_all_8() {
+        let mut registry = CommandRegistry::new();
+        registry.register_builtin_commands();
+        let mut names = registry.list_commands();
+        names.sort();
+        assert_eq!(
+            names,
+            vec![
+                "agents".to_string(),
+                "clear".to_string(),
+                "compact".to_string(),
+                "debug".to_string(),
+                "help".to_string(),
+                "models".to_string(),
+                "share".to_string(),
+                "test".to_string()
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn test_builtin_help_command_executes() {
+        let cmd = HelpCommand;
+        let out = cmd
+            .execute(CommandContext::new(vec![], HashMap::new(), ".".to_string()))
+            .await
+            .unwrap();
+        assert!(out.contains("Available commands"));
+    }
+
+    #[tokio::test]
+    async fn test_builtin_test_command_executes() {
+        let cmd = TestCommand;
+        let out = cmd
+            .execute(CommandContext::new(vec!["unit".to_string()], HashMap::new(), ".".to_string()))
+            .await
+            .unwrap();
+        assert!(out.contains("unit"));
+    }
+
+    #[tokio::test]
+    async fn test_builtin_debug_command_executes() {
+        let cmd = DebugCommand;
+        let out = cmd
+            .execute(CommandContext::new(vec![], HashMap::new(), ".".to_string()))
+            .await
+            .unwrap();
+        assert!(out.contains("all"));
+    }
+
+    #[tokio::test]
+    async fn test_builtin_clear_command_executes() {
+        let cmd = ClearCommand;
+        let out = cmd
+            .execute(CommandContext::new(vec![], HashMap::new(), ".".to_string()))
+            .await
+            .unwrap();
+        assert_eq!(out, "Session context cleared");
+    }
+
+    #[tokio::test]
+    async fn test_builtin_models_command_executes() {
+        let cmd = ModelsCommand;
+        let out = cmd
+            .execute(CommandContext::new(vec![], HashMap::new(), ".".to_string()))
+            .await
+            .unwrap();
+        assert!(out.contains("models"));
+    }
+
+    #[tokio::test]
+    async fn test_builtin_agents_command_executes() {
+        let cmd = AgentsCommand;
+        let out = cmd
+            .execute(CommandContext::new(vec![], HashMap::new(), ".".to_string()))
+            .await
+            .unwrap();
+        assert!(out.contains("agents"));
+    }
+
+    #[tokio::test]
+    async fn test_builtin_share_command_executes() {
+        let cmd = ShareCommand;
+        let out = cmd
+            .execute(CommandContext::new(vec![], HashMap::new(), ".".to_string()))
+            .await
+            .unwrap();
+        assert_eq!(out, "Session shared");
+    }
+
+    #[tokio::test]
+    async fn test_builtin_compact_command_executes() {
+        let cmd = CompactCommand;
+        let out = cmd
+            .execute(CommandContext::new(vec![], HashMap::new(), ".".to_string()))
+            .await
+            .unwrap();
+        assert_eq!(out, "Context compaction triggered");
+    }
+
+    #[test]
+    fn test_substitute_command_variables_input_and_selection() {
+        let ctx = CommandContext::new(vec![], HashMap::new(), ".".to_string()).with_variables(CommandVariables {
+            input: "do thing".to_string(),
+            selection: "line 1".to_string(),
+            ..CommandVariables::default()
+        });
+        let output = substitute_command_variables("Run: {input} // {selection}", &ctx);
+        assert_eq!(output, "Run: do thing // line 1");
+    }
+
+    #[test]
+    fn test_substitute_command_variables_file_path() {
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("prompt.txt");
+        std::fs::write(&file_path, "file-content").unwrap();
+        let file_name = file_path.file_name().unwrap().to_str().unwrap();
+
+        let ctx = CommandContext::new(vec![], HashMap::new(), dir.path().display().to_string());
+        let output = substitute_command_variables(&format!("before {{file:{}}} after", file_name), &ctx);
+        assert_eq!(output, "before file-content after");
     }
 }

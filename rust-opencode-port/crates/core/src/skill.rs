@@ -8,6 +8,7 @@ use walkdir::WalkDir;
 pub struct Skill {
     pub name: String,
     pub description: String,
+    pub version: String,
     pub triggers: Vec<String>,
     pub priority: i32,
     pub location: PathBuf,
@@ -36,9 +37,49 @@ pub struct SkillManager {
     discovered: RwLock<bool>,
 }
 
+const BUILTIN_SKILLS: &[(&str, &str)] = &[
+    (
+        "code-review/SKILL.md",
+        include_str!("../skills/code-review/SKILL.md"),
+    ),
+    (
+        "architect/SKILL.md",
+        include_str!("../skills/architect/SKILL.md"),
+    ),
+    (
+        "debugger/SKILL.md",
+        include_str!("../skills/debugger/SKILL.md"),
+    ),
+    (
+        "test-writer/SKILL.md",
+        include_str!("../skills/test-writer/SKILL.md"),
+    ),
+    (
+        "refactorer/SKILL.md",
+        include_str!("../skills/refactorer/SKILL.md"),
+    ),
+    (
+        "doc-writer/SKILL.md",
+        include_str!("../skills/doc-writer/SKILL.md"),
+    ),
+    (
+        "security-auditor/SKILL.md",
+        include_str!("../skills/security-auditor/SKILL.md"),
+    ),
+    (
+        "performance/SKILL.md",
+        include_str!("../skills/performance/SKILL.md"),
+    ),
+    (
+        "data-analyst/SKILL.md",
+        include_str!("../skills/data-analyst/SKILL.md"),
+    ),
+    ("devops/SKILL.md", include_str!("../skills/devops/SKILL.md")),
+];
+
 impl SkillManager {
     pub fn new() -> Self {
-        let global_path = dirs::config_dir().map(|p| p.join("opencode-rs").join("skills"));
+        let global_path = dirs::config_dir().map(|p| p.join("opencode").join("skills"));
 
         Self {
             skills: RwLock::new(Vec::new()),
@@ -100,6 +141,7 @@ impl SkillManager {
                 match key {
                     "name" => meta.name = Some(value.to_string()),
                     "description" => meta.description = Some(value.to_string()),
+                    "version" => meta.version = Some(value.to_string()),
                     "priority" => meta.priority = value.parse().unwrap_or(0),
                     "triggers" => {
                         meta.triggers = value
@@ -168,6 +210,7 @@ impl SkillManager {
                     found.push(Skill {
                         name,
                         description: "Custom skill".to_string(),
+                        version: "1.0.0".to_string(),
                         triggers: Vec::new(),
                         priority: 0,
                         location: path.to_path_buf(),
@@ -180,6 +223,7 @@ impl SkillManager {
             found.push(Skill {
                 name: meta.name.unwrap_or_else(|| "unknown".to_string()),
                 description: meta.description.unwrap_or_default(),
+                version: meta.version.unwrap_or_else(|| "1.0.0".to_string()),
                 triggers: meta.triggers,
                 priority: meta.priority,
                 location: path.to_path_buf(),
@@ -191,7 +235,7 @@ impl SkillManager {
     }
 
     pub fn discover(&self) -> Result<(), OpenCodeError> {
-        let mut skills = Vec::new();
+        let mut skills = self.load_builtin_skills();
 
         if let Some(ref global_path) = self.global_skills_path {
             skills.extend(self.discover_in_dir(global_path)?);
@@ -209,6 +253,28 @@ impl SkillManager {
             .map_err(|_| OpenCodeError::Config("Failed to acquire write lock".to_string()))?;
         *write = skills;
         Ok(())
+    }
+
+    pub fn load_builtin_skills(&self) -> Vec<Skill> {
+        BUILTIN_SKILLS
+            .iter()
+            .filter_map(|(path, content)| {
+                let (meta, body) = Self::parse_frontmatter(content)?;
+                Some(Skill {
+                    name: meta.name.unwrap_or_else(|| "unknown".to_string()),
+                    description: meta.description.unwrap_or_default(),
+                    version: meta.version.unwrap_or_else(|| "1.0.0".to_string()),
+                    triggers: if meta.triggers.is_empty() {
+                        vec![path.replace("/SKILL.md", "")]
+                    } else {
+                        meta.triggers
+                    },
+                    priority: meta.priority,
+                    location: PathBuf::from(format!("builtin://{}", path)),
+                    content: body.trim().to_string(),
+                })
+            })
+            .collect()
     }
 
     pub fn match_skill(&self, input: &str) -> Result<Vec<SkillMatch>, OpenCodeError> {
@@ -272,6 +338,21 @@ impl SkillManager {
         read.iter().find(|s| s.name == name).cloned()
     }
 
+    pub fn get_skill(&self, name: &str) -> Option<Skill> {
+        self.get(name)
+    }
+
+    pub fn list_skills(&self) -> Result<Vec<Skill>, OpenCodeError> {
+        self.list()
+    }
+
+    pub fn inject_into_prompt(&self, skill: &Skill) -> String {
+        format!(
+            "[Skill: {} v{}]\nDescription: {}\n\n{}",
+            skill.name, skill.version, skill.description, skill.content
+        )
+    }
+
     pub fn all(&self) -> Result<Vec<Skill>, OpenCodeError> {
         self.list()
     }
@@ -298,6 +379,7 @@ impl Default for SkillManager {
 struct SkillMeta {
     name: Option<String>,
     description: Option<String>,
+    version: Option<String>,
     triggers: Vec<String>,
     priority: i32,
 }
@@ -318,6 +400,7 @@ mod tests {
         let skill = Skill {
             name: "test".to_string(),
             description: "A test skill".to_string(),
+            version: "1.0.0".to_string(),
             triggers: vec!["test".to_string()],
             priority: 1,
             location: PathBuf::from("/path/to/skill"),
@@ -349,6 +432,7 @@ Skill content here"#;
                 skill: Skill {
                     name: "a".into(),
                     description: "".into(),
+                    version: "1.0.0".into(),
                     triggers: vec![],
                     priority: 0,
                     location: PathBuf::new(),
@@ -361,6 +445,7 @@ Skill content here"#;
                 skill: Skill {
                     name: "b".into(),
                     description: "".into(),
+                    version: "1.0.0".into(),
                     triggers: vec![],
                     priority: 0,
                     location: PathBuf::new(),
@@ -373,5 +458,24 @@ Skill content here"#;
         let mut sorted = matches.clone();
         sorted.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap());
         assert_eq!(sorted[0].match_type, MatchType::Exact);
+    }
+
+    #[test]
+    fn test_load_builtin_skills() {
+        let sm = SkillManager::new();
+        let builtins = sm.load_builtin_skills();
+        assert_eq!(builtins.len(), 10);
+        assert!(builtins.iter().any(|s| s.name == "code-review"));
+    }
+
+    #[test]
+    fn test_get_and_inject_skill() {
+        let sm = SkillManager::new();
+        let skill = sm
+            .get_skill("code-review")
+            .expect("builtin skill should exist");
+        let injected = sm.inject_into_prompt(&skill);
+        assert!(injected.contains("Skill: code-review"));
+        assert!(injected.contains("Description:"));
     }
 }

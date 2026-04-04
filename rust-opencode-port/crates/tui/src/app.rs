@@ -4,7 +4,7 @@ use crate::components::{
     TitleBar, TitleBarAction,
 };
 use crate::dialogs::*;
-use crate::input_parser::{InputParser, InputType};
+use crate::input_parser::{InputParser, ParsedInput};
 use crate::session::SessionManager;
 use crate::shell_handler::ShellHandler;
 use crate::file_ref_handler::FileRefHandler;
@@ -15,6 +15,8 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, LeaveAlternateScreen},
 };
+use opencode_auth::CredentialStore;
+use opencode_core::{CostCalculator, TokenCounter};
 use opencode_llm::{
     BrowserAuthModelInfo, OpenAiBrowserAuthService, OpenAiBrowserAuthStore, OpenAiBrowserSession,
     OpenAiProvider, Provider, ProviderConfig,
@@ -317,6 +319,12 @@ pub struct App {
     pub pending_connect_method: Option<String>,
     pub pending_browser_session: Option<OpenAiBrowserSession>,
     pub pending_browser_models: Vec<BrowserAuthModelInfo>,
+    pub token_counter: TokenCounter,
+    pub cost_calculator: CostCalculator,
+    pub session_token_id: String,
+    pub pending_input_tokens: usize,
+    pub total_cost_usd: f64,
+    pub budget_limit_usd: Option<f64>,
     input_parser: InputParser,
     shell_handler: ShellHandler,
     #[allow(dead_code)]
@@ -351,6 +359,13 @@ impl App {
                 show_right_panel = true;
             }
         }
+
+        let session_token_id = uuid::Uuid::new_v4().to_string();
+        let mut token_counter = TokenCounter::new();
+        token_counter.set_active_session(session_token_id.clone());
+        let budget_limit_usd = std::env::var("OPENCODE_BUDGET_USD")
+            .ok()
+            .and_then(|v| v.parse::<f64>().ok());
 
         Self {
             messages: Vec::new(),
@@ -408,6 +423,12 @@ impl App {
             pending_connect_method: None,
             pending_browser_session: None,
             pending_browser_models: Vec::new(),
+            token_counter,
+            cost_calculator: CostCalculator::new(),
+            session_token_id,
+            pending_input_tokens: 0,
+            total_cost_usd: 0.0,
+            budget_limit_usd,
             input_parser: InputParser::new(),
             shell_handler: ShellHandler::new(),
             file_ref_handler: FileRefHandler::new(),
@@ -575,11 +596,18 @@ impl App {
 
     /// Initialize the LLM provider based on the provider name
     pub fn init_llm_provider(&mut self) -> Result<(), String> {
-        let api_key = std::env::var("OPENCODE_API_KEY")
-            .or_else(|_| std::env::var("OPENAI_API_KEY"))
-            .unwrap_or_else(|_| "".to_string());
+        let credential_store = CredentialStore::new();
+        let stored_credential = credential_store.load(&self.provider).ok().flatten();
 
-        if api_key.is_empty() {
+        let api_key = stored_credential
+            .as_ref()
+            .map(|c| c.api_key.clone())
+            .filter(|k| !k.trim().is_empty())
+            .or_else(|| std::env::var("OPENCODE_API_KEY").ok())
+            .or_else(|| std::env::var("OPENAI_API_KEY").ok())
+            .unwrap_or_else(|| "".to_string());
+
+        if api_key.is_empty() && self.provider != "ollama" {
             return Err("No API key found. Set OPENCODE_API_KEY or OPENAI_API_KEY".to_string());
         }
 
@@ -604,7 +632,11 @@ impl App {
             ))),
             "ollama" => Some(std::sync::Arc::new(opencode_llm::OllamaProvider::new(
                 config.model.clone(),
-                Some("http://localhost:11434".to_string()),
+                stored_credential
+                    .as_ref()
+                    .and_then(|c| c.base_url.clone())
+                    .or_else(|| std::env::var("OLLAMA_BASE_URL").ok())
+                    .or_else(|| Some("http://localhost:11434".to_string())),
             ))),
             _ => {
                 // Default to OpenAI
@@ -832,6 +864,29 @@ impl App {
                     }
                     LlmEvent::Done => {
                         let response = self.partial_response.clone();
+                        let output_tokens = (response.chars().count() / 4).max(1);
+                        let model = std::env::var("OPENCODE_MODEL")
+                            .or_else(|_| std::env::var("OPENAI_MODEL"))
+                            .unwrap_or_else(|_| "gpt-4o".to_string());
+
+                        self.token_counter
+                            .record_tokens(&model, self.pending_input_tokens, output_tokens);
+                        let req_cost = self.cost_calculator.calculate_cost(
+                            &model,
+                            self.pending_input_tokens,
+                            output_tokens,
+                        );
+                        self.total_cost_usd += req_cost;
+                        let total_tokens = self.token_counter.get_total_tokens();
+                        let context_total = self.status_bar.context_usage.1;
+                        self.status_bar.update_usage(
+                            total_tokens,
+                            total_tokens,
+                            context_total,
+                            self.total_cost_usd,
+                            self.budget_limit_usd,
+                        );
+
                         if !response.is_empty() {
                             self.add_message(response, false);
                         } else {
@@ -839,12 +894,14 @@ impl App {
                         }
                         self.is_llm_generating = false;
                         self.partial_response.clear();
+                        self.pending_input_tokens = 0;
                         self.llm_rx = None;
                     }
                     LlmEvent::Error(err) => {
                         self.add_message(format!("[Error: {}]", err), false);
                         self.is_llm_generating = false;
                         self.partial_response.clear();
+                        self.pending_input_tokens = 0;
                         self.llm_rx = None;
                     }
                 }
@@ -1408,10 +1465,11 @@ impl App {
                     KeyCode::Enter => {
                         let input = self.input.clone();
                         if !input.is_empty() {
+                            self.pending_input_tokens = (input.chars().count() / 4).max(1);
                             self.history.push(input.clone());
                             self.history_index = self.history.len();
 
-                            let parse_result = self.input_parser.parse(&input);
+                            let parsed_inputs = self.input_parser.parse(&input);
 
                             if self.work_mode == WorkMode::Plan {
                                 self.add_message(
@@ -1420,8 +1478,10 @@ impl App {
                                 );
                             }
 
-                            if parse_result.input_type == InputType::Shell {
-                                let cmd = parse_result.content.clone();
+                            if let Some(ParsedInput::ShellCommand { cmd }) = parsed_inputs
+                                .iter()
+                                .find(|item| matches!(item, ParsedInput::ShellCommand { .. }))
+                            {
                                 let result = self.shell_handler.execute(&cmd);
                                 let mut output = format!("$ {}\n", cmd);
                                 if !result.stdout.is_empty() {

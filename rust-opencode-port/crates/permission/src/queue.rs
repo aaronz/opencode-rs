@@ -1,3 +1,4 @@
+use crate::audit_log::{AuditDecision, AuditEntry, AuditLog};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -79,6 +80,8 @@ fn is_safe_tool(tool_name: &str) -> bool {
 pub struct ApprovalQueue {
     pub scope: PermissionScope,
     #[serde(skip)]
+    audit_log: Option<AuditLog>,
+    #[serde(skip)]
     pending: Vec<PendingApproval>,
     #[serde(skip)]
     history: Vec<ApprovedCommand>,
@@ -94,13 +97,23 @@ impl ApprovalQueue {
     pub fn new(scope: PermissionScope) -> Self {
         Self {
             scope,
+            audit_log: None,
             pending: Vec::new(),
             history: Vec::new(),
         }
     }
 
+    pub fn with_audit_log(mut self, audit_log: AuditLog) -> Self {
+        self.audit_log = Some(audit_log);
+        self
+    }
+
+    pub fn set_audit_log(&mut self, audit_log: AuditLog) {
+        self.audit_log = Some(audit_log);
+    }
+
     pub fn check(&self, tool_name: &str) -> ApprovalResult {
-        match self.scope {
+        let decision = match self.scope {
             PermissionScope::Full => ApprovalResult::AutoApprove,
             PermissionScope::ReadOnly => {
                 if is_read_tool(tool_name) {
@@ -116,7 +129,23 @@ impl ApprovalQueue {
                     ApprovalResult::RequireApproval
                 }
             }
+        };
+
+        if let Some(log) = &self.audit_log {
+            let _ = log.record_decision(AuditEntry {
+                timestamp: Utc::now(),
+                tool_name: tool_name.to_string(),
+                decision: match decision {
+                    ApprovalResult::AutoApprove => AuditDecision::Allow,
+                    ApprovalResult::RequireApproval => AuditDecision::Ask,
+                    ApprovalResult::Denied => AuditDecision::Deny,
+                },
+                session_id: Uuid::nil().to_string(),
+                user_response: None,
+            });
         }
+
+        decision
     }
 
     pub fn request_approval(&mut self, pending: PendingApproval) {
@@ -171,6 +200,7 @@ impl ApprovalQueue {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::audit_log::AuditLog;
 
     #[test]
     fn test_read_only_scope_allows_read_tools() {
@@ -211,5 +241,20 @@ mod tests {
 
         assert_eq!(queue.pending.len(), 0);
         assert_eq!(queue.history.len(), 1);
+    }
+
+    #[test]
+    fn test_check_records_audit_entry_when_configured() {
+        let tmp = tempfile::tempdir().unwrap();
+        let log = AuditLog::new(tmp.path().join("audit.db")).unwrap();
+        let queue = ApprovalQueue::new(PermissionScope::ReadOnly).with_audit_log(log.clone());
+
+        let result = queue.check("write");
+        assert_eq!(result, ApprovalResult::RequireApproval);
+
+        let entries = log.get_recent_entries(10).unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].tool_name, "write");
+        assert_eq!(entries[0].decision, crate::audit_log::AuditDecision::Ask);
     }
 }

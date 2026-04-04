@@ -3,11 +3,15 @@
 
 set -e
 
-MODEL=${1:-"opencode/minimax-m2.5-free"}
+MODEL=${1:-"opencode/qwen3.6-plus-free"}
 WORKSPACE_DIR="$(cd "$(dirname "$0")" && pwd)"
 PRD_PATH="$WORKSPACE_DIR/PRD.md"
-OUTPUTS_DIR="$WORKSPACE_DIR/outputs/iteration-2"
 CONSTITUTION_PATH="$WORKSPACE_DIR/outputs/.specify/memory/constitution.md"
+
+LAST_ITERATION=$(ls -d "$WORKSPACE_DIR/outputs/iteration-"* 2>/dev/null | sed 's/.*iteration-//' | sort -n | tail -1)
+NEXT_ITERATION=${LAST_ITERATION:-0}
+NEXT_ITERATION=$((NEXT_ITERATION + 1))
+OUTPUTS_DIR="$WORKSPACE_DIR/outputs/iteration-${NEXT_ITERATION}"
 
 mkdir -p "$OUTPUTS_DIR"
 
@@ -73,7 +77,7 @@ $(cat $OUTPUTS_DIR/gap-analysis.md)
 3. 确保新的设计决策符合Constitution
 
 ## 输出
-Constitution更新建议保存到: ./outputs/iteration-2/constitution_updates.md"
+Constitution更新建议保存到: $OUTPUTS_DIR/constitution_updates.md"
 
 echo ""
 echo "[3/6] 更新Spec..."
@@ -95,7 +99,7 @@ $(cat $CONSTITUTION_PATH 2>/dev/null || echo "使用默认Constitution")
 3. 添加功能需求编号(FR-XXX)
 
 ## 输出
-更新后的规格保存到: ./outputs/iteration-2/spec_v2.md"
+更新后的规格保存到: $OUTPUTS_DIR/spec_v${NEXT_ITERATION}.md"
 
 echo ""
 echo "[4/6] 更新Plan和Tasks..."
@@ -103,7 +107,7 @@ echo "[4/6] 更新Plan和Tasks..."
 opencode run -m "$MODEL" "使用 /speckit.plan 和 /speckit.tasks 命令更新计划。
 
 ## Spec
-./outputs/iteration-2/spec_v2.md
+$OUTPUTS_DIR/spec_v${NEXT_ITERATION}.md
 
 ## Constitution
 $(cat $CONSTITUTION_PATH 2>/dev/null || echo "")
@@ -117,8 +121,8 @@ $(cat $OUTPUTS_DIR/gap-analysis.md)
 3. 确保P0任务优先
 
 ## 输出
-更新后的计划保存到: ./outputs/iteration-2/plan_v2.md
-更新后的任务保存到: ./outputs/iteration-2/tasks_v2.md"
+更新后的计划保存到: $OUTPUTS_DIR/plan_v${NEXT_ITERATION}.md
+更新后的任务保存到: $OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.md"
 
 echo ""
 echo "[5/6] 执行实现..."
@@ -126,10 +130,10 @@ echo "[5/6] 执行实现..."
 opencode run -m "$MODEL" "使用 /speckit.implement 执行实现。
 
 ## 任务清单
-./outputs/iteration-2/tasks_v2.md
+$OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.md
 
 ## Spec
-./outputs/iteration-2/spec_v2.md
+$OUTPUTS_DIR/spec_v${NEXT_ITERATION}.md
 
 ## 实现目录
 ./outputs/src/
@@ -152,7 +156,7 @@ opencode run -m "$MODEL" "生成迭代验证报告。
 $(cat $OUTPUTS_DIR/gap-analysis.md)
 
 ## 任务清单
-./outputs/iteration-2/tasks_v2.md
+$OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.md
 
 ## 实现状态
 检查./outputs/src/目录下的代码

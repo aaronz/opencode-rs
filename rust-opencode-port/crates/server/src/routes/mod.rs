@@ -1,6 +1,7 @@
 use actix_web::web;
 
 pub mod config;
+pub mod error;
 pub mod provider;
 pub mod model;
 pub mod session;
@@ -26,6 +27,10 @@ pub fn config_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/sessions")
             .configure(session::init)
+    );
+    cfg.service(
+        web::scope("/share")
+            .route("/{id}", web::get().to(session::get_shared_session))
     );
     cfg.service(
         web::scope("/run")

@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use opencode_core::{Message, OpenCodeError, Session};
+use opencode_core::{Message, OpenCodeError, Session, TokenBudget};
 use opencode_llm::{ChatMessage, Provider};
 use opencode_tools::ToolRegistry;
 use crate::{Agent, AgentResponse, AgentType, messages_to_llm_format};
@@ -74,7 +74,9 @@ impl Agent for GeneralAgent {
             content: self.system_prompt.clone(),
         }];
 
-        all_messages.extend(messages_to_llm_format(&session.messages));
+        let prompt_messages =
+            session.prepare_messages_for_prompt(TokenBudget::default().main_context_tokens());
+        all_messages.extend(messages_to_llm_format(&prompt_messages));
 
         let response = provider.chat(&all_messages).await?;
 

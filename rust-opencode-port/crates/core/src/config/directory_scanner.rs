@@ -1,4 +1,8 @@
+use glob::glob;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+
+use regex::Regex;
 
 /// Information about a discovered agent
 #[derive(Debug, Clone)]
@@ -46,6 +50,16 @@ pub struct ThemeInfo {
     pub path: PathBuf,
 }
 
+#[derive(Debug, Clone)]
+pub struct ModeInfo {
+    pub name: String,
+    pub path: PathBuf,
+    pub description: String,
+    pub system_prompt: String,
+    pub default_agent: Option<String>,
+    pub permission_overrides: Option<HashMap<String, String>>,
+}
+
 /// Result of scanning .opencode directory
 #[derive(Debug, Clone, Default)]
 pub struct OpencodeDirectoryScan {
@@ -55,6 +69,7 @@ pub struct OpencodeDirectoryScan {
     pub skills: Vec<SkillInfo>,
     pub tools: Vec<ToolInfo>,
     pub themes: Vec<ThemeInfo>,
+    pub modes: Vec<ModeInfo>,
 }
 
 /// Directory scanner for .opencode subdirectories
@@ -100,15 +115,34 @@ impl DirectoryScanner {
     }
 
     /// Scan commands from .opencode/commands/ directory
-    /// Each command is a .md file named <name>.md
-    pub fn scan_commands(&self, base_path: &Path) -> Vec<CommandInfo> {
+    pub fn scan_commands(&self, base_path: &Path, pattern: Option<&str>) -> Vec<CommandInfo> {
         let commands_dir = base_path.join("commands");
         if !commands_dir.exists() {
             return Vec::new();
         }
 
         let mut commands = Vec::new();
-        if let Ok(entries) = std::fs::read_dir(&commands_dir) {
+        if let Some(pattern) = pattern {
+            let glob_pattern = commands_dir.join(pattern).to_string_lossy().to_string();
+            if let Ok(paths) = glob(&glob_pattern) {
+                for path in paths.flatten() {
+                    if path.is_file() {
+                        if let Ok(content) = std::fs::read_to_string(&path) {
+                            let name = path
+                                .file_stem()
+                                .and_then(|n| n.to_str())
+                                .unwrap_or("unnamed")
+                                .to_string();
+                            commands.push(CommandInfo {
+                                name,
+                                path,
+                                content,
+                            });
+                        }
+                    }
+                }
+            }
+        } else if let Ok(entries) = std::fs::read_dir(&commands_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("md") {
@@ -248,15 +282,132 @@ impl DirectoryScanner {
         themes
     }
 
+    pub fn scan_modes(&self, base_path: &Path) -> Vec<ModeInfo> {
+        let modes_dir = base_path.join("modes");
+        if !modes_dir.exists() {
+            return Vec::new();
+        }
+
+        let frontmatter_re =
+            Regex::new(r"(?s)\A---\s*\n(.*?)\n---\s*\n?(.*)\z").expect("valid frontmatter regex");
+        let kv_re =
+            Regex::new(r"^([A-Za-z_][A-Za-z0-9_]*):\s*(.*?)\s*$").expect("valid key/value regex");
+
+        let mut modes = Vec::new();
+        if let Ok(entries) = std::fs::read_dir(&modes_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("md") {
+                    if let Ok(content) = std::fs::read_to_string(&path) {
+                        let fallback_name = path
+                            .file_stem()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("unnamed")
+                            .to_string();
+
+                        let (frontmatter, system_prompt) =
+                            if let Some(caps) = frontmatter_re.captures(&content) {
+                                (
+                                    caps.get(1).map(|m| m.as_str()).unwrap_or(""),
+                                    caps.get(2).map(|m| m.as_str()).unwrap_or(""),
+                                )
+                            } else {
+                                ("", content.as_str())
+                            };
+
+                        let mut name = fallback_name;
+                        let mut description = String::new();
+                        let mut default_agent = None;
+                        let mut permission_map: HashMap<String, String> = HashMap::new();
+                        let mut in_permission_overrides = false;
+
+                        for raw_line in frontmatter.lines() {
+                            let line = raw_line.trim_end();
+                            if line.trim().is_empty() {
+                                continue;
+                            }
+
+                            let indented = raw_line.starts_with(' ') || raw_line.starts_with('\t');
+                            if in_permission_overrides {
+                                if indented {
+                                    let trimmed = line.trim();
+                                    if let Some(caps) = kv_re.captures(trimmed) {
+                                        let key =
+                                            caps.get(1).map(|m| m.as_str()).unwrap_or("").trim();
+                                        let value = caps
+                                            .get(2)
+                                            .map(|m| m.as_str())
+                                            .unwrap_or("")
+                                            .trim()
+                                            .trim_matches('"')
+                                            .trim_matches('\'');
+                                        if !key.is_empty() {
+                                            permission_map
+                                                .insert(key.to_string(), value.to_string());
+                                        }
+                                    }
+                                    continue;
+                                }
+                                in_permission_overrides = false;
+                            }
+
+                            if indented {
+                                continue;
+                            }
+
+                            if let Some(caps) = kv_re.captures(line.trim()) {
+                                let key = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                                let value = caps
+                                    .get(2)
+                                    .map(|m| m.as_str())
+                                    .unwrap_or("")
+                                    .trim()
+                                    .trim_matches('"')
+                                    .trim_matches('\'');
+                                match key {
+                                    "name" if !value.is_empty() => name = value.to_string(),
+                                    "description" => description = value.to_string(),
+                                    "default_agent" if !value.is_empty() => {
+                                        default_agent = Some(value.to_string())
+                                    }
+                                    "permission_overrides" => in_permission_overrides = true,
+                                    _ => {}
+                                }
+                            }
+                        }
+
+                        modes.push(ModeInfo {
+                            name,
+                            path,
+                            description,
+                            system_prompt: system_prompt
+                                .trim_start_matches(['\r', '\n'])
+                                .to_string(),
+                            default_agent,
+                            permission_overrides: if permission_map.is_empty() {
+                                None
+                            } else {
+                                Some(permission_map)
+                            },
+                        });
+                    }
+                }
+            }
+        }
+
+        modes
+    }
+
     /// Scan all .opencode subdirectories
     pub fn scan_all(&self, base_path: &Path) -> OpencodeDirectoryScan {
         OpencodeDirectoryScan {
             agents: self.scan_agents(base_path),
-            commands: self.scan_commands(base_path),
+            commands: self.scan_commands(base_path, None),
             plugins: self.scan_plugins(base_path),
             skills: self.scan_skills(base_path),
             tools: self.scan_tools(base_path),
             themes: self.scan_themes(base_path),
+            modes: self.scan_modes(base_path),
         }
     }
 }
@@ -285,6 +436,7 @@ pub fn load_opencode_directory() -> OpencodeDirectoryScan {
             result.skills.extend(global_scan.skills);
             result.tools.extend(global_scan.tools);
             result.themes.extend(global_scan.themes);
+            result.modes.extend(global_scan.modes);
         }
     }
 
@@ -380,6 +532,14 @@ fn merge_scan_results(base: &mut OpencodeDirectoryScan, override_scan: OpencodeD
             base.themes.push(override_theme);
         }
     }
+
+    for override_mode in override_scan.modes {
+        if let Some(existing) = base.modes.iter_mut().find(|m| m.name == override_mode.name) {
+            *existing = override_mode;
+        } else {
+            base.modes.push(override_mode);
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -431,7 +591,7 @@ mod tests {
         fs::write(commands_dir.join("test-cmd.md"), "# Test Command").unwrap();
 
         let scanner = DirectoryScanner::new();
-        let commands = scanner.scan_commands(&temp.path().join(".opencode"));
+        let commands = scanner.scan_commands(&temp.path().join(".opencode"), None);
 
         assert_eq!(commands.len(), 1);
         assert_eq!(commands[0].name, "test-cmd");
@@ -486,11 +646,57 @@ mod tests {
         fs::create_dir_all(&themes_dir).unwrap();
         fs::write(themes_dir.join("my-theme.json"), r#"{"name": "mytheme"}"#).unwrap();
 
+        let modes_dir = opencode_dir.join("modes");
+        fs::create_dir_all(&modes_dir).unwrap();
+        fs::write(
+            modes_dir.join("my-mode.md"),
+            "---\nname: my-mode\ndescription: test mode\n---\nSystem prompt",
+        )
+        .unwrap();
+
         let scanner = DirectoryScanner::new();
         let scan = scanner.scan_all(&opencode_dir);
 
         assert_eq!(scan.agents.len(), 1);
         assert_eq!(scan.commands.len(), 1);
         assert_eq!(scan.themes.len(), 1);
+        assert_eq!(scan.modes.len(), 1);
+    }
+
+    #[test]
+    fn test_scan_modes_with_frontmatter() {
+        let temp = TempDir::new().unwrap();
+        let modes_dir = temp.path().join(".opencode").join("modes");
+        fs::create_dir_all(&modes_dir).unwrap();
+        fs::write(
+            modes_dir.join("code-review.md"),
+            "---\nname: code-review\ndescription: Code review mode\ndefault_agent: build\npermission_overrides:\n  read: allow\n  bash: deny\n---\nMode instructions here...\n",
+        )
+        .unwrap();
+
+        let scanner = DirectoryScanner::new();
+        let modes = scanner.scan_modes(&temp.path().join(".opencode"));
+
+        assert_eq!(modes.len(), 1);
+        assert_eq!(modes[0].name, "code-review");
+        assert_eq!(modes[0].description, "Code review mode");
+        assert_eq!(modes[0].default_agent.as_deref(), Some("build"));
+        assert_eq!(modes[0].system_prompt, "Mode instructions here...\n");
+        assert_eq!(
+            modes[0]
+                .permission_overrides
+                .as_ref()
+                .and_then(|m| m.get("read"))
+                .map(String::as_str),
+            Some("allow")
+        );
+        assert_eq!(
+            modes[0]
+                .permission_overrides
+                .as_ref()
+                .and_then(|m| m.get("bash"))
+                .map(String::as_str),
+            Some("deny")
+        );
     }
 }

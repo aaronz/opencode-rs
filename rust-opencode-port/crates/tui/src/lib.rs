@@ -15,7 +15,7 @@ pub use components::{
     StatusPopoverType, TerminalPanel, TitleBar, TitleBarAction, VirtualList,
 };
 pub use dialogs::*;
-pub use input_parser::{InputParser, InputType, ParseResult};
+pub use input_parser::{InputParser, ParsedInput};
 pub use session::{Session, SessionManager};
 pub use shell_handler::{ExecuteResult, ShellHandler};
 pub use file_ref_handler::{FileRefHandler, FileRefResult};

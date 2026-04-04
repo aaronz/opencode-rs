@@ -19,7 +19,7 @@ pub struct StatusPopover {
     theme: Theme,
     token_count: usize,
     context_usage: (usize, usize),
-    cost_cents: u64,
+    total_cost_usd: f64,
 }
 
 impl StatusPopover {
@@ -29,7 +29,7 @@ impl StatusPopover {
             theme,
             token_count: 0,
             context_usage: (0, 128000),
-            cost_cents: 0,
+            total_cost_usd: 0.0,
         }
     }
 
@@ -37,11 +37,11 @@ impl StatusPopover {
         mut self,
         token_count: usize,
         context_usage: (usize, usize),
-        cost_cents: u64,
+        total_cost_usd: f64,
     ) -> Self {
         self.token_count = token_count;
         self.context_usage = context_usage;
-        self.cost_cents = cost_cents;
+        self.total_cost_usd = total_cost_usd;
         self
     }
 
@@ -118,7 +118,7 @@ impl StatusPopover {
             ]),
             Line::from(vec![
                 Span::styled("Est. Cost: ", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(format!("${:.2}", self.cost_cents as f64 / 100.0)),
+                Span::raw(format!("${:.3}", self.total_cost_usd)),
             ]),
         ];
 
@@ -153,7 +153,8 @@ pub struct StatusBar {
     pub connection_status: ConnectionStatus,
     pub token_count: usize,
     pub context_usage: (usize, usize),
-    pub cost_cents: u64,
+    pub total_cost_usd: f64,
+    pub budget_limit_usd: Option<f64>,
     pub active_popover: Option<StatusPopoverType>,
     theme: Theme,
 }
@@ -171,20 +172,25 @@ impl StatusBar {
             connection_status: ConnectionStatus::Connected,
             token_count: 0,
             context_usage: (0, 128000),
-            cost_cents: 0,
+            total_cost_usd: 0.0,
+            budget_limit_usd: None,
             active_popover: None,
             theme,
         }
     }
 
-    pub fn update_tokens(&mut self, tokens: usize, context_used: usize, context_total: usize) {
+    pub fn update_usage(
+        &mut self,
+        tokens: usize,
+        context_used: usize,
+        context_total: usize,
+        total_cost_usd: f64,
+        budget_limit_usd: Option<f64>,
+    ) {
         self.token_count = tokens;
         self.context_usage = (context_used, context_total);
-        self.cost_cents = Self::estimate_cost(tokens);
-    }
-
-    fn estimate_cost(tokens: usize) -> u64 {
-        ((tokens as u64).saturating_mul(150)) / 1_000_000
+        self.total_cost_usd = total_cost_usd;
+        self.budget_limit_usd = budget_limit_usd;
     }
 
     pub fn toggle_popover(&mut self, popover_type: StatusPopoverType) {
@@ -207,36 +213,54 @@ impl StatusBar {
         };
 
         let connection_indicator = "●";
-        let token_text = format!("{}t", self.token_count);
-        let context_text = format!("{}/{}", self.context_usage.0, self.context_usage.1);
-        let cost_text = if self.cost_cents > 0 {
-            format!("${:.2}", self.cost_cents as f64 / 100.0)
+        let token_text = format!("Tokens: {}", self.token_count);
+        let cost_text = format!("Cost: ${:.3}", self.total_cost_usd);
+        let context_text = format!("Ctx: {}/{}", self.context_usage.0, self.context_usage.1);
+
+        let budget_warn = self
+            .budget_limit_usd
+            .and_then(|limit| {
+                if limit > 0.0 {
+                    let usage = self.total_cost_usd / limit;
+                    if usage >= 0.8 {
+                        Some(format!("Budget {:.0}%", usage * 100.0))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_default();
+
+        let status_text = if budget_warn.is_empty() {
+            format!(
+                " {}  {} | {} | {} ",
+                connection_indicator, token_text, cost_text, context_text
+            )
         } else {
-            String::new()
+            format!(
+                " {}  {} | {} | {} | ⚠ {} ",
+                connection_indicator, token_text, cost_text, context_text, budget_warn
+            )
         };
 
-        let status_text = if cost_text.is_empty() {
-            format!(
-                " {}  {}  {} ",
-                connection_indicator, token_text, context_text
-            )
+        let status_color = if budget_warn.is_empty() {
+            self.theme.muted_color()
         } else {
-            format!(
-                " {}  {}  {}  {} ",
-                connection_indicator, token_text, context_text, cost_text
-            )
+            Color::Yellow
         };
 
         let paragraph = Paragraph::new(status_text)
             .alignment(Alignment::Right)
-            .style(Style::default().fg(self.theme.muted_color()));
+            .style(Style::default().fg(status_color));
         f.render_widget(paragraph, area);
 
         if let Some(ref popover_type) = self.active_popover {
             let popover = StatusPopover::new(popover_type.clone(), self.theme.clone()).with_data(
                 self.token_count,
                 self.context_usage,
-                self.cost_cents,
+                self.total_cost_usd,
             );
             popover.draw(f, area);
         }

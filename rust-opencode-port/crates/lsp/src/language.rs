@@ -1,6 +1,6 @@
 use std::path::Path;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Language {
     Rust,
     TypeScript,
@@ -58,7 +58,7 @@ impl Language {
             Language::TypeScript | Language::JavaScript => {
                 Some("typescript-language-server --stdio")
             }
-            Language::Python => Some("pylsp"),
+            Language::Python => Some("pyright-langserver --stdio"),
             Language::Go => Some("gopls"),
             Language::Unknown => None,
         }
@@ -84,5 +84,34 @@ impl Language {
             Language::Go => "Go",
             Language::Unknown => "Unknown",
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn maps_required_extensions() {
+        assert_eq!(Language::detect(Path::new("main.rs")), Language::Rust);
+        assert_eq!(Language::detect(Path::new("app.ts")), Language::TypeScript);
+        assert_eq!(Language::detect(Path::new("app.tsx")), Language::TypeScript);
+        assert_eq!(Language::detect(Path::new("script.py")), Language::Python);
+        assert_eq!(Language::detect(Path::new("main.go")), Language::Go);
+    }
+
+    #[test]
+    fn uses_expected_server_commands() {
+        assert_eq!(Language::Rust.server_command(), Some("rust-analyzer"));
+        assert_eq!(
+            Language::TypeScript.server_command(),
+            Some("typescript-language-server --stdio")
+        );
+        assert_eq!(
+            Language::Python.server_command(),
+            Some("pyright-langserver --stdio")
+        );
+        assert_eq!(Language::Go.server_command(), Some("gopls"));
     }
 }

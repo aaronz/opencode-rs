@@ -12,6 +12,7 @@ path = "src/main.rs"
 [dependencies]
 opencode-core.workspace = true
 opencode-llm.workspace = true
+opencode-plugin = { path = "../plugin" }
 opencode-tui.workspace = true
 clap = { version = "4.5", features = ["derive"] }
 tracing.workspace = true
