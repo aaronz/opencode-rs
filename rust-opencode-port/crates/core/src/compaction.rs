@@ -1,5 +1,41 @@
 use crate::message::{Message, Role};
 use serde::{Deserialize, Serialize};
+use tracing::warn;
+
+const DEFAULT_KEEP_RECENT_TOOL_OUTPUTS: usize = 3;
+const PRUNED_TOOL_OUTPUT_PLACEHOLDER: &str = "[content pruned to save tokens]";
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CompactionError {
+    InvalidReserved(u32),
+    InvalidModelContext(usize),
+    ReservedExceedsModelContext {
+        reserved: u32,
+        model_max_context: usize,
+    },
+}
+
+impl std::fmt::Display for CompactionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CompactionError::InvalidReserved(value) => {
+                write!(f, "reserved must be greater than 0, got {value}")
+            }
+            CompactionError::InvalidModelContext(value) => {
+                write!(f, "model_max_context must be greater than 0, got {value}")
+            }
+            CompactionError::ReservedExceedsModelContext {
+                reserved,
+                model_max_context,
+            } => write!(
+                f,
+                "reserved ({reserved}) must be lower than model_max_context ({model_max_context})"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for CompactionError {}
 
 /// Context hierarchy levels per PRD Section 7.6
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -36,6 +72,8 @@ impl ContextLevel {
 pub struct TokenBudget {
     /// Total budget in tokens (default 128K)
     pub total: usize,
+    #[serde(default = "TokenBudget::default_model_max_tokens")]
+    pub model_max_tokens: usize,
     /// Percentage for main context (default 70%)
     pub main_context_percent: f64,
     /// Percentage for tool output (default 20%)
@@ -54,6 +92,7 @@ impl Default for TokenBudget {
     fn default() -> Self {
         Self {
             total: 128_000,
+            model_max_tokens: Self::default_model_max_tokens(),
             main_context_percent: 0.70,
             tool_output_percent: 0.20,
             response_space_percent: 0.10,
@@ -65,6 +104,27 @@ impl Default for TokenBudget {
 }
 
 impl TokenBudget {
+    const fn default_model_max_tokens() -> usize {
+        128_000
+    }
+
+    pub fn from_model(model_name: &str) -> Self {
+        let model = model_name.trim().to_ascii_lowercase();
+        let model_max_tokens = match model.as_str() {
+            "gpt-4o" | "gpt-4-turbo" => 128_000,
+            "gpt-4" => 8_192,
+            "gpt-3.5-turbo" => 16_385,
+            "claude-3-5-sonnet" | "claude-3-opus" | "claude-3-haiku" | "claude-2.1" => 200_000,
+            _ => 128_000,
+        };
+
+        Self {
+            total: model_max_tokens,
+            model_max_tokens,
+            ..Self::default()
+        }
+    }
+
     pub fn main_context_tokens(&self) -> usize {
         (self.total as f64 * self.main_context_percent).ceil() as usize
     }
@@ -327,11 +387,133 @@ impl Compactor {
     pub fn estimate_tokens(&self, text: &str) -> usize {
         (text.len() + 3) / 4
     }
+
+    pub fn validate_reserved(reserved: u32) -> Result<(), CompactionError> {
+        if reserved == 0 {
+            return Err(CompactionError::InvalidReserved(reserved));
+        }
+
+        if reserved < 5000 {
+            warn!(
+                reserved,
+                "compaction reserved tokens below recommended minimum (5000)"
+            );
+        }
+
+        Ok(())
+    }
+
+    pub fn prune_old_tool_outputs(messages: &mut Vec<Message>, keep_recent: usize) {
+        let keep_recent = if keep_recent == 0 {
+            DEFAULT_KEEP_RECENT_TOOL_OUTPUTS
+        } else {
+            keep_recent
+        };
+
+        let tool_indices: Vec<usize> = messages
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, message)| is_tool_output_message(message).then_some(idx))
+            .collect();
+
+        if tool_indices.len() <= keep_recent {
+            return;
+        }
+
+        let prune_until = tool_indices.len() - keep_recent;
+        for idx in tool_indices.into_iter().take(prune_until) {
+            if let Some(message) = messages.get_mut(idx) {
+                message.content = PRUNED_TOOL_OUTPUT_PLACEHOLDER.to_string();
+            }
+        }
+    }
+
+    pub fn generate_summary_prompt(messages: &[Message]) -> String {
+        let mut lines = vec![
+            "Summarize the following conversation for context compression.".to_string(),
+            "Keep decisions, constraints, unresolved issues, and next steps.".to_string(),
+            "Conversation: ".to_string(),
+        ];
+
+        for message in messages {
+            let role = match message.role {
+                Role::System => "system",
+                Role::User => "user",
+                Role::Assistant => "assistant",
+            };
+            lines.push(format!("- {role}: {}", message.content));
+        }
+
+        lines.push("Return concise bullet points only.".to_string());
+        lines.join("\n")
+    }
+
+    pub fn auto_compact_if_needed(
+        session: &mut crate::session::Session,
+        config: &crate::config::CompactionConfig,
+        model_max_context: usize,
+    ) -> Result<bool, CompactionError> {
+        if model_max_context == 0 {
+            return Err(CompactionError::InvalidModelContext(model_max_context));
+        }
+
+        if config.auto == Some(false) {
+            return Ok(false);
+        }
+
+        let reserved = config.reserved.unwrap_or(10_000);
+        Self::validate_reserved(reserved)?;
+        if reserved as usize >= model_max_context {
+            return Err(CompactionError::ReservedExceedsModelContext {
+                reserved,
+                model_max_context,
+            });
+        }
+
+        let session_tokens: usize = session
+            .messages
+            .iter()
+            .map(|m| (m.content.len() + 3) / 4)
+            .sum();
+
+        let trigger_threshold = model_max_context - reserved as usize;
+        if session_tokens <= trigger_threshold {
+            return Ok(false);
+        }
+
+        if config.prune.unwrap_or(true) {
+            Self::prune_old_tool_outputs(&mut session.messages, DEFAULT_KEEP_RECENT_TOOL_OUTPUTS);
+        }
+
+        let compactor = Compactor::new(CompactionConfig {
+            max_tokens: trigger_threshold,
+            ..Default::default()
+        });
+
+        let messages = std::mem::take(&mut session.messages);
+        let result = compactor.compact_to_fit(messages);
+        session.messages = result.messages;
+        session.updated_at = chrono::Utc::now();
+
+        Ok(result.was_compacted)
+    }
+}
+
+fn is_tool_output_message(message: &Message) -> bool {
+    message.role == Role::Assistant
+        && (message.content.contains("Tool")
+            || message.content.contains("tool")
+            || message.content.contains("stdout")
+            || message.content.contains("stderr")
+            || message.content.contains("```json")
+            || message.content.contains("```"))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::CompactionConfig as RuntimeCompactionConfig;
+    use crate::session::Session;
 
     #[test]
     fn test_compaction_config_default() {
@@ -339,6 +521,21 @@ mod tests {
         assert!(config.max_tokens > 0);
         assert!(config.preserve_system_messages);
         assert!(config.preserve_recent_messages > 0);
+    }
+
+    #[test]
+    fn test_token_budget_model_mapping() {
+        assert_eq!(TokenBudget::from_model("gpt-4o").model_max_tokens, 128_000);
+        assert_eq!(TokenBudget::from_model("gpt-4").model_max_tokens, 8_192);
+        assert_eq!(
+            TokenBudget::from_model("gpt-3.5-turbo").model_max_tokens,
+            16_385
+        );
+        assert_eq!(
+            TokenBudget::from_model("claude-3-5-sonnet").model_max_tokens,
+            200_000
+        );
+        assert_eq!(TokenBudget::from_model("unknown").model_max_tokens, 128_000);
     }
 
     #[test]
@@ -420,5 +617,82 @@ mod tests {
         });
         let messages = vec![Message::user("hello world")];
         assert!(compactor.needs_compaction(&messages));
+    }
+
+    #[test]
+    fn test_validate_reserved() {
+        assert!(Compactor::validate_reserved(1).is_ok());
+        assert_eq!(
+            Compactor::validate_reserved(0).unwrap_err(),
+            CompactionError::InvalidReserved(0)
+        );
+    }
+
+    #[test]
+    fn test_prune_old_tool_outputs_keeps_recent() {
+        let mut messages = vec![
+            Message::assistant("Tool call 1\nstdout:\nA"),
+            Message::assistant("Tool call 2\nstdout:\nB"),
+            Message::assistant("Tool call 3\nstdout:\nC"),
+            Message::assistant("Tool call 4\nstdout:\nD"),
+        ];
+
+        Compactor::prune_old_tool_outputs(&mut messages, 2);
+        assert_eq!(messages[0].content, PRUNED_TOOL_OUTPUT_PLACEHOLDER);
+        assert_eq!(messages[1].content, PRUNED_TOOL_OUTPUT_PLACEHOLDER);
+        assert!(messages[2].content.contains("Tool call 3"));
+        assert!(messages[3].content.contains("Tool call 4"));
+    }
+
+    #[test]
+    fn test_generate_summary_prompt_contains_roles_and_content() {
+        let messages = vec![
+            Message::system("system constraints"),
+            Message::user("do the thing"),
+            Message::assistant("done"),
+        ];
+
+        let prompt = Compactor::generate_summary_prompt(&messages);
+        assert!(prompt.contains("- system: system constraints"));
+        assert!(prompt.contains("- user: do the thing"));
+        assert!(prompt.contains("- assistant: done"));
+    }
+
+    #[test]
+    fn test_auto_compact_if_needed_triggers_near_limit() {
+        let mut session = Session::new();
+        for i in 0..15 {
+            session.add_message(Message::assistant(format!(
+                "Tool call {}\nstdout:\n{}",
+                i,
+                "x".repeat(40)
+            )));
+            session.add_message(Message::user(format!("request {}", i)));
+        }
+
+        let before: usize = session
+            .messages
+            .iter()
+            .map(|m| (m.content.len() + 3) / 4)
+            .sum();
+
+        let changed = Compactor::auto_compact_if_needed(
+            &mut session,
+            &RuntimeCompactionConfig {
+                auto: Some(true),
+                prune: Some(true),
+                reserved: Some(50),
+            },
+            200,
+        )
+        .unwrap();
+
+        assert!(changed);
+        let estimated: usize = session
+            .messages
+            .iter()
+            .map(|m| (m.content.len() + 3) / 4)
+            .sum();
+        assert!(estimated < before);
     }
 }

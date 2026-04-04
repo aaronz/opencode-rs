@@ -2,7 +2,9 @@ use crate::routes::error::json_error;
 use crate::ServerState;
 use actix_web::{http::StatusCode, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
-use opencode_core::{config::ShareMode, CheckpointManager, Message, Role, Session};
+use opencode_core::{
+    config::ShareMode, CheckpointManager, Message, Role, Session, SummaryGenerator,
+};
 use serde::Deserialize;
 use tokio::process::Command;
 use uuid::Uuid;
@@ -34,6 +36,11 @@ pub struct CommandRequest {
 #[derive(Deserialize)]
 pub struct RevertRequest {
     pub sequence_number: usize,
+}
+
+#[derive(Deserialize)]
+pub struct ForkSessionRequest {
+    pub fork_at_message_index: usize,
 }
 
 #[derive(Deserialize)]
@@ -141,26 +148,32 @@ pub async fn delete_session(state: web::Data<ServerState>, id: web::Path<String>
     }
 }
 
-pub async fn fork_session(state: web::Data<ServerState>, id: web::Path<String>) -> impl Responder {
+pub async fn fork_session(
+    state: web::Data<ServerState>,
+    id: web::Path<String>,
+    req: web::Json<ForkSessionRequest>,
+) -> impl Responder {
     match state.storage.load_session(&id).await {
-        Ok(Some(session)) => {
-            let mut forked = Session::new();
-            forked.messages = session.messages.clone();
-            forked.undo_history = session.undo_history.clone();
-            forked.redo_history = session.redo_history.clone();
-
-            match state.storage.save_session(&forked).await {
+        Ok(Some(session)) => match session.fork_at_message(req.fork_at_message_index) {
+            Ok(forked) => match state.storage.save_session(&forked).await {
                 Ok(_) => HttpResponse::Created().json(serde_json::json!({
-                    "session_id": forked.id.to_string(),
-                    "forked_from": id.as_str(),
+                    "id": forked.id.to_string(),
+                    "parent_session_id": forked.parent_session_id,
+                    "message_count": forked.messages.len(),
                 })),
                 Err(e) => json_error(
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "storage_error",
                     e.to_string(),
                 ),
-            }
-        }
+            },
+            Err(e) => json_error(
+                StatusCode::BAD_REQUEST,
+                "fork_error",
+                e.to_string(),
+            ),
+        },
+
         Ok(None) => json_error(
             StatusCode::NOT_FOUND,
             "session_not_found",
@@ -588,6 +601,49 @@ pub async fn remove_share_session(
     }
 }
 
+pub async fn summarize_session(
+    state: web::Data<ServerState>,
+    id: web::Path<String>,
+) -> impl Responder {
+    let session_id = id.into_inner();
+    match state.storage.load_session(&session_id).await {
+        Ok(Some(mut session)) => match SummaryGenerator::summarize_session(&session.messages) {
+            Ok(summary) => {
+                let created_at = Utc::now();
+                session.store_summary_metadata(summary.clone(), created_at);
+
+                if let Err(e) = state.storage.save_session(&session).await {
+                    return json_error(
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "storage_error",
+                        e.to_string(),
+                    );
+                }
+
+                HttpResponse::Ok().json(serde_json::json!({
+                    "summary": summary,
+                    "created_at": created_at,
+                }))
+            }
+            Err(e) => json_error(
+                StatusCode::BAD_REQUEST,
+                "summary_error",
+                e.to_string(),
+            ),
+        },
+        Ok(None) => json_error(
+            StatusCode::NOT_FOUND,
+            "session_not_found",
+            format!("Session not found: {session_id}"),
+        ),
+        Err(e) => json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "storage_error",
+            e.to_string(),
+        ),
+    }
+}
+
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.route("", web::get().to(list_sessions));
     cfg.route("", web::post().to(create_session));
@@ -602,6 +658,30 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.route("/{id}/revert", web::post().to(revert_session_to_checkpoint));
     cfg.route("/{id}/share", web::post().to(share_session));
     cfg.route("/{id}/share", web::delete().to(remove_share_session));
+    cfg.route("/{id}/summarize", web::post().to(summarize_session));
     cfg.route("/{id}", web::get().to(get_session));
     cfg.route("/{id}", web::delete().to(delete_session));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_role_defaults_to_user() {
+        assert_eq!(parse_role(None), Role::User);
+        assert_eq!(parse_role(Some("unknown".to_string())), Role::User);
+    }
+
+    #[test]
+    fn parse_role_handles_known_roles() {
+        assert_eq!(parse_role(Some("assistant".to_string())), Role::Assistant);
+        assert_eq!(parse_role(Some("system".to_string())), Role::System);
+    }
+
+    #[test]
+    fn to_session_uuid_rejects_bad_id() {
+        let result = to_session_uuid("not-a-uuid");
+        assert!(result.is_err());
+    }
 }

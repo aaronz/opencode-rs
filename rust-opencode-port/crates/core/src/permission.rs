@@ -1,3 +1,4 @@
+use opencode_permission::{AuditDecision, AuditEntry, AuditLog};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
@@ -33,27 +34,56 @@ impl Default for PermissionConfig {
 
 pub struct PermissionManager {
     config: PermissionConfig,
+    audit_log: Option<AuditLog>,
 }
 
 impl PermissionManager {
     pub fn new(config: PermissionConfig) -> Self {
-        Self { config }
+        let audit_log = std::env::var("OPENCODE_PERMISSION_AUDIT_DB")
+            .ok()
+            .and_then(|path| AuditLog::new(path).ok());
+        Self { config, audit_log }
+    }
+
+    pub fn with_audit_log(mut self, audit_log: AuditLog) -> Self {
+        self.audit_log = Some(audit_log);
+        self
     }
 
     pub fn check(&self, permission: &Permission, pattern: &str) -> bool {
+        let mut decision = self.config.allowed.contains(permission);
+
         for denied in &self.config.always_denied {
             if pattern.contains(denied) {
-                return false;
+                decision = false;
+                break;
             }
         }
 
-        for allowed in &self.config.always_allowed {
-            if pattern.contains(allowed) {
-                return true;
+        if !decision {
+            for allowed in &self.config.always_allowed {
+                if pattern.contains(allowed) {
+                    decision = true;
+                    break;
+                }
             }
         }
 
-        self.config.allowed.contains(permission)
+        if let Some(audit_log) = &self.audit_log {
+            let _ = audit_log.record_decision(AuditEntry {
+                timestamp: chrono::Utc::now(),
+                tool_name: format!("{:?}:{}", permission, pattern),
+                decision: if decision {
+                    AuditDecision::Allow
+                } else {
+                    AuditDecision::Deny
+                },
+                session_id: uuid::Uuid::nil().to_string(),
+                user_response: None,
+            });
+        }
+
+        decision
     }
 
     pub fn grant(&mut self, permission: Permission) {
@@ -74,6 +104,7 @@ impl Default for PermissionManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use opencode_permission::AuditLog;
 
     #[test]
     fn test_permission_config_default() {
@@ -123,5 +154,16 @@ mod tests {
         let mut pm = PermissionManager::default();
         pm.revoke(&Permission::FileRead);
         assert!(!pm.check(&Permission::FileRead, "/test"));
+    }
+
+    #[test]
+    fn test_permission_check_records_audit_decision() {
+        let tmp = tempfile::tempdir().unwrap();
+        let log = AuditLog::new(tmp.path().join("permission_audit.db")).unwrap();
+        let pm = PermissionManager::default().with_audit_log(log.clone());
+
+        let _ = pm.check(&Permission::FileRead, "/tmp/file");
+        let entries = log.get_recent_entries(10).unwrap();
+        assert_eq!(entries.len(), 1);
     }
 }

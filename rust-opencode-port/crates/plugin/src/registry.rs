@@ -1,4 +1,4 @@
-use opencode_core::plugin::Plugin;
+use crate::Plugin;
 use std::collections::HashMap;
 
 pub struct PluginRegistry {

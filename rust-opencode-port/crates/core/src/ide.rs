@@ -1,4 +1,23 @@
+use std::path::Path;
 use std::process::Command;
+
+/// Reserved IDE extension cursor position contract.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Position {
+    pub line: usize,
+    pub column: usize,
+}
+
+/// Reserved IDE extension integration contract.
+///
+/// This trait is intentionally minimal in TASK-3.6 and provides a stable API
+/// surface for future editor integrations.
+pub trait IdeExtension {
+    fn on_file_opened(&mut self, path: &Path);
+    fn on_file_changed(&mut self, path: &Path);
+    fn on_cursor_moved(&mut self, position: Position);
+    fn get_completion(&self, position: Position) -> Option<String>;
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Ide {
@@ -116,5 +135,54 @@ mod tests {
         assert_eq!(Ide::from_name("Windsurf"), Some(Ide::Windsurf));
         assert_eq!(Ide::from_name("Cursor"), Some(Ide::Cursor));
         assert_eq!(Ide::from_name("Unknown IDE"), None);
+    }
+
+    struct StubExtension {
+        opened: bool,
+        changed: bool,
+        cursor: Option<Position>,
+    }
+
+    impl IdeExtension for StubExtension {
+        fn on_file_opened(&mut self, _path: &Path) {
+            self.opened = true;
+        }
+
+        fn on_file_changed(&mut self, _path: &Path) {
+            self.changed = true;
+        }
+
+        fn on_cursor_moved(&mut self, position: Position) {
+            self.cursor = Some(position);
+        }
+
+        fn get_completion(&self, position: Position) -> Option<String> {
+            if position.line == 0 && position.column == 0 {
+                Some("completion".to_string())
+            } else {
+                None
+            }
+        }
+    }
+
+    #[test]
+    fn ide_extension_trait_stub_is_callable() {
+        let mut ext = StubExtension {
+            opened: false,
+            changed: false,
+            cursor: None,
+        };
+
+        ext.on_file_opened(Path::new("/tmp/test.rs"));
+        ext.on_file_changed(Path::new("/tmp/test.rs"));
+        ext.on_cursor_moved(Position { line: 1, column: 2 });
+
+        assert!(ext.opened);
+        assert!(ext.changed);
+        assert_eq!(ext.cursor, Some(Position { line: 1, column: 2 }));
+        assert_eq!(
+            ext.get_completion(Position { line: 0, column: 0 }),
+            Some("completion".to_string())
+        );
     }
 }

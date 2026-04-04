@@ -239,3 +239,39 @@ impl JsonRpcRequest {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_jsonrpc_request_roundtrip() {
+        let request = JsonRpcRequest::new(
+            "tools/call",
+            Some(serde_json::json!({"name": "echo", "arguments": {"v": 1}})),
+        )
+        .with_id(serde_json::json!(1));
+
+        let encoded = serde_json::to_string(&request).unwrap();
+        let decoded: JsonRpcRequest = serde_json::from_str(&encoded).unwrap();
+
+        assert_eq!(decoded.jsonrpc, "2.0");
+        assert_eq!(decoded.method, "tools/call");
+        assert_eq!(decoded.id, Some(serde_json::json!(1)));
+    }
+
+    #[test]
+    fn test_jsonrpc_response_roundtrip() {
+        let response = JsonRpcResponse::success(
+            Some(serde_json::json!(2)),
+            serde_json::json!({"tools": [{"name": "search"}]}),
+        );
+
+        let encoded = serde_json::to_string(&response).unwrap();
+        let decoded: JsonRpcResponse = serde_json::from_str(&encoded).unwrap();
+
+        assert_eq!(decoded.id, Some(serde_json::json!(2)));
+        assert!(decoded.error.is_none());
+        assert!(decoded.result.is_some());
+    }
+}

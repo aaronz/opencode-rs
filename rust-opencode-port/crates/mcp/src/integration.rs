@@ -1,9 +1,9 @@
 use std::future::Future;
-use std::sync::Arc;
 
-use opencode_core::{ToolDefinition, ToolExecutor, ToolParameter, ToolRegistry};
+use opencode_core::ToolRegistry;
 
 use crate::client::McpClient;
+use crate::tool_bridge::McpToolAdapter;
 
 pub fn register_mcp_tools(client: &McpClient, registry: &mut ToolRegistry) {
     let client = client.clone();
@@ -13,30 +13,8 @@ pub fn register_mcp_tools(client: &McpClient, registry: &mut ToolRegistry) {
     };
 
     for tool in tools {
-        let name = tool.name.clone();
-        let description = tool.description.clone();
-        let schema = tool.input_schema.clone();
-        let call_name = name.clone();
-        let call_client = client.clone();
-
-        let definition = ToolDefinition {
-            name,
-            description,
-            parameters: vec![ToolParameter {
-                name: "args".to_string(),
-                description: "MCP tool arguments object".to_string(),
-                required: false,
-                schema: schema.clone(),
-            }],
-        };
-
-        let executor: ToolExecutor = Arc::new(move |args| {
-            run_async(async { call_client.call_tool(&call_name, &args).await })
-                .map(|result| result.content)
-                .map_err(|e| e.to_string())
-        });
-
-        registry.register(definition, executor);
+        let adapter = McpToolAdapter::new(std::sync::Arc::new(client.clone()), tool);
+        adapter.register_into(registry);
     }
 }
 

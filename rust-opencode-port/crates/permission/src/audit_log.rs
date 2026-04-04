@@ -21,7 +21,7 @@ pub struct AuditEntry {
     pub user_response: Option<String>,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct AuditLog {
     conn: Arc<Mutex<Connection>>,
 }

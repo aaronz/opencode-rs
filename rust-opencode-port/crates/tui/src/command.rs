@@ -27,6 +27,7 @@ pub enum CommandAction {
     OpenConnect,
     /// Toggle file tree
     ToggleFiles,
+    OpenSkills,
     /// Open release notes dialog
     OpenReleaseNotes,
     /// Compact session
@@ -128,6 +129,12 @@ impl CommandRegistry {
                 aliases: vec!["file".to_string()],
                 description: "Toggle file tree panel".to_string(),
                 action: CommandAction::ToggleFiles,
+            },
+            Command {
+                name: "skills".to_string(),
+                aliases: vec!["skill".to_string()],
+                description: "Toggle skills panel".to_string(),
+                action: CommandAction::OpenSkills,
             },
             Command {
                 name: "release-notes".to_string(),
@@ -265,5 +272,13 @@ mod tests {
         let cmd = registry.get_by_name("connect");
         assert!(cmd.is_some());
         assert_eq!(cmd.unwrap().description, "Connect a provider");
+    }
+
+    #[test]
+    fn test_command_registry_skills_command() {
+        let registry = CommandRegistry::new();
+        let cmd = registry.get_by_name("skills");
+        assert!(cmd.is_some());
+        assert_eq!(cmd.unwrap().name, "skills");
     }
 }

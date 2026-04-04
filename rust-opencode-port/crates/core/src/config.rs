@@ -243,7 +243,7 @@ pub struct WatcherConfig {
 }
 
 /// Share mode enumeration
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum ShareMode {
     Manual,
@@ -2754,7 +2754,8 @@ mod tests {
         let subscriber = tracing_subscriber::registry().with(WarnCaptureLayer { sink: sink.clone() });
 
         tracing::subscriber::with_default(subscriber, || {
-            let _ = Config::load_with_hierarchy().unwrap();
+            let runtime = tokio::runtime::Runtime::new().unwrap();
+            let _ = runtime.block_on(Config::load_multi()).unwrap();
         });
 
         let logs = sink.lock().unwrap().clone();

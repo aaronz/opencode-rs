@@ -10,6 +10,7 @@ pub mod permission;
 pub mod ws;
 pub mod sse;
 pub mod mcp;
+pub mod web_ui;
 
 pub fn config_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(

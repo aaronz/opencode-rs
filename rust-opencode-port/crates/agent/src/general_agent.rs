@@ -6,6 +6,7 @@ use crate::{Agent, AgentResponse, AgentType, messages_to_llm_format};
 
 pub struct GeneralAgent {
     system_prompt: String,
+    skill_prompt: Option<String>,
 }
 
 impl GeneralAgent {
@@ -27,7 +28,22 @@ You have access to search tools:
 Be thorough and systematic. Break complex tasks into steps.
 Provide comprehensive results with source references.
 "# .to_string(),
+            skill_prompt: None,
         }
+    }
+
+    pub fn with_skill_prompt(mut self, skill_prompt: impl Into<String>) -> Self {
+        self.skill_prompt = Some(skill_prompt.into());
+        self
+    }
+
+    fn composed_system_prompt(&self) -> String {
+        if let Some(skill_prompt) = self.skill_prompt.as_deref() {
+            if !skill_prompt.trim().is_empty() {
+                return format!("{}\n\n[Enabled Skills]\n{}", self.system_prompt, skill_prompt);
+            }
+        }
+        self.system_prompt.clone()
     }
 }
 
@@ -71,7 +87,7 @@ impl Agent for GeneralAgent {
     ) -> Result<AgentResponse, OpenCodeError> {
         let mut all_messages: Vec<ChatMessage> = vec![ChatMessage {
             role: "system".to_string(),
-            content: self.system_prompt.clone(),
+            content: self.composed_system_prompt(),
         }];
 
         let prompt_messages =

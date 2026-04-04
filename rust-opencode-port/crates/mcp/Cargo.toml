@@ -10,6 +10,8 @@ tokio = { workspace = true }
 async-trait = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
+reqwest = { workspace = true }
+futures-util = { workspace = true }
 opencode-tools = { path = "../tools" }
 opencode-core = { path = "../core" }
 

@@ -43,6 +43,8 @@ pub async fn run_server(state: Arc<ServerState>, host: &str, port: u16) -> std::
             .app_data(state_data.clone())
             .wrap(actix_middleware::Logger::default())
             .wrap(middleware::cors_middleware(&cors_origins))
+            .route("/", web::get().to(routes::web_ui::index))
+            .route("/api/docs", web::get().to(routes::web_ui::api_docs))
             .service(
                 web::scope("/api")
                     .wrap_fn(|req, srv| {

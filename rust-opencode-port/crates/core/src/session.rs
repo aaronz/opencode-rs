@@ -1,7 +1,7 @@
 use crate::compaction::{
     CompactionConfig, CompactionResult, CompactionStatus, CompactionTrigger, Compactor, TokenBudget,
 };
-use crate::config::ShareMode;
+use crate::config::{CompactionConfig as RuntimeCompactionConfig, ShareMode};
 use crate::context::{Context, ContextBuilder};
 use crate::message::Message;
 use crate::session_state::{is_valid_transition, SessionState, StateTransitionError};
@@ -15,6 +15,11 @@ pub enum ShareError {
     SharingDisabled,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ForkError {
+    MessageIndexOutOfBounds { requested: usize, len: usize },
+}
+
 impl std::fmt::Display for ShareError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -25,6 +30,22 @@ impl std::fmt::Display for ShareError {
 
 impl std::error::Error for ShareError {}
 
+impl std::fmt::Display for ForkError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ForkError::MessageIndexOutOfBounds { requested, len } => {
+                write!(
+                    f,
+                    "fork message index out of bounds: requested {}, session has {} messages",
+                    requested, len
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for ForkError {}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Session {
     pub id: Uuid,
@@ -33,7 +54,7 @@ pub struct Session {
     pub updated_at: DateTime<Utc>,
     pub state: SessionState,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub parent_session_id: Option<Uuid>,
+    pub parent_session_id: Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub fork_history: Vec<ForkEntry>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
@@ -64,6 +85,12 @@ pub struct ToolInvocationRecord {
     pub result: Option<String>,
     pub started_at: DateTime<Utc>,
     pub completed_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SessionSummaryMetadata {
+    pub summary: String,
+    pub created_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -117,7 +144,7 @@ impl Session {
             created_at: now,
             updated_at: now,
             state: self.state,
-            parent_session_id: Some(self.id),
+            parent_session_id: Some(self.id.to_string()),
             fork_history: Vec::new(),
             tool_invocations: Vec::new(),
             undo_history: Vec::new(),
@@ -127,6 +154,32 @@ impl Session {
             share_expires_at: self.share_expires_at,
         };
         forked
+    }
+
+    pub fn fork_at_message(&self, message_index: usize) -> Result<Session, ForkError> {
+        if message_index >= self.messages.len() {
+            return Err(ForkError::MessageIndexOutOfBounds {
+                requested: message_index,
+                len: self.messages.len(),
+            });
+        }
+
+        let now = Utc::now();
+        Ok(Session {
+            id: Uuid::new_v4(),
+            messages: self.messages[..=message_index].to_vec(),
+            created_at: now,
+            updated_at: now,
+            state: self.state,
+            parent_session_id: Some(self.id.to_string()),
+            fork_history: Vec::new(),
+            tool_invocations: self.tool_invocations.clone(),
+            undo_history: Vec::new(),
+            redo_history: Vec::new(),
+            shared_id: None,
+            share_mode: self.share_mode.clone(),
+            share_expires_at: self.share_expires_at,
+        })
     }
 
     pub fn generate_share_link(&mut self) -> Result<String, ShareError> {
@@ -179,6 +232,47 @@ impl Session {
         self.updated_at = Utc::now();
     }
 
+    pub fn store_summary_metadata(
+        &mut self,
+        summary: impl Into<String>,
+        created_at: DateTime<Utc>,
+    ) {
+        let summary = summary.into();
+        let record = ToolInvocationRecord {
+            id: Uuid::new_v4(),
+            tool_name: "session.summary".to_string(),
+            arguments: serde_json::json!({
+                "kind": "session_summary",
+                "created_at": created_at,
+            }),
+            result: Some(summary),
+            started_at: created_at,
+            completed_at: Some(created_at),
+        };
+        self.tool_invocations.push(record);
+        self.updated_at = Utc::now();
+    }
+
+    pub fn latest_summary_metadata(&self) -> Option<SessionSummaryMetadata> {
+        self.tool_invocations
+            .iter()
+            .rev()
+            .find(|inv| inv.tool_name == "session.summary")
+            .and_then(|inv| {
+                let summary = inv.result.clone()?;
+                let created_at = inv
+                    .arguments
+                    .get("created_at")
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| s.parse::<DateTime<Utc>>().ok())
+                    .unwrap_or(inv.started_at);
+                Some(SessionSummaryMetadata {
+                    summary,
+                    created_at,
+                })
+            })
+    }
+
     fn is_share_expired(&self) -> bool {
         self.share_expires_at
             .map(|expiry| Utc::now() > expiry)
@@ -198,6 +292,11 @@ impl Session {
     }
 
     pub fn add_message(&mut self, message: Message) {
+        let _ = Compactor::auto_compact_if_needed(
+            self,
+            &RuntimeCompactionConfig::default(),
+            TokenBudget::default().total,
+        );
         self.undo_history.push(HistoryEntry {
             action: Action::AddMessage,
             messages: self.messages.clone(),
@@ -407,10 +506,15 @@ impl Session {
     }
 
     pub fn build_context(&self) -> Context {
-        let token_budget = TokenBudget::default();
+        let model_name = std::env::var("OPENCODE_MODEL").ok();
+        let token_budget = model_name
+            .as_deref()
+            .map(TokenBudget::from_model)
+            .unwrap_or_default();
         let registry = crate::tool::build_default_registry();
 
         ContextBuilder::new(token_budget)
+            .with_model_name(model_name.as_deref())
             .collect_file_context(&[], &self.messages)
             .collect_tool_context(&registry)
             .collect_session_context(&self.messages)
@@ -466,6 +570,17 @@ mod tests {
         session.truncate_for_context(10);
 
         assert!(session.messages.len() < 2);
+    }
+
+    #[test]
+    fn test_session_summary_metadata_roundtrip() {
+        let mut session = Session::new();
+        let created_at = Utc::now();
+        session.store_summary_metadata("Summary text", created_at);
+
+        let metadata = session.latest_summary_metadata().expect("missing metadata");
+        assert_eq!(metadata.summary, "Summary text");
+        assert_eq!(metadata.created_at.timestamp(), created_at.timestamp());
     }
 
     #[test]
@@ -567,7 +682,7 @@ mod tests {
 
         assert!(link.contains("/share/"));
         assert!(session.shared_id.is_some());
-        assert_eq!(session.share_mode, Some(ShareMode::Manual));
+        assert!(matches!(session.share_mode, Some(ShareMode::Manual)));
         assert!(session.is_shared());
     }
 
@@ -589,5 +704,36 @@ mod tests {
 
         assert!(!session.is_shared());
         assert!(session.get_share_id().is_none());
+    }
+
+    #[test]
+    fn test_fork_at_message_copies_upto_index() {
+        let mut parent = Session::new();
+        parent.add_message(Message::user("first"));
+        parent.add_message(Message::assistant("second"));
+        parent.add_message(Message::user("third"));
+
+        let child = parent.fork_at_message(1).unwrap();
+        let parent_id = parent.id.to_string();
+        assert_ne!(child.id, parent.id);
+        assert_eq!(child.parent_session_id.as_deref(), Some(parent_id.as_str()));
+        assert_eq!(child.messages.len(), 2);
+        assert_eq!(child.messages[0].content, "first");
+        assert_eq!(child.messages[1].content, "second");
+    }
+
+    #[test]
+    fn test_fork_at_message_out_of_bounds() {
+        let mut parent = Session::new();
+        parent.add_message(Message::user("first"));
+
+        let err = parent.fork_at_message(5).unwrap_err();
+        assert_eq!(
+            err,
+            ForkError::MessageIndexOutOfBounds {
+                requested: 5,
+                len: 1,
+            }
+        );
     }
 }

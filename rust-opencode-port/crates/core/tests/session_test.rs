@@ -83,10 +83,27 @@ mod tests {
         let child = parent.fork(child_id);
 
         assert!(child.parent_session_id.is_some());
-        assert_eq!(child.parent_session_id.unwrap(), parent.id);
+        assert_eq!(child.parent_session_id.unwrap(), parent.id.to_string());
         assert_eq!(child.messages.len(), 2);
         assert_eq!(child.id, child_id);
         assert!(child.fork_history.is_empty());
+    }
+
+    #[test]
+    fn test_session_fork_at_message() {
+        use opencode_core::message::Message;
+        use opencode_core::session::Session;
+
+        let mut parent = Session::new();
+        parent.add_message(Message::user("one"));
+        parent.add_message(Message::assistant("two"));
+        parent.add_message(Message::user("three"));
+
+        let child = parent.fork_at_message(1).unwrap();
+        let parent_id = parent.id.to_string();
+        assert_eq!(child.messages.len(), 2);
+        assert_eq!(child.messages[1].content, "two");
+        assert_eq!(child.parent_session_id.as_deref(), Some(parent_id.as_str()));
     }
 
     #[test]
@@ -170,8 +187,8 @@ mod tests {
         use std::collections::HashMap;
 
         let defaults = KeybindConfig {
-            commands: Some("Ctrl+K"),
-            timeline: Some("Ctrl+T"),
+            commands: Some("Ctrl+K".to_string()),
+            timeline: Some("Ctrl+T".to_string()),
             settings: None,
             models: None,
             files: None,
@@ -182,7 +199,7 @@ mod tests {
         let user = KeybindConfig {
             commands: None,
             timeline: None,
-            settings: Some("Ctrl+S"),
+            settings: Some("Ctrl+S".to_string()),
             models: None,
             files: None,
             terminal: None,
@@ -204,8 +221,8 @@ mod tests {
         use std::collections::HashMap;
 
         let defaults = KeybindConfig {
-            commands: Some("Ctrl+K"),
-            timeline: Some("Ctrl+T"),
+            commands: Some("Ctrl+K".to_string()),
+            timeline: Some("Ctrl+T".to_string()),
             settings: None,
             models: None,
             files: None,
@@ -216,19 +233,21 @@ mod tests {
         let user = KeybindConfig {
             commands: None,
             timeline: None,
-            settings: None,
+            settings: Some("Ctrl+K".to_string()),
             models: None,
             files: None,
             terminal: None,
             custom: Some(HashMap::from([(
-                "commands".to_string(),
-                "Ctrl+J".to_string(),
+                "my_action".to_string(),
+                "Ctrl+K".to_string(),
             )])),
         };
 
         let (_merged, conflicts) = user.merge_with_defaults(&defaults);
         assert!(!conflicts.is_empty());
-        assert!(conflicts[0].contains("commands"));
+        assert!(conflicts
+            .iter()
+            .any(|c| c.contains("Ctrl+K used by both 'commands' and 'settings'")));
     }
 
     #[test]

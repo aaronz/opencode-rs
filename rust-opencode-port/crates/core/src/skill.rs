@@ -392,7 +392,11 @@ mod tests {
     #[test]
     fn test_skill_manager_new() {
         let sm = SkillManager::new();
-        assert!(sm.list().unwrap_or_default().is_empty());
+        // SkillManager starts empty; discovery happens on first list() call
+        // which loads builtin skills via include_str!
+        let skills = sm.list().unwrap_or_default();
+        assert!(!skills.is_empty());
+        assert!(skills.iter().any(|s| s.name == "code-review"));
     }
 
     #[test]
@@ -422,7 +426,7 @@ Skill content here"#;
         let (meta, body) = SkillManager::parse_frontmatter(content).unwrap();
         assert_eq!(meta.name, Some("test-skill".to_string()));
         assert_eq!(meta.triggers, vec!["test", "debug"]);
-        assert_eq!(body, "Skill content here");
+        assert_eq!(body.trim(), "Skill content here");
     }
 
     #[test]

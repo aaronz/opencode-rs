@@ -10,15 +10,18 @@ opencode-core = { path = "../core" }
 opencode-storage = { path = "../storage" }
 serde = { workspace = true }
 serde_json = { workspace = true }
+thiserror = { workspace = true }
 jsonwebtoken = { workspace = true }
 bcrypt = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }
+reqwest = { workspace = true }
 aes-gcm = "0.10"
 base64 = "0.22"
 rand = "0.8"
 sha2 = "0.10"
 dirs = "6"
+url = "2"
 
 [dev-dependencies]
 tempfile = { workspace = true }

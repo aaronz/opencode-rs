@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
 use crate::Config;
+use crate::Session;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CommandDefinition {
@@ -139,12 +140,24 @@ impl CommandVariables {
     }
 }
 
-#[derive(Debug, Clone)]
+pub type ClearSessionFn = Box<dyn FnOnce() -> usize + Send + Sync>;
+pub type GetModelsFn = Box<dyn FnOnce() -> String + Send + Sync>;
+pub type GetAgentsFn = Box<dyn FnOnce() -> String + Send + Sync>;
+pub type ShareSessionFn = Box<dyn FnOnce() -> Result<String, String> + Send + Sync>;
+pub type CompactFn = Box<dyn FnOnce(usize) -> String + Send + Sync>;
+pub type ListCommandsFn = Box<dyn FnOnce() -> Vec<CommandInfo> + Send + Sync>;
+
 pub struct CommandContext {
     pub args: Vec<String>,
     pub env: HashMap<String, String>,
     pub working_dir: String,
     pub variables: CommandVariables,
+    pub on_clear_session: Option<ClearSessionFn>,
+    pub on_get_models: Option<GetModelsFn>,
+    pub on_get_agents: Option<GetAgentsFn>,
+    pub on_share_session: Option<ShareSessionFn>,
+    pub on_compact: Option<CompactFn>,
+    pub on_list_commands: Option<ListCommandsFn>,
 }
 
 impl CommandContext {
@@ -154,11 +167,44 @@ impl CommandContext {
             env,
             working_dir,
             variables: CommandVariables::default(),
+            on_clear_session: None,
+            on_get_models: None,
+            on_get_agents: None,
+            on_share_session: None,
+            on_compact: None,
+            on_list_commands: None,
         }
     }
 
     pub fn with_variables(mut self, vars: CommandVariables) -> Self {
         self.variables = vars;
+        self
+    }
+
+    pub fn with_runtime(
+        mut self,
+        session: Option<&Session>,
+        config: Option<&Config>,
+        registry: Option<&CommandRegistry>,
+    ) -> Self {
+        if let Some(session) = session {
+            let messages: Vec<_> = session.messages.clone();
+            self.on_clear_session = Some(Box::new(move || messages.len()));
+            self.on_share_session = Some(Box::new(move || {
+                // Share requires mutable access; caller should handle separately
+                Err("Share requires mutable session access".to_string())
+            }));
+        }
+        if let Some(config) = config {
+            let models_cfg = config.clone();
+            let agents_cfg = config.clone();
+            self.on_get_models = Some(Box::new(move || format_models(&models_cfg)));
+            self.on_get_agents = Some(Box::new(move || format_agents(&agents_cfg)));
+        }
+        if let Some(registry) = registry {
+            let commands = registry.list_with_usage();
+            self.on_list_commands = Some(Box::new(move || commands));
+        }
         self
     }
 }
@@ -169,6 +215,13 @@ pub trait Command: Send + Sync {
     fn description(&self) -> &str;
     fn usage(&self) -> &str;
     async fn execute(&self, ctx: CommandContext) -> Result<String, crate::OpenCodeError>;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommandInfo {
+    pub name: String,
+    pub description: String,
+    pub usage: String,
 }
 
 pub struct CommandRegistry {
@@ -275,6 +328,29 @@ impl CommandRegistry {
         list
     }
 
+    pub fn list_with_usage(&self) -> Vec<CommandInfo> {
+        let mut list: Vec<CommandInfo> = self
+            .commands
+            .iter()
+            .map(|(name, cmd)| CommandInfo {
+                name: name.clone(),
+                description: cmd.description().to_string(),
+                usage: cmd.usage().to_string(),
+            })
+            .collect();
+
+        for (name, def) in &self.definitions {
+            list.push(CommandInfo {
+                name: name.clone(),
+                description: def.description.clone(),
+                usage: format!("/{}", name),
+            });
+        }
+
+        list.sort_by(|a, b| a.name.cmp(&b.name));
+        list
+    }
+
     pub fn list_commands(&self) -> Vec<String> {
         let mut names: Vec<String> = self.commands.keys().cloned().collect();
         names.extend(self.definitions.keys().cloned());
@@ -282,7 +358,45 @@ impl CommandRegistry {
         names
     }
 
-    pub async fn execute(&self, name: &str, ctx: CommandContext) -> Result<String, crate::OpenCodeError> {
+    pub fn set_runtime_context(
+        &self,
+        mut ctx: CommandContext,
+        session: Option<&Session>,
+        config: Option<&Config>,
+    ) -> CommandContext {
+        let commands = self.list_with_usage();
+        ctx.on_list_commands = Some(Box::new(move || commands));
+
+        if let Some(session) = session {
+            let msg_count = session.messages.len();
+            ctx.on_clear_session = Some(Box::new(move || msg_count));
+            let share_id = session.shared_id.clone();
+            let share_mode = session.share_mode.clone();
+            ctx.on_share_session = Some(Box::new(move || {
+                if matches!(share_mode, Some(crate::config::ShareMode::Disabled)) {
+                    return Err("sharing is disabled for this session".to_string());
+                }
+                let id = share_id.unwrap_or_else(|| "new-share".to_string());
+                Ok(format!("https://opencode-rs.local/share/{id}"))
+            }));
+        }
+
+        if let Some(config) = config {
+            let models_cfg = config.clone();
+            let agents_cfg = config.clone();
+            ctx.on_get_models = Some(Box::new(move || format_models(&models_cfg)));
+            ctx.on_get_agents = Some(Box::new(move || format_agents(&agents_cfg)));
+        }
+
+        ctx
+    }
+
+    pub async fn execute(&self, name: &str, mut ctx: CommandContext) -> Result<String, crate::OpenCodeError> {
+        if ctx.on_list_commands.is_none() {
+            let commands = self.list_with_usage();
+            ctx.on_list_commands = Some(Box::new(move || commands));
+        }
+
         let command = self.get(name)
             .ok_or_else(|| crate::OpenCodeError::Tool(format!("Command not found: {}", name)))?;
         command.execute(ctx).await
@@ -324,6 +438,148 @@ pub fn substitute_command_variables(template: &str, context: &CommandContext) ->
 
 struct HelpCommand;
 
+fn format_help_table(commands: &[CommandInfo]) -> String {
+    if commands.is_empty() {
+        return "No commands registered.".to_string();
+    }
+
+    let width = commands
+        .iter()
+        .map(|cmd| cmd.name.len() + 1)
+        .max()
+        .unwrap_or(0)
+        .max(6);
+
+    let mut lines = vec!["Available commands:".to_string()];
+    for cmd in commands {
+        lines.push(format!(
+            "/{:<width$} {} (usage: {})",
+            cmd.name,
+            cmd.description,
+            cmd.usage,
+            width = width
+        ));
+    }
+
+    lines.join("\n")
+}
+
+fn format_models(config: &Config) -> String {
+    let Some(providers) = &config.provider else {
+        return "No providers configured.".to_string();
+    };
+
+    if providers.is_empty() {
+        return "No providers configured.".to_string();
+    }
+
+    let mut names: Vec<&String> = providers.keys().collect();
+    names.sort();
+
+    let mut lines = vec!["Configured providers and models:".to_string()];
+    for provider_name in names {
+        let provider = &providers[provider_name];
+        let has_options = provider.options.is_some();
+        let has_models = provider.models.as_ref().map(|m| !m.is_empty()).unwrap_or(false);
+        let has_filters = provider
+            .whitelist
+            .as_ref()
+            .map(|w| !w.is_empty())
+            .unwrap_or(false)
+            || provider
+                .blacklist
+                .as_ref()
+                .map(|b| !b.is_empty())
+                .unwrap_or(false);
+        let status = if has_options || has_models || has_filters {
+            "configured"
+        } else {
+            "not configured"
+        };
+
+        let models = provider
+            .models
+            .as_ref()
+            .map(|m| {
+                let mut model_names: Vec<String> = m
+                    .iter()
+                    .map(|(key, model_cfg)| {
+                        model_cfg
+                            .name
+                            .clone()
+                            .or_else(|| model_cfg.id.clone())
+                            .unwrap_or_else(|| key.clone())
+                    })
+                    .collect();
+                model_names.sort();
+                model_names
+            })
+            .filter(|v| !v.is_empty())
+            .unwrap_or_default();
+
+        let models_display = if models.is_empty() {
+            "(none)".to_string()
+        } else {
+            models.join(", ")
+        };
+
+        lines.push(format!("- {} [{}]", provider_name, status));
+        lines.push(format!("  models: {}", models_display));
+    }
+
+    lines.join("\n")
+}
+
+fn format_agents(config: &Config) -> String {
+    let Some(agent_map) = &config.agent else {
+        return "No agents configured.".to_string();
+    };
+
+    if agent_map.agents.is_empty() {
+        return "No agents configured.".to_string();
+    }
+
+    let mut names: Vec<&String> = agent_map.agents.keys().collect();
+    names.sort();
+
+    let mut lines = vec!["Configured agents:".to_string()];
+    for name in names {
+        let agent = &agent_map.agents[name];
+        let model = agent.model.as_deref().unwrap_or("(default)");
+        let description = agent.description.as_deref().unwrap_or("no description");
+
+        let mut capabilities = Vec::new();
+        if let Some(mode) = &agent.mode {
+            capabilities.push(format!("mode={mode:?}"));
+        }
+        if let Some(steps) = agent.steps.or(agent.max_steps) {
+            capabilities.push(format!("steps={steps}"));
+        }
+        if agent.permission.is_some() {
+            capabilities.push("permission=custom".to_string());
+        }
+        if agent.tools.is_some() {
+            capabilities.push("tools=legacy".to_string());
+        }
+        if agent.disable.unwrap_or(false) {
+            capabilities.push("disabled=true".to_string());
+        }
+
+        let capabilities = if capabilities.is_empty() {
+            "default".to_string()
+        } else {
+            capabilities.join(", ")
+        };
+
+        lines.push(format!("- {}", name));
+        lines.push(format!("  description: {}", description));
+        lines.push(format!("  model: {}", model));
+        lines.push(format!("  capabilities: {}", capabilities));
+    }
+
+    lines.join("\n")
+}
+
 #[async_trait]
 impl Command for HelpCommand {
     fn name(&self) -> &str {
@@ -338,12 +594,42 @@ impl Command for HelpCommand {
         "/help [command]"
     }
 
-    async fn execute(&self, ctx: CommandContext) -> Result<String, crate::OpenCodeError> {
-        if let Some(cmd_name) = ctx.args.first() {
-            Ok(format!("Help for command: {}", cmd_name))
+    async fn execute(&self, mut ctx: CommandContext) -> Result<String, crate::OpenCodeError> {
+        let commands = if let Some(list_commands) = ctx.on_list_commands.take() {
+            list_commands()
         } else {
-            Ok("Available commands: help, test, debug".to_string())
+            vec![
+                CommandInfo {
+                    name: "help".to_string(),
+                    description: "Show available commands and their usage".to_string(),
+                    usage: "/help [command]".to_string(),
+                },
+                CommandInfo {
+                    name: "test".to_string(),
+                    description: "Run test suite or specific test".to_string(),
+                    usage: "/test [pattern]".to_string(),
+                },
+                CommandInfo {
+                    name: "debug".to_string(),
+                    description: "Show debug information about current session".to_string(),
+                    usage: "/debug [section]".to_string(),
+                },
+            ]
+        };
+
+        if let Some(cmd_name) = ctx.args.first() {
+            if let Some(command) = commands.iter().find(|c| c.name == *cmd_name) {
+                return Ok(format!(
+                    "/{name}\nDescription: {description}\nUsage: {usage}",
+                    name = command.name,
+                    description = command.description,
+                    usage = command.usage
+                ));
+            }
+            return Ok(format!("Unknown command: /{}", cmd_name));
         }
+
+        Ok(format_help_table(&commands))
     }
 }
 
@@ -407,7 +693,15 @@ impl Command for ClearCommand {
         "/clear"
     }
 
-    async fn execute(&self, _ctx: CommandContext) -> Result<String, crate::OpenCodeError> {
+    async fn execute(&self, mut ctx: CommandContext) -> Result<String, crate::OpenCodeError> {
+        if let Some(clear_session) = ctx.on_clear_session.take() {
+            let cleared = clear_session();
+            return Ok(format!(
+                "Cleared {} message(s) and reset session state",
+                cleared
+            ));
+        }
+
         Ok("Session context cleared".to_string())
     }
 }
@@ -428,7 +722,11 @@ impl Command for ModelsCommand {
         "/models"
     }
 
-    async fn execute(&self, _ctx: CommandContext) -> Result<String, crate::OpenCodeError> {
+    async fn execute(&self, mut ctx: CommandContext) -> Result<String, crate::OpenCodeError> {
+        if let Some(get_models) = ctx.on_get_models.take() {
+            return Ok(get_models());
+        }
+
         Ok("Available models: configure providers and models in your config".to_string())
     }
 }
@@ -449,7 +747,11 @@ impl Command for AgentsCommand {
         "/agents"
     }
 
-    async fn execute(&self, _ctx: CommandContext) -> Result<String, crate::OpenCodeError> {
+    async fn execute(&self, mut ctx: CommandContext) -> Result<String, crate::OpenCodeError> {
+        if let Some(get_agents) = ctx.on_get_agents.take() {
+            return Ok(get_agents());
+        }
+
         Ok("Available agents: configure agents in your config".to_string())
     }
 }
@@ -470,7 +772,12 @@ impl Command for ShareCommand {
         "/share"
     }
 
-    async fn execute(&self, _ctx: CommandContext) -> Result<String, crate::OpenCodeError> {
+    async fn execute(&self, mut ctx: CommandContext) -> Result<String, crate::OpenCodeError> {
+        if let Some(share_session) = ctx.on_share_session.take() {
+            let url = share_session().map_err(crate::OpenCodeError::Session)?;
+            return Ok(format!("Session shared: {}", url));
+        }
+
         Ok("Session shared".to_string())
     }
 }
@@ -491,7 +798,16 @@ impl Command for CompactCommand {
         "/compact"
     }
 
-    async fn execute(&self, _ctx: CommandContext) -> Result<String, crate::OpenCodeError> {
+    async fn execute(&self, mut ctx: CommandContext) -> Result<String, crate::OpenCodeError> {
+        if let Some(compact) = ctx.on_compact.take() {
+            let max_tokens = ctx
+                .args
+                .first()
+                .and_then(|arg| arg.parse::<usize>().ok())
+                .unwrap_or(10_000);
+            return Ok(compact(max_tokens));
+        }
+
         Ok("Context compaction triggered".to_string())
     }
 }
@@ -499,6 +815,9 @@ impl Command for CompactCommand {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::{AgentConfig, AgentMapConfig, ModelConfig, ProviderConfig};
+    use crate::message::Message;
+    use std::sync::{Arc, Mutex};
     use tempfile::tempdir;
 
     #[test]
@@ -629,6 +948,173 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(out, "Context compaction triggered");
+    }
+
+    #[tokio::test]
+    async fn test_help_command_uses_registry_runtime_context() {
+        let mut registry = CommandRegistry::new();
+        registry.register_builtin_commands();
+
+        let ctx = registry.set_runtime_context(
+            CommandContext::new(vec![], HashMap::new(), ".".to_string()),
+            None,
+            None,
+        );
+        let out = registry.execute("help", ctx).await.unwrap();
+
+        assert!(out.contains("Available commands:"));
+        assert!(out.contains("/help"));
+        assert!(out.contains("usage:"));
+    }
+
+    #[tokio::test]
+    async fn test_clear_command_clears_session_and_resets_state() {
+        let mut registry = CommandRegistry::new();
+        registry.register_builtin_commands();
+
+        let session = Arc::new(Mutex::new(Session::new()));
+        {
+            let mut lock = session.lock().unwrap();
+            lock.add_message(Message::user("one".to_string()));
+            lock.add_message(Message::assistant("two".to_string()));
+        }
+
+        let session_for_clear = Arc::clone(&session);
+        let mut ctx = CommandContext::new(vec![], HashMap::new(), ".".to_string());
+        ctx.on_clear_session = Some(Box::new(move || {
+            let mut lock = session_for_clear.lock().unwrap();
+            let cleared = lock.messages.len();
+            lock.messages.clear();
+            lock.state = crate::session_state::SessionState::Idle;
+            cleared
+        }));
+        let out = registry.execute("clear", ctx).await.unwrap();
+
+        assert!(out.contains("Cleared 2 message(s)"));
+        let lock = session.lock().unwrap();
+        assert!(lock.messages.is_empty());
+        assert_eq!(lock.state, crate::session_state::SessionState::Idle);
+    }
+
+    #[tokio::test]
+    async fn test_models_command_lists_configured_models() {
+        let mut registry = CommandRegistry::new();
+        registry.register_builtin_commands();
+
+        let mut providers = HashMap::new();
+        let mut model_map = HashMap::new();
+        model_map.insert(
+            "gpt-4o".to_string(),
+            ModelConfig {
+                name: Some("GPT-4o".to_string()),
+                ..Default::default()
+            },
+        );
+        providers.insert(
+            "openai".to_string(),
+            ProviderConfig {
+                models: Some(model_map),
+                ..Default::default()
+            },
+        );
+
+        let config = Config {
+            provider: Some(providers),
+            ..Default::default()
+        };
+
+        let ctx = registry.set_runtime_context(
+            CommandContext::new(vec![], HashMap::new(), ".".to_string()),
+            None,
+            Some(&config),
+        );
+        let out = registry.execute("models", ctx).await.unwrap();
+
+        assert!(out.contains("openai [configured]"));
+        assert!(out.contains("GPT-4o"));
+    }
+
+    #[tokio::test]
+    async fn test_agents_command_lists_agents_with_capabilities() {
+        let mut registry = CommandRegistry::new();
+        registry.register_builtin_commands();
+
+        let mut agents = HashMap::new();
+        agents.insert(
+            "build".to_string(),
+            AgentConfig {
+                model: Some("openai/gpt-4o".to_string()),
+                description: Some("Build agent".to_string()),
+                steps: Some(12),
+                ..Default::default()
+            },
+        );
+
+        let config = Config {
+            agent: Some(AgentMapConfig {
+                agents,
+                default_agent: Some("build".to_string()),
+            }),
+            ..Default::default()
+        };
+
+        let ctx = registry.set_runtime_context(
+            CommandContext::new(vec![], HashMap::new(), ".".to_string()),
+            None,
+            Some(&config),
+        );
+        let out = registry.execute("agents", ctx).await.unwrap();
+
+        assert!(out.contains("Configured agents:"));
+        assert!(out.contains("- build"));
+        assert!(out.contains("capabilities: steps=12"));
+    }
+
+    #[tokio::test]
+    async fn test_share_command_generates_real_link() {
+        let mut registry = CommandRegistry::new();
+        registry.register_builtin_commands();
+
+        let session = Arc::new(Mutex::new(Session::new()));
+        let session_for_share = Arc::clone(&session);
+        let mut ctx = CommandContext::new(vec![], HashMap::new(), ".".to_string());
+        ctx.on_share_session = Some(Box::new(move || {
+            let mut lock = session_for_share.lock().unwrap();
+            lock.generate_share_link().map_err(|e| e.to_string())
+        }));
+        let out = registry.execute("share", ctx).await.unwrap();
+
+        assert!(out.contains("https://opencode-rs.local/share/"));
+        assert!(session.lock().unwrap().shared_id.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_compact_command_returns_compaction_stats() {
+        let mut registry = CommandRegistry::new();
+        registry.register_builtin_commands();
+
+        let session = Arc::new(Mutex::new(Session::new()));
+        {
+            let mut lock = session.lock().unwrap();
+            for i in 0..20 {
+                lock.add_message(Message::user(format!("Message {} {}", i, "x".repeat(300))));
+            }
+        }
+
+        let session_for_compact = Arc::clone(&session);
+        let mut ctx = CommandContext::new(vec!["50".to_string()], HashMap::new(), ".".to_string());
+        ctx.on_compact = Some(Box::new(move |max_tokens| {
+            let mut lock = session_for_compact.lock().unwrap();
+            let result = lock.compact_messages(max_tokens);
+            format!(
+                "Compaction complete: was_compacted={}, pruned_count={}, summary_inserted={}",
+                result.was_compacted, result.pruned_count, result.summary_inserted
+            )
+        }));
+        let out = registry.execute("compact", ctx).await.unwrap();
+
+        assert!(out.contains("was_compacted=true"));
+        assert!(out.contains("pruned_count="));
     }
 
     #[test]

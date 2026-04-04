@@ -28,6 +28,7 @@ jsonschema = "0.28"
 opencode-permission = { path = "../permission" }
 notify = "6"
 globset = "0.4"
+tiktoken-rs.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

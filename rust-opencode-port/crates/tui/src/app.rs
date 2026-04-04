@@ -1,10 +1,13 @@
 use crate::command::{CommandAction, CommandRegistry};
 use crate::components::{
-    FileTree, InputWidget, RightPanel, RightPanelTab, StatusBar, StatusPopoverType, TerminalPanel,
+    FileTree, InputWidget, SkillInfo, SkillsPanel, StatusBar, StatusPopoverType, TerminalPanel,
     TitleBar, TitleBarAction,
 };
 use crate::dialogs::*;
-use crate::input_parser::{InputParser, ParsedInput};
+use crate::input::{InputBox, InputParser, InputProcessor, InputToken};
+use crate::layout::LayoutManager;
+use crate::patch_preview::{PatchDecision, PatchPreview};
+use crate::right_panel::{RightPanel, RightPanelContent, RightPanelRenderData};
 use crate::session::SessionManager;
 use crate::shell_handler::ShellHandler;
 use crate::file_ref_handler::FileRefHandler;
@@ -16,7 +19,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, LeaveAlternateScreen},
 };
 use opencode_auth::CredentialStore;
-use opencode_core::{CostCalculator, TokenCounter};
+use opencode_core::{CostCalculator, SkillResolver, SkillState, TokenCounter};
 use opencode_llm::{
     BrowserAuthModelInfo, OpenAiBrowserAuthService, OpenAiBrowserAuthStore, OpenAiBrowserSession,
     OpenAiProvider, Provider, ProviderConfig,
@@ -237,12 +240,6 @@ impl MessageMeta {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum LayoutMode {
-    TwoColumn,
-    ThreeColumn,
-}
-
-#[derive(Debug, Clone, PartialEq)]
 pub enum AppMode {
     Chat,
     Timeline,
@@ -300,15 +297,16 @@ pub struct App {
     pub release_notes_dialog: ReleaseNotesDialog,
     pub file_tree: Option<FileTree>,
     pub show_file_tree: bool,
-    pub layout_mode: LayoutMode,
-    pub show_right_panel: bool,
-    pub right_panel_tab: RightPanelTab,
+    pub layout_manager: LayoutManager,
     pub right_panel: RightPanel,
+    pub patch_preview: PatchPreview,
     pub title_bar: TitleBar,
     pub show_title_bar: bool,
     pub status_bar: StatusBar,
     pub terminal_panel: TerminalPanel,
     pub show_terminal: bool,
+    pub skills_panel: SkillsPanel,
+    pub show_skills_panel: bool,
     pub leader_key_state: LeaderKeyState,
     pub leader_key_timeout: Option<Instant>,
     pub work_mode: WorkMode,
@@ -325,7 +323,11 @@ pub struct App {
     pub pending_input_tokens: usize,
     pub total_cost_usd: f64,
     pub budget_limit_usd: Option<f64>,
+    skill_resolver: SkillResolver,
     input_parser: InputParser,
+    input_box: InputBox,
+    input_processor: InputProcessor,
+    pending_shell_command: Option<String>,
     shell_handler: ShellHandler,
     #[allow(dead_code)]
     file_ref_handler: FileRefHandler,
@@ -351,14 +353,7 @@ impl App {
         }
 
         let layout_file = config_dir.join("layout.txt");
-        let mut layout_mode = LayoutMode::TwoColumn;
-        let mut show_right_panel = false;
-        if let Ok(content) = std::fs::read_to_string(&layout_file) {
-            if content.trim() == "ThreeColumn" {
-                layout_mode = LayoutMode::ThreeColumn;
-                show_right_panel = true;
-            }
-        }
+        let layout_manager = LayoutManager::load_from_file(&layout_file).unwrap_or_default();
 
         let session_token_id = uuid::Uuid::new_v4().to_string();
         let mut token_counter = TokenCounter::new();
@@ -366,6 +361,25 @@ impl App {
         let budget_limit_usd = std::env::var("OPENCODE_BUDGET_USD")
             .ok()
             .and_then(|v| v.parse::<f64>().ok());
+
+        let skill_resolver = SkillResolver::default();
+        let mut skills_panel = SkillsPanel::new(theme.clone());
+        let skill_infos = skill_resolver
+            .list_skills()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|(skill, state)| SkillInfo {
+                name: skill.name,
+                description: skill.description,
+                enabled: state == SkillState::Enabled,
+            })
+            .collect();
+        skills_panel.set_skills(skill_infos);
+        let command_registry = CommandRegistry::new();
+        let input_box = InputBox::new(
+            std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")),
+            &command_registry,
+        );
 
         Self {
             messages: Vec::new(),
@@ -383,7 +397,7 @@ impl App {
             connect_rx: None,
             mode: AppMode::Chat,
             command_palette_input: String::new(),
-            command_registry: CommandRegistry::new(),
+            command_registry,
             slash_command_dialog: SlashCommandOverlay::new(theme.clone()),
             diff_review_dialog: None,
             session_manager: SessionManager::with_file(config_dir.join("sessions.txt")),
@@ -404,15 +418,16 @@ impl App {
             release_notes_dialog: ReleaseNotesDialog::new(theme.clone()),
             file_tree: None,
             show_file_tree: false,
-            layout_mode,
-            show_right_panel,
-            right_panel_tab: RightPanelTab::Diagnostics,
             right_panel: RightPanel::new(theme.clone()),
+            layout_manager,
+            patch_preview: PatchPreview::new(),
             title_bar: TitleBar::new(theme.clone()),
             show_title_bar: true,
             status_bar: StatusBar::new(theme.clone()),
             terminal_panel: TerminalPanel::new(theme),
             show_terminal: false,
+            skills_panel,
+            show_skills_panel: false,
             leader_key_state: LeaderKeyState::Idle,
             leader_key_timeout: None,
             work_mode: WorkMode::Build,
@@ -429,7 +444,11 @@ impl App {
             pending_input_tokens: 0,
             total_cost_usd: 0.0,
             budget_limit_usd,
+            skill_resolver,
             input_parser: InputParser::new(),
+            input_box,
+            input_processor: InputProcessor::new(),
+            pending_shell_command: None,
             shell_handler: ShellHandler::new(),
             file_ref_handler: FileRefHandler::new(),
         }
@@ -554,8 +573,10 @@ impl App {
         store.save(&session).map_err(|e| e.to_string())?;
 
         self.provider = "openai".to_string();
-        std::env::set_var("OPENAI_MODEL", &model_id);
-        std::env::set_var("OPENCODE_MODEL", &model_id);
+        unsafe {
+            std::env::set_var("OPENAI_MODEL", &model_id);
+            std::env::set_var("OPENCODE_MODEL", &model_id);
+        }
         self.llm_provider = Some(std::sync::Arc::new(OpenAiProvider::new_browser_auth(
             session,
             model_id,
@@ -1111,7 +1132,8 @@ impl App {
             }
             "/help" => {
                 self.add_message(
-                    "Commands: /plan, /build, /clear, /timeline, /fork, /meta, /help".to_string(),
+                    "Commands: /plan, /build, /clear, /timeline, /fork, /meta, /skills, /help"
+                        .to_string(),
                     false,
                 );
             }
@@ -1136,6 +1158,10 @@ impl App {
             }
             "/files" => {
                 self.toggle_file_tree();
+            }
+            "/skills" => {
+                self.show_skills_panel = !self.show_skills_panel;
+                self.refresh_skills_panel_from_resolver();
             }
             "/release-notes" => {
                 self.mode = AppMode::ReleaseNotes;
@@ -1262,6 +1288,10 @@ impl App {
                 CommandAction::ToggleFiles => {
                     self.toggle_file_tree();
                 }
+                CommandAction::OpenSkills => {
+                    self.show_skills_panel = !self.show_skills_panel;
+                    self.refresh_skills_panel_from_resolver();
+                }
                 CommandAction::OpenReleaseNotes => {
                     self.mode = AppMode::ReleaseNotes;
                 }
@@ -1385,6 +1415,22 @@ impl App {
                     return self.handle_leader_action(key);
                 }
 
+                if self.show_skills_panel {
+                    if matches!(key.code, KeyCode::Esc)
+                        || (matches!(key.code, KeyCode::Char('s'))
+                            && key.modifiers.contains(KeyModifiers::CONTROL))
+                    {
+                        self.show_skills_panel = false;
+                        self.sync_resolver_from_skills_panel();
+                        return Ok(());
+                    }
+
+                    if self.skills_panel.handle_key(key) {
+                        self.sync_resolver_from_skills_panel();
+                        return Ok(());
+                    }
+                }
+
                 match key.code {
                     KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         if self.is_llm_generating {
@@ -1423,31 +1469,30 @@ impl App {
                         self.title_bar.toggle_dropdown();
                     }
                     KeyCode::Char('l') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        self.layout_mode = match self.layout_mode {
-                            LayoutMode::TwoColumn => LayoutMode::ThreeColumn,
-                            LayoutMode::ThreeColumn => LayoutMode::TwoColumn,
-                        };
-                        self.show_right_panel = self.layout_mode == LayoutMode::ThreeColumn;
-                        let content = match self.layout_mode {
-                            LayoutMode::TwoColumn => "TwoColumn",
-                            LayoutMode::ThreeColumn => "ThreeColumn",
-                        };
-                        let _ = std::fs::write(&self.layout_file, content);
+                        self.layout_manager.cycle_next();
+                        let _ = self.layout_manager.save_to_file(&self.layout_file);
+                        self.add_message(
+                            format!("Layout preset: {:?}", self.layout_manager.get_layout()),
+                            false,
+                        );
                     }
                     KeyCode::Char('1') if key.modifiers.contains(KeyModifiers::ALT) => {
-                        if self.show_right_panel {
-                            self.right_panel_tab = RightPanelTab::Diagnostics;
-                        }
+                        self.right_panel.set_content(RightPanelContent::Diagnostics);
                     }
                     KeyCode::Char('2') if key.modifiers.contains(KeyModifiers::ALT) => {
-                        if self.show_right_panel {
-                            self.right_panel_tab = RightPanelTab::Todo;
-                        }
+                        self.right_panel.set_content(RightPanelContent::Tokens);
                     }
                     KeyCode::Char('3') if key.modifiers.contains(KeyModifiers::ALT) => {
-                        if self.show_right_panel {
-                            self.right_panel_tab = RightPanelTab::PermissionQueue;
-                        }
+                        self.right_panel.set_content(RightPanelContent::Files);
+                    }
+                    KeyCode::Char('4') if key.modifiers.contains(KeyModifiers::ALT) => {
+                        self.right_panel.set_content(RightPanelContent::Tools);
+                    }
+                    KeyCode::Char('0') if key.modifiers.contains(KeyModifiers::ALT) => {
+                        self.right_panel.set_content(RightPanelContent::None);
+                    }
+                    KeyCode::Char(']') if key.modifiers.contains(KeyModifiers::ALT) => {
+                        self.right_panel.toggle_collapse();
                     }
                     KeyCode::Char('1') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         self.status_bar
@@ -1462,14 +1507,51 @@ impl App {
                     KeyCode::Char('`') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         self.show_terminal = !self.show_terminal;
                     }
+                    KeyCode::Char('s') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        self.show_skills_panel = !self.show_skills_panel;
+                        self.refresh_skills_panel_from_resolver();
+                    }
                     KeyCode::Enter => {
                         let input = self.input.clone();
                         if !input.is_empty() {
+                            if input.trim() == "/confirm-shell" {
+                                if let Some(cmd) = self.pending_shell_command.take() {
+                                    match self.input_processor.process_shell_confirmed(&cmd) {
+                                        Ok(output) => self.add_message(output, false),
+                                        Err(error) => {
+                                            self.add_message(format!("Shell execution failed: {error}"), false)
+                                        }
+                                    }
+                                } else {
+                                    self.add_message("No pending shell command".to_string(), false);
+                                }
+                                self.input.clear();
+                                self.input_widget.clear();
+                                self.input_box.set_input(String::new());
+                                return Ok(());
+                            }
+
                             self.pending_input_tokens = (input.chars().count() / 4).max(1);
                             self.history.push(input.clone());
                             self.history_index = self.history.len();
 
-                            let parsed_inputs = self.input_parser.parse(&input);
+                            let parsed_input = self.input_parser.parse(&input);
+
+                            if let Some(InputToken::SlashCommand { name, args }) =
+                                parsed_input.tokens.first()
+                            {
+                                match self
+                                    .input_processor
+                                    .process_command(&self.command_registry, name, args)
+                                {
+                                    Ok(_) => self.execute_slash_command(name),
+                                    Err(error) => self.add_message(error.to_string(), false),
+                                }
+                                self.input.clear();
+                                self.input_widget.clear();
+                                self.input_box.set_input(String::new());
+                                return Ok(());
+                            }
 
                             if self.work_mode == WorkMode::Plan {
                                 self.add_message(
@@ -1478,54 +1560,40 @@ impl App {
                                 );
                             }
 
-                            if let Some(ParsedInput::ShellCommand { cmd }) = parsed_inputs
+                            if let Some(InputToken::ShellCommand(cmd)) = parsed_input
+                                .tokens
                                 .iter()
-                                .find(|item| matches!(item, ParsedInput::ShellCommand { .. }))
+                                .find(|item| matches!(item, InputToken::ShellCommand(_)))
                             {
-                                let result = self.shell_handler.execute(&cmd);
-                                let mut output = format!("$ {}\n", cmd);
-                                if !result.stdout.is_empty() {
-                                    output.push_str(&result.stdout);
+                                self.pending_shell_command = Some(cmd.clone());
+                                match self.input_processor.process_shell(cmd) {
+                                    Ok(preview) => self.add_message(preview, false),
+                                    Err(error) => self.add_message(error.to_string(), false),
                                 }
-                                if !result.stderr.is_empty() {
-                                    output.push_str(&format!("\n[stderr]: {}", result.stderr));
-                                }
-                                if let Some(code) = result.exit_code {
-                                    output.push_str(&format!("\n[exit code: {}]", code));
-                                }
-                                if result.truncated {
-                                    output.push_str("\n[output truncated]");
-                                }
-                                self.add_message(output, false);
                             }
 
-                            let chips = self.input_widget.get_chips();
-                            if !chips.is_empty() {
+                            let parsed_files = parsed_input
+                                .tokens
+                                .iter()
+                                .filter_map(|token| match token {
+                                    InputToken::FileRef(path) => Some(path.clone()),
+                                    _ => None,
+                                })
+                                .collect::<Vec<_>>();
+
+                            if !parsed_files.is_empty() {
                                 let mut context_content = input.clone();
                                 context_content.push_str("\n\n--- Attached File Context ---\n");
 
-                                for (_display, value) in &chips {
-                                    context_content.push_str(&format!("\nFile: @{}\n", value));
-                                    match std::fs::read_to_string(value) {
-                                        Ok(content) => {
-                                            let max_size = 5000;
-                                            let truncated = if content.len() > max_size {
-                                                format!(
-                                                    "{}...[truncated {} bytes]",
-                                                    &content[..max_size],
-                                                    content.len() - max_size
-                                                )
-                                            } else {
-                                                content
-                                            };
-                                            context_content.push_str(&truncated);
-                                        }
-                                        Err(e) => {
-                                            context_content
-                                                .push_str(&format!("[Error reading file: {}]", e));
-                                        }
+                                match self.input_processor.process_files(&parsed_files) {
+                                    Ok(content) => {
+                                        context_content.push_str(&content);
                                     }
-                                    context_content.push('\n');
+                                    Err(error) => {
+                                        context_content.push_str(&format!(
+                                            "[Error reading file context: {error}]"
+                                        ));
+                                    }
                                 }
                                 self.add_message(context_content, true);
                             } else {
@@ -1534,6 +1602,7 @@ impl App {
 
                              self.input.clear();
                              self.input_widget.clear();
+                             self.input_box.set_input(String::new());
 
                              // Call LLM in background task if provider is initialized
                              if let Some(ref provider) = self.llm_provider {
@@ -1543,7 +1612,20 @@ impl App {
                                  let (tx, rx) = mpsc::channel();
                                  self.llm_rx = Some(rx);
                                  let provider_clone = provider.clone();
-                                 let llm_input = input.clone();
+                                  let auto_enabled = self.skill_resolver.match_and_enable(&input);
+                                  for skill in auto_enabled {
+                                      self.skills_panel.set_enabled(&skill.name, true);
+                                  }
+                                  let skill_prompt = self.skill_resolver.build_skill_prompt();
+                                  let llm_input = if skill_prompt.is_empty() {
+                                      input.clone()
+                                  } else {
+                                      format!(
+                                          "[Enabled Skills]\n{}\n\n[User Request]\n{}",
+                                          skill_prompt,
+                                          input
+                                      )
+                                  };
                                   
                                   std::thread::spawn(move || {
                                       let rt = tokio::runtime::Runtime::new().unwrap();
@@ -1571,8 +1653,9 @@ impl App {
                              }
                          }
                      }
-                     KeyCode::Char(c) => {
+                    KeyCode::Char(c) => {
                         self.input.push(c);
+                        self.input_box.set_input(self.input.clone());
                         if c == '/' && self.input.len() == 1 {
                             self.mode = AppMode::SlashCommand;
                             self.command_palette_input.clear();
@@ -1587,15 +1670,19 @@ impl App {
                     }
                     KeyCode::Backspace => {
                         self.input.pop();
+                        self.input_box.set_input(self.input.clone());
                     }
                     KeyCode::Tab => {
-                        self.work_mode = self.work_mode.toggle();
+                        if !self.input_box.autocomplete_into_input(&mut self.input) {
+                            self.work_mode = self.work_mode.toggle();
+                        }
                     }
                     KeyCode::Up => {
                         if self.input.is_empty() {
                             if !self.history.is_empty() && self.history_index > 0 {
                                 self.history_index -= 1;
                                 self.input = self.history[self.history_index].clone();
+                                self.input_box.set_input(self.input.clone());
                             }
                         }
                     }
@@ -1608,6 +1695,7 @@ impl App {
                                 } else {
                                     String::new()
                                 };
+                                self.input_box.set_input(self.input.clone());
                             }
                         }
                     }
@@ -1647,6 +1735,7 @@ impl App {
                     Ok(content) => {
                         if !content.is_empty() {
                             self.input_widget.clear();
+                            self.input.clear();
                             let lines: Vec<&str> = content.lines().collect();
                             for line in lines {
                                 self.input.push_str(line);
@@ -1656,6 +1745,7 @@ impl App {
                             self.input_widget
                                 .elements
                                 .push(crate::components::InputElement::Text(self.input.clone()));
+                            self.input_box.set_input(self.input.clone());
                         }
                         self.add_message("External editor: Content inserted".to_string(), false);
                     }
@@ -1719,6 +1809,18 @@ impl App {
             }
             AppMode::DiffReview => {
                 self.draw_chat(f);
+                let patch = self
+                    .tool_calls
+                    .last()
+                    .map(|t| t.output.clone())
+                    .unwrap_or_else(|| "--- a/file\n+++ b/file\n@@ -1 +1 @@\n-old\n+new".to_string());
+                let preview_area = Rect::new(
+                    f.area().x + 2,
+                    f.area().y + 2,
+                    f.area().width.saturating_sub(4),
+                    f.area().height.saturating_sub(8),
+                );
+                self.patch_preview.draw(f, &patch, preview_area);
                 if let Some(ref dialog) = self.diff_review_dialog {
                     dialog.draw(f, f.area());
                 }
@@ -1791,6 +1893,66 @@ impl App {
         if self.show_file_tree && self.file_tree.is_none() {
             let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
             self.file_tree = Some(FileTree::new(cwd));
+        }
+    }
+
+    fn right_panel_data(&self) -> RightPanelRenderData {
+        let diagnostics = self
+            .messages
+            .iter()
+            .filter(|m| {
+                let c = m.content.to_ascii_lowercase();
+                c.contains("error") || c.contains("warning") || c.contains("diagnostic")
+            })
+            .map(|m| m.content.clone())
+            .take(8)
+            .collect::<Vec<_>>();
+
+        let files = self
+            .dropped_files
+            .iter()
+            .map(|p| p.display().to_string())
+            .collect::<Vec<_>>();
+
+        let tools = self
+            .command_registry
+            .all()
+            .iter()
+            .map(|c| c.name.clone())
+            .collect::<Vec<_>>();
+
+        RightPanelRenderData {
+            diagnostics,
+            total_tokens: self.token_counter.get_total_tokens(),
+            total_cost_usd: self.total_cost_usd,
+            files,
+            tools,
+        }
+    }
+
+    fn refresh_skills_panel_from_resolver(&mut self) {
+        let skill_infos = self
+            .skill_resolver
+            .list_skills()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|(skill, state)| SkillInfo {
+                name: skill.name,
+                description: skill.description,
+                enabled: state == SkillState::Enabled,
+            })
+            .collect();
+        self.skills_panel.set_skills(skill_infos);
+    }
+
+    fn sync_resolver_from_skills_panel(&mut self) {
+        for skill in &self.skills_panel.skills {
+            let state = if skill.enabled {
+                SkillState::Enabled
+            } else {
+                SkillState::Disabled
+            };
+            let _ = self.skill_resolver.set_skill_state(&skill.name, state);
         }
     }
 
@@ -1960,8 +2122,12 @@ impl App {
             (None, area)
         };
 
+        let proportions = self.layout_manager.get_proportions();
+
         let main_area = if self.show_file_tree {
-            let file_tree_width = (main_area.width / 3).max(20).min(40);
+            let file_tree_width = ((main_area.width as u32 * proportions.sidebar_width as u32) / 100)
+                as u16;
+            let file_tree_width = file_tree_width.max(20).min(40);
             let file_tree_area = Rect::new(
                 main_area.x,
                 main_area.y,
@@ -1981,15 +2147,22 @@ impl App {
             main_area
         };
 
-        let main_area = if self.show_right_panel {
-            let right_panel_width = 30.min(main_area.width / 3);
+        let show_right_panel = proportions.show_right_panel
+            && !self.right_panel.collapsed
+            && self.right_panel.content != RightPanelContent::None;
+
+        let main_area = if show_right_panel {
+            let right_panel_width = ((main_area.width as u32 * proportions.right_panel_width as u32)
+                / 100) as u16;
+            let right_panel_width = right_panel_width.max(24).min(40).min(main_area.width / 2);
             let right_panel_area = Rect::new(
                 main_area.x + main_area.width - right_panel_width,
                 main_area.y,
                 right_panel_width,
                 main_area.height.saturating_sub(1),
             );
-            self.right_panel.draw(f, right_panel_area, &self.right_panel_tab);
+            self.right_panel
+                .draw(f, right_panel_area, &self.right_panel_data());
             Rect::new(
                 main_area.x,
                 main_area.y,
@@ -2001,12 +2174,8 @@ impl App {
         };
 
         let content = self.input.clone();
-        if self.input_widget.get_content() != content {
-            self.input_widget.clear();
-            self.input_widget
-                .elements
-                .push(crate::components::InputElement::Text(content));
-            self.input_widget.cursor_pos = self.input.len();
+        if self.input_box.input() != content {
+            self.input_box.set_input(content);
         }
 
         let theme = self.theme();
@@ -2169,7 +2338,7 @@ impl App {
             f.render_widget(Paragraph::new(tool_lines).block(tool_block), tool_area);
         }
 
-        self.input_widget.draw(f, input_area, "Input");
+        self.input_box.draw(f, input_area, "Input");
 
         let status = if self.is_leader_key_active() {
             Line::from(Span::styled(
@@ -2191,7 +2360,7 @@ impl App {
                 ),
                 Span::styled(
                     format!(
-                        " {} | {} | ^X:Leader ^P:Cmds ^T:Timeline ^C:Quit",
+                        " {} | {} | ^X:Leader ^P:Cmds ^T:Timeline ^S:Skills ^C:Quit",
                         self.provider, self.agent
                     ),
                     Style::default().fg(theme.muted_color()),
@@ -2201,6 +2370,16 @@ impl App {
         f.render_widget(Paragraph::new(status), status_area);
 
         self.status_bar.draw(f, status_indicator_area);
+
+        if self.show_skills_panel {
+            let panel_width = (main_area.width.saturating_mul(3) / 4).max(40);
+            let panel_height = (main_area.height.saturating_mul(3) / 4).max(10);
+            let panel_x = main_area.x + (main_area.width.saturating_sub(panel_width)) / 2;
+            let panel_y = main_area.y + (main_area.height.saturating_sub(panel_height)) / 2;
+            let panel_area = Rect::new(panel_x, panel_y, panel_width, panel_height);
+            f.render_widget(Clear, panel_area);
+            self.skills_panel.draw(f, panel_area);
+        }
     }
 
     fn draw_timeline(&mut self, f: &mut Frame) {
@@ -2352,6 +2531,10 @@ impl App {
                 Style::default().fg(theme.muted_color()),
             )),
             Line::from(Span::styled(
+                "/skills    Toggle skills panel",
+                Style::default().fg(theme.muted_color()),
+            )),
+            Line::from(Span::styled(
                 "/help      Show help",
                 Style::default().fg(theme.muted_color()),
             )),
@@ -2499,6 +2682,17 @@ impl App {
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
+                self.patch_preview.handle_key(key);
+                match self.patch_preview.decision() {
+                    PatchDecision::Accepted => {
+                        self.add_message("Patch accepted".to_string(), false);
+                    }
+                    PatchDecision::Rejected => {
+                        self.add_message("Patch rejected".to_string(), false);
+                    }
+                    PatchDecision::Pending => {}
+                }
+
                 if let Some(ref mut dialog) = self.diff_review_dialog {
                     let action = dialog.handle_input(key);
                     match action {
@@ -2563,9 +2757,15 @@ impl App {
                         let theme = self.theme_manager.current().clone();
                         self.input_widget.insert_chip(
                             file_name.to_string(),
-                            path,
+                            path.clone(),
                             theme.primary_color(),
                         );
+                        if !self.input.is_empty() {
+                            self.input.push(' ');
+                        }
+                        self.input.push('@');
+                        self.input.push_str(&path);
+                        self.input_box.set_input(self.input.clone());
                         self.mode = AppMode::Chat;
                     }
                     _ => {}
@@ -2679,7 +2879,9 @@ mod tests {
     #[test]
     fn selecting_model_rebinds_provider_and_returns_to_chat() {
         let dir = tempfile::tempdir().unwrap();
-        std::env::set_var("OPENCODE_DATA_DIR", dir.path());
+        unsafe {
+            std::env::set_var("OPENCODE_DATA_DIR", dir.path());
+        }
 
         let mut app = App::new();
         app.prime_connect_state_for_test();
@@ -2689,7 +2891,9 @@ mod tests {
         assert_eq!(app.provider, "openai");
         assert!(app.llm_provider.is_some());
 
-        std::env::remove_var("OPENCODE_DATA_DIR");
+        unsafe {
+            std::env::remove_var("OPENCODE_DATA_DIR");
+        }
     }
 
     #[test]
@@ -2700,5 +2904,25 @@ mod tests {
         app.handle_connect_model_cancel();
         assert_eq!(app.provider, original_provider);
         assert_eq!(app.mode, AppMode::Chat);
+    }
+
+    #[test]
+    fn skills_command_toggles_skills_panel() {
+        let mut app = App::new();
+        assert!(!app.show_skills_panel);
+        app.execute_slash_command("skills");
+        assert!(app.show_skills_panel);
+    }
+
+    #[test]
+    fn enabling_skill_in_panel_updates_prompt_builder() {
+        let mut app = App::new();
+        app.refresh_skills_panel_from_resolver();
+        let updated = app.skills_panel.set_enabled("debugger", true);
+        assert!(updated);
+
+        app.sync_resolver_from_skills_panel();
+        let prompt = app.skill_resolver.build_skill_prompt();
+        assert!(prompt.contains("debugger"));
     }
 }

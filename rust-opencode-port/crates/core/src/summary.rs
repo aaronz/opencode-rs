@@ -1,5 +1,12 @@
-use crate::Session;
+use crate::{Message, Role, Session};
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
+
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
+pub enum SummaryError {
+    #[error("cannot summarize an empty session")]
+    EmptySession,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionSummary {
@@ -16,6 +23,66 @@ pub struct SessionSummary {
 pub struct SummaryGenerator;
 
 impl SummaryGenerator {
+    pub fn summarize_session(messages: &[Message]) -> Result<String, SummaryError> {
+        if messages.is_empty() {
+            return Err(SummaryError::EmptySession);
+        }
+
+        let prompt = Self::build_session_summary_prompt(messages);
+        let user_count = messages
+            .iter()
+            .filter(|m| matches!(m.role, Role::User))
+            .count();
+        let assistant_count = messages
+            .iter()
+            .filter(|m| matches!(m.role, Role::Assistant))
+            .count();
+
+        let latest_user_request = messages
+            .iter()
+            .rev()
+            .find(|m| matches!(m.role, Role::User))
+            .map(|m| m.content.trim())
+            .unwrap_or("(none)");
+
+        let latest_assistant_response = messages
+            .iter()
+            .rev()
+            .find(|m| matches!(m.role, Role::Assistant))
+            .map(|m| m.content.trim())
+            .unwrap_or("(none)");
+
+        Ok(format!(
+            "Session summary\n- Exchanges: {} messages (user: {}, assistant: {})\n- Latest user request: {}\n- Latest assistant response: {}\n\nPrompt basis:\n{}",
+            messages.len(),
+            user_count,
+            assistant_count,
+            latest_user_request,
+            latest_assistant_response,
+            prompt
+        ))
+    }
+
+    pub fn build_session_summary_prompt(messages: &[Message]) -> String {
+        let transcript = messages
+            .iter()
+            .map(|m| {
+                let role = match m.role {
+                    Role::System => "system",
+                    Role::User => "user",
+                    Role::Assistant => "assistant",
+                };
+                format!("- {}: {}", role, m.content.trim())
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        format!(
+            "You are an assistant that writes concise technical summaries. Summarize key goals, decisions, and open items from this session transcript:\n{}",
+            transcript
+        )
+    }
+
     pub fn generate(session: &Session) -> SessionSummary {
         let mut user_messages = 0;
         let mut assistant_messages = 0;
@@ -69,6 +136,37 @@ impl SummaryGenerator {
 mod tests {
     use super::*;
     use crate::Message;
+
+    #[test]
+    fn summarize_session_rejects_empty_messages() {
+        let result = SummaryGenerator::summarize_session(&[]);
+        assert!(matches!(result, Err(SummaryError::EmptySession)));
+    }
+
+    #[test]
+    fn summarize_session_contains_user_and_assistant_content() {
+        let messages = vec![
+            Message::user("Need a Rust API summary endpoint"),
+            Message::assistant("I will add POST /sessions/{id}/summarize"),
+        ];
+        let summary = SummaryGenerator::summarize_session(&messages).unwrap();
+        assert!(summary.contains("Latest user request"));
+        assert!(summary.contains("summary endpoint"));
+        assert!(summary.contains("POST /sessions/{id}/summarize"));
+    }
+
+    #[test]
+    fn summary_prompt_includes_roles() {
+        let messages = vec![
+            Message::system("system setup"),
+            Message::user("hello"),
+            Message::assistant("hi"),
+        ];
+        let prompt = SummaryGenerator::build_session_summary_prompt(&messages);
+        assert!(prompt.contains("- system: system setup"));
+        assert!(prompt.contains("- user: hello"));
+        assert!(prompt.contains("- assistant: hi"));
+    }
 
     #[test]
     fn test_summary_generator_empty_session() {

@@ -19,6 +19,8 @@ chrono.workspace = true
 uuid = "1"
 ansi-to-tui = "8.0"
 dirs = "5"
+ignore = "0.4"
+fuzzy-matcher = "0.3"
 
 [dev-dependencies]
 tempfile.workspace = true

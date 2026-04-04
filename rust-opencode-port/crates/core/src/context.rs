@@ -1,10 +1,12 @@
 use crate::compaction::{CompactionConfig, Compactor, TokenBudget};
 use crate::message::{Message, Role};
+use crate::token_counter::TokenCounter;
 use crate::tool::ToolRegistry;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 
 const PRESERVE_LAST_MESSAGES: usize = 3;
 
@@ -36,6 +38,7 @@ pub struct Context {
 
 pub struct ContextBuilder {
     token_budget: TokenBudget,
+    token_counter: TokenCounter,
     file_context: Vec<String>,
     tool_context: Vec<String>,
     session_context: Vec<String>,
@@ -46,11 +49,20 @@ impl ContextBuilder {
     pub fn new(token_budget: TokenBudget) -> Self {
         Self {
             token_budget,
+            token_counter: TokenCounter::new(),
             file_context: Vec::new(),
             tool_context: Vec::new(),
             session_context: Vec::new(),
             prompt_messages: Vec::new(),
         }
+    }
+
+    pub fn with_model_name(mut self, model_name: Option<&str>) -> Self {
+        if let Some(model) = model_name.map(str::trim).filter(|name| !name.is_empty()) {
+            self.token_budget = TokenBudget::from_model(model);
+            self.token_counter = TokenCounter::for_model(model);
+        }
+        self
     }
 
     pub fn collect_file_context(
@@ -130,24 +142,31 @@ impl ContextBuilder {
     }
 
     fn total_tokens(&self) -> usize {
-        let file_tokens: usize = self.file_context.iter().map(|s| estimate_tokens(s)).sum();
-        let tool_tokens: usize = self.tool_context.iter().map(|s| estimate_tokens(s)).sum();
+        let file_tokens: usize = self
+            .file_context
+            .iter()
+            .map(|s| self.token_counter.count_tokens(s))
+            .sum();
+        let tool_tokens: usize = self
+            .tool_context
+            .iter()
+            .map(|s| self.token_counter.count_tokens(s))
+            .sum();
         let session_tokens: usize = self
             .session_context
             .iter()
-            .map(|s| estimate_tokens(s))
+            .map(|s| self.token_counter.count_tokens(s))
             .sum();
-        let prompt_tokens: usize = self
-            .prompt_messages
-            .iter()
-            .map(|m| estimate_tokens(&m.content))
-            .sum();
+        let prompt_tokens = self.token_counter.count_messages(&self.prompt_messages);
         file_tokens + tool_tokens + session_tokens + prompt_tokens
     }
 }
 
 pub fn estimate_tokens(text: &str) -> usize {
-    (text.chars().count() + 3) / 4
+    static DEFAULT_COUNTER: OnceLock<TokenCounter> = OnceLock::new();
+    DEFAULT_COUNTER
+        .get_or_init(|| TokenCounter::for_model("gpt-4o"))
+        .count_tokens(text)
 }
 
 pub fn trim_to_budget(messages: &mut Vec<Message>, budget: &ContextBudget) {
@@ -235,6 +254,7 @@ mod tests {
         ];
 
         let context = ContextBuilder::new(TokenBudget::default())
+            .with_model_name(Some("gpt-4o"))
             .collect_file_context(&[PathBuf::from("Cargo.toml")], &messages)
             .collect_tool_context(&registry)
             .collect_session_context(&messages)
@@ -247,5 +267,20 @@ mod tests {
         assert!(!context.tool_context.is_empty());
         assert_eq!(context.prompt_messages.len(), 2);
         assert!(context.budget.max_tokens > 0);
+    }
+
+    #[test]
+    fn test_context_builder_model_specific_budget() {
+        let messages = vec![Message::user("Hello")];
+
+        let context = ContextBuilder::new(TokenBudget::default())
+            .with_model_name(Some("gpt-4"))
+            .collect_session_context(&messages)
+            .build();
+
+        assert_eq!(
+            context.budget.max_tokens,
+            TokenBudget::from_model("gpt-4").main_context_tokens()
+        );
     }
 }

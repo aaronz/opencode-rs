@@ -1,7 +1,11 @@
-use libloading::{Library, Symbol};
-use serde::Deserialize;
+pub mod discovery;
+pub mod loader;
+pub mod registry;
+
+use discovery::PluginDiscovery;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
-use std::fs;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, thiserror::Error)]
@@ -16,10 +20,49 @@ pub enum PluginError {
     MetadataParse(#[from] serde_json::Error),
     #[error("plugin load error: {0}")]
     Load(String),
-    #[error("plugin init failed ({0}): {1}")]
-    Init(String, String),
+    #[error("plugin startup failed ({0}): {1}")]
+    Startup(String, String),
     #[error("plugin shutdown failed ({0}): {1}")]
     Shutdown(String, String),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub enum PluginCapability {
+    ListenEvents,
+    RewritePrompt,
+    InjectShellEnv,
+    AddTools,
+    AddContextSources,
+    InterceptSensitiveRead,
+    SendNotification,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PluginPermissions {
+    pub capabilities: Vec<PluginCapability>,
+    pub allowed_events: Vec<String>,
+    pub filesystem_scope: Option<String>,
+    pub network_allowed: bool,
+}
+
+impl Default for PluginPermissions {
+    fn default() -> Self {
+        Self {
+            capabilities: Vec::new(),
+            allowed_events: Vec::new(),
+            filesystem_scope: None,
+            network_allowed: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PluginConfig {
+    pub name: String,
+    pub version: String,
+    pub enabled: bool,
+    pub options: HashMap<String, Value>,
+    pub permissions: PluginPermissions,
 }
 
 pub trait Plugin: Send + Sync {
@@ -30,18 +73,11 @@ pub trait Plugin: Send + Sync {
     fn description(&self) -> &str;
 }
 
-#[derive(Debug, Deserialize)]
-struct PluginMetadata {
-    name: String,
-    version: String,
-    description: String,
-    #[serde(default)]
-    library_path: Option<PathBuf>,
-}
-
 pub struct PluginManager {
     plugins: HashMap<String, Box<dyn Plugin>>,
-    libraries: Vec<Library>,
+    configs: HashMap<String, PluginConfig>,
+    plugin_paths: HashMap<String, PathBuf>,
+    loader: loader::PluginLoader,
     discovered_metadata: Vec<PathBuf>,
 }
 
@@ -49,92 +85,146 @@ impl PluginManager {
     pub fn new() -> Self {
         Self {
             plugins: HashMap::new(),
-            libraries: Vec::new(),
+            configs: HashMap::new(),
+            plugin_paths: HashMap::new(),
+            loader: loader::PluginLoader::new(),
             discovered_metadata: Vec::new(),
         }
     }
 
     pub fn register(&mut self, plugin: Box<dyn Plugin>) -> Result<(), PluginError> {
-        let key = plugin.name().to_string();
-        if self.plugins.contains_key(&key) {
-            return Err(PluginError::DuplicatePlugin(key));
-        }
-        self.plugins.insert(key, plugin);
-        Ok(())
+        let config = PluginConfig {
+            name: plugin.name().to_string(),
+            version: plugin.version().to_string(),
+            enabled: true,
+            options: HashMap::new(),
+            permissions: PluginPermissions::default(),
+        };
+
+        self.register_with_config(plugin, config)
     }
 
     pub fn discover_default_dirs(&mut self) -> Result<(), PluginError> {
-        let mut paths = Vec::new();
-        if let Some(home) = std::env::var_os("HOME") {
-            paths.push(PathBuf::from(home).join(".config/opencode/plugins"));
-        }
-        paths.push(PathBuf::from(".opencode/plugins"));
-        self.discover_from_dirs(&paths)
+        self.discover_and_load(None).map(|_| ())
     }
 
     pub fn discover_from_dirs(&mut self, paths: &[PathBuf]) -> Result<(), PluginError> {
-        for path in paths {
-            for metadata_path in find_metadata_files(path)? {
-                self.discovered_metadata.push(metadata_path.clone());
-                let metadata = read_metadata(&metadata_path)?;
-                let _ = (&metadata.name, &metadata.version, &metadata.description);
-                if let Some(lib_path) = metadata.library_path {
-                    let absolute = if lib_path.is_absolute() {
-                        lib_path
-                    } else {
-                        metadata_path
-                            .parent()
-                            .map(|p| p.join(lib_path))
-                            .unwrap_or_default()
-                    };
-
-                    let plugin = unsafe { self.load_plugin_library(&absolute)? };
-                    self.register(plugin)?;
-                }
+        let discovery = match paths {
+            [] => PluginDiscovery::with_dirs(None, None),
+            [single] => PluginDiscovery::with_dirs(None, Some(single.clone())),
+            [global, project, ..] => {
+                PluginDiscovery::with_dirs(Some(global.clone()), Some(project.clone()))
             }
+        };
+
+        self.load_discovered(discovery.discover()?)?;
+        Ok(())
+    }
+
+    pub fn discover_and_load(
+        &mut self,
+        project_path: Option<&Path>,
+    ) -> Result<Vec<String>, PluginError> {
+        let discovery = PluginDiscovery::new(project_path);
+        self.load_discovered(discovery.discover()?)
+    }
+
+    pub fn startup(&mut self) -> Result<(), PluginError> {
+        let mut failed = Vec::new();
+
+        for (name, plugin) in self.plugins.iter_mut() {
+            if let Err(error) = plugin.init() {
+                tracing::warn!(plugin = name, error = %error, "Plugin startup failed");
+                failed.push(name.clone());
+            }
+        }
+
+        if !failed.is_empty() {
+            tracing::warn!(plugins = ?failed, "Some plugins failed startup");
+        }
+
+        Ok(())
+    }
+
+    pub fn shutdown(&mut self) -> Result<(), PluginError> {
+        let mut failures = Vec::new();
+
+        for (name, plugin) in self.plugins.iter_mut() {
+            if let Err(error) = plugin.shutdown() {
+                tracing::warn!(plugin = name, error = %error, "Plugin shutdown failed");
+                failures.push((name.clone(), error.to_string()));
+            }
+        }
+
+        self.plugins.clear();
+        self.configs.clear();
+        self.plugin_paths.clear();
+
+        if let Some((name, message)) = failures.into_iter().next() {
+            return Err(PluginError::Shutdown(name, message));
         }
 
         Ok(())
     }
 
     pub fn init_all(&mut self) -> Result<(), PluginError> {
-        for plugin in self.plugins.values_mut() {
-            plugin
-                .init()
-                .map_err(|e| PluginError::Init(plugin.name().to_string(), e.to_string()))?;
-        }
-        Ok(())
+        self.startup()
     }
 
     pub fn shutdown_all(&mut self) -> Result<(), PluginError> {
-        for plugin in self.plugins.values_mut() {
-            plugin
-                .shutdown()
-                .map_err(|e| PluginError::Shutdown(plugin.name().to_string(), e.to_string()))?;
-        }
-        Ok(())
+        self.shutdown()
     }
 
     pub fn get_plugin(&self, name: &str) -> Option<&dyn Plugin> {
         self.plugins.get(name).map(|p| p.as_ref())
     }
 
+    pub fn get_config(&self, name: &str) -> Option<&PluginConfig> {
+        self.configs.get(name)
+    }
+
     pub fn discovered_metadata(&self) -> &[PathBuf] {
         &self.discovered_metadata
     }
 
-    unsafe fn load_plugin_library(&mut self, path: &Path) -> Result<Box<dyn Plugin>, PluginError> {
-        let lib = Library::new(path).map_err(|e| PluginError::Load(e.to_string()))?;
+    fn register_with_config(
+        &mut self,
+        plugin: Box<dyn Plugin>,
+        config: PluginConfig,
+    ) -> Result<(), PluginError> {
+        let key = plugin.name().to_string();
+        if self.plugins.contains_key(&key) {
+            return Err(PluginError::DuplicatePlugin(key));
+        }
 
-        type PluginCreate = unsafe fn() -> *mut dyn Plugin;
-        let constructor: Symbol<PluginCreate> = lib
-            .get(b"_create_plugin")
-            .map_err(|e| PluginError::Load(e.to_string()))?;
+        self.plugins.insert(key.clone(), plugin);
+        self.configs.insert(key, config);
+        Ok(())
+    }
 
-        let plugin_ptr = constructor();
-        let plugin = Box::from_raw(plugin_ptr);
-        self.libraries.push(lib);
-        Ok(plugin)
+    fn load_discovered(
+        &mut self,
+        discovered: Vec<discovery::DiscoveredPlugin>,
+    ) -> Result<Vec<String>, PluginError> {
+        let mut loaded = Vec::new();
+
+        for entry in discovered {
+            self.discovered_metadata.push(entry.metadata_path.clone());
+
+            if !entry.config.enabled {
+                tracing::debug!(plugin = entry.config.name, "Skipping disabled plugin");
+                continue;
+            }
+
+            let plugin_name = entry.config.name.clone();
+            let plugin = unsafe { self.loader.load_plugin(&entry.library_path)? };
+            self.register_with_config(plugin, entry.config)?;
+            self.plugin_paths
+                .insert(plugin_name.clone(), entry.library_path);
+            loaded.push(plugin_name);
+        }
+
+        Ok(loaded)
     }
 }
 
@@ -144,41 +234,15 @@ impl Default for PluginManager {
     }
 }
 
-fn read_metadata(path: &Path) -> Result<PluginMetadata, PluginError> {
-    let content = fs::read_to_string(path)?;
-    let metadata = serde_json::from_str::<PluginMetadata>(&content)?;
-    Ok(metadata)
-}
-
-fn find_metadata_files(root: &Path) -> Result<Vec<PathBuf>, PluginError> {
-    if !root.exists() {
-        return Ok(Vec::new());
-    }
-
-    let mut stack = vec![root.to_path_buf()];
-    let mut files = Vec::new();
-
-    while let Some(dir) = stack.pop() {
-        for entry in fs::read_dir(&dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.is_dir() {
-                stack.push(path);
-                continue;
-            }
-
-            if path
-                .file_name()
-                .and_then(|name| name.to_str())
-                .map(|name| name.ends_with(".plugin.json"))
-                .unwrap_or(false)
-            {
-                files.push(path);
-            }
-        }
-    }
-
-    Ok(files)
+pub fn initialize_plugins(project_path: Option<&Path>) -> Result<PluginManager, PluginError> {
+    let mut manager = PluginManager::new();
+    let loaded = manager.discover_and_load(project_path)?;
+    tracing::info!(
+        loaded_plugins = loaded.len(),
+        "Plugins discovered and loaded"
+    );
+    manager.startup()?;
+    Ok(manager)
 }
 
 #[cfg(test)]
@@ -187,7 +251,9 @@ mod tests {
 
     struct TestPlugin {
         initialized: bool,
-        shutdown: bool,
+        shutdown_called: bool,
+        fail_init: bool,
+        fail_shutdown: bool,
     }
 
     impl Plugin for TestPlugin {
@@ -201,11 +267,17 @@ mod tests {
 
         fn init(&mut self) -> Result<(), PluginError> {
             self.initialized = true;
+            if self.fail_init {
+                return Err(PluginError::Load("init failed".to_string()));
+            }
             Ok(())
         }
 
         fn shutdown(&mut self) -> Result<(), PluginError> {
-            self.shutdown = true;
+            self.shutdown_called = true;
+            if self.fail_shutdown {
+                return Err(PluginError::Load("shutdown failed".to_string()));
+            }
             Ok(())
         }
 
@@ -220,7 +292,9 @@ mod tests {
         manager
             .register(Box::new(TestPlugin {
                 initialized: false,
-                shutdown: false,
+                shutdown_called: false,
+                fail_init: false,
+                fail_shutdown: false,
             }))
             .unwrap();
 
@@ -228,39 +302,51 @@ mod tests {
     }
 
     #[test]
-    fn test_init_and_shutdown_lifecycle() {
+    fn startup_non_fatal_when_plugin_init_fails() {
         let mut manager = PluginManager::new();
         manager
             .register(Box::new(TestPlugin {
                 initialized: false,
-                shutdown: false,
+                shutdown_called: false,
+                fail_init: true,
+                fail_shutdown: false,
             }))
             .unwrap();
 
-        manager.init_all().unwrap();
-        manager.shutdown_all().unwrap();
+        assert!(manager.startup().is_ok());
     }
 
     #[test]
-    fn test_discover_metadata_files() {
-        let temp = tempfile::tempdir().unwrap();
-        let plugin_dir = temp.path().join("plugins");
-        fs::create_dir_all(&plugin_dir).unwrap();
-
-        let metadata = plugin_dir.join("demo.plugin.json");
-        fs::write(
-            &metadata,
-            r#"{"name":"demo","version":"1.0.0","description":"demo plugin"}"#,
-        )
-        .unwrap();
-
-        let files = find_metadata_files(&plugin_dir).unwrap();
-        assert_eq!(files.len(), 1);
-
+    fn shutdown_clears_plugins() {
         let mut manager = PluginManager::new();
         manager
-            .discover_from_dirs(&[plugin_dir])
-            .expect("metadata discovery should succeed without loading libraries");
-        assert_eq!(manager.discovered_metadata().len(), 1);
+            .register(Box::new(TestPlugin {
+                initialized: false,
+                shutdown_called: false,
+                fail_init: false,
+                fail_shutdown: false,
+            }))
+            .unwrap();
+
+        manager.shutdown().unwrap();
+        assert!(manager.get_plugin("test-plugin").is_none());
+    }
+
+    #[test]
+    fn shutdown_reports_failures() {
+        let mut manager = PluginManager::new();
+        manager
+            .register(Box::new(TestPlugin {
+                initialized: false,
+                shutdown_called: false,
+                fail_init: false,
+                fail_shutdown: true,
+            }))
+            .unwrap();
+
+        assert!(matches!(
+            manager.shutdown(),
+            Err(PluginError::Shutdown(_, _))
+        ));
     }
 }

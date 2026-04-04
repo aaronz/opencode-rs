@@ -1,6 +1,5 @@
+use crate::{Plugin, PluginError};
 use libloading::{Library, Symbol};
-use opencode_core::plugin::Plugin;
-use opencode_core::OpenCodeError;
 use std::path::Path;
 
 pub struct PluginLoader {
@@ -17,14 +16,14 @@ impl PluginLoader {
     pub unsafe fn load_plugin<P: AsRef<Path>>(
         &mut self,
         path: P,
-    ) -> Result<Box<dyn Plugin>, OpenCodeError> {
+    ) -> Result<Box<dyn Plugin>, PluginError> {
         let lib = Library::new(path.as_ref())
-            .map_err(|e| OpenCodeError::Tool(format!("Failed to load library: {}", e)))?;
+            .map_err(|e| PluginError::Load(format!("Failed to load library: {}", e)))?;
 
         type PluginCreate = unsafe fn() -> *mut dyn Plugin;
         let constructor: Symbol<PluginCreate> = lib
             .get(b"_create_plugin")
-            .map_err(|e| OpenCodeError::Tool(format!("Failed to get plugin constructor: {}", e)))?;
+            .map_err(|e| PluginError::Load(format!("Failed to get plugin constructor: {}", e)))?;
 
         let plugin_ptr = constructor();
         let plugin = Box::from_raw(plugin_ptr);
