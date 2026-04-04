@@ -63,7 +63,7 @@ impl InputProcessor {
                 continue;
             }
 
-            let mut content = String::new();
+            let content;
             let mut warning = None;
             if metadata.len() > MAX_FILE_SIZE {
                 let mut handle = std::fs::File::open(file)?;

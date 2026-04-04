@@ -24,8 +24,9 @@
 > - Phase 2: 3 tasks — 已实现 (Session Fork, OAuth PKCE, GitHub API)
 > - Phase 3: 6 tasks — 已实现 (HuggingFace/AI21, mDNS, Compaction, Watcher, Config, TUI 增强)
 >
-> **测试**: 56/60 pass (4 个 pre-existing e2e 失败，与 Phase 0-3 无关)
+> **测试**: 60/60 pass (全部通过，零失败)
 > **编译**: `cargo check --workspace` clean
+> **最新提交**: `83ad310` — 所有 iteration-2/3 剩余差距已关闭
 
 > **Iteration-3 完成项** (12 tasks, 已交付):
 > TASK-0.1 (FR-033), TASK-0.2 (FR-034), TASK-1.1 (FR-039), TASK-1.2 (FR-035),

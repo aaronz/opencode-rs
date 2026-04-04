@@ -328,6 +328,7 @@ pub struct App {
     input_box: InputBox,
     input_processor: InputProcessor,
     pending_shell_command: Option<String>,
+    #[allow(dead_code)]
     shell_handler: ShellHandler,
     #[allow(dead_code)]
     file_ref_handler: FileRefHandler,
