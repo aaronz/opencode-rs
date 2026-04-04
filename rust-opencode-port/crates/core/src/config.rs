@@ -1946,8 +1946,15 @@ impl Config {
 
     /// Save configuration to a file path
     pub fn save(&self, path: &PathBuf) -> Result<(), crate::OpenCodeError> {
-        let content = toml::to_string_pretty(self)
-            .map_err(|e| crate::OpenCodeError::Config(e.to_string()))?;
+        let content = if path.extension().and_then(|s| s.to_str()) == Some("json")
+            || path.extension().and_then(|s| s.to_str()) == Some("jsonc")
+        {
+            serde_json::to_string_pretty(self)
+                .map_err(|e| crate::OpenCodeError::Config(e.to_string()))?
+        } else {
+            toml::to_string_pretty(self)
+                .map_err(|e| crate::OpenCodeError::Config(e.to_string()))?
+        };
 
         // Ensure parent directory exists
         if let Some(parent) = path.parent() {
