@@ -108,34 +108,11 @@ impl InputBox {
         frame.render_widget(block, area);
 
         let parsed = self.parser.parse(&self.value);
-        let mut spans = Vec::new();
-        for token in parsed.tokens {
-            match token {
-                InputToken::Text(text) => {
-                    spans.push(Span::raw(text));
-                }
-                InputToken::FileRef(path) => {
-                    spans.push(Span::styled(
-                        format!("@{}", path.display()),
-                        Style::default().fg(Color::Blue),
-                    ));
-                }
-                InputToken::ShellCommand(cmd) => {
-                    spans.push(Span::styled(
-                        format!("!{}", cmd),
-                        Style::default().fg(Color::Yellow),
-                    ));
-                }
-                InputToken::SlashCommand { name, args } => {
-                    let content = if args.is_empty() {
-                        format!("/{name}")
-                    } else {
-                        format!("/{name} {args}")
-                    };
-                    spans.push(Span::styled(content, Style::default().fg(Color::Green)));
-                }
-            }
-        }
+        let spans = parsed
+            .tokens
+            .iter()
+            .map(Self::token_span)
+            .collect::<Vec<_>>();
 
         frame.render_widget(Paragraph::new(Line::from(spans)), inner);
 
@@ -208,6 +185,27 @@ impl InputBox {
             }
         }
     }
+
+    fn token_span(token: &InputToken) -> Span<'static> {
+        match token {
+            InputToken::Text(text) => Span::raw(text.clone()),
+            InputToken::FileRef(path) => Span::styled(
+                format!("@{}", path.display()),
+                Style::default().fg(Color::Blue),
+            ),
+            InputToken::ShellCommand(cmd) => {
+                Span::styled(format!("!{cmd}"), Style::default().fg(Color::Yellow))
+            }
+            InputToken::SlashCommand { name, args } => {
+                let content = if args.is_empty() {
+                    format!("/{name}")
+                } else {
+                    format!("/{name} {args}")
+                };
+                Span::styled(content, Style::default().fg(Color::Green))
+            }
+        }
+    }
 }
 
 fn current_file_fragment(input: &str) -> Option<String> {
@@ -220,4 +218,27 @@ fn current_file_fragment(input: &str) -> Option<String> {
 
 fn path_display(path: PathBuf) -> String {
     path.to_string_lossy().replace('\\', "/")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn styles_special_tokens_with_expected_colors() {
+        let file = InputBox::token_span(&InputToken::FileRef(PathBuf::from("src/main.rs")));
+        assert_eq!(file.content, "@src/main.rs");
+        assert_eq!(file.style.fg, Some(Color::Blue));
+
+        let command = InputBox::token_span(&InputToken::SlashCommand {
+            name: "help".to_string(),
+            args: String::new(),
+        });
+        assert_eq!(command.content, "/help");
+        assert_eq!(command.style.fg, Some(Color::Green));
+
+        let shell = InputBox::token_span(&InputToken::ShellCommand("cargo check".to_string()));
+        assert_eq!(shell.content, "!cargo check");
+        assert_eq!(shell.style.fg, Some(Color::Yellow));
+    }
 }

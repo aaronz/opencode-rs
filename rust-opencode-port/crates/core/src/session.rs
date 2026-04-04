@@ -3,7 +3,7 @@ use crate::compaction::{
 };
 use crate::config::{CompactionConfig as RuntimeCompactionConfig, ShareMode};
 use crate::context::{Context, ContextBuilder};
-use crate::message::Message;
+use crate::message::{Message, Role};
 use crate::session_state::{is_valid_transition, SessionState, StateTransitionError};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -225,6 +225,59 @@ impl Session {
         } else {
             None
         }
+    }
+
+    pub fn export_json(&self) -> Result<String, crate::OpenCodeError> {
+        #[derive(serde::Serialize)]
+        struct MessageExport {
+            role: String,
+            content: String,
+        }
+        #[derive(serde::Serialize)]
+        struct SessionExport<'a> {
+            id: &'a str,
+            messages: Vec<MessageExport>,
+            total_messages: usize,
+            exported_at: String,
+        }
+
+        let messages = self
+            .messages
+            .iter()
+            .map(|m| MessageExport {
+                role: format!("{:?}", m.role),
+                content: sanitize_content(&m.content),
+            })
+            .collect();
+
+        let export = SessionExport {
+            id: &self.id.to_string(),
+            messages,
+            total_messages: self.messages.len(),
+            exported_at: Utc::now().to_rfc3339(),
+        };
+
+        serde_json::to_string_pretty(&export)
+            .map_err(|e| crate::OpenCodeError::Config(e.to_string()))
+    }
+
+    pub fn export_markdown(&self) -> Result<String, crate::OpenCodeError> {
+        let mut md = format!("# Session {}\n\n", self.id);
+
+        for msg in &self.messages {
+            let role_label = match msg.role {
+                Role::System => "**System**",
+                Role::User => "**User**",
+                Role::Assistant => "**Assistant**",
+            };
+            md.push_str(&format!(
+                "### {}\n\n{}\n\n",
+                role_label,
+                sanitize_content(&msg.content)
+            ));
+        }
+
+        Ok(md)
     }
 
     pub fn set_share_expiry(&mut self, expiry: Option<DateTime<Utc>>) {
@@ -520,6 +573,48 @@ impl Session {
             .collect_session_context(&self.messages)
             .build()
     }
+}
+
+fn sanitize_content(content: &str) -> String {
+    let mut result = content.to_string();
+
+    // Strip common API key patterns
+    let patterns = [
+        (r"sk-[a-zA-Z0-9]{20,}", "[REDACTED_API_KEY]"),
+        (r"ghp_[a-zA-Z0-9]{36}", "[REDACTED_GITHUB_TOKEN]"),
+        (r"xoxb-[a-zA-Z0-9-]+", "[REDACTED_SLACK_TOKEN]"),
+        (r"gho_[a-zA-Z0-9]{36}", "[REDACTED_GITHUB_OAUTH]"),
+        (
+            r"eyJ[a-zA-Z0-9_-]+\.eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+",
+            "[REDACTED_JWT]",
+        ),
+    ];
+
+    for (pattern, replacement) in &patterns {
+        if let Ok(re) = regex::Regex::new(pattern) {
+            result = re.replace_all(&result, *replacement).to_string();
+        }
+    }
+
+    // Strip lines that look like credential assignments
+    result
+        .lines()
+        .map(|line| {
+            let lower = line.to_lowercase();
+            if (lower.contains("api_key")
+                || lower.contains("secret")
+                || lower.contains("password")
+                || lower.contains("token"))
+                && (lower.contains("=") || lower.contains(":"))
+                && !lower.contains("http")
+            {
+                String::from("[REDACTED_CREDENTIAL]")
+            } else {
+                line.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 #[cfg(test)]

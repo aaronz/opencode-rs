@@ -20,10 +20,8 @@ pub fn deep_merge(base: &Value, override_val: &Value) -> Value {
 }
 
 pub fn merge_configs(base: &Config, override_val: &Config) -> Config {
-    // Intentionally merge through serde_json::Value to preserve existing deep-merge
-    // semantics across nested/flattened config structures without maintaining a
-    // brittle field-by-field merger. Optimize to struct-level merging only when
-    // we have exhaustive parity tests for all config fields.
+    // Direct serde_json::Value merge — no struct-level round-trip needed.
+    // deep_merge handles nested objects recursively; arrays are replaced.
     let base_json = serde_json::to_value(base).unwrap_or(Value::Object(Map::new()));
     let override_json = serde_json::to_value(override_val).unwrap_or(Value::Object(Map::new()));
 

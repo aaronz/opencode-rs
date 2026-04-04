@@ -259,10 +259,47 @@ pub enum AutoUpdate {
     Notify(String),
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Serialize, Default)]
 pub struct AgentMapConfig {
+    #[serde(default)]
     pub agents: HashMap<String, AgentConfig>,
+    #[serde(alias = "defaultAgent", skip_serializing_if = "Option::is_none")]
     pub default_agent: Option<String>,
+}
+
+impl<'de> Deserialize<'de> for AgentMapConfig {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct NewFormat {
+            #[serde(default)]
+            agents: HashMap<String, AgentConfig>,
+            #[serde(alias = "defaultAgent", default)]
+            default_agent: Option<String>,
+        }
+
+        let value = serde_json::Value::deserialize(deserializer)?;
+        if let Some(obj) = value.as_object() {
+            if obj.contains_key("agents") {
+                let nf: NewFormat = serde_json::from_value(value).map_err(serde::de::Error::custom)?;
+                Ok(AgentMapConfig {
+                    agents: nf.agents,
+                    default_agent: nf.default_agent,
+                })
+            } else {
+                let agents: HashMap<String, AgentConfig> =
+                    serde_json::from_value(value).map_err(serde::de::Error::custom)?;
+                Ok(AgentMapConfig {
+                    agents,
+                    default_agent: None,
+                })
+            }
+        } else {
+            Err(serde::de::Error::custom("expected object for AgentMapConfig"))
+        }
+    }
 }
 
 impl AgentMapConfig {
@@ -274,69 +311,6 @@ impl AgentMapConfig {
         self.default_agent
             .as_deref()
             .and_then(|name| self.get_agent(name))
-    }
-}
-
-impl<'de> Deserialize<'de> for AgentMapConfig {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value = serde_json::Value::deserialize(deserializer)?;
-        let obj = value
-            .as_object()
-            .ok_or_else(|| serde::de::Error::custom("agent config must be an object"))?;
-
-        let mut agents: HashMap<String, AgentConfig> = HashMap::new();
-        let mut default_agent = None;
-
-        if let Some(raw_default) = obj.get("default_agent").or_else(|| obj.get("defaultAgent")) {
-            default_agent = Some(
-                serde_json::from_value::<String>(raw_default.clone())
-                    .map_err(serde::de::Error::custom)?,
-            );
-        }
-
-        for (key, raw_value) in obj {
-            if key == "agents" || key == "default_agent" || key == "defaultAgent" {
-                continue;
-            }
-
-            let agent = serde_json::from_value::<AgentConfig>(raw_value.clone())
-                .map_err(serde::de::Error::custom)?;
-            agents.insert(key.clone(), agent);
-        }
-
-        if let Some(raw_agents) = obj.get("agents") {
-            let parsed_agents: HashMap<String, AgentConfig> =
-                serde_json::from_value(raw_agents.clone()).map_err(serde::de::Error::custom)?;
-            agents.extend(parsed_agents);
-        }
-
-        Ok(Self {
-            agents,
-            default_agent,
-        })
-    }
-}
-
-impl Serialize for AgentMapConfig {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        #[derive(Serialize)]
-        struct AgentMapConfigOut<'a> {
-            agents: &'a HashMap<String, AgentConfig>,
-            #[serde(skip_serializing_if = "Option::is_none")]
-            default_agent: &'a Option<String>,
-        }
-
-        AgentMapConfigOut {
-            agents: &self.agents,
-            default_agent: &self.default_agent,
-        }
-        .serialize(serializer)
     }
 }
 
@@ -849,9 +823,15 @@ impl KeybindConfig {
                 .extend(custom.clone());
         }
 
+        let conflicts = merged.detect_conflicts();
+
+        (merged, conflicts)
+    }
+
+    pub fn detect_conflicts(&self) -> Vec<String> {
         let mut conflicts = Vec::new();
         let mut reverse: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
-        for (action, binding) in Self::bindings_with_labels(&merged) {
+        for (action, binding) in Self::bindings_with_labels(self) {
             reverse.entry(binding).or_default().push(action);
         }
         for (binding, mut actions) in reverse {
@@ -866,8 +846,7 @@ impl KeybindConfig {
                 }
             }
         }
-
-        (merged, conflicts)
+        conflicts
     }
 
     fn bindings_with_labels(config: &KeybindConfig) -> Vec<(String, String)> {
@@ -925,6 +904,8 @@ impl ThemeConfig {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TuiConfig {
+    #[serde(rename = "$schema", alias = "$schema", skip_serializing_if = "Option::is_none")]
+    pub schema: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scroll_speed: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -940,6 +921,7 @@ pub struct TuiConfig {
 impl Default for TuiConfig {
     fn default() -> Self {
         Self {
+            schema: None,
             scroll_speed: None,
             scroll_acceleration: None,
             diff_style: None,
@@ -1068,6 +1050,13 @@ impl Config {
 
         Self::log_schema_validation(&config);
 
+        #[allow(deprecated)]
+        if config.mode.is_some() || config.layout.is_some() {
+            tracing::warn!(
+                "The 'mode' and 'layout' fields are deprecated. Please migrate to the new TUI configuration in tui.json. See https://opencode.ai/docs/migration for details."
+            );
+        }
+
         config.apply_env_overrides();
         Ok(config)
     }
@@ -1084,8 +1073,23 @@ impl Config {
         serde_json::from_str(&stripped).map_err(|e| crate::OpenCodeError::Config(e.to_string()))
     }
 
-    /// Substitute {env:VAR} and {file:path} patterns in config content
+    /// Substitute {env:VAR} and {file:path} patterns in config content.
+    /// Runs up to 3 passes to resolve nested variables like {file:{env:DIR}/file.txt}.
     pub fn substitute_variables(input: &str, config_dir: Option<&Path>) -> String {
+        let mut result = input.to_string();
+
+        for _ in 0..3 {
+            let before = result.clone();
+            result = Self::substitute_variables_single_pass(&result, config_dir);
+            if result == before {
+                break;
+            }
+        }
+
+        result
+    }
+
+    fn substitute_variables_single_pass(input: &str, config_dir: Option<&Path>) -> String {
         let mut result = input.to_string();
 
         // Pattern: {env:VARIABLE_NAME}
@@ -2414,6 +2418,35 @@ mod tests {
     }
 
     #[test]
+    fn test_scroll_acceleration_deserialize_new_format_enabled_speed() {
+        let config: ScrollAccelerationConfig =
+            serde_json::from_str(r#"{"enabled":true,"speed":1.5}"#).unwrap();
+        assert!(config.enabled);
+        assert_eq!(config.speed, Some(1.5));
+    }
+
+    #[test]
+    fn test_scroll_acceleration_deserialize_old_format_bare_float() {
+        let config: ScrollAccelerationConfig = serde_json::from_str("1.0").unwrap();
+        assert!(config.enabled);
+        assert_eq!(config.speed, Some(1.0));
+    }
+
+    #[test]
+    fn test_scroll_acceleration_default_enabled_true() {
+        let config = ScrollAccelerationConfig::default();
+        assert!(config.enabled);
+    }
+
+    #[test]
+    fn test_scroll_acceleration_deserialize_disabled_zero_speed() {
+        let config: ScrollAccelerationConfig =
+            serde_json::from_str(r#"{"enabled":false,"speed":0.0}"#).unwrap();
+        assert!(!config.enabled);
+        assert_eq!(config.speed, Some(0.0));
+    }
+
+    #[test]
     fn test_agent_map_deserialize_old_format() {
         let agent_map: AgentMapConfig = serde_json::from_str(
             r#"{
@@ -2804,6 +2837,81 @@ mod tests {
             conflicts
                 .iter()
                 .any(|c| c.contains("ctrl+k used by both 'commands' and 'custom 'my_action''"))
+        );
+    }
+
+    #[test]
+    fn test_keybind_merge_with_defaults_overrides_default_keybind() {
+        let defaults = KeybindConfig {
+            commands: Some("ctrl+k".to_string()),
+            timeline: Some("ctrl+t".to_string()),
+            ..Default::default()
+        };
+        let overrides = KeybindConfig {
+            commands: Some("ctrl+o".to_string()),
+            ..Default::default()
+        };
+
+        let (merged, conflicts) = overrides.merge_with_defaults(&defaults);
+        assert_eq!(merged.commands, Some("ctrl+o".to_string()));
+        assert_eq!(merged.timeline, Some("ctrl+t".to_string()));
+        assert!(conflicts.is_empty());
+    }
+
+    #[test]
+    fn test_keybind_detect_conflicts_returns_conflicts_for_duplicate_bindings() {
+        let keybinds = KeybindConfig {
+            commands: Some("ctrl+k".to_string()),
+            settings: Some("ctrl+k".to_string()),
+            custom: Some(std::collections::HashMap::from([(
+                "my_action".to_string(),
+                "ctrl+k".to_string(),
+            )])),
+            ..Default::default()
+        };
+
+        let conflicts = keybinds.detect_conflicts();
+        assert!(!conflicts.is_empty());
+        assert!(
+            conflicts
+                .iter()
+                .any(|c| c.contains("ctrl+k used by both 'commands' and 'settings'"))
+        );
+    }
+
+    #[test]
+    fn test_keybind_detect_conflicts_returns_empty_when_no_conflicts() {
+        let keybinds = KeybindConfig {
+            commands: Some("ctrl+k".to_string()),
+            settings: Some("ctrl+s".to_string()),
+            timeline: Some("ctrl+t".to_string()),
+            ..Default::default()
+        };
+
+        let conflicts = keybinds.detect_conflicts();
+        assert!(conflicts.is_empty());
+    }
+
+    #[test]
+    fn test_keybind_config_round_trip_serde() {
+        let original = KeybindConfig {
+            commands: Some("ctrl+k".to_string()),
+            timeline: Some("ctrl+t".to_string()),
+            custom: Some(std::collections::HashMap::from([(
+                "my_action".to_string(),
+                "ctrl+m".to_string(),
+            )])),
+            ..Default::default()
+        };
+
+        let serialized = serde_json::to_string(&original).unwrap();
+        let round_trip: KeybindConfig = serde_json::from_str(&serialized).unwrap();
+
+        assert_eq!(round_trip.commands, Some("ctrl+k".to_string()));
+        assert_eq!(round_trip.timeline, Some("ctrl+t".to_string()));
+        assert_eq!(
+            round_trip.custom.and_then(|m| m.get("my_action").cloned()),
+            Some("ctrl+m".to_string())
         );
     }
 }
