@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
+use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsonRpcRequest {
@@ -101,6 +103,102 @@ pub const INVALID_REQUEST: i32 = -32600;
 pub const METHOD_NOT_FOUND: i32 = -32601;
 pub const INVALID_PARAMS: i32 = -32602;
 pub const INTERNAL_ERROR: i32 = -32603;
+
+pub struct SchemaCache {
+    cache: HashMap<String, CachedToolSchema>,
+    max_age: Duration,
+}
+
+struct CachedToolSchema {
+    tools: Vec<ToolDefinition>,
+    cached_at: Instant,
+}
+
+impl SchemaCache {
+    pub fn new(max_age_hours: u64) -> Self {
+        Self {
+            cache: HashMap::new(),
+            max_age: Duration::from_secs(max_age_hours * 3600),
+        }
+    }
+
+    pub fn get(&self, server_name: &str) -> Option<Vec<ToolDefinition>> {
+        self.cache.get(server_name).and_then(|cached| {
+            if cached.cached_at.elapsed() < self.max_age {
+                Some(cached.tools.clone())
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn set(&mut self, server_name: String, tools: Vec<ToolDefinition>) {
+        self.cache.insert(
+            server_name,
+            CachedToolSchema {
+                tools,
+                cached_at: Instant::now(),
+            },
+        );
+    }
+
+    pub fn invalidate(&mut self, server_name: &str) {
+        self.cache.remove(server_name);
+    }
+
+    pub fn invalidate_all(&mut self) {
+        self.cache.clear();
+    }
+}
+
+impl Default for SchemaCache {
+    fn default() -> Self {
+        Self::new(24)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum McpServerType {
+    Local,
+    Remote,
+}
+
+#[derive(Debug, Clone)]
+pub struct McpServerConfig {
+    pub name: String,
+    pub server_type: McpServerType,
+    pub command: Option<String>,
+    pub args: Vec<String>,
+    pub env: HashMap<String, String>,
+    pub url: Option<String>,
+    pub enabled: bool,
+}
+
+impl McpServerConfig {
+    pub fn local(name: String, command: String, args: Vec<String>) -> Self {
+        Self {
+            name,
+            server_type: McpServerType::Local,
+            command: Some(command),
+            args,
+            env: HashMap::new(),
+            url: None,
+            enabled: true,
+        }
+    }
+
+    pub fn remote(name: String, url: String) -> Self {
+        Self {
+            name,
+            server_type: McpServerType::Remote,
+            command: None,
+            args: Vec::new(),
+            env: HashMap::new(),
+            url: Some(url),
+            enabled: true,
+        }
+    }
+}
 
 impl JsonRpcResponse {
     pub fn success(id: Option<Value>, result: Value) -> Self {

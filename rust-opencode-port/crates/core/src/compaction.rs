@@ -1,12 +1,198 @@
 use crate::message::{Message, Role};
 use serde::{Deserialize, Serialize};
 
+/// Context hierarchy levels per PRD Section 7.6
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum ContextLevel {
+    /// L0: System prompt
+    L0,
+    /// L1: Project context (workspace, git info)
+    L1,
+    /// L2: Recent session history
+    L2,
+    /// L3: Tool definitions and results
+    L3,
+    /// L4: Current prompt context
+    L4,
+}
+
+impl ContextLevel {
+    pub fn priority(&self) -> u8 {
+        match self {
+            ContextLevel::L0 => 100, // System - highest priority
+            ContextLevel::L4 => 90,  // Current prompt - very high
+            ContextLevel::L1 => 80,  // Project context - high
+            ContextLevel::L2 => 50,  // Recent session - medium
+            ContextLevel::L3 => 20,  // Tool results - lower
+        }
+    }
+}
+
+/// Token budget distribution per PRD Section 7.6
+/// - 70% main context
+/// - 20% tool output
+/// - 10% response space
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TokenBudget {
+    /// Total budget in tokens (default 128K)
+    pub total: usize,
+    /// Percentage for main context (default 70%)
+    pub main_context_percent: f64,
+    /// Percentage for tool output (default 20%)
+    pub tool_output_percent: f64,
+    /// Percentage for response space (default 10%)
+    pub response_space_percent: f64,
+    /// Threshold for warning (85%)
+    pub warning_threshold: f64,
+    /// Threshold for auto compact (92%)
+    pub compact_threshold: f64,
+    /// Threshold for session continuation (95%)
+    pub continuation_threshold: f64,
+}
+
+impl Default for TokenBudget {
+    fn default() -> Self {
+        Self {
+            total: 128_000,
+            main_context_percent: 0.70,
+            tool_output_percent: 0.20,
+            response_space_percent: 0.10,
+            warning_threshold: 0.85,
+            compact_threshold: 0.92,
+            continuation_threshold: 0.95,
+        }
+    }
+}
+
+impl TokenBudget {
+    pub fn main_context_tokens(&self) -> usize {
+        (self.total as f64 * self.main_context_percent).ceil() as usize
+    }
+
+    pub fn tool_output_tokens(&self) -> usize {
+        (self.total as f64 * self.tool_output_percent).ceil() as usize
+    }
+
+    pub fn response_space_tokens(&self) -> usize {
+        (self.total as f64 * self.response_space_percent).ceil() as usize
+    }
+
+    pub fn warning_limit(&self) -> usize {
+        (self.total as f64 * self.warning_threshold).ceil() as usize
+    }
+
+    pub fn compact_limit(&self) -> usize {
+        (self.total as f64 * self.compact_threshold).ceil() as usize
+    }
+
+    pub fn continuation_limit(&self) -> usize {
+        (self.total as f64 * self.continuation_threshold).ceil() as usize
+    }
+
+    pub fn usage_level(&self, used: usize) -> CompactionLevel {
+        let ratio = used as f64 / self.total as f64;
+        if ratio >= self.continuation_threshold {
+            CompactionLevel::ForceContinuation
+        } else if ratio >= self.compact_threshold {
+            CompactionLevel::AutoCompact
+        } else if ratio >= self.warning_threshold {
+            CompactionLevel::Warning
+        } else {
+            CompactionLevel::Normal
+        }
+    }
+}
+
+/// Compaction level based on usage
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum CompactionLevel {
+    Normal,
+    Warning,
+    AutoCompact,
+    ForceContinuation,
+}
+
+/// Context ranking score for messages
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContextRanking {
+    /// Message index in conversation
+    pub message_index: usize,
+    /// Recency score (0-1, higher = more recent)
+    pub recency: f64,
+    /// Relevance score (0-1, based on embedding similarity)
+    pub relevance: f64,
+    /// Importance score (0-1, based on tool results, errors, confirmations)
+    pub importance: f64,
+    /// Overall score weighted: recency(0.4) + relevance(0.3) + importance(0.3)
+    pub overall: f64,
+}
+
+impl ContextRanking {
+    pub fn new(message_index: usize, recency: f64, relevance: f64, importance: f64) -> Self {
+        let overall = recency * 0.4 + relevance * 0.3 + importance * 0.3;
+        Self {
+            message_index,
+            recency,
+            relevance,
+            importance,
+            overall,
+        }
+    }
+
+    /// Create ranking with default values (used when no explicit ranking needed)
+    pub fn default_for_index(index: usize, total: usize) -> Self {
+        let recency = if total == 0 {
+            1.0
+        } else {
+            1.0 - (index as f64 / total as f64)
+        };
+        Self::new(index, recency, 0.5, 0.5)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum CompactionTrigger {
+    None,
+    Warning,
+    AutoCompact,
+    ForceContinuation,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompactionStatus {
+    pub used_tokens: usize,
+    pub total_budget: usize,
+    pub usage_ratio: f64,
+    pub trigger: CompactionTrigger,
+    pub needs_attention: bool,
+}
+
+impl CompactionStatus {
+    pub fn check(budget: &TokenBudget, used: usize) -> Self {
+        let usage_ratio = used as f64 / budget.total as f64;
+        let (trigger, needs_attention) = match budget.usage_level(used) {
+            CompactionLevel::Normal => (CompactionTrigger::None, false),
+            CompactionLevel::Warning => (CompactionTrigger::Warning, true),
+            CompactionLevel::AutoCompact => (CompactionTrigger::AutoCompact, true),
+            CompactionLevel::ForceContinuation => (CompactionTrigger::ForceContinuation, true),
+        };
+        Self {
+            used_tokens: used,
+            total_budget: budget.total,
+            usage_ratio,
+            trigger,
+            needs_attention,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompactionConfig {
     pub max_tokens: usize,
     pub preserve_system_messages: bool,
     pub preserve_recent_messages: usize,
     pub summary_prefix: String,
+    pub token_budget: TokenBudget,
 }
 
 impl Default for CompactionConfig {
@@ -16,6 +202,7 @@ impl Default for CompactionConfig {
             preserve_system_messages: true,
             preserve_recent_messages: 10,
             summary_prefix: "[Context compacted]".to_string(),
+            token_budget: TokenBudget::default(),
         }
     }
 }

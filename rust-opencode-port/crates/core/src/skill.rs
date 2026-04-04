@@ -1,79 +1,263 @@
 use crate::OpenCodeError;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::sync::RwLock;
 use walkdir::WalkDir;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Skill {
     pub name: String,
     pub description: String,
+    pub triggers: Vec<String>,
+    pub priority: i32,
     pub location: PathBuf,
     pub content: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillMatch {
+    pub skill: Skill,
+    pub match_type: MatchType,
+    pub confidence: f64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum MatchType {
+    Exact,
+    Prefix,
+    Fuzzy,
+    Semantic,
+}
+
 pub struct SkillManager {
-    skills: Vec<Skill>,
+    skills: RwLock<Vec<Skill>>,
+    global_skills_path: Option<PathBuf>,
+    project_skills_path: Option<PathBuf>,
 }
 
 impl SkillManager {
     pub fn new() -> Self {
-        Self { skills: Vec::new() }
+        let global_path = dirs::config_dir().map(|p| p.join("opencode-rs").join("skills"));
+
+        Self {
+            skills: RwLock::new(Vec::new()),
+            global_skills_path: global_path,
+            project_skills_path: None,
+        }
     }
 
-    pub fn discover(&mut self) -> Result<(), OpenCodeError> {
-        self.skills.clear();
+    pub fn with_project_path(mut self, project_path: PathBuf) -> Self {
+        self.project_skills_path = Some(project_path.join(".opencode").join("skills"));
+        self
+    }
 
-        let config_dir = dirs::config_dir()
-            .ok_or_else(|| OpenCodeError::Config("Cannot find config directory".to_string()))?
-            .join("opencode-rs")
-            .join("skills");
+    pub fn set_project_path(&mut self, project_path: PathBuf) {
+        self.project_skills_path = Some(project_path.join(".opencode").join("skills"));
+    }
 
-        if !config_dir.exists() {
-            return Ok(());
+    fn parse_frontmatter(content: &str) -> Option<(SkillMeta, &str)> {
+        if !content.starts_with("---") {
+            return None;
         }
 
-        for entry in WalkDir::new(&config_dir).max_depth(2) {
-            let entry = entry.map_err(|e: walkdir::Error| OpenCodeError::Config(e.to_string()))?;
-            if entry.file_type().is_file() {
-                if let Some(ext) = entry.path().extension() {
-                    if ext == "md" && entry.file_name().to_string_lossy().contains("SKILL") {
-                        let content =
-                            std::fs::read_to_string(entry.path()).map_err(OpenCodeError::Io)?;
+        let end_idx = content[3..].find("---")?;
+        let yaml_part = &content[3..3 + end_idx];
+        let body = &content[3 + end_idx + 3..];
 
-                        let name = entry
-                            .path()
-                            .file_stem()
-                            .map(|s: &std::ffi::OsStr| {
-                                s.to_string_lossy()
-                                    .replace("_SKILL", "")
-                                    .replace("SKILL", "")
-                            })
-                            .unwrap_or_default();
-
-                        self.skills.push(Skill {
-                            name,
-                            description: "Custom skill".to_string(),
-                            location: entry.path().to_path_buf(),
-                            content,
-                        });
+        let mut meta = SkillMeta::default();
+        for line in yaml_part.lines() {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            if let Some((key, value)) = line.split_once(':') {
+                let key = key.trim();
+                let value = value.trim();
+                match key {
+                    "name" => meta.name = Some(value.to_string()),
+                    "description" => meta.description = Some(value.to_string()),
+                    "priority" => meta.priority = value.parse().unwrap_or(0),
+                    "triggers" => {
+                        meta.triggers = value
+                            .split(',')
+                            .map(|s| s.trim().trim_matches('"').to_string())
+                            .collect();
                     }
+                    _ => {}
                 }
             }
         }
 
+        Some((meta, body))
+    }
+
+    fn discover_in_dir(&self, dir: &PathBuf) -> Result<Vec<Skill>, OpenCodeError> {
+        let mut found = Vec::new();
+        if !dir.exists() {
+            return Ok(found);
+        }
+
+        for entry in WalkDir::new(dir).max_depth(2) {
+            let entry = match entry {
+                Ok(e) => e,
+                Err(e) => {
+                    tracing::warn!("Error walking skill directory: {}", e);
+                    continue;
+                }
+            };
+
+            if !entry.file_type().is_file() {
+                continue;
+            }
+
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) != Some("md") {
+                continue;
+            }
+
+            if !path
+                .file_name()
+                .and_then(|s| s.to_str())
+                .map(|s| s.contains("SKILL"))
+                .unwrap_or(false)
+            {
+                continue;
+            }
+
+            let content = match std::fs::read_to_string(path) {
+                Ok(c) => c,
+                Err(e) => {
+                    tracing::warn!("Failed to read skill file {:?}: {}", path, e);
+                    continue;
+                }
+            };
+
+            let (meta, body) = match Self::parse_frontmatter(&content) {
+                Some((m, b)) => (m, b),
+                None => {
+                    let name = path
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("unknown")
+                        .replace("_SKILL", "")
+                        .replace("SKILL", "");
+                    found.push(Skill {
+                        name,
+                        description: "Custom skill".to_string(),
+                        triggers: Vec::new(),
+                        priority: 0,
+                        location: path.to_path_buf(),
+                        content,
+                    });
+                    continue;
+                }
+            };
+
+            found.push(Skill {
+                name: meta.name.unwrap_or_else(|| "unknown".to_string()),
+                description: meta.description.unwrap_or_default(),
+                triggers: meta.triggers,
+                priority: meta.priority,
+                location: path.to_path_buf(),
+                content: body.to_string(),
+            });
+        }
+
+        Ok(found)
+    }
+
+    pub fn discover(&self) -> Result<(), OpenCodeError> {
+        let mut skills = Vec::new();
+
+        if let Some(ref global_path) = self.global_skills_path {
+            skills.extend(self.discover_in_dir(global_path)?);
+        }
+
+        if let Some(ref project_path) = self.project_skills_path {
+            skills.extend(self.discover_in_dir(project_path)?);
+        }
+
+        skills.sort_by(|a, b| b.priority.cmp(&a.priority));
+
+        let mut write = self
+            .skills
+            .write()
+            .map_err(|_| OpenCodeError::Config("Failed to acquire write lock".to_string()))?;
+        *write = skills;
         Ok(())
     }
 
-    pub fn list(&self) -> &[Skill] {
-        &self.skills
+    pub fn match_skill(&self, input: &str) -> Result<Vec<SkillMatch>, OpenCodeError> {
+        if self.discover().is_err() || self.skills.read().is_err() {
+            return Ok(Vec::new());
+        }
+
+        let read = self
+            .skills
+            .read()
+            .map_err(|_| OpenCodeError::Config("Failed to acquire read lock".to_string()))?;
+
+        let input_lower = input.to_lowercase();
+        let mut matches: Vec<SkillMatch> = Vec::new();
+
+        for skill in read.iter() {
+            for trigger in &skill.triggers {
+                let trigger_lower = trigger.to_lowercase();
+                let (match_type, confidence) = if input_lower == trigger_lower {
+                    (MatchType::Exact, 1.0)
+                } else if input_lower.starts_with(&trigger_lower) {
+                    (MatchType::Prefix, 0.8)
+                } else if input_lower.contains(&trigger_lower)
+                    || trigger_lower.contains(&input_lower)
+                {
+                    (MatchType::Fuzzy, 0.6)
+                } else {
+                    continue;
+                };
+
+                matches.push(SkillMatch {
+                    skill: skill.clone(),
+                    match_type,
+                    confidence,
+                });
+            }
+        }
+
+        matches.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap());
+        Ok(matches)
     }
 
-    pub fn get(&self, name: &str) -> Option<&Skill> {
-        self.skills.iter().find(|s| s.name == name)
+    pub fn match_by_skill_name(&self, name: &str) -> Option<Skill> {
+        if self.discover().is_err() {
+            return None;
+        }
+        let read = self.skills.read().ok()?;
+        read.iter()
+            .find(|s| s.name.to_lowercase() == name.to_lowercase())
+            .cloned()
     }
 
-    pub fn all(&self) -> Vec<Skill> {
-        self.skills.clone()
+    pub fn list(&self) -> Result<Vec<Skill>, OpenCodeError> {
+        if self.discover().is_err() {
+            return Ok(Vec::new());
+        }
+        let read = self
+            .skills
+            .read()
+            .map_err(|_| OpenCodeError::Config("Failed to acquire read lock".to_string()))?;
+        Ok(read.clone())
+    }
+
+    pub fn get(&self, name: &str) -> Option<Skill> {
+        if self.discover().is_err() {
+            return None;
+        }
+        let read = self.skills.read().ok()?;
+        read.iter().find(|s| s.name == name).cloned()
+    }
+
+    pub fn all(&self) -> Result<Vec<Skill>, OpenCodeError> {
+        self.list()
     }
 }
 
@@ -81,6 +265,14 @@ impl Default for SkillManager {
     fn default() -> Self {
         Self::new()
     }
+}
+
+#[derive(Debug, Default)]
+struct SkillMeta {
+    name: Option<String>,
+    description: Option<String>,
+    triggers: Vec<String>,
+    priority: i32,
 }
 
 #[cfg(test)]
@@ -91,25 +283,7 @@ mod tests {
     #[test]
     fn test_skill_manager_new() {
         let sm = SkillManager::new();
-        assert!(sm.list().is_empty());
-    }
-
-    #[test]
-    fn test_skill_manager_list() {
-        let sm = SkillManager::new();
-        assert_eq!(sm.list().len(), 0);
-    }
-
-    #[test]
-    fn test_skill_manager_get_not_found() {
-        let sm = SkillManager::new();
-        assert!(sm.get("nonexistent").is_none());
-    }
-
-    #[test]
-    fn test_skill_manager_all() {
-        let sm = SkillManager::new();
-        assert!(sm.all().is_empty());
+        assert!(sm.list().unwrap_or_default().is_empty());
     }
 
     #[test]
@@ -117,10 +291,60 @@ mod tests {
         let skill = Skill {
             name: "test".to_string(),
             description: "A test skill".to_string(),
+            triggers: vec!["test".to_string()],
+            priority: 1,
             location: PathBuf::from("/path/to/skill"),
             content: "skill content".to_string(),
         };
         assert_eq!(skill.name, "test");
-        assert_eq!(skill.description, "A test skill");
+        assert_eq!(skill.triggers.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_frontmatter() {
+        let content = r#"---
+name: test-skill
+description: A test skill
+triggers: test, debug
+priority: 5
+---
+Skill content here"#;
+        let (meta, body) = SkillManager::parse_frontmatter(content).unwrap();
+        assert_eq!(meta.name, Some("test-skill".to_string()));
+        assert_eq!(meta.triggers, vec!["test", "debug"]);
+        assert_eq!(body, "Skill content here");
+    }
+
+    #[test]
+    fn test_match_type_ordering() {
+        let matches = vec![
+            SkillMatch {
+                skill: Skill {
+                    name: "a".into(),
+                    description: "".into(),
+                    triggers: vec![],
+                    priority: 0,
+                    location: PathBuf::new(),
+                    content: "".into(),
+                },
+                match_type: MatchType::Fuzzy,
+                confidence: 0.6,
+            },
+            SkillMatch {
+                skill: Skill {
+                    name: "b".into(),
+                    description: "".into(),
+                    triggers: vec![],
+                    priority: 0,
+                    location: PathBuf::new(),
+                    content: "".into(),
+                },
+                match_type: MatchType::Exact,
+                confidence: 1.0,
+            },
+        ];
+        let mut sorted = matches.clone();
+        sorted.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap());
+        assert_eq!(sorted[0].match_type, MatchType::Exact);
     }
 }

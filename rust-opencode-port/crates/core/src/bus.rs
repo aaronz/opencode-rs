@@ -85,6 +85,24 @@ pub enum InternalEvent {
         path: String,
         count: usize,
     },
+    ShellEnvChanged {
+        key: String,
+        value: String,
+    },
+    UiToastShow {
+        message: String,
+        level: String,
+    },
+    PermissionAsked {
+        session_id: String,
+        request_id: String,
+        permission: String,
+    },
+    PermissionReplied {
+        session_id: String,
+        request_id: String,
+        granted: bool,
+    },
     PluginLoaded {
         name: String,
     },

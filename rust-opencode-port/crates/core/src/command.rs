@@ -1,11 +1,133 @@
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
+use walkdir::WalkDir;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CommandDefinition {
+    pub name: String,
+    pub description: String,
+    pub agent: Option<String>,
+    pub model: Option<String>,
+    pub template: String,
+}
+
+impl CommandDefinition {
+    pub fn from_markdown(content: &str, file_path: &Path) -> Option<Self> {
+        if !content.starts_with("---") {
+            return None;
+        }
+
+        let end_idx = content[3..].find("---")?;
+        let yaml_part = &content[3..3 + end_idx];
+        let body = &content[3 + end_idx + 3..];
+
+        let mut name = None;
+        let mut description = None;
+        let mut agent = None;
+        let mut model = None;
+
+        for line in yaml_part.lines() {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            if let Some((key, value)) = line.split_once(':') {
+                let key = key.trim();
+                let value = value.trim();
+                match key {
+                    "name" => name = Some(value.to_string()),
+                    "description" => description = Some(value.to_string()),
+                    "agent" => agent = Some(value.to_string()),
+                    "model" => model = Some(value.to_string()),
+                    _ => {}
+                }
+            }
+        }
+
+        let name = name.or_else(|| {
+            file_path.file_stem().and_then(|s: &std::ffi::OsStr| s.to_str()).map(|s| s.trim_start_matches('/').to_string())
+        })?;
+
+        Some(CommandDefinition {
+            name,
+            description: description.unwrap_or_default(),
+            agent,
+            model,
+            template: body.trim().to_string(),
+        })
+    }
+
+    pub fn expand(&self, vars: &CommandVariables) -> String {
+        let mut result = self.template.clone();
+        
+        result = result.replace("${file}", &vars.file);
+        result = result.replace("${selection}", &vars.selection);
+        result = result.replace("${cwd}", &vars.cwd);
+        result = result.replace("${git_branch}", &vars.git_branch);
+        result = result.replace("${input}", &vars.input);
+
+        result = result.replace("${session_id}", &vars.session_id);
+        result = result.replace("${project_path}", &vars.project_path);
+
+        result
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct CommandVariables {
+    pub file: String,
+    pub selection: String,
+    pub cwd: String,
+    pub git_branch: String,
+    pub input: String,
+    pub session_id: String,
+    pub project_path: String,
+}
+
+impl CommandVariables {
+    pub fn new(
+        file: String,
+        selection: String,
+        cwd: String,
+        git_branch: String,
+        input: String,
+    ) -> Self {
+        Self {
+            file,
+            selection,
+            cwd,
+            git_branch,
+            input,
+            session_id: String::new(),
+            project_path: String::new(),
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct CommandContext {
     pub args: Vec<String>,
     pub env: HashMap<String, String>,
     pub working_dir: String,
+    pub variables: CommandVariables,
+}
+
+impl CommandContext {
+    pub fn new(args: Vec<String>, env: HashMap<String, String>, working_dir: String) -> Self {
+        Self {
+            args,
+            env,
+            working_dir,
+            variables: CommandVariables::default(),
+        }
+    }
+
+    pub fn with_variables(mut self, vars: CommandVariables) -> Self {
+        self.variables = vars;
+        self
+    }
 }
 
 #[async_trait]
@@ -18,13 +140,64 @@ pub trait Command: Send + Sync {
 
 pub struct CommandRegistry {
     commands: HashMap<String, Box<dyn Command>>,
+    definitions: HashMap<String, CommandDefinition>,
+    commands_dir: Option<PathBuf>,
 }
 
 impl CommandRegistry {
     pub fn new() -> Self {
         Self {
             commands: HashMap::new(),
+            definitions: HashMap::new(),
+            commands_dir: None,
         }
+    }
+
+    pub fn with_commands_dir(mut self, dir: PathBuf) -> Self {
+        self.commands_dir = Some(dir);
+        self
+    }
+
+    pub fn set_commands_dir(&mut self, dir: PathBuf) {
+        self.commands_dir = Some(dir);
+    }
+
+    pub fn discover(&mut self) -> Result<(), crate::OpenCodeError> {
+        let Some(commands_dir) = &self.commands_dir else {
+            return Ok(());
+        };
+
+        if !commands_dir.exists() {
+            return Ok(());
+        }
+
+        for entry in WalkDir::new(commands_dir).max_depth(1) {
+            let entry = match entry {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
+
+            if !entry.file_type().is_file() {
+                continue;
+            }
+
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) != Some("md") {
+                continue;
+            }
+
+            let content = match std::fs::read_to_string(path) {
+                Ok(c) => c,
+                Err(_) => continue,
+            };
+
+            if let Some(def) = CommandDefinition::from_markdown(&content, path) {
+                let name = def.name.clone();
+                self.definitions.insert(name, def);
+            }
+        }
+
+        Ok(())
     }
 
     pub fn register(&mut self, command: Box<dyn Command>) {
@@ -36,11 +209,33 @@ impl CommandRegistry {
         self.commands.get(name).map(|c| c.as_ref())
     }
 
+    pub fn get_definition(&self, name: &str) -> Option<&CommandDefinition> {
+        self.definitions.get(name)
+    }
+
+    pub fn expand_template(&self, name: &str, vars: &CommandVariables) -> Option<String> {
+        self.definitions.get(name).map(|def| def.expand(vars))
+    }
+
     pub fn list(&self) -> Vec<(&str, &str)> {
-        self.commands
+        let mut list: Vec<(&str, &str)> = self.commands
             .iter()
             .map(|(name, cmd)| (name.as_str(), cmd.description()))
-            .collect()
+            .collect();
+        
+        for (name, def) in &self.definitions {
+            list.push((name.as_str(), &def.description));
+        }
+        
+        list.sort_by(|a, b| a.0.cmp(b.0));
+        list
+    }
+
+    pub fn list_commands(&self) -> Vec<String> {
+        let mut names: Vec<String> = self.commands.keys().cloned().collect();
+        names.extend(self.definitions.keys().cloned());
+        names.sort();
+        names
     }
 
     pub async fn execute(&self, name: &str, ctx: CommandContext) -> Result<String, crate::OpenCodeError> {
@@ -53,5 +248,38 @@ impl CommandRegistry {
 impl Default for CommandRegistry {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_command_expand() {
+        let def = CommandDefinition {
+            name: "test".to_string(),
+            description: "Test".to_string(),
+            agent: None,
+            model: None,
+            template: "Run ${file} with ${input}".to_string(),
+        };
+        let vars = CommandVariables::new(
+            "test.rs".to_string(),
+            "selected".to_string(),
+            "/home".to_string(),
+            "main".to_string(),
+            "user input".to_string(),
+        );
+        let expanded = def.expand(&vars);
+        assert!(expanded.contains("test.rs"));
+        assert!(expanded.contains("user input"));
+    }
+
+    #[test]
+    fn test_command_registry_list() {
+        let registry = CommandRegistry::new();
+        let list = registry.list();
+        assert!(list.is_empty());
     }
 }
