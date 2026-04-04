@@ -6,6 +6,7 @@ use crate::{Agent, AgentResponse, AgentType, messages_to_llm_format};
 
 pub struct ReviewAgent {
     system_prompt: String,
+    #[allow(dead_code)]
     review_focus: ReviewFocus,
 }
 

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use serde_json::Value;
-use tracing::{info, debug, warn};
+use tracing::{info, debug};
 
 use crate::protocol::*;
 

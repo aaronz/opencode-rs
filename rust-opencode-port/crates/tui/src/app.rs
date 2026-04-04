@@ -1,6 +1,7 @@
 use crate::command::{CommandAction, CommandRegistry};
 use crate::components::{
-    FileTree, InputWidget, StatusBar, StatusPopoverType, TerminalPanel, TitleBar, TitleBarAction,
+    FileTree, InputWidget, RightPanel, RightPanelTab, StatusBar, StatusPopoverType, TerminalPanel,
+    TitleBar, TitleBarAction,
 };
 use crate::dialogs::*;
 use crate::input_parser::{InputParser, InputType};
@@ -234,6 +235,12 @@ impl MessageMeta {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum LayoutMode {
+    TwoColumn,
+    ThreeColumn,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum AppMode {
     Chat,
     Timeline,
@@ -262,6 +269,7 @@ pub struct App {
     pub history: Vec<String>,
     pub history_index: usize,
     history_file: std::path::PathBuf,
+    layout_file: std::path::PathBuf,
     pub agent: String,
     pub provider: String,
     llm_provider: Option<std::sync::Arc<dyn Provider + Send + Sync>>,
@@ -290,6 +298,10 @@ pub struct App {
     pub release_notes_dialog: ReleaseNotesDialog,
     pub file_tree: Option<FileTree>,
     pub show_file_tree: bool,
+    pub layout_mode: LayoutMode,
+    pub show_right_panel: bool,
+    pub right_panel_tab: RightPanelTab,
+    pub right_panel: RightPanel,
     pub title_bar: TitleBar,
     pub show_title_bar: bool,
     pub status_bar: StatusBar,
@@ -330,6 +342,16 @@ impl App {
             history = content.lines().map(|s| s.to_string()).take(100).collect();
         }
 
+        let layout_file = config_dir.join("layout.txt");
+        let mut layout_mode = LayoutMode::TwoColumn;
+        let mut show_right_panel = false;
+        if let Ok(content) = std::fs::read_to_string(&layout_file) {
+            if content.trim() == "ThreeColumn" {
+                layout_mode = LayoutMode::ThreeColumn;
+                show_right_panel = true;
+            }
+        }
+
         Self {
             messages: Vec::new(),
             tool_calls: Vec::new(),
@@ -338,6 +360,7 @@ impl App {
             history,
             history_index: 0,
             history_file,
+            layout_file,
             agent: "build".to_string(),
             provider: "openai".to_string(),
             llm_provider: None,
@@ -366,6 +389,10 @@ impl App {
             release_notes_dialog: ReleaseNotesDialog::new(theme.clone()),
             file_tree: None,
             show_file_tree: false,
+            layout_mode,
+            show_right_panel,
+            right_panel_tab: RightPanelTab::Diagnostics,
+            right_panel: RightPanel::new(theme.clone()),
             title_bar: TitleBar::new(theme.clone()),
             show_title_bar: true,
             status_bar: StatusBar::new(theme.clone()),
@@ -1338,6 +1365,33 @@ impl App {
                     KeyCode::Char('h') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         self.title_bar.toggle_dropdown();
                     }
+                    KeyCode::Char('l') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        self.layout_mode = match self.layout_mode {
+                            LayoutMode::TwoColumn => LayoutMode::ThreeColumn,
+                            LayoutMode::ThreeColumn => LayoutMode::TwoColumn,
+                        };
+                        self.show_right_panel = self.layout_mode == LayoutMode::ThreeColumn;
+                        let content = match self.layout_mode {
+                            LayoutMode::TwoColumn => "TwoColumn",
+                            LayoutMode::ThreeColumn => "ThreeColumn",
+                        };
+                        let _ = std::fs::write(&self.layout_file, content);
+                    }
+                    KeyCode::Char('1') if key.modifiers.contains(KeyModifiers::ALT) => {
+                        if self.show_right_panel {
+                            self.right_panel_tab = RightPanelTab::Diagnostics;
+                        }
+                    }
+                    KeyCode::Char('2') if key.modifiers.contains(KeyModifiers::ALT) => {
+                        if self.show_right_panel {
+                            self.right_panel_tab = RightPanelTab::Todo;
+                        }
+                    }
+                    KeyCode::Char('3') if key.modifiers.contains(KeyModifiers::ALT) => {
+                        if self.show_right_panel {
+                            self.right_panel_tab = RightPanelTab::PermissionQueue;
+                        }
+                    }
                     KeyCode::Char('1') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         self.status_bar
                             .toggle_popover(StatusPopoverType::Connection);
@@ -1861,6 +1915,25 @@ impl App {
                 main_area.x + file_tree_width,
                 main_area.y,
                 main_area.width - file_tree_width,
+                main_area.height,
+            )
+        } else {
+            main_area
+        };
+
+        let main_area = if self.show_right_panel {
+            let right_panel_width = 30.min(main_area.width / 3);
+            let right_panel_area = Rect::new(
+                main_area.x + main_area.width - right_panel_width,
+                main_area.y,
+                right_panel_width,
+                main_area.height.saturating_sub(1),
+            );
+            self.right_panel.draw(f, right_panel_area, &self.right_panel_tab);
+            Rect::new(
+                main_area.x,
+                main_area.y,
+                main_area.width - right_panel_width,
                 main_area.height,
             )
         } else {

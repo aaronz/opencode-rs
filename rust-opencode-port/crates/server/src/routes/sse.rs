@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing::info;
-use opencode_core::{Message as CoreMessage, Role, Session};
+use opencode_core::{Message as CoreMessage, Session};
 use crate::ServerState;
 
 #[derive(Debug, Serialize)]

@@ -79,6 +79,7 @@ pub(crate) fn strip_jsonc_comments(input: &str) -> String {
     result
 }
 
+#[allow(dead_code)]
 pub fn parse_jsonc_file(path: &Path) -> Result<Value, JsoncError> {
     let content = std::fs::read_to_string(path)?;
     parse_jsonc(&content)

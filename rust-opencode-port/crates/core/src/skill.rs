@@ -33,6 +33,7 @@ pub struct SkillManager {
     skills: RwLock<Vec<Skill>>,
     global_skills_path: Option<PathBuf>,
     project_skills_path: Option<PathBuf>,
+    discovered: RwLock<bool>,
 }
 
 impl SkillManager {
@@ -43,6 +44,7 @@ impl SkillManager {
             skills: RwLock::new(Vec::new()),
             global_skills_path: global_path,
             project_skills_path: None,
+            discovered: RwLock::new(false),
         }
     }
 
@@ -53,6 +55,28 @@ impl SkillManager {
 
     pub fn set_project_path(&mut self, project_path: PathBuf) {
         self.project_skills_path = Some(project_path.join(".opencode").join("skills"));
+    }
+
+    fn ensure_discovered(&self) -> Result<(), OpenCodeError> {
+        let discovered = self
+            .discovered
+            .write()
+            .map_err(|_| OpenCodeError::Config("Failed to acquire write lock".to_string()))?;
+
+        if *discovered {
+            return Ok(());
+        }
+
+        drop(discovered);
+        self.discover()?;
+
+        let mut discovered = self
+            .discovered
+            .write()
+            .map_err(|_| OpenCodeError::Config("Failed to acquire write lock".to_string()))?;
+        *discovered = true;
+
+        Ok(())
     }
 
     fn parse_frontmatter(content: &str) -> Option<(SkillMeta, &str)> {
@@ -91,7 +115,7 @@ impl SkillManager {
         Some((meta, body))
     }
 
-    fn discover_in_dir(&self, dir: &PathBuf) -> Result<Vec<Skill>, OpenCodeError> {
+    pub fn discover_in_dir(&self, dir: &PathBuf) -> Result<Vec<Skill>, OpenCodeError> {
         let mut found = Vec::new();
         if !dir.exists() {
             return Ok(found);
@@ -188,9 +212,7 @@ impl SkillManager {
     }
 
     pub fn match_skill(&self, input: &str) -> Result<Vec<SkillMatch>, OpenCodeError> {
-        if self.discover().is_err() || self.skills.read().is_err() {
-            return Ok(Vec::new());
-        }
+        self.ensure_discovered()?;
 
         let read = self
             .skills
@@ -228,9 +250,7 @@ impl SkillManager {
     }
 
     pub fn match_by_skill_name(&self, name: &str) -> Option<Skill> {
-        if self.discover().is_err() {
-            return None;
-        }
+        self.ensure_discovered().ok()?;
         let read = self.skills.read().ok()?;
         read.iter()
             .find(|s| s.name.to_lowercase() == name.to_lowercase())
@@ -238,9 +258,7 @@ impl SkillManager {
     }
 
     pub fn list(&self) -> Result<Vec<Skill>, OpenCodeError> {
-        if self.discover().is_err() {
-            return Ok(Vec::new());
-        }
+        self.ensure_discovered()?;
         let read = self
             .skills
             .read()
@@ -249,15 +267,24 @@ impl SkillManager {
     }
 
     pub fn get(&self, name: &str) -> Option<Skill> {
-        if self.discover().is_err() {
-            return None;
-        }
+        self.ensure_discovered().ok()?;
         let read = self.skills.read().ok()?;
         read.iter().find(|s| s.name == name).cloned()
     }
 
     pub fn all(&self) -> Result<Vec<Skill>, OpenCodeError> {
         self.list()
+    }
+
+    pub fn reload(&self) -> Result<(), OpenCodeError> {
+        {
+            let mut discovered = self
+                .discovered
+                .write()
+                .map_err(|_| OpenCodeError::Config("Failed to acquire write lock".to_string()))?;
+            *discovered = false;
+        }
+        self.discover()
     }
 }
 

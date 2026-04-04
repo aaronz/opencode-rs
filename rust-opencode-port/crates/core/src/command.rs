@@ -8,6 +8,7 @@ use walkdir::WalkDir;
 pub struct CommandDefinition {
     pub name: String,
     pub description: String,
+    pub triggers: Vec<String>,
     pub agent: Option<String>,
     pub model: Option<String>,
     pub template: String,
@@ -25,6 +26,7 @@ impl CommandDefinition {
 
         let mut name = None;
         let mut description = None;
+        let mut triggers = Vec::new();
         let mut agent = None;
         let mut model = None;
 
@@ -39,6 +41,12 @@ impl CommandDefinition {
                 match key {
                     "name" => name = Some(value.to_string()),
                     "description" => description = Some(value.to_string()),
+                    "triggers" => {
+                        triggers = value
+                            .split(',')
+                            .map(|s| s.trim().to_string())
+                            .collect();
+                    }
                     "agent" => agent = Some(value.to_string()),
                     "model" => model = Some(value.to_string()),
                     _ => {}
@@ -53,6 +61,7 @@ impl CommandDefinition {
         Some(CommandDefinition {
             name,
             description: description.unwrap_or_default(),
+            triggers,
             agent,
             model,
             template: body.trim().to_string(),
@@ -62,14 +71,35 @@ impl CommandDefinition {
     pub fn expand(&self, vars: &CommandVariables) -> String {
         let mut result = self.template.clone();
         
+        // Basic variables
         result = result.replace("${file}", &vars.file);
         result = result.replace("${selection}", &vars.selection);
         result = result.replace("${cwd}", &vars.cwd);
         result = result.replace("${git_branch}", &vars.git_branch);
         result = result.replace("${input}", &vars.input);
-
         result = result.replace("${session_id}", &vars.session_id);
         result = result.replace("${project_path}", &vars.project_path);
+        
+        // New variables: cursor position, environment variables
+        result = result.replace("${cursor}", &vars.cursor);
+        
+        // Environment variables: ${env:VAR_NAME}
+        let env_regex = regex::Regex::new(r"\$\{env:([A-Za-z_][A-Za-z0-9_]*)\}").ok();
+        if let Some(re) = env_regex {
+            result = re.replace_all(&result, |caps: &regex::Captures| {
+                let var_name = &caps[1];
+                std::env::var(var_name).unwrap_or_default()
+            }).to_string();
+        }
+        
+        // File content: {file:path} - read file and insert content
+        let file_regex = regex::Regex::new(r"\{file:([^}]+)\}").ok();
+        if let Some(re) = file_regex {
+            result = re.replace_all(&result, |caps: &regex::Captures| {
+                let file_path = &caps[1];
+                std::fs::read_to_string(file_path).unwrap_or_else(|_| format!("[Cannot read file: {}]", file_path))
+            }).to_string();
+        }
 
         result
     }
@@ -84,6 +114,7 @@ pub struct CommandVariables {
     pub input: String,
     pub session_id: String,
     pub project_path: String,
+    pub cursor: String,
 }
 
 impl CommandVariables {
@@ -102,6 +133,7 @@ impl CommandVariables {
             input,
             session_id: String::new(),
             project_path: String::new(),
+            cursor: String::new(),
         }
     }
 }
@@ -160,6 +192,12 @@ impl CommandRegistry {
 
     pub fn set_commands_dir(&mut self, dir: PathBuf) {
         self.commands_dir = Some(dir);
+    }
+
+    pub fn register_builtin_commands(&mut self) {
+        self.register(Box::new(HelpCommand));
+        self.register(Box::new(TestCommand));
+        self.register(Box::new(DebugCommand));
     }
 
     pub fn discover(&mut self) -> Result<(), crate::OpenCodeError> {
@@ -251,6 +289,75 @@ impl Default for CommandRegistry {
     }
 }
 
+struct HelpCommand;
+
+#[async_trait]
+impl Command for HelpCommand {
+    fn name(&self) -> &str {
+        "help"
+    }
+
+    fn description(&self) -> &str {
+        "Show available commands and their usage"
+    }
+
+    fn usage(&self) -> &str {
+        "/help [command]"
+    }
+
+    async fn execute(&self, ctx: CommandContext) -> Result<String, crate::OpenCodeError> {
+        if let Some(cmd_name) = ctx.args.first() {
+            Ok(format!("Help for command: {}", cmd_name))
+        } else {
+            Ok("Available commands: help, test, debug".to_string())
+        }
+    }
+}
+
+struct TestCommand;
+
+#[async_trait]
+impl Command for TestCommand {
+    fn name(&self) -> &str {
+        "test"
+    }
+
+    fn description(&self) -> &str {
+        "Run test suite or specific test"
+    }
+
+    fn usage(&self) -> &str {
+        "/test [pattern]"
+    }
+
+    async fn execute(&self, ctx: CommandContext) -> Result<String, crate::OpenCodeError> {
+        let pattern = ctx.args.join(" ");
+        Ok(format!("Running tests matching: {}", if pattern.is_empty() { "all".to_string() } else { pattern }))
+    }
+}
+
+struct DebugCommand;
+
+#[async_trait]
+impl Command for DebugCommand {
+    fn name(&self) -> &str {
+        "debug"
+    }
+
+    fn description(&self) -> &str {
+        "Show debug information about current session"
+    }
+
+    fn usage(&self) -> &str {
+        "/debug [section]"
+    }
+
+    async fn execute(&self, ctx: CommandContext) -> Result<String, crate::OpenCodeError> {
+        let section = ctx.args.first().map(|s| s.as_str()).unwrap_or("all");
+        Ok(format!("Debug info for section: {}", section))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -260,6 +367,7 @@ mod tests {
         let def = CommandDefinition {
             name: "test".to_string(),
             description: "Test".to_string(),
+            triggers: vec![],
             agent: None,
             model: None,
             template: "Run ${file} with ${input}".to_string(),

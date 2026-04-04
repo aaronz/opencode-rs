@@ -17,6 +17,9 @@ pub enum StatusPopoverType {
 pub struct StatusPopover {
     popover_type: StatusPopoverType,
     theme: Theme,
+    token_count: usize,
+    context_usage: (usize, usize),
+    cost_cents: u64,
 }
 
 impl StatusPopover {
@@ -24,7 +27,22 @@ impl StatusPopover {
         Self {
             popover_type,
             theme,
+            token_count: 0,
+            context_usage: (0, 128000),
+            cost_cents: 0,
         }
+    }
+
+    pub fn with_data(
+        mut self,
+        token_count: usize,
+        context_usage: (usize, usize),
+        cost_cents: u64,
+    ) -> Self {
+        self.token_count = token_count;
+        self.context_usage = context_usage;
+        self.cost_cents = cost_cents;
+        self
     }
 
     pub fn draw(&self, f: &mut Frame, area: Rect) {
@@ -79,15 +97,28 @@ impl StatusPopover {
             .borders(Borders::ALL)
             .border_style(Style::default().fg(self.theme.primary_color()));
 
+        let usage_pct = if self.context_usage.1 > 0 {
+            (self.context_usage.0 as f64 / self.context_usage.1 as f64) * 100.0
+        } else {
+            0.0
+        };
+
         let text = vec![
             Line::from(""),
             Line::from(vec![
-                Span::styled("Current: ", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw("1,234 tokens"),
+                Span::styled("Tokens: ", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw(format!("{}", self.token_count)),
             ]),
             Line::from(vec![
-                Span::styled("Limit: ", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw("128,000 tokens"),
+                Span::styled("Context: ", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw(format!(
+                    "{} / {} ({:.0}%)",
+                    self.context_usage.0, self.context_usage.1, usage_pct
+                )),
+            ]),
+            Line::from(vec![
+                Span::styled("Est. Cost: ", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw(format!("${:.2}", self.cost_cents as f64 / 100.0)),
             ]),
         ];
 
@@ -122,6 +153,7 @@ pub struct StatusBar {
     pub connection_status: ConnectionStatus,
     pub token_count: usize,
     pub context_usage: (usize, usize),
+    pub cost_cents: u64,
     pub active_popover: Option<StatusPopoverType>,
     theme: Theme,
 }
@@ -137,11 +169,22 @@ impl StatusBar {
     pub fn new(theme: Theme) -> Self {
         Self {
             connection_status: ConnectionStatus::Connected,
-            token_count: 1234,
-            context_usage: (12345, 128000),
+            token_count: 0,
+            context_usage: (0, 128000),
+            cost_cents: 0,
             active_popover: None,
             theme,
         }
+    }
+
+    pub fn update_tokens(&mut self, tokens: usize, context_used: usize, context_total: usize) {
+        self.token_count = tokens;
+        self.context_usage = (context_used, context_total);
+        self.cost_cents = Self::estimate_cost(tokens);
+    }
+
+    fn estimate_cost(tokens: usize) -> u64 {
+        ((tokens as u64).saturating_mul(150)) / 1_000_000
     }
 
     pub fn toggle_popover(&mut self, popover_type: StatusPopoverType) {
@@ -164,13 +207,25 @@ impl StatusBar {
         };
 
         let connection_indicator = "●";
-        let token_text = format!("{} tokens", self.token_count);
-        let context_text = format!("{}/{} context", self.context_usage.0, self.context_usage.1);
+        let token_text = format!("{}t", self.token_count);
+        let context_text = format!("{}/{}", self.context_usage.0, self.context_usage.1);
+        let cost_text = if self.cost_cents > 0 {
+            format!("${:.2}", self.cost_cents as f64 / 100.0)
+        } else {
+            String::new()
+        };
 
-        let status_text = format!(
-            " {}  {}  {} ",
-            connection_indicator, token_text, context_text
-        );
+        let status_text = if cost_text.is_empty() {
+            format!(
+                " {}  {}  {} ",
+                connection_indicator, token_text, context_text
+            )
+        } else {
+            format!(
+                " {}  {}  {}  {} ",
+                connection_indicator, token_text, context_text, cost_text
+            )
+        };
 
         let paragraph = Paragraph::new(status_text)
             .alignment(Alignment::Right)
@@ -178,7 +233,11 @@ impl StatusBar {
         f.render_widget(paragraph, area);
 
         if let Some(ref popover_type) = self.active_popover {
-            let popover = StatusPopover::new(popover_type.clone(), self.theme.clone());
+            let popover = StatusPopover::new(popover_type.clone(), self.theme.clone()).with_data(
+                self.token_count,
+                self.context_usage,
+                self.cost_cents,
+            );
             popover.draw(f, area);
         }
     }

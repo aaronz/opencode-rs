@@ -1,4 +1,6 @@
-use crate::compaction::{CompactionConfig, CompactionResult, Compactor};
+use crate::compaction::{
+    CompactionConfig, CompactionResult, CompactionStatus, CompactionTrigger, Compactor, TokenBudget,
+};
 use crate::message::Message;
 use crate::session_state::{is_valid_transition, SessionState, StateTransitionError};
 use chrono::{DateTime, Utc};
@@ -13,12 +15,22 @@ pub struct Session {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub state: SessionState,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parent_session_id: Option<Uuid>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub fork_history: Vec<ForkEntry>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub tool_invocations: Vec<ToolInvocationRecord>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub undo_history: Vec<HistoryEntry>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub redo_history: Vec<HistoryEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ForkEntry {
+    pub forked_at: DateTime<Utc>,
+    pub child_session_id: Uuid,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,10 +75,29 @@ impl Session {
             created_at: now,
             updated_at: now,
             state: SessionState::Idle,
+            parent_session_id: None,
+            fork_history: Vec::new(),
             tool_invocations: Vec::new(),
             undo_history: Vec::new(),
             redo_history: Vec::new(),
         }
+    }
+
+    pub fn fork(&self, new_session_id: Uuid) -> Self {
+        let now = Utc::now();
+        let forked = Self {
+            id: new_session_id,
+            messages: self.messages.clone(),
+            created_at: now,
+            updated_at: now,
+            state: self.state,
+            parent_session_id: Some(self.id),
+            fork_history: Vec::new(),
+            tool_invocations: Vec::new(),
+            undo_history: Vec::new(),
+            redo_history: Vec::new(),
+        };
+        forked
     }
 
     pub fn set_state(&mut self, new_state: SessionState) -> Result<(), StateTransitionError> {
@@ -248,6 +279,37 @@ impl Session {
         };
         let compactor = Compactor::new(config);
         compactor.needs_compaction(&self.messages)
+    }
+
+    pub fn estimate_token_count(&self) -> usize {
+        let config = CompactionConfig::default();
+        let compactor = Compactor::new(config);
+        self.messages
+            .iter()
+            .map(|m| compactor.estimate_tokens(&m.content))
+            .sum()
+    }
+
+    pub fn get_compaction_status(&self) -> CompactionStatus {
+        let budget = TokenBudget::default();
+        let used = self.estimate_token_count();
+        CompactionStatus::check(&budget, used)
+    }
+
+    pub fn auto_compact_if_needed(&mut self) -> CompactionResult {
+        let status = self.get_compaction_status();
+        match status.trigger {
+            CompactionTrigger::AutoCompact | CompactionTrigger::ForceContinuation => {
+                let budget = TokenBudget::default();
+                self.compact_messages(budget.main_context_tokens())
+            }
+            _ => CompactionResult {
+                messages: self.messages.clone(),
+                was_compacted: false,
+                pruned_count: 0,
+                summary_inserted: false,
+            },
+        }
     }
 
     pub fn prepare_messages_for_prompt(&mut self, max_tokens: usize) -> Vec<Message> {

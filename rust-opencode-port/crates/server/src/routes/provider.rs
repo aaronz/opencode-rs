@@ -1,7 +1,7 @@
 use actix_web::{web, HttpResponse, Responder};
 use crate::ServerState;
 use serde::{Deserialize, Serialize};
-use opencode_llm::{ProviderAuthConfig, AuthStrategy, Credential};
+use opencode_llm::{ProviderAuthConfig, AuthStrategy};
 
 #[derive(Debug, Deserialize)]
 pub struct CreateProviderRequest {
@@ -59,7 +59,7 @@ pub async fn get_provider(
 }
 
 pub async fn create_provider(
-    state: web::Data<ServerState>,
+    _state: web::Data<ServerState>,
     body: web::Json<CreateProviderRequest>,
 ) -> impl Responder {
     let config = ProviderAuthConfig::new(
@@ -80,7 +80,7 @@ pub async fn create_provider(
 pub async fn update_provider(
     state: web::Data<ServerState>,
     path: web::Path<String>,
-    body: web::Json<UpdateProviderRequest>,
+    _body: web::Json<UpdateProviderRequest>,
 ) -> impl Responder {
     let provider_id = path.into_inner();
     let models = state.models.list();

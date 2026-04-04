@@ -1,191 +1,189 @@
-# Constitution 更新建议
+# Constitution 更新建议 (v1.2)
 
-## 分析结论
+## 背景
 
-**Constitution 不存在**。需要为 OpenCode-RS 项目创建 Constitution 以指导后续开发决策。
-
-基于 Gap Analysis 识别出的 P0 阻断性问题，需要建立设计原则确保后续实现的一致性与可扩展性。
-
----
-
-## 一、Constitution 框架
-
-### 1.1 核心设计原则
-
-| 原则 | 描述 | 优先级 |
-|------|------|--------|
-| 本地优先 | 所有数据默认存储在用户本地，不强制云端依赖 | P0 |
-| 运行时抽象 | Agent Runtime 为核心，Client 可替换 | P0 |
-| 权限最小化 | 默认拒绝，按需授权，可审计 | P0 |
-| 可扩展架构 | 插件化加载，热更新能力 | P1 |
-| 可观测性 | 结构化日志 + tracing，Session 可追溯 | P1 |
-
-### 1.2 模块边界原则
-
-```
-┌─────────────────────────────────────────────────────┐
-│                    Client Layer                      │
-│   (TUI / Server / Web / IDE / SDK)                  │
-├─────────────────────────────────────────────────────┤
-│                   Core Runtime                       │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐    │
-│  │ Context │ │ Session │ │ Agent   │ │Permission│   │
-│  │ Engine  │ │ Engine  │ │ Engine  │ │ Engine  │    │
-│  └─────────┘ └─────────┘ └─────────┘ └─────────┘    │
-├─────────────────────────────────────────────────────┤
-│                   Adapter Layer                      │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐    │
-│  │ Tool    │ │ LLM     │ │ MCP     │ │ LSP     │    │
-│  │ Runtime │ │ Gateway │ │ Bridge  │ │ Client  │    │
-│  └─────────┘ └─────────┘ └─────────┘ └─────────┘    │
-├─────────────────────────────────────────────────────┤
-│                  Plugin System                       │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐               │
-│  │  WASM   │ │ Skills   │ │Commands │               │
-│  │ Runtime │ │ Loader   │ │ Parser  │               │
-│  └─────────┘ └─────────┘ └─────────┘               │
-└─────────────────────────────────────────────────────┘
-```
+Gap Analysis 识别了 5 个 P0 问题，其中:
+- **已覆盖**: P0-1 (Commands), P0-4 (Config) → C-007, C-008, C-011, C-012
+- **部分覆盖**: P0-5 (Context Token Budget) → C-001, C-002 需细化
+- **未覆盖**: P0-2 (TUI Input Parser), P0-3 (Session Fork) → 需新增条款
 
 ---
 
-## 二、P0 问题对应的 Constitution 条款
+## 一、新增 P0 问题对照
 
-### 2.1 Context Engine (Token Budget + Ranking + Compaction)
+### Gap Analysis P0 问题 vs Constitution
 
-**条款 C-001: Context 管理原则**
+| P0 问题 | Constitution 覆盖 | 状态 |
+|---------|------------------|------|
+| P0-1: Commands 系统 | C-007, C-008 | ✅ 已覆盖 |
+| P0-2: `@file` / `!shell` / `/command` | ❌ | 需新增 C-014 |
+| P0-3: Session Fork | ❌ | 需新增 C-015 |
+| P0-4: 多层配置合并 | C-011, C-012, C-013 | ✅ 已覆盖 |
+| P0-5: Context Token Budget | ⚠️ C-001, C-002 | 需细化 C-016 |
 
-```
-1. 每个 Session 必须维护独立的 Context Budget
-2. Context Budget 默认值为 128K tokens，可配置
-3. 超过 80% budget 时触发 compaction 评估
-4. Compaction 策略优先级: summarize > compress > prune
-5. 保留最近 N 轮完整对话 + 关键决策点
-6. 用户可通过 @file 显式注入高优先级 Context
-```
+---
 
-**条款 C-002: Context Ranking 算法**
+## 二、新增 Constitution 条款
 
-```
-1. 采用多维度评分: recency (0.4) + relevance (0.3) + importance (0.3)
-2. Relevance 通过 embedding similarity 计算
-3. Importance 基于工具调用结果、错误状态、用户确认标记
-4. Ranking 在每次 LLM 调用前重新计算
-5. 支持用户手动 boost 特定消息
-```
+### 2.1 TUI Input Parser (C-014)
 
-### 2.2 Plugin System (WASM Runtime + Event Bus)
-
-**条款 C-003: Plugin 架构原则**
+**条款 C-014: TUI 快捷输入解析器**
 
 ```
-1. Plugin 必须通过 WASM 加载，隔离执行环境
-2. Plugin 生命周期: load -> init -> active -> unload
-3. 每个 Plugin 拥有独立的 filesystem namespace 和 network policy
-4. Plugin 权限通过 Capability 声明，运行时授予
-5. 禁止 Plugin 直接访问 host 进程内存
+1. 输入解析器类型:
+   a) @file - 文件引用: @path/to/file 或 @line:col
+   b) !shell - 内联 Shell: !<command> 或 !<command> | <pipe>
+   c) /command - 命令: /<command> [args]
+
+2. 解析优先级:
+   - @file 和 !shell 优先于普通文本
+   - /command 单独一行或行首触发
+   - 混合输入: "修复 @src/main.rs 的 bug" → 解析为 "修复 [file:src/main.rs] 的 bug"
+
+3. 变量替换规则:
+   - ${file} - 当前文件路径
+   - ${line} - 当前行号
+   - ${selected} - 选中文本
+   - ${pwd} - 当前工作目录
+
+4. 错误处理:
+   - 无效路径: 提示文件不存在，可创建
+   - 无效命令: 提示命令未找到
+   - 超长输入: 截断并提示
+
+5. 快捷键绑定:
+   - Ctrl+G: 打开文件选择器 (@file)
+   - Ctrl+!: 打开 shell 行 (!shell)
+   - Ctrl+/ 或 Esc+: 打开命令面板 (/command)
 ```
 
-**条款 C-004: Event Bus 设计**
+### 2.2 Session Fork (C-015)
+
+**条款 C-015: Session Fork 与 Lineage 追踪**
 
 ```
-1. Event Bus 采用发布-订阅模式
-2. 事件类型: session_start, session_end, tool_call, tool_result,
-             message, error, permission_request
-3. Plugin 可订阅感兴趣的事件，但不可阻塞主流程
-4. 事件携带结构化 payload，支持异步处理
-5. Event History 保留最近 1000 条事件，供审计使用
+1. Fork 语义:
+   - Fork 创建当前 session 的完整副本
+   - Fork 后独立演进，互不影响
+   - 支持多级 fork 形成 lineage 图
+
+2. 数据模型:
+   - Session 表新增字段: parent_session_id (nullable)
+   - Fork 操作: INSERT INTO sessions ... SELECT * WHERE id = ? + 更新 parent_session_id
+   - Lineage 查询: 递归查询 parent_session_id 构建树
+
+3. Fork 触发方式:
+   - API: POST /sessions/{id}/fork
+   - TUI: /fork 命令
+   - 自动: 冲突检测后建议 fork
+
+4. Fork 限制:
+   - 最大深度: 10 级 (防止恶意滥用)
+   - 并发 fork: 同一 session 最多 5 个子 fork
+   - 命名规则: {original_name}-fork-{timestamp}
+
+5. Fork 合并:
+   - 支持将子 session 合并回父 session
+   - 合并策略: 保留父 session + 追加差异
 ```
 
-### 2.3 Skills System (Loader + Semantic Matching)
+### 2.3 Context Token Budget (C-016) - 细化
 
-**条款 C-005: Skills 加载原则**
-
-```
-1. Skills 定义为 YAML/JSON 配置文件，放置在 ~/.opencode/skills/
-2. Skill 包含: name, description, triggers, actions, examples
-3. 延迟加载: Session 启动时扫描 skill 目录，不预加载
-4. 支持 skill 依赖声明，避免循环依赖
-5. 内置 Skill 优先级高于用户自定义 Skill
-```
-
-**条款 C-006: Semantic Matching 算法**
+**条款 C-016: Context Token Budget 压缩机制** (替代/细化 C-001)
 
 ```
-1. 用户输入先进行 intent classification
-2. Matching 策略: exact > prefix > fuzzy > semantic
-3. Semantic matching 使用轻量 embedding (128维)
-4. 每个 Skill 可指定 required_context_fields
-5. Matching 结果附带 confidence score，<0.6 不触发
-```
+1. Token Budget 定义:
+   - 预算上限: 128K tokens (可配置)
+   - 软上限: 85% → 预警
+   - 硬上限: 92% → 压缩
+   - 强制上限: 95% → 建议新 session
 
-### 2.4 Commands System (Parser + Template Expansion)
+2. 压缩策略 (按优先级):
+   a) 合并重复系统消息 (System prompt deduplication)
+   b) 压缩长对话摘要 (Conversation summary)
+   c) 移除低 ranking 工具结果 (Low-value tool results)
+   d) 截断历史消息 (Truncate history)
 
-**条款 C-007: Commands 设计原则**
+3. 预警机制:
+   - 85% 时: UI 提示 "Session 接近 token 上限"
+   - 92% 时: 自动触发压缩 + 提示 "已自动压缩上下文"
+   - 95% 时: 阻止继续添加 + 强制要求 fork 或 new session
 
-```
-1. Command 以 '/' 前缀识别，如 /refactor, /test, /explain
-2. Command 定义支持参数: /command [arg1] [--flag value]
-3. 支持 command alias 和 hotkey 映射
-4. Command 可模板化，包含占位符替换
-5. 内置 Commands 不可覆盖，用户可定义同名自定义
-```
+4. 压缩记录:
+   - 每次压缩记录: timestamp, compression_type, tokens_saved
+   - 可通过 /stats 查看压缩统计
 
-**条款 C-008: Template Expansion**
-
-```
-1. Template 语法: {{variable}} 或 {{#each}}...{{/each}}
-2. 支持 context 变量: {{session.id}}, {{model.name}}, {{cursor.file}}
-3. 支持条件: {{#if condition}}...{{/if}}
-4. Template 预验证，错误模板拒绝注册
-5. Expansion 在 command 执行前完成
-```
-
-### 2.5 MCP Integration (Schema Cache + Permission)
-
-**条款 C-009: MCP 工具接入原则**
-
-```
-1. MCP Server 通过 stdio 或 HTTP 连接
-2. 每个 MCP 工具必须声明 schema (input/output)
-3. Schema 本地缓存，有效期 24 小时
-4. MCP 工具调用经过 Permission Engine 审核
-5. MCP 工具元信息 (description, examples) 延迟注入，按需加载
-```
-
-**条款 C-010: MCP Permission 集成**
-
-```
-1. MCP 工具属于 external tool 类型
-2. 首次调用提示用户授权，并记住选择
-3. 支持按工具粒度的 allow/deny
-4. 支持 time-based expiration (e.g., 1 hour)
-5. MCP 工具调用日志包含 tool_name, duration, success/failure
+5. 配置项:
+   - context.max_tokens: 128000 (默认)
+   - context.compression_threshold: 0.92
+   - context.warning_threshold: 0.85
+   - context.force_new_session_threshold: 0.95
 ```
 
 ---
 
-## 三、实施优先级
+## 三、条款更新映射
 
-| 优先级 | 组件 | Constitution 条款 | 预估工作量 |
-|--------|------|-------------------|------------|
-| P0 | Context Engine | C-001, C-002 | 2-3 周 |
-| P0 | Commands System | C-007, C-008 | 1-2 周 |
-| P0 | Skills System | C-005, C-006 | 2 周 |
-| P1 | Plugin System | C-003, C-004 | 3-4 周 |
-| P1 | MCP Integration | C-009, C-010 | 2 周 |
+### 原有条款 (v1.0 ~ v1.1)
+
+| 条款 | 模块 | 状态 |
+|------|------|------|
+| C-001 | Context Engine - 管理原则 | **已废止** → 被 C-016 替代 |
+| C-002 | Context Engine - Ranking | 保留 |
+| C-003 | Plugin System - 架构 | 保留 |
+| C-004 | Plugin System - Event Bus | 保留 |
+| C-005 | Skills System - 加载 | 保留 |
+| C-006 | Skills System - Matching | 保留 |
+| C-007 | Commands System - 设计 | 保留 |
+| C-008 | Commands System - Template | 保留 |
+| C-009 | MCP Integration - 接入 | 保留 |
+| C-010 | MCP Integration - Permission | 保留 |
+| C-011 | Config System - 优先级加载 | 保留 |
+| C-012 | Config System - 环境变量 | 保留 |
+| C-013 | Config System - 目录结构 | 保留 |
+
+### 新增条款 (v1.2)
+
+| 条款 | 模块 | 说明 |
+|------|------|------|
+| C-014 | TUI Input Parser | P0-2: @file/!shell/command |
+| C-015 | Session Fork | P0-3: Session Fork Lineage |
+| C-016 | Context Token Budget | P0-5: 压缩机制 (细化 C-001) |
 
 ---
 
-## 四、验证清单
+## 四、验证清单 (更新版)
 
 实现新功能时需验证:
 
-- [ ] 是否符合 C-001~C-010 中的对应条款?
-- [ ] 是否引入新的模块间依赖? 是否可解耦?
-- [ ] 是否有硬编码值需提取为配置?
-- [ ] 错误处理是否符合 Permission Engine 原则?
-- [ ] 是否有对应的测试用例覆盖?
+### 原有模块
+- [ ] C-002: Context Engine - Ranking 机制
+- [ ] C-003~C-004: Plugin System
+- [ ] C-005~C-006: Skills System
+- [ ] C-007~C-008: Commands System
+- [ ] C-009~C-010: MCP Integration
+- [ ] C-011~C-013: Config System
+
+### 新增模块 (v1.2)
+- [ ] **C-014: TUI Input Parser**
+  - [ ] @file 解析是否正确处理相对/绝对路径
+  - [ ] !shell 解析是否支持管道操作
+  - [ ] /command 解析是否支持参数
+  - [ ] 变量替换 ${file}, ${line} 等是否正确
+  - [ ] 快捷键绑定是否生效
+
+- [ ] **C-015: Session Fork**
+  - [ ] Fork 创建是否完整复制 session 数据
+  - [ ] parent_session_id 是否正确设置
+  - [ ] Lineage 追踪是否可查询
+  - [ ] 最大深度限制是否生效
+  - [ ] API /sessions/{id}/fork 是否实现
+
+- [ ] **C-016: Context Token Budget**
+  - [ ] Token 统计是否准确
+  - [ ] 85% 预警是否触发
+  - [ ] 92% 压缩是否自动执行
+  - [ ] 95% 强制新 session 是否阻止输入
 
 ---
 
@@ -193,8 +191,58 @@
 
 | 版本 | 日期 | 变更内容 |
 |------|------|----------|
-| 1.0 | 2026-04-04 | 初始版本，覆盖 P0 问题 |
+| 1.0 | 2026-04-04 | 初始版本，覆盖 P0 问题 (Context/Plugin/Skills/Commands/MCP) |
+| 1.1 | 2026-04-04 | 新增 Config System 条款 (C-011, C-012, C-013)，覆盖 P0 配置问题 |
+| 1.2 | 2026-04-04 | 新增 TUI Input Parser (C-014), Session Fork (C-015), Context Token Budget 细化 (C-016) |
 
 ---
 
-*本文档作为 OpenCode-RS 项目的 Constitution，后续迭代需保持向后兼容。*
+## 六、实施建议
+
+### 短期 (1-2 周)
+
+1. **实现 C-014: TUI Input Parser**
+   - 实现 @file 解析器
+   - 实现 !shell 解析器
+   - 实现 /command 解析器
+   - 添加快捷键绑定
+
+2. **实现 C-015: Session Fork**
+   - 修改 Session 数据模型 (添加 parent_session_id)
+   - 实现 /sessions/{id}/fork API
+   - 实现 Fork UI 命令
+
+### 中期 (2-4 周)
+
+1. **实现 C-016: Context Token Budget**
+   - 实现 token 统计模块
+   - 实现压缩策略
+   - 实现预警机制
+
+2. **完善 C-014: 变量替换**
+   - 实现 ${file}, ${line}, ${selected} 替换
+
+### 长期 (4+ 周)
+
+1. Fork 合并功能
+2. Lineage 可视化
+3. 压缩统计 Dashboard
+
+---
+
+## 七、设计决策约束
+
+以下设计决策必须遵循 Constitution:
+
+| 设计决策 | 必须遵循条款 |
+|----------|-------------|
+| Commands 系统实现 | C-007, C-008 |
+| TUI 快捷输入实现 | C-014 |
+| Session Fork 实现 | C-015 |
+| Context 管理实现 | C-016 |
+| Config 系统实现 | C-011, C-012, C-013 |
+| MCP 集成实现 | C-009, C-010 |
+
+---
+
+*本文档作为 OpenCode-RS 项目的 Constitution v1.2，覆盖所有 P0 问题并提供设计约束。*

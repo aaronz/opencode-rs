@@ -70,3 +70,6 @@ opencode-mcp = { path = "crates/mcp" }
 actix-web = "4"
 actix-cors = "0.7"
 actix-web-lab = "0.20"
+
+# Utility dependencies
+regex = "1"

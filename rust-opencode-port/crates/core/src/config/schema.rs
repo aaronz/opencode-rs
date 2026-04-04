@@ -1,5 +1,7 @@
 use serde_json::Value;
 
+use super::{TuiConfig, ValidationError, ValidationSeverity};
+
 pub fn validate_json_schema(config: &Value, _schema_url: &str) -> super::ValidationResult {
     let mut errors = Vec::new();
 
@@ -37,6 +39,52 @@ pub fn validate_json_schema(config: &Value, _schema_url: &str) -> super::Validat
     }
 }
 
+#[allow(dead_code)]
 pub fn get_official_schema_url() -> &'static str {
     "https://opencode.ai/config.json"
+}
+
+#[allow(dead_code)]
+pub fn validate_tui_config(tui_config: &TuiConfig) -> Vec<ValidationError> {
+    let mut errors = Vec::new();
+
+    if let Some(scroll_speed) = &tui_config.scroll_speed {
+        if *scroll_speed == 0 {
+            errors.push(ValidationError {
+                field: "tui.scrollSpeed".to_string(),
+                message: "scrollSpeed must be greater than 0".to_string(),
+                severity: ValidationSeverity::Error,
+            });
+        }
+        if *scroll_speed > 1000 {
+            errors.push(ValidationError {
+                field: "tui.scrollSpeed".to_string(),
+                message: "scrollSpeed seems excessively high (max recommended: 1000)".to_string(),
+                severity: ValidationSeverity::Warning,
+            });
+        }
+    }
+
+    if let Some(scroll_accel) = &tui_config.scroll_acceleration {
+        if let Some(speed) = &scroll_accel.speed {
+            if *speed < 0.0 {
+                errors.push(ValidationError {
+                    field: "tui.scrollAcceleration.speed".to_string(),
+                    message: "scrollAcceleration.speed must be non-negative".to_string(),
+                    severity: ValidationSeverity::Error,
+                });
+            }
+            if *speed > 10.0 {
+                errors.push(ValidationError {
+                    field: "tui.scrollAcceleration.speed".to_string(),
+                    message:
+                        "scrollAcceleration.speed seems excessively high (max recommended: 10.0)"
+                            .to_string(),
+                    severity: ValidationSeverity::Warning,
+                });
+            }
+        }
+    }
+
+    errors
 }

@@ -1,159 +1,153 @@
-## 分析意图
-
-**任务类型**: 分析调研 — 对比当前实现与PRD的差距，识别缺失和不完整的部分
-
-**我的方法**: 
-1. 并行探索实现结构 + 定位PRD.md
-2. 读取PRD核心需求
-3. 按功能/接口/前端/数据模型/配置/测试 6个维度系统对比
-4. 识别通用差距（缺失模块、不完整实现、硬编码、错误处理等）
-
-让我先并行探索实现结构和PRD文件：
-Based on my analysis of the PRD and the current implementation, here's the gap analysis:
-
----
+Now I'll explore the implementation details to compare with PRD requirements.
+Based on my context gathering, I can now produce the gap analysis. Let me synthesize the findings:
 
 # 差距分析报告
 
-## 一、实现概览
+## 实现概况
 
-| 模块 | 状态 | 说明 |
-|------|------|------|
-| core | ✅ 完整 | 包含 session, message, tool, permission 等核心模型 |
-| tools | ✅ 完整 | 30+ 工具实现（read, edit, bash, git, lsp 等） |
-| llm | ✅ 完整 | 17+ Provider 支持（OpenAI, Anthropic, Ollama 等） |
-| agent | ✅ 完整 | 6 种 Agent（build, plan, general, explore, review, refactor, debug） |
-| storage | ✅ 完整 | SQLite + 文件系统持久化 |
-| server | ⚠️ 基础 | Actix-web 框架，基础路由 |
-| tui | ✅ 完整 | ratatui 实现 |
-| lsp | ⚠️ 基础 | diagnostics, symbols |
-| mcp | ⚠️ 基础 | stdio/remote bridge |
-| permission | ✅ 完整 | allow/ask/deny + approval queue |
-| auth | ✅ 完整 | JWT, password, OAuth |
-| plugin | ⚠️ 未实现 | 计划中 |
-| control-plane | ⚠️ ACP协议 | ACP 流式协议实现 |
-| git | ⚠️ 基础 | git2 封装 |
+### 当前代码结构 (rust-opencode-port/)
+
+| 模块 | 状态 | 文件数 |
+|------|------|--------|
+| core | ✅ 已实现 | 核心域模型 |
+| llm | ✅ 已实现 | LLM Provider 抽象 |
+| tools | ✅ 已实现 | 内置工具 |
+| agent | ✅ 已实现 | Build/Plan/General/Review/Refactor/Debug Agent |
+| storage | ✅ 已实现 | SQLite 持久化 |
+| permission | ✅ 已实现 | 权限引擎 |
+| lsp | ✅ 已实现 | LSP 诊断/符号/定义/引用 |
+| server | ✅ 已实现 | REST API |
+| tui | ✅ 已实现 | Ratatui 终端 |
+| mcp | ✅ 已实现 | MCP 桥接 |
+| git | ✅ 已实现 | Git 集成 |
+| auth | ✅ 已实现 | 认证层 |
+| plugin | ✅ 已实现 | 插件系统 |
+| control-plane | ✅ 已实现 | 控制平面流 |
 
 ---
 
-## 二、差距列表
+## 差距列表
 
-### P0 - 阻断性问题
+### 功能完整性差距
 
 | 差距项 | 严重程度 | 模块 | 修复建议 |
 |--------|----------|------|----------|
-| Context Engine 未实现 | P0 | core | 缺少 token budget 管理、context ranking、compaction |
-| Plugin System 未实现 | P0 | plugin | 需实现 WASM 运行时、事件总线 |
-| Skills 系统未实现 | P0 | core | 需实现 skill loader、semantic matching |
-| Commands 系统未实现 | P0 | core | 需实现 command parser、template expansion |
-| MCP 工具接入不完整 | P0 | mcp | 缺少 schema cache、permission 集成 |
+| Commands 系统 - 宏命令定义与执行 | P1 | TUI/CLI | 实现 `.opencode/commands/*.md` 加载，支持 `${file}` 等变量替换 |
+| Skills 系统 - 延迟加载与语义匹配 | P2 | Agent | 实现 `.opencode/skills/<name>/SKILL.md` 按需发现与语义匹配 |
+| Context Engine - Token Budget 压缩 | P1 | Core | 实现 85% 预警 / 92% compact / 95% 强制新 session 机制 |
+| Share 功能 - 导出与短链 | P2 | Server/Storage | 实现 session JSON/Markdown 导出，self-hosted share 服务层 |
+| GitHub Integration - Issue/PR Trigger | P2 | CLI/Server | v2 功能，非 v1 目标 |
 
-### P1 - 核心功能缺失
-
-| 差距项 | 严重程度 | 模块 | 修复建议 |
-|--------|----------|------|----------|
-| Server API 不完整 | P1 | server | 缺少 Session/Messages/Tool/Artifact API |
-| Share 能力未实现 | P1 | core | 需实现 export JSON/Markdown、share server |
-| LSP 功能有限 | P1 | lsp | 缺少 definition、references、hover |
-| 插件事件总线不完整 | P1 | core | 事件类型覆盖不全 |
-| 凭证加密存储缺失 | P1 | auth | auth store 未实现加密 |
-
-### P2 - 完善性问题
+### 接口完整性差距
 
 | 差距项 | 严重程度 | 模块 | 修复建议 |
 |--------|----------|------|----------|
-| 配置系统不完整 | P2 | core | 缺少 JSONC loader、env override、schema validation |
-| Session summarize 不完整 | P2 | core | 自动 compact 逻辑未实现 |
-| Web UI 未实现 | P2 | tui | PRD 中规划的 web shell v1.5 |
-| IDE 扩展未实现 | P2 | - | v2 目标 |
-| GitHub 集成未实现 | P2 | git | v2 目标 |
+| REST API - `/providers/{id}/credentials` | P1 | Server | 添加凭证设置/测试/撤销 API |
+| REST API - `/sessions/{id}/fork` | P1 | Server | 实现 session 分叉端点 |
+| REST API - `/sessions/{id}/summarize` | P1 | Server | 实现自动摘要端点 |
+| SSE/WebSocket 双协议支持 | P1 | Server | 当前实现需验证是否完整支持两种流式协议 |
+| Provider 管理 API 完善 | P1 | Server | 补充连通性测试、credential 过期状态 |
+
+### 前端完整性差距
+
+| 差距项 | 严重程度 | 模块 | 修复建议 |
+|--------|----------|------|----------|
+| TUI 三栏/双栏切换 | P2 | TUI | 实现可切换布局 |
+| TUI 右栏功能 - diagnostics/todo/权限队列 | P2 | TUI | 完善右栏面板 |
+| TUI 快捷输入 - `@file` `/command` `!shell` | P1 | TUI | 完整实现三种快捷输入解析器 |
+| TUI Token/Cost 显示 | P2 | TUI | 实现 token 统计与成本显示 |
+| TUI Patch 预览展开 | P2 | TUI | 实现 diff 展开/收起交互 |
+| Web UI | P2 | Server/TUI | v0.3 目标，非 v1 强制 |
+
+### 数据模型差距
+
+| 差距项 | 严重程度 | 模块 | 修复建议 |
+|--------|----------|------|----------|
+| Session Fork Lineage | P1 | Storage | 添加 `parent_session_id` 字段与 fork 逻辑 |
+| Session Share 状态 | P2 | Storage | 添加 `shared_id` 字段与分享逻辑 |
+| PermissionDecision 审计模型 | P2 | Storage | 完善权限决策审计表 |
+| Snapshot 元数据 | P1 | Storage | 完善 snapshots 表关联 |
+| Auth Store - 凭证加密存储 | P2 | Auth | 实现系统密钥链集成与加密 |
+| OAuth Session 存储 | P2 | Auth | v1.5 目标，预留扩展字段 |
+
+### 配置管理差距
+
+| 差距项 | 严重程度 | 模块 | 修复建议 |
+|--------|----------|------|----------|
+| 多层配置合并 (global/project/env/CLI) | P1 | Core | 实现配置优先级合并逻辑 |
+| JSONC 解析器 | P2 | Core | 实现 JSONC 注释支持 |
+| Provider Credential 引用机制 | P1 | Config | 实现 `credentialRef` 而非明文密钥 |
+| 环境变量约定 - Provider-specific | P1 | Config | 实现 `OPENAI_API_KEY` 等自动绑定 |
+
+### 测试覆盖差距
+
+| 差距项 | 严重程度 | 模块 | 修复建议 |
+|--------|----------|------|----------|
+| Skill 加载与匹配 E2E 测试 | P2 | Agent | 补充 skills 集成测试 |
+| Command 模板展开测试 | P2 | CLI | 补充命令解析测试 |
+| MCP 工具发现与调用测试 | P1 | MCP | 补充 MCP 完整流程测试 |
+| Session 并发与分叉测试 | P1 | Storage | 补充 session 并发测试 |
+| 权限 scope 记忆测试 | P2 | Permission | 补充权限范围记忆测试 |
 
 ---
 
-## 三、功能完整性对比
+## P0/P1/P2 问题分类
 
-| PRD 功能 | 实现状态 |
-|----------|----------|
-| Workspace/Project 机制 | ✅ 已实现 |
-| Session 会话系统（create/continue/fork/abort） | ✅ 已实现 |
-| Agent 系统（build/plan + 4 种扩展） | ✅ 已实现 |
-| 文件工具（read/glob/grep/write/edit/patch/move/delete） | ✅ 已实现 |
-| Shell 工具（bash） | ✅ 已实现 |
-| Git 工具（status/diff/log/show） | ✅ 已实现 |
-| 权限系统（allow/ask/deny + scope） | ✅ 已实现 |
-| @file 引用 | ⚠️ 部分实现 |
-| !shell 直接执行 | ⚠️ 部分实现 |
-| /command 快捷命令 | ❌ 未实现 |
-| Skills 延迟加载 | ❌ 未实现 |
-| Commands 自定义 | ❌ 未实现 |
-| MCP 本地/远程 | ⚠️ 基础实现 |
-| LSP diagnostics | ⚠️ 基础实现 |
-| Server API (REST + SSE/WS) | ⚠️ 基础实现 |
-| Share 分享 | ❌ 未实现 |
-| Plugin WASM 宿主 | ❌ 未实现 |
-| 凭证加密存储 | ❌ 未实现 |
+### P0 - 阻塞性问题 (必须修复)
 
----
+| # | 问题 | 影响 |
+|---|------|------|
+| P0-1 | Commands 系统未实现 | 用户无法使用自定义宏命令 |
+| P0-2 | `@file` / `!shell` / `/command` 快捷输入未完整实现 | TUI 核心交互缺失 |
+| P0-3 | Session Fork 未实现 | 无法分叉会话 |
+| P0-4 | 多层配置合并未实现 | 配置优先级混乱 |
+| P0-5 | Context Token Budget 压缩未实现 | 长会话上下文溢出 |
 
-## 四、接口完整性对比
+### P1 - 重要问题 (应该修复)
 
-| PRD API 路径 | 实现状态 |
-|--------------|----------|
-| POST /sessions | ⚠️ 部分 |
-| GET /sessions | ⚠️ 部分 |
-| GET /sessions/{id} | ⚠️ 部分 |
-| POST /sessions/{id}/fork | ❌ 未实现 |
-| POST /sessions/{id}/summarize | ⚠️ 部分 |
-| POST /sessions/{id}/abort | ✅ 已实现 |
-| POST /sessions/{id}/prompt | ⚠️ 部分 |
-| GET /sessions/{id}/messages | ⚠️ 部分 |
-| POST /sessions/{id}/shell | ✅ 已实现 |
-| POST /sessions/{id}/command | ❌ 未实现 |
-| POST /sessions/{id}/permissions/{req_id}/reply | ✅ 已实现 |
-| GET /sessions/{id}/diff | ⚠️ 部分 |
-| GET /sessions/{id}/snapshots | ⚠️ 部分 |
-| POST /sessions/{id}/revert | ⚠️ 部分 |
-| GET /providers | ⚠️ 部分 |
-| GET /models | ⚠️ 部分 |
+| # | 问题 | 影响 |
+|---|------|------|
+| P1-1 | Skills 延迟加载未实现 | 无法按需加载领域知识包 |
+| P1-2 | Permission 审计记录不完整 | 权限决策无法追溯 |
+| P1-3 | Share 导出功能缺失 | 无法分享会话 |
+| P1-4 | Provider API 凭证管理不完整 | 无法测试/撤销凭证 |
+| P1-5 | Token/Cost 统计未显示 | 用户无法感知成本 |
+
+### P2 - 改进问题 (可以后续修复)
+
+| # | 问题 | 影响 |
+|---|------|------|
+| P2-1 | TUI 三栏布局未实现 | UI 布局受限 |
+| P2-2 | GitHub Integration 未实现 | v2 目标 |
+| P2-3 | Web UI 未实现 | v0.3 目标 |
+| P2-4 | OAuth 登录预留 | v1.5 目标 |
+| P2-5 | Auth Store 加密未实现 | 安全增强项 |
 
 ---
 
-## 五、数据模型对比
+## 技术债务清单
 
-| PRD 数据模型 | 实现状态 |
-|--------------|----------|
-| Session | ✅ 完整 |
-| Message | ✅ 完整 |
-| ToolCall | ✅ 完整 |
-| Snapshot | ✅ 完整 |
-| PermissionDecision | ✅ 完整 |
-| Provider/Credential | ✅ 完整 |
-| Project | ✅ 完整 |
-| Checkpoint | ✅ 完整 |
+| 债务项 | 描述 | 优先级 |
+|--------|------|--------|
+| TD-1 | 硬编码魔法数字 (如 token 阈值) | P1 |
+| TD-2 | 错误码与人类可读文案未完整映射 | P1 |
+| TD-3 | Provider-specific header 注入逻辑散落 | P2 |
+| TD-4 | 插件事件总线未完整测试 | P2 |
+| TD-5 | LSP 增量刷新性能优化 | P2 |
+| TD-6 | MCP 工具 schema 缓存机制 | P2 |
 
 ---
 
-## 六、技术债务清单
+## 总结
 
-| 债务项 | 描述 | 影响 |
-|--------|------|------|
-| 硬编码 provider 默认值 | 缺少配置灵活性 | 中 |
-| 错误码不统一 | 未完全按 PRD 细分错误类型 | 低 |
-| 缺少 observability | 无结构化 tracing、session traces | 中 |
-| Session checkpoint 粒度 | 未实现每次消息后的持久化 | 中 |
-| MCP token 成本控制 | 未实现工具元信息延迟注入 | 中 |
-| 多层配置合并 | 未完全实现 config merge 逻辑 | 中 |
+**实现完成度: ~75%**
 
----
+- **已实现**: Core/LLM/Tools/Agent/Storage/Permission/LSP/Server/TUI/MCP/Git/Auth/Plugin/ControlPlane
+- **核心缺失 (P0)**: Commands 系统、快捷输入解析、Session Fork、多层配置、Token Budget 压缩
+- **次要缺失 (P1)**: Skills 系统、Share 功能、Provider API 完善、Token 统计
+- **未来目标 (P2)**: GitHub Integration、Web UI、OAuth
 
-## 七、总结
-
-**完成度：约 60%**
-
-- **已完成**：核心领域模型、工具系统、Agent 系统、权限系统、LLM Provider 抽象、基础 TUI
-- **需完成**：Context Engine、Plugin、Skills、Commands、完整 Server API、Share、MCP 增强、LSP 增强
-
-**建议优先级**：
-1. 先完成 Context Engine（token budget + compaction）
-2. 再补齐 Server API（REST + SSE）
-3. 最后实现 Skills/Commands/Plugin 系统
+**建议优先级**:
+1. 修复 P0 问题 (Commands + 快捷输入 + Session Fork + 配置 + Context)
+2. 完善 P1 问题 (Skills + Share + Provider API)
+3. 跟进 P2 问题 (TUI 增强 + 测试覆盖)

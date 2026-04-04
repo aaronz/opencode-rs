@@ -36,11 +36,21 @@ pub enum DiffLayout {
     SideBySide,
 }
 
+#[derive(Debug, Clone)]
+pub struct DiffHunk {
+    pub header: String,
+    pub lines: Vec<DiffLine>,
+    pub collapsed: bool,
+    pub added_count: usize,
+    pub removed_count: usize,
+}
+
 pub struct DiffReviewOverlay {
     diff_state: DiffState,
     theme: Theme,
     layout: DiffLayout,
-    diff_content: Vec<DiffLine>,
+    hunks: Vec<DiffHunk>,
+    selected_hunk: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -59,12 +69,13 @@ pub enum DiffLineType {
 
 impl DiffReviewOverlay {
     pub fn new(file_path: String, theme: Theme) -> Self {
-        let diff_content = Self::parse_diff(file_path.clone());
+        let hunks = Self::parse_diff(file_path.clone());
         Self {
             diff_state: DiffState::Pending(file_path),
             theme,
             layout: DiffLayout::Stacked,
-            diff_content,
+            hunks,
+            selected_hunk: 0,
         }
     }
 
@@ -152,56 +163,69 @@ impl DiffReviewOverlay {
         spans
     }
 
-    fn parse_diff(file_path: String) -> Vec<DiffLine> {
-        let mut lines = Vec::new();
+    fn parse_diff(file_path: String) -> Vec<DiffHunk> {
+        let mut hunks = Vec::new();
+        let mut current_hunk = DiffHunk {
+            header: "@@ -1,20 +1,20 @@".to_string(),
+            lines: Vec::new(),
+            collapsed: false,
+            added_count: 0,
+            removed_count: 0,
+        };
 
         if let Ok(content) = std::fs::read_to_string(&file_path) {
             for line in content.lines().take(20) {
                 if line.starts_with("+ ") {
-                    lines.push(DiffLine {
+                    current_hunk.added_count += 1;
+                    current_hunk.lines.push(DiffLine {
                         content: line[2..].to_string(),
                         line_type: DiffLineType::Added,
                     });
                 } else if line.starts_with("- ") {
-                    lines.push(DiffLine {
+                    current_hunk.removed_count += 1;
+                    current_hunk.lines.push(DiffLine {
                         content: line[2..].to_string(),
                         line_type: DiffLineType::Removed,
                     });
                 } else {
-                    lines.push(DiffLine {
+                    current_hunk.lines.push(DiffLine {
                         content: line.to_string(),
                         line_type: DiffLineType::Context,
                     });
                 }
             }
+            hunks.push(current_hunk);
         } else {
-            lines.push(DiffLine {
+            current_hunk.lines.push(DiffLine {
                 content: "--- a/".to_string() + &file_path,
                 line_type: DiffLineType::Context,
             });
-            lines.push(DiffLine {
+            current_hunk.lines.push(DiffLine {
                 content: "+++ b/".to_string() + &file_path,
                 line_type: DiffLineType::Context,
             });
-            lines.push(DiffLine {
+            current_hunk.lines.push(DiffLine {
                 content: "@@ -1,5 +1,6 @@".to_string(),
                 line_type: DiffLineType::Context,
             });
-            lines.push(DiffLine {
+            current_hunk.lines.push(DiffLine {
                 content: " unchanged content".to_string(),
                 line_type: DiffLineType::Unchanged,
             });
-            lines.push(DiffLine {
+            current_hunk.removed_count += 1;
+            current_hunk.lines.push(DiffLine {
                 content: "- removed line".to_string(),
                 line_type: DiffLineType::Removed,
             });
-            lines.push(DiffLine {
+            current_hunk.added_count += 1;
+            current_hunk.lines.push(DiffLine {
                 content: "+ added line".to_string(),
                 line_type: DiffLineType::Added,
             });
+            hunks.push(current_hunk);
         }
 
-        lines
+        hunks
     }
 
     pub fn handle_input(&mut self, key: KeyEvent) -> DiffAction {
@@ -209,6 +233,36 @@ impl DiffReviewOverlay {
             KeyCode::Esc => DiffAction::Cancel,
             KeyCode::Char('t') | KeyCode::Char('T') => {
                 self.toggle_layout();
+                DiffAction::None
+            }
+            KeyCode::Char('e') | KeyCode::Char('E') => {
+                for hunk in &mut self.hunks {
+                    hunk.collapsed = false;
+                }
+                DiffAction::None
+            }
+            KeyCode::Char('c') | KeyCode::Char('C') => {
+                for hunk in &mut self.hunks {
+                    hunk.collapsed = true;
+                }
+                DiffAction::None
+            }
+            KeyCode::Char(' ') => {
+                if let Some(hunk) = self.hunks.get_mut(self.selected_hunk) {
+                    hunk.collapsed = !hunk.collapsed;
+                }
+                DiffAction::None
+            }
+            KeyCode::Up | KeyCode::Char('k') => {
+                if self.selected_hunk > 0 {
+                    self.selected_hunk -= 1;
+                }
+                DiffAction::None
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                if self.selected_hunk + 1 < self.hunks.len() {
+                    self.selected_hunk += 1;
+                }
                 DiffAction::None
             }
             KeyCode::Char('y') | KeyCode::Char('Y') => {
@@ -227,7 +281,7 @@ impl DiffReviewOverlay {
                     DiffAction::None
                 }
             }
-            KeyCode::Char('e') | KeyCode::Char('E') => {
+            KeyCode::Char('i') | KeyCode::Char('I') => {
                 if let DiffState::Pending(path) = self.diff_state.clone() {
                     self.diff_state = DiffState::Editing(path.clone());
                     DiffAction::Edit(path)
@@ -242,19 +296,59 @@ impl DiffReviewOverlay {
     fn render_stacked_diff(&self) -> Vec<Line<'_>> {
         let mut lines = vec![Line::from("")];
 
-        for diff_line in &self.diff_content {
-            let (prefix, base_style) = match diff_line.line_type {
-                DiffLineType::Added => ("+ ", Style::default().fg(Color::Green)),
-                DiffLineType::Removed => ("- ", Style::default().fg(Color::Red)),
-                DiffLineType::Unchanged => ("  ", Style::default()),
-                DiffLineType::Context => ("  ", Style::default().fg(self.theme.muted_color())),
-            };
+        for (i, hunk) in self.hunks.iter().enumerate() {
+            let is_selected = i == self.selected_hunk;
+            let prefix = if is_selected { "> " } else { "  " };
 
-            let mut spans = vec![Span::styled(prefix, base_style)];
-            let highlighted = Self::highlight_syntax(&diff_line.content);
-            spans.extend(highlighted);
+            if hunk.collapsed {
+                let file_name = match &self.diff_state {
+                    DiffState::Pending(p)
+                    | DiffState::Accepted(p)
+                    | DiffState::Rejected(p)
+                    | DiffState::Editing(p) => p.clone(),
+                };
+                let summary = format!(
+                    "{}{} {} (+{} / -{})",
+                    prefix, file_name, hunk.header, hunk.added_count, hunk.removed_count
+                );
+                let style = if is_selected {
+                    Style::default()
+                        .fg(self.theme.primary_color())
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(self.theme.muted_color())
+                };
+                lines.push(Line::from(Span::styled(summary, style)));
+            } else {
+                let header_style = if is_selected {
+                    Style::default()
+                        .fg(self.theme.primary_color())
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(self.theme.muted_color())
+                };
+                lines.push(Line::from(Span::styled(
+                    format!("{}{}", prefix, hunk.header),
+                    header_style,
+                )));
 
-            lines.push(Line::from(spans));
+                for diff_line in &hunk.lines {
+                    let (line_prefix, base_style) = match diff_line.line_type {
+                        DiffLineType::Added => ("+ ", Style::default().fg(Color::Green)),
+                        DiffLineType::Removed => ("- ", Style::default().fg(Color::Red)),
+                        DiffLineType::Unchanged => ("  ", Style::default()),
+                        DiffLineType::Context => {
+                            ("  ", Style::default().fg(self.theme.muted_color()))
+                        }
+                    };
+
+                    let mut spans = vec![Span::raw("  "), Span::styled(line_prefix, base_style)];
+                    let highlighted = Self::highlight_syntax(&diff_line.content);
+                    spans.extend(highlighted);
+
+                    lines.push(Line::from(spans));
+                }
+            }
         }
 
         lines
@@ -264,63 +358,102 @@ impl DiffReviewOverlay {
         let half_width = (width / 2).saturating_sub(2);
         let mut lines = vec![Line::from("")];
 
-        let mut left_lines: Vec<DiffLine> = Vec::new();
-        let mut right_lines: Vec<DiffLine> = Vec::new();
+        for (i, hunk) in self.hunks.iter().enumerate() {
+            let is_selected = i == self.selected_hunk;
+            let prefix = if is_selected { "> " } else { "  " };
 
-        for diff_line in &self.diff_content {
-            match diff_line.line_type {
-                DiffLineType::Removed | DiffLineType::Unchanged | DiffLineType::Context => {
-                    left_lines.push(diff_line.clone());
+            if hunk.collapsed {
+                let file_name = match &self.diff_state {
+                    DiffState::Pending(p)
+                    | DiffState::Accepted(p)
+                    | DiffState::Rejected(p)
+                    | DiffState::Editing(p) => p.clone(),
+                };
+                let summary = format!(
+                    "{}{} {} (+{} / -{})",
+                    prefix, file_name, hunk.header, hunk.added_count, hunk.removed_count
+                );
+                let style = if is_selected {
+                    Style::default()
+                        .fg(self.theme.primary_color())
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(self.theme.muted_color())
+                };
+                lines.push(Line::from(Span::styled(summary, style)));
+            } else {
+                let header_style = if is_selected {
+                    Style::default()
+                        .fg(self.theme.primary_color())
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(self.theme.muted_color())
+                };
+                lines.push(Line::from(Span::styled(
+                    format!("{}{}", prefix, hunk.header),
+                    header_style,
+                )));
+
+                let mut left_lines: Vec<DiffLine> = Vec::new();
+                let mut right_lines: Vec<DiffLine> = Vec::new();
+
+                for diff_line in &hunk.lines {
+                    match diff_line.line_type {
+                        DiffLineType::Removed | DiffLineType::Unchanged | DiffLineType::Context => {
+                            left_lines.push(diff_line.clone());
+                        }
+                        DiffLineType::Added => {
+                            right_lines.push(diff_line.clone());
+                        }
+                    }
                 }
-                DiffLineType::Added => {
-                    right_lines.push(diff_line.clone());
+
+                let max_lines = left_lines.len().max(right_lines.len());
+
+                for j in 0..max_lines {
+                    let left = left_lines.get(j);
+                    let right = right_lines.get(j);
+
+                    let left_content = left
+                        .map(|l| {
+                            let p = match l.line_type {
+                                DiffLineType::Removed => "- ",
+                                _ => "  ",
+                            };
+                            format!("{}{}", p, l.content)
+                        })
+                        .unwrap_or_default();
+
+                    let right_content = right
+                        .map(|r| {
+                            let p = match r.line_type {
+                                DiffLineType::Added => "+ ",
+                                _ => "  ",
+                            };
+                            format!("{}{}", p, r.content)
+                        })
+                        .unwrap_or_default();
+
+                    let truncated_left = if left_content.len() > half_width as usize {
+                        left_content[..half_width as usize].to_string()
+                    } else {
+                        left_content
+                    };
+
+                    let truncated_right = if right_content.len() > half_width as usize {
+                        right_content[..half_width as usize].to_string()
+                    } else {
+                        right_content
+                    };
+
+                    lines.push(Line::from(vec![
+                        Span::raw("  "),
+                        Span::raw(truncated_left),
+                        Span::raw(" │ "),
+                        Span::raw(truncated_right),
+                    ]));
                 }
             }
-        }
-
-        let max_lines = left_lines.len().max(right_lines.len());
-
-        for i in 0..max_lines {
-            let left = left_lines.get(i);
-            let right = right_lines.get(i);
-
-            let left_content = left
-                .map(|l| {
-                    let prefix = match l.line_type {
-                        DiffLineType::Removed => "- ",
-                        _ => "  ",
-                    };
-                    format!("{}{}", prefix, l.content)
-                })
-                .unwrap_or_default();
-
-            let right_content = right
-                .map(|r| {
-                    let prefix = match r.line_type {
-                        DiffLineType::Added => "+ ",
-                        _ => "  ",
-                    };
-                    format!("{}{}", prefix, r.content)
-                })
-                .unwrap_or_default();
-
-            let truncated_left = if left_content.len() > half_width as usize {
-                left_content[..half_width as usize].to_string()
-            } else {
-                left_content
-            };
-
-            let truncated_right = if right_content.len() > half_width as usize {
-                right_content[..half_width as usize].to_string()
-            } else {
-                right_content
-            };
-
-            lines.push(Line::from(vec![
-                Span::raw(truncated_left),
-                Span::raw(" │ "),
-                Span::raw(truncated_right),
-            ]));
         }
 
         lines

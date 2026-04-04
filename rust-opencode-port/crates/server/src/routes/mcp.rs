@@ -1,7 +1,6 @@
 use actix_web::{web, HttpResponse, Error};
-use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use opencode_mcp::{McpServer, JsonRpcRequest, JsonRpcResponse};
+use serde::Deserialize;
+use opencode_mcp::{McpServer, JsonRpcRequest};
 use crate::ServerState;
 
 #[derive(Debug, Deserialize)]
@@ -13,7 +12,7 @@ pub struct McpRequestBody {
 }
 
 pub async fn mcp_handler(
-    state: web::Data<ServerState>,
+    _state: web::Data<ServerState>,
     body: web::Json<McpRequestBody>,
 ) -> Result<HttpResponse, Error> {
     let request = JsonRpcRequest {

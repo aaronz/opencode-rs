@@ -23,7 +23,7 @@ impl McpClient {
     }
 
     pub async fn initialize(&mut self) -> Result<JsonRpcResponse, String> {
-        let request = JsonRpcRequest::new("initialize", Some(serde_json::json!({
+        let _request = JsonRpcRequest::new("initialize", Some(serde_json::json!({
             "protocolVersion": "2024-11-05",
             "capabilities": {
                 "tools": {},

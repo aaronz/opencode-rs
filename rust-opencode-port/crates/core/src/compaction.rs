@@ -397,6 +397,7 @@ mod tests {
             preserve_system_messages: false,
             preserve_recent_messages: 1,
             summary_prefix: "[Compacted]".to_string(),
+            ..Default::default()
         });
         let messages = vec![
             Message::user("old question about foo"),

@@ -2,9 +2,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+mod directory_scanner;
 mod jsonc;
 mod merge;
 mod schema;
+pub use directory_scanner::{load_opencode_directory, OpencodeDirectoryScan};
 pub use jsonc::{is_jsonc_extension, parse_jsonc, JsoncError};
 
 /// Main configuration structure matching the TypeScript Config.Info schema
@@ -80,6 +82,7 @@ pub struct Config {
     pub username: Option<String>,
 
     /// Deprecated: Use `agent` field instead
+    #[deprecated(since = "2.0.0", note = "Use 'agent' field instead")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mode: Option<HashMap<String, AgentConfig>>,
 
@@ -108,6 +111,7 @@ pub struct Config {
     pub instructions: Option<Vec<String>>,
 
     /// Deprecated: Always uses stretch layout
+    #[deprecated(since = "2.0.0", note = "Layout is always stretch now")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub layout: Option<Layout>,
 
@@ -764,12 +768,61 @@ pub struct KeybindConfig {
     pub custom: Option<std::collections::HashMap<String, String>>,
 }
 
+impl KeybindConfig {
+    pub fn merge_with_defaults(&self, defaults: &KeybindConfig) -> (KeybindConfig, Vec<String>) {
+        let mut merged = defaults.clone();
+        let mut conflicts = Vec::new();
+
+        if let Some(ref custom) = self.custom {
+            let default_map = Self::to_flat_map(defaults);
+            for (key, value) in custom {
+                if default_map.contains_key(key) {
+                    conflicts.push(format!("Custom keybind '{}' overrides default '{}'", value, key));
+                }
+                merged.custom.get_or_insert_with(std::collections::HashMap::new).insert(key.clone(), value.clone());
+            }
+        }
+
+        macro_rules! merge_field {
+            ($field:ident) => {
+                if self.$field.is_some() {
+                    merged.$field = self.$field.clone();
+                }
+            };
+        }
+        merge_field!(commands);
+        merge_field!(timeline);
+        merge_field!(settings);
+        merge_field!(models);
+        merge_field!(files);
+        merge_field!(terminal);
+
+        (merged, conflicts)
+    }
+
+    fn to_flat_map(config: &KeybindConfig) -> std::collections::HashMap<String, String> {
+        let mut map = std::collections::HashMap::new();
+        if let Some(v) = &config.commands { map.insert("commands".to_string(), v.clone()); }
+        if let Some(v) = &config.timeline { map.insert("timeline".to_string(), v.clone()); }
+        if let Some(v) = &config.settings { map.insert("settings".to_string(), v.clone()); }
+        if let Some(v) = &config.models { map.insert("models".to_string(), v.clone()); }
+        if let Some(v) = &config.files { map.insert("files".to_string(), v.clone()); }
+        if let Some(v) = &config.terminal { map.insert("terminal".to_string(), v.clone()); }
+        if let Some(custom) = &config.custom {
+            map.extend(custom.clone());
+        }
+        map
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct ThemeConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub path: Option<std::path::PathBuf>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scan_dirs: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
@@ -777,9 +830,83 @@ pub struct TuiConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scroll_speed: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub scroll_acceleration: Option<f32>,
+    pub scroll_acceleration: Option<ScrollAccelerationConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub diff_style: Option<DiffStyle>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ScrollAccelerationConfig {
+    pub enabled: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub speed: Option<f32>,
+}
+
+impl<'de> Deserialize<'de> for ScrollAccelerationConfig {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::{self, Visitor};
+
+        struct ScrollVisitor;
+
+        impl<'de> Visitor<'de> for ScrollVisitor {
+            type Value = ScrollAccelerationConfig;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a number (legacy) or {{ enabled: bool, speed?: f32 }}")
+            }
+
+            fn visit_f64<E>(self, value: f64) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(ScrollAccelerationConfig {
+                    enabled: true,
+                    speed: Some(value as f32),
+                })
+            }
+
+            fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
+            where
+                M: de::MapAccess<'de>,
+            {
+                let mut enabled = true;
+                let mut speed = None;
+
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        "enabled" => enabled = map.next_value()?,
+                        "speed" => speed = map.next_value()?,
+                        _ => { let _: serde::de::IgnoredAny = map.next_value()?; }
+                    }
+                }
+
+                Ok(ScrollAccelerationConfig { enabled, speed })
+            }
+        }
+
+        deserializer.deserialize_any(ScrollVisitor)
+    }
+}
+
+impl Default for ScrollAccelerationConfig {
+    fn default() -> Self {
+        ScrollAccelerationConfig {
+            enabled: true,
+            speed: None,
+        }
+    }
+}
+
+impl From<f32> for ScrollAccelerationConfig {
+    fn from(val: f32) -> Self {
+        ScrollAccelerationConfig {
+            enabled: true,
+            speed: Some(val),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1102,6 +1229,35 @@ impl Config {
                 }
             }
             self.experimental = Some(exp);
+        }
+
+        let provider_api_keys = [
+            ("openai", "OPENAI_API_KEY"),
+            ("anthropic", "ANTHROPIC_API_KEY"),
+            ("google", "GOOGLE_API_KEY"),
+            ("azure", "AZURE_OPENAI_API_KEY"),
+            ("ollama", "OLLAMA_HOST"),
+            ("aws", "AWS_ACCESS_KEY_ID"),
+            ("cohere", "COHERE_API_KEY"),
+            ("mistral", "MISTRAL_API_KEY"),
+            ("perplexity", "PERPLEXITY_API_KEY"),
+            ("groq", "GROQ_API_KEY"),
+        ];
+
+        let mut providers = self.provider.clone().unwrap_or_default();
+        for (provider_id, env_var) in provider_api_keys {
+            if let Ok(api_key) = std::env::var(env_var) {
+                let config = providers.entry(provider_id.to_string()).or_insert_with(|| ProviderConfig {
+                    id: Some(provider_id.to_string()),
+                    ..Default::default()
+                });
+                let mut opts = config.options.clone().unwrap_or_default();
+                opts.api_key = Some(api_key);
+                config.options = Some(opts);
+            }
+        }
+        if !providers.is_empty() {
+            self.provider = Some(providers);
         }
     }
 
@@ -1481,5 +1637,68 @@ mod tests {
         config.disabled_providers = Some(vec!["ollama".to_string()]);
         assert!(config.is_provider_enabled("openai"));
         assert!(!config.is_provider_enabled("ollama"));
+    }
+
+    #[test]
+    fn test_substitute_variables_env() {
+        std::env::set_var("TEST_VAR", "test_value");
+        let input = "key: {env:TEST_VAR}";
+        let result = Config::substitute_variables(input);
+        assert_eq!(result, "key: test_value");
+        std::env::remove_var("TEST_VAR");
+    }
+
+    #[test]
+    fn test_substitute_variables_missing_env() {
+        std::env::remove_var("NONEXISTENT_VAR");
+        let input = "key: {env:NONEXISTENT_VAR}";
+        let result = Config::substitute_variables(input);
+        assert_eq!(result, "key: {env:NONEXISTENT_VAR}");
+    }
+
+    #[test]
+    fn test_substitute_variables_multiple() {
+        std::env::set_var("VAR1", "value1");
+        std::env::set_var("VAR2", "value2");
+        let input = "{env:VAR1} and {env:VAR2}";
+        let result = Config::substitute_variables(input);
+        assert_eq!(result, "value1 and value2");
+        std::env::remove_var("VAR1");
+        std::env::remove_var("VAR2");
+    }
+
+    #[test]
+    fn test_scroll_acceleration_from_f32() {
+        let config: ScrollAccelerationConfig = 1.5f32.into();
+        assert!(config.enabled);
+        assert_eq!(config.speed, Some(1.5));
+    }
+
+    #[test]
+    fn test_scroll_acceleration_deserialize_legacy() {
+        let config: ScrollAccelerationConfig = serde_json::from_str("2.5").unwrap();
+        assert!(config.enabled);
+        assert_eq!(config.speed, Some(2.5));
+    }
+
+    #[test]
+    fn test_scroll_acceleration_deserialize_new_format() {
+        let config: ScrollAccelerationConfig = serde_json::from_str(r#"{"enabled":true,"speed":3.0}"#).unwrap();
+        assert!(config.enabled);
+        assert_eq!(config.speed, Some(3.0));
+    }
+
+    #[test]
+    fn test_scroll_acceleration_deserialize_minimal() {
+        let config: ScrollAccelerationConfig = serde_json::from_str(r#"{"enabled":false}"#).unwrap();
+        assert!(!config.enabled);
+        assert_eq!(config.speed, None);
+    }
+
+    #[test]
+    fn test_scroll_acceleration_default() {
+        let config = ScrollAccelerationConfig::default();
+        assert!(config.enabled);
+        assert_eq!(config.speed, None);
     }
 }
