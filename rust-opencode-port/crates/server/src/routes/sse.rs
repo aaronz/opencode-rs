@@ -1,28 +1,21 @@
-use actix_web::{web, HttpResponse, Error, HttpRequest};
-use futures::stream::{self, Stream};
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tokio::sync::mpsc;
-use tracing::info;
-use opencode_core::{Message as CoreMessage, Session};
-use crate::ServerState;
 
-#[derive(Debug, Serialize)]
-#[serde(tag = "type")]
-pub enum SseEvent {
-    #[serde(rename = "chunk")]
-    Chunk { content: String, session_id: String, event_id: u64 },
-    #[serde(rename = "start")]
-    Start { session_id: String, model: String },
-    #[serde(rename = "end")]
-    End { session_id: String, message_count: usize },
-    #[serde(rename = "error")]
-    Error { message: String, code: Option<String> },
-}
+use actix_web::{Error, HttpRequest, HttpResponse, web};
+use futures::stream::{self, Stream};
+use opencode_core::bus::InternalEvent;
+use opencode_core::{Message as CoreMessage, Session};
+use serde::Deserialize;
+use tokio::sync::mpsc;
+use tracing::{info, warn};
+
+use crate::ServerState;
+use crate::streaming::heartbeat::HeartbeatManager;
+use crate::streaming::{ReplayEntry, StreamMessage};
 
 #[derive(Debug, Deserialize)]
 pub struct SseQuery {
     pub session_id: Option<String>,
+    pub reconnect_token: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -31,13 +24,23 @@ pub struct SseMessageRequest {
     pub model: Option<String>,
 }
 
+#[derive(Debug)]
+struct OutboundSse {
+    message: StreamMessage,
+    event_id: Option<u64>,
+    record: bool,
+}
+
 pub async fn sse_index(
     state: web::Data<ServerState>,
     req: HttpRequest,
     query: web::Query<SseQuery>,
 ) -> Result<HttpResponse, Error> {
-    let session_id = query.session_id.clone().unwrap_or_else(|| "default".to_string());
-    
+    let session_id = query
+        .session_id
+        .clone()
+        .unwrap_or_else(|| "default".to_string());
+
     let last_event_id = req
         .headers()
         .get("Last-Event-ID")
@@ -45,10 +48,22 @@ pub async fn sse_index(
         .and_then(|v| v.parse::<u64>().ok())
         .unwrap_or(0);
 
-    info!("SSE connection: session={}, last_event_id={}", session_id, last_event_id);
+    let resume_from = query
+        .reconnect_token
+        .as_ref()
+        .and_then(|token| state.reconnection_store.validate_token(&session_id, token))
+        .unwrap_or(last_event_id);
 
-    let state_clone = state.into_inner();
-    let stream = create_event_stream(session_id, last_event_id, state_clone);
+    let reconnect_token = state
+        .reconnection_store
+        .generate_token(&session_id, Some(resume_from));
+
+    info!(
+        "SSE connect: session_id={}, last_event_id={}, resume_from={}",
+        session_id, last_event_id, resume_from
+    );
+
+    let stream = create_event_stream(session_id, resume_from, state.into_inner());
 
     Ok(HttpResponse::Ok()
         .content_type("text/event-stream")
@@ -56,51 +71,141 @@ pub async fn sse_index(
         .insert_header(("Connection", "keep-alive"))
         .insert_header(("Access-Control-Allow-Origin", "*"))
         .insert_header(("X-Accel-Buffering", "no"))
+        .insert_header(("X-Reconnect-Token", reconnect_token))
         .streaming(Box::pin(stream)))
 }
 
 fn create_event_stream(
     session_id: String,
-    last_event_id: u64,
-    _state: Arc<ServerState>,
+    resume_from: u64,
+    state: Arc<ServerState>,
 ) -> impl Stream<Item = Result<web::Bytes, Error>> {
-    let (tx, rx) = mpsc::channel::<SseEvent>(100);
+    let (tx, rx) = mpsc::channel::<OutboundSse>(128);
 
-    let session_id_clone = session_id.clone();
+    let tx_bootstrap = tx.clone();
+    let state_bootstrap = Arc::clone(&state);
+    let session_bootstrap = session_id.clone();
     actix_rt::spawn(async move {
-        let _ = tx.send(SseEvent::Start {
-            session_id: session_id_clone.clone(),
-            model: "connected".to_string(),
-        }).await;
+        let _ = tx_bootstrap
+            .send(OutboundSse {
+                message: StreamMessage::Connected {
+                    session_id: Some(session_bootstrap.clone()),
+                },
+                event_id: None,
+                record: false,
+            })
+            .await;
 
-        let welcome = SseEvent::Chunk {
-            content: "Connected to OpenCode SSE".to_string(),
-            session_id: session_id_clone.clone(),
-            event_id: last_event_id + 1,
-        };
-        let _ = tx.send(welcome).await;
+        for ReplayEntry { sequence, message } in state_bootstrap
+            .reconnection_store
+            .replay_from(&session_bootstrap, resume_from)
+        {
+            let _ = tx_bootstrap
+                .send(OutboundSse {
+                    message,
+                    event_id: Some(sequence),
+                    record: false,
+                })
+                .await;
+        }
     });
 
-    stream::unfold(rx, |mut rx| async move {
-        match rx.recv().await {
-            Some(event) => {
-                let event_id = match &event {
-                    SseEvent::Chunk { event_id, .. } => *event_id,
-                    _ => 0,
-                };
-                
-                let data = serde_json::to_string(&event).unwrap_or_default();
-                let sse_format = if event_id > 0 {
-                    format!("id: {}\ndata: {}\n\n", event_id, data)
-                } else {
-                    format!("data: {}\n\n", data)
-                };
-                
-                Some((Ok::<_, Error>(web::Bytes::from(sse_format)), rx))
+    let (hb_tx, mut hb_rx) = mpsc::channel::<StreamMessage>(32);
+    let heartbeat = HeartbeatManager::default();
+    let heartbeat_handle = heartbeat.spawn(hb_tx);
+    let tx_heartbeat = tx.clone();
+    actix_rt::spawn(async move {
+        while let Some(message) = hb_rx.recv().await {
+            if tx_heartbeat
+                .send(OutboundSse {
+                    message,
+                    event_id: None,
+                    record: false,
+                })
+                .await
+                .is_err()
+            {
+                break;
             }
-            None => None,
+        }
+    });
+
+    let tx_bus = tx.clone();
+    let mut bus_rx = state.event_bus.subscribe();
+    let session_filter = session_id.clone();
+    actix_rt::spawn(async move {
+        loop {
+            match bus_rx.recv().await {
+                Ok(event) => {
+                    if let Some(message) = event_to_stream_message(event, &session_filter) {
+                        if tx_bus
+                            .send(OutboundSse {
+                                message,
+                                event_id: None,
+                                record: true,
+                            })
+                            .await
+                            .is_err()
+                        {
+                            break;
+                        }
+                    }
+                }
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+            }
+        }
+    });
+
+    stream::unfold((rx, state, session_id, heartbeat_handle), |(mut rx, state, session_id, heartbeat_handle)| async move {
+        match rx.recv().await {
+            Some(outbound) => {
+                let event_id = if outbound.record {
+                    outbound
+                        .message
+                        .session_id()
+                        .filter(|sid| *sid == session_id.as_str())
+                        .map(|sid| state.reconnection_store.record_message(sid, outbound.message.clone()))
+                        .or(outbound.event_id)
+                } else {
+                    outbound.event_id
+                };
+
+                let payload = serde_json::to_string(&outbound.message).unwrap_or_else(|_| {
+                    serde_json::json!({
+                        "type": "error",
+                        "session_id": session_id,
+                        "code": "SERIALIZATION_ERROR",
+                        "message": "failed to serialize stream payload"
+                    })
+                    .to_string()
+                });
+
+                let formatted = match event_id {
+                    Some(id) => format!("id: {id}\ndata: {payload}\n\n"),
+                    None => format!("data: {payload}\n\n"),
+                };
+
+                Some((
+                    Ok::<_, Error>(web::Bytes::from(formatted)),
+                    (rx, state, session_id, heartbeat_handle),
+                ))
+            }
+            None => {
+                heartbeat_handle.abort();
+                None
+            }
         }
     })
+}
+
+fn event_to_stream_message(event: InternalEvent, session_id: &str) -> Option<StreamMessage> {
+    let candidate = StreamMessage::from_internal_event(&event)?;
+    match candidate.session_id() {
+        Some(source_session) if source_session == session_id => Some(candidate),
+        Some(_) => None,
+        None => Some(candidate),
+    }
 }
 
 pub async fn sse_send_message(
@@ -115,22 +220,26 @@ pub async fn sse_send_message(
         Ok(Some(s)) => s,
         Ok(None) => Session::new(),
         Err(e) => {
-            return Ok(HttpResponse::InternalServerError()
-                .json(serde_json::json!({"error": e.to_string()})));
+            return Ok(HttpResponse::InternalServerError().json(StreamMessage::Error {
+                session_id: Some(session_id),
+                code: "session_load_error".to_string(),
+                message: e.to_string(),
+            }));
         }
     };
 
     core_session.add_message(CoreMessage::user(req.message.clone()));
 
     if let Err(e) = state.storage.save_session(&core_session).await {
-        tracing::warn!("Failed to save session: {}", e);
+        warn!("Failed to save session: {}", e);
     }
 
-    Ok(HttpResponse::Ok().json(serde_json::json!({
-        "session_id": session_id,
-        "message": "Message received. Agent execution not yet integrated.",
-        "message_count": core_session.messages.len(),
-    })))
+    let status = req
+        .model
+        .clone()
+        .unwrap_or_else(|| "message_received".to_string());
+
+    Ok(HttpResponse::Ok().json(StreamMessage::SessionUpdate { session_id, status }))
 }
 
 pub fn init(cfg: &mut web::ServiceConfig) {

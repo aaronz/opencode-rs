@@ -22,6 +22,7 @@ pub mod vertex;
 pub mod xai;
 pub mod auth;
 pub mod models;
+pub mod provider_filter;
 pub mod error;
 pub mod openai_browser_auth;
 pub mod provider_adapter;
@@ -44,5 +45,6 @@ pub use openai_browser_auth::{
     OpenAiBrowserSession,
 };
 pub use models::ModelRegistry;
+pub use provider_filter::ProviderFilter;
 pub use error::{LlmError, RetryConfig, with_retry};
 pub use transform::{MessageTransform, TransformPipeline};

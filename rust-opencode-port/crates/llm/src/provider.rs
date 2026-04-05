@@ -19,11 +19,32 @@ impl Model {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct ProviderConfig {
     pub model: String,
     pub api_key: String,
     pub temperature: f32,
+}
+
+impl ProviderConfig {
+    pub fn sanitize_for_logging(&self) -> Self {
+        let mut sanitized = self.clone();
+        if !sanitized.api_key.is_empty() {
+            sanitized.api_key = "***REDACTED***".to_string();
+        }
+        sanitized
+    }
+}
+
+impl std::fmt::Debug for ProviderConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let sanitized = self.sanitize_for_logging();
+        f.debug_struct("ProviderConfig")
+            .field("model", &sanitized.model)
+            .field("api_key", &sanitized.api_key)
+            .field("temperature", &sanitized.temperature)
+            .finish()
+    }
 }
 
 impl Default for ProviderConfig {

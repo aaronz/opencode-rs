@@ -68,8 +68,74 @@ impl Provider for VertexProvider {
             .ok_or_else(|| OpenCodeError::Llm("Invalid Vertex response".to_string()))
     }
 
-    async fn complete_streaming(&self, _prompt: &str, _callback: StreamingCallback) -> Result<(), OpenCodeError> {
-        Err(OpenCodeError::Llm("Vertex streaming not implemented".to_string()))
+    async fn complete_streaming(&self, prompt: &str, mut callback: StreamingCallback) -> Result<(), OpenCodeError> {
+        let client = reqwest::Client::new();
+        let url = format!(
+            "https://{}-aiplatform.googleapis.com/v1/projects/{}/locations/{}/publishers/google/models/{}:streamGenerateContent?alt=sse",
+            self.location,
+            self.project_id,
+            self.location,
+            self.config.model
+        );
+
+        let body = serde_json::json!({
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [
+                        { "text": prompt }
+                    ]
+                }
+            ],
+            "generationConfig": {
+                "temperature": self.config.temperature,
+            }
+        });
+
+        let response = client
+            .post(&url)
+            .header("Authorization", format!("Bearer {}", self.config.api_key))
+            .header("Content-Type", "application/json")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(OpenCodeError::Llm(format!("Vertex API error {}: {}", status, error_text)));
+        }
+
+        use futures_util::StreamExt;
+        let mut lines = response.bytes_stream();
+        while let Some(item) = lines.next().await {
+            match item {
+                Ok(bytes) => {
+                    let text = String::from_utf8_lossy(&bytes);
+                    for line in text.lines() {
+                        if !line.starts_with("data: ") {
+                            continue;
+                        }
+
+                        let data = line.strip_prefix("data: ").unwrap_or("");
+                        if data.trim().is_empty() || data == "[DONE]" {
+                            continue;
+                        }
+
+                        if let Ok(chunk) = serde_json::from_str::<serde_json::Value>(data) {
+                            if let Some(content) = chunk["candidates"][0]["content"]["parts"][0]["text"].as_str() {
+                                callback(content.to_string());
+                            }
+                        }
+                    }
+                }
+                Err(e) => return Err(OpenCodeError::Llm(format!("Vertex stream error: {}", e))),
+            }
+        }
+
+        callback(String::new());
+        Ok(())
     }
 
     fn get_models(&self) -> Vec<Model> {

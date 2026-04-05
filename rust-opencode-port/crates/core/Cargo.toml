@@ -29,6 +29,7 @@ opencode-permission = { path = "../permission" }
 notify = "6"
 globset = "0.4"
 tiktoken-rs.workspace = true
+sha2 = "0.10"
 
 [dev-dependencies]
 tempfile.workspace = true

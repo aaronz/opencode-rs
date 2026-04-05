@@ -230,6 +230,31 @@ fn share_session(session_id: &str) {
     }
 }
 
+fn export_session(session_id: &str) {
+    let records = load_session_records();
+    let session = records.iter().find(|r| r.id == session_id);
+    match session {
+        Some(s) => {
+            let output = serde_json::to_string_pretty(s).unwrap();
+            println!("{}", output);
+        }
+        None => {
+            eprintln!("Error: Session '{}' does not exist", session_id);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn export_all_sessions() {
+    let records = load_session_records();
+    let export = serde_json::json!({
+        "sessions": records,
+        "count": records.len(),
+    });
+    let output = serde_json::to_string_pretty(&export).unwrap();
+    println!("{}", output);
+}
+
 #[derive(Args, Debug)]
 pub struct SessionArgs {
     #[arg(short, long)]
@@ -396,7 +421,11 @@ pub fn run(args: SessionArgs) {
             }
         }
         Some(SessionAction::Export) => {
-            println!("Session export not implemented");
+            if let Some(id) = &args.id {
+                export_session(id);
+            } else {
+                export_all_sessions();
+            }
         }
         None => {
             if args.new {

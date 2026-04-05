@@ -17,8 +17,10 @@ impl Provider for BedrockProvider {
         Err(OpenCodeError::Llm("Bedrock provider not fully implemented".to_string()))
     }
 
-    async fn complete_streaming(&self, _prompt: &str, _callback: StreamingCallback) -> Result<(), OpenCodeError> {
-        Err(OpenCodeError::Llm("Bedrock streaming not implemented".to_string()))
+    async fn complete_streaming(&self, prompt: &str, mut callback: StreamingCallback) -> Result<(), OpenCodeError> {
+        let content = self.complete(prompt, None).await?;
+        callback(content);
+        Ok(())
     }
 
     fn get_models(&self) -> Vec<Model> {

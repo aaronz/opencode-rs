@@ -1,47 +1,36 @@
-use actix_web::{web, Error, HttpRequest, HttpResponse};
-use actix_ws::Message;
-use futures::StreamExt;
-use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::sync::mpsc;
-use tracing::{info, warn, debug};
+
+use actix_web::{Error, HttpRequest, HttpResponse, web};
+use actix_web::http::header::{HeaderName, HeaderValue};
+use actix_ws::Message;
+use futures::StreamExt;
+use opencode_core::bus::InternalEvent;
 use opencode_core::{Message as CoreMessage, Session};
+use serde::Deserialize;
+use tokio::sync::mpsc;
+use tracing::{debug, info, warn};
+
 use crate::ServerState;
+use crate::streaming::heartbeat::HeartbeatManager;
+use crate::streaming::{ReplayEntry, StreamMessage};
 
 #[derive(Debug, Deserialize)]
-#[serde(tag = "type")]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum WsClientMessage {
-    #[serde(rename = "run")]
     Run {
         session_id: String,
         message: String,
         agent_type: Option<String>,
         model: Option<String>,
     },
-    #[serde(rename = "ping")]
+    Resume {
+        session_id: String,
+        token: String,
+    },
     Ping,
-    #[serde(rename = "close")]
     Close,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(tag = "type")]
-pub enum WsServerMessage {
-    #[serde(rename = "chunk")]
-    Chunk { content: String, session_id: String },
-    #[serde(rename = "tool_start")]
-    ToolStart { tool_name: String, arguments: serde_json::Value },
-    #[serde(rename = "tool_end")]
-    ToolEnd { tool_name: String, result: String },
-    #[serde(rename = "start")]
-    Start { session_id: String, model: String },
-    #[serde(rename = "end")]
-    End { session_id: String, message_count: usize },
-    #[serde(rename = "error")]
-    Error { message: String, code: Option<String> },
-    #[serde(rename = "pong")]
-    Pong,
 }
 
 const WS_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(30);
@@ -52,44 +41,105 @@ pub async fn ws_index(
     req: HttpRequest,
     stream: web::Payload,
 ) -> Result<HttpResponse, Error> {
-    let (response, mut session, mut msg_stream) = actix_ws::handle(&req, stream)?;
-    let state_clone = state.into_inner();
+    let query = parse_query(req.query_string());
+    let handshake_session_id = query
+        .get("session_id")
+        .cloned()
+        .unwrap_or_else(|| "default".to_string());
+    let incoming_token = query.get("token").cloned();
 
+    let resume_from = incoming_token
+        .as_ref()
+        .and_then(|token| {
+            state
+                .reconnection_store
+                .validate_token(&handshake_session_id, token)
+        })
+        .unwrap_or(0);
+    let reconnect_token = state
+        .reconnection_store
+        .generate_token(&handshake_session_id, Some(resume_from));
+
+    let (mut response, mut session, mut msg_stream) = actix_ws::handle(&req, stream)?;
+    if let Ok(header_value) = HeaderValue::from_str(&reconnect_token) {
+        response
+            .headers_mut()
+            .insert(HeaderName::from_static("x-reconnect-token"), header_value);
+    }
+
+    let state = state.into_inner();
     actix_rt::spawn(async move {
+        let (tx, mut rx) = mpsc::channel::<StreamMessage>(128);
         let mut last_heartbeat = Instant::now();
-        let (tx, mut rx) = mpsc::channel::<WsServerMessage>(100);
 
-        let mut session_clone = session.clone();
-        let forwarder = actix_rt::spawn(async move {
-            while let Some(msg) = rx.recv().await {
-                if let Ok(json) = serde_json::to_string(&msg) {
-                    if session_clone.text(json).await.is_err() {
-                        break;
-                    }
+        let session_replay_id = handshake_session_id.clone();
+        let tx_bootstrap = tx.clone();
+        let state_bootstrap = Arc::clone(&state);
+        actix_rt::spawn(async move {
+            let _ = tx_bootstrap
+                .send(StreamMessage::Connected {
+                    session_id: Some(session_replay_id.clone()),
+                })
+                .await;
+
+            for ReplayEntry { message, .. } in state_bootstrap
+                .reconnection_store
+                .replay_from(&session_replay_id, resume_from)
+            {
+                if tx_bootstrap.send(message).await.is_err() {
+                    break;
                 }
             }
         });
 
-        let _ = tx.send(WsServerMessage::Chunk {
-            content: "Connected to OpenCode WebSocket".to_string(),
-            session_id: String::new(),
-        }).await;
+        let heartbeat = HeartbeatManager::new(WS_HEARTBEAT_INTERVAL);
+        let _heartbeat_handle = heartbeat.spawn(tx.clone());
+
+        let tx_bus = tx.clone();
+        let session_filter = handshake_session_id.clone();
+        let mut bus_rx = state.event_bus.subscribe();
+        actix_rt::spawn(async move {
+            loop {
+                match bus_rx.recv().await {
+                    Ok(event) => {
+                        if let Some(message) = event_to_stream_message(event, &session_filter) {
+                            if tx_bus.send(message).await.is_err() {
+                                break;
+                            }
+                        }
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                }
+            }
+        });
 
         loop {
             if last_heartbeat.elapsed() > WS_CLIENT_TIMEOUT {
-                warn!("WebSocket client heartbeat timeout");
+                warn!("WebSocket heartbeat timeout");
                 let _ = session.close(None).await;
                 break;
             }
 
-            let tick = actix_rt::time::sleep(WS_HEARTBEAT_INTERVAL);
-            tokio::pin!(tick);
-
             tokio::select! {
-                _ = &mut tick => {
-                    if Instant::now().duration_since(last_heartbeat) > WS_HEARTBEAT_INTERVAL {
-                        debug!("Sending WebSocket heartbeat ping");
-                        let _ = tx.send(WsServerMessage::Pong).await;
+                Some(outgoing) = rx.recv() => {
+                    if let Some(session_id) = outgoing.session_id() {
+                        state.reconnection_store.record_message(session_id, outgoing.clone());
+                    }
+
+                    if let Ok(json) = serde_json::to_string(&outgoing) {
+                        if session.text(json).await.is_err() {
+                            break;
+                        }
+                    } else {
+                        let fallback = StreamMessage::Error {
+                            session_id: Some(handshake_session_id.clone()),
+                            code: "serialization_error".to_string(),
+                            message: "failed to serialize websocket stream payload".to_string(),
+                        };
+                        if let Ok(json) = serde_json::to_string(&fallback) {
+                            let _ = session.text(json).await;
+                        }
                     }
                 }
                 Some(Ok(msg)) = msg_stream.next() => {
@@ -98,21 +148,27 @@ pub async fn ws_index(
                             if session.pong(&bytes).await.is_err() {
                                 break;
                             }
+                            last_heartbeat = Instant::now();
                         }
                         Message::Pong(_) => {
                             last_heartbeat = Instant::now();
                         }
                         Message::Text(text) => {
-                            debug!("Received WebSocket message: {}", text);
-                            handle_ws_message(&mut session, &text, &state_clone, &tx).await;
-                        }
-                        Message::Binary(_) => {
-                            warn!("Binary messages not supported");
+                            debug!("WS inbound: {}", text);
+                            handle_ws_message(&mut session, &text, &state, &tx).await;
+                            last_heartbeat = Instant::now();
                         }
                         Message::Close(reason) => {
-                            info!("WebSocket client closed connection: {:?}", reason);
+                            info!("WS closed: {:?}", reason);
                             let _ = session.close(reason).await;
                             break;
+                        }
+                        Message::Binary(_) => {
+                            let _ = tx.send(StreamMessage::Error {
+                                session_id: Some(handshake_session_id.clone()),
+                                code: "unsupported_binary".to_string(),
+                                message: "binary websocket messages are not supported".to_string(),
+                            }).await;
                         }
                         _ => break,
                     }
@@ -120,38 +176,67 @@ pub async fn ws_index(
                 else => break,
             }
         }
-
-        forwarder.abort();
-        debug!("WebSocket connection closed");
     });
 
     Ok(response)
 }
 
 async fn handle_ws_message(
-    _session: &mut actix_ws::Session,
+    session: &mut actix_ws::Session,
     text: &str,
     state: &Arc<ServerState>,
-    tx: &mpsc::Sender<WsServerMessage>,
+    tx: &mpsc::Sender<StreamMessage>,
 ) {
     match serde_json::from_str::<WsClientMessage>(text) {
         Ok(WsClientMessage::Ping) => {
-            let _ = tx.send(WsServerMessage::Pong).await;
+            let _ = tx
+                .send(StreamMessage::Heartbeat {
+                    timestamp: chrono::Utc::now().timestamp(),
+                })
+                .await;
         }
         Ok(WsClientMessage::Close) => {
-            let _ = _session.clone().close(None).await;
+            let _ = session.clone().close(None).await;
         }
-        Ok(WsClientMessage::Run { session_id, message, agent_type: _, model: _ }) => {
+        Ok(WsClientMessage::Resume { session_id, token }) => {
+            match state.reconnection_store.validate_token(&session_id, &token) {
+                Some(sequence) => {
+                    for ReplayEntry { message, .. } in
+                        state.reconnection_store.replay_from(&session_id, sequence)
+                    {
+                        let _ = tx.send(message).await;
+                    }
+                }
+                None => {
+                    let _ = tx
+                        .send(StreamMessage::Error {
+                            session_id: Some(session_id),
+                            code: "invalid_reconnect_token".to_string(),
+                            message: "unable to resume stream for provided token".to_string(),
+                        })
+                        .await;
+                }
+            }
+        }
+        Ok(WsClientMessage::Run {
+            session_id,
+            message,
+            agent_type: _,
+            model,
+        }) => {
             info!("WebSocket run: session={}", session_id);
 
             let mut core_session = match state.storage.load_session(&session_id).await {
                 Ok(Some(s)) => s,
                 Ok(None) => Session::new(),
                 Err(e) => {
-                    let _ = tx.send(WsServerMessage::Error {
-                        message: format!("Failed to load session: {}", e),
-                        code: Some("SESSION_LOAD_ERROR".to_string()),
-                    }).await;
+                    let _ = tx
+                        .send(StreamMessage::Error {
+                            session_id: Some(session_id),
+                            code: "session_load_error".to_string(),
+                            message: format!("failed to load session: {e}"),
+                        })
+                        .await;
                     return;
                 }
             };
@@ -162,28 +247,58 @@ async fn handle_ws_message(
                 warn!("Failed to save session: {}", e);
             }
 
-            let _ = tx.send(WsServerMessage::Start {
-                session_id: session_id.clone(),
-                model: "pending".to_string(),
-            }).await;
+            let _ = tx
+                .send(StreamMessage::SessionUpdate {
+                    session_id: session_id.clone(),
+                    status: model.unwrap_or_else(|| "pending".to_string()),
+                })
+                .await;
 
-            let _ = tx.send(WsServerMessage::Chunk {
-                content: "Message received. Agent execution not yet integrated.".to_string(),
-                session_id: session_id.clone(),
-            }).await;
+            let _ = tx
+                .send(StreamMessage::Message {
+                    session_id: session_id.clone(),
+                    content: "Message received. Agent execution not yet integrated.".to_string(),
+                    role: "assistant".to_string(),
+                })
+                .await;
 
-            let _ = tx.send(WsServerMessage::End {
-                session_id: session_id.clone(),
-                message_count: core_session.messages.len(),
-            }).await;
+            let _ = tx
+                .send(StreamMessage::SessionUpdate {
+                    session_id,
+                    status: format!("messages:{}", core_session.messages.len()),
+                })
+                .await;
         }
         Err(e) => {
-            warn!("Failed to parse WebSocket message: {}", e);
-            let _ = tx.send(WsServerMessage::Error {
-                message: format!("Invalid message format: {}", e),
-                code: Some("PARSE_ERROR".to_string()),
-            }).await;
+            let _ = tx
+                .send(StreamMessage::Error {
+                    session_id: None,
+                    code: "parse_error".to_string(),
+                    message: format!("invalid websocket payload: {e}"),
+                })
+                .await;
         }
+    }
+}
+
+fn parse_query(query: &str) -> HashMap<String, String> {
+    query
+        .split('&')
+        .filter_map(|pair| {
+            let mut parts = pair.splitn(2, '=');
+            let key = parts.next()?;
+            let value = parts.next().unwrap_or_default();
+            Some((key.to_string(), value.to_string()))
+        })
+        .collect()
+}
+
+fn event_to_stream_message(event: InternalEvent, session_id: &str) -> Option<StreamMessage> {
+    let candidate = StreamMessage::from_internal_event(&event)?;
+    match candidate.session_id() {
+        Some(source_session) if source_session == session_id => Some(candidate),
+        Some(_) => None,
+        None => Some(candidate),
     }
 }
 

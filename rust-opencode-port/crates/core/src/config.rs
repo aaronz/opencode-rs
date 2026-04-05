@@ -1,14 +1,20 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use chrono::{DateTime, Duration, Utc};
+use reqwest::header::{CACHE_CONTROL, ETAG, IF_MODIFIED_SINCE, IF_NONE_MATCH, LAST_MODIFIED};
+use sha2::{Digest, Sha256};
+use crate::tool_config::ToolConfig;
 
 mod directory_scanner;
 mod jsonc;
 mod merge;
+mod remote_cache;
 mod schema;
 pub use directory_scanner::{load_opencode_directory, OpencodeDirectoryScan};
 pub use jsonc::{is_jsonc_extension, parse_jsonc, JsoncError};
+use remote_cache::{load_cache, save_cache, RemoteConfigCache};
 
 /// Main configuration structure matching the TypeScript Config.Info schema
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
@@ -415,6 +421,16 @@ pub struct ProviderConfig {
     pub options: Option<ProviderOptions>,
 }
 
+impl ProviderConfig {
+    pub fn sanitize_for_logging(&self) -> Self {
+        let mut sanitized = self.clone();
+        if let Some(options) = &sanitized.options {
+            sanitized.options = Some(options.sanitize_for_logging());
+        }
+        sanitized
+    }
+}
+
 /// Model configuration within a provider
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct ModelConfig {
@@ -452,7 +468,7 @@ pub struct VariantConfig {
 }
 
 /// Provider options
-#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+#[derive(Clone, Deserialize, Serialize, Default)]
 pub struct ProviderOptions {
     /// API key
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -493,6 +509,34 @@ pub struct ProviderOptions {
     /// Additional options
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
     pub extra: Option<HashMap<String, serde_json::Value>>,
+}
+
+impl ProviderOptions {
+    pub fn sanitize_for_logging(&self) -> Self {
+        let mut sanitized = self.clone();
+        if sanitized.api_key.is_some() {
+            sanitized.api_key = Some("***REDACTED***".to_string());
+        }
+        sanitized
+    }
+}
+
+impl std::fmt::Debug for ProviderOptions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let sanitized = self.sanitize_for_logging();
+        f.debug_struct("ProviderOptions")
+            .field("api_key", &sanitized.api_key)
+            .field("base_url", &self.base_url)
+            .field("enterprise_url", &self.enterprise_url)
+            .field("set_cache_key", &self.set_cache_key)
+            .field("timeout", &self.timeout)
+            .field("chunk_timeout", &self.chunk_timeout)
+            .field("aws_region", &self.aws_region)
+            .field("aws_profile", &self.aws_profile)
+            .field("aws_endpoint", &self.aws_endpoint)
+            .field("extra", &self.extra)
+            .finish()
+    }
 }
 
 /// Timeout configuration - can be a number or false to disable
@@ -1115,7 +1159,7 @@ impl Config {
                 let replacement = match Self::resolve_file_variable_path(file_path, config_dir) {
                     Some(path) => std::fs::read_to_string(&path)
                         .unwrap_or_else(|_| format!("{{file:{}}}", file_path)),
-                    None => String::new(),
+                    _ => String::new(),
                 };
                 result = format!(
                     "{}{}{}",
@@ -1409,7 +1453,7 @@ impl Config {
 
         // Priority 1: Remote config from .well-known/opencode
         if let Ok(remote_url) = std::env::var("OPENCODE_REMOTE_CONFIG") {
-            if let Ok(content) = Self::fetch_remote_config(&remote_url).await {
+            if let Ok(content) = Self::fetch_remote_config_with_fallback(&remote_url).await {
                 if let Ok(config) = Self::parse_config_content(&content, "json") {
                     configs.push(("remote".to_string(), config));
                 }
@@ -1510,14 +1554,39 @@ impl Config {
 
     /// Fetch remote configuration from URL
     async fn fetch_remote_config(url: &str) -> Result<String, crate::OpenCodeError> {
+        let cache_dir = Self::remote_cache_dir();
+        Self::fetch_remote_config_from_cache_dir(url, &cache_dir).await
+    }
+
+    async fn fetch_remote_config_from_cache_dir(
+        url: &str,
+        cache_dir: &Path,
+    ) -> Result<String, crate::OpenCodeError> {
+        let cached = load_cache(url, &cache_dir);
+
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(10))
             .build()
             .map_err(|e| crate::OpenCodeError::Config(e.to_string()))?;
 
-        let response = client
-            .get(url)
-            .header("Accept", "application/json")
+        let mut request = client.get(url).header("Accept", "application/json");
+
+        if let Ok(token) = std::env::var("OPENCODE_REMOTE_CONFIG_TOKEN") {
+            if !token.trim().is_empty() {
+                request = request.header("Authorization", format!("Bearer {}", token.trim()));
+            }
+        }
+
+        if let Some(cache) = cached.as_ref() {
+            if let Some(etag) = &cache.etag {
+                request = request.header(IF_NONE_MATCH, etag);
+            }
+            if let Some(last_modified) = &cache.last_modified {
+                request = request.header(IF_MODIFIED_SINCE, last_modified);
+            }
+        }
+
+        let response = request
             .send()
             .await
             .map_err(|e| crate::OpenCodeError::Config(e.to_string()))?;
@@ -1526,12 +1595,147 @@ impl Config {
             return Err(crate::OpenCodeError::Config("Remote config authentication failed".to_string()));
         }
 
+        if response.status() == reqwest::StatusCode::NOT_MODIFIED {
+            if let Some(cache) = cached {
+                return Ok(cache.content);
+            }
+
+            return Err(crate::OpenCodeError::Config(
+                "Remote config returned 304 but no cache is available".to_string(),
+            ));
+        }
+
+        if !response.status().is_success() {
+            return Err(crate::OpenCodeError::Config(format!(
+                "Remote config request failed with status {}",
+                response.status()
+            )));
+        }
+
+        let etag = response
+            .headers()
+            .get(ETAG)
+            .and_then(|value| value.to_str().ok())
+            .map(|value| value.to_string());
+
+        let last_modified = response
+            .headers()
+            .get(LAST_MODIFIED)
+            .and_then(|value| value.to_str().ok())
+            .map(|value| value.to_string());
+
+        let expires_at = Self::parse_cache_expiration(response.headers(), Utc::now());
+
         let content = response
             .text()
             .await
             .map_err(|e| crate::OpenCodeError::Config(e.to_string()))?;
 
+        let content_hash = Self::compute_content_hash(&content);
+        if let Some(cache) = cached.as_ref() {
+            if !Self::verify_integrity(&content, &cache.content_hash) {
+                tracing::warn!(
+                    "Remote config hash mismatch for {} (previous={}, current={})",
+                    url,
+                    cache.content_hash,
+                    content_hash
+                );
+            }
+        }
+
+        let cache_entry = RemoteConfigCache {
+            url: url.to_string(),
+            content: content.clone(),
+            etag,
+            last_modified,
+            fetched_at: Utc::now(),
+            expires_at,
+            content_hash,
+        };
+
+        if let Err(err) = save_cache(&cache_entry, cache_dir) {
+            tracing::warn!("Failed to persist remote config cache for {}: {}", url, err);
+        }
+
         Ok(content)
+    }
+
+    async fn fetch_remote_config_with_fallback(url: &str) -> Result<String, crate::OpenCodeError> {
+        match Self::fetch_remote_config(url).await {
+            Ok(content) => Ok(content),
+            Err(err) => {
+                let cache_dir = Self::remote_cache_dir();
+                if let Some(cache) = load_cache(url, &cache_dir) {
+                    tracing::warn!(
+                        "Remote config fetch failed for {} ({}); using cached content{}",
+                        url,
+                        err,
+                        if cache.is_expired() { " (expired)" } else { "" }
+                    );
+                    return Ok(cache.content);
+                }
+
+                Err(err)
+            }
+        }
+    }
+
+    #[cfg(test)]
+    async fn fetch_remote_config_with_fallback_from_cache_dir(
+        url: &str,
+        cache_dir: &Path,
+    ) -> Result<String, crate::OpenCodeError> {
+        match Self::fetch_remote_config_from_cache_dir(url, cache_dir).await {
+            Ok(content) => Ok(content),
+            Err(err) => {
+                if let Some(cache) = load_cache(url, cache_dir) {
+                    tracing::warn!(
+                        "Remote config fetch failed for {} ({}); using cached content{}",
+                        url,
+                        err,
+                        if cache.is_expired() { " (expired)" } else { "" }
+                    );
+                    return Ok(cache.content);
+                }
+
+                Err(err)
+            }
+        }
+    }
+
+    fn remote_cache_dir() -> PathBuf {
+        let config_path = Self::config_path();
+        config_path
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| PathBuf::from(".opencode"))
+    }
+
+    fn parse_cache_expiration(headers: &reqwest::header::HeaderMap, fetched_at: DateTime<Utc>) -> Option<DateTime<Utc>> {
+        let header = headers
+            .get(CACHE_CONTROL)
+            .and_then(|value| value.to_str().ok())?;
+
+        for directive in header.split(',') {
+            let directive = directive.trim();
+            if let Some(max_age) = directive.strip_prefix("max-age=") {
+                if let Ok(seconds) = max_age.parse::<i64>() {
+                    return Some(fetched_at + Duration::seconds(seconds.max(0)));
+                }
+            }
+        }
+
+        None
+    }
+
+    fn compute_content_hash(content: &str) -> String {
+        let mut hasher = Sha256::new();
+        hasher.update(content.as_bytes());
+        format!("{:x}", hasher.finalize())
+    }
+
+    fn verify_integrity(content: &str, expected_hash: &str) -> bool {
+        Self::compute_content_hash(content) == expected_hash
     }
 
     /// Build remote config URL from domain
@@ -1789,20 +1993,37 @@ impl Config {
         self.provider.as_ref().and_then(|p| p.get(provider_id))
     }
 
+    pub fn get_provider_filter(&self) -> Option<(Vec<String>, Vec<String>)> {
+        if self.disabled_providers.is_none() && self.enabled_providers.is_none() {
+            return None;
+        }
+
+        Some((
+            self.disabled_providers.clone().unwrap_or_default(),
+            self.enabled_providers.clone().unwrap_or_default(),
+        ))
+    }
+
     /// Check if a provider is enabled based on enabled_providers and disabled_providers lists
     pub fn is_provider_enabled(&self, provider_id: &str) -> bool {
-        // If enabled_providers is set, provider must be in that list
-        if let Some(enabled) = &self.enabled_providers {
-            return enabled.iter().any(|p| p.eq_ignore_ascii_case(provider_id));
+        let Some((disabled, enabled)) = self.get_provider_filter() else {
+            return true;
+        };
+
+        if disabled
+            .iter()
+            .any(|provider| provider.eq_ignore_ascii_case(provider_id))
+        {
+            return false;
         }
 
-        // Otherwise, check if provider is in disabled_providers
-        if let Some(disabled) = &self.disabled_providers {
-            return !disabled.iter().any(|p| p.eq_ignore_ascii_case(provider_id));
+        if enabled.is_empty() {
+            return true;
         }
 
-        // Default: enabled
-        true
+        enabled
+            .iter()
+            .any(|provider| provider.eq_ignore_ascii_case(provider_id))
     }
 
     /// Get experimental batch_tool flag
@@ -1819,6 +2040,18 @@ impl Config {
             .as_ref()
             .and_then(|e| e.open_telemetry)
             .unwrap_or(false)
+    }
+
+    pub fn get_disabled_tools(&self) -> HashSet<String> {
+        let agent_tools = self
+            .agent
+            .as_ref()
+            .and_then(|agents| agents.get_default_agent())
+            .and_then(|agent| agent.tools.as_ref());
+
+        ToolConfig::merge(self.tools.as_ref(), agent_tools)
+            .disabled_tools()
+            .clone()
     }
 
     /// Validate the configuration and return a list of validation errors
@@ -2222,6 +2455,59 @@ mod tests {
     }
 
     #[test]
+    fn test_content_hash_is_deterministic() {
+        let content = r#"{"model":"openai/gpt-4.1"}"#;
+        let hash1 = Config::compute_content_hash(content);
+        let hash2 = Config::compute_content_hash(content);
+
+        assert_eq!(hash1, hash2);
+        assert!(!hash1.is_empty());
+    }
+
+    #[test]
+    fn test_verify_integrity_with_matching_hash() {
+        let content = r#"{"k":"v"}"#;
+        let expected = Config::compute_content_hash(content);
+        assert!(Config::verify_integrity(content, &expected));
+    }
+
+    #[test]
+    fn test_verify_integrity_with_mismatched_hash() {
+        let content = r#"{"k":"v"}"#;
+        let expected = Config::compute_content_hash("different");
+        assert!(!Config::verify_integrity(content, &expected));
+    }
+
+    #[test]
+    fn test_remote_fetch_fallback_uses_cache_when_fetch_fails() {
+        let temp_dir = unique_temp_dir("opencode_remote_fallback_cache");
+
+        let url = "https://127.0.0.1:1/.well-known/opencode";
+        let cached_content = r#"{"model":"cached"}"#.to_string();
+        let cache = RemoteConfigCache {
+            url: url.to_string(),
+            content: cached_content.clone(),
+            etag: Some("etag-1".to_string()),
+            last_modified: Some("Wed, 21 Oct 2015 07:28:00 GMT".to_string()),
+            fetched_at: Utc::now() - Duration::hours(2),
+            expires_at: None,
+            content_hash: Config::compute_content_hash(&cached_content),
+        };
+        save_cache(&cache, temp_dir.as_path()).unwrap();
+
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let result = runtime
+            .block_on(Config::fetch_remote_config_with_fallback_from_cache_dir(
+                url,
+                temp_dir.as_path(),
+            ))
+            .unwrap();
+
+        assert_eq!(result, cached_content);
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
     fn test_default_config() {
         let config = Config::default();
         assert!(config.model.is_none());
@@ -2245,6 +2531,82 @@ mod tests {
         config.disabled_providers = Some(vec!["ollama".to_string()]);
         assert!(config.is_provider_enabled("openai"));
         assert!(!config.is_provider_enabled("ollama"));
+
+        config.enabled_providers = Some(vec!["openai".to_string(), "anthropic".to_string()]);
+        config.disabled_providers = Some(vec!["openai".to_string()]);
+        assert!(!config.is_provider_enabled("openai"));
+        assert!(config.is_provider_enabled("anthropic"));
+    }
+
+    #[test]
+    fn test_provider_options_sanitize_for_logging_redacts_api_key() {
+        let options = ProviderOptions {
+            api_key: Some("super-secret".to_string()),
+            base_url: Some("https://example.com".to_string()),
+            ..Default::default()
+        };
+
+        let sanitized = options.sanitize_for_logging();
+        assert_eq!(sanitized.api_key.as_deref(), Some("***REDACTED***"));
+        assert_eq!(sanitized.base_url, options.base_url);
+
+        let debug_output = format!("{options:?}");
+        assert!(!debug_output.contains("super-secret"));
+        assert!(debug_output.contains("***REDACTED***"));
+    }
+
+    #[test]
+    fn test_get_disabled_tools_uses_top_level_over_default_agent_tools() {
+        let config = Config {
+            tools: Some(HashMap::from([
+                ("bash".to_string(), false),
+                ("read".to_string(), true),
+            ])),
+            agent: Some(AgentMapConfig {
+                agents: HashMap::from([(
+                    "default".to_string(),
+                    AgentConfig {
+                        tools: Some(HashMap::from([
+                            ("bash".to_string(), true),
+                            ("read".to_string(), false),
+                            ("write".to_string(), false),
+                        ])),
+                        ..Default::default()
+                    },
+                )]),
+                default_agent: Some("default".to_string()),
+            }),
+            ..Default::default()
+        };
+
+        let disabled = config.get_disabled_tools();
+        assert!(disabled.contains("bash"));
+        assert!(!disabled.contains("read"));
+        assert!(disabled.contains("write"));
+    }
+
+    #[test]
+    fn test_get_disabled_tools_uses_agent_tools_when_top_level_missing() {
+        let config = Config {
+            agent: Some(AgentMapConfig {
+                agents: HashMap::from([(
+                    "default".to_string(),
+                    AgentConfig {
+                        tools: Some(HashMap::from([
+                            ("grep".to_string(), false),
+                            ("glob".to_string(), true),
+                        ])),
+                        ..Default::default()
+                    },
+                )]),
+                default_agent: Some("default".to_string()),
+            }),
+            ..Default::default()
+        };
+
+        let disabled = config.get_disabled_tools();
+        assert!(disabled.contains("grep"));
+        assert!(!disabled.contains("glob"));
     }
 
     #[test]

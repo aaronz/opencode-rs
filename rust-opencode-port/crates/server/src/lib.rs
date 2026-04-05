@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::RwLock;
 use actix_web::dev::Service;
 use actix_web::{web, App, HttpServer, middleware as actix_middleware};
 use futures::future::{Either, ready};
@@ -6,22 +7,33 @@ use futures::FutureExt;
 use opencode_storage::StorageService;
 use opencode_llm::ModelRegistry;
 use opencode_core::Config;
+use opencode_core::bus::SharedEventBus;
 use opencode_core::config::ServerConfig;
+use streaming::ReconnectionStore;
 
 pub mod routes;
 pub mod middleware;
 pub mod mdns;
+pub mod streaming;
 
 pub struct ServerState {
     pub storage: Arc<StorageService>,
     pub models: Arc<ModelRegistry>,
-    pub config: Arc<Config>,
+    pub config: Arc<RwLock<Config>>,
+    pub event_bus: SharedEventBus,
+    pub reconnection_store: ReconnectionStore,
 }
 
 pub async fn run_server(state: Arc<ServerState>, host: &str, port: u16) -> std::io::Result<()> {
     validate_port(port)?;
 
-    let server_cfg = state.config.server.clone().unwrap_or_default();
+    let server_cfg = state
+        .config
+        .read()
+        .expect("server config lock poisoned")
+        .server
+        .clone()
+        .unwrap_or_default();
     let cors_origins = server_cfg.cors.clone().unwrap_or_default();
 
     let mdns_service = if server_cfg.mdns == Some(true) {
@@ -45,6 +57,7 @@ pub async fn run_server(state: Arc<ServerState>, host: &str, port: u16) -> std::
             .wrap(middleware::cors_middleware(&cors_origins))
             .route("/", web::get().to(routes::web_ui::index))
             .route("/api/docs", web::get().to(routes::web_ui::api_docs))
+            .route("/static/{filename:.*}", web::get().to(routes::web_ui::serve_static))
             .service(
                 web::scope("/api")
                     .wrap_fn(|req, srv| {

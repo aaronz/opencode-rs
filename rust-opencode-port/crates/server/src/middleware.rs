@@ -26,7 +26,12 @@ pub fn is_api_key_authorized(req: &ServiceRequest) -> bool {
         return true;
     };
 
-    let Some(expected_key) = state.config.api_key.as_ref() else {
+    let config_guard = match state.config.read() {
+        Ok(guard) => guard,
+        Err(_) => return false,
+    };
+
+    let Some(expected_key) = config_guard.api_key.as_ref() else {
         return true;
     };
 

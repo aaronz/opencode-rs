@@ -1,9 +1,19 @@
 use async_trait::async_trait;
 use serde::Deserialize;
-use crate::{Tool, ToolResult};
+use crate::{Tool, ToolResult, ToolRegistry};
 use opencode_core::OpenCodeError;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
-pub struct BatchTool;
+pub struct BatchTool {
+    registry: Arc<RwLock<ToolRegistry>>,
+}
+
+impl BatchTool {
+    pub fn new(registry: Arc<RwLock<ToolRegistry>>) -> Self {
+        Self { registry }
+    }
+}
 
 #[derive(Deserialize)]
 struct BatchArgs {
@@ -13,7 +23,7 @@ struct BatchArgs {
 #[derive(Deserialize)]
 struct ToolInvocation {
     tool_name: String,
-    _input: serde_json::Value,
+    input: serde_json::Value,
 }
 
 #[async_trait]
@@ -27,24 +37,40 @@ impl Tool for BatchTool {
     }
 
     fn clone_tool(&self) -> Box<dyn Tool> {
-        Box::new(BatchTool)
+        Box::new(Self {
+            registry: Arc::clone(&self.registry),
+        })
     }
 
-    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
+    async fn execute(&self, args: serde_json::Value, ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
         let args: BatchArgs = serde_json::from_value(args)
             .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+
+        let mut handles = Vec::new();
+
+        for invocation in args.invocations {
+            let registry = Arc::clone(&self.registry);
+            let ctx = ctx.clone();
+            handles.push(tokio::spawn(async move {
+                let tool = {
+                    let reg = registry.read().await;
+                    reg.get(&invocation.tool_name).await
+                };
+                match tool {
+                    Some(t) => t.execute(invocation.input, ctx).await,
+                    None => Err(OpenCodeError::Tool(format!("Tool '{}' not found", invocation.tool_name))),
+                }
+            }));
+        }
 
         let mut results = Vec::new();
         let mut errors = Vec::new();
 
-        for invocation in &args.invocations {
-            let result = Ok::<_, OpenCodeError>(ToolResult::ok(format!(
-                "Executed {} (placeholder)",
-                invocation.tool_name
-            )));
-            match result {
-                Ok(r) => results.push(r),
-                Err(e) => errors.push(format!("{}: {}", invocation.tool_name, e)),
+        for handle in handles {
+            match handle.await {
+                Ok(Ok(result)) => results.push(result),
+                Ok(Err(e)) => errors.push(format!("{}: {}", "unknown", e)),
+                Err(e) => errors.push(format!("unknown: {}", e)),
             }
         }
 

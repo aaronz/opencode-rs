@@ -1,5 +1,6 @@
+use crate::provider_filter::ProviderFilter;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelInfo {
@@ -15,6 +16,7 @@ pub struct ModelInfo {
 
 pub struct ModelRegistry {
     models: HashMap<String, ModelInfo>,
+    provider_filter: Option<ProviderFilter>,
 }
 
 impl ModelRegistry {
@@ -312,45 +314,116 @@ impl ModelRegistry {
             },
         );
 
-        Self { models }
+        Self {
+            models,
+            provider_filter: None,
+        }
+    }
+
+    pub fn set_provider_filter(&mut self, filter: ProviderFilter) {
+        self.provider_filter = Some(filter);
     }
 
     pub fn get(&self, name: &str) -> Option<&ModelInfo> {
-        self.models.get(name)
+        self.models
+            .get(name)
+            .filter(|model| self.is_provider_allowed(&model.provider))
     }
 
     pub fn list(&self) -> Vec<&ModelInfo> {
-        self.models.values().collect()
+        self.models
+            .values()
+            .filter(|model| self.is_provider_allowed(&model.provider))
+            .collect()
     }
 
     pub fn list_by_provider(&self, provider: &str) -> Vec<&ModelInfo> {
+        if !self.is_provider_allowed(provider) {
+            return vec![];
+        }
+
         self.models
             .values()
             .filter(|m| m.provider == provider)
             .collect()
     }
 
+    pub fn get_next_available_provider(&self, failed_provider: &str) -> Option<String> {
+        let failed_provider = failed_provider.trim();
+        let mut providers: Vec<String> = self
+            .models
+            .values()
+            .map(|model| model.provider.clone())
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .filter(|provider| self.is_provider_allowed(provider))
+            .collect();
+
+        providers.sort();
+        providers
+            .into_iter()
+            .find(|provider| !provider.eq_ignore_ascii_case(failed_provider))
+    }
+
+    fn is_provider_allowed(&self, provider: &str) -> bool {
+        self.provider_filter
+            .as_ref()
+            .map(|filter| filter.is_allowed(provider))
+            .unwrap_or(true)
+    }
+
     pub fn supports_function(&self, model: &str) -> bool {
-        self.models
-            .get(model)
+        self.get(model)
             .map(|m| m.supports_functions)
             .unwrap_or(false)
     }
 
     pub fn max_tokens(&self, model: &str) -> u32 {
-        self.models.get(model).map(|m| m.max_tokens).unwrap_or(4096)
+        self.get(model).map(|m| m.max_tokens).unwrap_or(4096)
     }
 
     pub fn max_input_tokens(&self, model: &str) -> u32 {
-        self.models
-            .get(model)
-            .map(|m| m.max_input_tokens)
-            .unwrap_or(4096)
+        self.get(model).map(|m| m.max_input_tokens).unwrap_or(4096)
     }
 }
 
 impl Default for ModelRegistry {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ModelRegistry;
+    use crate::provider_filter::ProviderFilter;
+
+    #[test]
+    fn list_respects_provider_filter() {
+        let mut registry = ModelRegistry::new();
+        registry.set_provider_filter(ProviderFilter::new(
+            vec!["openai".to_string()],
+            vec!["openai".to_string(), "anthropic".to_string()],
+        ));
+
+        let providers: Vec<String> = registry.list().iter().map(|m| m.provider.clone()).collect();
+
+        assert!(providers.iter().all(|provider| provider == "anthropic"));
+        assert!(!providers.is_empty());
+    }
+
+    #[test]
+    fn get_next_available_skips_failed_and_disallowed_providers() {
+        let mut registry = ModelRegistry::new();
+        registry.set_provider_filter(ProviderFilter::new(
+            vec!["openai".to_string()],
+            vec!["openai".to_string(), "anthropic".to_string()],
+        ));
+
+        assert_eq!(
+            registry.get_next_available_provider("openai"),
+            Some("anthropic".to_string())
+        );
+        assert_eq!(registry.get_next_available_provider("anthropic"), None);
     }
 }

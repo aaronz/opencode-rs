@@ -1,7 +1,7 @@
 use crate::session::Session;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -72,6 +72,7 @@ pub type ToolExecutor = Arc<dyn Fn(serde_json::Value) -> Result<String, String> 
 pub struct ToolRegistry {
     tools: HashMap<String, ToolDefinition>,
     executors: HashMap<String, ToolExecutor>,
+    disabled: HashSet<String>,
 }
 
 impl ToolRegistry {
@@ -79,7 +80,16 @@ impl ToolRegistry {
         Self {
             tools: HashMap::new(),
             executors: HashMap::new(),
+            disabled: HashSet::new(),
         }
+    }
+
+    pub fn set_disabled(&mut self, tools: HashSet<String>) {
+        self.disabled = tools;
+    }
+
+    pub fn is_disabled(&self, name: &str) -> bool {
+        self.disabled.contains(name)
     }
 
     pub fn register(&mut self, definition: ToolDefinition, executor: ToolExecutor) {
@@ -93,7 +103,16 @@ impl ToolRegistry {
     }
 
     pub fn get_executor(&self, name: &str) -> Option<&ToolExecutor> {
+        if self.is_disabled(name) {
+            return None;
+        }
         self.executors.get(name)
+    }
+
+    pub fn get_executor_with_status(&self, name: &str) -> Option<(&ToolExecutor, bool)> {
+        self.executors
+            .get(name)
+            .map(|executor| (executor, self.is_disabled(name)))
     }
 
     pub fn get_all(&self) -> Vec<&ToolDefinition> {
@@ -106,6 +125,13 @@ impl ToolRegistry {
 
     pub fn list(&self) -> Vec<String> {
         self.tools.keys().cloned().collect()
+    }
+
+    pub fn list_with_status(&self) -> Vec<(&String, bool)> {
+        self.tools
+            .keys()
+            .map(|name| (name, self.is_disabled(name)))
+            .collect()
     }
 }
 
@@ -474,6 +500,7 @@ pub fn build_default_registry() -> ToolRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashSet;
 
     #[test]
     fn test_tool_registry_register() {
@@ -524,6 +551,65 @@ mod tests {
         let executor = registry.get_executor("echo").unwrap();
         let result = executor(serde_json::json!({"test": "value"})).unwrap();
         assert!(result.contains("test"));
+    }
+
+    #[test]
+    fn test_disabled_tool_executor_unavailable() {
+        let mut registry = ToolRegistry::new();
+        registry.register(
+            ToolDefinition {
+                name: "echo".to_string(),
+                description: "Echo back the input".to_string(),
+                parameters: vec![],
+            },
+            Arc::new(|args| Ok(serde_json::to_string(&args).unwrap_or_default())),
+        );
+        registry.set_disabled(HashSet::from(["echo".to_string()]));
+
+        assert!(registry.get_executor("echo").is_none());
+    }
+
+    #[test]
+    fn test_list_with_status_marks_disabled_tools() {
+        let mut registry = ToolRegistry::new();
+        registry.register(
+            ToolDefinition {
+                name: "echo".to_string(),
+                description: "Echo back the input".to_string(),
+                parameters: vec![],
+            },
+            Arc::new(|args| Ok(serde_json::to_string(&args).unwrap_or_default())),
+        );
+        registry.set_disabled(HashSet::from(["echo".to_string()]));
+
+        let listed = registry.list_with_status();
+        let entry = listed
+            .into_iter()
+            .find(|(name, _)| *name == "echo")
+            .expect("echo should be listed");
+        assert!(entry.1);
+    }
+
+    #[test]
+    fn test_empty_disabled_set_means_all_enabled() {
+        let mut registry = ToolRegistry::new();
+        registry.register(
+            ToolDefinition {
+                name: "echo".to_string(),
+                description: "Echo back the input".to_string(),
+                parameters: vec![],
+            },
+            Arc::new(|args| Ok(serde_json::to_string(&args).unwrap_or_default())),
+        );
+        registry.set_disabled(HashSet::new());
+
+        assert!(registry.get_executor("echo").is_some());
+        let listed = registry.list_with_status();
+        let entry = listed
+            .into_iter()
+            .find(|(name, _)| *name == "echo")
+            .expect("echo should be listed");
+        assert!(!entry.1);
     }
 
     #[test]

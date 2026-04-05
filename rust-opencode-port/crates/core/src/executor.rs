@@ -25,6 +25,18 @@ impl AgentExecutor {
         let started_at = Utc::now();
         let tool_name = call.name.clone();
 
+        if self.registry.is_disabled(&call.name) {
+            return ToolResult {
+                id: Uuid::new_v4(),
+                tool_name,
+                success: false,
+                result: None,
+                error: Some(format!("Tool '{}' is disabled", call.name)),
+                started_at,
+                completed_at: Utc::now(),
+            };
+        }
+
         let executor = match self.registry.get_executor(&call.name) {
             Some(exec) => exec,
             None => {
@@ -136,6 +148,31 @@ mod tests {
         let result = executor.execute_tool_call(call);
         assert!(!result.success);
         assert!(result.error.unwrap().contains("not found"));
+    }
+
+    #[test]
+    fn test_execute_tool_disabled() {
+        let mut registry = ToolRegistry::new();
+        registry.register(
+            ToolDefinition {
+                name: "echo".to_string(),
+                description: "Echo input".to_string(),
+                parameters: vec![],
+            },
+            Arc::new(|_| Ok("hello".to_string())),
+        );
+        registry.set_disabled(std::collections::HashSet::from(["echo".to_string()]));
+
+        let executor = AgentExecutor::new(registry);
+        let call = ToolCall {
+            id: "1".to_string(),
+            name: "echo".to_string(),
+            arguments: serde_json::json!({}),
+        };
+
+        let result = executor.execute_tool_call(call);
+        assert!(!result.success);
+        assert!(result.error.unwrap().contains("disabled"));
     }
 
     #[test]
