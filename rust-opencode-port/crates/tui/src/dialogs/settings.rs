@@ -146,7 +146,7 @@ impl Dialog for SettingsDialog {
             SettingsTab::Providers.as_str(),
         ]
         .into_iter()
-        .map(|t| Line::from(t))
+        .map(Line::from)
         .collect();
 
         let tabs = Tabs::new(tab_titles)

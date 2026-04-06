@@ -231,7 +231,7 @@
 **ID**: TASK-1.1  
 **优先级**: P1  
 **模块**: storage/server  
-**状态**: pending  
+**状态**: completed  
 **预计工期**: 2 天
 
 **目标**: 实现 session 分叉功能
@@ -261,7 +261,7 @@
 **ID**: TASK-1.2  
 **优先级**: P1  
 **模块**: core/server  
-**状态**: pending  
+**状态**: completed  
 **预计工期**: 3 天
 
 **目标**: 实现 session JSON/Markdown 导出和 self-hosted share 服务层
@@ -298,7 +298,7 @@
 **ID**: TASK-1.3  
 **优先级**: P1  
 **模块**: server  
-**状态**: pending  
+**状态**: completed  
 **预计工期**: 2 天
 
 **目标**: 完善 Provider 管理和凭证 API
@@ -331,7 +331,7 @@
 **ID**: TASK-1.4  
 **优先级**: P1  
 **模块**: server/core  
-**状态**: pending  
+**状态**: completed  
 **预计工期**: 2 天
 
 **目标**: 实现自动摘要端点
@@ -360,7 +360,7 @@
 **ID**: TASK-1.5  
 **优先级**: P1  
 **模块**: tui  
-**状态**: pending  
+**状态**: completed  
 **预计工期**: 3 天
 
 **目标**: 完整实现 `@file` `/command` `!shell` 三种快捷输入解析器

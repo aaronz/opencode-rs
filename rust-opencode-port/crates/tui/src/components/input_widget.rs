@@ -47,17 +47,14 @@ impl InputElement {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[derive(Default)]
 pub enum OverflowMode {
+    #[default]
     Truncate, // Truncate overflow
     Scroll,   // Horizontal scroll
     Wrap,     // Auto wrap
 }
 
-impl Default for OverflowMode {
-    fn default() -> Self {
-        OverflowMode::Truncate
-    }
-}
 
 pub struct InputWidget {
     pub elements: Vec<InputElement>,

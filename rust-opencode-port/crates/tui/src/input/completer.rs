@@ -44,7 +44,7 @@ impl FileCompleter {
                 continue;
             };
             let candidate = relative.to_string_lossy().replace('\\', "/");
-            if ignored_patterns.iter().any(|pattern| candidate == *pattern) {
+            if ignored_patterns.contains(&candidate) {
                 continue;
             }
             let score = if needle.is_empty() {

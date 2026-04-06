@@ -154,6 +154,12 @@ pub struct OpenAiBrowserAuthService {
     client: reqwest::blocking::Client,
 }
 
+impl Default for OpenAiBrowserAuthService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OpenAiBrowserAuthService {
     pub fn new() -> Self {
         Self {

@@ -74,13 +74,25 @@ impl AgentExecutor {
     }
 
     pub fn create_invocation_record(&self, call: &ToolCall) -> ToolInvocationRecord {
+        let span = tracing::info_span!("tool_invocation", tool = %call.name);
+        let _enter = span.enter();
+
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(call.arguments.to_string().as_bytes());
+        let args_hash = format!("{:x}", hasher.finalize());
+
+        tracing::info!(tool = %call.name, args_hash = %args_hash, "Tool invocation started");
+
         ToolInvocationRecord {
             id: Uuid::new_v4(),
             tool_name: call.name.clone(),
             arguments: call.arguments.clone(),
+            args_hash,
             result: None,
             started_at: Utc::now(),
             completed_at: None,
+            latency_ms: None,
         }
     }
 
@@ -95,6 +107,19 @@ impl AgentExecutor {
             result.error.clone().unwrap_or_default()
         });
         record.completed_at = Some(Utc::now());
+        record.latency_ms = Some(
+            (record.completed_at.unwrap() - record.started_at)
+                .num_milliseconds()
+                .max(0) as u64,
+        );
+
+        tracing::info!(
+            tool = %record.tool_name,
+            latency_ms = record.latency_ms,
+            success = result.success,
+            "Tool invocation completed"
+        );
+
         record
     }
 }

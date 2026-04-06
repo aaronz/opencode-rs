@@ -10,6 +10,7 @@ opencode-core = { path = "../core" }
 opencode-storage = { path = "../storage" }
 opencode-llm = { path = "../llm" }
 opencode-mcp = { path = "../mcp" }
+opencode-control-plane = { path = "../control-plane" }
 actix-web = { workspace = true }
 actix-cors = { workspace = true }
 actix-web-lab = { workspace = true }
@@ -24,3 +25,4 @@ uuid = { workspace = true }
 chrono = { workspace = true }
 tracing = { workspace = true }
 mdns-sd = "0.11"
+base64 = "0.22"

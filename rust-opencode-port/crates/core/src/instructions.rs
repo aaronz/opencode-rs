@@ -50,7 +50,7 @@ impl InstructionsLoader {
             let resolved = self.resolve_path(path)?;
             for file_path in resolved {
                 let content = self.load_single_file(&file_path)?;
-                total_size += content.as_bytes().len();
+                total_size += content.len();
                 if total_size > self.max_total_size {
                     return Err(InstructionsError::TotalTooLarge(
                         total_size,

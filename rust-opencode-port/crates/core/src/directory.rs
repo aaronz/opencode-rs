@@ -484,8 +484,8 @@ impl DirectoryScanner {
         if let Ok(entries) = std::fs::read_dir(dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.is_file() {
-                    if path.extension().and_then(|s| s.to_str()) == Some("json") {
+                if path.is_file()
+                    && path.extension().and_then(|s| s.to_str()) == Some("json") {
                         if let Ok(content) = std::fs::read_to_string(&path) {
                             if let Ok(theme_json) =
                                 serde_json::from_str::<serde_json::Value>(&content)
@@ -519,7 +519,6 @@ impl DirectoryScanner {
                             }
                         }
                     }
-                }
             }
         }
 

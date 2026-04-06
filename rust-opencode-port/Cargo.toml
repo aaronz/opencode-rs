@@ -16,6 +16,8 @@ members = [
     "crates/plugin",
     "crates/git",
     "crates/mcp",
+    "tests",
+    "opencode-benches",
 ]
 
 [workspace.package]
@@ -51,6 +53,11 @@ bcrypt = "0.15"
 tempfile = "3"
 assert_cmd = "2"
 predicates = "3"
+walkdir = "2"
+
+# Benchmark dependencies
+criterion = "0.5"
+pprof = { version = "0.13", features = ["flamegraph"] }
 
 # Storage dependencies
 rusqlite = { version = "0.32", features = ["bundled"] }

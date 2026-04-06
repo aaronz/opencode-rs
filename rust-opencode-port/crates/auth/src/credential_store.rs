@@ -27,6 +27,12 @@ pub struct CredentialStore {
     key_path: PathBuf,
 }
 
+impl Default for CredentialStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CredentialStore {
     pub fn new() -> Self {
         let base_dir = std::env::var("OPENCODE_DATA_DIR")

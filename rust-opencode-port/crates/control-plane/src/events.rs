@@ -3,10 +3,18 @@ use tokio::sync::broadcast;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Event {
-    FileChanged(String),
+    SessionCreated(String),
     SessionUpdated(String),
-    ConfigChanged,
-    AgentStatusChanged(String),
+    SessionCompacted(String),
+    MessageUpdated(String),
+    ToolExecuteBefore(String),
+    ToolExecuteAfter(String),
+    PermissionAsked(String),
+    PermissionResolved(String),
+    FileEdited(String),
+    LspUpdated(String),
+    ShellEnv(String),
+    ToastShow(String),
 }
 
 pub struct EventBus {

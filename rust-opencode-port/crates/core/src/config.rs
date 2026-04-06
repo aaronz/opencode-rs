@@ -784,6 +784,9 @@ pub struct EnterpriseConfig {
     /// Enterprise URL
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
+    /// Domain for remote config auto-discovery
+    #[serde(skip_serializing_if = "Option::is_none", rename = "remoteConfigDomain")]
+    pub remote_config_domain: Option<String>,
 }
 
 /// Compaction configuration
@@ -947,6 +950,7 @@ impl ThemeConfig {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Default)]
 pub struct TuiConfig {
     #[serde(rename = "$schema", alias = "$schema", skip_serializing_if = "Option::is_none")]
     pub schema: Option<String>,
@@ -962,18 +966,6 @@ pub struct TuiConfig {
     pub keybinds: Option<KeybindConfig>,
 }
 
-impl Default for TuiConfig {
-    fn default() -> Self {
-        Self {
-            schema: None,
-            scroll_speed: None,
-            scroll_acceleration: None,
-            diff_style: None,
-            theme: None,
-            keybinds: None,
-        }
-    }
-}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ScrollAccelerationConfig {
@@ -1062,17 +1054,14 @@ pub enum DiffStyle {
 /// Legacy provider configuration enum for backwards compatibility
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum LegacyProvider {
+    #[default]
     Openai,
     Anthropic,
     Ollama,
 }
 
-impl Default for LegacyProvider {
-    fn default() -> Self {
-        LegacyProvider::Openai
-    }
-}
 
 impl Config {
     /// Load configuration from a file path
@@ -1088,7 +1077,11 @@ impl Config {
             {
                 Self::parse_json_content(&content)?
             } else {
-                toml::from_str(&content).map_err(|e| crate::OpenCodeError::Config(e.to_string()))?
+                toml::from_str(&content).map_err(|e| crate::OpenCodeError::Config(format!(
+                    "Failed to parse TOML config {}: {}. Check your config file for syntax errors (e.g., missing quotes, invalid arrays).",
+                    path.display(),
+                    e
+                )))?
             }
         };
 
@@ -1244,7 +1237,7 @@ impl Config {
             return toml;
         }
 
-        json
+        config_root.join("config.json")
     }
 
     fn warn_legacy_config_dir_if_exists() {
@@ -1372,7 +1365,11 @@ impl Config {
         }
 
         let content = std::fs::read_to_string(path)?;
-        let value = parse_jsonc(&content).map_err(|e| crate::OpenCodeError::Config(e.to_string()))?;
+        let value = parse_jsonc(&content).map_err(|e| crate::OpenCodeError::Config(format!(
+            "Failed to parse config file {}: {}. Ensure valid JSON/JSONC syntax.",
+            path.display(),
+            e
+        )))?;
 
         let invalid_runtime_fields = Self::validate_tui_config_no_runtime_fields(&value);
         if !invalid_runtime_fields.is_empty() {
@@ -1451,11 +1448,52 @@ impl Config {
         Self::warn_legacy_config_dir_if_exists();
         let mut configs: Vec<(String, Config)> = Vec::new();
 
-        // Priority 1: Remote config from .well-known/opencode
+        // Priority 1: Remote config auto-discovery
+        // 1a. OPENCODE_REMOTE_CONFIG (full URL, explicit)
         if let Ok(remote_url) = std::env::var("OPENCODE_REMOTE_CONFIG") {
             if let Ok(content) = Self::fetch_remote_config_with_fallback(&remote_url).await {
                 if let Ok(config) = Self::parse_config_content(&content, "json") {
                     configs.push(("remote".to_string(), config));
+                }
+            }
+        }
+
+        // 1b. Auto-discovery from domain (.well-known/opencode)
+        if let Ok(domain) = std::env::var("OPENCODE_REMOTE_CONFIG_DOMAIN") {
+            if !domain.trim().is_empty() {
+                let url = Self::build_remote_url(&domain);
+                if let Ok(content) = Self::fetch_remote_config_with_fallback(&url).await {
+                    if let Ok(config) = Self::parse_config_content(&content, "json") {
+                        configs.push(("remote-auto-discover".to_string(), config));
+                    } else {
+                        tracing::warn!("Remote config auto-discovery: failed to parse config from {}", url);
+                    }
+                } else {
+                    tracing::warn!("Remote config auto-discovery: failed to fetch from {}", url);
+                }
+            }
+        }
+
+        // 1c. Enterprise config remote_config_domain
+        if let Ok(cwd) = std::env::current_dir() {
+            for ancestor in cwd.ancestors() {
+                for ext in ["json", "json5", "jsonc"] {
+                    let project_config = ancestor.join(format!("opencode.{}", ext));
+                    if project_config.exists() {
+                        if let Ok(content) = std::fs::read_to_string(&project_config) {
+                            if let Ok(value) = serde_json::from_str::<serde_json::Value>(&content) {
+                                if let Some(domain) = value.get("enterprise").and_then(|e| e.get("remoteConfigDomain")).and_then(|d| d.as_str()) {
+                                    let url = Self::build_remote_url(domain);
+                                    if let Ok(content) = Self::fetch_remote_config_with_fallback(&url).await {
+                                        if let Ok(config) = Self::parse_config_content(&content, "json") {
+                                            configs.push(("remote-enterprise".to_string(), config));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        break;
+                    }
                 }
             }
         }
@@ -1562,7 +1600,7 @@ impl Config {
         url: &str,
         cache_dir: &Path,
     ) -> Result<String, crate::OpenCodeError> {
-        let cached = load_cache(url, &cache_dir);
+        let cached = load_cache(url, cache_dir);
 
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(10))
@@ -2071,7 +2109,7 @@ impl Config {
 
         // Validate temperature range
         if let Some(temp) = self.temperature {
-            if temp < 0.0 || temp > 2.0 {
+            if !(0.0..=2.0).contains(&temp) {
                 errors.push(ValidationError {
                     field: "temperature".to_string(),
                     message: format!("Temperature {} should be between 0.0 and 2.0", temp),
@@ -2084,7 +2122,7 @@ impl Config {
         if let Some(agents) = &self.agent {
             for (name, agent) in &agents.agents {
                 if let Some(temp) = agent.temperature {
-                    if temp < 0.0 || temp > 2.0 {
+                    if !(0.0..=2.0).contains(&temp) {
                         errors.push(ValidationError {
                             field: format!("agent.{}.temperature", name),
                             message: format!(
@@ -2096,7 +2134,7 @@ impl Config {
                     }
                 }
                 if let Some(top_p) = agent.top_p {
-                    if top_p < 0.0 || top_p > 1.0 {
+                    if !(0.0..=1.0).contains(&top_p) {
                         errors.push(ValidationError {
                             field: format!("agent.{}.top_p", name),
                             message: format!("Top-p {} should be between 0.0 and 1.0", top_p),
@@ -2117,6 +2155,24 @@ impl Config {
                         severity: ValidationSeverity::Error,
                     });
                 }
+            }
+        }
+
+        // Validate provider enabled/disabled conflict
+        if let (Some(disabled), Some(enabled)) = (&self.disabled_providers, &self.enabled_providers) {
+            let conflicts: Vec<&String> = disabled
+                .iter()
+                .filter(|d| enabled.iter().any(|e| e.eq_ignore_ascii_case(d)))
+                .collect();
+            if !conflicts.is_empty() {
+                errors.push(ValidationError {
+                    field: "disabled_providers/enabled_providers".to_string(),
+                    message: format!(
+                        "Providers appear in both disabled_providers and enabled_providers (disabled takes precedence): {}",
+                        conflicts.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", ")
+                    ),
+                    severity: ValidationSeverity::Warning,
+                });
             }
         }
 
@@ -2187,19 +2243,19 @@ impl Config {
             || path.extension().and_then(|s| s.to_str()) == Some("jsonc")
         {
             serde_json::to_string_pretty(self)
-                .map_err(|e| crate::OpenCodeError::Config(e.to_string()))?
+                .map_err(|e| crate::OpenCodeError::Config(format!("Failed to serialize config to JSON: {}", e)))?
         } else {
             toml::to_string_pretty(self)
-                .map_err(|e| crate::OpenCodeError::Config(e.to_string()))?
+                .map_err(|e| crate::OpenCodeError::Config(format!("Failed to serialize config to TOML: {}", e)))?
         };
 
         // Ensure parent directory exists
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)
-                .map_err(|e| crate::OpenCodeError::Config(e.to_string()))?;
+                .map_err(|e| crate::OpenCodeError::Config(format!("Failed to create directory {}: {}", parent.display(), e)))?;
         }
 
-        std::fs::write(path, content).map_err(|e| crate::OpenCodeError::Config(e.to_string()))?;
+        std::fs::write(path, content).map_err(|e| crate::OpenCodeError::Config(format!("Failed to write config to {}: {}", path.display(), e)))?;
 
         Ok(())
     }
@@ -2806,6 +2862,27 @@ mod tests {
             serde_json::from_str(r#"{"enabled":false,"speed":0.0}"#).unwrap();
         assert!(!config.enabled);
         assert_eq!(config.speed, Some(0.0));
+    }
+
+    #[test]
+    fn test_provider_enabled_conflict_emits_validation_warning() {
+        let config = Config {
+            enabled_providers: Some(vec!["openai".to_string(), "anthropic".to_string()]),
+            disabled_providers: Some(vec!["openai".to_string(), "ollama".to_string()]),
+            ..Default::default()
+        };
+
+        assert!(!config.is_provider_enabled("openai"));
+        assert!(config.is_provider_enabled("anthropic"));
+        assert!(!config.is_provider_enabled("ollama"));
+
+        let errors = config.validate();
+        let conflict_warning = errors.iter().find(|e| {
+            e.field == "disabled_providers/enabled_providers"
+        });
+        assert!(conflict_warning.is_some());
+        let msg = &conflict_warning.unwrap().message;
+        assert!(msg.contains("openai"));
     }
 
     #[test]

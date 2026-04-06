@@ -5,17 +5,14 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum InvocationStatus {
+    #[default]
     Running,
     Completed,
     Failed,
 }
 
-impl Default for InvocationStatus {
-    fn default() -> Self {
-        InvocationStatus::Running
-    }
-}
 
 impl std::fmt::Display for InvocationStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

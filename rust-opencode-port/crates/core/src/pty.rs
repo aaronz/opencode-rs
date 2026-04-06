@@ -15,7 +15,7 @@ impl PtySession {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .map_err(|e| OpenCodeError::Io(e))?;
+            .map_err(OpenCodeError::Io)?;
 
         Ok(Self { child })
     }

@@ -129,14 +129,14 @@ impl DiffReviewOverlay {
                     .unwrap_or(remaining.len());
                 if word_end > 0 {
                     let word = &remaining[..word_end];
-                    if SYNTAX_KEYWORDS.iter().any(|&k| k == word) {
+                    if SYNTAX_KEYWORDS.contains(&word) {
                         spans.push(Span::styled(
                             word,
                             Style::default()
                                 .fg(Color::Magenta)
                                 .add_modifier(Modifier::BOLD),
                         ));
-                    } else if SYNTAX_TYPES.iter().any(|&t| t == word) {
+                    } else if SYNTAX_TYPES.contains(&word) {
                         spans.push(Span::styled(word, Style::default().fg(Color::Cyan)));
                     } else if word
                         .chars()

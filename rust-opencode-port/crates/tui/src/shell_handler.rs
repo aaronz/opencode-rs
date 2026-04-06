@@ -4,6 +4,7 @@ const DEFAULT_TIMEOUT_SECS: u64 = 30;
 const MAX_OUTPUT_SIZE: usize = 100 * 1024;
 
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct ExecuteResult {
     pub stdout: String,
     pub stderr: String,
@@ -100,17 +101,6 @@ impl Default for ShellHandler {
     }
 }
 
-impl Default for ExecuteResult {
-    fn default() -> Self {
-        Self {
-            stdout: String::new(),
-            stderr: String::new(),
-            exit_code: None,
-            timed_out: false,
-            truncated: false,
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {

@@ -13,6 +13,7 @@ pub enum PluginCapability {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct PluginPermissions {
     pub capabilities: Vec<PluginCapability>,
     pub allowed_events: Vec<String>,
@@ -20,16 +21,6 @@ pub struct PluginPermissions {
     pub network_allowed: bool,
 }
 
-impl Default for PluginPermissions {
-    fn default() -> Self {
-        Self {
-            capabilities: Vec::new(),
-            allowed_events: Vec::new(),
-            filesystem_scope: None,
-            network_allowed: false,
-        }
-    }
-}
 
 impl PluginPermissions {
     pub fn can(&self, capability: &PluginCapability) -> bool {
@@ -90,7 +81,7 @@ impl PluginManager {
             for event in &plugin_config.permissions.allowed_events {
                 self.event_handlers
                     .entry(event.clone())
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(name.clone());
             }
         }

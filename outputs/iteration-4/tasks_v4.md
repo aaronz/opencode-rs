@@ -3,7 +3,7 @@
 **版本**: 4.0
 **日期**: 2026-04-04
 **基于**: spec_v4.md + plan_v4.md + constitution_updates.md
-**状态**: 草稿
+**状态**: 已完成
 
 ---
 
@@ -44,7 +44,7 @@
 **ID**: TASK-0.1
 **优先级**: P0
 **模块**: core/context
-**状态**: pending
+**状态**: completed
 **预计工期**: 3 天
 **关联 FR**: FR-001
 **关联 Constitution**: C-001, C-016
@@ -91,7 +91,7 @@
 **ID**: TASK-0.2
 **优先级**: P0
 **模块**: plugin
-**状态**: pending
+**状态**: completed
 **预计工期**: 3 天
 **关联 FR**: FR-002
 **关联 Constitution**: C-002 ~ C-010
@@ -134,7 +134,7 @@
 **ID**: TASK-0.3
 **优先级**: P0
 **模块**: core/skills
-**状态**: pending
+**状态**: completed
 **预计工期**: 3 天
 **关联 FR**: FR-003, FR-045
 **关联 Constitution**: C-003
@@ -182,7 +182,7 @@
 **ID**: TASK-0.4
 **优先级**: P0
 **模块**: core/commands
-**状态**: pending
+**状态**: completed
 **预计工期**: 2 天
 **关联 FR**: FR-004, FR-046
 **关联 Constitution**: C-004
@@ -229,7 +229,7 @@
 **ID**: TASK-0.5
 **优先级**: P0
 **模块**: mcp
-**状态**: pending
+**状态**: completed
 **预计工期**: 2 天
 **关联 FR**: FR-005
 **关联 Constitution**: C-005
@@ -273,7 +273,7 @@
 **ID**: TASK-0.6
 **优先级**: P0
 **模块**: tui/input
-**状态**: pending
+**状态**: completed
 **预计工期**: 2 天
 **关联 FR**: FR-006
 **关联 Constitution**: C-014
@@ -316,7 +316,7 @@
 **ID**: TASK-1.1
 **优先级**: P1
 **模块**: server
-**状态**: pending
+**状态**: completed
 **预计工期**: 3 天
 **关联 FR**: FR-011
 
@@ -357,7 +357,7 @@
 **ID**: TASK-1.2
 **优先级**: P1
 **模块**: core/share
-**状态**: pending
+**状态**: completed
 **预计工期**: 2 天
 **关联 FR**: FR-012
 
@@ -396,7 +396,7 @@
 **ID**: TASK-1.3
 **优先级**: P1
 **模块**: lsp
-**状态**: pending
+**状态**: completed
 **预计工期**: 2 天
 **关联 FR**: FR-013
 
@@ -433,7 +433,7 @@
 **ID**: TASK-1.4
 **优先级**: P1
 **模块**: auth
-**状态**: pending
+**状态**: completed
 **预计工期**: 2 天
 **关联 FR**: FR-015
 
@@ -468,7 +468,7 @@
 **ID**: TASK-1.5
 **优先级**: P1
 **模块**: storage/permission
-**状态**: pending
+**状态**: completed
 **预计工期**: 1 天
 **关联 FR**: FR-016
 
@@ -505,7 +505,7 @@
 **ID**: TASK-1.6
 **优先级**: P1
 **模块**: core/tools
-**状态**: pending
+**状态**: completed
 **预计工期**: 2 天
 **关联 FR**: FR-044
 
@@ -546,7 +546,7 @@
 **ID**: TASK-1.7
 **优先级**: P1
 **模块**: tui
-**状态**: pending
+**状态**: completed
 **预计工期**: 1 天
 **关联 FR**: FR-017
 
@@ -582,7 +582,7 @@
 **ID**: TASK-1.8
 **优先级**: P1
 **模块**: config/tui
-**状态**: pending
+**状态**: completed
 **预计工期**: 1 天
 **关联 FR**: FR-018, FR-020
 **关联 Constitution**: C-017
@@ -619,7 +619,7 @@
 **ID**: TASK-2.1
 **优先级**: P1 (P0 in spec)
 **模块**: server/session
-**状态**: pending
+**状态**: completed
 **预计工期**: 2 天
 **关联 FR**: FR-007
 **关联 Constitution**: C-015
@@ -655,7 +655,7 @@
 **ID**: TASK-2.2
 **优先级**: P1
 **模块**: auth
-**状态**: pending
+**状态**: completed
 **预计工期**: 3 天
 **关联 FR**: FR-047
 
@@ -694,7 +694,7 @@
 **ID**: TASK-2.3
 **优先级**: P1
 **模块**: git
-**状态**: pending
+**状态**: completed
 **预计工期**: 3 天
 **关联 FR**: FR-048
 
@@ -737,7 +737,7 @@
 **ID**: TASK-3.1
 **优先级**: P2
 **模块**: llm
-**状态**: pending
+**状态**: completed
 **预计工期**: 2 天
 **关联 FR**: FR-049
 
@@ -778,7 +778,7 @@
 **ID**: TASK-3.2
 **优先级**: P2
 **模块**: server
-**状态**: pending
+**状态**: completed
 **预计工期**: 2 天
 **关联 FR**: FR-050
 **关联 Constitution**: C-020
@@ -820,7 +820,7 @@
 **ID**: TASK-3.3
 **优先级**: P2
 **模块**: core/session
-**状态**: pending
+**状态**: completed
 **预计工期**: 3 天
 **关联 FR**: FR-051
 **关联 Constitution**: C-021
@@ -864,7 +864,7 @@
 **ID**: TASK-3.4
 **优先级**: P2
 **模块**: core/watcher
-**状态**: pending
+**状态**: completed
 **预计工期**: 2 天
 **关联 FR**: FR-052
 **关联 Constitution**: C-022
@@ -907,7 +907,7 @@
 **ID**: TASK-3.5
 **优先级**: P2
 **模块**: core/config
-**状态**: pending
+**状态**: completed
 **预计工期**: 1 天
 **关联 FR**: FR-021, FR-030, FR-031
 
@@ -941,7 +941,7 @@
 **ID**: TASK-3.6
 **优先级**: P2
 **模块**: 多模块
-**状态**: pending
+**状态**: completed
 **预计工期**: 4 天
 **关联 FR**: FR-022, FR-023, FR-024, FR-025, FR-026, FR-027
 

@@ -6,6 +6,12 @@ pub struct PermissionEvaluator {
     regex_cache: HashMap<String, Regex>,
 }
 
+impl Default for PermissionEvaluator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PermissionEvaluator {
     pub fn new() -> Self {
         Self {

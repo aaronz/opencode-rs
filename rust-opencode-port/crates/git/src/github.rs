@@ -133,6 +133,48 @@ impl GitHubClient {
         self.send(self.authed(self.client.get(url)))
     }
 
+    pub fn trigger_workflow(
+        &self,
+        owner: &str,
+        repo: &str,
+        workflow_id: &str,
+        branch_ref: &str,
+    ) -> Result<WorkflowRun, GitHubError> {
+        let url = format!(
+            "{}/repos/{}/{}/actions/workflows/{}/dispatches",
+            self.api_base, owner, repo, workflow_id
+        );
+        let _: serde_json::Value = self.send(
+            self.authed(self.client.post(url))
+                .json(&serde_json::json!({ "ref": branch_ref })),
+        )?;
+        Ok(WorkflowRun {
+            id: 0,
+            name: workflow_id.to_string(),
+            head_branch: branch_ref.to_string(),
+            status: "queued".to_string(),
+            conclusion: None,
+        })
+    }
+
+    pub fn list_workflow_runs(
+        &self,
+        owner: &str,
+        repo: &str,
+        workflow_id: &str,
+    ) -> Result<Vec<WorkflowRun>, GitHubError> {
+        let url = format!(
+            "{}/repos/{}/{}/actions/workflows/{}/runs",
+            self.api_base, owner, repo, workflow_id
+        );
+        #[derive(Deserialize)]
+        struct RunsResponse {
+            workflow_runs: Vec<WorkflowRun>,
+        }
+        let response: RunsResponse = self.send(self.authed(self.client.get(url)))?;
+        Ok(response.workflow_runs)
+    }
+
     fn authed(&self, req: RequestBuilder) -> RequestBuilder {
         req.bearer_auth(&self.token)
             .header("Accept", "application/vnd.github+json")
@@ -196,6 +238,15 @@ pub struct GitHubRef {
     #[serde(rename = "ref")]
     pub ref_name: String,
     pub sha: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct WorkflowRun {
+    pub id: u64,
+    pub name: String,
+    pub head_branch: String,
+    pub status: String,
+    pub conclusion: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

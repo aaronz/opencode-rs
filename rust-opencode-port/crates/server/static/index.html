@@ -38,6 +38,22 @@
         #toggle-sidebar:hover { color: #c9d1d9; }
         .loading { text-align: center; color: #8b949e; padding: 20px; }
         .error { background: #da3633; color: #fff; padding: 8px 12px; border-radius: 6px; margin: 8px 16px; font-size: 13px; }
+        #nav { display: flex; gap: 8px; }
+        .nav-btn { background: none; border: none; color: #8b949e; cursor: pointer; font-size: 14px; padding: 4px 8px; }
+        .nav-btn:hover { color: #58a6ff; }
+        .page { display: none; }
+        .page.active { display: block; }
+        .settings-panel, .admin-panel { padding: 20px; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; margin-bottom: 4px; color: #8b949e; }
+        .form-group input, .form-group select { width: 100%; max-width: 300px; padding: 8px; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px; }
+        .btn-primary { background: #238636; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+        .btn-primary:hover { background: #2ea043; }
+        .permission-item { background: #161b22; border: 1px solid #21262d; padding: 12px; margin-bottom: 8px; border-radius: 6px; }
+        .permission-item .header { display: flex; justify-content: space-between; align-items: center; }
+        .permission-item .actions { display: flex; gap: 8px; margin-top: 8px; }
+        .btn-approve { background: #238636; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+        .btn-deny { background: #da3633; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -45,14 +61,51 @@
         <div style="display:flex;align-items:center;gap:12px;">
             <h1>OpenCode</h1>
             <button id="toggle-sidebar" title="Sessions">&#9776;</button>
+            <div id="nav">
+                <button class="nav-btn" data-page="chat">Chat</button>
+                <button class="nav-btn" data-page="settings">Settings</button>
+                <button class="nav-btn" data-page="admin">Admin</button>
+            </div>
         </div>
         <span id="status" class="disconnected">Disconnected</span>
     </header>
     <main>
-        <div id="messages"></div>
-        <div id="input-area">
-            <textarea id="prompt" placeholder="Enter your prompt... (Ctrl+Enter to send)" rows="1"></textarea>
-            <button id="send-btn">Send</button>
+        <div id="page-chat" class="page active">
+            <div id="messages"></div>
+            <div id="input-area">
+                <textarea id="prompt" placeholder="Enter your prompt... (Ctrl+Enter to send)" rows="1"></textarea>
+                <button id="send-btn">Send</button>
+            </div>
+        </div>
+        <div id="page-settings" class="page">
+            <div class="settings-panel">
+                <h2>Settings</h2>
+                <div class="form-group">
+                    <label>API Key</label>
+                    <input type="password" id="api-key-input" placeholder="Enter your API key">
+                </div>
+                <div class="form-group">
+                    <label>Default Model</label>
+                    <select id="model-select">
+                        <option value="gpt-4o">GPT-4O</option>
+                        <option value="claude-3-5-sonnet">Claude 3.5 Sonnet</option>
+                    </select>
+                </div>
+                <button class="btn-primary" onclick="saveSettings()">Save Settings</button>
+            </div>
+        </div>
+        <div id="page-admin" class="page">
+            <div class="admin-panel">
+                <h2>Admin Panel</h2>
+                <div class="form-group">
+                    <label>Provider Configuration</label>
+                    <div id="provider-list"></div>
+                </div>
+                <div class="form-group">
+                    <label>Permission Queue</label>
+                    <div id="permission-queue"></div>
+                </div>
+            </div>
         </div>
     </main>
     <div id="sidebar">
@@ -230,6 +283,108 @@
 
         loadSessions();
         connectSSE();
+
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const page = btn.dataset.page;
+                document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                document.getElementById(`page-${page}`).classList.add('active');
+                if (page === 'admin') {
+                    loadAdminData();
+                }
+            });
+        });
+
+        function saveSettings() {
+            const apiKey = document.getElementById('api-key-input').value;
+            localStorage.setItem('opencode_api_key', apiKey);
+            alert('Settings saved!');
+        }
+
+        async function loadAdminData() {
+            loadProviderList();
+            loadPermissionQueue();
+        }
+
+        async function loadProviderList() {
+            try {
+                const res = await fetch(`${API_BASE}/providers`, {
+                    headers: { 'x-api-key': getApiKey() }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    renderProviderList(data.providers || []);
+                }
+            } catch (e) {
+                document.getElementById('provider-list').innerHTML = '<div class="error">Failed to load providers</div>';
+            }
+        }
+
+        function renderProviderList(providers) {
+            if (providers.length === 0) {
+                document.getElementById('provider-list').innerHTML = '<div class="loading">No providers configured</div>';
+                return;
+            }
+            document.getElementById('provider-list').innerHTML = providers.map(p => `
+                <div class="permission-item">
+                    <div class="header">
+                        <span>${p.name}</span>
+                        <span>${p.protocol}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function loadPermissionQueue() {
+            try {
+                const res = await fetch(`${API_BASE}/permissions`, {
+                    headers: { 'x-api-key': getApiKey() }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    renderPermissionQueue(data.permissions || []);
+                }
+            } catch (e) {
+                document.getElementById('permission-queue').innerHTML = '<div class="error">Failed to load permissions</div>';
+            }
+        }
+
+        function renderPermissionQueue(permissions) {
+            if (permissions.length === 0) {
+                document.getElementById('permission-queue').innerHTML = '<div class="loading">No pending permissions</div>';
+                return;
+            }
+            document.getElementById('permission-queue').innerHTML = permissions.map(p => `
+                <div class="permission-item">
+                    <div class="header">
+                        <span>${p.tool_name}</span>
+                        <span>${p.risk_level}</span>
+                    </div>
+                    <div class="actions">
+                        <button class="btn-approve" onclick="replyPermission('${p.id}', 'allow')">Approve</button>
+                        <button class="btn-deny" onclick="replyPermission('${p.id}', 'deny')">Deny</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function replyPermission(reqId, decision) {
+            try {
+                const res = await fetch(`${API_BASE}/permissions/${reqId}/reply`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': getApiKey()
+                    },
+                    body: JSON.stringify({ decision })
+                });
+                if (res.ok) {
+                    loadPermissionQueue();
+                }
+            } catch (e) {
+                alert('Failed to reply to permission');
+            }
+        }
     </script>
 </body>
 </html>

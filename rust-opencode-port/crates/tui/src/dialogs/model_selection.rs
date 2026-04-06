@@ -113,8 +113,8 @@ impl Dialog for ModelSelectionDialog {
         let filtered = self.filtered_models();
         let items: Vec<ListItem> = filtered
             .iter()
-            .enumerate()
-            .map(|(_i, model)| {
+            
+            .map(|model| {
                 let paid_marker = if model.is_paid { " $" } else { "" };
                 let availability = if model.is_available {
                     ""

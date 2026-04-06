@@ -107,11 +107,11 @@ impl CheckpointManager {
         for entry in fs::read_dir(&dir)? {
             let entry = entry?;
             let path = entry.path();
-            if path.extension().map_or(false, |ext| ext == "json")
+            if path.extension().is_some_and(|ext| ext == "json")
                 && path
                     .file_stem()
                     .and_then(|s| s.to_str())
-                    .map_or(false, |s| s.starts_with("checkpoint_"))
+                    .is_some_and(|s| s.starts_with("checkpoint_"))
             {
                 if let Ok(content) = fs::read_to_string(&path) {
                     if let Ok(session) = serde_json::from_str::<Session>(&content) {

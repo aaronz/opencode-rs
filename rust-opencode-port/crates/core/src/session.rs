@@ -82,9 +82,11 @@ pub struct ToolInvocationRecord {
     pub id: Uuid,
     pub tool_name: String,
     pub arguments: serde_json::Value,
+    pub args_hash: String,
     pub result: Option<String>,
     pub started_at: DateTime<Utc>,
     pub completed_at: Option<DateTime<Utc>>,
+    pub latency_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -116,6 +118,12 @@ pub struct SessionInfo {
     pub preview: String,
 }
 
+impl Default for Session {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Session {
     pub fn new() -> Self {
         let now = Utc::now();
@@ -138,7 +146,8 @@ impl Session {
 
     pub fn fork(&self, new_session_id: Uuid) -> Self {
         let now = Utc::now();
-        let forked = Self {
+        
+        Self {
             id: new_session_id,
             messages: self.messages.clone(),
             created_at: now,
@@ -152,8 +161,7 @@ impl Session {
             shared_id: None,
             share_mode: self.share_mode.clone(),
             share_expires_at: self.share_expires_at,
-        };
-        forked
+        }
     }
 
     pub fn fork_at_message(&self, message_index: usize) -> Result<Session, ForkError> {
@@ -291,16 +299,23 @@ impl Session {
         created_at: DateTime<Utc>,
     ) {
         let summary = summary.into();
+        let args = serde_json::json!({
+            "kind": "session_summary",
+            "created_at": created_at,
+        });
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(args.to_string().as_bytes());
+        let args_hash = format!("{:x}", hasher.finalize());
         let record = ToolInvocationRecord {
             id: Uuid::new_v4(),
             tool_name: "session.summary".to_string(),
-            arguments: serde_json::json!({
-                "kind": "session_summary",
-                "created_at": created_at,
-            }),
+            arguments: args,
+            args_hash,
             result: Some(summary),
             started_at: created_at,
             completed_at: Some(created_at),
+            latency_ms: Some(0),
         };
         self.tool_invocations.push(record);
         self.updated_at = Utc::now();
@@ -449,7 +464,7 @@ impl Session {
         for entry in std::fs::read_dir(dir)? {
             let entry = entry?;
             let path = entry.path();
-            if path.extension().map_or(false, |ext| ext == "json") {
+            if path.extension().is_some_and(|ext| ext == "json") {
                 if let Ok(session) = Self::load(&path) {
                     let preview = session
                         .messages

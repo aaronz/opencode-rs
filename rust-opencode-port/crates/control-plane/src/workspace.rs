@@ -24,7 +24,7 @@ impl WorkspaceManager {
                         EventKind::Modify(_) | EventKind::Create(_) | EventKind::Remove(_) => {
                             for path in event.paths {
                                 if let Ok(rel_path) = path.strip_prefix(&root) {
-                                    event_bus.publish(Event::FileChanged(
+                                    event_bus.publish(Event::FileEdited(
                                         rel_path.to_string_lossy().to_string(),
                                     ));
                                 }

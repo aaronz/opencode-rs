@@ -108,4 +108,21 @@ mod tests {
         assert!(expired.is_expired());
         assert!(!fresh.is_expired());
     }
+
+    #[test]
+    fn test_build_remote_url() {
+        assert_eq!(
+            "https://example.com/.well-known/opencode",
+            build_remote_url("https://example.com")
+        );
+        assert_eq!(
+            "https://example.com/.well-known/opencode",
+            build_remote_url("https://example.com/")
+        );
+    }
+
+    fn build_remote_url(domain: &str) -> String {
+        let domain = domain.trim_end_matches('/');
+        format!("{}/.well-known/opencode", domain)
+    }
 }

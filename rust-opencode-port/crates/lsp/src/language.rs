@@ -33,11 +33,10 @@ impl Language {
         if root.join("tsconfig.json").exists() {
             languages.push(Language::TypeScript);
         }
-        if root.join("package.json").exists() {
-            if !languages.contains(&Language::TypeScript) {
+        if root.join("package.json").exists()
+            && !languages.contains(&Language::TypeScript) {
                 languages.push(Language::JavaScript);
             }
-        }
         if root.join("pyproject.toml").exists() || root.join("setup.py").exists() {
             languages.push(Language::Python);
         }

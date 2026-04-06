@@ -5,17 +5,14 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum PermissionScope {
+    #[default]
     ReadOnly,
     Restricted,
     Full,
 }
 
-impl Default for PermissionScope {
-    fn default() -> Self {
-        PermissionScope::ReadOnly
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PendingApproval {

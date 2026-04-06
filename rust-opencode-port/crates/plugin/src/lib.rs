@@ -1,6 +1,7 @@
 pub mod discovery;
 pub mod loader;
 pub mod registry;
+pub mod wasm_runtime;
 
 use discovery::PluginDiscovery;
 use serde::{Deserialize, Serialize};
@@ -38,6 +39,7 @@ pub enum PluginCapability {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct PluginPermissions {
     pub capabilities: Vec<PluginCapability>,
     pub allowed_events: Vec<String>,
@@ -45,16 +47,6 @@ pub struct PluginPermissions {
     pub network_allowed: bool,
 }
 
-impl Default for PluginPermissions {
-    fn default() -> Self {
-        Self {
-            capabilities: Vec::new(),
-            allowed_events: Vec::new(),
-            filesystem_scope: None,
-            network_allowed: false,
-        }
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginConfig {

@@ -24,18 +24,57 @@ impl std::fmt::Display for LlmError {
                 if let Some(seconds) = retry_after {
                     write!(f, ". Retry after {} seconds", seconds)?;
                 }
+                write!(f, ". Consider reducing request frequency or upgrading your plan.")?;
                 Ok(())
             }
-            LlmError::InvalidApiKey => write!(f, "Invalid API key"),
-            LlmError::ModelNotFound(model) => write!(f, "Model not found: {}", model),
-            LlmError::RequestTimeout => write!(f, "Request timeout"),
-            LlmError::ServerError(msg) => write!(f, "Server error: {}", msg),
-            LlmError::NetworkError(msg) => write!(f, "Network error: {}", msg),
-            LlmError::ValidationError(msg) => write!(f, "Validation error: {}", msg),
-            LlmError::Parse(msg) => write!(f, "Parse error: {}", msg),
-            LlmError::Provider(msg) => write!(f, "Provider error: {}", msg),
-            LlmError::Auth(msg) => write!(f, "Auth error: {}", msg),
-            LlmError::Other(msg) => write!(f, "Error: {}", msg),
+            LlmError::InvalidApiKey => write!(
+                f,
+                "Invalid API key. Please check your API key in config or OPENAI_API_KEY environment variable."
+            ),
+            LlmError::ModelNotFound(model) => write!(
+                f,
+                "Model '{}' not found. Available models vary by provider - check your configuration.",
+                model
+            ),
+            LlmError::RequestTimeout => write!(
+                f,
+                "Request timeout. The server took too long to respond. Check your network connection."
+            ),
+            LlmError::ServerError(msg) => write!(
+                f,
+                "LLM server error: {}. This is usually a temporary issue on the provider's side.",
+                msg
+            ),
+            LlmError::NetworkError(msg) => write!(
+                f,
+                "Network error: {}. Check your internet connection and proxy settings if applicable.",
+                msg
+            ),
+            LlmError::ValidationError(msg) => write!(
+                f,
+                "Request validation failed: {}. The request parameters may be invalid.",
+                msg
+            ),
+            LlmError::Parse(msg) => write!(
+                f,
+                "Failed to parse response: {}. The model returned an unexpected format.",
+                msg
+            ),
+            LlmError::Provider(msg) => write!(
+                f,
+                "Provider error: {}. Check your provider configuration and API key.",
+                msg
+            ),
+            LlmError::Auth(msg) => write!(
+                f,
+                "Authentication failed: {}. Verify your API key is valid and has necessary permissions.",
+                msg
+            ),
+            LlmError::Other(msg) => write!(
+                f,
+                "Unexpected error: {}. If this persists, check provider status.",
+                msg
+            ),
         }
     }
 }

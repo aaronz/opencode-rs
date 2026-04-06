@@ -64,7 +64,7 @@ impl RightPanel {
 
         let titles: Vec<Line> = vec!["1:Diag", "2:Todo", "3:Perms"]
             .into_iter()
-            .map(|t| Line::from(t))
+            .map(Line::from)
             .collect();
 
         let tabs = Tabs::new(titles)

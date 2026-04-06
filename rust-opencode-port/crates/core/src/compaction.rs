@@ -385,7 +385,7 @@ impl Compactor {
     }
 
     pub fn estimate_tokens(&self, text: &str) -> usize {
-        (text.len() + 3) / 4
+        text.len().div_ceil(4)
     }
 
     pub fn validate_reserved(reserved: u32) -> Result<(), CompactionError> {
@@ -473,7 +473,7 @@ impl Compactor {
         let session_tokens: usize = session
             .messages
             .iter()
-            .map(|m| (m.content.len() + 3) / 4)
+            .map(|m| m.content.len().div_ceil(4))
             .sum();
 
         let trigger_threshold = model_max_context - reserved as usize;

@@ -260,6 +260,89 @@ pub enum AppMode {
     ReleaseNotes,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TuiState {
+    Idle,
+    Composing,
+    Submitting,
+    Streaming,
+    ExecutingTool,
+    AwaitingPermission,
+    ShowingDiff,
+    ShowingError,
+    Aborting,
+    Reconnecting,
+    Paused,
+}
+
+impl TuiState {
+    pub fn can_accept_input(&self) -> bool {
+        matches!(self, Self::Idle | Self::Composing)
+    }
+
+    pub fn is_interruptible(&self) -> bool {
+        matches!(self, Self::Streaming | Self::ExecutingTool)
+    }
+
+    pub fn is_active(&self) -> bool {
+        matches!(
+            self,
+            Self::Streaming | Self::ExecutingTool | Self::Submitting | Self::Aborting
+        )
+    }
+
+    pub fn can_cancel(&self) -> bool {
+        matches!(
+            self,
+            Self::Streaming | Self::ExecutingTool | Self::AwaitingPermission
+        )
+    }
+
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Idle => "idle",
+            Self::Composing => "composing",
+            Self::Submitting => "submitting",
+            Self::Streaming => "streaming",
+            Self::ExecutingTool => "executing_tool",
+            Self::AwaitingPermission => "awaiting_permission",
+            Self::ShowingDiff => "showing_diff",
+            Self::ShowingError => "showing_error",
+            Self::Aborting => "aborting",
+            Self::Reconnecting => "reconnecting",
+            Self::Paused => "paused",
+        }
+    }
+
+    pub fn is_terminal(&self) -> bool {
+        matches!(self, Self::Idle | Self::ShowingError)
+    }
+
+    pub fn allows_input_editing(&self) -> bool {
+        matches!(self, Self::Idle | Self::Composing | Self::ShowingError)
+    }
+
+    pub fn valid_transitions(&self) -> Vec<TuiState> {
+        match self {
+            Self::Idle => vec![Self::Composing, Self::Paused, Self::ShowingError],
+            Self::Composing => vec![Self::Idle, Self::Submitting, Self::Paused],
+            Self::Submitting => vec![Self::Streaming, Self::ShowingError, Self::Idle],
+            Self::Streaming => vec![Self::ExecutingTool, Self::Aborting, Self::Idle],
+            Self::ExecutingTool => vec![Self::Streaming, Self::AwaitingPermission, Self::Aborting, Self::Idle],
+            Self::AwaitingPermission => vec![Self::ExecutingTool, Self::Aborting, Self::Idle],
+            Self::ShowingDiff => vec![Self::Idle, Self::Streaming],
+            Self::ShowingError => vec![Self::Idle, Self::Composing],
+            Self::Aborting => vec![Self::Idle],
+            Self::Reconnecting => vec![Self::Idle, Self::Streaming],
+            Self::Paused => vec![Self::Idle, Self::Composing],
+        }
+    }
+
+    pub fn can_transition_to(&self, target: TuiState) -> bool {
+        self.valid_transitions().contains(&target)
+    }
+}
+
 pub struct App {
     pub messages: Vec<MessageMeta>,
     pub tool_calls: Vec<ToolCall>,
@@ -275,6 +358,8 @@ pub struct App {
     llm_rx: Option<mpsc::Receiver<LlmEvent>>,
     connect_rx: Option<mpsc::Receiver<ConnectEvent>>,
     pub mode: AppMode,
+    pub tui_state: TuiState,
+    pub reconnect_timeout: Option<std::time::Instant>,
     pub command_palette_input: String,
     pub command_registry: CommandRegistry,
     pub slash_command_dialog: SlashCommandOverlay,
@@ -397,6 +482,8 @@ impl App {
             llm_rx: None,
             connect_rx: None,
             mode: AppMode::Chat,
+            tui_state: TuiState::Idle,
+            reconnect_timeout: None,
             command_palette_input: String::new(),
             command_registry,
             slash_command_dialog: SlashCommandOverlay::new(theme.clone()),
@@ -627,7 +714,7 @@ impl App {
             .filter(|k| !k.trim().is_empty())
             .or_else(|| std::env::var("OPENCODE_API_KEY").ok())
             .or_else(|| std::env::var("OPENAI_API_KEY").ok())
-            .unwrap_or_else(|| "".to_string());
+            .unwrap_or_default();
 
         if api_key.is_empty() && self.provider != "ollama" {
             return Err("No API key found. Set OPENCODE_API_KEY or OPENAI_API_KEY".to_string());
@@ -699,10 +786,14 @@ impl App {
 
     pub fn add_tool_call(&mut self, tool_call: ToolCall) {
         self.tool_calls.push(tool_call);
+        self.set_tui_state(TuiState::ExecutingTool);
     }
 
     pub fn clear_tool_calls(&mut self) {
         self.tool_calls.clear();
+        if self.tui_state == TuiState::ExecutingTool {
+            self.set_tui_state(TuiState::Idle);
+        }
     }
 
     pub fn toggle_all_tool_details(&mut self) {
@@ -745,6 +836,30 @@ impl App {
         }
     }
 
+    pub fn check_reconnect_timeout(&mut self) {
+        if self.tui_state == TuiState::Reconnecting {
+            if let Some(deadline) = self.reconnect_timeout {
+                if deadline.elapsed() > std::time::Duration::from_secs(30) {
+                    self.set_tui_state(TuiState::Idle);
+                    self.reconnect_timeout = None;
+                    self.add_message("Reconnection timed out. Please restart.".to_string(), false);
+                }
+            }
+        }
+    }
+
+    pub fn start_reconnecting(&mut self) {
+        self.set_tui_state(TuiState::Reconnecting);
+        self.reconnect_timeout = Some(std::time::Instant::now());
+    }
+
+    pub fn on_reconnect_success(&mut self) {
+        self.reconnect_timeout = None;
+        if self.tui_state == TuiState::Reconnecting {
+            self.set_tui_state(TuiState::Idle);
+        }
+    }
+
     pub fn is_leader_key_active(&self) -> bool {
         self.leader_key_state == LeaderKeyState::WaitingForAction
     }
@@ -755,16 +870,27 @@ impl App {
         disable_raw_mode()
     }
 
+    pub fn set_tui_state(&mut self, new_state: TuiState) {
+        if self.tui_state != new_state {
+            self.tui_state = new_state;
+        }
+    }
+
     pub fn start_llm_generation(&mut self) {
         self.is_llm_generating = true;
+        self.set_tui_state(TuiState::Streaming);
     }
 
     pub fn end_llm_generation(&mut self) {
         self.is_llm_generating = false;
+        if self.tui_state == TuiState::Streaming {
+            self.set_tui_state(TuiState::Idle);
+        }
     }
 
     pub fn interrupt_llm_generation(&mut self) {
         if self.is_llm_generating {
+            self.set_tui_state(TuiState::Aborting);
             self.is_llm_generating = false;
             if !self.partial_response.is_empty() {
                 self.add_message(
@@ -841,6 +967,7 @@ impl App {
             terminal.draw(|f| self.draw(f))?;
 
             self.check_leader_key_timeout();
+            self.check_reconnect_timeout();
             self.check_llm_events();
             self.check_connect_events();
 
@@ -1403,11 +1530,8 @@ impl App {
             if key.kind == KeyEventKind::Press {
                 if self.title_bar.show_dropdown {
                     let action = self.title_bar.handle_input(key);
-                    match action {
-                        TitleBarAction::Select(session_id) => {
-                            self.add_message(format!("Switched to session: {}", session_id), false);
-                        }
-                        _ => {}
+                    if let TitleBarAction::Select(session_id) = action {
+                        self.add_message(format!("Switched to session: {}", session_id), false);
                     }
                     return Ok(());
                 }
@@ -1478,19 +1602,22 @@ impl App {
                         );
                     }
                     KeyCode::Char('1') if key.modifiers.contains(KeyModifiers::ALT) => {
-                        self.right_panel.set_content(RightPanelContent::Diagnostics);
+                        self.right_panel.set_content(RightPanelContent::Todo);
                     }
                     KeyCode::Char('2') if key.modifiers.contains(KeyModifiers::ALT) => {
-                        self.right_panel.set_content(RightPanelContent::Tokens);
+                        self.right_panel.set_content(RightPanelContent::Diff);
                     }
                     KeyCode::Char('3') if key.modifiers.contains(KeyModifiers::ALT) => {
-                        self.right_panel.set_content(RightPanelContent::Files);
+                        self.right_panel.set_content(RightPanelContent::Diagnostics);
                     }
                     KeyCode::Char('4') if key.modifiers.contains(KeyModifiers::ALT) => {
-                        self.right_panel.set_content(RightPanelContent::Tools);
+                        self.right_panel.set_content(RightPanelContent::Context);
                     }
-                    KeyCode::Char('0') if key.modifiers.contains(KeyModifiers::ALT) => {
-                        self.right_panel.set_content(RightPanelContent::None);
+                    KeyCode::Char('5') if key.modifiers.contains(KeyModifiers::ALT) => {
+                        self.right_panel.set_content(RightPanelContent::Permissions);
+                    }
+                    KeyCode::Char('6') if key.modifiers.contains(KeyModifiers::ALT) => {
+                        self.right_panel.set_content(RightPanelContent::Files);
                     }
                     KeyCode::Char(']') if key.modifiers.contains(KeyModifiers::ALT) => {
                         self.right_panel.toggle_collapse();
@@ -1606,13 +1733,14 @@ impl App {
                              self.input_box.set_input(String::new());
 
                              // Call LLM in background task if provider is initialized
-                             if let Some(ref provider) = self.llm_provider {
+                             if self.llm_provider.is_some() {
+                                 self.set_tui_state(TuiState::Submitting);
                                  self.is_llm_generating = true;
                                  self.partial_response.clear();
 
                                  let (tx, rx) = mpsc::channel();
                                  self.llm_rx = Some(rx);
-                                 let provider_clone = provider.clone();
+                                 let provider_clone = self.llm_provider.as_ref().unwrap().clone();
                                   let auto_enabled = self.skill_resolver.match_and_enable(&input);
                                   for skill in auto_enabled {
                                       self.skills_panel.set_enabled(&skill.name, true);
@@ -1630,7 +1758,7 @@ impl App {
                                   
                                   std::thread::spawn(move || {
                                       let rt = tokio::runtime::Runtime::new().unwrap();
-                                      let _ = rt.block_on(async {
+                                      rt.block_on(async {
                                          let tx_callback = tx.clone();
                                          let callback = move |chunk: String| {
                                              let _ = tx_callback.send(LlmEvent::Chunk(chunk));
@@ -1679,17 +1807,16 @@ impl App {
                         }
                     }
                     KeyCode::Up => {
-                        if self.input.is_empty() {
-                            if !self.history.is_empty() && self.history_index > 0 {
+                        if self.input.is_empty()
+                            && !self.history.is_empty() && self.history_index > 0 {
                                 self.history_index -= 1;
                                 self.input = self.history[self.history_index].clone();
                                 self.input_box.set_input(self.input.clone());
                             }
-                        }
                     }
                     KeyCode::Down => {
-                        if self.input.is_empty() {
-                            if self.history_index < self.history.len() {
+                        if self.input.is_empty()
+                            && self.history_index < self.history.len() {
                                 self.history_index += 1;
                                 self.input = if self.history_index < self.history.len() {
                                     self.history[self.history_index].clone()
@@ -1698,7 +1825,6 @@ impl App {
                                 };
                                 self.input_box.set_input(self.input.clone());
                             }
-                        }
                     }
                     KeyCode::PageUp => {
                         self.scroll_state.scroll_up();
@@ -1740,7 +1866,7 @@ impl App {
                             let lines: Vec<&str> = content.lines().collect();
                             for line in lines {
                                 self.input.push_str(line);
-                                self.input.push_str("\n");
+                                self.input.push('\n');
                             }
                             self.input_widget.elements.clear();
                             self.input_widget
@@ -1928,6 +2054,14 @@ impl App {
             total_cost_usd: self.total_cost_usd,
             files,
             tools,
+            todos: Vec::new(),
+            diff_content: String::new(),
+            context_items: Vec::new(),
+            permission_log: Vec::new(),
+            messages: Vec::new(),
+            sessions: Vec::new(),
+            config_data: Vec::new(),
+            debug_info: Vec::new(),
         }
     }
 
@@ -2079,14 +2213,13 @@ impl App {
             .arg(&temp_file)
             .spawn()
             .map_err(|e| {
-                io::Error::new(
-                    io::ErrorKind::Other,
+                io::Error::other(
                     format!("Failed to spawn editor: {}", e),
                 )
             })?;
 
         let status = child.wait().map_err(|e| {
-            io::Error::new(io::ErrorKind::Other, format!("Editor wait failed: {}", e))
+            io::Error::other(format!("Editor wait failed: {}", e))
         })?;
 
         let result = if status.success() {
@@ -2095,8 +2228,7 @@ impl App {
             Ok(content)
         } else {
             let _ = std::fs::remove_file(&temp_file);
-            Err(io::Error::new(
-                io::ErrorKind::Other,
+            Err(io::Error::other(
                 "Editor exited with non-zero status".to_string(),
             ))
         };
@@ -2150,7 +2282,7 @@ impl App {
 
         let show_right_panel = proportions.show_right_panel
             && !self.right_panel.collapsed
-            && self.right_panel.content != RightPanelContent::None;
+            && !self.right_panel.collapsed;
 
         let main_area = if show_right_panel {
             let right_panel_width = ((main_area.width as u32 * proportions.right_panel_width as u32)
@@ -2312,7 +2444,7 @@ impl App {
                         let mut result = String::new();
                         let mut in_escape = false;
                         let mut chars = s.chars().peekable();
-                        while let Some(c) = chars.next() {
+                        for c in chars {
                             if c == '\x1b' {
                                 in_escape = true;
                             } else if in_escape {
@@ -2555,10 +2687,7 @@ impl App {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
                 let action = self.settings_dialog.handle_input(key);
-                match action {
-                    DialogAction::Close => self.mode = AppMode::Chat,
-                    _ => {}
-                }
+                if action == DialogAction::Close { self.mode = AppMode::Chat }
             }
         }
         Ok(())
@@ -2803,10 +2932,7 @@ impl App {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
                 let action = self.release_notes_dialog.handle_input(key);
-                match action {
-                    DialogAction::Close => self.mode = AppMode::Chat,
-                    _ => {}
-                }
+                if action == DialogAction::Close { self.mode = AppMode::Chat }
             }
         }
         Ok(())
@@ -2925,5 +3051,107 @@ mod tests {
         app.sync_resolver_from_skills_panel();
         let prompt = app.skill_resolver.build_skill_prompt();
         assert!(prompt.contains("debugger"));
+    }
+
+    #[test]
+    fn tui_state_has_11_states() {
+        let states = [
+            TuiState::Idle,
+            TuiState::Composing,
+            TuiState::Submitting,
+            TuiState::Streaming,
+            TuiState::ExecutingTool,
+            TuiState::AwaitingPermission,
+            TuiState::ShowingDiff,
+            TuiState::ShowingError,
+            TuiState::Aborting,
+            TuiState::Reconnecting,
+            TuiState::Paused,
+        ];
+        assert_eq!(states.len(), 11);
+    }
+
+    #[test]
+    fn tui_state_can_accept_input() {
+        assert!(TuiState::Idle.can_accept_input());
+        assert!(TuiState::Composing.can_accept_input());
+        assert!(!TuiState::Streaming.can_accept_input());
+        assert!(!TuiState::ExecutingTool.can_accept_input());
+    }
+
+    #[test]
+    fn tui_state_is_interruptible() {
+        assert!(TuiState::Streaming.is_interruptible());
+        assert!(TuiState::ExecutingTool.is_interruptible());
+        assert!(!TuiState::Idle.is_interruptible());
+        assert!(!TuiState::Composing.is_interruptible());
+    }
+
+    #[test]
+    fn tui_state_is_active() {
+        assert!(TuiState::Streaming.is_active());
+        assert!(TuiState::ExecutingTool.is_active());
+        assert!(TuiState::Submitting.is_active());
+        assert!(TuiState::Aborting.is_active());
+        assert!(!TuiState::Idle.is_active());
+    }
+
+    #[test]
+    fn tui_state_can_cancel() {
+        assert!(TuiState::Streaming.can_cancel());
+        assert!(TuiState::ExecutingTool.can_cancel());
+        assert!(TuiState::AwaitingPermission.can_cancel());
+        assert!(!TuiState::Idle.can_cancel());
+    }
+
+    #[test]
+    fn tui_state_is_terminal() {
+        assert!(TuiState::Idle.is_terminal());
+        assert!(TuiState::ShowingError.is_terminal());
+        assert!(!TuiState::Streaming.is_terminal());
+    }
+
+    #[test]
+    fn tui_state_allows_input_editing() {
+        assert!(TuiState::Idle.allows_input_editing());
+        assert!(TuiState::Composing.allows_input_editing());
+        assert!(TuiState::ShowingError.allows_input_editing());
+        assert!(!TuiState::Streaming.allows_input_editing());
+    }
+
+    #[test]
+    fn tui_state_valid_transitions_idle() {
+        let idle = TuiState::Idle;
+        let valid = idle.valid_transitions();
+        assert!(valid.contains(&TuiState::Composing));
+        assert!(valid.contains(&TuiState::Paused));
+        assert!(valid.contains(&TuiState::ShowingError));
+    }
+
+    #[test]
+    fn tui_state_valid_transitions_streaming() {
+        let streaming = TuiState::Streaming;
+        let valid = streaming.valid_transitions();
+        assert!(valid.contains(&TuiState::ExecutingTool));
+        assert!(valid.contains(&TuiState::Aborting));
+        assert!(valid.contains(&TuiState::Idle));
+    }
+
+    #[test]
+    fn tui_state_can_transition_to() {
+        assert!(TuiState::Idle.can_transition_to(TuiState::Composing));
+        assert!(TuiState::Idle.can_transition_to(TuiState::Paused));
+        assert!(!TuiState::Idle.can_transition_to(TuiState::Streaming));
+        
+        assert!(TuiState::Streaming.can_transition_to(TuiState::ExecutingTool));
+        assert!(TuiState::Streaming.can_transition_to(TuiState::Aborting));
+    }
+
+    #[test]
+    fn tui_state_label_returns_correct_string() {
+        assert_eq!(TuiState::Idle.label(), "idle");
+        assert_eq!(TuiState::Composing.label(), "composing");
+        assert_eq!(TuiState::Streaming.label(), "streaming");
+        assert_eq!(TuiState::Paused.label(), "paused");
     }
 }

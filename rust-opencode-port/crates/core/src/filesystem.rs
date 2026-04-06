@@ -62,7 +62,7 @@ impl AppFileSystem {
             if search.exists() {
                 result.push(search.to_string_lossy().to_string());
             }
-            if stop.as_ref().map_or(false, |s| s == &current) {
+            if stop.as_ref() == Some(&current) {
                 break;
             }
             if !current.pop() {
@@ -84,7 +84,7 @@ impl AppFileSystem {
                     result.push(search.to_string_lossy().to_string());
                 }
             }
-            if stop.as_ref().map_or(false, |s| s == &current) {
+            if stop.as_ref() == Some(&current) {
                 break;
             }
             if !current.pop() {

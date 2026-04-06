@@ -194,7 +194,7 @@ impl StatusBar {
     }
 
     pub fn toggle_popover(&mut self, popover_type: StatusPopoverType) {
-        if self.active_popover.as_ref() == Some(&&popover_type) {
+        if self.active_popover.as_ref() == Some(&popover_type) {
             self.active_popover = None;
         } else {
             self.active_popover = Some(popover_type);

@@ -20,6 +20,12 @@ pub struct OAuthSessionManager {
     client: reqwest::Client,
 }
 
+impl Default for OAuthSessionManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OAuthSessionManager {
     pub fn new() -> Self {
         Self {
@@ -338,8 +344,22 @@ impl CredentialStore {
         let json = serde_json::to_string_pretty(&encrypted_creds)
             .map_err(|e| OpenCodeError::Llm(format!("Failed to serialize credentials: {}", e)))?;
 
+        if let Some(parent) = std::path::Path::new(path).parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| OpenCodeError::Llm(format!("Failed to create directory: {}", e)))?;
+        }
+
         std::fs::write(path, json)
-            .map_err(|e| OpenCodeError::Llm(format!("Failed to write credentials: {}", e)))
+            .map_err(|e| OpenCodeError::Llm(format!("Failed to write credentials: {}", e)))?;
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
+                .map_err(|e| OpenCodeError::Llm(format!("Failed to set file permissions: {}", e)))?;
+        }
+
+        Ok(())
     }
 
     /// Load credentials from encrypted file
@@ -385,26 +405,38 @@ impl Default for CredentialStore {
 /// Simple encryption utilities for credential storage
 pub mod encryption {
     use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
+    use chacha20poly1305::{ChaCha20Poly1305, Key, KeyInit, Nonce, aead::Aead};
     use opencode_core::OpenCodeError;
+    use rand::RngCore;
+    use sha2::{Digest, Sha256};
 
-    /// Simple XOR-based obfuscation (NOT secure encryption, just prevents casual exposure)
-    fn xor_encrypt_decrypt(data: &[u8], key: &[u8]) -> Vec<u8> {
-        if key.is_empty() {
-            return data.to_vec();
-        }
-        data.iter()
-            .enumerate()
-            .map(|(i, &byte)| byte ^ key[i % key.len()])
-            .collect()
+    fn derive_key(key: &[u8]) -> Key {
+        let mut hasher = Sha256::new();
+        hasher.update(key);
+        let result = hasher.finalize();
+        *Key::from_slice(&result)
     }
 
-    /// Encode credential for storage (obfuscated + base64)
+    fn generate_nonce() -> Nonce {
+        let mut nonce = [0u8; 12];
+        rand::thread_rng().fill_bytes(&mut nonce);
+        Nonce::from(nonce)
+    }
+
+    /// Encode credential for storage (AES-256-GCM via ChaCha20-Poly1305 + base64)
     pub fn encode_credential(value: &str, key: &str) -> Result<String, OpenCodeError> {
         if value.is_empty() {
             return Err(OpenCodeError::Llm("Cannot encode empty credential".to_string()));
         }
-        let encrypted = xor_encrypt_decrypt(value.as_bytes(), key.as_bytes());
-        Ok(BASE64.encode(encrypted))
+        let cipher = ChaCha20Poly1305::new(&derive_key(key.as_bytes()));
+        let nonce = generate_nonce();
+        let ciphertext = cipher
+            .encrypt(&nonce, value.as_bytes())
+            .map_err(|e| OpenCodeError::Llm(format!("Failed to encrypt credential: {}", e)))?;
+
+        let mut combined = nonce.to_vec();
+        combined.extend(ciphertext);
+        Ok(BASE64.encode(combined))
     }
 
     /// Decode credential from storage
@@ -412,22 +444,30 @@ pub mod encryption {
         if encoded.is_empty() {
             return Err(OpenCodeError::Llm("Cannot decode empty credential".to_string()));
         }
-        let encrypted = BASE64
+        let combined = BASE64
             .decode(encoded)
             .map_err(|e| OpenCodeError::Llm(format!("Failed to decode credential: {}", e)))?;
-        let decrypted = xor_encrypt_decrypt(&encrypted, key.as_bytes());
-        String::from_utf8(decrypted)
+
+        if combined.len() < 13 {
+            return Err(OpenCodeError::Llm("Invalid credential data: too short".to_string()));
+        }
+
+        let (nonce_bytes, ciphertext) = combined.split_at(12);
+        let nonce = Nonce::from_slice(nonce_bytes);
+        let cipher = ChaCha20Poly1305::new(&derive_key(key.as_bytes()));
+        let plaintext = cipher
+            .decrypt(nonce, ciphertext)
+            .map_err(|e| OpenCodeError::Llm(format!("Failed to decrypt credential: {}", e)))?;
+
+        String::from_utf8(plaintext)
             .map_err(|e| OpenCodeError::Llm(format!("Failed to decode credential: {}", e)))
     }
 
     /// Generate a random encryption key
     pub fn generate_key() -> String {
-        use std::time::{SystemTime, UNIX_EPOCH};
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos();
-        format!("opencode-{:x}", timestamp)
+        let mut bytes = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut bytes);
+        BASE64.encode(bytes)
     }
 
     #[cfg(test)]
@@ -459,8 +499,16 @@ pub mod encryption {
         fn test_wrong_key_fails() {
             let value = "secret";
             let encoded = encode_credential(value, "key1").unwrap();
-            let decoded = decode_credential(&encoded, "key2").unwrap();
-            assert_ne!(value, decoded);
+            let decoded = decode_credential(&encoded, "key2");
+            assert!(decoded.is_err());
+        }
+
+        #[test]
+        fn test_generate_key_produces_unique_keys() {
+            let key1 = generate_key();
+            let key2 = generate_key();
+            assert_ne!(key1, key2);
+            assert_eq!(key1.len(), 44);
         }
     }
 }

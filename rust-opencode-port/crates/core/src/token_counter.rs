@@ -174,7 +174,7 @@ impl TokenCounter {
     }
 
     pub fn estimate_tokens_fallback(text: &str) -> usize {
-        (text.chars().count() + 3) / 4
+        text.chars().count().div_ceil(4)
     }
 
     pub fn set_active_session(&mut self, session_id: impl Into<String>) {

@@ -3,7 +3,7 @@
 **版本**: 3.0
 **日期**: 2026-04-04
 **基于**: spec_v3.md + gap-analysis.md + plan_v3.md
-**状态**: 草稿
+**状态**: 已完成
 
 ---
 
@@ -24,7 +24,7 @@
 **ID**: TASK-0.1
 **优先级**: P0
 **模块**: core/config
-**状态**: pending
+**状态**: completed
 **预计工期**: 2 天
 **关联 FR**: FR-033
 **关联 Constitution**: C-017
@@ -65,7 +65,7 @@
 **ID**: TASK-0.2
 **优先级**: P0
 **模块**: core/config, tui
-**状态**: pending
+**状态**: completed
 **预计工期**: 3 天
 **关联 FR**: FR-034
 **关联 Constitution**: C-017
@@ -119,7 +119,7 @@
 **ID**: TASK-1.1
 **优先级**: P1
 **模块**: core/config
-**状态**: pending
+**状态**: completed
 **预计工期**: 2 天
 **关联 FR**: FR-039
 **关联 Constitution**: C-013 (细化)
@@ -163,7 +163,7 @@
 **ID**: TASK-1.2
 **优先级**: P1
 **模块**: core/config/directory_scanner
-**状态**: pending
+**状态**: completed
 **预计工期**: 2 天
 **关联 FR**: FR-035
 **关联 Constitution**: C-013 (细化)
@@ -206,7 +206,7 @@
 **ID**: TASK-1.3
 **优先级**: P1
 **模块**: core/config
-**状态**: pending
+**状态**: completed
 **预计工期**: 2 天
 **关联 FR**: FR-036
 **关联 Constitution**: C-018
@@ -249,7 +249,7 @@
 **ID**: TASK-1.4
 **优先级**: P1
 **模块**: core/config
-**状态**: pending
+**状态**: completed
 **预计工期**: 1 天
 **关联 FR**: FR-037
 **关联 Constitution**: C-019
@@ -285,7 +285,7 @@
 **ID**: TASK-1.5
 **优先级**: P1
 **模块**: core/config
-**状态**: pending
+**状态**: completed
 **预计工期**: 2 天
 **关联 FR**: FR-038
 **关联 Constitution**: C-019
@@ -324,7 +324,7 @@
 **ID**: TASK-2.1
 **优先级**: P2
 **模块**: core/config
-**状态**: pending
+**状态**: completed
 **预计工期**: 2 天
 **关联 FR**: FR-040
 **关联 Constitution**: C-019
@@ -364,7 +364,7 @@
 **ID**: TASK-2.2
 **优先级**: P2
 **模块**: core/config
-**状态**: pending
+**状态**: completed
 **预计工期**: 1 天
 **关联 FR**: FR-041
 **关联 Constitution**: C-017
@@ -402,7 +402,7 @@
 **ID**: TASK-2.3
 **优先级**: P2
 **模块**: core/config
-**状态**: pending
+**状态**: completed
 **预计工期**: 2 天
 **关联 FR**: FR-042
 
@@ -437,7 +437,7 @@
 **ID**: TASK-2.4
 **优先级**: P2
 **模块**: core/config/schema
-**状态**: pending
+**状态**: completed
 **预计工期**: 3 天
 **关联 FR**: FR-043
 
@@ -488,7 +488,7 @@
 **ID**: TASK-2.5
 **优先级**: P2
 **模块**: core/config (多处)
-**状态**: pending
+**状态**: completed
 **预计工期**: 2 天
 **关联 FR**: 技术债务清单
 

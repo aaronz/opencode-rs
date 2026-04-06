@@ -8,8 +8,12 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fs;
+use std::io::{Read, Write};
+use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use std::thread;
+use std::time::Duration as StdDuration;
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -58,6 +62,43 @@ struct OAuthTokenResponse {
     expires_in: Option<u64>,
     token_type: String,
     scope: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeviceCodeResponse {
+    pub device_code: String,
+    pub user_code: String,
+    pub verification_uri: String,
+    pub verification_uri_complete: Option<String>,
+    pub expires_in: u64,
+    pub interval: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeviceCodeSession {
+    pub provider: String,
+    pub device_code: String,
+    pub user_code: String,
+    pub verification_uri: String,
+    pub verification_uri_complete: Option<String>,
+    pub expires_at: DateTime<Utc>,
+    pub interval_secs: u64,
+    pub created_at: DateTime<Utc>,
+}
+
+impl DeviceCodeSession {
+    pub fn is_expired(&self) -> bool {
+        Utc::now() >= self.expires_at
+    }
+
+    pub fn time_remaining(&self) -> Duration {
+        let remaining = self.expires_at - Utc::now();
+        if remaining.num_seconds() < 0 {
+            Duration::zero()
+        } else {
+            remaining
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -118,6 +159,13 @@ impl OAuthSessionManager {
 
         let body = serde_json::to_string_pretty(sessions)?;
         fs::write(&self.file_path, body)?;
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = fs::set_permissions(&self.file_path, std::fs::Permissions::from_mode(0o600));
+        }
+
         Ok(())
     }
 
@@ -128,7 +176,18 @@ impl OAuthSessionManager {
     }
 
     pub fn load_session(&self, provider: &str) -> Result<Option<OAuthSession>, OAuthError> {
-        Ok(self.load_active_sessions()?.get(provider).cloned())
+        let sessions = self.load_active_sessions()?;
+        let session = sessions.get(provider).cloned();
+
+        if let Some(ref s) = session {
+            let age = Utc::now() - s.created_at;
+            if age > Duration::hours(24) {
+                self.clear_session(provider)?;
+                return Ok(None);
+            }
+        }
+
+        Ok(session)
     }
 
     pub fn clear_session(&self, provider: &str) -> Result<(), OAuthError> {
@@ -385,6 +444,120 @@ impl OAuthFlow {
         Ok(Some(refreshed))
     }
 
+    pub fn start_device_code_flow(
+        &self,
+        provider: &str,
+        client_id: &str,
+        device_code_url: &str,
+        scopes: Option<&str>,
+    ) -> Result<DeviceCodeSession, OAuthError> {
+        let client = reqwest::blocking::Client::new();
+        let params = vec![
+            ("client_id", client_id.to_string()),
+            ("scope", scopes.unwrap_or("").to_string()),
+        ];
+
+        let response = client
+            .post(device_code_url)
+            .form(&params)
+            .send()
+            .map_err(|e| OAuthError::DeviceCodeInitFailed(e.to_string()))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().unwrap_or_default();
+            return Err(OAuthError::DeviceCodeInitFailed(format!(
+                "{}: {}",
+                status, body
+            )));
+        }
+
+        let device_resp: DeviceCodeResponse = response
+            .json()
+            .map_err(|e| OAuthError::DeviceCodeParseFailed(e.to_string()))?;
+
+        let session = DeviceCodeSession {
+            provider: provider.to_string(),
+            device_code: device_resp.device_code.clone(),
+            user_code: device_resp.user_code.clone(),
+            verification_uri: device_resp.verification_uri.clone(),
+            verification_uri_complete: device_resp.verification_uri_complete.clone(),
+            expires_at: Utc::now() + Duration::seconds(device_resp.expires_in as i64),
+            interval_secs: device_resp.interval.unwrap_or(5),
+            created_at: Utc::now(),
+        };
+
+        self.session_manager.save_session(OAuthSession {
+            provider: provider.to_string(),
+            state: format!("device:{}", device_resp.device_code),
+            code_verifier: String::new(),
+            created_at: Utc::now(),
+        })?;
+
+        Ok(session)
+    }
+
+    pub fn poll_device_code_authorization(
+        &self,
+        session: &DeviceCodeSession,
+        client_id: &str,
+        client_secret: &str,
+        token_url: &str,
+        on_pending: Option<&dyn Fn(&DeviceCodeSession)>,
+    ) -> Result<OAuthToken, OAuthError> {
+        let client = reqwest::blocking::Client::new();
+
+        loop {
+            if session.is_expired() {
+                return Err(OAuthError::DeviceCodeExpired);
+            }
+
+            if let Some(callback) = on_pending {
+                callback(session);
+            }
+
+            let response = client
+                .post(token_url)
+                .form(&[
+                    ("grant_type", "urn:ietf:params:oauth:grant-type:device_code"),
+                    ("device_code", session.device_code.as_str()),
+                    ("client_id", client_id),
+                    ("client_secret", client_secret),
+                ])
+                .send()
+                .map_err(|e| OAuthError::DeviceCodePollFailed(e.to_string()))?;
+
+            if response.status().is_success() {
+                let token_response: OAuthTokenResponse = response
+                    .json()
+                    .map_err(|e| OAuthError::DeviceCodeParseFailed(e.to_string()))?;
+                return Ok(OAuthToken::from_response(token_response));
+            }
+
+            let status = response.status().as_u16();
+            let body = response.text().unwrap_or_default();
+
+            if body.contains("authorization_pending") || status == 400 {
+                thread::sleep(StdDuration::from_secs(session.interval_secs));
+                continue;
+            }
+
+            if body.contains("slow_down") {
+                thread::sleep(StdDuration::from_secs(session.interval_secs + 5));
+                continue;
+            }
+
+            if body.contains("expired_token") {
+                return Err(OAuthError::DeviceCodeExpired);
+            }
+
+            return Err(OAuthError::DeviceCodePollFailed(format!(
+                "{}: {}",
+                status, body
+            )));
+        }
+    }
+
     fn provider_authorize_url(provider: &str) -> Result<String, OAuthError> {
         if provider.starts_with("http://") || provider.starts_with("https://") {
             return Ok(provider.to_string());
@@ -399,6 +572,132 @@ impl OAuthFlow {
         };
         Ok(url.to_string())
     }
+
+    pub fn start_browser_login(
+        &self,
+        provider: &str,
+        client_id: &str,
+        redirect_port: u16,
+    ) -> Result<(State, CodeVerifier), OAuthError> {
+        let redirect_uri = format!("http://127.0.0.1:{}/callback", redirect_port);
+        let (auth_url, state, verifier) = self.start_login(provider, client_id, &redirect_uri)?;
+
+        if let Err(e) = open_browser(&auth_url) {
+            eprintln!("Failed to open browser automatically: {}", e);
+            eprintln!("Please open the following URL manually:");
+            eprintln!("{}", auth_url);
+        }
+
+        Ok((state, verifier))
+    }
+
+    pub fn run_callback_server_and_wait(
+        &self,
+        port: u16,
+        timeout_secs: u64,
+    ) -> Result<(String, String), OAuthError> {
+        let listener = TcpListener::bind(format!("127.0.0.1:{}", port))
+            .map_err(|e| OAuthError::CallbackServerFailed(e.to_string()))?;
+
+        listener
+            .set_nonblocking(true)
+            .map_err(|e| OAuthError::CallbackServerFailed(e.to_string()))?;
+
+        let deadline = std::time::Instant::now() + StdDuration::from_secs(timeout_secs);
+
+        loop {
+            if std::time::Instant::now() >= deadline {
+                return Err(OAuthError::CallbackServerFailed(
+                    "Timeout waiting for callback".to_string(),
+                ));
+            }
+
+            match listener.accept() {
+                Ok((mut stream, _)) => {
+                    let mut buffer = [0u8; 4096];
+                    let n = stream
+                        .read(&mut buffer)
+                        .map_err(|e| OAuthError::CallbackServerFailed(e.to_string()))?;
+
+                    let request = String::from_utf8_lossy(&buffer[..n]);
+                    let (code, state) = Self::parse_callback_request(&request)?;
+
+                    let response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n\
+                        <html><body><h1>Authentication successful!</h1>\
+                        <p>You can close this window and return to the terminal.</p></body></html>";
+                    let _ = stream.write_all(response.as_bytes());
+                    let _ = stream.flush();
+
+                    return Ok((code, state));
+                }
+                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    thread::sleep(StdDuration::from_millis(100));
+                    continue;
+                }
+                Err(e) => return Err(OAuthError::CallbackServerFailed(e.to_string())),
+            }
+        }
+    }
+
+    fn parse_callback_request(request: &str) -> Result<(String, String), OAuthError> {
+        let first_line = request
+            .lines()
+            .next()
+            .ok_or(OAuthError::InvalidCallbackRequest)?;
+        let parts: Vec<&str> = first_line.split_whitespace().collect();
+        if parts.len() < 2 {
+            return Err(OAuthError::InvalidCallbackRequest);
+        }
+
+        let query = parts[1]
+            .split('?')
+            .nth(1)
+            .ok_or(OAuthError::InvalidCallbackRequest)?;
+        let mut code = None;
+        let mut state = None;
+
+        for param in query.split('&') {
+            if let Some((key, value)) = param.split_once('=') {
+                let decoded = value.replace('+', " ");
+                match key {
+                    "code" => code = Some(decoded),
+                    "state" => state = Some(decoded),
+                    "error" => return Err(OAuthError::AuthorizationDenied(decoded)),
+                    _ => {}
+                }
+            }
+        }
+
+        match (code, state) {
+            (Some(c), Some(s)) => Ok((c, s)),
+            _ => Err(OAuthError::InvalidCallbackRequest),
+        }
+    }
+}
+
+fn open_browser(url: &str) -> Result<(), String> {
+    let cmd = if cfg!(target_os = "macos") {
+        "open"
+    } else if cfg!(target_os = "linux") {
+        "xdg-open"
+    } else if cfg!(target_os = "windows") {
+        "start"
+    } else {
+        return Err(format!("Unsupported platform for browser open: {}", url));
+    };
+
+    std::process::Command::new(cmd)
+        .arg(url)
+        .spawn()
+        .map_err(|e| format!("Failed to open browser: {}", e))?;
+    Ok(())
+}
+
+fn urlencoding_decode(value: &str) -> String {
+    url::form_urlencoded::parse(value.as_bytes())
+        .next()
+        .map(|(_, v)| v.into_owned())
+        .unwrap_or_else(|| value.replace('+', " "))
 }
 
 impl Default for OAuthFlow {
@@ -431,6 +730,20 @@ pub enum OAuthError {
     TokenExchangeFailed { status: u16, body: String },
     #[error("token refresh failed ({status}): {body}")]
     TokenRefreshFailed { status: u16, body: String },
+    #[error("callback server failed: {0}")]
+    CallbackServerFailed(String),
+    #[error("invalid callback request")]
+    InvalidCallbackRequest,
+    #[error("authorization denied: {0}")]
+    AuthorizationDenied(String),
+    #[error("device code init failed: {0}")]
+    DeviceCodeInitFailed(String),
+    #[error("device code parse failed: {0}")]
+    DeviceCodeParseFailed(String),
+    #[error("device code expired")]
+    DeviceCodeExpired,
+    #[error("device code poll failed: {0}")]
+    DeviceCodePollFailed(String),
 }
 
 impl From<OpenCodeError> for OAuthError {
@@ -598,5 +911,82 @@ mod tests {
         assert_eq!(refreshed.access_token, "refreshed-access");
         assert_eq!(refreshed.refresh_token.as_deref(), Some("refresh-2"));
         assert!(!refreshed.is_expired());
+    }
+
+    #[test]
+    fn test_session_expired_after_24_hours() {
+        let tmp = tempfile::tempdir().unwrap();
+        let flow = test_flow(&tmp);
+
+        let old_session = OAuthSession {
+            provider: "github".to_string(),
+            state: "old-state".to_string(),
+            code_verifier: "old-verifier".to_string(),
+            created_at: Utc::now() - Duration::hours(25),
+        };
+
+        flow.session_manager.save_session(old_session).unwrap();
+
+        let session = flow.session_manager.load_session("github").unwrap();
+        assert!(session.is_none());
+    }
+
+    #[test]
+    fn test_parse_callback_request_valid() {
+        let request = "GET /callback?code=abc123&state=xyz789 HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n";
+        let (code, state) = OAuthFlow::parse_callback_request(request).unwrap();
+        assert_eq!(code, "abc123");
+        assert_eq!(state, "xyz789");
+    }
+
+    #[test]
+    fn test_parse_callback_request_with_error() {
+        let request =
+            "GET /callback?error=access_denied&error_description=User+denied HTTP/1.1\r\n\r\n";
+        let result = OAuthFlow::parse_callback_request(request);
+        assert!(matches!(result, Err(OAuthError::AuthorizationDenied(_))));
+    }
+
+    #[test]
+    fn test_parse_callback_request_invalid() {
+        let request = "INVALID REQUEST";
+        let result = OAuthFlow::parse_callback_request(request);
+        assert!(matches!(result, Err(OAuthError::InvalidCallbackRequest)));
+    }
+
+    #[test]
+    fn test_device_code_session_expiration() {
+        let session = DeviceCodeSession {
+            provider: "github".to_string(),
+            device_code: "dev-code".to_string(),
+            user_code: "USER-123".to_string(),
+            verification_uri: "https://github.com/login/device".to_string(),
+            verification_uri_complete: Some(
+                "https://github.com/login/device?code=USER-123".to_string(),
+            ),
+            expires_at: Utc::now() - Duration::seconds(1),
+            interval_secs: 5,
+            created_at: Utc::now() - Duration::minutes(10),
+        };
+
+        assert!(session.is_expired());
+        assert_eq!(session.time_remaining(), Duration::zero());
+    }
+
+    #[test]
+    fn test_device_code_session_not_expired() {
+        let session = DeviceCodeSession {
+            provider: "github".to_string(),
+            device_code: "dev-code".to_string(),
+            user_code: "USER-123".to_string(),
+            verification_uri: "https://github.com/login/device".to_string(),
+            verification_uri_complete: None,
+            expires_at: Utc::now() + Duration::minutes(5),
+            interval_secs: 5,
+            created_at: Utc::now(),
+        };
+
+        assert!(!session.is_expired());
+        assert!(session.time_remaining().num_seconds() > 0);
     }
 }
