@@ -17,6 +17,46 @@ OUTPUTS_DIR="$WORKSPACE_DIR/outputs/iteration-${NEXT_ITERATION}"
 
 mkdir -p "$OUTPUTS_DIR"
 
+# 检查文件是否存在，不存在则返回1
+check_file() {
+    if [ ! -f "$1" ]; then
+        echo "  ❌ 文件缺失: $1"
+        return 1
+    fi
+    # 检查文件是否为空（小于10字节认为无效）
+    if [ ! -s "$1" ] || [ $(wc -c < "$1") -lt 10 ]; then
+        echo "  ❌ 文件无效（内容过少）: $1"
+        return 1
+    fi
+    echo "  ✅ 文件存在: $1 ($(wc -c < "$1") bytes)"
+    return 0
+}
+
+# 重新运行生成命令并检查文件
+rerun_if_missing() {
+    local file="$1"
+    local prompt="$2"
+    local max_retries=2
+    local attempt=0
+
+    while [ $attempt -lt $max_retries ]; do
+        if check_file "$file"; then
+            return 0
+        fi
+        attempt=$((attempt + 1))
+        if [ $attempt -lt $max_retries ]; then
+            echo "  🔄 重新生成 ($attempt/$max_retries)..."
+            opencode run -m "$MODEL" "$prompt"
+        fi
+    done
+
+    if ! check_file "$file"; then
+        echo "  ⚠️  文件生成失败: $file"
+        return 1
+    fi
+    return 0
+}
+
 echo "=============================================="
 echo "SpecKit 迭代开发 v2.0"
 echo "=============================================="
@@ -24,11 +64,16 @@ echo "=============================================="
 echo ""
 echo "[1/6] 执行PRD差距分析..."
 
-GAP_ANALYSIS=$(cat << 'GAPEOF'
-分析当前实现与PRD的差距：
+opencode run -m "$MODEL" "分析当前实现与PRD的差距，并将完整的差距分析报告写入文件：$OUTPUTS_DIR/gap-analysis.md
+
+## 重要约束
+- 禁止使用 subagent 或 task 工具 spawning 其他 agent
+- 禁止将工作委托给其他 agent
+- 必须直接在当前 session 中完成所有分析工作
+- 只使用 Read、Write、Edit、Grep、LSP 等直接工具
 
 ## 任务
-1. 读取当前实现目录结构
+1. 读取当前实现目录结构（src/目录、outputs/src/目录等）
 2. 读取PRD.md识别核心功能需求
 3. 对比实现与PRD的差距
 
@@ -48,24 +93,32 @@ GAP_ANALYSIS=$(cat << 'GAPEOF'
 - 错误处理缺失
 - 类型定义缺失
 
-## 输出格式
-# 差距分析报告
+## 输出要求
+将完整的差距分析报告写入到：$OUTPUTS_DIR/gap-analysis.md
 
-## 差距列表
-| 差距项 | 严重程度 | 模块 | 修复建议 |
+报告必须包含：
+1. 差距列表（表格格式：差距项 | 严重程度 | 模块 | 修复建议）
+2. P0/P1/P2问题分类（必须包含P0阻断性问题）
+3. 技术债务清单
+4. 实现进度总结"
 
-## P0/P1/P2问题分类
-## 技术债务清单
-GAPEOF
-)
+rerun_if_missing "$OUTPUTS_DIR/gap-analysis.md" "分析当前实现与PRD的差距，并将完整的差距分析报告写入文件：$OUTPUTS_DIR/gap-analysis.md
 
-opencode run -m "$MODEL" "$GAP_ANALYSIS" > "$OUTPUTS_DIR/gap-analysis.md"
-echo "差距分析完成: $OUTPUTS_DIR/gap-analysis.md"
+## 重要约束
+- 禁止使用 subagent 或 task 工具 spawning 其他 agent
+- 禁止将工作委托给其他 agent
+- 必须直接在当前 session 中完成所有分析工作"
 
 echo ""
 echo "[2/6] Constitution 检查..."
 
-opencode run -m "$MODEL" "检查Constitution是否需要更新。
+opencode run -m "$MODEL" "检查Constitution是否需要更新，并将更新建议写入文件：$OUTPUTS_DIR/constitution_updates.md
+
+## 重要约束
+- 禁止使用 subagent 或 task 工具 spawning 其他 agent
+- 禁止将工作委托给其他 agent
+- 必须直接在当前 session 中完成所有分析工作
+- 只使用 Read、Write、Edit、Grep、LSP 等直接工具
 
 ## Constitution
 $(cat $CONSTITUTION_PATH 2>/dev/null || echo "Constitution不存在")
@@ -78,13 +131,26 @@ $(cat $OUTPUTS_DIR/gap-analysis.md)
 2. 如需更新，提出Constitution修订建议
 3. 确保新的设计决策符合Constitution
 
-## 输出
-Constitution更新建议保存到: $OUTPUTS_DIR/constitution_updates.md"
+## 输出要求
+将Constitution更新建议写入到：$OUTPUTS_DIR/constitution_updates.md"
+
+rerun_if_missing "$OUTPUTS_DIR/constitution_updates.md" "检查Constitution是否需要更新，并将更新建议写入文件：$OUTPUTS_DIR/constitution_updates.md
+
+## 重要约束
+- 禁止使用 subagent 或 task 工具 spawning 其他 agent
+- 禁止将工作委托给其他 agent
+- 必须直接在当前 session 中完成所有分析工作"
 
 echo ""
 echo "[3/6] 更新Spec..."
 
-opencode run -m "$MODEL" "使用 /speckit.specify 命令更新规格文档。
+opencode run -m "$MODEL" "基于PRD和差距分析，更新规格文档，并写入文件：$OUTPUTS_DIR/spec_v${NEXT_ITERATION}.md
+
+## 重要约束
+- 禁止使用 subagent 或 task 工具 spawning 其他 agent
+- 禁止将工作委托给其他 agent
+- 必须直接在当前 session 中完成所有分析工作
+- 只使用 Read、Write、Edit、Grep、LSP 等直接工具
 
 ## PRD
 $(cat $PRD_PATH)
@@ -100,16 +166,29 @@ $(cat $CONSTITUTION_PATH 2>/dev/null || echo "使用默认Constitution")
 2. 确保新功能有对应的规格定义
 3. 添加功能需求编号(FR-XXX)
 
-## 输出
-更新后的规格保存到: $OUTPUTS_DIR/spec_v${NEXT_ITERATION}.md"
+## 输出要求
+将更新后的规格文档写入到：$OUTPUTS_DIR/spec_v${NEXT_ITERATION}.md"
+
+rerun_if_missing "$OUTPUTS_DIR/spec_v${NEXT_ITERATION}.md" "基于PRD和差距分析，更新规格文档，并写入文件：$OUTPUTS_DIR/spec_v${NEXT_ITERATION}.md
+
+## 重要约束
+- 禁止使用 subagent 或 task 工具 spawning 其他 agent
+- 禁止将工作委托给其他 agent
+- 必须直接在当前 session 中完成所有分析工作"
 
 echo ""
 echo "[4/6] 更新Plan和Tasks..."
 
-opencode run -m "$MODEL" "使用 /speckit.plan 和 /speckit.tasks 命令更新计划。
+opencode run -m "$MODEL" "基于Spec更新实现计划和任务清单，并将它们写入文件。
+
+## 重要约束
+- 禁止使用 subagent 或 task 工具 spawning 其他 agent
+- 禁止将工作委托给其他 agent
+- 必须直接在当前 session 中完成所有分析工作
+- 只使用 Read、Write、Edit、Grep、LSP 等直接工具
 
 ## Spec
-$OUTPUTS_DIR/spec_v${NEXT_ITERATION}.md
+$(cat $OUTPUTS_DIR/spec_v${NEXT_ITERATION}.md)
 
 ## Constitution
 $(cat $CONSTITUTION_PATH 2>/dev/null || echo "")
@@ -122,14 +201,33 @@ $(cat $OUTPUTS_DIR/gap-analysis.md)
 2. 更新任务清单
 3. 确保P0任务优先
 
-## 输出
-更新后的计划保存到: $OUTPUTS_DIR/plan_v${NEXT_ITERATION}.md
-更新后的任务保存到: $OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.md"
+## 输出要求
+将更新后的计划写入到：$OUTPUTS_DIR/plan_v${NEXT_ITERATION}.md
+将更新后的任务清单写入到：$OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.md"
+
+rerun_if_missing "$OUTPUTS_DIR/plan_v${NEXT_ITERATION}.md" "基于Spec更新实现计划和任务清单，并将它们写入文件：$OUTPUTS_DIR/plan_v${NEXT_ITERATION}.md
+
+## 重要约束
+- 禁止使用 subagent 或 task 工具 spawning 其他 agent
+- 禁止将工作委托给其他 agent
+- 必须直接在当前 session 中完成所有分析工作"
+rerun_if_missing "$OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.md" "基于Spec更新实现计划和任务清单，并将它们写入文件：$OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.md
+
+## 重要约束
+- 禁止使用 subagent 或 task 工具 spawning 其他 agent
+- 禁止将工作委托给其他 agent
+- 必须直接在当前 session 中完成所有分析工作"
 
 echo ""
 echo "[5/6] 执行实现..."
 
 opencode run -m "$MODEL" "使用 /speckit.implement 执行实现。
+
+## 重要约束
+- 禁止使用 subagent 或 task 工具 spawning 其他 agent
+- 禁止将工作委托给其他 agent
+- 必须直接在当前 session 中完成所有实现工作
+- 只使用 Read、Write、Edit、Grep、LSP、Bash 等直接工具
 
 ## 任务清单
 $OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.md
@@ -152,30 +250,39 @@ $OUTPUTS_DIR/spec_v${NEXT_ITERATION}.md
 echo ""
 echo "[6/6] 验证报告..."
 
-opencode run -m "$MODEL" "生成迭代验证报告。
+opencode run -m "$MODEL" "生成迭代验证报告，并将报告写入文件：$OUTPUTS_DIR/verification-report.md
+
+## 重要约束
+- 禁止使用 subagent 或 task 工具 spawning 其他 agent
+- 禁止将工作委托给其他 agent
+- 必须直接在当前 session 中完成所有验证工作
+- 只使用 Read、Write、Edit、Grep、LSP、Bash 等直接工具
 
 ## 差距分析
 $(cat $OUTPUTS_DIR/gap-analysis.md)
 
 ## 任务清单
-$OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.md
+$(cat $OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.md)
 
 ## 实现状态
 检查./outputs/src/目录下的代码
 
-## 输出格式
-# 迭代验证报告
+## 输出要求
+将完整的迭代验证报告写入到：$OUTPUTS_DIR/verification-report.md
 
-## P0问题状态
-| 问题 | 状态 | 备注 |
+报告必须包含：
+1. P0问题状态（表格：问题 | 状态 | 备注）
+2. Constitution合规性检查
+3. PRD完整度评估
+4. 遗留问题清单
+5. 下一步建议"
 
-## Constitution合规性
-## PRD完整度
-## 遗留问题
-## 下一步建议
+rerun_if_missing "$OUTPUTS_DIR/verification-report.md" "生成迭代验证报告，并将报告写入文件：$OUTPUTS_DIR/verification-report.md
 
-## 输出
-验证报告保存到: ./outputs/iteration-2/verification-report.md"
+## 重要约束
+- 禁止使用 subagent 或 task 工具 spawning 其他 agent
+- 禁止将工作委托给其他 agent
+- 必须直接在当前 session 中完成所有验证工作"
 
 echo ""
 echo "=============================================="

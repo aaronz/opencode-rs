@@ -1972,10 +1972,23 @@ OpenCode Agent Configuration
                                 .find(|item| matches!(item, InputToken::ShellCommand(_)))
                             {
                                 self.pending_shell_command = Some(cmd.clone());
-                                match self.input_processor.process_shell(cmd) {
-                                    Ok(preview) => self.add_message(preview, false),
-                                    Err(error) => self.add_message(error.to_string(), false),
+                                self.show_terminal = true;
+                                self.terminal_panel.add_line(format!("$ {cmd}",), false);
+                                let result = self.shell_handler.execute(cmd);
+                                if !result.stdout.is_empty() {
+                                    self.terminal_panel.add_stdout(&result.stdout);
                                 }
+                                if !result.stderr.is_empty() {
+                                    self.terminal_panel.add_stderr(&result.stderr);
+                                }
+                                if result.timed_out {
+                                    self.terminal_panel.add_line("Command timed out", true);
+                                }
+                                if result.truncated {
+                                    self.terminal_panel.add_line("Output was truncated", true);
+                                }
+                                let exit_msg = format!("[Exit code: {}]", result.exit_code.map(|c| c.to_string()).unwrap_or_else(|| "N/A".to_string()));
+                                self.terminal_panel.add_line(&exit_msg, result.exit_code != Some(0));
                             }
 
                             let parsed_files = parsed_input
@@ -1991,15 +2004,39 @@ OpenCode Agent Configuration
                                 let mut context_content = input.clone();
                                 context_content.push_str("\n\n--- Attached File Context ---\n");
 
-                                match self.input_processor.process_files(&parsed_files) {
-                                    Ok(content) => {
-                                        context_content.push_str(&content);
-                                    }
-                                    Err(error) => {
-                                        context_content.push_str(&format!(
-                                            "[Error reading file context: {error}]"
+                                let mut file_contexts = Vec::new();
+                                let mut total_size = 0;
+                                const MAX_CONTEXT_SIZE: usize = 5000;
+
+                                for file_path in &parsed_files {
+                                    let path_str = file_path.to_string_lossy();
+                                    let result = self.file_ref_handler.resolve(&path_str);
+
+                                    if result.error.is_none() {
+                                        let formatted = self.file_ref_handler.format_for_context(&result);
+                                        let formatted_len = formatted.len();
+                                        if total_size + formatted_len <= MAX_CONTEXT_SIZE {
+                                            file_contexts.push(formatted);
+                                            total_size += formatted_len;
+                                        } else {
+                                            let truncate_msg = format!(
+                                                "\n[File: {} - truncated to fit context limit]\n",
+                                                result.path
+                                            );
+                                            file_contexts.push(truncate_msg);
+                                            break;
+                                        }
+                                    } else {
+                                        file_contexts.push(format!(
+                                            "\n[Error reading {}: {}]\n",
+                                            result.path,
+                                            result.error.as_ref().unwrap()
                                         ));
                                     }
+                                }
+
+                                for fc in file_contexts {
+                                    context_content.push_str(&fc);
                                 }
                                 self.add_message(context_content, true);
                             } else {
