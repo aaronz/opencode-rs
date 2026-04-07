@@ -693,13 +693,6 @@ fn open_browser(url: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn urlencoding_decode(value: &str) -> String {
-    url::form_urlencoded::parse(value.as_bytes())
-        .next()
-        .map(|(_, v)| v.into_owned())
-        .unwrap_or_else(|| value.replace('+', " "))
-}
-
 impl Default for OAuthFlow {
     fn default() -> Self {
         Self::new()

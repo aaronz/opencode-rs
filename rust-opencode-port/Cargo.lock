@@ -3287,6 +3287,7 @@ dependencies = [
  "sha2",
  "tempfile",
  "thiserror 2.0.18",
+ "tracing",
  "url",
  "uuid",
 ]
@@ -3333,13 +3334,16 @@ name = "opencode-control-plane"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "base64 0.22.1",
  "chrono",
  "futures",
  "notify",
  "opencode-core",
+ "reqwest",
  "serde",
  "serde_json",
  "tokio",
+ "tracing",
  "uuid",
 ]
 
@@ -3530,9 +3534,11 @@ dependencies = [
  "deadpool",
  "deadpool-sqlite",
  "opencode-core",
+ "regex",
  "rusqlite",
  "serde",
  "serde_json",
+ "sha2",
  "thiserror 2.0.18",
  "tokio",
  "uuid",

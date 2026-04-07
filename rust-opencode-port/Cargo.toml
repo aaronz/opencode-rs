@@ -80,4 +80,5 @@ actix-web-lab = "0.20"
 
 # Utility dependencies
 regex = "1"
+sha2 = "0.10"
 tiktoken-rs = "0.6"

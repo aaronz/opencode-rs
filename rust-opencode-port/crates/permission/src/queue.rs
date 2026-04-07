@@ -13,7 +13,6 @@ pub enum PermissionScope {
     Full,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PendingApproval {
     pub id: Uuid,

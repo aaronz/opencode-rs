@@ -2443,7 +2443,7 @@ impl App {
                     fn strip_ansi(s: &str) -> String {
                         let mut result = String::new();
                         let mut in_escape = false;
-                        let mut chars = s.chars().peekable();
+                        let chars = s.chars().peekable();
                         for c in chars {
                             if c == '\x1b' {
                                 in_escape = true;

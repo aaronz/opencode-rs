@@ -3,6 +3,7 @@ use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -19,6 +20,27 @@ pub struct AuditEntry {
     pub decision: AuditDecision,
     pub session_id: String,
     pub user_response: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DecisionScope {
+    This,
+    Session,
+    Project,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PermissionDecision {
+    pub id: Uuid,
+    pub session_id: Uuid,
+    pub request_id: Uuid,
+    pub scope: DecisionScope,
+    pub user_note: Option<String>,
+    pub decision_timestamp: DateTime<Utc>,
+    pub granted: bool,
+    pub tool_name: String,
+    pub reason: Option<String>,
 }
 
 #[derive(Debug, Clone)]

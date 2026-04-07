@@ -146,7 +146,7 @@ impl Session {
 
     pub fn fork(&self, new_session_id: Uuid) -> Self {
         let now = Utc::now();
-        
+
         Self {
             id: new_session_id,
             messages: self.messages.clone(),
@@ -237,16 +237,29 @@ impl Session {
 
     pub fn export_json(&self) -> Result<String, crate::OpenCodeError> {
         #[derive(serde::Serialize)]
+        struct ToolInvocationExport {
+            tool_name: String,
+            args_hash: String,
+            result_summary: Option<String>,
+            latency_ms: Option<u64>,
+        }
+        #[derive(serde::Serialize)]
         struct MessageExport {
             role: String,
             content: String,
         }
         #[derive(serde::Serialize)]
         struct SessionExport<'a> {
-            id: &'a str,
+            version: &'static str,
+            session: SessionInfoExport<'a>,
             messages: Vec<MessageExport>,
-            total_messages: usize,
-            exported_at: String,
+            tools: Vec<ToolInvocationExport>,
+        }
+        #[derive(serde::Serialize)]
+        struct SessionInfoExport<'a> {
+            id: &'a str,
+            created_at: &'a str,
+            updated_at: &'a str,
         }
 
         let messages = self
@@ -258,11 +271,26 @@ impl Session {
             })
             .collect();
 
+        let tools = self
+            .tool_invocations
+            .iter()
+            .map(|t| ToolInvocationExport {
+                tool_name: t.tool_name.clone(),
+                args_hash: t.args_hash.clone(),
+                result_summary: t.result.clone(),
+                latency_ms: t.latency_ms,
+            })
+            .collect();
+
         let export = SessionExport {
-            id: &self.id.to_string(),
+            version: "1.0",
+            session: SessionInfoExport {
+                id: &self.id.to_string(),
+                created_at: &self.created_at.to_rfc3339(),
+                updated_at: &self.updated_at.to_rfc3339(),
+            },
             messages,
-            total_messages: self.messages.len(),
-            exported_at: Utc::now().to_rfc3339(),
+            tools,
         };
 
         serde_json::to_string_pretty(&export)

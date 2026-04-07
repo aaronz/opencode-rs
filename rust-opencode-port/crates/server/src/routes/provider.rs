@@ -5,6 +5,7 @@ use opencode_llm::{AuthStrategy, Credential, ProviderAuthConfig};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Mutex, OnceLock};
+use tracing::info;
 
 #[derive(Debug, Deserialize)]
 pub struct CreateProviderRequest {
@@ -28,6 +29,11 @@ pub struct ProviderCredentialRequest {
     pub metadata: Option<HashMap<String, String>>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct SetProviderEnabledRequest {
+    pub enabled: bool,
+}
+
 #[derive(Debug, Serialize)]
 pub struct ProviderResponse {
     pub provider_id: String,
@@ -35,14 +41,51 @@ pub struct ProviderResponse {
     pub auth_strategy: AuthStrategy,
 }
 
+#[derive(Debug, Serialize)]
+pub struct ProviderStatusResponse {
+    pub provider_id: String,
+    pub enabled: bool,
+    pub exists: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ProviderConfigChangedEvent {
+    pub event: String,
+    pub provider_id: String,
+    pub enabled: bool,
+}
+
 static CREDENTIALS: OnceLock<Mutex<HashMap<String, Credential>>> = OnceLock::new();
+static ENABLED_PROVIDERS: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+static DISABLED_PROVIDERS: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
 
 fn credential_store() -> &'static Mutex<HashMap<String, Credential>> {
     CREDENTIALS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
+fn enabled_providers() -> &'static Mutex<HashSet<String>> {
+    ENABLED_PROVIDERS.get_or_init(|| Mutex::new(HashSet::new()))
+}
+
+fn disabled_providers() -> &'static Mutex<HashSet<String>> {
+    DISABLED_PROVIDERS.get_or_init(|| Mutex::new(HashSet::new()))
+}
+
 fn provider_exists(state: &ServerState, provider_id: &str) -> bool {
     state.models.list().iter().any(|m| m.provider == provider_id)
+}
+
+fn is_provider_enabled(provider_id: &str) -> bool {
+    let disabled = disabled_providers().lock().unwrap();
+    if disabled.contains(provider_id) {
+        return false;
+    }
+    drop(disabled);
+    let enabled = enabled_providers().lock().unwrap();
+    if enabled.is_empty() {
+        return true;
+    }
+    enabled.contains(provider_id)
 }
 
 pub async fn get_providers(state: web::Data<ServerState>) -> impl Responder {
@@ -253,6 +296,63 @@ pub async fn delete_provider_credentials(
     }
 }
 
+pub async fn get_provider_status(
+    state: web::Data<ServerState>,
+    path: web::Path<String>,
+) -> impl Responder {
+    let provider_id = path.into_inner();
+    let exists = provider_exists(&state, &provider_id);
+    let enabled = is_provider_enabled(&provider_id);
+
+    HttpResponse::Ok().json(ProviderStatusResponse {
+        provider_id: provider_id.clone(),
+        enabled,
+        exists,
+    })
+}
+
+pub async fn set_provider_enabled(
+    state: web::Data<ServerState>,
+    path: web::Path<String>,
+    body: web::Json<SetProviderEnabledRequest>,
+) -> impl Responder {
+    let provider_id = path.into_inner();
+    
+    if !provider_exists(&state, &provider_id) {
+        return json_error(
+            StatusCode::NOT_FOUND,
+            "provider_not_found",
+            format!("Provider not found: {provider_id}"),
+        );
+    }
+
+    if body.enabled {
+        let mut enabled = enabled_providers().lock().unwrap();
+        enabled.insert(provider_id.clone());
+        let mut disabled = disabled_providers().lock().unwrap();
+        disabled.remove(&provider_id);
+    } else {
+        let mut disabled = disabled_providers().lock().unwrap();
+        disabled.insert(provider_id.clone());
+        let mut enabled = enabled_providers().lock().unwrap();
+        enabled.remove(&provider_id);
+    }
+
+    info!(event = "provider_enabled_changed", provider = %provider_id, enabled = body.enabled);
+
+    let event = ProviderConfigChangedEvent {
+        event: "provider_config_changed".to_string(),
+        provider_id: provider_id.clone(),
+        enabled: body.enabled,
+    };
+
+    HttpResponse::Ok().json(serde_json::json!({
+        "provider_id": provider_id,
+        "enabled": body.enabled,
+        "event": event,
+    }))
+}
+
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.route("", web::get().to(get_providers))
         .route("", web::post().to(create_provider))
@@ -260,6 +360,8 @@ pub fn init(cfg: &mut web::ServiceConfig) {
         .route("/{id}", web::put().to(update_provider))
         .route("/{id}", web::delete().to(delete_provider))
         .route("/{id}/test", web::post().to(test_provider))
+        .route("/{id}/status", web::get().to(get_provider_status))
+        .route("/{id}/enabled", web::put().to(set_provider_enabled))
         .route("/{id}/credentials", web::post().to(save_provider_credentials))
         .route(
             "/{id}/credentials/test",
