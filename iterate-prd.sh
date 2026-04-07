@@ -3,9 +3,11 @@
 
 set -e
 
-MODEL=${1:-"opencode/qwen3.6-plus-free"}
+# MODEL=${1:-"opencode/qwen3.6-plus-free"}
+# MODEL=${1:-"opencode/minimax-m2.5-free"}
+MODEL=${1:-"minimax-cn/MiniMax-M2.7"}
 WORKSPACE_DIR="$(cd "$(dirname "$0")" && pwd)"
-PRD_PATH="$WORKSPACE_DIR/PRD.md"
+PRD_PATH="$WORKSPACE_DIR/TUI_PRD_Rust.md"
 CONSTITUTION_PATH="$WORKSPACE_DIR/outputs/.specify/memory/constitution.md"
 
 LAST_ITERATION=$(ls -d "$WORKSPACE_DIR/outputs/iteration-"* 2>/dev/null | sed 's/.*iteration-//' | sort -n | tail -1)
