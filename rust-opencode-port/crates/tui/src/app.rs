@@ -4,7 +4,7 @@ use crate::components::{
     TitleBar, TitleBarAction,
 };
 use crate::dialogs::*;
-use crate::input::{InputBox, InputParser, InputProcessor, InputToken};
+use crate::input::{EditorLauncher, InputBox, InputParser, InputProcessor, InputToken};
 use crate::layout::LayoutManager;
 use crate::patch_preview::{PatchDecision, PatchPreview};
 use crate::right_panel::{RightPanel, RightPanelContent, RightPanelRenderData};
@@ -1723,6 +1723,12 @@ impl App {
                         .add_session(format!("Session {}", session_count + 1));
                     self.add_message("New session created".to_string(), false);
                 }
+                CommandAction::OpenEditor => {
+                    self.open_editor();
+                }
+                CommandAction::InitProject => {
+                    self.init_project();
+                }
                 CommandAction::Custom(name) => {
                     if name == "help" {
                         let all_commands = self
@@ -1738,6 +1744,59 @@ impl App {
             }
         } else {
             self.add_message(format!("Unknown command: {}", cmd_name), false);
+        }
+    }
+
+    fn open_editor(&mut self) {
+        let temp_dir = std::env::temp_dir();
+        let temp_file = temp_dir.join("opencode_message.md");
+        
+        let current_input = self.input_box.input().to_string();
+        let _ = std::fs::write(&temp_file, &current_input);
+
+        let launcher = EditorLauncher::from_env();
+        if let Err(e) = launcher.launch(&temp_file, true) {
+            self.add_message(format!("Failed to open editor: {}", e), false);
+            return;
+        }
+
+        if let Ok(content) = std::fs::read_to_string(&temp_file) {
+            self.input_box.set_input(content);
+        }
+    }
+
+    fn init_project(&mut self) {
+        let agents_file = std::path::PathBuf::from("AGENTS.md");
+        
+        let template = r#"# AGENTS.md
+
+OpenCode Agent Configuration
+
+## Agents
+
+### Build Agent
+- Full access to files and commands
+- Use for: implementation, refactoring, file operations
+
+### Plan Agent
+- Read-only access
+- Use for: code review, exploration, debugging
+
+## Commands
+
+- `/plan` - Switch to plan mode
+- `/build` - Switch to build mode
+- `/clear` - Clear conversation
+- `/editor` - Open external editor
+"#;
+
+        if agents_file.exists() {
+            self.add_message("AGENTS.md already exists. Consider updating it manually.".to_string(), false);
+        } else {
+            match std::fs::write(&agents_file, template) {
+                Ok(_) => self.add_message("Created AGENTS.md".to_string(), false),
+                Err(e) => self.add_message(format!("Failed to create AGENTS.md: {}", e), false),
+            }
         }
     }
 

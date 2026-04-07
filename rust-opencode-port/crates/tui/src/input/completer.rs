@@ -13,6 +13,28 @@ pub struct FileCompleter {
     max_suggestions: usize,
 }
 
+#[derive(Debug, Clone)]
+pub struct FileSuggestion {
+    pub path: PathBuf,
+    pub icon: String,
+}
+
+fn get_file_icon(path: &Path) -> String {
+    let extension = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+    match extension {
+        "rs" | "go" | "ts" | "tsx" | "js" | "jsx" | "py" | "rb" | "java" | "c" | "cpp" | "h" => {
+            "📄".to_string()
+        }
+        "md" | "txt" | "doc" | "pdf" => "📝".to_string(),
+        "json" | "toml" | "yaml" | "yml" | "xml" | "config" => "⚙️".to_string(),
+        "png" | "jpg" | "jpeg" | "gif" | "svg" | "ico" => "🖼️".to_string(),
+        "zip" | "tar" | "gz" | "rar" | "7z" => "📦".to_string(),
+        "sh" | "bash" | "zsh" | "fish" => "🔧".to_string(),
+        "html" | "css" | "scss" | "sass" => "🌐".to_string(),
+        _ => "📄".to_string(),
+    }
+}
+
 impl FileCompleter {
     pub fn new(root: impl AsRef<Path>) -> Self {
         Self {
@@ -22,6 +44,13 @@ impl FileCompleter {
     }
 
     pub fn suggest(&self, partial: &str) -> Vec<PathBuf> {
+        self.suggest_with_icons(partial)
+            .into_iter()
+            .map(|s| s.path)
+            .collect()
+    }
+
+    pub fn suggest_with_icons(&self, partial: &str) -> Vec<FileSuggestion> {
         let matcher = SkimMatcherV2::default();
         let needle = partial.trim_start_matches('@');
         let ignored_patterns = load_root_gitignore_patterns(&self.root);
@@ -54,7 +83,7 @@ impl FileCompleter {
             };
 
             if let Some(score) = score {
-                scored.push((score, candidate));
+                scored.push((score, candidate, entry.path().to_path_buf()));
             }
         }
 
@@ -62,7 +91,10 @@ impl FileCompleter {
         scored
             .into_iter()
             .take(self.max_suggestions)
-            .map(|(_, path)| PathBuf::from(path))
+            .map(|(_, path, full_path)| FileSuggestion {
+                path: PathBuf::from(path),
+                icon: get_file_icon(&full_path),
+            })
             .collect()
     }
 }

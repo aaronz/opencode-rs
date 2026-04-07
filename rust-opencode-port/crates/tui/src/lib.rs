@@ -27,11 +27,11 @@ pub use components::{
     TitleBarAction, VirtualList,
 };
 pub use dialogs::*;
-pub use input::{CommandCompleter, EditorLauncher, FileCompleter, InputHistory, InputBox, InputParser, InputProcessor, InputResult, InputToken};
+pub use input::{CommandCompleter, EditorLauncher, FileCompleter, FileSuggestion, InputHistory, InputBox, InputParser, InputProcessor, InputResult, InputToken};
 pub use render::{MarkdownRenderer, SyntaxHighlighter};
-pub use config::{Config, TuiConfig, UserConfig, ProviderConfig};
+pub use config::{Config, DiffStyle, KeybindConfig, TuiConfig, UserConfig, ProviderConfig};
 pub use session::{Session, SessionManager};
-pub use shell_handler::{ExecuteResult, ShellHandler};
+pub use shell_handler::{ExecuteResult, InterruptibleHandle, ShellHandler};
 pub use file_ref_handler::{FileRefHandler, FileRefResult};
 pub use layout::{LayoutManager, LayoutPreset, LayoutProportions};
 pub use patch_preview::{PatchDecision, PatchPreview};

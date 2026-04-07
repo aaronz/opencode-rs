@@ -22,6 +22,96 @@ pub struct TuiConfig {
     pub show_file_tree: bool,
     #[serde(default)]
     pub show_skills_panel: bool,
+    #[serde(default = "default_diff_style")]
+    pub diff_style: String,
+    #[serde(default = "default_typewriter_speed")]
+    pub typewriter_speed: u64,
+    #[serde(default)]
+    pub keybinds: Option<KeybindConfig>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct KeybindConfig {
+    #[serde(default)]
+    pub commands: Option<String>,
+    #[serde(default)]
+    pub timeline: Option<String>,
+    #[serde(default)]
+    pub new_session: Option<String>,
+    #[serde(default)]
+    pub toggle_files: Option<String>,
+    #[serde(default)]
+    pub settings: Option<String>,
+    #[serde(default)]
+    pub search: Option<String>,
+}
+
+impl KeybindConfig {
+    pub fn detect_conflicts(&self) -> Vec<String> {
+        let mut conflicts = Vec::new();
+        let mut seen = std::collections::HashMap::new();
+
+        if let Some(ref cmds) = self.commands {
+            if !cmds.is_empty() {
+                seen.insert(cmds.clone(), "commands");
+            }
+        }
+        if let Some(ref tl) = self.timeline {
+            if !tl.is_empty() {
+                if let Some(prev) = seen.get(tl) {
+                    conflicts.push(format!("timeline conflicts with {}", prev));
+                } else {
+                    seen.insert(tl.clone(), "timeline");
+                }
+            }
+        }
+        if let Some(ref ns) = self.new_session {
+            if !ns.is_empty() {
+                if let Some(prev) = seen.get(ns) {
+                    conflicts.push(format!("new_session conflicts with {}", prev));
+                } else {
+                    seen.insert(ns.clone(), "new_session");
+                }
+            }
+        }
+        if let Some(ref tf) = self.toggle_files {
+            if !tf.is_empty() {
+                if let Some(prev) = seen.get(tf) {
+                    conflicts.push(format!("toggle_files conflicts with {}", prev));
+                } else {
+                    seen.insert(tf.clone(), "toggle_files");
+                }
+            }
+        }
+        if let Some(ref st) = self.settings {
+            if !st.is_empty() {
+                if let Some(prev) = seen.get(st) {
+                    conflicts.push(format!("settings conflicts with {}", prev));
+                } else {
+                    seen.insert(st.clone(), "settings");
+                }
+            }
+        }
+        if let Some(ref sr) = self.search {
+            if !sr.is_empty() {
+                if let Some(prev) = seen.get(sr) {
+                    conflicts.push(format!("search conflicts with {}", prev));
+                } else {
+                    seen.insert(sr.clone(), "search");
+                }
+            }
+        }
+
+        conflicts
+    }
+}
+
+fn default_diff_style() -> String {
+    "auto".to_string()
+}
+
+fn default_typewriter_speed() -> u64 {
+    20
 }
 
 fn default_scroll_speed() -> u32 {
@@ -69,6 +159,9 @@ impl Config {
                 theme: "dark".to_string(),
                 show_file_tree: true,
                 show_skills_panel: false,
+                diff_style: "auto".to_string(),
+                typewriter_speed: 20,
+                keybinds: None,
             }),
             user: None,
             providers: None,
@@ -102,6 +195,9 @@ impl Config {
             theme: "dark".to_string(),
             show_file_tree: true,
             show_skills_panel: false,
+            diff_style: "auto".to_string(),
+            typewriter_speed: 20,
+            keybinds: None,
         })
     }
 
@@ -112,10 +208,45 @@ impl Config {
             existing.theme = tui.theme;
             existing.show_file_tree = tui.show_file_tree;
             existing.show_skills_panel = tui.show_skills_panel;
+            existing.diff_style = tui.diff_style;
+            existing.typewriter_speed = tui.typewriter_speed;
+            existing.keybinds = tui.keybinds;
         } else {
             self.tui = Some(tui);
         }
     }
+
+    pub fn diff_style(&self) -> DiffStyle {
+        let style = self.tui_config().diff_style;
+        match style.as_str() {
+            "side-by-side" => DiffStyle::SideBySide,
+            "unified" => DiffStyle::Unified,
+            _ => DiffStyle::Auto,
+        }
+    }
+
+    pub fn typewriter_speed(&self) -> u64 {
+        self.tui_config().typewriter_speed
+    }
+
+    pub fn keybinds(&self) -> Option<KeybindConfig> {
+        self.tui_config().keybinds.clone()
+    }
+
+    pub fn validate_keybinds(&self) -> Vec<String> {
+        if let Some(ref keybinds) = self.keybinds() {
+            keybinds.detect_conflicts()
+        } else {
+            Vec::new()
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum DiffStyle {
+    Auto,
+    SideBySide,
+    Unified,
 }
 
 impl Default for Config {

@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 use std::time::Duration;
 
 const DEFAULT_TIMEOUT_SECS: u64 = 30;
@@ -28,6 +28,75 @@ pub struct ExecuteResult {
     pub exit_code: Option<i32>,
     pub timed_out: bool,
     pub truncated: bool,
+    pub interrupted: bool,
+}
+
+pub struct InterruptibleHandle {
+    child: Child,
+    working_dir: PathBuf,
+}
+
+impl InterruptibleHandle {
+    pub fn interrupt(&mut self) -> bool {
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt;
+            let _ = self.child.kill();
+            true
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = self.child.kill();
+            true
+        }
+    }
+
+    pub fn wait(self) -> ExecuteResult {
+        let mut child = self.child;
+        match child.wait() {
+            Ok(status) => {
+                let exit_code = status.code();
+                let stdout = child
+                    .stdout
+                    .take()
+                    .map(|mut out| {
+                        let mut buf = String::new();
+                        let _ = out.read_to_string(&mut buf);
+                        buf
+                    })
+                    .unwrap_or_default();
+                let stderr = child
+                    .stderr
+                    .take()
+                    .map(|mut err| {
+                        let mut buf = String::new();
+                        let _ = err.read_to_string(&mut buf);
+                        buf
+                    })
+                    .unwrap_or_default();
+
+                let stdout = String::from_utf8_lossy(&stdout.into_bytes()).to_string();
+                let stderr = String::from_utf8_lossy(&stderr.into_bytes()).to_string();
+
+                ExecuteResult {
+                    stdout,
+                    stderr,
+                    exit_code,
+                    timed_out: false,
+                    truncated: false,
+                    interrupted: false,
+                }
+            }
+            Err(e) => ExecuteResult {
+                stdout: String::new(),
+                stderr: e.to_string(),
+                exit_code: None,
+                timed_out: false,
+                truncated: false,
+                interrupted: false,
+            },
+        }
+    }
 }
 
 pub struct ShellHandler {
@@ -138,6 +207,7 @@ impl ShellHandler {
                 exit_code: Some(1),
                 timed_out: false,
                 truncated: false,
+                interrupted: false,
             };
         }
 
@@ -194,6 +264,7 @@ impl ShellHandler {
                             exit_code,
                             timed_out: false,
                             truncated,
+                            interrupted: false,
                         }
                     }
                     Ok(None) => {
@@ -207,6 +278,7 @@ impl ShellHandler {
                             exit_code: None,
                             timed_out: true,
                             truncated: false,
+                            interrupted: false,
                         }
                     }
                     Err(_) => ExecuteResult {
@@ -215,6 +287,7 @@ impl ShellHandler {
                         exit_code: None,
                         timed_out: false,
                         truncated: false,
+                        interrupted: false,
                     },
                 }
             }
@@ -224,7 +297,53 @@ impl ShellHandler {
                 exit_code: None,
                 timed_out: false,
                 truncated: false,
+                interrupted: false,
             },
+        }
+    }
+
+    pub fn execute_interruptible(
+        &self,
+        command: &str,
+    ) -> Result<InterruptibleHandle, ExecuteResult> {
+        if let Err(e) = self.validate_command(command) {
+            return Err(ExecuteResult {
+                stdout: String::new(),
+                stderr: e,
+                exit_code: Some(1),
+                timed_out: false,
+                truncated: false,
+                interrupted: false,
+            });
+        }
+
+        let shell = if cfg!(target_os = "windows") {
+            "cmd"
+        } else {
+            "sh"
+        };
+
+        let child = Command::new(shell)
+            .arg("-c")
+            .arg(command)
+            .current_dir(&self.working_dir)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn();
+
+        match child {
+            Ok(child) => Ok(InterruptibleHandle {
+                child,
+                working_dir: self.working_dir.clone(),
+            }),
+            Err(e) => Err(ExecuteResult {
+                stdout: String::new(),
+                stderr: e.to_string(),
+                exit_code: None,
+                timed_out: false,
+                truncated: false,
+                interrupted: false,
+            }),
         }
     }
 

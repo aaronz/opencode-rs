@@ -49,9 +49,50 @@ impl InputElement {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub enum OverflowMode {
     #[default]
-    Truncate, // Truncate overflow
-    Scroll, // Horizontal scroll
-    Wrap,   // Auto wrap
+    Truncate,
+    Scroll,
+    Wrap,
+}
+
+#[derive(Debug, Clone)]
+pub struct TypewriterState {
+    pub full_content: String,
+    pub displayed_length: usize,
+    pub delay_ms: u64,
+    pub is_streaming: bool,
+}
+
+impl TypewriterState {
+    pub fn new(content: &str, delay_ms: u64) -> Self {
+        Self {
+            full_content: content.to_string(),
+            displayed_length: 0,
+            delay_ms,
+            is_streaming: true,
+        }
+    }
+
+    pub fn tick(&mut self) -> bool {
+        if self.displayed_length < self.full_content.len() {
+            self.displayed_length += 1;
+            true
+        } else {
+            self.is_streaming = false;
+            false
+        }
+    }
+
+    pub fn skip(&mut self) {
+        self.displayed_length = self.full_content.len();
+        self.is_streaming = false;
+    }
+
+    pub fn current_display(&self) -> String {
+        self.full_content
+            .chars()
+            .take(self.displayed_length)
+            .collect()
+    }
 }
 
 pub struct InputWidget {
@@ -64,6 +105,8 @@ pub struct InputWidget {
     pub leader_active: bool,
     pub scroll_x: usize,
     pub overflow_mode: OverflowMode,
+    pub typewriter_state: Option<TypewriterState>,
+    pub typewriter_speed_ms: u64,
 }
 
 impl InputWidget {
@@ -78,6 +121,8 @@ impl InputWidget {
             leader_active: false,
             scroll_x: 0,
             overflow_mode: OverflowMode::Truncate,
+            typewriter_state: None,
+            typewriter_speed_ms: 20,
         }
     }
 
@@ -92,11 +137,44 @@ impl InputWidget {
             leader_active: false,
             scroll_x: 0,
             overflow_mode: OverflowMode::Wrap,
+            typewriter_state: None,
+            typewriter_speed_ms: 20,
         }
+    }
+
+    pub fn start_typewriter(&mut self, content: &str) {
+        self.typewriter_state = Some(TypewriterState::new(content, self.typewriter_speed_ms));
+    }
+
+    pub fn tick_typewriter(&mut self) -> bool {
+        if let Some(ref mut state) = self.typewriter_state {
+            state.tick()
+        } else {
+            false
+        }
+    }
+
+    pub fn skip_typewriter(&mut self) {
+        if let Some(ref mut state) = self.typewriter_state {
+            state.skip();
+            self.elements = vec![InputElement::Text(state.full_content.clone())];
+        }
+    }
+
+    pub fn is_typewriter_active(&self) -> bool {
+        self.typewriter_state
+            .as_ref()
+            .map(|s| s.is_streaming)
+            .unwrap_or(false)
     }
 
     pub fn handle_input(&mut self, key: KeyEvent) -> InputAction {
         if self.leader_active {
+            return InputAction::None;
+        }
+
+        if self.is_typewriter_active() {
+            self.skip_typewriter();
             return InputAction::None;
         }
 

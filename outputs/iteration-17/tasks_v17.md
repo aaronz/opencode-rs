@@ -12,109 +12,118 @@
 - **FR-ID**: FR-022
 - **Description**: Support Ctrl+C to terminate running shell commands
 - **Priority**: P1
-- **Status**: 🔲 Pending
+- **Status**: ✅ Done
 - **Files**: `crates/tui/src/shell_handler.rs`
 - **Dependencies**: None
 - **Acceptance Criteria**: 
-  - [ ] Ctrl+C interrupts running shell command
-  - [ ] User receives termination feedback
-  - [ ] No crash or hang on termination
+  - [x] Ctrl+C interrupts running shell command
+  - [x] User receives termination feedback
+  - [x] No crash or hang on termination
+- **Completion Date**: 2026-04-07
 
 ### Task 2: FR-084 - ProgressBar Component
 - **FR-ID**: FR-084
 - **Description**: Implement Gauge-based progress bar component
 - **Priority**: P1
-- **Status**: 🔲 Pending
-- **Files**: `crates/tui/src/widgets/`
+- **Status**: ✅ Done
+- **Files**: `crates/tui/src/widgets/indicators.rs`
 - **Dependencies**: None
 - **Acceptance Criteria**:
-  - [ ] ProgressBar widget renders correctly
-  - [ ] Supports 0-100% progress display
-  - [ ] Works with Ratatui Gauge component
+  - [x] ProgressBar widget renders correctly
+  - [x] Supports 0-100% progress display
+  - [x] Works with Ratatui Gauge component
+- **Completion Date**: 2026-04-07
 
 ### Task 3: FR-006 - Typewriter Effect
 - **FR-ID**: FR-006
 - **Description**: Optimize streaming output with typewriter rendering effect
 - **Priority**: P1
-- **Status**: 🔲 Pending
+- **Status**: ✅ Done
 - **Files**: `crates/tui/src/components/input_widget.rs`
 - **Dependencies**: None
 - **Acceptance Criteria**:
-  - [ ] Characters appear one at a time during streaming
-  - [ ] Configurable speed (default 20ms per char)
-  - [ ] Skippable via user input
+  - [x] Characters appear one at a time during streaming
+  - [x] Configurable speed (default 20ms per char)
+  - [x] Skippable via user input
+- **Completion Date**: 2026-04-07
 
 ### Task 4: FR-116 - Diff Style Config
 - **FR-ID**: FR-116
 - **Description**: Configurable diff display style
 - **Priority**: P1
-- **Status**: 🔲 Pending
-- **Files**: `crates/tui/src/components/diff_view.rs`
+- **Status**: ✅ Done
+- **Files**: `crates/tui/src/config.rs`
 - **Dependencies**: None
 - **Acceptance Criteria**:
-  - [ ] `diff_style` config option (side-by-side, unified)
-  - [ ] Style persists across sessions
-  - [ ] Works with FR-078 DiffView
+  - [x] `diff_style` config option (side-by-side, unified)
+  - [x] Style persists across sessions
+  - [x] Works with FR-078 DiffView
+- **Completion Date**: 2026-04-07
 
 ### Task 5: FR-013 - @ Path Completion
 - **FR-ID**: FR-013
 - **Description**: Auto-complete file paths when typing `@` references
 - **Priority**: P1
-- **Status**: 🔲 Pending
+- **Status**: ✅ Done
 - **Files**: `crates/tui/src/input/completer.rs`
 - **Dependencies**: None
 - **Acceptance Criteria**:
-  - [ ] Tab completion after typing `@`
-  - [ ] Fuzzy matching for file names
-  - [ ] Shows file icon and path in suggestions
+  - [x] Tab completion after typing `@`
+  - [x] Fuzzy matching for file names
+  - [x] Shows file icon and path in suggestions
+- **Completion Date**: 2026-04-07
 
 ### Task 6: FR-063 - /editor Command
 - **FR-ID**: FR-063
 - **Description**: Open external editor for composing messages
 - **Priority**: P1
-- **Status**: 🔲 Pending
-- **Files**: `crates/tui/src/input/editor.rs`, `crates/tui/src/command.rs`
-- **Dependencies**: Task 2 (ProgressBar for feedback)
+- **Status**: ✅ Done
+- **Files**: `crates/tui/src/command.rs`, `crates/tui/src/app.rs`
+- **Dependencies**: None
 - **Acceptance Criteria**:
-  - [ ] `/editor` command opens $EDITOR
-  - [ ] Message content returned to TUI after save
-  - [ ] Supports vim, nano, vscode --wait
+  - [x] `/editor` command opens $EDITOR
+  - [x] Message content returned to TUI after save
+  - [x] Supports vim, nano, vscode --wait
+- **Completion Date**: 2026-04-07
 
 ### Task 7: FR-064 - /init Command
 - **FR-ID**: FR-064
 - **Description**: Create or update AGENTS.md in project
 - **Priority**: P1
-- **Status**: 🔲 Pending
-- **Files**: `crates/tui/src/command.rs`
+- **Status**: ✅ Done
+- **Files**: `crates/tui/src/command.rs`, `crates/tui/src/app.rs`
 - **Dependencies**: None
 - **Acceptance Criteria**:
-  - [ ] `/init` creates AGENTS.md if not exists
-  - [ ] Updates existing AGENTS.md with new content
-  - [ ] Works with ProjectInitAgent
+  - [x] `/init` creates AGENTS.md if not exists
+  - [x] Updates existing AGENTS.md with new content
+  - [x] Works with ProjectInitAgent
+- **Completion Date**: 2026-04-07
 
 ### Task 8: FR-115 - Custom Keybinds Config
 - **FR-ID**: FR-115
 - **Description**: User-configurable keyboard shortcuts
 - **Priority**: P1
-- **Status**: 🔲 Pending
-- **Files**: `crates/tui/src/config.rs`, `crates/tui/src/cli/args.rs`
+- **Status**: ✅ Done
+- **Files**: `crates/tui/src/config.rs`
 - **Dependencies**: Constitution C-056 (config system)
 - **Acceptance Criteria**:
-  - [ ] `keybinds` config object support
-  - [ ] Override default shortcuts
-  - [ ] Conflict detection for duplicate bindings
+  - [x] `keybinds` config object support
+  - [x] Override default shortcuts
+  - [x] Conflict detection for duplicate bindings
+- **Completion Date**: 2026-04-07
 
 ### Task 9: FR-142 - NDJSON Output Format
 - **FR-ID**: FR-142
 - **Description**: Streaming JSON output format support
 - **Priority**: P1
-- **Status**: 🔲 Pending
-- **Files**: `crates/opencode-cli/src/`
+- **Status**: ✅ Done
+- **Files**: `crates/tui/src/cli/args.rs`
 - **Dependencies**: None
 - **Acceptance Criteria**:
-  - [ ] `--output-format ndjson` flag works
-  - [ ] Each line is valid JSON object
-  - [ ] Includes message, tool calls, status events
+  - [x] `--output-format ndjson` flag works
+  - [x] Each line is valid JSON object
+  - [x] Includes message, tool calls, status events
+- **Completion Date**: 2026-04-07
 
 ---
 
@@ -140,6 +149,7 @@
 | T06 | FR-120~FR-121 | ✅ Done | 2026-04-07 |
 | T07 | FR-130~FR-132 | ✅ Done | 2026-04-07 |
 | T08 | FR-140~FR-141 | ✅ Done | 2026-04-07 |
+| T09 | FR-022, FR-084, FR-006, FR-116, FR-013, FR-063, FR-064, FR-115, FR-142 | ✅ Done | 2026-04-07 |
 
 ---
 
@@ -148,12 +158,12 @@
 | Metric | Value |
 |--------|-------|
 | Total Tasks | 11 |
-| Completed | 0 |
+| Completed | 9 |
 | In Progress | 0 |
-| Pending | 9 |
+| Pending | 0 |
 | P2/Future | 2 |
 
 ---
 
 **Last Updated**: 2026-04-07  
-**Next Update**: After each task completion
+**Status**: All P1 Tasks Complete ✅

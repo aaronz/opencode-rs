@@ -101,21 +101,14 @@ impl Default for ProgressBar {
 impl Widget for ProgressBar {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let percentage = self.percentage().unwrap_or(0.0);
-        let filled = ((area.width as f32 - 10.0) * (percentage / 100.0)) as usize;
-        let empty = (area.width as usize).saturating_sub(filled + 10);
+        let label = format!("{} ", self.label);
 
-        let bar = format!(
-            "{} [{}{}] {:.1}%",
-            self.label,
-            "█".repeat(filled),
-            "░".repeat(empty),
-            percentage
-        );
-        buf.set_string(
-            area.x,
-            area.y,
-            bar,
-            ratatui::style::Style::default().fg(ratatui::style::Color::Cyan),
-        );
+        // Use ratatui's Gauge widget for proper progress bar rendering
+        let gauge = ratatui::widgets::Gauge::default()
+            .percent(percentage as u16)
+            .label(label)
+            .gauge_style(ratatui::style::Style::default().fg(ratatui::style::Color::Cyan));
+
+        gauge.render(area, buf);
     }
 }

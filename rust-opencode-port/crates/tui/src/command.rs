@@ -48,6 +48,10 @@ pub enum CommandAction {
     Exit,
     OpenSessions,
     NewSession,
+    /// Open external editor
+    OpenEditor,
+    /// Initialize project with AGENTS.md
+    InitProject,
     Custom(String),
 }
 
@@ -261,6 +265,18 @@ impl CommandRegistry {
                 aliases: vec![],
                 description: "Redo undone changes".to_string(),
                 action: CommandAction::Custom("redo".to_string()),
+            },
+            Command {
+                name: "editor".to_string(),
+                aliases: vec!["ed".to_string()],
+                description: "Open external editor to compose message".to_string(),
+                action: CommandAction::OpenEditor,
+            },
+            Command {
+                name: "init".to_string(),
+                aliases: vec![],
+                description: "Create or update AGENTS.md in project".to_string(),
+                action: CommandAction::InitProject,
             },
         ];
 

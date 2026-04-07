@@ -173,4 +173,5 @@ pub enum PermissionMode {
 pub enum OutputFormat {
     Text,
     Json,
+    Ndjson,
 }
