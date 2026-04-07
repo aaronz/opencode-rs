@@ -274,6 +274,7 @@ fn rgb_to_256_index(r: u8, g: u8, b: u8) -> u8 {
 pub struct ThemeManager {
     current: Theme,
     presets: HashMap<String, Theme>,
+    custom_themes: HashMap<String, Theme>,
 }
 
 impl ThemeManager {
@@ -292,7 +293,91 @@ impl ThemeManager {
         Self {
             current: Theme::default(),
             presets,
+            custom_themes: HashMap::new(),
         }
+    }
+
+    pub fn register_custom_theme(&mut self, theme: Theme) -> Result<(), String> {
+        if self.presets.contains_key(&theme.name) {
+            return Err(format!(
+                "Theme '{}' conflicts with existing preset",
+                theme.name
+            ));
+        }
+        self.custom_themes.insert(theme.name.clone(), theme);
+        Ok(())
+    }
+
+    pub fn unregister_custom_theme(&mut self, name: &str) -> bool {
+        self.custom_themes.remove(name).is_some()
+    }
+
+    pub fn list_custom_themes(&self) -> Vec<&str> {
+        self.custom_themes.keys().map(|s| s.as_str()).collect()
+    }
+
+    pub fn is_custom_theme(&self, name: &str) -> bool {
+        self.custom_themes.contains_key(name)
+    }
+
+    pub fn set_theme_by_name(&mut self, name: &str) -> Result<(), String> {
+        if let Some(theme) = self.presets.get(name) {
+            self.current = theme.clone();
+            Ok(())
+        } else if let Some(theme) = self.custom_themes.get(name) {
+            self.current = theme.clone();
+            Ok(())
+        } else {
+            Err(format!("Theme '{}' not found", name))
+        }
+    }
+
+    pub fn load_custom_themes(&mut self, themes: Vec<crate::config::CustomTheme>) -> Vec<String> {
+        let mut errors = Vec::new();
+        for ct in themes {
+            if let Err(e) = ct.validate() {
+                errors.push(e);
+                continue;
+            }
+            let theme = Theme {
+                name: ct.name.clone(),
+                colors: crate::theme::ThemeColors {
+                    background: ct.background,
+                    foreground: ct.foreground,
+                    primary: ct.primary,
+                    secondary: ct.secondary,
+                    accent: ct.accent,
+                    error: ct.error,
+                    warning: ct.warning,
+                    success: ct.success,
+                    muted: ct.muted,
+                    border: ct.border,
+                },
+            };
+            if let Err(e) = self.register_custom_theme(theme) {
+                errors.push(e);
+            }
+        }
+        errors
+    }
+
+    pub fn export_custom_themes(&self) -> Vec<crate::config::CustomTheme> {
+        self.custom_themes
+            .values()
+            .map(|t| crate::config::CustomTheme {
+                name: t.name.clone(),
+                background: t.colors.background.clone(),
+                foreground: t.colors.foreground.clone(),
+                primary: t.colors.primary.clone(),
+                secondary: t.colors.secondary.clone(),
+                accent: t.colors.accent.clone(),
+                error: t.colors.error.clone(),
+                warning: t.colors.warning.clone(),
+                success: t.colors.success.clone(),
+                muted: t.colors.muted.clone(),
+                border: t.colors.border.clone(),
+            })
+            .collect()
     }
 
     pub fn with_theme(theme: Theme) -> Self {
@@ -310,25 +395,22 @@ impl ThemeManager {
         self.current = theme;
     }
 
-    pub fn set_theme_by_name(&mut self, name: &str) -> Result<(), String> {
-        if let Some(theme) = self.presets.get(name) {
-            self.current = theme.clone();
-            Ok(())
-        } else {
-            Err(format!("Theme '{}' not found", name))
-        }
-    }
-
     pub fn current(&self) -> &Theme {
         &self.current
     }
 
     pub fn list_themes(&self) -> Vec<&str> {
-        self.presets.keys().map(|s| s.as_str()).collect()
+        let mut names: Vec<&str> = self.presets.keys().map(|s| s.as_str()).collect();
+        names.extend(self.custom_themes.keys().map(|s| s.as_str()));
+        names
     }
 
     pub fn get_preset(&self, name: &str) -> Option<&Theme> {
         self.presets.get(name)
+    }
+
+    pub fn get_custom_theme(&self, name: &str) -> Option<&Theme> {
+        self.custom_themes.get(name)
     }
 
     pub fn save_to_config(&self) -> Result<(), String> {
@@ -370,6 +452,8 @@ impl ThemeManager {
                 if let Some(theme_name) = line.split('=').nth(1) {
                     let theme_name = theme_name.trim().trim_matches('"');
                     if let Some(theme) = self.presets.get(theme_name) {
+                        self.current = theme.clone();
+                    } else if let Some(theme) = self.custom_themes.get(theme_name) {
                         self.current = theme.clone();
                     }
                 }

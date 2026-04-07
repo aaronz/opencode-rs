@@ -29,7 +29,7 @@ pub use components::{
 pub use dialogs::*;
 pub use input::{CommandCompleter, EditorLauncher, FileCompleter, FileSuggestion, InputHistory, InputBox, InputParser, InputProcessor, InputResult, InputToken};
 pub use render::{MarkdownRenderer, SyntaxHighlighter};
-pub use config::{Config, DiffStyle, KeybindConfig, TuiConfig, UserConfig, ProviderConfig};
+pub use config::{Config, CustomTheme, DiffStyle, KeybindConfig, TuiConfig, UserConfig, ProviderConfig};
 pub use session::{Session, SessionManager};
 pub use shell_handler::{ExecuteResult, InterruptibleHandle, ShellHandler};
 pub use file_ref_handler::{FileRefHandler, FileRefResult};

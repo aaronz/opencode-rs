@@ -28,6 +28,59 @@ pub struct TuiConfig {
     pub typewriter_speed: u64,
     #[serde(default)]
     pub keybinds: Option<KeybindConfig>,
+    #[serde(default)]
+    pub custom_themes: Vec<CustomTheme>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct CustomTheme {
+    pub name: String,
+    pub background: String,
+    pub foreground: String,
+    pub primary: String,
+    pub secondary: String,
+    pub accent: String,
+    pub error: String,
+    pub warning: String,
+    pub success: String,
+    pub muted: String,
+    pub border: String,
+}
+
+impl CustomTheme {
+    pub fn validate(&self) -> Result<(), String> {
+        Self::validate_color(&self.name, &self.background)?;
+        Self::validate_color(&self.name, &self.foreground)?;
+        Self::validate_color(&self.name, &self.primary)?;
+        Self::validate_color(&self.name, &self.secondary)?;
+        Self::validate_color(&self.name, &self.accent)?;
+        Self::validate_color(&self.name, &self.error)?;
+        Self::validate_color(&self.name, &self.warning)?;
+        Self::validate_color(&self.name, &self.success)?;
+        Self::validate_color(&self.name, &self.muted)?;
+        Self::validate_color(&self.name, &self.border)?;
+        Ok(())
+    }
+
+    fn validate_color(theme_name: &str, color: &str) -> Result<(), String> {
+        let color = color.trim_start_matches('#');
+        if color.len() != 6 {
+            return Err(format!(
+                "Theme '{}': Invalid color '{}' - must be 6 hex digits",
+                theme_name, color
+            ));
+        }
+        if u8::from_str_radix(&color[0..2], 16).is_err()
+            || u8::from_str_radix(&color[2..4], 16).is_err()
+            || u8::from_str_radix(&color[4..6], 16).is_err()
+        {
+            return Err(format!(
+                "Theme '{}': Invalid hex color '{}'",
+                theme_name, color
+            ));
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -162,6 +215,7 @@ impl Config {
                 diff_style: "auto".to_string(),
                 typewriter_speed: 20,
                 keybinds: None,
+                custom_themes: Vec::new(),
             }),
             user: None,
             providers: None,
@@ -198,6 +252,7 @@ impl Config {
             diff_style: "auto".to_string(),
             typewriter_speed: 20,
             keybinds: None,
+            custom_themes: Vec::new(),
         })
     }
 
@@ -211,6 +266,7 @@ impl Config {
             existing.diff_style = tui.diff_style;
             existing.typewriter_speed = tui.typewriter_speed;
             existing.keybinds = tui.keybinds;
+            existing.custom_themes = tui.custom_themes;
         } else {
             self.tui = Some(tui);
         }
