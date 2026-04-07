@@ -1,3 +1,4 @@
+pub mod banner;
 pub mod diff_view;
 pub mod file_tree;
 pub mod input_widget;
@@ -7,6 +8,8 @@ pub mod status_bar;
 pub mod terminal_panel;
 pub mod title_bar;
 pub mod virtual_list;
+
+pub use banner::{Banner, StartupInfo};
 
 pub use diff_view::{DiffLine, DiffLineType, DiffRenderer, DiffView, DiffViewStyle};
 pub use file_tree::FileTree;

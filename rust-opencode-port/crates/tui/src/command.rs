@@ -202,6 +202,66 @@ impl CommandRegistry {
                 description: "Exit the application".to_string(),
                 action: CommandAction::Exit,
             },
+            Command {
+                name: "search".to_string(),
+                aliases: vec!["s".to_string()],
+                description: "Search conversation history".to_string(),
+                action: CommandAction::Custom("search".to_string()),
+            },
+            Command {
+                name: "diff".to_string(),
+                aliases: vec![],
+                description: "Show git diff".to_string(),
+                action: CommandAction::Custom("diff".to_string()),
+            },
+            Command {
+                name: "memory".to_string(),
+                aliases: vec![],
+                description: "Manage memory entries".to_string(),
+                action: CommandAction::Custom("memory".to_string()),
+            },
+            Command {
+                name: "plugins".to_string(),
+                aliases: vec![],
+                description: "Manage plugins".to_string(),
+                action: CommandAction::Custom("plugins".to_string()),
+            },
+            Command {
+                name: "username".to_string(),
+                aliases: vec![],
+                description: "Set display username".to_string(),
+                action: CommandAction::Custom("username".to_string()),
+            },
+            Command {
+                name: "thinking".to_string(),
+                aliases: vec![],
+                description: "Toggle thinking mode".to_string(),
+                action: CommandAction::Custom("thinking".to_string()),
+            },
+            Command {
+                name: "status".to_string(),
+                aliases: vec![],
+                description: "Show session status".to_string(),
+                action: CommandAction::Custom("status".to_string()),
+            },
+            Command {
+                name: "share".to_string(),
+                aliases: vec![],
+                description: "Share current session".to_string(),
+                action: CommandAction::Custom("share".to_string()),
+            },
+            Command {
+                name: "undo".to_string(),
+                aliases: vec!["u".to_string()],
+                description: "Undo last changes".to_string(),
+                action: CommandAction::Undo,
+            },
+            Command {
+                name: "redo".to_string(),
+                aliases: vec![],
+                description: "Redo undone changes".to_string(),
+                action: CommandAction::Custom("redo".to_string()),
+            },
         ];
 
         Self { commands }

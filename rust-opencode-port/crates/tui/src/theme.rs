@@ -152,12 +152,66 @@ impl Theme {
                 foreground: "#ebdbb2".to_string(),
                 primary: "#83a598".to_string(),
                 secondary: "#d3869b".to_string(),
-                accent: "#fb4934".to_string(),
+                accent: "#fe8019".to_string(),
                 error: "#fb4934".to_string(),
                 warning: "#fabd2f".to_string(),
                 success: "#b8bb26".to_string(),
                 muted: "#928374".to_string(),
                 border: "#504945".to_string(),
+            },
+        }
+    }
+
+    pub fn solarized_dark() -> Self {
+        Self {
+            name: "solarized-dark".to_string(),
+            colors: ThemeColors {
+                background: "#002b36".to_string(),
+                foreground: "#839496".to_string(),
+                primary: "#268bd2".to_string(),
+                secondary: "#6c71c4".to_string(),
+                accent: "#cb4b16".to_string(),
+                error: "#dc322f".to_string(),
+                warning: "#b58900".to_string(),
+                success: "#859900".to_string(),
+                muted: "#586e75".to_string(),
+                border: "#073642".to_string(),
+            },
+        }
+    }
+
+    pub fn solarized_light() -> Self {
+        Self {
+            name: "solarized-light".to_string(),
+            colors: ThemeColors {
+                background: "#fdf6e3".to_string(),
+                foreground: "#657b83".to_string(),
+                primary: "#268bd2".to_string(),
+                secondary: "#6c71c4".to_string(),
+                accent: "#cb4b16".to_string(),
+                error: "#dc322f".to_string(),
+                warning: "#b58900".to_string(),
+                success: "#859900".to_string(),
+                muted: "#93a1a1".to_string(),
+                border: "#eee8d5".to_string(),
+            },
+        }
+    }
+
+    pub fn light() -> Self {
+        Self {
+            name: "light".to_string(),
+            colors: ThemeColors {
+                background: "#ffffff".to_string(),
+                foreground: "#24292e".to_string(),
+                primary: "#0366d6".to_string(),
+                secondary: "#6f42c1".to_string(),
+                accent: "#d73a49".to_string(),
+                error: "#d73a49".to_string(),
+                warning: "#e36209".to_string(),
+                success: "#22863a".to_string(),
+                muted: "#6a737d".to_string(),
+                border: "#e1e4e8".to_string(),
             },
         }
     }
@@ -226,10 +280,14 @@ impl ThemeManager {
     pub fn new() -> Self {
         let mut presets = HashMap::new();
         presets.insert("default".to_string(), Theme::default());
+        presets.insert("light".to_string(), Theme::light());
+        presets.insert("dark".to_string(), Theme::default());
         presets.insert("catppuccin".to_string(), Theme::catppuccin());
         presets.insert("tokyonight".to_string(), Theme::tokyonight());
         presets.insert("nord".to_string(), Theme::nord());
         presets.insert("gruvbox".to_string(), Theme::gruvbox());
+        presets.insert("solarized-dark".to_string(), Theme::solarized_dark());
+        presets.insert("solarized-light".to_string(), Theme::solarized_light());
 
         Self {
             current: Theme::default(),

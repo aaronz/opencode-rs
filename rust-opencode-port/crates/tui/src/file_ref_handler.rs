@@ -1,7 +1,11 @@
+use fuzzy_matcher::skim::SkimMatcherV2;
+use fuzzy_matcher::FuzzyMatcher;
+use ignore::WalkBuilder;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 const DEFAULT_MAX_SIZE: usize = 1024 * 1024;
+const GIT_DIR: &str = ".git";
 
 #[derive(Debug, Clone)]
 pub struct FileRefResult {
@@ -13,9 +17,17 @@ pub struct FileRefResult {
     pub error: Option<String>,
 }
 
+#[derive(Debug, Clone)]
+pub struct FileSearchResult {
+    pub path: PathBuf,
+    pub score: i64,
+    pub display_name: String,
+}
+
 pub struct FileRefHandler {
     max_file_size: usize,
     max_content_size: usize,
+    base_dir: PathBuf,
 }
 
 impl FileRefHandler {
@@ -23,7 +35,13 @@ impl FileRefHandler {
         Self {
             max_file_size: DEFAULT_MAX_SIZE,
             max_content_size: 5000,
+            base_dir: std::env::current_dir().unwrap_or_default(),
         }
+    }
+
+    pub fn with_base_dir(mut self, dir: PathBuf) -> Self {
+        self.base_dir = dir;
+        self
     }
 
     pub fn with_max_file_size(mut self, size: usize) -> Self {
@@ -36,8 +54,74 @@ impl FileRefHandler {
         self
     }
 
+    pub fn fuzzy_search_files(&self, query: &str, max_results: usize) -> Vec<FileSearchResult> {
+        let matcher = SkimMatcherV2::default();
+        let mut results: Vec<FileSearchResult> = Vec::new();
+
+        let walker = WalkBuilder::new(&self.base_dir)
+            .hidden(true)
+            .git_ignore(true)
+            .require_git(false)
+            .build();
+
+        for entry in walker.flatten() {
+            let path = entry.path();
+            if !path.is_file() {
+                continue;
+            }
+
+            if self.is_excluded(path) {
+                continue;
+            }
+
+            let relative = path
+                .strip_prefix(&self.base_dir)
+                .unwrap_or(path)
+                .to_string_lossy()
+                .to_string();
+
+            if let Some(score) = matcher.fuzzy_match(&relative, query) {
+                results.push(FileSearchResult {
+                    path: path.to_path_buf(),
+                    score,
+                    display_name: relative,
+                });
+            }
+        }
+
+        results.sort_by(|a, b| b.score.cmp(&a.score));
+        results.into_iter().take(max_results).collect()
+    }
+
+    fn is_excluded(&self, path: &Path) -> bool {
+        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+            if name == GIT_DIR {
+                return true;
+            }
+            if name.starts_with('.') {
+                return true;
+            }
+        }
+
+        if let Ok(relative) = path.strip_prefix(&self.base_dir) {
+            for component in relative.components() {
+                if let Some(name) = component.as_os_str().to_str() {
+                    if name == GIT_DIR {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        false
+    }
+
     pub fn resolve(&self, path: &str) -> FileRefResult {
-        let file_path = Path::new(path);
+        let file_path = if Path::new(path).is_absolute() {
+            PathBuf::from(path)
+        } else {
+            self.base_dir.join(path)
+        };
 
         if !file_path.exists() {
             return FileRefResult {
@@ -50,7 +134,22 @@ impl FileRefHandler {
             };
         }
 
-        let metadata = match fs::metadata(file_path) {
+        if let Ok(canonical) = std::fs::canonicalize(&file_path) {
+            let base_canonical =
+                std::fs::canonicalize(&self.base_dir).unwrap_or_else(|_| self.base_dir.clone());
+            if !canonical.starts_with(&base_canonical) {
+                return FileRefResult {
+                    path: path.to_string(),
+                    content: String::new(),
+                    is_binary: false,
+                    truncated: false,
+                    size: 0,
+                    error: Some("File is outside project directory".to_string()),
+                };
+            }
+        }
+
+        let metadata = match fs::metadata(&file_path) {
             Ok(m) => m,
             Err(e) => {
                 return FileRefResult {
@@ -91,7 +190,7 @@ impl FileRefHandler {
             };
         }
 
-        let is_binary = self.detect_binary(file_path);
+        let is_binary = self.detect_binary(&file_path);
 
         if is_binary {
             return FileRefResult {
@@ -104,7 +203,7 @@ impl FileRefHandler {
             };
         }
 
-        let content = match fs::read_to_string(file_path) {
+        let content = match fs::read_to_string(&file_path) {
             Ok(c) => c,
             Err(e) => {
                 return FileRefResult {
@@ -180,6 +279,36 @@ impl FileRefHandler {
 
         output
     }
+
+    pub fn get_preview(&self, path: &str, max_lines: usize) -> Option<Vec<String>> {
+        let result = self.resolve(path);
+        if result.error.is_some() {
+            return None;
+        }
+        if result.is_binary {
+            return None;
+        }
+
+        let lines: Vec<String> = result
+            .content
+            .lines()
+            .take(max_lines)
+            .map(String::from)
+            .collect();
+        if lines.is_empty() {
+            None
+        } else {
+            Some(lines)
+        }
+    }
+
+    pub fn is_small_file(&self, path: &str, max_lines: usize) -> bool {
+        let result = self.resolve(path);
+        if result.error.is_some() {
+            return false;
+        }
+        result.content.lines().count() <= max_lines && !result.is_binary
+    }
 }
 
 impl Default for FileRefHandler {
@@ -205,7 +334,8 @@ mod tests {
         let file_path = temp_dir.path().join("test.txt");
         fs::write(&file_path, "Hello World").unwrap();
 
-        let result = handler().resolve(file_path.to_str().unwrap());
+        let handler = FileRefHandler::new().with_base_dir(temp_dir.path().to_path_buf());
+        let result = handler.resolve("test.txt");
         assert!(result.error.is_none());
         assert_eq!(result.content, "Hello World");
     }
@@ -233,8 +363,10 @@ mod tests {
         let file_path = temp_dir.path().join("test.txt");
         fs::write(&file_path, "x".repeat(2000)).unwrap();
 
-        let handler = FileRefHandler::new().with_max_content_size(100);
-        let result = handler.resolve(file_path.to_str().unwrap());
+        let handler = FileRefHandler::new()
+            .with_base_dir(temp_dir.path().to_path_buf())
+            .with_max_content_size(100);
+        let result = handler.resolve("test.txt");
         assert!(result.truncated);
     }
 
@@ -252,5 +384,33 @@ mod tests {
         let output = handler().format_for_context(&result);
         assert!(output.contains("File: @test.rs"));
         assert!(output.contains("fn main() {}"));
+    }
+
+    #[test]
+    fn test_fuzzy_search_excludes_git() {
+        let temp_dir = TempDir::new().unwrap();
+        let git_dir = temp_dir.path().join(".git");
+        fs::create_dir(&git_dir).unwrap();
+        fs::write(temp_dir.path().join("main.rs"), "fn main() {}").unwrap();
+
+        let handler = FileRefHandler::new().with_base_dir(temp_dir.path().to_path_buf());
+        let results = handler.fuzzy_search_files("main", 10);
+
+        assert!(results.iter().all(|r| !r.display_name.contains(".git")));
+        assert!(results.iter().any(|r| r.display_name == "main.rs"));
+    }
+
+    #[test]
+    fn test_fuzzy_search_scores() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::write(temp_dir.path().join("config.json"), "{}").unwrap();
+        fs::write(temp_dir.path().join("config.yaml"), "").unwrap();
+        fs::write(temp_dir.path().join("readme.md"), "").unwrap();
+
+        let handler = FileRefHandler::new().with_base_dir(temp_dir.path().to_path_buf());
+        let results = handler.fuzzy_search_files("config", 10);
+
+        assert!(results.len() >= 2);
+        assert!(results[0].display_name.starts_with("config"));
     }
 }

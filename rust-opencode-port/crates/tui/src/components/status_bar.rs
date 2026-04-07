@@ -156,6 +156,7 @@ pub struct StatusBar {
     pub total_cost_usd: f64,
     pub budget_limit_usd: Option<f64>,
     pub active_popover: Option<StatusPopoverType>,
+    pub git_branch: Option<String>,
     theme: Theme,
 }
 
@@ -175,8 +176,19 @@ impl StatusBar {
             total_cost_usd: 0.0,
             budget_limit_usd: None,
             active_popover: None,
+            git_branch: Self::detect_git_branch(),
             theme,
         }
+    }
+
+    fn detect_git_branch() -> Option<String> {
+        std::process::Command::new("git")
+            .args(["branch", "--show-current"])
+            .output()
+            .ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
     }
 
     pub fn update_usage(
@@ -233,15 +245,21 @@ impl StatusBar {
             })
             .unwrap_or_default();
 
+        let branch_text = self
+            .git_branch
+            .as_ref()
+            .map(|b| format!("  {} ", b))
+            .unwrap_or_default();
+
         let status_text = if budget_warn.is_empty() {
             format!(
-                " {}  {} | {} | {} ",
-                connection_indicator, token_text, cost_text, context_text
+                " {}  {} | {} | {} |{} ",
+                connection_indicator, token_text, cost_text, context_text, branch_text
             )
         } else {
             format!(
-                " {}  {} | {} | {} | ⚠ {} ",
-                connection_indicator, token_text, cost_text, context_text, budget_warn
+                " {}  {} | {} | {} | ⚠ {} |{} ",
+                connection_indicator, token_text, cost_text, context_text, budget_warn, branch_text
             )
         };
 

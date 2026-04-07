@@ -258,6 +258,7 @@ pub enum AppMode {
     FileSelection,
     DirectorySelection,
     ReleaseNotes,
+    Search,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -408,6 +409,9 @@ pub struct App {
     pub pending_input_tokens: usize,
     pub total_cost_usd: f64,
     pub budget_limit_usd: Option<f64>,
+    pub username: Option<String>,
+    pub thinking_mode: bool,
+    pub model_aliases: std::collections::HashMap<String, String>,
     skill_resolver: SkillResolver,
     input_parser: InputParser,
     input_box: InputBox,
@@ -532,6 +536,15 @@ impl App {
             pending_input_tokens: 0,
             total_cost_usd: 0.0,
             budget_limit_usd,
+            username: std::env::var("OPENCODE_USERNAME").ok(),
+            thinking_mode: false,
+            model_aliases: {
+                let mut m = std::collections::HashMap::new();
+                m.insert("opus".to_string(), "claude-3-opus-20240229".to_string());
+                m.insert("sonnet".to_string(), "claude-3-5-sonnet-20241022".to_string());
+                m.insert("haiku".to_string(), "claude-3-5-haiku-20241022".to_string());
+                m
+            },
             skill_resolver,
             input_parser: InputParser::new(),
             input_box,
@@ -911,6 +924,22 @@ impl App {
         self.partial_response.push_str(&chunk);
     }
 
+    fn redact_api_keys(content: &str) -> String {
+        let mut result = content.to_string();
+        let patterns: &[(&str, &str)] = &[
+            (r"sk-[a-zA-Z0-9]{20,}", "[REDACTED_API_KEY]"),
+            (r"key_[a-zA-Z0-9]{20,}", "[REDACTED_API_KEY]"),
+            (r"token_[a-zA-Z0-9]{20,}", "[REDACTED_TOKEN]"),
+            (r"bearer [a-zA-Z0-9._-]+", "bearer [REDACTED]"),
+        ];
+        for (pattern, replacement) in patterns {
+            if let Ok(re) = regex::Regex::new(pattern) {
+                result = re.replace_all(&result, *replacement).to_string();
+            }
+        }
+        result
+    }
+
     pub fn handle_file_drop(&mut self, paths: Vec<std::path::PathBuf>) {
         self.dropped_files.clear();
         for path in paths {
@@ -993,6 +1022,7 @@ impl App {
                     self.handle_directory_selection_dialog(&mut terminal)?
                 }
                 AppMode::ReleaseNotes => self.handle_release_notes_dialog(&mut terminal)?,
+                AppMode::Search => self.handle_search_dialog(&mut terminal)?,
             }
         }
     }
@@ -1312,25 +1342,214 @@ impl App {
                     .messages
                     .iter()
                     .map(|m| {
-                        if m.is_user {
-                            format!("User\n\n{}\n\n---\n", m.content)
+                        let role_name = if m.is_user {
+                            self.username.as_deref().unwrap_or("User")
                         } else {
-                            format!("Assistant\n\n{}\n\n---\n", m.content)
-                        }
+                            "Assistant"
+                        };
+                        let redacted_content = Self::redact_api_keys(&m.content);
+                        format!("{}\n\n{}\n\n---\n", role_name, redacted_content)
                     })
                     .collect();
                 match fs::write(&export_path, &content) {
                     Ok(_) => {
+                        #[cfg(target_os = "macos")]
+                        let _ = std::process::Command::new("open").arg(&export_path).spawn();
+                        #[cfg(target_os = "linux")]
+                        let _ = std::process::Command::new("xdg-open").arg(&export_path).spawn();
+                        #[cfg(target_os = "windows")]
+                        let _ = std::process::Command::new("start").arg(&export_path).spawn();
                         self.add_message(format!("Exported to: {}", export_path.display()), false)
                     }
                     Err(e) => self.add_message(format!("Export failed: {}", e), false),
                 }
             }
             "/undo" => {
+                let is_git_repo = std::process::Command::new("git")
+                    .arg("rev-parse")
+                    .arg("--is-inside-work-tree")
+                    .output()
+                    .map(|o| o.status.success())
+                    .unwrap_or(false);
+
+                if !is_git_repo {
+                    self.add_message(
+                        "Undo requires git. This is not a git repository.".to_string(),
+                        false,
+                    );
+                } else {
+                    let stash_result = std::process::Command::new("git")
+                        .arg("stash")
+                        .arg("push")
+                        .arg("-m")
+                        .arg("opencode-undo")
+                        .output();
+
+                    match stash_result {
+                        Ok(o) if o.status.success() => {
+                            if let Some(last_user_idx) = self.messages.iter().rposition(|m| m.is_user) {
+                                self.messages.truncate(last_user_idx);
+                            }
+                            self.tool_calls.clear();
+                            self.add_message(
+                                "Undo: Last changes stashed. Use /redo to restore.".to_string(),
+                                false,
+                            );
+                        }
+                        Ok(o) => {
+                            let stderr = String::from_utf8_lossy(&o.stderr);
+                            self.add_message(format!("Undo failed: {}", stderr), false);
+                        }
+                        Err(e) => {
+                            self.add_message(format!("Undo failed: {}", e), false);
+                        }
+                    }
+                }
+            }
+            "/redo" => {
+                let is_git_repo = std::process::Command::new("git")
+                    .arg("rev-parse")
+                    .arg("--is-inside-work-tree")
+                    .output()
+                    .map(|o| o.status.success())
+                    .unwrap_or(false);
+
+                if !is_git_repo {
+                    self.add_message(
+                        "Redo requires git. This is not a git repository.".to_string(),
+                        false,
+                    );
+                } else {
+                    let stash_result = std::process::Command::new("git")
+                        .arg("stash")
+                        .arg("pop")
+                        .output();
+
+                    match stash_result {
+                        Ok(o) if o.status.success() => {
+                            self.add_message("Redo: Changes restored.".to_string(), false);
+                        }
+                        _ => {
+                            self.add_message("Nothing to redo.".to_string(), false);
+                        }
+                    }
+                }
+            }
+            "/search" => {
+                self.mode = AppMode::Search;
+                self.command_palette_input.clear();
+            }
+            "/diff" => {
+                let is_git_repo = std::process::Command::new("git")
+                    .arg("rev-parse")
+                    .arg("--is-inside-work-tree")
+                    .output()
+                    .map(|o| o.status.success())
+                    .unwrap_or(false);
+
+                if !is_git_repo {
+                    self.add_message("Not a git repository.".to_string(), false);
+                } else {
+                    match std::process::Command::new("git").arg("diff").output() {
+                        Ok(o) => {
+                            let diff = String::from_utf8_lossy(&o.stdout);
+                            if diff.is_empty() {
+                                self.add_message("No changes to show.".to_string(), false);
+                            } else {
+                                self.add_message(
+                                    format!("Git diff:\n{}", diff.chars().take(2000).collect::<String>()),
+                                    false,
+                                );
+                            }
+                        }
+                        Err(e) => {
+                            self.add_message(format!("Git diff failed: {}", e), false);
+                        }
+                    }
+                }
+            }
+            "/memory" => {
                 self.add_message(
-                    "Undo: Reverting last file changes (feature pending)".to_string(),
+                    "Memory system: No entries stored (feature pending)".to_string(),
                     false,
                 );
+            }
+            "/plugins" => {
+                let skills = self.skill_resolver.list_skills().unwrap_or_default();
+                if skills.is_empty() {
+                    self.add_message("No plugins installed.".to_string(), false);
+                } else {
+                    let msg = skills
+                        .iter()
+                        .map(|(s, state)| format!("{} ({:?})", s.name, state))
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    self.add_message(format!("Installed plugins:\n{}", msg), false);
+                }
+            }
+            "/share" => {
+                use std::env;
+                use std::fs;
+                let share_path = env::temp_dir().join(format!(
+                    "opencode_share_{}.md",
+                    chrono::Utc::now().timestamp()
+                ));
+                let mut content = String::from("# OpenCode Session\n\n");
+                for m in &self.messages {
+                    let role_name = if m.is_user {
+                        self.username.as_deref().unwrap_or("User")
+                    } else {
+                        "Assistant"
+                    };
+                    let redacted = Self::redact_api_keys(&m.content);
+                    content.push_str(&format!("## {}\n\n{}\n\n", role_name, redacted));
+                }
+                match fs::write(&share_path, &content) {
+                    Ok(_) => {
+                        self.add_message(
+                            format!("Session shared: {}\nContent has been sanitized.", share_path.display()),
+                            false,
+                        );
+                    }
+                    Err(e) => self.add_message(format!("Share failed: {}", e), false),
+                }
+            }
+            "/username" => {
+                self.add_message(
+                    "Usage: /username <name> - Set your display name".to_string(),
+                    false,
+                );
+            }
+            "/thinking" => {
+                self.thinking_mode = !self.thinking_mode;
+                let msg = if self.thinking_mode {
+                    "Thinking mode: ON (extended reasoning enabled)"
+                } else {
+                    "Thinking mode: OFF"
+                };
+                self.add_message(msg.to_string(), false);
+            }
+            "/status" => {
+                let model = std::env::var("OPENCODE_MODEL")
+                    .or_else(|_| std::env::var("OPENAI_MODEL"))
+                    .unwrap_or_else(|_| "unknown".to_string());
+                let total_tokens = self.token_counter.get_total_tokens();
+                let msg = format!(
+                    "Session Status:\n\
+                    Model: {}\n\
+                    Total tokens: {}\n\
+                    Total cost: ${:.4}\n\
+                    Messages: {}\n\
+                    Tool calls: {}\n\
+                    Thinking mode: {}",
+                    model,
+                    total_tokens,
+                    self.total_cost_usd,
+                    self.messages.len(),
+                    self.tool_calls.len(),
+                    if self.thinking_mode { "ON" } else { "OFF" }
+                );
+                self.add_message(msg, false);
             }
             "/details" => {
                 self.toggle_all_tool_details();
@@ -2012,6 +2231,10 @@ impl App {
                 self.draw_chat(f);
                 self.release_notes_dialog.draw(f, f.area());
             }
+            AppMode::Search => {
+                self.draw_chat(f);
+                self.draw_search_dialog(f);
+            }
         }
     }
 
@@ -2146,6 +2369,91 @@ impl App {
 
         let content = Paragraph::new(session_lines);
         f.render_widget(content, inner_area);
+    }
+
+    fn draw_search_dialog(&self, f: &mut Frame) {
+        let area = f.area();
+        let theme = self.theme_manager.current().clone();
+        let dialog_width = 60.min(area.width.saturating_sub(4));
+        let dialog_height = 15.min(area.height.saturating_sub(4));
+        let x = (area.width - dialog_width) / 2;
+        let y = (area.height - dialog_height) / 2;
+        let dialog_area = Rect::new(x, y, dialog_width, dialog_height);
+
+        f.render_widget(Clear, dialog_area);
+
+        let block = Block::default()
+            .title(format!("Search ({} matches)", {
+                let query = self.command_palette_input.to_lowercase();
+                if query.is_empty() {
+                    0
+                } else {
+                    self.messages.iter().filter(|m| m.content.to_lowercase().contains(&query)).count()
+                }
+            }))
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(theme.primary_color()));
+        f.render_widget(block.clone(), dialog_area);
+
+        let inner = block.inner(dialog_area);
+
+        let query = self.command_palette_input.to_lowercase();
+        let mut results: Vec<Line> = Vec::new();
+        
+        if !query.is_empty() {
+            for msg in self.messages.iter() {
+                if msg.content.to_lowercase().contains(&query) {
+                    let preview: String = msg.content.chars().take(inner.width.saturating_sub(6) as usize).collect();
+                    let role = if msg.is_user { "U" } else { "A" };
+                    results.push(Line::from(vec![
+                        Span::styled(
+                            format!("[{}] ", role),
+                            Style::default().fg(if msg.is_user { theme.primary_color() } else { theme.secondary_color() }),
+                        ),
+                        Span::raw(preview),
+                    ]));
+                    if results.len() >= inner.height.saturating_sub(1) as usize {
+                        break;
+                    }
+                }
+            }
+        }
+
+        if results.is_empty() {
+            results.push(Line::from(Span::styled(
+                if query.is_empty() { "Type to search..." } else { "No matches found" },
+                Style::default().fg(theme.muted_color()),
+            )));
+        }
+
+        let content = Paragraph::new(results);
+        f.render_widget(content, inner);
+    }
+
+    fn handle_search_dialog(
+        &mut self,
+        _terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    ) -> io::Result<()> {
+        if let Event::Key(key) = event::read()? {
+            if key.kind == KeyEventKind::Press {
+                match key.code {
+                    KeyCode::Esc => {
+                        self.mode = AppMode::Chat;
+                    }
+                    KeyCode::Enter => {
+                        self.mode = AppMode::Chat;
+                    }
+                    KeyCode::Char(c) => {
+                        self.command_palette_input.push(c);
+                    }
+                    KeyCode::Backspace => {
+                        self.command_palette_input.pop();
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Ok(())
     }
 
     fn handle_sessions_dialog(

@@ -77,6 +77,16 @@ impl InputBox {
                 self.cursor = self.cursor.saturating_sub(1);
                 InputBoxAction::None
             }
+            KeyCode::Enter => {
+                if key.modifiers.contains(KeyModifiers::SHIFT) {
+                    self.value.insert(self.cursor, '\n');
+                    self.cursor += 1;
+                    InputBoxAction::None
+                } else {
+                    let parsed = self.parser.parse(&self.value);
+                    InputBoxAction::Submit(parsed)
+                }
+            }
             KeyCode::Right => {
                 self.cursor = (self.cursor + 1).min(self.value.len());
                 InputBoxAction::None
@@ -84,10 +94,6 @@ impl InputBox {
             KeyCode::Tab => {
                 self.apply_completion();
                 InputBoxAction::None
-            }
-            KeyCode::Enter => {
-                let parsed = self.parser.parse(&self.value);
-                InputBoxAction::Submit(parsed)
             }
             _ => InputBoxAction::None,
         }

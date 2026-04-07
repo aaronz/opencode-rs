@@ -9,8 +9,11 @@ license.workspace = true
 opencode-core.workspace = true
 opencode-llm.workspace = true
 opencode-auth = { path = "../auth" }
-ratatui = { version = "0.28", default-features = false, features = ["crossterm"] }
+ratatui = { version = "0.30", default-features = false, features = ["crossterm"] }
 crossterm = { version = "0.28", features = ["event-stream"] }
+pulldown-cmark = "0.13"
+syntect = "5"
+clap = { version = "4", features = ["derive"] }
 tokio.workspace = true
 futures = "0.3"
 serde.workspace = true
@@ -21,6 +24,9 @@ ansi-to-tui = "8.0"
 dirs = "5"
 ignore = "0.4"
 fuzzy-matcher = "0.3"
+tokio-tungstenite = "0.26"
+tracing.workspace = true
+regex = "1"
 
 [dev-dependencies]
 tempfile.workspace = true

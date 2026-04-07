@@ -162,6 +162,29 @@ impl LayoutManager {
             responsive: true,
         })
     }
+
+    pub fn check_minimum_size(width: u16, height: u16) -> Result<(), String> {
+        const MIN_WIDTH: u16 = 80;
+        const MIN_HEIGHT: u16 = 24;
+
+        if width < MIN_WIDTH || height < MIN_HEIGHT {
+            Err(format!(
+                "Terminal too small: {}x{} (minimum: {}x{})\nPlease resize your terminal and try again.",
+                width, height, MIN_WIDTH, MIN_HEIGHT
+            ))
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn recommended_size_for(preset: LayoutPreset) -> (u16, u16) {
+        match preset {
+            LayoutPreset::Default => (120, 40),
+            LayoutPreset::Wide => (160, 50),
+            LayoutPreset::Narrow => (100, 35),
+            LayoutPreset::Focus => (100, 30),
+        }
+    }
 }
 
 impl Default for LayoutManager {
