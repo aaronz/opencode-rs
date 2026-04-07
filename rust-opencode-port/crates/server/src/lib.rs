@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::RwLock;
 use actix_web::dev::Service;
-use actix_web::{web, App, HttpServer, middleware as actix_middleware};
+use actix_web::{web, App, HttpServer, middleware as actix_middleware, HttpResponse, Responder};
 use futures::future::{Either, ready};
 use futures::FutureExt;
 use opencode_storage::StorageService;
@@ -10,6 +10,16 @@ use opencode_core::Config;
 use opencode_core::bus::SharedEventBus;
 use opencode_core::config::ServerConfig;
 use streaming::ReconnectionStore;
+
+#[cfg(test)]
+mod server_integration_tests;
+
+pub async fn health_check() -> impl Responder {
+    HttpResponse::Ok().json(serde_json::json!({
+        "status": "ok",
+        "version": env!("CARGO_PKG_VERSION")
+    }))
+}
 
 pub mod routes;
 pub mod middleware;
@@ -58,6 +68,7 @@ pub async fn run_server(state: Arc<ServerState>, host: &str, port: u16) -> std::
             .route("/", web::get().to(routes::web_ui::index))
             .route("/api/docs", web::get().to(routes::web_ui::api_docs))
             .route("/static/{filename:.*}", web::get().to(routes::web_ui::serve_static))
+            .route("/health", web::get().to(health_check))
             .service(
                 web::scope("/api")
                     .wrap_fn(|req, srv| {

@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use opencode_core::{OpenCodeError, session::Session};
+use opencode_permission::{check_tool_permission_default, ApprovalResult};
 use uuid::Uuid;
 use crate::tool::{Tool, ToolResult, ToolContext};
 
@@ -20,6 +21,11 @@ impl Tool for SessionLoadTool {
     }
 
     async fn execute(&self, args: serde_json::Value, _ctx: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+        let permission_check = check_tool_permission_default("session_load");
+        if permission_check != ApprovalResult::AutoApprove {
+            return Ok(ToolResult::err("Permission denied: session_load requires approval in current scope"));
+        }
+
         let session_id = args.get("session_id")
             .and_then(|v| v.as_str())
             .ok_or_else(|| OpenCodeError::Parse("session_id required".to_string()))?;
@@ -54,6 +60,11 @@ impl Tool for SessionSaveTool {
     }
 
     async fn execute(&self, args: serde_json::Value, _ctx: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+        let permission_check = check_tool_permission_default("session_save");
+        if permission_check != ApprovalResult::AutoApprove {
+            return Ok(ToolResult::err("Permission denied: session_save requires approval in current scope"));
+        }
+
         let session_id = args.get("session_id")
             .and_then(|v| v.as_str())
             .ok_or_else(|| OpenCodeError::Parse("session_id required".to_string()))?;

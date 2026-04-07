@@ -72,6 +72,7 @@ opencode-lsp = { path = "crates/lsp" }
 opencode-storage = { path = "crates/storage" }
 opencode-server = { path = "crates/server" }
 opencode-mcp = { path = "crates/mcp" }
+opencode-permission = { path = "crates/permission" }
 
 # Server dependencies
 actix-web = "4"

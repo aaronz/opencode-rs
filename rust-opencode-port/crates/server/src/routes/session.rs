@@ -49,6 +49,11 @@ pub struct ShareRequest {
     pub expires_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Deserialize)]
+pub struct PermissionReplyRequest {
+    pub decision: String,
+}
+
 fn parse_role(role: Option<String>) -> Role {
     match role
         .as_deref()
@@ -601,6 +606,61 @@ pub async fn remove_share_session(
     }
 }
 
+pub async fn abort_session(
+    state: web::Data<ServerState>,
+    id: web::Path<String>,
+) -> impl Responder {
+    let session_id = id.into_inner();
+    match state.storage.load_session(&session_id).await {
+        Ok(Some(mut session)) => {
+            session.state = opencode_core::session_state::SessionState::Aborted;
+            match state.storage.save_session(&session).await {
+                Ok(_) => HttpResponse::Ok().json(serde_json::json!({
+                    "session_id": session_id,
+                    "status": "aborted",
+                    "message_count": session.messages.len(),
+                })),
+                Err(e) => json_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "storage_error",
+                    e.to_string(),
+                ),
+            }
+        }
+        Ok(None) => json_error(
+            StatusCode::NOT_FOUND,
+            "session_not_found",
+            format!("Session not found: {}", session_id),
+        ),
+        Err(e) => json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "storage_error",
+            e.to_string(),
+        ),
+    }
+}
+
+pub async fn permission_reply(
+    _state: web::Data<ServerState>,
+    path: web::Path<(String, String)>,
+    body: web::Json<PermissionReplyRequest>,
+) -> impl Responder {
+    let (session_id, req_id) = path.into_inner();
+    let decision = body.decision.to_lowercase();
+    if decision != "allow" && decision != "deny" {
+        return HttpResponse::BadRequest().json(serde_json::json!({
+            "error": "decision must be 'allow' or 'deny'"
+        }));
+    }
+    tracing::info!("Permission reply: session={}, req={}, decision={}", session_id, req_id, decision);
+    HttpResponse::Ok().json(serde_json::json!({
+        "status": "ok",
+        "session_id": session_id,
+        "request_id": req_id,
+        "decision": decision
+    }))
+}
+
 pub async fn summarize_session(
     state: web::Data<ServerState>,
     id: web::Path<String>,
@@ -625,11 +685,7 @@ pub async fn summarize_session(
                     "created_at": created_at,
                 }))
             }
-            Err(e) => json_error(
-                StatusCode::BAD_REQUEST,
-                "summary_error",
-                e.to_string(),
-            ),
+            Err(e) => json_error(StatusCode::BAD_REQUEST, "summary_error", e.to_string()),
         },
         Ok(None) => json_error(
             StatusCode::NOT_FOUND,
@@ -650,6 +706,8 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.route("/{id}/fork", web::post().to(fork_session));
     cfg.route("/{id}/prompt", web::post().to(prompt_session));
     cfg.route("/{id}/command", web::post().to(run_command_in_session));
+    cfg.route("/{id}/abort", web::post().to(abort_session));
+    cfg.route("/{id}/permissions/{req_id}/reply", web::post().to(permission_reply));
     cfg.route("/{id}/messages", web::get().to(list_messages));
     cfg.route("/{id}/messages", web::post().to(add_message_to_session));
     cfg.route("/{id}/messages/{msg_index}", web::get().to(get_message));

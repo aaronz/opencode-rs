@@ -1077,11 +1077,17 @@ impl Config {
             {
                 Self::parse_json_content(&content)?
             } else {
-                toml::from_str(&content).map_err(|e| crate::OpenCodeError::Config(format!(
+                let config: Config = toml::from_str(&content).map_err(|e| crate::OpenCodeError::Config(format!(
                     "Failed to parse TOML config {}: {}. Check your config file for syntax errors (e.g., missing quotes, invalid arrays).",
                     path.display(),
                     e
-                )))?
+                )))?;
+                tracing::warn!(
+                    "TOML configuration format is deprecated and will be removed in a future release. \
+                    Run `opencode-rs config migrate` to migrate {} to JSONC format.",
+                    path.display()
+                );
+                config
             }
         };
 
@@ -2260,6 +2266,84 @@ impl Config {
         Ok(())
     }
 
+    pub fn migrate_toml_to_jsonc(
+        toml_path: &Path,
+        remove_original: bool,
+    ) -> Result<PathBuf, crate::OpenCodeError> {
+        if !toml_path.exists() {
+            return Err(crate::OpenCodeError::Config(format!(
+                "TOML config file not found: {}",
+                toml_path.display()
+            )));
+        }
+
+        let ext = toml_path.extension().and_then(|s| s.to_str()).unwrap_or("");
+        if ext != "toml" {
+            return Err(crate::OpenCodeError::Config(format!(
+                "Expected TOML file, got: {}",
+                toml_path.display()
+            )));
+        }
+
+        let content = std::fs::read_to_string(toml_path)
+            .map_err(|e| crate::OpenCodeError::Config(format!(
+                "Failed to read TOML config {}: {}",
+                toml_path.display(),
+                e
+            )))?;
+
+        let config: Config = toml::from_str(&content)
+            .map_err(|e| crate::OpenCodeError::Config(format!(
+                "Failed to parse TOML config {}: {}",
+                toml_path.display(),
+                e
+            )))?;
+
+        let mut jsonc_path = toml_path.with_extension("jsonc");
+        if jsonc_path.exists() {
+            jsonc_path = toml_path.with_file_name("config.jsonc");
+        }
+
+        let json_content = serde_json::to_string_pretty(&config)
+            .map_err(|e| crate::OpenCodeError::Config(format!(
+                "Failed to serialize config to JSON: {}",
+                e
+            )))?;
+
+        if let Some(parent) = jsonc_path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| crate::OpenCodeError::Config(format!(
+                    "Failed to create directory {}: {}",
+                    parent.display(),
+                    e
+                )))?;
+        }
+
+        std::fs::write(&jsonc_path, &json_content)
+            .map_err(|e| crate::OpenCodeError::Config(format!(
+                "Failed to write JSONC config {}: {}",
+                jsonc_path.display(),
+                e
+            )))?;
+
+        if remove_original {
+            std::fs::remove_file(toml_path)
+                .map_err(|e| crate::OpenCodeError::Config(format!(
+                    "Failed to remove original TOML file {}: {}",
+                    toml_path.display(),
+                    e
+                )))?;
+        }
+
+        tracing::info!(
+            "Migrated TOML config {} -> {}",
+            toml_path.display(),
+            jsonc_path.display()
+        );
+
+        Ok(jsonc_path)
+    }
+
     /// Save provider settings to config file
     pub fn save_provider_settings(
         &mut self,
@@ -3352,5 +3436,83 @@ mod tests {
             round_trip.custom.and_then(|m| m.get("my_action").cloned()),
             Some("ctrl+m".to_string())
         );
+    }
+
+    #[test]
+    fn test_migrate_toml_to_jsonc_converts_correctly() {
+        let temp_dir = unique_temp_dir("toml_migrate");
+        let toml_path = temp_dir.join("config.toml");
+        let toml_content = r#"
+model = "openai/gpt-4o"
+temperature = 0.7
+
+[provider.openai.options]
+api_key = "sk-test123"
+"#;
+        fs::write(&toml_path, toml_content).unwrap();
+
+        let jsonc_path = Config::migrate_toml_to_jsonc(&toml_path, false).unwrap();
+        assert!(jsonc_path.exists());
+        assert_eq!(jsonc_path.extension().unwrap(), "jsonc");
+
+        let migrated_content = fs::read_to_string(&jsonc_path).unwrap();
+        let migrated: serde_json::Value = serde_json::from_str(&migrated_content).unwrap();
+        assert_eq!(migrated["model"], "openai/gpt-4o");
+        assert_eq!(migrated["temperature"], 0.7);
+        assert_eq!(migrated["provider"]["openai"]["options"]["api_key"], "sk-test123");
+
+        assert!(toml_path.exists());
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn test_migrate_toml_to_jsonc_removes_original_when_requested() {
+        let temp_dir = unique_temp_dir("toml_migrate_remove");
+        let toml_path = temp_dir.join("config.toml");
+        let toml_content = r#"model = "test""#;
+        fs::write(&toml_path, toml_content).unwrap();
+
+        let jsonc_path = Config::migrate_toml_to_jsonc(&toml_path, true).unwrap();
+        assert!(jsonc_path.exists());
+        assert!(!toml_path.exists());
+
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn test_migrate_toml_to_jsonc_nonexistent_file() {
+        let temp_dir = unique_temp_dir("toml_migrate_missing");
+        let fake_path = temp_dir.join("nonexistent.toml");
+
+        let result = Config::migrate_toml_to_jsonc(&fake_path, false);
+        assert!(result.is_err());
+
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn test_migrate_toml_to_jsonc_rejects_non_toml_extension() {
+        let temp_dir = unique_temp_dir("toml_migrate_bad_ext");
+        let json_path = temp_dir.join("config.json");
+        fs::write(&json_path, "{}").unwrap();
+
+        let result = Config::migrate_toml_to_jsonc(&json_path, false);
+        assert!(result.is_err());
+
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn test_load_toml_config_succeeds_with_deprecation() {
+        let temp_dir = unique_temp_dir("toml_deprec_load");
+        let toml_path = temp_dir.join("config.toml");
+        let toml_content = r#"model = "openai/gpt-4o""#;
+        fs::write(&toml_path, toml_content).unwrap();
+
+        let config = Config::load(&toml_path);
+        assert!(config.is_ok());
+        assert_eq!(config.unwrap().model, Some("openai/gpt-4o".to_string()));
+
+        let _ = fs::remove_dir_all(temp_dir);
     }
 }

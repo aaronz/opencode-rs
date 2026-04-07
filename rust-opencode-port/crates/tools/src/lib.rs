@@ -31,6 +31,8 @@ pub mod plan_exit;
 pub mod plan;
 pub mod external_directory;
 pub mod truncation_dir;
+pub mod session_tools;
+pub mod session_tools_test;
 
 pub use schema_validation::{SchemaValidator, ToolSchema};
 pub use tool::{Tool, ToolResult, ToolContext};

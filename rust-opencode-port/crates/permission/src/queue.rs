@@ -62,6 +62,7 @@ fn is_read_tool(tool_name: &str) -> bool {
             | "codesearch"
             | "webfetch"
             | "session_info"
+            | "session_load"
             | "lsp_goto_definition"
             | "lsp_find_references"
             | "lsp_symbols"

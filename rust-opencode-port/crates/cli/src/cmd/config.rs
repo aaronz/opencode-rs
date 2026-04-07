@@ -18,6 +18,12 @@ pub struct ConfigArgs {
     #[arg(long)]
     pub set: Option<String>,
 
+    #[arg(long)]
+    pub migrate: bool,
+
+    #[arg(long)]
+    pub remove: bool,
+
     pub value: Option<String>,
 }
 
@@ -25,6 +31,25 @@ pub fn run(args: ConfigArgs) {
     if args.set.is_some() {
         eprintln!("Invalid setting key");
         std::process::exit(1);
+    }
+
+    if args.migrate {
+        let path = Config::config_path();
+        let toml_path = path.with_extension("toml");
+        if !toml_path.exists() {
+            eprintln!("No TOML config found at {}", toml_path.display());
+            std::process::exit(1);
+        }
+        match Config::migrate_toml_to_jsonc(&toml_path, args.remove) {
+            Ok(jsonc_path) => {
+                println!("Successfully migrated to {}", jsonc_path.display());
+            }
+            Err(e) => {
+                eprintln!("Migration failed: {}", e);
+                std::process::exit(1);
+            }
+        }
+        return;
     }
 
     let path = Config::config_path();
