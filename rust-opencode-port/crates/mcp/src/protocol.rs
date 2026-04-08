@@ -163,6 +163,19 @@ pub enum McpServerType {
     Remote,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum McpPermission {
+    Allow,
+    Ask,
+    Deny,
+}
+
+impl Default for McpPermission {
+    fn default() -> Self {
+        Self::Ask
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct McpServerConfig {
     pub name: String,
@@ -172,6 +185,7 @@ pub struct McpServerConfig {
     pub env: HashMap<String, String>,
     pub url: Option<String>,
     pub enabled: bool,
+    pub permission: McpPermission,
 }
 
 impl McpServerConfig {
@@ -184,6 +198,7 @@ impl McpServerConfig {
             env: HashMap::new(),
             url: None,
             enabled: true,
+            permission: McpPermission::Allow,
         }
     }
 
@@ -196,7 +211,13 @@ impl McpServerConfig {
             env: HashMap::new(),
             url: Some(url),
             enabled: true,
+            permission: McpPermission::Ask,
         }
+    }
+
+    pub fn with_permission(mut self, permission: McpPermission) -> Self {
+        self.permission = permission;
+        self
     }
 }
 

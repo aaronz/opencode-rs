@@ -1,12 +1,17 @@
-use aes_gcm::aead::{Aead, KeyInit};
+use aes_gcm::aead::{Aead, KeyInit, KeyUser};
 use aes_gcm::{Aes256Gcm, Nonce};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use opencode_core::OpenCodeError;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::PathBuf;
+
+const ARGON2_SALT_LEN: usize = 16;
+const ARGON2_KEY_LEN: usize = 32;
+const ARGON2_MEMORY_KB: u32 = 65536;
+const ARGON2_ITERATIONS: u32 = 3;
+const ARGON2_PARALLELISM: u32 = 4;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Credential {
@@ -20,11 +25,13 @@ pub struct Credential {
 struct EncryptedPayload {
     nonce: String,
     ciphertext: String,
+    salt: Option<String>,
 }
 
 pub struct CredentialStore {
     store_path: PathBuf,
     key_path: PathBuf,
+    password: Option<String>,
 }
 
 impl Default for CredentialStore {
@@ -46,6 +53,23 @@ impl CredentialStore {
         Self {
             store_path: base_dir.join("credentials.enc.json"),
             key_path: base_dir.join("credentials.key"),
+            password: None,
+        }
+    }
+    
+    pub fn with_password(password: String) -> Self {
+        let base_dir = std::env::var("OPENCODE_DATA_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| {
+                dirs::home_dir()
+                    .map(|h| h.join(".config/opencode-rs"))
+                    .unwrap_or_else(|| PathBuf::from(".opencode-rs"))
+            });
+
+        Self {
+            store_path: base_dir.join("credentials.enc.json"),
+            key_path: base_dir.join("credentials.key"),
+            password: Some(password),
         }
     }
 
@@ -53,6 +77,15 @@ impl CredentialStore {
         Self {
             store_path,
             key_path,
+            password: None,
+        }
+    }
+    
+    pub fn with_paths_and_password(store_path: PathBuf, key_path: PathBuf, password: String) -> Self {
+        Self {
+            store_path,
+            key_path,
+            password: Some(password),
         }
     }
 
@@ -73,6 +106,34 @@ impl CredentialStore {
         self.save_all(&all)
     }
 
+    fn derive_key(&self, salt: &[u8]) -> Result<[u8; ARGON2_KEY_LEN], OpenCodeError> {
+        let password = self.password.as_ref()
+            .ok_or_else(|| OpenCodeError::Storage("Password not set for key derivation".to_string()))?;
+        
+        let params = argon2::Params::new(
+            ARGON2_MEMORY_KB,
+            ARGON2_ITERATIONS,
+            ARGON2_PARALLELISM,
+            Some(ARGON2_KEY_LEN),
+            argon2::Version::Version13,
+            argon2::Algorithm::Argon2id,
+        ).map_err(|e| OpenCodeError::Storage(format!("Invalid Argon2 params: {}", e)))?;
+        
+        let argon2 = argon2::Argon2::new(argon2::Algorithm::Argon2id, argon2::Version::Version13, params);
+        
+        let mut key = [0u8; ARGON2_KEY_LEN];
+        argon2.hash_password_into(password.as_bytes(), salt, &mut key)
+            .map_err(|e| OpenCodeError::Storage(format!("Argon2 key derivation failed: {}", e)))?;
+        
+        Ok(key)
+    }
+
+    fn generate_key(&self) -> Result<[u8; ARGON2_KEY_LEN], OpenCodeError> {
+        let mut key = [0u8; ARGON2_KEY_LEN];
+        rand::rngs::OsRng.fill_bytes(&mut key);
+        Ok(key)
+    }
+
     fn save_all(&self, credentials: &HashMap<String, Credential>) -> Result<(), OpenCodeError> {
         if let Some(parent) = self.store_path.parent() {
             std::fs::create_dir_all(parent)?;
@@ -81,7 +142,26 @@ impl CredentialStore {
         let plaintext = serde_json::to_vec(credentials).map_err(|e| {
             OpenCodeError::Storage(format!("Failed to serialize credentials: {}", e))
         })?;
-        let key = self.get_or_create_key()?;
+        
+        let (key, salt) = if let Some(ref pwd) = self.password {
+            if self.store_path.exists() {
+                if let Ok(existing_salt) = self.load_salt() {
+                    let key = self.derive_key(&existing_salt)?;
+                    (key, Some(existing_salt))
+                } else {
+                    let salt = self.generate_salt()?;
+                    let key = self.derive_key(&salt)?;
+                    (key, Some(salt))
+                }
+            } else {
+                let salt = self.generate_salt()?;
+                let key = self.derive_key(&salt)?;
+                (key, Some(salt))
+            }
+        } else {
+            (self.get_or_create_key()?, None)
+        };
+        
         let cipher = Aes256Gcm::new_from_slice(&key)
             .map_err(|e| OpenCodeError::Storage(format!("Failed to initialize cipher: {}", e)))?;
 
@@ -96,6 +176,7 @@ impl CredentialStore {
         let payload = EncryptedPayload {
             nonce: BASE64.encode(nonce_bytes),
             ciphertext: BASE64.encode(ciphertext),
+            salt: salt.map(|s| BASE64.encode(s)),
         };
 
         let body = serde_json::to_vec_pretty(&payload)
@@ -124,7 +205,19 @@ impl CredentialStore {
             .decode(payload.ciphertext)
             .map_err(|e| OpenCodeError::Storage(format!("Failed to decode ciphertext: {}", e)))?;
 
-        let key = self.get_or_create_key()?;
+        let (key, salt) = if let Some(ref pwd) = self.password {
+            if let Some(salt_b64) = payload.salt {
+                let salt = BASE64.decode(&salt_b64)
+                    .map_err(|e| OpenCodeError::Storage(format!("Failed to decode salt: {}", e)))?;
+                let key = self.derive_key(&salt)?;
+                (key, Some(salt))
+            } else {
+                return Err(OpenCodeError::Storage("Salt not found for password-protected store".to_string()));
+            }
+        } else {
+            (self.get_or_create_key()?, None)
+        };
+        
         let cipher = Aes256Gcm::new_from_slice(&key)
             .map_err(|e| OpenCodeError::Storage(format!("Failed to initialize cipher: {}", e)))?;
         let nonce = Nonce::from_slice(&nonce_bytes);
@@ -154,15 +247,36 @@ impl CredentialStore {
         std::fs::write(&self.key_path, BASE64.encode(key))?;
         Ok(key)
     }
+    
+    fn generate_salt(&self) -> Result<[u8; ARGON2_SALT_LEN], OpenCodeError> {
+        let mut salt = [0u8; ARGON2_SALT_LEN];
+        rand::rngs::OsRng.fill_bytes(&mut salt);
+        Ok(salt)
+    }
+    
+    fn load_salt(&self) -> Result<[u8; ARGON2_SALT_LEN], OpenCodeError> {
+        let body = std::fs::read_to_string(&self.store_path)?;
+        let payload: EncryptedPayload = serde_json::from_str(&body)
+            .map_err(|e| OpenCodeError::Storage(format!("Failed to parse payload: {}", e)))?;
+        
+        if let Some(salt_b64) = payload.salt {
+            let salt = BASE64.decode(&salt_b64)
+                .map_err(|e| OpenCodeError::Storage(format!("Failed to decode salt: {}", e)))?;
+            if salt.len() != ARGON2_SALT_LEN {
+                return Err(OpenCodeError::Storage("Invalid salt length".to_string()));
+            }
+            let mut out = [0u8; ARGON2_SALT_LEN];
+            out.copy_from_slice(&salt);
+            Ok(out)
+        } else {
+            Err(OpenCodeError::Storage("Salt not found".to_string()))
+        }
+    }
 }
 
 fn decode_key(encoded: &str) -> Result<[u8; 32], OpenCodeError> {
     let bytes = BASE64
         .decode(encoded)
-        .or_else(|_| {
-            let digest = Sha256::digest(encoded.as_bytes());
-            Ok::<Vec<u8>, base64::DecodeError>(digest.to_vec())
-        })
         .map_err(|e| OpenCodeError::Storage(format!("Invalid credential key format: {}", e)))?;
 
     if bytes.len() < 32 {
@@ -244,5 +358,135 @@ mod tests {
         assert!(!raw.contains("sk-live-secret"));
         assert!(raw.contains("ciphertext"));
         assert!(raw.contains("nonce"));
+    }
+    
+    #[test]
+    fn stores_and_loads_credential_with_password() {
+        let tmp = tempfile::tempdir().unwrap();
+        let store = CredentialStore::with_paths_and_password(
+            tmp.path().join("credentials.enc.json"),
+            tmp.path().join("credentials.key"),
+            "my-secret-password".to_string(),
+        );
+
+        let credential = Credential {
+            api_key: "sk-password-test".to_string(),
+            base_url: Some("https://api.example.com".to_string()),
+            metadata: HashMap::from([("env".to_string(), "prod".to_string())]),
+        };
+
+        store.store("provider1", &credential).unwrap();
+        let loaded = store.load("provider1").unwrap();
+
+        assert_eq!(loaded, Some(credential));
+    }
+    
+    #[test]
+    fn password_stores_have_salt() {
+        let tmp = tempfile::tempdir().unwrap();
+        let store = CredentialStore::with_paths_and_password(
+            tmp.path().join("credentials.enc.json"),
+            tmp.path().join("credentials.key"),
+            "password123".to_string(),
+        );
+
+        store
+            .store(
+                "test",
+                &Credential {
+                    api_key: "sk-key".to_string(),
+                    base_url: None,
+                    metadata: HashMap::new(),
+                },
+            )
+            .unwrap();
+
+        let raw = std::fs::read_to_string(tmp.path().join("credentials.enc.json")).unwrap();
+        assert!(raw.contains("salt"));
+    }
+    
+    #[test]
+    fn password_must_be_correct_to_decrypt() {
+        let tmp = tempfile::tempdir().unwrap();
+        let store = CredentialStore::with_paths_and_password(
+            tmp.path().join("credentials.enc.json"),
+            tmp.path().join("credentials.key"),
+            "correct-password".to_string(),
+        );
+
+        store
+            .store(
+                "secret",
+                &Credential {
+                    api_key: "sk-super-secret".to_string(),
+                    base_url: None,
+                    metadata: HashMap::new(),
+                },
+            )
+            .unwrap();
+        
+        drop(store);
+
+        let wrong_password_store = CredentialStore::with_paths_and_password(
+            tmp.path().join("credentials.enc.json"),
+            tmp.path().join("credentials.key"),
+            "wrong-password".to_string(),
+        );
+        
+        let result = wrong_password_store.load("secret");
+        assert!(result.is_err());
+    }
+    
+    #[test]
+    fn non_password_store_has_no_salt() {
+        let tmp = tempfile::tempdir().unwrap();
+        let store = test_store(&tmp);
+
+        store
+            .store(
+                "test",
+                &Credential {
+                    api_key: "sk-key".to_string(),
+                    base_url: None,
+                    metadata: HashMap::new(),
+                },
+            )
+            .unwrap();
+
+        let raw = std::fs::read_to_string(tmp.path().join("credentials.enc.json")).unwrap();
+        assert!(raw.contains("null") || !raw.contains("salt"));
+    }
+    
+    #[test]
+    fn argon2_derives_consistent_key() {
+        let tmp = tempfile::tempdir().unwrap();
+        let password = "test-password-123";
+        
+        let store1 = CredentialStore::with_paths_and_password(
+            tmp.path().join("store1.json"),
+            tmp.path().join("key1"),
+            password.to_string(),
+        );
+        
+        let store2 = CredentialStore::with_paths_and_password(
+            tmp.path().join("store2.json"),
+            tmp.path().join("key2"),
+            password.to_string(),
+        );
+        
+        let credential = Credential {
+            api_key: "same-key".to_string(),
+            base_url: None,
+            metadata: HashMap::new(),
+        };
+        
+        store1.store("test", &credential).unwrap();
+        
+        std::fs::copy(tmp.path().join("store1.json"), tmp.path().join("store2.json")).unwrap();
+        
+        let loaded1 = store1.load("test").unwrap();
+        let loaded2 = store2.load("test").unwrap();
+        
+        assert_eq!(loaded1, loaded2);
     }
 }

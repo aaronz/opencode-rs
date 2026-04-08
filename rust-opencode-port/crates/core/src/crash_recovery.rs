@@ -5,6 +5,7 @@ use std::fs;
 use std::panic;
 use std::path::PathBuf;
 use std::sync::Mutex;
+use crate::session::Session;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CrashDump {
@@ -39,9 +40,43 @@ pub struct CrashRecovery {
 
 #[derive(Debug, Clone)]
 struct ActiveSession {
-    session_id: String,
-    messages_count: usize,
-    tool_invocations_count: usize,
+    session: Session,
+}
+
+impl ActiveSession {
+    fn capture_messages_summary(&self, max_messages: usize) -> Vec<MessageSummary> {
+        let messages_to_capture = self.session.messages.len().min(max_messages);
+        self.session.messages
+            .iter()
+            .rev()
+            .take(messages_to_capture)
+            .map(|msg| {
+                let preview = if msg.content.len() > 200 {
+                    format!("{}...", &msg.content[..200])
+                } else {
+                    msg.content.clone()
+                };
+                MessageSummary {
+                    role: format!("{:?}", msg.role),
+                    content_preview: preview,
+                    timestamp: msg.created_at,
+                }
+            })
+            .collect()
+    }
+    
+    fn capture_tool_invocations_summary(&self, max_invocations: usize) -> Vec<ToolInvocationSummary> {
+        self.session.tool_invocations
+            .iter()
+            .rev()
+            .take(max_invocations)
+            .map(|inv| ToolInvocationSummary {
+                tool_name: inv.tool_name.clone(),
+                started_at: inv.started_at,
+                completed_at: inv.completed_at,
+            })
+            .collect()
+    }
 }
 
 impl Default for CrashRecovery {
@@ -75,18 +110,14 @@ impl CrashRecovery {
         &self.dump_dir
     }
 
-    pub fn set_active_session(
-        &self,
-        session_id: String,
-        messages_count: usize,
-        tool_invocations_count: usize,
-    ) {
+    pub fn set_active_session(&self, session: Session) {
         let mut guard = self.active_session.lock().unwrap();
-        *guard = Some(ActiveSession {
-            session_id,
-            messages_count,
-            tool_invocations_count,
-        });
+        *guard = Some(ActiveSession { session });
+    }
+    
+    pub fn get_active_session(&self) -> Option<Session> {
+        let guard = self.active_session.lock().unwrap();
+        guard.as_ref().map(|a| a.session.clone())
     }
 
     pub fn clear_active_session(&self) {
@@ -100,15 +131,24 @@ impl CrashRecovery {
         stack_trace: Option<String>,
     ) -> Result<PathBuf, CrashRecoveryError> {
         let guard = self.active_session.lock().unwrap();
-        let session = guard.as_ref().ok_or(CrashRecoveryError::NoActiveSession)?;
+        let active = guard.as_ref().ok_or(CrashRecoveryError::NoActiveSession)?;
+
+        let messages_summary = active.capture_messages_summary(20);
+        let tool_invocations_summary = active.capture_tool_invocations_summary(50);
+        
+        let state = if active.session.state == crate::session::SessionState::Error {
+            "error".to_string()
+        } else {
+            format!("{:?}", active.session.state)
+        };
 
         let crash_dump = CrashDump {
             version: env!("CARGO_PKG_VERSION").to_string(),
             crashed_at: Utc::now(),
-            session_id: session.session_id.clone(),
-            messages_summary: Vec::new(),
-            tool_invocations_summary: Vec::new(),
-            state: "crashed".to_string(),
+            session_id: active.session.id.to_string(),
+            messages_summary,
+            tool_invocations_summary,
+            state,
             panic_message,
             stack_trace,
         };
@@ -164,6 +204,70 @@ impl CrashRecovery {
         let content = fs::read_to_string(path)?;
         serde_json::from_str(&content)
             .map_err(|e| CrashRecoveryError::DeserializationError(e.to_string()))
+    }
+    
+    pub fn recover_session(&self, path: &PathBuf) -> Result<Session, CrashRecoveryError> {
+        let dump = self.load_crash_dump(path)?;
+        
+        let messages: Vec<crate::session::Message> = dump.messages_summary
+            .iter()
+            .map(|summary| {
+                crate::session::Message {
+                    id: uuid::Uuid::new_v4(),
+                    role: match summary.role.as_str() {
+                        "User" => crate::message::Role::User,
+                        "Assistant" => crate::message::Role::Assistant,
+                        "System" => crate::message::Role::System,
+                        _ => crate::message::Role::User,
+                    },
+                    content: summary.content_preview.clone(),
+                    created_at: summary.timestamp,
+                }
+            })
+            .collect();
+        
+        let tool_invocations: Vec<crate::session::ToolInvocationRecord> = dump.tool_invocations_summary
+            .iter()
+            .map(|summary| {
+                crate::session::ToolInvocationRecord {
+                    id: uuid::Uuid::new_v4(),
+                    tool_name: summary.tool_name.clone(),
+                    arguments: serde_json::Value::Null,
+                    args_hash: String::new(),
+                    result: None,
+                    started_at: summary.started_at,
+                    completed_at: summary.completed_at,
+                    latency_ms: summary.completed_at.and_then(|end| {
+                        Some((end - summary.started_at).num_milliseconds() as u64)
+                    }),
+                }
+            })
+            .collect();
+        
+        let session_id = match uuid::Uuid::parse_str(&dump.session_id) {
+            Ok(id) => id,
+            Err(_) => uuid::Uuid::new_v4(),
+        };
+        
+        let mut session = Session::new();
+        session.id = session_id;
+        session.messages = messages;
+        session.updated_at = dump.crashed_at;
+        
+        for invocation in tool_invocations {
+            session.tool_invocations.push(invocation);
+        }
+        
+        Ok(session)
+    }
+    
+    pub fn recover_session_latest(&self, session_id: &str) -> Result<Option<Session>, CrashRecoveryError> {
+        let dumps = self.find_crash_dumps(session_id);
+        if let Some(latest) = dumps.first() {
+            Ok(Some(self.recover_session(latest)?))
+        } else {
+            Ok(None)
+        }
     }
 
     pub fn list_recent_crashes(&self, limit: usize) -> Vec<CrashDump> {
@@ -291,6 +395,23 @@ mod tests {
     fn create_test_recovery(tmp: &tempfile::TempDir) -> CrashRecovery {
         CrashRecovery::new().with_dump_dir(tmp.path().join("crashes"))
     }
+    
+    fn create_test_session() -> Session {
+        let mut session = Session::new();
+        session.add_message(crate::session::Message::user("Hello world"));
+        session.add_message(crate::session::Message::assistant("Hi there!"));
+        session.tool_invocations.push(crate::session::ToolInvocationRecord {
+            id: uuid::Uuid::new_v4(),
+            tool_name: "read".to_string(),
+            arguments: serde_json::json!({"path": "test.txt"}),
+            args_hash: "abc123".to_string(),
+            result: Some("file content".to_string()),
+            started_at: chrono::Utc::now(),
+            completed_at: Some(chrono::Utc::now()),
+            latency_ms: Some(100),
+        });
+        session
+    }
 
     #[test]
     fn test_crash_recovery_set_and_clear_session() {
@@ -299,7 +420,8 @@ mod tests {
 
         assert!(recovery.active_session.lock().unwrap().is_none());
 
-        recovery.set_active_session("session-1".to_string(), 10, 5);
+        let session = create_test_session();
+        recovery.set_active_session(session);
         assert!(recovery.active_session.lock().unwrap().is_some());
 
         recovery.clear_active_session();
@@ -324,7 +446,9 @@ mod tests {
         let tmp = tempdir().unwrap();
         let recovery = create_test_recovery(&tmp);
 
-        recovery.set_active_session("session-crash-test".to_string(), 15, 8);
+        let mut session = create_test_session();
+        session.id = uuid::Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
+        recovery.set_active_session(session);
 
         let path = recovery
             .save_crash_dump(
@@ -336,9 +460,30 @@ mod tests {
         assert!(path.exists());
 
         let loaded = recovery.load_crash_dump(&path).unwrap();
-        assert_eq!(loaded.session_id, "session-crash-test");
+        assert_eq!(loaded.session_id, "550e8400-e29b-41d4-a716-446655440000");
         assert!(loaded.panic_message.is_some());
         assert!(loaded.stack_trace.is_some());
+        assert!(!loaded.messages_summary.is_empty());
+        assert!(!loaded.tool_invocations_summary.is_empty());
+    }
+    
+    #[test]
+    fn test_save_crash_dump_captures_session_state() {
+        let tmp = tempdir().unwrap();
+        let recovery = create_test_recovery(&tmp);
+
+        let mut session = create_test_session();
+        session.add_message(crate::session::Message::user("Another message"));
+        recovery.set_active_session(session);
+
+        let path = recovery
+            .save_crash_dump(Some("panic".to_string()), None)
+            .unwrap();
+
+        let loaded = recovery.load_crash_dump(&path).unwrap();
+        assert!(!loaded.messages_summary.is_empty());
+        assert_eq!(loaded.tool_invocations_summary.len(), 1);
+        assert_eq!(loaded.tool_invocations_summary[0].tool_name, "read");
     }
 
     #[test]
@@ -346,16 +491,25 @@ mod tests {
         let tmp = tempdir().unwrap();
         let recovery = create_test_recovery(&tmp);
 
-        recovery.set_active_session("session-find".to_string(), 5, 2);
+        let mut session1 = create_test_session();
+        session1.id = uuid::Uuid::parse_str("11111111-1111-1111-1111-111111111111").unwrap();
+        recovery.set_active_session(session1);
         recovery
             .save_crash_dump(Some("panic 1".to_string()), None)
             .unwrap();
+            
+        let mut session2 = create_test_session();
+        session2.id = uuid::Uuid::parse_str("22222222-2222-2222-2222-222222222222").unwrap();
+        recovery.set_active_session(session2);
         recovery
             .save_crash_dump(Some("panic 2".to_string()), None)
             .unwrap();
 
-        let dumps = recovery.find_crash_dumps("session-find");
-        assert_eq!(dumps.len(), 2);
+        let dumps1 = recovery.find_crash_dumps("11111111-1111-1111-1111-111111111111");
+        assert_eq!(dumps1.len(), 1);
+        
+        let dumps2 = recovery.find_crash_dumps("22222222-2222-2222-2222-222222222222");
+        assert_eq!(dumps2.len(), 1);
     }
 
     #[test]
@@ -363,12 +517,16 @@ mod tests {
         let tmp = tempdir().unwrap();
         let recovery = create_test_recovery(&tmp);
 
-        recovery.set_active_session("session-a".to_string(), 1, 0);
+        let mut session1 = create_test_session();
+        session1.id = uuid::Uuid::parse_str("aaaaaaa1-1111-1111-1111-111111111111").unwrap();
+        recovery.set_active_session(session1);
         recovery
             .save_crash_dump(Some("panic A".to_string()), None)
             .unwrap();
 
-        recovery.set_active_session("session-b".to_string(), 1, 0);
+        let mut session2 = create_test_session();
+        session2.id = uuid::Uuid::parse_str("aaaaaaa2-2222-2222-2222-222222222222").unwrap();
+        recovery.set_active_session(session2);
         recovery
             .save_crash_dump(Some("panic B".to_string()), None)
             .unwrap();
@@ -382,7 +540,9 @@ mod tests {
         let tmp = tempdir().unwrap();
         let recovery = create_test_recovery(&tmp);
 
-        recovery.set_active_session("session-del".to_string(), 3, 1);
+        let mut session = create_test_session();
+        session.id = uuid::Uuid::parse_str("dddddddd-dddd-dddd-dddd-dddddddddd01").unwrap();
+        recovery.set_active_session(session);
         let path = recovery
             .save_crash_dump(Some("panic".to_string()), None)
             .unwrap();
@@ -397,17 +557,24 @@ mod tests {
         let tmp = tempdir().unwrap();
         let recovery = create_test_recovery(&tmp);
 
-        recovery.set_active_session("session-cleanup".to_string(), 5, 2);
+        let mut session1 = create_test_session();
+        session1.id = uuid::Uuid::parse_str("ccccccc1-cccc-cccc-cccc-cccccccc01").unwrap();
+        recovery.set_active_session(session1);
         recovery
             .save_crash_dump(Some("panic 1".to_string()), None)
             .unwrap();
+            
+        let mut session2 = create_test_session();
+        session2.id = uuid::Uuid::parse_str("ccccccc2-cccc-cccc-cccc-cccccccc02").unwrap();
+        recovery.set_active_session(session2);
         recovery
             .save_crash_dump(Some("panic 2".to_string()), None)
             .unwrap();
 
-        let count = recovery.cleanup_session_crashes("session-cleanup").unwrap();
-        assert_eq!(count, 2);
-        assert!(recovery.find_crash_dumps("session-cleanup").is_empty());
+        let count = recovery.cleanup_session_crashes("ccccccc1-cccc-cccc-cccc-cccccccc01").unwrap();
+        assert_eq!(count, 1);
+        assert!(recovery.find_crash_dumps("ccccccc1-cccc-cccc-cccc-cccccccc01").is_empty());
+        assert_eq!(recovery.find_crash_dumps("ccccccc2-cccc-cccc-cccc-cccccccc02").len(), 1);
     }
 
     #[test]
@@ -417,12 +584,72 @@ mod tests {
 
         assert!(!recovery.has_recoverable_crash("session-none"));
 
-        recovery.set_active_session("session-yes".to_string(), 5, 2);
+        let mut session = create_test_session();
+        session.id = uuid::Uuid::parse_str("rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr").unwrap();
+        recovery.set_active_session(session);
         recovery
             .save_crash_dump(Some("panic".to_string()), None)
             .unwrap();
 
-        assert!(recovery.has_recoverable_crash("session-yes"));
+        assert!(recovery.has_recoverable_crash("rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr"));
+    }
+    
+    #[test]
+    fn test_recover_session() {
+        let tmp = tempdir().unwrap();
+        let recovery = create_test_recovery(&tmp);
+
+        let mut session = create_test_session();
+        session.add_message(crate::session::Message::user("Recover test"));
+        session.id = uuid::Uuid::parse_str("recover-0000-0000-0000-000000000000").unwrap();
+        recovery.set_active_session(session);
+        
+        let path = recovery
+            .save_crash_dump(Some("panic".to_string()), None)
+            .unwrap();
+        
+        let recovered = recovery.recover_session(&path).unwrap();
+        assert_eq!(recovered.messages.len(), 3);
+        assert!(!recovered.tool_invocations.is_empty());
+    }
+    
+    #[test]
+    fn test_recover_session_latest() {
+        let tmp = tempdir().unwrap();
+        let recovery = create_test_recovery(&tmp);
+
+        let mut session1 = create_test_session();
+        session1.id = uuid::Uuid::parse_str("latest-0001-0001-0001-000000000001").unwrap();
+        recovery.set_active_session(session1);
+        recovery
+            .save_crash_dump(Some("panic 1".to_string()), None)
+            .unwrap();
+            
+        let mut session2 = create_test_session();
+        session2.id = uuid::Uuid::parse_str("latest-0002-0002-0002-000000000002").unwrap();
+        recovery.set_active_session(session2);
+        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+        recovery
+            .save_crash_dump(Some("panic 2".to_string()), None)
+            .unwrap();
+
+        let recovered = recovery.recover_session_latest("latest-0002-0002-0002-000000000002").unwrap();
+        assert!(recovered.is_some());
+        assert_eq!(recovered.unwrap().messages.len(), 2);
+    }
+    
+    #[test]
+    fn test_get_active_session() {
+        let tmp = tempdir().unwrap();
+        let recovery = create_test_recovery(&tmp);
+
+        assert!(recovery.get_active_session().is_none());
+
+        let session = create_test_session();
+        recovery.set_active_session(session.clone());
+
+        let active = recovery.get_active_session().unwrap();
+        assert_eq!(active.messages.len(), 2);
     }
 
     #[test]

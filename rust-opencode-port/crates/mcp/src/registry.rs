@@ -10,12 +10,26 @@ use opencode_core::ToolRegistry;
 use crate::client::{ConnectionState, McpClient, McpError, McpResource, McpTool, McpTransport};
 use crate::tool_bridge::McpToolAdapter;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum McpPermission {
+    Allow,
+    Ask,
+    Deny,
+}
+
+impl Default for McpPermission {
+    fn default() -> Self {
+        Self::Ask
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct McpServerConfig {
     pub transport: McpTransport,
     pub timeout: Duration,
     pub auto_connect: bool,
     pub health_check_interval: Option<Duration>,
+    pub permission: McpPermission,
 }
 
 impl McpServerConfig {
@@ -25,7 +39,13 @@ impl McpServerConfig {
             timeout: Duration::from_secs(5),
             auto_connect: true,
             health_check_interval: None,
+            permission: McpPermission::default(),
         }
+    }
+
+    pub fn with_permission(mut self, permission: McpPermission) -> Self {
+        self.permission = permission;
+        self
     }
 }
 
@@ -87,8 +107,14 @@ impl McpRegistry {
                 continue;
             };
 
+            let requires_approval = self.servers
+                .get(server_name)
+                .map(|cfg| cfg.permission == McpPermission::Ask)
+                .unwrap_or(false);
+
             for tool in tools {
-                let adapter = McpToolAdapter::new(client.clone(), tool.clone());
+                let adapter = McpToolAdapter::new(client.clone(), tool.clone())
+                    .with_requires_approval(requires_approval);
                 adapter.register_into(tool_registry);
             }
         }
@@ -251,5 +277,93 @@ mod tests {
         registry.bridge_to_tool_registry(&mut tool_registry);
 
         assert!(tool_registry.contains("search_docs"));
+    }
+
+    #[tokio::test]
+    async fn test_remote_mcp_tools_require_approval_by_default() {
+        let mut registry = McpRegistry::new();
+        
+        registry.add_server(
+            "remote-server",
+            McpServerConfig::new(McpTransport::Sse("http://remote/sse".to_string()))
+                .with_permission(McpPermission::Ask),
+        );
+
+        let handler: Arc<dyn Fn(crate::protocol::JsonRpcRequest) -> Result<JsonRpcResponse, McpError> + Send + Sync> = Arc::new(|request| match request.method.as_str() {
+            "tools/list" => Ok(ok_response(serde_json::json!({
+                "tools": [{
+                    "name": "remote_tool",
+                    "description": "A tool from remote server",
+                    "inputSchema": {"type": "object"}
+                }]
+            }))),
+            "tools/call" => Ok(ok_response(serde_json::json!({
+                "content": [{"type": "text", "text": "result"}],
+                "isError": false
+            }))),
+            _ => Ok(ok_response(Value::Null)),
+        });
+
+        let client = Arc::new(McpClient::with_handler(
+            McpTransport::Sse("http://remote/sse".to_string()),
+            handler,
+        ));
+        client.connect().await.unwrap();
+
+        registry.clients.insert("remote-server".to_string(), client.clone());
+        registry.discovered_tools.insert(
+            "remote-server".to_string(),
+            client.list_tools().await.unwrap(),
+        );
+
+        let mut tool_registry = ToolRegistry::new();
+        registry.bridge_to_tool_registry(&mut tool_registry);
+
+        let def = tool_registry.get_definition("remote_tool").unwrap();
+        assert!(def.requires_approval, "Remote MCP tools should require approval by default");
+    }
+
+    #[tokio::test]
+    async fn test_local_mcp_tools_allow_by_default() {
+        let mut registry = McpRegistry::new();
+        
+        registry.add_server(
+            "local-server",
+            McpServerConfig::new(McpTransport::Stdio(crate::client::StdioProcess::new("cmd", vec![])))
+                .with_permission(McpPermission::Allow),
+        );
+
+        let handler: Arc<dyn Fn(crate::protocol::JsonRpcRequest) -> Result<JsonRpcResponse, McpError> + Send + Sync> = Arc::new(|request| match request.method.as_str() {
+            "tools/list" => Ok(ok_response(serde_json::json!({
+                "tools": [{
+                    "name": "local_tool",
+                    "description": "A tool from local server",
+                    "inputSchema": {"type": "object"}
+                }]
+            }))),
+            "tools/call" => Ok(ok_response(serde_json::json!({
+                "content": [{"type": "text", "text": "result"}],
+                "isError": false
+            }))),
+            _ => Ok(ok_response(Value::Null)),
+        });
+
+        let client = Arc::new(McpClient::with_handler(
+            McpTransport::Stdio(crate::client::StdioProcess::new("cmd", vec![])),
+            handler,
+        ));
+        client.connect().await.unwrap();
+
+        registry.clients.insert("local-server".to_string(), client.clone());
+        registry.discovered_tools.insert(
+            "local-server".to_string(),
+            client.list_tools().await.unwrap(),
+        );
+
+        let mut tool_registry = ToolRegistry::new();
+        registry.bridge_to_tool_registry(&mut tool_registry);
+
+        let def = tool_registry.get_definition("local_tool").unwrap();
+        assert!(!def.requires_approval, "Local MCP tools with Allow permission should not require approval");
     }
 }

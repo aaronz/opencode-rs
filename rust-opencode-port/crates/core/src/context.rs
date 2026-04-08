@@ -1,4 +1,4 @@
-use crate::compaction::{CompactionConfig, Compactor, TokenBudget};
+use crate::compaction::{CompactionConfig, Compactor, TokenBudget, COMPACTION_WARN_THRESHOLD, COMPACTION_START_THRESHOLD, COMPACTION_FORCE_THRESHOLD};
 use crate::message::{Message, Role};
 use crate::token_counter::TokenCounter;
 use crate::tool::ToolRegistry;
@@ -9,9 +9,6 @@ use std::path::PathBuf;
 use std::sync::OnceLock;
 
 const PRESERVE_LAST_MESSAGES: usize = 3;
-const CONTEXT_WARNING_THRESHOLD: f64 = 0.85;
-const CONTEXT_COMPACT_THRESHOLD: f64 = 0.92;
-const CONTEXT_FORCE_NEW_SESSION_THRESHOLD: f64 = 0.95;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ContextLayer {
@@ -122,11 +119,11 @@ impl ContextBudget {
     }
 
     pub fn usage_level(&self) -> ContextUsageLevel {
-        if self.usage_pct >= CONTEXT_FORCE_NEW_SESSION_THRESHOLD {
+        if self.usage_pct >= COMPACTION_FORCE_THRESHOLD as f64 {
             ContextUsageLevel::ForceNewSession(self.usage_pct)
-        } else if self.usage_pct >= CONTEXT_COMPACT_THRESHOLD {
+        } else if self.usage_pct >= COMPACTION_START_THRESHOLD as f64 {
             ContextUsageLevel::NeedsCompaction(self.usage_pct)
-        } else if self.usage_pct >= CONTEXT_WARNING_THRESHOLD {
+        } else if self.usage_pct >= COMPACTION_WARN_THRESHOLD as f64 {
             ContextUsageLevel::Warning(self.usage_pct)
         } else {
             ContextUsageLevel::Normal

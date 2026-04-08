@@ -50,6 +50,10 @@ argon2 = "0.5"
 jsonwebtoken = "9"
 bcrypt = "0.15"
 
+# Encryption dependencies
+aes-gcm = "0.10"
+rand = "0.8"
+
 # Test dependencies
 tempfile = "3"
 assert_cmd = "2"

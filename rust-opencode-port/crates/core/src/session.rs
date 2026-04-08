@@ -339,6 +339,14 @@ impl Session {
         Ok(md)
     }
 
+    pub fn sanitize_for_export(&self) -> Session {
+        let mut sanitized = self.clone();
+        for msg in &mut sanitized.messages {
+            msg.content = sanitize_content(&msg.content);
+        }
+        sanitized
+    }
+
     pub fn set_share_expiry(&mut self, expiry: Option<DateTime<Utc>>) {
         self.share_expires_at = expiry;
         self.updated_at = Utc::now();

@@ -58,7 +58,7 @@ pub use bus::EventBus;
 pub use checkpoint::{Checkpoint, CheckpointManager, CheckpointMetadata, create_checkpoint, restore_checkpoint};
 pub use cli::CliRegistry;
 pub use command::{Command, CommandRegistry};
-pub use compaction::TokenBudget;
+pub use compaction::{TokenBudget, COMPACTION_WARN_THRESHOLD, COMPACTION_START_THRESHOLD, COMPACTION_FORCE_THRESHOLD};
 /// Configuration for OpenCode RS application.
 /// Loaded from config.toml, environment variables, and command-line arguments.
 pub use config::Config;

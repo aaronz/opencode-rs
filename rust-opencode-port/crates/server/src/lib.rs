@@ -9,6 +9,7 @@ use opencode_llm::ModelRegistry;
 use opencode_core::Config;
 use opencode_core::bus::SharedEventBus;
 use opencode_core::config::ServerConfig;
+use routes::share::ShareServer;
 use streaming::{ReconnectionStore, conn_state::ConnectionMonitor};
 
 #[cfg(test)]
@@ -33,6 +34,7 @@ pub struct ServerState {
     pub event_bus: SharedEventBus,
     pub reconnection_store: ReconnectionStore,
     pub connection_monitor: Arc<ConnectionMonitor>,
+    pub share_server: Arc<RwLock<ShareServer>>,
 }
 
 pub async fn run_server(state: Arc<ServerState>, host: &str, port: u16) -> std::io::Result<()> {

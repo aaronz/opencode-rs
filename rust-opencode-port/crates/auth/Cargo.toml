@@ -23,6 +23,7 @@ sha2 = "0.10"
 dirs = "6"
 url = "2"
 tracing = { workspace = true }
+argon2 = "0.5"
 
 [dev-dependencies]
 tempfile = { workspace = true }

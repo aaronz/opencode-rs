@@ -341,4 +341,113 @@ mod tests {
             Err(PluginError::Shutdown(_, _))
         ));
     }
+    
+    #[test]
+    fn test_duplicate_plugin_registration_fails() {
+        let mut manager = PluginManager::new();
+        manager
+            .register(Box::new(TestPlugin {
+                initialized: false,
+                shutdown_called: false,
+                fail_init: false,
+                fail_shutdown: false,
+            }))
+            .unwrap();
+
+        let result = manager.register(Box::new(TestPlugin {
+            initialized: false,
+            shutdown_called: false,
+            fail_init: false,
+            fail_shutdown: false,
+        }));
+
+        assert!(matches!(result, Err(PluginError::DuplicatePlugin(_))));
+    }
+    
+    #[test]
+    fn test_get_config_returns_plugin_config() {
+        let mut manager = PluginManager::new();
+        manager
+            .register(Box::new(TestPlugin {
+                initialized: false,
+                shutdown_called: false,
+                fail_init: false,
+                fail_shutdown: false,
+            }))
+            .unwrap();
+
+        let config = manager.get_config("test-plugin");
+        assert!(config.is_some());
+        let config = config.unwrap();
+        assert_eq!(config.name, "test-plugin");
+        assert_eq!(config.version, "1.0.0");
+        assert!(config.enabled);
+    }
+    
+    #[test]
+    fn test_get_config_returns_none_for_unknown_plugin() {
+        let manager = PluginManager::new();
+        let config = manager.get_config("non-existent-plugin");
+        assert!(config.is_none());
+    }
+    
+    #[test]
+    fn test_init_all_and_shutdown_all() {
+        let mut manager = PluginManager::new();
+        manager
+            .register(Box::new(TestPlugin {
+                initialized: false,
+                shutdown_called: false,
+                fail_init: false,
+                fail_shutdown: false,
+            }))
+            .unwrap();
+
+        assert!(manager.init_all().is_ok());
+        assert!(manager.shutdown_all().is_ok());
+    }
+    
+    #[test]
+    fn test_plugin_capabilities_default() {
+        let perms = PluginPermissions::default();
+        assert!(perms.capabilities.is_empty());
+        assert!(perms.allowed_events.is_empty());
+        assert!(perms.filesystem_scope.is_none());
+        assert!(!perms.network_allowed);
+    }
+    
+    #[test]
+    fn test_plugin_capability_enum() {
+        let caps = vec![
+            PluginCapability::ListenEvents,
+            PluginCapability::RewritePrompt,
+            PluginCapability::InjectShellEnv,
+            PluginCapability::AddTools,
+            PluginCapability::AddContextSources,
+            PluginCapability::InterceptSensitiveRead,
+            PluginCapability::SendNotification,
+        ];
+        
+        assert_eq!(caps.len(), 7);
+    }
+    
+    #[test]
+    fn test_plugin_config_with_permissions() {
+        let config = PluginConfig {
+            name: "test".to_string(),
+            version: "2.0.0".to_string(),
+            enabled: true,
+            options: serde_json::json!({"key": "value"}).as_object().unwrap().clone().into_iter().collect(),
+            permissions: PluginPermissions {
+                capabilities: vec![PluginCapability::AddTools],
+                allowed_events: vec!["session.created".to_string()],
+                filesystem_scope: Some("/tmp".to_string()),
+                network_allowed: true,
+            },
+        };
+        
+        assert_eq!(config.name, "test");
+        assert_eq!(config.permissions.capabilities, vec![PluginCapability::AddTools]);
+        assert!(config.permissions.network_allowed);
+    }
 }

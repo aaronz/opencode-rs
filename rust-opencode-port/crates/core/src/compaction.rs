@@ -5,6 +5,10 @@ use tracing::warn;
 const DEFAULT_KEEP_RECENT_TOOL_OUTPUTS: usize = 3;
 const PRUNED_TOOL_OUTPUT_PLACEHOLDER: &str = "[content pruned to save tokens]";
 
+pub const COMPACTION_WARN_THRESHOLD: f32 = 0.85;
+pub const COMPACTION_START_THRESHOLD: f32 = 0.92;
+pub const COMPACTION_FORCE_THRESHOLD: f32 = 0.95;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompactionError {
     InvalidReserved(u32),
@@ -96,9 +100,9 @@ impl Default for TokenBudget {
             main_context_percent: 0.70,
             tool_output_percent: 0.20,
             response_space_percent: 0.10,
-            warning_threshold: 0.85,
-            compact_threshold: 0.92,
-            continuation_threshold: 0.95,
+            warning_threshold: COMPACTION_WARN_THRESHOLD as f64,
+            compact_threshold: COMPACTION_START_THRESHOLD as f64,
+            continuation_threshold: COMPACTION_FORCE_THRESHOLD as f64,
         }
     }
 }
@@ -694,5 +698,130 @@ mod tests {
             .map(|m| (m.content.len() + 3) / 4)
             .sum();
         assert!(estimated < before);
+    }
+
+    #[test]
+    fn test_compaction_performance_small_messages() {
+        let compactor = Compactor::new(CompactionConfig {
+            max_tokens: 100,
+            ..Default::default()
+        });
+        let messages: Vec<Message> = (0..100)
+            .map(|i| Message::user(format!("Message {} with some content", i)))
+            .collect();
+
+        let start = std::time::Instant::now();
+        let result = compactor.compact(messages);
+        let elapsed = start.elapsed();
+
+        assert!(result.was_compacted);
+        assert!(elapsed.as_millis() < 100, "compaction took {}ms, expected < 100ms", elapsed.as_millis());
+    }
+
+    #[test]
+    fn test_compaction_performance_large_messages() {
+        let compactor = Compactor::new(CompactionConfig {
+            max_tokens: 1000,
+            ..Default::default()
+        });
+        let messages: Vec<Message> = (0..500)
+            .map(|i| Message::user(format!("Message {} with content that is somewhat longer to simulate real messages {}", i, "x".repeat(100))))
+            .collect();
+
+        let start = std::time::Instant::now();
+        let result = compactor.compact(messages);
+        let elapsed = start.elapsed();
+
+        assert!(result.was_compacted);
+        assert!(elapsed.as_millis() < 500, "compaction took {}ms, expected < 500ms", elapsed.as_millis());
+    }
+
+    #[test]
+    fn test_compaction_iteration_performance() {
+        let compactor = Compactor::new(CompactionConfig {
+            max_tokens: 50,
+            preserve_system_messages: false,
+            preserve_recent_messages: 5,
+            ..Default::default()
+        });
+        let messages: Vec<Message> = (0..100)
+            .map(|i| Message::assistant(format!("Tool result {} with output: {}", i, "y".repeat(200))))
+            .collect();
+
+        let start = std::time::Instant::now();
+        let result = compactor.compact_to_fit(messages);
+        let elapsed = start.elapsed();
+
+        assert!(result.was_compacted);
+        assert!(elapsed.as_millis() < 200, "compact_to_fit took {}ms, expected < 200ms", elapsed.as_millis());
+    }
+
+    #[test]
+    fn test_compaction_no_compaction_under_limit() {
+        let compactor = Compactor::new(CompactionConfig {
+            max_tokens: 100_000,
+            ..Default::default()
+        });
+        let messages = vec![
+            Message::system("You are a helpful assistant"),
+            Message::user("Hello"),
+            Message::assistant("Hi there!"),
+        ];
+
+        let start = std::time::Instant::now();
+        let result = compactor.compact(messages);
+        let elapsed = start.elapsed();
+
+        assert!(!result.was_compacted);
+        assert!(elapsed.as_millis() < 10, "compaction should be instant for small messages, took {}ms", elapsed.as_millis());
+    }
+
+    #[test]
+    fn test_token_budget_usage_level_performance() {
+        let budget = TokenBudget::from_model("gpt-4o");
+        let start = std::time::Instant::now();
+        for used in (0..120_000).step_by(1000) {
+            let _ = budget.usage_level(used);
+        }
+        let elapsed = start.elapsed();
+
+        assert!(elapsed.as_millis() < 50, "usage_level should be fast, took {}ms for 120 calls", elapsed.as_millis());
+    }
+
+    #[test]
+    fn test_prune_tool_outputs_performance() {
+        let mut messages: Vec<Message> = (0..200)
+            .map(|i| Message::assistant(format!("Tool call {}\nstdout:\n{}", i, "x".repeat(100))))
+            .collect();
+
+        let start = std::time::Instant::now();
+        Compactor::prune_old_tool_outputs(&mut messages, 10);
+        let elapsed = start.elapsed();
+
+        assert!(elapsed.as_millis() < 100, "prune took {}ms, expected < 100ms", elapsed.as_millis());
+    }
+
+    #[test]
+    fn test_compaction_memory_efficiency() {
+        let compactor = Compactor::new(CompactionConfig {
+            max_tokens: 100,
+            preserve_system_messages: true,
+            preserve_recent_messages: 5,
+            ..Default::default()
+        });
+        let messages: Vec<Message> = (0..1000)
+            .map(|i| Message::user(format!("Message {} with content {}", i, "z".repeat(50))))
+            .collect();
+
+        let memory_before = estimate_memory(&messages);
+        let result = compactor.compact(messages);
+        let memory_after = estimate_memory(&result.messages);
+
+        assert!(memory_after < memory_before, "compacted messages should use less memory");
+        assert!(result.pruned_count > 0);
+    }
+
+    fn estimate_memory(messages: &[Message]) -> usize {
+        messages.iter().map(|m| std::mem::size_of::<Message>() + m.content.capacity()).sum()
     }
 }

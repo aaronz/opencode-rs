@@ -298,4 +298,142 @@ mod tests {
         let custom_cost = custom.calculate_cost("custom-model", 1000, 500);
         assert!((custom_cost - 0.02).abs() < f64::EPSILON);
     }
+
+    #[test]
+    fn tiktoken_calibration_single_tokens() {
+        let counter = TokenCounter::for_model("gpt-4o");
+        if counter.is_fallback() {
+            return;
+        }
+        assert_eq!(counter.count_tokens("a"), 1);
+        assert_eq!(counter.count_tokens("ab"), 1);
+        assert_eq!(counter.count_tokens("abc"), 1);
+        assert_eq!(counter.count_tokens("abcd"), 1);
+        assert_eq!(counter.count_tokens("abcde"), 2);
+    }
+
+    #[test]
+    fn tiktoken_calibration_common_tokens() {
+        let counter = TokenCounter::for_model("gpt-4o");
+        if counter.is_fallback() {
+            return;
+        }
+        assert_eq!(counter.count_tokens(" the "), 1);
+        assert_eq!(counter.count_tokens("ing"), 1);
+    }
+
+    #[test]
+    fn tiktoken_calibration_english_text() {
+        let counter = TokenCounter::for_model("gpt-4o");
+        if counter.is_fallback() {
+            return;
+        }
+        let text = "The quick brown fox jumps over the lazy dog.";
+        let tokens = counter.count_tokens(text);
+        assert!(tokens >= 9 && tokens <= 12, "expected 9-12 tokens, got {}", tokens);
+    }
+
+    #[test]
+    fn tiktoken_calibration_code_snippet() {
+        let counter = TokenCounter::for_model("gpt-4o");
+        if counter.is_fallback() {
+            return;
+        }
+        let code = "fn main() {\n    println!(\"Hello, world!\");\n}";
+        let tokens = counter.count_tokens(code);
+        assert!(tokens >= 15 && tokens <= 25, "expected 15-25 tokens, got {}", tokens);
+    }
+
+    #[test]
+    fn tiktoken_calibration_chinese_text() {
+        let counter = TokenCounter::for_model("gpt-4o");
+        if counter.is_fallback() {
+            return;
+        }
+        let text = "你好世界";
+        let tokens = counter.count_tokens(text);
+        assert!(tokens >= 4 && tokens <= 8, "expected 4-8 tokens for Chinese, got {}", tokens);
+    }
+
+    #[test]
+    fn tiktoken_calibration_special_characters() {
+        let counter = TokenCounter::for_model("gpt-4o");
+        if counter.is_fallback() {
+            return;
+        }
+        assert_eq!(counter.count_tokens(""), 0);
+        assert_eq!(counter.count_tokens("   "), 1);
+        assert_eq!(counter.count_tokens("\n\n"), 1);
+        assert_eq!(counter.count_tokens("🎉"), 1);
+    }
+
+    #[test]
+    fn tiktoken_calibration_longer_text() {
+        let counter = TokenCounter::for_model("gpt-4o");
+        if counter.is_fallback() {
+            return;
+        }
+        let text = "This is a longer piece of text that should contain multiple tokens when encoded with cl100k_base encoding. It includes multiple words and spaces and punctuation marks.";
+        let tokens = counter.count_tokens(text);
+        let fallback = TokenCounter::estimate_tokens_fallback(text);
+        let ratio = tokens as f64 / fallback as f64;
+        assert!(ratio > 0.5 && ratio < 2.0,
+            "tiktoken count {} seems unreasonable compared to fallback {} (ratio: {:.2})",
+            tokens, fallback, ratio);
+    }
+
+    #[test]
+    fn tiktoken_encoding_consistency() {
+        let counter1 = TokenCounter::for_model("gpt-4o");
+        let counter2 = TokenCounter::for_model("gpt-4o");
+        if counter1.is_fallback() || counter2.is_fallback() {
+            return;
+        }
+        let text = "Consistency test string for token counting";
+        assert_eq!(counter1.count_tokens(text), counter2.count_tokens(text));
+    }
+
+    #[test]
+    fn fallback_vs_tiktoken_accuracy() {
+        let counter = TokenCounter::for_model("gpt-4o");
+        if counter.is_fallback() {
+            return;
+        }
+        let test_cases = vec![
+            ("hello", 1..3),
+            ("hello world", 2..4),
+            ("The quick brown fox", 4..6),
+            ("function add(a, b) { return a + b; }", 8..20),
+        ];
+        for (text, expected_range) in test_cases {
+            let count = counter.count_tokens(text);
+            let fallback = TokenCounter::estimate_tokens_fallback(text);
+            assert!(
+                expected_range.contains(&count),
+                "tiktoken count {} for '{}' outside expected range {:?}, fallback={}",
+                count, text, expected_range, fallback
+            );
+        }
+    }
+
+    #[test]
+    fn tiktoken_special_tokens_handling() {
+        let counter = TokenCounter::for_model("gpt-4o");
+        if counter.is_fallback() {
+            return;
+        }
+        let tokens = counter.count_tokens("Hello <|end|>");
+        assert!(tokens >= 2, "special token should be counted as separate token");
+    }
+
+    #[test]
+    fn tiktoken_repeating_characters() {
+        let counter = TokenCounter::for_model("gpt-4o");
+        if counter.is_fallback() {
+            return;
+        }
+        let single = counter.count_tokens("a");
+        let repeated = counter.count_tokens("aaaaaaaaaa");
+        assert!(repeated >= single * 5, "repeated chars should scale linearly");
+    }
 }

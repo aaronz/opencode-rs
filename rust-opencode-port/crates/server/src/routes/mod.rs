@@ -10,6 +10,7 @@ pub mod permission;
 pub mod ws;
 pub mod sse;
 pub mod mcp;
+pub mod share;
 pub mod web_ui;
 
 pub fn config_routes(cfg: &mut web::ServiceConfig) {
@@ -31,7 +32,7 @@ pub fn config_routes(cfg: &mut web::ServiceConfig) {
     );
     cfg.service(
         web::scope("/share")
-            .route("/{id}", web::get().to(session::get_shared_session))
+            .configure(share::init)
     );
     cfg.service(
         web::scope("/run")

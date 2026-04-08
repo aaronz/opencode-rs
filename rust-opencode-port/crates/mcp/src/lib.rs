@@ -15,5 +15,5 @@ pub use client::{
 };
 pub use tool_bridge::McpToolAdapter;
 pub use integration::register_mcp_tools;
-pub use registry::{McpManager, McpRegistry};
+pub use registry::{McpManager, McpPermission, McpRegistry};
 pub use pool::{McpConnectionPool, PoolConfig, PooledClient, PoolStats, EndpointPoolStats};

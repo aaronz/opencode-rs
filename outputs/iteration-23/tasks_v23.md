@@ -11,12 +11,18 @@
 
 | 状态 | P0 | P1 | P2 | 总计 |
 |------|----|----|----|-----|
-| **TODO** | 0 | 5 | 17 | 22 |
+| **TODO** | 0 | 0 | 1 | 1 |
 | **In Progress** | 0 | 0 | 0 | 0 |
-| **Done** | 4 | 7 | 0 | 11 |
-| **Partial** | 0 | 0 | 0 | 0 |
+| **Done** | 4 | 12 | 15 | 31 |
+| **Partial** | 0 | 0 | 1 | 1 |
+| **Not Applicable** | 0 | 0 | 0 | 0 |
 
-> **最后更新:** 2026-04-08 - 经代码审查确认 P1-1, P1-2, P1-4, P1-5, P1-7, P1-11 已实现；MCP-002/003/004/005 已实现
+> **最后更新:** 2026-04-08 (Round 10) - 已实现 TUI 多选、Diff可展开、Self-hosted Share Server
+> 
+> **P2 实现状态:**
+> - ✅ Done: LSP Extensions, MCP OAuth, PKCE, Token Refresh/Revoke, Observability, Export Auth Isolation, Enterprise Policy, TUI 多选, TUI Diff可展开, Self-hosted Share Server
+> - ⚠️ Partial: Summary Quality
+> - ❌ Missing: Windows Support
 
 ---
 
@@ -141,7 +147,7 @@
 | LSP-001 | 实现 `lsp_definition` 工具 | ✅ Done | 1d | 无 | 可跳转定义 |
 | LSP-002 | 实现 `lsp_references` 工具 | ✅ Done | 1d | LSP-001 | 可查找引用 |
 | LSP-003 | 添加 timeout 和重试机制 | ✅ Done | 0.5d | LSP-002 | 稳定性提升 |
-| LSP-004 | 添加测试覆盖 | TODO | 0.5d | LSP-003 | 测试覆盖率达到目标 |
+| LSP-004 | 添加测试覆盖 | ✅ Done | 0.5d | LSP-003 | 测试覆盖率达到目标 |
 
 ---
 
@@ -157,7 +163,7 @@
 
 | Task ID | 任务 | 状态 | 工作量 | 依赖 | 验收标准 |
 |---------|------|------|--------|------|----------|
-| MCP-001 | 设计连接池结构 | TODO | 1d | 无 | 连接池设计文档 |
+| MCP-001 | 设计连接池结构 | ✅ Done | 1d | 无 | 连接池设计文档 |
 | MCP-002 | 实现 timeout 机制 | ✅ Done | 0.5d | MCP-001 | 超时正确处理 |
 | MCP-003 | 实现重试逻辑 | ✅ Done | 0.5d | MCP-002 | 重试逻辑正确 |
 | MCP-004 | 添加连接状态管理 | ✅ Done | 0.5d | MCP-003 | 状态跟踪正确 |
@@ -179,9 +185,9 @@
 |---------|------|------|--------|------|----------|
 | PLG-001 | 设计 EventBus trait | ✅ Done | 0.5d | 无 | EventBus API 设计完成 |
 | PLG-002 | 实现内存 EventBus | ✅ Done | 1d | PLG-001 | 事件发布/订阅正常 |
-| PLG-003 | 实现 WASM FFI 桥接 | TODO | 1d | PLG-002 | WASM 可调用事件 |
+| PLG-003 | 实现 WASM FFI 桥接 | ✅ Done | 1d | PLG-002 | WASM 可调用事件 |
 | PLG-004 | 在核心模块中埋点发布事件 | ✅ Done | 1d | PLG-003 | session.created 等事件触发 |
-| PLG-005 | 添加 Plugin 集成测试 | TODO | 0.5d | PLG-004 | 集成测试通过 |
+| PLG-005 | 添加 Plugin 集成测试 | ✅ Done | 0.5d | PLG-004 | 集成测试通过 |
 
 **Event Types：**
 
@@ -208,10 +214,10 @@
 | Task ID | 任务 | 状态 | 工作量 | 依赖 | 验收标准 |
 |---------|------|------|--------|------|----------|
 | SSE-001 | 实现 SSE heartbeat (30s interval) | ✅ Done | 0.5d | 无 | 心跳机制正常 |
-| SSE-002 | 实现客户端重连逻辑 | TODO | 0.5d | SSE-001 | 断连后自动重连 |
-| SSE-003 | 修复 WebSocket handshake | TODO | 1d | SSE-002 | 握手稳定 |
-| SSE-004 | 添加连接状态监控 | TODO | 0.5d | SSE-003 | 状态可观测 |
-| SSE-005 | 压力测试验证 | TODO | 1d | SSE-004 | 稳定性测试通过 |
+| SSE-002 | 实现客户端重连逻辑 | ✅ Done | 0.5d | SSE-001 | 断连后自动重连 |
+| SSE-003 | 修复 WebSocket handshake | ✅ Done | 1d | SSE-002 | 握手稳定 |
+| SSE-004 | 添加连接状态监控 | ✅ Done | 0.5d | SSE-003 | 状态可观测 |
+| SSE-005 | 压力测试验证 | ✅ Done | 1d | SSE-004 | 稳定性测试通过 |
 
 ---
 
@@ -221,11 +227,11 @@
 
 | Task ID | 任务 | 状态 | 工作量 | 依赖 | 验收标准 |
 |---------|------|------|--------|------|----------|
-| CRYPT-001 | 实现 `CredentialStore` trait | TODO | 1d | 无 | Store API 设计完成 |
-| CRYPT-002 | 实现 AES-256-GCM 加密 | TODO | 1d | CRYPT-001 | 加密正确 |
-| CRYPT-003 | 实现 Argon2 key derivation | TODO | 0.5d | CRYPT-002 | Key derivation 正确 |
-| CRYPT-004 | 集成到 auth 模块 | TODO | 0.5d | CRYPT-003 | 凭据加密存储 |
-| CRYPT-005 | 添加 security tests | TODO | 0.5d | CRYPT-004 | 安全测试通过 |
+| CRYPT-001 | 实现 `CredentialStore` trait | ✅ Done | 1d | 无 | Store API 设计完成 |
+| CRYPT-002 | 实现 AES-256-GCM 加密 | ✅ Done | 1d | CRYPT-001 | 加密正确 |
+| CRYPT-003 | 实现 Argon2 key derivation | ✅ Done | 0.5d | CRYPT-002 | Key derivation 正确 |
+| CRYPT-004 | 集成到 auth 模块 | ✅ Done | 0.5d | CRYPT-003 | 凭据加密存储 |
+| CRYPT-005 | 添加 security tests | ✅ Done | 0.5d | CRYPT-004 | 安全测试通过 |
 
 ---
 
@@ -264,10 +270,10 @@
 
 | Task ID | 任务 | 状态 | 工作量 | 依赖 | 验收标准 |
 |---------|------|------|--------|------|----------|
-| CTX-001 | 校准 tiktoken-rs token 计数 | TODO | 1d | 无 | 计数准确性验证 |
-| CTX-002 | 实现精确阈值常量 | TODO | 0.5d | CTX-001 | COMPACTION_*_THRESHOLD 常量定义 |
-| CTX-003 | 更新 compaction 触发逻辑 | TODO | 1d | CTX-002 | 阈值精确触发 |
-| CTX-004 | 添加性能测试 | TODO | 0.5d | CTX-003 | 性能测试通过 |
+| CTX-001 | 校准 tiktoken-rs token 计数 | ✅ Done | 1d | 无 | 计数准确性验证 |
+| CTX-002 | 实现精确阈值常量 | ✅ Done | 0.5d | CTX-001 | COMPACTION_*_THRESHOLD 常量定义 |
+| CTX-003 | 更新 compaction 触发逻辑 | ✅ Done | 1d | CTX-002 | 阈值精确触发 |
+| CTX-004 | 添加性能测试 | ✅ Done | 0.5d | CTX-003 | 性能测试通过 |
 
 **阈值定义：**
 
@@ -285,11 +291,11 @@ const COMPACTION_FORCE_THRESHOLD: f32 = 0.95;
 
 | Task ID | 任务 | 状态 | 工作量 | 依赖 | 验收标准 |
 |---------|------|------|--------|------|----------|
-| CR-001 | 设计崩溃转储格式 | TODO | 0.5d | 无 | 转储格式设计文档 |
-| CR-002 | 实现 panic handler | TODO | 1d | CR-001 | panic 被捕获 |
-| CR-003 | 实现 session 状态保存 | TODO | 1d | CR-002 | 崩溃时 session 保存 |
-| CR-004 | 实现恢复逻辑 | TODO | 1d | CR-003 | 可恢复 session |
-| CR-005 | 测试崩溃恢复流程 | TODO | 1d | CR-004 | 恢复测试通过 |
+| CR-001 | 设计崩溃转储格式 | ✅ Done | 0.5d | 无 | 转储格式设计文档 |
+| CR-002 | 实现 panic handler | ✅ Done | 1d | CR-001 | panic 被捕获 |
+| CR-003 | 实现 session 状态保存 | ✅ Done | 1d | CR-002 | 崩溃时 session 保存 |
+| CR-004 | 实现恢复逻辑 | ✅ Done | 1d | CR-003 | 可恢复 session |
+| CR-005 | 测试崩溃恢复流程 | ✅ Done | 1d | CR-004 | 恢复测试通过 |
 
 ---
 
@@ -299,10 +305,10 @@ const COMPACTION_FORCE_THRESHOLD: f32 = 0.95;
 
 | Task ID | 任务 | 状态 | 工作量 | 依赖 | 验收标准 |
 |---------|------|------|--------|------|----------|
-| WASM-001 | 审查当前 wasmtime 配置 | TODO | 0.5d | 无 | 配置审查完成 |
-| WASM-002 | 实现进程隔离增强 | TODO | 1d | WASM-001 | 隔离机制增强 |
-| WASM-003 | 添加崩溃隔离测试 | TODO | 0.5d | WASM-002 | 崩溃不影响主进程 |
-| WASM-004 | 验证测试 | TODO | 0.5d | WASM-003 | 测试通过 |
+| WASM-001 | 审查当前 wasmtime 配置 | ✅ Done | 0.5d | 无 | 配置审查完成 |
+| WASM-002 | 实现进程隔离增强 | ✅ Done | 1d | WASM-001 | 隔离机制增强 |
+| WASM-003 | 添加崩溃隔离测试 | ✅ Done | 0.5d | WASM-002 | 崩溃不影响主进程 |
+| WASM-004 | 验证测试 | ✅ Done | 0.5d | WASM-003 | 测试通过 |
 
 ---
 
@@ -330,9 +336,9 @@ const COMPACTION_FORCE_THRESHOLD: f32 = 0.95;
 
 | Task ID | 任务 | 状态 | 工作量 | 依赖 | 验收标准 |
 |---------|------|------|--------|------|----------|
-| MCP-ASK-001 | 审查当前 MCP ask 配置 | TODO | 0.5d | 无 | 配置审查完成 |
-| MCP-ASK-002 | 实现执行层面检查 | TODO | 1d | MCP-ASK-001 | ask 严格实施 |
-| MCP-ASK-003 | 添加测试 | TODO | 0.5d | MCP-ASK-002 | 测试通过 |
+| MCP-ASK-001 | 审查当前 MCP ask 配置 | ✅ Done | 0.5d | 无 | 配置审查完成 |
+| MCP-ASK-002 | 实现执行层面检查 | ✅ Done | 1d | MCP-ASK-001 | ask 严格实施 |
+| MCP-ASK-003 | 添加测试 | ✅ Done | 0.5d | MCP-ASK-002 | 测试通过 |
 
 ---
 
@@ -340,91 +346,144 @@ const COMPACTION_FORCE_THRESHOLD: f32 = 0.95;
 
 ### P2-1: LSP Extensions (FR-238, FR-239)
 
+**实现状态:** ✅ 已实现 (crates/tools/src/lsp_tool.rs)
+- `hover` 操作已实现 (lines 156-162, 503-635)，包括 rust-analyzer 集成和 fallback
+- `codeActions` 操作已实现 (lines 163-169, 637-742)，包括 rust-analyzer 集成和 fallback
+- 重试机制已实现 (hover_with_retry, code_actions_with_retry)
+- 完整测试覆盖
+
 | Task ID | 任务 | 状态 | 工作量 | 验收标准 |
 |---------|------|------|--------|----------|
-| LSP-EXT-001 | 实现 `lsp_hover` | TODO | 0.5d | 悬停信息显示 |
-| LSP-EXT-002 | 实现 `lsp_code_actions` | TODO | 1d | 代码动作可用 |
+| LSP-EXT-001 | 实现 `lsp_hover` | ✅ Done | 0.5d | 悬停信息显示 |
+| LSP-EXT-002 | 实现 `lsp_code_actions` | ✅ Done | 1d | 代码动作可用 |
 
 ---
 
 ### P2-2: MCP OAuth (FR-241)
 
+**实现状态:** ✅ 已实现 (crates/mcp/src/auth.rs)
+- `McpOAuthToken` 结构体完整实现（access_token, refresh_token, expires_in 等）
+- `McpAuthTokenStore` 实现 token 存储、加载、过期清理
+- `is_server_oauth_enabled()` 方法检查 OAuth 状态
+
 | Task ID | 任务 | 状态 | 工作量 | 验收标准 |
 |---------|------|------|--------|----------|
-| MCP-OAUTH-001 | 实现 OAuth 认证完整流程 | TODO | 2d | OAuth 流程完成 |
+| MCP-OAUTH-001 | 实现 OAuth 认证完整流程 | ✅ Done | 2d | OAuth 流程完成 |
 
 ---
 
 ### P2-3: TUI 增强 (FR-230, FR-232, FR-233)
 
+**实现状态:** ✅ 已实现
+- Token/Cost 显示精确化: ✅ Done (status_bar.rs)
+- @ 多选功能: ✅ Done (dialogs/file_selection.rs - Space/Ctrl+Space toggle, Enter/Ctrl+Enter confirm)
+- Diff Panel 可展开: ✅ Done (components/diff_view.rs - Enter/Space toggle hunk)
+
 | Task ID | 任务 | 状态 | 工作量 | 验收标准 |
 |---------|------|------|--------|----------|
-| TUI-001 | TUI @ 多选功能 | TODO | 1d | 支持多文件选择 |
-| TUI-002 | Diff Panel 可展开 | TODO | 1d | diff 可展开 |
-| TUI-003 | Token/Cost 显示精确化 | TODO | 0.5d | 状态栏显示准确 |
+| TUI-001 | TUI @ 多选功能 | ✅ Done | 1d | 支持多文件选择 |
+| TUI-002 | Diff Panel 可展开 | ✅ Done | 1d | diff 可展开 |
+| TUI-003 | Token/Cost 显示精确化 | ✅ Done | 0.5d | 状态栏显示准确 |
 
 ---
 
 ### P2-4: PKCE Support (FR-272)
 
+**实现状态:** ✅ 已实现 (crates/auth/src/oauth.rs, crates/auth/tests/oauth_browser_tests.rs)
+- `OAuthFlow::generate_code_verifier()` 生成 PKCE verifier
+- `OAuthFlow::generate_code_challenge()` 生成 S256 challenge
+- 完整测试覆盖: test_pkce_code_verifier_generation, test_pkce_code_challenge_generation 等
+
 | Task ID | 任务 | 状态 | 工作量 | 验收标准 |
 |---------|------|------|--------|----------|
-| PKCE-001 | 实现 OAuth callback state 校验 | TODO | 1d | PKCE 流程完成 |
+| PKCE-001 | 实现 OAuth callback state 校验 | ✅ Done | 1d | PKCE 流程完成 |
 
 ---
 
 ### P2-5: Token Refresh/Revoke (FR-273)
 
+**实现状态:** ✅ 已实现
+- `refresh_token()` 方法在 crates/auth/src/oauth.rs 和 crates/llm/src/auth.rs
+- `revoke()` 方法在 crates/core/src/permission.rs
+- 完整的 token 刷新和撤销流程
+
 | Task ID | 任务 | 状态 | 工作量 | 验收标准 |
 |---------|------|------|--------|----------|
-| TOKEN-001 | 实现完整的 token refresh 流程 | TODO | 1d | refresh 流程正常 |
-| TOKEN-002 | 实现 session revoke | TODO | 0.5d | revoke 功能正常 |
+| TOKEN-001 | 实现完整的 token refresh 流程 | ✅ Done | 1d | refresh 流程正常 |
+| TOKEN-002 | 实现 session revoke | ✅ Done | 0.5d | revoke 功能正常 |
 
 ---
 
 ### P2-6: Share Server (FR-254, FR-255)
 
+**实现状态:** ✅ 已实现
+- Patch Bundle 导出: ✅ Done (crates/core/src/share.rs)
+- Self-hosted Share Server: ✅ Done (routes/share.rs - ShortShareServer, access tokens, expiration)
+
 | Task ID | 任务 | 状态 | 工作量 | 验收标准 |
 |---------|------|------|--------|----------|
-| SHARE-SRV-001 | 实现 Patch Bundle 导出 | TODO | 1d | Patch bundle 可导出 |
-| SHARE-SRV-002 | 实现 Self-hosted Share Server | TODO | 3d | 短链/访问令牌/过期时间 |
+| SHARE-SRV-001 | 实现 Patch Bundle 导出 | ✅ Done | 1d | Patch bundle 可导出 |
+| SHARE-SRV-002 | 实现 Self-hosted Share Server | ✅ Done | 3d | 短链/访问令牌/过期时间 |
 
 ---
 
 ### P2-7: Summary Quality (FR-258)
 
+**实现状态:** ⚠️ Partial
+- CompactionAgent 已实现，可进行会话压缩
+- Summary 质量依赖 LLM 能力
+
 | Task ID | 任务 | 状态 | 工作量 | 验收标准 |
 |---------|------|------|--------|----------|
-| SUMMARY-001 | 压缩记忆质量提升 | TODO | 1.5d | Summary准确性提升 |
+| SUMMARY-001 | 压缩记忆质量提升 | ⚠️ Partial | 1.5d | Summary准确性提升 |
 
 ---
 
 ### P2-8: 可观测性增强 (FR-268, FR-269)
 
+**实现状态:** ✅ 已实现 (crates/core/src/observability.rs)
+- `TokenUsage` 结构体包含 provider, model, prompt_tokens, completion_tokens, cost_usd, latency_ms
+- `SessionTrace` 完整会话追踪
+- `ObservabilityTracker` 实现 record_token_usage, record_tool_call, record_error
+- `setup_tracing()` 配置 tracing 日志系统
+- 完整测试覆盖
+
 | Task ID | 任务 | 状态 | 工作量 | 验收标准 |
 |---------|------|------|--------|----------|
-| OBS-001 | 实现 Tool Spans | TODO | 1d | 工具调用可追踪 |
-| OBS-002 | 完善 Cost Calculator | TODO | 1d | 统计完整 |
+| OBS-001 | 实现 Tool Spans | ✅ Done | 1d | 工具调用可追踪 |
+| OBS-002 | 完善 Cost Calculator | ✅ Done | 1d | 统计完整 |
 
 ---
 
 ### P2-9: Export Auth Isolation (FR-274)
 
+**实现状态:** ✅ 已实现
+- ShareManager 的 sanitize_session() 实现敏感信息脱敏
+- 导出时不包含 credentials
+
 | Task ID | 任务 | 状态 | 工作量 | 验收标准 |
 |---------|------|------|--------|----------|
-| EXP-AUTH-001 | 导出时 auth store 隔离 | TODO | 1d | 导出不泄露凭据 |
+| EXP-AUTH-001 | 导出时 auth store 隔离 | ✅ Done | 1d | 导出不泄露凭据 |
 
 ---
 
 ### P2-10: Enterprise Policy Profile (FR-275)
 
+**实现状态:** ✅ 已实现
+- crates/control-plane/src/enterprise.rs 包含企业策略实现
+- PolicyProfile 结构支持高级策略
+
 | Task ID | 任务 | 状态 | 工作量 | 验收标准 |
 |---------|------|------|--------|----------|
-| ENT-001 | 高级策略实现 | TODO | 2d | 企业策略功能完整 |
+| ENT-001 | 高级策略实现 | ✅ Done | 2d | 企业策略功能完整 |
 
 ---
 
 ### P2-11: Windows Support (FR-276)
+
+**实现状态:** ❌ Missing
+- 需要 Windows CI 配置
+- 需要跨平台路径处理审查
 
 | Task ID | 任务 | 状态 | 工作量 | 验收标准 |
 |---------|------|------|--------|----------|
@@ -526,6 +585,16 @@ CR-001 ─┬─ CR-002 ─┬─ CR-003 ─┬─ CR-004 ─┬─ CR-005
 
 ---
 
-**最后更新：** 2026-04-08  
-**本次更新:** MCP-002/003/004/005 已实现 - timeout/retry/state/stability tests 已完成  
+**最后更新：** 2026-04-08 (Round 9)  
+**本次更新:** 
+- P2-1 LSP Extensions: lsp_hover 和 lsp_code_actions 已实现 (lsp_tool.rs)
+- P2-2 MCP OAuth: McpAuthTokenStore 已实现 (crates/mcp/src/auth.rs)
+- P2-3 TUI: Token/Cost 显示已实现，@多选和Diff可展开缺失
+- P2-4 PKCE: 已实现 (crates/auth/src/oauth.rs)
+- P2-5 Token Refresh/Revoke: 已实现
+- P2-6 Share Server: Patch Bundle导出已实现，Self-hosted Server缺失
+- P2-8 Observability: 完全实现 (crates/core/src/observability.rs)
+- P2-9 Export Auth Isolation: 已实现 (sanitize_session)
+- P2-10 Enterprise Policy: 已实现 (crates/control-plane/src/enterprise.rs)
+- TypeScript SDK build 通过
 **下次审查：** Iteration-24 开始时

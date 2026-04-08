@@ -37,5 +37,6 @@ pub enum DialogAction {
     None,
     Close,
     Confirm(String),
+    ConfirmMultiple(Vec<String>),
     Navigate(String),
 }
