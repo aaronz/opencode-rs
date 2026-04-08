@@ -1,3 +1,12 @@
+use std::collections::HashMap;
+
+use crate::auth_layered::layer1_credential_source::{CredentialResolver, ResolvedCredential};
+use crate::auth_layered::layer3_provider_transport::ProviderTransport;
+use crate::auth_layered::{
+    AccessControlResult, AnthropicTransport, AuthMechanism, AwsSigV4Transport,
+    CompositeCredentialResolver, CredentialSource, OpenAICompatibleTransport, RuntimeAccessControl,
+    TransportLayer,
+};
 
 #[test]
 fn test_layer1_credential_source_env_var() {

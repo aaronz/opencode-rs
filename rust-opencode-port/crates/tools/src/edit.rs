@@ -489,16 +489,14 @@ impl Iterator for ReplaceWhitespace<'_> {
     type Item = char;
     
     fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            if let Some(c) = self.0.chars().next() {
-                self.0 = &self.0[c.len_utf8()..];
-                if c.is_whitespace() {
-                    return Some(' ');
-                }
-                return Some(c);
+        if let Some(c) = self.0.chars().next() {
+            self.0 = &self.0[c.len_utf8()..];
+            if c.is_whitespace() {
+                return Some(' ');
             }
-            return None;
+            return Some(c);
         }
+        None
     }
     
     fn size_hint(&self) -> (usize, Option<usize>) {

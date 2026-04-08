@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# TypeScript
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test
+coverage/
+
+# Examples (not needed in published package)
+examples/
+
+# Dev files
+vitest.config.ts
+tsconfig.json

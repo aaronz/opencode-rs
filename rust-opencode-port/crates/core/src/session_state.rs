@@ -19,7 +19,6 @@ pub enum SessionState {
     Paused,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StateTransitionError {
     pub from: SessionState,
@@ -59,6 +58,7 @@ pub enum SessionEvent {
 }
 
 impl SessionState {
+    #[allow(clippy::match_like_matches_macro)]
     pub fn can_transition_to(&self, target: &SessionState) -> bool {
         match (self, target) {
             (SessionState::Idle, SessionState::Thinking) => true,

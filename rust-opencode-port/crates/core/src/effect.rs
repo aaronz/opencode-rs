@@ -4,6 +4,12 @@ use std::pin::Pin;
 
 pub type EffectResult<T> = Result<T, EffectError>;
 
+/// A boxed future that is Send-safe.
+pub type EffectFuture<T> = Pin<Box<dyn Future<Output = EffectResult<T>> + Send>>;
+
+/// A boxed closure that produces an EffectFuture and is Send-safe.
+pub type EffectRunner<T> = Box<dyn FnOnce() -> EffectFuture<T> + Send>;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum EffectError {
     Generic(String),
@@ -34,7 +40,7 @@ impl std::fmt::Display for EffectError {
 impl std::error::Error for EffectError {}
 
 pub struct Effect<T> {
-    run: Box<dyn FnOnce() -> Pin<Box<dyn Future<Output = EffectResult<T>> + Send>> + Send>,
+    run: EffectRunner<T>,
 }
 
 impl<T: Send + 'static> Effect<T> {

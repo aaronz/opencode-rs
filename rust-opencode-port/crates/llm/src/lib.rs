@@ -21,6 +21,7 @@ pub mod vercel;
 pub mod vertex;
 pub mod xai;
 pub mod auth;
+pub mod auth_layered;
 pub mod models;
 pub mod provider_filter;
 pub mod error;

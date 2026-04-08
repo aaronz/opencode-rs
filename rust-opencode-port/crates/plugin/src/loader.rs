@@ -13,6 +13,13 @@ impl PluginLoader {
         }
     }
 
+    /// Loads a plugin from a dynamic library file.
+    ///
+    /// # Safety
+    ///
+    /// The library must be a valid plugin compiled with the same ABI version.
+    /// The plugin must implement the `Plugin` trait correctly. Loading malformed
+    /// plugins may cause undefined behavior.
     pub unsafe fn load_plugin<P: AsRef<Path>>(
         &mut self,
         path: P,

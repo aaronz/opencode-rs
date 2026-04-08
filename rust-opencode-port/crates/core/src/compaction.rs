@@ -403,7 +403,7 @@ impl Compactor {
         Ok(())
     }
 
-    pub fn prune_old_tool_outputs(messages: &mut Vec<Message>, keep_recent: usize) {
+    pub fn prune_old_tool_outputs(messages: &mut [Message], keep_recent: usize) {
         let keep_recent = if keep_recent == 0 {
             DEFAULT_KEEP_RECENT_TOOL_OUTPUTS
         } else {

@@ -103,8 +103,6 @@ impl InstructionsLoader {
 
         let resolved = if path.starts_with('/') {
             PathBuf::from(path)
-        } else if path.starts_with("./") || path.starts_with("../") {
-            self.project_root.join(path)
         } else {
             self.project_root.join(path)
         };

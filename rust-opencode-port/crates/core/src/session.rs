@@ -55,6 +55,10 @@ pub struct Session {
     pub state: SessionState,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parent_session_id: Option<String>,
+    /// Full path of ancestor session IDs for full fork lineage tracking (FR-220, FR-221).
+    /// Format: "grandparent_id/parent_id" or empty for root sessions.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lineage_path: Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub fork_history: Vec<ForkEntry>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
@@ -134,6 +138,7 @@ impl Session {
             updated_at: now,
             state: SessionState::Idle,
             parent_session_id: None,
+            lineage_path: None,
             fork_history: Vec::new(),
             tool_invocations: Vec::new(),
             undo_history: Vec::new(),
@@ -146,6 +151,7 @@ impl Session {
 
     pub fn fork(&self, new_session_id: Uuid) -> Self {
         let now = Utc::now();
+        let new_lineage_path = self.compute_lineage_path();
 
         Self {
             id: new_session_id,
@@ -154,6 +160,7 @@ impl Session {
             updated_at: now,
             state: self.state,
             parent_session_id: Some(self.id.to_string()),
+            lineage_path: new_lineage_path,
             fork_history: Vec::new(),
             tool_invocations: Vec::new(),
             undo_history: Vec::new(),
@@ -173,6 +180,7 @@ impl Session {
         }
 
         let now = Utc::now();
+        let new_lineage_path = self.compute_lineage_path();
         Ok(Session {
             id: Uuid::new_v4(),
             messages: self.messages[..=message_index].to_vec(),
@@ -180,6 +188,7 @@ impl Session {
             updated_at: now,
             state: self.state,
             parent_session_id: Some(self.id.to_string()),
+            lineage_path: new_lineage_path,
             fork_history: Vec::new(),
             tool_invocations: self.tool_invocations.clone(),
             undo_history: Vec::new(),
@@ -188,6 +197,20 @@ impl Session {
             share_mode: self.share_mode.clone(),
             share_expires_at: self.share_expires_at,
         })
+    }
+
+    pub fn compute_lineage_path(&self) -> Option<String> {
+        match (&self.lineage_path, &self.parent_session_id) {
+            (Some(path), Some(parent_id)) => {
+                if path.is_empty() {
+                    Some(parent_id.clone())
+                } else {
+                    Some(format!("{}/{}", path, parent_id))
+                }
+            }
+            (None, Some(parent_id)) => Some(parent_id.clone()),
+            _ => None,
+        }
     }
 
     pub fn generate_share_link(&mut self) -> Result<String, ShareError> {
@@ -872,6 +895,79 @@ mod tests {
                 requested: 5,
                 len: 1,
             }
+        );
+    }
+
+    #[test]
+    fn test_new_session_has_no_lineage() {
+        let session = Session::new();
+        assert!(session.parent_session_id.is_none());
+        assert!(session.lineage_path.is_none());
+        assert!(session.compute_lineage_path().is_none());
+    }
+
+    #[test]
+    fn test_fork_single_level_lineage() {
+        let parent = Session::new();
+        let parent_id = parent.id.to_string();
+
+        let child = parent.fork(Uuid::new_v4());
+
+        assert_eq!(child.parent_session_id.as_deref(), Some(parent_id.as_str()));
+        assert!(child.lineage_path.is_none());
+        assert_eq!(child.compute_lineage_path(), Some(parent_id));
+    }
+
+    #[test]
+    fn test_fork_multi_level_lineage() {
+        let grandparent = Session::new();
+        let grandparent_id = grandparent.id.to_string();
+
+        let parent = grandparent.fork(Uuid::new_v4());
+        let parent_id = parent.id.to_string();
+
+        let child = parent.fork(Uuid::new_v4());
+        let child_lineage = child.compute_lineage_path();
+
+        assert_eq!(child.parent_session_id.as_deref(), Some(parent_id.as_str()));
+        assert_eq!(child.lineage_path, Some(grandparent_id.clone()));
+        assert_eq!(
+            child_lineage,
+            Some(format!("{}/{}", grandparent_id, parent_id))
+        );
+    }
+
+    #[test]
+    fn test_fork_at_message_lineage() {
+        let mut parent = Session::new();
+        parent.add_message(Message::user("test"));
+        let parent_id = parent.id.to_string();
+
+        let child = parent.fork_at_message(0).unwrap();
+
+        assert_eq!(child.parent_session_id.as_deref(), Some(parent_id.as_str()));
+        assert!(child.lineage_path.is_none());
+        assert_eq!(child.compute_lineage_path(), Some(parent_id));
+    }
+
+    #[test]
+    fn test_lineage_persistence_after_save_load() {
+        let grandparent = Session::new();
+        let parent = grandparent.fork(Uuid::new_v4());
+        let child = parent.fork(Uuid::new_v4());
+
+        let tmp = tempfile::TempDir::new().unwrap();
+        let path = tmp.path().join("session.json");
+        child.save(&path).unwrap();
+
+        let loaded = Session::load(&path).unwrap();
+        let grandparent_id = grandparent.id.to_string();
+        let parent_id = parent.id.to_string();
+
+        assert_eq!(loaded.lineage_path, Some(grandparent_id.clone()));
+        assert_eq!(
+            loaded.compute_lineage_path(),
+            Some(format!("{}/{}", grandparent_id, parent_id))
         );
     }
 }

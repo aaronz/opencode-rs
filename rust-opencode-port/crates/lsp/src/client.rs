@@ -113,21 +113,23 @@ impl LspClient {
             stdin.flush().await.map_err(|e| OpenCodeError::Tui(e.to_string()))?;
         }
 
+        Ok(id)
+    }
+
+    pub async fn wait_for_response(&mut self, id: u64, timeout_secs: u64) -> Result<serde_json::Value, OpenCodeError> {
         let (tx, rx) = oneshot::channel::<String>();
         {
             let mut p = self.pending.lock().await;
             p.insert(id, tx);
         }
 
-            if let Ok(resp) = tokio::time::timeout(tokio::time::Duration::from_secs(5), rx).await {
-            if let Ok(v) = serde_json::from_str::<serde_json::Value>(&resp.unwrap_or_default()) {
-                if let Some(_err) = v.get("error") {
-                    // LSP error response - already logged by timeout behavior
-                }
-            }
-        }
+        let resp = match tokio::time::timeout(tokio::time::Duration::from_secs(timeout_secs), rx).await {
+            Ok(Ok(resp)) => resp,
+            Ok(Err(e)) => return Err(OpenCodeError::Tool(format!("LSP request {} failed: {}", id, e))),
+            Err(_) => return Err(OpenCodeError::Tool(format!("LSP request {} timed out", id))),
+        };
 
-        Ok(id)
+        serde_json::from_str(&resp).map_err(|e| OpenCodeError::Tool(format!("Invalid LSP response: {}", e)))
     }
 
     async fn send_notification(&mut self, method: &str, params: serde_json::Value) -> Result<(), OpenCodeError> {
@@ -185,24 +187,13 @@ impl LspClient {
         });
 
         let id = self.send_request("textDocument/definition", params).await?;
+        let resp = self.wait_for_response(id, 5).await?;
 
-        let (tx, rx) = oneshot::channel::<String>();
-        {
-            let mut p = self.pending.lock().await;
-            p.insert(id, tx);
-        }
-
-        if let Ok(resp) = tokio::time::timeout(tokio::time::Duration::from_secs(5), rx).await {
-            if let Ok(resp_str) = resp {
-                if let Ok(v) = serde_json::from_str::<serde_json::Value>(&resp_str) {
-                    if let Some(result) = v.get("result") {
-                        if result.is_null() {
-                            return Ok(None);
-                        }
-                        return Ok(parse_location(result));
-                    }
-                }
+        if let Some(result) = resp.get("result") {
+            if result.is_null() {
+                return Ok(None);
             }
+            return Ok(parse_location(result));
         }
 
         Ok(None)
@@ -216,23 +207,12 @@ impl LspClient {
         });
 
         let id = self.send_request("textDocument/references", params).await?;
+        let resp = self.wait_for_response(id, 5).await?;
 
-        let (tx, rx) = oneshot::channel::<String>();
-        {
-            let mut p = self.pending.lock().await;
-            p.insert(id, tx);
-        }
-
-        if let Ok(resp) = tokio::time::timeout(tokio::time::Duration::from_secs(5), rx).await {
-            if let Ok(resp_str) = resp {
-                if let Ok(v) = serde_json::from_str::<serde_json::Value>(&resp_str) {
-                    if let Some(result) = v.get("result") {
-                        if let Some(arr) = result.as_array() {
-                            let locations: Vec<Location> = arr.iter().filter_map(parse_location).collect();
-                            return Ok(locations);
-                        }
-                    }
-                }
+        if let Some(result) = resp.get("result") {
+            if let Some(arr) = result.as_array() {
+                let locations: Vec<Location> = arr.iter().filter_map(parse_location).collect();
+                return Ok(locations);
             }
         }
 

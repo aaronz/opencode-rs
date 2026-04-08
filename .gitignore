@@ -90,3 +90,7 @@ flamegraph.svg
 # Worktrees
 # =========================
 .worktrees/
+
+**/node_modules/
+**/dist/
+**/build/

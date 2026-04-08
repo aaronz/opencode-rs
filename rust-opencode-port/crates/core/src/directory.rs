@@ -135,10 +135,10 @@ impl DirectoryScanner {
     }
 
     fn parse_agent_file(&self, path: &Path, content: &str) -> Option<AgentDefinition> {
-        if content.starts_with("---") {
-            if let Some(end) = content[3..].find("---") {
-                let yaml_part = &content[3..3 + end];
-                let body = &content[3 + end + 3..];
+        if let Some(after_first_dash) = content.strip_prefix("---") {
+            if let Some(end) = after_first_dash.find("---") {
+                let yaml_part = &after_first_dash[..end];
+                let body = &after_first_dash[end + 3..];
 
                 let mut name = path.file_stem()?.to_str()?.to_string();
                 let mut description = None;
@@ -243,10 +243,10 @@ impl DirectoryScanner {
     }
 
     fn parse_command_file(&self, _path: &Path, content: &str) -> Option<CommandDefinition> {
-        if content.starts_with("---") {
-            if let Some(end) = content[3..].find("---") {
-                let yaml_part = &content[3..3 + end];
-                let body = &content[3 + end + 3..];
+        if let Some(after_first_dash) = content.strip_prefix("---") {
+            if let Some(end) = after_first_dash.find("---") {
+                let yaml_part = &after_first_dash[..end];
+                let body = &after_first_dash[end + 3..];
 
                 let mut description = None;
                 let mut agent = None;
@@ -343,10 +343,10 @@ impl DirectoryScanner {
     }
 
     fn parse_mode_file(&self, _path: &Path, content: &str) -> Option<ModeDefinition> {
-        if content.starts_with("---") {
-            if let Some(end) = content[3..].find("---") {
-                let yaml_part = &content[3..3 + end];
-                let body = &content[3 + end + 3..];
+        if let Some(after_first_dash) = content.strip_prefix("---") {
+            if let Some(end) = after_first_dash.find("---") {
+                let yaml_part = &after_first_dash[..end];
+                let body = &after_first_dash[end + 3..];
 
                 let mut description = None;
                 let mut agent = None;
@@ -484,41 +484,39 @@ impl DirectoryScanner {
         if let Ok(entries) = std::fs::read_dir(dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.is_file()
-                    && path.extension().and_then(|s| s.to_str()) == Some("json") {
-                        if let Ok(content) = std::fs::read_to_string(&path) {
-                            if let Ok(theme_json) =
-                                serde_json::from_str::<serde_json::Value>(&content)
-                            {
-                                let name = theme_json
-                                    .get("name")
-                                    .and_then(|v| v.as_str())
-                                    .unwrap_or_else(|| {
-                                        path.file_stem()
-                                            .and_then(|s| s.to_str())
-                                            .unwrap_or("unknown")
-                                    })
-                                    .to_string();
+                if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("json") {
+                    if let Ok(content) = std::fs::read_to_string(&path) {
+                        if let Ok(theme_json) = serde_json::from_str::<serde_json::Value>(&content)
+                        {
+                            let name = theme_json
+                                .get("name")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or_else(|| {
+                                    path.file_stem()
+                                        .and_then(|s| s.to_str())
+                                        .unwrap_or("unknown")
+                                })
+                                .to_string();
 
-                                let description = theme_json
-                                    .get("description")
-                                    .and_then(|v| v.as_str())
-                                    .map(|s| s.to_string());
+                            let description = theme_json
+                                .get("description")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string());
 
-                                let author = theme_json
-                                    .get("author")
-                                    .and_then(|v| v.as_str())
-                                    .map(|s| s.to_string());
+                            let author = theme_json
+                                .get("author")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string());
 
-                                themes.push(ThemeInfo {
-                                    name,
-                                    path,
-                                    description,
-                                    author,
-                                });
-                            }
+                            themes.push(ThemeInfo {
+                                name,
+                                path,
+                                description,
+                                author,
+                            });
                         }
                     }
+                }
             }
         }
 
