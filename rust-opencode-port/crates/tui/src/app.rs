@@ -220,6 +220,48 @@ impl MemoryEntry {
 }
 
 #[derive(Debug, Clone)]
+pub struct TodoEntry {
+    pub content: String,
+    pub completed: bool,
+    pub priority: String,
+}
+
+impl TodoEntry {
+    pub fn from_markdown_line(line: &str) -> Option<Self> {
+        // Parse "- [ ]" or "- [x]" format
+        let line = line.trim();
+        if !line.starts_with("- [") {
+            return None;
+        }
+        
+        let completed = line.starts_with("- [x]") || line.starts_with("- [X]");
+        let rest = if completed {
+            &line[5..]
+        } else {
+            &line[4..]
+        };
+        
+        let content = rest.trim().to_string();
+        if content.is_empty() {
+            return None;
+        }
+        
+        let (content, priority) = if let Some(paren_pos) = content.rfind('(') {
+            if content.ends_with(')') {
+                let p = content[paren_pos + 1..content.len() - 1].to_string();
+                (content[..paren_pos].trim().to_string(), p)
+            } else {
+                (content.clone(), "medium".to_string())
+            }
+        } else {
+            (content, "medium".to_string())
+        };
+        
+        Some(Self { content, completed, priority })
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct MessageMeta {
     pub content: String,
     pub is_user: bool,
@@ -448,6 +490,7 @@ pub struct App {
     pub username: Option<String>,
     pub share_url: Option<String>,
     pub memory_entries: Vec<MemoryEntry>,
+    pub todos: Vec<TodoEntry>,
     pub thinking_mode: bool,
     pub thinking_content: String,
     pub is_receiving_thinking: bool,
@@ -463,8 +506,11 @@ pub struct App {
     #[allow(dead_code)]
     file_ref_handler: FileRefHandler,
     pub config: Config,
+    #[allow(dead_code)]
     tool_registry: ToolRegistry,
+    #[allow(dead_code)]
     agent_executor: AgentExecutor,
+    #[allow(dead_code)]
     mcp_manager: &'static McpManager,
     pub lsp_client: Option<LspClient>,
     pub lsp_diagnostics: Vec<Diagnostic>,
@@ -591,6 +637,7 @@ impl App {
             username: std::env::var("OPENCODE_USERNAME").ok(),
             share_url: None,
             memory_entries: Vec::new(),
+            todos: Vec::new(),
             thinking_mode: false,
             thinking_content: String::new(),
             is_receiving_thinking: false,
@@ -902,6 +949,17 @@ impl App {
         self.messages.push(meta);
     }
 
+    pub fn refresh_todos_from_messages(&mut self) {
+        self.todos.clear();
+        for msg in &self.messages {
+            for line in msg.content.lines() {
+                if let Some(todo) = TodoEntry::from_markdown_line(line) {
+                    self.todos.push(todo);
+                }
+            }
+        }
+    }
+
     pub fn add_tool_call(&mut self, tool_call: ToolCall) {
         self.tool_calls.push(tool_call);
         self.set_tui_state(TuiState::ExecutingTool);
@@ -936,10 +994,11 @@ impl App {
 
     const LEADER_KEY_TIMEOUT: Duration = Duration::from_millis(2000);
     /// Maximum characters displayed from a git diff output.
+    #[allow(dead_code)]
     const MAX_DIFF_DISPLAY_CHARS: usize = 2000;
-    /// Maximum number of entries kept in the command history.
+    #[allow(dead_code)]
     const MAX_HISTORY_SIZE: usize = 100;
-    /// Divisor used when estimating token count from byte length.
+    #[allow(dead_code)]
     const TOKEN_ESTIMATE_DIVISOR: usize = 4;
 
     fn keybind_string(key: &KeyEvent) -> String {
@@ -2440,7 +2499,7 @@ OpenCode Agent Configuration
                         self.add_message("LSP Diagnostics panel (use Alt+3)".to_string(), false);
                     }
                     KeyCode::Char('r') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        if let Some(ref mut client) = self.lsp_client {
+                        if self.lsp_client.is_some() {
                             let rt = tokio::runtime::Handle::current();
                             let cwd = std::env::current_dir().unwrap_or_default();
                             rt.block_on(async {
@@ -2944,7 +3003,9 @@ KeyCode::Up => {
         }
     }
 
-    fn right_panel_data(&self) -> RightPanelRenderData {
+    fn right_panel_data(&mut self) -> RightPanelRenderData {
+        self.refresh_todos_from_messages();
+        
         let mut diagnostics = self
             .messages
             .iter()
@@ -2975,20 +3036,56 @@ KeyCode::Up => {
             .map(|c| c.name.clone())
             .collect::<Vec<_>>();
 
+        let todos = self.todos.iter().map(|t| {
+            let checkbox = if t.completed { "[x]" } else { "[ ]" };
+            format!("{} {} ({})", checkbox, t.content, t.priority)
+        }).collect();
+
+        use crate::right_panel::{MessageData, SessionData, ConfigEntry, DebugEntry};
+        
+        let messages = self.messages.iter().rev().take(15).map(|m| {
+            MessageData {
+                role: if m.is_user { "user".to_string() } else { "assistant".to_string() },
+                content_preview: m.content.chars().take(80).collect(),
+                timestamp: String::new(),
+            }
+        }).collect();
+
+        let sessions = self.session_manager.list().iter().take(10).map(|s| {
+            SessionData {
+                id: s.id.clone(),
+                name: s.name.clone(),
+                last_active: s.time_since_created().as_secs().to_string(),
+                message_count: s.message_count,
+            }
+        }).collect();
+
+        let config_data = vec![
+            ConfigEntry { key: "provider".to_string(), value: self.provider.clone() },
+            ConfigEntry { key: "model".to_string(), value: std::env::var("OPENCODE_MODEL").unwrap_or_default() },
+            ConfigEntry { key: "agent".to_string(), value: self.agent.clone() },
+        ];
+
+        let debug_info = vec![
+            DebugEntry { category: "tokens".to_string(), content: format!("{}", self.token_counter.get_total_tokens()) },
+            DebugEntry { category: "cost".to_string(), content: format!("${:.4}", self.total_cost_usd) },
+            DebugEntry { category: "messages".to_string(), content: format!("{}", self.messages.len()) },
+        ];
+
         RightPanelRenderData {
             diagnostics,
             total_tokens: self.token_counter.get_total_tokens(),
             total_cost_usd: self.total_cost_usd,
             files,
             tools,
-            todos: Vec::new(),
+            todos,
             diff_content: String::new(),
             context_items: Vec::new(),
             permission_log: Vec::new(),
-            messages: Vec::new(),
-            sessions: Vec::new(),
-            config_data: Vec::new(),
-            debug_info: Vec::new(),
+            messages,
+            sessions,
+            config_data,
+            debug_info,
         }
     }
 
@@ -3132,7 +3229,6 @@ KeyCode::Up => {
         if !query.is_empty() {
             for msg in self.messages.iter() {
                 if msg.content.to_lowercase().contains(&query) {
-                    let preview: String = msg.content.chars().take(inner.width.saturating_sub(6) as usize).collect();
                     let role = if msg.is_user { "U" } else { "A" };
                     
                     let highlighted = self.highlight_query(&msg.content, &query, inner.width.saturating_sub(8) as usize);
@@ -3333,8 +3429,9 @@ KeyCode::Up => {
                 right_panel_width,
                 main_area.height.saturating_sub(1),
             );
+            let panel_data = self.right_panel_data();
             self.right_panel
-                .draw(f, right_panel_area, &self.right_panel_data());
+                .draw(f, right_panel_area, &panel_data);
             Rect::new(
                 main_area.x,
                 main_area.y,

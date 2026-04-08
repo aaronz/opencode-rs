@@ -38,6 +38,7 @@ impl<W: Write> NdjsonSerializer<W> {
             .as_millis() as u64
     }
 
+    #[allow(dead_code)]
     pub fn write_chunk(&mut self, chunk: &str) -> io::Result<()> {
         let event = NdjEvent {
             event: "chunk",
@@ -54,6 +55,7 @@ impl<W: Write> NdjsonSerializer<W> {
         writeln!(self.writer)
     }
 
+    #[allow(dead_code)]
     pub fn write_done(&mut self) -> io::Result<()> {
         let event = NdjEvent {
             event: "done",
@@ -70,6 +72,7 @@ impl<W: Write> NdjsonSerializer<W> {
         writeln!(self.writer)
     }
 
+    #[allow(dead_code)]
     pub fn write_error(&mut self, error: &str) -> io::Result<()> {
         let event = NdjEvent {
             event: "error",
@@ -118,6 +121,7 @@ impl<W: Write> NdjsonSerializer<W> {
         writeln!(self.writer)
     }
 
+    #[allow(dead_code)]
     pub fn write_tool_call(&mut self, tool_name: &str, args: &str) -> io::Result<()> {
         let event = NdjEvent {
             event: "tool_call",
@@ -134,6 +138,7 @@ impl<W: Write> NdjsonSerializer<W> {
         writeln!(self.writer)
     }
 
+    #[allow(dead_code)]
     pub fn write_tool_result(&mut self, tool_name: &str, result: &str) -> io::Result<()> {
         let event = NdjEvent {
             event: "tool_result",

@@ -39,7 +39,6 @@ impl InterruptibleHandle {
     pub fn interrupt(&mut self) -> bool {
         #[cfg(unix)]
         {
-            use std::os::unix::process::CommandExt;
             let _ = self.child.kill();
             true
         }

@@ -239,7 +239,7 @@ check_remaining_p0_p1() {
         elif echo "$line" | grep -qE "^## P1( Tasks|.*高优先级)"; then
             in_p0_section=0
         elif [ $in_p0_section -eq 1 ]; then
-            if echo "$line" | grep -qE "(Status|状态).*(❌|⚠️|🔲)"; then
+            if echo "$line" | grep -qE "\|\s*.*\|\s*\*\*.*(❌|⚠️|🔲|TODO|In Progress)\s*\*\*"; then
                 remaining=$((remaining + 1))
             fi
         fi
@@ -253,7 +253,7 @@ check_remaining_p0_p1() {
         elif echo "$line" | grep -qE "^## P2( Tasks|.*中优先级)"; then
             in_p1_section=0
         elif [ $in_p1_section -eq 1 ]; then
-            if echo "$line" | grep -qE "(Status|状态).*(❌|⚠️|🔲)"; then
+            if echo "$line" | grep -qE "\|\s*.*\|\s*\*\*.*(❌|⚠️|🔲|TODO|In Progress)\s*\*\*"; then
                 remaining=$((remaining + 1))
             fi
         fi
