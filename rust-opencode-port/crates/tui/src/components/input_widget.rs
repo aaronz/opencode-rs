@@ -87,6 +87,10 @@ impl TypewriterState {
         self.is_streaming = false;
     }
 
+    pub fn append(&mut self, new_content: &str) {
+        self.full_content.push_str(new_content);
+    }
+
     pub fn current_display(&self) -> String {
         self.full_content
             .chars()
@@ -462,7 +466,11 @@ impl InputWidget {
         f.render_widget(block, area);
 
         let visible_width = inner.width as usize;
-        let content = self.get_content();
+        let content = if let Some(ref ts) = self.typewriter_state {
+            ts.current_display()
+        } else {
+            self.get_content()
+        };
 
         let (display_start, display_end) = match self.overflow_mode {
             OverflowMode::Scroll => {
@@ -528,15 +536,20 @@ impl InputWidget {
         f.render_widget(paragraph, inner);
 
         let display_len = display_content.len();
-        let cursor_display_pos = if self.cursor_pos > display_start {
-            (self.cursor_pos - display_start).min(display_len)
+        let cursor_display_pos = if self.typewriter_state.is_some() {
+            None
+        } else if self.cursor_pos > display_start {
+            Some((self.cursor_pos - display_start).min(display_len))
         } else {
-            0
+            None
         };
-        let cursor_x = inner.x + cursor_display_pos as u16;
-        let cursor_y = inner.y;
-        #[allow(deprecated)]
-        f.set_cursor(cursor_x, cursor_y);
+
+        if let Some(pos) = cursor_display_pos {
+            let cursor_x = inner.x + pos as u16;
+            let cursor_y = inner.y;
+            #[allow(deprecated)]
+            f.set_cursor(cursor_x, cursor_y);
+        }
     }
 
     pub fn scroll_left(&mut self) {

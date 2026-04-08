@@ -33,7 +33,6 @@ pub struct ExecuteResult {
 
 pub struct InterruptibleHandle {
     child: Child,
-    working_dir: PathBuf,
 }
 
 impl InterruptibleHandle {
@@ -332,10 +331,7 @@ impl ShellHandler {
             .spawn();
 
         match child {
-            Ok(child) => Ok(InterruptibleHandle {
-                child,
-                working_dir: self.working_dir.clone(),
-            }),
+            Ok(child) => Ok(InterruptibleHandle { child }),
             Err(e) => Err(ExecuteResult {
                 stdout: String::new(),
                 stderr: e.to_string(),

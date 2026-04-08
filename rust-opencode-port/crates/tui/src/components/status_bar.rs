@@ -20,6 +20,7 @@ pub struct StatusPopover {
     token_count: usize,
     context_usage: (usize, usize),
     total_cost_usd: f64,
+    mcp_cost_usd: f64,
 }
 
 impl StatusPopover {
@@ -30,6 +31,7 @@ impl StatusPopover {
             token_count: 0,
             context_usage: (0, 128000),
             total_cost_usd: 0.0,
+            mcp_cost_usd: 0.0,
         }
     }
 
@@ -38,10 +40,12 @@ impl StatusPopover {
         token_count: usize,
         context_usage: (usize, usize),
         total_cost_usd: f64,
+        mcp_cost_usd: f64,
     ) -> Self {
         self.token_count = token_count;
         self.context_usage = context_usage;
         self.total_cost_usd = total_cost_usd;
+        self.mcp_cost_usd = mcp_cost_usd;
         self
     }
 
@@ -118,7 +122,10 @@ impl StatusPopover {
             ]),
             Line::from(vec![
                 Span::styled("Est. Cost: ", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(format!("${:.3}", self.total_cost_usd)),
+                Span::raw(format!(
+                    "${:.3} (LLM) + ${:.3} (MCP)",
+                    self.total_cost_usd, self.mcp_cost_usd
+                )),
             ]),
         ];
 
@@ -154,6 +161,7 @@ pub struct StatusBar {
     pub token_count: usize,
     pub context_usage: (usize, usize),
     pub total_cost_usd: f64,
+    pub mcp_cost_usd: f64,
     pub budget_limit_usd: Option<f64>,
     pub active_popover: Option<StatusPopoverType>,
     pub git_branch: Option<String>,
@@ -174,6 +182,7 @@ impl StatusBar {
             token_count: 0,
             context_usage: (0, 128000),
             total_cost_usd: 0.0,
+            mcp_cost_usd: 0.0,
             budget_limit_usd: None,
             active_popover: None,
             git_branch: Self::detect_git_branch(),
@@ -197,11 +206,13 @@ impl StatusBar {
         context_used: usize,
         context_total: usize,
         total_cost_usd: f64,
+        mcp_cost_usd: f64,
         budget_limit_usd: Option<f64>,
     ) {
         self.token_count = tokens;
         self.context_usage = (context_used, context_total);
         self.total_cost_usd = total_cost_usd;
+        self.mcp_cost_usd = mcp_cost_usd;
         self.budget_limit_usd = budget_limit_usd;
     }
 
@@ -226,7 +237,8 @@ impl StatusBar {
 
         let connection_indicator = "●";
         let token_text = format!("Tokens: {}", self.token_count);
-        let cost_text = format!("Cost: ${:.3}", self.total_cost_usd);
+        let total_cost = self.total_cost_usd + self.mcp_cost_usd;
+        let cost_text = format!("Cost: ${:.3}", total_cost);
         let context_text = format!("Ctx: {}/{}", self.context_usage.0, self.context_usage.1);
 
         let budget_warn = self
@@ -279,6 +291,7 @@ impl StatusBar {
                 self.token_count,
                 self.context_usage,
                 self.total_cost_usd,
+                self.mcp_cost_usd,
             );
             popover.draw(f, area);
         }

@@ -26,6 +26,8 @@ pub struct TuiConfig {
     pub diff_style: String,
     #[serde(default = "default_typewriter_speed")]
     pub typewriter_speed: u64,
+    #[serde(default = "default_max_context_size")]
+    pub max_context_size: usize,
     #[serde(default)]
     pub keybinds: Option<KeybindConfig>,
     #[serde(default)]
@@ -167,6 +169,10 @@ fn default_typewriter_speed() -> u64 {
     20
 }
 
+fn default_max_context_size() -> usize {
+    5000
+}
+
 fn default_scroll_speed() -> u32 {
     10
 }
@@ -214,6 +220,7 @@ impl Config {
                 show_skills_panel: false,
                 diff_style: "auto".to_string(),
                 typewriter_speed: 20,
+                max_context_size: 5000,
                 keybinds: None,
                 custom_themes: Vec::new(),
             }),
@@ -251,6 +258,7 @@ impl Config {
             show_skills_panel: false,
             diff_style: "auto".to_string(),
             typewriter_speed: 20,
+            max_context_size: 5000,
             keybinds: None,
             custom_themes: Vec::new(),
         })
@@ -265,6 +273,7 @@ impl Config {
             existing.show_skills_panel = tui.show_skills_panel;
             existing.diff_style = tui.diff_style;
             existing.typewriter_speed = tui.typewriter_speed;
+            existing.max_context_size = tui.max_context_size;
             existing.keybinds = tui.keybinds;
             existing.custom_themes = tui.custom_themes;
         } else {
@@ -283,6 +292,10 @@ impl Config {
 
     pub fn typewriter_speed(&self) -> u64 {
         self.tui_config().typewriter_speed
+    }
+
+    pub fn max_context_size(&self) -> usize {
+        self.tui_config().max_context_size
     }
 
     pub fn keybinds(&self) -> Option<KeybindConfig> {

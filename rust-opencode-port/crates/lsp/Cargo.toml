@@ -13,3 +13,4 @@ tokio.workspace = true
 futures = "0.3"
 tower-lsp = "0.20"
 lsp-types = "0.95"
+parking_lot = "0.12"

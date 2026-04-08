@@ -1,4 +1,5 @@
 use crate::command::{CommandAction, CommandRegistry};
+use crate::config::{Config, DiffStyle, UserConfig};
 use crate::components::{
     FileTree, InputWidget, SkillInfo, SkillsPanel, StatusBar, StatusPopoverType, TerminalPanel,
     TitleBar, TitleBarAction,
@@ -19,7 +20,10 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, LeaveAlternateScreen},
 };
 use opencode_auth::CredentialStore;
-use opencode_core::{CostCalculator, SkillResolver, SkillState, TokenCounter};
+use opencode_core::{AgentExecutor, CostCalculator, SkillResolver, SkillState, TokenCounter, ToolRegistry};
+use opencode_lsp::client::LspClient;
+use opencode_lsp::types::{Diagnostic, Location};
+use opencode_mcp::McpManager;
 use opencode_llm::{
     BrowserAuthModelInfo, OpenAiBrowserAuthService, OpenAiBrowserAuthStore, OpenAiBrowserSession,
     OpenAiProvider, Provider, ProviderConfig,
@@ -199,9 +203,27 @@ impl Default for ScrollState {
 }
 
 #[derive(Debug, Clone)]
+pub struct MemoryEntry {
+    pub id: usize,
+    pub content: String,
+    pub created_at: String,
+}
+
+impl MemoryEntry {
+    pub fn new(id: usize, content: String) -> Self {
+        Self {
+            id,
+            content,
+            created_at: chrono::Utc::now().format("%Y-%m-%d %H:%M").to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct MessageMeta {
     pub content: String,
     pub is_user: bool,
+    pub is_thinking: bool,
     pub token_count: Option<usize>,
     pub duration_ms: Option<u64>,
     pub tool_calls: Vec<String>,
@@ -212,6 +234,7 @@ impl MessageMeta {
         Self {
             content: content.into(),
             is_user: true,
+            is_thinking: false,
             token_count: None,
             duration_ms: None,
             tool_calls: Vec::new(),
@@ -222,6 +245,18 @@ impl MessageMeta {
         Self {
             content: content.into(),
             is_user: false,
+            is_thinking: false,
+            token_count: None,
+            duration_ms: None,
+            tool_calls: Vec::new(),
+        }
+    }
+
+    pub fn thinking(content: impl Into<String>) -> Self {
+        Self {
+            content: content.into(),
+            is_user: false,
+            is_thinking: true,
             token_count: None,
             duration_ms: None,
             tool_calls: Vec::new(),
@@ -408,19 +443,31 @@ pub struct App {
     pub session_token_id: String,
     pub pending_input_tokens: usize,
     pub total_cost_usd: f64,
+    pub mcp_cost_usd: f64,
     pub budget_limit_usd: Option<f64>,
     pub username: Option<String>,
+    pub share_url: Option<String>,
+    pub memory_entries: Vec<MemoryEntry>,
     pub thinking_mode: bool,
+    pub thinking_content: String,
+    pub is_receiving_thinking: bool,
     pub model_aliases: std::collections::HashMap<String, String>,
     skill_resolver: SkillResolver,
     input_parser: InputParser,
     input_box: InputBox,
     input_processor: InputProcessor,
     pending_shell_command: Option<String>,
+    enriched_input: Option<String>,
     #[allow(dead_code)]
     shell_handler: ShellHandler,
     #[allow(dead_code)]
     file_ref_handler: FileRefHandler,
+    pub config: Config,
+    tool_registry: ToolRegistry,
+    agent_executor: AgentExecutor,
+    mcp_manager: &'static McpManager,
+    pub lsp_client: Option<LspClient>,
+    pub lsp_diagnostics: Vec<Diagnostic>,
 }
 
 impl App {
@@ -429,6 +476,10 @@ impl App {
         timeline_state.select(None);
         let mut theme_manager = ThemeManager::new();
         let _ = theme_manager.load_from_config();
+        let custom_themes = Config::load_from_default_path()
+            .map(|c| c.tui_config().custom_themes)
+            .unwrap_or_default();
+        theme_manager.load_custom_themes_from_config(&custom_themes);
         let theme = theme_manager.current().clone();
 
         let config_dir = dirs::config_dir()
@@ -535,9 +586,14 @@ impl App {
             session_token_id,
             pending_input_tokens: 0,
             total_cost_usd: 0.0,
+            mcp_cost_usd: 0.0,
             budget_limit_usd,
             username: std::env::var("OPENCODE_USERNAME").ok(),
+            share_url: None,
+            memory_entries: Vec::new(),
             thinking_mode: false,
+            thinking_content: String::new(),
+            is_receiving_thinking: false,
             model_aliases: {
                 let mut m = std::collections::HashMap::new();
                 m.insert("opus".to_string(), "claude-3-opus-20240229".to_string());
@@ -550,8 +606,33 @@ impl App {
             input_box,
             input_processor: InputProcessor::new(),
             pending_shell_command: None,
+            enriched_input: None,
             shell_handler: ShellHandler::new(),
             file_ref_handler: FileRefHandler::new(),
+            config: Config::load_from_default_path().unwrap_or_else(|_| Config::default_config()),
+            tool_registry: {
+                let mut registry = ToolRegistry::new();
+                let mcp_manager = McpManager::global();
+                if let Ok(rt) = tokio::runtime::Handle::try_current() {
+                    rt.block_on(async {
+                        mcp_manager.bridge_to_tool_registry(&mut registry).await;
+                    });
+                }
+                registry
+            },
+            agent_executor: {
+                let mut registry = ToolRegistry::new();
+                let mcp_manager = McpManager::global();
+                if let Ok(rt) = tokio::runtime::Handle::try_current() {
+                    rt.block_on(async {
+                        mcp_manager.bridge_to_tool_registry(&mut registry).await;
+                    });
+                }
+                AgentExecutor::new(registry)
+            },
+            mcp_manager: McpManager::global(),
+            lsp_client: None,
+            lsp_diagnostics: Vec::new(),
         }
     }
 
@@ -737,8 +818,18 @@ impl App {
             .or_else(|_| std::env::var("OPENAI_MODEL"))
             .unwrap_or_else(|_| "gpt-4o".to_string());
 
+        let resolved_model = match self.model_aliases.get(&model) {
+            Some(alias) => alias.clone(),
+            None => {
+                if model != "gpt-4o" && !model.starts_with("claude") && !model.starts_with("gpt-4") {
+                    self.add_message(format!("Warning: Unknown model alias '{}' - using as-is", model), false);
+                }
+                model.clone()
+            }
+        };
+
         let config = ProviderConfig {
-            model: model.clone(),
+            model: resolved_model,
             api_key,
             temperature: 0.7,
         };
@@ -788,6 +879,20 @@ impl App {
         }
     }
 
+    pub fn add_mcp_tool_cost(&mut self, cost: f64) {
+        self.mcp_cost_usd += cost;
+        let total_tokens = self.token_counter.get_total_tokens();
+        let context_total = self.status_bar.context_usage.1;
+        self.status_bar.update_usage(
+            total_tokens,
+            total_tokens,
+            context_total,
+            self.total_cost_usd,
+            self.mcp_cost_usd,
+            self.budget_limit_usd,
+        );
+    }
+
     fn save_history(&self) {
         let content = self.history.join("\n");
         let _ = std::fs::write(&self.history_file, content);
@@ -830,6 +935,72 @@ impl App {
     }
 
     const LEADER_KEY_TIMEOUT: Duration = Duration::from_millis(2000);
+    /// Maximum characters displayed from a git diff output.
+    const MAX_DIFF_DISPLAY_CHARS: usize = 2000;
+    /// Maximum number of entries kept in the command history.
+    const MAX_HISTORY_SIZE: usize = 100;
+    /// Divisor used when estimating token count from byte length.
+    const TOKEN_ESTIMATE_DIVISOR: usize = 4;
+
+    fn keybind_string(key: &KeyEvent) -> String {
+        let mut s = String::new();
+        if key.modifiers.contains(KeyModifiers::CONTROL) {
+            s.push_str("Ctrl+");
+        }
+        if key.modifiers.contains(KeyModifiers::ALT) {
+            s.push_str("Alt+");
+        }
+        if key.modifiers.contains(KeyModifiers::SHIFT) {
+            s.push_str("Shift+");
+        }
+        match &key.code {
+            KeyCode::Char(c) => s.push(*c),
+            KeyCode::Esc => s.push_str("Esc"),
+            KeyCode::Enter => s.push_str("Enter"),
+            KeyCode::Tab => s.push_str("Tab"),
+            KeyCode::Backspace => s.push_str("Backspace"),
+            KeyCode::Up => s.push_str("Up"),
+            KeyCode::Down => s.push_str("Down"),
+            KeyCode::Left => s.push_str("Left"),
+            KeyCode::Right => s.push_str("Right"),
+            KeyCode::Home => s.push_str("Home"),
+            KeyCode::End => s.push_str("End"),
+            KeyCode::PageUp => s.push_str("PageUp"),
+            KeyCode::PageDown => s.push_str("PageDown"),
+            KeyCode::F(n) => s.push_str(&format!("F{}", n)),
+            _ => {}
+        }
+        s
+    }
+
+    fn matches_keybind(&self, key: &KeyEvent, action: &str) -> bool {
+        let default_key = match action {
+            "commands" => "Ctrl+p",
+            "timeline" => "Ctrl+t",
+            "new_session" => "Ctrl+n",
+            "toggle_files" => "Ctrl+Shift+f",
+            "settings" => "Ctrl+,",
+            "search" => "Ctrl+/",
+            _ => return false,
+        };
+        if let Some(custom) = self.config.keybinds() {
+            let custom_key = match action {
+                "commands" => custom.commands.as_ref(),
+                "timeline" => custom.timeline.as_ref(),
+                "new_session" => custom.new_session.as_ref(),
+                "toggle_files" => custom.toggle_files.as_ref(),
+                "settings" => custom.settings.as_ref(),
+                "search" => custom.search.as_ref(),
+                _ => None,
+            };
+            if let Some(ck) = custom_key {
+                if !ck.is_empty() {
+                    return Self::keybind_string(key) == *ck;
+                }
+            }
+        }
+        Self::keybind_string(key) == default_key
+    }
 
     pub fn activate_leader_key(&mut self) {
         self.leader_key_state = LeaderKeyState::WaitingForAction;
@@ -940,6 +1111,36 @@ impl App {
         result
     }
 
+    pub fn get_definition(&mut self, uri: &str, line: u32, col: u32) -> Option<Location> {
+        if let Some(ref mut client) = self.lsp_client {
+            let rt = tokio::runtime::Handle::current();
+            rt.block_on(async { client.goto_definition(uri, line, col).await }).ok().flatten()
+        } else {
+            None
+        }
+    }
+
+    pub fn find_references(&mut self, uri: &str, line: u32, col: u32) -> Vec<Location> {
+        if let Some(ref mut client) = self.lsp_client {
+            let rt = tokio::runtime::Handle::current();
+            rt.block_on(async { client.find_references(uri, line, col).await }).unwrap_or_default()
+        } else {
+            Vec::new()
+        }
+    }
+
+    pub fn refresh_diagnostics(&mut self, uri: &str) {
+        if let Some(ref mut client) = self.lsp_client {
+            let rt = tokio::runtime::Handle::current();
+            match rt.block_on(async { client.get_diagnostics(uri).await }) {
+                Ok(diags) => self.lsp_diagnostics = diags,
+                Err(_) => self.lsp_diagnostics.clear(),
+            }
+        } else {
+            self.lsp_diagnostics.clear();
+        }
+    }
+
     pub fn handle_file_drop(&mut self, paths: Vec<std::path::PathBuf>) {
         self.dropped_files.clear();
         for path in paths {
@@ -1000,6 +1201,12 @@ impl App {
             self.check_llm_events();
             self.check_connect_events();
 
+            if let Some(ref mut ts) = self.input_widget.typewriter_state {
+                if ts.is_streaming {
+                    ts.tick();
+                }
+            }
+
             match self.mode {
                 AppMode::CommandPalette => self.handle_command_palette(&mut terminal)?,
                 AppMode::SlashCommand => self.handle_slash_command_dialog(&mut terminal)?,
@@ -1039,7 +1246,30 @@ impl App {
             for event in events {
                 match event {
                     LlmEvent::Chunk(chunk) => {
-                        self.update_partial_response(chunk);
+                        if chunk.contains("<thinking>") {
+                            self.is_receiving_thinking = true;
+                            let thinking_part = chunk.replace("<thinking>", "");
+                            self.thinking_content.push_str(&thinking_part);
+                        } else if chunk.contains("</thinking>") {
+                            self.is_receiving_thinking = false;
+                            let final_part = chunk.replace("</thinking>", "");
+                            self.thinking_content.push_str(&final_part);
+                            if !self.thinking_content.is_empty() {
+                                self.add_message_with_meta(
+                                    MessageMeta::thinking(&self.thinking_content),
+                                );
+                            }
+                            self.thinking_content.clear();
+                        } else if self.is_receiving_thinking {
+                            self.thinking_content.push_str(&chunk);
+                        } else {
+                            if self.partial_response.is_empty() {
+                                self.input_widget.start_typewriter(&chunk);
+                            } else {
+                                self.input_widget.typewriter_state.as_mut().map(|s| s.append(&chunk));
+                            }
+                            self.update_partial_response(chunk);
+                        }
                     }
                     LlmEvent::Done => {
                         let response = self.partial_response.clone();
@@ -1063,6 +1293,7 @@ impl App {
                             total_tokens,
                             context_total,
                             self.total_cost_usd,
+                            self.mcp_cost_usd,
                             self.budget_limit_usd,
                         );
 
@@ -1325,14 +1556,59 @@ impl App {
                 self.mode = AppMode::ReleaseNotes;
             }
             "/compact" => {
-                self.add_message("Compacting session...".to_string(), false);
+                use opencode_core::compaction::{Compactor, CompactionConfig};
+                let compactor = Compactor::new(CompactionConfig::default());
+                let core_messages: Vec<opencode_core::Message> = self.messages
+                    .iter()
+                    .map(|m| opencode_core::Message {
+                        role: if m.is_user { opencode_core::Role::User } else { opencode_core::Role::Assistant },
+                        content: m.content.clone(),
+                        timestamp: chrono::Utc::now(),
+                    })
+                    .collect();
+                let result = compactor.compact(core_messages);
+                if result.was_compacted {
+                    self.messages.clear();
+                    for m in result.messages {
+                        self.messages.push(MessageMeta::assistant(m.content));
+                    }
+                    self.add_message(
+                        format!("Session compacted: {} messages summarized", result.pruned_count),
+                        false,
+                    );
+                } else {
+                    self.add_message("Session doesn't need compaction".to_string(), false);
+                }
             }
             "/summarize" => {
-                let msg_count = self.messages.len();
-                self.add_message(
-                    format!("Summarizing {} messages... (session summarized)", msg_count),
-                    false,
-                );
+                use opencode_core::compaction::{Compactor, CompactionConfig};
+                let compactor = Compactor::new(CompactionConfig::default());
+                let core_messages: Vec<opencode_core::Message> = self.messages
+                    .iter()
+                    .map(|m| opencode_core::Message {
+                        role: if m.is_user { opencode_core::Role::User } else { opencode_core::Role::Assistant },
+                        content: m.content.clone(),
+                        timestamp: chrono::Utc::now(),
+                    })
+                    .collect();
+                let result = compactor.compact(core_messages);
+                if result.was_compacted {
+                    self.messages.clear();
+                    for m in result.messages {
+                        self.messages.push(MessageMeta::assistant(m.content));
+                    }
+                    let msg_count = self.messages.len();
+                    self.add_message(
+                        format!("Session summarized: {} → {} messages", result.pruned_count, msg_count),
+                        false,
+                    );
+                } else {
+                    let msg_count = self.messages.len();
+                    self.add_message(
+                        format!("Summarizing {} messages... (session summarized)", msg_count),
+                        false,
+                    );
+                }
             }
             "/export" => {
                 use std::env;
@@ -1450,14 +1726,19 @@ impl App {
                 if !is_git_repo {
                     self.add_message("Not a git repository.".to_string(), false);
                 } else {
-                    match std::process::Command::new("git").arg("diff").output() {
+                    let git_args = match self.config.diff_style() {
+                        DiffStyle::SideBySide => vec!["diff", "--word-diff=color"],
+                        DiffStyle::Unified => vec!["diff", "--unified=5"],
+                        DiffStyle::Auto => vec!["diff"],
+                    };
+                    match std::process::Command::new("git").args(&git_args).output() {
                         Ok(o) => {
                             let diff = String::from_utf8_lossy(&o.stdout);
                             if diff.is_empty() {
                                 self.add_message("No changes to show.".to_string(), false);
                             } else {
                                 self.add_message(
-                                    format!("Git diff:\n{}", diff.chars().take(2000).collect::<String>()),
+                                    format!("Git diff:\n{}", diff.chars().take(Self::MAX_DIFF_DISPLAY_CHARS).collect::<String>()),
                                     false,
                                 );
                             }
@@ -1469,22 +1750,97 @@ impl App {
                 }
             }
             "/memory" => {
-                self.add_message(
-                    "Memory system: No entries stored (feature pending)".to_string(),
-                    false,
-                );
+                let args = self.input.trim_start_matches("/memory").trim();
+                let parts: Vec<&str> = args.splitn(2, ' ').collect();
+                let subcmd = parts.first().unwrap_or(&"");
+                
+                match *subcmd {
+                    "list" | "" => {
+                        if self.memory_entries.is_empty() {
+                            self.add_message("Memory: No entries stored. Use /memory add <content>".to_string(), false);
+                        } else {
+                            let list: String = self.memory_entries
+                                .iter()
+                                .map(|e| format!("[{}] {} - {}", e.id, e.created_at, e.content))
+                                .collect::<Vec<_>>()
+                                .join("\n");
+                            self.add_message(format!("Memory entries:\n{}", list), false);
+                        }
+                    }
+                    "add" => {
+                        if let Some(content) = parts.get(1) {
+                            let id = self.memory_entries.len() + 1;
+                            self.memory_entries.push(MemoryEntry::new(id, content.to_string()));
+                            self.add_message(format!("Added memory entry [{}]", id), false);
+                        } else {
+                            self.add_message("Usage: /memory add <content>".to_string(), false);
+                        }
+                    }
+                    "delete" => {
+                        if let Some(id_str) = parts.get(1) {
+                            if let Ok(id) = id_str.parse::<usize>() {
+                                if let Some(pos) = self.memory_entries.iter().position(|e| e.id == id) {
+                                    self.memory_entries.remove(pos);
+                                    self.add_message(format!("Deleted memory entry [{}]", id), false);
+                                } else {
+                                    self.add_message("Invalid ID. Usage: /memory delete <id>".to_string(), false);
+                                }
+                            } else {
+                                self.add_message("Invalid ID. Usage: /memory delete <id>".to_string(), false);
+                            }
+                        } else {
+                            self.add_message("Usage: /memory delete <id>".to_string(), false);
+                        }
+                    }
+                    _ => {
+                        self.add_message("Memory commands:\n/memory list - Show all entries\n/memory add <content> - Add entry\n/memory delete <id> - Delete entry".to_string(), false);
+                    }
+                }
             }
             "/plugins" => {
-                let skills = self.skill_resolver.list_skills().unwrap_or_default();
-                if skills.is_empty() {
-                    self.add_message("No plugins installed.".to_string(), false);
-                } else {
-                    let msg = skills
-                        .iter()
-                        .map(|(s, state)| format!("{} ({:?})", s.name, state))
-                        .collect::<Vec<_>>()
-                        .join("\n");
-                    self.add_message(format!("Installed plugins:\n{}", msg), false);
+                let args = self.input.trim_start_matches("/plugins").trim();
+                let parts: Vec<&str> = args.splitn(2, ' ').collect();
+                let subcmd = parts.first().unwrap_or(&"");
+
+                match *subcmd {
+                    "list" | "" => {
+                        let skills = self.skill_resolver.list_skills().unwrap_or_default();
+                        if skills.is_empty() {
+                            self.add_message("No plugins installed.".to_string(), false);
+                        } else {
+                            let msg = skills
+                                .iter()
+                                .map(|(s, state)| format!("{} ({:?})", s.name, state))
+                                .collect::<Vec<_>>()
+                                .join("\n");
+                            self.add_message(format!("Installed plugins:\n{}", msg), false);
+                        }
+                    }
+                    "enable" => {
+                        if let Some(name) = parts.get(1) {
+                            if self.skill_resolver.set_skill_state(name, opencode_core::SkillState::Enabled).is_some() {
+                                self.add_message(format!("Enabled plugin: {}", name), false);
+                            } else {
+                                self.add_message(format!("Plugin not found: {}", name), false);
+                            }
+                        } else {
+                            self.add_message("Usage: /plugins enable <name>".to_string(), false);
+                        }
+                    }
+                    "disable" => {
+                        if let Some(name) = parts.get(1) {
+                            if self.skill_resolver.set_skill_state(name, opencode_core::SkillState::Disabled).is_some() {
+                                self.add_message(format!("Disabled plugin: {}", name), false);
+                            } else {
+                                self.add_message(format!("Plugin not found: {}", name), false);
+                            }
+                        } else {
+                            self.add_message("Usage: /plugins disable <name>".to_string(), false);
+                        }
+                    }
+                    _ => {
+                        self.add_message("Usage: /plugins list|enable <name>|disable <name>".to_string(), false);
+                    }
                 }
             }
             "/share" => {
@@ -1506,19 +1862,48 @@ impl App {
                 }
                 match fs::write(&share_path, &content) {
                     Ok(_) => {
+                        self.share_url = Some(share_path.to_string_lossy().to_string());
                         self.add_message(
-                            format!("Session shared: {}\nContent has been sanitized.", share_path.display()),
+                            format!("Session shared: {}\nUse /unshare to remove.", self.share_url.as_ref().unwrap()),
                             false,
                         );
                     }
                     Err(e) => self.add_message(format!("Share failed: {}", e), false),
                 }
             }
+            "/unshare" => {
+                if let Some(ref url) = self.share_url {
+                    self.add_message(
+                        format!("Removed share: {}", url),
+                        false,
+                    );
+                    self.share_url = None;
+                } else {
+                    self.add_message(
+                        "No active session share to remove. Use /share to create a share.".to_string(),
+                        false,
+                    );
+                }
+            }
             "/username" => {
-                self.add_message(
-                    "Usage: /username <name> - Set your display name".to_string(),
-                    false,
-                );
+                let name = self.input.trim_start_matches("/username").trim();
+                if name.is_empty() {
+                    if let Some(current) = &self.username {
+                        self.add_message(format!("Current username: {}", current), false);
+                    } else {
+                        self.add_message("No username set. Usage: /username <name>".to_string(), false);
+                    }
+                } else {
+                    self.username = Some(name.to_string());
+                    if let Ok(mut config) = Config::load_from_default_path() {
+                        config.user = Some(UserConfig {
+                            username: Some(name.to_string()),
+                            remember_username: true,
+                        });
+                        let _ = config.save(&Config::default_config_path());
+                    }
+                    self.add_message(format!("Username set to: {} (saved)", name), false);
+                }
             }
             "/thinking" => {
                 self.thinking_mode = !self.thinking_mode;
@@ -1730,15 +2115,186 @@ impl App {
                     self.init_project();
                 }
                 CommandAction::Custom(name) => {
-                    if name == "help" {
-                        let all_commands = self
-                            .command_registry
-                            .all()
-                            .iter()
-                            .map(|c| format!("/{} - {}", c.name, c.description))
-                            .collect::<Vec<_>>()
-                            .join("\n");
-                        self.add_message(format!("Available commands:\n{}", all_commands), false);
+                    match name.as_str() {
+                        "help" => {
+                            let all_commands = self
+                                .command_registry
+                                .all()
+                                .iter()
+                                .map(|c| format!("/{} - {}", c.name, c.description))
+                                .collect::<Vec<_>>()
+                                .join("\n");
+                            self.add_message(format!("Available commands:\n{}", all_commands), false);
+                        }
+                        "search" => {
+                            self.mode = AppMode::Search;
+                        }
+                        "diff" => {
+                            let is_git_repo = std::process::Command::new("git")
+                                .arg("rev-parse")
+                                .arg("--is-inside-work-tree")
+                                .output()
+                                .map(|o| o.status.success())
+                                .unwrap_or(false);
+                            if !is_git_repo {
+                                self.add_message("Not a git repository.".to_string(), false);
+                            } else {
+                                let git_args = match self.config.diff_style() {
+                                    DiffStyle::SideBySide => vec!["diff", "--word-diff=color"],
+                                    DiffStyle::Unified => vec!["diff", "--unified=5"],
+                                    DiffStyle::Auto => vec!["diff"],
+                                };
+                                match std::process::Command::new("git").args(&git_args).output() {
+                                    Ok(o) => {
+                                        let diff = String::from_utf8_lossy(&o.stdout);
+                                        if diff.is_empty() {
+                                            self.add_message("No changes to show.".to_string(), false);
+                                        } else {
+                                            self.add_message(
+                                                format!("Git diff:\n{}", diff.chars().take(Self::MAX_DIFF_DISPLAY_CHARS).collect::<String>()),
+                                                false,
+                                            );
+                                        }
+                                    }
+                                    Err(e) => {
+                                        self.add_message(format!("Git diff failed: {}", e), false);
+                                    }
+                                }
+                            }
+                        }
+                        "memory" => {
+                            let args = self.input.trim_start_matches("/memory").trim();
+                            let parts: Vec<&str> = args.splitn(2, ' ').collect();
+                            let subcmd = parts.first().unwrap_or(&"");
+                            
+                            match *subcmd {
+                                "list" | "" => {
+                                    if self.memory_entries.is_empty() {
+                                        self.add_message("Memory: No entries stored. Use /memory add <content>".to_string(), false);
+                                    } else {
+                                        let list: String = self.memory_entries
+                                            .iter()
+                                            .map(|e| format!("[{}] {} - {}", e.id, e.created_at, e.content))
+                                            .collect::<Vec<_>>()
+                                            .join("\n");
+                                        self.add_message(format!("Memory entries:\n{}", list), false);
+                                    }
+                                }
+                                "add" => {
+                                    let content = parts.get(1).unwrap_or(&"").trim();
+                                    if content.is_empty() {
+                                        self.add_message("Usage: /memory add <content>".to_string(), false);
+                                    } else {
+                                        let id = self.memory_entries.len() + 1;
+                                        self.memory_entries.push(MemoryEntry::new(id, content.to_string()));
+                                        self.add_message(format!("Memory entry [{}] added", id), false);
+                                    }
+                                }
+                                "delete" | "del" => {
+                                    let id_str = parts.get(1).unwrap_or(&"").trim();
+                                    if id_str.is_empty() {
+                                        self.add_message("Usage: /memory delete <id>".to_string(), false);
+                                    } else if let Ok(id) = id_str.parse::<usize>() {
+                                        if let Some(pos) = self.memory_entries.iter().position(|e| e.id == id) {
+                                            self.memory_entries.remove(pos);
+                                            self.add_message(format!("Memory entry [{}] deleted", id), false);
+                                        } else {
+                                            self.add_message(format!("Memory entry [{}] not found", id), false);
+                                        }
+                                    } else {
+                                        self.add_message("Invalid ID. Usage: /memory delete <id>".to_string(), false);
+                                    }
+                                }
+                                _ => {
+                                    self.add_message("Memory commands:\n/memory list - Show all entries\n/memory add <content> - Add entry\n/memory delete <id> - Delete entry".to_string(), false);
+                                }
+                            }
+                        }
+                        "username" => {
+                            let name = self.input.trim_start_matches("/username").trim();
+                            if name.is_empty() {
+                                if let Some(current) = &self.username {
+                                    self.add_message(format!("Current username: {}", current), false);
+                                } else {
+                                    self.add_message("No username set. Usage: /username <name>".to_string(), false);
+                                }
+                            } else {
+                                self.username = Some(name.to_string());
+                                if let Ok(mut config) = Config::load_from_default_path() {
+                                    config.user = Some(UserConfig {
+                                        username: Some(name.to_string()),
+                                        remember_username: true,
+                                    });
+                                    let _ = config.save(&Config::default_config_path());
+                                }
+                                self.add_message(format!("Username set to: {} (saved)", name), false);
+                            }
+                        }
+                        "plugins" => {
+                            let args = self.input.trim_start_matches("/plugins").trim();
+                            let parts: Vec<&str> = args.splitn(2, ' ').collect();
+                            let subcmd = parts.first().unwrap_or(&"");
+
+                            match *subcmd {
+                                "list" | "" => {
+                                    let skills = self.skill_resolver.list_skills().unwrap_or_default();
+                                    if skills.is_empty() {
+                                        self.add_message("No plugins installed.".to_string(), false);
+                                    } else {
+                                        let msg = skills
+                                            .iter()
+                                            .map(|(s, state)| format!("{} ({:?})", s.name, state))
+                                            .collect::<Vec<_>>()
+                                            .join("\n");
+                                        self.add_message(format!("Installed plugins:\n{}", msg), false);
+                                    }
+                                }
+                                "enable" => {
+                                    if let Some(name) = parts.get(1) {
+                                        if self.skill_resolver.set_skill_state(name, opencode_core::SkillState::Enabled).is_some() {
+                                            self.add_message(format!("Enabled plugin: {}", name), false);
+                                        } else {
+                                            self.add_message(format!("Plugin not found: {}", name), false);
+                                        }
+                                    } else {
+                                        self.add_message("Usage: /plugins enable <name>".to_string(), false);
+                                    }
+                                }
+                                "disable" => {
+                                    if let Some(name) = parts.get(1) {
+                                        if self.skill_resolver.set_skill_state(name, opencode_core::SkillState::Disabled).is_some() {
+                                            self.add_message(format!("Disabled plugin: {}", name), false);
+                                        } else {
+                                            self.add_message(format!("Plugin not found: {}", name), false);
+                                        }
+                                    } else {
+                                        self.add_message("Usage: /plugins disable <name>".to_string(), false);
+                                    }
+                                }
+                                _ => {
+                                    self.add_message("Usage: /plugins list|enable <name>|disable <name>".to_string(), false);
+                                }
+                            }
+                        }
+                        "status" => {
+                            let model = std::env::var("OPENCODE_MODEL")
+                                .or_else(|_| std::env::var("OPENAI_MODEL"))
+                                .unwrap_or_else(|_| "unknown".to_string());
+                            let total_tokens = self.token_counter.get_total_tokens();
+                            let msg = format!(
+                                "Session Status:\nModel: {}\nTotal tokens: {}\nTotal cost: ${:.4}\nMessages: {}\nTool calls: {}\nThinking mode: {}",
+                                model,
+                                total_tokens,
+                                self.total_cost_usd,
+                                self.messages.len(),
+                                self.tool_calls.len(),
+                                if self.thinking_mode { "ON" } else { "OFF" }
+                            );
+                            self.add_message(msg, false);
+                        }
+                        _ => {
+                            self.add_message(format!("Command /{} not fully implemented", name), false);
+                        }
                     }
                 }
             }
@@ -1879,6 +2435,25 @@ OpenCode Agent Configuration
                             false,
                         );
                     }
+                    KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        self.right_panel.set_content(RightPanelContent::Diagnostics);
+                        self.add_message("LSP Diagnostics panel (use Alt+3)".to_string(), false);
+                    }
+                    KeyCode::Char('r') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        if let Some(ref mut client) = self.lsp_client {
+                            let rt = tokio::runtime::Handle::current();
+                            let cwd = std::env::current_dir().unwrap_or_default();
+                            rt.block_on(async {
+                                if let Some(server) = LspClient::detect_language_server(&cwd) {
+                                    self.add_message(format!("LSP server: {}", server), false);
+                                } else {
+                                    self.add_message("No LSP server detected for current directory".to_string(), false);
+                                }
+                            });
+                        } else {
+                            self.add_message("LSP client not initialized. Start opencode-rs in a project directory.".to_string(), false);
+                        }
+                    }
                     KeyCode::Char('1') if key.modifiers.contains(KeyModifiers::ALT) => {
                         self.right_panel.set_content(RightPanelContent::Todo);
                     }
@@ -1989,6 +2564,15 @@ OpenCode Agent Configuration
                                 }
                                 let exit_msg = format!("[Exit code: {}]", result.exit_code.map(|c| c.to_string()).unwrap_or_else(|| "N/A".to_string()));
                                 self.terminal_panel.add_line(&exit_msg, result.exit_code != Some(0));
+                                
+                                // Add shell result to conversation as tool result
+                                let tool_result = format!(
+                                    "```\n$ {}\n{}\n```\n{}",
+                                    cmd,
+                                    result.stdout,
+                                    if result.stderr.is_empty() { String::new() } else { format!("stderr: {}", result.stderr) }
+                                );
+                                self.add_message(tool_result, false);
                             }
 
                             let parsed_files = parsed_input
@@ -2006,7 +2590,7 @@ OpenCode Agent Configuration
 
                                 let mut file_contexts = Vec::new();
                                 let mut total_size = 0;
-                                const MAX_CONTEXT_SIZE: usize = 5000;
+                                let max_context_size = self.config.max_context_size();
 
                                 for file_path in &parsed_files {
                                     let path_str = file_path.to_string_lossy();
@@ -2015,7 +2599,7 @@ OpenCode Agent Configuration
                                     if result.error.is_none() {
                                         let formatted = self.file_ref_handler.format_for_context(&result);
                                         let formatted_len = formatted.len();
-                                        if total_size + formatted_len <= MAX_CONTEXT_SIZE {
+                                        if total_size + formatted_len <= max_context_size {
                                             file_contexts.push(formatted);
                                             total_size += formatted_len;
                                         } else {
@@ -2038,14 +2622,36 @@ OpenCode Agent Configuration
                                 for fc in file_contexts {
                                     context_content.push_str(&fc);
                                 }
+                                self.enriched_input = Some(context_content.clone());
                                 self.add_message(context_content, true);
                             } else {
+                                self.enriched_input = None;
                                 self.add_message(input.clone(), true);
                             }
 
                              self.input.clear();
                              self.input_widget.clear();
                              self.input_box.set_input(String::new());
+
+                             let context_usage_pct = self.status_bar.context_usage.1 as f64 
+                                 / self.config.max_context_size() as f64;
+                             if context_usage_pct >= 0.95 {
+                                 self.add_message(
+                                     "⚠️ Context budget exceeded (95%). Please /compact or start a new session.".to_string(), 
+                                     false,
+                                 );
+                                 return Ok(());
+                             } else if context_usage_pct >= 0.92 {
+                                 self.add_message(
+                                     "⚠️ Context at 92% - recommend /compact before continuing.".to_string(), 
+                                     false,
+                                 );
+                             } else if context_usage_pct >= 0.85 {
+                                 self.add_message(
+                                     "ℹ️ Context at 85% - consider /compact soon.".to_string(), 
+                                     false,
+                                 );
+                             }
 
                              // Call LLM in background task if provider is initialized
                              if self.llm_provider.is_some() {
@@ -2060,16 +2666,17 @@ OpenCode Agent Configuration
                                   for skill in auto_enabled {
                                       self.skills_panel.set_enabled(&skill.name, true);
                                   }
-                                  let skill_prompt = self.skill_resolver.build_skill_prompt();
-                                  let llm_input = if skill_prompt.is_empty() {
-                                      input.clone()
-                                  } else {
-                                      format!(
-                                          "[Enabled Skills]\n{}\n\n[User Request]\n{}",
-                                          skill_prompt,
-                                          input
-                                      )
-                                  };
+                                   let skill_prompt = self.skill_resolver.build_skill_prompt();
+                                   let base_input = self.enriched_input.clone().unwrap_or_else(|| input.clone());
+                                   let llm_input = if skill_prompt.is_empty() {
+                                       base_input
+                                   } else {
+                                       format!(
+                                           "[Enabled Skills]\n{}\n\n[User Request]\n{}",
+                                           skill_prompt,
+                                           base_input
+                                       )
+                                   };
                                   
                                   std::thread::spawn(move || {
                                       let rt = tokio::runtime::Runtime::new().unwrap();
@@ -2121,35 +2728,30 @@ OpenCode Agent Configuration
                             self.work_mode = self.work_mode.toggle();
                         }
                     }
-                    KeyCode::Up => {
+KeyCode::Up => {
                         if self.input.is_empty()
-                            && !self.history.is_empty() && self.history_index > 0 {
-                                self.history_index -= 1;
-                                self.input = self.history[self.history_index].clone();
-                                self.input_box.set_input(self.input.clone());
+                            && !self.history.is_empty() && self.history_index > 0
+                        {
+                            self.history_index -= 1;
+                            self.input = self.history[self.history_index].clone();
+                            self.input_box.set_input(self.input.clone());
+                        }
+                    }
+                    _ => {
+                        if self.matches_keybind(&key, "commands") {
+                            self.mode = AppMode::CommandPalette;
+                            self.command_palette_input.clear();
+                        } else if self.matches_keybind(&key, "timeline") {
+                            self.mode = AppMode::Timeline;
+                            if !self.messages.is_empty() {
+                                self.timeline_state.select(Some(self.messages.len() - 1));
                             }
+                        } else if self.matches_keybind(&key, "settings") {
+                            self.mode = AppMode::Settings;
+                        } else if self.matches_keybind(&key, "toggle_files") {
+                            self.toggle_file_tree();
+                        }
                     }
-                    KeyCode::Down => {
-                        if self.input.is_empty()
-                            && self.history_index < self.history.len() {
-                                self.history_index += 1;
-                                self.input = if self.history_index < self.history.len() {
-                                    self.history[self.history_index].clone()
-                                } else {
-                                    String::new()
-                                };
-                                self.input_box.set_input(self.input.clone());
-                            }
-                    }
-                    KeyCode::PageUp => {
-                        self.scroll_state.scroll_up();
-                        self.scroll_offset = self.scroll_state.apply(self.scroll_offset);
-                    }
-                    KeyCode::PageDown => {
-                        self.scroll_state.scroll_down();
-                        self.scroll_offset = self.scroll_state.apply(self.scroll_offset);
-                    }
-                    _ => {}
                 }
             }
         }
@@ -2343,7 +2945,7 @@ OpenCode Agent Configuration
     }
 
     fn right_panel_data(&self) -> RightPanelRenderData {
-        let diagnostics = self
+        let mut diagnostics = self
             .messages
             .iter()
             .filter(|m| {
@@ -2353,6 +2955,12 @@ OpenCode Agent Configuration
             .map(|m| m.content.clone())
             .take(8)
             .collect::<Vec<_>>();
+
+        for diag in &self.lsp_diagnostics {
+            let sev = format!("{:?}", diag.severity);
+            let range = format!("{}:{}", diag.range.start.line + 1, diag.range.start.character + 1);
+            diagnostics.push(format!("[{}] {} at {}", sev, diag.message, range));
+        }
 
         let files = self
             .dropped_files
@@ -2467,6 +3075,31 @@ OpenCode Agent Configuration
         f.render_widget(content, inner_area);
     }
 
+    fn highlight_query(&self, text: &str, query: &str, max_len: usize) -> String {
+        let lower = text.to_lowercase();
+        let q = query.to_lowercase();
+        let mut result = String::new();
+        let mut last_end = 0;
+        
+        for (idx, _) in lower.match_indices(&q) {
+            let start = idx.saturating_sub(3);
+            if result.len() + idx - last_end > max_len {
+                break;
+            }
+            result.push_str(&text[last_end..start]);
+            result.push_str("\x1b[7m");
+            let match_end = (idx + query.len()).min(text.len());
+            result.push_str(&text[idx..match_end]);
+            result.push_str("\x1b[0m");
+            last_end = match_end;
+        }
+        if result.is_empty() {
+            text.chars().take(max_len).collect()
+        } else {
+            result
+        }
+    }
+
     fn draw_search_dialog(&self, f: &mut Frame) {
         let area = f.area();
         let theme = self.theme_manager.current().clone();
@@ -2501,12 +3134,14 @@ OpenCode Agent Configuration
                 if msg.content.to_lowercase().contains(&query) {
                     let preview: String = msg.content.chars().take(inner.width.saturating_sub(6) as usize).collect();
                     let role = if msg.is_user { "U" } else { "A" };
+                    
+                    let highlighted = self.highlight_query(&msg.content, &query, inner.width.saturating_sub(8) as usize);
                     results.push(Line::from(vec![
                         Span::styled(
                             format!("[{}] ", role),
                             Style::default().fg(if msg.is_user { theme.primary_color() } else { theme.secondary_color() }),
                         ),
-                        Span::raw(preview),
+                        Span::raw(highlighted),
                     ]));
                     if results.len() >= inner.height.saturating_sub(1) as usize {
                         break;
@@ -2767,21 +3402,30 @@ OpenCode Agent Configuration
             .skip(self.scroll_offset)
             .take(messages_height as usize)
             .flat_map(|msg| {
-                let prefix = if msg.is_user { "> " } else { "  " };
-                let color = if msg.is_user {
-                    theme.primary_color()
+                let prefix = if msg.is_user { "> " } else if msg.is_thinking { "  " } else { "  " };
+                let (color, style) = if msg.is_user {
+                    (theme.primary_color(), Modifier::BOLD)
+                } else if msg.is_thinking && self.thinking_mode {
+                    (theme.warning_color(), Modifier::ITALIC)
                 } else {
-                    theme.foreground_color()
+                    (theme.foreground_color(), Modifier::BOLD)
                 };
                 let mut lines = vec![Line::from(vec![
                     Span::styled(
                         prefix,
-                        Style::default().fg(color).add_modifier(Modifier::BOLD),
+                        Style::default().fg(color).add_modifier(style),
                     ),
-                    Span::raw(msg.content.clone()),
+                    Span::raw(if msg.is_thinking && self.thinking_mode {
+                        format!("[Thinking...] {}", msg.content)
+                    } else {
+                        msg.content.clone()
+                    }),
                 ])];
                 if self.show_metadata {
                     let mut meta_parts = Vec::new();
+                    if msg.is_thinking {
+                        meta_parts.push("thinking".to_string());
+                    }
                     if let Some(tokens) = msg.token_count {
                         meta_parts.push(format!("tokens:{}", tokens));
                     }

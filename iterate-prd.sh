@@ -218,10 +218,83 @@ rerun_if_missing "$OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.md" "基于Spec更新实
 - 禁止将工作委托给其他 agent
 - 必须直接在当前 session 中完成所有分析工作"
 
+# 检查未完成的P0/P1任务数量
+check_remaining_p0_p1() {
+    local task_file="$1"
+    if [ ! -f "$task_file" ]; then
+        echo "0"
+        return
+    fi
+    
+    # 计算未完成的P0和P1任务数量
+    # 状态标记: ❌ 未实现, ⚠️ 部分实现, 🔲 待实现 都算未完成
+    # ✅ Done, ✅ 已完成 算完成
+    local remaining=0
+    
+    # 检查P0任务 (在"## P0 Tasks"或"## P0"和"## P1"之间)
+    local in_p0_section=0
+    while IFS= read -r line; do
+        if echo "$line" | grep -qE "^## P0( Tasks|.*高优先级)"; then
+            in_p0_section=1
+        elif echo "$line" | grep -qE "^## P1( Tasks|.*高优先级)"; then
+            in_p0_section=0
+        elif [ $in_p0_section -eq 1 ]; then
+            if echo "$line" | grep -qE "(Status|状态).*(❌|⚠️|🔲)"; then
+                remaining=$((remaining + 1))
+            fi
+        fi
+    done < "$task_file"
+    
+    # 检查P1任务
+    local in_p1_section=0
+    while IFS= read -r line; do
+        if echo "$line" | grep -qE "^## P1( Tasks|.*高优先级)"; then
+            in_p1_section=1
+        elif echo "$line" | grep -qE "^## P2( Tasks|.*中优先级)"; then
+            in_p1_section=0
+        elif [ $in_p1_section -eq 1 ]; then
+            if echo "$line" | grep -qE "(Status|状态).*(❌|⚠️|🔲)"; then
+                remaining=$((remaining + 1))
+            fi
+        fi
+    done < "$task_file"
+    
+    echo "$remaining"
+}
+
 echo ""
 echo "[5/6] 执行实现..."
 
-opencode run -m "$MODEL" "使用 /speckit.implement 执行实现。
+# 实现循环：最多3轮，直到P0/P1任务完成
+MAX_IMPLEMENTATION_ROUNDS=3
+TASK_FILE="$OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.md"
+
+for round in $(seq 1 $MAX_IMPLEMENTATION_ROUNDS); do
+    echo ""
+    echo "=============================================="
+    echo "实现轮次 $round/$MAX_IMPLEMENTATION_ROUNDS"
+    echo "=============================================="
+    
+    # 检查任务文件是否存在
+    if [ ! -f "$TASK_FILE" ]; then
+        echo "  ⚠️  任务文件不存在: $TASK_FILE"
+        break
+    fi
+    
+    # 检查当前未完成的任务数
+    remaining_p0_p1=$(check_remaining_p0_p1 "$TASK_FILE")
+    echo "  📋 剩余未完成的P0/P1任务: $remaining_p0_p1"
+    
+    # 如果没有未完成的任务，跳出循环
+    if [ "$remaining_p0_p1" -eq 0 ]; then
+        echo "  ✅ 所有P0/P1任务已完成!"
+        break
+    fi
+    
+    echo ""
+    echo "  🔄 执行实现..."
+    
+    opencode run -m "$MODEL" "使用 /speckit.implement 执行实现。
 
 ## 重要约束
 - 禁止使用 subagent 或 task 工具 spawning 其他 agent
@@ -230,22 +303,39 @@ opencode run -m "$MODEL" "使用 /speckit.implement 执行实现。
 - 只使用 Read、Write、Edit、Grep、LSP、Bash 等直接工具
 
 ## 任务清单
-$OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.md
+$(cat $TASK_FILE)
 
 ## Spec
-$OUTPUTS_DIR/spec_v${NEXT_ITERATION}.md
+$(cat $OUTPUTS_DIR/spec_v${NEXT_ITERATION}.md)
 
 ## 实现目录
 ./outputs/src/
 
+## 当前轮次信息
+- 这是第 $round 轮实现（共最多 $MAX_IMPLEMENTATION_ROUNDS 轮）
+- 剩余未完成的P0/P1任务: $remaining_p0_p1
+
 ## 任务
 1. 按任务清单执行实现
-2. 优先完成P0任务
+2. 优先完成P0任务（阻断性问题）
 3. 确保代码符合Constitution
 4. Build必须通过
 
 ## 验证
-- npm run build 必须通过"
+- npm run build 必须通过
+
+## 重要提醒
+- 如果任务状态已标记为 ✅ 完成，跳过该任务
+- 专注于未完成的任务
+- 每次完成一个任务，更新任务文件中的Status为 ✅ Done"
+    
+    # 最后一轮结束时给出警告
+    if [ $round -eq $MAX_IMPLEMENTATION_ROUNDS ] && [ "$remaining_p0_p1" -gt 0 ]; then
+        echo ""
+        echo "  ⚠️  达到最大实现轮次，仍有 $remaining_p0_p1 个P0/P1任务未完成"
+        echo "  ⚠️  继续到验证阶段..."
+    fi
+done
 
 echo ""
 echo "[6/6] 验证报告..."

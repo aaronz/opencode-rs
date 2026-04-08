@@ -2,6 +2,8 @@ use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+use crate::config::CustomTheme;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThemeColors {
     pub background: String,
@@ -52,6 +54,25 @@ impl Theme {
 
     pub fn load_from_json(json: &str) -> Result<Self, String> {
         serde_json::from_str(json).map_err(|e| format!("Failed to parse theme JSON: {}", e))
+    }
+
+    pub fn from_custom_theme(ct: &CustomTheme) -> Result<Self, String> {
+        let colors = ThemeColors {
+            background: ct.background.clone(),
+            foreground: ct.foreground.clone(),
+            primary: ct.primary.clone(),
+            secondary: ct.secondary.clone(),
+            accent: ct.accent.clone(),
+            error: ct.error.clone(),
+            warning: ct.warning.clone(),
+            success: ct.success.clone(),
+            muted: ct.muted.clone(),
+            border: ct.border.clone(),
+        };
+        Ok(Self {
+            name: ct.name.clone(),
+            colors,
+        })
     }
 
     pub fn primary_color(&self) -> Color {
@@ -411,6 +432,14 @@ impl ThemeManager {
 
     pub fn get_custom_theme(&self, name: &str) -> Option<&Theme> {
         self.custom_themes.get(name)
+    }
+
+    pub fn load_custom_themes_from_config(&mut self, themes: &[CustomTheme]) {
+        for ct in themes {
+            if let Ok(theme) = Theme::from_custom_theme(ct) {
+                self.custom_themes.insert(ct.name.clone(), theme);
+            }
+        }
     }
 
     pub fn save_to_config(&self) -> Result<(), String> {

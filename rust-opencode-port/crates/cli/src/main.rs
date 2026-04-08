@@ -1,4 +1,5 @@
 mod cmd;
+mod output;
 
 use clap::{Args, Parser, Subcommand};
 use cmd::{

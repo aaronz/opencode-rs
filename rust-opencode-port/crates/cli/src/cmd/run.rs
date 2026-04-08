@@ -1,6 +1,6 @@
 use clap::Args;
 use opencode_core::Config;
-use opencode_tui::App;
+use opencode_tui::{App, OutputFormat};
 
 #[derive(Args, Debug)]
 pub struct RunArgs {
@@ -24,6 +24,9 @@ pub struct RunArgs {
 
     #[arg(long)]
     pub title: Option<String>,
+
+    #[arg(short, long, value_enum, default_value = "text")]
+    pub format: OutputFormat,
 }
 
 fn load_config() -> Config {
@@ -40,9 +43,30 @@ pub fn run(args: RunArgs) {
             .or(config.model)
             .unwrap_or_else(|| "gpt-4o".to_string());
 
-        println!("Mode: non-interactive");
-        println!("Model: {}", model);
-        println!("Prompt: {}", prompt);
+        match args.format {
+            OutputFormat::Ndjson => {
+                let mut serializer = crate::output::NdjsonSerializer::stdout();
+                serializer.write_start(&model).ok();
+                serializer
+                    .write_message("system", "Mode: non-interactive")
+                    .ok();
+                serializer.write_message("user", &prompt).ok();
+                serializer.flush().ok();
+            }
+            OutputFormat::Json => {
+                let response = serde_json::json!({
+                    "model": model,
+                    "prompt": prompt,
+                    "response": "This is a placeholder response. Use TUI mode for actual LLM interaction."
+                });
+                println!("{}", serde_json::to_string_pretty(&response).unwrap());
+            }
+            _ => {
+                println!("Mode: non-interactive");
+                println!("Model: {}", model);
+                println!("Prompt: {}", prompt);
+            }
+        }
         return;
     }
 

@@ -1,7 +1,7 @@
 use std::future::Future;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
-use opencode_core::{ToolDefinition, ToolExecutor, ToolParameter, ToolRegistry};
+use opencode_core::{ToolDefinition, ToolExecutor, ToolParameter, TokenCounter, ToolRegistry};
 
 use crate::client::{McpClient, McpTool};
 
@@ -9,11 +9,23 @@ use crate::client::{McpClient, McpTool};
 pub struct McpToolAdapter {
     client: Arc<McpClient>,
     tool: McpTool,
+    token_counter: Option<Arc<Mutex<TokenCounter>>>,
+}
+
+impl McpToolAdapter {
+    pub fn with_token_counter(mut self, counter: Arc<Mutex<TokenCounter>>) -> Self {
+        self.token_counter = Some(counter);
+        self
+    }
 }
 
 impl McpToolAdapter {
     pub fn new(client: Arc<McpClient>, tool: McpTool) -> Self {
-        Self { client, tool }
+        Self {
+            client,
+            tool,
+            token_counter: None,
+        }
     }
 
     pub fn name(&self) -> &str {
@@ -36,9 +48,23 @@ impl McpToolAdapter {
     pub fn executor(&self) -> ToolExecutor {
         let client = self.client.clone();
         let tool_name = self.tool.name.clone();
+        let token_counter = self.token_counter.clone();
 
         Arc::new(move |args| {
-            run_async(async { client.call_tool(&tool_name, &args).await })
+            let input_tokens = args.to_string().chars().count().div_ceil(4);
+
+            let result = run_async(async { client.call_tool(&tool_name, &args).await });
+
+            if let Some(counter) = &token_counter {
+                if let Ok(output) = &result {
+                    let output_tokens = output.content.chars().count().div_ceil(4);
+                    if let Ok(mut guard) = counter.lock() {
+                        guard.record_tokens("gpt-4o", input_tokens, output_tokens);
+                    }
+                }
+            }
+
+            result
                 .map(|result| result.content)
                 .map_err(|e| format!("MCP tool call failed: {}", e))
         })

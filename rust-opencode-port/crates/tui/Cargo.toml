@@ -9,6 +9,8 @@ license.workspace = true
 opencode-core.workspace = true
 opencode-llm.workspace = true
 opencode-auth = { path = "../auth" }
+opencode-mcp = { path = "../mcp" }
+opencode-lsp = { path = "../lsp" }
 ratatui = { version = "0.30", default-features = false, features = ["crossterm"] }
 crossterm = { version = "0.28", features = ["event-stream"] }
 pulldown-cmark = "0.13"

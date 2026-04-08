@@ -255,12 +255,6 @@ impl CommandRegistry {
                 action: CommandAction::Custom("share".to_string()),
             },
             Command {
-                name: "undo".to_string(),
-                aliases: vec!["u".to_string()],
-                description: "Undo last changes".to_string(),
-                action: CommandAction::Undo,
-            },
-            Command {
                 name: "redo".to_string(),
                 aliases: vec![],
                 description: "Redo undone changes".to_string(),
