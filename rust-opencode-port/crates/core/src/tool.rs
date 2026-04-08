@@ -20,6 +20,19 @@ pub struct ToolDefinition {
     pub description: String,
     #[serde(default)]
     pub parameters: Vec<ToolParameter>,
+    #[serde(default)]
+    pub requires_approval: bool,
+}
+
+impl Default for ToolDefinition {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            description: String::new(),
+            parameters: Vec::new(),
+            requires_approval: false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -92,6 +105,13 @@ impl ToolRegistry {
         self.disabled.contains(name)
     }
 
+    pub fn requires_approval(&self, name: &str) -> bool {
+        self.tools
+            .get(name)
+            .map(|def| def.requires_approval)
+            .unwrap_or(false)
+    }
+
     pub fn register(&mut self, definition: ToolDefinition, executor: ToolExecutor) {
         let name = definition.name.clone();
         self.tools.insert(name.clone(), definition);
@@ -148,6 +168,7 @@ pub fn build_default_registry() -> ToolRegistry {
                 required: true,
                 schema: serde_json::json!({ "type": "string" }),
             }],
+            ..Default::default()
         },
         Arc::new(|args| {
             let file_path = args
@@ -176,6 +197,7 @@ pub fn build_default_registry() -> ToolRegistry {
                     schema: serde_json::json!({ "type": "string" }),
                 },
             ],
+            ..Default::default()
         },
         Arc::new(|args| {
             let file_path = args
@@ -215,6 +237,7 @@ pub fn build_default_registry() -> ToolRegistry {
                     schema: serde_json::json!({ "type": "string" }),
                 },
             ],
+            ..Default::default()
         },
         Arc::new(|args| {
             let pattern = args
@@ -286,6 +309,7 @@ pub fn build_default_registry() -> ToolRegistry {
                 required: true,
                 schema: serde_json::json!({ "type": "string" }),
             }],
+            ..Default::default()
         },
         Arc::new(|args| {
             let command = args
@@ -320,6 +344,7 @@ pub fn build_default_registry() -> ToolRegistry {
                 required: true,
                 schema: serde_json::json!({ "type": "string" }),
             }],
+            ..Default::default()
         },
         Arc::new(|_args| Err("Web search not yet implemented".to_string())),
     );
@@ -334,6 +359,7 @@ pub fn build_default_registry() -> ToolRegistry {
                 required: true,
                 schema: serde_json::json!({ "type": "string" }),
             }],
+            ..Default::default()
         },
         Arc::new(|args| {
             let session_id = args
@@ -358,6 +384,7 @@ pub fn build_default_registry() -> ToolRegistry {
                 required: false,
                 schema: serde_json::json!({ "type": "string" }),
             }],
+            ..Default::default()
         },
         Arc::new(|args| {
             let session_id = args.get("session_id").and_then(|v| v.as_str());
@@ -398,6 +425,7 @@ pub fn build_default_registry() -> ToolRegistry {
                 required: true,
                 schema: serde_json::json!({ "type": "string" }),
             }],
+            ..Default::default()
         },
         Arc::new(|args| {
             let path = args
@@ -434,6 +462,7 @@ pub fn build_default_registry() -> ToolRegistry {
                     schema: serde_json::json!({ "type": "string" }),
                 },
             ],
+            ..Default::default()
         },
         Arc::new(|args| {
             let source = args
@@ -467,6 +496,7 @@ pub fn build_default_registry() -> ToolRegistry {
                     schema: serde_json::json!({ "type": "boolean" }),
                 },
             ],
+            ..Default::default()
         },
         Arc::new(|args| {
             let path = args
@@ -511,6 +541,7 @@ mod tests {
                 name: "test".to_string(),
                 description: "A test tool".to_string(),
                 parameters: vec![],
+                ..Default::default()
             },
             Arc::new(|_| Ok("success".to_string())),
         );
@@ -527,6 +558,7 @@ mod tests {
             name: "test".to_string(),
             description: "A test tool".to_string(),
             parameters: vec![],
+            ..Default::default()
         };
 
         registry.register(def.clone(), Arc::new(|_| Ok("".to_string())));
@@ -544,6 +576,7 @@ mod tests {
                 name: "echo".to_string(),
                 description: "Echo back the input".to_string(),
                 parameters: vec![],
+                ..Default::default()
             },
             Arc::new(|args| Ok(serde_json::to_string(&args).unwrap_or_default())),
         );
@@ -561,6 +594,7 @@ mod tests {
                 name: "echo".to_string(),
                 description: "Echo back the input".to_string(),
                 parameters: vec![],
+                ..Default::default()
             },
             Arc::new(|args| Ok(serde_json::to_string(&args).unwrap_or_default())),
         );
@@ -577,6 +611,7 @@ mod tests {
                 name: "echo".to_string(),
                 description: "Echo back the input".to_string(),
                 parameters: vec![],
+                ..Default::default()
             },
             Arc::new(|args| Ok(serde_json::to_string(&args).unwrap_or_default())),
         );
@@ -598,6 +633,7 @@ mod tests {
                 name: "echo".to_string(),
                 description: "Echo back the input".to_string(),
                 parameters: vec![],
+                ..Default::default()
             },
             Arc::new(|args| Ok(serde_json::to_string(&args).unwrap_or_default())),
         );

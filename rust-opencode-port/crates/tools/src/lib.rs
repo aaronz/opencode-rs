@@ -14,6 +14,7 @@ pub mod ls;
 pub mod glob;
 pub mod codesearch;
 pub mod lsp_tool;
+pub mod lsp_tool_test;
 pub mod multiedit;
 pub mod question;
 pub mod read;

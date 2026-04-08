@@ -9,7 +9,7 @@ use opencode_llm::ModelRegistry;
 use opencode_core::Config;
 use opencode_core::bus::SharedEventBus;
 use opencode_core::config::ServerConfig;
-use streaming::ReconnectionStore;
+use streaming::{ReconnectionStore, conn_state::ConnectionMonitor};
 
 #[cfg(test)]
 mod server_integration_tests;
@@ -32,6 +32,7 @@ pub struct ServerState {
     pub config: Arc<RwLock<Config>>,
     pub event_bus: SharedEventBus,
     pub reconnection_store: ReconnectionStore,
+    pub connection_monitor: Arc<ConnectionMonitor>,
 }
 
 pub async fn run_server(state: Arc<ServerState>, host: &str, port: u16) -> std::io::Result<()> {

@@ -10,11 +10,17 @@ pub struct McpToolAdapter {
     client: Arc<McpClient>,
     tool: McpTool,
     token_counter: Option<Arc<Mutex<TokenCounter>>>,
+    requires_approval: bool,
 }
 
 impl McpToolAdapter {
     pub fn with_token_counter(mut self, counter: Arc<Mutex<TokenCounter>>) -> Self {
         self.token_counter = Some(counter);
+        self
+    }
+
+    pub fn with_requires_approval(mut self, requires_approval: bool) -> Self {
+        self.requires_approval = requires_approval;
         self
     }
 }
@@ -25,6 +31,7 @@ impl McpToolAdapter {
             client,
             tool,
             token_counter: None,
+            requires_approval: false,
         }
     }
 
@@ -42,6 +49,7 @@ impl McpToolAdapter {
                 required: false,
                 schema: self.tool.input_schema.clone(),
             }],
+            requires_approval: self.requires_approval,
         }
     }
 

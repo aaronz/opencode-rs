@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 pub mod heartbeat;
+pub mod conn_state;
+pub mod stress_test;
 
 const DEFAULT_REPLAY_LIMIT: usize = 100;
 
@@ -270,3 +272,11 @@ mod tests {
         assert!(store.validate_token("session-a", "missing-token").is_none());
     }
 }
+
+pub use conn_state::{
+    ConnectionType, ConnectionStatus, ConnectionInfo, ConnectionStats, ConnectionEvent,
+    ConnectionMonitor,
+};
+pub use stress_test::{
+    StressTestConfig, StressTestResult, ConnectionStressTester,
+};

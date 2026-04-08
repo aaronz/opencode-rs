@@ -37,6 +37,21 @@ impl AgentExecutor {
             };
         }
 
+        if self.registry.requires_approval(&call.name) {
+            return ToolResult {
+                id: Uuid::new_v4(),
+                tool_name,
+                success: false,
+                result: None,
+                error: Some(format!(
+                    "Tool '{}' requires approval before execution. Use the permission approval flow.",
+                    call.name
+                )),
+                started_at,
+                completed_at: Utc::now(),
+            };
+        }
+
         let executor = match self.registry.get_executor(&call.name) {
             Some(exec) => exec,
             None => {
@@ -142,6 +157,7 @@ mod tests {
                 name: "echo".to_string(),
                 description: "Echo input".to_string(),
                 parameters: vec![],
+                ..Default::default()
             },
             Arc::new(|_| Ok("hello".to_string())),
         );
@@ -183,6 +199,7 @@ mod tests {
                 name: "echo".to_string(),
                 description: "Echo input".to_string(),
                 parameters: vec![],
+                ..Default::default()
             },
             Arc::new(|_| Ok("hello".to_string())),
         );
@@ -208,6 +225,7 @@ mod tests {
                 name: "echo".to_string(),
                 description: "Echo input".to_string(),
                 parameters: vec![],
+                ..Default::default()
             },
             Arc::new(|_| Ok("hello".to_string())),
         );
@@ -230,5 +248,59 @@ mod tests {
         let results = executor.execute_tool_calls(calls);
         assert_eq!(results.len(), 2);
         assert!(results.iter().all(|r| r.success));
+    }
+
+    #[test]
+    fn test_execute_tool_requires_approval() {
+        let mut registry = ToolRegistry::new();
+        registry.register(
+            ToolDefinition {
+                name: "ask_tool".to_string(),
+                description: "A tool that requires approval".to_string(),
+                parameters: vec![],
+                requires_approval: true,
+            },
+            Arc::new(|_| Ok("should not execute".to_string())),
+        );
+
+        let executor = AgentExecutor::new(registry);
+
+        let call = ToolCall {
+            id: "1".to_string(),
+            name: "ask_tool".to_string(),
+            arguments: serde_json::json!({}),
+        };
+
+        let result = executor.execute_tool_call(call);
+        assert!(!result.success);
+        let error = result.error.expect("should have error message");
+        assert!(error.contains("requires approval"));
+        assert!(error.contains("ask_tool"));
+    }
+
+    #[test]
+    fn test_execute_tool_allows_without_approval() {
+        let mut registry = ToolRegistry::new();
+        registry.register(
+            ToolDefinition {
+                name: "auto_tool".to_string(),
+                description: "A tool that auto-approves".to_string(),
+                parameters: vec![],
+                requires_approval: false,
+            },
+            Arc::new(|_| Ok("executed successfully".to_string())),
+        );
+
+        let executor = AgentExecutor::new(registry);
+
+        let call = ToolCall {
+            id: "1".to_string(),
+            name: "auto_tool".to_string(),
+            arguments: serde_json::json!({}),
+        };
+
+        let result = executor.execute_tool_call(call);
+        assert!(result.success);
+        assert_eq!(result.result, Some("executed successfully".to_string()));
     }
 }

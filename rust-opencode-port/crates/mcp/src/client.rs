@@ -987,4 +987,163 @@ mod tests {
         client.disconnect().await.unwrap();
         assert_eq!(client.connection_state().await, ConnectionState::Disconnected);
     }
+
+    #[tokio::test]
+    async fn test_connection_stability_100_connections() {
+        // Test: 100 sequential connections with > 99% success rate (at most 1 failure allowed)
+        const CONNECTION_COUNT: usize = 100;
+        const MAX_ALLOWED_FAILURES: usize = 1; // 99% = at most 1 failure out of 100
+
+        let handler: TransportHandler = Arc::new(|request| match request.method.as_str() {
+            "initialize" => Ok(ok_response(serde_json::json!({
+                "protocolVersion": "2024-11-05",
+                "capabilities": {}
+            }))),
+            "tools/list" => Ok(ok_response(serde_json::json!({ "tools": [] }))),
+            "ping" => Ok(ok_response(Value::Null)),
+            _ => Ok(ok_response(Value::Null)),
+        });
+
+        let mut failures = 0;
+        let mut successes = 0;
+
+        for i in 0..CONNECTION_COUNT {
+            let client = McpClient::with_handler(
+                McpTransport::Sse(format!("http://mock-{}/sse", i)),
+                handler.clone(),
+            )
+            .with_timeout(Duration::from_secs(5))
+            .with_max_retries(2);
+
+            match client.connect().await {
+                Ok(()) => {
+                    // Verify we can perform operations after connect
+                    match client.list_tools().await {
+                        Ok(_) => successes += 1,
+                        Err(_) => failures += 1,
+                    }
+                }
+                Err(_) => failures += 1,
+            }
+
+            // Small delay between connections to avoid overwhelming
+            if i < CONNECTION_COUNT - 1 {
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        }
+
+        let success_rate = (successes as f64) / (CONNECTION_COUNT as f64) * 100.0;
+        assert!(
+            failures <= MAX_ALLOWED_FAILURES,
+            "Connection stability test failed: {} failures out of {} (success rate: {:.2}%, required: >99%)",
+            failures,
+            CONNECTION_COUNT,
+            success_rate
+        );
+        assert_eq!(successes + failures, CONNECTION_COUNT);
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_connection_stability() {
+        // Test: Multiple concurrent connections should all succeed
+        const CONCURRENT_CONNECTIONS: usize = 20;
+        const TIMEOUT_SECS: u64 = 30;
+
+        let handler: TransportHandler = Arc::new(|request| match request.method.as_str() {
+            "initialize" => Ok(ok_response(serde_json::json!({
+                "protocolVersion": "2024-11-05",
+                "capabilities": {}
+            }))),
+            "tools/list" => Ok(ok_response(serde_json::json!({ "tools": [] }))),
+            "ping" => Ok(ok_response(Value::Null)),
+            _ => Ok(ok_response(Value::Null)),
+        });
+
+        let clients: Vec<_> = (0..CONCURRENT_CONNECTIONS)
+            .map(|i| {
+                McpClient::with_handler(
+                    McpTransport::Sse(format!("http://mock-concurrent-{}/sse", i)),
+                    handler.clone(),
+                )
+                .with_timeout(Duration::from_secs(5))
+            })
+            .collect();
+
+        let results = tokio::time::timeout(
+            Duration::from_secs(TIMEOUT_SECS),
+            futures_util::future::join_all(
+                clients.iter().map(|client| async {
+                    client.connect().await?;
+                    client.list_tools().await
+                }),
+            ),
+        )
+        .await;
+
+        match results {
+            Ok(connection_results) => {
+                let failures: Vec<_> = connection_results
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, r)| r.is_err())
+                    .collect();
+                assert!(
+                    failures.is_empty(),
+                    "Concurrent connection test had {} failures: {:?}",
+                    failures.len(),
+                    failures
+                );
+            }
+            Err(_) => {
+                panic!("Concurrent connection test timed out after {} seconds", TIMEOUT_SECS);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_rapid_connect_disconnect_cycle() {
+        // Test: Rapid connect/disconnect cycles should not leak resources
+        const CYCLES: usize = 50;
+
+        let handler: TransportHandler = Arc::new(|request| match request.method.as_str() {
+            "initialize" => Ok(ok_response(serde_json::json!({
+                "protocolVersion": "2024-11-05",
+                "capabilities": {}
+            }))),
+            "tools/list" => Ok(ok_response(serde_json::json!({ "tools": [] }))),
+            "ping" => Ok(ok_response(Value::Null)),
+            _ => Ok(ok_response(Value::Null)),
+        });
+
+        for i in 0..CYCLES {
+            let client = McpClient::with_handler(
+                McpTransport::Sse(format!("http://mock-cycle-{}/sse", i)),
+                handler.clone(),
+            )
+            .with_timeout(Duration::from_secs(5))
+            .with_max_retries(1);
+
+            // Connect
+            assert!(client.connect().await.is_ok(), "Cycle {}: connect failed", i);
+
+            // Verify connected state
+            assert_eq!(
+                client.connection_state().await,
+                ConnectionState::Connected,
+                "Cycle {}: not in Connected state after connect",
+                i
+            );
+
+            // Disconnect
+            assert!(client.disconnect().await.is_ok(), "Cycle {}: disconnect failed", i);
+
+            // Verify disconnected state
+            assert_eq!(
+                client.connection_state().await,
+                ConnectionState::Disconnected,
+                "Cycle {}: not in Disconnected state after disconnect",
+                i
+            );
+        }
+    }
 }

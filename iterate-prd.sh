@@ -7,6 +7,7 @@ set -e
 parse_args() {
     RESUME_ITERATION=""
     MODEL=""
+    MAX_IMPLEMENTATION_ROUNDS=10
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -16,6 +17,10 @@ parse_args() {
                 ;;
             --model|-m)
                 MODEL="$2"
+                shift 2
+                ;;
+            --rounds|-r)
+                MAX_IMPLEMENTATION_ROUNDS="$2"
                 shift 2
                 ;;
             *)
@@ -175,6 +180,7 @@ echo "SpecKit 迭代开发 v2.0"
 echo "=============================================="
 echo "迭代目录: $OUTPUTS_DIR"
 echo "模型: $MODEL"
+echo "实现轮次: $MAX_IMPLEMENTATION_ROUNDS"
 echo ""
 
 echo "[1/6] 执行PRD差距分析..."
@@ -337,7 +343,6 @@ generate_if_missing "$OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.md" "$PROMPT_TASKS_FI
 echo ""
 echo "[5/6] 执行实现..."
 
-MAX_IMPLEMENTATION_ROUNDS=3
 TASK_FILE="$OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.md"
 
 for round in $(seq 1 $MAX_IMPLEMENTATION_ROUNDS); do
