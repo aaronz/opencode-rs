@@ -42,14 +42,19 @@ impl LspManager {
             .insert(path.to_path_buf(), language.clone());
 
         if let Some(client) = self.clients.get_mut(&language) {
-            let diagnostics = client.get_diagnostics(path.to_string_lossy().as_ref()).await?;
+            let diagnostics = client
+                .get_diagnostics(path.to_string_lossy().as_ref())
+                .await?;
             self.aggregator.ingest(path, diagnostics);
         }
 
         Ok(())
     }
 
-    pub async fn start_for_files_parallel(&mut self, paths: &[PathBuf]) -> Result<(), OpenCodeError> {
+    pub async fn start_for_files_parallel(
+        &mut self,
+        paths: &[PathBuf],
+    ) -> Result<(), OpenCodeError> {
         let mut starts = Vec::new();
         for path in paths {
             let language = Language::detect(path);
@@ -75,7 +80,8 @@ impl LspManager {
         }
 
         for path in paths {
-            self.file_to_language.insert(path.clone(), Language::detect(path));
+            self.file_to_language
+                .insert(path.clone(), Language::detect(path));
         }
 
         Ok(())

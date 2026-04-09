@@ -1,13 +1,13 @@
+use opencode_core::OpenCodeError;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Stdio;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::process::{Command, Child};
-use tokio::sync::{oneshot, Mutex};
 use std::sync::Arc;
-use opencode_core::OpenCodeError;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::process::{Child, Command};
+use tokio::sync::{oneshot, Mutex};
 
-use crate::types::{Diagnostic, Location, CompletionItem, Range, Position};
+use crate::types::{CompletionItem, Diagnostic, Location, Position, Range};
 
 pub struct LspClient {
     process: Option<Child>,
@@ -26,7 +26,11 @@ impl LspClient {
         }
     }
 
-    pub async fn start(&mut self, server_command: &str, root_path: &PathBuf) -> Result<(), OpenCodeError> {
+    pub async fn start(
+        &mut self,
+        server_command: &str,
+        root_path: &PathBuf,
+    ) -> Result<(), OpenCodeError> {
         let mut cmd = Command::new("sh");
         cmd.arg("-c")
             .arg(server_command)
@@ -35,7 +39,8 @@ impl LspClient {
             .stderr(Stdio::piped())
             .current_dir(root_path);
 
-        let mut child = cmd.spawn()
+        let mut child = cmd
+            .spawn()
             .map_err(|e| OpenCodeError::Tui(format!("Failed to spawn LSP server: {}", e)))?;
 
         let stdin = child.stdin.take();
@@ -90,11 +95,17 @@ impl LspClient {
             "capabilities": {}
         });
         let _ = self.send_request("initialize", params).await;
-        let _ = self.send_notification("initialized", serde_json::json!({})).await;
+        let _ = self
+            .send_notification("initialized", serde_json::json!({}))
+            .await;
         Ok(())
     }
 
-    async fn send_request(&mut self, method: &str, params: serde_json::Value) -> Result<u64, OpenCodeError> {
+    async fn send_request(
+        &mut self,
+        method: &str,
+        params: serde_json::Value,
+    ) -> Result<u64, OpenCodeError> {
         let id = self.request_id;
         self.request_id += 1;
 
@@ -109,42 +120,70 @@ impl LspClient {
         let msg = format!("Content-Length: {}\r\n\r\n{}", msg.len(), msg);
 
         if let Some(ref mut stdin) = self.stdin {
-            stdin.write_all(msg.as_bytes()).await.map_err(|e| OpenCodeError::Tui(e.to_string()))?;
-            stdin.flush().await.map_err(|e| OpenCodeError::Tui(e.to_string()))?;
+            stdin
+                .write_all(msg.as_bytes())
+                .await
+                .map_err(|e| OpenCodeError::Tui(e.to_string()))?;
+            stdin
+                .flush()
+                .await
+                .map_err(|e| OpenCodeError::Tui(e.to_string()))?;
         }
 
         Ok(id)
     }
 
-    pub async fn wait_for_response(&mut self, id: u64, timeout_secs: u64) -> Result<serde_json::Value, OpenCodeError> {
+    pub async fn wait_for_response(
+        &mut self,
+        id: u64,
+        timeout_secs: u64,
+    ) -> Result<serde_json::Value, OpenCodeError> {
         let (tx, rx) = oneshot::channel::<String>();
         {
             let mut p = self.pending.lock().await;
             p.insert(id, tx);
         }
 
-        let resp = match tokio::time::timeout(tokio::time::Duration::from_secs(timeout_secs), rx).await {
-            Ok(Ok(resp)) => resp,
-            Ok(Err(e)) => return Err(OpenCodeError::Tool(format!("LSP request {} failed: {}", id, e))),
-            Err(_) => return Err(OpenCodeError::Tool(format!("LSP request {} timed out", id))),
-        };
+        let resp =
+            match tokio::time::timeout(tokio::time::Duration::from_secs(timeout_secs), rx).await {
+                Ok(Ok(resp)) => resp,
+                Ok(Err(e)) => {
+                    return Err(OpenCodeError::Tool(format!(
+                        "LSP request {} failed: {}",
+                        id, e
+                    )))
+                }
+                Err(_) => return Err(OpenCodeError::Tool(format!("LSP request {} timed out", id))),
+            };
 
-        serde_json::from_str(&resp).map_err(|e| OpenCodeError::Tool(format!("Invalid LSP response: {}", e)))
+        serde_json::from_str(&resp)
+            .map_err(|e| OpenCodeError::Tool(format!("Invalid LSP response: {}", e)))
     }
 
-    async fn send_notification(&mut self, method: &str, params: serde_json::Value) -> Result<(), OpenCodeError> {
+    async fn send_notification(
+        &mut self,
+        method: &str,
+        params: serde_json::Value,
+    ) -> Result<(), OpenCodeError> {
         let notification = serde_json::json!({
             "jsonrpc": "2.0",
             "method": method,
             "params": params
         });
 
-        let msg = serde_json::to_string(&notification).map_err(|e| OpenCodeError::Tui(e.to_string()))?;
+        let msg =
+            serde_json::to_string(&notification).map_err(|e| OpenCodeError::Tui(e.to_string()))?;
         let msg = format!("Content-Length: {}\r\n\r\n{}", msg.len(), msg);
 
         if let Some(ref mut stdin) = self.stdin {
-            stdin.write_all(msg.as_bytes()).await.map_err(|e| OpenCodeError::Tui(e.to_string()))?;
-            stdin.flush().await.map_err(|e| OpenCodeError::Tui(e.to_string()))?;
+            stdin
+                .write_all(msg.as_bytes())
+                .await
+                .map_err(|e| OpenCodeError::Tui(e.to_string()))?;
+            stdin
+                .flush()
+                .await
+                .map_err(|e| OpenCodeError::Tui(e.to_string()))?;
         }
 
         Ok(())
@@ -180,7 +219,12 @@ impl LspClient {
         Ok(Vec::new())
     }
 
-    pub async fn goto_definition(&mut self, uri: &str, line: u32, col: u32) -> Result<Option<Location>, OpenCodeError> {
+    pub async fn goto_definition(
+        &mut self,
+        uri: &str,
+        line: u32,
+        col: u32,
+    ) -> Result<Option<Location>, OpenCodeError> {
         let params = serde_json::json!({
             "textDocument": { "uri": uri },
             "position": { "line": line, "character": col }
@@ -199,7 +243,12 @@ impl LspClient {
         Ok(None)
     }
 
-    pub async fn find_references(&mut self, uri: &str, line: u32, col: u32) -> Result<Vec<Location>, OpenCodeError> {
+    pub async fn find_references(
+        &mut self,
+        uri: &str,
+        line: u32,
+        col: u32,
+    ) -> Result<Vec<Location>, OpenCodeError> {
         let params = serde_json::json!({
             "textDocument": { "uri": uri },
             "position": { "line": line, "character": col },
@@ -219,12 +268,19 @@ impl LspClient {
         Ok(Vec::new())
     }
 
-    pub async fn completion(&mut self, _uri: &str, _line: u32, _col: u32) -> Result<Vec<CompletionItem>, OpenCodeError> {
+    pub async fn completion(
+        &mut self,
+        _uri: &str,
+        _line: u32,
+        _col: u32,
+    ) -> Result<Vec<CompletionItem>, OpenCodeError> {
         Ok(Vec::new())
     }
 
     pub async fn shutdown(&mut self) -> Result<(), OpenCodeError> {
-        let _ = self.send_notification("shutdown", serde_json::json!({})).await;
+        let _ = self
+            .send_notification("shutdown", serde_json::json!({}))
+            .await;
         if let Some(mut process) = self.process.take() {
             process.kill().await.ok();
         }
@@ -240,7 +296,8 @@ fn extract_jsonrpc_message(buf: &[u8]) -> Option<String> {
     let end_of_headers = after_header.windows(4).position(|w| w == b"\r\n\r\n")?;
 
     let len_str = std::str::from_utf8(&after_header[..end_of_headers])
-        .ok()?.trim();
+        .ok()?
+        .trim();
     let len: usize = len_str.parse().ok()?;
 
     let msg_start = idx + header.len() + end_of_headers + 4;
@@ -268,7 +325,10 @@ fn parse_location(v: &serde_json::Value) -> Option<Location> {
         uri,
         range: Range {
             start: Position { line, character },
-            end: Position { line: end_line, character: end_character },
+            end: Position {
+                line: end_line,
+                character: end_character,
+            },
         },
     })
 }
