@@ -1,8 +1,8 @@
-use opencode_core::OpenCodeError;
-use opencode_storage::{StorageService, models::AccountModel};
-use crate::password::{hash_password, verify_password};
 use crate::jwt::{create_token, validate_token};
+use crate::password::{hash_password, verify_password};
 use chrono::Utc;
+use opencode_core::OpenCodeError;
+use opencode_storage::{models::AccountModel, StorageService};
 use uuid::Uuid;
 
 pub struct AuthManager {
@@ -12,10 +12,18 @@ pub struct AuthManager {
 
 impl AuthManager {
     pub fn new(storage: StorageService, jwt_secret: String) -> Self {
-        Self { storage, jwt_secret }
+        Self {
+            storage,
+            jwt_secret,
+        }
     }
 
-    pub async fn register(&self, username: &str, email: Option<&str>, password: &str) -> Result<AccountModel, OpenCodeError> {
+    pub async fn register(
+        &self,
+        username: &str,
+        email: Option<&str>,
+        password: &str,
+    ) -> Result<AccountModel, OpenCodeError> {
         let password_hash = hash_password(password)?;
         let account = AccountModel {
             id: Uuid::new_v4().to_string(),
@@ -37,7 +45,9 @@ impl AuthManager {
         // This is a bit inefficient, should have load_account_by_username
         // For now let's assume we can find it in list or add the method to storage
         let accounts = self.storage.list_accounts(100, 0).await?;
-        let account = accounts.into_iter().find(|a| a.username == username)
+        let account = accounts
+            .into_iter()
+            .find(|a| a.username == username)
             .ok_or_else(|| OpenCodeError::Storage("User not found".to_string()))?;
 
         if verify_password(password, &account.password_hash)? {

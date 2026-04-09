@@ -1,7 +1,7 @@
-use jsonwebtoken::{encode, decode, Header, Algorithm, Validation, EncodingKey, DecodingKey};
-use serde::{Deserialize, Serialize};
-use chrono::{Utc, Duration};
+use chrono::{Duration, Utc};
+use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use opencode_core::OpenCodeError;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
@@ -22,8 +22,12 @@ pub fn create_token(user_id: &str, secret: &str) -> Result<String, OpenCodeError
         iat: Utc::now().timestamp() as usize,
     };
 
-    encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_ref()))
-        .map_err(|e| OpenCodeError::Storage(e.to_string()))
+    encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(secret.as_ref()),
+    )
+    .map_err(|e| OpenCodeError::Storage(e.to_string()))
 }
 
 pub fn validate_token(token: &str, secret: &str) -> Result<Claims, OpenCodeError> {
