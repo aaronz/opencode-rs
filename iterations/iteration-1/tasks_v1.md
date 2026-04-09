@@ -167,7 +167,7 @@
 
 ---
 
-### P2-2: ✅ Done - AGENTS.md Upward Scanning
+### P2-2: ✅ Done
 **FR:** 06-config | **Phase:** 1 | **Module:** `crates/core/`
 
 - [x] Implement upward directory traversal from CWD to worktree root
@@ -181,13 +181,13 @@ Implementation: `crates/core/src/agents_md.rs` with `AgentsMdScanner`, `AgentsMd
 ---
 
 ### P2-3: MCP OAuth CLI Commands
-**FR:** 04-mcp | **Phase:** 3 | **Module:** `crates/cli/`
+**FR:** 04-mcp | **Phase:** 3 | **Module:** `crates/cli/` ✅ Done
 
-- [ ] Add `opencode mcp auth` subcommands
-- [ ] Implement OAuth flow for MCP servers
-- [ ] Add token storage
-- [ ] Add tests
-- [ ] Update documentation
+- [x] Add `opencode mcp auth` subcommands
+- [x] Implement OAuth flow for MCP servers
+- [x] Add token storage
+- [x] Add tests
+- [x] Update documentation
 
 ---
 

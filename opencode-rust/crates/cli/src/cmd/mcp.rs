@@ -1,6 +1,8 @@
 use clap::{Args, Subcommand};
 use serde_json::json;
 
+use crate::cmd::mcp_auth::{self, McpAuthArgs};
+
 #[derive(Args, Debug)]
 pub struct McpArgs {
     #[arg(long)]
@@ -12,14 +14,23 @@ pub struct McpArgs {
 
 #[derive(Subcommand, Debug)]
 pub enum McpAction {
+    #[command(about = "Manage MCP server authentication")]
+    Auth(McpAuthArgs),
+
     List,
-    Install { name: String, command: String },
-    Remove { name: String },
+    Install {
+        name: String,
+        command: String,
+    },
+    Remove {
+        name: String,
+    },
 }
 
 pub fn run(args: McpArgs) {
     if args.json {
         let action_str = match &args.action {
+            McpAction::Auth(_) => "auth",
             McpAction::List => "list",
             McpAction::Install { .. } => "install",
             McpAction::Remove { .. } => "remove",
@@ -32,5 +43,8 @@ pub fn run(args: McpArgs) {
         return;
     }
 
-    println!("MCP action: {:?}", args.action);
+    match args.action {
+        McpAction::Auth(auth_args) => mcp_auth::run(auth_args),
+        _ => println!("MCP action: {:?}", args.action),
+    }
 }

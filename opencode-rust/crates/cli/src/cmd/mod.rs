@@ -15,6 +15,7 @@ pub mod gitlab;
 pub mod import;
 pub mod list;
 pub mod mcp;
+pub mod mcp_auth;
 pub mod models;
 pub mod palette;
 pub mod pr;

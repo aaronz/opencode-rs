@@ -192,7 +192,7 @@
       "priority": "P2",
       "title": "MCP OAuth CLI Commands",
       "description": "Add opencode mcp auth subcommands, implement OAuth flow for MCP servers, add token storage. Module: crates/cli/",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "opencode mcp auth subcommands available",
         "OAuth flow for MCP servers works",
@@ -204,7 +204,7 @@
         "cargo test -p opencode-cli -- mcp",
         "cargo build --release && opencode mcp auth --help"
       ],
-      "impl_notes": "Requires 04-mcp. Tests and documentation still pending.",
+      "impl_notes": "Implemented mcp auth subcommands: list, login, logout, status, cleanup. OAuth flow uses device code flow. Token storage via McpAuthTokenStore.",
       "dependencies": [
         "P1-4"
       ]

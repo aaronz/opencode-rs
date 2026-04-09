@@ -93,7 +93,7 @@ Completed:
 - [x] Skills system (FR-014)
 
 Pending P2 work:
-- [ ] P2-3: MCP OAuth CLI commands
+- [x] P2-3: MCP OAuth CLI commands
 - [ ] P2-6: Skill permission restrictions
 
 ### Phase 4: Interface Implementations
