@@ -3,134 +3,513 @@
     {
       "id": "P0-1",
       "priority": "P0",
-      "description": "Custom Tool File Loader\n",
-      "status": "done"
+      "title": "Custom Tool File Loader",
+      "description": "Create tool discovery service, implement project-level and global-level directory scanning, create TypeScript/JavaScript file parser, integrate with tool registry. Module: crates/tools/",
+      "status": "done",
+      "test_criteria": [
+        "Custom tools load from project-level .opencode/tools/ directory",
+        "Custom tools load from global-level ~/.config/opencode/tools/",
+        "Tool registration works correctly",
+        "Unit tests pass",
+        "Integration tests pass"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools -- discovery",
+        "cargo test -p opencode-integration-tests -- custom_tool"
+      ],
+      "impl_notes": "Requires FR-007. Update AGENTS.md with custom tool documentation is still pending.",
+      "dependencies": []
     },
     {
       "id": "P0-2",
       "priority": "P0",
-      "description": "TUI Plugin TypeScript SDK\n",
-      "status": "done"
+      "title": "TUI Plugin TypeScript SDK",
+      "description": "Create TypeScript SDK for TUI plugins with commands.register(), routes.register(), dialogs.register(), slots.register(), themes.install(), themes.set(), events.on(), state.get(), state.set(), and onDispose lifecycle. Module: crates/sdk/",
+      "status": "done",
+      "test_criteria": [
+        "TypeScript package builds successfully",
+        "All API surfaces typed correctly",
+        "Documentation complete",
+        "SDK build test passes"
+      ],
+      "test_commands": [
+        "npm run build --prefix sdk/typescript/packages/plugin-tui",
+        "cargo test -p opencode-tools"
+      ],
+      "impl_notes": "Requires FR-018. Package at sdk/typescript/packages/plugin-tui/",
+      "dependencies": []
     },
     {
       "id": "P0-3",
       "priority": "P0",
-      "description": "Iterations Structure\n",
-      "status": "done"
+      "title": "Iterations Structure",
+      "description": "Create iterations/src/ module for progress tracking with tracker.rs and reporter.rs. Integrate with iterate-prd.sh workflow.",
+      "status": "in_progress",
+      "test_criteria": [
+        "iterations/src/ module exists and compiles",
+        "Progress tracking works",
+        "CI integration complete",
+        "Tests for tracking functionality pass"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-core",
+        "cargo test -p opencode-core -- iterations"
+      ],
+      "impl_notes": "Requires FR-019. Integration with iterate-prd.sh and workspace Cargo.toml still pending.",
+      "dependencies": []
     },
     {
       "id": "P1-1",
       "priority": "P1",
-      "description": "GitHub Workflow Generation\n",
-      "status": "done"
+      "title": "GitHub Workflow Generation",
+      "description": "Add github install subcommand to CLI, create workflow file template, implement GitHub App installation flow, add secrets setup automation. Module: crates/git/",
+      "status": "done",
+      "test_criteria": [
+        "opencode github install command works",
+        "Workflow file generates correctly at .github/workflows/opencode.yml",
+        "Tests pass",
+        "CLI documentation updated"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-git -- github",
+        "cargo build --release && opencode github install --help"
+      ],
+      "impl_notes": "Requires FR-016. CLI documentation update still pending.",
+      "dependencies": [
+        "P0-3"
+      ]
     },
     {
       "id": "P1-2",
       "priority": "P1",
-      "description": "GitLab CI Component\n",
-      "status": "done"
+      "title": "GitLab CI Component",
+      "description": "Create GitLab CI component template, implement GitHub workflow trigger examples, comment/PR trigger parsing, CI secret loading for GitHub Actions, GitLab CI component support. Module: crates/git/",
+      "status": "todo",
+      "test_criteria": [
+        "GitLab CI component available",
+        "Trigger parsing works",
+        "Tests pass",
+        "Documentation updated"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-git -- gitlab",
+        "cargo test -p opencode-git -- trigger"
+      ],
+      "impl_notes": "Requires FR-017. Documentation update still pending.",
+      "dependencies": [
+        "P1-1"
+      ]
     },
     {
       "id": "P1-3",
       "priority": "P1",
-      "description": "tui.json Ownership Enforcement\n",
-      "status": "done"
+      "title": "tui.json Ownership Enforcement",
+      "description": "Audit and enforce tui.json exclusively owns theme settings, keybind settings, and TUI plugin config. Remove TUI settings from main config schema. Module: crates/config/, crates/tui/",
+      "status": "todo",
+      "test_criteria": [
+        "No TUI settings leak to main config",
+        "tui.json owns all TUI configuration",
+        "Validation tests pass",
+        "Config documentation updated"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-config -- tui",
+        "cargo test -p opencode-tui -- config"
+      ],
+      "impl_notes": "Requires FR-009. Deprecated fields still present for backwards compatibility. Config documentation update still pending.",
+      "dependencies": [
+        "P0-3"
+      ]
     },
     {
       "id": "P1-4",
       "priority": "P1",
-      "description": "Desktop/Web/ACP Interface\n",
-      "status": "todo"
+      "title": "Desktop/Web/ACP Interface",
+      "description": "Implement desktop app startup flow, web server mode, and ACP startup/handshake. Add configuration options. Module: crates/server/",
+      "status": "in_progress",
+      "test_criteria": [
+        "Desktop app starts correctly",
+        "Web server mode functional",
+        "ACP handshake works",
+        "Tests pass",
+        "Documentation updated"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- desktop",
+        "cargo test -p opencode-server -- acp",
+        "cargo test -p opencode-server -- web"
+      ],
+      "impl_notes": "Requires FR-015. ACP handshake already implemented in crates/core/src/acp.rs. Desktop app and web server mode remain TODO.",
+      "dependencies": [
+        "P0-3"
+      ]
     },
     {
       "id": "P2-1",
       "priority": "P2",
-      "description": "VCS Worktree Root Distinction\n",
-      "status": "todo"
+      "title": "VCS Worktree Root Distinction",
+      "description": "Add worktree_root field to ProjectInfo, update project detection logic. Module: crates/core/",
+      "status": "todo",
+      "test_criteria": [
+        "worktree_root field added to ProjectInfo",
+        "Project detection logic updated",
+        "Tests pass",
+        "Documentation updated"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core -- worktree",
+        "cargo test -p opencode-core -- project"
+      ],
+      "impl_notes": "Requires 01-core-arch. Tests and documentation still pending.",
+      "dependencies": [
+        "P1-4"
+      ]
     },
     {
       "id": "P2-2",
       "priority": "P2",
-      "description": "AGENTS.md Upward Scanning\n",
-      "status": "todo"
+      "title": "AGENTS.md Upward Scanning",
+      "description": "Implement upward directory traversal from CWD to worktree root, add scanning for AGENTS.md files, add configuration for scanning behavior. Module: crates/core/",
+      "status": "todo",
+      "test_criteria": [
+        "Upward directory traversal works correctly",
+        "AGENTS.md files scanned from CWD to worktree root",
+        "Configuration options available",
+        "Tests pass",
+        "Documentation updated"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core -- agents",
+        "cargo test -p opencode-core -- scan"
+      ],
+      "impl_notes": "Requires 06-config. Tests and documentation still pending.",
+      "dependencies": [
+        "P2-1"
+      ]
     },
     {
       "id": "P2-3",
       "priority": "P2",
-      "description": "MCP OAuth CLI Commands\n",
-      "status": "todo"
+      "title": "MCP OAuth CLI Commands",
+      "description": "Add opencode mcp auth subcommands, implement OAuth flow for MCP servers, add token storage. Module: crates/cli/",
+      "status": "todo",
+      "test_criteria": [
+        "opencode mcp auth subcommands available",
+        "OAuth flow for MCP servers works",
+        "Token storage functional",
+        "Tests pass",
+        "Documentation updated"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- mcp",
+        "cargo build --release && opencode mcp auth --help"
+      ],
+      "impl_notes": "Requires 04-mcp. Tests and documentation still pending.",
+      "dependencies": [
+        "P1-4"
+      ]
     },
     {
       "id": "P2-4",
       "priority": "P2",
-      "description": "Session Compaction Boundaries\n",
-      "status": "todo"
+      "title": "Session Compaction Boundaries",
+      "description": "Verify checkpoint-based compaction semantics, review compaction boundaries, add configuration options. Module: crates/core/",
+      "status": "todo",
+      "test_criteria": [
+        "Checkpoint-based compaction semantics verified",
+        "Compaction boundaries reviewed",
+        "Configuration options available",
+        "Tests pass if needed",
+        "Documentation updated"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core -- compaction"
+      ],
+      "impl_notes": "Requires 01-core-arch. Tests and documentation still pending.",
+      "dependencies": [
+        "P2-1"
+      ]
     },
     {
       "id": "P2-5",
       "priority": "P2",
-      "description": "Plugin-Provided Tool Registration\n",
-      "status": "todo"
+      "title": "Plugin-Provided Tool Registration",
+      "description": "Implement tool registration from plugins, add permission integration. Module: crates/plugin/",
+      "status": "todo",
+      "test_criteria": [
+        "Tools can be registered from plugins",
+        "Permission integration works",
+        "Tests pass",
+        "Documentation updated"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin -- tool",
+        "cargo test -p opencode-plugin -- permission"
+      ],
+      "impl_notes": "Requires 08-plugin. Tests and documentation still pending.",
+      "dependencies": [
+        "P1-4"
+      ]
     },
     {
       "id": "P2-6",
       "priority": "P2",
-      "description": "Skill Permission Restrictions\n",
-      "status": "todo"
+      "title": "Skill Permission Restrictions",
+      "description": "Add permission restrictions for skill usage, implement permission evaluation for skills. Module: crates/core/",
+      "status": "todo",
+      "test_criteria": [
+        "Permission restrictions for skill usage work",
+        "Permission evaluation for skills functional",
+        "Configuration options available",
+        "Tests pass",
+        "Documentation updated"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core -- skill",
+        "cargo test -p opencode-core -- permission"
+      ],
+      "impl_notes": "Requires 12-skills. Tests and documentation still pending.",
+      "dependencies": [
+        "P2-3"
+      ]
     },
     {
       "id": "TD-001",
       "priority": "P2",
-      "description": "Deprecated `mode` field\n",
-      "status": "todo"
+      "title": "Remove Deprecated mode field",
+      "description": "Remove mode field from config schema, add deprecation warning, schedule for major version removal. Module: crates/config/",
+      "status": "todo",
+      "test_criteria": [
+        "mode field removed from config schema",
+        "Deprecation warning added",
+        "No breaking changes in current version"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-config",
+        "cargo build --release"
+      ],
+      "impl_notes": "Tech debt - schedule for major version removal",
+      "dependencies": []
     },
     {
       "id": "TD-002",
       "priority": "P2",
-      "description": "Deprecated `tools` field\n",
-      "status": "todo"
+      "title": "Remove Deprecated tools field",
+      "description": "Remove tools field from config schema after migration, keep conversion logic for backwards compatibility, add deprecation warning. Module: crates/config/",
+      "status": "todo",
+      "test_criteria": [
+        "tools field removed from config schema",
+        "Conversion logic for backwards compatibility maintained",
+        "Deprecation warning added",
+        "Migration path documented"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-config",
+        "cargo build --release"
+      ],
+      "impl_notes": "Tech debt - depends on migration completion",
+      "dependencies": []
     },
     {
       "id": "TD-003",
       "priority": "P2",
-      "description": "Deprecated `keybinds` field\n",
-      "status": "todo"
+      "title": "Remove Deprecated keybinds field",
+      "description": "Remove keybinds field from config schema, verify moved to tui.json. Module: crates/config/",
+      "status": "todo",
+      "test_criteria": [
+        "keybinds field removed from config schema",
+        "Verified moved to tui.json"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-config",
+        "cargo build --release"
+      ],
+      "impl_notes": "Tech debt - verify P1-3 completion first",
+      "dependencies": [
+        "P1-3"
+      ]
     },
     {
       "id": "TD-004",
       "priority": "P2",
-      "description": "Deprecated `layout` field\n",
-      "status": "todo"
+      "title": "Remove Deprecated layout field",
+      "description": "Remove layout field from config schema, always uses stretch layout. Module: crates/config/",
+      "status": "todo",
+      "test_criteria": [
+        "layout field removed from config schema",
+        "Always uses stretch layout"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-config",
+        "cargo build --release"
+      ],
+      "impl_notes": "Tech debt",
+      "dependencies": []
     },
     {
       "id": "TD-005",
       "priority": "P2",
-      "description": "Hardcoded Built-in Skills\n",
-      "status": "todo"
+      "title": "Externalize Hardcoded Built-in Skills",
+      "description": "Consider externalization of built-in skills, evaluate runtime impact. Module: crates/core/",
+      "status": "todo",
+      "test_criteria": [
+        "Built-in skills can be externalized",
+        "Runtime impact evaluated"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core -- skill"
+      ],
+      "impl_notes": "Tech debt - evaluation task",
+      "dependencies": []
     },
     {
       "id": "TD-006",
       "priority": "P2",
-      "description": "Magic Numbers in Compaction\n",
-      "status": "todo"
+      "title": "Make Compaction Thresholds Configurable",
+      "description": "Make COMPACTION_START_THRESHOLD and COMPACTION_FORCE_THRESHOLD configurable, add configuration options. Module: crates/core/",
+      "status": "todo",
+      "test_criteria": [
+        "COMPACTION_START_THRESHOLD configurable",
+        "COMPACTION_FORCE_THRESHOLD configurable",
+        "Configuration options available"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core -- compaction"
+      ],
+      "impl_notes": "Tech debt - magic numbers in compaction",
+      "dependencies": []
     },
     {
       "id": "TD-007",
       "priority": "P2",
-      "description": "SHA256 Args Hashing\n",
-      "status": "todo"
+      "title": "Evaluate SHA256 Args Hashing",
+      "description": "Evaluate content-addressable storage approach for SHA256 args hashing, consider implementation if beneficial. Module: crates/storage/",
+      "status": "todo",
+      "test_criteria": [
+        "Content-addressable storage approach evaluated",
+        "Implementation decision documented"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-storage -- hash"
+      ],
+      "impl_notes": "Tech debt - evaluation task",
+      "dependencies": []
     },
     {
       "id": "TD-008",
       "priority": "P2",
-      "description": "Custom JSONC Parser\n",
-      "status": "todo"
+      "title": "Replace Custom JSONC Parser",
+      "description": "Replace custom JSONC parser with existing crate, verify functionality maintained. Module: crates/config/",
+      "status": "todo",
+      "test_criteria": [
+        "Custom JSONC parser replaced with existing crate",
+        "Functionality maintained",
+        "Tests pass"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-config -- jsonc"
+      ],
+      "impl_notes": "Tech debt",
+      "dependencies": []
     },
     {
       "id": "TD-009",
       "priority": "P2",
-      "description": "`#[serde(other)]` in Part\n",
-      "status": "todo"
+      "title": "Replace #[serde(other)] in Part",
+      "description": "Replace #[serde(other)] with explicit error handling, add unknown part handling. Module: crates/core/",
+      "status": "todo",
+      "test_criteria": [
+        "#[serde(other)] replaced with explicit error handling",
+        "Unknown part handling added",
+        "Tests pass"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core -- part"
+      ],
+      "impl_notes": "Tech debt - in crates/core/",
+      "dependencies": []
+    },
+    {
+      "id": "CONV-1",
+      "priority": "P1",
+      "title": "Architecture Boundary Tests",
+      "description": "Verify architecture boundary tests are implemented and passing. Location: tests/src/conventions/architecture_boundaries.rs",
+      "status": "done",
+      "test_criteria": [
+        "5 architecture boundary tests implemented",
+        "All tests pass"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests -- architecture_boundaries"
+      ],
+      "impl_notes": "Convention test task - already implemented",
+      "dependencies": []
+    },
+    {
+      "id": "CONV-2",
+      "priority": "P1",
+      "title": "Config Ownership Tests",
+      "description": "Verify config ownership tests are implemented and passing. Location: tests/src/conventions/config_ownership.rs",
+      "status": "done",
+      "test_criteria": [
+        "4 config ownership tests implemented",
+        "All tests pass"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests -- config_ownership"
+      ],
+      "impl_notes": "Convention test task - already implemented",
+      "dependencies": []
+    },
+    {
+      "id": "CONV-3",
+      "priority": "P1",
+      "title": "Route/Resource Group Tests",
+      "description": "Verify route/resource group tests are implemented and passing. Location: tests/src/conventions/route_conventions.rs",
+      "status": "done",
+      "test_criteria": [
+        "4 route/resource group tests implemented",
+        "All tests pass"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests -- route_conventions"
+      ],
+      "impl_notes": "Convention test task - already implemented",
+      "dependencies": []
+    },
+    {
+      "id": "CONV-4",
+      "priority": "P1",
+      "title": "Test Placement Tests",
+      "description": "Verify test placement tests are implemented and passing. Location: tests/src/conventions/test_layout.rs",
+      "status": "done",
+      "test_criteria": [
+        "5 test placement tests implemented",
+        "All tests pass"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests -- test_layout"
+      ],
+      "impl_notes": "Convention test task - already implemented",
+      "dependencies": []
+    },
+    {
+      "id": "CONV-5",
+      "priority": "P1",
+      "title": "TUI Convention Tests",
+      "description": "Verify TUI convention tests are implemented and passing, verify ratatui-testing/ integration. Location: tests/src/conventions/tui_conventions.rs",
+      "status": "todo",
+      "test_criteria": [
+        "5 TUI convention tests implemented",
+        "All tests pass",
+        "ratatui-testing/ integration verified"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests -- tui_conventions",
+        "cargo test -p ratatui-testing"
+      ],
+      "impl_notes": "Convention test task - ratatui-testing/ integration verification still pending",
+      "dependencies": []
     }
   ]
 }

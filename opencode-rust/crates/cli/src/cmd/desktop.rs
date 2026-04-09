@@ -42,7 +42,8 @@ async fn run_desktop(args: DesktopArgs) -> Result<(), Box<dyn std::error::Error>
     let config_path = Config::config_path();
     let config = Config::load(&config_path).unwrap_or_default();
 
-    let server_cfg = config.server.as_ref().unwrap_or(&ServerConfig::default());
+    let default_server_cfg = ServerConfig::default();
+    let server_cfg = config.server.as_ref().unwrap_or(&default_server_cfg);
     let desktop_cfg = server_cfg.desktop.as_ref();
 
     let port = args.port
@@ -54,8 +55,8 @@ async fn run_desktop(args: DesktopArgs) -> Result<(), Box<dyn std::error::Error>
         .or_else(|| server_cfg.hostname.clone())
         .unwrap_or_else(|| "127.0.0.1".to_string());
     let acp_enabled = args.acp_enabled
-        .or(desktop_cfg.and_then(|d| d.enabled).flatten())
-        .or(server_cfg.acp.as_ref().and_then(|a| a.enabled).flatten())
+        .or(desktop_cfg.and_then(|d| d.enabled))
+        .or(server_cfg.acp.as_ref().and_then(|a| a.enabled))
         .unwrap_or(true);
     let auto_open_browser = desktop_cfg
         .and_then(|d| d.auto_open_browser)

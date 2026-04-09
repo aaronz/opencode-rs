@@ -35,7 +35,8 @@ async fn run_serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
     let config_path = Config::config_path();
     let config = Config::load(&config_path).unwrap_or_default();
 
-    let server_cfg = config.server.as_ref().unwrap_or(&ServerConfig::default());
+    let default_server_cfg = ServerConfig::default();
+    let server_cfg = config.server.as_ref().unwrap_or(&default_server_cfg);
 
     let port = args.port
         .or(server_cfg.port)
