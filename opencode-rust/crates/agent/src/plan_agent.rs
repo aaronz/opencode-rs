@@ -1,8 +1,8 @@
+use crate::{messages_to_llm_format, Agent, AgentResponse, AgentType};
 use async_trait::async_trait;
 use opencode_core::{Message, OpenCodeError, Session, TokenBudget};
 use opencode_llm::{ChatMessage, Provider};
 use opencode_tools::ToolRegistry;
-use crate::{Agent, AgentResponse, AgentType, messages_to_llm_format};
 
 pub struct PlanAgent {
     system_prompt: String,
@@ -39,7 +39,10 @@ Be thorough in your analysis and provide clear explanations.
     fn composed_system_prompt(&self) -> String {
         if let Some(skill_prompt) = self.skill_prompt.as_deref() {
             if !skill_prompt.trim().is_empty() {
-                return format!("{}\n\n[Enabled Skills]\n{}", self.system_prompt, skill_prompt);
+                return format!(
+                    "{}\n\n[Enabled Skills]\n{}",
+                    self.system_prompt, skill_prompt
+                );
             }
         }
         self.system_prompt.clone()

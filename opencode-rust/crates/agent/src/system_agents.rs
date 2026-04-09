@@ -1,8 +1,8 @@
+use crate::{messages_to_llm_format, Agent, AgentResponse, AgentType};
 use async_trait::async_trait;
 use opencode_core::{Message, OpenCodeError, Session, TokenBudget};
 use opencode_llm::{ChatMessage, Provider};
 use opencode_tools::ToolRegistry;
-use crate::{Agent, AgentResponse, AgentType, messages_to_llm_format};
 
 pub struct CompactionAgent;
 

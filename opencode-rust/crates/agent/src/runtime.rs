@@ -1,14 +1,12 @@
 use std::sync::Arc;
 
-use opencode_core::{
-    Message, Session,
-};
+use opencode_core::{Message, Session};
 use opencode_llm::Provider;
-use opencode_tools::ToolRegistry;
 use opencode_tools::registry::ToolCall as ToolsToolCall;
+use opencode_tools::ToolRegistry;
 use tokio::sync::RwLock;
 
-use crate::{Agent, AgentType, AgentResponse};
+use crate::{Agent, AgentResponse, AgentType};
 
 #[derive(Debug, Clone)]
 pub struct RuntimeConfig {
@@ -108,11 +106,7 @@ impl AgentRuntime {
             }
 
             let response = agent
-                .run(
-                    &mut *self.session.write().await,
-                    provider,
-                    tools,
-                )
+                .run(&mut *self.session.write().await, provider, tools)
                 .await
                 .map_err(|e| RuntimeError::ToolExecutionFailed {
                     tool: "agent".to_string(),
@@ -124,7 +118,11 @@ impl AgentRuntime {
                 break;
             }
 
-            for call in response.tool_calls.iter().take(self.config.max_tool_results_per_iteration) {
+            for call in response
+                .tool_calls
+                .iter()
+                .take(self.config.max_tool_results_per_iteration)
+            {
                 let tool_call = ToolsToolCall {
                     name: call.name.clone(),
                     args: call.arguments.clone(),
@@ -145,8 +143,8 @@ impl AgentRuntime {
                     format!("Error: {}", result.error.clone().unwrap_or_default())
                 };
 
-                let result_message = Message::user(format!("Tool '{}' result:\n{}",
-                    call.name, result_text));
+                let result_message =
+                    Message::user(format!("Tool '{}' result:\n{}", call.name, result_text));
                 self.session.write().await.add_message(result_message);
             }
         }

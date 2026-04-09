@@ -1,8 +1,8 @@
+use crate::{messages_to_llm_format, Agent, AgentResponse, AgentType};
 use async_trait::async_trait;
 use opencode_core::{Message, OpenCodeError, Session, TokenBudget};
 use opencode_llm::{ChatMessage, Provider};
 use opencode_tools::ToolRegistry;
-use crate::{Agent, AgentResponse, AgentType, messages_to_llm_format};
 
 pub struct DebugAgent {
     system_prompt: String,
@@ -35,7 +35,8 @@ Provide fixes in a clear format:
 - Alternative solutions if multiple exist
 
 Be thorough and help the user understand the issue.
-"#.to_string(),
+"#
+            .to_string(),
         }
     }
 }

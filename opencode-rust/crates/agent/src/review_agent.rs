@@ -1,8 +1,8 @@
+use crate::{messages_to_llm_format, Agent, AgentResponse, AgentType};
 use async_trait::async_trait;
 use opencode_core::{Message, OpenCodeError, Session, TokenBudget};
 use opencode_llm::{ChatMessage, Provider};
 use opencode_tools::ToolRegistry;
-use crate::{Agent, AgentResponse, AgentType, messages_to_llm_format};
 
 pub struct ReviewAgent {
     system_prompt: String,
@@ -31,7 +31,8 @@ impl ReviewAgent {
         };
 
         Self {
-            system_prompt: format!(r#"You are OpenCode ReviewAgent, an AI-powered code review assistant.
+            system_prompt: format!(
+                r#"You are OpenCode ReviewAgent, an AI-powered code review assistant.
 
 Your role is to analyze code changes, identify issues, and provide constructive feedback.
 {focus_prompt}
@@ -50,7 +51,9 @@ Provide your review in a structured format with clear sections for:
 - Comments (questions, observations)
 
 Respond with your analysis in a clear, organized manner.
-"#, focus_prompt = focus_prompt),
+"#,
+                focus_prompt = focus_prompt
+            ),
             review_focus: focus,
         }
     }
