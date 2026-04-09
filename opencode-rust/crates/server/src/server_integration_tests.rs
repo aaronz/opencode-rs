@@ -15,16 +15,20 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let db_path = temp_dir.path().join("test.db");
         crate::ServerState {
-            storage: std::sync::Arc::new(
-                opencode_storage::StorageService::new(
-                    opencode_storage::database::StoragePool::new(&db_path).unwrap()
-                )
-            ),
+            storage: std::sync::Arc::new(opencode_storage::StorageService::new(
+                opencode_storage::database::StoragePool::new(&db_path).unwrap(),
+            )),
             models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
             config: std::sync::Arc::new(std::sync::RwLock::new(opencode_core::Config::default())),
             event_bus: opencode_core::bus::SharedEventBus::default(),
             reconnection_store: crate::streaming::ReconnectionStore::default(),
-            connection_monitor: std::sync::Arc::new(crate::streaming::conn_state::ConnectionMonitor::new()),
+            connection_monitor: std::sync::Arc::new(
+                crate::streaming::conn_state::ConnectionMonitor::new(),
+            ),
+            share_server: std::sync::Arc::new(std::sync::RwLock::new(
+                crate::routes::share::ShareServer::with_default_config(),
+            )),
+            acp_enabled: true,
         }
     }
 
@@ -39,7 +43,9 @@ mod tests {
             web::Json(crate::routes::session::PermissionReplyRequest {
                 decision: "allow".to_string(),
             }),
-        ).await.respond_to(&req);
+        )
+        .await
+        .respond_to(&req);
 
         assert_eq!(resp.status(), StatusCode::OK);
     }
@@ -55,7 +61,9 @@ mod tests {
             web::Json(crate::routes::session::PermissionReplyRequest {
                 decision: "deny".to_string(),
             }),
-        ).await.respond_to(&req);
+        )
+        .await
+        .respond_to(&req);
 
         assert_eq!(resp.status(), StatusCode::OK);
     }
@@ -71,7 +79,9 @@ mod tests {
             web::Json(crate::routes::session::PermissionReplyRequest {
                 decision: "invalid".to_string(),
             }),
-        ).await.respond_to(&req);
+        )
+        .await
+        .respond_to(&req);
 
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     }

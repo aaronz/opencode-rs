@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use tokio::sync::{broadcast, RwLock};
 use serde::{Deserialize, Serialize};
+use tokio::sync::{broadcast, RwLock};
 
 /// Connection type (SSE or WebSocket)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -164,8 +164,12 @@ impl ConnectionMonitor {
             let mut stats = self.stats.write().await;
             stats.active_connections = stats.active_connections.saturating_sub(1);
             match info.connection_type {
-                ConnectionType::Sse => stats.sse_connections = stats.sse_connections.saturating_sub(1),
-                ConnectionType::WebSocket => stats.ws_connections = stats.ws_connections.saturating_sub(1),
+                ConnectionType::Sse => {
+                    stats.sse_connections = stats.sse_connections.saturating_sub(1)
+                }
+                ConnectionType::WebSocket => {
+                    stats.ws_connections = stats.ws_connections.saturating_sub(1)
+                }
             }
             stats.total_heartbeat_failures += info.heartbeat_failures;
             stats.total_reconnections += info.reconnection_attempts;
@@ -291,20 +295,29 @@ impl ConnectionMonitor {
         let connections = self.connections.read().await;
         connections
             .values()
-            .filter(|c| c.status == ConnectionStatus::Connected || c.status == ConnectionStatus::Reconnecting)
+            .filter(|c| {
+                c.status == ConnectionStatus::Connected
+                    || c.status == ConnectionStatus::Reconnecting
+            })
             .cloned()
             .collect()
     }
 
     /// Check if a connection is healthy (recent heartbeat)
-    pub async fn is_connection_healthy(&self, connection_id: &str, max_heartbeat_age: Duration) -> bool {
+    pub async fn is_connection_healthy(
+        &self,
+        connection_id: &str,
+        max_heartbeat_age: Duration,
+    ) -> bool {
         let connections = self.connections.read().await;
         if let Some(info) = connections.get(connection_id) {
             if let Some(last_heartbeat) = info.last_heartbeat {
                 let last_heartbeat_time = chrono::DateTime::from_timestamp(last_heartbeat, 0)
                     .unwrap_or_else(|| chrono::Utc::now());
                 let age = chrono::Utc::now().signed_duration_since(last_heartbeat_time);
-                return age < chrono::Duration::from_std(max_heartbeat_age).unwrap_or(chrono::Duration::MAX);
+                return age
+                    < chrono::Duration::from_std(max_heartbeat_age)
+                        .unwrap_or(chrono::Duration::MAX);
             }
         }
         false
@@ -314,12 +327,15 @@ impl ConnectionMonitor {
     pub async fn cleanup_stale_connections(&self, max_heartbeat_age: Duration) -> Vec<String> {
         let mut connections = self.connections.write().await;
         let now = chrono::Utc::now();
-        let max_age = chrono::Duration::from_std(max_heartbeat_age).unwrap_or(chrono::Duration::MAX);
-        
+        let max_age =
+            chrono::Duration::from_std(max_heartbeat_age).unwrap_or(chrono::Duration::MAX);
+
         let stale_ids: Vec<String> = connections
             .iter()
             .filter(|(_, info)| {
-                if info.status == ConnectionStatus::Disconnected || info.status == ConnectionStatus::Failed {
+                if info.status == ConnectionStatus::Disconnected
+                    || info.status == ConnectionStatus::Failed
+                {
                     return true;
                 }
                 if let Some(last_hb) = info.last_heartbeat {
@@ -349,19 +365,23 @@ mod tests {
     #[tokio::test]
     async fn test_register_and_unregister_connection() {
         let monitor = ConnectionMonitor::new();
-        
-        monitor.register_connection(
-            "conn-1".to_string(),
-            ConnectionType::Sse,
-            "session-1".to_string(),
-        ).await;
-        
+
+        monitor
+            .register_connection(
+                "conn-1".to_string(),
+                ConnectionType::Sse,
+                "session-1".to_string(),
+            )
+            .await;
+
         let info = monitor.get_connection("conn-1").await;
         assert!(info.is_some());
         assert_eq!(info.unwrap().connection_type, ConnectionType::Sse);
-        
-        monitor.unregister_connection("conn-1", "normal_close").await;
-        
+
+        monitor
+            .unregister_connection("conn-1", "normal_close")
+            .await;
+
         let info = monitor.get_connection("conn-1").await;
         assert!(info.is_none());
     }
@@ -369,21 +389,23 @@ mod tests {
     #[tokio::test]
     async fn test_heartbeat_tracking() {
         let monitor = ConnectionMonitor::new();
-        
-        monitor.register_connection(
-            "conn-1".to_string(),
-            ConnectionType::WebSocket,
-            "session-1".to_string(),
-        ).await;
-        
+
+        monitor
+            .register_connection(
+                "conn-1".to_string(),
+                ConnectionType::WebSocket,
+                "session-1".to_string(),
+            )
+            .await;
+
         monitor.heartbeat_failure("conn-1").await;
         monitor.heartbeat_failure("conn-1").await;
-        
+
         let info = monitor.get_connection("conn-1").await.unwrap();
         assert_eq!(info.heartbeat_failures, 2);
-        
+
         monitor.heartbeat_success("conn-1").await;
-        
+
         let info = monitor.get_connection("conn-1").await.unwrap();
         assert_eq!(info.heartbeat_failures, 0);
     }
@@ -391,18 +413,30 @@ mod tests {
     #[tokio::test]
     async fn test_stats_tracking() {
         let monitor = ConnectionMonitor::new();
-        
-        monitor.register_connection("conn-1".to_string(), ConnectionType::Sse, "session-1".to_string()).await;
-        monitor.register_connection("conn-2".to_string(), ConnectionType::WebSocket, "session-1".to_string()).await;
-        
+
+        monitor
+            .register_connection(
+                "conn-1".to_string(),
+                ConnectionType::Sse,
+                "session-1".to_string(),
+            )
+            .await;
+        monitor
+            .register_connection(
+                "conn-2".to_string(),
+                ConnectionType::WebSocket,
+                "session-1".to_string(),
+            )
+            .await;
+
         let stats = monitor.get_stats().await;
         assert_eq!(stats.total_connections, 2);
         assert_eq!(stats.active_connections, 2);
         assert_eq!(stats.sse_connections, 1);
         assert_eq!(stats.ws_connections, 1);
-        
+
         monitor.unregister_connection("conn-1", "done").await;
-        
+
         let stats = monitor.get_stats().await;
         assert_eq!(stats.active_connections, 1);
     }
@@ -410,14 +444,32 @@ mod tests {
     #[tokio::test]
     async fn test_session_connections() {
         let monitor = ConnectionMonitor::new();
-        
-        monitor.register_connection("conn-1".to_string(), ConnectionType::Sse, "session-1".to_string()).await;
-        monitor.register_connection("conn-2".to_string(), ConnectionType::WebSocket, "session-2".to_string()).await;
-        monitor.register_connection("conn-3".to_string(), ConnectionType::Sse, "session-1".to_string()).await;
-        
+
+        monitor
+            .register_connection(
+                "conn-1".to_string(),
+                ConnectionType::Sse,
+                "session-1".to_string(),
+            )
+            .await;
+        monitor
+            .register_connection(
+                "conn-2".to_string(),
+                ConnectionType::WebSocket,
+                "session-2".to_string(),
+            )
+            .await;
+        monitor
+            .register_connection(
+                "conn-3".to_string(),
+                ConnectionType::Sse,
+                "session-1".to_string(),
+            )
+            .await;
+
         let session1_conns = monitor.get_session_connections("session-1").await;
         assert_eq!(session1_conns.len(), 2);
-        
+
         let session2_conns = monitor.get_session_connections("session-2").await;
         assert_eq!(session2_conns.len(), 1);
     }

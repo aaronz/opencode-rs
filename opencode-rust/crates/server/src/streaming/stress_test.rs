@@ -1,11 +1,11 @@
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
-use tokio::sync::{mpsc, broadcast};
+use tokio::sync::{broadcast, mpsc};
 
-use super::{StreamMessage, ReconnectionStore};
-use super::conn_state::{ConnectionMonitor, ConnectionType, ConnectionStats};
+use super::conn_state::{ConnectionMonitor, ConnectionStats, ConnectionType};
+use super::{ReconnectionStore, StreamMessage};
 
 #[derive(Debug, Clone)]
 pub struct StressTestConfig {
@@ -50,7 +50,7 @@ impl StressTestResult {
         }
         (self.successful_connections as f64 / self.total_connections as f64) * 100.0
     }
-    
+
     pub fn meets_stability_threshold(&self, threshold_percent: f64) -> bool {
         self.success_rate() >= threshold_percent
     }
@@ -77,27 +77,28 @@ impl ConnectionStressTester {
     pub async fn run_sse_stress_test(&self) -> StressTestResult {
         let start = std::time::Instant::now();
         let reconnection_store = Arc::new(ReconnectionStore::default());
-        
+
         let successful = Arc::new(AtomicUsize::new(0));
         let failed = Arc::new(AtomicUsize::new(0));
         let total_sent = Arc::new(AtomicUsize::new(0));
         let total_received = Arc::new(AtomicUsize::new(0));
         let total_hb = Arc::new(AtomicUsize::new(0));
-        
+
         let (event_tx, _): (broadcast::Sender<StreamMessage>, _) = broadcast::channel(1024);
-        
+
         let mut handles = Vec::new();
-        
+
+        let heartbeats_per_conn = self.config.heartbeats_per_connection;
+        let messages_per_conn = self.config.messages_per_connection;
+
         for conn_id in 0..self.config.num_connections {
             let conn_id_str = format!("sse-conn-{}", conn_id);
             let session_id = format!("session-{}", conn_id % 10);
-            
-            self.monitor.register_connection(
-                conn_id_str.clone(),
-                ConnectionType::Sse,
-                session_id.clone(),
-            ).await;
-            
+
+            self.monitor
+                .register_connection(conn_id_str.clone(), ConnectionType::Sse, session_id.clone())
+                .await;
+
             let _tx = event_tx.clone();
             let monitor = self.monitor.clone();
             let reconnection_store = reconnection_store.clone();
@@ -105,66 +106,70 @@ impl ConnectionStressTester {
             let failed_clone = failed.clone();
             let total_sent_clone = total_sent.clone();
             let total_hb_clone = total_hb.clone();
-            
+            let hb_per_conn = heartbeats_per_conn;
+            let msg_per_conn = messages_per_conn;
+
             let handle = tokio::spawn(async move {
                 let (sse_tx, _sse_rx) = mpsc::channel::<StreamMessage>(32);
                 let mut msgs_sent = 0usize;
                 let heartbeats = Arc::new(AtomicUsize::new(0));
-                
+
                 let monitor_hb = monitor.clone();
                 let conn_id_hb = conn_id_str.clone();
                 let heartbeats_hb = heartbeats.clone();
                 tokio::spawn(async move {
-                    for _ in 0..10 {
+                    for _ in 0..hb_per_conn {
                         tokio::time::sleep(Duration::from_millis(10)).await;
                         monitor_hb.heartbeat_success(&conn_id_hb).await;
                         heartbeats_hb.fetch_add(1, Ordering::SeqCst);
                     }
                 });
-                
-                for msg_idx in 0..10 {
+
+                for msg_idx in 0..msg_per_conn {
                     let msg = StreamMessage::Message {
                         session_id: session_id.clone(),
                         content: format!("msg-{}", msg_idx),
                         role: "user".to_string(),
                     };
-                    
+
                     if sse_tx.send(msg.clone()).await.is_ok() {
                         reconnection_store.record_message(&session_id, msg);
                         msgs_sent += 1;
                     }
-                    
+
                     tokio::time::sleep(Duration::from_millis(5)).await;
                 }
-                
+
                 tokio::time::sleep(Duration::from_millis(50)).await;
-                
+
                 total_sent_clone.fetch_add(msgs_sent, Ordering::SeqCst);
                 total_hb_clone.fetch_add(heartbeats.load(Ordering::SeqCst), Ordering::SeqCst);
-                
+
                 if monitor.get_connection(&conn_id_str).await.is_some() {
                     successful_clone.fetch_add(1, Ordering::SeqCst);
                 } else {
                     failed_clone.fetch_add(1, Ordering::SeqCst);
                 }
-                
-                monitor.unregister_connection(&conn_id_str, "test_complete").await;
+
+                monitor
+                    .unregister_connection(&conn_id_str, "test_complete")
+                    .await;
             });
-            
+
             handles.push(handle);
         }
-        
+
         for handle in handles {
             let _ = handle.await;
         }
-        
+
         let elapsed = start.elapsed();
         let sent = total_sent.load(Ordering::SeqCst);
         let received = total_received.load(Ordering::SeqCst);
         let hb = total_hb.load(Ordering::SeqCst);
-        
+
         let _final_stats = self.monitor.get_stats().await;
-        
+
         StressTestResult {
             total_connections: self.config.num_connections,
             successful_connections: successful.load(Ordering::SeqCst),
@@ -183,27 +188,32 @@ impl ConnectionStressTester {
     pub async fn run_ws_stress_test(&self) -> StressTestResult {
         let start = std::time::Instant::now();
         let reconnection_store = Arc::new(ReconnectionStore::default());
-        
+
         let successful = Arc::new(AtomicUsize::new(0));
         let failed = Arc::new(AtomicUsize::new(0));
         let total_sent = Arc::new(AtomicUsize::new(0));
         let total_received = Arc::new(AtomicUsize::new(0));
         let total_hb = Arc::new(AtomicUsize::new(0));
-        
+
         let (event_tx, _): (broadcast::Sender<StreamMessage>, _) = broadcast::channel(1024);
-        
+
         let mut handles = Vec::new();
-        
+
+        let heartbeats_per_conn = self.config.heartbeats_per_connection;
+        let messages_per_conn = self.config.messages_per_connection;
+
         for conn_id in 0..self.config.num_connections {
             let conn_id_str = format!("ws-conn-{}", conn_id);
             let session_id = format!("session-{}", conn_id % 10);
-            
-            self.monitor.register_connection(
-                conn_id_str.clone(),
-                ConnectionType::WebSocket,
-                session_id.clone(),
-            ).await;
-            
+
+            self.monitor
+                .register_connection(
+                    conn_id_str.clone(),
+                    ConnectionType::WebSocket,
+                    session_id.clone(),
+                )
+                .await;
+
             let _tx = event_tx.clone();
             let monitor = self.monitor.clone();
             let reconnection_store = reconnection_store.clone();
@@ -211,66 +221,70 @@ impl ConnectionStressTester {
             let failed_clone = failed.clone();
             let total_sent_clone = total_sent.clone();
             let total_hb_clone = total_hb.clone();
-            
+            let hb_per_conn = heartbeats_per_conn;
+            let msg_per_conn = messages_per_conn;
+
             let handle = tokio::spawn(async move {
                 let (ws_tx, _ws_rx) = mpsc::channel::<StreamMessage>(32);
                 let mut msgs_sent = 0usize;
                 let heartbeats = Arc::new(AtomicUsize::new(0));
-                
+
                 let monitor_hb = monitor.clone();
                 let conn_id_hb = conn_id_str.clone();
                 let heartbeats_hb = heartbeats.clone();
                 tokio::spawn(async move {
-                    for _ in 0..10 {
+                    for _ in 0..hb_per_conn {
                         tokio::time::sleep(Duration::from_millis(10)).await;
                         monitor_hb.heartbeat_success(&conn_id_hb).await;
                         heartbeats_hb.fetch_add(1, Ordering::SeqCst);
                     }
                 });
-                
-                for msg_idx in 0..10 {
+
+                for msg_idx in 0..msg_per_conn {
                     let msg = StreamMessage::Message {
                         session_id: session_id.clone(),
                         content: format!("msg-{}", msg_idx),
                         role: "user".to_string(),
                     };
-                    
+
                     if ws_tx.send(msg.clone()).await.is_ok() {
                         reconnection_store.record_message(&session_id, msg);
                         msgs_sent += 1;
                     }
-                    
+
                     tokio::time::sleep(Duration::from_millis(5)).await;
                 }
-                
+
                 tokio::time::sleep(Duration::from_millis(50)).await;
-                
+
                 total_sent_clone.fetch_add(msgs_sent, Ordering::SeqCst);
                 total_hb_clone.fetch_add(heartbeats.load(Ordering::SeqCst), Ordering::SeqCst);
-                
+
                 if monitor.get_connection(&conn_id_str).await.is_some() {
                     successful_clone.fetch_add(1, Ordering::SeqCst);
                 } else {
                     failed_clone.fetch_add(1, Ordering::SeqCst);
                 }
-                
-                monitor.unregister_connection(&conn_id_str, "test_complete").await;
+
+                monitor
+                    .unregister_connection(&conn_id_str, "test_complete")
+                    .await;
             });
-            
+
             handles.push(handle);
         }
-        
+
         for handle in handles {
             let _ = handle.await;
         }
-        
+
         let elapsed = start.elapsed();
         let sent = total_sent.load(Ordering::SeqCst);
         let received = total_received.load(Ordering::SeqCst);
         let hb = total_hb.load(Ordering::SeqCst);
-        
+
         let _final_stats = self.monitor.get_stats().await;
-        
+
         StressTestResult {
             total_connections: self.config.num_connections,
             successful_connections: successful.load(Ordering::SeqCst),
@@ -288,49 +302,55 @@ impl ConnectionStressTester {
 
     pub async fn run_reconnection_test(&self) -> StressTestResult {
         let start = std::time::Instant::now();
-        
+
         let successful = Arc::new(AtomicUsize::new(0));
         let failed = Arc::new(AtomicUsize::new(0));
         let recon_success = Arc::new(AtomicUsize::new(0));
-        
+
         let mut handles = Vec::new();
-        
+
         for conn_id in 0..self.config.num_connections {
             let conn_id_str = format!("recon-conn-{}", conn_id);
             let session_id = format!("session-{}", conn_id);
-            
-            self.monitor.register_connection(
-                conn_id_str.clone(),
-                ConnectionType::WebSocket,
-                session_id.clone(),
-            ).await;
-            
+
+            self.monitor
+                .register_connection(
+                    conn_id_str.clone(),
+                    ConnectionType::WebSocket,
+                    session_id.clone(),
+                )
+                .await;
+
             let monitor = self.monitor.clone();
             let successful_clone = successful.clone();
             let recon_success_clone = recon_success.clone();
             let reconnection_attempts = self.config.reconnection_attempts;
-            
+
             let handle = tokio::spawn(async move {
                 for attempt in 0..reconnection_attempts {
-                    monitor.reconnection_attempt(&conn_id_str, attempt as u32).await;
+                    monitor
+                        .reconnection_attempt(&conn_id_str, attempt as u32)
+                        .await;
                     tokio::time::sleep(Duration::from_millis(10)).await;
                 }
-                
+
                 recon_success_clone.fetch_add(1, Ordering::SeqCst);
                 successful_clone.fetch_add(1, Ordering::SeqCst);
-                
-                monitor.unregister_connection(&conn_id_str, "reconnection_test_complete").await;
+
+                monitor
+                    .unregister_connection(&conn_id_str, "reconnection_test_complete")
+                    .await;
             });
-            
+
             handles.push(handle);
         }
-        
+
         for handle in handles {
             let _ = handle.await;
         }
-        
+
         let elapsed = start.elapsed();
-        
+
         StressTestResult {
             total_connections: self.config.num_connections,
             successful_connections: successful.load(Ordering::SeqCst),
@@ -359,7 +379,7 @@ mod tests {
     async fn test_stress_tester_creation() {
         let config = StressTestConfig::default();
         let tester = ConnectionStressTester::new(config);
-        
+
         assert_eq!(tester.config.num_connections, 100);
         assert_eq!(tester.config.messages_per_connection, 50);
     }
@@ -371,9 +391,9 @@ mod tests {
             ..Default::default()
         };
         let tester = ConnectionStressTester::new(config);
-        
+
         let result = tester.run_reconnection_test().await;
-        
+
         assert_eq!(result.total_connections, 10);
         assert_eq!(result.reconnection_successes, 10);
     }
@@ -393,7 +413,7 @@ mod tests {
             duration_ms: 100,
             throughput_msg_per_sec: 0.0,
         };
-        
+
         assert!((result.success_rate() - 99.0).abs() < 0.01);
     }
 
@@ -412,10 +432,10 @@ mod tests {
             duration_ms: 0,
             throughput_msg_per_sec: 0.0,
         };
-        
+
         assert_eq!(result.success_rate(), 0.0);
     }
-    
+
     #[tokio::test]
     async fn test_stability_threshold() {
         let result = StressTestResult {
@@ -431,12 +451,12 @@ mod tests {
             duration_ms: 1000,
             throughput_msg_per_sec: 1000.0,
         };
-        
+
         assert!(result.meets_stability_threshold(99.0));
         assert!(result.meets_stability_threshold(98.0));
         assert!(!result.meets_stability_threshold(99.5));
     }
-    
+
     #[tokio::test]
     async fn test_sse_stress_with_small_config() {
         let config = StressTestConfig {
@@ -446,13 +466,13 @@ mod tests {
             ..Default::default()
         };
         let tester = ConnectionStressTester::new(config);
-        
+
         let result = tester.run_sse_stress_test().await;
-        
+
         assert_eq!(result.total_connections, 5);
         assert_eq!(result.total_heartbeats, 25);
     }
-    
+
     #[tokio::test]
     async fn test_ws_stress_with_small_config() {
         let config = StressTestConfig {
@@ -462,9 +482,9 @@ mod tests {
             ..Default::default()
         };
         let tester = ConnectionStressTester::new(config);
-        
+
         let result = tester.run_ws_stress_test().await;
-        
+
         assert_eq!(result.total_connections, 5);
         assert_eq!(result.total_heartbeats, 25);
     }
@@ -472,7 +492,7 @@ mod tests {
     #[tokio::test]
     async fn test_sse_stability_99_percent_threshold() {
         const STABILITY_THRESHOLD: f64 = 99.0;
-        
+
         let config = StressTestConfig {
             num_connections: 100,
             messages_per_connection: 10,
@@ -481,9 +501,9 @@ mod tests {
             ..Default::default()
         };
         let tester = ConnectionStressTester::new(config);
-        
+
         let result = tester.run_sse_stress_test().await;
-        
+
         let success_rate = result.success_rate();
         assert!(
             result.meets_stability_threshold(STABILITY_THRESHOLD),
@@ -491,7 +511,7 @@ mod tests {
             success_rate,
             STABILITY_THRESHOLD
         );
-        
+
         assert_eq!(
             result.total_connections, 100,
             "Total connections should be 100"
@@ -501,7 +521,7 @@ mod tests {
     #[tokio::test]
     async fn test_ws_stability_99_percent_threshold() {
         const STABILITY_THRESHOLD: f64 = 99.0;
-        
+
         let config = StressTestConfig {
             num_connections: 100,
             messages_per_connection: 10,
@@ -510,9 +530,9 @@ mod tests {
             ..Default::default()
         };
         let tester = ConnectionStressTester::new(config);
-        
+
         let result = tester.run_ws_stress_test().await;
-        
+
         let success_rate = result.success_rate();
         assert!(
             result.meets_stability_threshold(STABILITY_THRESHOLD),
@@ -520,7 +540,7 @@ mod tests {
             success_rate,
             STABILITY_THRESHOLD
         );
-        
+
         assert_eq!(
             result.total_connections, 100,
             "Total connections should be 100"
@@ -535,9 +555,9 @@ mod tests {
             ..Default::default()
         };
         let tester = ConnectionStressTester::new(config);
-        
+
         let result = tester.run_reconnection_test().await;
-        
+
         assert!(
             result.meets_stability_threshold(99.0),
             "Reconnection stability failed: success_rate={:.2}%",

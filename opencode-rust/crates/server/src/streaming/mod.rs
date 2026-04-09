@@ -5,8 +5,8 @@ use opencode_core::bus::InternalEvent;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-pub mod heartbeat;
 pub mod conn_state;
+pub mod heartbeat;
 pub mod stress_test;
 
 const DEFAULT_REPLAY_LIMIT: usize = 100;
@@ -274,9 +274,7 @@ mod tests {
 }
 
 pub use conn_state::{
-    ConnectionType, ConnectionStatus, ConnectionInfo, ConnectionStats, ConnectionEvent,
-    ConnectionMonitor,
+    ConnectionEvent, ConnectionInfo, ConnectionMonitor, ConnectionStats, ConnectionStatus,
+    ConnectionType,
 };
-pub use stress_test::{
-    StressTestConfig, StressTestResult, ConnectionStressTester,
-};
+pub use stress_test::{ConnectionStressTester, StressTestConfig, StressTestResult};
