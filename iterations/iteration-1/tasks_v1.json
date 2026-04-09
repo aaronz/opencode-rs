@@ -1,0 +1,136 @@
+{
+  "tasks": [
+    {
+      "id": "P0-1",
+      "priority": "P0",
+      "description": "Custom Tool File Loader\n",
+      "status": "done"
+    },
+    {
+      "id": "P0-2",
+      "priority": "P0",
+      "description": "TUI Plugin TypeScript SDK\n",
+      "status": "done"
+    },
+    {
+      "id": "P0-3",
+      "priority": "P0",
+      "description": "Iterations Structure\n",
+      "status": "done"
+    },
+    {
+      "id": "P1-1",
+      "priority": "P1",
+      "description": "GitHub Workflow Generation\n",
+      "status": "done"
+    },
+    {
+      "id": "P1-2",
+      "priority": "P1",
+      "description": "GitLab CI Component\n",
+      "status": "done"
+    },
+    {
+      "id": "P1-3",
+      "priority": "P1",
+      "description": "tui.json Ownership Enforcement\n",
+      "status": "done"
+    },
+    {
+      "id": "P1-4",
+      "priority": "P1",
+      "description": "Desktop/Web/ACP Interface\n",
+      "status": "todo"
+    },
+    {
+      "id": "P2-1",
+      "priority": "P2",
+      "description": "VCS Worktree Root Distinction\n",
+      "status": "todo"
+    },
+    {
+      "id": "P2-2",
+      "priority": "P2",
+      "description": "AGENTS.md Upward Scanning\n",
+      "status": "todo"
+    },
+    {
+      "id": "P2-3",
+      "priority": "P2",
+      "description": "MCP OAuth CLI Commands\n",
+      "status": "todo"
+    },
+    {
+      "id": "P2-4",
+      "priority": "P2",
+      "description": "Session Compaction Boundaries\n",
+      "status": "todo"
+    },
+    {
+      "id": "P2-5",
+      "priority": "P2",
+      "description": "Plugin-Provided Tool Registration\n",
+      "status": "todo"
+    },
+    {
+      "id": "P2-6",
+      "priority": "P2",
+      "description": "Skill Permission Restrictions\n",
+      "status": "todo"
+    },
+    {
+      "id": "TD-001",
+      "priority": "P2",
+      "description": "Deprecated `mode` field\n",
+      "status": "todo"
+    },
+    {
+      "id": "TD-002",
+      "priority": "P2",
+      "description": "Deprecated `tools` field\n",
+      "status": "todo"
+    },
+    {
+      "id": "TD-003",
+      "priority": "P2",
+      "description": "Deprecated `keybinds` field\n",
+      "status": "todo"
+    },
+    {
+      "id": "TD-004",
+      "priority": "P2",
+      "description": "Deprecated `layout` field\n",
+      "status": "todo"
+    },
+    {
+      "id": "TD-005",
+      "priority": "P2",
+      "description": "Hardcoded Built-in Skills\n",
+      "status": "todo"
+    },
+    {
+      "id": "TD-006",
+      "priority": "P2",
+      "description": "Magic Numbers in Compaction\n",
+      "status": "todo"
+    },
+    {
+      "id": "TD-007",
+      "priority": "P2",
+      "description": "SHA256 Args Hashing\n",
+      "status": "todo"
+    },
+    {
+      "id": "TD-008",
+      "priority": "P2",
+      "description": "Custom JSONC Parser\n",
+      "status": "todo"
+    },
+    {
+      "id": "TD-009",
+      "priority": "P2",
+      "description": "`#[serde(other)]` in Part\n",
+      "status": "todo"
+    }
+  ]
+}
