@@ -84,7 +84,7 @@
       "priority": "P1",
       "title": "GitLab CI Component",
       "description": "Create GitLab CI component template, implement GitHub workflow trigger examples, comment/PR trigger parsing, CI secret loading for GitHub Actions, GitLab CI component support. Module: crates/git/",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "GitLab CI component available",
         "Trigger parsing works",
@@ -95,7 +95,7 @@
         "cargo test -p opencode-git -- gitlab",
         "cargo test -p opencode-git -- trigger"
       ],
-      "impl_notes": "Requires FR-017. Documentation update still pending.",
+      "impl_notes": "Requires FR-017. GitLab CI component template, GitHub workflow triggers, and CI secret loading implemented. Documentation update still pending.",
       "dependencies": [
         "P1-1"
       ]

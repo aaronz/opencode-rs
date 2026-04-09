@@ -77,7 +77,7 @@
 
 ## P1 Tasks — Important Issues (After P0)
 
-### P1-1: GitHub Workflow Generation
+### P1-1: ✅ Done
 **FR:** FR-016 | **Phase:** 4 | **Module:** `crates/git/`
 
 - [x] Add `github install` subcommand to CLI
@@ -94,7 +94,7 @@
 
 ---
 
-### P1-2: GitLab CI Component
+### P1-2: ✅ Done
 **FR:** FR-017 | **Phase:** 4 | **Module:** `crates/git/`
 
 - [x] Create GitLab CI component template

@@ -5,6 +5,7 @@ use std::path::Path;
 pub mod github;
 pub mod gitlab;
 pub mod gitlab_ci;
+pub mod trigger;
 pub mod workflow;
 pub use github::{
     GitHubClient, GitHubError, GitHubIssue, GitHubPullRequest, GitHubRef, GitHubRepo, GitHubUser,
@@ -16,6 +17,9 @@ pub use gitlab::{
 };
 pub use gitlab_ci::{
     get_gitlab_ci_template, setup_gitlab_ci, GitLabCiSetupResult, GitLabCiTemplate,
+};
+pub use trigger::{
+    CiSecrets, GitHubTrigger, GitHubTrigger as Trigger, TriggerContext, TriggerParseError,
 };
 pub use workflow::{
     get_workflow_template, setup_github_workflow, GitHubAppClient, GitHubError as AppError,
