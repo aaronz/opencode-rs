@@ -204,7 +204,7 @@ Implementation: `crates/core/src/agents_md.rs` with `AgentsMdScanner`, `AgentsMd
 
 ---
 
-### P2-5: Plugin-Provided Tool Registration
+### P2-5: ✅ Done
 **FR:** 08-plugin | **Phase:** 2 | **Module:** `crates/plugin/`
 
 - [ ] Implement tool registration from plugins
@@ -214,14 +214,16 @@ Implementation: `crates/core/src/agents_md.rs` with `AgentsMdScanner`, `AgentsMd
 
 ---
 
-### P2-6: Skill Permission Restrictions
+### P2-6: ✅ Done
 **FR:** 12-skills | **Phase:** 3 | **Module:** `crates/core/`
 
-- [ ] Add permission restrictions for skill usage
-- [ ] Implement permission evaluation for skills
-- [ ] Add configuration options
-- [ ] Add tests
-- [ ] Update documentation
+- [x] Add permission restrictions for skill usage
+- [x] Implement permission evaluation for skills
+- [x] Add configuration options
+- [x] Add tests
+- [x] Update documentation
+
+**Implementation:** Added `evaluate_skill_permission()` function in `skill_integration.rs` supporting `PermissionRule::Action` (Allow/Ask/Deny) and `PermissionRule::Object` (per-skill map). Added `PendingApproval` state to `SkillState` enum. Added `approve_skill()` and `deny_skill()` methods for handling pending approvals. `match_and_enable()` now respects permission rules. Configuration via `Config.permission.skill` field. Added 17 new tests covering all permission scenarios. Tests pass with `cargo test -p opencode-core -- skill` and `cargo test -p opencode-core -- permission`.
 
 ---
 

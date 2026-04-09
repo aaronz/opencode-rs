@@ -1,6 +1,8 @@
+use crate::config::{PermissionAction, PermissionRule};
 use crate::skill::Skill;
 use crate::OpenCodeError;
 use crate::SkillManager;
+use opencode_permission::ApprovalResult;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -8,11 +10,13 @@ pub enum SkillState {
     Enabled,
     Disabled,
     AutoMatch,
+    PendingApproval,
 }
 
 pub struct SkillResolver {
     manager: SkillManager,
     states: HashMap<String, SkillState>,
+    skill_permission: Option<PermissionRule>,
 }
 
 impl SkillResolver {
@@ -24,7 +28,31 @@ impl SkillResolver {
             }
         }
 
-        Self { manager, states }
+        Self {
+            manager,
+            states,
+            skill_permission: None,
+        }
+    }
+
+    pub fn with_permission_rule(mut self, rule: PermissionRule) -> Self {
+        self.skill_permission = Some(rule);
+        self
+    }
+
+    pub fn set_skill_permission(&mut self, rule: Option<PermissionRule>) {
+        self.skill_permission = rule;
+    }
+
+    pub fn get_skill_permission(&self) -> Option<&PermissionRule> {
+        self.skill_permission.as_ref()
+    }
+
+    fn check_skill_permission(&self, skill_name: &str) -> ApprovalResult {
+        match &self.skill_permission {
+            None => ApprovalResult::AutoApprove,
+            Some(rule) => evaluate_skill_permission(skill_name, rule),
+        }
     }
 
     pub fn get_enabled_skills(&self) -> Vec<Skill> {
@@ -33,11 +61,13 @@ impl SkillResolver {
             .unwrap_or_default()
             .into_iter()
             .filter(|skill| {
-                self.states
+                let state = self
+                    .states
                     .get(&skill.name)
                     .copied()
-                    .unwrap_or(SkillState::AutoMatch)
-                    == SkillState::Enabled
+                    .unwrap_or(SkillState::AutoMatch);
+                state == SkillState::Enabled
+                    && self.check_skill_permission(&skill.name) != ApprovalResult::Denied
             })
             .collect()
     }
@@ -49,14 +79,43 @@ impl SkillResolver {
         if let Ok(matches) = self.manager.match_skill(input) {
             for matched in matches {
                 if seen.insert(matched.skill.name.clone()) {
-                    self.states
-                        .insert(matched.skill.name.clone(), SkillState::Enabled);
-                    enabled.push(matched.skill);
+                    let permission = self.check_skill_permission(&matched.skill.name);
+                    let new_state = match permission {
+                        ApprovalResult::AutoApprove => SkillState::Enabled,
+                        ApprovalResult::RequireApproval => SkillState::PendingApproval,
+                        ApprovalResult::Denied => SkillState::Disabled,
+                    };
+                    self.states.insert(matched.skill.name.clone(), new_state);
+                    if new_state == SkillState::Enabled {
+                        enabled.push(matched.skill);
+                    }
                 }
             }
         }
 
         enabled
+    }
+
+    pub fn approve_skill(&mut self, skill_name: &str) -> Option<Skill> {
+        if let Some(state) = self.states.get(skill_name) {
+            if *state == SkillState::PendingApproval {
+                self.states
+                    .insert(skill_name.to_string(), SkillState::Enabled);
+                return self.manager.get_skill(skill_name);
+            }
+        }
+        None
+    }
+
+    pub fn deny_skill(&mut self, skill_name: &str) -> Option<Skill> {
+        if let Some(state) = self.states.get(skill_name) {
+            if *state == SkillState::PendingApproval {
+                self.states
+                    .insert(skill_name.to_string(), SkillState::Disabled);
+                return self.manager.get_skill(skill_name);
+            }
+        }
+        None
     }
 
     pub fn build_skill_prompt(&self) -> String {
@@ -109,9 +168,32 @@ impl Default for SkillResolver {
     }
 }
 
+fn evaluate_skill_permission(skill_name: &str, rule: &PermissionRule) -> ApprovalResult {
+    match rule {
+        PermissionRule::Action(action) => match action {
+            PermissionAction::Allow => ApprovalResult::AutoApprove,
+            PermissionAction::Ask => ApprovalResult::RequireApproval,
+            PermissionAction::Deny => ApprovalResult::Denied,
+        },
+        PermissionRule::Object(map) => {
+            if let Some(action) = map.get(skill_name) {
+                match action {
+                    PermissionAction::Allow => ApprovalResult::AutoApprove,
+                    PermissionAction::Ask => ApprovalResult::RequireApproval,
+                    PermissionAction::Deny => ApprovalResult::Denied,
+                }
+            } else {
+                ApprovalResult::RequireApproval
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::PermissionAction;
+    use std::collections::HashMap;
 
     #[test]
     fn resolver_matches_and_enables_skills() {
@@ -145,5 +227,240 @@ mod tests {
 
         assert_eq!(skill.name, "debugger");
         assert_eq!(resolver.skill_state("debugger"), Some(SkillState::Disabled));
+    }
+
+    #[test]
+    fn skill_permission_allow_all() {
+        let rule = PermissionRule::Action(PermissionAction::Allow);
+        assert_eq!(
+            evaluate_skill_permission("code-review", &rule),
+            ApprovalResult::AutoApprove
+        );
+    }
+
+    #[test]
+    fn skill_permission_deny_all() {
+        let rule = PermissionRule::Action(PermissionAction::Deny);
+        assert_eq!(
+            evaluate_skill_permission("code-review", &rule),
+            ApprovalResult::Denied
+        );
+    }
+
+    #[test]
+    fn skill_permission_ask_all() {
+        let rule = PermissionRule::Action(PermissionAction::Ask);
+        assert_eq!(
+            evaluate_skill_permission("code-review", &rule),
+            ApprovalResult::RequireApproval
+        );
+    }
+
+    #[test]
+    fn skill_permission_per_skill_allow() {
+        let mut map = HashMap::new();
+        map.insert("code-review".to_string(), PermissionAction::Allow);
+        map.insert("security-auditor".to_string(), PermissionAction::Deny);
+        let rule = PermissionRule::Object(map);
+
+        assert_eq!(
+            evaluate_skill_permission("code-review", &rule),
+            ApprovalResult::AutoApprove
+        );
+        assert_eq!(
+            evaluate_skill_permission("security-auditor", &rule),
+            ApprovalResult::Denied
+        );
+        assert_eq!(
+            evaluate_skill_permission("unknown-skill", &rule),
+            ApprovalResult::RequireApproval
+        );
+    }
+
+    #[test]
+    fn skill_permission_with_resolver_allow() {
+        let rule = PermissionRule::Action(PermissionAction::Allow);
+        let resolver = SkillResolver::default().with_permission_rule(rule);
+        assert_eq!(
+            resolver.check_skill_permission("code-review"),
+            ApprovalResult::AutoApprove
+        );
+    }
+
+    #[test]
+    fn skill_permission_with_resolver_deny() {
+        let rule = PermissionRule::Action(PermissionAction::Deny);
+        let resolver = SkillResolver::default().with_permission_rule(rule);
+        assert_eq!(
+            resolver.check_skill_permission("code-review"),
+            ApprovalResult::Denied
+        );
+    }
+
+    #[test]
+    fn skill_permission_with_resolver_ask() {
+        let rule = PermissionRule::Action(PermissionAction::Ask);
+        let resolver = SkillResolver::default().with_permission_rule(rule);
+        assert_eq!(
+            resolver.check_skill_permission("code-review"),
+            ApprovalResult::RequireApproval
+        );
+    }
+
+    #[test]
+    fn match_and_enable_respects_deny_permission() {
+        let mut resolver = SkillResolver::default();
+        resolver.set_skill_permission(Some(PermissionRule::Action(PermissionAction::Deny)));
+
+        let matched = resolver.match_and_enable("code-review");
+        assert!(matched.is_empty());
+        assert_eq!(
+            resolver.skill_state("code-review"),
+            Some(SkillState::Disabled)
+        );
+    }
+
+    #[test]
+    fn match_and_enable_respects_ask_permission() {
+        let mut resolver = SkillResolver::default();
+        resolver.set_skill_permission(Some(PermissionRule::Action(PermissionAction::Ask)));
+
+        let matched = resolver.match_and_enable("code-review");
+        assert!(matched.is_empty());
+        assert_eq!(
+            resolver.skill_state("code-review"),
+            Some(SkillState::PendingApproval)
+        );
+    }
+
+    #[test]
+    fn match_and_enable_respects_allow_permission() {
+        let mut resolver = SkillResolver::default();
+        resolver.set_skill_permission(Some(PermissionRule::Action(PermissionAction::Allow)));
+
+        let matched = resolver.match_and_enable("code-review");
+        assert!(!matched.is_empty());
+        assert_eq!(
+            resolver.skill_state("code-review"),
+            Some(SkillState::Enabled)
+        );
+    }
+
+    #[test]
+    fn approve_skill_changes_state_to_enabled() {
+        let mut resolver = SkillResolver::default();
+        resolver.set_skill_permission(Some(PermissionRule::Action(PermissionAction::Ask)));
+        resolver.match_and_enable("code-review");
+
+        assert_eq!(
+            resolver.skill_state("code-review"),
+            Some(SkillState::PendingApproval)
+        );
+
+        let approved = resolver.approve_skill("code-review");
+        assert!(approved.is_some());
+        assert_eq!(
+            resolver.skill_state("code-review"),
+            Some(SkillState::Enabled)
+        );
+    }
+
+    #[test]
+    fn deny_skill_changes_state_to_disabled() {
+        let mut resolver = SkillResolver::default();
+        resolver.set_skill_permission(Some(PermissionRule::Action(PermissionAction::Ask)));
+        resolver.match_and_enable("code-review");
+
+        assert_eq!(
+            resolver.skill_state("code-review"),
+            Some(SkillState::PendingApproval)
+        );
+
+        let denied = resolver.deny_skill("code-review");
+        assert!(denied.is_some());
+        assert_eq!(
+            resolver.skill_state("code-review"),
+            Some(SkillState::Disabled)
+        );
+    }
+
+    #[test]
+    fn get_enabled_skills_excludes_denied_skills() {
+        let mut resolver = SkillResolver::default();
+        resolver.set_skill_state("code-review", SkillState::Enabled);
+        resolver.set_skill_permission(Some(PermissionRule::Action(PermissionAction::Deny)));
+
+        let enabled = resolver.get_enabled_skills();
+        assert!(enabled.iter().all(|s| s.name != "code-review"));
+    }
+
+    #[test]
+    fn get_enabled_skills_includes_pending_approval() {
+        let mut resolver = SkillResolver::default();
+        resolver.set_skill_state("code-review", SkillState::PendingApproval);
+        resolver.set_skill_permission(Some(PermissionRule::Action(PermissionAction::Ask)));
+
+        let enabled = resolver.get_enabled_skills();
+        assert!(enabled.iter().all(|s| s.name != "code-review"));
+    }
+
+    #[test]
+    fn per_skill_permission_rules() {
+        let mut map = HashMap::new();
+        map.insert("code-review".to_string(), PermissionAction::Allow);
+        map.insert("security-auditor".to_string(), PermissionAction::Deny);
+        let rule = PermissionRule::Object(map);
+
+        let mut resolver = SkillResolver::default();
+        resolver.set_skill_permission(Some(rule));
+
+        resolver.match_and_enable("code-review");
+        resolver.match_and_enable("security-auditor");
+        resolver.match_and_enable("refactorer");
+
+        assert_eq!(
+            resolver.skill_state("code-review"),
+            Some(SkillState::Enabled)
+        );
+        assert_eq!(
+            resolver.skill_state("security-auditor"),
+            Some(SkillState::Disabled)
+        );
+        assert_eq!(
+            resolver.skill_state("refactorer"),
+            Some(SkillState::PendingApproval)
+        );
+    }
+
+    #[test]
+    fn evaluate_skill_permission_function() {
+        assert_eq!(
+            evaluate_skill_permission("test", &PermissionRule::Action(PermissionAction::Allow)),
+            ApprovalResult::AutoApprove
+        );
+
+        assert_eq!(
+            evaluate_skill_permission("test", &PermissionRule::Action(PermissionAction::Deny)),
+            ApprovalResult::Denied
+        );
+
+        assert_eq!(
+            evaluate_skill_permission("test", &PermissionRule::Action(PermissionAction::Ask)),
+            ApprovalResult::RequireApproval
+        );
+
+        let mut map = HashMap::new();
+        map.insert("test".to_string(), PermissionAction::Allow);
+        assert_eq!(
+            evaluate_skill_permission("test", &PermissionRule::Object(map)),
+            ApprovalResult::AutoApprove
+        );
+
+        let mut map2 = HashMap::new();
+        map2.insert("other".to_string(), PermissionAction::Deny);
+        assert_eq!(
+            evaluate_skill_permission("test", &PermissionRule::Object(map2)),
+            ApprovalResult::RequireApproval
+        );
     }
 }

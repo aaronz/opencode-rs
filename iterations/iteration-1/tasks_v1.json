@@ -256,7 +256,7 @@
       "priority": "P2",
       "title": "Skill Permission Restrictions",
       "description": "Add permission restrictions for skill usage, implement permission evaluation for skills. Module: crates/core/",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Permission restrictions for skill usage work",
         "Permission evaluation for skills functional",
@@ -268,7 +268,7 @@
         "cargo test -p opencode-core -- skill",
         "cargo test -p opencode-core -- permission"
       ],
-      "impl_notes": "Requires 12-skills. Tests and documentation still pending.",
+      "impl_notes": "Added skill permission evaluation to SkillResolver. Implemented evaluate_skill_permission() function supporting PermissionRule (Action or Object/map). Added PendingApproval state and approve_skill/deny_skill methods. Added 17 new tests covering all permission scenarios. Configuration via Config.permission.skill field.",
       "dependencies": [
         "P2-3"
       ]
