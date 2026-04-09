@@ -278,7 +278,7 @@
       "priority": "P2",
       "title": "Remove Deprecated mode field",
       "description": "Remove mode field from config schema, add deprecation warning, schedule for major version removal. Module: crates/config/",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "mode field removed from config schema",
         "Deprecation warning added",
@@ -288,7 +288,7 @@
         "cargo test -p opencode-config",
         "cargo build --release"
       ],
-      "impl_notes": "Tech debt - schedule for major version removal",
+      "impl_notes": "Tech debt - schedule for major version removal. Mode field deprecated with #[deprecated] attribute at config.rs:91-94. Deprecation warning logged at config.rs:1219-1222 when field is present. Field kept for backward compatibility.",
       "dependencies": []
     },
     {

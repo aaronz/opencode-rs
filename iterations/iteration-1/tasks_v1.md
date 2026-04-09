@@ -232,9 +232,9 @@ Implementation: `crates/core/src/agents_md.rs` with `AgentsMdScanner`, `AgentsMd
 ### TD-001: Deprecated `mode` field
 **Module:** `crates/config/`
 
-- [ ] Remove `mode` field from config schema
-- [ ] Add deprecation warning
-- [ ] Schedule for major version removal
+- [x] Remove `mode` field from config schema (deprecated, kept for backward compatibility)
+- [x] Add deprecation warning (logged at config.rs:1219-1222)
+- [x] Schedule for major version removal (marked with #[deprecated(since = "2.0.0")])
 
 ---
 
