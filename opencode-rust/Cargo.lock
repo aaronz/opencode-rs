@@ -3570,7 +3570,9 @@ name = "opencode-plugin"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "libloading",
+ "opencode-permission",
  "serde",
  "serde_json",
  "tempfile",

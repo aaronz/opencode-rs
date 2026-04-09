@@ -3,11 +3,15 @@ pub mod loader;
 pub mod registry;
 pub mod wasm_runtime;
 
+use async_trait::async_trait;
 use discovery::PluginDiscovery;
+use opencode_permission::{ApprovalResult, PermissionScope};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 #[derive(Debug, thiserror::Error)]
 pub enum PluginError {
@@ -25,6 +29,10 @@ pub enum PluginError {
     Startup(String, String),
     #[error("plugin shutdown failed ({0}): {1}")]
     Shutdown(String, String),
+    #[error("tool registration failed: {0}")]
+    ToolRegistration(String),
+    #[error("permission denied: {0}")]
+    PermissionDenied(String),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -53,6 +61,54 @@ pub struct PluginConfig {
     pub enabled: bool,
     pub options: HashMap<String, Value>,
     pub permissions: PluginPermissions,
+}
+
+#[derive(Debug, Clone)]
+pub struct PluginToolDefinition {
+    pub name: String,
+    pub description: String,
+    pub input_schema: Value,
+    pub provider_name: String,
+}
+
+#[async_trait]
+pub trait ToolProvider: Send + Sync {
+    async fn get_tools(&self) -> Vec<PluginToolDefinition>;
+}
+
+pub struct PluginTool {
+    definition: PluginToolDefinition,
+    executor: Box<dyn Fn(Value) -> Result<String, String> + Send + Sync>,
+}
+
+impl PluginTool {
+    pub fn new(
+        definition: PluginToolDefinition,
+        executor: Box<dyn Fn(Value) -> Result<String, String> + Send + Sync>,
+    ) -> Self {
+        Self {
+            definition,
+            executor,
+        }
+    }
+
+    pub fn definition(&self) -> &PluginToolDefinition {
+        &self.definition
+    }
+
+    pub fn execute(&self, args: Value) -> Result<String, String> {
+        (self.executor)(args)
+    }
+}
+
+impl PluginPermissions {
+    pub fn has_capability(&self, cap: &PluginCapability) -> bool {
+        self.capabilities.contains(cap)
+    }
+
+    pub fn can_add_tools(&self) -> bool {
+        self.has_capability(&PluginCapability::AddTools)
+    }
 }
 
 pub trait Plugin: Send + Sync {
@@ -104,6 +160,8 @@ pub struct PluginManager {
     plugin_paths: HashMap<String, PathBuf>,
     loader: loader::PluginLoader,
     discovered_metadata: Vec<PathBuf>,
+    plugin_tools: Arc<RwLock<HashMap<String, PluginTool>>>,
+    permission_scope: PermissionScope,
 }
 
 impl PluginManager {
@@ -114,6 +172,8 @@ impl PluginManager {
             plugin_paths: HashMap::new(),
             loader: loader::PluginLoader::new(),
             discovered_metadata: Vec::new(),
+            plugin_tools: Arc::new(RwLock::new(HashMap::new())),
+            permission_scope: PermissionScope::ReadOnly,
         }
     }
 
@@ -184,6 +244,8 @@ impl PluginManager {
         self.plugins.clear();
         self.configs.clear();
         self.plugin_paths.clear();
+        // Note: plugin_tools is AsyncRwLock, can't clear in sync shutdown
+        // Use shutdown_async for proper cleanup
 
         if let Some((name, message)) = failures.into_iter().next() {
             return Err(PluginError::Shutdown(name, message));
@@ -276,6 +338,94 @@ impl PluginManager {
         &self.discovered_metadata
     }
 
+    pub fn set_permission_scope(&mut self, scope: PermissionScope) {
+        self.permission_scope = scope;
+    }
+
+    pub fn permission_scope(&self) -> PermissionScope {
+        self.permission_scope
+    }
+
+    pub async fn register_plugin_tool(&self, tool: PluginTool) -> Result<(), PluginError> {
+        let tool_name = tool.definition().name.clone();
+        let provider_name = tool.definition().provider_name.clone();
+
+        let config = self
+            .configs
+            .get(&provider_name)
+            .ok_or_else(|| PluginError::NotFound(provider_name.clone()))?;
+
+        if !config.permissions.can_add_tools() {
+            return Err(PluginError::PermissionDenied(format!(
+                "plugin '{}' does not have AddTools capability",
+                provider_name
+            )));
+        }
+
+        let approval = check_tool_permission_for_scope(&tool_name, self.permission_scope);
+        match approval {
+            ApprovalResult::Denied => {
+                return Err(PluginError::PermissionDenied(format!(
+                    "tool '{}' is denied by permission policy",
+                    tool_name
+                )));
+            }
+            ApprovalResult::RequireApproval => {
+                tracing::debug!(
+                    tool = %tool_name,
+                    plugin = %provider_name,
+                    "plugin tool requires approval"
+                );
+            }
+            ApprovalResult::AutoApprove => {}
+        }
+
+        let mut tools = self.plugin_tools.write().await;
+        if tools.contains_key(&tool_name) {
+            return Err(PluginError::ToolRegistration(format!(
+                "tool '{}' already registered",
+                tool_name
+            )));
+        }
+
+        tools.insert(tool_name, tool);
+        Ok(())
+    }
+
+    pub async fn get_plugin_tool_definition(&self, name: &str) -> Option<PluginToolDefinition> {
+        let tools = self.plugin_tools.read().await;
+        tools.get(name).map(|t| t.definition().clone())
+    }
+
+    pub async fn list_plugin_tools(&self) -> Vec<PluginToolDefinition> {
+        let tools = self.plugin_tools.read().await;
+        tools.values().map(|t| t.definition().clone()).collect()
+    }
+
+    pub async fn unregister_plugin_tool(&self, name: &str) -> Result<(), PluginError> {
+        let mut tools = self.plugin_tools.write().await;
+        tools
+            .remove(name)
+            .ok_or_else(|| PluginError::ToolRegistration(format!("tool '{}' not found", name)))?;
+        Ok(())
+    }
+
+    pub async fn execute_plugin_tool(
+        &self,
+        name: &str,
+        args: Value,
+    ) -> Result<String, PluginError> {
+        let result;
+        {
+            let tools = self.plugin_tools.read().await;
+            let tool = tools.get(name).ok_or_else(|| {
+                PluginError::ToolRegistration(format!("tool '{}' not found", name))
+            })?;
+            result = tool.execute(args);
+        }
+        result.map_err(PluginError::ToolRegistration)
+    }
+
     fn register_with_config(
         &mut self,
         plugin: Box<dyn Plugin>,
@@ -332,6 +482,17 @@ pub fn initialize_plugins(project_path: Option<&Path>) -> Result<PluginManager, 
     );
     manager.startup()?;
     Ok(manager)
+}
+
+fn check_tool_permission_for_scope(tool_name: &str, scope: PermissionScope) -> ApprovalResult {
+    opencode_permission::check_tool_permission(tool_name, scope)
+}
+
+impl PluginManager {
+    pub async fn shutdown_async(&mut self) -> Result<(), PluginError> {
+        self.plugin_tools.write().await.clear();
+        self.shutdown()
+    }
 }
 
 #[cfg(test)]
@@ -398,6 +559,170 @@ mod tests {
         fn on_session_end(&mut self, _: &str) -> Result<(), PluginError> {
             Ok(())
         }
+    }
+
+    struct TestPluginWithTools {
+        name: String,
+    }
+
+    impl TestPluginWithTools {
+        fn new(name: &str) -> Self {
+            Self {
+                name: name.to_string(),
+            }
+        }
+
+        fn to_config(&self) -> PluginConfig {
+            PluginConfig {
+                name: self.name.clone(),
+                version: "1.0.0".to_string(),
+                enabled: true,
+                options: HashMap::new(),
+                permissions: PluginPermissions {
+                    capabilities: vec![PluginCapability::AddTools],
+                    allowed_events: vec![],
+                    filesystem_scope: None,
+                    network_allowed: false,
+                },
+            }
+        }
+    }
+
+    impl Plugin for TestPluginWithTools {
+        fn name(&self) -> &str {
+            &self.name
+        }
+
+        fn version(&self) -> &str {
+            "1.0.0"
+        }
+
+        fn init(&mut self) -> Result<(), PluginError> {
+            Ok(())
+        }
+
+        fn shutdown(&mut self) -> Result<(), PluginError> {
+            Ok(())
+        }
+
+        fn description(&self) -> &str {
+            "test plugin with tools"
+        }
+
+        fn on_init(&mut self) -> Result<(), PluginError> {
+            Ok(())
+        }
+
+        fn on_start(&mut self) -> Result<(), PluginError> {
+            Ok(())
+        }
+
+        fn on_tool_call(
+            &mut self,
+            _tool_name: &str,
+            _args: &serde_json::Value,
+            _session_id: &str,
+        ) -> Result<(), PluginError> {
+            Ok(())
+        }
+
+        fn on_message(&mut self, _: &str, _: &str) -> Result<(), PluginError> {
+            Ok(())
+        }
+
+        fn on_session_end(&mut self, _: &str) -> Result<(), PluginError> {
+            Ok(())
+        }
+    }
+
+    fn register_test_plugin_with_tools(manager: &mut PluginManager, name: &str) {
+        let plugin = TestPluginWithTools::new(name);
+        let config = plugin.to_config();
+        manager
+            .register_with_config(Box::new(plugin), config)
+            .unwrap();
+    }
+
+    struct TestPluginWithoutTools {
+        name: String,
+    }
+
+    impl TestPluginWithoutTools {
+        fn new(name: &str) -> Self {
+            Self {
+                name: name.to_string(),
+            }
+        }
+
+        fn to_config(&self) -> PluginConfig {
+            PluginConfig {
+                name: self.name.clone(),
+                version: "1.0.0".to_string(),
+                enabled: true,
+                options: HashMap::new(),
+                permissions: PluginPermissions {
+                    capabilities: vec![], // No AddTools capability
+                    allowed_events: vec![],
+                    filesystem_scope: None,
+                    network_allowed: false,
+                },
+            }
+        }
+    }
+
+    impl Plugin for TestPluginWithoutTools {
+        fn name(&self) -> &str {
+            &self.name
+        }
+
+        fn version(&self) -> &str {
+            "1.0.0"
+        }
+
+        fn init(&mut self) -> Result<(), PluginError> {
+            Ok(())
+        }
+
+        fn shutdown(&mut self) -> Result<(), PluginError> {
+            Ok(())
+        }
+
+        fn description(&self) -> &str {
+            "test plugin without tools"
+        }
+
+        fn on_init(&mut self) -> Result<(), PluginError> {
+            Ok(())
+        }
+
+        fn on_start(&mut self) -> Result<(), PluginError> {
+            Ok(())
+        }
+
+        fn on_tool_call(
+            &mut self,
+            _tool_name: &str,
+            _args: &serde_json::Value,
+            _session_id: &str,
+        ) -> Result<(), PluginError> {
+            Ok(())
+        }
+
+        fn on_message(&mut self, _: &str, _: &str) -> Result<(), PluginError> {
+            Ok(())
+        }
+
+        fn on_session_end(&mut self, _: &str) -> Result<(), PluginError> {
+            Ok(())
+        }
+    }
+
+    fn register_test_plugin_without_tools(manager: &mut PluginManager, name: &str) {
+        let plugin = TestPluginWithoutTools::new(name);
+        let config = plugin.to_config();
+        manager
+            .register_with_config(Box::new(plugin), config)
+            .unwrap();
     }
 
     #[test]
@@ -685,5 +1010,250 @@ mod tests {
 
         let result = manager.on_session_end_all("session-123");
         assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_plugin_tool_registration() {
+        let mut manager = PluginManager::new();
+        register_test_plugin_with_tools(&mut manager, "test-plugin");
+
+        let tool_def = PluginToolDefinition {
+            name: "custom_tool".to_string(),
+            description: "A custom tool from plugin".to_string(),
+            input_schema: serde_json::json!({"type": "object"}),
+            provider_name: "test-plugin".to_string(),
+        };
+
+        let tool = PluginTool::new(tool_def, Box::new(|_args| Ok("executed".to_string())));
+
+        let result = manager.register_plugin_tool(tool).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_plugin_tool_registration_requires_addtools_capability() {
+        let mut manager = PluginManager::new();
+
+        register_test_plugin_without_tools(&mut manager, "restricted-plugin");
+
+        let tool_def = PluginToolDefinition {
+            name: "custom_tool".to_string(),
+            description: "A custom tool from plugin".to_string(),
+            input_schema: serde_json::json!({"type": "object"}),
+            provider_name: "restricted-plugin".to_string(),
+        };
+
+        let tool = PluginTool::new(tool_def, Box::new(|_args| Ok("executed".to_string())));
+
+        let result = manager.register_plugin_tool(tool).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        println!("Error type: {:?}", err);
+        assert!(matches!(err, PluginError::PermissionDenied(_)));
+    }
+
+    #[tokio::test]
+    async fn test_plugin_tool_execution() {
+        let mut manager = PluginManager::new();
+        register_test_plugin_with_tools(&mut manager, "test-plugin");
+
+        let tool_def = PluginToolDefinition {
+            name: "echo_tool".to_string(),
+            description: "Echo tool".to_string(),
+            input_schema: serde_json::json!({"type": "object", "properties": {"msg": {"type": "string"}}}),
+            provider_name: "test-plugin".to_string(),
+        };
+
+        let tool = PluginTool::new(
+            tool_def,
+            Box::new(|args: Value| {
+                let msg = args.get("msg").and_then(|v| v.as_str()).unwrap_or("");
+                Ok(format!("echo: {}", msg))
+            }),
+        );
+
+        manager.register_plugin_tool(tool).await.unwrap();
+
+        let result = manager
+            .execute_plugin_tool("echo_tool", serde_json::json!({"msg": "hello"}))
+            .await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "echo: hello");
+    }
+
+    #[tokio::test]
+    async fn test_plugin_tool_not_found() {
+        let manager = PluginManager::new();
+
+        let result = manager
+            .execute_plugin_tool("nonexistent", serde_json::json!({}))
+            .await;
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            PluginError::ToolRegistration(_)
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_list_plugin_tools() {
+        let mut manager = PluginManager::new();
+        register_test_plugin_with_tools(&mut manager, "test-plugin");
+
+        let tool_def = PluginToolDefinition {
+            name: "tool1".to_string(),
+            description: "Tool 1".to_string(),
+            input_schema: serde_json::json!({"type": "object"}),
+            provider_name: "test-plugin".to_string(),
+        };
+        let tool = PluginTool::new(tool_def, Box::new(|_args| Ok("ok".to_string())));
+        manager.register_plugin_tool(tool).await.unwrap();
+
+        let tool_def = PluginToolDefinition {
+            name: "tool2".to_string(),
+            description: "Tool 2".to_string(),
+            input_schema: serde_json::json!({"type": "object"}),
+            provider_name: "test-plugin".to_string(),
+        };
+        let tool = PluginTool::new(tool_def, Box::new(|_args| Ok("ok".to_string())));
+        manager.register_plugin_tool(tool).await.unwrap();
+
+        let tools = manager.list_plugin_tools().await;
+        assert_eq!(tools.len(), 2);
+        assert!(tools.iter().any(|t| t.name == "tool1"));
+        assert!(tools.iter().any(|t| t.name == "tool2"));
+    }
+
+    #[tokio::test]
+    async fn test_unregister_plugin_tool() {
+        let mut manager = PluginManager::new();
+        register_test_plugin_with_tools(&mut manager, "test-plugin");
+
+        let tool_def = PluginToolDefinition {
+            name: "temp_tool".to_string(),
+            description: "Temp tool".to_string(),
+            input_schema: serde_json::json!({"type": "object"}),
+            provider_name: "test-plugin".to_string(),
+        };
+        let tool = PluginTool::new(tool_def, Box::new(|_args| Ok("ok".to_string())));
+        manager.register_plugin_tool(tool).await.unwrap();
+
+        let result = manager.unregister_plugin_tool("temp_tool").await;
+        assert!(result.is_ok());
+
+        let tools = manager.list_plugin_tools().await;
+        assert!(tools.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_permission_scope_setting() {
+        let mut manager = PluginManager::new();
+        assert_eq!(manager.permission_scope(), PermissionScope::ReadOnly);
+
+        manager.set_permission_scope(PermissionScope::Full);
+        assert_eq!(manager.permission_scope(), PermissionScope::Full);
+
+        manager.set_permission_scope(PermissionScope::Restricted);
+        assert_eq!(manager.permission_scope(), PermissionScope::Restricted);
+    }
+
+    #[test]
+    fn test_plugin_permissions_has_capability() {
+        let perms = PluginPermissions {
+            capabilities: vec![PluginCapability::AddTools, PluginCapability::ListenEvents],
+            allowed_events: vec![],
+            filesystem_scope: None,
+            network_allowed: false,
+        };
+
+        assert!(perms.has_capability(&PluginCapability::AddTools));
+        assert!(perms.has_capability(&PluginCapability::ListenEvents));
+        assert!(!perms.has_capability(&PluginCapability::InjectShellEnv));
+    }
+
+    #[test]
+    fn test_plugin_permissions_can_add_tools() {
+        let perms_with_addtools = PluginPermissions {
+            capabilities: vec![PluginCapability::AddTools],
+            allowed_events: vec![],
+            filesystem_scope: None,
+            network_allowed: false,
+        };
+        assert!(perms_with_addtools.can_add_tools());
+
+        let perms_without_addtools = PluginPermissions {
+            capabilities: vec![PluginCapability::ListenEvents],
+            allowed_events: vec![],
+            filesystem_scope: None,
+            network_allowed: false,
+        };
+        assert!(!perms_without_addtools.can_add_tools());
+    }
+
+    #[tokio::test]
+    async fn test_plugin_tool_duplicate_registration_fails() {
+        let mut manager = PluginManager::new();
+        register_test_plugin_with_tools(&mut manager, "test-plugin");
+
+        let tool_def = PluginToolDefinition {
+            name: "duplicate_tool".to_string(),
+            description: "Duplicate tool".to_string(),
+            input_schema: serde_json::json!({"type": "object"}),
+            provider_name: "test-plugin".to_string(),
+        };
+
+        let tool1 = PluginTool::new(tool_def.clone(), Box::new(|_args| Ok("ok".to_string())));
+        let tool2 = PluginTool::new(tool_def, Box::new(|_args| Ok("ok".to_string())));
+
+        manager.register_plugin_tool(tool1).await.unwrap();
+        let result = manager.register_plugin_tool(tool2).await;
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            PluginError::ToolRegistration(_)
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_plugin_tool_get_definition() {
+        let mut manager = PluginManager::new();
+        register_test_plugin_with_tools(&mut manager, "test-plugin");
+
+        let tool_def = PluginToolDefinition {
+            name: "def_tool".to_string(),
+            description: "Definition test tool".to_string(),
+            input_schema: serde_json::json!({"type": "object", "properties": {"input": {"type": "string"}}}),
+            provider_name: "test-plugin".to_string(),
+        };
+
+        let tool = PluginTool::new(tool_def.clone(), Box::new(|_args| Ok("ok".to_string())));
+        manager.register_plugin_tool(tool).await.unwrap();
+
+        let retrieved = manager.get_plugin_tool_definition("def_tool").await;
+        assert!(retrieved.is_some());
+        let retrieved = retrieved.unwrap();
+        assert_eq!(retrieved.name, "def_tool");
+        assert_eq!(retrieved.description, "Definition test tool");
+        assert_eq!(retrieved.provider_name, "test-plugin");
+    }
+
+    #[tokio::test]
+    async fn test_shutdown_async_clears_tools() {
+        let mut manager = PluginManager::new();
+        register_test_plugin_with_tools(&mut manager, "test-plugin");
+
+        let tool_def = PluginToolDefinition {
+            name: "cleanup_tool".to_string(),
+            description: "Cleanup test".to_string(),
+            input_schema: serde_json::json!({"type": "object"}),
+            provider_name: "test-plugin".to_string(),
+        };
+        let tool = PluginTool::new(tool_def, Box::new(|_args| Ok("ok".to_string())));
+        manager.register_plugin_tool(tool).await.unwrap();
+
+        manager.shutdown_async().await.unwrap();
+
+        let tools = manager.list_plugin_tools().await;
+        assert!(tools.is_empty());
     }
 }

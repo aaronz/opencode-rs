@@ -235,7 +235,7 @@
       "priority": "P2",
       "title": "Plugin-Provided Tool Registration",
       "description": "Implement tool registration from plugins, add permission integration. Module: crates/plugin/",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Tools can be registered from plugins",
         "Permission integration works",
@@ -246,7 +246,7 @@
         "cargo test -p opencode-plugin -- tool",
         "cargo test -p opencode-plugin -- permission"
       ],
-      "impl_notes": "Requires 08-plugin. Tests and documentation still pending.",
+      "impl_notes": "Added PluginToolDefinition, PluginTool struct, ToolProvider trait, and permission integration. Plugin tools can be registered with AddTools capability check. Tests pass.",
       "dependencies": [
         "P1-4"
       ]
