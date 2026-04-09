@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tracing::{info, error};
+use tracing::{error, info};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Jwks {
@@ -56,9 +56,9 @@ impl JwksValidator {
 
     pub async fn fetch_jwks(&mut self) -> Result<(), JwksError> {
         let uri = self.jwks_uri.clone().ok_or(JwksError::NoJwksUri)?;
-        
+
         info!(event = "jwks_fetch_start", uri = %uri);
-        
+
         let response = reqwest::get(&uri).await.map_err(|e| {
             error!(event = "jwks_fetch_failed", error = %e);
             JwksError::FetchError(e.to_string())
@@ -76,14 +76,14 @@ impl JwksValidator {
 
     pub fn validate_token(&self, _token: &str) -> Result<JwkClaims, JwksError> {
         info!(event = "token_validation_attempt");
-        
+
         // In production, this would:
         // 1. Parse the JWT
         // 2. Extract the kid from header
         // 3. Find matching key in JWKS
         // 4. Verify signature using the key
         // 5. Validate claims (iss, aud, exp, nonce)
-        
+
         // For now, return mock claims
         let claims = JwkClaims {
             sub: "user@example.com".to_string(),
@@ -142,7 +142,7 @@ mod tests {
 
     #[test]
     fn test_jwks_validator_creation() {
-        let validator =JwksValidator::new();
+        let validator = JwksValidator::new();
         assert!(validator.jwks.is_none());
         assert!(validator.jwks_uri.is_none());
     }
