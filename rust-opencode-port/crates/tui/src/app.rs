@@ -1623,6 +1623,7 @@ impl App {
                         role: if m.is_user { opencode_core::Role::User } else { opencode_core::Role::Assistant },
                         content: m.content.clone(),
                         timestamp: chrono::Utc::now(),
+                        parts: None,
                     })
                     .collect();
                 let result = compactor.compact(core_messages);
@@ -1648,6 +1649,7 @@ impl App {
                         role: if m.is_user { opencode_core::Role::User } else { opencode_core::Role::Assistant },
                         content: m.content.clone(),
                         timestamp: chrono::Utc::now(),
+                        parts: None,
                     })
                     .collect();
                 let result = compactor.compact(core_messages);

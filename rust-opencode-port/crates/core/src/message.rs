@@ -14,6 +14,8 @@ pub struct Message {
     pub role: Role,
     pub content: String,
     pub timestamp: DateTime<Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parts: Option<Vec<crate::part::Part>>,
 }
 
 impl Message {
@@ -22,6 +24,7 @@ impl Message {
             role,
             content,
             timestamp: Utc::now(),
+            parts: None,
         }
     }
 
@@ -35,6 +38,20 @@ impl Message {
 
     pub fn system(content: impl Into<String>) -> Self {
         Self::new(Role::System, content.into())
+    }
+
+    pub fn from_parts(role: Role, parts: Vec<crate::part::Part>) -> Self {
+        let content = parts
+            .iter()
+            .map(|p| p.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        Self {
+            role,
+            content,
+            timestamp: Utc::now(),
+            parts: Some(parts),
+        }
     }
 }
 
@@ -69,5 +86,20 @@ mod tests {
         let json = serde_json::to_string(&msg).unwrap();
         assert!(json.contains("user"));
         assert!(json.contains("test"));
+    }
+
+    #[test]
+    fn test_message_with_parts() {
+        let msg = Message::from_parts(Role::User, vec![crate::part::Part::text("hello")]);
+        assert!(msg.parts.is_some());
+        assert_eq!(msg.parts.as_ref().map(|p| p.len()), Some(1));
+    }
+
+    #[test]
+    fn test_message_backward_compat() {
+        let json = r#"{"role":"user","content":"hello","timestamp":"2024-01-01T00:00:00Z"}"#;
+        let msg: Message = serde_json::from_str(json).unwrap();
+        assert_eq!(msg.content, "hello");
+        assert!(msg.parts.is_none());
     }
 }

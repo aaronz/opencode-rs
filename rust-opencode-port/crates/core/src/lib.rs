@@ -25,6 +25,7 @@ pub mod instructions;
 pub mod instance;
 pub mod mcp;
 pub mod message;
+pub mod part;
 pub mod permission;
 pub mod plugin;
 pub mod processor;
@@ -89,6 +90,7 @@ pub use mcp::McpManager;
 /// Represents a single message in a conversation with a role (user/assistant/system).
 /// Messages are the core unit of conversation in OpenCode RS.
 pub use message::{Message, Role};
+pub use part::Part;
 pub use permission::PermissionManager;
 pub use plugin::PluginManager;
 pub use project::ProjectManager;

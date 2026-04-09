@@ -145,6 +145,7 @@ mod tests {
             role: opencode_core::Role::User,
             content: "Hello".to_string(),
             timestamp: chrono::Utc::now(),
+            parts: None,
         };
         let chat_msg = ChatMessage::from(&msg);
         assert_eq!(chat_msg.role, "user");
