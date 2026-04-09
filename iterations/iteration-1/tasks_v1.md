@@ -255,7 +255,7 @@ Implementation: `crates/core/src/agents_md.rs` with `AgentsMdScanner`, `AgentsMd
 
 ---
 
-### TD-004: Deprecated `layout` field
+### TD-004: ✅ Done
 **Module:** `crates/config/`
 
 - [x] Remove `layout` field from config schema
@@ -265,9 +265,10 @@ Implementation: `crates/core/src/agents_md.rs` with `AgentsMdScanner`, `AgentsMd
 
 ### TD-005: Hardcoded Built-in Skills
 **Module:** `crates/core/`
+**Status:** ✅ Done
 
-- [ ] Consider externalization of built-in skills
-- [ ] Evaluate runtime impact
+- [x] Consider externalization of built-in skills
+- [x] Evaluate runtime impact
 
 ---
 

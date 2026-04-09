@@ -34,6 +34,7 @@ pub struct SkillManager {
     skills: RwLock<Vec<Skill>>,
     global_skills_path: Option<PathBuf>,
     project_skills_path: Option<PathBuf>,
+    builtin_skills_path: Option<PathBuf>,
     discovered: RwLock<bool>,
 }
 
@@ -85,6 +86,7 @@ impl SkillManager {
             skills: RwLock::new(Vec::new()),
             global_skills_path: global_path,
             project_skills_path: None,
+            builtin_skills_path: None,
             discovered: RwLock::new(false),
         }
     }
@@ -92,6 +94,15 @@ impl SkillManager {
     pub fn with_project_path(mut self, project_path: PathBuf) -> Self {
         self.project_skills_path = Some(project_path.join(".opencode").join("skills"));
         self
+    }
+
+    pub fn with_builtin_skills_path(mut self, path: PathBuf) -> Self {
+        self.builtin_skills_path = Some(path);
+        self
+    }
+
+    pub fn set_builtin_skills_path(&mut self, path: PathBuf) {
+        self.builtin_skills_path = Some(path);
     }
 
     pub fn set_project_path(&mut self, project_path: PathBuf) {
@@ -256,6 +267,20 @@ impl SkillManager {
     }
 
     pub fn load_builtin_skills(&self) -> Vec<Skill> {
+        if let Some(ref builtin_path) = self.builtin_skills_path {
+            if builtin_path.exists() {
+                tracing::debug!(
+                    "Loading built-in skills from external path: {:?}",
+                    builtin_path
+                );
+                let mut skills = self.discover_in_dir(builtin_path).unwrap_or_default();
+                for skill in &mut skills {
+                    skill.location =
+                        PathBuf::from(format!("builtin://{}", skill.location.display()));
+                }
+                return skills;
+            }
+        }
         BUILTIN_SKILLS
             .iter()
             .filter_map(|(path, content)| {
@@ -481,5 +506,52 @@ Skill content here"#;
         let injected = sm.inject_into_prompt(&skill);
         assert!(injected.contains("Skill: code-review"));
         assert!(injected.contains("Description:"));
+    }
+
+    #[test]
+    fn test_externalized_builtin_skills() {
+        use tempfile::TempDir;
+        let temp_dir = TempDir::new().unwrap();
+        let skills_dir = temp_dir.path().to_path_buf();
+        std::fs::create_dir_all(skills_dir.join("code-review")).unwrap();
+        std::fs::create_dir_all(skills_dir.join("custom-skill")).unwrap();
+        std::fs::write(
+            skills_dir.join("code-review").join("SKILL.md"),
+            r#"---
+name: code-review
+description: External code review skill
+version: 1.0.0
+triggers: review, code-review
+priority: 10
+---
+External code review content"#,
+        )
+        .unwrap();
+        std::fs::write(
+            skills_dir.join("custom-skill").join("SKILL.md"),
+            r#"---
+name: custom-skill
+description: A custom external skill
+version: 1.0.0
+---
+Custom skill content"#,
+        )
+        .unwrap();
+        let sm = SkillManager::new().with_builtin_skills_path(skills_dir);
+        let builtins = sm.load_builtin_skills();
+        assert!(builtins.len() >= 1);
+        assert!(builtins.iter().any(|s| s.name == "code-review"));
+        assert!(builtins.iter().any(|s| s.name == "custom-skill"));
+        let code_review = builtins.iter().find(|s| s.name == "code-review").unwrap();
+        assert_eq!(code_review.description, "External code review skill");
+        assert!(code_review.location.starts_with("builtin://"));
+    }
+
+    #[test]
+    fn test_builtin_skills_fallback_to_embedded() {
+        let sm = SkillManager::new().with_builtin_skills_path(PathBuf::from("/nonexistent/path"));
+        let builtins = sm.load_builtin_skills();
+        assert_eq!(builtins.len(), 10);
+        assert!(builtins.iter().any(|s| s.name == "code-review"));
     }
 }

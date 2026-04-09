@@ -351,7 +351,7 @@
       "priority": "P2",
       "title": "Externalize Hardcoded Built-in Skills",
       "description": "Consider externalization of built-in skills, evaluate runtime impact. Module: crates/core/",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Built-in skills can be externalized",
         "Runtime impact evaluated"
@@ -359,7 +359,7 @@
       "test_commands": [
         "cargo test -p opencode-core -- skill"
       ],
-      "impl_notes": "Tech debt - evaluation task",
+      "impl_notes": "Added builtin_skills_path field to SkillManager. Built-in skills can now be loaded from an external path at runtime via with_builtin_skills_path(). Falls back to embedded skills if path doesn't exist. Runtime impact: minimal - only affects discovery, fallback preserved for backward compatibility.",
       "dependencies": []
     },
     {
