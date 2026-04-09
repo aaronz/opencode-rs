@@ -214,7 +214,7 @@
       "priority": "P2",
       "title": "Session Compaction Boundaries",
       "description": "Verify checkpoint-based compaction semantics, review compaction boundaries, add configuration options. Module: crates/core/",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Checkpoint-based compaction semantics verified",
         "Compaction boundaries reviewed",
@@ -225,7 +225,7 @@
       "test_commands": [
         "cargo test -p opencode-core -- compaction"
       ],
-      "impl_notes": "Requires 01-core-arch. Tests and documentation still pending.",
+      "impl_notes": "Added configurable thresholds to CompactionConfig: warning_threshold, compact_threshold, continuation_threshold, preserve_recent_messages, preserve_system_messages, summary_prefix. Added TokenBudget::from_config and TokenBudget::with_thresholds methods. Added 4 new tests for configurable thresholds. Checkpoint semantics verified - checkpoints are independent snapshots, compaction modifies in-memory session.",
       "dependencies": [
         "P2-1"
       ]

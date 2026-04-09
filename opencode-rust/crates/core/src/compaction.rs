@@ -129,6 +129,42 @@ impl TokenBudget {
         }
     }
 
+    pub fn with_thresholds(
+        mut self,
+        warning_threshold: f64,
+        compact_threshold: f64,
+        continuation_threshold: f64,
+    ) -> Self {
+        self.warning_threshold = warning_threshold;
+        self.compact_threshold = compact_threshold;
+        self.continuation_threshold = continuation_threshold;
+        self
+    }
+
+    pub fn from_config(config: &crate::config::CompactionConfig, model_max_context: usize) -> Self {
+        let mut budget = if model_max_context > 0 {
+            Self {
+                total: model_max_context,
+                model_max_tokens: model_max_context,
+                ..Self::default()
+            }
+        } else {
+            Self::default()
+        };
+
+        if let Some(warning) = config.warning_threshold {
+            budget.warning_threshold = warning.clamp(0.0, 1.0);
+        }
+        if let Some(compact) = config.compact_threshold {
+            budget.compact_threshold = compact.clamp(0.0, 1.0);
+        }
+        if let Some(continuation) = config.continuation_threshold {
+            budget.continuation_threshold = continuation.clamp(0.0, 1.0);
+        }
+
+        budget
+    }
+
     pub fn main_context_tokens(&self) -> usize {
         (self.total as f64 * self.main_context_percent).ceil() as usize
     }
@@ -489,9 +525,20 @@ impl Compactor {
             Self::prune_old_tool_outputs(&mut session.messages, DEFAULT_KEEP_RECENT_TOOL_OUTPUTS);
         }
 
+        let token_budget = TokenBudget::from_config(config, model_max_context);
+        let preserve_recent = config.preserve_recent_messages.unwrap_or(10);
+        let preserve_system = config.preserve_system_messages.unwrap_or(true);
+        let summary_prefix = config
+            .summary_prefix
+            .clone()
+            .unwrap_or_else(|| "[Context compacted]".to_string());
+
         let compactor = Compactor::new(CompactionConfig {
             max_tokens: trigger_threshold,
-            ..Default::default()
+            preserve_system_messages: preserve_system,
+            preserve_recent_messages: preserve_recent,
+            summary_prefix,
+            token_budget,
         });
 
         let messages = std::mem::take(&mut session.messages);
@@ -540,6 +587,69 @@ mod tests {
             200_000
         );
         assert_eq!(TokenBudget::from_model("unknown").model_max_tokens, 128_000);
+    }
+
+    #[test]
+    fn test_token_budget_with_custom_thresholds() {
+        let budget = TokenBudget::default().with_thresholds(0.80, 0.90, 0.98);
+
+        assert_eq!(budget.warning_threshold, 0.80);
+        assert_eq!(budget.compact_threshold, 0.90);
+        assert_eq!(budget.continuation_threshold, 0.98);
+
+        assert_eq!(budget.usage_level(100_000), CompactionLevel::Normal);
+        assert_eq!(budget.usage_level(115_000), CompactionLevel::Warning);
+        assert_eq!(budget.usage_level(120_000), CompactionLevel::AutoCompact);
+        assert_eq!(
+            budget.usage_level(126_000),
+            CompactionLevel::ForceContinuation
+        );
+    }
+
+    #[test]
+    fn test_token_budget_from_config() {
+        let config = RuntimeCompactionConfig {
+            warning_threshold: Some(0.75),
+            compact_threshold: Some(0.85),
+            continuation_threshold: Some(0.95),
+            ..Default::default()
+        };
+
+        let budget = TokenBudget::from_config(&config, 100_000);
+
+        assert_eq!(budget.total, 100_000);
+        assert_eq!(budget.warning_threshold, 0.75);
+        assert_eq!(budget.compact_threshold, 0.85);
+        assert_eq!(budget.continuation_threshold, 0.95);
+    }
+
+    #[test]
+    fn test_token_budget_from_config_with_defaults() {
+        let config = RuntimeCompactionConfig::default();
+        let budget = TokenBudget::from_config(&config, 0);
+
+        assert_eq!(budget.warning_threshold, COMPACTION_WARN_THRESHOLD as f64);
+        assert_eq!(budget.compact_threshold, COMPACTION_START_THRESHOLD as f64);
+        assert_eq!(
+            budget.continuation_threshold,
+            COMPACTION_FORCE_THRESHOLD as f64
+        );
+    }
+
+    #[test]
+    fn test_token_budget_from_config_clamps_values() {
+        let config = RuntimeCompactionConfig {
+            warning_threshold: Some(1.5),
+            compact_threshold: Some(-0.5),
+            continuation_threshold: Some(2.0),
+            ..Default::default()
+        };
+
+        let budget = TokenBudget::from_config(&config, 100_000);
+
+        assert_eq!(budget.warning_threshold, 1.0);
+        assert_eq!(budget.compact_threshold, 0.0);
+        assert_eq!(budget.continuation_threshold, 1.0);
     }
 
     #[test]
@@ -686,6 +796,7 @@ mod tests {
                 auto: Some(true),
                 prune: Some(true),
                 reserved: Some(50),
+                ..Default::default()
             },
             200,
         )

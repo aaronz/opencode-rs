@@ -880,6 +880,36 @@ pub struct CompactionConfig {
     /// Token buffer for compaction
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reserved: Option<u32>,
+
+    /// Warning threshold (0.0-1.0) - triggers warning level before compaction
+    /// Default: 0.85 (85%)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub warning_threshold: Option<f64>,
+
+    /// Compact threshold (0.0-1.0) - triggers automatic compaction
+    /// Default: 0.92 (92%)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub compact_threshold: Option<f64>,
+
+    /// Continuation threshold (0.0-1.0) - forces session continuation at high usage
+    /// Default: 0.95 (95%)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub continuation_threshold: Option<f64>,
+
+    /// Number of recent messages to preserve during compaction
+    /// Default: 10
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preserve_recent_messages: Option<usize>,
+
+    /// Whether to preserve system messages during compaction
+    /// Default: true
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preserve_system_messages: Option<bool>,
+
+    /// Prefix for summary messages inserted during compaction
+    /// Default: "[Context compacted]"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub summary_prefix: Option<String>,
 }
 
 /// Experimental features configuration

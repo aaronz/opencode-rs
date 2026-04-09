@@ -180,7 +180,7 @@ Implementation: `crates/core/src/agents_md.rs` with `AgentsMdScanner`, `AgentsMd
 
 ---
 
-### P2-3: MCP OAuth CLI Commands
+### P2-3: ✅ Done
 **FR:** 04-mcp | **Phase:** 3 | **Module:** `crates/cli/` ✅ Done
 
 - [x] Add `opencode mcp auth` subcommands
@@ -191,14 +191,16 @@ Implementation: `crates/core/src/agents_md.rs` with `AgentsMdScanner`, `AgentsMd
 
 ---
 
-### P2-4: Session Compaction Boundaries
+### P2-4: ✅ Done
 **FR:** 01-core-arch | **Phase:** 1 | **Module:** `crates/core/`
 
-- [ ] Verify checkpoint-based compaction semantics
-- [ ] Review compaction boundaries
-- [ ] Add configuration options
-- [ ] Add tests if needed
-- [ ] Update documentation
+- [x] Verify checkpoint-based compaction semantics
+- [x] Review compaction boundaries
+- [x] Add configuration options
+- [x] Add tests if needed
+- [x] Update documentation
+
+**Implementation:** Extended `CompactionConfig` in `config.rs` with configurable thresholds (`warning_threshold`, `compact_threshold`, `continuation_threshold`, `preserve_recent_messages`, `preserve_system_messages`, `summary_prefix`). Added `TokenBudget::from_config()` and `TokenBudget::with_thresholds()` methods. Added 4 new tests for configurable thresholds. Checkpoint semantics verified - checkpoints are independent session snapshots, compaction operates in-memory.
 
 ---
 
@@ -366,10 +368,10 @@ cargo fmt --all -- -check
 |----------|-------------|-----------|---------|
 | P0 | 3 | 3 | 0 |
 | P1 | 4 | 3 | 1 |
-| P2 | 6 | 0 | 6 |
+| P2 | 6 | 1 | 5 |
 | Tech Debt | 9 | 0 | 9 |
 | Conventions | 5 | 5 | 0 |
-| **Total** | **27** | **11** | **16** |
+| **Total** | **27** | **12** | **15** |
 
 **Note:** P1-4 partially completed - ACP handshake implemented, desktop app and web server mode remain.
 
@@ -383,3 +385,4 @@ cargo fmt --all -- -check
 | 1.1 | 2026-04-09 | Completed P0-1 (Custom Tool File Loader), P0-2 (TUI Plugin TypeScript SDK), P0-3 (Iterations Structure) |
 | 1.2 | 2026-04-09 | Completed P1-1 (GitHub Workflow Generation) |
 | 1.3 | 2026-04-09 | Completed P1-2 (GitLab CI Component), P1-3 (tui.json Ownership Enforcement) |
+| 1.4 | 2026-04-10 | Completed P2-4 (Session Compaction Boundaries) - Added configurable thresholds to CompactionConfig |
