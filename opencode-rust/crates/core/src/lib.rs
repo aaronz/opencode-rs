@@ -5,8 +5,8 @@ pub mod checkpoint;
 pub mod cli;
 pub mod command;
 pub mod compaction;
-pub mod context;
 pub mod config;
+pub mod context;
 pub mod control_plane;
 pub mod directory;
 pub mod effect;
@@ -18,11 +18,11 @@ pub mod flag;
 pub mod format;
 pub mod formatter;
 pub mod global;
-pub mod ide;
 pub mod id;
+pub mod ide;
 pub mod installation;
-pub mod instructions;
 pub mod instance;
+pub mod instructions;
 pub mod mcp;
 pub mod message;
 pub mod part;
@@ -46,8 +46,8 @@ pub mod status;
 pub mod storage;
 pub mod summary;
 pub mod sync;
-pub mod tool;
 pub mod token_counter;
+pub mod tool;
 pub mod tool_config;
 pub mod util;
 pub mod watcher;
@@ -56,34 +56,40 @@ pub mod worktree;
 pub use account::AccountManager;
 pub use acp::AcpProtocol;
 pub use bus::EventBus;
-pub use checkpoint::{Checkpoint, CheckpointManager, CheckpointMetadata, create_checkpoint, restore_checkpoint};
+pub use checkpoint::{
+    create_checkpoint, restore_checkpoint, Checkpoint, CheckpointManager, CheckpointMetadata,
+};
 pub use cli::CliRegistry;
 pub use command::{Command, CommandRegistry};
-pub use compaction::{TokenBudget, COMPACTION_WARN_THRESHOLD, COMPACTION_START_THRESHOLD, COMPACTION_FORCE_THRESHOLD};
+pub use compaction::{
+    TokenBudget, COMPACTION_FORCE_THRESHOLD, COMPACTION_START_THRESHOLD, COMPACTION_WARN_THRESHOLD,
+};
 /// Configuration for OpenCode RS application.
 /// Loaded from config.toml, environment variables, and command-line arguments.
 pub use config::Config;
 
 /// Context for agent execution, including token budgeting and message management.
 /// Use ContextBuilder to construct contexts with token limits.
-pub use context::{Context, ContextBudget, ContextBuilder, estimate_tokens, trim_to_budget};
+pub use context::{estimate_tokens, trim_to_budget, Context, ContextBudget, ContextBuilder};
 pub use control_plane::ControlPlane;
-pub use directory::{AgentDefinition, CommandDefinition, DirectoryScanner, ModeDefinition, PluginInfo, ThemeInfo};
+pub use directory::{
+    AgentDefinition, CommandDefinition, DirectoryScanner, ModeDefinition, PluginInfo, ThemeInfo,
+};
 pub use effect::{Effect, EffectError, EffectResult};
 pub use env::EnvManager;
 /// Main error type for OpenCode RS. Covers IO, JSON, Network, Config, Session, Tool, LLM, and Provider errors.
 pub use error::OpenCodeError;
 /// Executes agents with tool access. Use build_default_executor() to create a configured executor.
-pub use executor::{AgentExecutor, build_default_executor};
+pub use executor::{build_default_executor, AgentExecutor};
 pub use filesystem::AppFileSystem;
 pub use flag::FlagManager;
 pub use format::FormatUtils;
 pub use formatter::{FormatterEngine, FormatterError};
 pub use global::GlobalState;
-pub use ide::{Ide, IdeExtension, IdeManager, Position};
 pub use id::IdGenerator;
-pub use instance::Instance;
+pub use ide::{Ide, IdeExtension, IdeManager, Position};
 pub use installation::InstallationManager;
+pub use instance::Instance;
 pub use instructions::{InstructionsError, InstructionsLoader};
 /// MCP (Model Context Protocol) manager for tool discovery and execution.
 pub use mcp::McpManager;
@@ -102,7 +108,7 @@ pub use server::Server;
 /// A conversation session containing messages, metadata, and tool invocation history.
 /// Sessions can be saved to disk and restored for continued conversations.
 pub use session::{Session, SessionInfo, SessionSummaryMetadata, ShareError, ToolInvocationRecord};
-pub use session_state::{SessionState, StateTransitionError, is_valid_transition};
+pub use session_state::{is_valid_transition, SessionState, StateTransitionError};
 pub use share::ShareManager;
 pub use shell::Shell;
 /// Skill management for extending OpenCode with custom capabilities.
@@ -115,10 +121,13 @@ pub use status::SessionStatus;
 pub use storage::Storage;
 pub use summary::{SummaryError, SummaryGenerator};
 pub use sync::SyncManager;
+pub use token_counter::{CostCalculator, TokenCounter};
 /// Tool execution infrastructure: ToolCall, ToolDefinition, ToolExecutor, ToolParameter.
 /// ToolRegistry manages available tools; ToolResult wraps tool execution results.
-pub use tool::{ToolCall, ToolDefinition, ToolExecutor, ToolParameter, ToolRegistry, ToolResult, build_default_registry};
-pub use token_counter::{CostCalculator, TokenCounter};
+pub use tool::{
+    build_default_registry, ToolCall, ToolDefinition, ToolExecutor, ToolParameter, ToolRegistry,
+    ToolResult,
+};
 pub use tool_config::ToolConfig;
 pub use util::Util;
 pub use worktree::WorktreeManager;

@@ -1,7 +1,7 @@
-use std::sync::Arc;
+use crate::bus::EventBus;
 use crate::config::Config;
 use crate::session::Session;
-use crate::bus::EventBus;
+use std::sync::Arc;
 
 pub struct GlobalState {
     pub config: Config,

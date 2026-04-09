@@ -1,10 +1,10 @@
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
-use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
-use walkdir::WalkDir;
 use crate::Config;
 use crate::Session;
+use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use walkdir::WalkDir;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CommandDefinition {
@@ -44,10 +44,7 @@ impl CommandDefinition {
                     "name" => name = Some(value.to_string()),
                     "description" => description = Some(value.to_string()),
                     "triggers" => {
-                        triggers = value
-                            .split(',')
-                            .map(|s| s.trim().to_string())
-                            .collect();
+                        triggers = value.split(',').map(|s| s.trim().to_string()).collect();
                     }
                     "agent" => agent = Some(value.to_string()),
                     "model" => model = Some(value.to_string()),
@@ -57,7 +54,10 @@ impl CommandDefinition {
         }
 
         let name = name.or_else(|| {
-            file_path.file_stem().and_then(|s: &std::ffi::OsStr| s.to_str()).map(|s| s.trim_start_matches('/').to_string())
+            file_path
+                .file_stem()
+                .and_then(|s: &std::ffi::OsStr| s.to_str())
+                .map(|s| s.trim_start_matches('/').to_string())
         })?;
 
         Some(CommandDefinition {
@@ -72,7 +72,7 @@ impl CommandDefinition {
 
     pub fn expand(&self, vars: &CommandVariables) -> String {
         let mut result = self.template.clone();
-        
+
         // Basic variables
         result = result.replace("${file}", &vars.file);
         result = result.replace("${selection}", &vars.selection);
@@ -81,26 +81,31 @@ impl CommandDefinition {
         result = result.replace("${input}", &vars.input);
         result = result.replace("${session_id}", &vars.session_id);
         result = result.replace("${project_path}", &vars.project_path);
-        
+
         // New variables: cursor position, environment variables
         result = result.replace("${cursor}", &vars.cursor);
-        
+
         // Environment variables: ${env:VAR_NAME}
         let env_regex = regex::Regex::new(r"\$\{env:([A-Za-z_][A-Za-z0-9_]*)\}").ok();
         if let Some(re) = env_regex {
-            result = re.replace_all(&result, |caps: &regex::Captures| {
-                let var_name = &caps[1];
-                std::env::var(var_name).unwrap_or_default()
-            }).to_string();
+            result = re
+                .replace_all(&result, |caps: &regex::Captures| {
+                    let var_name = &caps[1];
+                    std::env::var(var_name).unwrap_or_default()
+                })
+                .to_string();
         }
-        
+
         // File content: {file:path} - read file and insert content
         let file_regex = regex::Regex::new(r"\{file:([^}]+)\}").ok();
         if let Some(re) = file_regex {
-            result = re.replace_all(&result, |caps: &regex::Captures| {
-                let file_path = &caps[1];
-                std::fs::read_to_string(file_path).unwrap_or_else(|_| format!("[Cannot read file: {}]", file_path))
-            }).to_string();
+            result = re
+                .replace_all(&result, |caps: &regex::Captures| {
+                    let file_path = &caps[1];
+                    std::fs::read_to_string(file_path)
+                        .unwrap_or_else(|_| format!("[Cannot read file: {}]", file_path))
+                })
+                .to_string();
         }
 
         result
@@ -315,15 +320,16 @@ impl CommandRegistry {
     }
 
     pub fn list(&self) -> Vec<(&str, &str)> {
-        let mut list: Vec<(&str, &str)> = self.commands
+        let mut list: Vec<(&str, &str)> = self
+            .commands
             .iter()
             .map(|(name, cmd)| (name.as_str(), cmd.description()))
             .collect();
-        
+
         for (name, def) in &self.definitions {
             list.push((name.as_str(), &def.description));
         }
-        
+
         list.sort_by(|a, b| a.0.cmp(b.0));
         list
     }
@@ -391,13 +397,18 @@ impl CommandRegistry {
         ctx
     }
 
-    pub async fn execute(&self, name: &str, mut ctx: CommandContext) -> Result<String, crate::OpenCodeError> {
+    pub async fn execute(
+        &self,
+        name: &str,
+        mut ctx: CommandContext,
+    ) -> Result<String, crate::OpenCodeError> {
         if ctx.on_list_commands.is_none() {
             let commands = self.list_with_usage();
             ctx.on_list_commands = Some(Box::new(move || commands));
         }
 
-        let command = self.get(name)
+        let command = self
+            .get(name)
             .ok_or_else(|| crate::OpenCodeError::Tool(format!("Command not found: {}", name)))?;
         command.execute(ctx).await
     }
@@ -427,8 +438,7 @@ pub fn substitute_command_variables(template: &str, context: &CommandContext) ->
                     Path::new(&context.working_dir).join(candidate)
                 };
 
-                std::fs::read_to_string(&resolved)
-                    .unwrap_or_else(|_| format!("{{file:{}}}", path))
+                std::fs::read_to_string(&resolved).unwrap_or_else(|_| format!("{{file:{}}}", path))
             })
             .to_string();
     }
@@ -480,7 +490,11 @@ fn format_models(config: &Config) -> String {
     for provider_name in names {
         let provider = &providers[provider_name];
         let has_options = provider.options.is_some();
-        let has_models = provider.models.as_ref().map(|m| !m.is_empty()).unwrap_or(false);
+        let has_models = provider
+            .models
+            .as_ref()
+            .map(|m| !m.is_empty())
+            .unwrap_or(false);
         let has_filters = provider
             .whitelist
             .as_ref()
@@ -651,7 +665,14 @@ impl Command for TestCommand {
 
     async fn execute(&self, ctx: CommandContext) -> Result<String, crate::OpenCodeError> {
         let pattern = ctx.args.join(" ");
-        Ok(format!("Running tests matching: {}", if pattern.is_empty() { "all".to_string() } else { pattern }))
+        Ok(format!(
+            "Running tests matching: {}",
+            if pattern.is_empty() {
+                "all".to_string()
+            } else {
+                pattern
+            }
+        ))
     }
 }
 
@@ -884,7 +905,11 @@ mod tests {
     async fn test_builtin_test_command_executes() {
         let cmd = TestCommand;
         let out = cmd
-            .execute(CommandContext::new(vec!["unit".to_string()], HashMap::new(), ".".to_string()))
+            .execute(CommandContext::new(
+                vec!["unit".to_string()],
+                HashMap::new(),
+                ".".to_string(),
+            ))
             .await
             .unwrap();
         assert!(out.contains("unit"));
@@ -1119,11 +1144,13 @@ mod tests {
 
     #[test]
     fn test_substitute_command_variables_input_and_selection() {
-        let ctx = CommandContext::new(vec![], HashMap::new(), ".".to_string()).with_variables(CommandVariables {
-            input: "do thing".to_string(),
-            selection: "line 1".to_string(),
-            ..CommandVariables::default()
-        });
+        let ctx = CommandContext::new(vec![], HashMap::new(), ".".to_string()).with_variables(
+            CommandVariables {
+                input: "do thing".to_string(),
+                selection: "line 1".to_string(),
+                ..CommandVariables::default()
+            },
+        );
         let output = substitute_command_variables("Run: {input} // {selection}", &ctx);
         assert_eq!(output, "Run: do thing // line 1");
     }
@@ -1136,7 +1163,8 @@ mod tests {
         let file_name = file_path.file_name().unwrap().to_str().unwrap();
 
         let ctx = CommandContext::new(vec![], HashMap::new(), dir.path().display().to_string());
-        let output = substitute_command_variables(&format!("before {{file:{}}} after", file_name), &ctx);
+        let output =
+            substitute_command_variables(&format!("before {{file:{}}} after", file_name), &ctx);
         assert_eq!(output, "before file-content after");
     }
 }

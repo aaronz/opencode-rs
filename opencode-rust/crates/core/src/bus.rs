@@ -198,7 +198,7 @@ mod tests {
         assert_eq!(bus.subscriber_count(), 1);
 
         bus.publish(InternalEvent::SessionStarted("test-session".to_string()));
-        
+
         let event = rx.try_recv();
         assert!(event.is_ok());
         match event.unwrap() {
@@ -256,12 +256,12 @@ mod tests {
     #[test]
     fn test_event_bus_late_subscriber() {
         let bus = EventBus::new();
-        
+
         bus.publish(InternalEvent::SessionEnded("session-1".to_string()));
-        
+
         let mut rx = bus.subscribe();
         bus.publish(InternalEvent::SessionEnded("session-2".to_string()));
-        
+
         let event = rx.try_recv();
         assert!(event.is_ok());
         match event.unwrap() {

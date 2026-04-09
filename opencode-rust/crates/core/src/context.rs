@@ -1,4 +1,7 @@
-use crate::compaction::{CompactionConfig, Compactor, TokenBudget, COMPACTION_WARN_THRESHOLD, COMPACTION_START_THRESHOLD, COMPACTION_FORCE_THRESHOLD};
+use crate::compaction::{
+    CompactionConfig, Compactor, TokenBudget, COMPACTION_FORCE_THRESHOLD,
+    COMPACTION_START_THRESHOLD, COMPACTION_WARN_THRESHOLD,
+};
 use crate::message::{Message, Role};
 use crate::token_counter::TokenCounter;
 use crate::tool::ToolRegistry;

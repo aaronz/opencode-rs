@@ -62,7 +62,11 @@ impl FormatterEngine {
         matches.into_iter().map(|(_, entry)| entry).collect()
     }
 
-    pub async fn format_file(&self, file_path: &str, project_root: &Path) -> Result<(), FormatterError> {
+    pub async fn format_file(
+        &self,
+        file_path: &str,
+        project_root: &Path,
+    ) -> Result<(), FormatterError> {
         if !self.is_enabled() {
             return Err(FormatterError::Disabled);
         }
@@ -97,38 +101,36 @@ impl FormatterEngine {
             }
 
             match cmd.spawn() {
-                Ok(mut child) => {
-                    match timeout(self.timeout, child.wait()).await {
-                        Ok(Ok(status)) if status.success() => {
-                            info!(file_path, executable, "formatter executed successfully");
-                        }
-                        Ok(Ok(status)) => {
-                            warn!(
-                                file_path,
-                                executable,
-                                status = %status,
-                                "formatter failed with non-zero status; continuing"
-                            );
-                        }
-                        Ok(Err(err)) => {
-                            warn!(
-                                file_path,
-                                executable,
-                                error = %err,
-                                "formatter process wait failed; continuing"
-                            );
-                        }
-                        Err(_) => {
-                            let _ = child.kill().await;
-                            warn!(
-                                file_path,
-                                executable,
-                                timeout = ?self.timeout,
-                                "formatter timed out; continuing"
-                            );
-                        }
+                Ok(mut child) => match timeout(self.timeout, child.wait()).await {
+                    Ok(Ok(status)) if status.success() => {
+                        info!(file_path, executable, "formatter executed successfully");
                     }
-                }
+                    Ok(Ok(status)) => {
+                        warn!(
+                            file_path,
+                            executable,
+                            status = %status,
+                            "formatter failed with non-zero status; continuing"
+                        );
+                    }
+                    Ok(Err(err)) => {
+                        warn!(
+                            file_path,
+                            executable,
+                            error = %err,
+                            "formatter process wait failed; continuing"
+                        );
+                    }
+                    Err(_) => {
+                        let _ = child.kill().await;
+                        warn!(
+                            file_path,
+                            executable,
+                            timeout = ?self.timeout,
+                            "formatter timed out; continuing"
+                        );
+                    }
+                },
                 Err(err) => {
                     warn!(
                         file_path,
@@ -201,7 +203,10 @@ mod tests {
         let mut config = HashMap::new();
         config.insert(
             "typescript".to_string(),
-            formatter_entry(vec!["true".to_string()], vec!["ts".to_string(), "tsx".to_string()]),
+            formatter_entry(
+                vec!["true".to_string()],
+                vec!["ts".to_string(), "tsx".to_string()],
+            ),
         );
         config.insert(
             "python".to_string(),
@@ -232,7 +237,11 @@ mod tests {
                 vec![
                     "sh".to_string(),
                     "-c".to_string(),
-                    format!("if [ \"$1\" = \"{}\" ]; then touch \"{}\"; fi", source_file.display(), marker.display()),
+                    format!(
+                        "if [ \"$1\" = \"{}\" ]; then touch \"{}\"; fi",
+                        source_file.display(),
+                        marker.display()
+                    ),
                     "sh".to_string(),
                     "$FILE".to_string(),
                 ],

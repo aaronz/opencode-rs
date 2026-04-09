@@ -1,11 +1,11 @@
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
+use crate::tool_config::ToolConfig;
 use chrono::{DateTime, Duration, Utc};
 use reqwest::header::{CACHE_CONTROL, ETAG, IF_MODIFIED_SINCE, IF_NONE_MATCH, LAST_MODIFIED};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use sha2::{Digest, Sha256};
-use crate::tool_config::ToolConfig;
+use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
 
 mod directory_scanner;
 mod jsonc;
@@ -203,6 +203,50 @@ pub struct ServerConfig {
     /// Additional domains to allow for CORS
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cors: Option<Vec<String>>,
+
+    /// Desktop mode configuration
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub desktop: Option<DesktopConfig>,
+
+    /// ACP (Agent Communication Protocol) configuration
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acp: Option<AcpConfig>,
+}
+
+/// Desktop mode configuration
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+pub struct DesktopConfig {
+    /// Enable desktop mode by default
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enabled: Option<bool>,
+
+    /// Auto-open browser on startup
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auto_open_browser: Option<bool>,
+
+    /// Default port for desktop mode
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub port: Option<u16>,
+
+    /// Default hostname for desktop mode
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hostname: Option<String>,
+}
+
+/// ACP (Agent Communication Protocol) configuration
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+pub struct AcpConfig {
+    /// Enable ACP protocol
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enabled: Option<bool>,
+
+    /// ACP server ID
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub server_id: Option<String>,
+
+    /// ACP protocol version
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
 }
 
 /// Command configuration
@@ -289,7 +333,8 @@ impl<'de> Deserialize<'de> for AgentMapConfig {
         let value = serde_json::Value::deserialize(deserializer)?;
         if let Some(obj) = value.as_object() {
             if obj.contains_key("agents") {
-                let nf: NewFormat = serde_json::from_value(value).map_err(serde::de::Error::custom)?;
+                let nf: NewFormat =
+                    serde_json::from_value(value).map_err(serde::de::Error::custom)?;
                 Ok(AgentMapConfig {
                     agents: nf.agents,
                     default_agent: nf.default_agent,
@@ -303,7 +348,9 @@ impl<'de> Deserialize<'de> for AgentMapConfig {
                 })
             }
         } else {
-            Err(serde::de::Error::custom("expected object for AgentMapConfig"))
+            Err(serde::de::Error::custom(
+                "expected object for AgentMapConfig",
+            ))
         }
     }
 }
@@ -877,7 +924,8 @@ impl KeybindConfig {
 
     pub fn detect_conflicts(&self) -> Vec<String> {
         let mut conflicts = Vec::new();
-        let mut reverse: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+        let mut reverse: std::collections::HashMap<String, Vec<String>> =
+            std::collections::HashMap::new();
         for (action, binding) in Self::bindings_with_labels(self) {
             reverse.entry(binding).or_default().push(action);
         }
@@ -898,12 +946,24 @@ impl KeybindConfig {
 
     fn bindings_with_labels(config: &KeybindConfig) -> Vec<(String, String)> {
         let mut out = Vec::new();
-        if let Some(v) = &config.commands { out.push(("commands".to_string(), v.clone())); }
-        if let Some(v) = &config.timeline { out.push(("timeline".to_string(), v.clone())); }
-        if let Some(v) = &config.settings { out.push(("settings".to_string(), v.clone())); }
-        if let Some(v) = &config.models { out.push(("models".to_string(), v.clone())); }
-        if let Some(v) = &config.files { out.push(("files".to_string(), v.clone())); }
-        if let Some(v) = &config.terminal { out.push(("terminal".to_string(), v.clone())); }
+        if let Some(v) = &config.commands {
+            out.push(("commands".to_string(), v.clone()));
+        }
+        if let Some(v) = &config.timeline {
+            out.push(("timeline".to_string(), v.clone()));
+        }
+        if let Some(v) = &config.settings {
+            out.push(("settings".to_string(), v.clone()));
+        }
+        if let Some(v) = &config.models {
+            out.push(("models".to_string(), v.clone()));
+        }
+        if let Some(v) = &config.files {
+            out.push(("files".to_string(), v.clone()));
+        }
+        if let Some(v) = &config.terminal {
+            out.push(("terminal".to_string(), v.clone()));
+        }
         if let Some(custom) = &config.custom {
             for (action, binding) in custom {
                 out.push((format!("custom '{}'", action), binding.clone()));
@@ -911,7 +971,6 @@ impl KeybindConfig {
         }
         out
     }
-
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
@@ -949,10 +1008,13 @@ impl ThemeConfig {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct TuiConfig {
-    #[serde(rename = "$schema", alias = "$schema", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "$schema",
+        alias = "$schema",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub schema: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scroll_speed: Option<u32>,
@@ -965,7 +1027,6 @@ pub struct TuiConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub keybinds: Option<KeybindConfig>,
 }
-
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ScrollAccelerationConfig {
@@ -1011,7 +1072,9 @@ impl<'de> Deserialize<'de> for ScrollAccelerationConfig {
                     match key.as_str() {
                         "enabled" => enabled = map.next_value()?,
                         "speed" => speed = map.next_value()?,
-                        _ => { let _: serde::de::IgnoredAny = map.next_value()?; }
+                        _ => {
+                            let _: serde::de::IgnoredAny = map.next_value()?;
+                        }
                     }
                 }
 
@@ -1061,7 +1124,6 @@ pub enum LegacyProvider {
     Anthropic,
     Ollama,
 }
-
 
 impl Config {
     /// Load configuration from a file path
@@ -1247,7 +1309,9 @@ impl Config {
     }
 
     fn warn_legacy_config_dir_if_exists() {
-        if let Some(home) = dirs::home_dir().or_else(|| std::env::var("HOME").ok().map(PathBuf::from)) {
+        if let Some(home) =
+            dirs::home_dir().or_else(|| std::env::var("HOME").ok().map(PathBuf::from))
+        {
             let legacy_dir = home.join(".config").join("opencode-rs");
             if legacy_dir.exists() {
                 tracing::warn!(
@@ -1371,11 +1435,13 @@ impl Config {
         }
 
         let content = std::fs::read_to_string(path)?;
-        let value = parse_jsonc(&content).map_err(|e| crate::OpenCodeError::Config(format!(
-            "Failed to parse config file {}: {}. Ensure valid JSON/JSONC syntax.",
-            path.display(),
-            e
-        )))?;
+        let value = parse_jsonc(&content).map_err(|e| {
+            crate::OpenCodeError::Config(format!(
+                "Failed to parse config file {}: {}. Ensure valid JSON/JSONC syntax.",
+                path.display(),
+                e
+            ))
+        })?;
 
         let invalid_runtime_fields = Self::validate_tui_config_no_runtime_fields(&value);
         if !invalid_runtime_fields.is_empty() {
@@ -1395,8 +1461,9 @@ impl Config {
             )));
         }
 
-        let config = serde_json::from_value::<TuiConfig>(value)
-            .map_err(|e| crate::OpenCodeError::Config(format!("Invalid TUI config {}: {}", path.display(), e)))?;
+        let config = serde_json::from_value::<TuiConfig>(value).map_err(|e| {
+            crate::OpenCodeError::Config(format!("Invalid TUI config {}: {}", path.display(), e))
+        })?;
 
         Ok(Some(config))
     }
@@ -1424,8 +1491,10 @@ impl Config {
         let mut merged = TuiConfig::default();
         for path in paths {
             if let Some(cfg) = Self::parse_tui_config_file(&path)? {
-                let base = serde_json::to_value(&merged).unwrap_or(Value::Object(serde_json::Map::new()));
-                let override_val = serde_json::to_value(&cfg).unwrap_or(Value::Object(serde_json::Map::new()));
+                let base =
+                    serde_json::to_value(&merged).unwrap_or(Value::Object(serde_json::Map::new()));
+                let override_val =
+                    serde_json::to_value(&cfg).unwrap_or(Value::Object(serde_json::Map::new()));
                 let merged_json = merge::deep_merge(&base, &override_val);
                 merged = serde_json::from_value(merged_json).unwrap_or_default();
             }
@@ -1472,7 +1541,10 @@ impl Config {
                     if let Ok(config) = Self::parse_config_content(&content, "json") {
                         configs.push(("remote-auto-discover".to_string(), config));
                     } else {
-                        tracing::warn!("Remote config auto-discovery: failed to parse config from {}", url);
+                        tracing::warn!(
+                            "Remote config auto-discovery: failed to parse config from {}",
+                            url
+                        );
                     }
                 } else {
                     tracing::warn!("Remote config auto-discovery: failed to fetch from {}", url);
@@ -1488,10 +1560,18 @@ impl Config {
                     if project_config.exists() {
                         if let Ok(content) = std::fs::read_to_string(&project_config) {
                             if let Ok(value) = serde_json::from_str::<serde_json::Value>(&content) {
-                                if let Some(domain) = value.get("enterprise").and_then(|e| e.get("remoteConfigDomain")).and_then(|d| d.as_str()) {
+                                if let Some(domain) = value
+                                    .get("enterprise")
+                                    .and_then(|e| e.get("remoteConfigDomain"))
+                                    .and_then(|d| d.as_str())
+                                {
                                     let url = Self::build_remote_url(domain);
-                                    if let Ok(content) = Self::fetch_remote_config_with_fallback(&url).await {
-                                        if let Ok(config) = Self::parse_config_content(&content, "json") {
+                                    if let Ok(content) =
+                                        Self::fetch_remote_config_with_fallback(&url).await
+                                    {
+                                        if let Ok(config) =
+                                            Self::parse_config_content(&content, "json")
+                                        {
                                             configs.push(("remote-enterprise".to_string(), config));
                                         }
                                     }
@@ -1572,10 +1652,14 @@ impl Config {
         #[allow(deprecated)]
         {
             if result.theme.is_some() {
-                tracing::warn!("'theme' in main config is deprecated since 3.0.0. Move it to tui.json.");
+                tracing::warn!(
+                    "'theme' in main config is deprecated since 3.0.0. Move it to tui.json."
+                );
             }
             if result.keybinds.is_some() {
-                tracing::warn!("'keybinds' in main config is deprecated since 3.0.0. Move it to tui.json.");
+                tracing::warn!(
+                    "'keybinds' in main config is deprecated since 3.0.0. Move it to tui.json."
+                );
             }
 
             if migrated_tui.theme.is_none() {
@@ -1587,8 +1671,10 @@ impl Config {
         }
 
         let file_tui = Self::load_tui_config()?;
-        let base = serde_json::to_value(&migrated_tui).unwrap_or(Value::Object(serde_json::Map::new()));
-        let override_val = serde_json::to_value(&file_tui).unwrap_or(Value::Object(serde_json::Map::new()));
+        let base =
+            serde_json::to_value(&migrated_tui).unwrap_or(Value::Object(serde_json::Map::new()));
+        let override_val =
+            serde_json::to_value(&file_tui).unwrap_or(Value::Object(serde_json::Map::new()));
         let merged_tui = merge::deep_merge(&base, &override_val);
         result.tui = Some(serde_json::from_value(merged_tui).unwrap_or_default());
 
@@ -1636,7 +1722,9 @@ impl Config {
             .map_err(|e| crate::OpenCodeError::Config(e.to_string()))?;
 
         if response.status() == 401 || response.status() == 403 {
-            return Err(crate::OpenCodeError::Config("Remote config authentication failed".to_string()));
+            return Err(crate::OpenCodeError::Config(
+                "Remote config authentication failed".to_string(),
+            ));
         }
 
         if response.status() == reqwest::StatusCode::NOT_MODIFIED {
@@ -1755,7 +1843,10 @@ impl Config {
             .unwrap_or_else(|| PathBuf::from(".opencode"))
     }
 
-    fn parse_cache_expiration(headers: &reqwest::header::HeaderMap, fetched_at: DateTime<Utc>) -> Option<DateTime<Utc>> {
+    fn parse_cache_expiration(
+        headers: &reqwest::header::HeaderMap,
+        fetched_at: DateTime<Utc>,
+    ) -> Option<DateTime<Utc>> {
         let header = headers
             .get(CACHE_CONTROL)
             .and_then(|value| value.to_str().ok())?;
@@ -1796,8 +1887,8 @@ impl Config {
                 return Ok(config);
             }
             let stripped = jsonc::strip_jsonc_comments(content);
-            let config =
-                serde_json::from_str(&stripped).map_err(|e| crate::OpenCodeError::Config(e.to_string()))?;
+            let config = serde_json::from_str(&stripped)
+                .map_err(|e| crate::OpenCodeError::Config(e.to_string()))?;
             Self::log_schema_validation(&config);
             Ok(config)
         } else {
@@ -1852,10 +1943,13 @@ impl Config {
         if agent_count > 0 {
             let agents = config.agent.get_or_insert_with(AgentMapConfig::default);
             for agent_info in scan.agents {
-                agents.agents.entry(agent_info.name).or_insert_with(|| AgentConfig {
-                    prompt: Some(agent_info.content),
-                    ..Default::default()
-                });
+                agents
+                    .agents
+                    .entry(agent_info.name)
+                    .or_insert_with(|| AgentConfig {
+                        prompt: Some(agent_info.content),
+                        ..Default::default()
+                    });
             }
         }
 
@@ -1863,7 +1957,11 @@ impl Config {
             let commands = config.command.get_or_insert_with(HashMap::new);
             for cmd_info in scan.commands {
                 let name = cmd_info.name.clone();
-                let template = format!("# Command from {}\n{}", cmd_info.path.display(), cmd_info.content);
+                let template = format!(
+                    "# Command from {}\n{}",
+                    cmd_info.path.display(),
+                    cmd_info.content
+                );
                 let description = format!("Loaded from .opencode/commands/{name}");
                 commands.entry(name).or_insert_with(|| CommandConfig {
                     template,
@@ -2018,10 +2116,13 @@ impl Config {
         let mut providers = self.provider.clone().unwrap_or_default();
         for (provider_id, env_var) in provider_api_keys {
             if let Ok(api_key) = std::env::var(env_var) {
-                let config = providers.entry(provider_id.to_string()).or_insert_with(|| ProviderConfig {
-                    id: Some(provider_id.to_string()),
-                    ..Default::default()
-                });
+                let config =
+                    providers
+                        .entry(provider_id.to_string())
+                        .or_insert_with(|| ProviderConfig {
+                            id: Some(provider_id.to_string()),
+                            ..Default::default()
+                        });
                 let mut opts = config.options.clone().unwrap_or_default();
                 opts.api_key = Some(api_key);
                 config.options = Some(opts);
@@ -2131,10 +2232,7 @@ impl Config {
                     if !(0.0..=2.0).contains(&temp) {
                         errors.push(ValidationError {
                             field: format!("agent.{}.temperature", name),
-                            message: format!(
-                                "Temperature {} should be between 0.0 and 2.0",
-                                temp
-                            ),
+                            message: format!("Temperature {} should be between 0.0 and 2.0", temp),
                             severity: ValidationSeverity::Error,
                         });
                     }
@@ -2165,7 +2263,8 @@ impl Config {
         }
 
         // Validate provider enabled/disabled conflict
-        if let (Some(disabled), Some(enabled)) = (&self.disabled_providers, &self.enabled_providers) {
+        if let (Some(disabled), Some(enabled)) = (&self.disabled_providers, &self.enabled_providers)
+        {
             let conflicts: Vec<&String> = disabled
                 .iter()
                 .filter(|d| enabled.iter().any(|e| e.eq_ignore_ascii_case(d)))
@@ -2248,20 +2347,33 @@ impl Config {
         let content = if path.extension().and_then(|s| s.to_str()) == Some("json")
             || path.extension().and_then(|s| s.to_str()) == Some("jsonc")
         {
-            serde_json::to_string_pretty(self)
-                .map_err(|e| crate::OpenCodeError::Config(format!("Failed to serialize config to JSON: {}", e)))?
+            serde_json::to_string_pretty(self).map_err(|e| {
+                crate::OpenCodeError::Config(format!("Failed to serialize config to JSON: {}", e))
+            })?
         } else {
-            toml::to_string_pretty(self)
-                .map_err(|e| crate::OpenCodeError::Config(format!("Failed to serialize config to TOML: {}", e)))?
+            toml::to_string_pretty(self).map_err(|e| {
+                crate::OpenCodeError::Config(format!("Failed to serialize config to TOML: {}", e))
+            })?
         };
 
         // Ensure parent directory exists
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| crate::OpenCodeError::Config(format!("Failed to create directory {}: {}", parent.display(), e)))?;
+            std::fs::create_dir_all(parent).map_err(|e| {
+                crate::OpenCodeError::Config(format!(
+                    "Failed to create directory {}: {}",
+                    parent.display(),
+                    e
+                ))
+            })?;
         }
 
-        std::fs::write(path, content).map_err(|e| crate::OpenCodeError::Config(format!("Failed to write config to {}: {}", path.display(), e)))?;
+        std::fs::write(path, content).map_err(|e| {
+            crate::OpenCodeError::Config(format!(
+                "Failed to write config to {}: {}",
+                path.display(),
+                e
+            ))
+        })?;
 
         Ok(())
     }
@@ -2285,54 +2397,57 @@ impl Config {
             )));
         }
 
-        let content = std::fs::read_to_string(toml_path)
-            .map_err(|e| crate::OpenCodeError::Config(format!(
+        let content = std::fs::read_to_string(toml_path).map_err(|e| {
+            crate::OpenCodeError::Config(format!(
                 "Failed to read TOML config {}: {}",
                 toml_path.display(),
                 e
-            )))?;
+            ))
+        })?;
 
-        let config: Config = toml::from_str(&content)
-            .map_err(|e| crate::OpenCodeError::Config(format!(
+        let config: Config = toml::from_str(&content).map_err(|e| {
+            crate::OpenCodeError::Config(format!(
                 "Failed to parse TOML config {}: {}",
                 toml_path.display(),
                 e
-            )))?;
+            ))
+        })?;
 
         let mut jsonc_path = toml_path.with_extension("jsonc");
         if jsonc_path.exists() {
             jsonc_path = toml_path.with_file_name("config.jsonc");
         }
 
-        let json_content = serde_json::to_string_pretty(&config)
-            .map_err(|e| crate::OpenCodeError::Config(format!(
-                "Failed to serialize config to JSON: {}",
-                e
-            )))?;
+        let json_content = serde_json::to_string_pretty(&config).map_err(|e| {
+            crate::OpenCodeError::Config(format!("Failed to serialize config to JSON: {}", e))
+        })?;
 
         if let Some(parent) = jsonc_path.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| crate::OpenCodeError::Config(format!(
+            std::fs::create_dir_all(parent).map_err(|e| {
+                crate::OpenCodeError::Config(format!(
                     "Failed to create directory {}: {}",
                     parent.display(),
                     e
-                )))?;
+                ))
+            })?;
         }
 
-        std::fs::write(&jsonc_path, &json_content)
-            .map_err(|e| crate::OpenCodeError::Config(format!(
+        std::fs::write(&jsonc_path, &json_content).map_err(|e| {
+            crate::OpenCodeError::Config(format!(
                 "Failed to write JSONC config {}: {}",
                 jsonc_path.display(),
                 e
-            )))?;
+            ))
+        })?;
 
         if remove_original {
-            std::fs::remove_file(toml_path)
-                .map_err(|e| crate::OpenCodeError::Config(format!(
+            std::fs::remove_file(toml_path).map_err(|e| {
+                crate::OpenCodeError::Config(format!(
                     "Failed to remove original TOML file {}: {}",
                     toml_path.display(),
                     e
-                )))?;
+                ))
+            })?;
         }
 
         tracing::info!(
@@ -2900,14 +3015,16 @@ mod tests {
 
     #[test]
     fn test_scroll_acceleration_deserialize_new_format() {
-        let config: ScrollAccelerationConfig = serde_json::from_str(r#"{"enabled":true,"speed":3.0}"#).unwrap();
+        let config: ScrollAccelerationConfig =
+            serde_json::from_str(r#"{"enabled":true,"speed":3.0}"#).unwrap();
         assert!(config.enabled);
         assert_eq!(config.speed, Some(3.0));
     }
 
     #[test]
     fn test_scroll_acceleration_deserialize_minimal() {
-        let config: ScrollAccelerationConfig = serde_json::from_str(r#"{"enabled":false}"#).unwrap();
+        let config: ScrollAccelerationConfig =
+            serde_json::from_str(r#"{"enabled":false}"#).unwrap();
         assert!(!config.enabled);
         assert_eq!(config.speed, None);
     }
@@ -2961,9 +3078,9 @@ mod tests {
         assert!(!config.is_provider_enabled("ollama"));
 
         let errors = config.validate();
-        let conflict_warning = errors.iter().find(|e| {
-            e.field == "disabled_providers/enabled_providers"
-        });
+        let conflict_warning = errors
+            .iter()
+            .find(|e| e.field == "disabled_providers/enabled_providers");
         assert!(conflict_warning.is_some());
         let msg = &conflict_warning.unwrap().message;
         assert!(msg.contains("openai"));
@@ -3031,9 +3148,7 @@ mod tests {
         assert!(agent_map.get_agent("agent_123").is_some());
         assert!(agent_map.get_agent("missing").is_none());
         assert_eq!(
-            agent_map
-                .get_default_agent()
-                .and_then(|a| a.temperature),
+            agent_map.get_default_agent().and_then(|a| a.temperature),
             Some(0.5)
         );
     }
@@ -3055,9 +3170,9 @@ mod tests {
         };
 
         let errors = config.validate();
-        assert!(errors.iter().any(|e| {
-            e.field == "agent.default_agent" && e.message.contains("does_not_exist")
-        }));
+        assert!(errors
+            .iter()
+            .any(|e| { e.field == "agent.default_agent" && e.message.contains("does_not_exist") }));
     }
 
     #[test]
@@ -3314,7 +3429,8 @@ mod tests {
         set_env("OPENCODE_CONFIG_DIR", &temp_dir);
 
         let sink = Arc::new(Mutex::new(Vec::<String>::new()));
-        let subscriber = tracing_subscriber::registry().with(WarnCaptureLayer { sink: sink.clone() });
+        let subscriber =
+            tracing_subscriber::registry().with(WarnCaptureLayer { sink: sink.clone() });
 
         tracing::subscriber::with_default(subscriber, || {
             let runtime = tokio::runtime::Runtime::new().unwrap();
@@ -3322,8 +3438,12 @@ mod tests {
         });
 
         let logs = sink.lock().unwrap().clone();
-        assert!(logs.iter().any(|msg| msg.contains("'theme' in main config is deprecated")));
-        assert!(logs.iter().any(|msg| msg.contains("'keybinds' in main config is deprecated")));
+        assert!(logs
+            .iter()
+            .any(|msg| msg.contains("'theme' in main config is deprecated")));
+        assert!(logs
+            .iter()
+            .any(|msg| msg.contains("'keybinds' in main config is deprecated")));
 
         if let Some(prev) = old_config_dir {
             set_env("OPENCODE_CONFIG_DIR", prev);
@@ -3351,16 +3471,12 @@ mod tests {
 
         let (_merged, conflicts) = custom.merge_with_defaults(&defaults);
 
-        assert!(
-            conflicts
-                .iter()
-                .any(|c| c.contains("ctrl+k used by both 'commands' and 'settings'"))
-        );
-        assert!(
-            conflicts
-                .iter()
-                .any(|c| c.contains("ctrl+k used by both 'commands' and 'custom 'my_action''"))
-        );
+        assert!(conflicts
+            .iter()
+            .any(|c| c.contains("ctrl+k used by both 'commands' and 'settings'")));
+        assert!(conflicts
+            .iter()
+            .any(|c| c.contains("ctrl+k used by both 'commands' and 'custom 'my_action''")));
     }
 
     #[test]
@@ -3395,11 +3511,9 @@ mod tests {
 
         let conflicts = keybinds.detect_conflicts();
         assert!(!conflicts.is_empty());
-        assert!(
-            conflicts
-                .iter()
-                .any(|c| c.contains("ctrl+k used by both 'commands' and 'settings'"))
-        );
+        assert!(conflicts
+            .iter()
+            .any(|c| c.contains("ctrl+k used by both 'commands' and 'settings'")));
     }
 
     #[test]
@@ -3459,7 +3573,10 @@ api_key = "sk-test123"
         let migrated: serde_json::Value = serde_json::from_str(&migrated_content).unwrap();
         assert_eq!(migrated["model"], "openai/gpt-4o");
         assert_eq!(migrated["temperature"], 0.7);
-        assert_eq!(migrated["provider"]["openai"]["options"]["api_key"], "sk-test123");
+        assert_eq!(
+            migrated["provider"]["openai"]["options"]["api_key"],
+            "sk-test123"
+        );
 
         assert!(toml_path.exists());
         let _ = fs::remove_dir_all(temp_dir);

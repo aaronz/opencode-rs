@@ -1,6 +1,6 @@
-use std::process::{Child, Command, Stdio};
-use std::io;
 use crate::error::OpenCodeError;
+use std::io;
+use std::process::{Child, Command, Stdio};
 
 pub struct PtySession {
     child: Child,

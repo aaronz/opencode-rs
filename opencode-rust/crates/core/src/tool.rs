@@ -14,7 +14,7 @@ pub struct ToolParameter {
     pub schema: serde_json::Value,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ToolDefinition {
     pub name: String,
     pub description: String,
@@ -22,17 +22,6 @@ pub struct ToolDefinition {
     pub parameters: Vec<ToolParameter>,
     #[serde(default)]
     pub requires_approval: bool,
-}
-
-impl Default for ToolDefinition {
-    fn default() -> Self {
-        Self {
-            name: String::new(),
-            description: String::new(),
-            parameters: Vec::new(),
-            requires_approval: false,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

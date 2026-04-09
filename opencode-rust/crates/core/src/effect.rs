@@ -67,7 +67,10 @@ impl<T: Send + 'static> Effect<T> {
         })
     }
 
-    pub fn and_then<U: Send + 'static>(self, f: impl FnOnce(T) -> Effect<U> + Send + 'static) -> Effect<U> {
+    pub fn and_then<U: Send + 'static>(
+        self,
+        f: impl FnOnce(T) -> Effect<U> + Send + 'static,
+    ) -> Effect<U> {
         Effect::new(move || async move {
             match self.run().await {
                 Ok(val) => f(val).run().await,

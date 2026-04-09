@@ -135,11 +135,11 @@ mod tests {
 
     #[test]
     fn test_find_up() {
-        let result = AppFileSystem::find_up(
-            "Cargo.toml",
-            "/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust",
-            None,
+        let cwd = std::env::current_dir().expect("current dir should exist");
+        let result = AppFileSystem::find_up("Cargo.toml", cwd.to_str().unwrap(), None);
+        assert!(
+            !result.is_empty(),
+            "Should find Cargo.toml from current directory"
         );
-        assert!(!result.is_empty());
     }
 }

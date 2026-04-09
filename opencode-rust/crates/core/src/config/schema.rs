@@ -96,7 +96,8 @@ pub fn fetch_schema(url: &str) -> Result<serde_json::Value, SchemaError> {
         ));
     }
 
-    let runtime = tokio::runtime::Runtime::new().map_err(|e| SchemaError::HttpClient(e.to_string()))?;
+    let runtime =
+        tokio::runtime::Runtime::new().map_err(|e| SchemaError::HttpClient(e.to_string()))?;
     runtime.block_on(async {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(5))
@@ -121,7 +122,11 @@ pub fn fetch_schema(url: &str) -> Result<serde_json::Value, SchemaError> {
 pub fn cache_schema(url: &str, schema: &Value) {
     let cache_dir = schema_cache_dir();
     if let Err(err) = std::fs::create_dir_all(&cache_dir) {
-        tracing::warn!("failed to create schema cache directory {:?}: {}", cache_dir, err);
+        tracing::warn!(
+            "failed to create schema cache directory {:?}: {}",
+            cache_dir,
+            err
+        );
         return;
     }
 
@@ -135,7 +140,11 @@ pub fn cache_schema(url: &str, schema: &Value) {
     };
 
     if let Err(err) = std::fs::write(&cache_path, payload) {
-        tracing::warn!("failed to write schema cache file {:?}: {}", cache_path, err);
+        tracing::warn!(
+            "failed to write schema cache file {:?}: {}",
+            cache_path,
+            err
+        );
     }
 }
 
@@ -396,7 +405,10 @@ mod tests {
         let result = validate_json_schema(&config, "");
 
         assert!(!result.valid);
-        assert!(result.errors.iter().any(|e| e.field.contains("server.port")));
+        assert!(result
+            .errors
+            .iter()
+            .any(|e| e.field.contains("server.port")));
 
         std::env::remove_var("OPENCODE_SCHEMA_CACHE_DIR");
     }
@@ -458,7 +470,9 @@ mod tests {
 
         let errors = validate_tui_schema(&value);
         assert!(errors.iter().any(|e| e.contains("$.scroll_speed")));
-        assert!(errors.iter().any(|e| e.contains("$.scroll_acceleration.enabled")));
+        assert!(errors
+            .iter()
+            .any(|e| e.contains("$.scroll_acceleration.enabled")));
         assert!(errors.iter().any(|e| e.contains("$.keybinds.commands")));
     }
 }
