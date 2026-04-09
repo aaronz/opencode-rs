@@ -2,10 +2,7 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
-use wasmtime::{
-    Engine, Instance, Module, Store, Linker, Memory,
-    Config,
-};
+use wasmtime::{Config, Engine, Instance, Linker, Memory, Module, Store};
 
 #[derive(Debug, thiserror::Error)]
 pub enum WasmError {
@@ -101,11 +98,9 @@ pub struct WasmEventBridge<B: EventBridgeBackend> {
 }
 
 impl<B: EventBridgeBackend + 'static> WasmEventBridge<B> {
-    pub fn new(
-        mut plugin: WasmPlugin,
-        backend: Arc<B>,
-    ) -> Result<Self, WasmError> {
-        let event_rx = plugin.take_event_receiver()
+    pub fn new(mut plugin: WasmPlugin, backend: Arc<B>) -> Result<Self, WasmError> {
+        let event_rx = plugin
+            .take_event_receiver()
             .ok_or_else(|| WasmError::Instantiate("plugin has no event receiver".to_string()))?;
 
         let (to_plugin_tx, _to_plugin_rx) = mpsc::channel::<EventEnvelope>(64);
@@ -157,10 +152,8 @@ impl<B: EventBridgeBackend + 'static> WasmEventBridge<B> {
                                 let event_name = &internal_event.event_type;
                                 if subscribed_events.iter().any(|sub| {
                                     sub == "*" || event_name.contains(sub)
-                                }) {
-                                    if to_plugin_tx.send(internal_event.clone()).await.is_err() {
-                                        break;
-                                    }
+                                }) && to_plugin_tx.send(internal_event.clone()).await.is_err() {
+                                    break;
                                 }
                             }
                             Err(_) => break,
@@ -171,7 +164,10 @@ impl<B: EventBridgeBackend + 'static> WasmEventBridge<B> {
             }
         });
 
-        Ok(Self { _task: task, _backend: backend })
+        Ok(Self {
+            _task: task,
+            _backend: backend,
+        })
     }
 }
 
@@ -187,18 +183,17 @@ impl WasmRuntime {
     pub fn new(capabilities: WasmCapabilities) -> Result<Self, WasmError> {
         let mut config = Config::new();
         config.consume_fuel(true);
-        
+
         if let Some(max_mem) = capabilities.max_memory_bytes {
             config.static_memory_maximum_size(max_mem);
         }
-        
+
         if let Some(_timeout) = capabilities.execution_timeout_secs {
             config.epoch_interruption(true);
         }
-        
-        let engine = Engine::new(&config)
-            .map_err(|e| WasmError::Compile(e.to_string()))?;
-        
+
+        let engine = Engine::new(&config).map_err(|e| WasmError::Compile(e.to_string()))?;
+
         Ok(Self {
             engine,
             capabilities,
@@ -213,81 +208,91 @@ impl WasmRuntime {
     pub fn instantiate_module(&self, module: &Module) -> Result<WasmInstance, WasmError> {
         let memory = Arc::new(Mutex::new(None));
         let state = WasmInstanceState { memory };
-        
+
         let mut store = Store::new(&self.engine, state);
-        
+
         let mut linker = Linker::new(&self.engine);
-        
+
         self.define_host_functions(&mut linker)?;
-        
+
         // Note: WASI filesystem integration requires wasmtime-wasi crate setup
-        // For now, we skip WASI dir pre-opening as it requires Store<WasiCtx> 
-        
+        // For now, we skip WASI dir pre-opening as it requires Store<WasiCtx>
+
         let instance = linker
             .instantiate(&mut store, module)
             .map_err(|e| WasmError::Instantiate(e.to_string()))?;
-        
+
         if let Some(mem) = instance.get_memory(&mut store, "memory") {
             let state: &mut WasmInstanceState = store.data_mut();
             *state.memory.lock().unwrap() = Some(mem);
         }
-        
-        Ok(WasmInstance {
-            store,
-            instance,
-        })
+
+        Ok(WasmInstance { store, instance })
     }
 
-    fn define_host_functions(&self, linker: &mut Linker<WasmInstanceState>) -> Result<(), WasmError> {
+    fn define_host_functions(
+        &self,
+        linker: &mut Linker<WasmInstanceState>,
+    ) -> Result<(), WasmError> {
         use wasmtime::Caller;
-        
-        linker.func_wrap(
-            "host",
-            "log",
-            |_caller: Caller<'_, WasmInstanceState>, _ptr: i32, _len: i32| {
-                // Log functionality - simplified for wasmtime 25 compatibility
-                Ok(())
-            },
-        ).map_err(|e| WasmError::Instantiate(format!("failed to define log: {}", e)))?;
-        
-        linker.func_wrap(
-            "host",
-            "subscribe",
-            |_caller: Caller<'_, WasmInstanceState>, _event_ptr: i32, _event_len: i32| -> i32 {
-                // Subscribe functionality - simplified for wasmtime 25 compatibility
-                0
-            },
-        ).map_err(|e| WasmError::Instantiate(format!("failed to define subscribe: {}", e)))?;
-        
-        linker.func_wrap(
-            "host",
-            "check_path",
-            |_caller: Caller<'_, WasmInstanceState>, _path_ptr: i32, _path_len: i32| -> i32 {
-                // Path check - simplified for wasmtime 25 compatibility
-                // Allow all paths by default
-                1
-            },
-        ).map_err(|e| WasmError::Instantiate(format!("failed to define check_path: {}", e)))?;
-        
-        linker.func_wrap(
-            "host",
-            "alloc",
-            |_caller: Caller<'_, WasmInstanceState>, _size: i32| -> i32 {
-                // In wasmtime 25, memory allocation must be handled by the wasm module itself
-                // or through WASI. For now, return -1 to indicate not implemented.
-                -1
-            },
-        ).map_err(|e| WasmError::Instantiate(format!("failed to define alloc: {}", e)))?;
-        
-        linker.func_wrap(
-            "host",
-            "dealloc",
-            |_caller: Caller<'_, WasmInstanceState>, _ptr: i32, _size: i32| {
-                // In wasmtime 25, memory deallocation must be handled by the wasm module itself
-                Ok(())
-            },
-        ).map_err(|e| WasmError::Instantiate(format!("failed to define dealloc: {}", e)))?;
-        
+
+        linker
+            .func_wrap(
+                "host",
+                "log",
+                |_caller: Caller<'_, WasmInstanceState>, _ptr: i32, _len: i32| {
+                    // Log functionality - simplified for wasmtime 25 compatibility
+                    Ok(())
+                },
+            )
+            .map_err(|e| WasmError::Instantiate(format!("failed to define log: {}", e)))?;
+
+        linker
+            .func_wrap(
+                "host",
+                "subscribe",
+                |_caller: Caller<'_, WasmInstanceState>, _event_ptr: i32, _event_len: i32| -> i32 {
+                    // Subscribe functionality - simplified for wasmtime 25 compatibility
+                    0
+                },
+            )
+            .map_err(|e| WasmError::Instantiate(format!("failed to define subscribe: {}", e)))?;
+
+        linker
+            .func_wrap(
+                "host",
+                "check_path",
+                |_caller: Caller<'_, WasmInstanceState>, _path_ptr: i32, _path_len: i32| -> i32 {
+                    // Path check - simplified for wasmtime 25 compatibility
+                    // Allow all paths by default
+                    1
+                },
+            )
+            .map_err(|e| WasmError::Instantiate(format!("failed to define check_path: {}", e)))?;
+
+        linker
+            .func_wrap(
+                "host",
+                "alloc",
+                |_caller: Caller<'_, WasmInstanceState>, _size: i32| -> i32 {
+                    // In wasmtime 25, memory allocation must be handled by the wasm module itself
+                    // or through WASI. For now, return -1 to indicate not implemented.
+                    -1
+                },
+            )
+            .map_err(|e| WasmError::Instantiate(format!("failed to define alloc: {}", e)))?;
+
+        linker
+            .func_wrap(
+                "host",
+                "dealloc",
+                |_caller: Caller<'_, WasmInstanceState>, _ptr: i32, _size: i32| {
+                    // In wasmtime 25, memory deallocation must be handled by the wasm module itself
+                    Ok(())
+                },
+            )
+            .map_err(|e| WasmError::Instantiate(format!("failed to define dealloc: {}", e)))?;
+
         Ok(())
     }
 
@@ -308,35 +313,41 @@ impl WasmInstance {
 
         Ok(())
     }
-    
+
     pub fn call_with_input(&mut self, func_name: &str, input: &str) -> Result<String, WasmError> {
         let func = self
             .instance
             .get_func(&mut self.store, func_name)
             .ok_or_else(|| WasmError::Instantiate(format!("function not found: {}", func_name)))?;
-        
-        let memory = self.instance.get_memory(&mut self.store, "memory")
+
+        let memory = self
+            .instance
+            .get_memory(&mut self.store, "memory")
             .ok_or_else(|| WasmError::Memory("memory export not found".to_string()))?;
-        
+
         let input_bytes = input.as_bytes();
-        
+
         // For wasmtime 25, we need the wasm module to export memory allocation functions
         // For now, we'll just call the function without input memory management
-        let results = func.typed::<(i32, i32), (i32, i32)>(&mut self.store)?
+        let results = func
+            .typed::<(i32, i32), (i32, i32)>(&mut self.store)?
             .call(&mut self.store, (0i32, input_bytes.len() as i32))?;
-        
+
         let (result_ptr, result_len) = results;
         if result_ptr < 0 {
-            return Err(WasmError::Call(format!("function returned error: {}", result_ptr)));
+            return Err(WasmError::Call(format!(
+                "function returned error: {}",
+                result_ptr
+            )));
         }
-        
+
         // Read output from memory
         let mut buffer = vec![0u8; result_len as usize];
-        memory.read(&mut self.store, result_ptr as usize, &mut buffer)
+        memory
+            .read(&mut self.store, result_ptr as usize, &mut buffer)
             .map_err(|e| WasmError::Memory(format!("read failed: {}", e)))?;
-        
-        String::from_utf8(buffer)
-            .map_err(|e| WasmError::Memory(format!("invalid UTF-8: {}", e)))
+
+        String::from_utf8(buffer).map_err(|e| WasmError::Memory(format!("invalid UTF-8: {}", e)))
     }
 }
 
@@ -367,11 +378,17 @@ impl WasmPlugin {
     pub fn execute(&mut self, func_name: &str) -> Result<(), WasmError> {
         if let Some(ref mut instance) = self.instance {
             instance.call(func_name)?;
+        } else {
+            return Err(WasmError::Call("plugin not loaded".to_string()));
         }
         Ok(())
     }
-    
-    pub fn execute_with_input(&mut self, func_name: &str, input: &str) -> Result<String, WasmError> {
+
+    pub fn execute_with_input(
+        &mut self,
+        func_name: &str,
+        input: &str,
+    ) -> Result<String, WasmError> {
         if let Some(ref mut instance) = self.instance {
             instance.call_with_input(func_name, input)
         } else {
@@ -386,7 +403,7 @@ impl WasmPlugin {
     pub fn version(&self) -> &str {
         &self.version
     }
-    
+
     pub fn take_event_receiver(&mut self) -> Option<broadcast::Receiver<WasmPluginEvent>> {
         self.event_rx.take()
     }
@@ -409,7 +426,7 @@ mod tests {
         assert!(!caps.network_allowed);
         assert!(caps.execution_timeout_secs.is_some());
     }
-    
+
     #[test]
     fn test_wasm_capabilities_with_limits() {
         let caps = WasmCapabilities {
@@ -420,15 +437,18 @@ mod tests {
             max_memory_bytes: Some(128 * 1024 * 1024),
             max_cpu_time_secs: Some(30),
         };
-        
+
         let runtime = WasmRuntime::new(caps.clone());
         assert!(runtime.is_ok());
-        
+
         let rt = runtime.unwrap();
-        assert_eq!(rt.capabilities().filesystem_scope, Some("/tmp/plugins".to_string()));
+        assert_eq!(
+            rt.capabilities().filesystem_scope,
+            Some("/tmp/plugins".to_string())
+        );
         assert!(rt.capabilities().network_allowed);
     }
-    
+
     #[test]
     fn test_wasm_plugin_creation() {
         let plugin = WasmPlugin::new(
@@ -437,38 +457,40 @@ mod tests {
             WasmCapabilities::default(),
         );
         assert!(plugin.is_ok());
-        
+
         let plugin = plugin.unwrap();
         assert_eq!(plugin.name(), "test-plugin");
         assert_eq!(plugin.version(), "1.0.0");
     }
-    
+
     #[test]
     fn test_wasm_plugin_execute_before_load() {
         let mut plugin = WasmPlugin::new(
             "test-plugin".to_string(),
             "1.0.0".to_string(),
             WasmCapabilities::default(),
-        ).unwrap();
-        
+        )
+        .unwrap();
+
         let result = plugin.execute("on_load");
         assert!(result.is_err());
     }
-    
+
     #[test]
     fn test_wasm_plugin_execute_after_load_fails_gracefully() {
         let mut plugin = WasmPlugin::new(
             "test-plugin".to_string(),
             "1.0.0".to_string(),
             WasmCapabilities::default(),
-        ).unwrap();
-        
+        )
+        .unwrap();
+
         let result = plugin.execute("non_existent_function");
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(matches!(err, WasmError::Call(_)));
     }
-    
+
     #[test]
     fn test_plugin_crash_does_not_panic_main() {
         let caps = WasmCapabilities {
@@ -479,19 +501,18 @@ mod tests {
             max_cpu_time_secs: Some(1),
             allowed_env_vars: vec![],
         };
-        
+
         let result = std::panic::catch_unwind(|| {
-            let plugin = WasmPlugin::new(
-                "crash-test".to_string(),
-                "1.0.0".to_string(),
-                caps,
-            );
+            let plugin = WasmPlugin::new("crash-test".to_string(), "1.0.0".to_string(), caps);
             assert!(plugin.is_ok());
         });
-        
-        assert!(result.is_ok(), "Plugin creation should not panic even with restrictive caps");
+
+        assert!(
+            result.is_ok(),
+            "Plugin creation should not panic even with restrictive caps"
+        );
     }
-    
+
     #[test]
     fn test_capabilities_are_enforced() {
         let caps = WasmCapabilities {
@@ -502,21 +523,24 @@ mod tests {
             max_cpu_time_secs: Some(10),
             allowed_env_vars: vec!["PATH".to_string()],
         };
-        
+
         let runtime = WasmRuntime::new(caps.clone()).unwrap();
         let enforced_caps = runtime.capabilities();
-        
-        assert_eq!(enforced_caps.filesystem_scope, Some("/allowed/path".to_string()));
+
+        assert_eq!(
+            enforced_caps.filesystem_scope,
+            Some("/allowed/path".to_string())
+        );
         assert!(!enforced_caps.network_allowed);
         assert_eq!(enforced_caps.max_memory_bytes, Some(64 * 1024 * 1024));
         assert_eq!(enforced_caps.max_cpu_time_secs, Some(10));
         assert!(enforced_caps.allowed_env_vars.contains(&"PATH".to_string()));
     }
-    
+
     #[test]
     fn test_default_capabilities_are_restrictive() {
         let caps = WasmCapabilities::default();
-        
+
         assert!(caps.filesystem_scope.is_none());
         assert!(!caps.network_allowed);
         assert!(caps.allowed_env_vars.is_empty());
@@ -526,14 +550,17 @@ mod tests {
 
     #[tokio::test]
     async fn test_wasm_event_bridge_with_mock_backend() {
-        use std::sync::{Arc, atomic::{AtomicUsize, Ordering}};
-        
+        use std::sync::{
+            atomic::{AtomicUsize, Ordering},
+            Arc,
+        };
+
         struct MockBackend {
             subscribe_count: AtomicUsize,
             publish_count: AtomicUsize,
             tx: tokio::sync::broadcast::Sender<EventEnvelope>,
         }
-        
+
         impl MockBackend {
             fn new() -> Self {
                 let (tx, _) = broadcast::channel(64);
@@ -544,28 +571,30 @@ mod tests {
                 }
             }
         }
-        
+
         impl EventBridgeBackend for MockBackend {
             fn subscribe(&self) -> broadcast::Receiver<EventEnvelope> {
                 self.subscribe_count.fetch_add(1, Ordering::SeqCst);
                 self.tx.subscribe()
             }
-            
+
             fn publish(&self, _event: EventEnvelope) {
                 self.publish_count.fetch_add(1, Ordering::SeqCst);
             }
         }
-        
+
         let mut plugin = WasmPlugin::new(
             "test-plugin".to_string(),
             "1.0.0".to_string(),
             WasmCapabilities::default(),
-        ).unwrap();
-        
+        )
+        .unwrap();
+
         let backend = Arc::new(MockBackend::new());
         let bridge = WasmEventBridge::new(plugin, backend.clone());
-        
+
         assert!(bridge.is_ok());
+        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
         assert_eq!(backend.subscribe_count.load(Ordering::SeqCst), 1);
     }
 
@@ -575,7 +604,7 @@ mod tests {
             event_type: "session.created".to_string(),
             payload: r#"{"session_id":"123"}"#.to_string(),
         };
-        
+
         assert_eq!(envelope.event_type, "session.created");
         assert!(envelope.payload.contains("123"));
     }
@@ -586,10 +615,10 @@ mod tests {
             max_memory_bytes: Some(1024 * 1024),
             ..Default::default()
         };
-        
+
         let runtime = WasmRuntime::new(caps).unwrap();
         let enforced = runtime.capabilities();
-        
+
         assert_eq!(enforced.max_memory_bytes, Some(1024 * 1024));
     }
 
@@ -599,10 +628,10 @@ mod tests {
             network_allowed: false,
             ..Default::default()
         };
-        
+
         let runtime = WasmRuntime::new(caps).unwrap();
         let enforced = runtime.capabilities();
-        
+
         assert!(!enforced.network_allowed);
     }
 
@@ -613,10 +642,10 @@ mod tests {
             filesystem_scope: Some(scope.to_string()),
             ..Default::default()
         };
-        
+
         let runtime = WasmRuntime::new(caps).unwrap();
         let enforced = runtime.capabilities();
-        
+
         assert_eq!(enforced.filesystem_scope, Some(scope.to_string()));
     }
 
@@ -627,10 +656,10 @@ mod tests {
             max_cpu_time_secs: Some(30),
             ..Default::default()
         };
-        
+
         let runtime = WasmRuntime::new(caps).unwrap();
         let enforced = runtime.capabilities();
-        
+
         assert_eq!(enforced.execution_timeout_secs, Some(60));
         assert_eq!(enforced.max_cpu_time_secs, Some(30));
     }
@@ -645,13 +674,9 @@ mod tests {
             max_memory_bytes: Some(256 * 1024 * 1024),
             max_cpu_time_secs: Some(60),
         };
-        
-        let plugin = WasmPlugin::new(
-            "capability-test".to_string(),
-            "1.0.0".to_string(),
-            caps,
-        );
-        
+
+        let plugin = WasmPlugin::new("capability-test".to_string(), "1.0.0".to_string(), caps);
+
         assert!(plugin.is_ok());
     }
 
@@ -663,23 +688,19 @@ mod tests {
             execution_timeout_secs: Some(1),
             ..Default::default()
         };
-        
+
         let result = std::panic::catch_unwind(|| {
-            let plugin = WasmPlugin::new(
-                "panic-test".to_string(),
-                "1.0.0".to_string(),
-                caps,
-            );
+            let plugin = WasmPlugin::new("panic-test".to_string(), "1.0.0".to_string(), caps);
             assert!(plugin.is_ok());
         });
-        
+
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_wasm_capabilities_default_has_timeouts() {
         let caps = WasmCapabilities::default();
-        
+
         assert!(caps.execution_timeout_secs.is_some());
         assert!(caps.max_cpu_time_secs.is_some());
         assert!(caps.max_memory_bytes.is_some());
@@ -692,9 +713,9 @@ mod tests {
             network_allowed: true,
             ..Default::default()
         };
-        
+
         let cloned = caps.clone();
-        
+
         assert_eq!(cloned.filesystem_scope, caps.filesystem_scope);
         assert_eq!(cloned.network_allowed, caps.network_allowed);
     }

@@ -38,15 +38,13 @@ pub enum PluginCapability {
     SendNotification,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PluginPermissions {
     pub capabilities: Vec<PluginCapability>,
     pub allowed_events: Vec<String>,
     pub filesystem_scope: Option<String>,
     pub network_allowed: bool,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginConfig {
@@ -239,11 +237,7 @@ impl PluginManager {
         Ok(())
     }
 
-    pub fn on_message_all(
-        &mut self,
-        content: &str,
-        session_id: &str,
-    ) -> Result<(), PluginError> {
+    pub fn on_message_all(&mut self, content: &str, session_id: &str) -> Result<(), PluginError> {
         for (name, plugin) in self.plugins.iter_mut() {
             if let Err(error) = plugin.on_message(content, session_id) {
                 tracing::warn!(
@@ -469,7 +463,7 @@ mod tests {
             Err(PluginError::Shutdown(_, _))
         ));
     }
-    
+
     #[test]
     fn test_duplicate_plugin_registration_fails() {
         let mut manager = PluginManager::new();
@@ -491,7 +485,7 @@ mod tests {
 
         assert!(matches!(result, Err(PluginError::DuplicatePlugin(_))));
     }
-    
+
     #[test]
     fn test_get_config_returns_plugin_config() {
         let mut manager = PluginManager::new();
@@ -511,14 +505,14 @@ mod tests {
         assert_eq!(config.version, "1.0.0");
         assert!(config.enabled);
     }
-    
+
     #[test]
     fn test_get_config_returns_none_for_unknown_plugin() {
         let manager = PluginManager::new();
         let config = manager.get_config("non-existent-plugin");
         assert!(config.is_none());
     }
-    
+
     #[test]
     fn test_init_all_and_shutdown_all() {
         let mut manager = PluginManager::new();
@@ -534,7 +528,7 @@ mod tests {
         assert!(manager.init_all().is_ok());
         assert!(manager.shutdown_all().is_ok());
     }
-    
+
     #[test]
     fn test_plugin_capabilities_default() {
         let perms = PluginPermissions::default();
@@ -543,7 +537,7 @@ mod tests {
         assert!(perms.filesystem_scope.is_none());
         assert!(!perms.network_allowed);
     }
-    
+
     #[test]
     fn test_plugin_capability_enum() {
         let caps = vec![
@@ -555,17 +549,22 @@ mod tests {
             PluginCapability::InterceptSensitiveRead,
             PluginCapability::SendNotification,
         ];
-        
+
         assert_eq!(caps.len(), 7);
     }
-    
+
     #[test]
     fn test_plugin_config_with_permissions() {
         let config = PluginConfig {
             name: "test".to_string(),
             version: "2.0.0".to_string(),
             enabled: true,
-            options: serde_json::json!({"key": "value"}).as_object().unwrap().clone().into_iter().collect(),
+            options: serde_json::json!({"key": "value"})
+                .as_object()
+                .unwrap()
+                .clone()
+                .into_iter()
+                .collect(),
             permissions: PluginPermissions {
                 capabilities: vec![PluginCapability::AddTools],
                 allowed_events: vec!["session.created".to_string()],
@@ -573,9 +572,12 @@ mod tests {
                 network_allowed: true,
             },
         };
-        
+
         assert_eq!(config.name, "test");
-        assert_eq!(config.permissions.capabilities, vec![PluginCapability::AddTools]);
+        assert_eq!(
+            config.permissions.capabilities,
+            vec![PluginCapability::AddTools]
+        );
         assert!(config.permissions.network_allowed);
     }
 
@@ -617,12 +619,27 @@ mod tests {
 
         struct BlockingPlugin;
         impl Plugin for BlockingPlugin {
-            fn name(&self) -> &str { "blocking-plugin" }
-            fn version(&self) -> &str { "1.0.0" }
-            fn init(&mut self) -> Result<(), PluginError> { Ok(()) }
-            fn shutdown(&mut self) -> Result<(), PluginError> { Ok(()) }
-            fn description(&self) -> &str { "blocks tool calls" }
-            fn on_tool_call(&mut self, tool_name: &str, _: &Value, _: &str) -> Result<(), PluginError> {
+            fn name(&self) -> &str {
+                "blocking-plugin"
+            }
+            fn version(&self) -> &str {
+                "1.0.0"
+            }
+            fn init(&mut self) -> Result<(), PluginError> {
+                Ok(())
+            }
+            fn shutdown(&mut self) -> Result<(), PluginError> {
+                Ok(())
+            }
+            fn description(&self) -> &str {
+                "blocks tool calls"
+            }
+            fn on_tool_call(
+                &mut self,
+                tool_name: &str,
+                _: &Value,
+                _: &str,
+            ) -> Result<(), PluginError> {
                 if tool_name == "dangerous" {
                     Err(PluginError::Load("blocked".to_string()))
                 } else {
