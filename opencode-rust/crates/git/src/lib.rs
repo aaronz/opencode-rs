@@ -3,9 +3,23 @@ use opencode_core::OpenCodeError;
 use std::path::Path;
 
 pub mod github;
+pub mod gitlab;
+pub mod gitlab_ci;
+pub mod workflow;
 pub use github::{
     GitHubClient, GitHubError, GitHubIssue, GitHubPullRequest, GitHubRef, GitHubRepo, GitHubUser,
     IssueUpdates,
+};
+pub use gitlab::{
+    GitLabCiVariable, GitLabClient, GitLabError, GitLabFileCommit, GitLabFileContent,
+    GitLabPipeline, GitLabProject,
+};
+pub use gitlab_ci::{
+    get_gitlab_ci_template, setup_gitlab_ci, GitLabCiSetupResult, GitLabCiTemplate,
+};
+pub use workflow::{
+    get_workflow_template, setup_github_workflow, GitHubAppClient, GitHubError as AppError,
+    SecretRequirement, SetupResult, WorkflowTemplate,
 };
 
 pub struct GitManager {
