@@ -1,7 +1,8 @@
-use serde::{Deserialize, Serialize};
+use serde::de::{self, IntoDeserializer, Visitor};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type", content = "data")]
 pub enum Part {
     Text(TextPart),
@@ -11,8 +12,111 @@ pub enum Part {
     FileReference(FileReferencePart),
     Image(ImagePart),
     Reasoning(ReasoningPart),
-    #[serde(other)]
     Unknown,
+}
+
+const PART_VARIANTS: &[&str] = &[
+    "Text",
+    "Code",
+    "ToolUse",
+    "ToolResult",
+    "FileReference",
+    "Image",
+    "Reasoning",
+];
+
+impl<'de> Deserialize<'de> for Part {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_struct("Part", PART_VARIANTS, PartVisitor)
+    }
+}
+
+struct PartVisitor;
+
+impl<'de> Visitor<'de> for PartVisitor {
+    type Value = Part;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("a Part variant")
+    }
+
+    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+    where
+        A: de::MapAccess<'de>,
+    {
+        let mut type_variant: Option<String> = None;
+        let mut data: Option<serde_json::Value> = None;
+
+        while let Some(key) = map.next_key()? {
+            match key {
+                "type" => {
+                    if type_variant.is_some() {
+                        return Err(de::Error::custom("duplicate 'type' field"));
+                    }
+                    type_variant = Some(map.next_value()?);
+                }
+                "data" => {
+                    if data.is_some() {
+                        return Err(de::Error::custom("duplicate 'data' field"));
+                    }
+                    data = Some(map.next_value()?);
+                }
+                _ => {
+                    return Err(de::Error::custom("unknown field"));
+                }
+            }
+        }
+
+        let type_variant = type_variant.ok_or_else(|| de::Error::custom("missing 'type' field"))?;
+        let data = data.ok_or_else(|| de::Error::custom("missing 'data' field"))?;
+
+        let deserializer = data.into_deserializer();
+        match type_variant.as_str() {
+            "Text" => {
+                let part: TextPart = de::Deserialize::deserialize(deserializer)
+                    .map_err(|e| de::Error::custom(format!("invalid Text data: {}", e)))?;
+                Ok(Part::Text(part))
+            }
+            "Code" => {
+                let part: CodePart = de::Deserialize::deserialize(deserializer)
+                    .map_err(|e| de::Error::custom(format!("invalid Code data: {}", e)))?;
+                Ok(Part::Code(part))
+            }
+            "ToolUse" => {
+                let part: ToolUsePart = de::Deserialize::deserialize(deserializer)
+                    .map_err(|e| de::Error::custom(format!("invalid ToolUse data: {}", e)))?;
+                Ok(Part::ToolUse(part))
+            }
+            "ToolResult" => {
+                let part: ToolResultPart = de::Deserialize::deserialize(deserializer)
+                    .map_err(|e| de::Error::custom(format!("invalid ToolResult data: {}", e)))?;
+                Ok(Part::ToolResult(part))
+            }
+            "FileReference" => {
+                let part: FileReferencePart = de::Deserialize::deserialize(deserializer)
+                    .map_err(|e| de::Error::custom(format!("invalid FileReference data: {}", e)))?;
+                Ok(Part::FileReference(part))
+            }
+            "Image" => {
+                let part: ImagePart = de::Deserialize::deserialize(deserializer)
+                    .map_err(|e| de::Error::custom(format!("invalid Image data: {}", e)))?;
+                Ok(Part::Image(part))
+            }
+            "Reasoning" => {
+                let part: ReasoningPart = de::Deserialize::deserialize(deserializer)
+                    .map_err(|e| de::Error::custom(format!("invalid Reasoning data: {}", e)))?;
+                Ok(Part::Reasoning(part))
+            }
+            _ => Err(de::Error::custom(format!(
+                "unknown part type: {}. Expected one of: {}",
+                type_variant,
+                PART_VARIANTS.join(", ")
+            ))),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -143,5 +247,42 @@ mod tests {
         let json = serde_json::to_string(&part).unwrap();
         assert!(json.contains("\"type\":\"Text\""));
         assert!(json.contains("\"text\":\"test\""));
+    }
+
+    #[test]
+    fn test_part_deserialization() {
+        let json = r#"{"type":"Text","data":{"text":"hello"}}"#;
+        let part: Part = serde_json::from_str(json).unwrap();
+        assert_eq!(part.as_text(), Some("hello"));
+    }
+
+    #[test]
+    fn test_part_unknown_type_error() {
+        let json = r#"{"type":"UnknownType","data":{"foo":"bar"}}"#;
+        let result: Result<Part, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("unknown part type: UnknownType"));
+    }
+
+    #[test]
+    fn test_part_missing_type_error() {
+        let json = r#"{"data":{"text":"hello"}}"#;
+        let result: Result<Part, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_part_missing_data_error() {
+        let json = r#"{"type":"Text"}"#;
+        let result: Result<Part, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_part_unknown_field_error() {
+        let json = r#"{"type":"Text","data":{"text":"hello"},"extra":"field"}"#;
+        let result: Result<Part, _> = serde_json::from_str(json);
+        assert!(result.is_err());
     }
 }

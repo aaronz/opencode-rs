@@ -417,7 +417,7 @@
       "priority": "P2",
       "title": "Replace #[serde(other)] in Part",
       "description": "Replace #[serde(other)] with explicit error handling, add unknown part handling. Module: crates/core/",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "#[serde(other)] replaced with explicit error handling",
         "Unknown part handling added",
@@ -426,7 +426,7 @@
       "test_commands": [
         "cargo test -p opencode-core -- part"
       ],
-      "impl_notes": "Tech debt - in crates/core/",
+      "impl_notes": "Tech debt - Replaced #[serde(other)] with custom Deserialize implementation for Part enum. Unknown part types now return explicit error messages. Added tests for unknown type errors, missing type/data errors, and unknown field errors. Built-in variant types (TextPart, CodePart, etc.) still use serde derive.",
       "dependencies": []
     },
     {

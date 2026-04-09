@@ -296,7 +296,7 @@ Implementation: `crates/core/src/agents_md.rs` with `AgentsMdScanner`, `AgentsMd
 
 ---
 
-### TD-008: Custom JSONC Parser
+### TD-008: ✅ Done
 **Module:** `crates/config/`
 
 - [x] Replace custom JSONC parser with existing crate
@@ -308,9 +308,9 @@ Implementation: `crates/core/src/agents_md.rs` with `AgentsMdScanner`, `AgentsMd
 ### TD-009: `#[serde(other)]` in Part
 **Module:** `crates/core/`
 
-- [ ] Replace with explicit error handling
-- [ ] Add unknown part handling
-- [ ] Run tests
+- [x] Replace with explicit error handling
+- [x] Add unknown part handling
+- [x] Run tests
 
 ---
 
