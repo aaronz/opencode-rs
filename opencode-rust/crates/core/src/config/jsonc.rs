@@ -10,8 +10,7 @@ pub enum JsoncError {
 }
 
 pub fn parse_jsonc(content: &str) -> Result<Value, JsoncError> {
-    let stripped = strip_jsonc_comments(content);
-    serde_json::from_str(&stripped).map_err(|e| JsoncError::Parse(e.to_string()))
+    json5::from_str(content).map_err(|e| JsoncError::Parse(e.to_string()))
 }
 
 pub(crate) fn strip_jsonc_comments(input: &str) -> String {
@@ -95,12 +94,10 @@ mod tests {
 
     #[test]
     fn test_strip_single_line_comments() {
-        let input = r#"
-{
+        let input = r#"{
     // This is a comment
     "key": "value"
-}
-"#;
+}"#;
         let result = strip_jsonc_comments(input);
         assert!(!result.contains("// This is a comment"));
         assert!(result.contains("\"key\": \"value\""));
@@ -108,14 +105,12 @@ mod tests {
 
     #[test]
     fn test_strip_multi_line_comments() {
-        let input = r#"
-{
+        let input = r#"{
     /* Multi
        line
        comment */
     "key": "value"
-}
-"#;
+}"#;
         let result = strip_jsonc_comments(input);
         assert!(!result.contains("Multi"));
         assert!(result.contains("\"key\": \"value\""));
@@ -123,14 +118,12 @@ mod tests {
 
     #[test]
     fn test_parse_jsonc_with_comments() {
-        let input = r#"
-{
+        let input = r#"{
     // Leading comment
     "name": "test",
     /* Trailing comment */
     "enabled": true
-}
-"#;
+}"#;
         let value = parse_jsonc(input).unwrap();
         assert_eq!(value["name"], "test");
         assert_eq!(value["enabled"], true);

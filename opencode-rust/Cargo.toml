@@ -90,6 +90,7 @@ actix-web-lab = "0.20"
 regex = "1"
 sha2 = "0.10"
 tiktoken-rs = "0.6"
+json5 = "0.4"
 
 [profile.release]
 opt-level = "z"

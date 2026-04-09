@@ -281,7 +281,7 @@ Implementation: `crates/core/src/agents_md.rs` with `AgentsMdScanner`, `AgentsMd
 
 ---
 
-### TD-007: SHA256 Args Hashing
+### TD-007: ✅ Done
 **Module:** `crates/storage/`
 
 - [x] Evaluate content-addressable storage approach
@@ -299,9 +299,9 @@ Implementation: `crates/core/src/agents_md.rs` with `AgentsMdScanner`, `AgentsMd
 ### TD-008: Custom JSONC Parser
 **Module:** `crates/config/`
 
-- [ ] Replace custom JSONC parser with existing crate
-- [ ] Verify functionality maintained
-- [ ] Run tests
+- [x] Replace custom JSONC parser with existing crate
+- [x] Verify functionality maintained
+- [x] Run tests
 
 ---
 

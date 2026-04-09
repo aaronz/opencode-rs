@@ -400,16 +400,16 @@
       "priority": "P2",
       "title": "Replace Custom JSONC Parser",
       "description": "Replace custom JSONC parser with existing crate, verify functionality maintained. Module: crates/config/",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Custom JSONC parser replaced with existing crate",
         "Functionality maintained",
         "Tests pass"
       ],
       "test_commands": [
-        "cargo test -p opencode-config -- jsonc"
+        "cargo test -p opencode-core -- jsonc"
       ],
-      "impl_notes": "Tech debt",
+      "impl_notes": "Tech debt - Replaced custom JSONC parser with json5 crate. The parse_jsonc function now uses json5::from_str instead of custom comment stripping + serde_json::parse. The strip_jsonc_comments helper is retained for internal use in config.rs.",
       "dependencies": []
     },
     {
