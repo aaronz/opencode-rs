@@ -1,7 +1,7 @@
 use std::future::Future;
 use std::sync::{Arc, Mutex};
 
-use opencode_core::{ToolDefinition, ToolExecutor, ToolParameter, TokenCounter, ToolRegistry};
+use opencode_core::{TokenCounter, ToolDefinition, ToolExecutor, ToolParameter, ToolRegistry};
 
 use crate::client::{McpClient, McpTool};
 
@@ -112,13 +112,19 @@ mod tests {
 
     #[test]
     fn test_tool_adapter_definition_and_execution() {
-        let handler: Arc<dyn Fn(crate::protocol::JsonRpcRequest) -> Result<JsonRpcResponse, McpError> + Send + Sync> = Arc::new(|request: crate::protocol::JsonRpcRequest| match request.method.as_str() {
-            "tools/call" => Ok(ok_response(json!({
-                "content": [{"type": "text", "text": "adapter-ok"}],
-                "isError": false
-            }))),
-            _ => Err(McpError::Other("unexpected method".to_string())),
-        });
+        let handler: Arc<
+            dyn Fn(crate::protocol::JsonRpcRequest) -> Result<JsonRpcResponse, McpError>
+                + Send
+                + Sync,
+        > = Arc::new(
+            |request: crate::protocol::JsonRpcRequest| match request.method.as_str() {
+                "tools/call" => Ok(ok_response(json!({
+                    "content": [{"type": "text", "text": "adapter-ok"}],
+                    "isError": false
+                }))),
+                _ => Err(McpError::Other("unexpected method".to_string())),
+            },
+        );
 
         let rt = tokio::runtime::Runtime::new().unwrap();
         let client = Arc::new(McpClient::with_handler(

@@ -154,12 +154,10 @@ impl McpConnectionPool {
 
     pub async fn get_client(&self, endpoint: &str) -> Result<PooledClient, McpError> {
         let mut last_error = None;
-        
+
         for attempt in 0..self.config.max_acquire_retries {
-            let permit = match timeout(
-                self.config.acquire_timeout,
-                self.semaphore.acquire(),
-            ).await {
+            let permit = match timeout(self.config.acquire_timeout, self.semaphore.acquire()).await
+            {
                 Ok(Ok(p)) => p,
                 Ok(Err(_)) => {
                     return Err(McpError::Other("semaphore closed".to_string()));
@@ -175,9 +173,11 @@ impl McpConnectionPool {
                 Ok(c) => c,
                 Err(e) => {
                     last_error = Some(e.clone());
-                    
+
                     if attempt < self.config.max_acquire_retries - 1 {
-                        let delay = self.config.retry_base_delay
+                        let delay = self
+                            .config
+                            .retry_base_delay
                             .saturating_mul(1u32 << attempt.min(7));
                         tokio::time::sleep(delay).await;
                         continue;
@@ -193,9 +193,7 @@ impl McpConnectionPool {
             });
         }
 
-        Err(last_error.unwrap_or_else(|| 
-            McpError::Other("failed to acquire client".to_string())
-        ))
+        Err(last_error.unwrap_or_else(|| McpError::Other("failed to acquire client".to_string())))
     }
 
     pub async fn return_client(&self, _endpoint: &str, client: McpClient) {
@@ -214,29 +212,30 @@ impl McpConnectionPool {
 
     async fn get_or_create_connection(&self, endpoint: &str) -> Result<McpClient, McpError> {
         let transport = self.parse_endpoint(endpoint)?;
-        let client = McpClient::new(transport)
-            .with_timeout(self.config.acquire_timeout);
-        
+        let client = McpClient::new(transport).with_timeout(self.config.acquire_timeout);
+
         client.connect().await?;
-        
+
         Ok(client)
     }
 
     fn parse_endpoint(&self, endpoint: &str) -> Result<McpTransport, McpError> {
         if endpoint.starts_with("stdio://") {
             let cmd = endpoint.trim_start_matches("stdio://");
-            Ok(McpTransport::Stdio(
-                crate::client::StdioProcess::new(cmd, vec![])
-            ))
+            Ok(McpTransport::Stdio(crate::client::StdioProcess::new(
+                cmd,
+                vec![],
+            )))
         } else if endpoint.starts_with("sse://") {
             let url = endpoint.trim_start_matches("sse://");
             Ok(McpTransport::Sse(url.to_string()))
         } else if endpoint.starts_with("http://") || endpoint.starts_with("https://") {
             Ok(McpTransport::Sse(endpoint.to_string()))
         } else {
-            Ok(McpTransport::Stdio(
-                crate::client::StdioProcess::new(endpoint, vec![])
-            ))
+            Ok(McpTransport::Stdio(crate::client::StdioProcess::new(
+                endpoint,
+                vec![],
+            )))
         }
     }
 
@@ -271,7 +270,7 @@ mod tests {
         let config = PoolConfig::new(10, 50)
             .with_idle_timeout(Duration::from_secs(600))
             .with_acquire_timeout(Duration::from_secs(60));
-        
+
         assert_eq!(config.max_connections_per_endpoint, 10);
         assert_eq!(config.max_total_connections, 50);
         assert_eq!(config.idle_timeout, Duration::from_secs(600));
@@ -282,7 +281,7 @@ mod tests {
     async fn test_pool_stats() {
         let config = PoolConfig::default();
         let pool = McpConnectionPool::new(config);
-        
+
         let stats = pool.stats();
         assert_eq!(stats.total_connections, 0);
         assert_eq!(stats.total_idle, 0);
@@ -293,7 +292,7 @@ mod tests {
     async fn test_parse_endpoint_stdio() {
         let config = PoolConfig::default();
         let pool = McpConnectionPool::new(config);
-        
+
         let transport = pool.parse_endpoint("stdio://my-server").unwrap();
         match transport {
             McpTransport::Stdio(process) => {
@@ -307,8 +306,10 @@ mod tests {
     async fn test_parse_endpoint_sse() {
         let config = PoolConfig::default();
         let pool = McpConnectionPool::new(config);
-        
-        let transport = pool.parse_endpoint("sse://http://localhost:3000/sse").unwrap();
+
+        let transport = pool
+            .parse_endpoint("sse://http://localhost:3000/sse")
+            .unwrap();
         match transport {
             McpTransport::Sse(url) => {
                 assert_eq!(url, "http://localhost:3000/sse");
@@ -321,7 +322,7 @@ mod tests {
     async fn test_parse_endpoint_http() {
         let config = PoolConfig::default();
         let pool = McpConnectionPool::new(config);
-        
+
         let transport = pool.parse_endpoint("http://localhost:3000/sse").unwrap();
         match transport {
             McpTransport::Sse(url) => {
@@ -335,7 +336,7 @@ mod tests {
     async fn test_parse_endpoint_default_stdio() {
         let config = PoolConfig::default();
         let pool = McpConnectionPool::new(config);
-        
+
         let transport = pool.parse_endpoint("my-server").unwrap();
         match transport {
             McpTransport::Stdio(process) => {

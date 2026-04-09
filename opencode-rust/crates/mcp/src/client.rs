@@ -41,8 +41,7 @@ pub enum JsonRpcMessage {
     Notification(JsonRpcNotification),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum ConnectionState {
     #[default]
     Disconnected,
@@ -50,7 +49,6 @@ pub enum ConnectionState {
     Connected,
     Error(String),
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct McpTool {
@@ -124,7 +122,8 @@ enum RuntimeConnection {
     },
 }
 
-type TransportHandler = Arc<dyn Fn(JsonRpcRequest) -> Result<JsonRpcResponse, McpError> + Send + Sync>;
+type TransportHandler =
+    Arc<dyn Fn(JsonRpcRequest) -> Result<JsonRpcResponse, McpError> + Send + Sync>;
 
 #[derive(Clone)]
 pub struct McpClient {
@@ -254,7 +253,11 @@ impl McpClient {
                     reader_task.abort();
                     let mut child = child.lock().await;
                     let _ = child.kill().await;
-                    fail_pending(&pending, McpError::ConnectionLost("stdio disconnected".to_string())).await;
+                    fail_pending(
+                        &pending,
+                        McpError::ConnectionLost("stdio disconnected".to_string()),
+                    )
+                    .await;
                 }
                 RuntimeConnection::Sse {
                     pending,
@@ -262,7 +265,11 @@ impl McpClient {
                     ..
                 } => {
                     reader_task.abort();
-                    fail_pending(&pending, McpError::ConnectionLost("sse disconnected".to_string())).await;
+                    fail_pending(
+                        &pending,
+                        McpError::ConnectionLost("sse disconnected".to_string()),
+                    )
+                    .await;
                 }
             }
         }
@@ -285,8 +292,12 @@ impl McpClient {
     }
 
     pub async fn list_tools(&self) -> Result<Vec<McpTool>, McpError> {
-        let response = self.send_request(JsonRpcRequest::new("tools/list", None)).await?;
-        let result = response.result.ok_or_else(|| McpError::Protocol("missing result in tools/list response".to_string()))?;
+        let response = self
+            .send_request(JsonRpcRequest::new("tools/list", None))
+            .await?;
+        let result = response.result.ok_or_else(|| {
+            McpError::Protocol("missing result in tools/list response".to_string())
+        })?;
         let tools = result
             .get("tools")
             .and_then(|v| v.as_array())
@@ -300,8 +311,16 @@ impl McpClient {
                     .or_else(|| entry.get("input_schema").cloned())
                     .unwrap_or(Value::Null);
                 McpTool {
-                    name: entry.get("name").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-                    description: entry.get("description").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
+                    name: entry
+                        .get("name")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or_default()
+                        .to_string(),
+                    description: entry
+                        .get("description")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or_default()
+                        .to_string(),
                     input_schema,
                 }
             })
@@ -322,9 +341,9 @@ impl McpClient {
             ))
             .await?;
 
-        let raw = response
-            .result
-            .ok_or_else(|| McpError::Protocol("missing result in tools/call response".to_string()))?;
+        let raw = response.result.ok_or_else(|| {
+            McpError::Protocol("missing result in tools/call response".to_string())
+        })?;
         let is_error = raw
             .get("isError")
             .and_then(|v| v.as_bool())
@@ -332,12 +351,20 @@ impl McpClient {
             .unwrap_or(false);
 
         let content = extract_result_text(&raw);
-        Ok(McpToolResult { content, raw, is_error })
+        Ok(McpToolResult {
+            content,
+            raw,
+            is_error,
+        })
     }
 
     pub async fn list_resources(&self) -> Result<Vec<McpResource>, McpError> {
-        let response = self.send_request(JsonRpcRequest::new("resources/list", None)).await?;
-        let result = response.result.ok_or_else(|| McpError::Protocol("missing result in resources/list response".to_string()))?;
+        let response = self
+            .send_request(JsonRpcRequest::new("resources/list", None))
+            .await?;
+        let result = response.result.ok_or_else(|| {
+            McpError::Protocol("missing result in resources/list response".to_string())
+        })?;
         let resources = result
             .get("resources")
             .and_then(|v| v.as_array())
@@ -345,8 +372,16 @@ impl McpClient {
             .unwrap_or_default()
             .into_iter()
             .map(|entry| McpResource {
-                uri: entry.get("uri").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-                name: entry.get("name").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
+                uri: entry
+                    .get("uri")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default()
+                    .to_string(),
+                name: entry
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default()
+                    .to_string(),
                 description: entry
                     .get("description")
                     .and_then(|v| v.as_str())
@@ -370,9 +405,9 @@ impl McpClient {
                 Some(serde_json::json!({ "uri": uri })),
             ))
             .await?;
-        let result = response
-            .result
-            .ok_or_else(|| McpError::Protocol("missing result in resources/read response".to_string()))?;
+        let result = response.result.ok_or_else(|| {
+            McpError::Protocol("missing result in resources/read response".to_string())
+        })?;
 
         result
             .get("contents")
@@ -381,7 +416,9 @@ impl McpClient {
             .and_then(|first| first.get("text"))
             .and_then(|v| v.as_str())
             .map(str::to_string)
-            .ok_or_else(|| McpError::Protocol("resources/read response had no text content".to_string()))
+            .ok_or_else(|| {
+                McpError::Protocol("resources/read response had no text content".to_string())
+            })
     }
 
     pub async fn cached_tools(&self) -> Vec<McpTool> {
@@ -430,13 +467,9 @@ impl McpClient {
         });
 
         let result = match &mut runtime {
-            RuntimeConnection::Stdio { stdin, .. } => {
-                write_json_line(stdin, &notification).await
-            }
+            RuntimeConnection::Stdio { stdin, .. } => write_json_line(stdin, &notification).await,
             RuntimeConnection::Sse {
-                client,
-                post_url,
-                ..
+                client, post_url, ..
             } => {
                 let response = client
                     .post(post_url.as_str())
@@ -499,7 +532,10 @@ impl McpClient {
         }
     }
 
-    async fn send_request_runtime(&self, request: JsonRpcRequest) -> Result<JsonRpcResponse, McpError> {
+    async fn send_request_runtime(
+        &self,
+        request: JsonRpcRequest,
+    ) -> Result<JsonRpcResponse, McpError> {
         let runtime = {
             let mut state = self.state.lock().await;
             state.runtime.take()
@@ -538,9 +574,9 @@ impl McpClient {
 
     fn validate_transport(&self) -> Result<(), McpError> {
         match &self.transport {
-            McpTransport::Stdio(process) if process.command.trim().is_empty() => {
-                Err(McpError::ConnectionFailed("empty stdio command".to_string()))
-            }
+            McpTransport::Stdio(process) if process.command.trim().is_empty() => Err(
+                McpError::ConnectionFailed("empty stdio command".to_string()),
+            ),
             McpTransport::Sse(url) if url.trim().is_empty() => {
                 Err(McpError::ConnectionFailed("empty sse url".to_string()))
             }
@@ -571,7 +607,9 @@ impl McpClient {
 
     async fn connect_stdio(process: StdioProcess) -> Result<RuntimeConnection, McpError> {
         if process.command.trim().is_empty() {
-            return Err(McpError::ConnectionFailed("empty stdio command".to_string()));
+            return Err(McpError::ConnectionFailed(
+                "empty stdio command".to_string(),
+            ));
         }
 
         let mut command = Command::new(&process.command);
@@ -586,9 +624,9 @@ impl McpClient {
             command.current_dir(cwd);
         }
 
-        let mut child = command
-            .spawn()
-            .map_err(|e| McpError::ConnectionFailed(format!("failed to spawn stdio process: {}", e)))?;
+        let mut child = command.spawn().map_err(|e| {
+            McpError::ConnectionFailed(format!("failed to spawn stdio process: {}", e))
+        })?;
 
         let stdin = child
             .stdin
@@ -714,16 +752,18 @@ impl McpClient {
     }
 }
 
-async fn write_json_line(stdin: &Arc<Mutex<ChildStdin>>, message: &JsonRpcMessage) -> Result<(), McpError> {
+async fn write_json_line(
+    stdin: &Arc<Mutex<ChildStdin>>,
+    message: &JsonRpcMessage,
+) -> Result<(), McpError> {
     let mut payload = serde_json::to_vec(message)
         .map_err(|e| McpError::Protocol(format!("failed to serialize json-rpc message: {}", e)))?;
     payload.push(b'\n');
 
     let mut stdin = stdin.lock().await;
-    stdin
-        .write_all(&payload)
-        .await
-        .map_err(|e| McpError::ConnectionLost(format!("failed to write request to stdio: {}", e)))?;
+    stdin.write_all(&payload).await.map_err(|e| {
+        McpError::ConnectionLost(format!("failed to write request to stdio: {}", e))
+    })?;
     stdin
         .flush()
         .await
@@ -737,7 +777,10 @@ async fn send_with_pending_stdio(
     request: JsonRpcRequest,
     timeout_duration: Duration,
 ) -> Result<JsonRpcResponse, McpError> {
-    let id = request.id.clone().ok_or_else(|| McpError::Protocol("request id missing".to_string()))?;
+    let id = request
+        .id
+        .clone()
+        .ok_or_else(|| McpError::Protocol("request id missing".to_string()))?;
     let key = id_to_key(&id);
 
     let (tx, rx) = oneshot::channel::<Result<JsonRpcResponse, McpError>>();
@@ -759,7 +802,10 @@ async fn send_with_pending_sse(
     request: JsonRpcRequest,
     timeout_duration: Duration,
 ) -> Result<JsonRpcResponse, McpError> {
-    let id = request.id.clone().ok_or_else(|| McpError::Protocol("request id missing".to_string()))?;
+    let id = request
+        .id
+        .clone()
+        .ok_or_else(|| McpError::Protocol("request id missing".to_string()))?;
     let key = id_to_key(&id);
 
     let (tx, rx) = oneshot::channel::<Result<JsonRpcResponse, McpError>>();
@@ -770,7 +816,10 @@ async fn send_with_pending_sse(
         Ok(resp) => resp,
         Err(err) => {
             pending.lock().await.remove(&key);
-            return Err(McpError::ConnectionLost(format!("sse post failed: {}", err)));
+            return Err(McpError::ConnectionLost(format!(
+                "sse post failed: {}",
+                err
+            )));
         }
     };
 
@@ -784,7 +833,9 @@ async fn send_with_pending_sse(
 
     if let Ok(text) = response.text().await {
         if !text.trim().is_empty() {
-            if let Ok(JsonRpcMessage::Response(resp)) = serde_json::from_str::<JsonRpcMessage>(&text) {
+            if let Ok(JsonRpcMessage::Response(resp)) =
+                serde_json::from_str::<JsonRpcMessage>(&text)
+            {
                 dispatch_response(pending, resp).await;
             }
         }
@@ -801,7 +852,9 @@ async fn await_pending_response(
 ) -> Result<JsonRpcResponse, McpError> {
     match timeout(timeout_duration, rx).await {
         Ok(Ok(result)) => result,
-        Ok(Err(_)) => Err(McpError::ConnectionLost("response channel closed".to_string())),
+        Ok(Err(_)) => Err(McpError::ConnectionLost(
+            "response channel closed".to_string(),
+        )),
         Err(_) => {
             pending.lock().await.remove(&key);
             Err(McpError::Timeout(timeout_duration))
@@ -936,7 +989,8 @@ mod tests {
             _ => Err(McpError::Other("unexpected method".to_string())),
         });
 
-        let client = McpClient::with_handler(McpTransport::Sse("http://mock/sse".to_string()), handler);
+        let client =
+            McpClient::with_handler(McpTransport::Sse("http://mock/sse".to_string()), handler);
         client.connect().await.unwrap();
 
         let resources = client.list_resources().await.unwrap();
@@ -959,8 +1013,9 @@ mod tests {
             Ok(ok_response(serde_json::json!({ "tools": [] })))
         });
 
-        let client = McpClient::with_handler(McpTransport::Sse("http://mock/sse".to_string()), handler)
-            .with_max_retries(3);
+        let client =
+            McpClient::with_handler(McpTransport::Sse("http://mock/sse".to_string()), handler)
+                .with_max_retries(3);
         client.connect().await.unwrap();
         let _ = client.list_tools().await.unwrap();
         assert!(attempts.load(Ordering::SeqCst) >= 2);
@@ -979,13 +1034,19 @@ mod tests {
             handler,
         );
 
-        assert_eq!(client.connection_state().await, ConnectionState::Disconnected);
+        assert_eq!(
+            client.connection_state().await,
+            ConnectionState::Disconnected
+        );
         client.connect().await.unwrap();
         assert_eq!(client.connection_state().await, ConnectionState::Connected);
 
         let _ = client.list_tools().await.unwrap();
         client.disconnect().await.unwrap();
-        assert_eq!(client.connection_state().await, ConnectionState::Disconnected);
+        assert_eq!(
+            client.connection_state().await,
+            ConnectionState::Disconnected
+        );
     }
 
     #[tokio::test]
@@ -1071,12 +1132,10 @@ mod tests {
 
         let results = tokio::time::timeout(
             Duration::from_secs(TIMEOUT_SECS),
-            futures_util::future::join_all(
-                clients.iter().map(|client| async {
-                    client.connect().await?;
-                    client.list_tools().await
-                }),
-            ),
+            futures_util::future::join_all(clients.iter().map(|client| async {
+                client.connect().await?;
+                client.list_tools().await
+            })),
         )
         .await;
 
@@ -1095,7 +1154,10 @@ mod tests {
                 );
             }
             Err(_) => {
-                panic!("Concurrent connection test timed out after {} seconds", TIMEOUT_SECS);
+                panic!(
+                    "Concurrent connection test timed out after {} seconds",
+                    TIMEOUT_SECS
+                );
             }
         }
     }
@@ -1124,7 +1186,11 @@ mod tests {
             .with_max_retries(1);
 
             // Connect
-            assert!(client.connect().await.is_ok(), "Cycle {}: connect failed", i);
+            assert!(
+                client.connect().await.is_ok(),
+                "Cycle {}: connect failed",
+                i
+            );
 
             // Verify connected state
             assert_eq!(
@@ -1135,7 +1201,11 @@ mod tests {
             );
 
             // Disconnect
-            assert!(client.disconnect().await.is_ok(), "Cycle {}: disconnect failed", i);
+            assert!(
+                client.disconnect().await.is_ok(),
+                "Cycle {}: disconnect failed",
+                i
+            );
 
             // Verify disconnected state
             assert_eq!(
