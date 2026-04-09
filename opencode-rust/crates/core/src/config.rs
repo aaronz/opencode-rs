@@ -117,6 +117,10 @@ pub struct Config {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub instructions: Option<Vec<String>>,
 
+    /// AGENTS.md scanning configuration
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agents_md: Option<AgentsMdConfig>,
+
     /// Deprecated: Always uses stretch layout
     #[deprecated(since = "2.0.0", note = "Layout is always stretch now")]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -282,6 +286,32 @@ pub struct SkillsConfig {
     /// URLs to fetch skills from
     #[serde(skip_serializing_if = "Option::is_none")]
     pub urls: Option<Vec<String>>,
+}
+
+/// AGENTS.md scanning configuration
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+pub struct AgentsMdConfig {
+    /// Enable or disable AGENTS.md scanning (default: true)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enabled: Option<bool>,
+
+    /// Stop at worktree root when scanning upward (default: true)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stop_at_worktree_root: Option<bool>,
+
+    /// Include hidden AGENTS.md files (starting with .) (default: false)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub include_hidden: Option<bool>,
+}
+
+impl AgentsMdConfig {
+    pub fn to_scan_config(&self) -> crate::agents_md::AgentsMdScanConfig {
+        crate::agents_md::AgentsMdScanConfig {
+            enabled: self.enabled.unwrap_or(true),
+            stop_at_worktree_root: self.stop_at_worktree_root.unwrap_or(true),
+            include_hidden: self.include_hidden.unwrap_or(false),
+        }
+    }
 }
 
 /// Watcher configuration

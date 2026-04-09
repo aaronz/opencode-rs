@@ -1,5 +1,6 @@
 pub mod account;
 pub mod acp;
+pub mod agents_md;
 pub mod bus;
 pub mod checkpoint;
 pub mod cli;
@@ -55,6 +56,7 @@ pub mod worktree;
 
 pub use account::AccountManager;
 pub use acp::AcpProtocol;
+pub use agents_md::{AgentsMdInfo, AgentsMdScanConfig, AgentsMdScanner};
 pub use bus::EventBus;
 pub use checkpoint::{
     create_checkpoint, restore_checkpoint, Checkpoint, CheckpointManager, CheckpointMetadata,

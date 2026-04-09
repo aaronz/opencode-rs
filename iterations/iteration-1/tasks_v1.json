@@ -170,7 +170,7 @@
       "priority": "P2",
       "title": "AGENTS.md Upward Scanning",
       "description": "Implement upward directory traversal from CWD to worktree root, add scanning for AGENTS.md files, add configuration for scanning behavior. Module: crates/core/",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Upward directory traversal works correctly",
         "AGENTS.md files scanned from CWD to worktree root",
@@ -182,7 +182,7 @@
         "cargo test -p opencode-core -- agents",
         "cargo test -p opencode-core -- scan"
       ],
-      "impl_notes": "Requires 06-config. Tests and documentation still pending.",
+      "impl_notes": "Implemented agents_md.rs module with upward scanning, worktree root detection, and configuration options. Tests pass.",
       "dependencies": [
         "P2-1"
       ]

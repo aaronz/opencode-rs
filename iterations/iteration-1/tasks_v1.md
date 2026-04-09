@@ -157,7 +157,7 @@
 
 ## P2 Tasks — Improvement Issues (After P1)
 
-### P2-1: VCS Worktree Root Distinction
+### P2-1: ✅ Done
 **FR:** 01-core-arch | **Phase:** 1 | **Module:** `crates/core/`
 
 - [x] Add `worktree_root` field to ProjectInfo
@@ -167,14 +167,16 @@
 
 ---
 
-### P2-2: AGENTS.md Upward Scanning
+### P2-2: ✅ Done - AGENTS.md Upward Scanning
 **FR:** 06-config | **Phase:** 1 | **Module:** `crates/core/`
 
-- [ ] Implement upward directory traversal from CWD to worktree root
-- [ ] Add scanning for AGENTS.md files
-- [ ] Add configuration for scanning behavior
-- [ ] Add tests
-- [ ] Update documentation
+- [x] Implement upward directory traversal from CWD to worktree root
+- [x] Add scanning for AGENTS.md files
+- [x] Add configuration for scanning behavior
+- [x] Add tests
+- [x] Update documentation
+
+Implementation: `crates/core/src/agents_md.rs` with `AgentsMdScanner`, `AgentsMdInfo`, `AgentsMdScanConfig`. Configuration via `AgentsMdConfig` in config system.
 
 ---
 
