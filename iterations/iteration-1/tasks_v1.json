@@ -105,7 +105,7 @@
       "priority": "P1",
       "title": "tui.json Ownership Enforcement",
       "description": "Audit and enforce tui.json exclusively owns theme settings, keybind settings, and TUI plugin config. Remove TUI settings from main config schema. Module: crates/config/, crates/tui/",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "No TUI settings leak to main config",
         "tui.json owns all TUI configuration",
