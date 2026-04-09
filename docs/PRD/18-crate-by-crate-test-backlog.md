@@ -551,6 +551,38 @@ This backlog is intended to be execution-oriented and should be used together wi
 
 ---
 
+### `rust-opencode-port/tests/conventions/`
+
+**Purpose**
+- enforce structural rules from the PRDs and repository conventions
+
+**Backlog**
+
+#### P1
+- add architecture-boundary tests verifying authority ownership remains split correctly across implementation areas
+- add config ownership tests verifying `opencode.json` and `tui.json` concerns do not drift together
+- add route/resource-group convention tests aligned to `07-server-api.md`
+- add permission-before-execution convention tests at suite level
+
+#### P2
+- add test-placement checks distinguishing crate-local vs cross-crate workflow tests
+- add TUI convention checks requiring interactive UI tests to use `ratatui-testing`
+- add MCP/tool qualification convention checks
+- add plugin-boundary checks ensuring server/runtime plugin behavior is not implemented as TUI plugin behavior and vice versa
+
+#### P3
+- add naming/layering checks where they are stable enough to automate without excessive brittleness
+- add error-category/code placement checks if the implementation formalizes them strongly enough
+
+**Dependencies**
+- authority suites in place
+- runtime suites in place
+
+**Acceptance criteria**
+- convention regressions fail with actionable messages tied to a PRD ownership rule or repo convention
+
+---
+
 ### `rust-opencode-port/tests/nonfunctional/`
 
 **Backlog**
@@ -587,7 +619,8 @@ This backlog is intended to be execution-oriented and should be used together wi
 15. `tests/subsystem/`
 16. `tests/interfaces/`
 17. `tests/compatibility/`
-18. `tests/nonfunctional/`
+18. `tests/conventions/`
+19. `tests/nonfunctional/`
 
 ---
 

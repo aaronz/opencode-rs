@@ -9,7 +9,7 @@ It covers:
 - Functional correctness against PRD requirements
 - Cross-document consistency validation
 - Regression coverage for authority documents and subsystem boundaries
-- Test levels: unit, integration, end-to-end, compatibility, and non-functional testing
+- Test levels: unit, integration, end-to-end, compatibility, convention, and non-functional testing
 - Release gates for implementation readiness
 
 This document does **not** redefine product behavior. Each test area inherits its requirements from the corresponding PRD.
@@ -39,6 +39,7 @@ The test plan must prove that the Rust port:
 | Integration | Validate subsystem interactions | session + storage, agent + tool + permission, server + config, plugin + runtime |
 | End-to-End | Validate user-visible workflows | CLI/TUI flows, session lifecycle, sharing, plugin activation, API workflows |
 | Compatibility | Validate legacy/interop behavior | config aliases, historical route adapters if implemented, compat skill/plugin paths |
+| Convention | Validate implementation and test-suite structure | crate boundaries, naming, ownership rules, route grouping, test placement |
 | Non-Functional | Validate system qualities | performance, reliability, recovery, security, observability |
 
 ### Coverage Model
@@ -290,6 +291,47 @@ These checks should be automated where possible using spec-to-implementation map
 
 ---
 
+## Convention Tests
+
+Convention tests validate that the implementation and the test suite itself continue to follow the structural rules established by the PRD set and repository conventions.
+
+### Architecture Boundary Conventions
+
+- config ownership remains centered in `06`
+- HTTP route ownership remains centered in `07`
+- server/runtime plugin behavior remains centered in `08`
+- TUI plugin behavior remains centered in `15`
+- subsystem implementations do not silently reintroduce authority drift
+
+### Rust Codebase Conventions
+
+- crate and module placement follows repository architecture
+- naming follows Rust conventions from `AGENTS.md`
+- error types and error-code/category usage remain in the intended layer
+- public API surface is exposed from the correct crate/module boundaries
+
+### Test Suite Conventions
+
+- crate-local invariants live in crate-local tests
+- cross-crate workflows live under `rust-opencode-port/tests/`
+- TUI interaction tests use `ratatui-testing`
+- compatibility tests remain isolated from canonical behavior tests
+- environment-dependent tests are clearly marked and gated
+
+### API / Config / Permission Conventions
+
+- route registration continues to follow the canonical resource-group layout
+- config ownership split between `opencode.json` and `tui.json` is preserved
+- `tools` compatibility handling normalizes into canonical permission behavior
+- permission checks happen before tool execution
+- MCP/tool naming conventions stay deterministic
+
+### Convention Test Outputs
+
+Convention tests should fail with actionable messages that identify the violated rule, the affected crate/file/suite, and the PRD or repo convention being broken.
+
+---
+
 ## Negative and Failure Testing
 
 Every subsystem should include at least:
@@ -364,6 +406,7 @@ Recommended CI gates:
 - API contract test suite
 - TUI/plugin integration suite
 - Compatibility suite
+- Convention suite
 - Smoke end-to-end workflow suite
 
 ---
@@ -397,6 +440,12 @@ tests/
     config_aliases/
     skill_paths/
     legacy_routes/
+  conventions/
+    architecture/
+    config/
+    routes/
+    naming/
+    test_layout/
   nonfunctional/
     performance/
     recovery/
@@ -422,6 +471,7 @@ Minimum traceability rule:
 | Runtime interaction | integration + negative |
 | User-visible workflow | e2e + negative |
 | Compatibility behavior | compatibility + regression |
+| Convention rule | convention + regression |
 | Reliability/security requirement | non-functional + regression |
 
 ---

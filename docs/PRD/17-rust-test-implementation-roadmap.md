@@ -11,6 +11,7 @@ It defines:
 - recommended sequencing
 - CI/release gates
 - exit criteria for each milestone
+- convention-test lane for enforcing repository and PRD structure
 
 This roadmap assumes the monorepo structure described in `AGENTS.md`, especially:
 
@@ -27,7 +28,8 @@ The roadmap must ensure the team builds tests in dependency order:
 2. config/API authority second
 3. runtime interactions third
 4. user-visible workflows fourth
-5. compatibility and non-functional gates last
+5. compatibility and convention gates next
+6. non-functional gates last
 
 This ordering reduces rework and ensures subsystem tests are built on stable authority-level contracts.
 
@@ -41,6 +43,7 @@ This ordering reduces rework and ensures subsystem tests are built on stable aut
 - **Deterministic fixtures**: prefer `TempProject`, `MockServer`, and `MockLLMProvider` over ad hoc setup
 - **TUI tests use `ratatui-testing`**: avoid manual terminal simulation if the shared library can cover it
 - **Compatibility is explicit**: only build compatibility tests for behaviors intentionally preserved
+- **Convention tests are structural**: use them to enforce ownership, layering, naming, and test-placement rules continuously
 
 ---
 
@@ -342,6 +345,28 @@ Make compatibility behavior explicit and prevent regressions as features expand.
 
 ---
 
+## Phase 5A — Convention Test Hardening
+
+### Purpose
+
+Continuously enforce structural conventions so the implementation does not drift away from the PRD ownership model or repository testing conventions.
+
+### Work Items
+
+- add architecture-boundary convention tests
+- add config-ownership convention tests
+- add route/resource-group convention tests
+- add test-placement convention tests
+- add TUI-testing convention checks to ensure UI interaction tests use `ratatui-testing`
+- add naming/layering checks where they can be automated safely
+
+### Exit Criteria
+
+- convention suite is green in CI
+- new tests and new crates cannot bypass agreed structural rules silently
+
+---
+
 ## Phase 6 — Non-Functional and Release Qualification
 
 ### Purpose
@@ -395,6 +420,7 @@ rust-opencode-port/
     subsystem/
     interfaces/
     compatibility/
+    conventions/
     nonfunctional/
 
 ratatui-testing/
@@ -422,6 +448,7 @@ ratatui-testing/
 - full workspace integration suite
 - TUI rendering/plugin suite
 - compatibility suite
+- convention suite
 
 ### Stage 4 — Release Qualification Gate
 
@@ -441,6 +468,7 @@ ratatui-testing/
 | Phase 3 | `04`, `05`, `09`, `10`, `11`, `12` | yes |
 | Phase 4 | `13`, `14` | yes |
 | Phase 5 | compatibility overlays | yes |
+| Phase 5A | convention enforcement | yes |
 | Phase 6 | release qualification | release gate |
 
 ---
