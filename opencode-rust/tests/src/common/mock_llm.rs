@@ -1,8 +1,10 @@
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use opencode_llm::provider::{ChatMessage, ChatResponse, Model, Provider, ProviderConfig, StreamingCallback};
 use opencode_core::OpenCodeError;
+use opencode_llm::provider::{
+    ChatMessage, ChatResponse, Model, Provider, ProviderConfig, StreamingCallback,
+};
 
 struct MockState {
     responses: Vec<String>,
@@ -43,14 +45,20 @@ impl MockLLMProvider {
     }
 
     pub fn with_response(self, content: &str) -> Self {
-        self.state.lock().unwrap().responses.push(content.to_string());
+        self.state
+            .lock()
+            .unwrap()
+            .responses
+            .push(content.to_string());
         self
     }
 
     pub fn with_streaming_chunks(self, chunks: Vec<&str>) -> Self {
-        self.state.lock().unwrap().streaming_chunks.push(
-            chunks.iter().map(|s| s.to_string()).collect()
-        );
+        self.state
+            .lock()
+            .unwrap()
+            .streaming_chunks
+            .push(chunks.iter().map(|s| s.to_string()).collect());
         self
     }
 
@@ -76,7 +84,11 @@ impl Default for MockLLMProvider {
 
 #[async_trait]
 impl Provider for MockLLMProvider {
-    async fn complete(&self, prompt: &str, _context: Option<&str>) -> Result<String, OpenCodeError> {
+    async fn complete(
+        &self,
+        prompt: &str,
+        _context: Option<&str>,
+    ) -> Result<String, OpenCodeError> {
         let mut state = self.state.lock().unwrap();
         state.last_prompt = Some(prompt.to_string());
         state.call_count += 1;
@@ -183,7 +195,10 @@ mod tests {
         provider.complete_streaming("test", callback).await.unwrap();
 
         let result = chunks.lock().unwrap();
-        assert_eq!(*result, vec!["a".to_string(), "b".to_string(), "c".to_string()]);
+        assert_eq!(
+            *result,
+            vec!["a".to_string(), "b".to_string(), "c".to_string()]
+        );
     }
 
     #[tokio::test]
@@ -192,9 +207,10 @@ mod tests {
             .with_model("mock-model")
             .with_response("chat response");
 
-        let messages = vec![
-            ChatMessage { role: "user".to_string(), content: "hi".to_string() },
-        ];
+        let messages = vec![ChatMessage {
+            role: "user".to_string(),
+            content: "hi".to_string(),
+        }];
         let result = provider.chat(&messages).await.unwrap();
         assert_eq!(result.content, "chat response");
         assert_eq!(result.model, "mock-model");

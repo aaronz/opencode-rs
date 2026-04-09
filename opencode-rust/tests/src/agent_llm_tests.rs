@@ -1,4 +1,3 @@
-
 use crate::common::MockLLMProvider;
 use opencode_agent::{Agent, AgentType, BuildAgent, GeneralAgent, PlanAgent};
 use opencode_core::{Message, Session};
@@ -28,8 +27,7 @@ async fn test_build_agent_e2e_conversation() {
 
 #[tokio::test]
 async fn test_plan_agent_readonly_constraint() {
-    let provider = MockLLMProvider::new()
-        .with_response("I can only read files, not write them.");
+    let provider = MockLLMProvider::new().with_response("I can only read files, not write them.");
 
     let mut session = Session::new();
     session.add_message(Message::user("Write a file for me".to_string()));
@@ -50,8 +48,7 @@ async fn test_plan_agent_readonly_constraint() {
 
 #[tokio::test]
 async fn test_general_agent_search_focused() {
-    let provider = MockLLMProvider::new()
-        .with_response("Found 3 matching files.");
+    let provider = MockLLMProvider::new().with_response("Found 3 matching files.");
 
     let mut session = Session::new();
     session.add_message(Message::user("Find all Rust files".to_string()));
@@ -71,10 +68,8 @@ async fn test_general_agent_search_focused() {
 
 #[tokio::test]
 async fn test_agent_switch_between_types() {
-    let build_provider = MockLLMProvider::new()
-        .with_response("Build agent response");
-    let plan_provider = MockLLMProvider::new()
-        .with_response("Plan agent response");
+    let build_provider = MockLLMProvider::new().with_response("Build agent response");
+    let plan_provider = MockLLMProvider::new().with_response("Plan agent response");
 
     let mut session = Session::new();
     session.add_message(Message::user("Hello".to_string()));
@@ -103,8 +98,7 @@ async fn test_agent_switch_between_types() {
 
 #[tokio::test]
 async fn test_agent_error_propagation() {
-    let provider = MockLLMProvider::new()
-        .with_error("Connection failed");
+    let provider = MockLLMProvider::new().with_error("Connection failed");
 
     let mut session = Session::new();
     session.add_message(Message::user("Hi".to_string()));
@@ -120,8 +114,7 @@ async fn test_agent_error_propagation() {
 
 #[tokio::test]
 async fn test_agent_with_system_message() {
-    let provider = MockLLMProvider::new()
-        .with_response("Response with system context");
+    let provider = MockLLMProvider::new().with_response("Response with system context");
 
     let mut session = Session::new();
     session.add_message(Message::system("You are a helpful assistant".to_string()));

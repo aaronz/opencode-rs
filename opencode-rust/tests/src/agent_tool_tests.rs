@@ -1,5 +1,5 @@
 use crate::common::TempProject;
-use opencode_tools::{Tool, ToolRegistry, read::ReadTool, write::WriteTool};
+use opencode_tools::{read::ReadTool, write::WriteTool, Tool, ToolRegistry};
 
 #[tokio::test]
 async fn test_tool_registry_register_and_execute() {
@@ -7,7 +7,11 @@ async fn test_tool_registry_register_and_execute() {
     registry.register(ReadTool::new()).await;
 
     let result = registry
-        .execute("read", serde_json::json!({"path": "/nonexistent.txt"}), None)
+        .execute(
+            "read",
+            serde_json::json!({"path": "/nonexistent.txt"}),
+            None,
+        )
         .await;
 
     assert!(result.is_err() || result.as_ref().map(|r| !r.success).unwrap_or(false));
@@ -20,7 +24,10 @@ async fn test_read_tool_file_exists() {
 
     let tool = ReadTool::new();
     let result = tool
-        .execute(serde_json::json!({"path": project.path().join("test.txt").to_string_lossy()}), None)
+        .execute(
+            serde_json::json!({"path": project.path().join("test.txt").to_string_lossy()}),
+            None,
+        )
         .await
         .expect("Read tool should execute");
 
@@ -43,7 +50,11 @@ async fn test_read_tool_file_not_found() {
 #[tokio::test]
 async fn test_write_tool_creates_file() {
     let project = TempProject::new();
-    let file_path = project.path().join("new_file.txt").to_string_lossy().to_string();
+    let file_path = project
+        .path()
+        .join("new_file.txt")
+        .to_string_lossy()
+        .to_string();
 
     let tool = WriteTool;
     let result = tool
@@ -59,10 +70,7 @@ async fn test_write_tool_creates_file() {
 
     let file_path = project.path().join("new_file.txt");
     assert!(file_path.exists());
-    assert_eq!(
-        std::fs::read_to_string(&file_path).unwrap(),
-        "New content"
-    );
+    assert_eq!(std::fs::read_to_string(&file_path).unwrap(), "New content");
 }
 
 #[tokio::test]
@@ -71,7 +79,11 @@ async fn test_write_tool_overwrites_file() {
     project.create_file("existing.txt", "Old content");
 
     let tool = WriteTool;
-    let file_path = project.path().join("existing.txt").to_string_lossy().to_string();
+    let file_path = project
+        .path()
+        .join("existing.txt")
+        .to_string_lossy()
+        .to_string();
 
     let result = tool
         .execute(
@@ -84,10 +96,7 @@ async fn test_write_tool_overwrites_file() {
     assert!(result.success);
 
     let file_path = project.path().join("existing.txt");
-    assert_eq!(
-        std::fs::read_to_string(&file_path).unwrap(),
-        "New content"
-    );
+    assert_eq!(std::fs::read_to_string(&file_path).unwrap(), "New content");
 }
 
 #[tokio::test]
@@ -142,10 +151,7 @@ async fn test_tool_clone_works() {
 #[tokio::test]
 async fn test_read_tool_with_offset_and_limit() {
     let project = TempProject::new();
-    project.create_file(
-        "multiline.txt",
-        "Line 1\nLine 2\nLine 3\nLine 4\nLine 5",
-    );
+    project.create_file("multiline.txt", "Line 1\nLine 2\nLine 3\nLine 4\nLine 5");
 
     let tool = ReadTool::new();
     let result = tool
