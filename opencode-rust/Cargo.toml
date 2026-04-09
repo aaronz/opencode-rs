@@ -79,6 +79,7 @@ opencode-server = { path = "crates/server" }
 opencode-mcp = { path = "crates/mcp" }
 opencode-permission = { path = "crates/permission" }
 opencode-sdk = { path = "crates/sdk" }
+opencode-git = { path = "crates/git" }
 
 # Server dependencies
 actix-web = "4"
