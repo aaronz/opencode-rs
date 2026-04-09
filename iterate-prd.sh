@@ -8,6 +8,7 @@ parse_args() {
     RESUME_ITERATION=""
     MODEL=""
     MAX_IMPLEMENTATION_ROUNDS=10
+    PRD_INPUT=""
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -23,6 +24,10 @@ parse_args() {
                 MAX_IMPLEMENTATION_ROUNDS="$2"
                 shift 2
                 ;;
+            --prd|-p)
+                PRD_INPUT="$2"
+                shift 2
+                ;;
             *)
                 shift
                 ;;
@@ -35,23 +40,43 @@ parse_args() {
 parse_args "$@"
 
 WORKSPACE_DIR="$(cd "$(dirname "$0")" && pwd)"
-PRD_PATH="$WORKSPACE_DIR/TUI_PRD_Rust.md"
-CONSTITUTION_PATH="$WORKSPACE_DIR/outputs/.specify/memory/constitution.md"
+CONSTITUTION_PATH="$WORKSPACE_DIR/iterations/.specify/memory/constitution.md"
+
+if [ -n "$PRD_INPUT" ]; then
+    if [ -d "$PRD_INPUT" ]; then
+        mapfile -t prd_files < <(find "$PRD_INPUT" -maxdepth 1 -name "*.md" | sort)
+        if [ ${#prd_files[@]} -eq 0 ]; then
+            echo "❌ 文件夹中未找到.md文件: $PRD_INPUT"
+            exit 1
+        fi
+        PRD_PATH="$OUTPUTS_DIR/_prd_combined.md"
+        cat "${prd_files[@]}" > "$PRD_PATH"
+        echo "📂 使用PRD文件夹: $PRD_INPUT (合并${#prd_files[@]}个文件)"
+    elif [ -f "$PRD_INPUT" ]; then
+        PRD_PATH="$PRD_INPUT"
+        echo "📄 使用PRD文件: $PRD_PATH"
+    else
+        echo "❌ PRD路径不存在: $PRD_INPUT"
+        exit 1
+    fi
+else
+    PRD_PATH="$WORKSPACE_DIR/PRD.md"
+fi
 
 # 确定迭代编号
 if [ -n "$RESUME_ITERATION" ]; then
     NEXT_ITERATION="$RESUME_ITERATION"
-    OUTPUTS_DIR="$WORKSPACE_DIR/outputs/iteration-${NEXT_ITERATION}"
+    OUTPUTS_DIR="$WORKSPACE_DIR/iterations/iteration-${NEXT_ITERATION}"
     if [ ! -d "$OUTPUTS_DIR" ]; then
         echo "❌ 指定迭代不存在: $OUTPUTS_DIR"
         exit 1
     fi
     echo "📦 恢复迭代 #${NEXT_ITERATION}"
 else
-    LAST_ITERATION=$(ls -d "$WORKSPACE_DIR/outputs/iteration-"* 2>/dev/null | sed 's/.*iteration-//' | sort -n | tail -1)
+    LAST_ITERATION=$(ls -d "$WORKSPACE_DIR/iterations/iteration-"* 2>/dev/null | sed 's/.*iteration-//' | sort -n | tail -1)
     NEXT_ITERATION=${LAST_ITERATION:-0}
     NEXT_ITERATION=$((NEXT_ITERATION + 1))
-    OUTPUTS_DIR="$WORKSPACE_DIR/outputs/iteration-${NEXT_ITERATION}"
+    OUTPUTS_DIR="$WORKSPACE_DIR/iterations/iteration-${NEXT_ITERATION}"
     mkdir -p "$OUTPUTS_DIR"
 fi
 
@@ -121,43 +146,162 @@ generate_if_missing() {
     rerun_if_missing "$file" "$prompt" "$max_retries"
 }
 
-# 检查未完成的P0/P1任务数量
+# 检查未完成的P0/P1任务数量（基于JSON文件）
 check_remaining_p0_p1() {
-    local task_file="$1"
-    if [ ! -f "$task_file" ]; then
+    local json_file="$1"
+    if [ ! -f "$json_file" ]; then
         echo "0"
         return
     fi
 
-    local remaining=0
+    local remaining=$(cat "$json_file" | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    if isinstance(data, list):
+        count = sum(1 for t in data if t.get('priority') in ['P0', 'P1'] and t.get('status') != 'done')
+        print(count)
+    elif isinstance(data, dict) and 'tasks' in data:
+        count = sum(1 for t in data['tasks'] if t.get('priority') in ['P0', 'P1'] and t.get('status') != 'done')
+        print(count)
+    else:
+        print('0')
+except:
+    print('0')
+" 2>/dev/null || echo "0")
 
-    local in_p0_section=0
-    while IFS= read -r line; do
-        if echo "$line" | grep -qE "^## P0"; then
-            in_p0_section=1
-        elif echo "$line" | grep -qE "^## P1"; then
-            in_p0_section=0
-        elif [ $in_p0_section -eq 1 ]; then
-            if echo "$line" | grep -qE "\|\s*[^|]*\|\s*(❌|⚠️|🔲|TODO)\s*\|"; then
-                remaining=$((remaining + 1))
-            fi
+    echo "${remaining:-0}"
+}
+
+# 检查是否存在TODO任务（基于JSON文件）
+has_todo_tasks_json() {
+    local json_file="$1"
+    if [ ! -f "$json_file" ]; then
+        echo "0"
+        return
+    fi
+
+    local has_todo=$(cat "$json_file" | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    tasks = data if isinstance(data, list) else data.get('tasks', [])
+    count = sum(1 for t in tasks if t.get('status') == 'todo')
+    print(count)
+except:
+    print('0')
+" 2>/dev/null || echo "0")
+
+    echo "${has_todo:-0}"
+}
+
+# 生成结构化任务JSON文件
+generate_tasks_json() {
+    local task_file="$1"
+    local json_file="$2"
+
+    if [ -f "$json_file" ] && [ $(wc -c < "$json_file") -gt 10 ]; then
+        echo "  ⏭️  跳过JSON生成（已存在）: $json_file"
+        return 0
+    fi
+
+    if [ ! -f "$task_file" ]; then
+        echo "  ⚠️  任务文件不存在，无法生成JSON: $task_file"
+        return 1
+    fi
+
+    echo "  📝 生成结构化任务JSON: $json_file"
+
+    local first_task=1
+    local current_priority=""
+    local task_id=""
+    local task_desc=""
+    local task_lines=""
+
+    process_task() {
+        if [[ -z "$task_id" || -z "$current_priority" ]]; then
+            return
         fi
-    done < "$task_file"
 
-    local in_p1_section=0
-    while IFS= read -r line; do
-        if echo "$line" | grep -qE "^## P1"; then
-            in_p1_section=1
-        elif echo "$line" | grep -qE "^## P2"; then
-            in_p1_section=0
-        elif [ $in_p1_section -eq 1 ]; then
-            if echo "$line" | grep -qE "\|\s*[^|]*\|\s*(❌|⚠️|🔲|TODO)\s*\|"; then
-                remaining=$((remaining + 1))
+        local has_todo=0
+        local has_done=0
+
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^[[:space:]]*-[[:space:]]*\[ ]]; then
+                if [[ "$line" =~ ^[[:space:]]*-[[:space:]]*\[[[:space:]]*\] ]]; then
+                    has_todo=1
+                else
+                    has_done=1
+                fi
             fi
-        fi
-    done < "$task_file"
+        done <<< "$task_lines"
 
-    echo "$remaining"
+        local status="pending"
+        if [[ $has_done -eq 1 && $has_todo -eq 0 ]]; then
+            status="done"
+        elif [[ $has_todo -eq 1 ]]; then
+            status="todo"
+        fi
+
+        local desc_json=$(echo "$task_desc" | jq -Rs '.')
+
+        if [[ $first_task -eq 0 ]]; then
+            echo ","
+        fi
+        first_task=0
+
+        echo "    {"
+        echo "      \"id\": \"$task_id\","
+        echo "      \"priority\": \"$current_priority\","
+        echo "      \"description\": $desc_json,"
+        echo "      \"status\": \"$status\""
+        echo -n "    }"
+
+        task_id=""
+        task_desc=""
+        task_lines=""
+    }
+
+    {
+        echo "{"
+        echo '  "tasks": ['
+        first_task=1
+
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^##[[:space:]]*P0 ]]; then
+                process_task
+                current_priority="P0"
+            elif [[ "$line" =~ ^##[[:space:]]*P1 ]]; then
+                process_task
+                current_priority="P1"
+            elif [[ "$line" =~ ^##[[:space:]]*P2 ]]; then
+                process_task
+                current_priority="P2"
+            elif [[ "$line" =~ ^###[[:space:]]*([A-Z][A-Z0-9]*-[0-9][0-9]*):[[:space:]]*(.+) ]]; then
+                local _mid="${BASH_REMATCH[1]}" _mdesc="${BASH_REMATCH[2]}"
+                process_task
+                task_id="$_mid"
+                task_desc="$_mdesc"
+                task_lines=""
+            elif [[ -n "$current_priority" && -n "$task_id" ]]; then
+                task_lines="${task_lines}${line}"$'\n'
+            fi
+        done < "$task_file"
+
+        process_task
+
+        echo ""
+        echo "  ]"
+        echo "}"
+    } > "$json_file"
+
+    if [ -f "$json_file" ] && [ $(wc -c < "$json_file") -gt 10 ]; then
+        echo "  ✅ JSON生成成功"
+        return 0
+    else
+        echo "  ⚠️  JSON生成失败"
+        return 1
+    fi
 }
 
 # 检查是否存在TODO任务
@@ -194,7 +338,7 @@ PROMPT_GAP_ANALYSIS="分析当前实现与PRD的差距，并将完整的差距�
 - 只使用 Read、Write、Edit、Grep、LSP 等直接工具
 
 ## 任务
-1. 读取当前实现目录结构（src/目录、outputs/src/目录等）
+1. 读取当前实现目录结构（src/目录、iterations/src/目录等）
 2. 读取PRD.md识别核心功能需求
 3. 对比实现与PRD的差距
 
@@ -340,10 +484,16 @@ fi
 generate_if_missing "$OUTPUTS_DIR/plan_v${NEXT_ITERATION}.md" "$PROMPT_PLAN_FILE" 5
 generate_if_missing "$OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.md" "$PROMPT_TASKS_FILE" 5
 
+TASKS_JSON="$OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.json"
+if ! check_file_quiet "$TASKS_JSON"; then
+    generate_tasks_json "$OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.md" "$TASKS_JSON"
+fi
+
 echo ""
 echo "[5/6] 执行实现..."
 
 TASK_FILE="$OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.md"
+TASKS_JSON="$OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.json"
 
 for round in $(seq 1 $MAX_IMPLEMENTATION_ROUNDS); do
     echo ""
@@ -351,15 +501,19 @@ for round in $(seq 1 $MAX_IMPLEMENTATION_ROUNDS); do
     echo "实现轮次 $round/$MAX_IMPLEMENTATION_ROUNDS"
     echo "=============================================="
 
-    if [ ! -f "$TASK_FILE" ]; then
-        echo "  ⚠️  任务文件不存在: $TASK_FILE"
-        break
+    if [ ! -f "$TASKS_JSON" ]; then
+        if [ -f "$TASK_FILE" ]; then
+            generate_tasks_json "$TASK_FILE" "$TASKS_JSON"
+        else
+            echo "  ⚠️  任务文件不存在: $TASK_FILE"
+            break
+        fi
     fi
 
-    remaining_p0_p1=$(check_remaining_p0_p1 "$TASK_FILE")
+    remaining_p0_p1=$(check_remaining_p0_p1 "$TASKS_JSON")
     echo "  📋 剩余未完成的P0/P1任务: $remaining_p0_p1"
 
-    todo_tasks=$(has_todo_tasks "$TASK_FILE")
+    todo_tasks=$(has_todo_tasks_json "$TASKS_JSON")
     echo "  📋 存在TODO任务: $todo_tasks"
 
     if [ "$remaining_p0_p1" -eq 0 ] && [ "$todo_tasks" -eq 0 ]; then
@@ -382,14 +536,17 @@ for round in $(seq 1 $MAX_IMPLEMENTATION_ROUNDS); do
 - 必须直接在当前 session 中完成所有实现工作
 - 只使用 Read、Write、Edit、Grep、LSP、Bash 等直接工具
 
-## 任务清单
+## 任务清单 (Markdown)
 $(cat $TASK_FILE)
+
+## 任务清单 (JSON)
+$(cat $TASKS_JSON 2>/dev/null || echo '{"tasks":[]}')
 
 ## Spec
 $(cat $OUTPUTS_DIR/spec_v${NEXT_ITERATION}.md)
 
 ## 实现目录
-./outputs/src/
+./iterations/src/
 
 ## 当前轮次信息
 - 这是第 $round 轮实现（共最多 $MAX_IMPLEMENTATION_ROUNDS 轮）
@@ -405,9 +562,11 @@ $(cat $OUTPUTS_DIR/spec_v${NEXT_ITERATION}.md)
 - npm run build 必须通过
 
 ## 重要提醒
-- 如果任务状态已标记为 ✅ 完成，跳过该任务
+- 如果任务状态已标记为 done，完成，跳过该任务
 - 专注于未完成的任务
-- 每次完成一个任务，更新任务文件中的Status为 ✅ Done"
+- 每次完成一个任务，必须更新两个文件：
+  1. 任务markdown文件中的Status改为 ✅ Done
+  2. 任务JSON文件中的status改为 \"done\""
 
     if [ $round -eq $MAX_IMPLEMENTATION_ROUNDS ] && [ "$remaining_p0_p1" -gt 0 ]; then
         echo ""
@@ -434,7 +593,7 @@ $(cat $OUTPUTS_DIR/gap-analysis.md)
 $(cat $OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.md)
 
 ## 实现状态
-检查./outputs/src/目录下的代码
+检查./iterations/src/目录下的代码
 
 ## 输出要求
 将完整的迭代验证报告写入到：$OUTPUTS_DIR/verification-report.md

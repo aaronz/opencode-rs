@@ -308,3 +308,59 @@ The CI runs on push to main/dev and PRs:
 1. Create agent module in `crates/agent/src/`
 2. Implement `Agent` trait
 3. Export from `crates/agent/src/lib.rs`
+
+### Desktop/Web/ACP Interface
+
+The project supports multiple interface modes:
+
+#### CLI Commands
+
+```bash
+# Start TUI mode (default)
+opencode
+
+# Start web interface mode
+opencode web --port 3000
+
+# Start API server mode
+opencode serve --port 8080
+
+# Start desktop mode (TUI + server + browser)
+opencode desktop --port 3000
+
+# ACP protocol commands
+opencode acp status
+opencode acp handshake --client-id <id> --capabilities chat,tasks
+opencode acp connect --url <url>
+```
+
+#### Configuration
+
+Desktop and ACP settings can be configured in `config.json`:
+
+```json
+{
+  "server": {
+    "port": 3000,
+    "hostname": "127.0.0.1",
+    "desktop": {
+      "enabled": true,
+      "auto_open_browser": true
+    },
+    "acp": {
+      "enabled": true,
+      "server_id": "local",
+      "version": "1.0"
+    }
+  }
+}
+```
+
+#### ACP Routes
+
+The ACP (Agent Communication Protocol) provides REST endpoints:
+
+- `GET /api/acp/status` - Get ACP status
+- `POST /api/acp/handshake` - Perform handshake
+- `POST /api/acp/connect` - Connect to a server
+- `POST /api/acp/ack` - Acknowledge handshake
