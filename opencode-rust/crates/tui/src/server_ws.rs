@@ -136,7 +136,10 @@ impl ServerClient {
         Err("Connection closed".into())
     }
 
-    pub async fn send_request(&self, request: ServerRequest) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn send_request(
+        &self,
+        request: ServerRequest,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let json = serde_json::to_string(&request)?;
         debug!("Sending request: {}", json);
         Ok(())
