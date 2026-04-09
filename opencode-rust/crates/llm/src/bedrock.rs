@@ -1,4 +1,4 @@
-use crate::provider::{Provider, StreamingCallback, Model, ProviderConfig};
+use crate::provider::{Model, Provider, ProviderConfig, StreamingCallback};
 use opencode_core::OpenCodeError;
 use std::env;
 
@@ -18,7 +18,8 @@ impl BedrockProvider {
             .unwrap_or_else(|_| "us-east-1".to_string());
 
         let config = ProviderConfig {
-            model: env::var("BEDROCK_MODEL").unwrap_or_else(|_| "anthropic.claude-3-sonnet-20240229-v1:0".to_string()),
+            model: env::var("BEDROCK_MODEL")
+                .unwrap_or_else(|_| "anthropic.claude-3-sonnet-20240229-v1:0".to_string()),
             api_key: env::var("AWS_BEARER_TOKEN_BEDROCK")
                 .or_else(|_| env::var("AWS_ACCESS_KEY_ID"))
                 .unwrap_or_default(),
@@ -58,7 +59,8 @@ impl BedrockProvider {
             return Ok(BedrockCredentials::Oidc {
                 token_file,
                 role_arn,
-                session_name: env::var("AWS_ROLE_SESSION_NAME").unwrap_or_else(|_| "opencode".to_string()),
+                session_name: env::var("AWS_ROLE_SESSION_NAME")
+                    .unwrap_or_else(|_| "opencode".to_string()),
             });
         }
 
@@ -86,21 +88,40 @@ enum BedrockCredentials {
 
 #[async_trait::async_trait]
 impl Provider for BedrockProvider {
-    async fn complete(&self, prompt: &str, _context: Option<&str>) -> Result<String, OpenCodeError> {
+    async fn complete(
+        &self,
+        prompt: &str,
+        _context: Option<&str>,
+    ) -> Result<String, OpenCodeError> {
         let credentials = self.resolve_credentials()?;
 
         match credentials {
             BedrockCredentials::BearerToken(token) => {
                 self.complete_with_bearer(&token, prompt).await
             }
-            BedrockCredentials::AccessKey { access_key, secret_key, session_token } => {
-                self.complete_with_aws_sigv4(&access_key, &secret_key, session_token.as_deref(), prompt).await
+            BedrockCredentials::AccessKey {
+                access_key,
+                secret_key,
+                session_token,
+            } => {
+                self.complete_with_aws_sigv4(
+                    &access_key,
+                    &secret_key,
+                    session_token.as_deref(),
+                    prompt,
+                )
+                .await
             }
             BedrockCredentials::Profile(profile) => {
                 self.complete_with_profile(&profile, prompt).await
             }
-            BedrockCredentials::Oidc { token_file, role_arn, session_name } => {
-                self.complete_with_oidc(&token_file, &role_arn, &session_name, prompt).await
+            BedrockCredentials::Oidc {
+                token_file,
+                role_arn,
+                session_name,
+            } => {
+                self.complete_with_oidc(&token_file, &role_arn, &session_name, prompt)
+                    .await
             }
         }
     }
@@ -117,7 +138,10 @@ impl Provider for BedrockProvider {
 
     fn get_models(&self) -> Vec<Model> {
         vec![
-            Model::new("anthropic.claude-3-5-sonnet-20241022-v2:0", "Claude 3.5 Sonnet"),
+            Model::new(
+                "anthropic.claude-3-5-sonnet-20241022-v2:0",
+                "Claude 3.5 Sonnet",
+            ),
             Model::new("anthropic.claude-3-sonnet-20240229-v1:0", "Claude 3 Sonnet"),
             Model::new("anthropic.claude-3-haiku-20240307-v1:0", "Claude 3 Haiku"),
             Model::new("anthropic.claude-3-opus-20240229-v1:0", "Claude 3 Opus"),
@@ -134,7 +158,11 @@ impl Provider for BedrockProvider {
 }
 
 impl BedrockProvider {
-    async fn complete_with_bearer(&self, token: &str, prompt: &str) -> Result<String, OpenCodeError> {
+    async fn complete_with_bearer(
+        &self,
+        token: &str,
+        prompt: &str,
+    ) -> Result<String, OpenCodeError> {
         let client = reqwest::Client::new();
         let url = format!(
             "https://bedrock-runtime.{}.amazonaws.com/model/{}/invoke",
@@ -195,8 +223,13 @@ impl BedrockProvider {
         self.complete_with_bearer("sigv4-placeholder", prompt).await
     }
 
-    async fn complete_with_profile(&self, _profile: &str, prompt: &str) -> Result<String, OpenCodeError> {
-        self.complete_with_bearer("profile-placeholder", prompt).await
+    async fn complete_with_profile(
+        &self,
+        _profile: &str,
+        prompt: &str,
+    ) -> Result<String, OpenCodeError> {
+        self.complete_with_bearer("profile-placeholder", prompt)
+            .await
     }
 
     async fn complete_with_oidc(
@@ -237,10 +270,7 @@ mod tests {
         env::set_var("AWS_ACCESS_KEY_ID", "AKIA123");
         env::set_var("AWS_SECRET_ACCESS_KEY", "secret123");
 
-        let provider = BedrockProvider::new(
-            ProviderConfig::default(),
-            "us-east-1".to_string(),
-        );
+        let provider = BedrockProvider::new(ProviderConfig::default(), "us-east-1".to_string());
         let creds = provider.resolve_credentials().unwrap();
         assert!(matches!(creds, BedrockCredentials::BearerToken(_)));
 
@@ -265,10 +295,7 @@ mod tests {
         env::set_var("AWS_ACCESS_KEY_ID", "AKIA456");
         env::set_var("AWS_SECRET_ACCESS_KEY", "secret456");
 
-        let provider = BedrockProvider::new(
-            ProviderConfig::default(),
-            "us-east-1".to_string(),
-        );
+        let provider = BedrockProvider::new(ProviderConfig::default(), "us-east-1".to_string());
         let creds = provider.resolve_credentials().unwrap();
         assert!(matches!(creds, BedrockCredentials::AccessKey { .. }));
 

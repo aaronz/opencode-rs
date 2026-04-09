@@ -60,7 +60,11 @@ impl GoogleProvider {
 
 #[async_trait]
 impl Provider for GoogleProvider {
-    async fn complete(&self, prompt: &str, _context: Option<&str>) -> Result<String, OpenCodeError> {
+    async fn complete(
+        &self,
+        prompt: &str,
+        _context: Option<&str>,
+    ) -> Result<String, OpenCodeError> {
         let contents = vec![GoogleContent {
             parts: vec![GooglePart {
                 text: prompt.to_string(),
@@ -71,7 +75,10 @@ impl Provider for GoogleProvider {
 
         let response = self
             .client
-            .post(format!("{}/models/{}:generateContent?key={}", self.base_url, self.model, self.api_key))
+            .post(format!(
+                "{}/models/{}:generateContent?key={}",
+                self.base_url, self.model, self.api_key
+            ))
             .header("Content-Type", "application/json")
             .json(&request)
             .send()
@@ -104,7 +111,11 @@ impl Provider for GoogleProvider {
         Ok(content)
     }
 
-    async fn complete_streaming(&self, prompt: &str, mut callback: StreamingCallback) -> Result<(), OpenCodeError> {
+    async fn complete_streaming(
+        &self,
+        prompt: &str,
+        mut callback: StreamingCallback,
+    ) -> Result<(), OpenCodeError> {
         let contents = vec![GoogleContent {
             parts: vec![GooglePart {
                 text: prompt.to_string(),
@@ -128,7 +139,10 @@ impl Provider for GoogleProvider {
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
-            return Err(OpenCodeError::Llm(format!("Google API error {}: {}", status, error_text)));
+            return Err(OpenCodeError::Llm(format!(
+                "Google API error {}: {}",
+                status, error_text
+            )));
         }
 
         use futures_util::StreamExt;

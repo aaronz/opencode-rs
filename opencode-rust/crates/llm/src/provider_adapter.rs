@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use opencode_core::OpenCodeError;
 
-use crate::provider::Provider;
 use crate::auth::{AuthStrategy, ProviderAuthConfig};
+use crate::provider::Provider;
 
 /// Unified provider adapter that uses AuthStrategy for authentication
 pub struct ProviderAdapter {
@@ -51,14 +51,21 @@ impl OpenAICompatibleAdapter {
 
 #[async_trait]
 impl Provider for OpenAICompatibleAdapter {
-    async fn complete(&self, prompt: &str, _context: Option<&str>) -> Result<String, OpenCodeError> {
+    async fn complete(
+        &self,
+        prompt: &str,
+        _context: Option<&str>,
+    ) -> Result<String, OpenCodeError> {
         let request = serde_json::json!({
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
             "max_tokens": 4096
         });
 
-        let mut req = self.adapter.client.post(&self.adapter.config.endpoint)
+        let mut req = self
+            .adapter
+            .client
+            .post(&self.adapter.config.endpoint)
             .header("Content-Type", "application/json")
             .json(&request);
 
@@ -67,14 +74,21 @@ impl Provider for OpenAICompatibleAdapter {
             req = req.header(key, value);
         }
 
-        let response = req.send().await
+        let response = req
+            .send()
+            .await
             .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
 
         if !response.status().is_success() {
-            return Err(OpenCodeError::Llm(format!("API error: {}", response.status())));
+            return Err(OpenCodeError::Llm(format!(
+                "API error: {}",
+                response.status()
+            )));
         }
 
-        let result: serde_json::Value = response.json().await
+        let result: serde_json::Value = response
+            .json()
+            .await
             .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
 
         result["choices"][0]["message"]["content"]
@@ -99,7 +113,9 @@ impl AnthropicAdapter {
         Self {
             adapter: ProviderAdapter::new(
                 config,
-                AuthStrategy::HeaderApiKey { header_name: "x-api-key".to_string() },
+                AuthStrategy::HeaderApiKey {
+                    header_name: "x-api-key".to_string(),
+                },
             ),
             model,
         }
@@ -108,14 +124,21 @@ impl AnthropicAdapter {
 
 #[async_trait]
 impl Provider for AnthropicAdapter {
-    async fn complete(&self, prompt: &str, _context: Option<&str>) -> Result<String, OpenCodeError> {
+    async fn complete(
+        &self,
+        prompt: &str,
+        _context: Option<&str>,
+    ) -> Result<String, OpenCodeError> {
         let request = serde_json::json!({
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
             "max_tokens": 4096
         });
 
-        let mut req = self.adapter.client.post(&self.adapter.config.endpoint)
+        let mut req = self
+            .adapter
+            .client
+            .post(&self.adapter.config.endpoint)
             .header("Content-Type", "application/json")
             .header("anthropic-version", "2023-06-01")
             .json(&request);
@@ -124,14 +147,21 @@ impl Provider for AnthropicAdapter {
             req = req.header(key, value);
         }
 
-        let response = req.send().await
+        let response = req
+            .send()
+            .await
             .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
 
         if !response.status().is_success() {
-            return Err(OpenCodeError::Llm(format!("API error: {}", response.status())));
+            return Err(OpenCodeError::Llm(format!(
+                "API error: {}",
+                response.status()
+            )));
         }
 
-        let result: serde_json::Value = response.json().await
+        let result: serde_json::Value = response
+            .json()
+            .await
             .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
 
         result["content"][0]["text"]
@@ -162,25 +192,39 @@ impl LocalEndpointAdapter {
 
 #[async_trait]
 impl Provider for LocalEndpointAdapter {
-    async fn complete(&self, prompt: &str, _context: Option<&str>) -> Result<String, OpenCodeError> {
+    async fn complete(
+        &self,
+        prompt: &str,
+        _context: Option<&str>,
+    ) -> Result<String, OpenCodeError> {
         let request = serde_json::json!({
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
             "max_tokens": 4096
         });
 
-        let req = self.adapter.client.post(&self.adapter.config.endpoint)
+        let req = self
+            .adapter
+            .client
+            .post(&self.adapter.config.endpoint)
             .header("Content-Type", "application/json")
             .json(&request);
 
-        let response = req.send().await
+        let response = req
+            .send()
+            .await
             .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
 
         if !response.status().is_success() {
-            return Err(OpenCodeError::Llm(format!("API error: {}", response.status())));
+            return Err(OpenCodeError::Llm(format!(
+                "API error: {}",
+                response.status()
+            )));
         }
 
-        let result: serde_json::Value = response.json().await
+        let result: serde_json::Value = response
+            .json()
+            .await
             .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
 
         result["choices"][0]["message"]["content"]
@@ -214,7 +258,9 @@ mod tests {
         let config = ProviderAuthConfig::new(
             "anthropic".to_string(),
             "https://api.anthropic.com/v1/messages".to_string(),
-            AuthStrategy::HeaderApiKey { header_name: "x-api-key".to_string() },
+            AuthStrategy::HeaderApiKey {
+                header_name: "x-api-key".to_string(),
+            },
         );
         let adapter = AnthropicAdapter::new(config, "claude-3".to_string());
         assert_eq!(adapter.provider_name(), "anthropic");

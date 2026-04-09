@@ -46,9 +46,10 @@ impl OAuthSessionManager {
                 client_secret,
                 scopes,
             } => {
-                let refresh_token = credential.refresh_token.as_ref().ok_or_else(|| {
-                    OpenCodeError::Llm("No refresh token available".to_string())
-                })?;
+                let refresh_token = credential
+                    .refresh_token
+                    .as_ref()
+                    .ok_or_else(|| OpenCodeError::Llm("No refresh token available".to_string()))?;
 
                 let response = self
                     .client
@@ -72,23 +73,20 @@ impl OAuthSessionManager {
                     )));
                 }
 
-                let token_response: OAuthTokenResponse = response
-                    .json()
-                    .await
-                    .map_err(|e| OpenCodeError::Llm(format!("Failed to parse OAuth response: {}", e)))?;
+                let token_response: OAuthTokenResponse = response.json().await.map_err(|e| {
+                    OpenCodeError::Llm(format!("Failed to parse OAuth response: {}", e))
+                })?;
 
-                let expires_at = token_response.expires_in.map(|seconds| {
-                    chrono::Utc::now() + chrono::Duration::seconds(seconds as i64)
-                });
+                let expires_at = token_response
+                    .expires_in
+                    .map(|seconds| chrono::Utc::now() + chrono::Duration::seconds(seconds as i64));
 
-                let mut new_credential = Credential::new(
-                    credential.provider.clone(),
-                    token_response.access_token,
-                );
+                let mut new_credential =
+                    Credential::new(credential.provider.clone(), token_response.access_token);
                 new_credential.expires_at = expires_at;
-                new_credential.refresh_token = token_response.refresh_token.or_else(|| {
-                    credential.refresh_token.clone()
-                });
+                new_credential.refresh_token = token_response
+                    .refresh_token
+                    .or_else(|| credential.refresh_token.clone());
 
                 Ok(new_credential)
             }
@@ -128,13 +126,9 @@ pub enum AuthStrategy {
         header_name: Option<String>, // defaults to "Authorization"
     },
     /// API key in custom header (e.g., x-api-key)
-    HeaderApiKey {
-        header_name: String,
-    },
+    HeaderApiKey { header_name: String },
     /// API key as query parameter
-    QueryApiKey {
-        param_name: String,
-    },
+    QueryApiKey { param_name: String },
     /// OAuth session with refresh capability
     OAuthSession {
         token_endpoint: String,
@@ -288,7 +282,8 @@ impl CredentialStore {
     }
 
     pub fn store(&mut self, credential: Credential) {
-        self.credentials.insert(credential.provider.clone(), credential);
+        self.credentials
+            .insert(credential.provider.clone(), credential);
     }
 
     pub fn get(&self, provider: &str) -> Option<&Credential> {
@@ -355,8 +350,9 @@ impl CredentialStore {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
-                .map_err(|e| OpenCodeError::Llm(format!("Failed to set file permissions: {}", e)))?;
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)).map_err(
+                |e| OpenCodeError::Llm(format!("Failed to set file permissions: {}", e)),
+            )?;
         }
 
         Ok(())
@@ -404,8 +400,8 @@ impl Default for CredentialStore {
 
 /// Simple encryption utilities for credential storage
 pub mod encryption {
-    use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
-    use chacha20poly1305::{ChaCha20Poly1305, Key, KeyInit, Nonce, aead::Aead};
+    use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+    use chacha20poly1305::{aead::Aead, ChaCha20Poly1305, Key, KeyInit, Nonce};
     use opencode_core::OpenCodeError;
     use rand::RngCore;
     use sha2::{Digest, Sha256};
@@ -426,7 +422,9 @@ pub mod encryption {
     /// Encode credential for storage (AES-256-GCM via ChaCha20-Poly1305 + base64)
     pub fn encode_credential(value: &str, key: &str) -> Result<String, OpenCodeError> {
         if value.is_empty() {
-            return Err(OpenCodeError::Llm("Cannot encode empty credential".to_string()));
+            return Err(OpenCodeError::Llm(
+                "Cannot encode empty credential".to_string(),
+            ));
         }
         let cipher = ChaCha20Poly1305::new(&derive_key(key.as_bytes()));
         let nonce = generate_nonce();
@@ -442,14 +440,18 @@ pub mod encryption {
     /// Decode credential from storage
     pub fn decode_credential(encoded: &str, key: &str) -> Result<String, OpenCodeError> {
         if encoded.is_empty() {
-            return Err(OpenCodeError::Llm("Cannot decode empty credential".to_string()));
+            return Err(OpenCodeError::Llm(
+                "Cannot decode empty credential".to_string(),
+            ));
         }
         let combined = BASE64
             .decode(encoded)
             .map_err(|e| OpenCodeError::Llm(format!("Failed to decode credential: {}", e)))?;
 
         if combined.len() < 13 {
-            return Err(OpenCodeError::Llm("Invalid credential data: too short".to_string()));
+            return Err(OpenCodeError::Llm(
+                "Invalid credential data: too short".to_string(),
+            ));
         }
 
         let (nonce_bytes, ciphertext) = combined.split_at(12);

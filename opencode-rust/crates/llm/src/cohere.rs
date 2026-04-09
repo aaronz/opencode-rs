@@ -1,4 +1,4 @@
-use crate::provider::{Provider, ProviderConfig, Model, StreamingCallback};
+use crate::provider::{Model, Provider, ProviderConfig, StreamingCallback};
 use opencode_core::OpenCodeError;
 
 pub struct CohereProvider {
@@ -20,7 +20,7 @@ impl Provider for CohereProvider {
         let _messages = if let Some(ctx) = context {
             vec![
                 serde_json::json!({"role": "system", "content": ctx}),
-                serde_json::json!({"role": "user", "content": prompt})
+                serde_json::json!({"role": "user", "content": prompt}),
             ]
         } else {
             vec![serde_json::json!({"role": "user", "content": prompt})]
@@ -41,14 +41,21 @@ impl Provider for CohereProvider {
             .await
             .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
 
-        let result: serde_json::Value = response.json().await.map_err(|e| OpenCodeError::Llm(e.to_string()))?;
+        let result: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
         result["text"]
             .as_str()
             .map(|s| s.to_string())
             .ok_or_else(|| OpenCodeError::Llm("Invalid Cohere response".to_string()))
     }
 
-    async fn complete_streaming(&self, prompt: &str, mut callback: StreamingCallback) -> Result<(), OpenCodeError> {
+    async fn complete_streaming(
+        &self,
+        prompt: &str,
+        mut callback: StreamingCallback,
+    ) -> Result<(), OpenCodeError> {
         let client = reqwest::Client::new();
         let url = "https://api.cohere.ai/v1/chat";
 
@@ -71,7 +78,10 @@ impl Provider for CohereProvider {
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
-            return Err(OpenCodeError::Llm(format!("Cohere API error {}: {}", status, error_text)));
+            return Err(OpenCodeError::Llm(format!(
+                "Cohere API error {}: {}",
+                status, error_text
+            )));
         }
 
         use futures_util::StreamExt;
@@ -98,7 +108,9 @@ impl Provider for CohereProvider {
                             }
                             if let Some(content) = chunk["text"].as_str() {
                                 callback(content.to_string());
-                            } else if let Some(content) = chunk["delta"]["message"]["content"]["text"].as_str() {
+                            } else if let Some(content) =
+                                chunk["delta"]["message"]["content"]["text"].as_str()
+                            {
                                 callback(content.to_string());
                             }
                         }

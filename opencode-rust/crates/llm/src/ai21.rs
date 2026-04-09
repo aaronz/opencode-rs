@@ -208,7 +208,10 @@ mod tests {
         let provider = provider();
         assert_eq!(provider.provider_name(), "ai21");
         assert_eq!(provider.get_models().len(), 3);
-        assert_eq!(provider.endpoint(), "https://api.ai21.com/studio/v1/j2-ultra/complete");
+        assert_eq!(
+            provider.endpoint(),
+            "https://api.ai21.com/studio/v1/j2-ultra/complete"
+        );
     }
 
     #[test]

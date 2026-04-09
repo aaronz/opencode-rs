@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use opencode_core::OpenCodeError;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum LlmError {
@@ -127,7 +127,9 @@ where
                             tokio::time::sleep(tokio::time::Duration::from_millis(delay)).await;
                         }
                     }
-                    LlmError::NetworkError(_) | LlmError::ServerError(_) | LlmError::RequestTimeout => {
+                    LlmError::NetworkError(_)
+                    | LlmError::ServerError(_)
+                    | LlmError::RequestTimeout => {
                         tokio::time::sleep(tokio::time::Duration::from_millis(delay)).await;
                     }
                     _ => return Err(err),

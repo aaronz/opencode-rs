@@ -41,7 +41,11 @@ impl OllamaProvider {
 
 #[async_trait]
 impl Provider for OllamaProvider {
-    async fn complete(&self, prompt: &str, _context: Option<&str>) -> Result<String, OpenCodeError> {
+    async fn complete(
+        &self,
+        prompt: &str,
+        _context: Option<&str>,
+    ) -> Result<String, OpenCodeError> {
         let request = OllamaRequest {
             model: self.model.clone(),
             prompt: prompt.to_string(),
@@ -59,7 +63,10 @@ impl Provider for OllamaProvider {
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
-            return Err(OpenCodeError::Llm(format!("Ollama API error {}: {}", status, error_text)));
+            return Err(OpenCodeError::Llm(format!(
+                "Ollama API error {}: {}",
+                status, error_text
+            )));
         }
 
         let result: OllamaResponse = response
@@ -70,7 +77,11 @@ impl Provider for OllamaProvider {
         Ok(result.response)
     }
 
-    async fn complete_streaming(&self, prompt: &str, mut callback: StreamingCallback) -> Result<(), OpenCodeError> {
+    async fn complete_streaming(
+        &self,
+        prompt: &str,
+        mut callback: StreamingCallback,
+    ) -> Result<(), OpenCodeError> {
         let request = OllamaRequest {
             model: self.model.clone(),
             prompt: prompt.to_string(),
@@ -88,11 +99,14 @@ impl Provider for OllamaProvider {
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
-            return Err(OpenCodeError::Llm(format!("Ollama API error {}: {}", status, error_text)));
+            return Err(OpenCodeError::Llm(format!(
+                "Ollama API error {}: {}",
+                status, error_text
+            )));
         }
 
         let mut lines = response.bytes_stream();
-        
+
         use futures_util::StreamExt;
         while let Some(item) = lines.next().await {
             match item {
@@ -125,13 +139,19 @@ mod tests {
 
     #[test]
     fn test_ollama_provider_new() {
-        let provider = OllamaProvider::new("llama2".to_string(), Some("http://localhost:11434".to_string()));
+        let provider = OllamaProvider::new(
+            "llama2".to_string(),
+            Some("http://localhost:11434".to_string()),
+        );
         assert_eq!(provider.model, "llama2");
     }
 
     #[tokio::test]
     async fn test_ollama_complete_fails_without_server() {
-        let provider = OllamaProvider::new("llama2".to_string(), Some("http://localhost:19999".to_string()));
+        let provider = OllamaProvider::new(
+            "llama2".to_string(),
+            Some("http://localhost:19999".to_string()),
+        );
         let result = provider.complete("hello", None).await;
         assert!(result.is_err());
     }

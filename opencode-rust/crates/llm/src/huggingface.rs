@@ -44,15 +44,12 @@ impl HuggingFaceProvider {
             .and_then(Value::as_array)
             .and_then(|choices| choices.first())
             .and_then(|choice| {
-                choice
-                    .get("text")
-                    .and_then(Value::as_str)
-                    .or_else(|| {
-                        choice
-                            .get("message")
-                            .and_then(|message| message.get("content"))
-                            .and_then(Value::as_str)
-                    })
+                choice.get("text").and_then(Value::as_str).or_else(|| {
+                    choice
+                        .get("message")
+                        .and_then(|message| message.get("content"))
+                        .and_then(Value::as_str)
+                })
             })
             .map(ToString::to_string)
     }
@@ -220,7 +217,10 @@ mod tests {
         let provider = provider();
         assert_eq!(provider.provider_name(), "huggingface");
         assert_eq!(provider.get_models().len(), 3);
-        assert_eq!(provider.endpoint(), "https://api-inference.huggingface.co/models/meta-llama/Llama-3.1-8B-Instruct");
+        assert_eq!(
+            provider.endpoint(),
+            "https://api-inference.huggingface.co/models/meta-llama/Llama-3.1-8B-Instruct"
+        );
     }
 
     #[test]

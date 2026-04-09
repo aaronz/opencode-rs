@@ -6,16 +6,19 @@ use std::collections::HashMap;
 
 use super::layer2_auth_mechanism::AuthMechanism;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TransportHeaders {
     pub custom_headers: HashMap<String, String>,
     pub query_params: HashMap<String, String>,
 }
 
-
 pub trait ProviderTransport: Send + Sync {
-    fn apply_auth(&self, request: RequestBuilder, token: &str, mechanism: &AuthMechanism) -> RequestBuilder;
+    fn apply_auth(
+        &self,
+        request: RequestBuilder,
+        token: &str,
+        mechanism: &AuthMechanism,
+    ) -> RequestBuilder;
     fn endpoint_path(&self) -> &str;
     fn required_headers(&self) -> Vec<(&str, &str)>;
 }
@@ -25,18 +28,24 @@ pub struct AnthropicTransport;
 pub struct ResponsesAPITransport;
 
 impl ProviderTransport for OpenAICompatibleTransport {
-    fn apply_auth(&self, request: RequestBuilder, token: &str, mechanism: &AuthMechanism) -> RequestBuilder {
+    fn apply_auth(
+        &self,
+        request: RequestBuilder,
+        token: &str,
+        mechanism: &AuthMechanism,
+    ) -> RequestBuilder {
         match mechanism {
-            AuthMechanism::BearerToken | AuthMechanism::OAuthBrowser | AuthMechanism::DeviceCode => {
+            AuthMechanism::BearerToken
+            | AuthMechanism::OAuthBrowser
+            | AuthMechanism::DeviceCode => {
                 request.header("Authorization", format!("Bearer {}", token))
             }
             AuthMechanism::BasicAuth => {
-                let encoded = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, token);
+                let encoded =
+                    base64::Engine::encode(&base64::engine::general_purpose::STANDARD, token);
                 request.header("Authorization", format!("Basic {}", encoded))
             }
-            AuthMechanism::ApiKey => {
-                request.header("Authorization", format!("Bearer {}", token))
-            }
+            AuthMechanism::ApiKey => request.header("Authorization", format!("Bearer {}", token)),
             _ => request.header("Authorization", format!("Bearer {}", token)),
         }
     }
@@ -51,10 +60,17 @@ impl ProviderTransport for OpenAICompatibleTransport {
 }
 
 impl ProviderTransport for AnthropicTransport {
-    fn apply_auth(&self, request: RequestBuilder, token: &str, mechanism: &AuthMechanism) -> RequestBuilder {
+    fn apply_auth(
+        &self,
+        request: RequestBuilder,
+        token: &str,
+        mechanism: &AuthMechanism,
+    ) -> RequestBuilder {
         match mechanism {
             AuthMechanism::ApiKey => request.header("x-api-key", token),
-            AuthMechanism::BearerToken => request.header("Authorization", format!("Bearer {}", token)),
+            AuthMechanism::BearerToken => {
+                request.header("Authorization", format!("Bearer {}", token))
+            }
             _ => request.header("x-api-key", token),
         }
         .header("anthropic-version", "2023-06-01")
@@ -65,12 +81,20 @@ impl ProviderTransport for AnthropicTransport {
     }
 
     fn required_headers(&self) -> Vec<(&str, &str)> {
-        vec![("Content-Type", "application/json"), ("anthropic-version", "2023-06-01")]
+        vec![
+            ("Content-Type", "application/json"),
+            ("anthropic-version", "2023-06-01"),
+        ]
     }
 }
 
 impl ProviderTransport for ResponsesAPITransport {
-    fn apply_auth(&self, request: RequestBuilder, token: &str, mechanism: &AuthMechanism) -> RequestBuilder {
+    fn apply_auth(
+        &self,
+        request: RequestBuilder,
+        token: &str,
+        mechanism: &AuthMechanism,
+    ) -> RequestBuilder {
         match mechanism {
             AuthMechanism::BearerToken | AuthMechanism::OAuthBrowser => {
                 request.header("Authorization", format!("Bearer {}", token))
@@ -105,7 +129,12 @@ impl AwsSigV4Transport {
 }
 
 impl ProviderTransport for AwsSigV4Transport {
-    fn apply_auth(&self, request: RequestBuilder, token: &str, _mechanism: &AuthMechanism) -> RequestBuilder {
+    fn apply_auth(
+        &self,
+        request: RequestBuilder,
+        token: &str,
+        _mechanism: &AuthMechanism,
+    ) -> RequestBuilder {
         request.header("Authorization", format!("Bearer {}", token))
     }
 

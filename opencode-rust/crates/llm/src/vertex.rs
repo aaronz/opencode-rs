@@ -1,4 +1,4 @@
-use crate::provider::{Provider, ProviderConfig, Model, StreamingCallback};
+use crate::provider::{Model, Provider, ProviderConfig, StreamingCallback};
 use opencode_core::OpenCodeError;
 
 pub struct VertexProvider {
@@ -9,12 +9,17 @@ pub struct VertexProvider {
 
 impl VertexProvider {
     pub fn new(config: ProviderConfig, project_id: String, location: String) -> Self {
-        Self { config, project_id, location }
+        Self {
+            config,
+            project_id,
+            location,
+        }
     }
 
     pub fn from_env() -> Option<Self> {
         let project_id = std::env::var("GOOGLE_CLOUD_PROJECT").ok()?;
-        let location = std::env::var("GOOGLE_CLOUD_LOCATION").unwrap_or_else(|_| "us-central1".to_string());
+        let location =
+            std::env::var("GOOGLE_CLOUD_LOCATION").unwrap_or_else(|_| "us-central1".to_string());
         let config = ProviderConfig {
             model: std::env::var("VERTEX_MODEL").unwrap_or_else(|_| "gemini-1.5-pro".to_string()),
             api_key: std::env::var("GOOGLE_APPLICATION_CREDENTIALS").unwrap_or_default(),
@@ -39,7 +44,7 @@ impl Provider for VertexProvider {
         let instances = if let Some(ctx) = context {
             vec![
                 serde_json::json!({"content": ctx}),
-                serde_json::json!({"content": prompt})
+                serde_json::json!({"content": prompt}),
             ]
         } else {
             vec![serde_json::json!({"content": prompt})]
@@ -61,14 +66,21 @@ impl Provider for VertexProvider {
             .await
             .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
 
-        let result: serde_json::Value = response.json().await.map_err(|e| OpenCodeError::Llm(e.to_string()))?;
+        let result: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
         result["predictions"][0]["content"]
             .as_str()
             .map(|s| s.to_string())
             .ok_or_else(|| OpenCodeError::Llm("Invalid Vertex response".to_string()))
     }
 
-    async fn complete_streaming(&self, prompt: &str, mut callback: StreamingCallback) -> Result<(), OpenCodeError> {
+    async fn complete_streaming(
+        &self,
+        prompt: &str,
+        mut callback: StreamingCallback,
+    ) -> Result<(), OpenCodeError> {
         let client = reqwest::Client::new();
         let url = format!(
             "https://{}-aiplatform.googleapis.com/v1/projects/{}/locations/{}/publishers/google/models/{}:streamGenerateContent?alt=sse",
@@ -104,7 +116,10 @@ impl Provider for VertexProvider {
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
-            return Err(OpenCodeError::Llm(format!("Vertex API error {}: {}", status, error_text)));
+            return Err(OpenCodeError::Llm(format!(
+                "Vertex API error {}: {}",
+                status, error_text
+            )));
         }
 
         use futures_util::StreamExt;
@@ -124,7 +139,9 @@ impl Provider for VertexProvider {
                         }
 
                         if let Ok(chunk) = serde_json::from_str::<serde_json::Value>(data) {
-                            if let Some(content) = chunk["candidates"][0]["content"]["parts"][0]["text"].as_str() {
+                            if let Some(content) =
+                                chunk["candidates"][0]["content"]["parts"][0]["text"].as_str()
+                            {
                                 callback(content.to_string());
                             }
                         }

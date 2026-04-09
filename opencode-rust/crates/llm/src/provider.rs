@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
 use opencode_core::{Message, OpenCodeError};
+use serde::{Deserialize, Serialize};
 
 pub type StreamingCallback = Box<dyn FnMut(String) + Send>;
 
@@ -171,7 +171,7 @@ mod tests {
                 "test"
             }
         }
-        
+
         let provider = TestProvider;
         assert_eq!(provider.provider_name(), "test");
         assert_eq!(provider.get_models().len(), 1);

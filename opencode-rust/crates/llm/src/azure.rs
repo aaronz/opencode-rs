@@ -56,7 +56,11 @@ impl AzureProvider {
 
 #[async_trait]
 impl Provider for AzureProvider {
-    async fn complete(&self, prompt: &str, _context: Option<&str>) -> Result<String, OpenCodeError> {
+    async fn complete(
+        &self,
+        prompt: &str,
+        _context: Option<&str>,
+    ) -> Result<String, OpenCodeError> {
         let request = AzureRequest {
             prompt: prompt.to_string(),
         };
@@ -85,7 +89,11 @@ impl Provider for AzureProvider {
         Ok(content)
     }
 
-    async fn complete_streaming(&self, prompt: &str, mut callback: StreamingCallback) -> Result<(), OpenCodeError> {
+    async fn complete_streaming(
+        &self,
+        prompt: &str,
+        mut callback: StreamingCallback,
+    ) -> Result<(), OpenCodeError> {
         let body = serde_json::json!({
             "messages": [
                 {"role": "user", "content": prompt}
@@ -107,7 +115,10 @@ impl Provider for AzureProvider {
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
-            return Err(OpenCodeError::Llm(format!("Azure API error {}: {}", status, error_text)));
+            return Err(OpenCodeError::Llm(format!(
+                "Azure API error {}: {}",
+                status, error_text
+            )));
         }
 
         use futures_util::StreamExt;
@@ -128,7 +139,8 @@ impl Provider for AzureProvider {
                         }
 
                         if let Ok(chunk) = serde_json::from_str::<serde_json::Value>(data) {
-                            if let Some(content) = chunk["choices"][0]["delta"]["content"].as_str() {
+                            if let Some(content) = chunk["choices"][0]["delta"]["content"].as_str()
+                            {
                                 callback(content.to_string());
                             }
                         }

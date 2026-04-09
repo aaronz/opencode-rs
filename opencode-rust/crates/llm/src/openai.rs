@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 
 use crate::provider::{Provider, StreamingCallback};
-use opencode_core::OpenCodeError;
 use crate::{OpenAiBrowserAuthStore, OpenAiBrowserSession};
+use opencode_core::OpenCodeError;
 
 const OPENAI_API_BASE_URL: &str = "https://api.openai.com/v1";
 const OPENAI_CODEX_RESPONSES_URL: &str = "https://chatgpt.com/backend-api/codex/responses";
@@ -170,9 +170,9 @@ impl OpenAiProvider {
             OpenAiAuthMode::ApiKey => Ok((self.api_key.clone(), None)),
             OpenAiAuthMode::Browser { session, store } => {
                 let needs_refresh = {
-                    let current = session
-                        .lock()
-                        .map_err(|_| OpenCodeError::Llm("OpenAI browser auth mutex poisoned".to_string()))?;
+                    let current = session.lock().map_err(|_| {
+                        OpenCodeError::Llm("OpenAI browser auth mutex poisoned".to_string())
+                    })?;
                     current.is_expired()
                 };
 
@@ -181,9 +181,9 @@ impl OpenAiProvider {
                     return Ok((refreshed.access_token.clone(), refreshed.account_id.clone()));
                 }
 
-                let current = session
-                    .lock()
-                    .map_err(|_| OpenCodeError::Llm("OpenAI browser auth mutex poisoned".to_string()))?;
+                let current = session.lock().map_err(|_| {
+                    OpenCodeError::Llm("OpenAI browser auth mutex poisoned".to_string())
+                })?;
                 Ok((current.access_token.clone(), current.account_id.clone()))
             }
         }
@@ -195,9 +195,9 @@ impl OpenAiProvider {
         store: &OpenAiBrowserAuthStore,
     ) -> Result<OpenAiBrowserSession, OpenCodeError> {
         let refresh_token = {
-            let current = session
-                .lock()
-                .map_err(|_| OpenCodeError::Llm("OpenAI browser auth mutex poisoned".to_string()))?;
+            let current = session.lock().map_err(|_| {
+                OpenCodeError::Llm("OpenAI browser auth mutex poisoned".to_string())
+            })?;
             current.refresh_token.clone()
         };
 
@@ -212,7 +212,9 @@ impl OpenAiProvider {
             ])
             .send()
             .await
-            .map_err(|e| OpenCodeError::Llm(format!("Failed to refresh OpenAI browser token: {}", e)))?;
+            .map_err(|e| {
+                OpenCodeError::Llm(format!("Failed to refresh OpenAI browser token: {}", e))
+            })?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -223,18 +225,20 @@ impl OpenAiProvider {
             )));
         }
 
-        let payload: RefreshTokenResponse = response
-            .json()
-            .await
-            .map_err(|e| OpenCodeError::Llm(format!("Failed to decode OpenAI browser refresh response: {}", e)))?;
+        let payload: RefreshTokenResponse = response.json().await.map_err(|e| {
+            OpenCodeError::Llm(format!(
+                "Failed to decode OpenAI browser refresh response: {}",
+                e
+            ))
+        })?;
 
         let mut current = session
             .lock()
             .map_err(|_| OpenCodeError::Llm("OpenAI browser auth mutex poisoned".to_string()))?;
         current.access_token = payload.access_token;
         current.refresh_token = payload.refresh_token;
-        current.expires_at_epoch_ms = chrono::Utc::now().timestamp_millis()
-            + payload.expires_in.unwrap_or(3600) * 1000;
+        current.expires_at_epoch_ms =
+            chrono::Utc::now().timestamp_millis() + payload.expires_in.unwrap_or(3600) * 1000;
         store.save(&current.clone())?;
         Ok(current.clone())
     }
@@ -264,21 +268,22 @@ impl OpenAiProvider {
             builder = builder.header("ChatGPT-Account-Id", account_id);
         }
 
-        let response = builder
-            .send()
-            .await
-            .map_err(|e| OpenCodeError::Llm(format!("OpenAI browser auth request failed: {}", e)))?;
+        let response = builder.send().await.map_err(|e| {
+            OpenCodeError::Llm(format!("OpenAI browser auth request failed: {}", e))
+        })?;
 
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            return Err(OpenCodeError::Llm(format!("OpenAI browser auth error {}: {}", status, body)));
+            return Err(OpenCodeError::Llm(format!(
+                "OpenAI browser auth error {}: {}",
+                status, body
+            )));
         }
 
-        let payload: ResponsesResponse = response
-            .json()
-            .await
-            .map_err(|e| OpenCodeError::Llm(format!("Invalid OpenAI browser auth response: {}", e)))?;
+        let payload: ResponsesResponse = response.json().await.map_err(|e| {
+            OpenCodeError::Llm(format!("Invalid OpenAI browser auth response: {}", e))
+        })?;
 
         Ok(payload
             .output
@@ -289,7 +294,9 @@ impl OpenAiProvider {
             .join(""))
     }
 
-    pub async fn list_browser_auth_models(&self) -> Result<Vec<BrowserAuthModelInfo>, OpenCodeError> {
+    pub async fn list_browser_auth_models(
+        &self,
+    ) -> Result<Vec<BrowserAuthModelInfo>, OpenCodeError> {
         let (access_token, account_id) = self.auth_context().await?;
 
         let mut request = self
@@ -301,21 +308,25 @@ impl OpenAiProvider {
             request = request.header("ChatGPT-Account-Id", account_id);
         }
 
-        let response = request
-            .send()
-            .await
-            .map_err(|e| OpenCodeError::Llm(format!("Failed to fetch OpenAI browser-auth models: {}", e)))?;
+        let response = request.send().await.map_err(|e| {
+            OpenCodeError::Llm(format!("Failed to fetch OpenAI browser-auth models: {}", e))
+        })?;
 
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            return Err(OpenCodeError::Llm(format!("OpenAI browser-auth models error {}: {}", status, body)));
+            return Err(OpenCodeError::Llm(format!(
+                "OpenAI browser-auth models error {}: {}",
+                status, body
+            )));
         }
 
-        let payload: BrowserModelsResponse = response
-            .json()
-            .await
-            .map_err(|e| OpenCodeError::Llm(format!("Invalid OpenAI browser-auth models response: {}", e)))?;
+        let payload: BrowserModelsResponse = response.json().await.map_err(|e| {
+            OpenCodeError::Llm(format!(
+                "Invalid OpenAI browser-auth models response: {}",
+                e
+            ))
+        })?;
 
         Ok(match payload {
             BrowserModelsResponse::Direct(models) => models,
@@ -326,7 +337,11 @@ impl OpenAiProvider {
 
 #[async_trait]
 impl Provider for OpenAiProvider {
-    async fn complete(&self, prompt: &str, _context: Option<&str>) -> Result<String, OpenCodeError> {
+    async fn complete(
+        &self,
+        prompt: &str,
+        _context: Option<&str>,
+    ) -> Result<String, OpenCodeError> {
         if self.uses_browser_auth() {
             return self.complete_browser_auth(prompt).await;
         }
@@ -335,7 +350,7 @@ impl Provider for OpenAiProvider {
             role: "user".to_string(),
             content: prompt.to_string(),
         }];
-        
+
         let request = ChatRequest {
             model: self.model.clone(),
             messages,
@@ -355,7 +370,10 @@ impl Provider for OpenAiProvider {
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
-            return Err(OpenCodeError::Llm(format!("OpenAI API error {}: {}", status, error_text)));
+            return Err(OpenCodeError::Llm(format!(
+                "OpenAI API error {}: {}",
+                status, error_text
+            )));
         }
 
         let completion: ChatCompletion = response
@@ -387,7 +405,7 @@ impl Provider for OpenAiProvider {
             role: "user".to_string(),
             content: prompt.to_string(),
         }];
-        
+
         let request = ChatRequest {
             model: self.model.clone(),
             messages,
@@ -407,11 +425,14 @@ impl Provider for OpenAiProvider {
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
-            return Err(OpenCodeError::Llm(format!("OpenAI API error {}: {}", status, error_text)));
+            return Err(OpenCodeError::Llm(format!(
+                "OpenAI API error {}: {}",
+                status, error_text
+            )));
         }
 
         let mut lines = response.bytes_stream();
-        
+
         use futures_util::StreamExt;
         while let Some(item) = lines.next().await {
             match item {
@@ -425,7 +446,9 @@ impl Provider for OpenAiProvider {
                                 return Ok(());
                             }
                             if let Ok(chunk) = serde_json::from_str::<StreamChunk>(data) {
-                                if let Some(content) = chunk.choices.first().and_then(|c| c.delta.content.clone()) {
+                                if let Some(content) =
+                                    chunk.choices.first().and_then(|c| c.delta.content.clone())
+                                {
                                     callback(content);
                                 }
                             }
@@ -499,6 +522,9 @@ mod tests {
         );
 
         assert!(provider.uses_browser_auth());
-        assert_eq!(provider.models_url(), "https://chatgpt.com/backend-api/codex/models");
+        assert_eq!(
+            provider.models_url(),
+            "https://chatgpt.com/backend-api/codex/models"
+        );
     }
 }

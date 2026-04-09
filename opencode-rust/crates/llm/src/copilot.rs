@@ -1,4 +1,4 @@
-use crate::provider::{Provider, ProviderConfig, Model, StreamingCallback};
+use crate::provider::{Model, Provider, ProviderConfig, StreamingCallback};
 use opencode_core::OpenCodeError;
 
 pub struct CopilotProvider {
@@ -11,7 +11,8 @@ impl CopilotProvider {
     }
 
     pub fn supports_copilot() -> bool {
-        std::env::var("GITHUB_COPILOT_TOKEN").is_ok() || std::env::var("OPENCODE_COPILOT_TOKEN").is_ok()
+        std::env::var("GITHUB_COPILOT_TOKEN").is_ok()
+            || std::env::var("OPENCODE_COPILOT_TOKEN").is_ok()
     }
 }
 
@@ -52,14 +53,21 @@ impl Provider for CopilotProvider {
             .await
             .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
 
-        let result: serde_json::Value = response.json().await.map_err(|e| OpenCodeError::Llm(e.to_string()))?;
+        let result: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
         result["choices"][0]["message"]["content"]
             .as_str()
             .map(|s| s.to_string())
             .ok_or_else(|| OpenCodeError::Llm("Invalid Copilot response".to_string()))
     }
 
-    async fn complete_streaming(&self, prompt: &str, mut callback: StreamingCallback) -> Result<(), OpenCodeError> {
+    async fn complete_streaming(
+        &self,
+        prompt: &str,
+        mut callback: StreamingCallback,
+    ) -> Result<(), OpenCodeError> {
         let token = std::env::var("GITHUB_COPILOT_TOKEN")
             .or_else(|_| std::env::var("OPENCODE_COPILOT_TOKEN"))
             .map_err(|_| OpenCodeError::Llm("No Copilot token found".to_string()))?;
@@ -88,7 +96,10 @@ impl Provider for CopilotProvider {
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
-            return Err(OpenCodeError::Llm(format!("Copilot API error {}: {}", status, error_text)));
+            return Err(OpenCodeError::Llm(format!(
+                "Copilot API error {}: {}",
+                status, error_text
+            )));
         }
 
         use futures_util::StreamExt;
@@ -109,7 +120,8 @@ impl Provider for CopilotProvider {
                         }
 
                         if let Ok(chunk) = serde_json::from_str::<serde_json::Value>(data) {
-                            if let Some(content) = chunk["choices"][0]["delta"]["content"].as_str() {
+                            if let Some(content) = chunk["choices"][0]["delta"]["content"].as_str()
+                            {
                                 callback(content.to_string());
                             }
                         }

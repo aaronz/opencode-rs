@@ -1,4 +1,4 @@
-use crate::provider::{Provider, ProviderConfig, Model, StreamingCallback};
+use crate::provider::{Model, Provider, ProviderConfig, StreamingCallback};
 use opencode_core::OpenCodeError;
 
 pub struct VercelProvider {
@@ -20,7 +20,7 @@ impl Provider for VercelProvider {
         let messages = if let Some(ctx) = context {
             vec![
                 serde_json::json!({"role": "system", "content": ctx}),
-                serde_json::json!({"role": "user", "content": prompt})
+                serde_json::json!({"role": "user", "content": prompt}),
             ]
         } else {
             vec![serde_json::json!({"role": "user", "content": prompt})]
@@ -41,14 +41,21 @@ impl Provider for VercelProvider {
             .await
             .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
 
-        let result: serde_json::Value = response.json().await.map_err(|e| OpenCodeError::Llm(e.to_string()))?;
+        let result: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
         result["choices"][0]["message"]["content"]
             .as_str()
             .map(|s| s.to_string())
             .ok_or_else(|| OpenCodeError::Llm("Invalid Vercel response".to_string()))
     }
 
-    async fn complete_streaming(&self, prompt: &str, mut callback: StreamingCallback) -> Result<(), OpenCodeError> {
+    async fn complete_streaming(
+        &self,
+        prompt: &str,
+        mut callback: StreamingCallback,
+    ) -> Result<(), OpenCodeError> {
         let client = reqwest::Client::new();
         let url = "https://api.vercel.ai/v1/chat/completions";
 
@@ -73,7 +80,10 @@ impl Provider for VercelProvider {
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
-            return Err(OpenCodeError::Llm(format!("Vercel API error {}: {}", status, error_text)));
+            return Err(OpenCodeError::Llm(format!(
+                "Vercel API error {}: {}",
+                status, error_text
+            )));
         }
 
         use futures_util::StreamExt;
@@ -92,7 +102,8 @@ impl Provider for VercelProvider {
                             return Ok(());
                         }
                         if let Ok(chunk) = serde_json::from_str::<serde_json::Value>(data) {
-                            if let Some(content) = chunk["choices"][0]["delta"]["content"].as_str() {
+                            if let Some(content) = chunk["choices"][0]["delta"]["content"].as_str()
+                            {
                                 callback(content.to_string());
                             }
                         }

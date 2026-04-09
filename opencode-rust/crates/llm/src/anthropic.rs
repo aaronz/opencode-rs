@@ -59,7 +59,11 @@ impl AnthropicProvider {
 
 #[async_trait]
 impl Provider for AnthropicProvider {
-    async fn complete(&self, prompt: &str, _context: Option<&str>) -> Result<String, OpenCodeError> {
+    async fn complete(
+        &self,
+        prompt: &str,
+        _context: Option<&str>,
+    ) -> Result<String, OpenCodeError> {
         let messages = vec![AnthropicMessage {
             role: "user".to_string(),
             content: prompt.to_string(),
@@ -86,7 +90,10 @@ impl Provider for AnthropicProvider {
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
-            return Err(OpenCodeError::Llm(format!("Anthropic API error {}: {}", status, error_text)));
+            return Err(OpenCodeError::Llm(format!(
+                "Anthropic API error {}: {}",
+                status, error_text
+            )));
         }
 
         let result: AnthropicResponse = response
@@ -103,7 +110,11 @@ impl Provider for AnthropicProvider {
         Ok(content)
     }
 
-    async fn complete_streaming(&self, prompt: &str, mut callback: StreamingCallback) -> Result<(), OpenCodeError> {
+    async fn complete_streaming(
+        &self,
+        prompt: &str,
+        mut callback: StreamingCallback,
+    ) -> Result<(), OpenCodeError> {
         let messages = vec![AnthropicMessage {
             role: "user".to_string(),
             content: prompt.to_string(),
@@ -130,11 +141,14 @@ impl Provider for AnthropicProvider {
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
-            return Err(OpenCodeError::Llm(format!("Anthropic API error {}: {}", status, error_text)));
+            return Err(OpenCodeError::Llm(format!(
+                "Anthropic API error {}: {}",
+                status, error_text
+            )));
         }
 
         let mut lines = response.bytes_stream();
-        
+
         use futures_util::StreamExt;
         while let Some(item) = lines.next().await {
             match item {
