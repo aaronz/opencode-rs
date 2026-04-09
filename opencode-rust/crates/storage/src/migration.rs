@@ -1,4 +1,4 @@
-use crate::database::{StoragePool, PooledConnection};
+use crate::database::{PooledConnection, StoragePool};
 use opencode_core::OpenCodeError;
 use rusqlite::params;
 
@@ -9,12 +9,15 @@ pub struct MigrationManager {
 
 impl MigrationManager {
     pub fn new(pool: StoragePool, current_version: i32) -> Self {
-        Self { pool, current_version }
+        Self {
+            pool,
+            current_version,
+        }
     }
 
     pub async fn migrate(&self) -> Result<(), OpenCodeError> {
         let conn = self.pool.get().await?;
-        
+
         conn.execute(|c| {
             c.execute(
                 "CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -23,24 +26,33 @@ impl MigrationManager {
                 )",
                 [],
             )
-        }).await.map_err(|e| OpenCodeError::Storage(e.to_string()))??;
-        
-        let db_version: i32 = conn.execute(|c| {
-            c.query_row(
-                "SELECT COALESCE(MAX(version), 0) FROM schema_migrations",
-                [],
-                |row| row.get(0),
-            )
-        }).await.map_err(|e| OpenCodeError::Storage(e.to_string()))??;
-        
+        })
+        .await
+        .map_err(|e| OpenCodeError::Storage(e.to_string()))??;
+
+        let db_version: i32 = conn
+            .execute(|c| {
+                c.query_row(
+                    "SELECT COALESCE(MAX(version), 0) FROM schema_migrations",
+                    [],
+                    |row| row.get(0),
+                )
+            })
+            .await
+            .map_err(|e| OpenCodeError::Storage(e.to_string()))??;
+
         for version in (db_version + 1)..=self.current_version {
             self.apply_migration(&conn, version).await?;
         }
-        
+
         Ok(())
     }
-    
-    async fn apply_migration(&self, conn: &PooledConnection, version: i32) -> Result<(), OpenCodeError> {
+
+    async fn apply_migration(
+        &self,
+        conn: &PooledConnection,
+        version: i32,
+    ) -> Result<(), OpenCodeError> {
         conn.execute(move |c| {
             if version == 1 {
                 c.execute_batch(
@@ -85,16 +97,18 @@ impl MigrationManager {
                         PRIMARY KEY (user_id, permission, is_deny),
                         FOREIGN KEY (user_id) REFERENCES accounts(id)
                     );
-                    CREATE INDEX idx_permissions_user_id ON permissions(user_id);"
+                    CREATE INDEX idx_permissions_user_id ON permissions(user_id);",
                 )?;
-                
+
                 c.execute(
                     "INSERT INTO schema_migrations (version) VALUES (?)",
                     params![version],
                 )?;
             }
             Ok(())
-        }).await.map_err(|e| OpenCodeError::Storage(e.to_string()))?
-            .map_err(|e: rusqlite::Error| OpenCodeError::Storage(e.to_string()))
+        })
+        .await
+        .map_err(|e| OpenCodeError::Storage(e.to_string()))?
+        .map_err(|e: rusqlite::Error| OpenCodeError::Storage(e.to_string()))
     }
 }
