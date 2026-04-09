@@ -1,7 +1,7 @@
-use async_trait::async_trait;
-use serde::Deserialize;
 use crate::{Tool, ToolResult};
+use async_trait::async_trait;
 use opencode_core::OpenCodeError;
+use serde::Deserialize;
 
 pub struct WebSearchTool;
 
@@ -40,9 +40,13 @@ impl Tool for WebSearchTool {
         Box::new(WebSearchTool)
     }
 
-    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let args: SearchArgs = serde_json::from_value(args)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        _ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        let args: SearchArgs =
+            serde_json::from_value(args).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         let num_results = args.num_results.unwrap_or(8);
         let livecrawl = args.livecrawl.unwrap_or_else(|| "fallback".to_string());
@@ -92,17 +96,23 @@ impl Tool for WebSearchTool {
         if !response.status().is_success() {
             let status = response.status();
             let text = response.text().await.unwrap_or_default();
-            return Ok(ToolResult::err(format!("Search error ({}): {}", status, text)));
+            return Ok(ToolResult::err(format!(
+                "Search error ({}): {}",
+                status, text
+            )));
         }
 
-        let response_text = response.text().await
+        let response_text = response
+            .text()
+            .await
             .map_err(|e| OpenCodeError::Tool(format!("Failed to read response: {}", e)))?;
 
         // Parse SSE response
         for line in response_text.lines() {
             if let Some(data_str) = line.strip_prefix("data: ") {
                 if let Ok(data) = serde_json::from_str::<serde_json::Value>(data_str) {
-                    if let Some(result) = data.get("result")
+                    if let Some(result) = data
+                        .get("result")
                         .and_then(|r| r.get("content"))
                         .and_then(|c| c.as_array())
                         .and_then(|arr| arr.first())

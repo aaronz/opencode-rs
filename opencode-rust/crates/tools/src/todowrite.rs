@@ -1,7 +1,7 @@
-use async_trait::async_trait;
-use serde::Deserialize;
 use crate::{Tool, ToolResult};
+use async_trait::async_trait;
 use opencode_core::OpenCodeError;
+use serde::Deserialize;
 
 pub struct TodowriteTool;
 
@@ -31,16 +31,23 @@ impl Tool for TodowriteTool {
         Box::new(TodowriteTool)
     }
 
-    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let args: TodowriteArgs = serde_json::from_value(args)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        _ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        let args: TodowriteArgs =
+            serde_json::from_value(args).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         let mut result = String::new();
         for item in &args.items {
             let status = item.status.as_deref().unwrap_or("pending");
             let priority = item.priority.as_deref().unwrap_or("medium");
             let checkbox = if status == "completed" { "x" } else { " " };
-            result.push_str(&format!("- [{}] {} ({})\n", checkbox, item.content, priority));
+            result.push_str(&format!(
+                "- [{}] {} ({})\n",
+                checkbox, item.content, priority
+            ));
         }
 
         Ok(ToolResult::ok(result))

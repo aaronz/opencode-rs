@@ -1,8 +1,8 @@
+use crate::{Tool, ToolResult};
 use async_trait::async_trait;
+use opencode_core::OpenCodeError;
 use serde::Deserialize;
 use std::path::PathBuf;
-use crate::{Tool, ToolResult};
-use opencode_core::OpenCodeError;
 
 pub struct WriteTool;
 
@@ -26,19 +26,21 @@ impl Tool for WriteTool {
         Box::new(WriteTool)
     }
 
-    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let args: WriteArgs = serde_json::from_value(args)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        _ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        let args: WriteArgs =
+            serde_json::from_value(args).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         let path = PathBuf::from(&args.path);
 
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| OpenCodeError::Io(e))?;
+            std::fs::create_dir_all(parent).map_err(|e| OpenCodeError::Io(e))?;
         }
 
-        std::fs::write(&path, &args.content)
-            .map_err(|e| OpenCodeError::Io(e))?;
+        std::fs::write(&path, &args.content).map_err(|e| OpenCodeError::Io(e))?;
 
         Ok(ToolResult::ok(format!("Written to {}", args.path)))
     }

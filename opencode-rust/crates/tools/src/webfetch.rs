@@ -1,7 +1,7 @@
-use async_trait::async_trait;
-use serde::Deserialize;
 use crate::{Tool, ToolResult};
+use async_trait::async_trait;
 use opencode_core::OpenCodeError;
+use serde::Deserialize;
 
 pub struct WebfetchTool;
 
@@ -35,15 +35,24 @@ impl Tool for WebfetchTool {
         Box::new(WebfetchTool)
     }
 
-    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let args: WebfetchArgs = serde_json::from_value(args)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        _ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        let args: WebfetchArgs =
+            serde_json::from_value(args).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         if !args.url.starts_with("http://") && !args.url.starts_with("https://") {
-            return Ok(ToolResult::err("URL must start with http:// or https://".to_string()));
+            return Ok(ToolResult::err(
+                "URL must start with http:// or https://".to_string(),
+            ));
         }
 
-        let timeout = std::cmp::min(args.timeout.unwrap_or(DEFAULT_TIMEOUT / 1000) * 1000, MAX_TIMEOUT);
+        let timeout = std::cmp::min(
+            args.timeout.unwrap_or(DEFAULT_TIMEOUT / 1000) * 1000,
+            MAX_TIMEOUT,
+        );
 
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_millis(timeout))
@@ -60,7 +69,10 @@ impl Tool for WebfetchTool {
 
         let response = client
             .get(&args.url)
-            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            .header(
+                "User-Agent",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            )
             .header("Accept", accept_header)
             .header("Accept-Language", "en-US,en;q=0.9")
             .send()
@@ -68,32 +80,50 @@ impl Tool for WebfetchTool {
             .map_err(|e| OpenCodeError::Tool(format!("Request failed: {}", e)))?;
 
         if !response.status().is_success() {
-            return Ok(ToolResult::err(format!("Request failed with status code: {}", response.status())));
+            return Ok(ToolResult::err(format!(
+                "Request failed with status code: {}",
+                response.status()
+            )));
         }
 
-        let content_type = response.headers().get("content-type")
+        let content_type = response
+            .headers()
+            .get("content-type")
             .and_then(|v| v.to_str().ok())
             .unwrap_or("")
             .to_string();
 
-        let content_length = response.headers().get("content-length")
+        let content_length = response
+            .headers()
+            .get("content-length")
             .and_then(|v| v.to_str().ok())
             .and_then(|s| s.parse::<usize>().ok());
 
         if let Some(len) = content_length {
             if len > MAX_RESPONSE_SIZE {
-                return Ok(ToolResult::err("Response too large (exceeds 5MB limit)".to_string()));
+                return Ok(ToolResult::err(
+                    "Response too large (exceeds 5MB limit)".to_string(),
+                ));
             }
         }
 
-        let body = response.bytes().await
+        let body = response
+            .bytes()
+            .await
             .map_err(|e| OpenCodeError::Tool(format!("Failed to read response body: {}", e)))?;
 
         if body.len() > MAX_RESPONSE_SIZE {
-            return Ok(ToolResult::err("Response too large (exceeds 5MB limit)".to_string()));
+            return Ok(ToolResult::err(
+                "Response too large (exceeds 5MB limit)".to_string(),
+            ));
         }
 
-        let mime = content_type.split(';').next().unwrap_or("").trim().to_lowercase();
+        let mime = content_type
+            .split(';')
+            .next()
+            .unwrap_or("")
+            .trim()
+            .to_lowercase();
         let is_image = mime.starts_with("image/") && mime != "image/svg+xml";
 
         if is_image {
@@ -153,7 +183,8 @@ fn convert_html_to_markdown(html: &str) -> String {
         }
     }
 
-    result.lines()
+    result
+        .lines()
         .map(|line| line.trim())
         .filter(|line| !line.is_empty())
         .collect::<Vec<_>>()

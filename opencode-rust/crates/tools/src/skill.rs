@@ -1,7 +1,7 @@
-use async_trait::async_trait;
-use serde::Deserialize;
 use crate::{Tool, ToolResult};
+use async_trait::async_trait;
 use opencode_core::{OpenCodeError, SkillManager};
+use serde::Deserialize;
 use std::sync::Arc;
 
 pub struct SkillTool {
@@ -36,11 +36,16 @@ impl Tool for SkillTool {
         })
     }
 
-    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let args: SkillArgs = serde_json::from_value(args)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        _ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        let args: SkillArgs =
+            serde_json::from_value(args).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
-        let skill = self.skill_manager
+        let skill = self
+            .skill_manager
             .get_skill(&args.skill_name)
             .ok_or_else(|| OpenCodeError::Tool(format!("Skill '{}' not found", args.skill_name)))?;
 
@@ -49,7 +54,10 @@ impl Tool for SkillTool {
         let mut result = format!("Skill '{}' content:\n\n{}", args.skill_name, content);
 
         if let Some(params) = &args.parameters {
-            result.push_str(&format!("\n\nParameters:\n{}", serde_json::to_string_pretty(params).unwrap_or_default()));
+            result.push_str(&format!(
+                "\n\nParameters:\n{}",
+                serde_json::to_string_pretty(params).unwrap_or_default()
+            ));
         }
 
         Ok(ToolResult::ok(result))

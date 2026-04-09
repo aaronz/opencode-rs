@@ -1,8 +1,8 @@
+use crate::{Tool, ToolContext, ToolResult};
 use async_trait::async_trait;
+use opencode_core::{Message, OpenCodeError, Session};
 use serde::Deserialize;
 use uuid::Uuid;
-use crate::{Tool, ToolContext, ToolResult};
-use opencode_core::{Session, Message, OpenCodeError};
 
 pub struct TaskTool;
 
@@ -29,9 +29,13 @@ impl Tool for TaskTool {
         Box::new(TaskTool)
     }
 
-    async fn execute(&self, args: serde_json::Value, _ctx: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let args: TaskArgs = serde_json::from_value(args)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        _ctx: Option<ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        let args: TaskArgs =
+            serde_json::from_value(args).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         let session_id = match args.task_id.as_ref() {
             Some(id) => Uuid::parse_str(id).unwrap_or_else(|_| Uuid::new_v4()),
@@ -40,7 +44,7 @@ impl Tool for TaskTool {
 
         let mut session = Session::new();
         session.id = session_id;
-        
+
         session.add_message(Message::user(format!(
             "Task: {}\n\nInstructions:\n{}",
             args.description, args.prompt

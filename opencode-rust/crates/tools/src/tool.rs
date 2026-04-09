@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
 use opencode_core::OpenCodeError;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolResult {
@@ -43,7 +43,7 @@ impl ToolResult {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ToolContext {
     pub session_id: String,
     pub message_id: String,
@@ -57,5 +57,9 @@ pub trait Tool: Send + Sync {
     fn name(&self) -> &str;
     fn description(&self) -> &str;
     fn clone_tool(&self) -> Box<dyn Tool>;
-    async fn execute(&self, args: serde_json::Value, ctx: Option<ToolContext>) -> Result<ToolResult, OpenCodeError>;
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        ctx: Option<ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError>;
 }
