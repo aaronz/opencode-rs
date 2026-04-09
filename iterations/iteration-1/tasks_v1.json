@@ -384,7 +384,7 @@
       "priority": "P2",
       "title": "Evaluate SHA256 Args Hashing",
       "description": "Evaluate content-addressable storage approach for SHA256 args hashing, consider implementation if beneficial. Module: crates/storage/",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Content-addressable storage approach evaluated",
         "Implementation decision documented"
@@ -392,7 +392,7 @@
       "test_commands": [
         "cargo test -p opencode-storage -- hash"
       ],
-      "impl_notes": "Tech debt - evaluation task",
+      "impl_notes": "Tech debt - evaluation task. Evaluation decision: CAS NOT BENEFICIAL. Tool results are non-deterministic (file contents change, bash output varies), so content-addressable storage for result caching would not provide meaningful deduplication. The args_hash is appropriately used for tracking/correlation purposes only. Tests added to verify hash computation correctness.",
       "dependencies": []
     },
     {

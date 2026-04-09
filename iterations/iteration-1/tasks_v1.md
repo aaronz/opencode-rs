@@ -272,7 +272,7 @@ Implementation: `crates/core/src/agents_md.rs` with `AgentsMdScanner`, `AgentsMd
 
 ---
 
-### TD-006: Magic Numbers in Compaction
+### TD-006: ✅ Done
 **Module:** `crates/core/`
 
 - [x] Make `COMPACTION_START_THRESHOLD` configurable
@@ -284,8 +284,15 @@ Implementation: `crates/core/src/agents_md.rs` with `AgentsMdScanner`, `AgentsMd
 ### TD-007: SHA256 Args Hashing
 **Module:** `crates/storage/`
 
-- [ ] Evaluate content-addressable storage approach
-- [ ] Consider implementation if beneficial
+- [x] Evaluate content-addressable storage approach
+- [x] Implementation decision: CAS NOT BENEFICIAL
+- [x] Document evaluation rationale
+- [x] Tests pass
+
+**Evaluation:** Content-addressable storage for tool results is NOT beneficial because:
+- Tool results are non-deterministic (file contents change, bash output varies)
+- The args_hash is appropriately used for tracking/correlation, not deduplication
+- CAS would add complexity without practical benefit for this use case
 
 ---
 

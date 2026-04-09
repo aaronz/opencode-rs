@@ -96,6 +96,64 @@ fn compute_args_hash(arguments: &serde_json::Value) -> String {
     format!("{:x}", hasher.finalize())
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_args_hash_deterministic() {
+        let args1 = serde_json::json!({"path": "/tmp/test.txt", "offset": 0});
+        let args2 = serde_json::json!({"path": "/tmp/test.txt", "offset": 0});
+        let hash1 = compute_args_hash(&args1);
+        let hash2 = compute_args_hash(&args2);
+        assert_eq!(hash1, hash2, "Same arguments should produce same hash");
+    }
+
+    #[test]
+    fn test_args_hash_different_for_different_args() {
+        let args1 = serde_json::json!({"path": "/tmp/test1.txt"});
+        let args2 = serde_json::json!({"path": "/tmp/test2.txt"});
+        let hash1 = compute_args_hash(&args1);
+        let hash2 = compute_args_hash(&args2);
+        assert_ne!(
+            hash1, hash2,
+            "Different arguments should produce different hashes"
+        );
+    }
+
+    #[test]
+    fn test_args_hash_sha256_format() {
+        let args = serde_json::json!({"key": "value"});
+        let hash = compute_args_hash(&args);
+        assert_eq!(hash.len(), 64, "SHA256 hash should be 64 hex characters");
+        assert!(
+            hash.chars().all(|c| c.is_ascii_hexdigit()),
+            "Hash should only contain hex characters"
+        );
+    }
+
+    #[test]
+    fn test_tool_invocation_includes_hash() {
+        let session_id = Uuid::new_v4();
+        let message_id = Uuid::new_v4();
+        let args = serde_json::json!({"path": "/test.txt"});
+        let invocation =
+            ToolInvocation::new(session_id, message_id, "read".to_string(), args.clone());
+        let expected_hash = compute_args_hash(&args);
+        assert_eq!(invocation.args_hash, expected_hash);
+    }
+
+    #[test]
+    fn test_tool_invocation_hash_consistency() {
+        let session_id = Uuid::new_v4();
+        let message_id = Uuid::new_v4();
+        let args = serde_json::json!({"path": "/test.txt", "lines": 100});
+        let inv1 = ToolInvocation::new(session_id, message_id, "read".to_string(), args.clone());
+        let inv2 = ToolInvocation::new(session_id, message_id, "read".to_string(), args);
+        assert_eq!(inv1.args_hash, inv2.args_hash);
+    }
+}
+
 fn compute_result_summary(result: &serde_json::Value) -> String {
     let serialized = serde_json::to_string(result).unwrap_or_default();
     const MAX_SUMMARY_LEN: usize = 1024;
