@@ -229,7 +229,7 @@ Implementation: `crates/core/src/agents_md.rs` with `AgentsMdScanner`, `AgentsMd
 
 ## Technical Debt Tasks
 
-### TD-001: Deprecated `mode` field
+### TD-001: ✅ Done
 **Module:** `crates/config/`
 
 - [x] Remove `mode` field from config schema (deprecated, kept for backward compatibility)

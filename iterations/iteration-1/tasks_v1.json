@@ -296,7 +296,7 @@
       "priority": "P2",
       "title": "Remove Deprecated tools field",
       "description": "Remove tools field from config schema after migration, keep conversion logic for backwards compatibility, add deprecation warning. Module: crates/config/",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "tools field removed from config schema",
         "Conversion logic for backwards compatibility maintained",
@@ -307,7 +307,7 @@
         "cargo test -p opencode-config",
         "cargo build --release"
       ],
-      "impl_notes": "Tech debt - depends on migration completion",
+      "impl_notes": "Deprecated tools field with #[deprecated(since = \"3.0.0\")]. Added deprecation warnings when tools field is used (config load and get_disabled_tools). Field kept for backwards compatibility - old configs will still work but users are warned to migrate to 'permission' field. Conversion logic maintained via ToolConfig::merge() which handles the deprecated HashMap<String, bool> format.",
       "dependencies": []
     },
     {

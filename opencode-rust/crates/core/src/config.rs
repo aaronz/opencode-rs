@@ -131,6 +131,7 @@ pub struct Config {
     pub permission: Option<PermissionConfig>,
 
     /// Legacy tools configuration (deprecated, use permission instead)
+    #[deprecated(since = "3.0.0", note = "Use 'permission' field instead")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tools: Option<HashMap<String, bool>>,
 
@@ -421,6 +422,7 @@ pub struct AgentConfig {
     pub prompt: Option<String>,
 
     /// Deprecated: Use 'permission' field instead
+    #[deprecated(since = "3.0.0", note = "Use 'permission' field instead")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tools: Option<HashMap<String, bool>>,
 
@@ -1219,6 +1221,14 @@ impl Config {
         if config.mode.is_some() || config.layout.is_some() {
             tracing::warn!(
                 "The 'mode' and 'layout' fields are deprecated. Please migrate to the new TUI configuration in tui.json. See https://opencode.ai/docs/migration for details."
+            );
+        }
+
+        #[allow(deprecated)]
+        if config.tools.is_some() {
+            tracing::warn!(
+                "The 'tools' field is deprecated and will be removed in a future version. \
+                Please migrate to the 'permission' field instead. See https://opencode.ai/docs/migration for details."
             );
         }
 
@@ -2057,6 +2067,7 @@ impl Config {
         }
 
         if tool_count > 0 {
+            #[allow(deprecated)]
             let tools = config.tools.get_or_insert_with(HashMap::new);
             for tool_info in scan.tools {
                 tools.entry(tool_info.name).or_insert(true);
@@ -2247,12 +2258,21 @@ impl Config {
             .unwrap_or(false)
     }
 
+    #[allow(deprecated)]
     pub fn get_disabled_tools(&self) -> HashSet<String> {
+        let has_top_level_tools = self.tools.is_some();
         let agent_tools = self
             .agent
             .as_ref()
             .and_then(|agents| agents.get_default_agent())
             .and_then(|agent| agent.tools.as_ref());
+
+        if has_top_level_tools || agent_tools.is_some() {
+            tracing::warn!(
+                "The 'tools' field is deprecated. Please migrate to the 'permission' field. \
+                See https://opencode.ai/docs/migration for details."
+            );
+        }
 
         ToolConfig::merge(self.tools.as_ref(), agent_tools)
             .disabled_tools()
