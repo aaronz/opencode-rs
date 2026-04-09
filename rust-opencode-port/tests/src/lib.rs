@@ -1,4 +1,7 @@
 #[cfg(test)]
+pub mod conventions;
+
+#[cfg(test)]
 pub mod common;
 #[cfg(test)]
 pub mod agent_llm_tests;
