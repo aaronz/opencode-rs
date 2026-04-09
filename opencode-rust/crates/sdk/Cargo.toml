@@ -1,0 +1,48 @@
+[package]
+name = "opencode-sdk"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Rust SDK for OpenCode RS - Programmatic access to OpenCode capabilities"
+repository.workspace = true
+documentation = "https://docs.rs/opencode-sdk"
+readme = "README.md"
+keywords = ["opencode", "sdk", "ai", "coding"]
+categories = ["api-bindings", "development-tools"]
+
+[dependencies]
+# Core dependencies
+opencode-core = { workspace = true }
+opencode-storage = { workspace = true }
+opencode-llm = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+reqwest = { workspace = true }
+async-trait = { workspace = true }
+
+# URL handling
+url = "2"
+
+[dev-dependencies]
+tempfile.workspace = true
+tokio-test = "0.4"
+
+[[example]]
+name = "basic"
+path = "examples/basic.rs"
+
+[lib]
+name = "opencode_sdk"
+crate-type = ["rlib"]
+
+[features]
+default = ["native-tls"]
+native-tls = ["reqwest/native-tls"]
+rustls-tls = ["reqwest/rustls-tls"]

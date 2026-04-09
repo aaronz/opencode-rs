@@ -15,7 +15,7 @@ It defines:
 
 This roadmap assumes the monorepo structure described in `AGENTS.md`, especially:
 
-- `rust-opencode-port/` — Rust implementation workspace
+- `opencode-rust/` — Rust implementation workspace
 - `ratatui-testing/` — TUI testing library
 
 ---
@@ -53,24 +53,24 @@ This ordering reduces rework and ensures subsystem tests are built on stable aut
 
 | Area | Primary Location | Responsibility |
 |---|---|---|
-| Core entities, IDs, persistence invariants | `rust-opencode-port/crates/core/` | `Project`, `Session`, `Message`, `Part`, error types, serialization invariants |
-| Config normalization and precedence | `rust-opencode-port/crates/core/` and/or config crate | config parsing, merging, normalization, variable expansion |
-| Agent execution model | `rust-opencode-port/crates/agent/` | primary/subagent behavior, permission boundaries |
-| Tool registry and execution pipeline | `rust-opencode-port/crates/tools/` | registry, validation, execution, caching, tool qualification |
-| LSP integration | `rust-opencode-port/crates/lsp/` | server registration, diagnostics, custom config |
-| Storage and snapshots | `rust-opencode-port/crates/storage/` | durability, recovery, checkpoint/revert behaviors |
-| HTTP API | `rust-opencode-port/crates/server/` | route groups, auth, streaming, request validation |
-| MCP integration | `rust-opencode-port/crates/mcp/` | server lifecycle, qualification, auth integration |
-| Git integration | `rust-opencode-port/crates/git/` | worktree/session-adjacent VCS behaviors |
-| TUI runtime | `rust-opencode-port/crates/tui/` | layout, commands, navigation, sidebar, plugin surfaces |
+| Core entities, IDs, persistence invariants | `opencode-rust/crates/core/` | `Project`, `Session`, `Message`, `Part`, error types, serialization invariants |
+| Config normalization and precedence | `opencode-rust/crates/core/` and/or config crate | config parsing, merging, normalization, variable expansion |
+| Agent execution model | `opencode-rust/crates/agent/` | primary/subagent behavior, permission boundaries |
+| Tool registry and execution pipeline | `opencode-rust/crates/tools/` | registry, validation, execution, caching, tool qualification |
+| LSP integration | `opencode-rust/crates/lsp/` | server registration, diagnostics, custom config |
+| Storage and snapshots | `opencode-rust/crates/storage/` | durability, recovery, checkpoint/revert behaviors |
+| HTTP API | `opencode-rust/crates/server/` | route groups, auth, streaming, request validation |
+| MCP integration | `opencode-rust/crates/mcp/` | server lifecycle, qualification, auth integration |
+| Git integration | `opencode-rust/crates/git/` | worktree/session-adjacent VCS behaviors |
+| TUI runtime | `opencode-rust/crates/tui/` | layout, commands, navigation, sidebar, plugin surfaces |
 
 ### Cross-workspace support
 
 | Area | Primary Location | Responsibility |
 |---|---|---|
-| TUI rendering + interaction tests | `ratatui-testing/` + `rust-opencode-port/crates/tui/` | repeatable terminal UI assertions |
-| End-to-end and workflow tests | `rust-opencode-port/tests/` | multi-crate flows, CLI/server/TUI integration |
-| Shared test fixtures | `rust-opencode-port/tests/src/common/` | `TempProject`, `MockServer`, `MockLLMProvider`, future helpers |
+| TUI rendering + interaction tests | `ratatui-testing/` + `opencode-rust/crates/tui/` | repeatable terminal UI assertions |
+| End-to-end and workflow tests | `opencode-rust/tests/` | multi-crate flows, CLI/server/TUI integration |
+| Shared test fixtures | `opencode-rust/tests/src/common/` | `TempProject`, `MockServer`, `MockLLMProvider`, future helpers |
 
 ---
 
@@ -393,7 +393,7 @@ Establish the final release gates required for shipping.
 ## Recommended Test Suite Layout
 
 ```text
-rust-opencode-port/
+opencode-rust/
   crates/
     core/
       src/

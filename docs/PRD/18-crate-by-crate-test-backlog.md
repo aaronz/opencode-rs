@@ -31,7 +31,7 @@ This backlog is intended to be execution-oriented and should be used together wi
 
 ## Shared Test Infrastructure
 
-### `rust-opencode-port/tests/src/common/`
+### `opencode-rust/tests/src/common/`
 
 **Purpose**
 - Shared fixtures and helpers for all integration and end-to-end suites
@@ -69,7 +69,7 @@ This backlog is intended to be execution-oriented and should be used together wi
 
 ## Authority Crates
 
-### `rust-opencode-port/crates/core/`
+### `opencode-rust/crates/core/`
 
 **PRD coverage**
 - `01-core-architecture.md`
@@ -112,7 +112,7 @@ This backlog is intended to be execution-oriented and should be used together wi
 
 ---
 
-### `rust-opencode-port/crates/storage/`
+### `opencode-rust/crates/storage/`
 
 **PRD coverage**
 - `01-core-architecture.md`
@@ -141,7 +141,7 @@ This backlog is intended to be execution-oriented and should be used together wi
 
 ---
 
-### `rust-opencode-port/crates/server/`
+### `opencode-rust/crates/server/`
 
 **PRD coverage**
 - `07-server-api.md`
@@ -181,7 +181,7 @@ This backlog is intended to be execution-oriented and should be used together wi
 
 ## Runtime Crates
 
-### `rust-opencode-port/crates/agent/`
+### `opencode-rust/crates/agent/`
 
 **PRD coverage**
 - `02-agent-system.md`
@@ -208,7 +208,7 @@ This backlog is intended to be execution-oriented and should be used together wi
 
 ---
 
-### `rust-opencode-port/crates/tools/`
+### `opencode-rust/crates/tools/`
 
 **PRD coverage**
 - `03-tools-system.md`
@@ -244,7 +244,7 @@ This backlog is intended to be execution-oriented and should be used together wi
 
 ---
 
-### `rust-opencode-port/crates/plugin/`
+### `opencode-rust/crates/plugin/`
 
 **PRD coverage**
 - `08-plugin-system.md`
@@ -270,7 +270,7 @@ This backlog is intended to be execution-oriented and should be used together wi
 
 ---
 
-### `rust-opencode-port/crates/tui/`
+### `opencode-rust/crates/tui/`
 
 **PRD coverage**
 - `09-tui-system.md`
@@ -346,7 +346,7 @@ This backlog is intended to be execution-oriented and should be used together wi
 
 ## Infrastructure / Integration Crates
 
-### `rust-opencode-port/crates/mcp/`
+### `opencode-rust/crates/mcp/`
 
 **PRD coverage**
 - `04-mcp-system.md`
@@ -370,7 +370,7 @@ This backlog is intended to be execution-oriented and should be used together wi
 
 ---
 
-### `rust-opencode-port/crates/lsp/`
+### `opencode-rust/crates/lsp/`
 
 **PRD coverage**
 - `05-lsp-system.md`
@@ -471,7 +471,7 @@ This backlog is intended to be execution-oriented and should be used together wi
 
 ## Cross-Crate Integration Suites
 
-### `rust-opencode-port/tests/authority/`
+### `opencode-rust/tests/authority/`
 
 **Backlog**
 
@@ -485,7 +485,7 @@ This backlog is intended to be execution-oriented and should be used together wi
 
 ---
 
-### `rust-opencode-port/tests/runtime/`
+### `opencode-rust/tests/runtime/`
 
 **Backlog**
 
@@ -499,7 +499,7 @@ This backlog is intended to be execution-oriented and should be used together wi
 
 ---
 
-### `rust-opencode-port/tests/subsystem/`
+### `opencode-rust/tests/subsystem/`
 
 **Backlog**
 
@@ -515,7 +515,7 @@ This backlog is intended to be execution-oriented and should be used together wi
 
 ---
 
-### `rust-opencode-port/tests/interfaces/`
+### `opencode-rust/tests/interfaces/`
 
 **Backlog**
 
@@ -533,7 +533,7 @@ This backlog is intended to be execution-oriented and should be used together wi
 
 ---
 
-### `rust-opencode-port/tests/compatibility/`
+### `opencode-rust/tests/compatibility/`
 
 **Backlog**
 
@@ -551,7 +551,7 @@ This backlog is intended to be execution-oriented and should be used together wi
 
 ---
 
-### `rust-opencode-port/tests/conventions/`
+### `opencode-rust/tests/conventions/`
 
 **Purpose**
 - enforce structural rules from the PRDs and repository conventions
@@ -583,7 +583,7 @@ This backlog is intended to be execution-oriented and should be used together wi
 
 ---
 
-### `rust-opencode-port/tests/nonfunctional/`
+### `opencode-rust/tests/nonfunctional/`
 
 **Backlog**
 

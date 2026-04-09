@@ -313,7 +313,7 @@ Convention tests validate that the implementation and the test suite itself cont
 ### Test Suite Conventions
 
 - crate-local invariants live in crate-local tests
-- cross-crate workflows live under `rust-opencode-port/tests/`
+- cross-crate workflows live under `opencode-rust/tests/`
 - TUI interaction tests use `ratatui-testing`
 - compatibility tests remain isolated from canonical behavior tests
 - environment-dependent tests are clearly marked and gated

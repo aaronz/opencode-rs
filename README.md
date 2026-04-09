@@ -4,7 +4,7 @@ A Rust implementation of the OpenCode AI coding agent with a comprehensive TUI t
 
 ## Projects
 
-### rust-opencode-port
+### opencode-rust
 Rust implementation of OpenCode AI coding agent featuring:
 - **Core**: Session management, tool registry, and error handling
 - **Agent**: Agent implementations with LLM integration
@@ -41,7 +41,7 @@ cargo build --all-features
 ## Structure
 
 ```
-rust-opencode-port/
+opencode-rust/
 ├── crates/
 │   ├── core/       # Core functionality
 │   ├── cli/        # CLI commands

@@ -1,0 +1,98 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/core",
+    "crates/cli",
+    "crates/llm",
+    "crates/tools",
+    "crates/tui",
+    "crates/agent",
+    "crates/lsp",
+    "crates/storage",
+    "crates/server",
+    "crates/permission",
+    "crates/auth",
+    "crates/control-plane",
+    "crates/plugin",
+    "crates/git",
+    "crates/mcp",
+    "crates/sdk",
+    "tests",
+    "opencode-benches",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["OpenCode Rust Team"]
+license = "MIT"
+repository = "https://github.com/anomalyco/opencode-rs"
+
+[workspace.dependencies]
+tokio = { version = "1.45", features = ["rt-multi-thread", "macros", "sync", "time", "fs", "io-util", "process", "net", "signal"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "blocking", "rustls-tls-native-roots"] }
+futures-util = "0.3"
+async-trait = "0.1"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+# Git dependencies
+git2 = "0.20"
+
+# Auth dependencies
+argon2 = "0.5"
+jsonwebtoken = "9"
+bcrypt = "0.15"
+
+# Encryption dependencies
+aes-gcm = "0.10"
+rand = "0.8"
+
+# Test dependencies
+tempfile = "3"
+assert_cmd = "2"
+predicates = "3"
+walkdir = "2"
+
+# Benchmark dependencies
+criterion = "0.5"
+pprof = { version = "0.13", features = ["flamegraph"] }
+
+# Storage dependencies
+rusqlite = { version = "0.32", features = ["bundled"] }
+deadpool = { version = "0.12", features = ["rt_tokio_1"] }
+deadpool-sqlite = { version = "0.9" }
+opencode-core = { path = "crates/core" }
+opencode-llm = { path = "crates/llm" }
+opencode-tools = { path = "crates/tools" }
+opencode-tui = { path = "crates/tui" }
+opencode-agent = { path = "crates/agent" }
+opencode-lsp = { path = "crates/lsp" }
+opencode-storage = { path = "crates/storage" }
+opencode-server = { path = "crates/server" }
+opencode-mcp = { path = "crates/mcp" }
+opencode-permission = { path = "crates/permission" }
+opencode-sdk = { path = "crates/sdk" }
+
+# Server dependencies
+actix-web = "4"
+actix-cors = "0.7"
+actix-web-lab = "0.20"
+
+# Utility dependencies
+regex = "1"
+sha2 = "0.10"
+tiktoken-rs = "0.6"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

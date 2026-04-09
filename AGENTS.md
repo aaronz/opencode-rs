@@ -5,12 +5,12 @@ This file provides guidance for AI coding agents operating in this repository.
 ## Repository Overview
 
 This is a monorepo containing:
-- **rust-opencode-port/**: Rust implementation of OpenCode AI coding agent
+- **opencode-rust/**: Rust implementation of OpenCode AI coding agent
 - **ratatui-testing/**: TUI testing framework for Rust applications
 
 ## Build Commands
 
-### Rust Project (rust-opencode-port)
+### Rust Project (opencode-rust)
 
 ```bash
 # Build release
@@ -231,7 +231,7 @@ pub use config::Config;
 ## Project Structure
 
 ```
-rust-opencode-port/
+opencode-rust/
 ├── Cargo.toml              # Workspace root
 ├── crates/
 │   ├── core/               # Core functionality (error, session, tool, etc.)

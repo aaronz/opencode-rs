@@ -24,7 +24,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/rust-opencode-port" && pwd)"
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/opencode-rust" && pwd)"
 cd "$PROJECT_DIR"
 
 echo "========================================"

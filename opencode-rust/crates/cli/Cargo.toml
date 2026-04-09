@@ -1,0 +1,33 @@
+[package]
+name = "opencode-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "opencode-rs"
+path = "src/main.rs"
+
+[dependencies]
+opencode-core.workspace = true
+opencode-llm.workspace = true
+opencode-plugin = { path = "../plugin" }
+opencode-tui.workspace = true
+clap = { version = "4.5", features = ["derive"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tokio.workspace = true
+dirs = "6"
+directories = "5"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+once_cell = "1.19"
+chrono.workspace = true
+reqwest.workspace = true
+base64 = "0.22"
+sha2 = "0.10"
+uuid.workspace = true
+
+[dev-dependencies]
+tempfile = "3"

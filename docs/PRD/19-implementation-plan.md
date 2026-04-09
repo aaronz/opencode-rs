@@ -53,7 +53,7 @@ Establish the Rust workspace, crate structure, build infrastructure, and shared 
 
 #### Workspace setup
 
-- [ ] Define `rust-opencode-port/Cargo.toml` workspace with initial crate list
+- [ ] Define `opencode-rust/Cargo.toml` workspace with initial crate list
 - [ ] Establish crate naming and module layout matching PRD ownership areas
 - [ ] Add `rust-toolchain.toml` with pinned Rust version
 - [ ] Configure `cargo-fmt` / rustfmt / clippy in `.cargo/config.toml`
@@ -76,7 +76,7 @@ Establish the Rust workspace, crate structure, build infrastructure, and shared 
 
 #### Test infrastructure scaffold
 
-- [ ] `rust-opencode-port/tests/` workspace layout with `src/common/`
+- [ ] `opencode-rust/tests/` workspace layout with `src/common/`
 - [ ] `TempProject`, `MockServer`, `MockLLMProvider` helpers ported/added
 - [ ] `integration_infrastructure.rs` wired into workspace test config
 - [ ] `ratatui-testing/` integrated into TUI crate test workflow
