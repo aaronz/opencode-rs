@@ -1,8 +1,8 @@
+use crate::{Tool, ToolResult};
 use async_trait::async_trait;
+use opencode_core::OpenCodeError;
 use serde::Deserialize;
 use std::path::PathBuf;
-use crate::{Tool, ToolResult};
-use opencode_core::OpenCodeError;
 
 pub struct FileReadTool;
 
@@ -27,9 +27,13 @@ impl Tool for FileReadTool {
         Box::new(FileReadTool)
     }
 
-    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let args: ReadArgs = serde_json::from_value(args)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        _ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        let args: ReadArgs =
+            serde_json::from_value(args).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         let path = PathBuf::from(&args.path);
 
@@ -37,8 +41,7 @@ impl Tool for FileReadTool {
             return Ok(ToolResult::err(format!("File not found: {}", args.path)));
         }
 
-        let content = std::fs::read_to_string(&path)
-            .map_err(|e| OpenCodeError::Io(e))?;
+        let content = std::fs::read_to_string(&path).map_err(|e| OpenCodeError::Io(e))?;
 
         let lines: Vec<&str> = content.lines().collect();
         let offset = args.offset.unwrap_or(0);
@@ -79,19 +82,21 @@ impl Tool for FileWriteTool {
         Box::new(FileWriteTool)
     }
 
-    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let args: WriteArgs = serde_json::from_value(args)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        _ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        let args: WriteArgs =
+            serde_json::from_value(args).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         let path = PathBuf::from(&args.path);
 
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| OpenCodeError::Io(e))?;
+            std::fs::create_dir_all(parent).map_err(|e| OpenCodeError::Io(e))?;
         }
 
-        std::fs::write(&path, &args.content)
-            .map_err(|e| OpenCodeError::Io(e))?;
+        std::fs::write(&path, &args.content).map_err(|e| OpenCodeError::Io(e))?;
 
         Ok(ToolResult::ok(format!("Written to {}", args.path)))
     }
@@ -119,19 +124,28 @@ impl Tool for GlobTool {
         Box::new(GlobTool)
     }
 
-    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let args: GlobArgs = serde_json::from_value(args)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        _ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        let args: GlobArgs =
+            serde_json::from_value(args).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         let root = args.root.unwrap_or_else(|| ".".to_string());
-        let pattern = glob::Pattern::new(&args.pattern)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+        let pattern =
+            glob::Pattern::new(&args.pattern).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         let mut matches = Vec::new();
-        for entry in walkdir::WalkDir::new(&root).into_iter().filter_map(|e| e.ok()) {
+        for entry in walkdir::WalkDir::new(&root)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
             let path = entry.path();
             if let Some(p) = path.to_str() {
-                if pattern.matches(p) || pattern.matches(&path.file_name().unwrap_or_default().to_string_lossy()) {
+                if pattern.matches(p)
+                    || pattern.matches(&path.file_name().unwrap_or_default().to_string_lossy())
+                {
                     matches.push(p.to_string());
                 }
             }
@@ -162,9 +176,13 @@ impl Tool for StatTool {
         Box::new(StatTool)
     }
 
-    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let args: StatArgs = serde_json::from_value(args)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        _ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        let args: StatArgs =
+            serde_json::from_value(args).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         let path = PathBuf::from(&args.path);
 
@@ -172,8 +190,7 @@ impl Tool for StatTool {
             return Ok(ToolResult::err(format!("Path not found: {}", args.path)));
         }
 
-        let metadata = std::fs::metadata(&path)
-            .map_err(|e| OpenCodeError::Io(e))?;
+        let metadata = std::fs::metadata(&path).map_err(|e| OpenCodeError::Io(e))?;
 
         let file_type = if metadata.is_dir() {
             "directory"
@@ -183,11 +200,13 @@ impl Tool for StatTool {
             "regular file"
         };
 
-        let modified = metadata.modified()
+        let modified = metadata
+            .modified()
             .map(|t| format!("{:?}", t))
             .unwrap_or_else(|_| "unknown".to_string());
 
-        let created = metadata.created()
+        let created = metadata
+            .created()
             .map(|t| format!("{:?}", t))
             .unwrap_or_else(|_| "unknown".to_string());
 
@@ -230,30 +249,41 @@ impl Tool for FileMoveTool {
         Box::new(FileMoveTool)
     }
 
-    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let args: MoveArgs = serde_json::from_value(args)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        _ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        let args: MoveArgs =
+            serde_json::from_value(args).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         let source = PathBuf::from(&args.source);
         let destination = PathBuf::from(&args.destination);
 
         if !source.exists() {
-            return Ok(ToolResult::err(format!("Source not found: {}", args.source)));
+            return Ok(ToolResult::err(format!(
+                "Source not found: {}",
+                args.source
+            )));
         }
 
         if destination.exists() {
-            return Ok(ToolResult::err(format!("Destination already exists: {}", args.destination)));
+            return Ok(ToolResult::err(format!(
+                "Destination already exists: {}",
+                args.destination
+            )));
         }
 
         if let Some(parent) = destination.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| OpenCodeError::Io(e))?;
+            std::fs::create_dir_all(parent).map_err(|e| OpenCodeError::Io(e))?;
         }
 
-        std::fs::rename(&source, &destination)
-            .map_err(|e| OpenCodeError::Io(e))?;
+        std::fs::rename(&source, &destination).map_err(|e| OpenCodeError::Io(e))?;
 
-        Ok(ToolResult::ok(format!("Moved {} to {}", args.source, args.destination)))
+        Ok(ToolResult::ok(format!(
+            "Moved {} to {}",
+            args.source, args.destination
+        )))
     }
 }
 
@@ -280,9 +310,13 @@ impl Tool for FileDeleteTool {
         Box::new(FileDeleteTool)
     }
 
-    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let args: DeleteArgs = serde_json::from_value(args)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        _ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        let args: DeleteArgs =
+            serde_json::from_value(args).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         let path = PathBuf::from(&args.path);
 
@@ -292,15 +326,12 @@ impl Tool for FileDeleteTool {
 
         if path.is_dir() {
             if args.recursive {
-                std::fs::remove_dir_all(&path)
-                    .map_err(|e| OpenCodeError::Io(e))?;
+                std::fs::remove_dir_all(&path).map_err(|e| OpenCodeError::Io(e))?;
             } else {
-                std::fs::remove_dir(&path)
-                    .map_err(|e| OpenCodeError::Io(e))?;
+                std::fs::remove_dir(&path).map_err(|e| OpenCodeError::Io(e))?;
             }
         } else {
-            std::fs::remove_file(&path)
-                .map_err(|e| OpenCodeError::Io(e))?;
+            std::fs::remove_file(&path).map_err(|e| OpenCodeError::Io(e))?;
         }
 
         Ok(ToolResult::ok(format!("Deleted {}", args.path)))

@@ -1,8 +1,8 @@
+use crate::{Tool, ToolResult};
 use async_trait::async_trait;
+use opencode_core::OpenCodeError;
 use serde::Deserialize;
 use std::path::PathBuf;
-use crate::{Tool, ToolResult};
-use opencode_core::OpenCodeError;
 
 pub struct EditTool;
 
@@ -32,39 +32,58 @@ impl Tool for EditTool {
         Box::new(EditTool)
     }
 
-    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let args: EditArgs = serde_json::from_value(args)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        _ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        let args: EditArgs =
+            serde_json::from_value(args).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         let path = PathBuf::from(&args.file_path);
 
         if !path.exists() {
-            return Ok(ToolResult::err(format!("File not found: {}", args.file_path)));
+            return Ok(ToolResult::err(format!(
+                "File not found: {}",
+                args.file_path
+            )));
         }
 
-        let stats = std::fs::metadata(&path)
-            .map_err(|e| OpenCodeError::Io(e))?;
+        let stats = std::fs::metadata(&path).map_err(|e| OpenCodeError::Io(e))?;
         if stats.is_dir() {
-            return Ok(ToolResult::err(format!("Path is a directory, not a file: {}", args.file_path)));
+            return Ok(ToolResult::err(format!(
+                "Path is a directory, not a file: {}",
+                args.file_path
+            )));
         }
 
         if args.old_string == args.new_string {
-            return Ok(ToolResult::err("No changes to apply: oldString and newString are identical.".to_string()));
+            return Ok(ToolResult::err(
+                "No changes to apply: oldString and newString are identical.".to_string(),
+            ));
         }
 
-        let content = std::fs::read_to_string(&path)
-            .map_err(|e| OpenCodeError::Io(e))?;
+        let content = std::fs::read_to_string(&path).map_err(|e| OpenCodeError::Io(e))?;
 
         // Detect line ending
-        let ending = if content.contains("\r\n") { "\r\n" } else { "\n" };
-        
+        let ending = if content.contains("\r\n") {
+            "\r\n"
+        } else {
+            "\n"
+        };
+
         // Normalize line endings in content and search strings
         let normalized_content = content.replace("\r\n", "\n");
         let normalized_old = args.old_string.replace("\r\n", "\n");
         let normalized_new = args.new_string.replace("\r\n", "\n");
 
         // Try to find and replace
-        match replace(&normalized_content, &normalized_old, &normalized_new, args.replace_all.unwrap_or(false)) {
+        match replace(
+            &normalized_content,
+            &normalized_old,
+            &normalized_new,
+            args.replace_all.unwrap_or(false),
+        ) {
             Ok(new_content) => {
                 // Convert back to original line ending
                 let final_content = if ending == "\r\n" {
@@ -73,13 +92,13 @@ impl Tool for EditTool {
                     new_content
                 };
 
-                std::fs::write(&path, &final_content)
-                    .map_err(|e| OpenCodeError::Io(e))?;
+                std::fs::write(&path, &final_content).map_err(|e| OpenCodeError::Io(e))?;
 
                 // Generate diff
                 let diff = generate_diff(&args.file_path, &content, &final_content);
 
-                let title = path.file_name()
+                let title = path
+                    .file_name()
                     .and_then(|n| n.to_str())
                     .unwrap_or(&args.file_path)
                     .to_string();
@@ -95,7 +114,12 @@ impl Tool for EditTool {
     }
 }
 
-fn replace(content: &str, old_string: &str, new_string: &str, replace_all: bool) -> Result<String, String> {
+fn replace(
+    content: &str,
+    old_string: &str,
+    new_string: &str,
+    replace_all: bool,
+) -> Result<String, String> {
     let mut not_found = true;
 
     // Try replacers in order
@@ -113,16 +137,16 @@ fn replace(content: &str, old_string: &str, new_string: &str, replace_all: bool)
                 continue;
             }
             not_found = false;
-            
+
             if replace_all {
                 return Ok(content.replace(&search, new_string));
             }
-            
+
             let last_index = content.rfind(&search);
             if index != last_index {
                 continue;
             }
-            
+
             let idx = index.unwrap();
             let (start, end) = content.split_at(idx);
             return Ok(format!("{}{}{}", start, new_string, &end[search.len()..]));
@@ -152,7 +176,7 @@ fn line_trimmed_replacer(content: &str, find: &str) -> Vec<String> {
     let mut results = Vec::new();
     let original_lines: Vec<&str> = content.lines().collect();
     let search_lines: Vec<&str> = find.lines().collect();
-    
+
     let mut search_lines = search_lines.to_vec();
     if search_lines.last() == Some(&"") {
         search_lines.pop();
@@ -169,7 +193,10 @@ fn line_trimmed_replacer(content: &str, find: &str) -> Vec<String> {
             }
         }
         if matches {
-            let match_start = original_lines[..i].iter().map(|l| l.len() + 1).sum::<usize>();
+            let match_start = original_lines[..i]
+                .iter()
+                .map(|l| l.len() + 1)
+                .sum::<usize>();
             let mut match_end = match_start;
             for j in 0..search_lines.len() {
                 match_end += original_lines[i + j].len();
@@ -187,7 +214,7 @@ fn block_anchor_replacer(content: &str, find: &str) -> Vec<String> {
     let mut results = Vec::new();
     let original_lines: Vec<&str> = content.lines().collect();
     let search_lines: Vec<&str> = find.lines().collect();
-    
+
     if search_lines.len() < 3 {
         return results;
     }
@@ -222,10 +249,10 @@ fn block_anchor_replacer(content: &str, find: &str) -> Vec<String> {
     if candidates.len() == 1 {
         let (start_line, end_line) = candidates[0];
         let actual_block_size = end_line - start_line + 1;
-        
+
         let mut similarity = 0.0;
         let lines_to_check = std::cmp::min(search_block_size - 2, actual_block_size - 2);
-        
+
         if lines_to_check > 0 {
             for j in 1..search_block_size - 1 {
                 if j >= actual_block_size - 1 {
@@ -269,10 +296,10 @@ fn block_anchor_replacer(content: &str, find: &str) -> Vec<String> {
     for candidate in &candidates {
         let (start_line, end_line) = candidate;
         let actual_block_size = end_line - start_line + 1;
-        
+
         let mut similarity = 0.0;
         let lines_to_check = std::cmp::min(search_block_size - 2, actual_block_size - 2);
-        
+
         if lines_to_check > 0 {
             for j in 1..search_block_size - 1 {
                 if j >= actual_block_size - 1 {
@@ -320,7 +347,12 @@ fn block_anchor_replacer(content: &str, find: &str) -> Vec<String> {
 
 fn whitespace_normalized_replacer(content: &str, find: &str) -> Vec<String> {
     let mut results = Vec::new();
-    let normalize = |text: &str| text.replace_whitespace().collect::<String>().trim().to_string();
+    let normalize = |text: &str| {
+        text.replace_whitespace()
+            .collect::<String>()
+            .trim()
+            .to_string()
+    };
     let normalized_find = normalize(find);
 
     for line in content.lines() {
@@ -346,24 +378,33 @@ fn whitespace_normalized_replacer(content: &str, find: &str) -> Vec<String> {
 
 fn indentation_flexible_replacer(content: &str, find: &str) -> Vec<String> {
     let mut results = Vec::new();
-    
+
     let remove_indentation = |text: &str| -> String {
         let lines: Vec<&str> = text.lines().collect();
-        let non_empty: Vec<&str> = lines.iter().filter(|l| !l.trim().is_empty()).copied().collect();
+        let non_empty: Vec<&str> = lines
+            .iter()
+            .filter(|l| !l.trim().is_empty())
+            .copied()
+            .collect();
         if non_empty.is_empty() {
             return text.to_string();
         }
-        let min_indent = non_empty.iter()
+        let min_indent = non_empty
+            .iter()
             .map(|l| l.len() - l.trim_start().len())
             .min()
             .unwrap_or(0);
-        lines.iter().map(|l| {
-            if l.trim().is_empty() {
-                l.to_string()
-            } else {
-                l[min_indent..].to_string()
-            }
-        }).collect::<Vec<_>>().join("\n")
+        lines
+            .iter()
+            .map(|l| {
+                if l.trim().is_empty() {
+                    l.to_string()
+                } else {
+                    l[min_indent..].to_string()
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
     };
 
     let normalized_find = remove_indentation(find);
@@ -417,7 +458,11 @@ fn levenshtein(a: &str, b: &str) -> usize {
 
     for i in 1..=a.len() {
         for j in 1..=b.len() {
-            let cost = if a.chars().nth(i - 1) == b.chars().nth(j - 1) { 0 } else { 1 };
+            let cost = if a.chars().nth(i - 1) == b.chars().nth(j - 1) {
+                0
+            } else {
+                1
+            };
             matrix[i][j] = std::cmp::min(
                 std::cmp::min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1),
                 matrix[i - 1][j - 1] + cost,
@@ -431,18 +476,18 @@ fn levenshtein(a: &str, b: &str) -> usize {
 fn generate_diff(file_path: &str, old_content: &str, new_content: &str) -> String {
     let old_lines: Vec<&str> = old_content.lines().collect();
     let new_lines: Vec<&str> = new_content.lines().collect();
-    
+
     let mut diff = String::new();
     diff.push_str(&format!("--- {}\n", file_path));
     diff.push_str(&format!("+++ {}\n", file_path));
-    
+
     let max_len = std::cmp::max(old_lines.len(), new_lines.len());
     let mut changes = false;
-    
+
     for i in 0..max_len {
         let old_line = old_lines.get(i).copied();
         let new_line = new_lines.get(i).copied();
-        
+
         match (old_line, new_line) {
             (Some(ol), Some(nl)) if ol == nl => {
                 diff.push_str(&format!(" {}\n", ol));
@@ -463,12 +508,12 @@ fn generate_diff(file_path: &str, old_content: &str, new_content: &str) -> Strin
             (None, None) => {}
         }
     }
-    
+
     if !changes && old_content != new_content {
         // Simple comparison
         return format!("@@ -1,{} +1,{} @@\n", old_lines.len(), new_lines.len());
     }
-    
+
     diff
 }
 
@@ -487,7 +532,7 @@ struct ReplaceWhitespace<'a>(&'a str);
 
 impl Iterator for ReplaceWhitespace<'_> {
     type Item = char;
-    
+
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(c) = self.0.chars().next() {
             self.0 = &self.0[c.len_utf8()..];
@@ -498,7 +543,7 @@ impl Iterator for ReplaceWhitespace<'_> {
         }
         None
     }
-    
+
     fn size_hint(&self) -> (usize, Option<usize>) {
         (self.0.len(), Some(self.0.len()))
     }

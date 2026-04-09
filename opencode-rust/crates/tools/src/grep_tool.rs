@@ -1,8 +1,8 @@
+use crate::{Tool, ToolResult};
 use async_trait::async_trait;
+use opencode_core::OpenCodeError;
 use regex::Regex;
 use serde::Deserialize;
-use crate::{Tool, ToolResult};
-use opencode_core::OpenCodeError;
 
 pub struct GrepTool;
 
@@ -28,12 +28,15 @@ impl Tool for GrepTool {
         Box::new(GrepTool)
     }
 
-    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let args: GrepArgs = serde_json::from_value(args)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        _ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        let args: GrepArgs =
+            serde_json::from_value(args).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
-        let regex = Regex::new(&args.pattern)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+        let regex = Regex::new(&args.pattern).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         let path = args.path.unwrap_or_else(|| ".".to_string());
         let count_only = args.count.unwrap_or(false);
@@ -46,7 +49,7 @@ impl Tool for GrepTool {
 
         for entry in entries {
             let file_path = entry.path();
-            
+
             if let Some(ref ft) = args.file_type {
                 if let Some(ext) = file_path.extension() {
                     if ext.to_string_lossy() != *ft {
@@ -59,13 +62,22 @@ impl Tool for GrepTool {
                 let mut file_matches = Vec::new();
                 for (line_num, line) in content.lines().enumerate() {
                     if regex.is_match(line) {
-                        file_matches.push(format!("{}:{}: {}", file_path.display(), line_num + 1, line));
+                        file_matches.push(format!(
+                            "{}:{}: {}",
+                            file_path.display(),
+                            line_num + 1,
+                            line
+                        ));
                     }
                 }
 
                 if !file_matches.is_empty() {
                     if count_only {
-                        results.push(format!("{}:{} matches", file_path.display(), file_matches.len()));
+                        results.push(format!(
+                            "{}:{} matches",
+                            file_path.display(),
+                            file_matches.len()
+                        ));
                     } else {
                         results.extend(file_matches);
                     }

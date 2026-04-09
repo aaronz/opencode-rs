@@ -1,8 +1,8 @@
+use crate::{Tool, ToolResult};
 use async_trait::async_trait;
+use opencode_core::OpenCodeError;
 use serde::Deserialize;
 use std::process::Command;
-use crate::{Tool, ToolResult};
-use opencode_core::OpenCodeError;
 
 pub struct GitStatusTool;
 
@@ -20,14 +20,18 @@ impl Tool for GitStatusTool {
         Box::new(GitStatusTool)
     }
 
-    async fn execute(&self, _args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
+    async fn execute(
+        &self,
+        _args: serde_json::Value,
+        _ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
         let output = Command::new("git")
             .args(["status", "--porcelain"])
             .output()
             .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         let result = String::from_utf8_lossy(&output.stdout).to_string();
-        
+
         if result.is_empty() {
             return Ok(ToolResult::ok("Working tree clean".to_string()));
         }
@@ -52,14 +56,18 @@ impl Tool for GitDiffTool {
         Box::new(GitDiffTool)
     }
 
-    async fn execute(&self, _args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
+    async fn execute(
+        &self,
+        _args: serde_json::Value,
+        _ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
         let output = Command::new("git")
             .args(["diff", "--color=never"])
             .output()
             .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         let result = String::from_utf8_lossy(&output.stdout).to_string();
-        
+
         if result.is_empty() {
             return Ok(ToolResult::ok("No changes".to_string()));
         }
@@ -96,9 +104,13 @@ impl Tool for GitLogTool {
         Box::new(GitLogTool)
     }
 
-    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let args: GitLogArgs = serde_json::from_value(args)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        _ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        let args: GitLogArgs =
+            serde_json::from_value(args).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         let mut cmd = Command::new("git");
         cmd.args(["log", "--oneline", "--decorate"]);
@@ -112,16 +124,15 @@ impl Tool for GitLogTool {
         }
 
         if let Some(path) = &args.path {
-            cmd.arg("--follow")
-               .arg("--")
-               .arg(path);
+            cmd.arg("--follow").arg("--").arg(path);
         }
 
-        let output = cmd.output()
+        let output = cmd
+            .output()
             .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         let result = String::from_utf8_lossy(&output.stdout).to_string();
-        
+
         if result.is_empty() {
             return Ok(ToolResult::ok("No commits found".to_string()));
         }
@@ -154,9 +165,13 @@ impl Tool for GitShowTool {
         Box::new(GitShowTool)
     }
 
-    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let args: GitShowArgs = serde_json::from_value(args)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        _ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        let args: GitShowArgs =
+            serde_json::from_value(args).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         let commit = args.commit.unwrap_or_else(|| "HEAD".to_string());
         let mut cmd = Command::new("git");
@@ -169,11 +184,12 @@ impl Tool for GitShowTool {
             cmd.arg("--stat");
         }
 
-        let output = cmd.output()
+        let output = cmd
+            .output()
             .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         let result = String::from_utf8_lossy(&output.stdout).to_string();
-        
+
         if result.is_empty() {
             return Ok(ToolResult::ok("No content found".to_string()));
         }
@@ -217,7 +233,9 @@ mod tests {
     #[tokio::test]
     async fn test_git_log_tool_with_file() {
         let tool = GitLogTool;
-        let result = tool.execute(serde_json::json!({"file": "Cargo.toml"}), None).await;
+        let result = tool
+            .execute(serde_json::json!({"file": "Cargo.toml"}), None)
+            .await;
         assert!(result.is_ok());
     }
 
@@ -231,14 +249,21 @@ mod tests {
     #[tokio::test]
     async fn test_git_show_tool_with_commit() {
         let tool = GitShowTool;
-        let result = tool.execute(serde_json::json!({"commit": "HEAD"}), None).await;
+        let result = tool
+            .execute(serde_json::json!({"commit": "HEAD"}), None)
+            .await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_git_show_tool_with_file() {
         let tool = GitShowTool;
-        let result = tool.execute(serde_json::json!({"commit": "HEAD", "file": "Cargo.toml"}), None).await;
+        let result = tool
+            .execute(
+                serde_json::json!({"commit": "HEAD", "file": "Cargo.toml"}),
+                None,
+            )
+            .await;
         assert!(result.is_ok());
     }
 }

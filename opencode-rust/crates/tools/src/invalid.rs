@@ -1,7 +1,7 @@
-use async_trait::async_trait;
-use serde::Deserialize;
 use crate::{Tool, ToolResult};
+use async_trait::async_trait;
 use opencode_core::OpenCodeError;
+use serde::Deserialize;
 
 pub struct InvalidTool;
 
@@ -26,9 +26,13 @@ impl Tool for InvalidTool {
         Box::new(InvalidTool)
     }
 
-    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let args: InvalidArgs = serde_json::from_value(args)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        _ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        let args: InvalidArgs =
+            serde_json::from_value(args).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         Ok(ToolResult::ok(format!(
             "The arguments provided to the tool are invalid: {}",

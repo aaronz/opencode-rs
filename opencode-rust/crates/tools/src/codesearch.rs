@@ -1,5 +1,5 @@
-use async_trait::async_trait;
 use crate::{Tool, ToolResult};
+use async_trait::async_trait;
 use opencode_core::OpenCodeError;
 use serde::{Deserialize, Serialize};
 use std::process::Command;
@@ -26,11 +26,16 @@ impl Tool for CodeSearchTool {
         Box::new(CodeSearchTool)
     }
 
-    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let args: SearchArgs = serde_json::from_value(args).map_err(|e| OpenCodeError::Parse(e.to_string()))?;
-        
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        _ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        let args: SearchArgs =
+            serde_json::from_value(args).map_err(|e| OpenCodeError::Parse(e.to_string()))?;
+
         let path = args.path.unwrap_or_else(|| ".".to_string());
-        
+
         // Simple grep -r implementation as a base for AST-aware search
         let output = Command::new("grep")
             .arg("-r")
@@ -42,7 +47,7 @@ impl Tool for CodeSearchTool {
             .map_err(|e| OpenCodeError::Io(e))?;
 
         let result = String::from_utf8_lossy(&output.stdout).to_string();
-        
+
         if result.is_empty() {
             return Ok(ToolResult::ok("No matches found".to_string()));
         }

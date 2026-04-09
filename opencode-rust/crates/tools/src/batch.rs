@@ -1,7 +1,7 @@
+use crate::{Tool, ToolRegistry, ToolResult};
 use async_trait::async_trait;
-use serde::Deserialize;
-use crate::{Tool, ToolResult, ToolRegistry};
 use opencode_core::OpenCodeError;
+use serde::Deserialize;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -42,9 +42,13 @@ impl Tool for BatchTool {
         })
     }
 
-    async fn execute(&self, args: serde_json::Value, ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let args: BatchArgs = serde_json::from_value(args)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        let args: BatchArgs =
+            serde_json::from_value(args).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         let mut handles = Vec::new();
 
@@ -58,7 +62,10 @@ impl Tool for BatchTool {
                 };
                 match tool {
                     Some(t) => t.execute(invocation.input, ctx).await,
-                    None => Err(OpenCodeError::Tool(format!("Tool '{}' not found", invocation.tool_name))),
+                    None => Err(OpenCodeError::Tool(format!(
+                        "Tool '{}' not found",
+                        invocation.tool_name
+                    ))),
                 }
             }));
         }

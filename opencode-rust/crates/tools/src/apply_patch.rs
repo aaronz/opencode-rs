@@ -1,8 +1,8 @@
+use crate::{Tool, ToolResult};
 use async_trait::async_trait;
+use opencode_core::OpenCodeError;
 use serde::Deserialize;
 use std::path::PathBuf;
-use crate::{Tool, ToolResult};
-use opencode_core::OpenCodeError;
 
 pub struct ApplyPatchTool;
 
@@ -14,9 +14,17 @@ struct ApplyPatchArgs {
 
 #[derive(Debug, Clone)]
 enum HunkType {
-    Add { path: String, contents: String },
-    Delete { path: String },
-    Update { path: String, chunks: Vec<UpdateChunk> },
+    Add {
+        path: String,
+        contents: String,
+    },
+    Delete {
+        path: String,
+    },
+    Update {
+        path: String,
+        chunks: Vec<UpdateChunk>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -39,9 +47,13 @@ impl Tool for ApplyPatchTool {
         Box::new(ApplyPatchTool)
     }
 
-    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let args: ApplyPatchArgs = serde_json::from_value(args)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        _ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        let args: ApplyPatchArgs =
+            serde_json::from_value(args).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         let patch_text = args.patch_text;
 
@@ -101,8 +113,9 @@ impl Tool for ApplyPatchTool {
                         }
                     };
 
-                    let new_content = apply_chunks(&old_content, chunks).map_err(|e| OpenCodeError::Tool(e))?;
-                    
+                    let new_content =
+                        apply_chunks(&old_content, chunks).map_err(|e| OpenCodeError::Tool(e))?;
+
                     match std::fs::write(&file_path, &new_content) {
                         Ok(_) => results.push(format!("M {}", path)),
                         Err(e) => errors.push(format!("Failed to write {}: {}", path, e)),
@@ -112,7 +125,10 @@ impl Tool for ApplyPatchTool {
         }
 
         if !errors.is_empty() {
-            return Ok(ToolResult::err(format!("Patch errors:\n{}", errors.join("\n"))));
+            return Ok(ToolResult::err(format!(
+                "Patch errors:\n{}",
+                errors.join("\n")
+            )));
         }
 
         Ok(ToolResult::ok(format!(
@@ -132,7 +148,11 @@ fn parse_hunks(patch: &str) -> Result<Vec<HunkType>, String> {
         if line.starts_with("*** Update File: ") {
             if let Some(file) = current_file.take() {
                 if !current_lines.is_empty() {
-                    hunks.push(process_file_entry(&file, current_type.unwrap_or("update"), &current_lines));
+                    hunks.push(process_file_entry(
+                        &file,
+                        current_type.unwrap_or("update"),
+                        &current_lines,
+                    ));
                 }
                 current_lines.clear();
             }
@@ -141,7 +161,11 @@ fn parse_hunks(patch: &str) -> Result<Vec<HunkType>, String> {
         } else if line.starts_with("*** Add File: ") {
             if let Some(file) = current_file.take() {
                 if !current_lines.is_empty() {
-                    hunks.push(process_file_entry(&file, current_type.unwrap_or("add"), &current_lines));
+                    hunks.push(process_file_entry(
+                        &file,
+                        current_type.unwrap_or("add"),
+                        &current_lines,
+                    ));
                 }
                 current_lines.clear();
             }
@@ -150,7 +174,11 @@ fn parse_hunks(patch: &str) -> Result<Vec<HunkType>, String> {
         } else if line.starts_with("*** Delete File: ") {
             if let Some(file) = current_file.take() {
                 if !current_lines.is_empty() {
-                    hunks.push(process_file_entry(&file, current_type.unwrap_or("delete"), &current_lines));
+                    hunks.push(process_file_entry(
+                        &file,
+                        current_type.unwrap_or("delete"),
+                        &current_lines,
+                    ));
                 }
                 current_lines.clear();
             }
@@ -165,7 +193,11 @@ fn parse_hunks(patch: &str) -> Result<Vec<HunkType>, String> {
 
     if let Some(file) = current_file {
         if !current_lines.is_empty() {
-            hunks.push(process_file_entry(&file, current_type.unwrap_or("update"), &current_lines));
+            hunks.push(process_file_entry(
+                &file,
+                current_type.unwrap_or("update"),
+                &current_lines,
+            ));
         }
     }
 
@@ -174,18 +206,27 @@ fn parse_hunks(patch: &str) -> Result<Vec<HunkType>, String> {
 
 fn process_file_entry(path: &str, hunk_type: &str, lines: &[String]) -> HunkType {
     match hunk_type {
-        "delete" => HunkType::Delete { path: path.to_string() },
+        "delete" => HunkType::Delete {
+            path: path.to_string(),
+        },
         "add" => {
-            let contents: String = lines.iter()
+            let contents: String = lines
+                .iter()
                 .filter(|l| l.starts_with('+'))
                 .map(|l| l[1..].to_string())
                 .collect::<Vec<_>>()
                 .join("\n");
-            HunkType::Add { path: path.to_string(), contents }
+            HunkType::Add {
+                path: path.to_string(),
+                contents,
+            }
         }
         _ => {
             let chunks = parse_update_chunks(lines);
-            HunkType::Update { path: path.to_string(), chunks }
+            HunkType::Update {
+                path: path.to_string(),
+                chunks,
+            }
         }
     }
 }
@@ -235,7 +276,7 @@ fn parse_update_chunks(lines: &[String]) -> Vec<UpdateChunk> {
 
 fn apply_chunks(content: &str, chunks: &[UpdateChunk]) -> Result<String, String> {
     let mut lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
-    
+
     let mut search_start = 0;
     for (chunk_idx, chunk) in chunks.iter().enumerate() {
         if chunk.old_lines.is_empty() {
@@ -251,10 +292,8 @@ fn apply_chunks(content: &str, chunks: &[UpdateChunk]) -> Result<String, String>
                 search_start = start + chunk.new_lines.len();
             }
             None => {
-                let context_lines: Vec<&str> = chunk.old_lines.iter()
-                    .take(3)
-                    .map(|s| s.as_str())
-                    .collect();
+                let context_lines: Vec<&str> =
+                    chunk.old_lines.iter().take(3).map(|s| s.as_str()).collect();
                 return Err(format!(
                     "Chunk {} context not found in file (searched from line {}).\nExpected lines starting with:\n{}",
                     chunk_idx + 1,
@@ -279,7 +318,11 @@ fn find_chunk_position(lines: &[String], needle: &[String], start: usize) -> Opt
 
     let max_start = lines.len() - needle.len();
     for i in start..=max_start {
-        if lines[i..i + needle.len()].iter().zip(needle.iter()).all(|(a, b)| a == b) {
+        if lines[i..i + needle.len()]
+            .iter()
+            .zip(needle.iter())
+            .all(|(a, b)| a == b)
+        {
             return Some(i);
         }
     }

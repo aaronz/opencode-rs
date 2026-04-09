@@ -1,8 +1,8 @@
+use crate::{Tool, ToolResult};
 use async_trait::async_trait;
+use opencode_core::OpenCodeError;
 use serde::Deserialize;
 use std::path::PathBuf;
-use crate::{Tool, ToolResult};
-use opencode_core::OpenCodeError;
 
 pub struct GlobTool;
 
@@ -26,9 +26,13 @@ impl Tool for GlobTool {
         Box::new(GlobTool)
     }
 
-    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let args: GlobArgs = serde_json::from_value(args)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        _ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        let args: GlobArgs =
+            serde_json::from_value(args).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         let search = args.path.unwrap_or_else(|| ".".to_string());
         let search_path = PathBuf::from(&search);
@@ -45,11 +49,16 @@ impl Tool for GlobTool {
         let mut files = Vec::new();
 
         // Use glob crate for pattern matching
-        let glob_pattern = glob::Pattern::new(pattern)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+        let glob_pattern =
+            glob::Pattern::new(pattern).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         // Walk the directory
-        fn walk_dir(dir: &PathBuf, pattern: &glob::Pattern, files: &mut Vec<(PathBuf, u64),>, limit: usize) -> bool {
+        fn walk_dir(
+            dir: &PathBuf,
+            pattern: &glob::Pattern,
+            files: &mut Vec<(PathBuf, u64)>,
+            limit: usize,
+        ) -> bool {
             if files.len() >= limit {
                 return true;
             }
@@ -61,7 +70,8 @@ impl Tool for GlobTool {
                     }
 
                     let path = entry.path();
-                    let name = path.file_name()
+                    let name = path
+                        .file_name()
                         .map(|n| n.to_string_lossy().to_string())
                         .unwrap_or_default();
 
@@ -76,8 +86,13 @@ impl Tool for GlobTool {
                         }
                     } else if pattern.matches(&name) {
                         if let Ok(metadata) = std::fs::metadata(&path) {
-                            let mtime = metadata.modified()
-                                .map(|t| t.duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs())
+                            let mtime = metadata
+                                .modified()
+                                .map(|t| {
+                                    t.duration_since(std::time::UNIX_EPOCH)
+                                        .unwrap_or_default()
+                                        .as_secs()
+                                })
                                 .unwrap_or(0);
                             files.push((path, mtime));
                         }

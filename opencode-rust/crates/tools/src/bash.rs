@@ -1,10 +1,10 @@
+use crate::{Tool, ToolResult};
 use async_trait::async_trait;
+use opencode_core::OpenCodeError;
 use serde::Deserialize;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 use tokio::time::timeout;
-use crate::{Tool, ToolResult};
-use opencode_core::OpenCodeError;
 
 pub struct BashTool {
     default_timeout: Duration,
@@ -48,16 +48,23 @@ impl Tool for BashTool {
         Box::new(BashTool::new())
     }
 
-    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let args: BashArgs = serde_json::from_value(args)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        _ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        let args: BashArgs =
+            serde_json::from_value(args).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
-        let timeout_duration = args.timeout
+        let timeout_duration = args
+            .timeout
             .map(Duration::from_millis)
             .unwrap_or(self.default_timeout);
 
         let workdir = args.workdir.unwrap_or_else(|| ".".to_string());
-        let description = args.description.unwrap_or_else(|| "Execute command".to_string());
+        let description = args
+            .description
+            .unwrap_or_else(|| "Execute command".to_string());
 
         let start = Instant::now();
         let output = timeout(timeout_duration, async {
@@ -69,7 +76,8 @@ impl Tool for BashTool {
                 .stderr(Stdio::piped())
                 .output()
                 .map_err(|e| OpenCodeError::Tool(e.to_string()))
-        }).await;
+        })
+        .await;
 
         let elapsed = start.elapsed();
 
