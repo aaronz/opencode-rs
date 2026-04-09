@@ -112,7 +112,7 @@
 
 ---
 
-### P1-3: tui.json Ownership Enforcement
+### P1-3: ✅ Done
 **FR:** FR-009 | **Phase:** 2 | **Module:** `crates/config/`, `crates/tui/`
 
 - [x] Audit current config for TUI boundary violations
@@ -160,10 +160,10 @@
 ### P2-1: VCS Worktree Root Distinction
 **FR:** 01-core-arch | **Phase:** 1 | **Module:** `crates/core/`
 
-- [ ] Add `worktree_root` field to ProjectInfo
-- [ ] Update project detection logic
-- [ ] Add tests
-- [ ] Update documentation
+- [x] Add `worktree_root` field to ProjectInfo
+- [x] Update project detection logic
+- [x] Add tests
+- [x] Update documentation
 
 ---
 

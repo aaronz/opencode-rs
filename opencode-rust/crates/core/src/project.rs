@@ -9,6 +9,7 @@ pub struct ProjectInfo {
     pub has_git: bool,
     pub has_tests: bool,
     pub has_docs: bool,
+    pub worktree_root: Option<PathBuf>,
 }
 
 pub struct ProjectManager {
@@ -28,6 +29,8 @@ impl ProjectManager {
         let has_git = root.join(".git").exists();
         let has_tests = root.join("tests").exists() || root.join("test").exists();
         let has_docs = root.join("docs").exists() || root.join("README.md").exists();
+
+        let worktree_root = Self::detect_worktree_root(&root);
 
         let language = if root.join("Cargo.toml").exists() {
             "rust".to_string()
@@ -53,7 +56,38 @@ impl ProjectManager {
             has_git,
             has_tests,
             has_docs,
+            worktree_root,
         })
+    }
+
+    fn detect_worktree_root(root: &PathBuf) -> Option<PathBuf> {
+        let git_path = root.join(".git");
+        if !git_path.exists() {
+            return None;
+        }
+
+        if git_path.is_file() {
+            if let Ok(content) = std::fs::read_to_string(&git_path) {
+                for line in content.lines() {
+                    if line.starts_with("gitdir:") {
+                        let path = line.trim_start_matches("gitdir:").trim();
+                        let worktree_path = PathBuf::from(path);
+                        if let Some(parent) = worktree_path.parent() {
+                            if parent.file_name().map(|n| n == "worktrees" || n == "git")
+                                == Some(true)
+                            {
+                                if let Some(git_dir) = parent.parent() {
+                                    if let Some(project_root) = git_dir.parent() {
+                                        return Some(project_root.to_path_buf());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        None
     }
 
     pub fn set_current(&mut self, info: ProjectInfo) {
@@ -115,15 +149,6 @@ mod tests {
     }
 
     #[test]
-    fn test_project_detect_git() {
-        let tmp = TempDir::new().unwrap();
-        std::fs::create_dir(tmp.path().join(".git")).unwrap();
-
-        let info = ProjectManager::detect(tmp.path().to_path_buf()).unwrap();
-        assert!(info.has_git);
-    }
-
-    #[test]
     fn test_project_detect_nonexistent() {
         let info = ProjectManager::detect(PathBuf::from("/nonexistent/path"));
         assert!(info.is_none());
@@ -139,6 +164,7 @@ mod tests {
             has_git: false,
             has_tests: false,
             has_docs: false,
+            worktree_root: None,
         };
         pm.set_current(info);
         assert!(pm.current().is_some());
@@ -154,8 +180,58 @@ mod tests {
             has_git: false,
             has_tests: false,
             has_docs: false,
+            worktree_root: None,
         });
         assert!(pm.is_rust());
         assert!(!pm.is_typescript());
+    }
+
+    #[test]
+    fn test_project_detect_worktree() {
+        let tmp = TempDir::new().unwrap();
+        let git_file = tmp.path().join(".git");
+        let main_repo_git = tmp.path().join("main-repo").join(".git");
+        let worktree_ref_path = main_repo_git.join("worktrees").join("feature-branch");
+        std::fs::create_dir_all(&worktree_ref_path).unwrap();
+        std::fs::write(
+            &git_file,
+            format!("gitdir: {}", worktree_ref_path.to_string_lossy()),
+        )
+        .unwrap();
+
+        let info = ProjectManager::detect(tmp.path().to_path_buf()).unwrap();
+        assert!(info.has_git);
+        assert!(info.worktree_root.is_some());
+        assert_eq!(info.worktree_root.unwrap(), tmp.path().join("main-repo"));
+    }
+
+    #[test]
+    fn test_project_detect_git() {
+        let tmp = TempDir::new().unwrap();
+        std::fs::create_dir(tmp.path().join(".git")).unwrap();
+
+        let info = ProjectManager::detect(tmp.path().to_path_buf()).unwrap();
+        assert!(info.has_git);
+        assert!(info.worktree_root.is_none());
+    }
+
+    #[test]
+    fn test_project_detect_regular_git() {
+        let tmp = TempDir::new().unwrap();
+        std::fs::create_dir(tmp.path().join(".git")).unwrap();
+
+        let info = ProjectManager::detect(tmp.path().to_path_buf()).unwrap();
+        assert!(info.has_git);
+        assert!(info.worktree_root.is_none());
+    }
+
+    #[test]
+    fn test_project_detect_no_git() {
+        let tmp = TempDir::new().unwrap();
+        std::fs::write(tmp.path().join("Cargo.toml"), "").unwrap();
+
+        let info = ProjectManager::detect(tmp.path().to_path_buf()).unwrap();
+        assert!(!info.has_git);
+        assert!(info.worktree_root.is_none());
     }
 }

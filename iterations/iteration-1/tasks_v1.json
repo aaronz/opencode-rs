@@ -149,7 +149,7 @@
       "priority": "P2",
       "title": "VCS Worktree Root Distinction",
       "description": "Add worktree_root field to ProjectInfo, update project detection logic. Module: crates/core/",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "worktree_root field added to ProjectInfo",
         "Project detection logic updated",
@@ -160,7 +160,7 @@
         "cargo test -p opencode-core -- worktree",
         "cargo test -p opencode-core -- project"
       ],
-      "impl_notes": "Requires 01-core-arch. Tests and documentation still pending.",
+      "impl_notes": "Implemented worktree_root field and detection logic. Tests pass.",
       "dependencies": [
         "P1-4"
       ]
