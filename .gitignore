@@ -94,3 +94,4 @@ flamegraph.svg
 **/node_modules/
 **/dist/
 **/build/
+.VSCodeCounter/
