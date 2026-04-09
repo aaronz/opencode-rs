@@ -1,9 +1,9 @@
+use crate::{Tool, ToolResult};
 use async_trait::async_trait;
+use opencode_core::Instance;
+use opencode_core::OpenCodeError;
 use serde::Deserialize;
 use std::path::PathBuf;
-use crate::{Tool, ToolResult};
-use opencode_core::OpenCodeError;
-use opencode_core::Instance;
 
 pub struct PlanTool;
 
@@ -26,25 +26,31 @@ impl Tool for PlanTool {
         Box::new(PlanTool)
     }
 
-    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let args: PlanArgs = serde_json::from_value(args)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        _ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        let args: PlanArgs =
+            serde_json::from_value(args).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         let worktree = Instance::worktree().unwrap_or_else(|| PathBuf::from("."));
-        
+
         // Plan tool allows creating/editing plan files for the plan agent
         let content = args.content.unwrap_or_else(|| "".to_string());
-        
+
         let plan_path = worktree.join(".opencode").join("plan.md");
-        
+
         // Create .opencode directory if it doesn't exist
         if let Some(parent) = plan_path.parent() {
             std::fs::create_dir_all(parent).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
         }
-        
-        std::fs::write(&plan_path, &content)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
-        Ok(ToolResult::ok(format!("Plan saved to {}", plan_path.display())))
+        std::fs::write(&plan_path, &content).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+
+        Ok(ToolResult::ok(format!(
+            "Plan saved to {}",
+            plan_path.display()
+        )))
     }
 }

@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use uuid::Uuid;
     use crate::session_tools::{SessionLoadTool, SessionSaveTool};
     use crate::tool::Tool;
+    use uuid::Uuid;
 
     #[tokio::test]
     async fn test_session_load_invalid_uuid() {

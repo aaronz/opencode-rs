@@ -1,8 +1,8 @@
+use crate::{Tool, ToolContext, ToolResult};
+use opencode_core::OpenCodeError;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use crate::{Tool, ToolContext, ToolResult};
-use opencode_core::OpenCodeError;
 
 /// Provider ID for filtering tools
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -42,9 +42,7 @@ impl ModelInfo {
     /// Check if model should use apply_patch tool (GPT models except GPT-4 and OSS)
     pub fn use_apply_patch(&self) -> bool {
         let model_id = self.model_id.to_lowercase();
-        model_id.starts_with("gpt-") 
-            && !model_id.contains("gpt-4") 
-            && !model_id.contains("oss")
+        model_id.starts_with("gpt-") && !model_id.contains("gpt-4") && !model_id.contains("oss")
     }
 }
 
@@ -92,9 +90,10 @@ impl ToolRegistry {
 
     pub async fn list_filtered(&self, model: Option<&ModelInfo>) -> Vec<(String, String, bool)> {
         let tools = self.tools.read().await;
-        
+
         let Some(model_info) = model else {
-            return tools.iter()
+            return tools
+                .iter()
                 .map(|(name, tool)| {
                     (
                         name.clone(),
@@ -105,14 +104,13 @@ impl ToolRegistry {
                 .collect();
         };
 
-        tools.iter()
-            .filter(|(name, _)| {
-                match name.as_str() {
-                    "codesearch" | "websearch" => model_info.provider_id.is_opencode(),
-                    "apply_patch" => model_info.use_apply_patch(),
-                    "edit" | "write" => !model_info.use_apply_patch(),
-                    _ => true,
-                }
+        tools
+            .iter()
+            .filter(|(name, _)| match name.as_str() {
+                "codesearch" | "websearch" => model_info.provider_id.is_opencode(),
+                "apply_patch" => model_info.use_apply_patch(),
+                "edit" | "write" => !model_info.use_apply_patch(),
+                _ => true,
             })
             .map(|(name, tool)| {
                 (
@@ -141,15 +139,14 @@ impl ToolRegistry {
             return Err(OpenCodeError::Tool(format!("Tool '{}' is disabled", name)));
         }
 
-        let tool = self.get(name).await
+        let tool = self
+            .get(name)
+            .await
             .ok_or_else(|| OpenCodeError::Tool(format!("Tool '{}' not found", name)))?;
         tool.execute(args, ctx).await
     }
 
-    pub async fn execute_parallel(
-        &self,
-        calls: Vec<ToolCall>,
-    ) -> Vec<ToolCallResult> {
+    pub async fn execute_parallel(&self, calls: Vec<ToolCall>) -> Vec<ToolCallResult> {
         let mut handles = Vec::new();
 
         for call in calls {
@@ -220,7 +217,11 @@ mod tests {
             Box::new(self.clone())
         }
 
-        async fn execute(&self, _args: serde_json::Value, _ctx: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+        async fn execute(
+            &self,
+            _args: serde_json::Value,
+            _ctx: Option<ToolContext>,
+        ) -> Result<ToolResult, OpenCodeError> {
             Ok(ToolResult::ok("ok"))
         }
     }
@@ -231,7 +232,9 @@ mod tests {
         registry.register(TestTool).await;
         registry.set_disabled(HashSet::from(["test_tool".to_string()]));
 
-        let result = registry.execute("test_tool", serde_json::json!({}), None).await;
+        let result = registry
+            .execute("test_tool", serde_json::json!({}), None)
+            .await;
 
         match result {
             Err(OpenCodeError::Tool(message)) => {
@@ -262,7 +265,9 @@ mod tests {
         registry.register(TestTool).await;
         registry.set_disabled(HashSet::new());
 
-        let exec = registry.execute("test_tool", serde_json::json!({}), None).await;
+        let exec = registry
+            .execute("test_tool", serde_json::json!({}), None)
+            .await;
         assert!(exec.is_ok());
 
         let tools = registry.list_filtered(None).await;

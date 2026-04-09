@@ -1,8 +1,8 @@
+use crate::{Tool, ToolResult};
 use async_trait::async_trait;
+use opencode_core::OpenCodeError;
 use serde::Deserialize;
 use std::path::PathBuf;
-use crate::{Tool, ToolResult};
-use opencode_core::OpenCodeError;
 
 pub struct ReadTool {
     max_lines: usize,
@@ -45,9 +45,13 @@ impl Tool for ReadTool {
         Box::new(ReadTool::new())
     }
 
-    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let args: ReadArgs = serde_json::from_value(args)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        _ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        let args: ReadArgs =
+            serde_json::from_value(args).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         let path = PathBuf::from(&args.path);
 
@@ -55,8 +59,7 @@ impl Tool for ReadTool {
             return Ok(ToolResult::err(format!("File not found: {}", args.path)));
         }
 
-        let content = std::fs::read_to_string(&path)
-            .map_err(|e| OpenCodeError::Io(e))?;
+        let content = std::fs::read_to_string(&path).map_err(|e| OpenCodeError::Io(e))?;
 
         let lines: Vec<&str> = content.lines().collect();
         let offset = args.offset.unwrap_or(0);

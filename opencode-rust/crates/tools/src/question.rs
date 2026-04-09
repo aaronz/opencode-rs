@@ -1,7 +1,7 @@
-use async_trait::async_trait;
-use serde::Deserialize;
 use crate::{Tool, ToolResult};
+use async_trait::async_trait;
 use opencode_core::OpenCodeError;
+use serde::Deserialize;
 
 pub struct QuestionTool;
 
@@ -25,9 +25,13 @@ impl Tool for QuestionTool {
         Box::new(QuestionTool)
     }
 
-    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let args: QuestionArgs = serde_json::from_value(args)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        _ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        let args: QuestionArgs =
+            serde_json::from_value(args).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         Ok(ToolResult::ok(format!(
             "Question: {}\n\nPlease provide your response.",
@@ -55,7 +59,9 @@ mod tests {
     #[tokio::test]
     async fn test_question_tool_execute() {
         let tool = QuestionTool;
-        let result = tool.execute(serde_json::json!({"question": "test?"}), None).await;
+        let result = tool
+            .execute(serde_json::json!({"question": "test?"}), None)
+            .await;
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.content.contains("test?"));

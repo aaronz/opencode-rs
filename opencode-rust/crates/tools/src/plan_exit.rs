@@ -1,5 +1,5 @@
-use async_trait::async_trait;
 use crate::{Tool, ToolResult};
+use async_trait::async_trait;
 use opencode_core::OpenCodeError;
 
 pub struct PlanExitTool;
@@ -18,7 +18,13 @@ impl Tool for PlanExitTool {
         Box::new(PlanExitTool)
     }
 
-    async fn execute(&self, _args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        Ok(ToolResult::ok("Plan exit: switch to build agent to start implementing"))
+    async fn execute(
+        &self,
+        _args: serde_json::Value,
+        _ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        Ok(ToolResult::ok(
+            "Plan exit: switch to build agent to start implementing",
+        ))
     }
 }

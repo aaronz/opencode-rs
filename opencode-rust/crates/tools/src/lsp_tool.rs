@@ -1,10 +1,10 @@
+use crate::{Tool, ToolResult};
 use async_trait::async_trait;
+use opencode_core::OpenCodeError;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::process::Stdio;
 use tokio::process::Command;
-use crate::{Tool, ToolResult};
-use opencode_core::OpenCodeError;
 
 pub struct LspTool;
 
@@ -52,16 +52,35 @@ async fn run_cargo_diagnostics(file: &str) -> Result<Vec<DiagnosticResult>, Open
                     if let Some(message) = msg.get("message") {
                         if let Some(spans) = message.get("spans").and_then(|s| s.as_array()) {
                             for span in spans {
-                                if let Some(file_name) = span.get("file_name").and_then(|f| f.as_str()) {
+                                if let Some(file_name) =
+                                    span.get("file_name").and_then(|f| f.as_str())
+                                {
                                     if file_name == file || file.is_empty() {
                                         diagnostics.push(DiagnosticResult {
                                             file: file_name.to_string(),
-                                            line: span.get("line_start").and_then(|l| l.as_u64()).unwrap_or(0) as u32,
-                                            column: span.get("column_start").and_then(|c| c.as_u64()).unwrap_or(0) as u32,
-                                            severity: message.get("level").and_then(|l| l.as_str()).unwrap_or("warning").to_string(),
-                                            message: message.get("rendered").and_then(|r| r.as_str())
-                                                .or_else(|| message.get("message").and_then(|m| m.as_str()))
-                                                .unwrap_or("Unknown diagnostic").to_string(),
+                                            line: span
+                                                .get("line_start")
+                                                .and_then(|l| l.as_u64())
+                                                .unwrap_or(0)
+                                                as u32,
+                                            column: span
+                                                .get("column_start")
+                                                .and_then(|c| c.as_u64())
+                                                .unwrap_or(0)
+                                                as u32,
+                                            severity: message
+                                                .get("level")
+                                                .and_then(|l| l.as_str())
+                                                .unwrap_or("warning")
+                                                .to_string(),
+                                            message: message
+                                                .get("rendered")
+                                                .and_then(|r| r.as_str())
+                                                .or_else(|| {
+                                                    message.get("message").and_then(|m| m.as_str())
+                                                })
+                                                .unwrap_or("Unknown diagnostic")
+                                                .to_string(),
                                         });
                                     }
                                 }
@@ -101,7 +120,11 @@ async fn run_eslint_diagnostics(file: &str) -> Result<Vec<DiagnosticResult>, Ope
                                 Some(2) => "error".to_string(),
                                 _ => "warning".to_string(),
                             },
-                            message: msg.get("message").and_then(|m| m.as_str()).unwrap_or("Unknown").to_string(),
+                            message: msg
+                                .get("message")
+                                .and_then(|m| m.as_str())
+                                .unwrap_or("Unknown")
+                                .to_string(),
                         });
                     }
                 }
@@ -126,17 +149,23 @@ impl Tool for LspTool {
         Box::new(LspTool)
     }
 
-    async fn execute(&self, args: serde_json::Value, ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let args: LspArgs = serde_json::from_value(args)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        let args: LspArgs =
+            serde_json::from_value(args).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         let file = args.file_path.as_deref().unwrap_or("");
         let line = args.line.unwrap_or(1).saturating_sub(1);
         let character = args.character.unwrap_or(1).saturating_sub(1);
         let symbol = args.symbol.as_deref().unwrap_or("");
-        let workspace = args.workspace.as_ref().or_else(|| {
-            ctx.as_ref().and_then(|c| c.directory.as_ref())
-        }).map(|s| s.as_str());
+        let workspace = args
+            .workspace
+            .as_ref()
+            .or_else(|| ctx.as_ref().and_then(|c| c.directory.as_ref()))
+            .map(|s| s.as_str());
 
         match args.operation.as_str() {
             "goToDefinition" => {
@@ -274,10 +303,14 @@ impl LspTool {
         let retry_delay_ms = [100, 500, 1000];
 
         for attempt in 0..max_retries {
-            match self.goto_definition_impl(file, line, character, workspace).await {
+            match self
+                .goto_definition_impl(file, line, character, workspace)
+                .await
+            {
                 Ok(result) => return Ok(result),
                 Err(e) if attempt < max_retries - 1 => {
-                    tokio::time::sleep(tokio::time::Duration::from_millis(retry_delay_ms[attempt])).await;
+                    tokio::time::sleep(tokio::time::Duration::from_millis(retry_delay_ms[attempt]))
+                        .await;
                 }
                 Err(e) => return Err(e),
             }
@@ -286,7 +319,12 @@ impl LspTool {
     }
 
     #[cfg(test)]
-    async fn test_goto_definition_fallback_on_empty_response(&self, file: &str, line: u32, character: u32) -> Result<ToolResult, OpenCodeError> {
+    async fn test_goto_definition_fallback_on_empty_response(
+        &self,
+        file: &str,
+        line: u32,
+        character: u32,
+    ) -> Result<ToolResult, OpenCodeError> {
         self.goto_definition_fallback(file, line, character).await
     }
 
@@ -306,13 +344,19 @@ impl LspTool {
     #[cfg(test)]
     fn test_extract_symbol_from_line(line: &str) -> Option<String> {
         let trimmed = line.trim();
-        if trimmed.contains("fn ") || trimmed.contains("struct ") ||
-           trimmed.contains("enum ") || trimmed.contains("impl ") {
-            Some(trimmed.split(|c: char| !c.is_alphanumeric() && c != '_')
-                .filter(|s| !s.is_empty())
-                .last()
-                .map(|s| s.to_string())
-                .unwrap_or_default())
+        if trimmed.contains("fn ")
+            || trimmed.contains("struct ")
+            || trimmed.contains("enum ")
+            || trimmed.contains("impl ")
+        {
+            Some(
+                trimmed
+                    .split(|c: char| !c.is_alphanumeric() && c != '_')
+                    .filter(|s| !s.is_empty())
+                    .last()
+                    .map(|s| s.to_string())
+                    .unwrap_or_default(),
+            )
         } else {
             None
         }
@@ -327,20 +371,26 @@ impl LspTool {
     ) -> Result<ToolResult, OpenCodeError> {
         if file.ends_with(".rs") {
             let root = workspace.map(PathBuf::from).unwrap_or_else(|| {
-                PathBuf::from(file).parent().unwrap_or(&PathBuf::from(".")).to_path_buf()
+                PathBuf::from(file)
+                    .parent()
+                    .unwrap_or(&PathBuf::from("."))
+                    .to_path_buf()
             });
 
             let _server_cmd = if root.join("Cargo.toml").exists() {
                 "rust-analyzer"
             } else {
                 return Ok(ToolResult::ok(format!(
-                    "No LSP server configured for {} (no Cargo.toml found in workspace)", file
-                )).with_title(format!("Go to Definition {}", file)));
+                    "No LSP server configured for {} (no Cargo.toml found in workspace)",
+                    file
+                ))
+                .with_title(format!("Go to Definition {}", file)));
             };
 
             let output = Command::new("sh")
                 .arg("-c")
-                .arg(format!("echo '{}' | timeout 5 rust-analyzer --ipa-lookup 2>/dev/null || echo ''",
+                .arg(format!(
+                    "echo '{}' | timeout 5 rust-analyzer --ipa-lookup 2>/dev/null || echo ''",
                     serde_json::json!({
                         "jsonrpc": "2.0",
                         "id": 1,
@@ -364,24 +414,37 @@ impl LspTool {
             if let Ok(resp) = serde_json::from_str::<serde_json::Value>(&stdout) {
                 if let Some(result) = resp.get("result").and_then(|r| r.as_object()) {
                     if let Some(location) = result.get("location") {
-                        let loc = location.as_object()
-                            .ok_or_else(|| OpenCodeError::Tool("Invalid LSP response".to_string()))?;
+                        let loc = location.as_object().ok_or_else(|| {
+                            OpenCodeError::Tool("Invalid LSP response".to_string())
+                        })?;
                         let uri = loc.get("uri").and_then(|u| u.as_str()).unwrap_or(file);
                         let range = loc.get("range").and_then(|r| r.as_object());
 
                         if let (Some(start), Some(end)) = (
                             range.and_then(|r| r.get("start")),
-                            range.and_then(|r| r.get("end"))
+                            range.and_then(|r| r.get("end")),
                         ) {
-                            let start_line = start.get("line").and_then(|l| l.as_u64()).unwrap_or(0) as u32 + 1;
-                            let start_col = start.get("character").and_then(|c| c.as_u64()).unwrap_or(0) as u32 + 1;
-                            let _end_line = end.get("line").and_then(|l| l.as_u64()).unwrap_or(0) as u32 + 1;
-                            let _end_col = end.get("character").and_then(|c| c.as_u64()).unwrap_or(0) as u32 + 1;
+                            let start_line =
+                                start.get("line").and_then(|l| l.as_u64()).unwrap_or(0) as u32 + 1;
+                            let start_col =
+                                start.get("character").and_then(|c| c.as_u64()).unwrap_or(0) as u32
+                                    + 1;
+                            let _end_line =
+                                end.get("line").and_then(|l| l.as_u64()).unwrap_or(0) as u32 + 1;
+                            let _end_col =
+                                end.get("character").and_then(|c| c.as_u64()).unwrap_or(0) as u32
+                                    + 1;
 
                             return Ok(ToolResult::ok(format!(
                                 "{}:{}:{} -> {}:{}:{}",
-                                file, line + 1, character + 1, uri, start_line, start_col
-                            )).with_title(format!("Go to Definition {}", file)));
+                                file,
+                                line + 1,
+                                character + 1,
+                                uri,
+                                start_line,
+                                start_col
+                            ))
+                            .with_title(format!("Go to Definition {}", file)));
                         }
                     }
                 }
@@ -389,8 +452,10 @@ impl LspTool {
 
             self.goto_definition_fallback(file, line, character).await
         } else {
-            Ok(ToolResult::ok(format!("Go to definition not supported for {}", file))
-                .with_title(format!("Go to Definition {}", file)))
+            Ok(
+                ToolResult::ok(format!("Go to definition not supported for {}", file))
+                    .with_title(format!("Go to Definition {}", file)),
+            )
         }
     }
 
@@ -400,24 +465,45 @@ impl LspTool {
         line: u32,
         _character: u32,
     ) -> Result<ToolResult, OpenCodeError> {
-        let content = tokio::fs::read_to_string(file).await
+        let content = tokio::fs::read_to_string(file)
+            .await
             .map_err(|e| OpenCodeError::Tool(format!("Failed to read file: {}", e)))?;
 
-        let search_range = 10..content.lines().count().min(line as usize + 100);
+        let line_count = content.lines().count();
+        let start = if line as usize > 10 {
+            line as usize - 10
+        } else {
+            0
+        };
+        let end = line_count.min(line as usize + 100);
 
-        for (idx, l) in content.lines().enumerate().skip(search_range.start).take(search_range.end - search_range.start) {
+        if start >= end {
+            return Ok(
+                ToolResult::ok(format!("No definition found for {}:{}", file, line + 1))
+                    .with_title(format!("Go to Definition {}", file)),
+            );
+        }
+
+        for (idx, l) in content.lines().enumerate().skip(start).take(end - start) {
             let trimmed = l.trim();
-            if trimmed.starts_with("fn ") || trimmed.starts_with("struct ") ||
-               trimmed.starts_with("enum ") || trimmed.starts_with("impl ") ||
-               trimmed.starts_with("trait ") || trimmed.starts_with("type ") {
-                return Ok(ToolResult::ok(format!(
-                    "{}:{} -> {}:1", file, line + 1, idx + 1
-                )).with_title(format!("Go to Definition {}", file)));
+            if trimmed.starts_with("fn ")
+                || trimmed.starts_with("struct ")
+                || trimmed.starts_with("enum ")
+                || trimmed.starts_with("impl ")
+                || trimmed.starts_with("trait ")
+                || trimmed.starts_with("type ")
+            {
+                return Ok(
+                    ToolResult::ok(format!("{}:{} -> {}:1", file, line + 1, idx + 1))
+                        .with_title(format!("Go to Definition {}", file)),
+                );
             }
         }
 
-        Ok(ToolResult::ok(format!("No definition found for {}:{}", file, line + 1))
-            .with_title(format!("Go to Definition {}", file)))
+        Ok(
+            ToolResult::ok(format!("No definition found for {}:{}", file, line + 1))
+                .with_title(format!("Go to Definition {}", file)),
+        )
     }
 
     async fn find_references_with_retry(
@@ -432,10 +518,14 @@ impl LspTool {
         let retry_delay_ms = [100, 500, 1000];
 
         for attempt in 0..max_retries {
-            match self.find_references_impl(file, line, character, symbol, workspace).await {
+            match self
+                .find_references_impl(file, line, character, symbol, workspace)
+                .await
+            {
                 Ok(result) => return Ok(result),
                 Err(e) if attempt < max_retries - 1 => {
-                    tokio::time::sleep(tokio::time::Duration::from_millis(retry_delay_ms[attempt])).await;
+                    tokio::time::sleep(tokio::time::Duration::from_millis(retry_delay_ms[attempt]))
+                        .await;
                 }
                 Err(e) => return Err(e),
             }
@@ -452,19 +542,27 @@ impl LspTool {
         workspace: Option<&str>,
     ) -> Result<ToolResult, OpenCodeError> {
         let search_symbol: String = if symbol.is_empty() {
-            let content = tokio::fs::read_to_string(file).await
+            let content = tokio::fs::read_to_string(file)
+                .await
                 .map_err(|e| OpenCodeError::Tool(format!("Failed to read file: {}", e)))?;
-            content.lines()
+            content
+                .lines()
                 .nth(line as usize)
                 .and_then(|l| {
                     let trimmed = l.trim();
-                    if trimmed.contains("fn ") || trimmed.contains("struct ") ||
-                       trimmed.contains("enum ") || trimmed.contains("impl ") {
-                        Some(trimmed.split(|c: char| !c.is_alphanumeric() && c != '_')
-                            .filter(|s| !s.is_empty())
-                            .last()
-                            .map(|s| s.to_string())
-                            .unwrap_or_default())
+                    if trimmed.contains("fn ")
+                        || trimmed.contains("struct ")
+                        || trimmed.contains("enum ")
+                        || trimmed.contains("impl ")
+                    {
+                        Some(
+                            trimmed
+                                .split(|c: char| !c.is_alphanumeric() && c != '_')
+                                .filter(|s| !s.is_empty())
+                                .last()
+                                .map(|s| s.to_string())
+                                .unwrap_or_default(),
+                        )
                     } else {
                         None
                     }
@@ -475,15 +573,23 @@ impl LspTool {
         };
 
         if search_symbol.is_empty() {
-            return Ok(ToolResult::ok(format!("No symbol found at {}:{}", file, line + 1))
-                .with_title(format!("Find References {}", symbol)));
+            return Ok(
+                ToolResult::ok(format!("No symbol found at {}:{}", file, line + 1))
+                    .with_title(format!("Find References {}", symbol)),
+            );
         }
 
-        let root = workspace.map(PathBuf::from)
+        let root = workspace
+            .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from(".").canonicalize().unwrap_or_default());
 
         let output = Command::new("grep")
-            .args(["-rn", "--include=*.rs", "-E", &format!("\\b{}\\b", search_symbol)])
+            .args([
+                "-rn",
+                "--include=*.rs",
+                "-E",
+                &format!("\\b{}\\b", search_symbol),
+            ])
             .current_dir(&root)
             .output()
             .await
@@ -491,12 +597,16 @@ impl LspTool {
 
         let result = String::from_utf8_lossy(&output.stdout);
         if result.is_empty() {
-            Ok(ToolResult::ok(format!("No references found for '{}'", search_symbol))
-                .with_title(format!("Find References {}", search_symbol)))
+            Ok(
+                ToolResult::ok(format!("No references found for '{}'", search_symbol))
+                    .with_title(format!("Find References {}", search_symbol)),
+            )
         } else {
             let count = result.lines().count();
-            Ok(ToolResult::ok(format!("Found {} references:\n{}", count, result))
-                .with_title(format!("Find References {}", search_symbol)))
+            Ok(
+                ToolResult::ok(format!("Found {} references:\n{}", count, result))
+                    .with_title(format!("Find References {}", search_symbol)),
+            )
         }
     }
 
@@ -514,7 +624,8 @@ impl LspTool {
             match self.hover_impl(file, line, character, workspace).await {
                 Ok(result) => return Ok(result),
                 Err(e) if attempt < max_retries - 1 => {
-                    tokio::time::sleep(tokio::time::Duration::from_millis(retry_delay_ms[attempt])).await;
+                    tokio::time::sleep(tokio::time::Duration::from_millis(retry_delay_ms[attempt]))
+                        .await;
                 }
                 Err(e) => return Err(e),
             }
@@ -535,18 +646,24 @@ impl LspTool {
         }
 
         let root = workspace.map(PathBuf::from).unwrap_or_else(|| {
-            PathBuf::from(file).parent().unwrap_or(&PathBuf::from(".")).to_path_buf()
+            PathBuf::from(file)
+                .parent()
+                .unwrap_or(&PathBuf::from("."))
+                .to_path_buf()
         });
 
         if !root.join("Cargo.toml").exists() {
             return Ok(ToolResult::ok(format!(
-                "No LSP server configured for {} (no Cargo.toml found in workspace)", file
-            )).with_title(format!("Hover {}", file)));
+                "No LSP server configured for {} (no Cargo.toml found in workspace)",
+                file
+            ))
+            .with_title(format!("Hover {}", file)));
         }
 
         let output = Command::new("sh")
             .arg("-c")
-            .arg(format!("echo '{}' | timeout 5 rust-analyzer --ipa-lookup 2>/dev/null || echo ''",
+            .arg(format!(
+                "echo '{}' | timeout 5 rust-analyzer --ipa-lookup 2>/dev/null || echo ''",
                 serde_json::json!({
                     "jsonrpc": "2.0",
                     "id": 1,
@@ -570,8 +687,13 @@ impl LspTool {
         if let Ok(resp) = serde_json::from_str::<serde_json::Value>(&stdout) {
             if let Some(result) = resp.get("result") {
                 if result.is_null() {
-                    return Ok(ToolResult::ok(format!("No hover information available for {}:{}:{}", file, line + 1, character + 1))
-                        .with_title(format!("Hover {}", file)));
+                    return Ok(ToolResult::ok(format!(
+                        "No hover information available for {}:{}:{}",
+                        file,
+                        line + 1,
+                        character + 1
+                    ))
+                    .with_title(format!("Hover {}", file)));
                 }
 
                 if let Some(hover_obj) = result.as_object() {
@@ -591,7 +713,10 @@ impl LspTool {
                         hover_content = result.to_string();
                     }
 
-                    let docs = hover_obj.get("docs").and_then(|d| d.as_str()).map(|s| s.to_string());
+                    let docs = hover_obj
+                        .get("docs")
+                        .and_then(|d| d.as_str())
+                        .map(|s| s.to_string());
 
                     let final_content = if let Some(docs) = docs {
                         format!("{}\n\nDocumentation:\n{}", hover_content, docs)
@@ -599,8 +724,7 @@ impl LspTool {
                         hover_content
                     };
 
-                    return Ok(ToolResult::ok(final_content)
-                        .with_title(format!("Hover {}", file)));
+                    return Ok(ToolResult::ok(final_content).with_title(format!("Hover {}", file)));
                 }
             }
         }
@@ -614,7 +738,8 @@ impl LspTool {
         line: u32,
         _character: u32,
     ) -> Result<ToolResult, OpenCodeError> {
-        let content = tokio::fs::read_to_string(file).await
+        let content = tokio::fs::read_to_string(file)
+            .await
             .map_err(|e| OpenCodeError::Tool(format!("Failed to read file: {}", e)))?;
 
         let target_line = content.lines().nth(line as usize);
@@ -626,12 +751,17 @@ impl LspTool {
                     "Line {}: {}\n\nNo LSP hover information available, showing source line.",
                     line + 1,
                     trimmed
-                )).with_title(format!("Hover {}", file)));
+                ))
+                .with_title(format!("Hover {}", file)));
             }
         }
 
-        Ok(ToolResult::ok(format!("No hover information available for {}:{}", file, line + 1))
-            .with_title(format!("Hover {}", file)))
+        Ok(ToolResult::ok(format!(
+            "No hover information available for {}:{}",
+            file,
+            line + 1
+        ))
+        .with_title(format!("Hover {}", file)))
     }
 
     async fn code_actions_with_retry(
@@ -645,10 +775,14 @@ impl LspTool {
         let retry_delay_ms = [100, 500, 1000];
 
         for attempt in 0..max_retries {
-            match self.code_actions_impl(file, line, character, workspace).await {
+            match self
+                .code_actions_impl(file, line, character, workspace)
+                .await
+            {
                 Ok(result) => return Ok(result),
                 Err(e) if attempt < max_retries - 1 => {
-                    tokio::time::sleep(tokio::time::Duration::from_millis(retry_delay_ms[attempt])).await;
+                    tokio::time::sleep(tokio::time::Duration::from_millis(retry_delay_ms[attempt]))
+                        .await;
                 }
                 Err(e) => return Err(e),
             }
@@ -664,23 +798,31 @@ impl LspTool {
         workspace: Option<&str>,
     ) -> Result<ToolResult, OpenCodeError> {
         if !file.ends_with(".rs") {
-            return Ok(ToolResult::ok(format!("Code actions not supported for {}", file))
-                .with_title(format!("Code Actions {}", file)));
+            return Ok(
+                ToolResult::ok(format!("Code actions not supported for {}", file))
+                    .with_title(format!("Code Actions {}", file)),
+            );
         }
 
         let root = workspace.map(PathBuf::from).unwrap_or_else(|| {
-            PathBuf::from(file).parent().unwrap_or(&PathBuf::from(".")).to_path_buf()
+            PathBuf::from(file)
+                .parent()
+                .unwrap_or(&PathBuf::from("."))
+                .to_path_buf()
         });
 
         if !root.join("Cargo.toml").exists() {
             return Ok(ToolResult::ok(format!(
-                "No LSP server configured for {} (no Cargo.toml found in workspace)", file
-            )).with_title(format!("Code Actions {}", file)));
+                "No LSP server configured for {} (no Cargo.toml found in workspace)",
+                file
+            ))
+            .with_title(format!("Code Actions {}", file)));
         }
 
         let output = Command::new("sh")
             .arg("-c")
-            .arg(format!("echo '{}' | timeout 5 rust-analyzer --ipa-lookup 2>/dev/null || echo ''",
+            .arg(format!(
+                "echo '{}' | timeout 5 rust-analyzer --ipa-lookup 2>/dev/null || echo ''",
                 serde_json::json!({
                     "jsonrpc": "2.0",
                     "id": 1,
@@ -705,40 +847,71 @@ impl LspTool {
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         if stdout.trim().is_empty() {
-            return Ok(ToolResult::ok(format!("No code actions available for {}:{}", file, line + 1))
-                .with_title(format!("Code Actions {}", file)));
+            return Ok(ToolResult::ok(format!(
+                "No code actions available for {}:{}",
+                file,
+                line + 1
+            ))
+            .with_title(format!("Code Actions {}", file)));
         }
 
         if let Ok(resp) = serde_json::from_str::<serde_json::Value>(&stdout) {
             if let Some(result) = resp.get("result") {
                 if let Some(actions) = result.as_array() {
                     if actions.is_empty() {
-                        return Ok(ToolResult::ok(format!("No code actions available for {}:{}", file, line + 1))
-                            .with_title(format!("Code Actions {}", file)));
+                        return Ok(ToolResult::ok(format!(
+                            "No code actions available for {}:{}",
+                            file,
+                            line + 1
+                        ))
+                        .with_title(format!("Code Actions {}", file)));
                     }
 
                     let mut action_list = Vec::new();
                     for (idx, action) in actions.iter().enumerate() {
                         if let Some(title) = action.get("title").and_then(|t| t.as_str()) {
-                            let kind = action.get("kind").and_then(|k| k.as_str()).unwrap_or("unknown");
-                            let id = action.get("id").and_then(|i| i.as_u64()).unwrap_or(idx as u64);
-                            action_list.push(format!("{}. [{}] {} (id: {})", idx + 1, kind, title, id));
+                            let kind = action
+                                .get("kind")
+                                .and_then(|k| k.as_str())
+                                .unwrap_or("unknown");
+                            let id = action
+                                .get("id")
+                                .and_then(|i| i.as_u64())
+                                .unwrap_or(idx as u64);
+                            action_list.push(format!(
+                                "{}. [{}] {} (id: {})",
+                                idx + 1,
+                                kind,
+                                title,
+                                id
+                            ));
                         }
                     }
 
                     if action_list.is_empty() {
-                        return Ok(ToolResult::ok(format!("No code actions available for {}:{}", file, line + 1))
-                            .with_title(format!("Code Actions {}", file)));
+                        return Ok(ToolResult::ok(format!(
+                            "No code actions available for {}:{}",
+                            file,
+                            line + 1
+                        ))
+                        .with_title(format!("Code Actions {}", file)));
                     }
 
-                    return Ok(ToolResult::ok(action_list.join("\n"))
-                        .with_title(format!("Code Actions {} ({} actions)", file, action_list.len())));
+                    return Ok(ToolResult::ok(action_list.join("\n")).with_title(format!(
+                        "Code Actions {} ({} actions)",
+                        file,
+                        action_list.len()
+                    )));
                 }
             }
         }
 
-        Ok(ToolResult::ok(format!("No code actions available for {}:{}", file, line + 1))
-            .with_title(format!("Code Actions {}", file)))
+        Ok(ToolResult::ok(format!(
+            "No code actions available for {}:{}",
+            file,
+            line + 1
+        ))
+        .with_title(format!("Code Actions {}", file)))
     }
 }
 
@@ -763,12 +936,14 @@ mod tests {
     #[tokio::test]
     async fn test_lsp_execute_go_to_definition_requires_file() {
         let tool = LspTool;
-        let result = tool.execute(
-            serde_json::json!({
-                "operation": "goToDefinition"
-            }),
-            None
-        ).await;
+        let result = tool
+            .execute(
+                serde_json::json!({
+                    "operation": "goToDefinition"
+                }),
+                None,
+            )
+            .await;
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.to_string().contains("file_path is required"));
@@ -777,12 +952,14 @@ mod tests {
     #[tokio::test]
     async fn test_lsp_execute_find_references_requires_file_or_symbol() {
         let tool = LspTool;
-        let result = tool.execute(
-            serde_json::json!({
-                "operation": "findReferences"
-            }),
-            None
-        ).await;
+        let result = tool
+            .execute(
+                serde_json::json!({
+                    "operation": "findReferences"
+                }),
+                None,
+            )
+            .await;
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.to_string().contains("file_path or symbol is required"));
@@ -791,15 +968,17 @@ mod tests {
     #[tokio::test]
     async fn test_lsp_execute_hover_returns_info() {
         let tool = LspTool;
-        let result = tool.execute(
-            serde_json::json!({
-                "operation": "hover",
-                "filePath": "test.rs",
-                "line": 10,
-                "character": 5
-            }),
-            None
-        ).await;
+        let result = tool
+            .execute(
+                serde_json::json!({
+                    "operation": "hover",
+                    "filePath": "test.rs",
+                    "line": 10,
+                    "character": 5
+                }),
+                None,
+            )
+            .await;
         assert!(result.is_ok());
         let tool_result = result.unwrap();
         assert!(tool_result.content.contains("Hover information"));
@@ -808,60 +987,70 @@ mod tests {
     #[tokio::test]
     async fn test_lsp_execute_document_symbol_requires_file() {
         let tool = LspTool;
-        let result = tool.execute(
-            serde_json::json!({
-                "operation": "documentSymbol"
-            }),
-            None
-        ).await;
+        let result = tool
+            .execute(
+                serde_json::json!({
+                    "operation": "documentSymbol"
+                }),
+                None,
+            )
+            .await;
         assert!(result.is_err());
     }
 
     #[tokio::test]
     async fn test_lsp_execute_workspace_symbol_requires_symbol() {
         let tool = LspTool;
-        let result = tool.execute(
-            serde_json::json!({
-                "operation": "workspaceSymbol"
-            }),
-            None
-        ).await;
+        let result = tool
+            .execute(
+                serde_json::json!({
+                    "operation": "workspaceSymbol"
+                }),
+                None,
+            )
+            .await;
         assert!(result.is_err());
     }
 
     #[tokio::test]
     async fn test_lsp_execute_go_to_implementation_requires_file() {
         let tool = LspTool;
-        let result = tool.execute(
-            serde_json::json!({
-                "operation": "goToImplementation"
-            }),
-            None
-        ).await;
+        let result = tool
+            .execute(
+                serde_json::json!({
+                    "operation": "goToImplementation"
+                }),
+                None,
+            )
+            .await;
         assert!(result.is_err());
     }
 
     #[tokio::test]
     async fn test_lsp_execute_diagnostics_requires_file() {
         let tool = LspTool;
-        let result = tool.execute(
-            serde_json::json!({
-                "operation": "diagnostics"
-            }),
-            None
-        ).await;
+        let result = tool
+            .execute(
+                serde_json::json!({
+                    "operation": "diagnostics"
+                }),
+                None,
+            )
+            .await;
         assert!(result.is_err());
     }
 
     #[tokio::test]
     async fn test_lsp_execute_unknown_operation() {
         let tool = LspTool;
-        let result = tool.execute(
-            serde_json::json!({
-                "operation": "unknownOperation"
-            }),
-            None
-        ).await;
+        let result = tool
+            .execute(
+                serde_json::json!({
+                    "operation": "unknownOperation"
+                }),
+                None,
+            )
+            .await;
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.to_string().contains("Unknown LSP operation"));
@@ -870,15 +1059,17 @@ mod tests {
     #[tokio::test]
     async fn test_lsp_execute_prepare_call_hierarchy_not_implemented() {
         let tool = LspTool;
-        let result = tool.execute(
-            serde_json::json!({
-                "operation": "prepareCallHierarchy",
-                "filePath": "test.rs",
-                "line": 10,
-                "character": 5
-            }),
-            None
-        ).await;
+        let result = tool
+            .execute(
+                serde_json::json!({
+                    "operation": "prepareCallHierarchy",
+                    "filePath": "test.rs",
+                    "line": 10,
+                    "character": 5
+                }),
+                None,
+            )
+            .await;
         assert!(result.is_ok());
         let tool_result = result.unwrap();
         assert!(tool_result.content.contains("not yet implemented"));
@@ -887,15 +1078,17 @@ mod tests {
     #[tokio::test]
     async fn test_lsp_execute_incoming_calls_not_implemented() {
         let tool = LspTool;
-        let result = tool.execute(
-            serde_json::json!({
-                "operation": "incomingCalls",
-                "filePath": "test.rs",
-                "line": 10,
-                "character": 5
-            }),
-            None
-        ).await;
+        let result = tool
+            .execute(
+                serde_json::json!({
+                    "operation": "incomingCalls",
+                    "filePath": "test.rs",
+                    "line": 10,
+                    "character": 5
+                }),
+                None,
+            )
+            .await;
         assert!(result.is_ok());
         let tool_result = result.unwrap();
         assert!(tool_result.content.contains("not yet implemented"));
@@ -904,15 +1097,17 @@ mod tests {
     #[tokio::test]
     async fn test_lsp_execute_outgoing_calls_not_implemented() {
         let tool = LspTool;
-        let result = tool.execute(
-            serde_json::json!({
-                "operation": "outgoingCalls",
-                "filePath": "test.rs",
-                "line": 10,
-                "character": 5
-            }),
-            None
-        ).await;
+        let result = tool
+            .execute(
+                serde_json::json!({
+                    "operation": "outgoingCalls",
+                    "filePath": "test.rs",
+                    "line": 10,
+                    "character": 5
+                }),
+                None,
+            )
+            .await;
         assert!(result.is_ok());
         let tool_result = result.unwrap();
         assert!(tool_result.content.contains("not yet implemented"));
@@ -925,11 +1120,9 @@ mod tests {
         let test_file = temp_dir.path().join("test.rs");
         std::fs::write(&test_file, "fn my_function() {}\nfn main() {}").unwrap();
 
-        let result = tool.test_goto_definition_fallback_on_empty_response(
-            test_file.to_str().unwrap(),
-            0,
-            0
-        ).await;
+        let result = tool
+            .test_goto_definition_fallback_on_empty_response(test_file.to_str().unwrap(), 0, 0)
+            .await;
 
         assert!(result.is_ok());
         let tool_result = result.unwrap();
@@ -943,11 +1136,9 @@ mod tests {
         let test_file = temp_dir.path().join("test.rs");
         std::fs::write(&test_file, "struct MyStruct {}\nfn main() {}").unwrap();
 
-        let result = tool.test_goto_definition_fallback_on_empty_response(
-            test_file.to_str().unwrap(),
-            0,
-            0
-        ).await;
+        let result = tool
+            .test_goto_definition_fallback_on_empty_response(test_file.to_str().unwrap(), 0, 0)
+            .await;
 
         assert!(result.is_ok());
         let tool_result = result.unwrap();
@@ -961,11 +1152,9 @@ mod tests {
         let test_file = temp_dir.path().join("test.rs");
         std::fs::write(&test_file, "enum MyEnum {}\nfn main() {}").unwrap();
 
-        let result = tool.test_goto_definition_fallback_on_empty_response(
-            test_file.to_str().unwrap(),
-            0,
-            0
-        ).await;
+        let result = tool
+            .test_goto_definition_fallback_on_empty_response(test_file.to_str().unwrap(), 0, 0)
+            .await;
 
         assert!(result.is_ok());
         let tool_result = result.unwrap();
@@ -979,11 +1168,9 @@ mod tests {
         let test_file = temp_dir.path().join("test.rs");
         std::fs::write(&test_file, "impl MyTrait for MyStruct {}\nfn main() {}").unwrap();
 
-        let result = tool.test_goto_definition_fallback_on_empty_response(
-            test_file.to_str().unwrap(),
-            0,
-            0
-        ).await;
+        let result = tool
+            .test_goto_definition_fallback_on_empty_response(test_file.to_str().unwrap(), 0, 0)
+            .await;
 
         assert!(result.is_ok());
         let tool_result = result.unwrap();
@@ -997,11 +1184,9 @@ mod tests {
         let test_file = temp_dir.path().join("test.rs");
         std::fs::write(&test_file, "// no definitions here\na = b + c;").unwrap();
 
-        let result = tool.test_goto_definition_fallback_on_empty_response(
-            test_file.to_str().unwrap(),
-            0,
-            0
-        ).await;
+        let result = tool
+            .test_goto_definition_fallback_on_empty_response(test_file.to_str().unwrap(), 0, 0)
+            .await;
 
         assert!(result.is_ok());
         let tool_result = result.unwrap();
@@ -1011,11 +1196,9 @@ mod tests {
     #[tokio::test]
     async fn test_goto_definition_fallback_file_not_found() {
         let tool = LspTool;
-        let result = tool.test_goto_definition_fallback_on_empty_response(
-            "/nonexistent/path/file.rs",
-            0,
-            0
-        ).await;
+        let result = tool
+            .test_goto_definition_fallback_on_empty_response("/nonexistent/path/file.rs", 0, 0)
+            .await;
 
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -1094,26 +1277,34 @@ mod tests {
         let tool = LspTool;
         let temp_dir = tempfile::tempdir().unwrap();
         let test_file = temp_dir.path().join("mod.rs");
-        
-        std::fs::write(&test_file, "const VALUE: i32 = 42;\nfn main() { let x = VALUE; }").unwrap();
-        
-        let result = tool.execute(
-            serde_json::json!({
-                "operation": "findReferences",
-                "filePath": test_file.to_str().unwrap(),
-                "line": 0,
-                "character": 7,
-                "symbol": "VALUE"
-            }),
-            Some(crate::ToolContext {
-                directory: Some(temp_dir.path().to_str().unwrap().to_string()),
-                ..Default::default()
-            })
-        ).await;
-        
+
+        std::fs::write(
+            &test_file,
+            "const VALUE: i32 = 42;\nfn main() { let x = VALUE; }",
+        )
+        .unwrap();
+
+        let result = tool
+            .execute(
+                serde_json::json!({
+                    "operation": "findReferences",
+                    "filePath": test_file.to_str().unwrap(),
+                    "line": 0,
+                    "character": 7,
+                    "symbol": "VALUE"
+                }),
+                Some(crate::ToolContext {
+                    directory: Some(temp_dir.path().to_str().unwrap().to_string()),
+                    ..Default::default()
+                }),
+            )
+            .await;
+
         assert!(result.is_ok());
         let tool_result = result.unwrap();
-        assert!(tool_result.content.contains("references") || tool_result.content.contains("VALUE"));
+        assert!(
+            tool_result.content.contains("references") || tool_result.content.contains("VALUE")
+        );
     }
 
     #[tokio::test]
@@ -1123,17 +1314,22 @@ mod tests {
         let test_file = temp_dir.path().join("test.txt");
         std::fs::write(&test_file, "some text").unwrap();
 
-        let result = tool.execute(
-            serde_json::json!({
-                "operation": "diagnostics",
-                "filePath": test_file.to_str().unwrap()
-            }),
-            None
-        ).await;
+        let result = tool
+            .execute(
+                serde_json::json!({
+                    "operation": "diagnostics",
+                    "filePath": test_file.to_str().unwrap()
+                }),
+                None,
+            )
+            .await;
 
         assert!(result.is_ok());
         let tool_result = result.unwrap();
-        assert!(tool_result.content.contains("No diagnostics found") || tool_result.content.contains("diagnostics"));
+        assert!(
+            tool_result.content.contains("No diagnostics found")
+                || tool_result.content.contains("diagnostics")
+        );
     }
 
     #[tokio::test]
@@ -1141,30 +1337,34 @@ mod tests {
         let tool = LspTool;
         let cloned = tool.clone_tool();
         assert_eq!(cloned.name(), "lsp");
-        
-        let result = cloned.execute(
-            serde_json::json!({
-                "operation": "hover",
-                "filePath": "test.rs",
-                "line": 1,
-                "character": 1
-            }),
-            None
-        ).await;
+
+        let result = cloned
+            .execute(
+                serde_json::json!({
+                    "operation": "hover",
+                    "filePath": "test.rs",
+                    "line": 1,
+                    "character": 1
+                }),
+                None,
+            )
+            .await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_tool_result_title_is_set() {
         let tool = LspTool;
-        let result = tool.execute(
-            serde_json::json!({
-                "operation": "documentSymbol",
-                "filePath": "test.rs"
-            }),
-            None
-        ).await;
-        
+        let result = tool
+            .execute(
+                serde_json::json!({
+                    "operation": "documentSymbol",
+                    "filePath": "test.rs"
+                }),
+                None,
+            )
+            .await;
+
         assert!(result.is_ok());
         let tool_result = result.unwrap();
         assert!(tool_result.title.is_some());
@@ -1174,8 +1374,11 @@ mod tests {
     fn test_retry_delay_values_are_increasing() {
         let retry_delay_ms = [100, 500, 1000];
         for i in 1..retry_delay_ms.len() {
-            assert!(retry_delay_ms[i] > retry_delay_ms[i-1], 
-                "retry delay at index {} should be greater than previous", i);
+            assert!(
+                retry_delay_ms[i] > retry_delay_ms[i - 1],
+                "retry delay at index {} should be greater than previous",
+                i
+            );
         }
     }
 
@@ -1186,18 +1389,20 @@ mod tests {
         let test_file = temp_dir.path().join("main.rs");
         std::fs::write(&test_file, "fn main() {}").unwrap();
 
-        let result = tool.execute(
-            serde_json::json!({
-                "operation": "goToDefinition",
-                "filePath": test_file.to_str().unwrap(),
-                "line": 1,
-                "character": 4
-            }),
-            Some(crate::ToolContext {
-                directory: Some(temp_dir.path().to_str().unwrap().to_string()),
-                ..Default::default()
-            })
-        ).await;
+        let result = tool
+            .execute(
+                serde_json::json!({
+                    "operation": "goToDefinition",
+                    "filePath": test_file.to_str().unwrap(),
+                    "line": 1,
+                    "character": 4
+                }),
+                Some(crate::ToolContext {
+                    directory: Some(temp_dir.path().to_str().unwrap().to_string()),
+                    ..Default::default()
+                }),
+            )
+            .await;
 
         assert!(result.is_ok());
     }
@@ -1209,18 +1414,20 @@ mod tests {
         let test_file = temp_dir.path().join("empty.rs");
         std::fs::write(&test_file, "").unwrap();
 
-        let result = tool.execute(
-            serde_json::json!({
-                "operation": "findReferences",
-                "filePath": test_file.to_str().unwrap(),
-                "line": 0,
-                "character": 0
-            }),
-            Some(crate::ToolContext {
-                directory: Some(temp_dir.path().to_str().unwrap().to_string()),
-                ..Default::default()
-            })
-        ).await;
+        let result = tool
+            .execute(
+                serde_json::json!({
+                    "operation": "findReferences",
+                    "filePath": test_file.to_str().unwrap(),
+                    "line": 0,
+                    "character": 0
+                }),
+                Some(crate::ToolContext {
+                    directory: Some(temp_dir.path().to_str().unwrap().to_string()),
+                    ..Default::default()
+                }),
+            )
+            .await;
 
         assert!(result.is_ok());
     }
@@ -1230,20 +1437,26 @@ mod tests {
         let tool = LspTool;
         let temp_dir = tempfile::tempdir().unwrap();
         let test_file = temp_dir.path().join("test.rs");
-        std::fs::write(&test_file, "fn defined_here() {}\nfn main() { defined_here(); }").unwrap();
+        std::fs::write(
+            &test_file,
+            "fn defined_here() {}\nfn main() { defined_here(); }",
+        )
+        .unwrap();
 
-        let result = tool.execute(
-            serde_json::json!({
-                "operation": "goToDefinition",
-                "filePath": test_file.to_str().unwrap(),
-                "line": 2,
-                "character": 5
-            }),
-            Some(crate::ToolContext {
-                directory: Some(temp_dir.path().to_str().unwrap().to_string()),
-                ..Default::default()
-            })
-        ).await;
+        let result = tool
+            .execute(
+                serde_json::json!({
+                    "operation": "goToDefinition",
+                    "filePath": test_file.to_str().unwrap(),
+                    "line": 2,
+                    "character": 5
+                }),
+                Some(crate::ToolContext {
+                    directory: Some(temp_dir.path().to_str().unwrap().to_string()),
+                    ..Default::default()
+                }),
+            )
+            .await;
 
         assert!(result.is_ok());
         let tool_result = result.unwrap();
@@ -1255,20 +1468,26 @@ mod tests {
         let tool = LspTool;
         let temp_dir = tempfile::tempdir().unwrap();
         let test_file = temp_dir.path().join("test.rs");
-        std::fs::write(&test_file, "fn my_function() {}\nfn main() { my_function(); }").unwrap();
+        std::fs::write(
+            &test_file,
+            "fn my_function() {}\nfn main() { my_function(); }",
+        )
+        .unwrap();
 
-        let result = tool.execute(
-            serde_json::json!({
-                "operation": "hover",
-                "filePath": test_file.to_str().unwrap(),
-                "line": 2,
-                "character": 5
-            }),
-            Some(crate::ToolContext {
-                directory: Some(temp_dir.path().to_str().unwrap().to_string()),
-                ..Default::default()
-            })
-        ).await;
+        let result = tool
+            .execute(
+                serde_json::json!({
+                    "operation": "hover",
+                    "filePath": test_file.to_str().unwrap(),
+                    "line": 2,
+                    "character": 5
+                }),
+                Some(crate::ToolContext {
+                    directory: Some(temp_dir.path().to_str().unwrap().to_string()),
+                    ..Default::default()
+                }),
+            )
+            .await;
 
         assert!(result.is_ok());
         let tool_result = result.unwrap();
@@ -1278,12 +1497,14 @@ mod tests {
     #[tokio::test]
     async fn test_lsp_execute_hover_requires_file() {
         let tool = LspTool;
-        let result = tool.execute(
-            serde_json::json!({
-                "operation": "hover"
-            }),
-            None
-        ).await;
+        let result = tool
+            .execute(
+                serde_json::json!({
+                    "operation": "hover"
+                }),
+                None,
+            )
+            .await;
 
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -1293,12 +1514,14 @@ mod tests {
     #[tokio::test]
     async fn test_lsp_execute_code_actions_requires_file() {
         let tool = LspTool;
-        let result = tool.execute(
-            serde_json::json!({
-                "operation": "codeActions"
-            }),
-            None
-        ).await;
+        let result = tool
+            .execute(
+                serde_json::json!({
+                    "operation": "codeActions"
+                }),
+                None,
+            )
+            .await;
 
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -1312,18 +1535,20 @@ mod tests {
         let test_file = temp_dir.path().join("test.rs");
         std::fs::write(&test_file, "fn main() {}").unwrap();
 
-        let result = tool.execute(
-            serde_json::json!({
-                "operation": "codeActions",
-                "filePath": test_file.to_str().unwrap(),
-                "line": 1,
-                "character": 1
-            }),
-            Some(crate::ToolContext {
-                directory: Some(temp_dir.path().to_str().unwrap().to_string()),
-                ..Default::default()
-            })
-        ).await;
+        let result = tool
+            .execute(
+                serde_json::json!({
+                    "operation": "codeActions",
+                    "filePath": test_file.to_str().unwrap(),
+                    "line": 1,
+                    "character": 1
+                }),
+                Some(crate::ToolContext {
+                    directory: Some(temp_dir.path().to_str().unwrap().to_string()),
+                    ..Default::default()
+                }),
+            )
+            .await;
 
         assert!(result.is_ok());
         let tool_result = result.unwrap();
@@ -1337,15 +1562,17 @@ mod tests {
         let test_file = temp_dir.path().join("test.txt");
         std::fs::write(&test_file, "some text").unwrap();
 
-        let result = tool.execute(
-            serde_json::json!({
-                "operation": "hover",
-                "filePath": test_file.to_str().unwrap(),
-                "line": 1,
-                "character": 1
-            }),
-            None
-        ).await;
+        let result = tool
+            .execute(
+                serde_json::json!({
+                    "operation": "hover",
+                    "filePath": test_file.to_str().unwrap(),
+                    "line": 1,
+                    "character": 1
+                }),
+                None,
+            )
+            .await;
 
         assert!(result.is_ok());
         let tool_result = result.unwrap();
@@ -1359,15 +1586,17 @@ mod tests {
         let test_file = temp_dir.path().join("test.txt");
         std::fs::write(&test_file, "some text").unwrap();
 
-        let result = tool.execute(
-            serde_json::json!({
-                "operation": "codeActions",
-                "filePath": test_file.to_str().unwrap(),
-                "line": 1,
-                "character": 1
-            }),
-            None
-        ).await;
+        let result = tool
+            .execute(
+                serde_json::json!({
+                    "operation": "codeActions",
+                    "filePath": test_file.to_str().unwrap(),
+                    "line": 1,
+                    "character": 1
+                }),
+                None,
+            )
+            .await;
 
         assert!(result.is_ok());
         let tool_result = result.unwrap();

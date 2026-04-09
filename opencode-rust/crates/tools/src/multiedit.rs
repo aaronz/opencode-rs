@@ -1,5 +1,5 @@
-use async_trait::async_trait;
 use crate::{Tool, ToolResult};
+use async_trait::async_trait;
 use opencode_core::OpenCodeError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -32,13 +32,21 @@ impl Tool for MultiEditTool {
         Box::new(MultiEditTool)
     }
 
-    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        _ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
         // Support both {edits: [...]} and direct array formats
         let edits: Vec<Edit> = if let Some(_arr) = args.as_array() {
             serde_json::from_value(args).map_err(|e| OpenCodeError::Parse(e.to_string()))?
         } else {
-            let multi_args: MultiEditArgs = serde_json::from_value(args)
-                .map_err(|e| OpenCodeError::Parse(format!("Expected {{edits: [...]}} or array of edits: {}", e)))?;
+            let multi_args: MultiEditArgs = serde_json::from_value(args).map_err(|e| {
+                OpenCodeError::Parse(format!(
+                    "Expected {{edits: [...]}} or array of edits: {}",
+                    e
+                ))
+            })?;
             multi_args.edits
         };
 
@@ -58,7 +66,9 @@ impl Tool for MultiEditTool {
 
             if !file_contents.contains_key(&edit.path) {
                 match std::fs::read_to_string(&edit.path) {
-                    Ok(content) => { file_contents.insert(edit.path.clone(), content); }
+                    Ok(content) => {
+                        file_contents.insert(edit.path.clone(), content);
+                    }
                     Err(e) => {
                         validation_errors.push(format!("Cannot read {}: {}", edit.path, e));
                         continue;
@@ -115,7 +125,8 @@ impl Tool for MultiEditTool {
             }
         }
 
-        let edited_paths: Vec<String> = edits.iter()
+        let edited_paths: Vec<String> = edits
+            .iter()
             .map(|e| e.path.clone())
             .collect::<std::collections::HashSet<_>>()
             .into_iter()

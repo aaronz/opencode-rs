@@ -1,8 +1,8 @@
+use crate::{Tool, ToolResult};
 use async_trait::async_trait;
+use opencode_core::OpenCodeError;
 use serde::Deserialize;
 use std::path::PathBuf;
-use crate::{Tool, ToolResult};
-use opencode_core::OpenCodeError;
 
 pub struct LsTool;
 
@@ -26,18 +26,28 @@ impl Tool for LsTool {
         Box::new(LsTool)
     }
 
-    async fn execute(&self, args: serde_json::Value, _ctx: Option<crate::ToolContext>) -> Result<ToolResult, OpenCodeError> {
-        let args: LsArgs = serde_json::from_value(args)
-            .map_err(|e| OpenCodeError::Tool(e.to_string()))?;
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        _ctx: Option<crate::ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        let args: LsArgs =
+            serde_json::from_value(args).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
         let path = PathBuf::from(args.path.unwrap_or_else(|| ".".to_string()));
 
         if !path.exists() {
-            return Ok(ToolResult::err(format!("Directory not found: {}", path.display())));
+            return Ok(ToolResult::err(format!(
+                "Directory not found: {}",
+                path.display()
+            )));
         }
 
         if !path.is_dir() {
-            return Ok(ToolResult::err(format!("Not a directory: {}", path.display())));
+            return Ok(ToolResult::err(format!(
+                "Not a directory: {}",
+                path.display()
+            )));
         }
 
         let mut entries = Vec::new();

@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod tests {
-    use tempfile::TempDir;
-    use std::fs;
     use crate::lsp_tool::LspTool;
     use crate::tool::Tool;
+    use std::fs;
+    use tempfile::TempDir;
 
     fn create_rust_project(tmp: &std::path::Path) -> std::path::PathBuf {
         fs::write(
@@ -158,7 +158,10 @@ pub fn public_function() -> String {
         let result = tool.execute(args, None).await;
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert!(result.content.contains("Go to implementation") || result.content.contains("not yet implemented"));
+        assert!(
+            result.content.contains("Go to implementation")
+                || result.content.contains("not yet implemented")
+        );
     }
 
     #[tokio::test]
@@ -235,7 +238,9 @@ pub fn public_function() -> String {
         let result = tool.execute(args, None).await;
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert!(result.content.contains("not supported") || result.content.contains("Go to Definition"));
+        assert!(
+            result.content.contains("not supported") || result.content.contains("Go to Definition")
+        );
     }
 
     #[tokio::test]
