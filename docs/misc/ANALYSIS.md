@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-This document provides a comprehensive analysis of the feature gaps between the Rust implementation (`/Users/aaronzh/Documents/GitHub/mycode/rust-opencode-port`) and the TypeScript reference (`/Users/aaronzh/Documents/GitHub/opencode/packages/opencode/src`).
+This document provides a comprehensive analysis of the feature gaps between the Rust implementation (`/Users/aaronzh/Documents/GitHub/opencode-rs/rust-opencode-port`) and the TypeScript reference (`/Users/aaronzh/Documents/GitHub/opencode/packages/opencode/src`).
 
 ## Current Status Summary
 

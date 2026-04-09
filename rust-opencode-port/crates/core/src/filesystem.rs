@@ -137,7 +137,7 @@ mod tests {
     fn test_find_up() {
         let result = AppFileSystem::find_up(
             "Cargo.toml",
-            "/Users/aaronzh/Documents/GitHub/mycode/rust-opencode-port",
+            "/Users/aaronzh/Documents/GitHub/opencode-rs/rust-opencode-port",
             None,
         );
         assert!(!result.is_empty());

@@ -87,7 +87,7 @@ mod tests {
     fn ratatui_testing_accessible_from_tui_tests() {
         let tui_tests = workspace_root().join("crates/tui/tests");
         let ratatui_testing =
-            std::path::Path::new("/Users/aaronzh/Documents/GitHub/mycode/ratatui-testing");
+            std::path::Path::new("/Users/aaronzh/Documents/GitHub/opencode-rs/ratatui-testing");
         if !tui_tests.exists() || !ratatui_testing.exists() {
             eprintln!("[KNOWN_GAP] TUI tests or ratatui-testing not found - test not applicable");
             return;
