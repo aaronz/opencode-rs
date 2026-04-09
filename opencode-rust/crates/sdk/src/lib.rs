@@ -40,17 +40,17 @@
 //! | 7xxx  | Validation |
 //! | 9xxx  | Internal |
 
+pub mod auth;
 pub mod client;
 pub mod error;
 pub mod session;
 pub mod tools;
-pub mod auth;
 
-pub use client::{ClientConfig, OpenCodeClient, ClientBuilder};
+pub use auth::ApiKeyAuth;
+pub use client::{ClientBuilder, ClientConfig, OpenCodeClient};
 pub use error::{SdkError, SdkResult};
 pub use session::{SdkSession, SessionInfo};
-pub use tools::{ToolDefinition, ToolResult, ToolExecutor};
-pub use auth::ApiKeyAuth;
+pub use tools::{ToolDefinition, ToolExecutor, ToolResult};
 
 /// Re-export core types for convenience
 pub use opencode_core::Message;

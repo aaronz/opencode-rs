@@ -13,7 +13,7 @@ use crate::auth::ApiKeyAuth;
 use crate::error::{SdkError, SdkResult};
 use crate::session::{
     AddMessageRequest, AddMessageResponse, CreateSessionRequest, CreateSessionResponse,
-    ForkSessionRequest, ForkSessionResponse, SessionInfo, SdkSession,
+    ForkSessionRequest, ForkSessionResponse, SdkSession, SessionInfo,
 };
 use crate::tools::{ToolCall, ToolDefinition, ToolExecutionResponse, ToolResult};
 
@@ -270,10 +270,9 @@ impl OpenCodeClient {
             .map_err(|e| SdkError::network_error(format!("Request failed: {}", e)))?;
 
         if response.status().is_success() {
-            let list_resp: ListResponse = response
-                .json()
-                .await
-                .map_err(|e| SdkError::internal_error(format!("Failed to parse response: {}", e)))?;
+            let list_resp: ListResponse = response.json().await.map_err(|e| {
+                SdkError::internal_error(format!("Failed to parse response: {}", e))
+            })?;
             Ok(list_resp.items)
         } else {
             let status = response.status().as_u16();
@@ -330,7 +329,9 @@ impl OpenCodeClient {
     ) -> SdkResult<AddMessageResponse> {
         let url = format!("{}/sessions/{}/messages", self.config.base_url, session_id);
         let request = AddMessageRequest {
-            role: role.map(|s| s.to_string()).unwrap_or_else(|| "user".to_string()),
+            role: role
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| "user".to_string()),
             content: content.to_string(),
         };
 
@@ -426,10 +427,9 @@ impl OpenCodeClient {
             .map_err(|e| SdkError::network_error(format!("Request failed: {}", e)))?;
 
         if response.status().is_success() {
-            let list_resp: ListToolsResponse = response
-                .json()
-                .await
-                .map_err(|e| SdkError::internal_error(format!("Failed to parse response: {}", e)))?;
+            let list_resp: ListToolsResponse = response.json().await.map_err(|e| {
+                SdkError::internal_error(format!("Failed to parse response: {}", e))
+            })?;
             Ok(list_resp.items)
         } else {
             let status = response.status().as_u16();
@@ -467,10 +467,9 @@ impl OpenCodeClient {
             .map_err(|e| SdkError::network_error(format!("Request failed: {}", e)))?;
 
         if response.status().is_success() {
-            let exec_resp: ToolExecutionResponse = response
-                .json()
-                .await
-                .map_err(|e| SdkError::internal_error(format!("Failed to parse response: {}", e)))?;
+            let exec_resp: ToolExecutionResponse = response.json().await.map_err(|e| {
+                SdkError::internal_error(format!("Failed to parse response: {}", e))
+            })?;
 
             Ok(ToolResult {
                 id: exec_resp.id,

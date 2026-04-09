@@ -7,8 +7,8 @@
 //! - Executing tools
 //! - Listing sessions
 
-use opencode_sdk::{OpenCodeClient};
 use opencode_sdk::tools::ToolCall;
+use opencode_sdk::OpenCodeClient;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -71,7 +71,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Execute a tool (if the server supports it)
     println!("\nAttempting to execute 'read' tool...");
     let tool_call = ToolCall::new("read", serde_json::json!({ "file_path": "Cargo.toml" }));
-    
+
     match client.execute_tool(tool_call).await {
         Ok(result) => {
             println!("Tool executed successfully!");
@@ -89,7 +89,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Fork the session (create a branch)
     println!("\nForking the session at message index 0...");
-    match client.fork_session(&session.session_id.to_string(), 0).await {
+    match client
+        .fork_session(&session.session_id.to_string(), 0)
+        .await
+    {
         Ok(forked) => {
             println!("Session forked!");
             println!("  New Session ID: {}", forked.id);
