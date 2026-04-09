@@ -50,7 +50,7 @@ fn test_cli_providers_openai_browser_login_action() {
 #[test]
 fn test_cli_acp_start() {
     let harness = TestHarness::setup();
-    let result = harness.run_cli_json(&["acp", "--action", "start"]);
+    let result = harness.run_cli_json(&["acp", "start"]);
 
     assert_eq!(result["component"], "acp");
     assert_eq!(result["action"], "start");
