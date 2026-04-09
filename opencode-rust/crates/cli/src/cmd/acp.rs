@@ -1,34 +1,211 @@
-use clap::Args;
+use clap::{Args, Subcommand};
 use serde_json::json;
 
 #[derive(Args, Debug)]
 pub struct AcpArgs {
-    #[arg(short, long)]
-    pub url: Option<String>,
+    #[command(subcommand)]
+    pub action: Option<AcpAction>,
 
     #[arg(long)]
     pub json: bool,
 
-    #[arg(long, default_value = "start")]
-    pub action: String,
+    #[arg(long)]
+    pub server: Option<String>,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum AcpAction {
+    Start,
+    Connect {
+        #[arg(long)]
+        url: String,
+    },
+    Handshake {
+        #[arg(long)]
+        client_id: String,
+
+        #[arg(long, default_value = "1.0")]
+        version: String,
+
+        #[arg(long)]
+        capabilities: Vec<String>,
+    },
+    Status,
 }
 
 pub fn run(args: AcpArgs) {
+    let runtime = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
+
+    runtime.block_on(async {
+        if let Err(e) = run_acp(args).await {
+            eprintln!("ACP error: {}", e);
+            std::process::exit(1);
+        }
+    });
+}
+
+async fn run_acp(args: AcpArgs) -> Result<(), Box<dyn std::error::Error>> {
+    let server_url = args
+        .server
+        .unwrap_or_else(|| "http://127.0.0.1:8080".to_string());
+
     if args.json {
-        let result = json!({
-            "component": "acp",
-            "action": args.action,
-            "url": args.url,
-            "status": "ready"
-        });
+        let result = match &args.action {
+            Some(AcpAction::Start) => json!({
+                "component": "acp",
+                "action": "start",
+                "status": "ready",
+                "version": "1.0"
+            }),
+            Some(AcpAction::Connect { url }) => json!({
+                "component": "acp",
+                "action": "connect",
+                "url": url,
+                "status": "connecting"
+            }),
+            Some(AcpAction::Handshake {
+                client_id,
+                version,
+                capabilities,
+            }) => json!({
+                "component": "acp",
+                "action": "handshake",
+                "client_id": client_id,
+                "version": version,
+                "capabilities": capabilities,
+                "status": "handshake_initiated"
+            }),
+            Some(AcpAction::Status) => {
+                let status = get_acp_status(&server_url).await.unwrap_or_else(|_| {
+                    json!({
+                        "status": "unavailable",
+                        "version": "unknown",
+                        "acp_enabled": false
+                    })
+                });
+                println!("{}", serde_json::to_string_pretty(&status).unwrap());
+                return Ok(());
+            }
+            None => json!({
+                "component": "acp",
+                "status": "ready"
+            }),
+        };
         println!("{}", serde_json::to_string_pretty(&result).unwrap());
-        return;
+        return Ok(());
     }
 
-    println!("ACP Protocol Manager");
-    println!("  Action: {}", args.action);
-    if let Some(url) = &args.url {
-        println!("  Target URL: {}", url);
+    match &args.action {
+        Some(AcpAction::Start) => {
+            println!("ACP Protocol Manager");
+            println!("  Status: Ready");
+            println!("  Version: 1.0");
+        }
+        Some(AcpAction::Connect { url }) => {
+            println!("ACP Protocol Manager");
+            println!("  Action: Connect");
+            println!("  Target URL: {}", url);
+            println!("  Status: Connecting...");
+
+            let connect_url = format!("{}/api/acp/connect", server_url);
+            let body = json!({ "url": url });
+
+            match reqwest::Client::new()
+                .post(&connect_url)
+                .json(&body)
+                .send()
+                .await
+            {
+                Ok(resp) => {
+                    if resp.status().is_success() {
+                        println!("  Status: Connected successfully");
+                    } else {
+                        println!("  Status: Connection failed - {}", resp.status());
+                    }
+                }
+                Err(e) => {
+                    println!("  Status: Connection failed - {}", e);
+                }
+            }
+        }
+        Some(AcpAction::Handshake {
+            client_id,
+            version,
+            capabilities,
+        }) => {
+            println!("ACP Protocol Manager - Handshake");
+            println!("  Client ID: {}", client_id);
+            println!("  Version: {}", version);
+            println!("  Capabilities: {:?}", capabilities);
+            println!("  Status: Handshake initiated");
+
+            let handshake_url = format!("{}/api/acp/handshake", server_url);
+            let body = json!({
+                "client_id": client_id,
+                "version": version,
+                "capabilities": capabilities
+            });
+
+            match reqwest::Client::new()
+                .post(&handshake_url)
+                .json(&body)
+                .send()
+                .await
+            {
+                Ok(resp) => {
+                    if let Ok(response) = resp.json::<serde_json::Value>().await {
+                        println!(
+                            "  Response: {}",
+                            serde_json::to_string_pretty(&response).unwrap()
+                        );
+                        if response["accepted"] == true {
+                            println!("  Status: Handshake successful!");
+                            println!("  Session ID: {}", response["session_id"]);
+                        } else {
+                            println!("  Status: Handshake failed - {}", response["error"]);
+                        }
+                    }
+                }
+                Err(e) => {
+                    println!("  Status: Handshake failed - {}", e);
+                }
+            }
+        }
+        Some(AcpAction::Status) => {
+            println!("ACP Protocol Manager - Status");
+
+            match get_acp_status(&server_url).await {
+                Ok(status) => {
+                    let status_val = status["status"].as_str().unwrap_or("unknown");
+                    let version_val = status["version"].as_str().unwrap_or("unknown");
+                    let acp_enabled = status["acp_enabled"].as_bool().unwrap_or(false);
+
+                    println!("  Status: {}", status_val);
+                    println!("  Version: {}", version_val);
+                    println!("  ACP Enabled: {}", acp_enabled);
+                }
+                Err(e) => {
+                    println!("  Status: Unavailable");
+                    println!("  Error: {}", e);
+                }
+            }
+        }
+        None => {
+            println!("ACP Protocol Manager");
+            println!("  Status: Ready");
+            println!("  Use 'opencode acp start' to start the ACP server");
+            println!("  Use 'opencode acp connect --url <url>' to connect to a server");
+            println!("  Use 'opencode acp handshake' for handshake operations");
+            println!("  Use 'opencode acp status --server <url>' to check ACP status");
+        }
     }
-    println!("  Status: Ready");
+
+    Ok(())
+}
+
+async fn get_acp_status(server_url: &str) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    let url = format!("{}/api/acp/status", server_url);
+    let resp = reqwest::Client::new().get(&url).send().await?;
+    let status = resp.json::<serde_json::Value>().await?;
+    Ok(status)
 }
