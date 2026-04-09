@@ -247,7 +247,7 @@ Implementation: `crates/core/src/agents_md.rs` with `AgentsMdScanner`, `AgentsMd
 
 ---
 
-### TD-003: Deprecated `keybinds` field ✅ Done
+### TD-003: ✅ Done
 **Module:** `crates/config/`
 
 - [x] Remove `keybinds` field from config schema
@@ -258,8 +258,8 @@ Implementation: `crates/core/src/agents_md.rs` with `AgentsMdScanner`, `AgentsMd
 ### TD-004: Deprecated `layout` field
 **Module:** `crates/config/`
 
-- [ ] Remove `layout` field from config schema
-- [ ] Always uses stretch layout
+- [x] Remove `layout` field from config schema
+- [x] Always uses stretch layout
 
 ---
 

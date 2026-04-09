@@ -121,11 +121,6 @@ pub struct Config {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agents_md: Option<AgentsMdConfig>,
 
-    /// Deprecated: Always uses stretch layout
-    #[deprecated(since = "2.0.0", note = "Layout is always stretch now")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub layout: Option<Layout>,
-
     /// Permission configuration
     #[serde(skip_serializing_if = "Option::is_none")]
     pub permission: Option<PermissionConfig>,
@@ -844,14 +839,6 @@ pub struct PermissionConfig {
     pub extra: Option<HashMap<String, PermissionRule>>,
 }
 
-/// Layout enumeration
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Layout {
-    Auto,
-    Stretch,
-}
-
 /// Enterprise configuration
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct EnterpriseConfig {
@@ -1213,9 +1200,9 @@ impl Config {
         Self::log_schema_validation(&config);
 
         #[allow(deprecated)]
-        if config.mode.is_some() || config.layout.is_some() {
+        if config.mode.is_some() {
             tracing::warn!(
-                "The 'mode' and 'layout' fields are deprecated. Please migrate to the new TUI configuration in tui.json. See https://opencode.ai/docs/migration for details."
+                "The 'mode' field is deprecated. Please migrate to the new TUI configuration in tui.json. See https://opencode.ai/docs/migration for details."
             );
         }
 

@@ -334,7 +334,7 @@
       "priority": "P2",
       "title": "Remove Deprecated layout field",
       "description": "Remove layout field from config schema, always uses stretch layout. Module: crates/config/",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "layout field removed from config schema",
         "Always uses stretch layout"
@@ -343,7 +343,7 @@
         "cargo test -p opencode-config",
         "cargo build --release"
       ],
-      "impl_notes": "Tech debt",
+      "impl_notes": "Removed Layout enum (config.rs:847-853), layout field from Config struct (config.rs:124-127), and deprecated warning check for layout (config.rs:1203). TUI always uses stretch layout via LayoutManager with LayoutPreset::Default.",
       "dependencies": []
     },
     {
