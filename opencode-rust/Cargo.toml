@@ -19,6 +19,7 @@ members = [
     "crates/sdk",
     "tests",
     "opencode-benches",
+    "ratatui-testing",
 ]
 
 [workspace.package]

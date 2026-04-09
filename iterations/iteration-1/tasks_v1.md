@@ -305,7 +305,7 @@ Implementation: `crates/core/src/agents_md.rs` with `AgentsMdScanner`, `AgentsMd
 
 ---
 
-### TD-009: `#[serde(other)]` in Part
+### TD-009: ✅ Done
 **Module:** `crates/core/`
 
 - [x] Replace with explicit error handling
@@ -348,7 +348,7 @@ Implementation: `crates/core/src/agents_md.rs` with `AgentsMdScanner`, `AgentsMd
 **Location:** `tests/src/conventions/tui_conventions.rs`
 
 - [x] Implemented (5 tests)
-- [ ] Verify `ratatui-testing/` integration
+- [x] Verify `ratatui-testing/` integration
 
 ---
 

@@ -498,7 +498,7 @@
       "priority": "P1",
       "title": "TUI Convention Tests",
       "description": "Verify TUI convention tests are implemented and passing, verify ratatui-testing/ integration. Location: tests/src/conventions/tui_conventions.rs",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "5 TUI convention tests implemented",
         "All tests pass",
@@ -508,7 +508,7 @@
         "cargo test -p opencode-integration-tests -- tui_conventions",
         "cargo test -p ratatui-testing"
       ],
-      "impl_notes": "Convention test task - ratatui-testing/ integration verification still pending",
+      "impl_notes": "Convention test task - 5 TUI convention tests pass, ratatui-testing/ crate created and integrated into workspace",
       "dependencies": []
     }
   ]

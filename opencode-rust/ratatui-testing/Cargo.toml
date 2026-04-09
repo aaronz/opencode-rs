@@ -1,0 +1,19 @@
+[package]
+name = "ratatui-testing"
+version = "0.1.0"
+edition = "2021"
+authors = ["OpenCode Rust Team"]
+license = "MIT"
+
+[dependencies]
+ratatui = "0.28"
+crossterm = { version = "0.28", optional = true }
+anyhow = "1.0"
+thiserror = "2.0"
+serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
+tokio = { version = "1.45", features = ["full"] }
+
+[features]
+default = ["crossterm"]
