@@ -58,7 +58,9 @@ impl ShareServer {
     fn generate_short_code(&self) -> String {
         use rand::Rng;
         let mut rng = rand::thread_rng();
-        let charset: Vec<char> = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789".chars().collect();
+        let charset: Vec<char> = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+            .chars()
+            .collect();
         (0..self.config.token_length)
             .map(|_| charset[rng.gen_range(0..charset.len())])
             .collect()
@@ -149,9 +151,7 @@ impl ShareServer {
         let mut links = self.links.write().await;
         let now = Utc::now();
         let before = links.len();
-        links.retain(|_, link| {
-            link.expires_at.map(|e| e > now).unwrap_or(true)
-        });
+        links.retain(|_, link| link.expires_at.map(|e| e > now).unwrap_or(true));
         before - links.len()
     }
 
@@ -160,7 +160,10 @@ impl ShareServer {
     }
 
     pub fn full_url_with_token(&self, short_code: &str, access_token: &str) -> String {
-        format!("{}/s/{}/?token={}", self.config.base_url, short_code, access_token)
+        format!(
+            "{}/s/{}/?token={}",
+            self.config.base_url, short_code, access_token
+        )
     }
 }
 
@@ -203,15 +206,11 @@ pub async fn create_short_link(
     req: web::Json<CreateShortLinkRequest>,
 ) -> impl Responder {
     let share_server = state.share_server.read().unwrap();
-    
+
     match state.storage.load_session(&req.session_id).await {
         Ok(Some(_session)) => {
             let link = share_server
-                .create_short_link(
-                    req.session_id.clone(),
-                    req.expiry_hours,
-                    req.max_views,
-                )
+                .create_short_link(req.session_id.clone(), req.expiry_hours, req.max_views)
                 .await;
 
             let short_url = share_server.full_url(&link.short_code);
@@ -304,7 +303,10 @@ pub async fn access_shared_session(
         );
     }
 
-    if !share_server.validate_access(&short_code, query.token.as_deref()).await {
+    if !share_server
+        .validate_access(&short_code, query.token.as_deref())
+        .await
+    {
         return json_error(
             StatusCode::FORBIDDEN,
             "access_denied",
@@ -358,7 +360,10 @@ pub async fn delete_short_link(
     let short_code = path.into_inner();
     let share_server = state.share_server.read().unwrap();
 
-    if !share_server.validate_access(&short_code, Some(&query.token)).await {
+    if !share_server
+        .validate_access(&short_code, Some(&query.token))
+        .await
+    {
         return json_error(
             StatusCode::FORBIDDEN,
             "access_denied",
@@ -390,7 +395,10 @@ pub async fn refresh_short_link(
     let short_code = path.into_inner();
     let share_server = state.share_server.read().unwrap();
 
-    if !share_server.validate_access(&short_code, Some(&req.access_token)).await {
+    if !share_server
+        .validate_access(&short_code, Some(&req.access_token))
+        .await
+    {
         return json_error(
             StatusCode::FORBIDDEN,
             "access_denied",
@@ -401,7 +409,8 @@ pub async fn refresh_short_link(
     let links = share_server.links.read().await;
     if let Some(link) = links.get(&short_code) {
         let now = Utc::now();
-        let new_expiry = req.expiry_hours
+        let new_expiry = req
+            .expiry_hours
             .map(|h| now + chrono::Duration::hours(h as i64))
             .or(link.expires_at);
 
@@ -434,9 +443,7 @@ pub struct RefreshRequest {
     pub expiry_hours: Option<u64>,
 }
 
-pub async fn list_short_links(
-    state: web::Data<ServerState>,
-) -> impl Responder {
+pub async fn list_short_links(state: web::Data<ServerState>) -> impl Responder {
     let share_server = state.share_server.read().unwrap();
     let links = share_server.links.read().await;
 
@@ -458,9 +465,7 @@ pub async fn list_short_links(
     }))
 }
 
-pub async fn cleanup_expired_links(
-    state: web::Data<ServerState>,
-) -> impl Responder {
+pub async fn cleanup_expired_links(state: web::Data<ServerState>) -> impl Responder {
     let share_server = state.share_server.read().unwrap();
     let cleaned = share_server.cleanup_expired().await;
 

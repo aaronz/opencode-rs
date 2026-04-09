@@ -1,7 +1,7 @@
-use actix_web::{web, HttpResponse, Error};
-use serde::Deserialize;
-use opencode_mcp::{McpServer, JsonRpcRequest};
 use crate::ServerState;
+use actix_web::{web, Error, HttpResponse};
+use opencode_mcp::{JsonRpcRequest, McpServer};
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct McpRequestBody {

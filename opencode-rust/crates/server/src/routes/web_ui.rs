@@ -1,5 +1,5 @@
-use actix_web::{HttpResponse, Responder};
 use actix_files as fs;
+use actix_web::{HttpResponse, Responder};
 use std::path::PathBuf;
 
 const INDEX_HTML: &str = include_str!("../../static/index.html");
@@ -29,7 +29,11 @@ pub async fn api_docs() -> impl Responder {
 }
 
 pub async fn serve_static(req: actix_web::HttpRequest) -> impl Responder {
-    let path: PathBuf = req.match_info().query("filename").parse().unwrap_or_else(|_| PathBuf::from(""));
+    let path: PathBuf = req
+        .match_info()
+        .query("filename")
+        .parse()
+        .unwrap_or_else(|_| PathBuf::from(""));
     let base = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("static");
     let full_path = base.join(&path);
 
@@ -47,13 +51,17 @@ mod tests {
 
     #[actix_web::test]
     async fn index_returns_html() {
-        let response = index().await.respond_to(&actix_web::test::TestRequest::default().to_http_request());
+        let response = index()
+            .await
+            .respond_to(&actix_web::test::TestRequest::default().to_http_request());
         assert_eq!(response.status(), actix_web::http::StatusCode::OK);
     }
 
     #[actix_web::test]
     async fn api_docs_returns_endpoints() {
-        let response = api_docs().await.respond_to(&actix_web::test::TestRequest::default().to_http_request());
+        let response = api_docs()
+            .await
+            .respond_to(&actix_web::test::TestRequest::default().to_http_request());
         assert_eq!(response.status(), actix_web::http::StatusCode::OK);
     }
 }

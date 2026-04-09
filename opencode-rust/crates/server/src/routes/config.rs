@@ -1,8 +1,8 @@
-use actix_web::{web, HttpResponse, Responder};
-use actix_web::http::StatusCode;
-use crate::ServerState;
-use opencode_core::Config;
 use crate::routes::error::json_error;
+use crate::ServerState;
+use actix_web::http::StatusCode;
+use actix_web::{web, HttpResponse, Responder};
+use opencode_core::Config;
 
 fn deep_merge(base: serde_json::Value, patch: serde_json::Value) -> serde_json::Value {
     match (base, patch) {

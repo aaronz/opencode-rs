@@ -1,16 +1,17 @@
-use std::sync::Arc;
-use std::sync::RwLock;
 use actix_web::dev::Service;
-use actix_web::{web, App, HttpServer, middleware as actix_middleware, HttpResponse, Responder};
-use futures::future::{Either, ready};
+use actix_web::{middleware as actix_middleware, web, App, HttpResponse, HttpServer, Responder};
+use futures::future::{ready, Either};
 use futures::FutureExt;
-use opencode_storage::StorageService;
-use opencode_llm::ModelRegistry;
-use opencode_core::Config;
 use opencode_core::bus::SharedEventBus;
 use opencode_core::config::ServerConfig;
+use opencode_core::Config;
+use opencode_llm::ModelRegistry;
+use opencode_storage::StorageService;
+use routes::acp::AcpState;
 use routes::share::ShareServer;
-use streaming::{ReconnectionStore, conn_state::ConnectionMonitor};
+use std::sync::Arc;
+use std::sync::RwLock;
+use streaming::{conn_state::ConnectionMonitor, ReconnectionStore};
 
 #[cfg(test)]
 mod server_integration_tests;
@@ -22,9 +23,9 @@ pub async fn health_check() -> impl Responder {
     }))
 }
 
-pub mod routes;
-pub mod middleware;
 pub mod mdns;
+pub mod middleware;
+pub mod routes;
 pub mod streaming;
 
 pub struct ServerState {
@@ -35,6 +36,7 @@ pub struct ServerState {
     pub reconnection_store: ReconnectionStore,
     pub connection_monitor: Arc<ConnectionMonitor>,
     pub share_server: Arc<RwLock<ShareServer>>,
+    pub acp_enabled: bool,
 }
 
 pub async fn run_server(state: Arc<ServerState>, host: &str, port: u16) -> std::io::Result<()> {
@@ -48,6 +50,7 @@ pub async fn run_server(state: Arc<ServerState>, host: &str, port: u16) -> std::
         .clone()
         .unwrap_or_default();
     let cors_origins = server_cfg.cors.clone().unwrap_or_default();
+    let acp_enabled = state.acp_enabled;
 
     let mdns_service = if server_cfg.mdns == Some(true) {
         Some(mdns::MdnsService::start(&ServerConfig {
@@ -56,21 +59,28 @@ pub async fn run_server(state: Arc<ServerState>, host: &str, port: u16) -> std::
             mdns: server_cfg.mdns,
             mdns_domain: server_cfg.mdns_domain.clone(),
             cors: server_cfg.cors.clone(),
+            desktop: None,
+            acp: None,
         })?)
     } else {
         None
     };
 
     let state_data = web::Data::from(state);
+    let acp_state = web::Data::new(AcpState::new(acp_enabled));
 
     let result = HttpServer::new(move || {
         App::new()
             .app_data(state_data.clone())
+            .app_data(acp_state.clone())
             .wrap(actix_middleware::Logger::default())
             .wrap(middleware::cors_middleware(&cors_origins))
             .route("/", web::get().to(routes::web_ui::index))
             .route("/api/docs", web::get().to(routes::web_ui::api_docs))
-            .route("/static/{filename:.*}", web::get().to(routes::web_ui::serve_static))
+            .route(
+                "/static/{filename:.*}",
+                web::get().to(routes::web_ui::serve_static),
+            )
             .route("/health", web::get().to(health_check))
             .service(
                 web::scope("/api")
@@ -81,12 +91,17 @@ pub async fn run_server(state: Arc<ServerState>, host: &str, port: u16) -> std::
                                 "unauthorized",
                                 "Missing or invalid x-api-key header",
                             );
-                            return Either::Left(ready(Ok(req.into_response(response.map_into_right_body()))));
+                            return Either::Left(ready(Ok(
+                                req.into_response(response.map_into_right_body())
+                            )));
                         }
 
-                        Either::Right(srv.call(req).map(|res| res.map(|res| res.map_into_left_body())))
+                        Either::Right(
+                            srv.call(req)
+                                .map(|res| res.map(|res| res.map_into_left_body())),
+                        )
                     })
-                    .configure(routes::config_routes)
+                    .configure(routes::config_routes),
             )
     })
     .bind((host, port))?

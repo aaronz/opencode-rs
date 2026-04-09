@@ -2,20 +2,20 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use actix_web::{Error, HttpRequest, HttpResponse, web};
 use actix_web::http::header::{HeaderName, HeaderValue};
+use actix_web::{web, Error, HttpRequest, HttpResponse};
 use actix_ws::Message;
 use futures::StreamExt;
 use opencode_core::bus::InternalEvent;
 use opencode_core::{Message as CoreMessage, Session};
 use serde::Deserialize;
 use tokio::sync::mpsc;
-use tracing::{debug, info, warn, error};
+use tracing::{debug, error, info, warn};
 
-use crate::ServerState;
+use crate::streaming::conn_state::ConnectionType;
 use crate::streaming::heartbeat::HeartbeatManager;
 use crate::streaming::{ReplayEntry, StreamMessage};
-use crate::streaming::conn_state::ConnectionType;
+use crate::ServerState;
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -61,15 +61,18 @@ pub async fn ws_index(
     let reconnect_token = state
         .reconnection_store
         .generate_token(&handshake_session_id, Some(resume_from));
-    
-    state.connection_monitor.register_connection(
-        connection_id.clone(),
-        ConnectionType::WebSocket,
-        handshake_session_id.clone(),
-    ).await;
+
+    state
+        .connection_monitor
+        .register_connection(
+            connection_id.clone(),
+            ConnectionType::WebSocket,
+            handshake_session_id.clone(),
+        )
+        .await;
 
     let ws_result = actix_ws::handle(&req, stream);
-    
+
     let (mut response, mut session, mut msg_stream) = match ws_result {
         Ok(result) => result,
         Err(e) => {
@@ -78,9 +81,15 @@ pub async fn ws_index(
                 "WS handshake error: connection_id={}, session_id={}, error={}",
                 connection_id, handshake_session_id, e
             );
-            state.connection_monitor.connection_failed(&connection_id, &err_msg).await;
-            state.connection_monitor.unregister_connection(&connection_id, "handshake_failed").await;
-            
+            state
+                .connection_monitor
+                .connection_failed(&connection_id, &err_msg)
+                .await;
+            state
+                .connection_monitor
+                .unregister_connection(&connection_id, "handshake_failed")
+                .await;
+
             return Ok(HttpResponse::BadRequest()
                 .content_type("application/json")
                 .json(serde_json::json!({
@@ -90,7 +99,7 @@ pub async fn ws_index(
                 })));
         }
     };
-    
+
     if let Ok(header_value) = HeaderValue::from_str(&reconnect_token) {
         response
             .headers_mut()
@@ -150,7 +159,9 @@ pub async fn ws_index(
         loop {
             if last_heartbeat.elapsed() > WS_CLIENT_TIMEOUT {
                 warn!("WebSocket heartbeat timeout");
-                conn_monitor.unregister_connection(&conn_id_for_task, "heartbeat_timeout").await;
+                conn_monitor
+                    .unregister_connection(&conn_id_for_task, "heartbeat_timeout")
+                    .await;
                 let _ = session.close(None).await;
                 break;
             }

@@ -1,10 +1,10 @@
-use actix_web::{web, HttpResponse, Responder};
+use crate::routes::error::json_error;
+use crate::ServerState;
 use actix_web::http::StatusCode;
-use serde::Deserialize;
+use actix_web::{web, HttpResponse, Responder};
 use opencode_core::{Message, Session};
 use opencode_llm::{AnthropicProvider, ChatMessage, OllamaProvider, OpenAiProvider, Provider};
-use crate::ServerState;
-use crate::routes::error::json_error;
+use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct RunRequest {
@@ -126,7 +126,8 @@ pub async fn run_prompt(
         .clone()
         .or_else(|| config.model.clone())
         .unwrap_or_else(|| "gpt-4o".to_string());
-    let (provider_id, model_name) = resolve_model_and_provider(&state, Some(selected_model.clone()));
+    let (provider_id, model_name) =
+        resolve_model_and_provider(&state, Some(selected_model.clone()));
     let provider = match build_provider(&provider_id, &model_name, &config) {
         Ok(provider) => provider,
         Err(message) => {

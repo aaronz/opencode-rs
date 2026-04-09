@@ -1,5 +1,5 @@
-use actix_web::{web, HttpResponse, Responder};
 use crate::ServerState;
+use actix_web::{web, HttpResponse, Responder};
 
 #[derive(serde::Deserialize)]
 pub struct PermissionReplyRequest {
@@ -24,7 +24,12 @@ pub async fn permission_reply(
             "error": "decision must be 'allow' or 'deny'"
         }));
     }
-    tracing::info!("Permission reply: session={}, req={}, decision={}", _session_id, _req_id, decision);
+    tracing::info!(
+        "Permission reply: session={}, req={}, decision={}",
+        _session_id,
+        _req_id,
+        decision
+    );
     HttpResponse::Ok().json(serde_json::json!({
         "status": "ok",
         "session_id": _session_id,

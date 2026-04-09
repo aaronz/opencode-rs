@@ -72,7 +72,11 @@ fn disabled_providers() -> &'static Mutex<HashSet<String>> {
 }
 
 fn provider_exists(state: &ServerState, provider_id: &str) -> bool {
-    state.models.list().iter().any(|m| m.provider == provider_id)
+    state
+        .models
+        .list()
+        .iter()
+        .any(|m| m.provider == provider_id)
 }
 
 fn is_provider_enabled(provider_id: &str) -> bool {
@@ -101,7 +105,10 @@ pub async fn get_providers(state: web::Data<ServerState>) -> impl Responder {
     }))
 }
 
-pub async fn get_provider(state: web::Data<ServerState>, path: web::Path<String>) -> impl Responder {
+pub async fn get_provider(
+    state: web::Data<ServerState>,
+    path: web::Path<String>,
+) -> impl Responder {
     let provider_id = path.into_inner();
     let models = state.models.list();
 
@@ -121,7 +128,10 @@ pub async fn get_provider(state: web::Data<ServerState>, path: web::Path<String>
     }
 }
 
-pub async fn create_provider(_state: web::Data<ServerState>, body: web::Json<CreateProviderRequest>) -> impl Responder {
+pub async fn create_provider(
+    _state: web::Data<ServerState>,
+    body: web::Json<CreateProviderRequest>,
+) -> impl Responder {
     let mut config = ProviderAuthConfig::new(
         body.provider_id.clone(),
         body.endpoint.clone(),
@@ -163,7 +173,10 @@ pub async fn update_provider(
     }
 }
 
-pub async fn delete_provider(state: web::Data<ServerState>, path: web::Path<String>) -> impl Responder {
+pub async fn delete_provider(
+    state: web::Data<ServerState>,
+    path: web::Path<String>,
+) -> impl Responder {
     let provider_id = path.into_inner();
 
     if provider_exists(&state, &provider_id) {
@@ -179,7 +192,10 @@ pub async fn delete_provider(state: web::Data<ServerState>, path: web::Path<Stri
     }
 }
 
-pub async fn test_provider(state: web::Data<ServerState>, path: web::Path<String>) -> impl Responder {
+pub async fn test_provider(
+    state: web::Data<ServerState>,
+    path: web::Path<String>,
+) -> impl Responder {
     let provider_id = path.into_inner();
 
     if provider_exists(&state, &provider_id) {
@@ -317,7 +333,7 @@ pub async fn set_provider_enabled(
     body: web::Json<SetProviderEnabledRequest>,
 ) -> impl Responder {
     let provider_id = path.into_inner();
-    
+
     if !provider_exists(&state, &provider_id) {
         return json_error(
             StatusCode::NOT_FOUND,
@@ -362,10 +378,16 @@ pub fn init(cfg: &mut web::ServiceConfig) {
         .route("/{id}/test", web::post().to(test_provider))
         .route("/{id}/status", web::get().to(get_provider_status))
         .route("/{id}/enabled", web::put().to(set_provider_enabled))
-        .route("/{id}/credentials", web::post().to(save_provider_credentials))
+        .route(
+            "/{id}/credentials",
+            web::post().to(save_provider_credentials),
+        )
         .route(
             "/{id}/credentials/test",
             web::post().to(test_provider_credentials),
         )
-        .route("/{id}/credentials", web::delete().to(delete_provider_credentials));
+        .route(
+            "/{id}/credentials",
+            web::delete().to(delete_provider_credentials),
+        );
 }

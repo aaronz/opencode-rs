@@ -142,7 +142,10 @@ pub async fn get_session(state: web::Data<ServerState>, id: web::Path<String>) -
     }
 }
 
-pub async fn delete_session(state: web::Data<ServerState>, id: web::Path<String>) -> impl Responder {
+pub async fn delete_session(
+    state: web::Data<ServerState>,
+    id: web::Path<String>,
+) -> impl Responder {
     match state.storage.delete_session(&id).await {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(e) => json_error(
@@ -172,11 +175,7 @@ pub async fn fork_session(
                     e.to_string(),
                 ),
             },
-            Err(e) => json_error(
-                StatusCode::BAD_REQUEST,
-                "fork_error",
-                e.to_string(),
-            ),
+            Err(e) => json_error(StatusCode::BAD_REQUEST, "fork_error", e.to_string()),
         },
 
         Ok(None) => json_error(
@@ -381,7 +380,10 @@ pub async fn get_message(
     }
 }
 
-pub async fn get_session_diff(state: web::Data<ServerState>, id: web::Path<String>) -> impl Responder {
+pub async fn get_session_diff(
+    state: web::Data<ServerState>,
+    id: web::Path<String>,
+) -> impl Responder {
     let session_id = id.into_inner();
     match state.storage.load_session(&session_id).await {
         Ok(Some(session)) => {
@@ -397,8 +399,14 @@ pub async fn get_session_diff(state: web::Data<ServerState>, id: web::Path<Strin
             let current = &session.messages[session.messages.len() - 1].content;
             let prev_lines = previous.lines().collect::<Vec<_>>();
             let curr_lines = current.lines().collect::<Vec<_>>();
-            let added = curr_lines.iter().filter(|line| !prev_lines.contains(line)).count();
-            let removed = prev_lines.iter().filter(|line| !curr_lines.contains(line)).count();
+            let added = curr_lines
+                .iter()
+                .filter(|line| !prev_lines.contains(line))
+                .count();
+            let removed = prev_lines
+                .iter()
+                .filter(|line| !curr_lines.contains(line))
+                .count();
 
             HttpResponse::Ok().json(serde_json::json!({
                 "session_id": session_id,
@@ -484,11 +492,7 @@ pub async fn revert_session_to_checkpoint(
                 "message_count": restored.messages.len(),
             }))
         }
-        Err(e) => json_error(
-            StatusCode::BAD_REQUEST,
-            "revert_failed",
-            e.to_string(),
-        ),
+        Err(e) => json_error(StatusCode::BAD_REQUEST, "revert_failed", e.to_string()),
     }
 }
 
@@ -606,10 +610,7 @@ pub async fn remove_share_session(
     }
 }
 
-pub async fn abort_session(
-    state: web::Data<ServerState>,
-    id: web::Path<String>,
-) -> impl Responder {
+pub async fn abort_session(state: web::Data<ServerState>, id: web::Path<String>) -> impl Responder {
     let session_id = id.into_inner();
     match state.storage.load_session(&session_id).await {
         Ok(Some(mut session)) => {
@@ -652,7 +653,12 @@ pub async fn permission_reply(
             "error": "decision must be 'allow' or 'deny'"
         }));
     }
-    tracing::info!("Permission reply: session={}, req={}, decision={}", session_id, req_id, decision);
+    tracing::info!(
+        "Permission reply: session={}, req={}, decision={}",
+        session_id,
+        req_id,
+        decision
+    );
     HttpResponse::Ok().json(serde_json::json!({
         "status": "ok",
         "session_id": session_id,
@@ -707,7 +713,10 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.route("/{id}/prompt", web::post().to(prompt_session));
     cfg.route("/{id}/command", web::post().to(run_command_in_session));
     cfg.route("/{id}/abort", web::post().to(abort_session));
-    cfg.route("/{id}/permissions/{req_id}/reply", web::post().to(permission_reply));
+    cfg.route(
+        "/{id}/permissions/{req_id}/reply",
+        web::post().to(permission_reply),
+    );
     cfg.route("/{id}/messages", web::get().to(list_messages));
     cfg.route("/{id}/messages", web::post().to(add_message_to_session));
     cfg.route("/{id}/messages/{msg_index}", web::get().to(get_message));
