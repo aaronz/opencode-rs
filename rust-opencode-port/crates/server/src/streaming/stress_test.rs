@@ -98,7 +98,7 @@ impl ConnectionStressTester {
                 session_id.clone(),
             ).await;
             
-            let tx = event_tx.clone();
+            let _tx = event_tx.clone();
             let monitor = self.monitor.clone();
             let reconnection_store = reconnection_store.clone();
             let successful_clone = successful.clone();
@@ -107,17 +107,18 @@ impl ConnectionStressTester {
             let total_hb_clone = total_hb.clone();
             
             let handle = tokio::spawn(async move {
-                let (sse_tx, mut sse_rx) = mpsc::channel::<StreamMessage>(32);
+                let (sse_tx, _sse_rx) = mpsc::channel::<StreamMessage>(32);
                 let mut msgs_sent = 0usize;
-                let mut heartbeats = 0usize;
+                let heartbeats = Arc::new(AtomicUsize::new(0));
                 
                 let monitor_hb = monitor.clone();
                 let conn_id_hb = conn_id_str.clone();
+                let heartbeats_hb = heartbeats.clone();
                 tokio::spawn(async move {
                     for _ in 0..10 {
                         tokio::time::sleep(Duration::from_millis(10)).await;
                         monitor_hb.heartbeat_success(&conn_id_hb).await;
-                        heartbeats += 1;
+                        heartbeats_hb.fetch_add(1, Ordering::SeqCst);
                     }
                 });
                 
@@ -139,7 +140,7 @@ impl ConnectionStressTester {
                 tokio::time::sleep(Duration::from_millis(50)).await;
                 
                 total_sent_clone.fetch_add(msgs_sent, Ordering::SeqCst);
-                total_hb_clone.fetch_add(heartbeats, Ordering::SeqCst);
+                total_hb_clone.fetch_add(heartbeats.load(Ordering::SeqCst), Ordering::SeqCst);
                 
                 if monitor.get_connection(&conn_id_str).await.is_some() {
                     successful_clone.fetch_add(1, Ordering::SeqCst);
@@ -162,7 +163,7 @@ impl ConnectionStressTester {
         let received = total_received.load(Ordering::SeqCst);
         let hb = total_hb.load(Ordering::SeqCst);
         
-        let final_stats = self.monitor.get_stats().await;
+        let _final_stats = self.monitor.get_stats().await;
         
         StressTestResult {
             total_connections: self.config.num_connections,
@@ -203,7 +204,7 @@ impl ConnectionStressTester {
                 session_id.clone(),
             ).await;
             
-            let tx = event_tx.clone();
+            let _tx = event_tx.clone();
             let monitor = self.monitor.clone();
             let reconnection_store = reconnection_store.clone();
             let successful_clone = successful.clone();
@@ -214,15 +215,16 @@ impl ConnectionStressTester {
             let handle = tokio::spawn(async move {
                 let (ws_tx, _ws_rx) = mpsc::channel::<StreamMessage>(32);
                 let mut msgs_sent = 0usize;
-                let mut heartbeats = 0usize;
+                let heartbeats = Arc::new(AtomicUsize::new(0));
                 
                 let monitor_hb = monitor.clone();
                 let conn_id_hb = conn_id_str.clone();
+                let heartbeats_hb = heartbeats.clone();
                 tokio::spawn(async move {
                     for _ in 0..10 {
                         tokio::time::sleep(Duration::from_millis(10)).await;
                         monitor_hb.heartbeat_success(&conn_id_hb).await;
-                        heartbeats += 1;
+                        heartbeats_hb.fetch_add(1, Ordering::SeqCst);
                     }
                 });
                 
@@ -244,7 +246,7 @@ impl ConnectionStressTester {
                 tokio::time::sleep(Duration::from_millis(50)).await;
                 
                 total_sent_clone.fetch_add(msgs_sent, Ordering::SeqCst);
-                total_hb_clone.fetch_add(heartbeats, Ordering::SeqCst);
+                total_hb_clone.fetch_add(heartbeats.load(Ordering::SeqCst), Ordering::SeqCst);
                 
                 if monitor.get_connection(&conn_id_str).await.is_some() {
                     successful_clone.fetch_add(1, Ordering::SeqCst);
@@ -267,7 +269,7 @@ impl ConnectionStressTester {
         let received = total_received.load(Ordering::SeqCst);
         let hb = total_hb.load(Ordering::SeqCst);
         
-        let final_stats = self.monitor.get_stats().await;
+        let _final_stats = self.monitor.get_stats().await;
         
         StressTestResult {
             total_connections: self.config.num_connections,
@@ -306,10 +308,11 @@ impl ConnectionStressTester {
             let monitor = self.monitor.clone();
             let successful_clone = successful.clone();
             let recon_success_clone = recon_success.clone();
+            let reconnection_attempts = self.config.reconnection_attempts;
             
             let handle = tokio::spawn(async move {
-                for attempt in 0..self.config.reconnection_attempts {
-                    monitor.reconnection_attempt(&conn_id_str, attempt).await;
+                for attempt in 0..reconnection_attempts {
+                    monitor.reconnection_attempt(&conn_id_str, attempt as u32).await;
                     tokio::time::sleep(Duration::from_millis(10)).await;
                 }
                 

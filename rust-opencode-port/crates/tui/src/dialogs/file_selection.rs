@@ -50,7 +50,8 @@ impl FileSelectionDialog {
         let file_entries: Vec<FileEntry> = entries
             .into_iter()
             .map(|(path, is_dir)| FileEntry {
-                name: path.file_name()
+                name: path
+                    .file_name()
                     .map(|n| n.to_string_lossy().to_string())
                     .unwrap_or_default(),
                 is_dir,
@@ -178,7 +179,9 @@ impl Dialog for FileSelectionDialog {
                 };
 
                 let checkbox_style = if is_selected {
-                    Style::default().fg(Color::Green).add_modifier(Modifier::Bold)
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD)
                 } else {
                     style
                 };
@@ -194,15 +197,22 @@ impl Dialog for FileSelectionDialog {
         let selection_hint = if self.selected_indices.is_empty() {
             " Space: toggle | Enter: confirm".to_string()
         } else {
-            format!(" {} selected | Enter/Ctrl+Enter: confirm", self.selected_indices.len())
+            format!(
+                " {} selected | Enter/Ctrl+Enter: confirm",
+                self.selected_indices.len()
+            )
         };
 
-        let hint_text = format!("{}{}", 
-            if self.filter.is_empty() { "Filter: type to search..." } else { "Filter: ..." },
+        let hint_text = format!(
+            "{}{}",
+            if self.filter.is_empty() {
+                "Filter: type to search..."
+            } else {
+                "Filter: ..."
+            },
             selection_hint
         );
-        let filter_widget = Paragraph::new(hint_text)
-            .block(Block::default().borders(Borders::ALL));
+        let filter_widget = Paragraph::new(hint_text).block(Block::default().borders(Borders::ALL));
         f.render_widget(filter_widget, chunks[0]);
 
         let list = List::new(items)
@@ -218,15 +228,22 @@ impl Dialog for FileSelectionDialog {
         match key.code {
             KeyCode::Esc => DialogAction::Close,
             KeyCode::Enter => {
-                if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) {
+                if key
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL)
+                {
                     let selected = self.selected_paths();
                     if selected.is_empty() {
                         let filtered = self.filtered_entries();
                         if let Some(entry) = filtered.get(self.selected_index) {
                             if !entry.is_dir && entry.name != ".." {
-                                let full_path = entry.path.clone()
+                                let full_path = entry
+                                    .path
+                                    .clone()
                                     .unwrap_or_else(|| self.current_dir.join(&entry.name));
-                                return DialogAction::Confirm(full_path.to_string_lossy().to_string());
+                                return DialogAction::Confirm(
+                                    full_path.to_string_lossy().to_string(),
+                                );
                             }
                         }
                     }
@@ -259,7 +276,9 @@ impl Dialog for FileSelectionDialog {
                             DialogAction::None
                         }
                     } else {
-                        let full_path = entry.path.clone()
+                        let full_path = entry
+                            .path
+                            .clone()
                             .unwrap_or_else(|| self.current_dir.join(&entry.name));
                         DialogAction::Confirm(full_path.to_string_lossy().to_string())
                     }
@@ -267,12 +286,19 @@ impl Dialog for FileSelectionDialog {
                     DialogAction::None
                 }
             }
-            KeyCode::Space => {
-                if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) {
+            KeyCode::Char(' ') => {
+                if key
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL)
+                {
                     let filtered = self.filtered_entries();
                     if let Some(entry) = filtered.get(self.selected_index) {
                         if !entry.is_dir && entry.name != ".." {
-                            if let Some(idx) = self.selected_indices.iter().position(|&i| i == self.selected_index) {
+                            if let Some(idx) = self
+                                .selected_indices
+                                .iter()
+                                .position(|&i| i == self.selected_index)
+                            {
                                 self.selected_indices.remove(idx);
                             } else {
                                 self.selected_indices.push(self.selected_index);
@@ -280,7 +306,11 @@ impl Dialog for FileSelectionDialog {
                         }
                     }
                 } else {
-                    if let Some(idx) = self.selected_indices.iter().position(|&i| i == self.selected_index) {
+                    if let Some(idx) = self
+                        .selected_indices
+                        .iter()
+                        .position(|&i| i == self.selected_index)
+                    {
                         self.selected_indices.remove(idx);
                     } else {
                         self.selected_indices.push(self.selected_index);

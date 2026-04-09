@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 
 use actix_web::{Error, HttpRequest, HttpResponse, web};
 use actix_web::http::header::{HeaderName, HeaderValue};
-use actix_ws::{Message, ProtocolError};
+use actix_ws::Message;
 use futures::StreamExt;
 use opencode_core::bus::InternalEvent;
 use opencode_core::{Message as CoreMessage, Session};
@@ -15,7 +15,7 @@ use tracing::{debug, info, warn, error};
 use crate::ServerState;
 use crate::streaming::heartbeat::HeartbeatManager;
 use crate::streaming::{ReplayEntry, StreamMessage};
-use crate::streaming::conn_state::{ConnectionMonitor, ConnectionType};
+use crate::streaming::conn_state::ConnectionType;
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]

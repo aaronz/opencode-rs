@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use std::time::Duration;
 
 use actix_web::{Error, HttpRequest, HttpResponse, web};
 use futures::stream::{self, Stream};
@@ -7,17 +6,12 @@ use opencode_core::bus::InternalEvent;
 use opencode_core::{Message as CoreMessage, Session};
 use serde::Deserialize;
 use tokio::sync::mpsc;
-use tokio::time::{sleep, timeout};
 use tracing::{info, warn, debug};
 
 use crate::ServerState;
 use crate::streaming::heartbeat::HeartbeatManager;
 use crate::streaming::{ReplayEntry, StreamMessage};
-use crate::streaming::conn_state::{ConnectionMonitor, ConnectionType};
-
-const SSE_RECONNECT_BASE_DELAY_MS: u64 = 100;
-const SSE_RECONNECT_MAX_DELAY_MS: u64 = 30000;
-const SSE_MAX_RECONNECT_ATTEMPTS: u32 = 5;
+use crate::streaming::conn_state::ConnectionType;
 
 #[derive(Debug, Deserialize)]
 pub struct SseQuery {

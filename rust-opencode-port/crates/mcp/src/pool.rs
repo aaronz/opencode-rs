@@ -1,4 +1,3 @@
-use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -54,98 +53,6 @@ impl PoolConfig {
     }
 }
 
-struct PoolEntry {
-    client: McpClient,
-    last_used: std::time::Instant,
-}
-
-impl PoolEntry {
-    fn new(client: McpClient) -> Self {
-        Self {
-            client,
-            last_used: std::time::Instant::now(),
-        }
-    }
-
-    fn touch(&mut self) {
-        self.last_used = std::time::Instant::now();
-    }
-
-    fn is_idle_too_long(&self, idle_timeout: Duration) -> bool {
-        self.last_used.elapsed() > idle_timeout
-    }
-}
-
-struct EndpointPool {
-    connections: VecDeque<PoolEntry>,
-    max_idle: usize,
-    min_idle: usize,
-    idle_timeout: Duration,
-}
-
-impl EndpointPool {
-    fn new(config: &PoolConfig) -> Self {
-        Self {
-            connections: VecDeque::new(),
-            max_idle: config.max_idle_per_endpoint,
-            min_idle: config.min_idle_per_endpoint,
-            idle_timeout: config.idle_timeout,
-        }
-    }
-
-    fn num_connections(&self) -> usize {
-        self.connections.len()
-    }
-
-    async fn get_connected(&mut self) -> Option<PoolEntry> {
-        for i in 0..self.connections.len() {
-            let state = self.connections[i].client.connection_state().await;
-            if state == crate::client::ConnectionState::Connected {
-                let mut entry = self.connections.remove(i).unwrap();
-                entry.touch();
-                return Some(entry);
-            }
-        }
-        None
-    }
-
-    fn return_connection(&mut self, mut entry: PoolEntry) {
-        entry.touch();
-        
-        while self.connections.len() >= self.max_idle {
-            if let Some(old) = self.connections.pop_back() {
-                let _ = old.client.disconnect();
-            }
-        }
-        
-        self.connections.push_front(entry);
-    }
-
-    fn try_remove_idle(&mut self, idle_timeout: Duration) -> Option<PoolEntry> {
-        let idx = self.connections
-            .iter()
-            .position(|e| e.is_idle_too_long(idle_timeout));
-        
-        idx.and_then(|i| self.connections.remove(i))
-    }
-
-    fn close_excess(&mut self) {
-        while self.connections.len() > self.min_idle {
-            if let Some(entry) = self.connections.pop_back() {
-                let _ = entry.client.disconnect();
-            } else {
-                break;
-            }
-        }
-    }
-
-    fn close_all(&mut self) {
-        while let Some(entry) = self.connections.pop_back() {
-            let _ = entry.client.disconnect();
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct EndpointPoolStats {
     pub endpoint: String,
@@ -162,7 +69,6 @@ pub struct PoolStats {
 
 pub struct McpConnectionPool {
     config: PoolConfig,
-    endpoints: HashMap<String, EndpointPool>,
     total_connections: usize,
     semaphore: Arc<Semaphore>,
 }
@@ -171,7 +77,6 @@ impl std::fmt::Debug for McpConnectionPool {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("McpConnectionPool")
             .field("config", &self.config)
-            .field("endpoints", &self.endpoints.len())
             .field("total_connections", &self.total_connections)
             .finish()
     }
@@ -230,7 +135,6 @@ impl McpConnectionPool {
         let max_connections = config.max_total_connections;
         Self {
             config,
-            endpoints: HashMap::new(),
             total_connections: 0,
             semaphore: Arc::new(Semaphore::new(max_connections)),
         }
@@ -241,24 +145,10 @@ impl McpConnectionPool {
     }
 
     pub fn stats(&self) -> PoolStats {
-        let mut total = 0;
-        let idle = 0;
-        let mut endpoint_stats = Vec::new();
-
-        for (endpoint, pool) in &self.endpoints {
-            let n = pool.num_connections();
-            total += n;
-            endpoint_stats.push(EndpointPoolStats {
-                endpoint: endpoint.clone(),
-                total_connections: n,
-                idle_connections: idle,
-            });
-        }
-
         PoolStats {
-            total_connections: total,
-            total_idle: idle,
-            endpoints: endpoint_stats,
+            total_connections: self.total_connections,
+            total_idle: 0,
+            endpoints: Vec::new(),
         }
     }
 
@@ -351,25 +241,11 @@ impl McpConnectionPool {
     }
 
     pub async fn close(&mut self) {
-        for (_, pool) in &mut self.endpoints {
-            pool.close_all();
-        }
-        self.endpoints.clear();
         self.total_connections = 0;
     }
 
-    pub fn purge_idle(&mut self) {
-        for (_, pool) in &mut self.endpoints {
-            while let Some(entry) = pool.try_remove_idle(self.config.idle_timeout) {
-                let _ = entry.client.disconnect();
-                self.total_connections -= 1;
-            }
-            pool.close_excess();
-        }
-    }
-
     pub fn num_endpoints(&self) -> usize {
-        self.endpoints.len()
+        0
     }
 
     pub fn num_connections(&self) -> usize {

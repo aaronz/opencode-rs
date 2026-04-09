@@ -198,8 +198,8 @@ impl DiffView {
 
     pub fn toggle_hunk_at_cursor(&mut self) {
         let visible_hunks = self.get_visible_hunks_with_offset();
-        for (hunk_idx, (global_idx, is_expanded)) in visible_hunks {
-            if self.cursor_position >= global_idx.0 && self.cursor_position <= global_idx.1 {
+        for ((global_start, global_end), (hunk_idx, _is_expanded)) in visible_hunks {
+            if self.cursor_position >= global_start && self.cursor_position <= global_end {
                 if let Some(hunk) = self.hunks.get_mut(hunk_idx) {
                     hunk.toggle_expanded();
                     self.recalculate_cursor();
@@ -284,7 +284,9 @@ impl DiffView {
             DiffLineType::Context => Style::default().fg(Color::White),
             DiffLineType::Addition => Style::default().fg(Color::Green),
             DiffLineType::Deletion => Style::default().fg(Color::Red),
-            DiffLineType::CollapsedHunk => Style::default().fg(Color::DarkGray).add_modifier(ratatui::style::Modifier::ITALIC),
+            DiffLineType::CollapsedHunk => Style::default()
+                .fg(Color::DarkGray)
+                .add_modifier(ratatui::style::Modifier::ITALIC),
         }
     }
 
@@ -303,7 +305,10 @@ impl DiffView {
             self.cursor_position += 1;
             let max_visible = self.scroll_offset + visible_count;
             if self.cursor_position >= max_visible {
-                self.scroll_offset = self.cursor_position.saturating_sub(visible_count).saturating_add(1);
+                self.scroll_offset = self
+                    .cursor_position
+                    .saturating_sub(visible_count)
+                    .saturating_add(1);
             }
         }
     }
@@ -324,7 +329,7 @@ impl Widget for DiffView {
         }
 
         let visible_lines = self.get_visible_lines();
-        let visible_hunks = self.get_visible_hunks_with_offset();
+        let _visible_hunks = self.get_visible_hunks_with_offset();
         let max_lines = inner.height as usize;
         let start_offset = self.scroll_offset;
         let end_offset = (start_offset + max_lines).min(visible_lines.len());
@@ -336,7 +341,7 @@ impl Widget for DiffView {
             .take(end_offset - start_offset)
             .find_map(|(idx, (_, hunk_idx))| {
                 if idx == self.cursor_position {
-                    Some(*hunk_idx)
+                    *hunk_idx
                 } else {
                     None
                 }
@@ -365,8 +370,8 @@ impl Widget for DiffView {
                 base_style
             };
 
-            let expand_indicator = if let Some(hunk_idx) = hunk_idx {
-                if let Some(hunk) = self.hunks.get(hunk_idx) {
+            let expand_indicator = if let Some(idx) = hunk_idx {
+                if let Some(hunk) = self.hunks.get(*idx) {
                     if is_collapsed_hunk {
                         "[+] ".to_string()
                     } else if !hunk.is_expanded {
@@ -391,10 +396,13 @@ impl Widget for DiffView {
             buf.set_span(y, inner.x, &span, inner.width);
         }
 
-        if let Some(hunk_idx) = cursor_hunk_idx {
-            if let Some(hunk) = self.hunks.get(hunk_idx) {
-                if !hunk.is_expanded && visible_lines.iter().any(|(l, _)| l.line_type == DiffLineType::CollapsedHunk) {
-                }
+        if let Some(idx) = cursor_hunk_idx {
+            if let Some(hunk) = self.hunks.get(idx) {
+                if !hunk.is_expanded
+                    && visible_lines
+                        .iter()
+                        .any(|(l, _)| l.line_type == DiffLineType::CollapsedHunk)
+                {}
             }
         }
     }

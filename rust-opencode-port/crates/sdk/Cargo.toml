@@ -34,16 +34,13 @@ url = "2"
 tempfile.workspace = true
 tokio-test = "0.4"
 
-[examples]
-basic = "examples/basic.rs"
-
 [[example]]
 name = "basic"
 path = "examples/basic.rs"
 
 [lib]
 name = "opencode_sdk"
-crate-type = ["lib", "rlib"]
+crate-type = ["rlib"]
 
 [features]
 default = ["native-tls"]

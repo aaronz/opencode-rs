@@ -2,11 +2,9 @@ use crate::routes::error::json_error;
 use crate::ServerState;
 use actix_web::{http::StatusCode, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
-use opencode_core::share::{ExportFormat, ExportOptions, ShareLink, ShareManager};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
@@ -43,7 +41,6 @@ pub struct ShortShareLink {
 pub struct ShareServer {
     config: ShortShareConfig,
     links: Arc<RwLock<HashMap<String, ShortShareLink>>>,
-    share_manager: ShareManager,
 }
 
 impl ShareServer {
@@ -51,7 +48,6 @@ impl ShareServer {
         Self {
             config,
             links: Arc::new(RwLock::new(HashMap::new())),
-            share_manager: ShareManager::new(),
         }
     }
 
@@ -206,10 +202,10 @@ pub async fn create_short_link(
     state: web::Data<ServerState>,
     req: web::Json<CreateShortLinkRequest>,
 ) -> impl Responder {
-    let share_server = state.share_server.read().await;
+    let share_server = state.share_server.read().unwrap();
     
     match state.storage.load_session(&req.session_id).await {
-        Ok(Some(session)) => {
+        Ok(Some(_session)) => {
             let link = share_server
                 .create_short_link(
                     req.session_id.clone(),
@@ -252,7 +248,7 @@ pub async fn get_short_link_info(
     path: web::Path<String>,
 ) -> impl Responder {
     let short_code = path.into_inner();
-    let share_server = state.share_server.read().await;
+    let share_server = state.share_server.read().unwrap();
 
     match share_server.get_short_link(&short_code).await {
         Some(link) => {
@@ -287,7 +283,7 @@ pub async fn access_shared_session(
     query: web::Query<AccessQueryParams>,
 ) -> impl Responder {
     let short_code = path.into_inner();
-    let share_server = state.share_server.read().await;
+    let share_server = state.share_server.read().unwrap();
 
     let link = match share_server.get_short_link(&short_code).await {
         Some(l) => l,
@@ -360,9 +356,9 @@ pub async fn delete_short_link(
     query: web::Query<DeleteQueryParams>,
 ) -> impl Responder {
     let short_code = path.into_inner();
-    let share_server = state.share_server.read().await;
+    let share_server = state.share_server.read().unwrap();
 
-    if !share_server.validate_access(&short_code, query.token.as_deref()).await {
+    if !share_server.validate_access(&short_code, Some(&query.token)).await {
         return json_error(
             StatusCode::FORBIDDEN,
             "access_denied",
@@ -392,7 +388,7 @@ pub async fn refresh_short_link(
     req: web::Json<RefreshRequest>,
 ) -> impl Responder {
     let short_code = path.into_inner();
-    let share_server = state.share_server.read().await;
+    let share_server = state.share_server.read().unwrap();
 
     if !share_server.validate_access(&short_code, Some(&req.access_token)).await {
         return json_error(
@@ -441,7 +437,7 @@ pub struct RefreshRequest {
 pub async fn list_short_links(
     state: web::Data<ServerState>,
 ) -> impl Responder {
-    let share_server = state.share_server.read().await;
+    let share_server = state.share_server.read().unwrap();
     let links = share_server.links.read().await;
 
     let items: Vec<ShortLinkInfo> = links
@@ -465,7 +461,7 @@ pub async fn list_short_links(
 pub async fn cleanup_expired_links(
     state: web::Data<ServerState>,
 ) -> impl Responder {
-    let share_server = state.share_server.read().await;
+    let share_server = state.share_server.read().unwrap();
     let cleaned = share_server.cleanup_expired().await;
 
     HttpResponse::Ok().json(serde_json::json!({

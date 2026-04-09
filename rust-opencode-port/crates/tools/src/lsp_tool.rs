@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::process::Stdio;
 use tokio::process::Command;
-use crate::{Tool, ToolResult, ToolContext};
+use crate::{Tool, ToolResult};
 use opencode_core::OpenCodeError;
 
 pub struct LspTool;
@@ -330,7 +330,7 @@ impl LspTool {
                 PathBuf::from(file).parent().unwrap_or(&PathBuf::from(".")).to_path_buf()
             });
 
-            let server_cmd = if root.join("Cargo.toml").exists() {
+            let _server_cmd = if root.join("Cargo.toml").exists() {
                 "rust-analyzer"
             } else {
                 return Ok(ToolResult::ok(format!(
@@ -375,8 +375,8 @@ impl LspTool {
                         ) {
                             let start_line = start.get("line").and_then(|l| l.as_u64()).unwrap_or(0) as u32 + 1;
                             let start_col = start.get("character").and_then(|c| c.as_u64()).unwrap_or(0) as u32 + 1;
-                            let end_line = end.get("line").and_then(|l| l.as_u64()).unwrap_or(0) as u32 + 1;
-                            let end_col = end.get("character").and_then(|c| c.as_u64()).unwrap_or(0) as u32 + 1;
+                            let _end_line = end.get("line").and_then(|l| l.as_u64()).unwrap_or(0) as u32 + 1;
+                            let _end_col = end.get("character").and_then(|c| c.as_u64()).unwrap_or(0) as u32 + 1;
 
                             return Ok(ToolResult::ok(format!(
                                 "{}:{}:{} -> {}:{}:{}",
@@ -398,7 +398,7 @@ impl LspTool {
         &self,
         file: &str,
         line: u32,
-        character: u32,
+        _character: u32,
     ) -> Result<ToolResult, OpenCodeError> {
         let content = tokio::fs::read_to_string(file).await
             .map_err(|e| OpenCodeError::Tool(format!("Failed to read file: {}", e)))?;
@@ -447,7 +447,7 @@ impl LspTool {
         &self,
         file: &str,
         line: u32,
-        character: u32,
+        _character: u32,
         symbol: &str,
         workspace: Option<&str>,
     ) -> Result<ToolResult, OpenCodeError> {
@@ -612,7 +612,7 @@ impl LspTool {
         &self,
         file: &str,
         line: u32,
-        character: u32,
+        _character: u32,
     ) -> Result<ToolResult, OpenCodeError> {
         let content = tokio::fs::read_to_string(file).await
             .map_err(|e| OpenCodeError::Tool(format!("Failed to read file: {}", e)))?;

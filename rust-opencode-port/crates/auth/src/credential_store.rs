@@ -1,4 +1,4 @@
-use aes_gcm::aead::{Aead, KeyInit, KeyUser};
+use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Nonce};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use opencode_core::OpenCodeError;
@@ -56,7 +56,7 @@ impl CredentialStore {
             password: None,
         }
     }
-    
+
     pub fn with_password(password: String) -> Self {
         let base_dir = std::env::var("OPENCODE_DATA_DIR")
             .map(PathBuf::from)
@@ -80,8 +80,12 @@ impl CredentialStore {
             password: None,
         }
     }
-    
-    pub fn with_paths_and_password(store_path: PathBuf, key_path: PathBuf, password: String) -> Self {
+
+    pub fn with_paths_and_password(
+        store_path: PathBuf,
+        key_path: PathBuf,
+        password: String,
+    ) -> Self {
         Self {
             store_path,
             key_path,
@@ -107,30 +111,26 @@ impl CredentialStore {
     }
 
     fn derive_key(&self, salt: &[u8]) -> Result<[u8; ARGON2_KEY_LEN], OpenCodeError> {
-        let password = self.password.as_ref()
-            .ok_or_else(|| OpenCodeError::Storage("Password not set for key derivation".to_string()))?;
-        
+        let password = self.password.as_ref().ok_or_else(|| {
+            OpenCodeError::Storage("Password not set for key derivation".to_string())
+        })?;
+
         let params = argon2::Params::new(
             ARGON2_MEMORY_KB,
             ARGON2_ITERATIONS,
             ARGON2_PARALLELISM,
             Some(ARGON2_KEY_LEN),
-            argon2::Version::Version13,
-            argon2::Algorithm::Argon2id,
-        ).map_err(|e| OpenCodeError::Storage(format!("Invalid Argon2 params: {}", e)))?;
-        
-        let argon2 = argon2::Argon2::new(argon2::Algorithm::Argon2id, argon2::Version::Version13, params);
-        
-        let mut key = [0u8; ARGON2_KEY_LEN];
-        argon2.hash_password_into(password.as_bytes(), salt, &mut key)
-            .map_err(|e| OpenCodeError::Storage(format!("Argon2 key derivation failed: {}", e)))?;
-        
-        Ok(key)
-    }
+        )
+        .map_err(|e| OpenCodeError::Storage(format!("Invalid Argon2 params: {}", e)))?;
 
-    fn generate_key(&self) -> Result<[u8; ARGON2_KEY_LEN], OpenCodeError> {
+        let argon2 =
+            argon2::Argon2::new(argon2::Algorithm::Argon2id, argon2::Version::V0x13, params);
+
         let mut key = [0u8; ARGON2_KEY_LEN];
-        rand::rngs::OsRng.fill_bytes(&mut key);
+        argon2
+            .hash_password_into(password.as_bytes(), salt, &mut key)
+            .map_err(|e| OpenCodeError::Storage(format!("Argon2 key derivation failed: {}", e)))?;
+
         Ok(key)
     }
 
@@ -142,8 +142,8 @@ impl CredentialStore {
         let plaintext = serde_json::to_vec(credentials).map_err(|e| {
             OpenCodeError::Storage(format!("Failed to serialize credentials: {}", e))
         })?;
-        
-        let (key, salt) = if let Some(ref pwd) = self.password {
+
+        let (key, salt) = if self.password.is_some() {
             if self.store_path.exists() {
                 if let Ok(existing_salt) = self.load_salt() {
                     let key = self.derive_key(&existing_salt)?;
@@ -161,7 +161,7 @@ impl CredentialStore {
         } else {
             (self.get_or_create_key()?, None)
         };
-        
+
         let cipher = Aes256Gcm::new_from_slice(&key)
             .map_err(|e| OpenCodeError::Storage(format!("Failed to initialize cipher: {}", e)))?;
 
@@ -205,19 +205,21 @@ impl CredentialStore {
             .decode(payload.ciphertext)
             .map_err(|e| OpenCodeError::Storage(format!("Failed to decode ciphertext: {}", e)))?;
 
-        let (key, salt) = if let Some(ref pwd) = self.password {
+        let key = if self.password.is_some() {
             if let Some(salt_b64) = payload.salt {
-                let salt = BASE64.decode(&salt_b64)
+                let salt = BASE64
+                    .decode(&salt_b64)
                     .map_err(|e| OpenCodeError::Storage(format!("Failed to decode salt: {}", e)))?;
-                let key = self.derive_key(&salt)?;
-                (key, Some(salt))
+                self.derive_key(&salt)?
             } else {
-                return Err(OpenCodeError::Storage("Salt not found for password-protected store".to_string()));
+                return Err(OpenCodeError::Storage(
+                    "Salt not found for password-protected store".to_string(),
+                ));
             }
         } else {
-            (self.get_or_create_key()?, None)
+            self.get_or_create_key()?
         };
-        
+
         let cipher = Aes256Gcm::new_from_slice(&key)
             .map_err(|e| OpenCodeError::Storage(format!("Failed to initialize cipher: {}", e)))?;
         let nonce = Nonce::from_slice(&nonce_bytes);
@@ -247,20 +249,21 @@ impl CredentialStore {
         std::fs::write(&self.key_path, BASE64.encode(key))?;
         Ok(key)
     }
-    
+
     fn generate_salt(&self) -> Result<[u8; ARGON2_SALT_LEN], OpenCodeError> {
         let mut salt = [0u8; ARGON2_SALT_LEN];
         rand::rngs::OsRng.fill_bytes(&mut salt);
         Ok(salt)
     }
-    
+
     fn load_salt(&self) -> Result<[u8; ARGON2_SALT_LEN], OpenCodeError> {
         let body = std::fs::read_to_string(&self.store_path)?;
         let payload: EncryptedPayload = serde_json::from_str(&body)
             .map_err(|e| OpenCodeError::Storage(format!("Failed to parse payload: {}", e)))?;
-        
+
         if let Some(salt_b64) = payload.salt {
-            let salt = BASE64.decode(&salt_b64)
+            let salt = BASE64
+                .decode(&salt_b64)
                 .map_err(|e| OpenCodeError::Storage(format!("Failed to decode salt: {}", e)))?;
             if salt.len() != ARGON2_SALT_LEN {
                 return Err(OpenCodeError::Storage("Invalid salt length".to_string()));
@@ -359,7 +362,7 @@ mod tests {
         assert!(raw.contains("ciphertext"));
         assert!(raw.contains("nonce"));
     }
-    
+
     #[test]
     fn stores_and_loads_credential_with_password() {
         let tmp = tempfile::tempdir().unwrap();
@@ -380,7 +383,7 @@ mod tests {
 
         assert_eq!(loaded, Some(credential));
     }
-    
+
     #[test]
     fn password_stores_have_salt() {
         let tmp = tempfile::tempdir().unwrap();
@@ -404,7 +407,7 @@ mod tests {
         let raw = std::fs::read_to_string(tmp.path().join("credentials.enc.json")).unwrap();
         assert!(raw.contains("salt"));
     }
-    
+
     #[test]
     fn password_must_be_correct_to_decrypt() {
         let tmp = tempfile::tempdir().unwrap();
@@ -424,7 +427,7 @@ mod tests {
                 },
             )
             .unwrap();
-        
+
         drop(store);
 
         let wrong_password_store = CredentialStore::with_paths_and_password(
@@ -432,11 +435,11 @@ mod tests {
             tmp.path().join("credentials.key"),
             "wrong-password".to_string(),
         );
-        
+
         let result = wrong_password_store.load("secret");
         assert!(result.is_err());
     }
-    
+
     #[test]
     fn non_password_store_has_no_salt() {
         let tmp = tempfile::tempdir().unwrap();
@@ -456,37 +459,41 @@ mod tests {
         let raw = std::fs::read_to_string(tmp.path().join("credentials.enc.json")).unwrap();
         assert!(raw.contains("null") || !raw.contains("salt"));
     }
-    
+
     #[test]
     fn argon2_derives_consistent_key() {
         let tmp = tempfile::tempdir().unwrap();
         let password = "test-password-123";
-        
+
         let store1 = CredentialStore::with_paths_and_password(
             tmp.path().join("store1.json"),
             tmp.path().join("key1"),
             password.to_string(),
         );
-        
+
         let store2 = CredentialStore::with_paths_and_password(
             tmp.path().join("store2.json"),
             tmp.path().join("key2"),
             password.to_string(),
         );
-        
+
         let credential = Credential {
             api_key: "same-key".to_string(),
             base_url: None,
             metadata: HashMap::new(),
         };
-        
+
         store1.store("test", &credential).unwrap();
-        
-        std::fs::copy(tmp.path().join("store1.json"), tmp.path().join("store2.json")).unwrap();
-        
+
+        std::fs::copy(
+            tmp.path().join("store1.json"),
+            tmp.path().join("store2.json"),
+        )
+        .unwrap();
+
         let loaded1 = store1.load("test").unwrap();
         let loaded2 = store2.load("test").unwrap();
-        
+
         assert_eq!(loaded1, loaded2);
     }
 }
