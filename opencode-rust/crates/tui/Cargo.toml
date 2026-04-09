@@ -32,4 +32,3 @@ regex = "1"
 
 [dev-dependencies]
 tempfile.workspace = true
-ratatui-testing = { path = "../../../ratatui-testing", features = ["ratatui"] }
