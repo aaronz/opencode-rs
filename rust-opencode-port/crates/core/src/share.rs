@@ -126,11 +126,12 @@ impl ShareManager {
         let mut patch_count = 0;
         for msg in &session.messages {
             if msg.role == crate::message::Role::Assistant
-                && (msg.content.contains("```diff") || msg.content.contains("```patch")) {
-                    bundle.push_str(&msg.content);
-                    bundle.push_str("\n---\n\n");
-                    patch_count += 1;
-                }
+                && (msg.content.contains("```diff") || msg.content.contains("```patch"))
+            {
+                bundle.push_str(&msg.content);
+                bundle.push_str("\n---\n\n");
+                patch_count += 1;
+            }
         }
 
         if patch_count == 0 {

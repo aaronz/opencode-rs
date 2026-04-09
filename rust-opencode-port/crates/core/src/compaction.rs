@@ -715,7 +715,11 @@ mod tests {
         let elapsed = start.elapsed();
 
         assert!(result.was_compacted);
-        assert!(elapsed.as_millis() < 100, "compaction took {}ms, expected < 100ms", elapsed.as_millis());
+        assert!(
+            elapsed.as_millis() < 100,
+            "compaction took {}ms, expected < 100ms",
+            elapsed.as_millis()
+        );
     }
 
     #[test]
@@ -725,7 +729,13 @@ mod tests {
             ..Default::default()
         });
         let messages: Vec<Message> = (0..500)
-            .map(|i| Message::user(format!("Message {} with content that is somewhat longer to simulate real messages {}", i, "x".repeat(100))))
+            .map(|i| {
+                Message::user(format!(
+                    "Message {} with content that is somewhat longer to simulate real messages {}",
+                    i,
+                    "x".repeat(100)
+                ))
+            })
             .collect();
 
         let start = std::time::Instant::now();
@@ -733,7 +743,11 @@ mod tests {
         let elapsed = start.elapsed();
 
         assert!(result.was_compacted);
-        assert!(elapsed.as_millis() < 500, "compaction took {}ms, expected < 500ms", elapsed.as_millis());
+        assert!(
+            elapsed.as_millis() < 500,
+            "compaction took {}ms, expected < 500ms",
+            elapsed.as_millis()
+        );
     }
 
     #[test]
@@ -745,7 +759,13 @@ mod tests {
             ..Default::default()
         });
         let messages: Vec<Message> = (0..100)
-            .map(|i| Message::assistant(format!("Tool result {} with output: {}", i, "y".repeat(200))))
+            .map(|i| {
+                Message::assistant(format!(
+                    "Tool result {} with output: {}",
+                    i,
+                    "y".repeat(200)
+                ))
+            })
             .collect();
 
         let start = std::time::Instant::now();
@@ -753,7 +773,11 @@ mod tests {
         let elapsed = start.elapsed();
 
         assert!(result.was_compacted);
-        assert!(elapsed.as_millis() < 200, "compact_to_fit took {}ms, expected < 200ms", elapsed.as_millis());
+        assert!(
+            elapsed.as_millis() < 200,
+            "compact_to_fit took {}ms, expected < 200ms",
+            elapsed.as_millis()
+        );
     }
 
     #[test]
@@ -773,7 +797,11 @@ mod tests {
         let elapsed = start.elapsed();
 
         assert!(!result.was_compacted);
-        assert!(elapsed.as_millis() < 10, "compaction should be instant for small messages, took {}ms", elapsed.as_millis());
+        assert!(
+            elapsed.as_millis() < 10,
+            "compaction should be instant for small messages, took {}ms",
+            elapsed.as_millis()
+        );
     }
 
     #[test]
@@ -785,7 +813,11 @@ mod tests {
         }
         let elapsed = start.elapsed();
 
-        assert!(elapsed.as_millis() < 50, "usage_level should be fast, took {}ms for 120 calls", elapsed.as_millis());
+        assert!(
+            elapsed.as_millis() < 50,
+            "usage_level should be fast, took {}ms for 120 calls",
+            elapsed.as_millis()
+        );
     }
 
     #[test]
@@ -798,7 +830,11 @@ mod tests {
         Compactor::prune_old_tool_outputs(&mut messages, 10);
         let elapsed = start.elapsed();
 
-        assert!(elapsed.as_millis() < 100, "prune took {}ms, expected < 100ms", elapsed.as_millis());
+        assert!(
+            elapsed.as_millis() < 100,
+            "prune took {}ms, expected < 100ms",
+            elapsed.as_millis()
+        );
     }
 
     #[test]
@@ -817,11 +853,17 @@ mod tests {
         let result = compactor.compact(messages);
         let memory_after = estimate_memory(&result.messages);
 
-        assert!(memory_after < memory_before, "compacted messages should use less memory");
+        assert!(
+            memory_after < memory_before,
+            "compacted messages should use less memory"
+        );
         assert!(result.pruned_count > 0);
     }
 
     fn estimate_memory(messages: &[Message]) -> usize {
-        messages.iter().map(|m| std::mem::size_of::<Message>() + m.content.capacity()).sum()
+        messages
+            .iter()
+            .map(|m| std::mem::size_of::<Message>() + m.content.capacity())
+            .sum()
     }
 }
