@@ -63,6 +63,41 @@ pub trait Plugin: Send + Sync {
     fn init(&mut self) -> Result<(), PluginError>;
     fn shutdown(&mut self) -> Result<(), PluginError>;
     fn description(&self) -> &str;
+
+    /// Called after init() during plugin startup. Use for one-time setup.
+    /// Default implementation: Ok(())
+    fn on_init(&mut self) -> Result<(), PluginError> {
+        Ok(())
+    }
+
+    /// Called when the runtime starts or a new session begins.
+    /// Use for per-session setup. Default implementation: Ok(())
+    fn on_start(&mut self) -> Result<(), PluginError> {
+        Ok(())
+    }
+
+    /// Called before each tool execution. Return Err to block the tool call.
+    /// Default implementation: Ok(())
+    fn on_tool_call(
+        &mut self,
+        _tool_name: &str,
+        _args: &Value,
+        _session_id: &str,
+    ) -> Result<(), PluginError> {
+        Ok(())
+    }
+
+    /// Called when a message is received from the user or agent.
+    /// Default implementation: Ok(())
+    fn on_message(&mut self, _content: &str, _session_id: &str) -> Result<(), PluginError> {
+        Ok(())
+    }
+
+    /// Called when a session ends (idle, error, or explicit close).
+    /// Use for per-session cleanup. Default implementation: Ok(())
+    fn on_session_end(&mut self, _session_id: &str) -> Result<(), PluginError> {
+        Ok(())
+    }
 }
 
 pub struct PluginManager {
@@ -165,6 +200,74 @@ impl PluginManager {
 
     pub fn shutdown_all(&mut self) -> Result<(), PluginError> {
         self.shutdown()
+    }
+
+    pub fn on_start_all(&mut self) -> Result<(), PluginError> {
+        let mut failed = Vec::new();
+
+        for (name, plugin) in self.plugins.iter_mut() {
+            if let Err(error) = plugin.on_start() {
+                tracing::warn!(plugin = name, error = %error, "Plugin on_start hook failed");
+                failed.push(name.clone());
+            }
+        }
+
+        if !failed.is_empty() {
+            tracing::warn!(plugins = ?failed, "Some plugins failed on_start");
+        }
+
+        Ok(())
+    }
+
+    pub fn on_tool_call_all(
+        &mut self,
+        tool_name: &str,
+        args: &Value,
+        session_id: &str,
+    ) -> Result<(), PluginError> {
+        for (name, plugin) in self.plugins.iter_mut() {
+            if let Err(error) = plugin.on_tool_call(tool_name, args, session_id) {
+                tracing::warn!(
+                    plugin = name,
+                    tool = tool_name,
+                    error = %error,
+                    "Plugin on_tool_call hook blocked execution"
+                );
+                return Err(error);
+            }
+        }
+        Ok(())
+    }
+
+    pub fn on_message_all(
+        &mut self,
+        content: &str,
+        session_id: &str,
+    ) -> Result<(), PluginError> {
+        for (name, plugin) in self.plugins.iter_mut() {
+            if let Err(error) = plugin.on_message(content, session_id) {
+                tracing::warn!(
+                    plugin = name,
+                    error = %error,
+                    "Plugin on_message hook failed"
+                );
+            }
+        }
+        Ok(())
+    }
+
+    pub fn on_session_end_all(&mut self, session_id: &str) -> Result<(), PluginError> {
+        for (name, plugin) in self.plugins.iter_mut() {
+            if let Err(error) = plugin.on_session_end(session_id) {
+                tracing::warn!(
+                    plugin = name,
+                    session_id = session_id,
+                    error = %error,
+                    "Plugin on_session_end hook failed"
+                );
+            }
+        }
+        Ok(())
     }
 
     pub fn get_plugin(&self, name: &str) -> Option<&dyn Plugin> {
@@ -275,6 +378,31 @@ mod tests {
 
         fn description(&self) -> &str {
             "test plugin"
+        }
+
+        fn on_init(&mut self) -> Result<(), PluginError> {
+            Ok(())
+        }
+
+        fn on_start(&mut self) -> Result<(), PluginError> {
+            Ok(())
+        }
+
+        fn on_tool_call(
+            &mut self,
+            _tool_name: &str,
+            _args: &serde_json::Value,
+            _session_id: &str,
+        ) -> Result<(), PluginError> {
+            Ok(())
+        }
+
+        fn on_message(&mut self, _: &str, _: &str) -> Result<(), PluginError> {
+            Ok(())
+        }
+
+        fn on_session_end(&mut self, _: &str) -> Result<(), PluginError> {
+            Ok(())
         }
     }
 
@@ -449,5 +577,96 @@ mod tests {
         assert_eq!(config.name, "test");
         assert_eq!(config.permissions.capabilities, vec![PluginCapability::AddTools]);
         assert!(config.permissions.network_allowed);
+    }
+
+    #[test]
+    fn test_on_start_all() {
+        let mut manager = PluginManager::new();
+        manager
+            .register(Box::new(TestPlugin {
+                initialized: false,
+                shutdown_called: false,
+                fail_init: false,
+                fail_shutdown: false,
+            }))
+            .unwrap();
+
+        assert!(manager.on_start_all().is_ok());
+    }
+
+    #[test]
+    fn test_on_tool_call_all() {
+        let mut manager = PluginManager::new();
+        manager
+            .register(Box::new(TestPlugin {
+                initialized: false,
+                shutdown_called: false,
+                fail_init: false,
+                fail_shutdown: false,
+            }))
+            .unwrap();
+
+        let args = serde_json::json!({"file": "test.txt"});
+        let result = manager.on_tool_call_all("read", &args, "session-123");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_on_tool_call_all_blocks_on_error() {
+        let mut manager = PluginManager::new();
+
+        struct BlockingPlugin;
+        impl Plugin for BlockingPlugin {
+            fn name(&self) -> &str { "blocking-plugin" }
+            fn version(&self) -> &str { "1.0.0" }
+            fn init(&mut self) -> Result<(), PluginError> { Ok(()) }
+            fn shutdown(&mut self) -> Result<(), PluginError> { Ok(()) }
+            fn description(&self) -> &str { "blocks tool calls" }
+            fn on_tool_call(&mut self, tool_name: &str, _: &Value, _: &str) -> Result<(), PluginError> {
+                if tool_name == "dangerous" {
+                    Err(PluginError::Load("blocked".to_string()))
+                } else {
+                    Ok(())
+                }
+            }
+        }
+
+        manager.register(Box::new(BlockingPlugin)).unwrap();
+
+        let args = serde_json::json!({});
+        let result = manager.on_tool_call_all("dangerous", &args, "session-123");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_on_message_all() {
+        let mut manager = PluginManager::new();
+        manager
+            .register(Box::new(TestPlugin {
+                initialized: false,
+                shutdown_called: false,
+                fail_init: false,
+                fail_shutdown: false,
+            }))
+            .unwrap();
+
+        let result = manager.on_message_all("Hello world", "session-123");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_on_session_end_all() {
+        let mut manager = PluginManager::new();
+        manager
+            .register(Box::new(TestPlugin {
+                initialized: false,
+                shutdown_called: false,
+                fail_init: false,
+                fail_shutdown: false,
+            }))
+            .unwrap();
+
+        let result = manager.on_session_end_all("session-123");
+        assert!(result.is_ok());
     }
 }
