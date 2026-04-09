@@ -11,10 +11,12 @@ use cmd::{
     config::{self, ConfigArgs},
     db::{self, DbArgs},
     debug::{self, DebugArgs},
+    desktop::{self, DesktopArgs},
     export::{self, ExportArgs},
     files::{self, FilesArgs},
     generate::{self, GenerateArgs},
     github::{self, GitHubArgs},
+    gitlab::{self, GitLabArgs},
     import::{self, ImportArgs},
     list::{self, ListArgs},
     mcp::{self, McpArgs},
@@ -105,6 +107,9 @@ enum Commands {
     #[command(about = "Start the opencode server")]
     Serve(ServeArgs),
 
+    #[command(about = "Start desktop mode (TUI + server)")]
+    Desktop(DesktopArgs),
+
     #[command(about = "Manage accounts")]
     Account(AccountArgs),
 
@@ -143,6 +148,9 @@ enum Commands {
 
     #[command(about = "Manage GitHub integration")]
     GitHub(GitHubArgs),
+
+    #[command(about = "Manage GitLab integration")]
+    GitLab(GitLabArgs),
 
     #[command(about = "Manage pull requests")]
     Pr(PrArgs),
@@ -257,6 +265,7 @@ fn main() {
     match cli.command {
         Some(Commands::Run(args)) => run::run(args),
         Some(Commands::Serve(args)) => serve::run(args),
+        Some(Commands::Desktop(args)) => desktop::run(args),
         Some(Commands::Account(args)) => account::run(args),
         Some(Commands::Config(args)) => config::run(args),
         Some(Commands::Agent(args)) => agent::run(args),
@@ -270,6 +279,7 @@ fn main() {
         Some(Commands::Terminal(args)) => terminal::run(args),
         Some(Commands::Db(args)) => db::run(args),
         Some(Commands::GitHub(args)) => github::run(args),
+        Some(Commands::GitLab(args)) => gitlab::run(args),
         Some(Commands::Pr(args)) => pr::run(args),
         Some(Commands::Export(args)) => export::run(args),
         Some(Commands::Import(args)) => import::run(args),
