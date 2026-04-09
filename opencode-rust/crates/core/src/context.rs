@@ -58,6 +58,12 @@ pub struct ContextBudget {
     pub usage_pct: f64,
     pub layer_breakdown: Vec<(ContextLayer, usize)>,
     pub layer_budgets: LayerBudgets,
+    #[serde(default)]
+    pub warning_threshold: f64,
+    #[serde(default)]
+    pub compact_threshold: f64,
+    #[serde(default)]
+    pub continuation_threshold: f64,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -106,6 +112,24 @@ impl ContextBudget {
         total_tokens: usize,
         layer_breakdown: Vec<(ContextLayer, usize)>,
     ) -> Self {
+        Self::from_usage_with_thresholds(
+            max_tokens,
+            total_tokens,
+            layer_breakdown,
+            COMPACTION_WARN_THRESHOLD as f64,
+            COMPACTION_START_THRESHOLD as f64,
+            COMPACTION_FORCE_THRESHOLD as f64,
+        )
+    }
+
+    pub fn from_usage_with_thresholds(
+        max_tokens: usize,
+        total_tokens: usize,
+        layer_breakdown: Vec<(ContextLayer, usize)>,
+        warning_threshold: f64,
+        compact_threshold: f64,
+        continuation_threshold: f64,
+    ) -> Self {
         let usage_pct = if max_tokens > 0 {
             total_tokens as f64 / max_tokens as f64
         } else {
@@ -118,15 +142,18 @@ impl ContextBudget {
             usage_pct,
             layer_breakdown,
             layer_budgets: LayerBudgets::new(max_tokens),
+            warning_threshold,
+            compact_threshold,
+            continuation_threshold,
         }
     }
 
     pub fn usage_level(&self) -> ContextUsageLevel {
-        if self.usage_pct >= COMPACTION_FORCE_THRESHOLD as f64 {
+        if self.usage_pct >= self.continuation_threshold {
             ContextUsageLevel::ForceNewSession(self.usage_pct)
-        } else if self.usage_pct >= COMPACTION_START_THRESHOLD as f64 {
+        } else if self.usage_pct >= self.compact_threshold {
             ContextUsageLevel::NeedsCompaction(self.usage_pct)
-        } else if self.usage_pct >= COMPACTION_WARN_THRESHOLD as f64 {
+        } else if self.usage_pct >= self.warning_threshold {
             ContextUsageLevel::Warning(self.usage_pct)
         } else {
             ContextUsageLevel::Normal
@@ -279,8 +306,14 @@ impl ContextBuilder {
         layer_breakdown.push((ContextLayer::L3StructuredContext, structured_tokens));
         layer_breakdown.push((ContextLayer::L4CompressedMemory, compressed_tokens));
 
-        let mut budget =
-            ContextBudget::from_usage(max_tokens, self.total_tokens(), layer_breakdown.clone());
+        let mut budget = ContextBudget::from_usage_with_thresholds(
+            max_tokens,
+            self.total_tokens(),
+            layer_breakdown.clone(),
+            self.token_budget.warning_threshold,
+            self.token_budget.compact_threshold,
+            self.token_budget.continuation_threshold,
+        );
 
         trim_to_budget(&mut self.prompt_messages, &budget);
 
@@ -295,7 +328,14 @@ impl ContextBuilder {
             self.prompt_messages = compactor.compact_to_fit(self.prompt_messages).messages;
         }
 
-        budget = ContextBudget::from_usage(max_tokens, self.total_tokens(), layer_breakdown);
+        budget = ContextBudget::from_usage_with_thresholds(
+            max_tokens,
+            self.total_tokens(),
+            layer_breakdown,
+            self.token_budget.warning_threshold,
+            self.token_budget.compact_threshold,
+            self.token_budget.continuation_threshold,
+        );
 
         let mut layers = Vec::new();
 

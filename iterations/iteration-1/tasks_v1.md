@@ -263,7 +263,7 @@ Implementation: `crates/core/src/agents_md.rs` with `AgentsMdScanner`, `AgentsMd
 
 ---
 
-### TD-005: Hardcoded Built-in Skills
+### TD-005: ✅ Done
 **Module:** `crates/core/`
 **Status:** ✅ Done
 
@@ -275,9 +275,9 @@ Implementation: `crates/core/src/agents_md.rs` with `AgentsMdScanner`, `AgentsMd
 ### TD-006: Magic Numbers in Compaction
 **Module:** `crates/core/`
 
-- [ ] Make `COMPACTION_START_THRESHOLD` configurable
-- [ ] Make `COMPACTION_FORCE_THRESHOLD` configurable
-- [ ] Add configuration options
+- [x] Make `COMPACTION_START_THRESHOLD` configurable
+- [x] Make `COMPACTION_FORCE_THRESHOLD` configurable
+- [x] Add configuration options
 
 ---
 

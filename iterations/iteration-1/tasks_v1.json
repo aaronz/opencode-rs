@@ -367,7 +367,7 @@
       "priority": "P2",
       "title": "Make Compaction Thresholds Configurable",
       "description": "Make COMPACTION_START_THRESHOLD and COMPACTION_FORCE_THRESHOLD configurable, add configuration options. Module: crates/core/",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "COMPACTION_START_THRESHOLD configurable",
         "COMPACTION_FORCE_THRESHOLD configurable",
@@ -376,7 +376,7 @@
       "test_commands": [
         "cargo test -p opencode-core -- compaction"
       ],
-      "impl_notes": "Tech debt - magic numbers in compaction",
+      "impl_notes": "Added warning_threshold, compact_threshold, continuation_threshold fields to ContextBudget. Added from_usage_with_thresholds() method. ContextBuilder now passes token_budget thresholds to ContextBudget, making thresholds configurable through TokenBudget.",
       "dependencies": []
     },
     {
