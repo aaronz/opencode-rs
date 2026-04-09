@@ -147,11 +147,6 @@ pub struct Config {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub experimental: Option<ExperimentalConfig>,
 
-    /// Keybind configuration
-    #[deprecated(since = "3.0.0", note = "Move to tui.json")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub keybinds: Option<KeybindConfig>,
-
     /// Theme configuration
     #[deprecated(since = "3.0.0", note = "Move to tui.json")]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1726,17 +1721,9 @@ impl Config {
                     "'theme' in main config is deprecated since 3.0.0. Move it to tui.json."
                 );
             }
-            if result.keybinds.is_some() {
-                tracing::warn!(
-                    "'keybinds' in main config is deprecated since 3.0.0. Move it to tui.json."
-                );
-            }
 
             if migrated_tui.theme.is_none() {
                 migrated_tui.theme = result.theme.clone();
-            }
-            if migrated_tui.keybinds.is_none() {
-                migrated_tui.keybinds = result.keybinds.clone();
             }
         }
 
@@ -3386,17 +3373,9 @@ mod tests {
                 name: Some("legacy".to_string()),
                 ..Default::default()
             }),
-            keybinds: Some(KeybindConfig {
-                commands: Some("ctrl+l".to_string()),
-                ..Default::default()
-            }),
             tui: Some(TuiConfig {
                 theme: Some(ThemeConfig {
                     name: Some("new".to_string()),
-                    ..Default::default()
-                }),
-                keybinds: Some(KeybindConfig {
-                    commands: Some("ctrl+n".to_string()),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -3410,16 +3389,9 @@ mod tests {
             if migrated.theme.is_none() {
                 migrated.theme = runtime.theme.clone();
             }
-            if migrated.keybinds.is_none() {
-                migrated.keybinds = runtime.keybinds.clone();
-            }
         }
 
         assert_eq!(migrated.theme.and_then(|t| t.name), Some("new".to_string()));
-        assert_eq!(
-            migrated.keybinds.and_then(|k| k.commands),
-            Some("ctrl+n".to_string())
-        );
     }
 
     #[test]
@@ -3491,14 +3463,13 @@ mod tests {
     }
 
     #[test]
-    fn test_load_with_hierarchy_emits_deprecation_warnings_for_theme_and_keybinds() {
+    fn test_load_with_hierarchy_emits_deprecation_warnings_for_theme() {
         let temp_dir = unique_temp_dir("opencode_deprecation_warnings");
         let old_config_dir = std::env::var("OPENCODE_CONFIG_DIR").ok();
 
         let config_json = serde_json::json!({
             "model": "openai/gpt-4.1",
-            "theme": { "name": "legacy-theme" },
-            "keybinds": { "commands": "ctrl+k" }
+            "theme": { "name": "legacy-theme" }
         });
         fs::write(
             temp_dir.join("config.json"),
@@ -3521,9 +3492,6 @@ mod tests {
         assert!(logs
             .iter()
             .any(|msg| msg.contains("'theme' in main config is deprecated")));
-        assert!(logs
-            .iter()
-            .any(|msg| msg.contains("'keybinds' in main config is deprecated")));
 
         if let Some(prev) = old_config_dir {
             set_env("OPENCODE_CONFIG_DIR", prev);

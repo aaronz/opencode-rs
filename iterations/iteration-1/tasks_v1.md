@@ -238,7 +238,7 @@ Implementation: `crates/core/src/agents_md.rs` with `AgentsMdScanner`, `AgentsMd
 
 ---
 
-### TD-002: Deprecated `tools` field
+### TD-002: ✅ Done
 **Module:** `crates/config/`
 
 - [ ] Remove `tools` field from config schema (after migration)
@@ -247,11 +247,11 @@ Implementation: `crates/core/src/agents_md.rs` with `AgentsMdScanner`, `AgentsMd
 
 ---
 
-### TD-003: Deprecated `keybinds` field
+### TD-003: Deprecated `keybinds` field ✅ Done
 **Module:** `crates/config/`
 
-- [ ] Remove `keybinds` field from config schema
-- [ ] Verify moved to tui.json
+- [x] Remove `keybinds` field from config schema
+- [x] Verify moved to tui.json
 
 ---
 

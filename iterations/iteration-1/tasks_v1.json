@@ -315,7 +315,7 @@
       "priority": "P2",
       "title": "Remove Deprecated keybinds field",
       "description": "Remove keybinds field from config schema, verify moved to tui.json. Module: crates/config/",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "keybinds field removed from config schema",
         "Verified moved to tui.json"
@@ -324,7 +324,7 @@
         "cargo test -p opencode-config",
         "cargo build --release"
       ],
-      "impl_notes": "Tech debt - verify P1-3 completion first",
+      "impl_notes": "Removed keybinds field from OpenCodeConfig struct (config.rs:150-153). Removed migration code (config.rs:1729-1733, 1738-1740). keybinds field remains in TuiConfig which is loaded from tui.json. Updated tests: test_migration_prefers_tui_values_over_legacy_main_fields now only tests theme migration, test_load_with_hierarchy_emits_deprecation_warnings_for_theme renamed to test_load_with_hierarchy_emits_deprecation_warnings_for_theme.",
       "dependencies": [
         "P1-3"
       ]
