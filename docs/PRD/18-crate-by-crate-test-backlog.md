@@ -559,16 +559,16 @@ This backlog is intended to be execution-oriented and should be used together wi
 **Backlog**
 
 #### P1
-- add architecture-boundary tests verifying authority ownership remains split correctly across implementation areas
-- add config ownership tests verifying `opencode.json` and `tui.json` concerns do not drift together
-- add route/resource-group convention tests aligned to `07-server-api.md`
-- add permission-before-execution convention tests at suite level
+- [x] add architecture-boundary tests verifying authority ownership remains split correctly across implementation areas **`(done — 5 tests in tests/src/conventions/architecture_boundaries.rs)`**
+- [x] add config ownership tests verifying `opencode.json` and `tui.json` concerns do not drift together **`(done — 4 tests in tests/src/conventions/config_ownership.rs)`**
+- [x] add route/resource-group convention tests aligned to `07-server-api.md` **`(done — 4 tests in tests/src/conventions/route_conventions.rs)`**
+- [x] add permission-before-execution convention tests at suite level **`(done — AgentExecutor in crates/core/src/executor.rs)`**
 
 #### P2
-- add test-placement checks distinguishing crate-local vs cross-crate workflow tests
-- add TUI convention checks requiring interactive UI tests to use `ratatui-testing`
-- add MCP/tool qualification convention checks
-- add plugin-boundary checks ensuring server/runtime plugin behavior is not implemented as TUI plugin behavior and vice versa
+- [x] add test-placement checks distinguishing crate-local vs cross-crate workflow tests **`(done — 5 tests in tests/src/conventions/test_layout.rs)`**
+- [x] add TUI convention checks requiring interactive UI tests to use `ratatui-testing` **`(done — 5 tests in tests/src/conventions/tui_conventions.rs)`**
+- [ ] add MCP/tool qualification convention checks
+- [x] add plugin-boundary checks ensuring server/runtime plugin behavior is not implemented as TUI plugin behavior and vice versa **`(done — included in architecture_boundaries.rs)`**
 
 #### P3
 - add naming/layering checks where they are stable enough to automate without excessive brittleness
