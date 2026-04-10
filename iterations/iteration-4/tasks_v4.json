@@ -390,7 +390,7 @@
       "priority": "P1",
       "title": "Stable ID semantics tests",
       "description": "Write automated tests for stable ID semantics. Verify IDs remain stable across snapshots and restores.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "IDs are stable across snapshot operations",
         "IDs are stable across restore operations",

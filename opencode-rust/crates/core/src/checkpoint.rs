@@ -26,8 +26,8 @@ pub struct CheckpointMetadata {
 }
 
 pub struct CheckpointManager {
-    checkpoints_dir: PathBuf,
-    max_checkpoints: usize,
+    pub(crate) checkpoints_dir: PathBuf,
+    pub(crate) max_checkpoints: usize,
 }
 
 impl Default for CheckpointManager {

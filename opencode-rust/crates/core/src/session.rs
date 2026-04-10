@@ -694,6 +694,7 @@ fn sanitize_content(content: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::checkpoint::CheckpointManager;
     use tempfile::TempDir;
 
     #[test]
@@ -1557,5 +1558,375 @@ mod tests {
             parent.fork_history.is_empty(),
             "Parent session must have empty fork_history"
         );
+    }
+
+    // =========================================================================
+    // Stable ID Semantics Tests (P1-2)
+    // =========================================================================
+
+    #[test]
+    fn test_stable_id_session_persists_across_save_load() {
+        // Test: Session ID must remain stable across save/load operations
+        let tmp = tempfile::TempDir::new().unwrap();
+        let path = tmp.path().join("session.json");
+
+        let mut session = Session::new();
+        let original_id = session.id;
+        session.add_message(Message::user("Test message".to_string()));
+
+        session.save(&path).unwrap();
+        let loaded = Session::load(&path).unwrap();
+
+        // Invariant: Session ID is stable across serialization
+        assert_eq!(
+            loaded.id, original_id,
+            "Session ID must remain stable after save/load cycle"
+        );
+    }
+
+    #[test]
+    fn test_stable_id_session_persists_across_multiple_save_load_cycles() {
+        // Test: Session ID remains stable across multiple save/load cycles
+        let tmp = tempfile::TempDir::new().unwrap();
+        let path = tmp.path().join("session.json");
+
+        let mut session = Session::new();
+        let original_id = session.id;
+        session.add_message(Message::user("Initial".to_string()));
+
+        // First save/load cycle
+        session.save(&path).unwrap();
+        let mut loaded1 = Session::load(&path).unwrap();
+        assert_eq!(loaded1.id, original_id);
+
+        // Modify and save again
+        loaded1.add_message(Message::assistant("Response".to_string()));
+        loaded1.save(&path).unwrap();
+
+        // Second save/load cycle
+        let loaded2 = Session::load(&path).unwrap();
+        assert_eq!(
+            loaded2.id, original_id,
+            "Session ID must remain stable across multiple save/load cycles"
+        );
+    }
+
+    #[test]
+    fn test_stable_id_fork_creates_new_id_not_parent_id() {
+        // Test: Forked session must have a NEW unique ID, not parent's ID
+        let parent = Session::new();
+        let parent_id = parent.id;
+
+        let child = parent.fork(Uuid::new_v4());
+
+        // Invariant: Child ID must be different from parent ID
+        assert_ne!(
+            child.id, parent_id,
+            "Forked session must have a new unique ID"
+        );
+        // Invariant: Child ID must be a valid non-nil UUID
+        assert!(!child.id.is_nil(), "Forked session ID must not be nil");
+    }
+
+    #[test]
+    fn test_stable_id_fork_preserves_parent_id_in_parent_session_id() {
+        // Test: Fork correctly establishes parent-child relationship via parent_session_id
+        let parent = Session::new();
+        let parent_id = parent.id.to_string();
+
+        let child = parent.fork(Uuid::new_v4());
+
+        // Invariant: Child's parent_session_id references the parent
+        assert_eq!(
+            child.parent_session_id.as_deref(),
+            Some(parent_id.as_str()),
+            "Child must reference parent ID via parent_session_id"
+        );
+    }
+
+    #[test]
+    fn test_stable_id_unique_across_multiple_sessions() {
+        // Test: Each session must have a globally unique ID
+        let session1 = Session::new();
+        let session2 = Session::new();
+        let session3 = Session::new();
+
+        // Invariant: All session IDs must be unique
+        assert_ne!(
+            session1.id, session2.id,
+            "Each session must have a unique ID"
+        );
+        assert_ne!(
+            session2.id, session3.id,
+            "Each session must have a unique ID"
+        );
+        assert_ne!(
+            session1.id, session3.id,
+            "Each session must have a unique ID"
+        );
+    }
+
+    #[test]
+    fn test_stable_id_lineage_path_format_with_sessions() {
+        // Test: Lineage path correctly encodes session ID hierarchy
+        let grandparent = Session::new();
+        let grandparent_id = grandparent.id.to_string();
+
+        let parent = grandparent.fork(Uuid::new_v4());
+        let parent_id = parent.id.to_string();
+
+        let child = parent.fork(Uuid::new_v4());
+        let child_lineage = child.compute_lineage_path();
+
+        // Invariant: Lineage path is "grandparent_id/parent_id" format
+        assert_eq!(
+            child_lineage,
+            Some(format!("{}/{}", grandparent_id, parent_id)),
+            "Lineage path must be grandparent_id/parent_id"
+        );
+    }
+
+    #[test]
+    fn test_stable_id_lineage_persists_through_save_load() {
+        // Test: Lineage information is preserved through serialization
+        let grandparent = Session::new();
+        let parent = grandparent.fork(Uuid::new_v4());
+        let child = parent.fork(Uuid::new_v4());
+
+        let grandparent_id = grandparent.id.to_string();
+        let parent_id = parent.id.to_string();
+
+        let tmp = tempfile::TempDir::new().unwrap();
+        let path = tmp.path().join("lineage_session.json");
+        child.save(&path).unwrap();
+
+        let loaded = Session::load(&path).unwrap();
+
+        // Invariant: Lineage is preserved through save/load
+        assert_eq!(
+            loaded.lineage_path,
+            Some(grandparent_id.clone()),
+            "Lineage path must survive serialization"
+        );
+        assert_eq!(
+            loaded.compute_lineage_path(),
+            Some(format!("{}/{}", grandparent_id, parent_id)),
+            "Computed lineage must be preserved"
+        );
+    }
+
+    #[test]
+    fn test_stable_id_for_fork_at_message() {
+        // Test: fork_at_message creates new unique ID
+        let mut parent = Session::new();
+        parent.add_message(Message::user("first"));
+        parent.add_message(Message::assistant("second"));
+        let parent_id = parent.id;
+
+        let child = parent.fork_at_message(0).unwrap();
+
+        // Invariant: Child has new unique ID
+        assert_ne!(
+            child.id, parent_id,
+            "fork_at_message must create session with new unique ID"
+        );
+        assert!(
+            !child.id.is_nil(),
+            "fork_at_message session ID must not be nil"
+        );
+    }
+
+    #[test]
+    fn test_stable_id_tool_invocation_record_ids() {
+        // Test: ToolInvocationRecord entries have unique IDs
+        let mut session = Session::new();
+        session.add_message(Message::user("test"));
+
+        let record1_id = session.tool_invocations.first().map(|r| r.id);
+        let record2_id = session.tool_invocations.last().map(|r| r.id);
+
+        // After adding first message, there may be tool invocations
+        // Each should have unique IDs if present
+        if let (Some(id1), Some(id2)) = (record1_id, record2_id) {
+            assert_ne!(id1, id2, "Tool invocation record IDs must be unique");
+        }
+    }
+
+    #[test]
+    fn test_stable_id_share_id_differs_from_session_id() {
+        // Test: Share ID is separate from session ID
+        let mut session = Session::new();
+        session.generate_share_link().unwrap();
+
+        let session_id = session.id.to_string();
+        let share_id = session.get_share_id().unwrap();
+
+        // Invariant: Share ID is not the same as session ID
+        assert_ne!(
+            share_id, session_id,
+            "Share ID must be different from session ID"
+        );
+    }
+
+    #[test]
+    fn test_stable_id_checkpoint_preserves_session_id() {
+        // Test: Checkpoint operation preserves the session ID
+        let tmp = tempfile::TempDir::new().unwrap();
+
+        let mut session = Session::new();
+        session.add_message(Message::user("checkpoint test".to_string()));
+        let original_session_id = session.id;
+
+        let manager = CheckpointManager {
+            checkpoints_dir: tmp.path().to_path_buf(),
+            max_checkpoints: 5,
+        };
+
+        let checkpoint = manager.create(&session, "Test checkpoint").unwrap();
+
+        // Invariant: Checkpoint's session_id matches original session's ID
+        assert_eq!(
+            checkpoint.session_id, original_session_id,
+            "Checkpoint must preserve the session ID"
+        );
+
+        // Load checkpoint and verify session ID is preserved
+        let loaded = manager.load(&session.id, 0).unwrap();
+        assert_eq!(
+            loaded.id, original_session_id,
+            "Loaded session from checkpoint must have same ID"
+        );
+    }
+
+    #[test]
+    fn test_stable_id_multiple_checkpoints_same_session() {
+        // Test: Multiple checkpoints all reference the same session ID
+        let tmp = tempfile::TempDir::new().unwrap();
+
+        let mut session = Session::new();
+        session.add_message(Message::user("message 1".to_string()));
+        let original_session_id = session.id;
+
+        let manager = CheckpointManager {
+            checkpoints_dir: tmp.path().to_path_buf(),
+            max_checkpoints: 10,
+        };
+
+        // Create first checkpoint
+        manager.create(&session, "Checkpoint 1").unwrap();
+
+        // Add more messages and create second checkpoint
+        session.add_message(Message::assistant("message 2".to_string()));
+        manager.create(&session, "Checkpoint 2").unwrap();
+
+        // Verify both checkpoints reference the same session
+        let checkpoints = manager.list(&session.id).unwrap();
+        assert_eq!(checkpoints.len(), 2);
+
+        for cp in checkpoints {
+            assert_eq!(
+                cp.session_id, original_session_id,
+                "All checkpoints must reference the original session ID"
+            );
+        }
+    }
+
+    #[test]
+    fn test_stable_id_checkpoint_load_returns_same_session_id() {
+        // Test: Loading a checkpoint returns a session with the same ID
+        let tmp = tempfile::TempDir::new().unwrap();
+
+        let mut session = Session::new();
+        session.add_message(Message::user("Original message".to_string()));
+        let original_id = session.id;
+
+        let manager = CheckpointManager {
+            checkpoints_dir: tmp.path().to_path_buf(),
+            max_checkpoints: 5,
+        };
+
+        manager.create(&session, "Test").unwrap();
+
+        // Load checkpoint
+        let loaded = manager.load(&session.id, 0).unwrap();
+
+        // Invariant: Loaded session has same ID as original
+        assert_eq!(
+            loaded.id, original_id,
+            "Session loaded from checkpoint must have identical ID"
+        );
+    }
+
+    #[test]
+    fn test_stable_id_forked_session_can_be_independently_checkpointed() {
+        // Test: Forked session can be checkpointed independently with its own ID
+        let tmp = tempfile::TempDir::new().unwrap();
+
+        let parent = Session::new();
+        let child = parent.fork(Uuid::new_v4());
+
+        let parent_manager = CheckpointManager {
+            checkpoints_dir: tmp.path().join("parent_checkpoints").to_path_buf(),
+            max_checkpoints: 5,
+        };
+
+        let child_manager = CheckpointManager {
+            checkpoints_dir: tmp.path().join("child_checkpoints").to_path_buf(),
+            max_checkpoints: 5,
+        };
+
+        let parent_cp = parent_manager.create(&parent, "Parent checkpoint").unwrap();
+        let child_cp = child_manager.create(&child, "Child checkpoint").unwrap();
+
+        // Invariant: Parent and child checkpoints have different session IDs
+        assert_ne!(
+            parent_cp.session_id, child_cp.session_id,
+            "Parent and child sessions must have different IDs"
+        );
+
+        // Invariant: Each checkpoint references its own session
+        assert_eq!(parent_cp.session_id, parent.id);
+        assert_eq!(child_cp.session_id, child.id);
+    }
+
+    #[test]
+    fn test_stable_id_session_id_is_uuid_format() {
+        // Test: Session ID follows UUID format
+        let session = Session::new();
+        let id_str = session.id.to_string();
+
+        // UUID format: 8-4-4-4-12 (36 chars with hyphens)
+        assert_eq!(id_str.len(), 36, "UUID must be 36 characters");
+        assert!(
+            id_str.chars().all(|c| c.is_ascii_hexdigit() || c == '-'),
+            "UUID must contain only hex digits and hyphens"
+        );
+    }
+
+    #[test]
+    fn test_stable_id_timestamp_does_not_affect_session_id() {
+        // Test: Session ID remains stable regardless of timestamp changes
+        let tmp = tempfile::TempDir::new().unwrap();
+        let path = tmp.path().join("session.json");
+
+        let mut session = Session::new();
+        let original_id = session.id;
+
+        // Add multiple messages (changes updated_at)
+        session.add_message(Message::user("msg1".to_string()));
+        session.add_message(Message::assistant("msg2".to_string()));
+        session.add_message(Message::user("msg3".to_string()));
+
+        // Save/load cycle
+        session.save(&path).unwrap();
+        let loaded = Session::load(&path).unwrap();
+
+        // Invariant: ID is unchanged despite timestamp updates
+        assert_eq!(
+            loaded.id, original_id,
+            "Session ID must remain stable despite timestamp changes"
+        );
+        // Verify timestamps did change
+        assert!(loaded.updated_at > loaded.created_at);
     }
 }
