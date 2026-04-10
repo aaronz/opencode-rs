@@ -18,6 +18,6 @@ pub use general_agent::GeneralAgent;
 pub use plan_agent::PlanAgent;
 pub use refactor_agent::RefactorAgent;
 pub use review_agent::ReviewAgent;
-pub use runtime::{AgentRuntime, RuntimeConfig, RuntimeError};
+pub use runtime::{AgentRuntime, PrimaryAgentState, PrimaryAgentTracker, RuntimeConfig, RuntimeError};
 pub use skills_actions::SkillsActions;
 pub use system_agents::{CompactionAgent, SummaryAgent, TitleAgent};

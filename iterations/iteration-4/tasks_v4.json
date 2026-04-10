@@ -76,7 +76,7 @@
       "priority": "P0",
       "title": "Session/message lifecycle CRUD",
       "description": "Implement full CRUD operations for sessions and messages in the server API. Include create, read, update, delete operations with proper validation.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "Sessions can be created, read, updated, deleted via API",
         "Messages can be created, read, updated, deleted via API",
@@ -96,7 +96,7 @@
       "priority": "P0",
       "title": "Exactly one active primary agent invariant",
       "description": "Ensure the agent system maintains the invariant that exactly one primary agent is active at any given time. Implement guards to prevent multiple primary agents from being active simultaneously.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "System starts with exactly one primary agent",
         "Cannot activate a second primary agent while one is running",

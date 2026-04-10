@@ -13,6 +13,8 @@ parse_args() {
     MODEL=""
     MAX_IMPLEMENTATION_ROUNDS=10
     PRD_INPUT=""
+    LOG_FILE=""
+    VERBOSE="false"
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -32,6 +34,14 @@ parse_args() {
                 PRD_INPUT="$2"
                 shift 2
                 ;;
+            --log)
+                LOG_FILE="$2"
+                shift 2
+                ;;
+            --verbose|-v)
+                VERBOSE="true"
+                shift
+                ;;
             *)
                 shift
                 ;;
@@ -43,8 +53,56 @@ parse_args() {
 
 parse_args "$@"
 
+# Logging setup
 WORKSPACE_DIR="$(cd "$(dirname "$0")" && pwd)"
-CONSTITUTION_PATH="$WORKSPACE_DIR/iterations/.specify/memory/constitution.md"
+SESSION_LOG_DIR="$WORKSPACE_DIR/sessions"
+
+mkdir -p "$SESSION_LOG_DIR"
+
+# Setup log file
+if [ -z "$LOG_FILE" ]; then
+    LOG_FILE="$SESSION_LOG_DIR/iteration-${NEXT_ITERATION:-new}_$(date +%Y%m%d_%H%M%S).log"
+fi
+
+# Logging function with timestamp
+log() {
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local message="[$timestamp] $1"
+    
+    if [ "$VERBOSE" = "true" ]; then
+        echo "$message"
+    fi
+    
+    if [ -n "$LOG_FILE" ]; then
+        echo "$message" >> "$LOG_FILE"
+    fi
+}
+
+# Console output control - suppress if not verbose
+log_echo() {
+    if [ "$VERBOSE" = "true" ]; then
+        echo "$1"
+    else
+        echo "$1" >> /dev/null
+    fi
+}
+
+log "=============================================="
+log "SpecKit 迭代开发 v3.0 (重构版)"
+log "=============================================="
+log "工作目录: $WORKSPACE_DIR"
+log "日志文件: $LOG_FILE"
+CONSTITUTION_PATH="${CONSTITUTION_PATH:-$WORKSPACE_DIR/iterations/.specify/memory/constitution.md}"
+
+if [ ! -f "$CONSTITUTION_PATH" ]; then
+    CONSTITUTION_PATH="$WORKSPACE_DIR/iterations/iteration-1/constitution.md"
+fi
+
+if [ ! -f "$CONSTITUTION_PATH" ]; then
+    log "⚠️  Constitution文件不存在，将使用默认值"
+    CONSTITUTION_PATH=""
+fi
 
 if [ -n "$PRD_INPUT" ]; then
     if [ -d "$PRD_INPUT" ]; then
@@ -86,50 +144,49 @@ fi
 
 CONSTITUTION=$(load_constitution)
 
-echo "=============================================="
-echo "SpecKit 迭代开发 v3.0 (重构版)"
-echo "=============================================="
-echo "迭代目录: $OUTPUTS_DIR"
-echo "模型: $MODEL"
-echo "最大外循环轮次: $MAX_IMPLEMENTATION_ROUNDS"
-echo "Constitution: $(get_constitution_summary)"
-echo ""
+log "迭代目录: $OUTPUTS_DIR"
+log "模型: $MODEL"
+log "最大外循环轮次: $MAX_IMPLEMENTATION_ROUNDS"
+log "Constitution: $(get_constitution_summary)"
+log ""
 
-echo "[1/6] 执行PRD差距分析..."
+log "[1/6] 执行PRD差距分析..."
 save_checkpoint "$NEXT_ITERATION" "phase1"
 run_phase_gap_analysis "$PRD_PATH" "$OUTPUTS_DIR" "$CONSTITUTION"
 
-echo ""
-echo "[2/6] Constitution 检查..."
+log ""
+log "[2/6] Constitution 检查..."
 save_checkpoint "$NEXT_ITERATION" "phase2"
 run_phase_constitution "$CONSTITUTION_PATH" "$OUTPUTS_DIR/gap-analysis.md" "$OUTPUTS_DIR"
 
-echo ""
-echo "[3/6] 更新Spec..."
+log ""
+log "[3/6] 更新Spec..."
 save_checkpoint "$NEXT_ITERATION" "phase3"
 run_phase_spec "$PRD_PATH" "$OUTPUTS_DIR/gap-analysis.md" "$CONSTITUTION" "$OUTPUTS_DIR" "$NEXT_ITERATION"
 
-echo ""
-echo "[4/6] 更新Plan和Tasks..."
+log ""
+log "[4/6] 更新Plan和Tasks..."
 save_checkpoint "$NEXT_ITERATION" "phase4"
 run_phase_plan "$OUTPUTS_DIR/spec_v${NEXT_ITERATION}.md" "$CONSTITUTION" "$OUTPUTS_DIR/gap-analysis.md" "$OUTPUTS_DIR" "$NEXT_ITERATION"
 
 TASKS_JSON="$OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.json"
 
-echo ""
-echo "[5/6] Per-Task 实现循环..."
+log ""
+log "[5/6] Per-Task 实现循环..."
 save_checkpoint "$NEXT_ITERATION" "phase5"
 run_phase_implementation "$TASKS_JSON" "$OUTPUTS_DIR/spec_v${NEXT_ITERATION}.md" "$OUTPUTS_DIR" "$CONSTITUTION" "$MAX_IMPLEMENTATION_ROUNDS"
 
-echo ""
-echo "[6/6] 验证报告..."
+log ""
+log "[6/6] 验证报告..."
 save_checkpoint "$NEXT_ITERATION" "phase6"
 run_phase_verification "$OUTPUTS_DIR/gap-analysis.md" "$OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.md" "$TASKS_JSON" "$OUTPUTS_DIR"
 
-echo ""
-echo "=============================================="
-echo "SpecKit 迭代完成!"
-echo "=============================================="
-echo "迭代目录: $OUTPUTS_DIR"
-echo "任务文件: $TASKS_JSON"
-echo "验证报告: $OUTPUTS_DIR/verification-report.md"
+log ""
+log "=============================================="
+log "SpecKit 迭代完成!"
+log "=============================================="
+log "迭代目录: $OUTPUTS_DIR"
+log "任务文件: $TASKS_JSON"
+log "验证报告: $OUTPUTS_DIR/verification-report.md"
+
+log "日志保存于: $LOG_FILE"

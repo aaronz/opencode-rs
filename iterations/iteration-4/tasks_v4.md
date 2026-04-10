@@ -23,7 +23,7 @@
 
 | Task ID | Title | Module | FR | Sprint | Status | Dependencies |
 |---------|-------|--------|-----|--------|--------|--------------|
-| P0-1 | Exactly one active primary agent invariant | agent | FR-005 | Sprint 2 | Pending | None |
+| P0-1 | Exactly one active primary agent invariant | agent | FR-005 | Sprint 2 | Done | None |
 | P0-2 | Subagent execution (child context, result handoff) | agent | FR-005 | Sprint 2 | Pending | P0-1 |
 | P0-3 | Task/delegation mechanism | agent | FR-005 | Sprint 2 | Pending | P0-2 |
 | P0-4 | Custom tool registration with ToolRegistry | tools | FR-006, FR-007 | Sprint 0 | Pending | P0-5 |
