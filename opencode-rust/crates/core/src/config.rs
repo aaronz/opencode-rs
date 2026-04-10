@@ -165,6 +165,18 @@ pub struct Config {
     pub max_tokens: Option<u32>,
 }
 
+/// CLI override configuration for runtime precedence
+/// This struct holds values from CLI arguments that should override
+/// environment variables and config file values (highest precedence)
+#[derive(Debug, Clone, Default)]
+pub struct CliOverrideConfig {
+    pub model: Option<String>,
+    pub provider: Option<String>,
+    pub temperature: Option<f32>,
+    pub max_tokens: Option<u32>,
+    pub default_agent: Option<String>,
+}
+
 /// Log level enumeration
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -1570,8 +1582,16 @@ impl Config {
         }
     }
 
-    /// Load multi-tier config with precedence: remote → global → project → .opencode
-    pub async fn load_multi() -> Result<Self, crate::OpenCodeError> {
+    /// Load multi-tier config with precedence: CLI → ENV → remote → global → project → .opencode
+    /// 
+    /// The precedence chain is (highest to lowest):
+    /// 1. CLI arguments (via cli_overrides parameter)
+    /// 2. Environment variables
+    /// 3. Remote config (OPENCODE_REMOTE_CONFIG, OPENCODE_REMOTE_CONFIG_DOMAIN)
+    /// 4. Global config (~/.config/opencode/config.json)
+    /// 5. Project-level config (opencode.json, .opencode/config.json)
+    /// 6. Inline defaults (lowest)
+    pub async fn load_multi(cli_overrides: Option<&CliOverrideConfig>) -> Result<Self, crate::OpenCodeError> {
         Self::warn_legacy_config_dir_if_exists();
         let mut configs: Vec<(String, Config)> = Vec::new();
 
@@ -1723,6 +1743,17 @@ impl Config {
         result.tui = Some(serde_json::from_value(merged_tui).unwrap_or_default());
 
         result.apply_env_overrides();
+
+        if let Some(cli_overrides) = cli_overrides {
+            result.apply_cli_overrides(
+                cli_overrides.model.clone(),
+                cli_overrides.provider.clone(),
+                cli_overrides.temperature,
+                cli_overrides.max_tokens,
+                cli_overrides.default_agent.clone(),
+            );
+        }
+
         Ok(result)
     }
 
@@ -2175,6 +2206,49 @@ impl Config {
         }
         if !providers.is_empty() {
             self.provider = Some(providers);
+        }
+    }
+
+    /// Apply CLI argument overrides (highest precedence after env vars)
+    /// This should be called AFTER apply_env_overrides() to ensure
+    /// CLI args > ENV vars > config files
+    pub fn apply_cli_overrides(
+        &mut self,
+        model: Option<String>,
+        provider: Option<String>,
+        temperature: Option<f32>,
+        max_tokens: Option<u32>,
+        default_agent: Option<String>,
+    ) {
+        // Apply model override (CLI > ENV > config file)
+        if let Some(m) = model {
+            self.model = Some(m);
+        }
+
+        // Apply provider override (CLI > ENV > config file)
+        if let Some(p) = provider {
+            let provider_config = ProviderConfig {
+                id: Some(p.to_lowercase()),
+                ..Default::default()
+            };
+            let mut providers = self.provider.clone().unwrap_or_default();
+            providers.insert(p.to_lowercase(), provider_config);
+            self.provider = Some(providers);
+        }
+
+        // Apply temperature override (CLI > ENV > config file)
+        if let Some(t) = temperature {
+            self.temperature = Some(t);
+        }
+
+        // Apply max_tokens override (CLI > ENV > config file)
+        if let Some(t) = max_tokens {
+            self.max_tokens = Some(t);
+        }
+
+        // Apply default_agent override (CLI > ENV > config file)
+        if let Some(da) = default_agent {
+            self.default_agent = Some(da);
         }
     }
 
@@ -2762,6 +2836,8 @@ mod tests {
     fn remove_env<K: AsRef<OsStr>>(key: K) {
         unsafe { std::env::remove_var(key) }
     }
+
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     #[test]
     fn test_content_hash_is_deterministic() {
@@ -3472,7 +3548,7 @@ mod tests {
 
         tracing::subscriber::with_default(subscriber, || {
             let runtime = tokio::runtime::Runtime::new().unwrap();
-            let _ = runtime.block_on(Config::load_multi()).unwrap();
+            let _ = runtime.block_on(Config::load_multi(None)).unwrap();
         });
 
         let logs = sink.lock().unwrap().clone();
@@ -3665,6 +3741,193 @@ api_key = "sk-test123"
         assert!(config.is_ok());
         assert_eq!(config.unwrap().model, Some("openai/gpt-4o".to_string()));
 
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn test_cli_overrides_override_env_vars() {
+        let _guard = ENV_LOCK.lock().unwrap();
+
+        set_env("OPENCODE_MODEL", "env-model");
+        set_env("OPENCODE_PROVIDER", "anthropic");
+        set_env("OPENCODE_TEMPERATURE", "0.8");
+
+        let mut config = Config::default();
+
+        config.apply_env_overrides();
+        assert_eq!(config.model, Some("env-model".to_string()));
+        assert!(config.provider.as_ref().unwrap().contains_key("anthropic"));
+        assert_eq!(config.temperature, Some(0.8));
+
+        let cli_overrides = CliOverrideConfig {
+            model: Some("cli-model".to_string()),
+            provider: Some("openai".to_string()),
+            temperature: Some(0.5),
+            max_tokens: None,
+            default_agent: None,
+        };
+        config.apply_cli_overrides(
+            cli_overrides.model,
+            cli_overrides.provider,
+            cli_overrides.temperature,
+            cli_overrides.max_tokens,
+            cli_overrides.default_agent,
+        );
+
+        assert_eq!(config.model, Some("cli-model".to_string()));
+        assert!(config.provider.as_ref().unwrap().contains_key("openai"));
+        assert_eq!(config.temperature, Some(0.5));
+
+        remove_env("OPENCODE_MODEL");
+        remove_env("OPENCODE_PROVIDER");
+        remove_env("OPENCODE_TEMPERATURE");
+    }
+
+    #[test]
+    fn test_env_vars_override_config_file() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let temp_dir = unique_temp_dir("config_precedence_env");
+
+        let config_path = temp_dir.join("config.json");
+        let config_content = r#"{"model": "config-model", "temperature": 0.3}"#;
+        fs::write(&config_path, config_content).unwrap();
+
+        set_env("OPENCODE_MODEL", "env-model");
+        set_env("OPENCODE_TEMPERATURE", "0.9");
+
+        let config = Config::load(&config_path).unwrap();
+
+        assert_eq!(config.model, Some("env-model".to_string()));
+        assert_eq!(config.temperature, Some(0.9));
+
+        remove_env("OPENCODE_MODEL");
+        remove_env("OPENCODE_TEMPERATURE");
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn test_full_precedence_chain_cli_over_env_over_config() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let temp_dir = unique_temp_dir("config_full_precedence");
+
+        let config_path = temp_dir.join("config.json");
+        let config_content = r#"{
+            "model": "config-model",
+            "temperature": 0.3,
+            "provider": {"openai": {"id": "openai"}}
+        }"#;
+        fs::write(&config_path, config_content).unwrap();
+
+        set_env("OPENCODE_MODEL", "env-model");
+        set_env("OPENCODE_PROVIDER", "anthropic");
+        set_env("OPENCODE_TEMPERATURE", "0.8");
+
+        let mut config = Config::load(&config_path).unwrap();
+
+        assert_eq!(config.model, Some("env-model".to_string()));
+        assert!(config.provider.as_ref().unwrap().contains_key("anthropic"));
+        assert_eq!(config.temperature, Some(0.8));
+
+        let cli_overrides = CliOverrideConfig {
+            model: Some("cli-model".to_string()),
+            provider: Some("google".to_string()),
+            temperature: Some(0.1),
+            max_tokens: Some(4000),
+            default_agent: Some("build".to_string()),
+        };
+        config.apply_cli_overrides(
+            cli_overrides.model,
+            cli_overrides.provider,
+            cli_overrides.temperature,
+            cli_overrides.max_tokens,
+            cli_overrides.default_agent.clone(),
+        );
+
+        assert_eq!(config.model, Some("cli-model".to_string()));
+        assert!(config.provider.as_ref().unwrap().contains_key("google"));
+        assert_eq!(config.temperature, Some(0.1));
+        assert_eq!(config.max_tokens, Some(4000));
+        assert_eq!(config.default_agent, Some("build".to_string()));
+
+        remove_env("OPENCODE_MODEL");
+        remove_env("OPENCODE_PROVIDER");
+        remove_env("OPENCODE_TEMPERATURE");
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn test_cli_overrides_with_none_values_dont_override() {
+        let _guard = ENV_LOCK.lock().unwrap();
+
+        set_env("OPENCODE_MODEL", "env-model");
+        set_env("OPENCODE_TEMPERATURE", "0.8");
+
+        let mut config = Config::default();
+        config.apply_env_overrides();
+
+        assert_eq!(config.model, Some("env-model".to_string()));
+        assert_eq!(config.temperature, Some(0.8));
+
+        let cli_overrides = CliOverrideConfig {
+            model: None,
+            provider: None,
+            temperature: None,
+            max_tokens: None,
+            default_agent: None,
+        };
+        config.apply_cli_overrides(
+            cli_overrides.model,
+            cli_overrides.provider,
+            cli_overrides.temperature,
+            cli_overrides.max_tokens,
+            cli_overrides.default_agent,
+        );
+
+        assert_eq!(config.model, Some("env-model".to_string()));
+        assert_eq!(config.temperature, Some(0.8));
+
+        remove_env("OPENCODE_MODEL");
+        remove_env("OPENCODE_TEMPERATURE");
+    }
+
+    #[test]
+    fn test_load_multi_with_cli_overrides_full_chain() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let temp_dir = unique_temp_dir("load_multi_cli");
+
+        let config_path = temp_dir.join("config.json");
+        let config_content = r#"{
+            "model": "config-model",
+            "temperature": 0.3,
+            "provider": {"openai": {"id": "openai"}}
+        }"#;
+        fs::write(&config_path, config_content).unwrap();
+
+        set_env("OPENCODE_CONFIG_DIR", &temp_dir);
+        set_env("OPENCODE_MODEL", "env-model");
+        set_env("OPENCODE_TEMPERATURE", "0.8");
+
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let cli_overrides = CliOverrideConfig {
+            model: Some("cli-model".to_string()),
+            provider: Some("google".to_string()),
+            temperature: Some(0.1),
+            max_tokens: Some(8000),
+            default_agent: Some("plan".to_string()),
+        };
+        let config = runtime
+            .block_on(Config::load_multi(Some(&cli_overrides)))
+            .unwrap();
+
+        assert_eq!(config.model, Some("cli-model".to_string()));
+        assert!(config.provider.as_ref().unwrap().contains_key("google"));
+        assert_eq!(config.temperature, Some(0.1));
+        assert_eq!(config.max_tokens, Some(8000));
+        assert_eq!(config.default_agent, Some("plan".to_string()));
+
+        remove_env("OPENCODE_CONFIG_DIR");
+        remove_env("OPENCODE_MODEL");
+        remove_env("OPENCODE_TEMPERATURE");
         let _ = fs::remove_dir_all(temp_dir);
     }
 }
