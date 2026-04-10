@@ -13,6 +13,7 @@ pub mod session;
 pub mod share;
 pub mod sse;
 pub mod sso;
+pub mod validation;
 pub mod web_ui;
 pub mod ws;
 

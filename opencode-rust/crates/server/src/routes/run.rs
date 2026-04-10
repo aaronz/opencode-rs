@@ -1,4 +1,5 @@
 use crate::routes::error::json_error;
+use crate::routes::validation::RequestValidator;
 use crate::ServerState;
 use actix_web::http::StatusCode;
 use actix_web::{web, HttpResponse, Responder};
@@ -92,12 +93,16 @@ pub async fn run_prompt(
     state: web::Data<ServerState>,
     req: web::Json<RunRequest>,
 ) -> impl Responder {
-    if req.prompt.trim().is_empty() {
-        return json_error(
-            StatusCode::BAD_REQUEST,
-            "invalid_prompt",
-            "prompt cannot be empty",
-        );
+    let mut validator = RequestValidator::new();
+    validator.validate_required_string("prompt", Some(&req.prompt));
+    if let Some(ref agent) = req.agent {
+        validator.validate_enum("agent", agent, &["build", "plan", "explore", "review", "refactor", "debug", "general"]);
+    }
+    if let Some(ref model) = req.model {
+        validator.validate_optional_string("model", Some(model), 100);
+    }
+    if let Err(errors) = validator.validate() {
+        return errors.to_response();
     }
 
     let mut session = Session::new();

@@ -106,7 +106,7 @@ mod tests {
         .await
         .respond_to(&req);
 
-        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
     }
 
     // Auth enforcement tests

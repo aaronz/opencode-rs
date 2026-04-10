@@ -81,7 +81,7 @@
 
 | Task ID | Title | Module | FR | Phase | Status | Dependencies |
 |---------|-------|--------|-----|-------|--------|--------------|
-| P1-10 | Request validation | server | FR-004 | Phase 1 | Pending | P0-15 |
+| P1-10 | Request validation | server | FR-004 | Phase 1 | ✅ Done | P0-15 |
 | P1-11 | Streaming endpoints | server | FR-004 | Phase 1 | Pending | P0-15 |
 
 ### LSP System (2 items)

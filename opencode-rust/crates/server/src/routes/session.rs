@@ -1,4 +1,5 @@
 use crate::routes::error::json_error;
+use crate::routes::validation::{validate_pagination, validate_session_id, RequestValidator};
 use crate::ServerState;
 use actix_web::{http::StatusCode, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
@@ -103,6 +104,12 @@ pub async fn create_session(
     state: web::Data<ServerState>,
     req: web::Json<CreateSessionRequest>,
 ) -> impl Responder {
+    let mut validator = RequestValidator::new();
+    validator.validate_optional_string("initial_prompt", req.initial_prompt.as_deref(), 50000);
+    if let Err(errors) = validator.validate() {
+        return errors.to_response();
+    }
+
     let mut session = Session::new();
     if let Some(prompt) = &req.initial_prompt {
         session.add_message(Message::user(prompt.clone()));
@@ -127,6 +134,9 @@ pub async fn create_session(
 }
 
 pub async fn get_session(state: web::Data<ServerState>, id: web::Path<String>) -> impl Responder {
+    if let Err(errors) = validate_session_id(&id) {
+        return errors.to_response();
+    }
     match state.storage.load_session(&id).await {
         Ok(Some(session)) => HttpResponse::Ok().json(session),
         Ok(None) => json_error(
@@ -146,6 +156,9 @@ pub async fn delete_session(
     state: web::Data<ServerState>,
     id: web::Path<String>,
 ) -> impl Responder {
+    if let Err(errors) = validate_session_id(&id) {
+        return errors.to_response();
+    }
     match state.storage.delete_session(&id).await {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(e) => json_error(
@@ -161,6 +174,16 @@ pub async fn fork_session(
     id: web::Path<String>,
     req: web::Json<ForkSessionRequest>,
 ) -> impl Responder {
+    if let Err(errors) = validate_session_id(&id) {
+        return errors.to_response();
+    }
+
+    let mut validator = RequestValidator::new();
+    validator.validate_required_number("fork_at_message_index", Some(req.fork_at_message_index), 0, 100000);
+    if let Err(errors) = validator.validate() {
+        return errors.to_response();
+    }
+
     match state.storage.load_session(&id).await {
         Ok(Some(session)) => match session.fork_at_message(req.fork_at_message_index) {
             Ok(forked) => match state.storage.save_session(&forked).await {
@@ -204,6 +227,19 @@ pub async fn add_message_to_session(
     id: web::Path<String>,
     req: web::Json<AddMessageRequest>,
 ) -> impl Responder {
+    if let Err(errors) = validate_session_id(&id) {
+        return errors.to_response();
+    }
+
+    let mut validator = RequestValidator::new();
+    if let Some(ref role) = req.role {
+        validator.validate_enum("role", role, &["user", "assistant", "system"]);
+    }
+    validator.validate_required_string("content", Some(&req.content));
+    if let Err(errors) = validator.validate() {
+        return errors.to_response();
+    }
+
     match state.storage.load_session(&id).await {
         Ok(Some(mut session)) => {
             let role = parse_role(req.role.clone());
@@ -242,6 +278,22 @@ pub async fn run_command_in_session(
     req: web::Json<CommandRequest>,
 ) -> impl Responder {
     let session_id = id.into_inner();
+    if let Err(errors) = validate_session_id(&session_id) {
+        return errors.to_response();
+    }
+
+    let mut validator = RequestValidator::new();
+    validator.validate_required_string("command", Some(&req.command));
+    validator.validate_optional_string("workdir", req.workdir.as_deref(), 1000);
+    if let Some(ref args) = req.args {
+        for (i, arg) in args.iter().enumerate() {
+            validator.validate_optional_string(&format!("args[{}]", i), Some(arg), 10000);
+        }
+    }
+    if let Err(errors) = validator.validate() {
+        return errors.to_response();
+    }
+
     let Some(mut session) = (match state.storage.load_session(&session_id).await {
         Ok(s) => s,
         Err(e) => {
@@ -315,7 +367,11 @@ pub async fn list_messages(
     id: web::Path<String>,
     params: web::Query<PaginationParams>,
 ) -> impl Responder {
-    let limit = params.limit.unwrap_or(50).min(500);
+    if let Err(errors) = validate_session_id(&id) {
+        return errors.to_response();
+    }
+
+    let (limit, _offset) = validate_pagination(params.limit, params.offset);
     let offset = params.offset.unwrap_or(0);
 
     let session_id = id.into_inner();
@@ -355,6 +411,10 @@ pub async fn get_message(
 ) -> impl Responder {
     let (id, index) = path.into_inner();
 
+    if let Err(errors) = validate_session_id(&id) {
+        return errors.to_response();
+    }
+
     match state.storage.load_session(&id).await {
         Ok(Some(session)) => {
             if let Some(message) = session.messages.get(index) {
@@ -385,6 +445,9 @@ pub async fn get_session_diff(
     id: web::Path<String>,
 ) -> impl Responder {
     let session_id = id.into_inner();
+    if let Err(errors) = validate_session_id(&session_id) {
+        return errors.to_response();
+    }
     match state.storage.load_session(&session_id).await {
         Ok(Some(session)) => {
             if session.messages.len() < 2 {
@@ -435,6 +498,9 @@ pub async fn list_session_snapshots(
     id: web::Path<String>,
 ) -> impl Responder {
     let session_id = id.into_inner();
+    if let Err(errors) = validate_session_id(&session_id) {
+        return errors.to_response();
+    }
     let uuid = match to_session_uuid(&session_id) {
         Ok(uuid) => uuid,
         Err(resp) => return resp,
@@ -472,6 +538,16 @@ pub async fn revert_session_to_checkpoint(
     req: web::Json<RevertRequest>,
 ) -> impl Responder {
     let session_id = id.into_inner();
+    if let Err(errors) = validate_session_id(&session_id) {
+        return errors.to_response();
+    }
+
+    let mut validator = RequestValidator::new();
+    validator.validate_required_number("sequence_number", Some(req.sequence_number), 0, 100000);
+    if let Err(errors) = validator.validate() {
+        return errors.to_response();
+    }
+
     let uuid = match to_session_uuid(&session_id) {
         Ok(uuid) => uuid,
         Err(resp) => return resp,
@@ -502,6 +578,10 @@ pub async fn share_session(
     req: Option<web::Json<ShareRequest>>,
 ) -> impl Responder {
     let session_id = id.into_inner();
+    if let Err(errors) = validate_session_id(&session_id) {
+        return errors.to_response();
+    }
+
     match state.storage.load_session(&session_id).await {
         Ok(Some(mut session)) => {
             if let Some(mode) = req.as_ref().and_then(|r| r.mode.clone()) {
@@ -547,6 +627,11 @@ pub async fn get_shared_session(
     state: web::Data<ServerState>,
     shared_id: web::Path<String>,
 ) -> impl Responder {
+    let mut validator = RequestValidator::new();
+    validator.validate_required_string("shared_id", Some(&shared_id));
+    if let Err(errors) = validator.validate() {
+        return errors.to_response();
+    }
     let all = match state.storage.list_sessions(500, 0).await {
         Ok(s) => s,
         Err(e) => {
@@ -585,6 +670,9 @@ pub async fn remove_share_session(
     id: web::Path<String>,
 ) -> impl Responder {
     let session_id = id.into_inner();
+    if let Err(errors) = validate_session_id(&session_id) {
+        return errors.to_response();
+    }
     match state.storage.load_session(&session_id).await {
         Ok(Some(mut session)) => {
             session.set_share_mode(ShareMode::Disabled);
@@ -612,6 +700,9 @@ pub async fn remove_share_session(
 
 pub async fn abort_session(state: web::Data<ServerState>, id: web::Path<String>) -> impl Responder {
     let session_id = id.into_inner();
+    if let Err(errors) = validate_session_id(&session_id) {
+        return errors.to_response();
+    }
     match state.storage.load_session(&session_id).await {
         Ok(Some(mut session)) => {
             session.state = opencode_core::session_state::SessionState::Aborted;
@@ -647,6 +738,16 @@ pub async fn permission_reply(
     body: web::Json<PermissionReplyRequest>,
 ) -> impl Responder {
     let (session_id, req_id) = path.into_inner();
+
+    let mut validator = RequestValidator::new();
+    validator.validate_required_string("session_id", Some(&session_id));
+    validator.validate_required_string("req_id", Some(&req_id));
+    validator.validate_required_string("decision", Some(&body.decision));
+    validator.validate_enum("decision", &body.decision.to_lowercase(), &["allow", "deny"]);
+    if let Err(errors) = validator.validate() {
+        return errors.to_response();
+    }
+
     let decision = body.decision.to_lowercase();
     if decision != "allow" && decision != "deny" {
         return HttpResponse::BadRequest().json(serde_json::json!({
@@ -672,6 +773,9 @@ pub async fn summarize_session(
     id: web::Path<String>,
 ) -> impl Responder {
     let session_id = id.into_inner();
+    if let Err(errors) = validate_session_id(&session_id) {
+        return errors.to_response();
+    }
     match state.storage.load_session(&session_id).await {
         Ok(Some(mut session)) => match SummaryGenerator::summarize_session(&session.messages) {
             Ok(summary) => {
