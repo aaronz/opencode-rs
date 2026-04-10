@@ -23,7 +23,7 @@ pub fn cors_middleware(origins: &[String]) -> Cors {
 
 pub fn is_api_key_authorized(req: &ServiceRequest) -> bool {
     let Some(state) = req.app_data::<actix_web::web::Data<ServerState>>() else {
-        return true;
+        return false;
     };
 
     let config_guard = match state.config.read() {

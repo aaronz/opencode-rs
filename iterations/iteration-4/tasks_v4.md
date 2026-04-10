@@ -16,7 +16,7 @@
 | P0-11 | Config precedence enforcement | config | FR-003 | Sprint 1 | Done | None |
 | P0-12 | Config ownership boundary (opencode.json vs tui.json) | config | FR-003 | Sprint 0 | Done | None |
 | P0-13 | Route registration by resource group | server | FR-004 | Sprint 1 | Done | None |
-| P0-14 | Auth enforcement per endpoint | server | FR-004 | Sprint 1 | Pending | P0-13 |
+| P0-14 | Auth enforcement per endpoint | server | FR-004 | Sprint 1 | Done | P0-13 |
 | P0-15 | Session/message lifecycle CRUD | server | FR-004 | Sprint 1 | Pending | P0-13 |
 
 ### Phase 2: Runtime Core

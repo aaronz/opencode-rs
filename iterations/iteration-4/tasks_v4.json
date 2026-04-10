@@ -57,7 +57,7 @@
       "priority": "P0",
       "title": "Auth enforcement per endpoint",
       "description": "Implement authentication enforcement at the endpoint level. Each API endpoint should verify auth credentials before processing requests.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Unauthenticated requests return 401",
         "Invalid credentials return 401",
