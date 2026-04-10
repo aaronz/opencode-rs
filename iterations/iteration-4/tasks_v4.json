@@ -315,7 +315,7 @@
       "priority": "P0",
       "title": "Tool discovery from MCP servers",
       "description": "Implement tool discovery mechanism that queries MCP servers for available tools and integrates them into the local tool registry.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Tools from MCP servers are discovered automatically",
         "Discovered tools can be executed via local registry",

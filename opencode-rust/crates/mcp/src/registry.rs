@@ -398,4 +398,150 @@ mod tests {
             "Local MCP tools with Allow permission should not require approval"
         );
     }
+
+    #[tokio::test]
+    async fn tool_discovery() {
+        let mut registry = McpRegistry::new();
+
+        registry.add_server(
+            "docs-server",
+            McpServerConfig::new(McpTransport::Stdio(crate::client::StdioProcess::new(
+                "npx",
+                vec!["-y".to_string(), "@modelcontextprotocol/server-filesystem".to_string()],
+            )))
+            .with_permission(McpPermission::Allow),
+        );
+
+        registry.add_server(
+            "remote-server",
+            McpServerConfig::new(McpTransport::Sse("http://remote:8080/sse".to_string()))
+                .with_permission(McpPermission::Ask),
+        );
+
+        let docs_handler: Arc<
+            dyn Fn(crate::protocol::JsonRpcRequest) -> Result<JsonRpcResponse, McpError>
+                + Send
+                + Sync,
+        > = Arc::new(|request| match request.method.as_str() {
+            "tools/list" => Ok(ok_response(serde_json::json!({
+                "tools": [
+                    {
+                        "name": "search_docs",
+                        "description": "Search documentation",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {
+                                "query": {"type": "string"}
+                            },
+                            "required": ["query"]
+                        }
+                    },
+                    {
+                        "name": "list_files",
+                        "description": "List files in directory",
+                        "inputSchema": {"type": "object"}
+                    }
+                ]
+            }))),
+            "tools/call" => Ok(ok_response(serde_json::json!({
+                "content": [{"type": "text", "text": "discovery-test-ok"}],
+                "isError": false
+            }))),
+            _ => Ok(ok_response(Value::Null)),
+        });
+
+        let remote_handler: Arc<
+            dyn Fn(crate::protocol::JsonRpcRequest) -> Result<JsonRpcResponse, McpError>
+                + Send
+                + Sync,
+        > = Arc::new(|request| match request.method.as_str() {
+            "tools/list" => Ok(ok_response(serde_json::json!({
+                "tools": [
+                    {
+                        "name": "remote_search",
+                        "description": "Search remote resources",
+                        "inputSchema": {"type": "object"}
+                    }
+                ]
+            }))),
+            "tools/call" => Ok(ok_response(serde_json::json!({
+                "content": [{"type": "text", "text": "remote-discovery-ok"}],
+                "isError": false
+            }))),
+            _ => Ok(ok_response(Value::Null)),
+        });
+
+        let docs_client = Arc::new(McpClient::with_handler(
+            McpTransport::Stdio(crate::client::StdioProcess::new("mock-docs", vec![])),
+            docs_handler,
+        ));
+        let remote_client = Arc::new(McpClient::with_handler(
+            McpTransport::Sse("http://mock-remote/sse".to_string()),
+            remote_handler,
+        ));
+
+        docs_client.connect().await.unwrap();
+        remote_client.connect().await.unwrap();
+
+        registry.clients.insert("docs-server".to_string(), docs_client.clone());
+        registry.clients.insert("remote-server".to_string(), remote_client.clone());
+
+        registry.discovered_tools.insert(
+            "docs-server".to_string(),
+            docs_client.list_tools().await.unwrap(),
+        );
+        registry.discovered_tools.insert(
+            "remote-server".to_string(),
+            remote_client.list_tools().await.unwrap(),
+        );
+
+        let docs_tools = registry.tools_for_server("docs-server");
+        assert!(docs_tools.is_some());
+        let docs_tools = docs_tools.unwrap();
+        assert_eq!(docs_tools.len(), 2);
+        assert!(docs_tools.iter().any(|t| t.name == "search_docs"));
+        assert!(docs_tools.iter().any(|t| t.name == "list_files"));
+
+        let remote_tools = registry.tools_for_server("remote-server");
+        assert!(remote_tools.is_some());
+        assert_eq!(remote_tools.unwrap().len(), 1);
+
+        let mut tool_registry = ToolRegistry::new();
+        registry.bridge_to_tool_registry(&mut tool_registry);
+
+        assert!(tool_registry.contains("search_docs"));
+        assert!(tool_registry.contains("list_files"));
+        assert!(tool_registry.contains("remote_search"));
+
+        let executor = tool_registry.get_executor("search_docs");
+        assert!(executor.is_some());
+
+        let local_def = tool_registry.get("search_docs");
+        assert!(local_def.is_some());
+        assert!(
+            !local_def.unwrap().requires_approval,
+            "Local MCP tools should not require approval"
+        );
+
+        let remote_def = tool_registry.get("remote_search");
+        assert!(remote_def.is_some());
+        assert!(
+            remote_def.unwrap().requires_approval,
+            "Remote MCP tools should require approval"
+        );
+
+        let all_tools: Vec<&McpTool> = registry
+            .discovered_tools
+            .values()
+            .flat_map(|tools| tools.iter())
+            .collect();
+        assert!(!all_tools.is_empty());
+        assert_eq!(all_tools.len(), 3);
+
+        let call_result = docs_client
+            .call_tool("search_docs", &serde_json::json!({"query": "test"}))
+            .await;
+        assert!(call_result.is_ok());
+        assert_eq!(call_result.unwrap().content, "discovery-test-ok");
+    }
 }
