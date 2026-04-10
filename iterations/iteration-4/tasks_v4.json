@@ -595,7 +595,7 @@
       "priority": "P1",
       "title": "LSP failure handling",
       "description": "Implement robust failure handling for LSP server operations. Handle server crashes, timeouts, and protocol violations gracefully.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "LSP server crashes are detected and handled",
         "Timeouts are enforced for requests",
@@ -614,7 +614,7 @@
       "priority": "P1",
       "title": "Slash commands",
       "description": "Implement slash command functionality in the TUI. Commands like /help, /clear, /exit should be recognized and executed.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "Slash commands are recognized when typed",
         "Commands execute the correct action",
