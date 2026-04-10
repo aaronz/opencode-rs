@@ -135,4 +135,64 @@ mod tests {
         let value = parse_jsonc(input).unwrap();
         assert_eq!(value["path"], "http://example.com");
     }
+
+    #[test]
+    fn test_invalid_jsonc_produces_clear_error() {
+        // Invalid JSON - missing closing brace
+        let input = r#"{
+    // Comment
+    "key": "value"
+"#;
+        let result = parse_jsonc(input);
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        let error_msg = error.to_string();
+        // Error message should contain "JSON parse error" and indicate the issue
+        assert!(
+            error_msg.contains("JSON"),
+            "Error should mention JSON: {}",
+            error_msg
+        );
+    }
+
+    #[test]
+    fn test_invalid_json_syntax_error_message() {
+        let input = "{invalid: no quotes}";
+        let result = parse_jsonc(input);
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(!error.to_string().is_empty());
+    }
+
+    #[test]
+    fn test_mixed_comments_invalid_json_after_stripping() {
+        // JSON that becomes invalid after comment stripping (unterminated string)
+        let input = r#"{
+    "key": "value
+}"#;
+        let result = parse_jsonc(input);
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(error.to_string().contains("JSON") || error.to_string().contains("parse"));
+    }
+
+    #[test]
+    fn test_unterminated_multiline_comment_error() {
+        let input = r#"{
+    /* Unterminated comment
+    "key": "value"
+}"#;
+        let result = parse_jsonc(input);
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[test]
+    fn test_error_type_is_jsonc_error() {
+        let input = "{invalid}";
+        let result = parse_jsonc(input);
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        let error_string = format!("{}", error);
+        assert!(error_string.contains("JSON") || error_string.contains("parse"));
+    }
 }

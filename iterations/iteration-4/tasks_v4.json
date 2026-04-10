@@ -485,16 +485,16 @@
       "priority": "P1",
       "title": "JSONC parsing",
       "description": "Implement JSONC (JSON with Comments) parsing support for configuration files. Allow comments in JSON config files.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "JSONC files with comments are parsed correctly",
         "Comments are stripped during parsing",
         "Invalid JSONC produces clear error messages"
       ],
       "test_commands": [
-        "cargo test -p opencode-config -- jsonc"
+        "cargo test -p opencode-core -- jsonc"
       ],
-      "impl_notes": "Use a JSONC parsing library or implement comment stripping.",
+      "impl_notes": "Use a JSONC parsing library (json5) or implement comment stripping. Implementation already existed in crates/core/src/config/jsonc.rs. Added additional tests for invalid JSONC error handling.",
       "dependencies": []
     },
     {
