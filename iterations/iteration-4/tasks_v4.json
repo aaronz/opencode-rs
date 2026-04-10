@@ -665,7 +665,7 @@
       "priority": "P1",
       "title": "Keybinding system",
       "description": "Implement a configurable keybinding system for the TUI. Users should be able to customize keyboard shortcuts.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "Default keybindings work correctly",
         "Keybindings can be customized",

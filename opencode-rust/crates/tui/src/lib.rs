@@ -7,6 +7,7 @@ pub mod dialogs;
 pub mod file_ref_handler;
 pub mod input;
 pub mod input_parser;
+pub mod keybinding;
 pub mod layout;
 pub mod patch_preview;
 pub mod plugin;
@@ -35,6 +36,10 @@ pub use file_ref_handler::{FileRefHandler, FileRefResult};
 pub use input::{
     CommandCompleter, EditorLauncher, FileCompleter, FileSuggestion, InputBox, InputHistory,
     InputParser, InputProcessor, InputResult, InputToken,
+};
+pub use keybinding::{
+    DefaultKeybindings, Key, Keybinding, KeybindingAction, KeybindingConfig, KeybindingRegistry,
+    KeyCode, KeyModifiers,
 };
 pub use layout::{LayoutManager, LayoutPreset, LayoutProportions};
 pub use patch_preview::{PatchDecision, PatchPreview};
