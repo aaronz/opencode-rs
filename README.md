@@ -1,5 +1,8 @@
 # OpenCode Rust Monorepo
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Rust](https://img.shields.io/badge/Rust-1.70+-orange.svg)](https://www.rust-lang.org)
+
 A Rust implementation of the OpenCode AI coding agent with a comprehensive TUI testing framework.
 
 ## Projects
