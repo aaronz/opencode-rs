@@ -576,7 +576,7 @@
       "priority": "P1",
       "title": "Custom LSP registration",
       "description": "Implement custom LSP server registration API. Allow external LSP servers to register with the system.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "External LSP servers can register",
         "Registration includes server capabilities",
@@ -585,7 +585,7 @@
       "test_commands": [
         "cargo test -p opencode-lsp -- custom_registration"
       ],
-      "impl_notes": "Build on built-in LSP detection (P0-9).",
+      "impl_notes": "Build on built-in LSP detection (P0-9). Implemented custom.rs module with CustomLspServer, CustomServerConfig, ServerCapabilities, CustomRegistry, and RegisterError. Updated manager.rs to integrate with CustomRegistry.",
       "dependencies": [
         "P0-9"
       ]

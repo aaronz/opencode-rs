@@ -1,5 +1,6 @@
 use crate::aggregator::DiagnosticAggregator;
 use crate::client::LspClient;
+use crate::custom::CustomRegistry;
 use crate::language::Language;
 use crate::types::{Diagnostic, Severity};
 use futures::future::join_all;
@@ -12,6 +13,7 @@ pub struct LspManager {
     clients: HashMap<Language, LspClient>,
     file_to_language: HashMap<PathBuf, Language>,
     aggregator: DiagnosticAggregator,
+    custom_registry: CustomRegistry,
 }
 
 impl LspManager {
@@ -21,7 +23,22 @@ impl LspManager {
             clients: HashMap::new(),
             file_to_language: HashMap::new(),
             aggregator: DiagnosticAggregator::new(),
+            custom_registry: CustomRegistry::new(),
         }
+    }
+
+    pub fn with_custom_registry(root: PathBuf, registry: CustomRegistry) -> Self {
+        Self {
+            root,
+            clients: HashMap::new(),
+            file_to_language: HashMap::new(),
+            aggregator: DiagnosticAggregator::new(),
+            custom_registry: registry,
+        }
+    }
+
+    pub fn custom_registry(&self) -> &CustomRegistry {
+        &self.custom_registry
     }
 
     pub async fn start_for_file(&mut self, path: &Path) -> Result<(), OpenCodeError> {
