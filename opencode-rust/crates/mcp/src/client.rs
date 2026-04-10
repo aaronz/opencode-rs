@@ -1216,4 +1216,101 @@ mod tests {
             );
         }
     }
+
+    #[tokio::test]
+    async fn test_local_connection() {
+        // Mock MCP server that handles initialize, tools/list, ping, and tools/call
+        let python_script = r#"
+import sys
+import json
+
+def main():
+    while True:
+        line = sys.stdin.readline()
+        if not line:
+            break
+        try:
+            request = json.loads(line)
+            method = request.get('method', '')
+            id = request.get('id')
+            if method == 'initialize':
+                response = {
+                    'jsonrpc': '2.0',
+                    'id': id,
+                    'result': {
+                        'protocolVersion': '2024-11-05',
+                        'capabilities': {'tools': {'listChanged': True}},
+                        'serverInfo': {'name': 'mock', 'version': '1.0'}
+                    }
+                }
+                print(json.dumps(response), flush=True)
+            elif method == 'initialized':
+                # Notification - no response needed
+                pass
+            elif method == 'tools/list':
+                response = {
+                    'jsonrpc': '2.0',
+                    'id': id,
+                    'result': {
+                        'tools': [
+                            {'name': 'echo', 'description': 'Echo back the input', 'inputSchema': {'type': 'object', 'properties': {'value': {'type': 'string'}}}}
+                        ]
+                    }
+                }
+                print(json.dumps(response), flush=True)
+            elif method == 'ping':
+                response = {'jsonrpc': '2.0', 'id': id, 'result': None}
+                print(json.dumps(response), flush=True)
+            elif method == 'tools/call':
+                args = request.get('params', {}).get('arguments', {})
+                value = args.get('value', 'no value')
+                response = {
+                    'jsonrpc': '2.0',
+                    'id': id,
+                    'result': {
+                        'content': [{'type': 'text', 'text': f'echo: {value}'}]
+                    }
+                }
+                print(json.dumps(response), flush=True)
+            else:
+                response = {'jsonrpc': '2.0', 'id': id, 'error': {'code': -32601, 'message': f'Unknown method: {method}'}}
+                print(json.dumps(response), flush=True)
+        except json.JSONDecodeError:
+            continue
+        except Exception as e:
+            print(json.dumps({'jsonrpc': '2.0', 'id': None, 'error': {'code': -32603, 'message': str(e)}}), flush=True)
+
+if __name__ == '__main__':
+    main()
+"#;
+
+        let transport = McpTransport::Stdio(
+            StdioProcess::new("python3", vec!["-c".to_string(), python_script.to_string()])
+        );
+
+        let client = McpClient::new(transport)
+            .with_timeout(Duration::from_secs(10))
+            .with_max_retries(2);
+
+        assert_eq!(client.connection_state().await, ConnectionState::Disconnected);
+        client.connect().await.expect("connect to local stdio server");
+        assert_eq!(client.connection_state().await, ConnectionState::Connected);
+
+        let tools = client.list_tools().await.expect("list tools");
+        assert_eq!(tools.len(), 1);
+        assert_eq!(tools[0].name, "echo");
+
+        client.ping().await.expect("ping");
+
+        let result = client
+            .call_tool("echo", &serde_json::json!({"value": "hello"}))
+            .await
+            .expect("call tool");
+        assert!(result.content.contains("echo: hello"));
+        assert!(!result.is_error);
+
+        client.disconnect().await.expect("disconnect");
+        assert_eq!(client.connection_state().await, ConnectionState::Disconnected);
+        assert!(!client.is_connected().await);
+    }
 }

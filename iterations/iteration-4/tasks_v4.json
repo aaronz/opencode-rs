@@ -279,7 +279,7 @@
       "priority": "P0",
       "title": "Local MCP server connection",
       "description": "Implement connection to local MCP servers. Support stdio-based communication with local MCP server processes.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Can connect to local MCP server via stdio",
         "Server messages are received correctly",
