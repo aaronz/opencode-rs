@@ -224,7 +224,7 @@
       "priority": "P0",
       "title": "Plugin config separation",
       "description": "Implement proper configuration separation for plugins. Each plugin should have isolated configuration that doesn't leak into other plugins or core config.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Plugin configs are isolated from each other",
         "Plugin configs don't override core config values",

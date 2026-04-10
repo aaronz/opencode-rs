@@ -1,3 +1,4 @@
+use crate::config::validate_plugin_options;
 use crate::PluginError;
 use crate::{PluginCapability, PluginConfig, PluginPermissions};
 use indexmap::IndexMap;
@@ -98,6 +99,15 @@ fn default_true() -> bool {
 pub(crate) fn parse_metadata_file(path: &Path) -> Result<DiscoveredPlugin, PluginError> {
     let content = fs::read_to_string(path)?;
     let metadata: PluginMetadata = serde_json::from_str(&content)?;
+
+    // Validate plugin options don't use reserved config keys
+    let validation_result = validate_plugin_options(&metadata.name, &metadata.options);
+    if !validation_result.valid {
+        return Err(PluginError::ConfigValidation(
+            metadata.name,
+            validation_result.errors.join("; "),
+        ));
+    }
 
     let library_path = {
         let main = PathBuf::from(&metadata.main);

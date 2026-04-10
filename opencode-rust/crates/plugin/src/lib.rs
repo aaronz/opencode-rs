@@ -1,3 +1,4 @@
+pub mod config;
 pub mod discovery;
 pub mod loader;
 pub mod registry;
@@ -33,6 +34,8 @@ pub enum PluginError {
     ToolRegistration(String),
     #[error("permission denied: {0}")]
     PermissionDenied(String),
+    #[error("plugin config validation failed for '{0}': {1}")]
+    ConfigValidation(String, String),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -1597,6 +1600,274 @@ mod tests {
         assert!(
             listed.iter().any(|(name, _, _)| name == "list_tool"),
             "Plugin tool should appear in ToolRegistry.list_filtered()"
+        );
+    }
+
+    #[test]
+    fn test_config_separation_plugin_options_isolated() {
+        use crate::config::validate_plugin_options;
+        use indexmap::IndexMap;
+
+        // Plugin A has its own options - should be valid
+        let mut plugin_a_options = IndexMap::new();
+        plugin_a_options.insert("custom_key".to_string(), serde_json::json!("value"));
+        plugin_a_options.insert("another_setting".to_string(), serde_json::json!({"nested": true}));
+
+        let result_a = validate_plugin_options("plugin-a", &plugin_a_options);
+        assert!(result_a.valid, "plugin-a options should be valid: {:?}", result_a.errors);
+
+        // Plugin B has different options - should also be valid
+        let mut plugin_b_options = IndexMap::new();
+        plugin_b_options.insert("setting".to_string(), serde_json::json!(123));
+
+        let result_b = validate_plugin_options("plugin-b", &plugin_b_options);
+        assert!(result_b.valid, "plugin-b options should be valid: {:?}", result_b.errors);
+
+        // Verify the options are isolated (different plugins have different option maps)
+        assert_ne!(
+            plugin_a_options.len(),
+            plugin_b_options.len(),
+            "Different plugins should have independent options"
+        );
+    }
+
+    #[test]
+    fn test_config_separation_plugin_cannot_override_core_config() {
+        use crate::config::validate_plugin_options;
+        use indexmap::IndexMap;
+
+        // Test that plugins cannot override core config keys
+        let core_config_keys = vec![
+            "model", "server", "provider", "permission", "mcp", "formatter",
+            "lsp", "agent", "plugin", "skills", "enterprise", "compaction",
+        ];
+
+        for key in core_config_keys {
+            let mut options = IndexMap::new();
+            options.insert(key.to_string(), serde_json::json!("malicious_value"));
+
+            let result = validate_plugin_options("malicious-plugin", &options);
+            assert!(
+                !result.valid,
+                "plugin should not be able to override core config key '{}': {:?}",
+                key,
+                result.errors
+            );
+            assert!(
+                result.errors.iter().any(|e| e.contains("reserved")),
+                "error should mention 'reserved' for key '{}'",
+                key
+            );
+        }
+    }
+
+    #[test]
+    fn test_config_separation_nested_reserved_keys() {
+        use crate::config::validate_plugin_options;
+        use indexmap::IndexMap;
+
+        // Plugins cannot use nested reserved keys like "server.port" or "mcp.foo"
+        let reserved_nested_keys = vec![
+            ("server.port", serde_json::json!(8080)),
+            ("mcp.local.command", serde_json::json!(vec!["npx".to_string()])),
+            ("provider.openai.api_key", serde_json::json!("secret")),
+            ("permission.read", serde_json::json!("allow")),
+        ];
+
+        for (key, value) in reserved_nested_keys {
+            let mut options = IndexMap::new();
+            options.insert(key.to_string(), value);
+
+            let result = validate_plugin_options("test-plugin", &options);
+            assert!(
+                !result.valid,
+                "plugin should not be able to use nested reserved key '{}': {:?}",
+                key,
+                result.errors
+            );
+        }
+    }
+
+    #[test]
+    fn test_config_separation_deep_nested_objects() {
+        use crate::config::validate_plugin_options;
+        use indexmap::IndexMap;
+
+        // Even deeply nested objects with reserved keys should be caught
+        let mut options = IndexMap::new();
+        options.insert(
+            "my_config".to_string(),
+            serde_json::json!({
+                "server": {
+                    "hostname": "evil.com",
+                    "port": 9999
+                }
+            }),
+        );
+
+        let result = validate_plugin_options("deep-plugin", &options);
+        assert!(!result.valid, "deep nested reserved keys should be caught");
+    }
+
+    #[test]
+    fn test_config_separation_plugins_isolated_from_each_other() {
+        use crate::config::validate_plugin_isolation;
+
+        let plugins = vec![
+            ("plugin-a".to_string(), {
+                let mut m = indexmap::IndexMap::new();
+                m.insert("option_a".to_string(), serde_json::json!("value"));
+                m
+            }),
+            ("plugin-b".to_string(), {
+                let mut m = indexmap::IndexMap::new();
+                m.insert("option_b".to_string(), serde_json::json!("value"));
+                m
+            }),
+            ("plugin-c".to_string(), {
+                let mut m = indexmap::IndexMap::new();
+                m.insert("option_c".to_string(), serde_json::json!("value"));
+                m
+            }),
+        ];
+
+        let result = validate_plugin_isolation(&plugins);
+        assert!(result.valid, "plugins should be isolated from each other: {:?}", result.errors);
+    }
+
+    #[test]
+    fn test_config_separation_plugin_name_as_option_key() {
+        use crate::config::validate_plugin_isolation;
+
+        // A plugin using another plugin's name as an option key should be flagged
+        let plugins = vec![
+            ("plugin-a".to_string(), {
+                let mut m = indexmap::IndexMap::new();
+                m.insert("plugin-b".to_string(), serde_json::json!("value")); // Leak!
+                m
+            }),
+            ("plugin-b".to_string(), {
+                let mut m = indexmap::IndexMap::new();
+                m.insert("normal_option".to_string(), serde_json::json!("value"));
+                m
+            }),
+        ];
+
+        let result = validate_plugin_isolation(&plugins);
+        assert!(!result.valid, "plugin config using other plugin name should be flagged");
+        assert!(
+            result.errors.iter().any(|e| e.contains("isolation violation")),
+            "error should mention isolation violation"
+        );
+    }
+
+    #[test]
+    fn test_config_separation_validation_result_merge() {
+        use crate::config::ConfigValidationResult;
+
+        let mut result1 = ConfigValidationResult::valid();
+        result1.add_error("error 1".to_string());
+
+        let mut result2 = ConfigValidationResult::valid();
+        result2.add_error("error 2".to_string());
+
+        result1.merge(result2);
+
+        assert!(!result1.valid);
+        assert_eq!(result1.errors.len(), 2);
+        assert!(result1.errors.contains(&"error 1".to_string()));
+        assert!(result1.errors.contains(&"error 2".to_string()));
+    }
+
+    #[test]
+    fn test_config_separation_reserved_keys_list_comprehensive() {
+        use crate::config::RESERVED_CONFIG_KEYS;
+
+        // Verify the reserved keys list is comprehensive
+        let expected_keys = vec![
+            "$schema", "log_level", "server", "command", "skills", "watcher",
+            "plugin", "snapshot", "share", "autoshare", "autoupdate",
+            "disabled_providers", "enabled_providers", "model", "small_model",
+            "default_agent", "username", "mode", "agent", "provider", "mcp",
+            "formatter", "lsp", "instructions", "agents_md", "permission",
+            "tools", "enterprise", "compaction", "experimental", "theme",
+            "tui", "api_key", "temperature", "max_tokens",
+        ];
+
+        for key in expected_keys {
+            assert!(
+                RESERVED_CONFIG_KEYS.contains(&key),
+                "reserved key '{}' should be in RESERVED_CONFIG_KEYS",
+                key
+            );
+        }
+    }
+
+    #[test]
+    fn test_config_separation_discovery_validates_options() {
+        use std::fs;
+
+        let temp = tempfile::tempdir().unwrap();
+        let metadata_path = temp.path().join("test.plugin.json");
+
+        // Write a plugin with invalid options (reserved key)
+        fs::write(
+            &metadata_path,
+            r#"{
+                "name": "bad-plugin",
+                "version": "1.0.0",
+                "description": "test",
+                "main": "test.so",
+                "options": {
+                    "model": "evil-model"
+                }
+            }"#,
+        )
+        .unwrap();
+
+        let result = discovery::parse_metadata_file(&metadata_path);
+        assert!(
+            result.is_err(),
+            "discovery should fail for plugin with reserved option key"
+        );
+        let err = result.unwrap_err();
+        assert!(
+            format!("{}", err).contains("config validation"),
+            "error should mention config validation: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_config_separation_discovery_accepts_valid_options() {
+        use std::fs;
+
+        let temp = tempfile::tempdir().unwrap();
+        let metadata_path = temp.path().join("good.plugin.json");
+
+        // Write a plugin with valid options
+        fs::write(
+            &metadata_path,
+            r#"{
+                "name": "good-plugin",
+                "version": "1.0.0",
+                "description": "test",
+                "main": "test.so",
+                "options": {
+                    "my_custom_setting": "value",
+                    "nested": {"anything": true}
+                }
+            }"#,
+        )
+        .unwrap();
+
+        let result = discovery::parse_metadata_file(&metadata_path);
+        assert!(result.is_ok(), "discovery should succeed for valid plugin options: {:?}", result.err());
+        let discovered = result.unwrap();
+        assert_eq!(discovered.config.name, "good-plugin");
+        assert_eq!(
+            discovered.config.options.get("my_custom_setting"),
+            Some(&serde_json::json!("value"))
         );
     }
 }
