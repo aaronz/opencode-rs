@@ -3381,6 +3381,7 @@ name = "opencode-agent"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "chrono",
  "opencode-core",
  "opencode-llm",
  "opencode-tools",

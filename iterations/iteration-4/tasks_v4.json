@@ -133,7 +133,7 @@
       "priority": "P0",
       "title": "Task/delegation mechanism",
       "description": "Implement the task delegation mechanism where primary agents can delegate work to subagents with clear ownership and result tracking.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Tasks can be delegated from primary to subagent",
         "Task progress is tracked and reported",
