@@ -631,7 +631,7 @@
       "priority": "P1",
       "title": "Input model (multiline, history, autocomplete)",
       "description": "Implement enhanced input model with multiline support, command history, and autocomplete functionality.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "Multiline input works correctly",
         "Command history navigable with up/down arrows",
@@ -648,7 +648,7 @@
       "priority": "P1",
       "title": "File references (@) fuzzy search",
       "description": "Implement @file reference fuzzy search in the TUI. Typing @ should trigger fuzzy file search.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "@ triggers file fuzzy search",
         "Search matches files by name fuzzy matching",

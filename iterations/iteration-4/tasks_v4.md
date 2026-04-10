@@ -97,7 +97,7 @@
 |---------|-------|--------|-----|-------|--------|--------------|
 | P1-14 | Slash commands | tui | FR-018 | Phase 2 | Pending | None |
 | P1-15 | Input model (multiline, history, autocomplete) | tui | FR-018 | Phase 2 | Pending | None |
-| P1-16 | File references (`@`) fuzzy search | tui | FR-018 | Phase 2 | Pending | None |
+| P1-16 | File references (`@`) fuzzy search | tui | FR-018 | Phase 2 | ✅ Done | None |
 | P1-17 | Keybinding system | tui | FR-018 | Phase 2 | Pending | None |
 | P1-18 | Sidebar sections | tui | FR-018 | Phase 2 | Pending | None |
 

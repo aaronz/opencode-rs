@@ -59,11 +59,6 @@ SESSION_LOG_DIR="$WORKSPACE_DIR/sessions"
 
 mkdir -p "$SESSION_LOG_DIR"
 
-# Setup log file
-if [ -z "$LOG_FILE" ]; then
-    LOG_FILE="$SESSION_LOG_DIR/iteration-${NEXT_ITERATION:-new}_$(date +%Y%m%d_%H%M%S).log"
-fi
-
 # Logging function with timestamp
 log() {
     local timestamp
@@ -140,6 +135,13 @@ else
     NEXT_ITERATION=$((NEXT_ITERATION + 1))
     OUTPUTS_DIR="$WORKSPACE_DIR/iterations/iteration-${NEXT_ITERATION}"
     mkdir -p "$OUTPUTS_DIR"
+fi
+
+SESSION_EXPORT_DIR="$SESSION_LOG_DIR/iteration-${NEXT_ITERATION}"
+mkdir -p "$SESSION_EXPORT_DIR"
+
+if [ -z "$LOG_FILE" ]; then
+    LOG_FILE="$SESSION_LOG_DIR/iteration-${NEXT_ITERATION}_$(date +%Y%m%d_%H%M%S).log"
 fi
 
 CONSTITUTION=$(load_constitution)

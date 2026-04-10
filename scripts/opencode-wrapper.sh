@@ -151,17 +151,7 @@ run_opencode_with_session_export() {
     local temp_output
     temp_output=$(mktemp)
 
-    local session_log="${LOG_FILE:-/dev/null}"
-    if [ -n "$LOG_FILE" ] && [ "$LOG_FILE" != "/dev/null" ]; then
-        echo "[$timestamp] === 开始 OpenCode Session ===" >> "$session_log"
-    fi
-
     opencode run -m "$model" "$prompt" --format json 2>&1 > "$temp_output" || true
-
-    if [ -n "$LOG_FILE" ] && [ "$LOG_FILE" != "/dev/null" ]; then
-        cat "$temp_output" >> "$session_log"
-        echo "[$timestamp] === 结束 OpenCode Session ===" >> "$session_log"
-    fi
 
     if [ -f "$temp_output" ] && [ -s "$temp_output" ]; then
         local session_id
