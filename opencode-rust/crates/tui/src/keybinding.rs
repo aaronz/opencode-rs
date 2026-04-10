@@ -266,6 +266,14 @@ pub enum KeybindingAction {
     PageDown,
     /// Toggle terminal
     ToggleTerminal,
+    /// Toggle sidebar
+    ToggleSidebar,
+    /// Toggle active sidebar section
+    ToggleSidebarSection,
+    /// Navigate to previous sidebar section
+    NavigateSidebarPrev,
+    /// Navigate to next sidebar section
+    NavigateSidebarNext,
     /// Custom action (stored as string)
     Custom(String),
 }
@@ -291,6 +299,10 @@ impl fmt::Display for KeybindingAction {
             KeybindingAction::PageUp => write!(f, "page_up"),
             KeybindingAction::PageDown => write!(f, "page_down"),
             KeybindingAction::ToggleTerminal => write!(f, "toggle_terminal"),
+            KeybindingAction::ToggleSidebar => write!(f, "toggle_sidebar"),
+            KeybindingAction::ToggleSidebarSection => write!(f, "toggle_sidebar_section"),
+            KeybindingAction::NavigateSidebarPrev => write!(f, "navigate_sidebar_prev"),
+            KeybindingAction::NavigateSidebarNext => write!(f, "navigate_sidebar_next"),
             KeybindingAction::Custom(s) => write!(f, "custom:{}", s),
         }
     }
@@ -409,6 +421,34 @@ impl DefaultKeybindings {
                 code: KeyCode::Char('t'),
             },
         );
+        map.insert(
+            KeybindingAction::ToggleSidebar,
+            Key {
+                modifiers: KeyModifiers::CONTROL | KeyModifiers::SHIFT,
+                code: KeyCode::Char('b'),
+            },
+        );
+        map.insert(
+            KeybindingAction::ToggleSidebarSection,
+            Key {
+                modifiers: KeyModifiers::CONTROL | KeyModifiers::SHIFT,
+                code: KeyCode::Char('h'),
+            },
+        );
+        map.insert(
+            KeybindingAction::NavigateSidebarPrev,
+            Key {
+                modifiers: KeyModifiers::CONTROL | KeyModifiers::ALT,
+                code: KeyCode::Left,
+            },
+        );
+        map.insert(
+            KeybindingAction::NavigateSidebarNext,
+            Key {
+                modifiers: KeyModifiers::CONTROL | KeyModifiers::ALT,
+                code: KeyCode::Right,
+            },
+        );
         map
     }
 }
@@ -450,6 +490,14 @@ pub struct KeybindingConfig {
     pub page_down: Option<String>,
     /// Toggle terminal keybinding
     pub toggle_terminal: Option<String>,
+    /// Toggle sidebar keybinding
+    pub toggle_sidebar: Option<String>,
+    /// Toggle sidebar section keybinding
+    pub toggle_sidebar_section: Option<String>,
+    /// Navigate sidebar previous keybinding
+    pub navigate_sidebar_prev: Option<String>,
+    /// Navigate sidebar next keybinding
+    pub navigate_sidebar_next: Option<String>,
 }
 
 impl Default for KeybindingConfig {
@@ -472,6 +520,10 @@ impl Default for KeybindingConfig {
             page_up: None,
             page_down: None,
             toggle_terminal: None,
+            toggle_sidebar: None,
+            toggle_sidebar_section: None,
+            navigate_sidebar_prev: None,
+            navigate_sidebar_next: None,
         }
     }
 }
@@ -600,15 +652,14 @@ impl KeybindingRegistry {
     }
 
     /// Get the key for a specific action, considering custom overrides
-    pub fn get_key(&self, action: &KeybindingAction) -> Option<&Key> {
+    pub fn get_key(&self, action: &KeybindingAction) -> Option<Key> {
         // Check if there's a custom override for this action
-        let custom_key = self.get_custom_key(action);
-        if custom_key.is_some() {
-            return custom_key;
+        if let Some(key) = self.get_custom_key(action) {
+            return Some(key.clone());
         }
 
         // Fall back to default
-        self.bindings.get(action)
+        self.bindings.get(action).cloned()
     }
 
     /// Get custom key for an action
@@ -632,6 +683,16 @@ impl KeybindingRegistry {
             KeybindingAction::PageDown => self.custom_config.page_down.as_ref(),
             KeybindingAction::ToggleTerminal => self.custom_config.toggle_terminal.as_ref(),
             KeybindingAction::ToggleFullscreen => None,
+            KeybindingAction::ToggleSidebar => self.custom_config.toggle_sidebar.as_ref(),
+            KeybindingAction::ToggleSidebarSection => {
+                self.custom_config.toggle_sidebar_section.as_ref()
+            }
+            KeybindingAction::NavigateSidebarPrev => {
+                self.custom_config.navigate_sidebar_prev.as_ref()
+            }
+            KeybindingAction::NavigateSidebarNext => {
+                self.custom_config.navigate_sidebar_next.as_ref()
+            }
             KeybindingAction::Custom(_) => None,
         };
 
@@ -643,9 +704,9 @@ impl KeybindingRegistry {
     /// Get the action associated with a key
     pub fn get_action(&self, key: &Key) -> Option<KeybindingAction> {
         // Check custom bindings first
-        for (action, _) in &self.custom_config_iter() {
+        for (action, _) in self.custom_config_iter() {
             if let Some(custom_key) = self.get_custom_key(action) {
-                if &custom_key == key {
+                if custom_key == *key {
                     return Some(action.clone());
                 }
             }
@@ -719,6 +780,22 @@ impl KeybindingRegistry {
                 &KeybindingAction::ToggleTerminal,
                 &self.custom_config.toggle_terminal,
             ),
+            (
+                &KeybindingAction::ToggleSidebar,
+                &self.custom_config.toggle_sidebar,
+            ),
+            (
+                &KeybindingAction::ToggleSidebarSection,
+                &self.custom_config.toggle_sidebar_section,
+            ),
+            (
+                &KeybindingAction::NavigateSidebarPrev,
+                &self.custom_config.navigate_sidebar_prev,
+            ),
+            (
+                &KeybindingAction::NavigateSidebarNext,
+                &self.custom_config.navigate_sidebar_next,
+            ),
         ]
         .into_iter()
     }
@@ -750,6 +827,10 @@ impl KeybindingRegistry {
                 KeybindingAction::PageUp => "Page up",
                 KeybindingAction::PageDown => "Page down",
                 KeybindingAction::ToggleTerminal => "Toggle terminal",
+                KeybindingAction::ToggleSidebar => "Toggle sidebar",
+                KeybindingAction::ToggleSidebarSection => "Toggle sidebar section",
+                KeybindingAction::NavigateSidebarPrev => "Navigate sidebar previous",
+                KeybindingAction::NavigateSidebarNext => "Navigate sidebar next",
                 KeybindingAction::Custom(s) => s.as_str(),
             };
 
@@ -961,9 +1042,10 @@ mod tests {
         // Should get custom key
         let key = registry.get_key(&KeybindingAction::CommandPalette);
         assert!(key.is_some());
-        assert!(key.unwrap().modifiers.contains(KeyModifiers::CONTROL));
-        assert!(key.unwrap().modifiers.contains(KeyModifiers::SHIFT));
-        assert_eq!(key.unwrap().code, KeyCode::Char('P'));
+        let key = key.unwrap();
+        assert!(key.modifiers.contains(KeyModifiers::CONTROL));
+        assert!(key.modifiers.contains(KeyModifiers::SHIFT));
+        assert_eq!(key.code, KeyCode::Char('P'));
     }
 
     #[test]

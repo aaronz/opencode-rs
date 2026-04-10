@@ -1,5 +1,9 @@
 use std::collections::HashMap;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
+
+use crate::plugin_api::{
+    CommandContext, CommandResult, PluginCommand, PluginCommandError, PluginCommandRegistry,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PluginLifecycleState {
@@ -23,6 +27,7 @@ pub struct TuiPluginEntry {
 pub struct TuiPluginManager {
     plugins: RwLock<HashMap<String, TuiPluginEntry>>,
     master_enabled: RwLock<bool>,
+    command_registry: Arc<PluginCommandRegistry>,
 }
 
 impl TuiPluginManager {
@@ -30,6 +35,7 @@ impl TuiPluginManager {
         Self {
             plugins: RwLock::new(HashMap::new()),
             master_enabled: RwLock::new(true),
+            command_registry: Arc::new(PluginCommandRegistry::new()),
         }
     }
 
@@ -153,8 +159,41 @@ impl TuiPluginManager {
             .unwrap_or(false)
     }
 
+    pub fn command_registry(&self) -> Arc<PluginCommandRegistry> {
+        Arc::clone(&self.command_registry)
+    }
+
+    pub fn register_plugin_command<C: PluginCommand + 'static>(
+        &self,
+        plugin_id: &str,
+        command: C,
+    ) -> Result<(), PluginCommandError> {
+        if !self.plugins.read().unwrap().contains_key(plugin_id) {
+            return Err(PluginCommandError::PluginNotFound(plugin_id.to_string()));
+        }
+        self.command_registry.register_command(plugin_id, command)
+    }
+
+    pub fn unregister_plugin_commands(&self, plugin_id: &str) {
+        self.command_registry.unregister_plugin_commands(plugin_id);
+    }
+
+    pub fn execute_plugin_command(
+        &self,
+        plugin_id: &str,
+        command_name: &str,
+        ctx: &CommandContext,
+    ) -> Result<CommandResult, PluginCommandError> {
+        self.command_registry.execute(plugin_id, command_name, ctx)
+    }
+
+    pub fn list_plugin_commands(&self) -> Vec<crate::plugin_api::RegisteredCommand> {
+        self.command_registry.list_commands()
+    }
+
     pub fn clear(&self) {
         self.plugins.write().unwrap().clear();
+        self.command_registry.clear();
     }
 }
 

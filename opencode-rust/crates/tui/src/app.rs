@@ -1,7 +1,7 @@
 use crate::command::{CommandAction, CommandRegistry};
 use crate::components::{
-    FileTree, InputWidget, SkillInfo, SkillsPanel, StatusBar, StatusPopoverType, TerminalPanel,
-    TitleBar, TitleBarAction,
+    FileTree, InputWidget, Sidebar, SkillInfo, SkillsPanel, StatusBar, StatusPopoverType,
+    TerminalPanel, TitleBar, TitleBarAction,
 };
 use crate::config::{Config, DiffStyle, UserConfig};
 use crate::dialogs::*;
@@ -468,6 +468,9 @@ pub struct App {
     pub file_tree: Option<FileTree>,
     pub show_file_tree: bool,
     pub layout_manager: LayoutManager,
+    pub sidebar: Sidebar,
+    pub show_sidebar: bool,
+    sidebar_file: std::path::PathBuf,
     pub right_panel: RightPanel,
     pub patch_preview: PatchPreview,
     pub title_bar: TitleBar,
@@ -549,6 +552,13 @@ impl App {
         let layout_file = config_dir.join("layout.txt");
         let layout_manager = LayoutManager::load_from_file(&layout_file).unwrap_or_default();
 
+        let sidebar_file = config_dir.join("sidebar.json");
+        let sidebar = {
+            let mut sidebar = Sidebar::new(theme.clone());
+            let _ = sidebar.load_from_file(&sidebar_file);
+            sidebar
+        };
+
         let session_token_id = uuid::Uuid::new_v4().to_string();
         let mut token_counter = TokenCounter::new();
         token_counter.set_active_session(session_token_id.clone());
@@ -614,8 +624,11 @@ impl App {
             release_notes_dialog: ReleaseNotesDialog::new(theme.clone()),
             file_tree: None,
             show_file_tree: false,
-            right_panel: RightPanel::new(theme.clone()),
             layout_manager,
+            sidebar,
+            show_sidebar: true,
+            sidebar_file,
+            right_panel: RightPanel::new(theme.clone()),
             patch_preview: PatchPreview::new(),
             title_bar: TitleBar::new(theme.clone()),
             show_title_bar: true,
@@ -1346,7 +1359,7 @@ impl App {
                                 self.input_widget
                                     .typewriter_state
                                     .as_mut()
-                                    .map(|s| s.append(&chunk));
+                                    .map(|s: &mut crate::components::input_widget::TypewriterState| s.append(&chunk));
                             }
                             self.update_partial_response(chunk);
                         }
@@ -2633,6 +2646,49 @@ OpenCode Agent Configuration
                     {
                         self.toggle_file_tree();
                     }
+                    KeyCode::Char('b')
+                        if key.modifiers.contains(KeyModifiers::CONTROL)
+                            && key.modifiers.contains(KeyModifiers::SHIFT) =>
+                    {
+                        self.sidebar.toggle_collapse();
+                        let _ = self.sidebar.save_to_file(&self.sidebar_file);
+                        let msg = if self.sidebar.collapsed {
+                            "Sidebar collapsed"
+                        } else {
+                            "Sidebar expanded"
+                        };
+                        self.add_message(msg.to_string(), false);
+                    }
+                    KeyCode::Char('h')
+                        if key.modifiers.contains(KeyModifiers::CONTROL)
+                            && key.modifiers.contains(KeyModifiers::SHIFT) =>
+                    {
+                        self.sidebar.toggle_active_collapse();
+                        let _ = self.sidebar.save_to_file(&self.sidebar_file);
+                        let section = self.sidebar.active_section();
+                        let msg = format!(
+                            "{} section {}",
+                            section.title(),
+                            if section.collapsed { "collapsed" } else { "expanded" }
+                        );
+                        self.add_message(msg, false);
+                    }
+                    KeyCode::Left if key.modifiers.contains(KeyModifiers::CONTROL | KeyModifiers::ALT) => {
+                        self.sidebar.prev_section();
+                        let _ = self.sidebar.save_to_file(&self.sidebar_file);
+                        self.add_message(
+                            format!("Sidebar section: {}", self.sidebar.active_section().title()),
+                            false,
+                        );
+                    }
+                    KeyCode::Right if key.modifiers.contains(KeyModifiers::CONTROL | KeyModifiers::ALT) => {
+                        self.sidebar.next_section();
+                        let _ = self.sidebar.save_to_file(&self.sidebar_file);
+                        self.add_message(
+                            format!("Sidebar section: {}", self.sidebar.active_section().title()),
+                            false,
+                        );
+                    }
                     KeyCode::Char('h') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         self.title_bar.toggle_dropdown();
                     }
@@ -3615,7 +3671,24 @@ OpenCode Agent Configuration
 
         let proportions = self.layout_manager.get_proportions();
 
-        let main_area = if self.show_file_tree {
+        let main_area = if self.show_sidebar && !self.sidebar.collapsed {
+            let sidebar_width =
+                ((main_area.width as u32 * proportions.sidebar_width as u32) / 100) as u16;
+            let sidebar_width = sidebar_width.max(20).min(40);
+            let sidebar_area = Rect::new(
+                main_area.x,
+                main_area.y,
+                sidebar_width,
+                main_area.height.saturating_sub(1),
+            );
+            self.sidebar.draw(f, sidebar_area);
+            Rect::new(
+                main_area.x + sidebar_width,
+                main_area.y,
+                main_area.width - sidebar_width,
+                main_area.height,
+            )
+        } else if self.show_file_tree {
             let file_tree_width =
                 ((main_area.width as u32 * proportions.sidebar_width as u32) / 100) as u16;
             let file_tree_width = file_tree_width.max(20).min(40);

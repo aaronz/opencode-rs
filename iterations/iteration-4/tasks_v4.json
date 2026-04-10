@@ -682,7 +682,7 @@
       "priority": "P1",
       "title": "Sidebar sections",
       "description": "Implement collapsible sidebar sections in the TUI. Sections should be toggleable and remember their state.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "Sidebar sections are collapsible",
         "Section state is persisted",
@@ -699,7 +699,7 @@
       "priority": "P1",
       "title": "TUI plugin commands API",
       "description": "Implement the TUI plugin commands API. Plugins should be able to register commands that appear in the TUI command palette.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "Plugins can register commands via API",
         "Registered commands appear in command palette",
