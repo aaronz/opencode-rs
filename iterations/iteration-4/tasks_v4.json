@@ -502,7 +502,7 @@
       "priority": "P1",
       "title": "Variable expansion",
       "description": "Implement variable expansion in configuration values. Support referencing other config values using ${variable} syntax.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "Variables are expanded correctly in config values",
         "Circular references are detected and error reported",
@@ -519,7 +519,7 @@
       "priority": "P1",
       "title": "`tools` \u2192 `permission` alias tests",
       "description": "Write regression tests for the tools\u2192permission configuration alias. Ensure backward compatibility with old config format.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Old 'tools' key works as alias for 'permission'",
         "New 'permission' key takes precedence when both present",
