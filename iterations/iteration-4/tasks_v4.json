@@ -152,7 +152,7 @@
       "priority": "P0",
       "title": "Custom tool registration with ToolRegistry",
       "description": "Implement custom tool registration system using ToolRegistry. Tools should be discoverable, registerable, and executable through the registry.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Tools can be registered with unique names",
         "Registered tools can be looked up and executed",

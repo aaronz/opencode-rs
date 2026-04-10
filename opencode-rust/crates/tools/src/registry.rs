@@ -277,4 +277,154 @@ mod tests {
             .expect("tool should be listed");
         assert!(!entry.2);
     }
+
+    #[derive(Clone)]
+    struct TestToolWithArgs;
+
+    #[async_trait]
+    impl Tool for TestToolWithArgs {
+        fn name(&self) -> &str {
+            "test_tool_with_args"
+        }
+
+        fn description(&self) -> &str {
+            "Test tool with arguments"
+        }
+
+        fn clone_tool(&self) -> Box<dyn Tool> {
+            Box::new(self.clone())
+        }
+
+        async fn execute(
+            &self,
+            args: serde_json::Value,
+            _ctx: Option<ToolContext>,
+        ) -> Result<ToolResult, OpenCodeError> {
+            let input = args.get("input").and_then(|v| v.as_str()).unwrap_or("");
+            Ok(ToolResult::ok(format!("received: {}", input)))
+        }
+    }
+
+    #[tokio::test]
+    async fn test_register_and_lookup_tool() {
+        let registry = ToolRegistry::new();
+        registry.register(TestTool).await;
+
+        let tool = registry.get("test_tool").await;
+        assert!(tool.is_some(), "Registered tool should be findable by name");
+
+        let tool = registry.get("nonexistent").await;
+        assert!(tool.is_none(), "Nonexistent tool should return None");
+    }
+
+    #[tokio::test]
+    async fn test_register_multiple_unique_tools() {
+        #[derive(Clone)]
+        struct ToolA;
+        #[async_trait]
+        impl Tool for ToolA {
+            fn name(&self) -> &str { "tool_a" }
+            fn description(&self) -> &str { "Tool A" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("a"))
+            }
+        }
+
+        #[derive(Clone)]
+        struct ToolB;
+        #[async_trait]
+        impl Tool for ToolB {
+            fn name(&self) -> &str { "tool_b" }
+            fn description(&self) -> &str { "Tool B" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("b"))
+            }
+        }
+
+        let registry = ToolRegistry::new();
+        registry.register(ToolA).await;
+        registry.register(ToolB).await;
+
+        let tools = registry.list_filtered(None).await;
+        let names: Vec<&str> = tools.iter().map(|(n, _, _)| n.as_str()).collect();
+        assert!(names.contains(&"tool_a"), "tool_a should be registered");
+        assert!(names.contains(&"tool_b"), "tool_b should be registered");
+    }
+
+    #[tokio::test]
+    async fn test_tool_execution_with_arguments() {
+        let registry = ToolRegistry::new();
+        registry.register(TestToolWithArgs).await;
+
+        let result = registry
+            .execute("test_tool_with_args", serde_json::json!({"input": "hello"}), None)
+            .await;
+
+        assert!(result.is_ok(), "Tool should execute successfully");
+        let result = result.unwrap();
+        assert!(result.success);
+        assert_eq!(result.content, "received: hello");
+    }
+
+    #[tokio::test]
+    async fn test_tool_lifecycle_full() {
+        let mut registry = ToolRegistry::new();
+
+        // Register
+        registry.register(TestTool).await;
+
+        // Lookup
+        let tool = registry.get("test_tool").await;
+        assert!(tool.is_some(), "Tool should be findable after registration");
+
+        // Execute
+        let result = registry
+            .execute("test_tool", serde_json::json!({}), None)
+            .await;
+        assert!(result.is_ok(), "Tool should execute after registration");
+
+        // Disable
+        registry.set_disabled(HashSet::from(["test_tool".to_string()]));
+
+        // Verify disabled
+        let result = registry
+            .execute("test_tool", serde_json::json!({}), None)
+            .await;
+        assert!(result.is_err(), "Disabled tool should return error");
+    }
+
+    #[tokio::test]
+    async fn test_get_with_status() {
+        let mut registry = ToolRegistry::new();
+        registry.register(TestTool).await;
+
+        let Some((_, disabled)) = registry.get_with_status("test_tool").await else {
+            panic!("Tool should be returned");
+        };
+        assert!(!disabled, "Tool should not be disabled by default");
+
+        registry.set_disabled(HashSet::from(["test_tool".to_string()]));
+        let Some((_, disabled)) = registry.get_with_status("test_tool").await else {
+            panic!("Tool should still be returned");
+        };
+        assert!(disabled, "Tool should be marked as disabled");
+    }
+
+    #[tokio::test]
+    async fn test_tool_not_found_error() {
+        let registry = ToolRegistry::new();
+
+        let result = registry
+            .execute("nonexistent_tool", serde_json::json!({}), None)
+            .await;
+
+        match result {
+            Err(OpenCodeError::Tool(msg)) => {
+                assert!(msg.contains("not found"), "Error should indicate tool not found");
+            }
+            other => panic!("Expected tool not found error, got {:?}", other),
+        }
+    }
 }

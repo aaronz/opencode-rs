@@ -26,7 +26,7 @@
 | P0-1 | Exactly one active primary agent invariant | agent | FR-005 | Sprint 2 | Done | None |
 | P0-2 | Subagent execution (child context, result handoff) | agent | FR-005 | Sprint 2 | Done | P0-1 |
 | P0-3 | Task/delegation mechanism | agent | FR-005 | Sprint 2 | Done | P0-2 |
-| P0-4 | Custom tool registration with ToolRegistry | tools | FR-006, FR-007 | Sprint 0 | Pending | P0-5 |
+| P0-4 | Custom tool registration with ToolRegistry | tools | FR-006, FR-007 | Sprint 0 | Done | P0-5 |
 | P0-5 | Custom tool discovery format (.ts/.js) | tools | FR-007 | Sprint 0 | Pending | None |
 | P0-16 | Plugin hook execution order (HashMap → IndexMap) | plugin | FR-008 | Sprint 0 | Pending | None |
 | P0-17 | Plugin-provided tool registration | plugin | FR-008 | Sprint 2 | Pending | P0-16 |
