@@ -114,7 +114,7 @@ impl McpRegistry {
                 .unwrap_or(false);
 
             for tool in tools {
-                let adapter = McpToolAdapter::new(client.clone(), tool.clone())
+                let adapter = McpToolAdapter::new(client.clone(), tool.clone(), server_name)
                     .with_requires_approval(requires_approval);
                 adapter.register_into(tool_registry);
             }
@@ -287,7 +287,7 @@ mod tests {
         let mut tool_registry = ToolRegistry::new();
         registry.bridge_to_tool_registry(&mut tool_registry);
 
-        assert!(tool_registry.contains("search_docs"));
+        assert!(tool_registry.contains("mock_search_docs"));
     }
 
     #[tokio::test]
@@ -336,7 +336,7 @@ mod tests {
         let mut tool_registry = ToolRegistry::new();
         registry.bridge_to_tool_registry(&mut tool_registry);
 
-        let def = tool_registry.get("remote_tool").unwrap();
+        let def = tool_registry.get("remote-server_remote_tool").unwrap();
         assert!(
             def.requires_approval,
             "Remote MCP tools should require approval by default"
@@ -392,7 +392,7 @@ mod tests {
         let mut tool_registry = ToolRegistry::new();
         registry.bridge_to_tool_registry(&mut tool_registry);
 
-        let def = tool_registry.get("local_tool").unwrap();
+        let def = tool_registry.get("local-server_local_tool").unwrap();
         assert!(
             !def.requires_approval,
             "Local MCP tools with Allow permission should not require approval"
@@ -509,21 +509,21 @@ mod tests {
         let mut tool_registry = ToolRegistry::new();
         registry.bridge_to_tool_registry(&mut tool_registry);
 
-        assert!(tool_registry.contains("search_docs"));
-        assert!(tool_registry.contains("list_files"));
-        assert!(tool_registry.contains("remote_search"));
+        assert!(tool_registry.contains("docs-server_search_docs"));
+        assert!(tool_registry.contains("docs-server_list_files"));
+        assert!(tool_registry.contains("remote-server_remote_search"));
 
-        let executor = tool_registry.get_executor("search_docs");
+        let executor = tool_registry.get_executor("docs-server_search_docs");
         assert!(executor.is_some());
 
-        let local_def = tool_registry.get("search_docs");
+        let local_def = tool_registry.get("docs-server_search_docs");
         assert!(local_def.is_some());
         assert!(
             !local_def.unwrap().requires_approval,
             "Local MCP tools should not require approval"
         );
 
-        let remote_def = tool_registry.get("remote_search");
+        let remote_def = tool_registry.get("remote-server_remote_search");
         assert!(remote_def.is_some());
         assert!(
             remote_def.unwrap().requires_approval,

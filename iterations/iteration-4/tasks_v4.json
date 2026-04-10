@@ -456,7 +456,7 @@
       "test_commands": [
         "cargo test -p opencode-agent -- permission_inheritance"
       ],
-      "impl_notes": "Added AgentPermissionScope enum to permission crate. AgentRuntime tracks permission_scope in RuntimeConfig. invoke_subagent computes effective_scope = parent_scope ∩ subagent_scope. ToolContext passes permission_scope to tools. 6 tests verify inheritance behavior.",
+      "impl_notes": "Added AgentPermissionScope enum to permission crate. AgentRuntime tracks permission_scope in RuntimeConfig. invoke_subagent computes effective_scope = parent_scope \u2229 subagent_scope. ToolContext passes permission_scope to tools. 6 tests verify inheritance behavior.",
       "dependencies": [
         "P0-2"
       ]
@@ -466,16 +466,16 @@
       "priority": "P1",
       "title": "MCP tool qualification",
       "description": "Implement proper qualification of MCP tools. Tools from MCP servers should be properly namespaced and qualified to avoid conflicts.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "MCP tools are properly qualified with server prefix",
         "Tool name conflicts are handled correctly",
         "Qualification follows established naming conventions"
       ],
       "test_commands": [
-        "cargo test -p opencode-tools -- mcp_qualification"
+        "cargo test -p opencode-mcp -- tool_bridge"
       ],
-      "impl_notes": "Build on MCP tool discovery (P0-8).",
+      "impl_notes": "Added server_name field to McpToolAdapter. Tools are now qualified with {server_name}_{tool_name} format. McpRegistry::bridge_to_tool_registry passes server name to adapter. Integration::register_mcp_tools accepts server_name parameter. 5 new tests verify qualification, collision handling, and naming convention.",
       "dependencies": [
         "P0-8"
       ]

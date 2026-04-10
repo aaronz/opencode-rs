@@ -5,7 +5,11 @@ use opencode_core::ToolRegistry;
 use crate::client::McpClient;
 use crate::tool_bridge::McpToolAdapter;
 
-pub fn register_mcp_tools(client: &McpClient, registry: &mut ToolRegistry) {
+pub fn register_mcp_tools(
+    client: &McpClient,
+    server_name: &str,
+    registry: &mut ToolRegistry,
+) {
     let client = client.clone();
     let tools = match run_async(async { client.list_tools().await }) {
         Ok(tools) => tools,
@@ -13,7 +17,8 @@ pub fn register_mcp_tools(client: &McpClient, registry: &mut ToolRegistry) {
     };
 
     for tool in tools {
-        let adapter = McpToolAdapter::new(std::sync::Arc::new(client.clone()), tool);
+        let adapter =
+            McpToolAdapter::new(std::sync::Arc::new(client.clone()), tool, server_name);
         adapter.register_into(registry);
     }
 }
