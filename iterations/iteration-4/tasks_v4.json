@@ -502,7 +502,7 @@
       "priority": "P1",
       "title": "Variable expansion",
       "description": "Implement variable expansion in configuration values. Support referencing other config values using ${variable} syntax.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "Variables are expanded correctly in config values",
         "Circular references are detected and error reported",

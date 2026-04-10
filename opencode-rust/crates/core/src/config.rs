@@ -1,4 +1,5 @@
 use crate::tool_config::ToolConfig;
+use crate::OpenCodeError;
 use chrono::{DateTime, Duration, Utc};
 use reqwest::header::{CACHE_CONTROL, ETAG, IF_MODIFIED_SINCE, IF_NONE_MATCH, LAST_MODIFIED};
 use serde::{Deserialize, Serialize};
@@ -1291,16 +1292,19 @@ impl Config {
         Ok(config)
     }
 
-    /// Parse JSON content with JSONC fallback (handles comments)
     fn parse_json_content(content: &str) -> Result<Self, crate::OpenCodeError> {
         use crate::config::jsonc;
 
-        if let Ok(config) = serde_json::from_str::<Config>(content) {
-            return Ok(config);
-        }
+        let value = if let Ok(v) = serde_json::from_str::<serde_json::Value>(content) {
+            v
+        } else {
+            let stripped = jsonc::strip_jsonc_comments(content);
+            serde_json::from_str(&stripped).map_err(|e| crate::OpenCodeError::Config(e.to_string()))?
+        };
 
-        let stripped = jsonc::strip_jsonc_comments(content);
-        serde_json::from_str(&stripped).map_err(|e| crate::OpenCodeError::Config(e.to_string()))
+        let mut value = value;
+        Self::expand_variables(&mut value).map_err(|e| crate::OpenCodeError::Config(e.to_string()))?;
+        serde_json::from_value(value).map_err(|e| crate::OpenCodeError::Config(e.to_string()))
     }
 
     /// Substitute {env:VAR} and {file:path} patterns in config content.
@@ -1359,6 +1363,121 @@ impl Config {
         }
 
         result
+    }
+
+    pub fn expand_variables(value: &mut serde_json::Value) -> Result<(), OpenCodeError> {
+        let config_values = Self::collect_config_values(value);
+        Self::expand_variables_inner(value, &config_values, &mut std::collections::HashSet::new())
+    }
+
+    fn collect_config_values(value: &serde_json::Value) -> std::collections::HashMap<String, serde_json::Value> {
+        let mut map = std::collections::HashMap::new();
+        Self::collect_values_recursive(value, String::new(), &mut map);
+        map
+    }
+
+    fn collect_values_recursive(value: &serde_json::Value, prefix: String, map: &mut std::collections::HashMap<String, serde_json::Value>) {
+        match value {
+            serde_json::Value::Object(obj) => {
+                for (key, val) in obj {
+                    let new_prefix = if prefix.is_empty() {
+                        key.clone()
+                    } else {
+                        format!("{}.{}", prefix, key)
+                    };
+                    Self::collect_values_recursive(val, new_prefix, map);
+                }
+            }
+            serde_json::Value::Array(arr) => {
+                for (i, val) in arr.iter().enumerate() {
+                    let new_prefix = format!("{}[{}]", prefix, i);
+                    Self::collect_values_recursive(val, new_prefix, map);
+                }
+            }
+            _ => {
+                map.insert(prefix, value.clone());
+            }
+        }
+    }
+
+    fn expand_variables_inner(
+        value: &mut serde_json::Value,
+        config_values: &std::collections::HashMap<String, serde_json::Value>,
+        visited: &mut std::collections::HashSet<String>,
+    ) -> Result<(), OpenCodeError> {
+        match value {
+            serde_json::Value::String(s) => Self::expand_string_variable(s, config_values, visited),
+            serde_json::Value::Object(obj) => {
+                for (_, v) in obj {
+                    Self::expand_variables_inner(v, config_values, visited)?;
+                }
+                Ok(())
+            }
+            serde_json::Value::Array(arr) => {
+                for v in arr {
+                    Self::expand_variables_inner(v, config_values, visited)?;
+                }
+                Ok(())
+            }
+            _ => Ok(()),
+        }
+    }
+
+    fn expand_string_variable(
+        s: &mut String,
+        config_values: &std::collections::HashMap<String, serde_json::Value>,
+        visited: &mut std::collections::HashSet<String>,
+    ) -> Result<(), OpenCodeError> {
+        while let Some(start) = s.find("${") {
+            if let Some(end) = s[start..].find('}') {
+                let var_name = s[start + 2..start + end].to_string();
+
+                if visited.contains(&var_name) {
+                    return Err(OpenCodeError::ConfigInvalid(format!(
+                        "Circular config variable reference: ${}",
+                        var_name
+                    )));
+                }
+
+                let var_value = config_values.get(&var_name).ok_or_else(|| {
+                    OpenCodeError::ConfigInvalid(format!(
+                        "Undefined config variable: ${}",
+                        var_name
+                    ))
+                })?;
+
+                visited.insert(var_name.clone());
+
+                let replacement = match var_value {
+                    serde_json::Value::String(v) => v.clone(),
+                    serde_json::Value::Number(n) => n.to_string(),
+                    serde_json::Value::Bool(b) => b.to_string(),
+                    serde_json::Value::Null => String::new(),
+                    _ => {
+                        visited.remove(&var_name);
+                        let type_name = match var_value {
+                            serde_json::Value::Object(_) => "object",
+                            serde_json::Value::Array(_) => "array",
+                            serde_json::Value::Null => "null",
+                            _ => "unknown",
+                        };
+                        return Err(OpenCodeError::ConfigInvalid(format!(
+                            "Config variable ${} does not resolve to a string (got {})",
+                            var_name,
+                            type_name
+                        )));
+                    }
+                };
+
+                let end_pos = start + end + 1;
+                s.replace_range(start..end_pos, &replacement);
+
+                visited.remove(&var_name);
+            } else {
+                break;
+            }
+        }
+        Ok(())
     }
 
     fn resolve_file_variable_path(file_path: &str, config_dir: Option<&Path>) -> Option<PathBuf> {
@@ -3117,6 +3236,128 @@ mod tests {
         assert_eq!(result, "value1 and value2");
         remove_env("VAR1");
         remove_env("VAR2");
+    }
+
+    #[test]
+    fn test_variable_expansion_basic() {
+        let mut value = serde_json::json!({
+            "model": "openai/gpt-4o",
+            "api_key": "${model}"
+        });
+        let result = Config::expand_variables(&mut value);
+        assert!(result.is_ok());
+        assert_eq!(value["api_key"], "openai/gpt-4o");
+    }
+
+    #[test]
+    fn test_variable_expansion_nested() {
+        let mut value = serde_json::json!({
+            "a": "first",
+            "b": "${a}",
+            "c": "${b}"
+        });
+        let result = Config::expand_variables(&mut value);
+        assert!(result.is_ok());
+        assert_eq!(value["c"], "first");
+    }
+
+    #[test]
+    fn test_variable_expansion_circular_reference() {
+        let mut value = serde_json::json!({
+            "a": "${b}",
+            "b": "${a}"
+        });
+        let result = Config::expand_variables(&mut value);
+        assert!(result.is_err());
+        let err_msg = format!("{}", result.unwrap_err());
+        assert!(err_msg.contains("Circular"));
+        assert!(err_msg.contains("a") || err_msg.contains("b"));
+    }
+
+    #[test]
+    fn test_variable_expansion_self_reference() {
+        let mut value = serde_json::json!({
+            "name": "${name}"
+        });
+        let result = Config::expand_variables(&mut value);
+        assert!(result.is_err());
+        let err_msg = format!("{}", result.unwrap_err());
+        assert!(err_msg.contains("Circular"));
+    }
+
+    #[test]
+    fn test_variable_expansion_undefined_variable() {
+        let mut value = serde_json::json!({
+            "key": "${undefined_var}"
+        });
+        let result = Config::expand_variables(&mut value);
+        assert!(result.is_err());
+        let err_msg = format!("{}", result.unwrap_err());
+        assert!(err_msg.contains("Undefined"));
+        assert!(err_msg.contains("undefined_var"));
+    }
+
+    #[test]
+    fn test_variable_expansion_multiple_in_string() {
+        let mut value = serde_json::json!({
+            "host": "example.com",
+            "url": "https://${host}/api"
+        });
+        let result = Config::expand_variables(&mut value);
+        assert!(result.is_ok());
+        assert_eq!(value["url"], "https://example.com/api");
+    }
+
+    #[test]
+    fn test_variable_expansion_in_array() {
+        let mut value = serde_json::json!({
+            "base": "value",
+            "items": ["${base}", "other", "${base}"]
+        });
+        let result = Config::expand_variables(&mut value);
+        assert!(result.is_ok());
+        assert_eq!(value["items"][0], "value");
+        assert_eq!(value["items"][1], "other");
+        assert_eq!(value["items"][2], "value");
+    }
+
+    #[test]
+    fn test_variable_expansion_in_nested_object() {
+        let mut value = serde_json::json!({
+            "outer": {
+                "inner": {
+                    "ref": "${outer.inner.value}"
+                },
+                "value": "deep"
+            }
+        });
+        let result = Config::expand_variables(&mut value);
+        assert!(result.is_ok());
+        assert_eq!(value["outer"]["inner"]["ref"], "deep");
+    }
+
+    #[test]
+    fn test_variable_expansion_non_string_no_change() {
+        let mut value = serde_json::json!({
+            "number": 42,
+            "bool": true,
+            "null": null
+        });
+        let result = Config::expand_variables(&mut value);
+        assert!(result.is_ok());
+        assert_eq!(value["number"], 42);
+        assert_eq!(value["bool"], true);
+        assert_eq!(value["null"], serde_json::Value::Null);
+    }
+
+    #[test]
+    fn test_variable_expansion_partial_string_preserved() {
+        let mut value = serde_json::json!({
+            "prefix": "before-${model}-after"
+        });
+        let result = Config::expand_variables(&mut value);
+        assert!(result.is_ok());
+        assert_eq!(value["prefix"], "before-openai/gpt-4o-after");
     }
 
     #[test]
