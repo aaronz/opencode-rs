@@ -1076,6 +1076,11 @@ impl ThemeConfig {
 ///
 /// This is a master switch for the entire TUI plugin subsystem.
 ///
+/// # Per-Plugin Enabled State
+///
+/// The `plugins` field allows enabling or disabling specific plugins at runtime.
+/// This is a map from plugin ID to boolean enabled state.
+///
 /// # Examples
 ///
 /// ```json
@@ -1086,6 +1091,17 @@ impl ThemeConfig {
 ///
 /// With `plugin_enabled: false`, no TUI plugins will be loaded regardless of their
 /// individual plugin configurations.
+///
+/// ```json
+/// {
+///   "plugin_enabled": true,
+///   "plugins": {
+///     "acme.demo": false
+///   }
+/// }
+/// ```
+///
+/// With `plugin_enabled: true` and per-plugin settings, only `acme.demo` is disabled.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TuiPluginConfig {
     /// Master switch for TUI plugin loading
@@ -1093,6 +1109,12 @@ pub struct TuiPluginConfig {
     /// - `false`: no plugins are loaded at all
     #[serde(default = "default_plugin_enabled", skip_serializing_if = "Option::is_none")]
     pub plugin_enabled: Option<bool>,
+
+    /// Per-plugin enabled state map
+    /// Key is plugin ID, value is whether the plugin is enabled
+    /// If a plugin is not in this map, it defaults to enabled (true)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plugins: Option<std::collections::HashMap<String, bool>>,
 }
 
 fn default_plugin_enabled() -> Option<bool> {

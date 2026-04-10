@@ -32,7 +32,7 @@
 | P0-17 | Plugin-provided tool registration | plugin | FR-008 | Sprint 2 | Done | P0-16 |
 | P0-18 | Plugin config separation | plugin | FR-008 | Sprint 2 | Done | P0-12 |
 | P0-19 | TUI plugin `plugin_enabled` semantics | tui | FR-009 | Sprint 3 | Done | None |
-| P0-20 | TUI plugin activate/deactivate | tui | FR-009 | Sprint 3 | Pending | P0-19 |
+| P0-20 | TUI plugin activate/deactivate | tui | FR-009 | Sprint 3 | Done | P0-19 |
 
 ### Phase 3: Infrastructure Subsystems
 

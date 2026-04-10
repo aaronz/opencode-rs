@@ -260,7 +260,7 @@
       "priority": "P0",
       "title": "TUI plugin activate/deactivate",
       "description": "Implement the TUI plugin activate and deactivate lifecycle. Plugins should be able to be enabled and disabled at runtime.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Plugins can be activated at runtime",
         "Plugins can be deactivated at runtime",

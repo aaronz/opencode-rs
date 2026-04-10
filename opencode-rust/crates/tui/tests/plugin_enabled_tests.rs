@@ -33,6 +33,7 @@ fn test_plugin_enabled_true_allows_loading() {
     let mut tui_config = TuiConfig::default();
     tui_config.plugins = Some(TuiPluginConfig {
         plugin_enabled: Some(true),
+        plugins: None,
     });
     let plugin_enabled = tui_config
         .plugins
@@ -50,6 +51,7 @@ fn test_plugin_enabled_false_prevents_loading() {
     let mut tui_config = TuiConfig::default();
     tui_config.plugins = Some(TuiPluginConfig {
         plugin_enabled: Some(false),
+        plugins: None,
     });
     let plugin_enabled = tui_config
         .plugins
@@ -67,6 +69,7 @@ fn test_plugin_enabled_none_defaults_to_true() {
     let mut tui_config = TuiConfig::default();
     tui_config.plugins = Some(TuiPluginConfig {
         plugin_enabled: None,
+        plugins: None,
     });
     let plugin_enabled = tui_config
         .plugins
@@ -98,6 +101,7 @@ fn test_tui_config_serialization_with_plugin_enabled() {
     let mut tui_config = TuiConfig::default();
     tui_config.plugins = Some(TuiPluginConfig {
         plugin_enabled: Some(false),
+        plugins: None,
     });
 
     let json = serde_json::to_string(&tui_config).unwrap();

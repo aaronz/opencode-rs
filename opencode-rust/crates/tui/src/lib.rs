@@ -9,6 +9,7 @@ pub mod input;
 pub mod input_parser;
 pub mod layout;
 pub mod patch_preview;
+pub mod plugin;
 pub mod render;
 pub mod right_panel;
 pub mod server_protocol;
@@ -37,6 +38,7 @@ pub use input::{
 };
 pub use layout::{LayoutManager, LayoutPreset, LayoutProportions};
 pub use patch_preview::{PatchDecision, PatchPreview};
+pub use plugin::{TuiPluginEntry, TuiPluginError, TuiPluginManager};
 pub use render::{MarkdownRenderer, SyntaxHighlighter};
 pub use right_panel::{RightPanel, RightPanelContent, RightPanelRenderData};
 pub use session::{Session, SessionManager};
