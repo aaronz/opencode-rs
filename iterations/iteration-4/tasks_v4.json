@@ -1,0 +1,1739 @@
+{
+  "tasks": [
+    {
+      "id": "P0-11",
+      "priority": "P0",
+      "title": "Config precedence enforcement",
+      "description": "Implement and enforce the configuration precedence hierarchy where CLI args override env vars which override config files. Need to verify the exact precedence chain is implemented correctly across all configuration sources.",
+      "status": "done",
+      "test_criteria": [
+        "CLI arguments take precedence over environment variables",
+        "Environment variables take precedence over config file values",
+        "Config file values follow the correct precedence chain"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-config",
+        "cargo test --package opencode-config -- precedence"
+      ],
+      "impl_notes": "Check existing config module for current precedence implementation and ensure FR-003 precedence rules are strictly followed.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-12",
+      "priority": "P0",
+      "title": "Config ownership boundary (opencode.json vs tui.json)",
+      "description": "Define and enforce clear ownership boundaries between opencode.json and tui.json configuration files. Determine which settings belong to which file and prevent cross-contamination.",
+      "status": "todo",
+      "test_criteria": [
+        "opencode.json contains only opencode-specific settings",
+        "tui.json contains only TUI-specific settings",
+        "No overlapping configuration keys between the two files"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-config"
+      ],
+      "impl_notes": "Establish clear schema boundaries for each config file type.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-13",
+      "priority": "P0",
+      "title": "Route registration by resource group",
+      "description": "Implement server route registration organized by resource groups. Routes should be grouped by their resource type (sessions, messages, agents, etc.) with proper grouping middleware.",
+      "status": "todo",
+      "test_criteria": [
+        "Routes are registered under appropriate resource groups",
+        "Resource group middleware applies correctly",
+        "API structure follows RESTful grouping conventions"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- route"
+      ],
+      "impl_notes": "Use actix-web scope grouping for resource organization.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-14",
+      "priority": "P0",
+      "title": "Auth enforcement per endpoint",
+      "description": "Implement authentication enforcement at the endpoint level. Each API endpoint should verify auth credentials before processing requests.",
+      "status": "todo",
+      "test_criteria": [
+        "Unauthenticated requests return 401",
+        "Invalid credentials return 401",
+        "Valid credentials allow request to proceed"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- auth"
+      ],
+      "impl_notes": "Use middleware or endpoint guards for auth verification.",
+      "dependencies": [
+        "P0-13"
+      ]
+    },
+    {
+      "id": "P0-15",
+      "priority": "P0",
+      "title": "Session/message lifecycle CRUD",
+      "description": "Implement full CRUD operations for sessions and messages in the server API. Include create, read, update, delete operations with proper validation.",
+      "status": "todo",
+      "test_criteria": [
+        "Sessions can be created, read, updated, deleted via API",
+        "Messages can be created, read, updated, deleted via API",
+        "Proper error handling for invalid operations"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- session",
+        "cargo test -p opencode-server -- message"
+      ],
+      "impl_notes": "Implement RESTful endpoints with proper status codes.",
+      "dependencies": [
+        "P0-13"
+      ]
+    },
+    {
+      "id": "P0-1",
+      "priority": "P0",
+      "title": "Exactly one active primary agent invariant",
+      "description": "Ensure the agent system maintains the invariant that exactly one primary agent is active at any given time. Implement guards to prevent multiple primary agents from being active simultaneously.",
+      "status": "todo",
+      "test_criteria": [
+        "System starts with exactly one primary agent",
+        "Cannot activate a second primary agent while one is running",
+        "Primary agent deactivation properly transitions to next agent"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-agent -- primary_agent",
+        "cargo test -p opencode-agent -- exactly_one"
+      ],
+      "impl_notes": "Use a state machine or ownership tracking to enforce this invariant.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-2",
+      "priority": "P0",
+      "title": "Subagent execution (child context, result handoff)",
+      "description": "Implement subagent execution mechanism where agents can spawn child agents with isolated context and proper result handoff back to parent.",
+      "status": "todo",
+      "test_criteria": [
+        "Subagent can be spawned with isolated context",
+        "Results are properly handed off to parent agent",
+        "Parent context is preserved during subagent execution"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-agent -- subagent"
+      ],
+      "impl_notes": "Implement context isolation and result aggregation mechanisms.",
+      "dependencies": [
+        "P0-1"
+      ]
+    },
+    {
+      "id": "P0-3",
+      "priority": "P0",
+      "title": "Task/delegation mechanism",
+      "description": "Implement the task delegation mechanism where primary agents can delegate work to subagents with clear ownership and result tracking.",
+      "status": "todo",
+      "test_criteria": [
+        "Tasks can be delegated from primary to subagent",
+        "Task progress is tracked and reported",
+        "Final results are returned to delegating agent"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-agent -- delegation"
+      ],
+      "impl_notes": "Build on subagent execution (P0-2) for task distribution.",
+      "dependencies": [
+        "P0-2"
+      ]
+    },
+    {
+      "id": "P0-4",
+      "priority": "P0",
+      "title": "Custom tool registration with ToolRegistry",
+      "description": "Implement custom tool registration system using ToolRegistry. Tools should be discoverable, registerable, and executable through the registry.",
+      "status": "todo",
+      "test_criteria": [
+        "Tools can be registered with unique names",
+        "Registered tools can be looked up and executed",
+        "ToolRegistry properly manages tool lifecycle"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools -- registry"
+      ],
+      "impl_notes": "Build on the tool discovery format (P0-5).",
+      "dependencies": [
+        "P0-5"
+      ]
+    },
+    {
+      "id": "P0-5",
+      "priority": "P0",
+      "title": "Custom tool discovery format (.ts/.js)",
+      "description": "Define and implement the custom tool discovery format for .ts and .js files. Tools should be discoverable from specified directories following this format.",
+      "status": "todo",
+      "test_criteria": [
+        "Tools in .ts format are discovered correctly",
+        "Tools in .js format are discovered correctly",
+        "Discovery follows the defined format specification"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools -- discovery"
+      ],
+      "impl_notes": "Define schema for tool discovery format before implementation.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-16",
+      "priority": "P0",
+      "title": "Plugin hook execution order (HashMap \u2192 IndexMap)",
+      "description": "Convert plugin hook storage from HashMap to IndexMap to ensure deterministic execution order of plugins.",
+      "status": "todo",
+      "test_criteria": [
+        "Plugin hooks execute in deterministic order",
+        "Order is consistent across multiple invocations",
+        "IndexMap provides stable iteration order"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin -- hook_order"
+      ],
+      "impl_notes": "Replace HashMap with IndexMap in plugin hook storage.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-17",
+      "priority": "P0",
+      "title": "Plugin-provided tool registration",
+      "description": "Allow plugins to provide and register tools through the plugin API. Tools from plugins should be seamlessly integrated into the ToolRegistry.",
+      "status": "todo",
+      "test_criteria": [
+        "Plugins can register tools via the plugin API",
+        "Tools from plugins appear in ToolRegistry",
+        "Plugin tools can be executed normally"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin -- plugin_tool"
+      ],
+      "impl_notes": "Build on plugin hook order fix (P0-16).",
+      "dependencies": [
+        "P0-16"
+      ]
+    },
+    {
+      "id": "P0-18",
+      "priority": "P0",
+      "title": "Plugin config separation",
+      "description": "Implement proper configuration separation for plugins. Each plugin should have isolated configuration that doesn't leak into other plugins or core config.",
+      "status": "todo",
+      "test_criteria": [
+        "Plugin configs are isolated from each other",
+        "Plugin configs don't override core config values",
+        "Config boundary between opencode.json and plugin configs is clear"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin -- config_separation"
+      ],
+      "impl_notes": "Build on config ownership boundary (P0-12).",
+      "dependencies": [
+        "P0-12"
+      ]
+    },
+    {
+      "id": "P0-19",
+      "priority": "P0",
+      "title": "TUI plugin `plugin_enabled` semantics",
+      "description": "Clarify and implement the `plugin_enabled` configuration semantics for TUI plugins. Determine how this flag controls plugin loading and activation.",
+      "status": "todo",
+      "test_criteria": [
+        "plugin_enabled=false prevents plugin from loading",
+        "plugin_enabled=true allows plugin to load",
+        "Semantics are clearly documented"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui -- plugin_enabled"
+      ],
+      "impl_notes": "Define exact semantics before implementation.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-20",
+      "priority": "P0",
+      "title": "TUI plugin activate/deactivate",
+      "description": "Implement the TUI plugin activate and deactivate lifecycle. Plugins should be able to be enabled and disabled at runtime.",
+      "status": "todo",
+      "test_criteria": [
+        "Plugins can be activated at runtime",
+        "Plugins can be deactivated at runtime",
+        "State is properly managed during activation/deactivation"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui -- plugin_lifecycle"
+      ],
+      "impl_notes": "Build on plugin_enabled semantics (P0-19).",
+      "dependencies": [
+        "P0-19"
+      ]
+    },
+    {
+      "id": "P0-6",
+      "priority": "P0",
+      "title": "Local MCP server connection",
+      "description": "Implement connection to local MCP servers. Support stdio-based communication with local MCP server processes.",
+      "status": "todo",
+      "test_criteria": [
+        "Can connect to local MCP server via stdio",
+        "Server messages are received correctly",
+        "Connection lifecycle is properly managed"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-mcp -- local_connection"
+      ],
+      "impl_notes": "Use JSON-RPC over stdio for local server communication.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-7",
+      "priority": "P0",
+      "title": "Remote MCP server connection",
+      "description": "Implement connection to remote MCP servers over HTTP/SSE. Support bidirectional communication with remote MCP servers.",
+      "status": "todo",
+      "test_criteria": [
+        "Can connect to remote MCP server via HTTP",
+        "SSE events are received correctly",
+        "Requests can be sent to remote server"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-mcp -- remote_connection"
+      ],
+      "impl_notes": "Build on local MCP connection (P0-6).",
+      "dependencies": [
+        "P0-6"
+      ]
+    },
+    {
+      "id": "P0-8",
+      "priority": "P0",
+      "title": "Tool discovery from MCP servers",
+      "description": "Implement tool discovery mechanism that queries MCP servers for available tools and integrates them into the local tool registry.",
+      "status": "todo",
+      "test_criteria": [
+        "Tools from MCP servers are discovered automatically",
+        "Discovered tools can be executed via local registry",
+        "Tool qualification is properly handled"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-mcp -- tool_discovery"
+      ],
+      "impl_notes": "Build on both local (P0-6) and remote (P0-7) connections.",
+      "dependencies": [
+        "P0-6",
+        "P0-7"
+      ]
+    },
+    {
+      "id": "P0-9",
+      "priority": "P0",
+      "title": "Built-in LSP server detection",
+      "description": "Implement detection of built-in/embedded LSP servers. Support automatic detection and launching of language servers bundled with the application.",
+      "status": "todo",
+      "test_criteria": [
+        "Built-in LSP servers are detected automatically",
+        "Detection works for all bundled language servers",
+        "LSP servers are launched with correct configuration"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-lsp -- builtin_detection"
+      ],
+      "impl_notes": "Define mechanism for bundling and detecting built-in servers.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-10",
+      "priority": "P0",
+      "title": "Diagnostics retrieval from LSP",
+      "description": "Implement retrieval and display of diagnostics from LSP servers. Diagnostics should be collected and presented to the user in the TUI.",
+      "status": "todo",
+      "test_criteria": [
+        "Diagnostics are received from LSP servers",
+        "Diagnostics are properly categorized by severity",
+        "Diagnostics are displayed in the TUI"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-lsp -- diagnostics"
+      ],
+      "impl_notes": "Build on LSP server detection (P0-9).",
+      "dependencies": [
+        "P0-9"
+      ]
+    },
+    {
+      "id": "P1-1",
+      "priority": "P1",
+      "title": "Ownership invariant automated tests",
+      "description": "Write comprehensive automated tests for the ownership invariant system. Test all ownership transfer and sharing scenarios.",
+      "status": "todo",
+      "test_criteria": [
+        "All ownership transfer scenarios are tested",
+        "Ownership sharing scenarios are covered",
+        "Tests verify invariant is maintained"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core -- ownership_invariant"
+      ],
+      "impl_notes": "Build after FR-001 is complete.",
+      "dependencies": [
+        "FR-001"
+      ]
+    },
+    {
+      "id": "P1-2",
+      "priority": "P1",
+      "title": "Stable ID semantics tests",
+      "description": "Write automated tests for stable ID semantics. Verify IDs remain stable across snapshots and restores.",
+      "status": "todo",
+      "test_criteria": [
+        "IDs are stable across snapshot operations",
+        "IDs are stable across restore operations",
+        "ID generation follows deterministic rules"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core -- stable_id"
+      ],
+      "impl_notes": "Build after FR-001 is complete.",
+      "dependencies": [
+        "FR-001"
+      ]
+    },
+    {
+      "id": "P1-3",
+      "priority": "P1",
+      "title": "Snapshot/Revert model tests",
+      "description": "Write comprehensive tests for snapshot and revert functionality. Cover all edge cases in the snapshot/revert model.",
+      "status": "todo",
+      "test_criteria": [
+        "Snapshot creation is tested",
+        "Revert operations work correctly",
+        "Edge cases are covered"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-storage -- snapshot_revert"
+      ],
+      "impl_notes": "Build after FR-002 is complete.",
+      "dependencies": [
+        "FR-002"
+      ]
+    },
+    {
+      "id": "P1-4",
+      "priority": "P1",
+      "title": "Hidden vs visible agent behavior",
+      "description": "Implement and test the distinction between hidden and visible agents. Hidden agents should not appear in standard UI but still function.",
+      "status": "todo",
+      "test_criteria": [
+        "Hidden agents don't appear in standard agent lists",
+        "Hidden agents still execute normally",
+        "Visible agents are properly displayed"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-agent -- hidden_agent"
+      ],
+      "impl_notes": "Build on primary agent invariant (P0-1).",
+      "dependencies": [
+        "P0-1"
+      ]
+    },
+    {
+      "id": "P1-5",
+      "priority": "P1",
+      "title": "Permission inheritance (parent\u2192subagent)",
+      "description": "Implement permission inheritance mechanism where parent agent permissions flow down to subagents. Subagents should not have more permissions than their parent.",
+      "status": "todo",
+      "test_criteria": [
+        "Subagent inherits parent permissions",
+        "Subagent cannot exceed parent permissions",
+        "Permission checks work at subagent boundaries"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-agent -- permission_inheritance"
+      ],
+      "impl_notes": "Build on subagent execution (P0-2).",
+      "dependencies": [
+        "P0-2"
+      ]
+    },
+    {
+      "id": "P1-6",
+      "priority": "P1",
+      "title": "MCP tool qualification",
+      "description": "Implement proper qualification of MCP tools. Tools from MCP servers should be properly namespaced and qualified to avoid conflicts.",
+      "status": "todo",
+      "test_criteria": [
+        "MCP tools are properly qualified with server prefix",
+        "Tool name conflicts are handled correctly",
+        "Qualification follows established naming conventions"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools -- mcp_qualification"
+      ],
+      "impl_notes": "Build on MCP tool discovery (P0-8).",
+      "dependencies": [
+        "P0-8"
+      ]
+    },
+    {
+      "id": "P1-7",
+      "priority": "P1",
+      "title": "JSONC parsing",
+      "description": "Implement JSONC (JSON with Comments) parsing support for configuration files. Allow comments in JSON config files.",
+      "status": "todo",
+      "test_criteria": [
+        "JSONC files with comments are parsed correctly",
+        "Comments are stripped during parsing",
+        "Invalid JSONC produces clear error messages"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-config -- jsonc"
+      ],
+      "impl_notes": "Use a JSONC parsing library or implement comment stripping.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-8",
+      "priority": "P1",
+      "title": "Variable expansion",
+      "description": "Implement variable expansion in configuration values. Support referencing other config values using ${variable} syntax.",
+      "status": "todo",
+      "test_criteria": [
+        "Variables are expanded correctly in config values",
+        "Circular references are detected and error reported",
+        "Undefined variables produce clear errors"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-config -- variable_expansion"
+      ],
+      "impl_notes": "Implement recursive expansion with cycle detection.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-9",
+      "priority": "P1",
+      "title": "`tools` \u2192 `permission` alias tests",
+      "description": "Write regression tests for the tools\u2192permission configuration alias. Ensure backward compatibility with old config format.",
+      "status": "todo",
+      "test_criteria": [
+        "Old 'tools' key works as alias for 'permission'",
+        "New 'permission' key takes precedence when both present",
+        "Migration path is documented"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-config -- tools_alias"
+      ],
+      "impl_notes": "Build on config precedence (P0-11).",
+      "dependencies": [
+        "P0-11"
+      ]
+    },
+    {
+      "id": "P1-10",
+      "priority": "P1",
+      "title": "Request validation",
+      "description": "Implement comprehensive request validation for all server API endpoints. Validate request bodies, parameters, and headers.",
+      "status": "todo",
+      "test_criteria": [
+        "All endpoints validate incoming requests",
+        "Invalid requests return appropriate error codes",
+        "Validation errors include helpful messages"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- validation"
+      ],
+      "impl_notes": "Build on session/message CRUD (P0-15).",
+      "dependencies": [
+        "P0-15"
+      ]
+    },
+    {
+      "id": "P1-11",
+      "priority": "P1",
+      "title": "Streaming endpoints",
+      "description": "Implement streaming responses for appropriate server API endpoints. Support Server-Sent Events for long-running operations.",
+      "status": "todo",
+      "test_criteria": [
+        "Long-running operations support streaming",
+        "Clients can consume streaming responses",
+        "Connection lifecycle is properly managed"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- streaming"
+      ],
+      "impl_notes": "Build on session/message CRUD (P0-15).",
+      "dependencies": [
+        "P0-15"
+      ]
+    },
+    {
+      "id": "P1-12",
+      "priority": "P1",
+      "title": "Custom LSP registration",
+      "description": "Implement custom LSP server registration API. Allow external LSP servers to register with the system.",
+      "status": "todo",
+      "test_criteria": [
+        "External LSP servers can register",
+        "Registration includes server capabilities",
+        "Registered servers are used for language features"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-lsp -- custom_registration"
+      ],
+      "impl_notes": "Build on built-in LSP detection (P0-9).",
+      "dependencies": [
+        "P0-9"
+      ]
+    },
+    {
+      "id": "P1-13",
+      "priority": "P1",
+      "title": "LSP failure handling",
+      "description": "Implement robust failure handling for LSP server operations. Handle server crashes, timeouts, and protocol violations gracefully.",
+      "status": "todo",
+      "test_criteria": [
+        "LSP server crashes are detected and handled",
+        "Timeouts are enforced for requests",
+        "Protocol violations produce meaningful errors"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-lsp -- failure_handling"
+      ],
+      "impl_notes": "Build on diagnostics retrieval (P0-10).",
+      "dependencies": [
+        "P0-10"
+      ]
+    },
+    {
+      "id": "P1-14",
+      "priority": "P1",
+      "title": "Slash commands",
+      "description": "Implement slash command functionality in the TUI. Commands like /help, /clear, /exit should be recognized and executed.",
+      "status": "todo",
+      "test_criteria": [
+        "Slash commands are recognized when typed",
+        "Commands execute the correct action",
+        "Unknown commands show appropriate error"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui -- slash_commands"
+      ],
+      "impl_notes": "Implement command parsing and dispatch.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-15",
+      "priority": "P1",
+      "title": "Input model (multiline, history, autocomplete)",
+      "description": "Implement enhanced input model with multiline support, command history, and autocomplete functionality.",
+      "status": "todo",
+      "test_criteria": [
+        "Multiline input works correctly",
+        "Command history navigable with up/down arrows",
+        "Autocomplete triggers appropriately"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui -- input_model"
+      ],
+      "impl_notes": "Build on slash commands (P1-14).",
+      "dependencies": []
+    },
+    {
+      "id": "P1-16",
+      "priority": "P1",
+      "title": "File references (@) fuzzy search",
+      "description": "Implement @file reference fuzzy search in the TUI. Typing @ should trigger fuzzy file search.",
+      "status": "todo",
+      "test_criteria": [
+        "@ triggers file fuzzy search",
+        "Search matches files by name fuzzy matching",
+        "Selected file is inserted correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui -- file_references"
+      ],
+      "impl_notes": "Implement fuzzy matching algorithm for file search.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-17",
+      "priority": "P1",
+      "title": "Keybinding system",
+      "description": "Implement a configurable keybinding system for the TUI. Users should be able to customize keyboard shortcuts.",
+      "status": "todo",
+      "test_criteria": [
+        "Default keybindings work correctly",
+        "Keybindings can be customized",
+        "Conflicts are detected and reported"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui -- keybinding"
+      ],
+      "impl_notes": "Design keybinding configuration format.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-18",
+      "priority": "P1",
+      "title": "Sidebar sections",
+      "description": "Implement collapsible sidebar sections in the TUI. Sections should be toggleable and remember their state.",
+      "status": "todo",
+      "test_criteria": [
+        "Sidebar sections are collapsible",
+        "Section state is persisted",
+        "Keyboard navigation works between sections"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui -- sidebar"
+      ],
+      "impl_notes": "Implement state persistence for section visibility.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-19",
+      "priority": "P1",
+      "title": "TUI plugin commands API",
+      "description": "Implement the TUI plugin commands API. Plugins should be able to register commands that appear in the TUI command palette.",
+      "status": "todo",
+      "test_criteria": [
+        "Plugins can register commands via API",
+        "Registered commands appear in command palette",
+        "Commands execute plugin logic when invoked"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui -- plugin_commands"
+      ],
+      "impl_notes": "Build on TUI plugin activate/deactivate (P0-20).",
+      "dependencies": [
+        "P0-20"
+      ]
+    },
+    {
+      "id": "P1-20",
+      "priority": "P1",
+      "title": "TUI plugin routes API",
+      "description": "Implement the TUI plugin routes API. Plugins should be able to register custom routes/views in the TUI.",
+      "status": "todo",
+      "test_criteria": [
+        "Plugins can register custom routes",
+        "Routes are accessible in the TUI",
+        "Route parameters are passed correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui -- plugin_routes"
+      ],
+      "impl_notes": "Build on TUI plugin activate/deactivate (P0-20).",
+      "dependencies": [
+        "P0-20"
+      ]
+    },
+    {
+      "id": "P1-21",
+      "priority": "P1",
+      "title": "TUI plugin theme API",
+      "description": "Implement the TUI plugin theme API. Plugins should be able to customize colors and styling.",
+      "status": "todo",
+      "test_criteria": [
+        "Plugins can register custom themes",
+        "Theme changes apply correctly",
+        "Theme API is well documented"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui -- plugin_theme"
+      ],
+      "impl_notes": "Build on TUI plugin activate/deactivate (P0-20).",
+      "dependencies": [
+        "P0-20"
+      ]
+    },
+    {
+      "id": "P1-22",
+      "priority": "P1",
+      "title": "TUI plugin events API",
+      "description": "Implement the TUI plugin events API. Plugins should be able to subscribe to and emit TUI events.",
+      "status": "todo",
+      "test_criteria": [
+        "Plugins can subscribe to events",
+        "Plugins can emit events",
+        "Event data is passed correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui -- plugin_events"
+      ],
+      "impl_notes": "Build on TUI plugin activate/deactivate (P0-20).",
+      "dependencies": [
+        "P0-20"
+      ]
+    },
+    {
+      "id": "P1-23",
+      "priority": "P1",
+      "title": "TUI plugin state API",
+      "description": "Implement the TUI plugin state API. Plugins should be able to store and retrieve persistent state.",
+      "status": "todo",
+      "test_criteria": [
+        "Plugins can store persistent state",
+        "State persists across TUI restarts",
+        "State is isolated between plugins"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui -- plugin_state"
+      ],
+      "impl_notes": "Build on TUI plugin activate/deactivate (P0-20).",
+      "dependencies": [
+        "P0-20"
+      ]
+    },
+    {
+      "id": "P1-24",
+      "priority": "P1",
+      "title": "TUI plugin onDispose lifecycle",
+      "description": "Implement the onDispose lifecycle hook for TUI plugins. Plugins should be able to clean up resources when deactivated.",
+      "status": "todo",
+      "test_criteria": [
+        "onDispose is called when plugin is deactivated",
+        "Cleanup runs even on unexpected deactivation",
+        "Resources are properly released"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui -- plugin_dispose"
+      ],
+      "impl_notes": "Build on TUI plugin activate/deactivate (P0-20).",
+      "dependencies": [
+        "P0-20"
+      ]
+    },
+    {
+      "id": "P1-25",
+      "priority": "P1",
+      "title": "Provider abstraction",
+      "description": "Implement a provider abstraction layer for LLM backends. Support multiple LLM providers through a common interface.",
+      "status": "todo",
+      "test_criteria": [
+        "Provider interface supports all required operations",
+        "Multiple providers can be implemented",
+        "Providers are selectable at runtime"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm -- provider_abstraction"
+      ],
+      "impl_notes": "Define clean provider trait/interface.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-26",
+      "priority": "P1",
+      "title": "Default model selection precedence",
+      "description": "Implement default model selection with proper precedence. User config should override system defaults.",
+      "status": "todo",
+      "test_criteria": [
+        "User config overrides system defaults",
+        "Provider-specific defaults are respected",
+        "Selection precedence is documented"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm -- model_selection"
+      ],
+      "impl_notes": "Build on provider abstraction (P1-25).",
+      "dependencies": [
+        "P1-25"
+      ]
+    },
+    {
+      "id": "P1-27",
+      "priority": "P1",
+      "title": "Per-agent model override",
+      "description": "Allow individual agents to override the default model. Each agent should be able to specify its own model.",
+      "status": "todo",
+      "test_criteria": [
+        "Agents can specify custom models",
+        "Agent override takes precedence over provider default",
+        "Override is properly passed to provider"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm -- agent_override"
+      ],
+      "impl_notes": "Build on provider abstraction (P1-25).",
+      "dependencies": [
+        "P1-25"
+      ]
+    },
+    {
+      "id": "P1-28",
+      "priority": "P1",
+      "title": "Local model providers",
+      "description": "Implement support for local model providers (Ollama, LM Studio, etc.). Support local inference endpoints.",
+      "status": "todo",
+      "test_criteria": [
+        "Ollama provider works correctly",
+        "LM Studio provider works correctly",
+        "Local inference endpoints are supported"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm -- local_provider"
+      ],
+      "impl_notes": "Build on provider abstraction (P1-25).",
+      "dependencies": [
+        "P1-25"
+      ]
+    },
+    {
+      "id": "P1-29",
+      "priority": "P1",
+      "title": "Skills compat paths (Claude/Agent-style)",
+      "description": "Implement skills compatibility with Claude/Agent-style paths. Support standard skill discovery locations.",
+      "status": "todo",
+      "test_criteria": [
+        "Skills are discovered from standard paths",
+        "Claude-style skill format is supported",
+        "Path precedence is correctly implemented"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core -- skills_compat"
+      ],
+      "impl_notes": "Support multiple skills directory locations.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-30",
+      "priority": "P1",
+      "title": "Desktop/web session sharing",
+      "description": "Implement session sharing between desktop and web interfaces. Sessions started in one interface should be accessible from another.",
+      "status": "todo",
+      "test_criteria": [
+        "Desktop sessions are accessible from web",
+        "Web sessions are accessible from desktop",
+        "Session state is synchronized"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- session_sharing"
+      ],
+      "impl_notes": "Build on Phase 4 P0 items.",
+      "dependencies": [
+        "Phase 4 P0s"
+      ]
+    },
+    {
+      "id": "P1-31",
+      "priority": "P1",
+      "title": "Desktop/web sharing modes",
+      "description": "Implement different sharing modes for desktop/web session sharing. Support read-only, collaborative, and controlled access modes.",
+      "status": "todo",
+      "test_criteria": [
+        "Read-only sharing mode works",
+        "Collaborative mode supports concurrent access",
+        "Access control is properly enforced"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- sharing_modes"
+      ],
+      "impl_notes": "Build on session sharing (P1-30).",
+      "dependencies": [
+        "P1-30"
+      ]
+    },
+    {
+      "id": "P1-32",
+      "priority": "P1",
+      "title": "GitHub workflow triggers",
+      "description": "Implement GitHub workflow triggers for CI/CD integration. Support triggering workflows from the application.",
+      "status": "todo",
+      "test_criteria": [
+        "Workflows can be triggered via API",
+        "Trigger parameters are passed correctly",
+        "Workflow status is reported back"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-git -- github_triggers"
+      ],
+      "impl_notes": "Build after Phase 4 start.",
+      "dependencies": [
+        "Phase 4 start"
+      ]
+    },
+    {
+      "id": "P2-1",
+      "priority": "P2",
+      "title": "Compaction with shareability verification",
+      "description": "Implement compaction functionality with shareability verification. Verify that compacted data can still be shared before compaction.",
+      "status": "todo",
+      "test_criteria": [
+        "Compaction preserves shareability",
+        "Compacted data passes verification",
+        "Shareability is checked before compaction"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-storage -- compaction"
+      ],
+      "impl_notes": "Build after FR-002 is complete.",
+      "dependencies": [
+        "FR-002"
+      ]
+    },
+    {
+      "id": "P2-2",
+      "priority": "P2",
+      "title": "Workspace path validation",
+      "description": "Implement workspace path validation. Validate that workspace paths are accessible and properly formatted.",
+      "status": "todo",
+      "test_criteria": [
+        "Valid paths are accepted",
+        "Invalid paths are rejected with clear errors",
+        "Path format is normalized correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core -- workspace_path"
+      ],
+      "impl_notes": "Handle edge cases like symlinks and relative paths.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-3",
+      "priority": "P2",
+      "title": "Deterministic collision resolution",
+      "description": "Implement deterministic collision resolution for tool names. When multiple tools have the same name, resolve consistently.",
+      "status": "todo",
+      "test_criteria": [
+        "Collision resolution is deterministic",
+        "Same collision always resolves the same way",
+        "Resolution order follows documented rules"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools -- collision_resolution"
+      ],
+      "impl_notes": "Build on custom tool registration (P0-4).",
+      "dependencies": [
+        "P0-4"
+      ]
+    },
+    {
+      "id": "P2-4",
+      "priority": "P2",
+      "title": "Result caching for safe tools",
+      "description": "Implement result caching for safe/idempotent tools. Cache tool results to avoid redundant execution.",
+      "status": "todo",
+      "test_criteria": [
+        "Safe tools have their results cached",
+        "Cache hits return cached results",
+        "Cache invalidation works correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools -- result_caching"
+      ],
+      "impl_notes": "Build on custom tool registration (P0-4).",
+      "dependencies": [
+        "P0-4"
+      ]
+    },
+    {
+      "id": "P2-5",
+      "priority": "P2",
+      "title": "MCP per-server OAuth",
+      "description": "Implement per-server OAuth authentication for MCP servers. Support different OAuth configs for different servers.",
+      "status": "todo",
+      "test_criteria": [
+        "OAuth config is per-server",
+        "Different servers can have different OAuth settings",
+        "OAuth tokens are stored securely"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-mcp -- mcp_oauth"
+      ],
+      "impl_notes": "Build on MCP tool discovery (P0-8).",
+      "dependencies": [
+        "P0-8"
+      ]
+    },
+    {
+      "id": "P2-6",
+      "priority": "P2",
+      "title": "MCP timeout handling",
+      "description": "Implement proper timeout handling for MCP server communications. Prevent hanging on unresponsive servers.",
+      "status": "todo",
+      "test_criteria": [
+        "Timeouts are enforced for all MCP operations",
+        "Timeout produces clear error message",
+        "Partial results are handled correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-mcp -- timeout"
+      ],
+      "impl_notes": "Build on local MCP connection (P0-6).",
+      "dependencies": [
+        "P0-6"
+      ]
+    },
+    {
+      "id": "P2-7",
+      "priority": "P2",
+      "title": "MCP context cost warnings",
+      "description": "Implement context cost tracking and warnings for MCP operations. Warn when operations may exceed context limits.",
+      "status": "todo",
+      "test_criteria": [
+        "Context costs are tracked",
+        "Warnings are shown before limits are exceeded",
+        "Cost calculations are accurate"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-mcp -- context_cost"
+      ],
+      "impl_notes": "Build on MCP tool discovery (P0-8).",
+      "dependencies": [
+        "P0-8"
+      ]
+    },
+    {
+      "id": "P2-8",
+      "priority": "P2",
+      "title": "Experimental LSP tool",
+      "description": "Implement an experimental LSP tool that exposes LSP functionality as a regular tool. Enable LSP features through the tool interface.",
+      "status": "todo",
+      "test_criteria": [
+        "LSP functionality is accessible as a tool",
+        "Tool can perform basic LSP operations",
+        "Experimental nature is clearly documented"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-lsp -- experimental_tool"
+      ],
+      "impl_notes": "Build on diagnostics retrieval (P0-10).",
+      "dependencies": [
+        "P0-10"
+      ]
+    },
+    {
+      "id": "P2-9",
+      "priority": "P2",
+      "title": "Config auth/secret storage",
+      "description": "Implement secure storage for authentication secrets in configuration. Use OS keychain or similar secure storage.",
+      "status": "todo",
+      "test_criteria": [
+        "Secrets are stored securely",
+        "Secrets are not exposed in config files",
+        "Secrets are retrieved securely at runtime"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-config -- secret_storage"
+      ],
+      "impl_notes": "Build on config ownership boundary (P0-12).",
+      "dependencies": [
+        "P0-12"
+      ]
+    },
+    {
+      "id": "P2-10",
+      "priority": "P2",
+      "title": "Server API error shape consistency",
+      "description": "Ensure consistent error response shape across all server API endpoints. All errors should follow the same format.",
+      "status": "todo",
+      "test_criteria": [
+        "All endpoints return consistent error format",
+        "Error codes are consistent",
+        "Error messages follow same structure"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- error_shape"
+      ],
+      "impl_notes": "Build on session/message CRUD (P0-15).",
+      "dependencies": [
+        "P0-15"
+      ]
+    },
+    {
+      "id": "P2-11",
+      "priority": "P2",
+      "title": "Plugin cleanup/unload",
+      "description": "Implement proper plugin cleanup and unload functionality. Plugins should be able to be fully unloaded without memory leaks.",
+      "status": "todo",
+      "test_criteria": [
+        "Plugins can be cleanly unloaded",
+        "No memory leaks after unload",
+        "All resources are properly released"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin -- cleanup"
+      ],
+      "impl_notes": "Build on plugin-provided tool registration (P0-17).",
+      "dependencies": [
+        "P0-17"
+      ]
+    },
+    {
+      "id": "P2-12",
+      "priority": "P2",
+      "title": "Shell prefix (!) handling",
+      "description": "Implement shell prefix (!) handling in the TUI. Commands starting with ! should be executed in a shell.",
+      "status": "todo",
+      "test_criteria": [
+        "Shell commands are detected by ! prefix",
+        "Commands are executed in shell",
+        "Shell output is captured and displayed"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui -- shell_prefix"
+      ],
+      "impl_notes": "Build on slash commands (P1-14).",
+      "dependencies": [
+        "P1-14"
+      ]
+    },
+    {
+      "id": "P2-13",
+      "priority": "P2",
+      "title": "Home view",
+      "description": "Implement a home view in the TUI. Display overview information, recent sessions, and quick actions on startup.",
+      "status": "todo",
+      "test_criteria": [
+        "Home view displays on startup",
+        "Recent sessions are shown",
+        "Quick actions are accessible"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui -- home_view"
+      ],
+      "impl_notes": "Design clear and informative home view layout.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-14",
+      "priority": "P2",
+      "title": "LLM variant/reasoning budget",
+      "description": "Implement LLM variant and reasoning budget configuration. Support different model variants and reasoning effort levels.",
+      "status": "todo",
+      "test_criteria": [
+        "Model variants are configurable",
+        "Reasoning budget can be set",
+        "Budget affects model behavior appropriately"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm -- reasoning_budget"
+      ],
+      "impl_notes": "Build on per-agent model override (P1-27).",
+      "dependencies": [
+        "P1-27"
+      ]
+    },
+    {
+      "id": "P2-15",
+      "priority": "P2",
+      "title": "Skills permission restrictions",
+      "description": "Implement permission restrictions for skills. Skills should only be able to perform actions allowed by their permission scope.",
+      "status": "todo",
+      "test_criteria": [
+        "Skills respect permission boundaries",
+        "Unauthorized skill actions are blocked",
+        "Permission errors are clear and actionable"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core -- skills_permission"
+      ],
+      "impl_notes": "Build on skills compat paths (P1-29).",
+      "dependencies": [
+        "P1-29"
+      ]
+    },
+    {
+      "id": "P2-16",
+      "priority": "P2",
+      "title": "GitLab CI component",
+      "description": "Implement GitLab CI component integration. Support triggering and monitoring GitLab CI pipelines.",
+      "status": "todo",
+      "test_criteria": [
+        "GitLab pipelines can be triggered",
+        "Pipeline status is monitored",
+        "Results are reported back"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-git -- gitlab_ci"
+      ],
+      "impl_notes": "Build after GitHub workflow triggers (FR-016) are complete.",
+      "dependencies": [
+        "FR-016"
+      ]
+    },
+    {
+      "id": "T-019-1",
+      "priority": "P0",
+      "title": "Core ownership tree tests (unit + integration)",
+      "description": "Write comprehensive unit and integration tests for the core ownership tree system. Test all ownership relationships and transfer operations.",
+      "status": "todo",
+      "test_criteria": [
+        "Unit tests cover all ownership operations",
+        "Integration tests verify system behavior",
+        "All tests pass with high coverage"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core -- ownership_tree"
+      ],
+      "impl_notes": "Build after P1-1 is complete.",
+      "dependencies": [
+        "P1-1"
+      ]
+    },
+    {
+      "id": "T-019-2",
+      "priority": "P0",
+      "title": "Config precedence merge tests",
+      "description": "Write tests for configuration precedence merging. Test all precedence levels and their interactions.",
+      "status": "todo",
+      "test_criteria": [
+        "All precedence levels are tested",
+        "Merge behavior is correct at each level",
+        "Precedence rules are enforced correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-config -- precedence_merge"
+      ],
+      "impl_notes": "Build after P0-11 is complete.",
+      "dependencies": [
+        "P0-11"
+      ]
+    },
+    {
+      "id": "T-019-3",
+      "priority": "P0",
+      "title": "API route-group tests",
+      "description": "Write tests for API route grouping functionality. Test that routes are properly grouped and middleware applies correctly.",
+      "status": "todo",
+      "test_criteria": [
+        "Route grouping works correctly",
+        "Group middleware applies to all routes in group",
+        "Route discovery works properly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- route_group"
+      ],
+      "impl_notes": "Build after P0-13 is complete.",
+      "dependencies": [
+        "P0-13"
+      ]
+    },
+    {
+      "id": "T-019-4",
+      "priority": "P0",
+      "title": "Session/message lifecycle tests",
+      "description": "Write tests for session and message lifecycle operations. Test all CRUD operations and edge cases.",
+      "status": "todo",
+      "test_criteria": [
+        "Session CRUD operations work correctly",
+        "Message CRUD operations work correctly",
+        "Lifecycle transitions are properly tested"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- session_lifecycle",
+        "cargo test -p opencode-server -- message_lifecycle"
+      ],
+      "impl_notes": "Build after P0-15 is complete.",
+      "dependencies": [
+        "P0-15"
+      ]
+    },
+    {
+      "id": "T-020-1",
+      "priority": "P0",
+      "title": "Agent primary invariant tests (exactly one active)",
+      "description": "Write tests verifying exactly one primary agent is active invariant. Test all ways the invariant could be violated.",
+      "status": "todo",
+      "test_criteria": [
+        "Invariant is verified at all state transitions",
+        "Concurrent activation attempts are handled",
+        "All violation scenarios are caught"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-agent -- primary_invariant"
+      ],
+      "impl_notes": "Build after P0-1 is complete.",
+      "dependencies": [
+        "P0-1"
+      ]
+    },
+    {
+      "id": "T-020-2",
+      "priority": "P0",
+      "title": "Subagent execution tests",
+      "description": "Write tests for subagent execution. Test context isolation, result handoff, and error propagation.",
+      "status": "todo",
+      "test_criteria": [
+        "Context isolation is verified",
+        "Result handoff works correctly",
+        "Errors propagate properly to parent"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-agent -- subagent_exec"
+      ],
+      "impl_notes": "Build after P0-2 is complete.",
+      "dependencies": [
+        "P0-2"
+      ]
+    },
+    {
+      "id": "T-020-3",
+      "priority": "P0",
+      "title": "Tool registry tests",
+      "description": "Write comprehensive tests for the ToolRegistry. Test registration, lookup, execution, and lifecycle management.",
+      "status": "todo",
+      "test_criteria": [
+        "Tool registration works correctly",
+        "Tool lookup is accurate",
+        "Tool execution is properly managed"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools -- tool_registry"
+      ],
+      "impl_notes": "Build after P0-4 is complete.",
+      "dependencies": [
+        "P0-4"
+      ]
+    },
+    {
+      "id": "T-020-4",
+      "priority": "P0",
+      "title": "Plugin hook order tests",
+      "description": "Write tests verifying plugin hook execution order. Ensure deterministic ordering with IndexMap.",
+      "status": "todo",
+      "test_criteria": [
+        "Hook execution order is deterministic",
+        "Order is consistent across invocations",
+        "All hooks are executed in correct order"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin -- hook_order"
+      ],
+      "impl_notes": "Build after P0-16 is complete.",
+      "dependencies": [
+        "P0-16"
+      ]
+    },
+    {
+      "id": "T-020-5",
+      "priority": "P0",
+      "title": "TUI plugin lifecycle tests",
+      "description": "Write tests for TUI plugin lifecycle. Test activation, deactivation, and all lifecycle hooks.",
+      "status": "todo",
+      "test_criteria": [
+        "Activation lifecycle is complete",
+        "Deactivation lifecycle is complete",
+        "All hooks are called in correct order"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui -- plugin_lifecycle"
+      ],
+      "impl_notes": "Build after P0-20 is complete.",
+      "dependencies": [
+        "P0-20"
+      ]
+    },
+    {
+      "id": "T-021-1",
+      "priority": "P0",
+      "title": "MCP integration tests",
+      "description": "Write integration tests for MCP server connections. Test local and remote connections, tool discovery, and tool execution.",
+      "status": "todo",
+      "test_criteria": [
+        "Local MCP connection works end-to-end",
+        "Remote MCP connection works end-to-end",
+        "Tool discovery integrates properly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-mcp -- integration"
+      ],
+      "impl_notes": "Build after P0-8 is complete.",
+      "dependencies": [
+        "P0-8"
+      ]
+    },
+    {
+      "id": "T-021-2",
+      "priority": "P0",
+      "title": "LSP integration tests",
+      "description": "Write integration tests for LSP server functionality. Test server detection, connection, and diagnostics retrieval.",
+      "status": "todo",
+      "test_criteria": [
+        "Built-in LSP servers are detected",
+        "LSP diagnostics are retrieved",
+        "Failure handling works correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-lsp -- integration"
+      ],
+      "impl_notes": "Build after P0-10 is complete.",
+      "dependencies": [
+        "P0-10"
+      ]
+    },
+    {
+      "id": "T-021-3",
+      "priority": "P0",
+      "title": "Provider/model tests",
+      "description": "Write integration tests for LLM provider and model functionality. Test provider abstraction and model selection.",
+      "status": "todo",
+      "test_criteria": [
+        "Provider abstraction works correctly",
+        "Model selection precedence is correct",
+        "Local providers work end-to-end"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm -- integration"
+      ],
+      "impl_notes": "Build after P1-28 is complete.",
+      "dependencies": [
+        "P1-28"
+      ]
+    },
+    {
+      "id": "T-021-4",
+      "priority": "P0",
+      "title": "Skills discovery tests",
+      "description": "Write tests for skills discovery functionality. Test discovery from all supported paths and formats.",
+      "status": "todo",
+      "test_criteria": [
+        "Skills are discovered from all paths",
+        "Claude-style format is supported",
+        "Discovery is deterministic"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core -- skills_discovery"
+      ],
+      "impl_notes": "Build after P1-29 is complete.",
+      "dependencies": [
+        "P1-29"
+      ]
+    },
+    {
+      "id": "T-022-1",
+      "priority": "P0",
+      "title": "Desktop/web smoke tests",
+      "description": "Write smoke tests for desktop and web interfaces. Test basic functionality and session sharing.",
+      "status": "todo",
+      "test_criteria": [
+        "Desktop interface starts correctly",
+        "Web interface starts correctly",
+        "Session sharing works between interfaces"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- desktop_smoke",
+        "cargo test -p opencode-cli -- web_smoke"
+      ],
+      "impl_notes": "Build after Phase 4 P0 items are complete.",
+      "dependencies": [
+        "Phase 4 P0s"
+      ]
+    },
+    {
+      "id": "T-022-2",
+      "priority": "P0",
+      "title": "ACP handshake tests",
+      "description": "Write tests for ACP protocol handshake. Test connection establishment, capability negotiation, and error handling.",
+      "status": "todo",
+      "test_criteria": [
+        "Handshake establishes connection correctly",
+        "Capabilities are negotiated properly",
+        "Invalid handshakes are rejected"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- acp_handshake"
+      ],
+      "impl_notes": "Build after ACP transport is available.",
+      "dependencies": [
+        "ACP transport"
+      ]
+    },
+    {
+      "id": "T-022-3",
+      "priority": "P0",
+      "title": "GitHub workflow tests",
+      "description": "Write tests for GitHub workflow triggers. Test workflow triggering and status monitoring.",
+      "status": "todo",
+      "test_criteria": [
+        "Workflow triggers work correctly",
+        "Status monitoring is accurate",
+        "Error handling is proper"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-git -- github_workflow"
+      ],
+      "impl_notes": "Build after P1-32 is complete.",
+      "dependencies": [
+        "P1-32"
+      ]
+    },
+    {
+      "id": "T-022-4",
+      "priority": "P0",
+      "title": "GitLab integration tests",
+      "description": "Write tests for GitLab CI integration. Test pipeline triggering and monitoring.",
+      "status": "todo",
+      "test_criteria": [
+        "GitLab pipelines can be triggered",
+        "Pipeline status is monitored",
+        "Integration works end-to-end"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-git -- gitlab_integration"
+      ],
+      "impl_notes": "Build after P2-16 is complete.",
+      "dependencies": [
+        "P2-16"
+      ]
+    },
+    {
+      "id": "T-023-1",
+      "priority": "P0",
+      "title": "tools alias regression suite",
+      "description": "Write regression tests for tools\u2192permission alias. Ensure backward compatibility is maintained.",
+      "status": "todo",
+      "test_criteria": [
+        "Old tools key still works",
+        "New permission key works correctly",
+        "No behavior differences when using alias"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-config -- tools_alias_regression"
+      ],
+      "impl_notes": "Build after P1-9 is complete.",
+      "dependencies": [
+        "P1-9"
+      ]
+    },
+    {
+      "id": "T-023-2",
+      "priority": "P0",
+      "title": "Skill path regression suite",
+      "description": "Write regression tests for skill path compatibility. Ensure all supported paths work correctly.",
+      "status": "todo",
+      "test_criteria": [
+        "Claude-style paths work",
+        "Agent-style paths work",
+        "Custom paths work correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core -- skill_path_regression"
+      ],
+      "impl_notes": "Build after P1-29 is complete.",
+      "dependencies": [
+        "P1-29"
+      ]
+    },
+    {
+      "id": "T-023-3",
+      "priority": "P0",
+      "title": "Plugin ownership boundary suite",
+      "description": "Write regression tests for plugin ownership boundaries. Ensure plugins cannot access each other's configuration.",
+      "status": "todo",
+      "test_criteria": [
+        "Plugins cannot read each other's config",
+        "Core config is protected from plugins",
+        "Boundary violations are blocked"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin -- ownership_boundary"
+      ],
+      "impl_notes": "Build after P0-18 is complete.",
+      "dependencies": [
+        "P0-18"
+      ]
+    },
+    {
+      "id": "T-024-1",
+      "priority": "P0",
+      "title": "Performance baselines",
+      "description": "Establish performance baselines for all major subsystems. Measure and document performance characteristics.",
+      "status": "todo",
+      "test_criteria": [
+        "Baselines are established for all P0 systems",
+        "Performance is measured accurately",
+        "Baselines are documented and tracked"
+      ],
+      "test_commands": [
+        "cargo bench",
+        "cargo test -p opencode-core -- --ignored"
+      ],
+      "impl_notes": "Build after all P0 items are complete.",
+      "dependencies": [
+        "All P0s"
+      ]
+    },
+    {
+      "id": "T-024-2",
+      "priority": "P0",
+      "title": "Security tests",
+      "description": "Write security tests covering authentication, authorization, and data protection.",
+      "status": "todo",
+      "test_criteria": [
+        "Authentication is properly tested",
+        "Authorization boundaries are tested",
+        "Data protection is verified"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core -- security",
+        "cargo test -p opencode-server -- security"
+      ],
+      "impl_notes": "Build after Phase 5 is complete.",
+      "dependencies": [
+        "Phase 5"
+      ]
+    },
+    {
+      "id": "T-024-3",
+      "priority": "P0",
+      "title": "Recovery tests",
+      "description": "Write tests for system recovery scenarios. Test recovery from various failure modes.",
+      "status": "todo",
+      "test_criteria": [
+        "Recovery from failure modes is tested",
+        "Data integrity is maintained",
+        "Recovery procedures work correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-storage -- recovery"
+      ],
+      "impl_notes": "Build after T-019-4 is complete.",
+      "dependencies": [
+        "T-019-4"
+      ]
+    },
+    {
+      "id": "T-024-4",
+      "priority": "P0",
+      "title": "Crash recovery",
+      "description": "Write tests for crash recovery. Test that system recovers correctly from crashes.",
+      "status": "todo",
+      "test_criteria": [
+        "Crash recovery preserves data",
+        "System state is consistent after recovery",
+        "No data loss during crash scenarios"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-storage -- crash_recovery"
+      ],
+      "impl_notes": "Build after T-024-3 is complete.",
+      "dependencies": [
+        "T-024-3"
+      ]
+    },
+    {
+      "id": "T-024-5",
+      "priority": "P0",
+      "title": "Snapshot/revert durability",
+      "description": "Write tests for snapshot and revert durability. Ensure snapshots are durable and revert is reliable.",
+      "status": "todo",
+      "test_criteria": [
+        "Snapshots are durable across restarts",
+        "Revert operations are reliable",
+        "Data integrity is maintained"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-storage -- snapshot_durability"
+      ],
+      "impl_notes": "Build after P1-3 is complete.",
+      "dependencies": [
+        "P1-3"
+      ]
+    }
+  ]
+}
