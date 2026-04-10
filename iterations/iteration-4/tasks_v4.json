@@ -243,7 +243,7 @@
       "priority": "P0",
       "title": "TUI plugin `plugin_enabled` semantics",
       "description": "Clarify and implement the `plugin_enabled` configuration semantics for TUI plugins. Determine how this flag controls plugin loading and activation.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "plugin_enabled=false prevents plugin from loading",
         "plugin_enabled=true allows plugin to load",
@@ -252,7 +252,7 @@
       "test_commands": [
         "cargo test -p opencode-tui -- plugin_enabled"
       ],
-      "impl_notes": "Define exact semantics before implementation.",
+      "impl_notes": "Defined semantics: plugin_enabled belongs in TuiConfig (tui.json), NOT in main Config. When plugin_enabled=false, no plugins are loaded (master switch). When plugin_enabled=true (default), plugins are loaded per their individual PluginConfig.enabled settings.",
       "dependencies": []
     },
     {

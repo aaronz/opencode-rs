@@ -1068,6 +1068,37 @@ impl ThemeConfig {
     }
 }
 
+/// TUI Plugin enabled configuration
+///
+/// When `plugin_enabled` is set to `false` in tui.json, ALL TUI plugins are prevented from loading.
+/// When `plugin_enabled` is `true` (default), plugins are loaded according to their individual
+/// `PluginConfig.enabled` settings.
+///
+/// This is a master switch for the entire TUI plugin subsystem.
+///
+/// # Examples
+///
+/// ```json
+/// {
+///   "plugin_enabled": false
+/// }
+/// ```
+///
+/// With `plugin_enabled: false`, no TUI plugins will be loaded regardless of their
+/// individual plugin configurations.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct TuiPluginConfig {
+    /// Master switch for TUI plugin loading
+    /// - `true` (default): plugins are loaded per their individual enabled settings
+    /// - `false`: no plugins are loaded at all
+    #[serde(default = "default_plugin_enabled", skip_serializing_if = "Option::is_none")]
+    pub plugin_enabled: Option<bool>,
+}
+
+fn default_plugin_enabled() -> Option<bool> {
+    Some(true)
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct TuiConfig {
     #[serde(
@@ -1086,6 +1117,10 @@ pub struct TuiConfig {
     pub theme: Option<ThemeConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub keybinds: Option<KeybindConfig>,
+    /// TUI plugin subsystem configuration
+    /// When plugin_enabled is false, no plugins will be loaded
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub plugins: Option<TuiPluginConfig>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1466,6 +1501,8 @@ impl Config {
             "diffStyle",
             "theme",
             "keybinds",
+            "plugin_enabled",
+            "plugins",
         ];
 
         obj.keys()
@@ -1489,6 +1526,8 @@ impl Config {
             "scrollAcceleration",
             "diff_style",
             "diffStyle",
+            "plugin_enabled",
+            "plugins",
         ];
 
         obj.keys()

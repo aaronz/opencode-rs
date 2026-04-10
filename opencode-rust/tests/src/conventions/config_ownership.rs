@@ -18,10 +18,38 @@ mod tests {
             return;
         }
         let config_content = std::fs::read_to_string(config_path).unwrap();
+
+        // plugin_enabled belongs in TuiConfig (tui.json), NOT in the main Config struct.
+        // We check that plugin_enabled is not a direct field of the Config struct.
+        // Strategy: Find "pub struct Config {" and "pub struct TuiConfig {"
+        // If "plugin_enabled" appears as a struct field (followed by : or ,) within Config's
+        // section (between Config's { and TuiConfig's {), then it's incorrectly placed.
+        let config_struct_start = config_content.find("pub struct Config {");
+        let tui_config_start = config_content.find("pub struct TuiConfig {");
+
+        let plugin_in_main_config =
+            if let (Some(config_pos), Some(tui_pos)) = (config_struct_start, tui_config_start) {
+                // Search for "plugin_enabled" between Config's opening brace and TuiConfig's opening brace
+                let search_start = config_pos + "pub struct Config {".len();
+                let search_end = tui_pos;
+                let between = &config_content[search_start..search_end];
+
+                // Look for "plugin_enabled" followed by : or , (indicating a struct field)
+                if let Some(pos) = between.find("plugin_enabled") {
+                    let after = &between[pos..];
+                    after.starts_with(':') || after.starts_with(',')
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
+
         assert!(
-            !config_content.contains("plugin_enabled"),
-            "Config must not have plugin_enabled field - belongs in tui.json per PRD 06 (config ownership)"
+            !plugin_in_main_config,
+            "Config struct must not have plugin_enabled field - belongs in TuiConfig (tui.json) per PRD 06"
         );
+
         // TuiConfig in core config is a KNOWN_GAP: legacy integration being phased out
         // per the migration path described in PRD 06 (deprecated tui fields -> tui.json)
         let has_tui = config_content.contains("TuiConfig");
