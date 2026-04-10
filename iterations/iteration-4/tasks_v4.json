@@ -447,7 +447,7 @@
       "priority": "P1",
       "title": "Permission inheritance (parent\u2192subagent)",
       "description": "Implement permission inheritance mechanism where parent agent permissions flow down to subagents. Subagents should not have more permissions than their parent.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Subagent inherits parent permissions",
         "Subagent cannot exceed parent permissions",
@@ -456,7 +456,7 @@
       "test_commands": [
         "cargo test -p opencode-agent -- permission_inheritance"
       ],
-      "impl_notes": "Build on subagent execution (P0-2).",
+      "impl_notes": "Added AgentPermissionScope enum to permission crate. AgentRuntime tracks permission_scope in RuntimeConfig. invoke_subagent computes effective_scope = parent_scope ∩ subagent_scope. ToolContext passes permission_scope to tools. 6 tests verify inheritance behavior.",
       "dependencies": [
         "P0-2"
       ]

@@ -717,6 +717,7 @@ mod tests {
             },
             child_session_id: Uuid::new_v4(),
             agent_type: AgentType::Explore,
+            effective_permission_scope: opencode_permission::AgentPermissionScope::ReadOnly,
         };
         let started_at = Utc::now();
         
@@ -754,6 +755,7 @@ mod tests {
             },
             child_session_id: Uuid::new_v4(),
             agent_type: AgentType::Explore,
+            effective_permission_scope: opencode_permission::AgentPermissionScope::ReadOnly,
         };
         let started_at = Utc::now();
         

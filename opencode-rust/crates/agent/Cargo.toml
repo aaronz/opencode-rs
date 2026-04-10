@@ -9,6 +9,7 @@ license.workspace = true
 opencode-core.workspace = true
 opencode-llm.workspace = true
 opencode-tools.workspace = true
+opencode-permission.workspace = true
 async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true

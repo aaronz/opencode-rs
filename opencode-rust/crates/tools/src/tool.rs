@@ -50,6 +50,14 @@ pub struct ToolContext {
     pub agent: String,
     pub worktree: Option<String>,
     pub directory: Option<String>,
+    pub permission_scope: Option<opencode_permission::AgentPermissionScope>,
+}
+
+impl ToolContext {
+    pub fn with_permission_scope(mut self, scope: opencode_permission::AgentPermissionScope) -> Self {
+        self.permission_scope = Some(scope);
+        self
+    }
 }
 
 #[async_trait]

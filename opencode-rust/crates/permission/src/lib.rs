@@ -6,7 +6,7 @@ pub mod sensitive_file;
 
 pub use audit_log::{AuditDecision, AuditEntry, AuditLog, DecisionScope, PermissionDecision};
 pub use evaluator::{FilePermissionResult, PermissionEvaluator};
-pub use models::{Permission, Role, UserPermissions};
+pub use models::{AgentPermissionScope, Permission, Role, UserPermissions};
 pub use queue::{ApprovalQueue, ApprovalResult, PendingApproval, PermissionScope};
 pub use sensitive_file::{
     check_sensitive, get_sensitive_reason, is_external_directory, is_sensitive_directory,
