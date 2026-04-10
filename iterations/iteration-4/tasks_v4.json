@@ -114,7 +114,7 @@
       "priority": "P0",
       "title": "Subagent execution (child context, result handoff)",
       "description": "Implement subagent execution mechanism where agents can spawn child agents with isolated context and proper result handoff back to parent.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Subagent can be spawned with isolated context",
         "Results are properly handed off to parent agent",

@@ -5,8 +5,53 @@ use opencode_llm::Provider;
 use opencode_tools::registry::ToolCall as ToolsToolCall;
 use opencode_tools::ToolRegistry;
 use tokio::sync::RwLock;
+use uuid::Uuid;
 
 use crate::{Agent, AgentResponse, AgentType};
+
+/// Result from a subagent execution, containing the response
+/// and metadata about the subagent run.
+#[derive(Debug, Clone)]
+pub struct SubagentResult {
+    /// The response content from the subagent
+    pub response: AgentResponse,
+    /// The session ID of the child context used by the subagent
+    pub child_session_id: Uuid,
+    /// The agent type that was executed
+    pub agent_type: AgentType,
+}
+
+/// Errors that can occur during subagent invocation.
+#[derive(Debug, Clone)]
+pub enum SubagentError {
+    /// The parent session is in an invalid state for subagent invocation.
+    SessionNotActive,
+    /// The subagent execution failed.
+    SubagentExecutionFailed { reason: String },
+    /// Parent session was modified during subagent execution (invariant violation).
+    ParentContextModified,
+    /// Failed to fork session for subagent context.
+    ForkFailed { reason: String },
+}
+
+impl std::fmt::Display for SubagentError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SubagentError::SessionNotActive => write!(f, "parent session is not active"),
+            SubagentError::SubagentExecutionFailed { reason } => {
+                write!(f, "subagent execution failed: {}", reason)
+            }
+            SubagentError::ParentContextModified => {
+                write!(f, "parent context was modified during subagent execution")
+            }
+            SubagentError::ForkFailed { reason } => {
+                write!(f, "failed to fork session for subagent: {}", reason)
+            }
+        }
+    }
+}
+
+impl std::error::Error for SubagentError {}
 
 /// Configuration for the agent runtime.
 #[derive(Debug, Clone)]
@@ -342,18 +387,61 @@ impl AgentRuntime {
 
     pub async fn invoke_subagent<A: Agent>(
         &self,
-        _agent: &A,
-        _context: Vec<Message>,
-        _provider: &dyn Provider,
-        _tools: &ToolRegistry,
-    ) -> Result<AgentResponse, RuntimeError> {
-        todo!("subagent invocation: create subsession, run agent, handoff result")
+        agent: &A,
+        context: Vec<Message>,
+        provider: &dyn Provider,
+        tools: &ToolRegistry,
+    ) -> Result<SubagentResult, RuntimeError> {
+        if !self.primary_tracker.is_active() {
+            return Err(RuntimeError::NoActivePrimaryAgent);
+        }
+
+        let parent_session = self.session.read().await;
+        let parent_message_count = parent_session.messages.len();
+        let parent_id = parent_session.id;
+        drop(parent_session);
+
+        let child_session_id = Uuid::new_v4();
+        let parent_snapshot = self.session.read().await.clone();
+
+        let mut child_session = parent_snapshot.fork(child_session_id);
+        child_session.messages.clear();
+
+        for msg in context {
+            child_session.add_message(msg);
+        }
+
+        drop(parent_snapshot);
+
+        let subagent_response = agent
+            .run(&mut child_session, provider, tools)
+            .await
+            .map_err(|e| RuntimeError::ToolExecutionFailed {
+                tool: "subagent".to_string(),
+                reason: e.to_string(),
+            })?;
+
+        let parent_after = self.session.read().await;
+        if parent_after.messages.len() != parent_message_count {
+            return Err(RuntimeError::SessionLocked);
+        }
+        if parent_after.id != parent_id {
+            return Err(RuntimeError::SessionLocked);
+        }
+        drop(parent_after);
+
+        Ok(SubagentResult {
+            response: subagent_response,
+            child_session_id,
+            agent_type: agent.agent_type(),
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use opencode_core::OpenCodeError;
 
     #[test]
     fn test_primary_agent_tracker_new_is_inactive() {
@@ -496,5 +584,214 @@ mod tests {
         let session = Session::default();
         let runtime = AgentRuntime::new(session, AgentType::Build);
         assert_eq!(runtime.active_agent(), Some(AgentType::Build));
+    }
+
+    struct MockSubagent {
+        response_content: String,
+        agent_type: AgentType,
+    }
+
+    impl MockSubagent {
+        fn new(response_content: &str, agent_type: AgentType) -> Self {
+            Self {
+                response_content: response_content.to_string(),
+                agent_type,
+            }
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl Agent for MockSubagent {
+        fn agent_type(&self) -> AgentType {
+            self.agent_type
+        }
+
+        fn name(&self) -> &str {
+            "mock_subagent"
+        }
+
+        fn description(&self) -> &str {
+            "Mock subagent for testing"
+        }
+
+        fn can_execute_tools(&self) -> bool {
+            false
+        }
+
+        fn can_write_files(&self) -> bool {
+            false
+        }
+
+        fn can_run_commands(&self) -> bool {
+            false
+        }
+
+        async fn run(
+            &self,
+            session: &mut Session,
+            _provider: &dyn Provider,
+            _tools: &ToolRegistry,
+        ) -> Result<AgentResponse, OpenCodeError> {
+            session.add_message(Message::assistant("subagent response"));
+            Ok(AgentResponse {
+                content: self.response_content.clone(),
+                tool_calls: Vec::new(),
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn test_subagent_spawn_isolated_context() {
+        let session = Session::default();
+        let session_id = session.id;
+        let runtime = AgentRuntime::new(session, AgentType::Build);
+
+        let subagent = MockSubagent::new("isolated response", AgentType::General);
+        let context = vec![Message::user("task instructions")];
+
+        let result = runtime
+            .invoke_subagent(&subagent, context, &MockProvider, &ToolRegistry::new())
+            .await;
+
+        assert!(result.is_ok());
+        let subagent_result = result.unwrap();
+        assert_eq!(subagent_result.response.content, "isolated response");
+        assert_eq!(subagent_result.agent_type, AgentType::General);
+        assert_ne!(subagent_result.child_session_id, session_id);
+    }
+
+    #[tokio::test]
+    async fn test_subagent_result_handoff() {
+        let session = Session::default();
+        let runtime = AgentRuntime::new(session, AgentType::Build);
+
+        let expected_content = "handoff result content";
+        let subagent = MockSubagent::new(expected_content, AgentType::Explore);
+        let context = vec![Message::user("explore task")];
+
+        let result = runtime
+            .invoke_subagent(&subagent, context, &MockProvider, &ToolRegistry::new())
+            .await
+            .unwrap();
+
+        assert_eq!(result.response.content, expected_content);
+        assert!(result.response.tool_calls.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_subagent_preserves_parent_context() {
+        let mut session = Session::default();
+        session.add_message(Message::user("parent message 1"));
+        session.add_message(Message::assistant("parent message 2"));
+        let original_message_count = session.messages.len();
+        let original_id = session.id;
+
+        let runtime = AgentRuntime::new(session, AgentType::Build);
+
+        let subagent = MockSubagent::new("subagent response", AgentType::General);
+        let context = vec![Message::user("subagent task")];
+
+        let _result = runtime
+            .invoke_subagent(&subagent, context, &MockProvider, &ToolRegistry::new())
+            .await
+            .unwrap();
+
+        let parent_after = runtime.session.read().await;
+        assert_eq!(parent_after.messages.len(), original_message_count);
+        assert_eq!(parent_after.id, original_id);
+        assert_eq!(parent_after.messages[0].content, "parent message 1");
+        assert_eq!(parent_after.messages[1].content, "parent message 2");
+    }
+
+    #[tokio::test]
+    async fn test_subagent_child_context_isolated() {
+        let session = Session::default();
+        let session_id = session.id;
+        let runtime = AgentRuntime::new(session, AgentType::Build);
+
+        let subagent = MockSubagent::new("child result", AgentType::General);
+        let context = vec![Message::user("isolated task")];
+
+        let result = runtime
+            .invoke_subagent(&subagent, context, &MockProvider, &ToolRegistry::new())
+            .await
+            .unwrap();
+
+        assert_ne!(result.child_session_id, session_id);
+
+        let child_session = result.child_session_id;
+        let parent_session = runtime.session.read().await;
+        assert_ne!(child_session, parent_session.id);
+    }
+
+    #[tokio::test]
+    async fn test_subagent_context_messages_added() {
+        let session = Session::default();
+        let runtime = AgentRuntime::new(session, AgentType::Build);
+
+        let subagent = MockSubagent::new("response", AgentType::General);
+        let context = vec![
+            Message::user("first instruction"),
+            Message::user("second instruction"),
+        ];
+
+        let _result = runtime
+            .invoke_subagent(&subagent, context, &MockProvider, &ToolRegistry::new())
+            .await
+            .unwrap();
+    }
+
+    struct MockProvider;
+
+    impl MockProvider {
+        fn new() -> Self {
+            Self
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl Provider for MockProvider {
+        async fn complete(
+            &self,
+            prompt: &str,
+            _context: Option<&str>,
+        ) -> Result<String, opencode_core::OpenCodeError> {
+            Ok(format!("mock: {}", prompt))
+        }
+
+        async fn complete_streaming(
+            &self,
+            prompt: &str,
+            mut callback: opencode_llm::provider::StreamingCallback,
+        ) -> Result<(), opencode_core::OpenCodeError> {
+            callback(format!("mock: {}", prompt));
+            Ok(())
+        }
+
+        async fn chat(
+            &self,
+            messages: &[opencode_llm::provider::ChatMessage],
+        ) -> Result<opencode_llm::provider::ChatResponse, opencode_core::OpenCodeError> {
+            let content = messages
+                .iter()
+                .map(|m| format!("{}: {}", m.role, m.content))
+                .collect::<Vec<_>>()
+                .join("\n");
+            Ok(opencode_llm::provider::ChatResponse {
+                content: format!("mock response to: {}", content),
+                model: "mock-model".to_string(),
+            })
+        }
+
+        fn get_models(&self) -> Vec<opencode_llm::provider::Model> {
+            vec![opencode_llm::provider::Model::new(
+                "mock-model",
+                "Mock Model",
+            )]
+        }
+
+        fn provider_name(&self) -> &str {
+            "mock"
+        }
     }
 }
