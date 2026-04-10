@@ -1,30 +1,46 @@
+use crate::error::{
+    CrashCause, FailureHandlingConfig, LspError, ProtocolViolationType, UnhealthyReason,
+};
+use crate::types::{CompletionItem, Diagnostic, Location, Position, Range, Severity};
 use opencode_core::OpenCodeError;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Stdio;
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::{Child, Command};
 use tokio::sync::{oneshot, Mutex};
 
-use crate::types::{CompletionItem, Diagnostic, Location, Position, Range, Severity};
-
 pub struct LspClient {
     process: Option<Child>,
     request_id: u64,
-    pending: Arc<Mutex<HashMap<u64, oneshot::Sender<String>>>>,
+    pending: Arc<Mutex<HashMap<u64, oneshot::Sender<Result<String, LspError>>>>>,
     stdin: Option<tokio::process::ChildStdin>,
     diagnostics: Arc<Mutex<HashMap<String, Vec<Diagnostic>>>>,
+    server_name: String,
+    is_running: Arc<AtomicBool>,
+    consecutive_errors: Arc<AtomicU32>,
+    config: FailureHandlingConfig,
 }
 
 impl LspClient {
     pub fn new() -> Self {
+        Self::with_config(FailureHandlingConfig::default())
+    }
+
+    pub fn with_config(config: FailureHandlingConfig) -> Self {
         Self {
             process: None,
             request_id: 0,
             pending: Arc::new(Mutex::new(HashMap::new())),
             stdin: None,
             diagnostics: Arc::new(Mutex::new(HashMap::new())),
+            server_name: String::new(),
+            is_running: Arc::new(AtomicBool::new(false)),
+            consecutive_errors: Arc::new(AtomicU32::new(0)),
+            config,
         }
     }
 
@@ -33,6 +49,19 @@ impl LspClient {
         server_command: &str,
         root_path: &PathBuf,
     ) -> Result<(), OpenCodeError> {
+        self.start_with_name(server_command, root_path, server_command.to_string()).await
+    }
+
+    pub async fn start_with_name(
+        &mut self,
+        server_command: &str,
+        root_path: &PathBuf,
+        server_name: String,
+    ) -> Result<(), OpenCodeError> {
+        if let Some(mut old_process) = self.process.take() {
+            let _ = old_process.kill().await;
+        }
+
         let mut cmd = Command::new("sh");
         cmd.arg("-c")
             .arg(server_command)
@@ -51,51 +80,109 @@ impl LspClient {
         self.process = Some(child);
         self.stdin = stdin;
         self.request_id = 0;
+        self.server_name = server_name;
+        self.is_running.store(true, Ordering::SeqCst);
+        self.consecutive_errors.store(0, Ordering::SeqCst);
 
         if let Some(stdout) = stdout {
             let pending = self.pending.clone();
             let diagnostics = self.diagnostics.clone();
+            let is_running = self.is_running.clone();
+            let consecutive_errors = self.consecutive_errors.clone();
+            let max_errors = self.config.max_consecutive_errors;
+            let server_name = self.server_name.clone();
+
             tokio::spawn(async move {
                 let mut stdout = stdout;
                 let mut buf = Vec::new();
                 loop {
                     let mut temp = [0u8; 8192];
                     match stdout.read(&mut temp).await {
-                        Ok(0) | Err(_) => break,
+                        Ok(0) => {
+                            is_running.store(false, Ordering::SeqCst);
+                            break;
+                        }
+                        Err(_) => {
+                            is_running.store(false, Ordering::SeqCst);
+                            break;
+                        }
                         Ok(n) => {
                             buf.extend_from_slice(&temp[..n]);
                             loop {
-                                if let Some(msg) = extract_jsonrpc_message(&buf) {
-                                    let len = msg.len();
-                                    if let Ok(v) = serde_json::from_str::<serde_json::Value>(&msg) {
-                                        // Handle response messages (have id)
-                                        if let Some(id) = v.get("id").and_then(|id| id.as_u64()) {
-                                            let mut p = pending.lock().await;
-                                            if let Some(tx) = p.remove(&id) {
-                                                let _ = tx.send(msg);
-                                            }
-                                        }
-                                        // Handle notification messages (have method but no id)
-                                        else if let Some(method) = v.get("method").and_then(|m| m.as_str()) {
-                                            if method == "textDocument/publishDiagnostics" {
-                                                if let Some(params) = v.get("params").and_then(|p| p.as_object()) {
-                                                    if let Some(uri) = params.get("uri").and_then(|u| u.as_str()) {
-                                                        if let Some(diagnostics_arr) = params.get("diagnostics").and_then(|d| d.as_array()) {
-                                                            let parsed_diagnostics: Vec<Diagnostic> = diagnostics_arr
-                                                                .iter()
-                                                                .filter_map(parse_diagnostic)
-                                                                .collect();
-                                                            let mut diags = diagnostics.lock().await;
-                                                            diags.insert(uri.to_string(), parsed_diagnostics);
+                                match extract_jsonrpc_message(&buf) {
+                                    Ok(msg) => {
+                                        let len = msg.len();
+                                        match serde_json::from_str::<serde_json::Value>(&msg) {
+                                            Ok(v) => {
+                                                consecutive_errors.store(0, Ordering::SeqCst);
+                                                if let Some(id) = v.get("id").and_then(|id| id.as_u64()) {
+                                                    let mut p = pending.lock().await;
+                                                    if let Some(tx) = p.remove(&id) {
+                                                        let _ = tx.send(Ok(msg));
+                                                    }
+                                                } else if let Some(method) = v.get("method").and_then(|m| m.as_str()) {
+                                                    if method == "textDocument/publishDiagnostics" {
+                                                        if let Some(params) = v.get("params").and_then(|p| p.as_object()) {
+                                                            if let Some(uri) = params.get("uri").and_then(|u| u.as_str()) {
+                                                                if let Some(diagnostics_arr) = params.get("diagnostics").and_then(|d| d.as_array()) {
+                                                                    let parsed_diagnostics: Vec<Diagnostic> = diagnostics_arr
+                                                                        .iter()
+                                                                        .filter_map(parse_diagnostic)
+                                                                        .collect();
+                                                                    let mut diags = diagnostics.lock().await;
+                                                                    diags.insert(uri.to_string(), parsed_diagnostics);
+                                                                }
+                                                            }
                                                         }
                                                     }
                                                 }
                                             }
+                                            Err(e) => {
+                                                let err = LspError::ProtocolViolation {
+                                                    violation: ProtocolViolationType::InvalidJson,
+                                                    detail: e.to_string(),
+                                                };
+                                                let mut p = pending.lock().await;
+                                                for (_, tx) in p.drain() {
+                                                    let _ = tx.send(Err(err.clone()));
+                                                }
+                                            }
+                                        }
+                                        if len >= buf.len() {
+                                            buf.clear();
+                                        } else {
+                                            buf = buf.split_at(len.min(buf.len())).1.to_vec();
                                         }
                                     }
-                                    buf = buf.split_at(len.min(buf.len())).1.to_vec();
-                                } else {
-                                    break;
+                                    Err(LspError::ProtocolViolation { violation, detail }) => {
+                                        consecutive_errors.fetch_add(1, Ordering::SeqCst);
+                                        if consecutive_errors.load(Ordering::SeqCst) >= max_errors {
+                                            is_running.store(false, Ordering::SeqCst);
+                                            let err = LspError::ServerUnhealthy {
+                                                server_name: server_name.clone(),
+                                                reason: UnhealthyReason::ErrorThresholdExceeded,
+                                            };
+                                            let mut p = pending.lock().await;
+                                            for (_, tx) in p.drain() {
+                                                let _ = tx.send(Err(err.clone()));
+                                            }
+                                            break;
+                                        }
+                                        let _ = violation;
+                                        let _ = detail;
+                                        if buf.len() > len_after_header(&buf).unwrap_or(buf.len()) {
+                                            buf = buf.split_at(len_after_header(&buf).unwrap_or(buf.len())).1.to_vec();
+                                        } else {
+                                            buf.clear();
+                                        }
+                                    }
+                                    Err(e) => {
+                                        let mut p = pending.lock().await;
+                                        for (_, tx) in p.drain() {
+                                            let _ = tx.send(Err(e.clone()));
+                                        }
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -137,21 +224,35 @@ impl LspClient {
             "params": params
         });
 
-        let msg = serde_json::to_string(&request).map_err(|e| OpenCodeError::Tui(e.to_string()))?;
-        let msg = format!("Content-Length: {}\r\n\r\n{}", msg.len(), msg);
+        self.send_jsonrpc_message(&request).await?;
+
+        Ok(id)
+    }
+
+    async fn send_jsonrpc_message(&mut self, msg: &serde_json::Value) -> Result<(), OpenCodeError> {
+        let msg_str = serde_json::to_string(msg).map_err(|e| OpenCodeError::Tui(e.to_string()))?;
+        let msg = format!("Content-Length: {}\r\n\r\n{}", msg_str.len(), msg_str);
 
         if let Some(ref mut stdin) = self.stdin {
             stdin
                 .write_all(msg.as_bytes())
                 .await
-                .map_err(|e| OpenCodeError::Tui(e.to_string()))?;
+                .map_err(|e| {
+                    self.is_running.store(false, Ordering::SeqCst);
+                    OpenCodeError::Tui(format!(
+                        "Failed to write to LSP server: {} (server may have crashed)",
+                        e
+                    ))
+                })?;
             stdin
                 .flush()
                 .await
                 .map_err(|e| OpenCodeError::Tui(e.to_string()))?;
+        } else {
+            return Err(OpenCodeError::Tui("LSP stdin not available".to_string()));
         }
 
-        Ok(id)
+        Ok(())
     }
 
     pub async fn wait_for_response(
@@ -159,23 +260,31 @@ impl LspClient {
         id: u64,
         timeout_secs: u64,
     ) -> Result<serde_json::Value, OpenCodeError> {
-        let (tx, rx) = oneshot::channel::<String>();
+        let timeout = Duration::from_secs(timeout_secs);
+        let (tx, rx) = oneshot::channel::<Result<String, LspError>>();
+
         {
             let mut p = self.pending.lock().await;
             p.insert(id, tx);
         }
 
-        let resp =
-            match tokio::time::timeout(tokio::time::Duration::from_secs(timeout_secs), rx).await {
-                Ok(Ok(resp)) => resp,
-                Ok(Err(e)) => {
-                    return Err(OpenCodeError::Tool(format!(
-                        "LSP request {} failed: {}",
-                        id, e
-                    )))
+        let resp = match tokio::time::timeout(timeout, rx).await {
+            Ok(Ok(Ok(resp))) => resp,
+            Ok(Ok(Err(lsp_err))) => return Err(lsp_err.into_opencode_error()),
+            Ok(Err(e)) => {
+                return Err(OpenCodeError::Tool(format!(
+                    "LSP request {} failed: {}",
+                    id, e
+                )))
+            }
+            Err(_) => {
+                return Err(LspError::RequestTimeout {
+                    method: "unknown".to_string(),
+                    timeout_ms: timeout_secs * 1000,
                 }
-                Err(_) => return Err(OpenCodeError::Tool(format!("LSP request {} timed out", id))),
-            };
+                .into_opencode_error())
+            }
+        };
 
         serde_json::from_str(&resp)
             .map_err(|e| OpenCodeError::Tool(format!("Invalid LSP response: {}", e)))
@@ -192,22 +301,7 @@ impl LspClient {
             "params": params
         });
 
-        let msg =
-            serde_json::to_string(&notification).map_err(|e| OpenCodeError::Tui(e.to_string()))?;
-        let msg = format!("Content-Length: {}\r\n\r\n{}", msg.len(), msg);
-
-        if let Some(ref mut stdin) = self.stdin {
-            stdin
-                .write_all(msg.as_bytes())
-                .await
-                .map_err(|e| OpenCodeError::Tui(e.to_string()))?;
-            stdin
-                .flush()
-                .await
-                .map_err(|e| OpenCodeError::Tui(e.to_string()))?;
-        }
-
-        Ok(())
+        self.send_jsonrpc_message(&notification).await
     }
 
     pub fn detect_language_server(root: &PathBuf) -> Option<String> {
@@ -237,6 +331,7 @@ impl LspClient {
     }
 
     pub async fn get_diagnostics(&mut self, uri: &str) -> Result<Vec<Diagnostic>, OpenCodeError> {
+        self.check_health()?;
         let diags = self.diagnostics.lock().await;
         Ok(diags.get(uri).cloned().unwrap_or_default())
     }
@@ -247,13 +342,17 @@ impl LspClient {
         line: u32,
         col: u32,
     ) -> Result<Option<Location>, OpenCodeError> {
+        self.check_health()?;
+
         let params = serde_json::json!({
             "textDocument": { "uri": uri },
             "position": { "line": line, "character": col }
         });
 
         let id = self.send_request("textDocument/definition", params).await?;
-        let resp = self.wait_for_response(id, 5).await?;
+        let resp = self
+            .wait_for_response(id, self.config.default_request_timeout_ms / 1000)
+            .await?;
 
         if let Some(result) = resp.get("result") {
             if result.is_null() {
@@ -271,6 +370,8 @@ impl LspClient {
         line: u32,
         col: u32,
     ) -> Result<Vec<Location>, OpenCodeError> {
+        self.check_health()?;
+
         let params = serde_json::json!({
             "textDocument": { "uri": uri },
             "position": { "line": line, "character": col },
@@ -278,7 +379,9 @@ impl LspClient {
         });
 
         let id = self.send_request("textDocument/references", params).await?;
-        let resp = self.wait_for_response(id, 5).await?;
+        let resp = self
+            .wait_for_response(id, self.config.default_request_timeout_ms / 1000)
+            .await?;
 
         if let Some(result) = resp.get("result") {
             if let Some(arr) = result.as_array() {
@@ -296,6 +399,7 @@ impl LspClient {
         _line: u32,
         _col: u32,
     ) -> Result<Vec<CompletionItem>, OpenCodeError> {
+        self.check_health()?;
         Ok(Vec::new())
     }
 
@@ -306,29 +410,126 @@ impl LspClient {
         if let Some(mut process) = self.process.take() {
             process.kill().await.ok();
         }
+        self.is_running.store(false, Ordering::SeqCst);
         Ok(())
+    }
+
+    pub fn is_healthy(&self) -> bool {
+        self.is_running.load(Ordering::SeqCst)
+            && self.consecutive_errors.load(Ordering::SeqCst) < self.config.max_consecutive_errors
+    }
+
+    fn check_health(&self) -> Result<(), OpenCodeError> {
+        if !self.is_healthy() {
+            return Err(LspError::ServerUnhealthy {
+                server_name: self.server_name.clone(),
+                reason: UnhealthyReason::NotResponding,
+            }
+            .into_opencode_error());
+        }
+        Ok(())
+    }
+
+    pub async fn health_check(&mut self) -> Result<bool, OpenCodeError> {
+        if !self.is_running.load(Ordering::SeqCst) {
+            return Ok(false);
+        }
+
+        let params = serde_json::json!({});
+        match self.send_request("window/showMessageRequest", params).await {
+            Ok(id) => {
+                match tokio::time::timeout(
+                    Duration::from_secs(5),
+                    self.wait_for_response(id, 5),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => Ok(true),
+                    _ => Ok(false),
+                }
+            }
+            Err(_) => Ok(false),
+        }
+    }
+
+    pub fn get_server_name(&self) -> &str {
+        &self.server_name
+    }
+
+    pub fn get_consecutive_error_count(&self) -> u32 {
+        self.consecutive_errors.load(Ordering::SeqCst)
+    }
+
+    pub fn get_config(&self) -> &FailureHandlingConfig {
+        &self.config
     }
 }
 
-fn extract_jsonrpc_message(buf: &[u8]) -> Option<String> {
+fn len_after_header(buf: &[u8]) -> Option<usize> {
     let header = b"Content-Length: ";
     let idx = buf.windows(header.len()).position(|w| w == header)?;
-
     let after_header = &buf[idx + header.len()..];
     let end_of_headers = after_header.windows(4).position(|w| w == b"\r\n\r\n")?;
-
     let len_str = std::str::from_utf8(&after_header[..end_of_headers])
         .ok()?
         .trim();
     let len: usize = len_str.parse().ok()?;
+    let msg_start = idx + header.len() + end_of_headers + 4;
+    Some(msg_start + len)
+}
+
+fn extract_jsonrpc_message(buf: &[u8]) -> Result<String, LspError> {
+    let header = b"Content-Length: ";
+    let idx = buf
+        .windows(header.len())
+        .position(|w| w == header)
+        .ok_or(LspError::ProtocolViolation {
+            violation: ProtocolViolationType::MissingContentLength,
+            detail: "Content-Length header not found".to_string(),
+        })?;
+
+    let after_header = &buf[idx + header.len()..];
+    let end_of_headers = after_header
+        .windows(4)
+        .position(|w| w == b"\r\n\r\n")
+        .ok_or(LspError::ProtocolViolation {
+            violation: ProtocolViolationType::InvalidContentLength,
+            detail: "Invalid header format".to_string(),
+        })?;
+
+    let len_str =
+        std::str::from_utf8(&after_header[..end_of_headers])
+            .map_err(|_| LspError::ProtocolViolation {
+                violation: ProtocolViolationType::InvalidContentLength,
+                detail: "Content-Length is not valid UTF-8".to_string(),
+            })?
+            .trim();
+
+    let len: usize = len_str.parse().map_err(|_| LspError::ProtocolViolation {
+        violation: ProtocolViolationType::InvalidContentLength,
+        detail: format!("Content-Length '{}' is not a valid number", len_str),
+    })?;
 
     let msg_start = idx + header.len() + end_of_headers + 4;
     if buf.len() < msg_start + len {
-        return None;
+        return Err(LspError::ProtocolViolation {
+            violation: ProtocolViolationType::InvalidContentLength,
+            detail: format!(
+                "Buffer underflow: expected {} bytes, got {}",
+                len,
+                buf.len().saturating_sub(msg_start)
+            ),
+        });
     }
 
-    let msg = std::str::from_utf8(&buf[msg_start..msg_start + len]).ok()?;
-    Some(msg.to_string())
+    let msg = std::str::from_utf8(&buf[msg_start..msg_start + len]).map_err(|_| {
+        LspError::ProtocolViolation {
+            violation: ProtocolViolationType::InvalidJson,
+            detail: "Message is not valid UTF-8".to_string(),
+        }
+    })?;
+
+    Ok(msg.to_string())
 }
 
 fn parse_location(v: &serde_json::Value) -> Option<Location> {
@@ -406,5 +607,119 @@ impl Drop for LspClient {
         if let Some(ref mut process) = self.process {
             let _ = process.kill();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_client_creation() {
+        let client = LspClient::new();
+        assert!(client.is_healthy());
+        assert_eq!(client.get_consecutive_error_count(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_client_with_config() {
+        let config = FailureHandlingConfig::default();
+        let client = LspClient::with_config(config);
+        assert!(client.is_healthy());
+    }
+
+    #[test]
+    fn test_extract_jsonrpc_message_valid() {
+        let buf = b"Content-Length: 45\r\n\r\n{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":\"ok\"}";
+        let result = extract_jsonrpc_message(buf);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), r#"{"jsonrpc":"2.0","id":1,"result":"ok"}"#);
+    }
+
+    #[test]
+    fn test_extract_jsonrpc_message_missing_header() {
+        let buf = b"{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":\"ok\"}";
+        let result = extract_jsonrpc_message(buf);
+        assert!(matches!(
+            result,
+            Err(LspError::ProtocolViolation {
+                violation: ProtocolViolationType::MissingContentLength,
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn test_extract_jsonrpc_message_invalid_length() {
+        let buf = b"Content-Length: abc\r\n\r\n{\"jsonrpc\":\"2.0\"}";
+        let result = extract_jsonrpc_message(buf);
+        assert!(matches!(
+            result,
+            Err(LspError::ProtocolViolation {
+                violation: ProtocolViolationType::InvalidContentLength,
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn test_extract_jsonrpc_message_buffer_underflow() {
+        let buf = b"Content-Length: 100\r\n\r\n{\"jsonrpc\":\"2.0\"}";
+        let result = extract_jsonrpc_message(buf);
+        assert!(matches!(
+            result,
+            Err(LspError::ProtocolViolation {
+                violation: ProtocolViolationType::InvalidContentLength,
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn test_len_after_header() {
+        let buf = b"Content-Length: 45\r\n\r\n{\"jsonrpc\":\"2.0\"}";
+        let len = len_after_header(buf);
+        assert_eq!(len, Some(45 + 45));
+    }
+
+    #[tokio::test]
+    async fn test_health_check_not_started() {
+        let mut client = LspClient::new();
+        let result = client.health_check().await;
+        assert!(result.is_ok());
+        assert!(!result.unwrap());
+    }
+
+    #[test]
+    fn test_server_name_empty_when_not_started() {
+        let client = LspClient::new();
+        assert_eq!(client.get_server_name(), "");
+    }
+
+    #[test]
+    fn test_failure_handling_config() {
+        let config = FailureHandlingConfig::default();
+        assert_eq!(config.default_request_timeout_ms, 30_000);
+        assert_eq!(config.max_consecutive_errors, 5);
+        assert!(config.auto_restart);
+    }
+
+    #[test]
+    fn test_protocol_violation_types() {
+        assert_eq!(
+            format!("{:?}", ProtocolViolationType::InvalidJson),
+            "InvalidJson"
+        );
+        assert_eq!(
+            format!("{:?}", ProtocolViolationType::MissingContentLength),
+            "MissingContentLength"
+        );
+    }
+
+    #[test]
+    fn test_crash_cause() {
+        let cause = CrashCause::ProcessExited { code: 1 };
+        assert!(cause.to_string().contains("exited"));
+        assert!(cause.to_string().contains("1"));
     }
 }

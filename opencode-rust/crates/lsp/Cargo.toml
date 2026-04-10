@@ -10,6 +10,7 @@ opencode-core.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
+thiserror.workspace = true
 futures = "0.3"
 tower-lsp = "0.20"
 lsp-types = "0.95"

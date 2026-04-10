@@ -595,7 +595,7 @@
       "priority": "P1",
       "title": "LSP failure handling",
       "description": "Implement robust failure handling for LSP server operations. Handle server crashes, timeouts, and protocol violations gracefully.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "LSP server crashes are detected and handled",
         "Timeouts are enforced for requests",
