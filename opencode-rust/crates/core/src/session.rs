@@ -978,4 +978,584 @@ mod tests {
             Some(format!("{}/{}", grandparent_id, parent_id))
         );
     }
+
+    // =========================================================================
+    // Ownership Invariant Tests
+    // =========================================================================
+
+    #[test]
+    fn test_ownership_invariant_fork_creates_child_with_parent_reference() {
+        // Test that fork() correctly transfers ownership by establishing parent-child relationship
+        let mut parent = Session::new();
+        parent.add_message(Message::user("original message"));
+        let parent_id = parent.id.to_string();
+
+        let child = parent.fork(Uuid::new_v4());
+
+        // Invariant: child must have parent_session_id pointing to original parent
+        assert_eq!(
+            child.parent_session_id.as_deref(),
+            Some(parent_id.as_str()),
+            "Forked session must reference its parent"
+        );
+        // Invariant: child ID must be different from parent
+        assert_ne!(child.id, parent.id, "Forked session must have unique ID");
+        // Invariant: messages are transferred but child is independent
+        assert_eq!(child.messages.len(), 1);
+    }
+
+    #[test]
+    fn test_ownership_invariant_fork_at_message_preserves_ownership() {
+        // Test that fork_at_message() correctly transfers ownership at specific point
+        let mut parent = Session::new();
+        parent.add_message(Message::user("first"));
+        parent.add_message(Message::assistant("second"));
+        parent.add_message(Message::user("third"));
+        let parent_id = parent.id.to_string();
+
+        let child = parent.fork_at_message(1).unwrap();
+
+        // Invariant: ownership transfer at message index
+        assert_eq!(
+            child.parent_session_id.as_deref(),
+            Some(parent_id.as_str()),
+            "Child must reference parent after fork_at_message"
+        );
+        // Invariant: only messages up to and including index are transferred
+        assert_eq!(child.messages.len(), 2, "Child should have messages[0..=1]");
+        assert_eq!(child.messages[0].content, "first");
+        assert_eq!(child.messages[1].content, "second");
+    }
+
+    #[test]
+    fn test_ownership_invariant_multi_level_fork_lineage_chain() {
+        // Test that multi-level forking maintains correct lineage invariant
+        let grandparent = Session::new();
+        let grandparent_id = grandparent.id.to_string();
+
+        let parent = grandparent.fork(Uuid::new_v4());
+        let parent_id = parent.id.to_string();
+
+        let child = parent.fork(Uuid::new_v4());
+
+        assert_eq!(
+            child.lineage_path,
+            Some(grandparent_id.clone()),
+            "Child must track grandparent in lineage_path"
+        );
+        assert_eq!(
+            child.compute_lineage_path(),
+            Some(format!("{}/{}", grandparent_id, parent_id)),
+            "Lineage path must be grandparent_id/parent_id"
+        );
+        assert_eq!(
+            child.parent_session_id.as_deref(),
+            Some(parent_id.as_str()),
+            "Parent reference must be immediate parent"
+        );
+        assert_eq!(
+            child.parent_session_id.as_deref(),
+            Some(parent_id.as_str()),
+            "Parent reference must be immediate parent"
+        );
+        // Invariant: each session in chain has correct parent
+        assert_eq!(
+            parent.parent_session_id.as_deref(),
+            Some(grandparent_id.as_str()),
+            "Parent must reference grandparent"
+        );
+    }
+
+    #[test]
+    fn test_ownership_invariant_share_link_generation_manual_mode() {
+        // Test that share link generation works correctly in Manual mode
+        let mut session = Session::new();
+        session.add_message(Message::user("secret content"));
+
+        let link = session.generate_share_link().unwrap();
+
+        // Invariant: share link URL is well-formed
+        assert!(
+            link.contains("/share/"),
+            "Share link must contain /share/ path"
+        );
+        // Invariant: shared_id is set
+        assert!(
+            session.shared_id.is_some(),
+            "shared_id must be set after generating link"
+        );
+        // Invariant: share_mode is set to Manual
+        assert_eq!(
+            session.share_mode,
+            Some(ShareMode::Manual),
+            "Share mode must be Manual after generating link"
+        );
+        // Invariant: session reports as shared
+        assert!(session.is_shared(), "Session must report as shared");
+    }
+
+    #[test]
+    fn test_ownership_invariant_share_link_generation_auto_mode() {
+        // Test that share link generation works correctly in Auto mode
+        let mut session = Session::new();
+        session.set_share_mode(ShareMode::Auto);
+
+        let link = session.generate_share_link().unwrap();
+
+        // Invariant: share link is generated even in Auto mode
+        assert!(link.contains("/share/"));
+        assert!(session.shared_id.is_some());
+        assert_eq!(session.share_mode, Some(ShareMode::Auto));
+        assert!(session.is_shared());
+    }
+
+    #[test]
+    fn test_ownership_invariant_share_link_blocked_when_disabled() {
+        // Test that share link generation fails when sharing is disabled
+        let mut session = Session::new();
+        session.set_share_mode(ShareMode::Disabled);
+
+        let result = session.generate_share_link();
+
+        // Invariant: sharing disabled must prevent link generation
+        assert!(
+            result.is_err(),
+            "Share link generation must fail when disabled"
+        );
+        assert_eq!(result.unwrap_err(), ShareError::SharingDisabled);
+        // Invariant: is_shared must return false
+        assert!(
+            !session.is_shared(),
+            "Session must not be shared when disabled"
+        );
+    }
+
+    #[test]
+    fn test_ownership_invariant_share_mode_transitions() {
+        let mut session = Session::new();
+
+        assert!(!session.is_shared());
+        assert!(session.shared_id.is_none());
+
+        session.set_share_mode(ShareMode::Manual);
+        session.generate_share_link().unwrap();
+        assert!(session.is_shared());
+        assert!(session.shared_id.is_some());
+
+        session.set_share_mode(ShareMode::Disabled);
+        assert!(!session.is_shared());
+        assert!(
+            session.shared_id.is_none(),
+            "shared_id must be cleared when disabled"
+        );
+
+        session.set_share_mode(ShareMode::Manual);
+        assert!(
+            session.generate_share_link().is_ok(),
+            "Share link generation should work after re-enabling"
+        );
+        assert!(session.is_shared());
+    }
+
+    #[test]
+    fn test_ownership_invariant_share_expiry_enforces_temporal_bound() {
+        // Test that share expiry correctly enforces temporal ownership bound
+        let mut session = Session::new();
+        session.generate_share_link().unwrap();
+
+        // Invariant: newly shared session is not expired
+        assert!(session.is_shared());
+        assert!(session.get_share_id().is_some());
+
+        // Set expiry to past
+        session.set_share_expiry(Some(Utc::now() - chrono::Duration::minutes(1)));
+
+        // Invariant: expired session is not considered shared
+        assert!(!session.is_shared(), "Expired session must not be shared");
+        assert!(
+            session.get_share_id().is_none(),
+            "Expired session must not return share_id"
+        );
+
+        // Set expiry to future
+        let mut session2 = Session::new();
+        session2.generate_share_link().unwrap();
+        session2.set_share_expiry(Some(Utc::now() + chrono::Duration::hours(1)));
+
+        // Invariant: future expiry session is still shared
+        assert!(session2.is_shared());
+        assert!(session2.get_share_id().is_some());
+    }
+
+    #[test]
+    fn test_ownership_invariant_share_id_uniqueness() {
+        // Test that each session gets a unique share_id invariant
+        let mut session1 = Session::new();
+        let mut session2 = Session::new();
+
+        let link1 = session1.generate_share_link().unwrap();
+        let link2 = session2.generate_share_link().unwrap();
+
+        let share_id1 = session1.get_share_id();
+        let share_id2 = session2.get_share_id();
+
+        // Invariant: each session has a unique share_id
+        assert_ne!(
+            share_id1, share_id2,
+            "Each session must have unique share_id"
+        );
+        // Invariant: share links are unique
+        assert_ne!(link1, link2);
+    }
+
+    #[test]
+    fn test_ownership_invariant_fork_inherits_share_mode_not_shared_id() {
+        // Test that fork inherits share mode but generates new share_id
+        let mut parent = Session::new();
+        parent.set_share_mode(ShareMode::Auto);
+        parent.generate_share_link().unwrap();
+        let parent_share_id = parent.shared_id.clone();
+
+        let mut child = parent.fork(Uuid::new_v4());
+
+        assert_eq!(
+            child.share_mode, parent.share_mode,
+            "Child must inherit parent's share_mode"
+        );
+        assert!(
+            child.shared_id.is_none(),
+            "Child must NOT inherit parent's shared_id"
+        );
+        assert!(!child.is_shared());
+
+        child.generate_share_link().unwrap();
+        assert_ne!(
+            child.shared_id, parent_share_id,
+            "Child must generate its own unique share_id"
+        );
+    }
+
+    #[test]
+    fn test_ownership_invariant_serialization_preserves_lineage() {
+        // Test that serialization preserves ownership lineage invariant
+        let grandparent = Session::new();
+        let parent = grandparent.fork(Uuid::new_v4());
+        let child = parent.fork(Uuid::new_v4());
+
+        let grandparent_id = grandparent.id.to_string();
+        let parent_id = parent.id.to_string();
+        let child_lineage = child.lineage_path.clone();
+
+        // Serialize and deserialize child
+        let tmp = tempfile::TempDir::new().unwrap();
+        let path = tmp.path().join("session.json");
+        child.save(&path).unwrap();
+        let loaded = Session::load(&path).unwrap();
+
+        // Invariant: lineage is preserved through serialization
+        assert_eq!(
+            loaded.lineage_path, child_lineage,
+            "Lineage must survive serialization"
+        );
+        assert_eq!(
+            loaded.compute_lineage_path(),
+            Some(format!("{}/{}", grandparent_id, parent_id)),
+            "Computed lineage must be preserved"
+        );
+        // Invariant: parent reference is preserved
+        assert_eq!(
+            loaded.parent_session_id.as_deref(),
+            Some(parent_id.as_str()),
+            "Parent reference must be preserved"
+        );
+    }
+
+    #[test]
+    fn test_ownership_invariant_serialization_preserves_sharing_state() {
+        // Test that serialization preserves sharing ownership invariant
+        let mut session = Session::new();
+        session.set_share_mode(ShareMode::Manual);
+        session.generate_share_link().unwrap();
+        let original_share_id = session.shared_id.clone();
+
+        // Serialize and deserialize
+        let tmp = tempfile::TempDir::new().unwrap();
+        let path = tmp.path().join("session.json");
+        session.save(&path).unwrap();
+        let loaded = Session::load(&path).unwrap();
+
+        // Invariant: sharing state survives serialization
+        assert_eq!(
+            loaded.shared_id, original_share_id,
+            "shared_id must be preserved"
+        );
+        assert_eq!(
+            loaded.share_mode,
+            Some(ShareMode::Manual),
+            "share_mode must be preserved"
+        );
+        assert!(loaded.is_shared(), "Loaded session must still be shared");
+        assert_eq!(
+            loaded.get_share_id(),
+            original_share_id.as_deref(),
+            "get_share_id() must return same value"
+        );
+    }
+
+    #[test]
+    fn test_ownership_invariant_fork_copies_messages_not_references() {
+        // Test that fork creates independent message ownership (copy, not reference)
+        let mut parent = Session::new();
+        parent.add_message(Message::user("original"));
+
+        let mut child = parent.fork(Uuid::new_v4());
+
+        assert_eq!(child.messages.len(), parent.messages.len());
+
+        child.messages[0] = Message::assistant("modified by child");
+
+        assert_eq!(
+            parent.messages[0].content, "original",
+            "Parent messages must not be affected by child modifications"
+        );
+        assert_eq!(
+            parent.messages[0].role,
+            Role::User,
+            "Parent message role must not be affected"
+        );
+    }
+
+    #[test]
+    fn test_ownership_invariant_multiple_forks_from_same_parent() {
+        let mut parent = Session::new();
+        let parent_id = parent.id.to_string();
+        parent.add_message(Message::user("parent message"));
+
+        let child1 = parent.fork(Uuid::new_v4());
+        let child2 = parent.fork(Uuid::new_v4());
+
+        assert_eq!(
+            child1.parent_session_id.as_deref(),
+            Some(parent_id.as_str()),
+            "First child must reference parent"
+        );
+        assert_eq!(
+            child2.parent_session_id.as_deref(),
+            Some(parent_id.as_str()),
+            "Second child must reference parent"
+        );
+        assert_ne!(child1.id, child2.id, "Children must have unique IDs");
+        let mut child1_mut = child1;
+        child1_mut.messages[0] = Message::assistant("child1 modified");
+        assert_eq!(
+            parent.messages[0].content, "parent message",
+            "Parent must not be affected by child modifications"
+        );
+    }
+
+    #[test]
+    fn test_ownership_invariant_lineage_path_format_correctness() {
+        // Test that lineage_path maintains correct format invariant
+        let session0 = Session::new();
+        assert!(
+            session0.lineage_path.is_none(),
+            "New session must have no lineage_path"
+        );
+
+        let session1 = session0.fork(Uuid::new_v4());
+        let id0 = session0.id.to_string();
+        assert_eq!(
+            session1.lineage_path, None,
+            "First fork must have lineage_path = None"
+        );
+        assert_eq!(
+            session1.compute_lineage_path(),
+            Some(id0.clone()),
+            "compute_lineage_path for first fork must return parent ID"
+        );
+
+        let session2 = session1.fork(Uuid::new_v4());
+        let id1 = session1.id.to_string();
+        assert_eq!(
+            session2.lineage_path,
+            Some(id0.clone()),
+            "Second fork lineage_path must be grandparent ID"
+        );
+        assert_eq!(
+            session2.compute_lineage_path(),
+            Some(format!("{}/{}", id0, id1)),
+            "compute_lineage_path must return full path"
+        );
+
+        let session3 = session2.fork(Uuid::new_v4());
+        let id2 = session2.id.to_string();
+        assert_eq!(
+            session3.lineage_path,
+            Some(format!("{}/{}", id0, id1)),
+            "Third fork lineage_path must be grandparent/parent"
+        );
+        assert_eq!(
+            session3.compute_lineage_path(),
+            Some(format!("{}/{}/{}", id0, id1, id2)),
+            "compute_lineage_path must return full 3-level path"
+        );
+    }
+
+    #[test]
+    fn test_ownership_invariant_share_mode_enum_consistency() {
+        // Test that ShareMode enum values are consistent
+        let mut session = Session::new();
+
+        // Manual mode
+        session.set_share_mode(ShareMode::Manual);
+        assert!(session.generate_share_link().is_ok());
+        session.set_share_mode(ShareMode::Disabled);
+
+        // Auto mode
+        session.set_share_mode(ShareMode::Auto);
+        assert!(session.generate_share_link().is_ok());
+        session.set_share_mode(ShareMode::Disabled);
+
+        // Disabled mode
+        session.set_share_mode(ShareMode::Disabled);
+        assert_eq!(
+            session.generate_share_link().unwrap_err(),
+            ShareError::SharingDisabled
+        );
+    }
+
+    #[test]
+    fn test_ownership_invariant_fork_preserves_tool_invocations() {
+        // Test that fork correctly handles tool invocation records
+        let mut parent = Session::new();
+        parent.add_message(Message::user("test"));
+
+        let child = parent.fork(Uuid::new_v4());
+
+        // Invariant: fork transfers tool_invocations (for audit trail)
+        assert_eq!(
+            child.tool_invocations.len(),
+            parent.tool_invocations.len(),
+            "Child must have same tool_invocations as parent"
+        );
+    }
+
+    #[test]
+    fn test_ownership_invariant_fork_at_message_invalid_index() {
+        let mut parent = Session::new();
+        parent.add_message(Message::user("only one"));
+
+        let result = parent.fork_at_message(5);
+
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            ForkError::MessageIndexOutOfBounds {
+                requested: 5,
+                len: 1,
+            }
+        );
+    }
+
+    #[test]
+    fn test_ownership_invariant_share_link_url_format() {
+        // Test that share link URL follows correct format invariant
+        let mut session = Session::new();
+        session.set_share_mode(ShareMode::Manual);
+        let link = session.generate_share_link().unwrap();
+
+        // Invariant: link format is https://opencode-rs.local/share/{share_id}
+        assert!(link.starts_with("https://opencode-rs.local/share/"));
+        let share_id = link
+            .strip_prefix("https://opencode-rs.local/share/")
+            .unwrap();
+        assert!(!share_id.is_empty(), "Share ID must be non-empty");
+        // UUID format check (36 chars with hyphens)
+        assert_eq!(share_id.len(), 36, "Share ID must be UUID format");
+    }
+
+    #[test]
+    fn test_ownership_invariant_is_shared_logic() {
+        // Test the complete is_shared() invariant logic
+        let mut session = Session::new();
+
+        // Case 1: no shared_id -> not shared
+        assert!(!session.is_shared());
+
+        // Case 2: shared_id exists but mode is Disabled -> not shared
+        session.shared_id = Some("test".to_string());
+        session.share_mode = Some(ShareMode::Disabled);
+        assert!(!session.is_shared());
+
+        // Case 3: shared_id exists, mode is Manual, no expiry -> shared
+        session.share_mode = Some(ShareMode::Manual);
+        assert!(session.is_shared());
+
+        // Case 4: shared_id exists, mode is Manual, expired -> not shared
+        session.share_expires_at = Some(Utc::now() - chrono::Duration::hours(1));
+        assert!(!session.is_shared());
+
+        // Case 5: shared_id exists, mode is Manual, future expiry -> shared
+        session.share_expires_at = Some(Utc::now() + chrono::Duration::hours(1));
+        assert!(session.is_shared());
+    }
+
+    #[test]
+    fn test_ownership_invariant_session_state_machine_is_independent() {
+        // Test that session state is independent from ownership state
+        let mut session = Session::new();
+
+        // Initial state
+        assert_eq!(session.state, SessionState::Idle);
+
+        // Fork a child - parent state is independent
+        let child = session.fork(Uuid::new_v4());
+        assert_eq!(session.state, SessionState::Idle);
+        assert_eq!(child.state, SessionState::Idle);
+
+        // Change parent state
+        session.set_state(SessionState::Thinking).unwrap();
+        assert_eq!(session.state, SessionState::Thinking);
+        // Child state is independent copy
+        assert_eq!(child.state, SessionState::Idle);
+
+        // Sharing doesn't affect state
+        session.set_share_mode(ShareMode::Manual);
+        session.generate_share_link().unwrap();
+        assert_eq!(session.state, SessionState::Thinking);
+        assert!(session.is_shared());
+    }
+
+    #[test]
+    fn test_ownership_invariant_export_preserves_ownership_metadata() {
+        // Test that export includes ownership-related metadata
+        let mut session = Session::new();
+        session.add_message(Message::user("test"));
+        session.set_share_mode(ShareMode::Manual);
+        session.generate_share_link().unwrap();
+
+        let json_export = session.export_json().unwrap();
+
+        // Invariant: exported JSON must contain session ID
+        assert!(json_export.contains(&session.id.to_string()));
+        // Invariant: exported JSON must contain messages
+        assert!(json_export.contains("test"));
+    }
+
+    #[test]
+    fn test_ownership_invariant_fork_history_starts_empty() {
+        let mut parent = Session::new();
+        parent.add_message(Message::user("parent"));
+
+        let child = parent.fork(Uuid::new_v4());
+
+        assert!(
+            child.fork_history.is_empty(),
+            "Newly forked session must have empty fork_history"
+        );
+        assert!(
+            parent.fork_history.is_empty(),
+            "Parent session must have empty fork_history"
+        );
+    }
 }

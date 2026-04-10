@@ -371,7 +371,7 @@
       "priority": "P1",
       "title": "Ownership invariant automated tests",
       "description": "Write comprehensive automated tests for the ownership invariant system. Test all ownership transfer and sharing scenarios.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "All ownership transfer scenarios are tested",
         "Ownership sharing scenarios are covered",

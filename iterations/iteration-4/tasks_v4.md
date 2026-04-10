@@ -52,7 +52,7 @@
 
 | Task ID | Title | Module | FR | Phase | Status | Dependencies |
 |---------|-------|--------|-----|-------|--------|--------------|
-| P1-1 | Ownership invariant automated tests | core | FR-001 | Phase 5 | Pending | FR-001 complete |
+| P1-1 | Ownership invariant automated tests | core | FR-001 | Phase 5 | Done | FR-001 complete |
 | P1-2 | Stable ID semantics tests | core | FR-001 | Phase 5 | Pending | FR-001 complete |
 | P1-3 | Snapshot/Revert model tests | storage | FR-002 | Phase 5 | Pending | FR-002 complete |
 
