@@ -17,6 +17,8 @@ tokio = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 opencode-permission = { workspace = true }
+opencode-tools.workspace = true
+opencode-core.workspace = true
 indexmap = { workspace = true }
 
 [dev-dependencies]

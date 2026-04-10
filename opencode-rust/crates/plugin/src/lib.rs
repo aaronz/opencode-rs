@@ -76,9 +76,10 @@ pub trait ToolProvider: Send + Sync {
     async fn get_tools(&self) -> Vec<PluginToolDefinition>;
 }
 
+#[derive(Clone)]
 pub struct PluginTool {
     definition: PluginToolDefinition,
-    executor: Box<dyn Fn(Value) -> Result<String, String> + Send + Sync>,
+    executor: Arc<Box<dyn Fn(Value) -> Result<String, String> + Send + Sync>>,
 }
 
 impl PluginTool {
@@ -88,7 +89,7 @@ impl PluginTool {
     ) -> Self {
         Self {
             definition,
-            executor,
+            executor: Arc::new(executor),
         }
     }
 
@@ -98,6 +99,72 @@ impl PluginTool {
 
     pub fn execute(&self, args: Value) -> Result<String, String> {
         (self.executor)(args)
+    }
+}
+
+pub struct PluginToolAdapter {
+    definition: PluginToolDefinition,
+    executor: Arc<Box<dyn Fn(Value) -> Result<String, String> + Send + Sync>>,
+}
+
+impl PluginToolAdapter {
+    pub fn new(
+        definition: PluginToolDefinition,
+        executor: Arc<Box<dyn Fn(Value) -> Result<String, String> + Send + Sync>>,
+    ) -> Self {
+        Self {
+            definition,
+            executor,
+        }
+    }
+
+    pub fn from_plugin_tool(tool: PluginTool) -> Self {
+        Self {
+            definition: tool.definition,
+            executor: tool.executor,
+        }
+    }
+}
+
+impl Clone for PluginToolAdapter {
+    fn clone(&self) -> Self {
+        Self {
+            definition: self.definition.clone(),
+            executor: Arc::clone(&self.executor),
+        }
+    }
+}
+
+#[async_trait]
+impl opencode_tools::Tool for PluginToolAdapter {
+    fn name(&self) -> &str {
+        &self.definition.name
+    }
+
+    fn description(&self) -> &str {
+        &self.definition.description
+    }
+
+    fn clone_tool(&self) -> Box<dyn opencode_tools::Tool> {
+        Box::new(self.clone())
+    }
+
+    async fn execute(
+        &self,
+        args: serde_json::Value,
+        _ctx: Option<opencode_tools::ToolContext>,
+    ) -> Result<opencode_tools::ToolResult, opencode_core::OpenCodeError> {
+        let executor = Arc::clone(&self.executor);
+        let args_clone = args.clone();
+
+        let result = tokio::task::spawn_blocking(move || {
+            executor(args_clone)
+        })
+        .await
+        .map_err(|e| opencode_core::OpenCodeError::Tool(format!("Task join error: {}", e)))?
+        .map_err(|e| opencode_core::OpenCodeError::Tool(e))?;
+
+        Ok(opencode_tools::ToolResult::ok(result))
     }
 }
 
@@ -424,6 +491,19 @@ impl PluginManager {
             result = tool.execute(args);
         }
         result.map_err(PluginError::ToolRegistration)
+    }
+
+    /// Export all plugin tools as Box<dyn opencode_tools::Tool> for integration
+    /// with the opencode_tools::ToolRegistry.
+    pub async fn export_as_tools(&self) -> Vec<Box<dyn opencode_tools::Tool>> {
+        let tools = self.plugin_tools.read().await;
+        tools
+            .values()
+            .map(|t| {
+                let adapter = PluginToolAdapter::from_plugin_tool(t.clone());
+                Box::new(adapter) as Box<dyn opencode_tools::Tool>
+            })
+            .collect()
     }
 
     fn register_with_config(
@@ -1409,5 +1489,114 @@ mod tests {
             assert_eq!(sequence[1], "plugin-b", "Iteration {}: Second plugin should be plugin-b", iteration);
             assert_eq!(sequence[2], "plugin-c", "Iteration {}: Third plugin should be plugin-c", iteration);
         }
+    }
+
+    #[tokio::test]
+    async fn test_plugin_tools_export_as_dyn_tool() {
+        let mut manager = PluginManager::new();
+        register_test_plugin_with_tools(&mut manager, "export-plugin");
+
+        let tool_def = PluginToolDefinition {
+            name: "export_tool".to_string(),
+            description: "Tool for export test".to_string(),
+            input_schema: serde_json::json!({"type": "object"}),
+            provider_name: "export-plugin".to_string(),
+        };
+
+        let tool = PluginTool::new(tool_def, Box::new(|_args| Ok("exported".to_string())));
+        manager.register_plugin_tool(tool).await.unwrap();
+
+        let exported = manager.export_as_tools().await;
+        assert_eq!(exported.len(), 1);
+        assert_eq!(exported[0].name(), "export_tool");
+        assert_eq!(exported[0].description(), "Tool for export test");
+    }
+
+    #[tokio::test]
+    async fn test_plugin_tools_registered_in_tool_registry() {
+        use opencode_tools::ToolRegistry;
+
+        let mut manager = PluginManager::new();
+        register_test_plugin_with_tools(&mut manager, "registry-plugin");
+
+        let tool_def = PluginToolDefinition {
+            name: "registry_tool".to_string(),
+            description: "Tool for registry test".to_string(),
+            input_schema: serde_json::json!({"type": "object"}),
+            provider_name: "registry-plugin".to_string(),
+        };
+
+        let tool = PluginTool::new(tool_def, Box::new(|_args| Ok("registered".to_string())));
+        manager.register_plugin_tool(tool).await.unwrap();
+
+        let tool_registry = ToolRegistry::new();
+        let exported_tools = manager.export_as_tools().await;
+        tool_registry.register_plugin_tools(exported_tools).await;
+
+        let retrieved = tool_registry.get("registry_tool").await;
+        assert!(retrieved.is_some(), "Plugin tool should appear in ToolRegistry");
+        assert_eq!(retrieved.unwrap().name(), "registry_tool");
+    }
+
+    #[tokio::test]
+    async fn test_plugin_tool_execution_via_tool_registry() {
+        use opencode_tools::ToolRegistry;
+
+        let mut manager = PluginManager::new();
+        register_test_plugin_with_tools(&mut manager, "exec-plugin");
+
+        let tool_def = PluginToolDefinition {
+            name: "exec_tool".to_string(),
+            description: "Tool for execution test".to_string(),
+            input_schema: serde_json::json!({"type": "object", "properties": {"msg": {"type": "string"}}}),
+            provider_name: "exec-plugin".to_string(),
+        };
+
+        let tool = PluginTool::new(
+            tool_def,
+            Box::new(|args: Value| {
+                let msg = args.get("msg").and_then(|v| v.as_str()).unwrap_or("");
+                Ok(format!("echo: {}", msg))
+            }),
+        );
+        manager.register_plugin_tool(tool).await.unwrap();
+
+        let tool_registry = ToolRegistry::new();
+        let exported_tools = manager.export_as_tools().await;
+        tool_registry.register_plugin_tools(exported_tools).await;
+
+        let result = tool_registry
+            .execute("exec_tool", serde_json::json!({"msg": "hello"}), None)
+            .await;
+        assert!(result.is_ok(), "Plugin tool should execute via ToolRegistry");
+        assert_eq!(result.unwrap().content, "echo: hello");
+    }
+
+    #[tokio::test]
+    async fn test_plugin_tools_list_filtered_includes_plugin_tools() {
+        use opencode_tools::ToolRegistry;
+
+        let mut manager = PluginManager::new();
+        register_test_plugin_with_tools(&mut manager, "list-plugin");
+
+        let tool_def = PluginToolDefinition {
+            name: "list_tool".to_string(),
+            description: "Tool for list test".to_string(),
+            input_schema: serde_json::json!({"type": "object"}),
+            provider_name: "list-plugin".to_string(),
+        };
+
+        let tool = PluginTool::new(tool_def, Box::new(|_args| Ok("listed".to_string())));
+        manager.register_plugin_tool(tool).await.unwrap();
+
+        let tool_registry = ToolRegistry::new();
+        let exported_tools = manager.export_as_tools().await;
+        tool_registry.register_plugin_tools(exported_tools).await;
+
+        let listed = tool_registry.list_filtered(None).await;
+        assert!(
+            listed.iter().any(|(name, _, _)| name == "list_tool"),
+            "Plugin tool should appear in ToolRegistry.list_filtered()"
+        );
     }
 }

@@ -205,7 +205,7 @@
       "priority": "P0",
       "title": "Plugin-provided tool registration",
       "description": "Allow plugins to provide and register tools through the plugin API. Tools from plugins should be seamlessly integrated into the ToolRegistry.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Plugins can register tools via the plugin API",
         "Tools from plugins appear in ToolRegistry",

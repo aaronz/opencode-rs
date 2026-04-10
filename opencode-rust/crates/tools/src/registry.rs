@@ -83,6 +83,13 @@ impl ToolRegistry {
         tools.insert(tool.name().to_string(), Box::new(tool));
     }
 
+    pub async fn register_plugin_tools(&self, tools: Vec<Box<dyn Tool>>) {
+        let mut registry = self.tools.write().await;
+        for tool in tools {
+            registry.insert(tool.name().to_string(), tool);
+        }
+    }
+
     pub async fn get(&self, name: &str) -> Option<Box<dyn Tool>> {
         let tools = self.tools.read().await;
         tools.get(name).map(|t| t.clone_tool())

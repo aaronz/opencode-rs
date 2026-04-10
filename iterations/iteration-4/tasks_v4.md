@@ -29,7 +29,7 @@
 | P0-4 | Custom tool registration with ToolRegistry | tools | FR-006, FR-007 | Sprint 0 | Done | P0-5 |
 | P0-5 | Custom tool discovery format (.ts/.js) | tools | FR-007 | Sprint 0 | Done | None |
 | P0-16 | Plugin hook execution order (HashMap → IndexMap) | plugin | FR-008 | Sprint 0 | Pending | None |
-| P0-17 | Plugin-provided tool registration | plugin | FR-008 | Sprint 2 | Pending | P0-16 |
+| P0-17 | Plugin-provided tool registration | plugin | FR-008 | Sprint 2 | Done | P0-16 |
 | P0-18 | Plugin config separation | plugin | FR-008 | Sprint 2 | Pending | P0-12 |
 | P0-19 | TUI plugin `plugin_enabled` semantics | tui | FR-009 | Sprint 3 | Pending | None |
 | P0-20 | TUI plugin activate/deactivate | tui | FR-009 | Sprint 3 | Pending | P0-19 |
