@@ -7,13 +7,14 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::{Child, Command};
 use tokio::sync::{oneshot, Mutex};
 
-use crate::types::{CompletionItem, Diagnostic, Location, Position, Range};
+use crate::types::{CompletionItem, Diagnostic, Location, Position, Range, Severity};
 
 pub struct LspClient {
     process: Option<Child>,
     request_id: u64,
     pending: Arc<Mutex<HashMap<u64, oneshot::Sender<String>>>>,
     stdin: Option<tokio::process::ChildStdin>,
+    diagnostics: Arc<Mutex<HashMap<String, Vec<Diagnostic>>>>,
 }
 
 impl LspClient {
@@ -23,6 +24,7 @@ impl LspClient {
             request_id: 0,
             pending: Arc::new(Mutex::new(HashMap::new())),
             stdin: None,
+            diagnostics: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -52,6 +54,7 @@ impl LspClient {
 
         if let Some(stdout) = stdout {
             let pending = self.pending.clone();
+            let diagnostics = self.diagnostics.clone();
             tokio::spawn(async move {
                 let mut stdout = stdout;
                 let mut buf = Vec::new();
@@ -65,10 +68,28 @@ impl LspClient {
                                 if let Some(msg) = extract_jsonrpc_message(&buf) {
                                     let len = msg.len();
                                     if let Ok(v) = serde_json::from_str::<serde_json::Value>(&msg) {
+                                        // Handle response messages (have id)
                                         if let Some(id) = v.get("id").and_then(|id| id.as_u64()) {
                                             let mut p = pending.lock().await;
                                             if let Some(tx) = p.remove(&id) {
                                                 let _ = tx.send(msg);
+                                            }
+                                        }
+                                        // Handle notification messages (have method but no id)
+                                        else if let Some(method) = v.get("method").and_then(|m| m.as_str()) {
+                                            if method == "textDocument/publishDiagnostics" {
+                                                if let Some(params) = v.get("params").and_then(|p| p.as_object()) {
+                                                    if let Some(uri) = params.get("uri").and_then(|u| u.as_str()) {
+                                                        if let Some(diagnostics_arr) = params.get("diagnostics").and_then(|d| d.as_array()) {
+                                                            let parsed_diagnostics: Vec<Diagnostic> = diagnostics_arr
+                                                                .iter()
+                                                                .filter_map(parse_diagnostic)
+                                                                .collect();
+                                                            let mut diags = diagnostics.lock().await;
+                                                            diags.insert(uri.to_string(), parsed_diagnostics);
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -215,8 +236,9 @@ impl LspClient {
         Ok(())
     }
 
-    pub async fn get_diagnostics(&mut self, _uri: &str) -> Result<Vec<Diagnostic>, OpenCodeError> {
-        Ok(Vec::new())
+    pub async fn get_diagnostics(&mut self, uri: &str) -> Result<Vec<Diagnostic>, OpenCodeError> {
+        let diags = self.diagnostics.lock().await;
+        Ok(diags.get(uri).cloned().unwrap_or_default())
     }
 
     pub async fn goto_definition(
@@ -330,6 +352,46 @@ fn parse_location(v: &serde_json::Value) -> Option<Location> {
                 character: end_character,
             },
         },
+    })
+}
+
+fn parse_diagnostic(v: &serde_json::Value) -> Option<Diagnostic> {
+    let obj = v.as_object()?;
+
+    let range = obj.get("range")?.as_object()?;
+    let start = range.get("start")?.as_object()?;
+    let end = range.get("end")?.as_object()?;
+
+    let start_line = start.get("line")?.as_u64()? as u32;
+    let start_char = start.get("character")?.as_u64()? as u32;
+    let end_line = end.get("line")?.as_u64()? as u32;
+    let end_char = end.get("character")?.as_u64()? as u32;
+
+    let severity = obj
+        .get("severity")
+        .and_then(|s| s.as_i64())
+        .map(|s| Severity::from(s as i32))
+        .unwrap_or(Severity::Warning);
+
+    let message = obj.get("message")?.as_str()?.to_string();
+
+    let source = obj.get("source").and_then(|s| s.as_str()).map(String::from);
+
+    Some(Diagnostic {
+        severity,
+        message,
+        range: Range {
+            start: Position {
+                line: start_line,
+                character: start_char,
+            },
+            end: Position {
+                line: end_line,
+                character: end_char,
+            },
+        },
+        source,
+        file_path: None,
     })
 }
 

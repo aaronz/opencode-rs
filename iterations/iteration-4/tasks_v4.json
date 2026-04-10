@@ -352,7 +352,7 @@
       "priority": "P0",
       "title": "Diagnostics retrieval from LSP",
       "description": "Implement retrieval and display of diagnostics from LSP servers. Diagnostics should be collected and presented to the user in the TUI.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Diagnostics are received from LSP servers",
         "Diagnostics are properly categorized by severity",
