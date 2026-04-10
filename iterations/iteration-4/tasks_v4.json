@@ -557,7 +557,7 @@
       "priority": "P1",
       "title": "Streaming endpoints",
       "description": "Implement streaming responses for appropriate server API endpoints. Support Server-Sent Events for long-running operations.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Long-running operations support streaming",
         "Clients can consume streaming responses",
