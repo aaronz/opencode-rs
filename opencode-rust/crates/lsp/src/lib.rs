@@ -1,4 +1,5 @@
 pub mod aggregator;
+pub mod builtin;
 pub mod client;
 pub mod language;
 pub mod launch;
@@ -7,6 +8,7 @@ pub mod server;
 pub mod types;
 
 pub use aggregator::DiagnosticAggregator;
+pub use builtin::{BuiltInRegistry, BuiltInServer, BundledConfig, DetectionResult, PathIndicator};
 pub use client::LspClient;
 pub use language::Language;
 pub use launch::LaunchConfig;

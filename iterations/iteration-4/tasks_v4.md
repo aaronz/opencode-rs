@@ -41,7 +41,7 @@
 | P0-6 | Local MCP server connection | mcp | FR-010 | Sprint 4 | ✅ Done | None |
 | P0-7 | Remote MCP server connection | mcp | FR-010 | Sprint 4 | Pending | P0-6 |
 | P0-8 | Tool discovery from MCP servers | mcp | FR-010 | Sprint 4 | ✅ Done | P0-6, P0-7 |
-| P0-9 | Built-in LSP server detection | lsp | FR-011 | Sprint 4 | Pending | None |
+| P0-9 | Built-in LSP server detection | lsp | FR-011 | Sprint 4 | ✅ Done | None |
 | P0-10 | Diagnostics retrieval from LSP | lsp | FR-011 | Sprint 4 | Pending | P0-9 |
 
 ---

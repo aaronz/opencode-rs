@@ -335,7 +335,7 @@
       "priority": "P0",
       "title": "Built-in LSP server detection",
       "description": "Implement detection of built-in/embedded LSP servers. Support automatic detection and launching of language servers bundled with the application.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Built-in LSP servers are detected automatically",
         "Detection works for all bundled language servers",
