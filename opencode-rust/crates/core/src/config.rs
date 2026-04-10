@@ -148,7 +148,11 @@ pub struct Config {
     pub theme: Option<ThemeConfig>,
 
     /// TUI (Terminal UI) configuration
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// 
+    /// This field is skipped during deserialization from opencode.json.
+    /// TUI configuration should ONLY come from tui.json, not opencode.json.
+    /// This field is only set programmatically after loading from tui.json.
+    #[serde(skip)]
     pub tui: Option<TuiConfig>,
 
     // Legacy fields for backwards compatibility
@@ -1509,11 +1513,12 @@ impl Config {
 
         let invalid_runtime_fields = Self::validate_tui_config_no_runtime_fields(&value);
         if !invalid_runtime_fields.is_empty() {
-            tracing::warn!(
-                "Ignoring runtime fields in tui config {}: {}",
+            return Err(crate::OpenCodeError::Config(format!(
+                "TUI config file {} contains runtime-specific fields that belong in opencode.json: {}. \
+                Please move these fields to opencode.json or remove them from tui.json.",
                 path.display(),
                 invalid_runtime_fields.join(", ")
-            );
+            )));
         }
 
         let schema_errors = schema::validate_tui_schema(&value);
@@ -1567,19 +1572,22 @@ impl Config {
         Ok(merged)
     }
 
-    fn warn_runtime_tui_fields(path: &Path) {
-        if let Ok(content) = std::fs::read_to_string(path) {
-            if let Ok(value) = parse_jsonc(&content) {
-                let detected = Self::validate_runtime_no_tui_fields(&value);
-                if !detected.is_empty() {
-                    tracing::warn!(
-                        "TUI fields in runtime config {} are deprecated and will be migrated: {}",
-                        path.display(),
-                        detected.join(", ")
-                    );
-                }
-            }
+    fn validate_runtime_tui_fields(path: &Path) -> Result<(), Vec<String>> {
+        let content = std::fs::read_to_string(path).map_err(|e| vec![format!(
+            "Failed to read config file {}: {}",
+            path.display(),
+            e
+        )])?;
+        let value = parse_jsonc(&content).map_err(|e| vec![format!(
+            "Failed to parse config file {}: {}",
+            path.display(),
+            e
+        )])?;
+        let detected = Self::validate_runtime_no_tui_fields(&value);
+        if !detected.is_empty() {
+            return Err(detected);
         }
+        Ok(())
     }
 
     /// Load multi-tier config with precedence: CLI → ENV → remote → global → project → .opencode
@@ -1668,7 +1676,14 @@ impl Config {
         if let Ok(config_path) = std::env::var("OPENCODE_CONFIG") {
             let path = PathBuf::from(config_path);
             if path.exists() {
-                Self::warn_runtime_tui_fields(&path);
+                if let Err(tui_fields) = Self::validate_runtime_tui_fields(&path) {
+                    return Err(crate::OpenCodeError::Config(format!(
+                        "Config file {} contains TUI-specific fields that belong in tui.json: {}. \
+                        Please move these fields to tui.json or remove them from opencode.json.",
+                        path.display(),
+                        tui_fields.join(", ")
+                    )));
+                }
                 let config = Self::load(&path)?;
                 configs.push(("env-path".to_string(), config));
             }
@@ -1677,7 +1692,14 @@ impl Config {
         // Priority 4: Global config (~/.config/opencode/config.json)
         let global_path = Self::config_path();
         if global_path.exists() {
-            Self::warn_runtime_tui_fields(&global_path);
+            if let Err(tui_fields) = Self::validate_runtime_tui_fields(&global_path) {
+                return Err(crate::OpenCodeError::Config(format!(
+                    "Config file {} contains TUI-specific fields that belong in tui.json: {}. \
+                    Please move these fields to tui.json or remove them from opencode.json.",
+                    global_path.display(),
+                    tui_fields.join(", ")
+                )));
+            }
             let config = Self::load(&global_path)?;
             configs.push(("global".to_string(), config));
         }
@@ -1690,7 +1712,14 @@ impl Config {
                 for ext in &["json", "json5", "jsonc"] {
                     let project_config = ancestor.join(format!("opencode.{}", ext));
                     if project_config.exists() {
-                        Self::warn_runtime_tui_fields(&project_config);
+                        if let Err(tui_fields) = Self::validate_runtime_tui_fields(&project_config) {
+                            return Err(crate::OpenCodeError::Config(format!(
+                                "Config file {} contains TUI-specific fields that belong in tui.json: {}. \
+                                Please move these fields to tui.json or remove them from opencode.json.",
+                                project_config.display(),
+                                tui_fields.join(", ")
+                            )));
+                        }
                         let config = Self::load(&project_config)?;
                         configs.push(("project".to_string(), config));
                         break;
@@ -1700,7 +1729,14 @@ impl Config {
                 for ext in &["json", "json5", "jsonc"] {
                     let opencode_dir = ancestor.join(".opencode").join(format!("config.{}", ext));
                     if opencode_dir.exists() {
-                        Self::warn_runtime_tui_fields(&opencode_dir);
+                        if let Err(tui_fields) = Self::validate_runtime_tui_fields(&opencode_dir) {
+                            return Err(crate::OpenCodeError::Config(format!(
+                                "Config file {} contains TUI-specific fields that belong in tui.json: {}. \
+                                Please move these fields to tui.json or remove them from opencode.json.",
+                                opencode_dir.display(),
+                                tui_fields.join(", ")
+                            )));
+                        }
                         let config = Self::load(&opencode_dir)?;
                         configs.push((".opencode".to_string(), config));
                         break;
@@ -3526,8 +3562,8 @@ mod tests {
     }
 
     #[test]
-    fn test_load_with_hierarchy_emits_deprecation_warnings_for_theme() {
-        let temp_dir = unique_temp_dir("opencode_deprecation_warnings");
+    fn test_load_with_hierarchy_rejects_tui_fields_in_opencode_config() {
+        let temp_dir = unique_temp_dir("opencode_tui_field_rejection");
         let old_config_dir = std::env::var("OPENCODE_CONFIG_DIR").ok();
 
         let config_json = serde_json::json!({
@@ -3542,19 +3578,15 @@ mod tests {
 
         set_env("OPENCODE_CONFIG_DIR", &temp_dir);
 
-        let sink = Arc::new(Mutex::new(Vec::<String>::new()));
-        let subscriber =
-            tracing_subscriber::registry().with(WarnCaptureLayer { sink: sink.clone() });
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let result = runtime.block_on(Config::load_multi(None));
 
-        tracing::subscriber::with_default(subscriber, || {
-            let runtime = tokio::runtime::Runtime::new().unwrap();
-            let _ = runtime.block_on(Config::load_multi(None)).unwrap();
-        });
-
-        let logs = sink.lock().unwrap().clone();
-        assert!(logs
-            .iter()
-            .any(|msg| msg.contains("'theme' in main config is deprecated")));
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        let err_msg = format!("{}", err);
+        assert!(err_msg.contains("TUI-specific fields"));
+        assert!(err_msg.contains("theme"));
+        assert!(err_msg.contains("tui.json"));
 
         if let Some(prev) = old_config_dir {
             set_env("OPENCODE_CONFIG_DIR", prev);
