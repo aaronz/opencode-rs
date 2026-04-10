@@ -390,7 +390,7 @@
       "priority": "P1",
       "title": "Stable ID semantics tests",
       "description": "Write automated tests for stable ID semantics. Verify IDs remain stable across snapshots and restores.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "IDs are stable across snapshot operations",
         "IDs are stable across restore operations",
@@ -409,7 +409,7 @@
       "priority": "P1",
       "title": "Snapshot/Revert model tests",
       "description": "Write comprehensive tests for snapshot and revert functionality. Cover all edge cases in the snapshot/revert model.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Snapshot creation is tested",
         "Revert operations work correctly",
