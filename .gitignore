@@ -95,3 +95,4 @@ flamegraph.svg
 **/dist/
 **/build/
 .VSCodeCounter/
+sessions/
