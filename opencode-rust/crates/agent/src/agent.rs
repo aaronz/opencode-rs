@@ -56,6 +56,11 @@ pub trait Agent: Send + Sync {
     fn can_execute_tools(&self) -> bool;
     fn can_write_files(&self) -> bool;
     fn can_run_commands(&self) -> bool;
+    /// Returns true if the agent should appear in standard agent lists (UI, selection menus, etc.).
+    /// Hidden agents (return false) still execute normally but don't appear in visible listings.
+    fn is_visible(&self) -> bool {
+        true
+    }
 
     async fn run(
         &self,

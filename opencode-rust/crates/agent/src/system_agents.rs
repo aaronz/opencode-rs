@@ -57,6 +57,10 @@ impl Agent for CompactionAgent {
         false
     }
 
+    fn is_visible(&self) -> bool {
+        false
+    }
+
     async fn run(
         &self,
         session: &mut Session,
@@ -138,6 +142,10 @@ impl Agent for TitleAgent {
         false
     }
 
+    fn is_visible(&self) -> bool {
+        false
+    }
+
     async fn run(
         &self,
         session: &mut Session,
@@ -213,6 +221,10 @@ impl Agent for SummaryAgent {
     }
 
     fn can_run_commands(&self) -> bool {
+        false
+    }
+
+    fn is_visible(&self) -> bool {
         false
     }
 

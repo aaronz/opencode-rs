@@ -428,7 +428,7 @@
       "priority": "P1",
       "title": "Hidden vs visible agent behavior",
       "description": "Implement and test the distinction between hidden and visible agents. Hidden agents should not appear in standard UI but still function.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Hidden agents don't appear in standard agent lists",
         "Hidden agents still execute normally",

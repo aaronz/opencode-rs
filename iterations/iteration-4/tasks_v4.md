@@ -60,7 +60,7 @@
 
 | Task ID | Title | Module | FR | Phase | Status | Dependencies |
 |---------|-------|--------|-----|-------|--------|--------------|
-| P1-4 | Hidden vs visible agent behavior | agent | FR-005 | Phase 2 | Pending | P0-1 |
+| P1-4 | Hidden vs visible agent behavior | agent | FR-005 | Phase 2 | Done | P0-1 |
 | P1-5 | Permission inheritance (parent→subagent) | agent | FR-005 | Phase 2 | Pending | P0-2 |
 
 ### Tools System (2 items)

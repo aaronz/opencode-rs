@@ -1,6 +1,7 @@
 use opencode_agent::agent::{Agent, AgentType};
 use opencode_agent::build_agent::BuildAgent;
 use opencode_agent::plan_agent::PlanAgent;
+use opencode_agent::system_agents::{CompactionAgent, SummaryAgent, TitleAgent};
 
 #[test]
 fn test_plan_agent_is_read_only() {
@@ -79,4 +80,82 @@ fn test_agent_type_equality() {
     assert_eq!(AgentType::Plan, AgentType::Plan);
     assert_eq!(AgentType::Build, AgentType::Build);
     assert_ne!(AgentType::Plan, AgentType::Build);
+}
+
+#[test]
+fn test_hidden_agent_compaction_not_visible() {
+    let agent = CompactionAgent::new();
+    assert!(
+        !agent.is_visible(),
+        "CompactionAgent should not be visible in standard agent lists"
+    );
+}
+
+#[test]
+fn test_hidden_agent_title_not_visible() {
+    let agent = TitleAgent::new();
+    assert!(
+        !agent.is_visible(),
+        "TitleAgent should not be visible in standard agent lists"
+    );
+}
+
+#[test]
+fn test_hidden_agent_summary_not_visible() {
+    let agent = SummaryAgent::new();
+    assert!(
+        !agent.is_visible(),
+        "SummaryAgent should not be visible in standard agent lists"
+    );
+}
+
+#[test]
+fn test_visible_agent_build_is_visible() {
+    let agent = BuildAgent::new();
+    assert!(
+        agent.is_visible(),
+        "BuildAgent should be visible in standard agent lists"
+    );
+}
+
+#[test]
+fn test_visible_agent_plan_is_visible() {
+    let agent = PlanAgent::new();
+    assert!(
+        agent.is_visible(),
+        "PlanAgent should be visible in standard agent lists"
+    );
+}
+
+#[test]
+fn test_hidden_agents_still_have_correct_types() {
+    let compaction = CompactionAgent::new();
+    let title = TitleAgent::new();
+    let summary = SummaryAgent::new();
+
+    assert_eq!(compaction.agent_type(), AgentType::Compaction);
+    assert_eq!(title.agent_type(), AgentType::Title);
+    assert_eq!(summary.agent_type(), AgentType::Summary);
+}
+
+#[test]
+fn test_hidden_agents_still_have_names() {
+    let compaction = CompactionAgent::new();
+    let title = TitleAgent::new();
+    let summary = SummaryAgent::new();
+
+    assert_eq!(compaction.name(), "compaction");
+    assert_eq!(title.name(), "title");
+    assert_eq!(summary.name(), "summary");
+}
+
+#[test]
+fn test_hidden_agents_have_descriptions() {
+    let compaction = CompactionAgent::new();
+    let title = TitleAgent::new();
+    let summary = SummaryAgent::new();
+
+    assert!(!compaction.description().is_empty());
+    assert!(!title.description().is_empty());
+    assert!(!summary.description().is_empty());
 }
