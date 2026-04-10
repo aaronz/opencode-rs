@@ -23,7 +23,7 @@
       "priority": "P0",
       "title": "Config ownership boundary (opencode.json vs tui.json)",
       "description": "Define and enforce clear ownership boundaries between opencode.json and tui.json configuration files. Determine which settings belong to which file and prevent cross-contamination.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "opencode.json contains only opencode-specific settings",
         "tui.json contains only TUI-specific settings",
@@ -40,7 +40,7 @@
       "priority": "P0",
       "title": "Route registration by resource group",
       "description": "Implement server route registration organized by resource groups. Routes should be grouped by their resource type (sessions, messages, agents, etc.) with proper grouping middleware.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Routes are registered under appropriate resource groups",
         "Resource group middleware applies correctly",
