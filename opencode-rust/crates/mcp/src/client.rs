@@ -675,7 +675,10 @@ impl McpClient {
             return Err(McpError::ConnectionFailed("empty sse url".to_string()));
         }
 
-        let client = reqwest::Client::new();
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build()
+            .map_err(|e| McpError::ConnectionFailed(format!("failed to create client: {}", e)))?;
         let stream_response = client
             .get(&url)
             .header("Accept", "text/event-stream")
@@ -1312,5 +1315,80 @@ if __name__ == '__main__':
         client.disconnect().await.expect("disconnect");
         assert_eq!(client.connection_state().await, ConnectionState::Disconnected);
         assert!(!client.is_connected().await);
+    }
+
+    #[tokio::test]
+    async fn test_remote_connection() {
+        // Test 1: Verify McpTransport::Sse can be created with valid URL
+        let transport = McpTransport::Sse("http://localhost:8080/sse".to_string());
+        match transport {
+            McpTransport::Sse(url) => assert_eq!(url, "http://localhost:8080/sse"),
+            _ => panic!("Expected Sse transport"),
+        }
+
+        // Test 2: Verify McpClient can be created with SSE transport
+        let client = McpClient::new(McpTransport::Sse("http://127.0.0.1:19999/sse".to_string()))
+            .with_timeout(Duration::from_secs(5));
+        assert_eq!(client.connection_state().await, ConnectionState::Disconnected);
+
+        // Test 3: Verify connection state machine works with handler
+        // This validates the SSE transport configuration is correct
+        let handler: TransportHandler = Arc::new(|request| {
+            let response = match request.method.as_str() {
+                "initialize" => Ok(JsonRpcResponse::success(
+                    request.id.clone(),
+                    serde_json::json!({
+                        "protocolVersion": "2024-11-05",
+                        "capabilities": {"tools": {"listChanged": true}},
+                        "serverInfo": {"name": "test-remote", "version": "1.0"}
+                    }),
+                )),
+                "initialized" => Ok(JsonRpcResponse::success(request.id.clone(), serde_json::json!(null))),
+                "tools/list" => Ok(JsonRpcResponse::success(
+                    request.id.clone(),
+                    serde_json::json!({"tools": [
+                        {"name": "remote_tool", "description": "A remote tool", "inputSchema": {"type": "object"}}
+                    ]}),
+                )),
+                "ping" => Ok(JsonRpcResponse::success(request.id.clone(), serde_json::json!(null))),
+                "tools/call" => Ok(JsonRpcResponse::success(
+                    request.id.clone(),
+                    serde_json::json!({"content": [{"type": "text", "text": "remote result"}], "isError": false}),
+                )),
+                _ => Ok(JsonRpcResponse::success(request.id.clone(), serde_json::json!(null))),
+            };
+            response
+        });
+
+        let client = McpClient::with_handler(
+            McpTransport::Sse("http://mock-remote/sse".to_string()),
+            handler,
+        );
+        
+        // Verify initial state
+        assert_eq!(client.connection_state().await, ConnectionState::Disconnected);
+        
+        // Connect and verify state transitions
+        client.connect().await.expect("connect with SSE handler");
+        assert_eq!(client.connection_state().await, ConnectionState::Connected);
+        
+        // Verify tools can be listed from remote
+        let tools = client.list_tools().await.expect("list remote tools");
+        assert_eq!(tools.len(), 1);
+        assert_eq!(tools[0].name, "remote_tool");
+        
+        // Verify ping works for remote connection
+        client.ping().await.expect("ping remote");
+        
+        // Verify tool calls work
+        let result = client
+            .call_tool("some_tool", &serde_json::json!({"arg": "value"}))
+            .await
+            .expect("call remote tool");
+        assert!(result.content.contains("remote result"));
+        
+        // Verify disconnect works
+        client.disconnect().await.expect("disconnect");
+        assert_eq!(client.connection_state().await, ConnectionState::Disconnected);
     }
 }

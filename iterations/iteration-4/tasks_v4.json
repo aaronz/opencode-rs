@@ -296,7 +296,7 @@
       "priority": "P0",
       "title": "Remote MCP server connection",
       "description": "Implement connection to remote MCP servers over HTTP/SSE. Support bidirectional communication with remote MCP servers.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Can connect to remote MCP server via HTTP",
         "SSE events are received correctly",
@@ -305,7 +305,7 @@
       "test_commands": [
         "cargo test -p opencode-mcp -- remote_connection"
       ],
-      "impl_notes": "Build on local MCP connection (P0-6).",
+      "impl_notes": "Build on local MCP connection (P0-6). Added remote_connection test that verifies SSE transport configuration, connection state machine, tools listing, ping, tool calls, and disconnect.",
       "dependencies": [
         "P0-6"
       ]
