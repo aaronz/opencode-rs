@@ -188,7 +188,7 @@
       "priority": "P0",
       "title": "Plugin hook execution order (HashMap \u2192 IndexMap)",
       "description": "Convert plugin hook storage from HashMap to IndexMap to ensure deterministic execution order of plugins.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Plugin hooks execute in deterministic order",
         "Order is consistent across multiple invocations",

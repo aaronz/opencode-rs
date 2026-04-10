@@ -1,8 +1,8 @@
 use crate::PluginError;
 use crate::{PluginCapability, PluginConfig, PluginPermissions};
+use indexmap::IndexMap;
 use serde::Deserialize;
 use serde_json::Value;
-use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -43,7 +43,7 @@ impl PluginDiscovery {
     }
 
     pub fn discover(&self) -> Result<Vec<DiscoveredPlugin>, PluginError> {
-        let mut by_name: HashMap<String, DiscoveredPlugin> = HashMap::new();
+        let mut by_name: IndexMap<String, DiscoveredPlugin> = IndexMap::new();
 
         if let Some(global_dir) = &self.global_dir {
             for plugin in self.discover_in_dir(global_dir)? {
@@ -80,7 +80,7 @@ struct PluginMetadata {
     #[serde(default = "default_true")]
     enabled: bool,
     #[serde(default)]
-    options: HashMap<String, Value>,
+    options: IndexMap<String, Value>,
     #[serde(default)]
     capabilities: Vec<PluginCapability>,
     #[serde(default)]

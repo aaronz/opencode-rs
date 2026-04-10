@@ -5,10 +5,10 @@ pub mod wasm_runtime;
 
 use async_trait::async_trait;
 use discovery::PluginDiscovery;
+use indexmap::IndexMap;
 use opencode_permission::{ApprovalResult, PermissionScope};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -59,7 +59,7 @@ pub struct PluginConfig {
     pub name: String,
     pub version: String,
     pub enabled: bool,
-    pub options: HashMap<String, Value>,
+    pub options: IndexMap<String, Value>,
     pub permissions: PluginPermissions,
 }
 
@@ -155,24 +155,24 @@ pub trait Plugin: Send + Sync {
 }
 
 pub struct PluginManager {
-    plugins: HashMap<String, Box<dyn Plugin>>,
-    configs: HashMap<String, PluginConfig>,
-    plugin_paths: HashMap<String, PathBuf>,
+    plugins: IndexMap<String, Box<dyn Plugin>>,
+    configs: IndexMap<String, PluginConfig>,
+    plugin_paths: IndexMap<String, PathBuf>,
     loader: loader::PluginLoader,
     discovered_metadata: Vec<PathBuf>,
-    plugin_tools: Arc<RwLock<HashMap<String, PluginTool>>>,
+    plugin_tools: Arc<RwLock<IndexMap<String, PluginTool>>>,
     permission_scope: PermissionScope,
 }
 
 impl PluginManager {
     pub fn new() -> Self {
         Self {
-            plugins: HashMap::new(),
-            configs: HashMap::new(),
-            plugin_paths: HashMap::new(),
+            plugins: IndexMap::new(),
+            configs: IndexMap::new(),
+            plugin_paths: IndexMap::new(),
             loader: loader::PluginLoader::new(),
             discovered_metadata: Vec::new(),
-            plugin_tools: Arc::new(RwLock::new(HashMap::new())),
+            plugin_tools: Arc::new(RwLock::new(IndexMap::new())),
             permission_scope: PermissionScope::ReadOnly,
         }
     }
@@ -182,7 +182,7 @@ impl PluginManager {
             name: plugin.name().to_string(),
             version: plugin.version().to_string(),
             enabled: true,
-            options: HashMap::new(),
+            options: IndexMap::new(),
             permissions: PluginPermissions::default(),
         };
 
@@ -405,7 +405,7 @@ impl PluginManager {
     pub async fn unregister_plugin_tool(&self, name: &str) -> Result<(), PluginError> {
         let mut tools = self.plugin_tools.write().await;
         tools
-            .remove(name)
+            .shift_remove(name)
             .ok_or_else(|| PluginError::ToolRegistration(format!("tool '{}' not found", name)))?;
         Ok(())
     }
@@ -577,7 +577,7 @@ mod tests {
                 name: self.name.clone(),
                 version: "1.0.0".to_string(),
                 enabled: true,
-                options: HashMap::new(),
+                options: IndexMap::new(),
                 permissions: PluginPermissions {
                     capabilities: vec![PluginCapability::AddTools],
                     allowed_events: vec![],
@@ -659,7 +659,7 @@ mod tests {
                 name: self.name.clone(),
                 version: "1.0.0".to_string(),
                 enabled: true,
-                options: HashMap::new(),
+                options: IndexMap::new(),
                 permissions: PluginPermissions {
                     capabilities: vec![], // No AddTools capability
                     allowed_events: vec![],
@@ -1255,5 +1255,159 @@ mod tests {
 
         let tools = manager.list_plugin_tools().await;
         assert!(tools.is_empty());
+    }
+
+    #[test]
+    fn test_hook_order_is_deterministic() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
+
+        let call_order = Arc::new(AtomicUsize::new(0));
+        let call_sequence: Arc<std::sync::Mutex<Vec<String>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+
+        struct OrderedPlugin {
+            name: String,
+            call_count: Arc<AtomicUsize>,
+            call_sequence: Arc<std::sync::Mutex<Vec<String>>>,
+        }
+
+        impl OrderedPlugin {
+            fn new(name: &str, call_count: Arc<AtomicUsize>, call_sequence: Arc<std::sync::Mutex<Vec<String>>>) -> Self {
+                Self {
+                    name: name.to_string(),
+                    call_count,
+                    call_sequence,
+                }
+            }
+        }
+
+        impl Plugin for OrderedPlugin {
+            fn name(&self) -> &str {
+                &self.name
+            }
+
+            fn version(&self) -> &str {
+                "1.0.0"
+            }
+
+            fn init(&mut self) -> Result<(), PluginError> {
+                Ok(())
+            }
+
+            fn shutdown(&mut self) -> Result<(), PluginError> {
+                Ok(())
+            }
+
+            fn description(&self) -> &str {
+                "ordered plugin for testing"
+            }
+
+            fn on_start(&mut self) -> Result<(), PluginError> {
+                let order = self.call_count.fetch_add(1, Ordering::SeqCst);
+                let mut seq = self.call_sequence.lock().unwrap();
+                if seq.len() == order as usize {
+                    seq.push(self.name.clone());
+                } else {
+                    seq.push(format!("OUT_OF_ORDER:{}", self.name));
+                }
+                Ok(())
+            }
+        }
+
+        let mut manager = PluginManager::new();
+
+        let plugin_alpha = OrderedPlugin::new("alpha", call_order.clone(), call_sequence.clone());
+        let plugin_beta = OrderedPlugin::new("beta", call_order.clone(), call_sequence.clone());
+        let plugin_gamma = OrderedPlugin::new("gamma", call_order.clone(), call_sequence.clone());
+
+        manager.register(Box::new(plugin_alpha)).unwrap();
+        manager.register(Box::new(plugin_beta)).unwrap();
+        manager.register(Box::new(plugin_gamma)).unwrap();
+
+        manager.on_start_all().unwrap();
+
+        let sequence = call_sequence.lock().unwrap();
+        assert_eq!(sequence.len(), 3, "Expected 3 plugins to be called, got {}", sequence.len());
+        assert_eq!(sequence[0], "alpha", "First plugin should be alpha, got {}", sequence[0]);
+        assert_eq!(sequence[1], "beta", "Second plugin should be beta, got {}", sequence[1]);
+        assert_eq!(sequence[2], "gamma", "Third plugin should be gamma, got {}", sequence[2]);
+    }
+
+    #[test]
+    fn test_hook_order_is_consistent_across_invocations() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
+
+        for iteration in 0..3 {
+            let call_order = Arc::new(AtomicUsize::new(0));
+            let call_sequence: Arc<std::sync::Mutex<Vec<String>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+
+            struct OrderedPlugin {
+                name: String,
+                call_count: Arc<AtomicUsize>,
+                call_sequence: Arc<std::sync::Mutex<Vec<String>>>,
+            }
+
+            impl OrderedPlugin {
+                fn new(name: &str, call_count: Arc<AtomicUsize>, call_sequence: Arc<std::sync::Mutex<Vec<String>>>) -> Self {
+                    Self {
+                        name: name.to_string(),
+                        call_count,
+                        call_sequence,
+                    }
+                }
+            }
+
+            impl Plugin for OrderedPlugin {
+                fn name(&self) -> &str {
+                    &self.name
+                }
+
+                fn version(&self) -> &str {
+                    "1.0.0"
+                }
+
+                fn init(&mut self) -> Result<(), PluginError> {
+                    Ok(())
+                }
+
+                fn shutdown(&mut self) -> Result<(), PluginError> {
+                    Ok(())
+                }
+
+                fn description(&self) -> &str {
+                    "ordered plugin for testing"
+                }
+
+                fn on_start(&mut self) -> Result<(), PluginError> {
+                    let order = self.call_count.fetch_add(1, Ordering::SeqCst);
+                    let mut seq = self.call_sequence.lock().unwrap();
+                    if seq.len() == order as usize {
+                        seq.push(self.name.clone());
+                    } else {
+                        seq.push(format!("OUT_OF_ORDER:{}", self.name));
+                    }
+                    Ok(())
+                }
+            }
+
+            let mut manager = PluginManager::new();
+
+            let plugin_a = OrderedPlugin::new("plugin-a", call_order.clone(), call_sequence.clone());
+            let plugin_b = OrderedPlugin::new("plugin-b", call_order.clone(), call_sequence.clone());
+            let plugin_c = OrderedPlugin::new("plugin-c", call_order.clone(), call_sequence.clone());
+
+            manager.register(Box::new(plugin_a)).unwrap();
+            manager.register(Box::new(plugin_b)).unwrap();
+            manager.register(Box::new(plugin_c)).unwrap();
+
+            manager.on_start_all().unwrap();
+
+            let sequence = call_sequence.lock().unwrap();
+            assert_eq!(sequence.len(), 3, "Iteration {}: Expected 3 plugins to be called", iteration);
+            assert_eq!(sequence[0], "plugin-a", "Iteration {}: First plugin should be plugin-a", iteration);
+            assert_eq!(sequence[1], "plugin-b", "Iteration {}: Second plugin should be plugin-b", iteration);
+            assert_eq!(sequence[2], "plugin-c", "Iteration {}: Third plugin should be plugin-c", iteration);
+        }
     }
 }

@@ -92,6 +92,7 @@ regex = "1"
 sha2 = "0.10"
 tiktoken-rs = "0.6"
 json5 = "0.4"
+indexmap = "2"
 
 [profile.release]
 opt-level = "z"

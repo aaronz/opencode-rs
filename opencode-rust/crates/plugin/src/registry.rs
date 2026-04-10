@@ -1,14 +1,14 @@
 use crate::Plugin;
-use std::collections::HashMap;
+use indexmap::IndexMap;
 
 pub struct PluginRegistry {
-    plugins: HashMap<String, Box<dyn Plugin>>,
+    plugins: IndexMap<String, Box<dyn Plugin>>,
 }
 
 impl PluginRegistry {
     pub fn new() -> Self {
         Self {
-            plugins: HashMap::new(),
+            plugins: IndexMap::new(),
         }
     }
 

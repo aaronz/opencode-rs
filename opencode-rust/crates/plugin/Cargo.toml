@@ -17,6 +17,7 @@ tokio = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 opencode-permission = { workspace = true }
+indexmap = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"
