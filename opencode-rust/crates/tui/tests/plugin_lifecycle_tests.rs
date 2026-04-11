@@ -279,3 +279,399 @@ fn test_deactivate_nonexistent_plugin() {
     let result = manager.deactivate("nonexistent");
     assert!(matches!(result, Err(TuiPluginError::NotFound(_))));
 }
+
+#[test]
+fn test_activation_state_transition_observable() {
+    let manager = TuiPluginManager::new();
+
+    manager
+        .register_plugin(
+            "observe.plugin".to_string(),
+            "npm:observe.plugin".to_string(),
+            "@observe/plugin@1.0.0".to_string(),
+            true,
+        )
+        .unwrap();
+
+    let before = manager.get_plugin("observe.plugin").unwrap();
+    assert_eq!(before.state, PluginLifecycleState::Registered);
+
+    manager.activate("observe.plugin").unwrap();
+
+    let after = manager.get_plugin("observe.plugin").unwrap();
+    assert_eq!(after.state, PluginLifecycleState::Active);
+    assert!(after.active);
+}
+
+#[test]
+fn test_deactivation_state_transition_observable() {
+    let manager = TuiPluginManager::new();
+
+    manager
+        .register_plugin(
+            "deobserve.plugin".to_string(),
+            "npm:deobserve.plugin".to_string(),
+            "@deobserve/plugin@1.0.0".to_string(),
+            true,
+        )
+        .unwrap();
+
+    manager.activate("deobserve.plugin").unwrap();
+
+    let active = manager.get_plugin("deobserve.plugin").unwrap();
+    assert_eq!(active.state, PluginLifecycleState::Active);
+
+    manager.deactivate("deobserve.plugin").unwrap();
+
+    let deactivated = manager.get_plugin("deobserve.plugin").unwrap();
+    assert_eq!(deactivated.state, PluginLifecycleState::Inactive);
+    assert!(!deactivated.active);
+}
+
+#[test]
+fn test_multiple_plugins_activate_deactivate_order() {
+    let manager = TuiPluginManager::new();
+
+    manager
+        .register_plugin(
+            "first.plugin".to_string(),
+            "npm:first.plugin".to_string(),
+            "@first/plugin@1.0.0".to_string(),
+            true,
+        )
+        .unwrap();
+    manager
+        .register_plugin(
+            "second.plugin".to_string(),
+            "npm:second.plugin".to_string(),
+            "@second/plugin@1.0.0".to_string(),
+            true,
+        )
+        .unwrap();
+    manager
+        .register_plugin(
+            "third.plugin".to_string(),
+            "npm:third.plugin".to_string(),
+            "@third/plugin@1.0.0".to_string(),
+            true,
+        )
+        .unwrap();
+
+    manager.activate("first.plugin").unwrap();
+    manager.activate("second.plugin").unwrap();
+    manager.activate("third.plugin").unwrap();
+
+    assert!(manager.is_plugin_active("first.plugin"));
+    assert!(manager.is_plugin_active("second.plugin"));
+    assert!(manager.is_plugin_active("third.plugin"));
+
+    manager.deactivate("second.plugin").unwrap();
+
+    assert!(manager.is_plugin_active("first.plugin"));
+    assert!(!manager.is_plugin_active("second.plugin"));
+    assert!(manager.is_plugin_active("third.plugin"));
+
+    manager.deactivate("first.plugin").unwrap();
+    manager.deactivate("third.plugin").unwrap();
+
+    assert!(!manager.is_plugin_active("first.plugin"));
+    assert!(!manager.is_plugin_active("second.plugin"));
+    assert!(!manager.is_plugin_active("third.plugin"));
+}
+
+#[test]
+fn test_dispose_hook_called_during_deactivation() {
+    use opencode_tui::plugin_api::PluginDispose;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+
+    let manager = TuiPluginManager::new();
+    let dispose_called = Arc::new(AtomicBool::new(false));
+    let dispose_called_clone = Arc::clone(&dispose_called);
+
+    struct ClosureDisposer<F: Fn(&str) + Send + Sync + 'static> {
+        f: F,
+    }
+    impl<F: Fn(&str) + Send + Sync + 'static> ClosureDisposer<F> {
+        fn new(f: F) -> Self {
+            Self { f }
+        }
+    }
+    impl<F: Fn(&str) + Send + Sync + 'static> PluginDispose for ClosureDisposer<F> {
+        fn on_dispose(&self, plugin_id: &str) {
+            (self.f)(plugin_id);
+        }
+    }
+
+    manager
+        .register_plugin(
+            "hook.plugin".to_string(),
+            "npm:hook.plugin".to_string(),
+            "@hook/plugin@1.0.0".to_string(),
+            true,
+        )
+        .unwrap();
+
+    manager
+        .register_plugin_dispose(
+            "hook.plugin",
+            ClosureDisposer::new(move |plugin_id| {
+                assert_eq!(plugin_id, "hook.plugin");
+                dispose_called_clone.store(true, Ordering::SeqCst);
+            }),
+        )
+        .unwrap();
+
+    manager.activate("hook.plugin").unwrap();
+    assert!(!dispose_called.load(Ordering::SeqCst));
+
+    manager.deactivate("hook.plugin").unwrap();
+    assert!(dispose_called.load(Ordering::SeqCst));
+}
+
+#[test]
+fn test_dispose_not_called_on_activate() {
+    use opencode_tui::plugin_api::PluginDispose;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+
+    let manager = TuiPluginManager::new();
+    let dispose_called = Arc::new(AtomicBool::new(false));
+    let dispose_called_clone = Arc::clone(&dispose_called);
+
+    struct ClosureDisposer<F: Fn(&str) + Send + Sync + 'static> {
+        f: F,
+    }
+    impl<F: Fn(&str) + Send + Sync + 'static> ClosureDisposer<F> {
+        fn new(f: F) -> Self {
+            Self { f }
+        }
+    }
+    impl<F: Fn(&str) + Send + Sync + 'static> PluginDispose for ClosureDisposer<F> {
+        fn on_dispose(&self, plugin_id: &str) {
+            (self.f)(plugin_id);
+        }
+    }
+
+    manager
+        .register_plugin(
+            "noactivate.plugin".to_string(),
+            "npm:noactivate.plugin".to_string(),
+            "@noactivate/plugin@1.0.0".to_string(),
+            true,
+        )
+        .unwrap();
+
+    manager
+        .register_plugin_dispose(
+            "noactivate.plugin",
+            ClosureDisposer::new(move |_plugin_id| {
+                dispose_called_clone.store(true, Ordering::SeqCst);
+            }),
+        )
+        .unwrap();
+
+    manager.activate("noactivate.plugin").unwrap();
+    assert!(!dispose_called.load(Ordering::SeqCst));
+}
+
+#[test]
+fn test_all_registries_persist_across_activation() {
+    let manager = TuiPluginManager::new();
+
+    manager
+        .register_plugin(
+            "persist.plugin".to_string(),
+            "npm:persist.plugin".to_string(),
+            "@persist/plugin@1.0.0".to_string(),
+            true,
+        )
+        .unwrap();
+
+    use opencode_tui::plugin_api::{CommandContext, CommandResult, PluginCommand};
+    struct TestCmd;
+    impl PluginCommand for TestCmd {
+        fn name(&self) -> &str {
+            "test"
+        }
+        fn description(&self) -> &str {
+            "test"
+        }
+        fn aliases(&self) -> Vec<String> {
+            vec![]
+        }
+        fn execute(&self, _ctx: &CommandContext) -> CommandResult {
+            CommandResult::success("ok")
+        }
+    }
+    manager
+        .register_plugin_command("persist.plugin", TestCmd)
+        .unwrap();
+
+    use opencode_tui::plugin_api::PluginTheme;
+    manager
+        .register_plugin_theme("persist.plugin", PluginTheme::new("test-theme"))
+        .unwrap();
+
+    manager.activate("persist.plugin").unwrap();
+
+    assert_eq!(manager.list_plugin_commands().len(), 1);
+    assert_eq!(manager.list_plugin_themes().len(), 1);
+
+    manager.deactivate("persist.plugin").unwrap();
+
+    assert_eq!(manager.list_plugin_commands().len(), 1);
+    assert_eq!(manager.list_plugin_themes().len(), 1);
+}
+
+#[test]
+fn test_lifecycle_state_reflects_exactly_one_active() {
+    let manager = TuiPluginManager::new();
+
+    manager
+        .register_plugin(
+            "single.plugin1".to_string(),
+            "npm:single.plugin1".to_string(),
+            "@single/plugin1@1.0.0".to_string(),
+            true,
+        )
+        .unwrap();
+    manager
+        .register_plugin(
+            "single.plugin2".to_string(),
+            "npm:single.plugin2".to_string(),
+            "@single/plugin2@1.0.0".to_string(),
+            true,
+        )
+        .unwrap();
+
+    manager.activate("single.plugin1").unwrap();
+    let entry1 = manager.get_plugin("single.plugin1").unwrap();
+    assert_eq!(entry1.state, PluginLifecycleState::Active);
+    assert!(entry1.active);
+
+    manager.activate("single.plugin2").unwrap();
+    let entry2 = manager.get_plugin("single.plugin2").unwrap();
+    assert_eq!(entry2.state, PluginLifecycleState::Active);
+    assert!(entry2.active);
+
+    let entry1_after = manager.get_plugin("single.plugin1").unwrap();
+    assert!(entry1_after.active);
+    assert_eq!(entry1_after.state, PluginLifecycleState::Active);
+}
+
+#[test]
+fn test_plugin_state_reflects_enabled_after_toggle() {
+    let manager = TuiPluginManager::new();
+
+    manager
+        .register_plugin(
+            "toggle2.plugin".to_string(),
+            "npm:toggle2.plugin".to_string(),
+            "@toggle2/plugin@1.0.0".to_string(),
+            true,
+        )
+        .unwrap();
+
+    manager.activate("toggle2.plugin").unwrap();
+    let entry = manager.get_plugin("toggle2.plugin").unwrap();
+    assert!(entry.enabled);
+    assert!(entry.active);
+
+    manager.set_plugin_enabled("toggle2.plugin", false).unwrap();
+    let entry_after = manager.get_plugin("toggle2.plugin").unwrap();
+    assert!(!entry_after.enabled);
+    assert!(!entry_after.active);
+    assert_eq!(entry_after.state, PluginLifecycleState::Inactive);
+}
+
+#[test]
+fn test_cannot_double_activate() {
+    let manager = TuiPluginManager::new();
+
+    manager
+        .register_plugin(
+            "double.plugin".to_string(),
+            "npm:double.plugin".to_string(),
+            "@double/plugin@1.0.0".to_string(),
+            true,
+        )
+        .unwrap();
+
+    manager.activate("double.plugin").unwrap();
+    let result = manager.activate("double.plugin");
+    assert!(matches!(result, Err(TuiPluginError::AlreadyActive(_))));
+}
+
+#[test]
+fn test_cannot_double_deactivate() {
+    let manager = TuiPluginManager::new();
+
+    manager
+        .register_plugin(
+            "double2.plugin".to_string(),
+            "npm:double2.plugin".to_string(),
+            "@double2/plugin@1.0.0".to_string(),
+            true,
+        )
+        .unwrap();
+
+    manager.activate("double2.plugin").unwrap();
+    manager.deactivate("double2.plugin").unwrap();
+    let result = manager.deactivate("double2.plugin");
+    assert!(matches!(result, Err(TuiPluginError::NotActive(_))));
+}
+
+#[test]
+fn test_set_plugin_enabled_while_not_active() {
+    let manager = TuiPluginManager::new();
+
+    manager
+        .register_plugin(
+            "enable.plugin".to_string(),
+            "npm:enable.plugin".to_string(),
+            "@enable/plugin@1.0.0".to_string(),
+            true,
+        )
+        .unwrap();
+
+    manager.set_plugin_enabled("enable.plugin", false).unwrap();
+    let entry = manager.get_plugin("enable.plugin").unwrap();
+    assert!(!entry.enabled);
+    assert!(!entry.active);
+    assert_eq!(entry.state, PluginLifecycleState::Registered);
+}
+
+#[test]
+fn test_master_switch_blocks_all_activations() {
+    let manager = TuiPluginManager::new();
+
+    manager
+        .register_plugin(
+            "master1.plugin".to_string(),
+            "npm:master1.plugin".to_string(),
+            "@master1/plugin@1.0.0".to_string(),
+            true,
+        )
+        .unwrap();
+    manager
+        .register_plugin(
+            "master2.plugin".to_string(),
+            "npm:master2.plugin".to_string(),
+            "@master2/plugin@1.0.0".to_string(),
+            true,
+        )
+        .unwrap();
+
+    manager.set_master_enabled(false);
+
+    let result1 = manager.activate("master1.plugin");
+    let result2 = manager.activate("master2.plugin");
+
+    assert!(matches!(result1, Err(TuiPluginError::MasterSwitchDisabled)));
+    assert!(matches!(result2, Err(TuiPluginError::MasterSwitchDisabled)));
+
+    manager.set_master_enabled(true);
+    manager.activate("master1.plugin").unwrap();
+    assert!(manager.is_plugin_active("master1.plugin"));
+}

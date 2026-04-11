@@ -1414,7 +1414,7 @@
       "priority": "P0",
       "title": "TUI plugin lifecycle tests",
       "description": "Write tests for TUI plugin lifecycle. Test activation, deactivation, and all lifecycle hooks.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Activation lifecycle is complete",
         "Deactivation lifecycle is complete",
