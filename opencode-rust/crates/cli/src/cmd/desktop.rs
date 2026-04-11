@@ -17,7 +17,7 @@ pub struct DesktopArgs {
     #[arg(short, long)]
     pub port: Option<u16>,
 
-    #[arg(short, long)]
+    #[arg(long)]
     pub hostname: Option<String>,
 
     #[arg(long)]

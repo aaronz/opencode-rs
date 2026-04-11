@@ -607,9 +607,6 @@ mod gitlab_integration_tests {
         );
         assert!(setup_result.is_err());
     }
-}
-        port
-    }
 
     struct GitLabMockServer {
         port: u16,

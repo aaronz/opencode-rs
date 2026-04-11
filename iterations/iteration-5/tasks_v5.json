@@ -1,0 +1,774 @@
+{
+  "tasks": [
+    {
+      "id": "P0-1",
+      "priority": "P0",
+      "title": "Fix Git Crate Syntax Error",
+      "description": "Orphaned code (lines 611-612) after test module in gitlab_ci.rs, plus premature module close at line 610. Remove orphaned `port` statement at line 611, orphaned `}` at line 612, and premature module close at line 610.",
+      "status": "done",
+      "test_criteria": [
+        "cargo build -p opencode-git succeeds without errors",
+        "No orphaned code after test module",
+        "Module structure is valid"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-git"
+      ],
+      "impl_notes": "Build succeeds. Pre-existing test code bugs discovered (Ordering undeclared, next_port not found) - moved to P2-15.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-2",
+      "priority": "P0",
+      "title": "Desktop WebView Integration",
+      "description": "Only HTTP server scaffolding exists, no actual WebView component. Need to analyze PRD 13 requirements, research WebView integration (webview2, webkit), implement WebView component, add desktop mode command, and test desktop mode launch.",
+      "status": "done",
+      "test_criteria": [
+        "Desktop mode command is registered and accessible",
+        "WebView window opens successfully",
+        "Desktop mode launches without errors",
+        "Web content renders correctly in WebView"
+      ],
+      "test_commands": [
+        "cargo build --release",
+        "./target/release/opencode desktop --help"
+      ],
+      "impl_notes": "Fixed clap short option conflict (-h for hostname clashed with help flag). Desktop mode command works correctly. All desktop/web smoke tests pass (7 tests). WebView integration implemented via browser opening on all platforms.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-3",
+      "priority": "P0",
+      "title": "ACP HTTP+SSE Transport",
+      "description": "ACP CLI commands exist but server transport is incomplete. Need to analyze current ACP CLI implementation, implement ACP HTTP+SSE endpoints in server, add ACP handshake flow, add ACP connect/ack endpoints, verify CLI commands connect properly, and add integration tests.",
+      "status": "todo",
+      "test_criteria": [
+        "ACP handshake endpoint responds correctly",
+        "ACP connect endpoint establishes connection",
+        "ACP ack endpoint acknowledges properly",
+        "SSE streams data correctly",
+        "CLI commands connect to server successfully"
+      ],
+      "test_commands": [
+        "cargo build --release",
+        "curl -X POST http://localhost:3000/api/acp/handshake",
+        "curl -X POST http://localhost:3000/api/acp/connect",
+        "opencode acp status"
+      ],
+      "impl_notes": "ACP routes should be at /api/acp/status, /api/acp/handshake, /api/acp/connect, /api/acp/ack",
+      "dependencies": []
+    },
+    {
+      "id": "P1-1",
+      "priority": "P1",
+      "title": "Improve JSONC Error Messages",
+      "description": "Add clearer error messages for JSONC parsing errors to help users identify and fix configuration issues.",
+      "status": "todo",
+      "test_criteria": [
+        "JSONC errors include file location",
+        "Error messages explain the actual problem",
+        "Error messages suggest possible fixes"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core jsonc"
+      ],
+      "impl_notes": "Consider adding error context with line/column numbers",
+      "dependencies": []
+    },
+    {
+      "id": "P1-2",
+      "priority": "P1",
+      "title": "Add Circular Variable Expansion Detection",
+      "description": "Detect and report circular dependencies in variable expansion to prevent infinite loops in config processing.",
+      "status": "todo",
+      "test_criteria": [
+        "Circular references are detected",
+        "Clear error message identifies the cycle",
+        "No infinite loops during config loading"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core circular"
+      ],
+      "impl_notes": "Track expansion depth or visited variables",
+      "dependencies": []
+    },
+    {
+      "id": "P1-3",
+      "priority": "P1",
+      "title": "Plan Removal of Deprecated Fields",
+      "description": "Plan removal of deprecated config fields: mode, tools, theme, keybinds. These should be removed from config schema and migration paths should be documented.",
+      "status": "todo",
+      "test_criteria": [
+        "Deprecation warnings added for each field",
+        "Migration guide documented",
+        "Removal timeline established"
+      ],
+      "test_commands": [
+        "cargo build --release"
+      ],
+      "impl_notes": "Create deprecation warnings and migration documentation",
+      "dependencies": []
+    },
+    {
+      "id": "P1-4",
+      "priority": "P1",
+      "title": "Complete Slash Commands (/compact, /connect, /help)",
+      "description": "Complete implementation of slash commands: /compact for session compaction, /connect for ACP connections, /help for help display.",
+      "status": "todo",
+      "test_criteria": [
+        "/compact command works and compacts session",
+        "/connect command initiates ACP connection",
+        "/help command displays help information",
+        "All commands have proper tab completion"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui slash"
+      ],
+      "impl_notes": "Slash commands should integrate with existing TUI command system",
+      "dependencies": []
+    },
+    {
+      "id": "P1-5",
+      "priority": "P1",
+      "title": "Add Multiline Input Terminal Support",
+      "description": "Add multiline input support using Shift+Enter to allow users to enter multi-line messages in the terminal.",
+      "status": "todo",
+      "test_criteria": [
+        "Shift+Enter inserts newline",
+        "Enter submits single-line input",
+        "Multiline text renders correctly",
+        "History works across multiline input"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui multiline"
+      ],
+      "impl_notes": "Need to distinguish between Enter (submit) and Shift+Enter (newline)",
+      "dependencies": []
+    },
+    {
+      "id": "P1-6",
+      "priority": "P1",
+      "title": "Improve @ File Reference Fuzzy Search",
+      "description": "Improve the fuzzy search algorithm for @ file references to provide better file matching and suggestions.",
+      "status": "todo",
+      "test_criteria": [
+        "Fuzzy matching finds partial filename matches",
+        "Results are ranked by relevance",
+        "Performance is acceptable with large codebases"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui fuzzy"
+      ],
+      "impl_notes": "Consider using fuzzy matching library like fuzzy-matcher",
+      "dependencies": []
+    },
+    {
+      "id": "P1-7",
+      "priority": "P1",
+      "title": "Implement Dialog Components",
+      "description": "Implement TUI Plugin API Dialog components: DialogAlert, DialogConfirm, DialogPrompt, DialogSelect.",
+      "status": "todo",
+      "test_criteria": [
+        "DialogAlert displays message and dismisses",
+        "DialogConfirm displays with confirm/cancel options",
+        "DialogPrompt accepts text input",
+        "DialogSelect allows selecting from options"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui dialog"
+      ],
+      "impl_notes": "Dialog components should follow existing TUI component patterns",
+      "dependencies": []
+    },
+    {
+      "id": "P1-8",
+      "priority": "P1",
+      "title": "Complete Slots System Implementation",
+      "description": "Complete the slots system implementation for TUI Plugin API, including slot registration API.",
+      "status": "todo",
+      "test_criteria": [
+        "Slots can be registered dynamically",
+        "Slots render content correctly",
+        "Slot lifecycle is managed properly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui slots"
+      ],
+      "impl_notes": "Slots allow plugins to inject content into defined areas",
+      "dependencies": []
+    },
+    {
+      "id": "P1-9",
+      "priority": "P1",
+      "title": "Complete Session Sharing Between Interfaces",
+      "description": "Implement session sharing between CLI, TUI, desktop, and ACP interfaces so users can switch between modes seamlessly.",
+      "status": "todo",
+      "test_criteria": [
+        "Session created in one interface is accessible in another",
+        "Session state is synchronized",
+        "No conflicts when multiple interfaces access same session"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core session_sharing"
+      ],
+      "impl_notes": "Requires shared session storage with proper locking/synchronization",
+      "dependencies": [
+        "P0-3"
+      ]
+    },
+    {
+      "id": "P1-10",
+      "priority": "P1",
+      "title": "Add Permission Inheritance Edge Case Tests",
+      "description": "Add test coverage for permission inheritance edge cases in the agent system.",
+      "status": "todo",
+      "test_criteria": [
+        "Permission inheritance works correctly in nested contexts",
+        "Edge cases are covered (denied permissions, partial access)",
+        "All tests pass"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-agent permission_inheritance"
+      ],
+      "impl_notes": "Focus on edge cases like conflicting permissions, parent/child context resolution",
+      "dependencies": []
+    },
+    {
+      "id": "P1-11",
+      "priority": "P1",
+      "title": "Add Request Validation Edge Case Tests",
+      "description": "Add more request validation edge case tests for the server API.",
+      "status": "todo",
+      "test_criteria": [
+        "Edge cases like empty strings, max length, special characters",
+        "Invalid JSON handling",
+        "All validation tests pass"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server validation"
+      ],
+      "impl_notes": "Cover boundary conditions and malformed input",
+      "dependencies": []
+    },
+    {
+      "id": "P2-1",
+      "priority": "P2",
+      "title": "Add worktree_root Field Distinction",
+      "description": "Add worktree_root field distinction in Project type to handle Git worktree configurations properly.",
+      "status": "todo",
+      "test_criteria": [
+        "Project type has worktree_root field",
+        "Worktree detection works correctly",
+        "Path operations use correct root"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core worktree"
+      ],
+      "impl_notes": "\u533a\u5206 worktree_root \u548c git_root",
+      "dependencies": []
+    },
+    {
+      "id": "P2-2",
+      "priority": "P2",
+      "title": "Enhance Workspace Path Validation",
+      "description": "Enhance workspace path validation to handle more edge cases and provide better error messages.",
+      "status": "todo",
+      "test_criteria": [
+        "Invalid paths are rejected with clear errors",
+        "Symlinks are handled correctly",
+        "Relative vs absolute paths are distinguished"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core workspace_path"
+      ],
+      "impl_notes": "Consider edge cases like circular symlinks, permission denied",
+      "dependencies": []
+    },
+    {
+      "id": "P2-3",
+      "priority": "P2",
+      "title": "Add Compaction Shareability Integration Tests",
+      "description": "Add integration tests for session compaction shareability features.",
+      "status": "todo",
+      "test_criteria": [
+        "Compaction produces shareable output",
+        "Integration tests pass",
+        "Edge cases are covered"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests compaction"
+      ],
+      "impl_notes": "Tests should verify compaction output can be shared and restored",
+      "dependencies": []
+    },
+    {
+      "id": "P2-4",
+      "priority": "P2",
+      "title": "Implement Deterministic Collision Resolution",
+      "description": "Implement deterministic collision resolution for tools with overlapping functionality.",
+      "status": "todo",
+      "test_criteria": [
+        "Collisions are detected and resolved deterministically",
+        "Resolution is predictable and reproducible",
+        "No data loss during collision resolution"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools collision"
+      ],
+      "impl_notes": "Use deterministic ordering (e.g., alphabetical, priority-based)",
+      "dependencies": []
+    },
+    {
+      "id": "P2-5",
+      "priority": "P2",
+      "title": "Complete Result Caching Invalidation",
+      "description": "Complete result caching invalidation to ensure stale cache entries are properly invalidated.",
+      "status": "todo",
+      "test_criteria": [
+        "Cache is invalidated when source changes",
+        "Invalidation is triggered appropriately",
+        "No stale results are returned"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools cache_invalidation"
+      ],
+      "impl_notes": "Consider TTL-based and dependency-based invalidation",
+      "dependencies": []
+    },
+    {
+      "id": "P2-6",
+      "priority": "P2",
+      "title": "Verify Per-server OAuth Token Storage",
+      "description": "Verify that per-server OAuth tokens are stored correctly for MCP integration.",
+      "status": "todo",
+      "test_criteria": [
+        "OAuth tokens are stored per-server",
+        "Tokens are retrieved correctly",
+        "Security of stored tokens verified"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-mcp oauth_token"
+      ],
+      "impl_notes": "Ensure tokens are not shared between servers",
+      "dependencies": []
+    },
+    {
+      "id": "P2-7",
+      "priority": "P2",
+      "title": "Add Context Cost Warnings",
+      "description": "Add warnings when context cost exceeds certain thresholds for MCP.",
+      "status": "todo",
+      "test_criteria": [
+        "Cost warnings are displayed when threshold exceeded",
+        "Warning threshold is configurable",
+        "Metrics are tracked accurately"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-mcp cost_warning"
+      ],
+      "impl_notes": "Consider adding cost budgets per conversation",
+      "dependencies": []
+    },
+    {
+      "id": "P2-8",
+      "priority": "P2",
+      "title": "Add Experimental LSP Tool Integration Tests",
+      "description": "Add integration tests for experimental LSP tool features.",
+      "status": "todo",
+      "test_criteria": [
+        "LSP integration tests pass",
+        "Tool discovery works correctly",
+        "Error handling is robust"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-lsp integration"
+      ],
+      "impl_notes": "LSP tools are experimental, tests should verify basic functionality",
+      "dependencies": []
+    },
+    {
+      "id": "P2-9",
+      "priority": "P2",
+      "title": "Enforce API Error Shape Consistency",
+      "description": "Enforce consistent error shape across all server API endpoints.",
+      "status": "todo",
+      "test_criteria": [
+        "All errors follow same JSON structure",
+        "Error codes are consistent",
+        "Documentation reflects actual error shapes"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server api_error"
+      ],
+      "impl_notes": "Define a standard error response envelope",
+      "dependencies": []
+    },
+    {
+      "id": "P2-10",
+      "priority": "P2",
+      "title": "Complete Plugin Cleanup/Unload Implementation",
+      "description": "Complete plugin cleanup and unload implementation to properly release resources.",
+      "status": "todo",
+      "test_criteria": [
+        "Plugins can be unloaded cleanly",
+        "Resources are properly released",
+        "No memory leaks after unload"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin cleanup"
+      ],
+      "impl_notes": "Implement Drop trait and cleanup hooks",
+      "dependencies": []
+    },
+    {
+      "id": "P2-11",
+      "priority": "P2",
+      "title": "Implement Shell Prefix (!) Handler",
+      "description": "Implement shell prefix (!) handler to execute shell commands from within TUI.",
+      "status": "todo",
+      "test_criteria": [
+        "Commands starting with ! are interpreted as shell commands",
+        "Shell commands execute and return output",
+        "Errors are handled properly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui shell_prefix"
+      ],
+      "impl_notes": "Consider security implications and sanitization",
+      "dependencies": []
+    },
+    {
+      "id": "P2-12",
+      "priority": "P2",
+      "title": "Complete Home View",
+      "description": "Complete home view with recent sessions and quick actions.",
+      "status": "todo",
+      "test_criteria": [
+        "Recent sessions are displayed",
+        "Quick actions are accessible",
+        "Navigation works correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui home_view"
+      ],
+      "impl_notes": "Home view should provide quick access to common actions",
+      "dependencies": []
+    },
+    {
+      "id": "P2-13",
+      "priority": "P2",
+      "title": "Implement Variant/Reasoning Budget",
+      "description": "Implement variant and reasoning budget for LLM interactions to control costs.",
+      "status": "todo",
+      "test_criteria": [
+        "Budget limits are enforced",
+        "Variants are generated within budget",
+        "Budget tracking is accurate"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm budget"
+      ],
+      "impl_notes": "Consider per-conversation and per-request budgets",
+      "dependencies": []
+    },
+    {
+      "id": "P2-14",
+      "priority": "P2",
+      "title": "Mark GitLab Duo as Experimental",
+      "description": "Mark GitLab Duo feature as experimental in documentation and code.",
+      "status": "todo",
+      "test_criteria": [
+        "GitLab Duo is marked as experimental",
+        "Documentation reflects experimental status",
+        "Users are warned about experimental nature"
+      ],
+      "test_commands": [
+        "cargo doc -p opencode-git"
+      ],
+      "impl_notes": "Add experimental warning to feature flags and docs",
+      "dependencies": []
+    },
+    {
+      "id": "P2-15",
+      "priority": "P2",
+      "title": "Fix Ordering Import and next_port in Git Test Code",
+      "description": "Fix pre-existing test code bugs in git crate: Ordering undeclared and next_port not found.",
+      "status": "todo",
+      "test_criteria": [
+        "Ordering is properly imported",
+        "next_port function is defined or imported",
+        "All git tests pass"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-git"
+      ],
+      "impl_notes": "Discovered during P0-1 fix, these are pre-existing test bugs",
+      "dependencies": [
+        "P0-1"
+      ]
+    },
+    {
+      "id": "TD-004",
+      "priority": "P2",
+      "title": "Remove Deprecated mode Field",
+      "description": "Remove deprecated mode field from config system.",
+      "status": "todo",
+      "test_criteria": [
+        "mode field is removed from config schema",
+        "Config migration handles old mode field",
+        "Build succeeds without mode field references"
+      ],
+      "test_commands": [
+        "cargo build --release",
+        "grep -r 'mode' crates/core/src/config/"
+      ],
+      "impl_notes": "Technical debt - remove deprecated field",
+      "dependencies": []
+    },
+    {
+      "id": "TD-005",
+      "priority": "P2",
+      "title": "Remove Deprecated tools Field",
+      "description": "Remove deprecated tools field from config system.",
+      "status": "todo",
+      "test_criteria": [
+        "tools field is removed from config schema",
+        "Config migration handles old tools field",
+        "Build succeeds without tools field references"
+      ],
+      "test_commands": [
+        "cargo build --release",
+        "grep -r 'tools' crates/core/src/config/"
+      ],
+      "impl_notes": "Technical debt - remove deprecated field",
+      "dependencies": []
+    },
+    {
+      "id": "TD-006",
+      "priority": "P2",
+      "title": "Remove Deprecated theme Field",
+      "description": "Remove deprecated theme field from config system.",
+      "status": "todo",
+      "test_criteria": [
+        "theme field is removed from config schema",
+        "Config migration handles old theme field",
+        "Build succeeds without theme field references"
+      ],
+      "test_commands": [
+        "cargo build --release",
+        "grep -r 'theme' crates/core/src/config/"
+      ],
+      "impl_notes": "Technical debt - remove deprecated field",
+      "dependencies": []
+    },
+    {
+      "id": "TD-007",
+      "priority": "P2",
+      "title": "Remove Deprecated keybinds Field",
+      "description": "Remove deprecated keybinds field from config system.",
+      "status": "todo",
+      "test_criteria": [
+        "keybinds field is removed from config schema",
+        "Config migration handles old keybinds field",
+        "Build succeeds without keybinds field references"
+      ],
+      "test_commands": [
+        "cargo build --release",
+        "grep -r 'keybinds' crates/core/src/config/"
+      ],
+      "impl_notes": "Technical debt - remove deprecated field",
+      "dependencies": []
+    },
+    {
+      "id": "TD-008",
+      "priority": "P2",
+      "title": "Make Compaction Magic Numbers Configurable",
+      "description": "Replace hardcoded magic numbers in compaction with configurable values.",
+      "status": "todo",
+      "test_criteria": [
+        "Compaction numbers are configurable",
+        "Default values work without config",
+        "Configuration is documented"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core compaction"
+      ],
+      "impl_notes": "Technical debt - eliminate magic numbers",
+      "dependencies": []
+    },
+    {
+      "id": "TD-009",
+      "priority": "P2",
+      "title": "Consider Using Existing JSONC Crate",
+      "description": "Evaluate using an existing JSONC crate instead of custom implementation.",
+      "status": "todo",
+      "test_criteria": [
+        "Existing JSONC crates evaluated",
+        "Performance comparison documented",
+        "Decision and rationale documented"
+      ],
+      "test_commands": [
+        "cargo build --release"
+      ],
+      "impl_notes": "Technical debt - evaluate if custom implementation is justified",
+      "dependencies": []
+    },
+    {
+      "id": "TD-010",
+      "priority": "P2",
+      "title": "Replace #[serde(other)] with Explicit Error Handling",
+      "description": "Replace #[serde(other)] with explicit error handling in Part enum.",
+      "status": "todo",
+      "test_criteria": [
+        "#[serde(other)] removed from Part enum",
+        "Unknown variants return explicit errors",
+        "All serialization tests pass"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core serde"
+      ],
+      "impl_notes": "Technical debt - more explicit error handling",
+      "dependencies": []
+    },
+    {
+      "id": "GATE-4-1",
+      "priority": "P0",
+      "title": "Pass Desktop/Web Smoke Tests",
+      "description": "Pass desktop and web interface smoke tests.",
+      "status": "todo",
+      "test_criteria": [
+        "Desktop mode launches successfully",
+        "Web interface loads without errors",
+        "Basic functionality works in both modes"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests desktop_smoke"
+      ],
+      "impl_notes": "Blocked by P0-2 (Desktop WebView Integration)",
+      "dependencies": [
+        "P0-2"
+      ]
+    },
+    {
+      "id": "GATE-4-2",
+      "priority": "P0",
+      "title": "Pass ACP Handshake Tests",
+      "description": "Pass ACP handshake integration tests.",
+      "status": "todo",
+      "test_criteria": [
+        "ACP handshake completes successfully",
+        "Connection is established and maintained",
+        "Error conditions are handled gracefully"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests acp_handshake"
+      ],
+      "impl_notes": "Blocked by P0-3 (ACP HTTP+SSE Transport)",
+      "dependencies": [
+        "P0-3"
+      ]
+    },
+    {
+      "id": "GATE-4-3",
+      "priority": "P1",
+      "title": "Pass GitHub Workflow Tests",
+      "description": "Pass GitHub workflow integration tests.",
+      "status": "todo",
+      "test_criteria": [
+        "GitHub OAuth flow works",
+        "Repository access works correctly",
+        "Webhook handling works"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests github_workflow"
+      ],
+      "impl_notes": "Integration tests for GitHub API integration",
+      "dependencies": []
+    },
+    {
+      "id": "GATE-4-4",
+      "priority": "P1",
+      "title": "Pass GitLab Integration Tests",
+      "description": "Pass GitLab integration tests.",
+      "status": "todo",
+      "test_criteria": [
+        "GitLab OAuth flow works",
+        "Project access works correctly",
+        "GitLab Duo features work (when marked experimental)"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests gitlab"
+      ],
+      "impl_notes": "Integration tests for GitLab API integration",
+      "dependencies": []
+    },
+    {
+      "id": "GATE-6-1",
+      "priority": "P1",
+      "title": "Record Performance Baselines",
+      "description": "Record performance baselines for key operations.",
+      "status": "todo",
+      "test_criteria": [
+        "Baseline metrics recorded for major operations",
+        "Performance tests are automated",
+        "Regression thresholds defined"
+      ],
+      "test_commands": [
+        "cargo bench"
+      ],
+      "impl_notes": "Non-functional requirement - performance",
+      "dependencies": []
+    },
+    {
+      "id": "GATE-6-2",
+      "priority": "P1",
+      "title": "Verify Security Tests Pass",
+      "description": "Verify all security tests pass.",
+      "status": "todo",
+      "test_criteria": [
+        "Security audit passes",
+        "No known vulnerabilities",
+        "Security tests are automated"
+      ],
+      "test_commands": [
+        "cargo test --all-features security"
+      ],
+      "impl_notes": "Non-functional requirement - security",
+      "dependencies": []
+    },
+    {
+      "id": "GATE-6-3",
+      "priority": "P1",
+      "title": "Verify Recovery Tests Pass",
+      "description": "Verify recovery and error handling tests pass.",
+      "status": "todo",
+      "test_criteria": [
+        "Error recovery works correctly",
+        "Graceful degradation is tested",
+        "Recovery time is acceptable"
+      ],
+      "test_commands": [
+        "cargo test --all-features recovery"
+      ],
+      "impl_notes": "Non-functional requirement - resilience",
+      "dependencies": []
+    },
+    {
+      "id": "GATE-6-4",
+      "priority": "P1",
+      "title": "Verify Snapshot/Revert Durability",
+      "description": "Verify snapshot and revert functionality is durable.",
+      "status": "todo",
+      "test_criteria": [
+        "Snapshots are created reliably",
+        "Revert works correctly",
+        "Data integrity is maintained"
+      ],
+      "test_commands": [
+        "cargo test --all-features snapshot"
+      ],
+      "impl_notes": "Non-functional requirement - data durability",
+      "dependencies": []
+    }
+  ]
+}

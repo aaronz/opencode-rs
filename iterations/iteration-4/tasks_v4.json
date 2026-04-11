@@ -1721,7 +1721,7 @@
       "priority": "P0",
       "title": "Snapshot/revert durability",
       "description": "Write tests for snapshot and revert durability. Ensure snapshots are durable and revert is reliable.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "Snapshots are durable across restarts",
         "Revert operations are reliable",
