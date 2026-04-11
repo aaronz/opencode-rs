@@ -1567,7 +1567,7 @@
       "priority": "P0",
       "title": "GitLab integration tests",
       "description": "Write tests for GitLab CI integration. Test pipeline triggering and monitoring.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "GitLab pipelines can be triggered",
         "Pipeline status is monitored",
