@@ -52,8 +52,9 @@ pub use provider::{
     StreamingCallback,
 };
 pub use provider_abstraction::{
-    DynProvider, LocalInferenceProviderFactory, LmStudioProviderFactory, ProviderFactory,
-    ProviderIdentity, ProviderManager, ProviderSpec,
+    AnthropicThinkingConfig, DynProvider, LocalInferenceProviderFactory, LmStudioProviderFactory,
+    ProviderFactory, ProviderIdentity, ProviderManager, ProviderReasoningConfig, ProviderSpec,
+    ReasoningBudget,
 };
 pub use provider_adapter::{
     AnthropicAdapter, LocalEndpointAdapter, OpenAICompatibleAdapter, ProviderAdapter,

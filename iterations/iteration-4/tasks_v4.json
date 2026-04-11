@@ -1204,7 +1204,7 @@
       "priority": "P2",
       "title": "LLM variant/reasoning budget",
       "description": "Implement LLM variant and reasoning budget configuration. Support different model variants and reasoning effort levels.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Model variants are configurable",
         "Reasoning budget can be set",

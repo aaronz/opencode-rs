@@ -1,5 +1,5 @@
 use opencode_llm::provider_abstraction::{
-    DynProvider, ProviderIdentity, ProviderManager, ProviderSpec,
+    DynProvider, ProviderIdentity, ProviderManager, ProviderSpec, ReasoningBudget,
 };
 
 #[test]
@@ -107,5 +107,165 @@ fn test_agent_override_with_various_providers() {
             "Provider {} should have model {}",
             provider_type, model
         );
+    }
+}
+
+#[test]
+fn test_reasoning_budget_from_str() {
+    assert_eq!(
+        ReasoningBudget::from_str("none"),
+        Some(ReasoningBudget::None)
+    );
+    assert_eq!(
+        ReasoningBudget::from_str("minimal"),
+        Some(ReasoningBudget::Minimal)
+    );
+    assert_eq!(ReasoningBudget::from_str("low"), Some(ReasoningBudget::Low));
+    assert_eq!(
+        ReasoningBudget::from_str("medium"),
+        Some(ReasoningBudget::Medium)
+    );
+    assert_eq!(
+        ReasoningBudget::from_str("high"),
+        Some(ReasoningBudget::High)
+    );
+    assert_eq!(
+        ReasoningBudget::from_str("xhigh"),
+        Some(ReasoningBudget::XHigh)
+    );
+    assert_eq!(ReasoningBudget::from_str("max"), Some(ReasoningBudget::Max));
+    assert_eq!(ReasoningBudget::from_str("invalid"), None);
+}
+
+#[test]
+fn test_reasoning_budget_case_insensitive() {
+    assert_eq!(
+        ReasoningBudget::from_str("HIGH"),
+        Some(ReasoningBudget::High)
+    );
+    assert_eq!(
+        ReasoningBudget::from_str("High"),
+        Some(ReasoningBudget::High)
+    );
+    assert_eq!(ReasoningBudget::from_str("Max"), Some(ReasoningBudget::Max));
+}
+
+#[test]
+fn test_provider_identity_with_reasoning_budget() {
+    let identity = ProviderIdentity::openai("gpt-4o").with_reasoning_budget(ReasoningBudget::High);
+
+    assert_eq!(identity.provider_type, "openai");
+    assert_eq!(identity.model, Some("gpt-4o".to_string()));
+    assert_eq!(identity.reasoning_budget, Some(ReasoningBudget::High));
+}
+
+#[test]
+fn test_provider_identity_with_variant() {
+    let identity = ProviderIdentity::anthropic("claude-3-5-sonnet").with_variant("high");
+
+    assert_eq!(identity.provider_type, "anthropic");
+    assert_eq!(identity.model, Some("claude-3-5-sonnet".to_string()));
+    assert_eq!(identity.variant, Some("high".to_string()));
+}
+
+#[test]
+fn test_provider_identity_with_variant_and_reasoning_budget() {
+    let identity = ProviderIdentity::openai("o1-preview")
+        .with_variant("high")
+        .with_reasoning_budget(ReasoningBudget::Max);
+
+    assert_eq!(identity.provider_type, "openai");
+    assert_eq!(identity.model, Some("o1-preview".to_string()));
+    assert_eq!(identity.variant, Some("high".to_string()));
+    assert_eq!(identity.reasoning_budget, Some(ReasoningBudget::Max));
+}
+
+#[test]
+fn test_dyn_provider_has_reasoning_budget() {
+    let manager = ProviderManager::new();
+
+    let identity = ProviderIdentity::anthropic("claude-3-5-sonnet")
+        .with_reasoning_budget(ReasoningBudget::High);
+    let provider = manager.create_provider_by_identity(&identity).unwrap();
+
+    assert_eq!(provider.reasoning_budget(), Some(ReasoningBudget::High));
+    assert_eq!(provider.variant(), None);
+}
+
+#[test]
+fn test_dyn_provider_has_variant() {
+    let manager = ProviderManager::new();
+
+    let identity = ProviderIdentity::google("gemini-1.5-pro").with_variant("low");
+    let provider = manager.create_provider_by_identity(&identity).unwrap();
+
+    assert_eq!(provider.variant(), Some("low"));
+}
+
+#[test]
+fn test_reasoning_budget_for_anthropic() {
+    let budget = ReasoningBudget::High;
+    let config = budget.for_provider("anthropic");
+
+    assert!(config.is_some());
+    match config.unwrap() {
+        opencode_llm::ProviderReasoningConfig::Anthropic { thinking } => {
+            assert!(thinking.is_some());
+        }
+        _ => panic!("Expected Anthropic reasoning config"),
+    }
+}
+
+#[test]
+fn test_reasoning_budget_for_openai() {
+    let budget = ReasoningBudget::Medium;
+    let config = budget.for_provider("openai");
+
+    assert!(config.is_some());
+    match config.unwrap() {
+        opencode_llm::ProviderReasoningConfig::OpenAI { reasoning_effort } => {
+            assert_eq!(reasoning_effort, Some("medium".to_string()));
+        }
+        _ => panic!("Expected OpenAI reasoning config"),
+    }
+}
+
+#[test]
+fn test_reasoning_budget_for_google() {
+    let budget = ReasoningBudget::Low;
+    let config = budget.for_provider("google");
+
+    assert!(config.is_some());
+    match config.unwrap() {
+        opencode_llm::ProviderReasoningConfig::Google { thinking_throttle } => {
+            assert_eq!(thinking_throttle, Some("low".to_string()));
+        }
+        _ => panic!("Expected Google reasoning config"),
+    }
+}
+
+#[test]
+fn test_reasoning_budget_none_for_unsupported_provider() {
+    let budget = ReasoningBudget::High;
+    let config = budget.for_provider("ollama");
+
+    assert!(config.is_none());
+}
+
+#[test]
+fn test_reasoning_config_conversion() {
+    let manager = ProviderManager::new();
+    let identity = ProviderIdentity::anthropic("claude-3-5-sonnet")
+        .with_reasoning_budget(ReasoningBudget::Max);
+    let provider = manager.create_provider_by_identity(&identity).unwrap();
+
+    let config = provider.reasoning_config();
+    assert!(config.is_some());
+
+    match config.unwrap() {
+        opencode_llm::ProviderReasoningConfig::Anthropic { thinking } => {
+            assert!(thinking.is_some());
+        }
+        _ => panic!("Expected Anthropic reasoning config"),
     }
 }

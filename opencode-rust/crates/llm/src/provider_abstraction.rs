@@ -9,10 +9,126 @@ use crate::{AnthropicProvider, OllamaProvider, OpenAiProvider};
 use crate::google::GoogleProvider;
 use crate::lm_studio::LmStudioProvider;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ProviderIdentity {
     pub provider_type: String,
     pub model: Option<String>,
+    pub variant: Option<String>,
+    pub reasoning_budget: Option<ReasoningBudget>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ReasoningBudget {
+    None,
+    Minimal,
+    Low,
+    Medium,
+    High,
+    XHigh,
+    Max,
+}
+
+impl ReasoningBudget {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "none" => Some(ReasoningBudget::None),
+            "minimal" => Some(ReasoningBudget::Minimal),
+            "low" => Some(ReasoningBudget::Low),
+            "medium" => Some(ReasoningBudget::Medium),
+            "high" => Some(ReasoningBudget::High),
+            "xhigh" => Some(ReasoningBudget::XHigh),
+            "max" => Some(ReasoningBudget::Max),
+            _ => None,
+        }
+    }
+
+    pub fn for_provider(&self, provider_type: &str) -> Option<ProviderReasoningConfig> {
+        match provider_type {
+            "anthropic" => match self {
+                ReasoningBudget::None => Some(ProviderReasoningConfig::Anthropic {
+                    thinking: None,
+                }),
+                ReasoningBudget::Low => Some(ProviderReasoningConfig::Anthropic {
+                    thinking: Some(AnthropicThinkingConfig::Low),
+                }),
+                ReasoningBudget::High | ReasoningBudget::Medium => Some(ProviderReasoningConfig::Anthropic {
+                    thinking: Some(AnthropicThinkingConfig::High),
+                }),
+                ReasoningBudget::Max => Some(ProviderReasoningConfig::Anthropic {
+                    thinking: Some(AnthropicThinkingConfig::Max),
+                }),
+                ReasoningBudget::Minimal => Some(ProviderReasoningConfig::Anthropic {
+                    thinking: Some(AnthropicThinkingConfig::Low),
+                }),
+                ReasoningBudget::XHigh => Some(ProviderReasoningConfig::Anthropic {
+                    thinking: Some(AnthropicThinkingConfig::Max),
+                }),
+            },
+            "openai" => match self {
+                ReasoningBudget::None => Some(ProviderReasoningConfig::OpenAI {
+                    reasoning_effort: None,
+                }),
+                ReasoningBudget::Minimal => Some(ProviderReasoningConfig::OpenAI {
+                    reasoning_effort: Some("minimal".to_string()),
+                }),
+                ReasoningBudget::Low => Some(ProviderReasoningConfig::OpenAI {
+                    reasoning_effort: Some("low".to_string()),
+                }),
+                ReasoningBudget::Medium => Some(ProviderReasoningConfig::OpenAI {
+                    reasoning_effort: Some("medium".to_string()),
+                }),
+                ReasoningBudget::High => Some(ProviderReasoningConfig::OpenAI {
+                    reasoning_effort: Some("high".to_string()),
+                }),
+                ReasoningBudget::XHigh => Some(ProviderReasoningConfig::OpenAI {
+                    reasoning_effort: Some("xhigh".to_string()),
+                }),
+                ReasoningBudget::Max => Some(ProviderReasoningConfig::OpenAI {
+                    reasoning_effort: Some("xhigh".to_string()),
+                }),
+            },
+            "google" => match self {
+                ReasoningBudget::None => Some(ProviderReasoningConfig::Google {
+                    thinking_throttle: Some("none".to_string()),
+                }),
+                ReasoningBudget::Low => Some(ProviderReasoningConfig::Google {
+                    thinking_throttle: Some("low".to_string()),
+                }),
+                ReasoningBudget::Medium | ReasoningBudget::High | ReasoningBudget::XHigh => {
+                    Some(ProviderReasoningConfig::Google {
+                        thinking_throttle: Some("high".to_string()),
+                    })
+                }
+                ReasoningBudget::Max => Some(ProviderReasoningConfig::Google {
+                    thinking_throttle: Some("high".to_string()),
+                }),
+                ReasoningBudget::Minimal => Some(ProviderReasoningConfig::Google {
+                    thinking_throttle: Some("low".to_string()),
+                }),
+            },
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ProviderReasoningConfig {
+    Anthropic {
+        thinking: Option<AnthropicThinkingConfig>,
+    },
+    OpenAI {
+        reasoning_effort: Option<String>,
+    },
+    Google {
+        thinking_throttle: Option<String>,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum AnthropicThinkingConfig {
+    Low,
+    High,
+    Max,
 }
 
 impl ProviderIdentity {
@@ -20,6 +136,8 @@ impl ProviderIdentity {
         Self {
             provider_type: provider_type.to_string(),
             model: model.map(|s| s.to_string()),
+            variant: None,
+            reasoning_budget: None,
         }
     }
 
@@ -45,6 +163,20 @@ impl ProviderIdentity {
 
     pub fn local(model: &str) -> Self {
         Self::new("local", Some(model))
+    }
+
+    pub fn with_variant(mut self, variant: impl Into<String>) -> Self {
+        self.variant = Some(variant.into());
+        self
+    }
+
+    pub fn with_reasoning_budget(mut self, budget: ReasoningBudget) -> Self {
+        self.reasoning_budget = Some(budget);
+        self
+    }
+
+    pub fn get_reasoning_config(&self) -> Option<ProviderReasoningConfig> {
+        self.reasoning_budget?.for_provider(&self.provider_type)
     }
 }
 
@@ -177,6 +309,13 @@ impl DynProvider {
         }
     }
 
+    pub fn with_identity_and_inner(provider: Arc<dyn Provider>, identity: ProviderIdentity) -> Self {
+        Self {
+            inner: provider,
+            identity,
+        }
+    }
+
     pub fn identity(&self) -> &ProviderIdentity {
         &self.identity
     }
@@ -214,6 +353,18 @@ impl DynProvider {
 
     pub fn provider_name(&self) -> &str {
         &self.identity.provider_type
+    }
+
+    pub fn variant(&self) -> Option<&str> {
+        self.identity.variant.as_deref()
+    }
+
+    pub fn reasoning_budget(&self) -> Option<ReasoningBudget> {
+        self.identity.reasoning_budget
+    }
+
+    pub fn reasoning_config(&self) -> Option<ProviderReasoningConfig> {
+        self.identity.get_reasoning_config()
     }
 }
 
@@ -321,7 +472,14 @@ impl ProviderManager {
             _ => return Err(LlmError::Provider(format!("Cannot create provider '{}' from identity - missing configuration", identity.provider_type))),
         };
         
-        factory.create(&spec)
+        let provider = factory.create(&spec)?;
+        
+        let mut final_identity = identity.clone();
+        if final_identity.model.is_none() {
+            final_identity.model = Some(model);
+        }
+        
+        Ok(DynProvider::with_identity_and_inner(provider.inner.clone(), final_identity))
     }
 
     pub fn list_providers(&self) -> Vec<String> {

@@ -201,7 +201,7 @@
 
 | Task ID | Title | Module | FR | Phase | Status | Dependencies |
 |---------|-------|--------|-----|-------|--------|--------------|
-| P2-14 | LLM variant/reasoning budget | llm | FR-012 | Phase 3 | Pending | P1-27 |
+| P2-14 | LLM variant/reasoning budget | llm | FR-012 | Phase 3 | Done | P1-27 |
 
 ### Skills System (1 item)
 

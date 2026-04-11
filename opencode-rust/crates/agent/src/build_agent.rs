@@ -1,6 +1,7 @@
 use crate::{messages_to_llm_format, Agent, AgentResponse, AgentType};
 use async_trait::async_trait;
 use opencode_core::{Message, OpenCodeError, Session, TokenBudget};
+use opencode_llm::provider_abstraction::ReasoningBudget;
 use opencode_llm::{ChatMessage, Provider};
 use opencode_tools::ToolRegistry;
 
@@ -8,6 +9,8 @@ pub struct BuildAgent {
     system_prompt: String,
     skill_prompt: Option<String>,
     model: Option<String>,
+    variant: Option<String>,
+    reasoning_budget: Option<ReasoningBudget>,
 }
 
 impl BuildAgent {
@@ -30,6 +33,8 @@ Always be accurate and honest. If you're unsure about something, say so.
 "# .to_string(),
             skill_prompt: None,
             model: None,
+            variant: None,
+            reasoning_budget: None,
         }
     }
 
@@ -40,6 +45,16 @@ Always be accurate and honest. If you're unsure about something, say so.
 
     pub fn with_model(mut self, model: impl Into<String>) -> Self {
         self.model = Some(model.into());
+        self
+    }
+
+    pub fn with_variant(mut self, variant: impl Into<String>) -> Self {
+        self.variant = Some(variant.into());
+        self
+    }
+
+    pub fn with_reasoning_budget(mut self, budget: ReasoningBudget) -> Self {
+        self.reasoning_budget = Some(budget);
         self
     }
 
@@ -115,5 +130,13 @@ impl Agent for BuildAgent {
 
     fn preferred_model(&self) -> Option<String> {
         self.model.clone()
+    }
+
+    fn preferred_variant(&self) -> Option<String> {
+        self.variant.clone()
+    }
+
+    fn preferred_reasoning_budget(&self) -> Option<ReasoningBudget> {
+        self.reasoning_budget
     }
 }

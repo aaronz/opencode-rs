@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use opencode_core::{Message, OpenCodeError, Session};
+use opencode_llm::provider_abstraction::ReasoningBudget;
 use opencode_llm::Provider;
 use opencode_tools::ToolRegistry;
 use serde::{Deserialize, Serialize};
@@ -70,6 +71,14 @@ pub trait Agent: Send + Sync {
     ) -> Result<AgentResponse, OpenCodeError>;
 
     fn preferred_model(&self) -> Option<String> {
+        None
+    }
+
+    fn preferred_variant(&self) -> Option<String> {
+        None
+    }
+
+    fn preferred_reasoning_budget(&self) -> Option<ReasoningBudget> {
         None
     }
 }
