@@ -980,7 +980,7 @@
       "priority": "P2",
       "title": "Workspace path validation",
       "description": "Implement workspace path validation. Validate that workspace paths are accessible and properly formatted.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Valid paths are accepted",
         "Invalid paths are rejected with clear errors",

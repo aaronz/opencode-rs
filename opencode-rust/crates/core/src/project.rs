@@ -113,6 +113,82 @@ impl ProjectManager {
     }
 }
 
+pub fn normalize_path(path: &PathBuf) -> std::io::Result<PathBuf> {
+    let absolute_path = if path.is_relative() {
+        std::env::current_dir()?.join(path)
+    } else {
+        path.clone()
+    };
+
+    let canonical_path = absolute_path.canonicalize()?;
+    Ok(canonical_path)
+}
+
+#[derive(Debug)]
+pub enum WorkspaceValidationError {
+    PathNotFound(String),
+    PathNotAccessible(String),
+    PathNotDirectory(String),
+    PathNotReadable(String),
+}
+
+impl std::fmt::Display for WorkspaceValidationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            WorkspaceValidationError::PathNotFound(p) => {
+                write!(f, "Workspace path does not exist: {}", p)
+            }
+            WorkspaceValidationError::PathNotAccessible(p) => {
+                write!(f, "Workspace path is not accessible: {}", p)
+            }
+            WorkspaceValidationError::PathNotDirectory(p) => {
+                write!(f, "Workspace path is not a directory: {}", p)
+            }
+            WorkspaceValidationError::PathNotReadable(p) => {
+                write!(f, "Workspace path is not readable: {}", p)
+            }
+        }
+    }
+}
+
+impl std::error::Error for WorkspaceValidationError {}
+
+pub type WorkspaceValidationResult = Result<PathBuf, WorkspaceValidationError>;
+
+pub fn validate_workspace(path: &PathBuf) -> WorkspaceValidationResult {
+    if !path.exists() {
+        return Err(WorkspaceValidationError::PathNotFound(
+            path.display().to_string(),
+        ));
+    }
+
+    let normalized = normalize_path(path).map_err(|e| {
+        WorkspaceValidationError::PathNotAccessible(format!("{}: {}", path.display(), e))
+    })?;
+
+    if !normalized.is_dir() {
+        return Err(WorkspaceValidationError::PathNotDirectory(
+            path.display().to_string(),
+        ));
+    }
+
+    let read_test = normalized.join(".opencode_read_test");
+    match std::fs::write(&read_test, "") {
+        Ok(_) => {
+            let _ = std::fs::remove_file(read_test);
+        }
+        Err(e) => {
+            return Err(WorkspaceValidationError::PathNotReadable(format!(
+                "{}: {}",
+                path.display(),
+                e
+            )));
+        }
+    }
+
+    Ok(normalized)
+}
+
 impl Default for ProjectManager {
     fn default() -> Self {
         Self::new()
@@ -233,5 +309,90 @@ mod tests {
         let info = ProjectManager::detect(tmp.path().to_path_buf()).unwrap();
         assert!(!info.has_git);
         assert!(info.worktree_root.is_none());
+    }
+
+    #[test]
+    fn test_normalize_path_absolute() {
+        let tmp = TempDir::new().unwrap();
+        let result = normalize_path(&tmp.path().to_path_buf());
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), tmp.path().canonicalize().unwrap());
+    }
+
+    #[test]
+    fn test_normalize_path_relative() {
+        let tmp = TempDir::new().unwrap();
+        std::env::set_current_dir(tmp.path()).unwrap();
+        let result = normalize_path(&PathBuf::from("."));
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), tmp.path().canonicalize().unwrap());
+        std::env::set_current_dir("/").unwrap();
+    }
+
+    #[test]
+    fn test_normalize_path_symlink() {
+        let tmp = TempDir::new().unwrap();
+        let target = tmp.path().join("target");
+        std::fs::create_dir(&target).unwrap();
+        let link = tmp.path().join("link");
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+
+        let result = normalize_path(&link);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), target.canonicalize().unwrap());
+    }
+
+    #[test]
+    fn test_validate_workspace_valid() {
+        let tmp = TempDir::new().unwrap();
+        let result = validate_workspace(&tmp.path().to_path_buf());
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), tmp.path().canonicalize().unwrap());
+    }
+
+    #[test]
+    fn test_validate_workspace_nonexistent() {
+        let result = validate_workspace(&PathBuf::from("/nonexistent/path"));
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            WorkspaceValidationError::PathNotFound(_) => {}
+            e => panic!("Expected PathNotFound, got: {}", e),
+        }
+    }
+
+    #[test]
+    fn test_validate_workspace_not_directory() {
+        let tmp = TempDir::new().unwrap();
+        let file = tmp.path().join("file.txt");
+        std::fs::write(&file, "").unwrap();
+
+        let result = validate_workspace(&file);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            WorkspaceValidationError::PathNotDirectory(_) => {}
+            e => panic!("Expected PathNotDirectory, got: {}", e),
+        }
+    }
+
+    #[test]
+    fn test_validate_workspace_relative_path() {
+        let tmp = TempDir::new().unwrap();
+        std::env::set_current_dir(tmp.path()).unwrap();
+        let result = validate_workspace(&PathBuf::from("."));
+        assert!(result.is_ok());
+        std::env::set_current_dir("/").unwrap();
+    }
+
+    #[test]
+    fn test_validate_workspace_symlink_to_dir() {
+        let tmp = TempDir::new().unwrap();
+        let target = tmp.path().join("target");
+        std::fs::create_dir(&target).unwrap();
+        let link = tmp.path().join("link");
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+
+        let result = validate_workspace(&link);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), target.canonicalize().unwrap());
     }
 }

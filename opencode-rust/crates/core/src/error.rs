@@ -127,6 +127,19 @@ pub enum OpenCodeError {
     #[error("Format mismatch: {0}")]
     FormatMismatch(String),
 
+    // --- Workspace path validation errors (71xx) ---
+    #[error("Workspace path does not exist: {0}")]
+    WorkspacePathNotFound(String),
+
+    #[error("Workspace path is not accessible: {0}")]
+    WorkspacePathNotAccessible(String),
+
+    #[error("Workspace path is not a directory: {0}")]
+    WorkspacePathNotDirectory(String),
+
+    #[error("Workspace path is not readable: {0}")]
+    WorkspacePathNotReadable(String),
+
     // --- FR-118: Structured internal errors (9xxx) ---
     #[error("Internal error: {0}")]
     InternalError(String),
@@ -184,6 +197,10 @@ impl OpenCodeError {
             Self::ValidationError { .. } => 7001,
             Self::MissingRequiredField(_) => 7002,
             Self::FormatMismatch(_) => 7003,
+            Self::WorkspacePathNotFound(_) => 7011,
+            Self::WorkspacePathNotAccessible(_) => 7012,
+            Self::WorkspacePathNotDirectory(_) => 7013,
+            Self::WorkspacePathNotReadable(_) => 7014,
 
             // Internal (9xxx)
             Self::InternalError(_) => 9001,

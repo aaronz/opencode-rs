@@ -101,7 +101,7 @@ pub use message::{Message, Role};
 pub use part::Part;
 pub use permission::PermissionManager;
 pub use plugin::PluginManager;
-pub use project::ProjectManager;
+pub use project::{validate_workspace, normalize_path, ProjectManager, WorkspaceValidationError, WorkspaceValidationResult};
 pub use prompt::PromptManager;
 pub use pty::PtySession;
 pub use question::QuestionManager;
