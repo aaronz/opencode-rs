@@ -1225,4 +1225,255 @@ Nested content"#,
 
         assert!(discovered.iter().any(|s| s.name == "nested-skill"));
     }
+
+    #[test]
+    fn skill_path_regression_claude_style_paths() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let claude_path = temp_dir.path().join(".claude").join("skills");
+        std::fs::create_dir_all(claude_path.join("claude-codedoc")).unwrap();
+        std::fs::write(
+            claude_path.join("claude-codedoc").join("SKILL.md"),
+            r#"---
+name: claude-codedoc
+description: Claude-codedoc skill from .claude/skills path
+version: 1.0.0
+triggers: doc, codedoc
+priority: 5
+---
+Claude-codedoc skill content"#,
+        )
+        .unwrap();
+
+        let sm = SkillManager::new().with_compat_paths(vec![claude_path]);
+        let skills = sm.list().unwrap();
+
+        assert!(
+            skills.iter().any(|s| s.name == "claude-codedoc"),
+            "Claude-style skill from .claude/skills path should be discovered"
+        );
+        let skill = skills.iter().find(|s| s.name == "claude-codedoc").unwrap();
+        assert_eq!(
+            skill.description,
+            "Claude-codedoc skill from .claude/skills path"
+        );
+        assert!(skill.triggers.contains(&"doc".to_string()));
+    }
+
+    #[test]
+    fn skill_path_regression_agent_style_paths() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let agent_path = temp_dir.path().join(".agent").join("skills");
+        std::fs::create_dir_all(agent_path.join("agent-task")).unwrap();
+        std::fs::write(
+            agent_path.join("agent-task").join("SKILL.md"),
+            r#"---
+name: agent-task
+description: Agent-task skill from .agent/skills path
+version: 1.0.0
+triggers: task, agent-task
+priority: 5
+---
+Agent-task skill content"#,
+        )
+        .unwrap();
+
+        let sm = SkillManager::new().with_compat_paths(vec![agent_path]);
+        let skills = sm.list().unwrap();
+
+        assert!(
+            skills.iter().any(|s| s.name == "agent-task"),
+            "Agent-style skill from .agent/skills path should be discovered"
+        );
+        let skill = skills.iter().find(|s| s.name == "agent-task").unwrap();
+        assert_eq!(
+            skill.description,
+            "Agent-task skill from .agent/skills path"
+        );
+        assert!(skill.triggers.contains(&"task".to_string()));
+    }
+
+    #[test]
+    fn skill_path_regression_custom_paths() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let custom_path = temp_dir.path().join("custom-skills");
+        std::fs::create_dir_all(custom_path.join("custom-skill")).unwrap();
+        std::fs::write(
+            custom_path.join("custom-skill").join("SKILL.md"),
+            r#"---
+name: custom-skill
+description: Custom skill from arbitrary path
+version: 2.0.0
+triggers: custom
+priority: 7
+---
+Custom skill content here"#,
+        )
+        .unwrap();
+
+        let sm = SkillManager::new().with_compat_paths(vec![custom_path]);
+        let skills = sm.list().unwrap();
+
+        assert!(
+            skills.iter().any(|s| s.name == "custom-skill"),
+            "Custom path skill should be discovered"
+        );
+        let skill = skills.iter().find(|s| s.name == "custom-skill").unwrap();
+        assert_eq!(skill.description, "Custom skill from arbitrary path");
+        assert_eq!(skill.version, "2.0.0");
+    }
+
+    #[test]
+    fn skill_path_regression_multiple_custom_paths() {
+        use tempfile::TempDir;
+
+        let path1 = TempDir::new().unwrap();
+        let path2 = TempDir::new().unwrap();
+
+        std::fs::create_dir_all(path1.path().join("skill-a")).unwrap();
+        std::fs::write(
+            path1.path().join("skill-a").join("SKILL.md"),
+            r#"---
+name: skill-a
+description: Skill from first custom path
+version: 1.0.0
+priority: 5
+---
+Skill A content"#,
+        )
+        .unwrap();
+
+        std::fs::create_dir_all(path2.path().join("skill-b")).unwrap();
+        std::fs::write(
+            path2.path().join("skill-b").join("SKILL.md"),
+            r#"---
+name: skill-b
+description: Skill from second custom path
+version: 1.0.0
+priority: 5
+---
+Skill B content"#,
+        )
+        .unwrap();
+
+        let sm = SkillManager::new()
+            .with_compat_paths(vec![path1.path().to_path_buf(), path2.path().to_path_buf()]);
+        let skills = sm.list().unwrap();
+
+        assert!(skills.iter().any(|s| s.name == "skill-a"));
+        assert!(skills.iter().any(|s| s.name == "skill-b"));
+    }
+
+    #[test]
+    fn skill_path_regression_nested_in_compat_path() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let compat_path = temp_dir.path().join(".claude").join("skills");
+        std::fs::create_dir_all(compat_path.join("nested-skill")).unwrap();
+        std::fs::write(
+            compat_path.join("nested-skill").join("SKILL.md"),
+            r#"---
+name: nested-skill
+description: Nested skill in compat path
+version: 1.0.0
+priority: 5
+---
+Nested content"#,
+        )
+        .unwrap();
+
+        let sm = SkillManager::new().with_compat_paths(vec![compat_path]);
+        let skills = sm.list().unwrap();
+
+        assert!(
+            skills.iter().any(|s| s.name == "nested-skill"),
+            "Nested skill in compat path should be discovered"
+        );
+    }
+
+    #[test]
+    fn skill_path_regression_nonexistent_compat_path() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let nonexistent = temp_dir.path().join("nonexistent");
+
+        let sm = SkillManager::new().with_compat_paths(vec![nonexistent]);
+        let result = sm.list();
+
+        assert!(
+            result.is_ok(),
+            "Discovery should succeed even with nonexistent compat path"
+        );
+        let skills = result.unwrap();
+        assert!(!skills.is_empty(), "Builtin skills should still be loaded");
+    }
+
+    #[test]
+    fn skill_path_regression_priority_ordering_across_paths() {
+        use tempfile::TempDir;
+
+        let project_dir = TempDir::new().unwrap();
+        let compat_dir = TempDir::new().unwrap();
+
+        let project_skills_dir = project_dir
+            .path()
+            .join(".opencode")
+            .join("skills")
+            .join("high-priority");
+        std::fs::create_dir_all(&project_skills_dir).unwrap();
+        std::fs::write(
+            project_skills_dir.join("SKILL.md"),
+            r#"---
+name: high-priority
+description: Project skill with high priority
+version: 1.0.0
+priority: 10
+---
+High priority content"#,
+        )
+        .unwrap();
+
+        let compat_skill_dir = compat_dir.path().join("low-priority");
+        std::fs::create_dir_all(&compat_skill_dir).unwrap();
+        std::fs::write(
+            compat_skill_dir.join("SKILL.md"),
+            r#"---
+name: low-priority
+description: Compat skill with low priority
+version: 1.0.0
+priority: 1
+---
+Low priority content"#,
+        )
+        .unwrap();
+
+        let sm = SkillManager::new()
+            .with_project_path(project_dir.path().to_path_buf())
+            .with_compat_paths(vec![compat_dir.path().to_path_buf()]);
+
+        let skills = sm.list().unwrap();
+
+        assert!(skills.iter().any(|s| s.name == "high-priority"));
+        assert!(skills.iter().any(|s| s.name == "low-priority"));
+
+        let high_priority_pos = skills
+            .iter()
+            .position(|s| s.name == "high-priority")
+            .unwrap();
+        let low_priority_pos = skills
+            .iter()
+            .position(|s| s.name == "low-priority")
+            .unwrap();
+        assert!(
+            high_priority_pos < low_priority_pos,
+            "Higher priority skill should appear first"
+        );
+    }
 }

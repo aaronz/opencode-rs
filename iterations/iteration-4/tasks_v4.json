@@ -1605,7 +1605,7 @@
       "priority": "P0",
       "title": "Skill path regression suite",
       "description": "Write regression tests for skill path compatibility. Ensure all supported paths work correctly.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Claude-style paths work",
         "Agent-style paths work",
