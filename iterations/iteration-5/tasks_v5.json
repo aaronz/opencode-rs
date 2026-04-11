@@ -251,7 +251,7 @@
       "dependencies": []
     },
     {
-"id": "P2-1",
+      "id": "P2-1",
       "priority": "P2",
       "title": "Add worktree_root Field Distinction",
       "description": "Add worktree_root field distinction in Project type to handle Git worktree configurations properly.",
@@ -272,7 +272,7 @@
       "priority": "P2",
       "title": "Enhance Workspace Path Validation",
       "description": "Enhance workspace path validation to handle more edge cases and provide better error messages.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Invalid paths are rejected with clear errors",
         "Symlinks are handled correctly",
@@ -281,7 +281,7 @@
       "test_commands": [
         "cargo test -p opencode-core workspace_path"
       ],
-      "impl_notes": "Consider edge cases like circular symlinks, permission denied",
+      "impl_notes": "Implemented: Enhanced WorkspaceValidationError enum with new error variants (PathPermissionDenied, PathCircularSymlink, PathTraversalDetected, PathNotAbsolute), each with error codes 7015-7018. Added normalize_path_with_context for validating paths against allowed roots. Added helper functions: is_absolute_path, resolve_relative_path. Added validate_workspace_with_allowed_roots for restricted workspace access. All new tests pass (25 project tests).",
       "dependencies": []
     },
     {
