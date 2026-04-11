@@ -306,7 +306,7 @@
       "priority": "P2",
       "title": "Implement Deterministic Collision Resolution",
       "description": "Implement deterministic collision resolution for tools with overlapping functionality.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Collisions are detected and resolved deterministically",
         "Resolution is predictable and reproducible",
@@ -315,7 +315,7 @@
       "test_commands": [
         "cargo test -p opencode-tools collision"
       ],
-      "impl_notes": "Use deterministic ordering (e.g., alphabetical, priority-based)",
+      "impl_notes": "Implemented deterministic collision resolution using ToolSource priority ordering (Builtin < Plugin < CustomProject < CustomGlobal). When tools with same name but different sources collide, higher priority source wins. Within same priority, first registered tool wins. All 6 collision tests pass.",
       "dependencies": []
     },
     {
