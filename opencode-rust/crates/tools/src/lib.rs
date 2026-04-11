@@ -41,7 +41,7 @@ pub use discovery::{
     register_custom_tools, CustomTool, DiscoveredTool, ToolDefinition, ToolDiscovery,
 };
 pub use multiedit::MultiEditTool;
-pub use registry::ToolRegistry;
+pub use registry::{ToolRegistry, ToolSource};
 pub use schema_validation::{SchemaValidator, ToolSchema};
 pub use tool::{Tool, ToolContext, ToolResult};
 pub use truncation_dir::TruncationDirTool;

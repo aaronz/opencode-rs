@@ -4,6 +4,61 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+/// Source of a tool, used for deterministic collision resolution
+/// Lower ordinal = higher priority (can override lower priority tools)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
+pub enum ToolSource {
+    /// Built-in tools (highest priority, cannot be overridden)
+    #[default]
+    Builtin,
+    /// Tools from plugins
+    Plugin,
+    /// Custom tools from project directory (.opencode/tools/)
+    CustomProject,
+    /// Custom tools from global config directory (~/.config/opencode/tools/)
+    CustomGlobal,
+}
+
+impl ToolSource {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ToolSource::CustomGlobal => "custom_global",
+            ToolSource::CustomProject => "custom_project",
+            ToolSource::Plugin => "plugin",
+            ToolSource::Builtin => "builtin",
+        }
+    }
+}
+
+/// Metadata about a registered tool
+struct ToolEntry {
+    tool: Box<dyn Tool>,
+    source: ToolSource,
+}
+
+impl ToolEntry {
+    fn new(tool: Box<dyn Tool>, source: ToolSource) -> Self {
+        Self { tool, source }
+    }
+}
+
+impl std::fmt::Debug for ToolEntry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ToolEntry")
+            .field("source", &self.source)
+            .finish()
+    }
+}
+
+impl Clone for ToolEntry {
+    fn clone(&self) -> Self {
+        Self {
+            tool: self.tool.clone_tool(),
+            source: self.source,
+        }
+    }
+}
+
 /// Provider ID for filtering tools
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ProviderId {
@@ -58,7 +113,7 @@ pub struct ToolCallResult {
 }
 
 pub struct ToolRegistry {
-    tools: Arc<RwLock<HashMap<String, Box<dyn Tool>>>>,
+    tools: Arc<RwLock<HashMap<String, ToolEntry>>>,
     disabled: HashSet<String>,
 }
 
@@ -79,20 +134,80 @@ impl ToolRegistry {
     }
 
     pub async fn register<T: Tool + 'static>(&self, tool: T) {
+        self.register_with_source(tool, ToolSource::Builtin).await;
+    }
+
+    pub async fn register_with_source<T: Tool + 'static>(&self, tool: T, source: ToolSource) {
         let mut tools = self.tools.write().await;
-        tools.insert(tool.name().to_string(), Box::new(tool));
+        let name = tool.name().to_string();
+
+        if let Some(existing) = tools.get(&name) {
+            if source < existing.source {
+                tracing::debug!(
+                    tool = %name,
+                    existing_source = %existing.source.as_str(),
+                    new_source = %source.as_str(),
+                    "tool collision resolved: new higher-priority tool replaces existing"
+                );
+            } else {
+                tracing::debug!(
+                    tool = %name,
+                    existing_source = %existing.source.as_str(),
+                    new_source = %source.as_str(),
+                    "tool collision resolved: existing tool wins"
+                );
+                return;
+            }
+        }
+
+        tracing::debug!(
+            tool = %name,
+            source = %source.as_str(),
+            "registering tool"
+        );
+        tools.insert(name, ToolEntry::new(Box::new(tool), source));
     }
 
     pub async fn register_plugin_tools(&self, tools: Vec<Box<dyn Tool>>) {
+        self.register_tools_with_source(tools, ToolSource::Plugin).await;
+    }
+
+    pub async fn register_tools_with_source(&self, tools: Vec<Box<dyn Tool>>, source: ToolSource) {
         let mut registry = self.tools.write().await;
         for tool in tools {
-            registry.insert(tool.name().to_string(), tool);
+            let name = tool.name().to_string();
+
+            if let Some(existing) = registry.get(&name) {
+                if source < existing.source {
+                    tracing::debug!(
+                        tool = %name,
+                        existing_source = %existing.source.as_str(),
+                        new_source = %source.as_str(),
+                        "tool collision resolved: new higher-priority tool replaces existing"
+                    );
+                } else {
+                    tracing::debug!(
+                        tool = %name,
+                        existing_source = %existing.source.as_str(),
+                        new_source = %source.as_str(),
+                        "tool collision resolved: existing tool wins"
+                    );
+                    continue;
+                }
+            }
+
+            tracing::debug!(
+                tool = %name,
+                source = %source.as_str(),
+                "registering tool"
+            );
+            registry.insert(name, ToolEntry::new(tool, source));
         }
     }
 
     pub async fn get(&self, name: &str) -> Option<Box<dyn Tool>> {
         let tools = self.tools.read().await;
-        tools.get(name).map(|t| t.clone_tool())
+        tools.get(name).map(|t| t.tool.clone_tool())
     }
 
     pub async fn list_filtered(&self, model: Option<&ModelInfo>) -> Vec<(String, String, bool)> {
@@ -101,10 +216,10 @@ impl ToolRegistry {
         let Some(model_info) = model else {
             return tools
                 .iter()
-                .map(|(name, tool)| {
+                .map(|(name, entry)| {
                     (
                         name.clone(),
-                        tool.description().to_string(),
+                        entry.tool.description().to_string(),
                         self.is_disabled(name),
                     )
                 })
@@ -119,10 +234,10 @@ impl ToolRegistry {
                 "edit" | "write" => !model_info.use_apply_patch(),
                 _ => true,
             })
-            .map(|(name, tool)| {
+            .map(|(name, entry)| {
                 (
                     name.clone(),
-                    tool.description().to_string(),
+                    entry.tool.description().to_string(),
                     self.is_disabled(name),
                 )
             })
@@ -133,7 +248,7 @@ impl ToolRegistry {
         let tools = self.tools.read().await;
         tools
             .get(name)
-            .map(|tool| (tool.clone_tool(), self.is_disabled(name)))
+            .map(|entry| (entry.tool.clone_tool(), self.is_disabled(name)))
     }
 
     pub async fn execute(
@@ -173,7 +288,7 @@ impl ToolRegistry {
 
                 let tool = {
                     let tools = registry.read().await;
-                    tools.get(&name).map(|t| t.clone_tool())
+                    tools.get(&name).map(|t| t.tool.clone_tool())
                 };
 
                 let result = match tool {
@@ -433,5 +548,290 @@ mod tests {
             }
             other => panic!("Expected tool not found error, got {:?}", other),
         }
+    }
+
+    #[tokio::test]
+    async fn test_collision_resolution_builtin_overrides_custom() {
+        #[derive(Clone)]
+        struct CustomTool;
+        #[async_trait]
+        impl Tool for CustomTool {
+            fn name(&self) -> &str { "collision_tool" }
+            fn description(&self) -> &str { "Custom tool" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("custom"))
+            }
+        }
+
+        #[derive(Clone)]
+        struct BuiltinTool;
+        #[async_trait]
+        impl Tool for BuiltinTool {
+            fn name(&self) -> &str { "collision_tool" }
+            fn description(&self) -> &str { "Builtin tool" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("builtin"))
+            }
+        }
+
+        let registry = ToolRegistry::new();
+
+        registry.register_with_source(CustomTool, ToolSource::CustomGlobal).await;
+        registry.register_with_source(BuiltinTool, ToolSource::Builtin).await;
+
+        let result = registry
+            .execute("collision_tool", serde_json::json!({}), None)
+            .await
+            .unwrap();
+        assert_eq!(result.content, "builtin");
+    }
+
+    #[tokio::test]
+    async fn test_collision_resolution_plugin_overrides_custom_global() {
+        #[derive(Clone)]
+        struct GlobalTool;
+        #[async_trait]
+        impl Tool for GlobalTool {
+            fn name(&self) -> &str { "collision_tool" }
+            fn description(&self) -> &str { "Global tool" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("global"))
+            }
+        }
+
+        #[derive(Clone)]
+        struct PluginTool;
+        #[async_trait]
+        impl Tool for PluginTool {
+            fn name(&self) -> &str { "collision_tool" }
+            fn description(&self) -> &str { "Plugin tool" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("plugin"))
+            }
+        }
+
+        let registry = ToolRegistry::new();
+
+        registry.register_with_source(GlobalTool, ToolSource::CustomGlobal).await;
+        registry.register_with_source(PluginTool, ToolSource::Plugin).await;
+
+        let result = registry
+            .execute("collision_tool", serde_json::json!({}), None)
+            .await
+            .unwrap();
+        assert_eq!(result.content, "plugin");
+    }
+
+    #[tokio::test]
+    async fn test_collision_resolution_plugin_overrides_custom_project() {
+        #[derive(Clone)]
+        struct ProjectTool;
+        #[async_trait]
+        impl Tool for ProjectTool {
+            fn name(&self) -> &str { "collision_tool" }
+            fn description(&self) -> &str { "Project tool" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("project"))
+            }
+        }
+
+        #[derive(Clone)]
+        struct PluginTool;
+        #[async_trait]
+        impl Tool for PluginTool {
+            fn name(&self) -> &str { "collision_tool" }
+            fn description(&self) -> &str { "Plugin tool" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("plugin"))
+            }
+        }
+
+        let registry = ToolRegistry::new();
+
+        registry.register_with_source(ProjectTool, ToolSource::CustomProject).await;
+        registry.register_with_source(PluginTool, ToolSource::Plugin).await;
+
+        let result = registry
+            .execute("collision_tool", serde_json::json!({}), None)
+            .await
+            .unwrap();
+        assert_eq!(result.content, "plugin");
+    }
+
+    #[tokio::test]
+    async fn test_collision_resolution_custom_project_overrides_custom_global() {
+        #[derive(Clone)]
+        struct GlobalTool;
+        #[async_trait]
+        impl Tool for GlobalTool {
+            fn name(&self) -> &str { "collision_tool" }
+            fn description(&self) -> &str { "Global tool" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("global"))
+            }
+        }
+
+        #[derive(Clone)]
+        struct ProjectTool;
+        #[async_trait]
+        impl Tool for ProjectTool {
+            fn name(&self) -> &str { "collision_tool" }
+            fn description(&self) -> &str { "Project tool" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("project"))
+            }
+        }
+
+        let registry = ToolRegistry::new();
+
+        registry.register_with_source(GlobalTool, ToolSource::CustomGlobal).await;
+        registry.register_with_source(ProjectTool, ToolSource::CustomProject).await;
+
+        let result = registry
+            .execute("collision_tool", serde_json::json!({}), None)
+            .await
+            .unwrap();
+        assert_eq!(result.content, "project");
+    }
+
+    #[tokio::test]
+    async fn test_collision_resolution_deterministic_first_registers_wins() {
+        #[derive(Clone)]
+        struct FirstTool;
+        #[async_trait]
+        impl Tool for FirstTool {
+            fn name(&self) -> &str { "collision_tool" }
+            fn description(&self) -> &str { "First tool" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("first"))
+            }
+        }
+
+        #[derive(Clone)]
+        struct SecondTool;
+        #[async_trait]
+        impl Tool for SecondTool {
+            fn name(&self) -> &str { "collision_tool" }
+            fn description(&self) -> &str { "Second tool" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("second"))
+            }
+        }
+
+        let registry = ToolRegistry::new();
+
+        registry.register_with_source(FirstTool, ToolSource::CustomProject).await;
+        registry.register_with_source(SecondTool, ToolSource::CustomProject).await;
+
+        let result = registry
+            .execute("collision_tool", serde_json::json!({}), None)
+            .await
+            .unwrap();
+        assert_eq!(result.content, "first");
+    }
+
+    #[tokio::test]
+    async fn test_collision_resolution_same_collision_always_resolves_same_way() {
+        #[derive(Clone)]
+        struct ToolA;
+        #[async_trait]
+        impl Tool for ToolA {
+            fn name(&self) -> &str { "test_tool" }
+            fn description(&self) -> &str { "Tool A" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("a"))
+            }
+        }
+
+        #[derive(Clone)]
+        struct ToolB;
+        #[async_trait]
+        impl Tool for ToolB {
+            fn name(&self) -> &str { "test_tool" }
+            fn description(&self) -> &str { "Tool B" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("b"))
+            }
+        }
+
+        let registry1 = ToolRegistry::new();
+        registry1.register_with_source(ToolA, ToolSource::Builtin).await;
+        registry1.register_with_source(ToolB, ToolSource::CustomGlobal).await;
+
+        let result1 = registry1.execute("test_tool", serde_json::json!({}), None).await.unwrap();
+
+        let registry2 = ToolRegistry::new();
+        registry2.register_with_source(ToolB, ToolSource::CustomGlobal).await;
+        registry2.register_with_source(ToolA, ToolSource::Builtin).await;
+
+        let result2 = registry2.execute("test_tool", serde_json::json!({}), None).await.unwrap();
+
+        assert_eq!(result1.content, "a");
+        assert_eq!(result2.content, "a");
+    }
+
+    #[tokio::test]
+    async fn test_builtin_tool_cannot_be_overridden_by_lower_priority() {
+        #[derive(Clone)]
+        struct BuiltinTool;
+        #[async_trait]
+        impl Tool for BuiltinTool {
+            fn name(&self) -> &str { "my_tool" }
+            fn description(&self) -> &str { "Builtin" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("builtin"))
+            }
+        }
+
+        #[derive(Clone)]
+        struct CustomTool;
+        #[async_trait]
+        impl Tool for CustomTool {
+            fn name(&self) -> &str { "my_tool" }
+            fn description(&self) -> &str { "Custom" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("custom"))
+            }
+        }
+
+        let registry = ToolRegistry::new();
+
+        registry.register_with_source(BuiltinTool, ToolSource::Builtin).await;
+        registry.register_with_source(CustomTool, ToolSource::CustomGlobal).await;
+
+        let result = registry.execute("my_tool", serde_json::json!({}), None).await.unwrap();
+        assert_eq!(result.content, "builtin");
+
+        let registry2 = ToolRegistry::new();
+
+        registry2.register_with_source(CustomTool, ToolSource::CustomGlobal).await;
+        registry2.register_with_source(BuiltinTool, ToolSource::Builtin).await;
+
+        let result2 = registry2.execute("my_tool", serde_json::json!({}), None).await.unwrap();
+        assert_eq!(result2.content, "builtin");
+    }
+
+    #[tokio::test]
+    async fn test_tool_source_ordering() {
+        assert!(ToolSource::Builtin < ToolSource::Plugin);
+        assert!(ToolSource::Plugin < ToolSource::CustomProject);
+        assert!(ToolSource::CustomProject < ToolSource::CustomGlobal);
+
+        assert!(ToolSource::Builtin <= ToolSource::Builtin);
+        assert!(ToolSource::CustomGlobal >= ToolSource::CustomGlobal);
     }
 }

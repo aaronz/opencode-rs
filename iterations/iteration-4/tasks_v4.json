@@ -997,7 +997,7 @@
       "priority": "P2",
       "title": "Deterministic collision resolution",
       "description": "Implement deterministic collision resolution for tool names. When multiple tools have the same name, resolve consistently.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Collision resolution is deterministic",
         "Same collision always resolves the same way",

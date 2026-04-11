@@ -155,7 +155,7 @@
 
 | Task ID | Title | Module | FR | Phase | Status | Dependencies |
 |---------|-------|--------|-----|-------|--------|--------------|
-| P2-3 | Deterministic collision resolution | tools | FR-006 | Phase 3 | Pending | P0-4 |
+| P2-3 | Deterministic collision resolution | tools | FR-006 | Phase 3 | Done | P0-4 |
 | P2-4 | Result caching for safe tools | tools | FR-006 | Phase 3 | Pending | P0-4 |
 
 ### MCP System (3 items)

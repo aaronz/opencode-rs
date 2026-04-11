@@ -24,6 +24,12 @@ pub struct DiscoveredTool {
     pub file_path: PathBuf,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DiscoveredToolSource {
+    Project,
+    Global,
+}
+
 pub struct ToolDiscovery {
     project_tools_path: Option<PathBuf>,
     global_tools_path: Option<PathBuf>,
@@ -46,14 +52,27 @@ impl ToolDiscovery {
     }
 
     pub fn discover_tools(&self) -> Vec<DiscoveredTool> {
+        self.discover_tools_with_source()
+            .into_iter()
+            .map(|(tool, _)| tool)
+            .collect()
+    }
+
+    pub fn discover_tools_with_source(&self) -> Vec<(DiscoveredTool, DiscoveredToolSource)> {
         let mut tools = Vec::new();
 
         if let Some(ref path) = self.project_tools_path {
-            tools.extend(self.scan_directory(path));
+            let discovered = self.scan_directory(path);
+            for tool in discovered {
+                tools.push((tool, DiscoveredToolSource::Project));
+            }
         }
 
         if let Some(ref path) = self.global_tools_path {
-            tools.extend(self.scan_directory(path));
+            let discovered = self.scan_directory(path);
+            for tool in discovered {
+                tools.push((tool, DiscoveredToolSource::Global));
+            }
         }
 
         tools
@@ -202,15 +221,19 @@ pub async fn register_custom_tools(
     project_root: Option<PathBuf>,
 ) -> Vec<String> {
     let discovery = ToolDiscovery::new(project_root);
-    let discovered = discovery.discover_tools();
+    let discovered = discovery.discover_tools_with_source();
 
     let mut registered = Vec::new();
 
-    for tool in discovered {
+    for (tool, source) in discovered {
         let custom_tool = CustomTool::from_discovered(tool);
         let name = custom_tool.name().to_string();
 
-        registry.register(custom_tool).await;
+        let tool_source = match source {
+            DiscoveredToolSource::Project => crate::registry::ToolSource::CustomProject,
+            DiscoveredToolSource::Global => crate::registry::ToolSource::CustomGlobal,
+        };
+        registry.register_with_source(custom_tool, tool_source).await;
         registered.push(name);
     }
 
