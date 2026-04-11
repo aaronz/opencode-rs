@@ -97,7 +97,7 @@
       "priority": "P1",
       "title": "Plan Removal of Deprecated Fields",
       "description": "Plan removal of deprecated config fields: mode, tools, theme, keybinds. These should be removed from config schema and migration paths should be documented.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Deprecation warnings added for each field",
         "Migration guide documented",

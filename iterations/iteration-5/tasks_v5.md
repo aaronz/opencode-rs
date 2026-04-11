@@ -60,7 +60,7 @@
 
 - [ ] **P1-1:** Improve JSONC error messages for clearer feedback
 - [ ] **P1-2:** Add circular variable expansion detection
-- [ ] **P1-3:** Plan removal of deprecated fields (`mode`, `tools`, `theme`, `keybinds`)
+- [x] **P1-3:** Plan removal of deprecated fields (`mode`, `tools`, `theme`, `keybinds`)
 
 ### TUI System Tasks
 

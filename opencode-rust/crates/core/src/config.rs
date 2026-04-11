@@ -150,6 +150,11 @@ pub struct Config {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub theme: Option<ThemeConfig>,
 
+    /// Keybinds configuration
+    #[deprecated(since = "3.0.0", note = "Move to tui.json")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub keybinds: Option<KeybindConfig>,
+
     /// TUI (Terminal UI) configuration
     ///
     /// This field is skipped during deserialization from opencode.json.
@@ -1716,8 +1721,6 @@ impl Config {
 
         const TUI_FIELDS: &[&str] = &[
             "tui",
-            "theme",
-            "keybinds",
             "scroll_speed",
             "scrollSpeed",
             "scroll_acceleration",
@@ -2011,6 +2014,16 @@ impl Config {
 
             if migrated_tui.theme.is_none() {
                 migrated_tui.theme = result.theme.clone();
+            }
+
+            if result.keybinds.is_some() {
+                tracing::warn!(
+                    "'keybinds' in main config is deprecated since 3.0.0. Move it to tui.json."
+                );
+            }
+
+            if migrated_tui.keybinds.is_none() {
+                migrated_tui.keybinds = result.keybinds.clone();
             }
         }
 
@@ -3928,8 +3941,8 @@ mod tests {
         });
 
         let fields = Config::validate_runtime_no_tui_fields(&runtime_json);
-        assert!(fields.contains(&"theme".to_string()));
-        assert!(fields.contains(&"keybinds".to_string()));
+        assert!(!fields.contains(&"theme".to_string()), "theme is deprecated, should not be in error list");
+        assert!(!fields.contains(&"keybinds".to_string()), "keybinds is deprecated, should not be in error list");
     }
 
     #[test]
@@ -4049,12 +4062,10 @@ mod tests {
         let runtime = tokio::runtime::Runtime::new().unwrap();
         let result = runtime.block_on(Config::load_multi(None));
 
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        let err_msg = format!("{}", err);
-        assert!(err_msg.contains("TUI-specific fields"));
-        assert!(err_msg.contains("theme"));
-        assert!(err_msg.contains("tui.json"));
+        assert!(result.is_ok(), "theme is deprecated, should be allowed with warning");
+        let config = result.unwrap();
+        assert!(config.tui.is_some(), "theme should be migrated to tui config");
+        assert!(config.tui.as_ref().unwrap().theme.is_some(), "theme should be in tui config");
 
         if let Some(prev) = old_config_dir {
             set_env("OPENCODE_CONFIG_DIR", prev);
