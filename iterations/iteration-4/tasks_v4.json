@@ -775,7 +775,7 @@
       "priority": "P1",
       "title": "TUI plugin state API",
       "description": "Implement the TUI plugin state API. Plugins should be able to store and retrieve persistent state.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "Plugins can store persistent state",
         "State persists across TUI restarts",
@@ -794,7 +794,7 @@
       "priority": "P1",
       "title": "TUI plugin onDispose lifecycle",
       "description": "Implement the onDispose lifecycle hook for TUI plugins. Plugins should be able to clean up resources when deactivated.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "onDispose is called when plugin is deactivated",
         "Cleanup runs even on unexpected deactivation",

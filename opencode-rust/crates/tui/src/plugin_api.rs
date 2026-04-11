@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 use serde::{Deserialize, Serialize};
 
@@ -781,6 +781,78 @@ pub enum PluginStateError {
     PluginNotFound(String),
     #[error("invalid state data: {0}")]
     InvalidData(String),
+}
+
+pub trait PluginDispose: Send + Sync {
+    fn on_dispose(&self, plugin_id: &str);
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum PluginDisposeError {
+    #[error("dispose callback error: {0}")]
+    CallbackError(String),
+    #[error("plugin not found: {0}")]
+    PluginNotFound(String),
+}
+
+pub struct PluginDisposeRegistry {
+    disposers: RwLock<HashMap<String, Arc<dyn PluginDispose>>>,
+}
+
+impl PluginDisposeRegistry {
+    pub fn new() -> Self {
+        Self {
+            disposers: RwLock::new(HashMap::new()),
+        }
+    }
+
+    pub fn register_disposer<D: PluginDispose + 'static>(
+        &self,
+        plugin_id: &str,
+        disposer: D,
+    ) -> Result<(), PluginDisposeError> {
+        let mut disposers = self.disposers.write().unwrap();
+        disposers.insert(plugin_id.to_string(), Arc::new(disposer));
+        Ok(())
+    }
+
+    pub fn dispose_plugin(&self, plugin_id: &str) -> Result<(), PluginDisposeError> {
+        let plugin_id_owned = plugin_id.to_string();
+        let disposer = {
+            let disposers = self.disposers.read().unwrap();
+            disposers.get(plugin_id).cloned()
+        };
+
+        if let Some(disposer) = disposer {
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+                disposer.on_dispose(&plugin_id_owned);
+            }));
+            if result.is_err() {
+                tracing::warn!("dispose hook panicked for plugin: {}", plugin_id);
+            }
+        }
+        Ok(())
+    }
+
+    pub fn unregister_disposer(&self, plugin_id: &str) {
+        let mut disposers = self.disposers.write().unwrap();
+        disposers.remove(plugin_id);
+    }
+
+    pub fn has_disposer(&self, plugin_id: &str) -> bool {
+        let disposers = self.disposers.read().unwrap();
+        disposers.contains_key(plugin_id)
+    }
+
+    pub fn clear(&self) {
+        self.disposers.write().unwrap().clear();
+    }
+}
+
+impl Default for PluginDisposeRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 pub struct PluginStateRegistry {

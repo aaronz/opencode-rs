@@ -3,10 +3,10 @@ use std::sync::{Arc, RwLock};
 
 use crate::plugin_api::{
     CommandContext, CommandResult, PluginCommand, PluginCommandError, PluginCommandRegistry,
-    PluginEvent, PluginEventData, PluginEventError, PluginEventRegistry, PluginRoute,
-    PluginRouteError, PluginRouteRegistry, PluginStateError, PluginStateRegistry, PluginTheme,
-    PluginThemeError, PluginThemeRegistry, RegisteredEvent, RegisteredTheme, RouteContext,
-    RouteParams,
+    PluginDispose, PluginDisposeError, PluginDisposeRegistry, PluginEvent, PluginEventData,
+    PluginEventError, PluginEventRegistry, PluginRoute, PluginRouteError, PluginRouteRegistry,
+    PluginStateError, PluginStateRegistry, PluginTheme, PluginThemeError, PluginThemeRegistry,
+    RegisteredEvent, RegisteredTheme, RouteContext, RouteParams,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -36,6 +36,7 @@ pub struct TuiPluginManager {
     theme_registry: Arc<PluginThemeRegistry>,
     event_registry: Arc<PluginEventRegistry>,
     state_registry: Arc<PluginStateRegistry>,
+    dispose_registry: Arc<PluginDisposeRegistry>,
 }
 
 impl TuiPluginManager {
@@ -48,6 +49,7 @@ impl TuiPluginManager {
             theme_registry: Arc::new(PluginThemeRegistry::new()),
             event_registry: Arc::new(PluginEventRegistry::new()),
             state_registry: Arc::new(PluginStateRegistry::with_default_dir()),
+            dispose_registry: Arc::new(PluginDisposeRegistry::new()),
         }
     }
 
@@ -122,18 +124,29 @@ impl TuiPluginManager {
     }
 
     pub fn deactivate(&self, id: &str) -> Result<(), TuiPluginError> {
-        let mut plugins = self.plugins.write().unwrap();
-        let entry = plugins
-            .get_mut(id)
-            .ok_or_else(|| TuiPluginError::NotFound(id.to_string()))?;
+        let plugin_id = id.to_string();
+        let should_dispose = {
+            let mut plugins = self.plugins.write().unwrap();
+            let entry = plugins
+                .get_mut(&plugin_id)
+                .ok_or_else(|| TuiPluginError::NotFound(plugin_id.clone()))?;
 
-        if !entry.active {
-            return Err(TuiPluginError::NotActive(id.to_string()));
+            if !entry.active {
+                return Err(TuiPluginError::NotActive(plugin_id));
+            }
+
+            entry.state = PluginLifecycleState::Deactivating;
+            entry.active = false;
+            entry.state = PluginLifecycleState::Inactive;
+            true
+        };
+
+        if should_dispose {
+            if let Err(e) = self.dispose_registry.dispose_plugin(&plugin_id) {
+                tracing::warn!("dispose hook failed for plugin {}: {}", plugin_id, e);
+            }
         }
 
-        entry.state = PluginLifecycleState::Deactivating;
-        entry.active = false;
-        entry.state = PluginLifecycleState::Inactive;
         Ok(())
     }
 
@@ -146,19 +159,31 @@ impl TuiPluginManager {
     }
 
     pub fn set_plugin_enabled(&self, id: &str, enabled: bool) -> Result<(), TuiPluginError> {
-        let mut plugins = self.plugins.write().unwrap();
-        let entry = plugins
-            .get_mut(id)
-            .ok_or_else(|| TuiPluginError::NotFound(id.to_string()))?;
+        let plugin_id = id.to_string();
+        let should_dispose = {
+            let mut plugins = self.plugins.write().unwrap();
+            let entry = plugins
+                .get_mut(&plugin_id)
+                .ok_or_else(|| TuiPluginError::NotFound(plugin_id.clone()))?;
 
-        if entry.active && !enabled {
-            entry.enabled = false;
-            entry.state = PluginLifecycleState::Deactivating;
-            entry.active = false;
-            entry.state = PluginLifecycleState::Inactive;
-        } else {
-            entry.enabled = enabled;
+            if entry.active && !enabled {
+                entry.enabled = false;
+                entry.state = PluginLifecycleState::Deactivating;
+                entry.active = false;
+                entry.state = PluginLifecycleState::Inactive;
+                true
+            } else {
+                entry.enabled = enabled;
+                false
+            }
+        };
+
+        if should_dispose {
+            if let Err(e) = self.dispose_registry.dispose_plugin(&plugin_id) {
+                tracing::warn!("dispose hook failed for plugin {}: {}", plugin_id, e);
+            }
         }
+
         Ok(())
     }
 
@@ -338,13 +363,56 @@ impl TuiPluginManager {
         self.state_registry.delete_state(plugin_id)
     }
 
+    pub fn dispose_registry(&self) -> Arc<PluginDisposeRegistry> {
+        Arc::clone(&self.dispose_registry)
+    }
+
+    pub fn register_plugin_dispose<D: PluginDispose + 'static>(
+        &self,
+        plugin_id: &str,
+        disposer: D,
+    ) -> Result<(), PluginDisposeError> {
+        if !self.plugins.read().unwrap().contains_key(plugin_id) {
+            return Err(PluginDisposeError::PluginNotFound(plugin_id.to_string()));
+        }
+        self.dispose_registry.register_disposer(plugin_id, disposer)
+    }
+
+    pub fn unregister_plugin_dispose(&self, plugin_id: &str) {
+        self.dispose_registry.unregister_disposer(plugin_id);
+    }
+
+    pub fn has_plugin_dispose(&self, plugin_id: &str) -> bool {
+        self.dispose_registry.has_disposer(plugin_id)
+    }
+
     pub fn clear(&self) {
+        let active_plugin_ids: Vec<String> = {
+            let plugins = self.plugins.read().unwrap();
+            plugins
+                .values()
+                .filter(|p| p.active)
+                .map(|p| p.id.clone())
+                .collect()
+        };
+
+        for plugin_id in active_plugin_ids {
+            if let Err(e) = self.dispose_registry.dispose_plugin(&plugin_id) {
+                tracing::warn!(
+                    "dispose hook failed for plugin {} during clear: {}",
+                    plugin_id,
+                    e
+                );
+            }
+        }
+
         self.plugins.write().unwrap().clear();
         self.command_registry.clear();
         self.route_registry.clear();
         self.theme_registry.clear();
         self.event_registry.clear();
         let _ = self.state_registry.clear_all_states();
+        self.dispose_registry.clear();
     }
 }
 
