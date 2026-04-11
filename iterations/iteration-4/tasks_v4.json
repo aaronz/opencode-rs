@@ -1471,7 +1471,7 @@
       "priority": "P0",
       "title": "Provider/model tests",
       "description": "Write integration tests for LLM provider and model functionality. Test provider abstraction and model selection.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "Provider abstraction works correctly",
         "Model selection precedence is correct",
@@ -1490,7 +1490,7 @@
       "priority": "P0",
       "title": "Skills discovery tests",
       "description": "Write tests for skills discovery functionality. Test discovery from all supported paths and formats.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Skills are discovered from all paths",
         "Claude-style format is supported",

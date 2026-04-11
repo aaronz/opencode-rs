@@ -834,4 +834,395 @@ Skill two content"#,
             "Expected at least one standard compat path to be configured"
         );
     }
+
+    #[test]
+    fn skills_discovery_from_project_path() {
+        use tempfile::TempDir;
+
+        let project_dir = TempDir::new().unwrap();
+        let project_skills_dir = project_dir
+            .path()
+            .join(".opencode")
+            .join("skills")
+            .join("my-project-skill");
+        std::fs::create_dir_all(&project_skills_dir).unwrap();
+        std::fs::write(
+            project_skills_dir.join("SKILL.md"),
+            r#"---
+name: my-project-skill
+description: Discovered from project path
+version: 1.0.0
+triggers: project, proj
+priority: 10
+---
+Project skill content"#,
+        )
+        .unwrap();
+
+        let sm = SkillManager::new()
+            .with_project_path(project_dir.path().to_path_buf())
+            .with_compat_paths(vec![]);
+
+        let skills = sm.list().unwrap();
+        assert!(skills.iter().any(|s| s.name == "my-project-skill"));
+        let skill = skills
+            .iter()
+            .find(|s| s.name == "my-project-skill")
+            .unwrap();
+        assert_eq!(skill.description, "Discovered from project path");
+        assert_eq!(skill.priority, 10);
+    }
+
+    #[test]
+    fn skills_discovery_from_global_path() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let global_skills_dir = temp_dir.path().join("skills").join("global-skill");
+        std::fs::create_dir_all(&global_skills_dir).unwrap();
+        std::fs::write(
+            global_skills_dir.join("SKILL.md"),
+            r#"---
+name: global-skill
+description: Discovered from global path
+version: 2.0.0
+triggers: global, g
+priority: 8
+---
+Global skill content"#,
+        )
+        .unwrap();
+
+        let sm = SkillManager::new().with_compat_paths(vec![]);
+        let global_path = temp_dir.path().join("skills");
+
+        let discovered = sm.discover_in_dir(&global_path).unwrap();
+        assert!(discovered.iter().any(|s| s.name == "global-skill"));
+    }
+
+    #[test]
+    fn skills_discovery_claude_style_format_parsing() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let skill_dir = temp_dir.path().join("claude-skill");
+        std::fs::create_dir_all(&skill_dir).unwrap();
+        std::fs::write(
+            skill_dir.join("SKILL.md"),
+            r#"---
+name: claude-skill
+description: Claude-style skill with full metadata
+version: 3.0.0
+triggers: claude, code, review
+priority: 9
+---
+# Claude Skill
+
+This skill follows the Claude-style SKILL.md format with YAML frontmatter."#,
+        )
+        .unwrap();
+
+        let sm = SkillManager::new().with_compat_paths(vec![]);
+        let discovered = sm.discover_in_dir(&temp_dir.path().to_path_buf()).unwrap();
+
+        let skill = discovered
+            .iter()
+            .find(|s| s.name == "claude-skill")
+            .unwrap();
+        assert_eq!(skill.version, "3.0.0");
+        assert_eq!(skill.triggers, vec!["claude", "code", "review"]);
+        assert_eq!(skill.priority, 9);
+        assert!(skill.content.contains("Claude Skill"));
+    }
+
+    #[test]
+    fn skills_discovery_agent_style_format_parsing() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let skill_dir = temp_dir.path().join("agent-skill");
+        std::fs::create_dir_all(&skill_dir).unwrap();
+        std::fs::write(
+            skill_dir.join("SKILL.md"),
+            r#"---
+name: agent-skill
+description: Agent-style skill format
+version: 1.5.0
+triggers: agent, task
+priority: 6
+---
+Agent skill body for testing"#,
+        )
+        .unwrap();
+
+        let sm = SkillManager::new().with_compat_paths(vec![]);
+        let discovered = sm.discover_in_dir(&temp_dir.path().to_path_buf()).unwrap();
+
+        let skill = discovered.iter().find(|s| s.name == "agent-skill").unwrap();
+        assert_eq!(skill.description, "Agent-style skill format");
+        assert!(skill.content.contains("Agent skill body"));
+    }
+
+    #[test]
+    fn skills_discovery_deterministic_ordering() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let skill_dir1 = temp_dir.path().join("aaa-skill");
+        let skill_dir2 = temp_dir.path().join("zzz-skill");
+        let skill_dir3 = temp_dir.path().join("mmm-skill");
+        std::fs::create_dir_all(&skill_dir1).unwrap();
+        std::fs::create_dir_all(&skill_dir2).unwrap();
+        std::fs::create_dir_all(&skill_dir3).unwrap();
+
+        std::fs::write(
+            skill_dir1.join("SKILL.md"),
+            r#"---
+name: aaa-skill
+description: First alphabetically
+version: 1.0.0
+priority: 5
+---
+AAA content"#,
+        )
+        .unwrap();
+        std::fs::write(
+            skill_dir2.join("SKILL.md"),
+            r#"---
+name: zzz-skill
+description: Last alphabetically
+version: 1.0.0
+priority: 5
+---
+ZZZ content"#,
+        )
+        .unwrap();
+        std::fs::write(
+            skill_dir3.join("SKILL.md"),
+            r#"---
+name: mmm-skill
+description: Middle alphabetically
+version: 1.0.0
+priority: 5
+---
+MMM content"#,
+        )
+        .unwrap();
+
+        let sm = SkillManager::new().with_compat_paths(vec![]);
+        let discovered1 = sm.discover_in_dir(&temp_dir.path().to_path_buf()).unwrap();
+        let discovered2 = sm.discover_in_dir(&temp_dir.path().to_path_buf()).unwrap();
+
+        assert_eq!(discovered1.len(), 3);
+        assert_eq!(discovered2.len(), 3);
+
+        let names1: Vec<_> = discovered1.iter().map(|s| s.name.clone()).collect();
+        let names2: Vec<_> = discovered2.iter().map(|s| s.name.clone()).collect();
+        assert_eq!(names1, names2, "Discovery order should be deterministic");
+    }
+
+    #[test]
+    fn skills_discovery_respects_priority_ordering() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let project_dir = temp_dir
+            .path()
+            .join(".opencode")
+            .join("skills")
+            .join("priority-test");
+        std::fs::create_dir_all(&project_dir).unwrap();
+
+        std::fs::write(
+            project_dir.join("SKILL.md"),
+            r#"---
+name: priority-test
+description: Test priority ordering
+version: 1.0.0
+priority: 5
+---
+Test content"#,
+        )
+        .unwrap();
+
+        let sm = SkillManager::new()
+            .with_project_path(temp_dir.path().to_path_buf())
+            .with_compat_paths(vec![]);
+
+        let skills = sm.list().unwrap();
+        assert!(!skills.is_empty());
+        let priority_test = skills.iter().find(|s| s.name == "priority-test").unwrap();
+        assert_eq!(priority_test.priority, 5);
+    }
+
+    #[test]
+    fn skills_discovery_handles_missing_frontmatter() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let skill_dir = temp_dir.path().join("plain-skill");
+        std::fs::create_dir_all(&skill_dir).unwrap();
+        std::fs::write(
+            skill_dir.join("SKILL.md"),
+            "Just plain content without frontmatter\nSecond line",
+        )
+        .unwrap();
+
+        let sm = SkillManager::new().with_compat_paths(vec![]);
+        let discovered = sm.discover_in_dir(&temp_dir.path().to_path_buf()).unwrap();
+
+        assert_eq!(discovered.len(), 1);
+        let skill = &discovered[0];
+        assert_eq!(skill.name, "");
+        assert_eq!(skill.description, "Custom skill");
+        assert_eq!(skill.version, "1.0.0");
+        assert!(skill.content.contains("plain content"));
+    }
+
+    #[test]
+    fn skills_discovery_all_supported_paths() {
+        use tempfile::TempDir;
+
+        let project_dir = TempDir::new().unwrap();
+        let builtin_dir = TempDir::new().unwrap();
+        let compat_dir = TempDir::new().unwrap();
+
+        let project_skill_dir = project_dir
+            .path()
+            .join(".opencode")
+            .join("skills")
+            .join("project-skill");
+        std::fs::create_dir_all(&project_skill_dir).unwrap();
+        std::fs::write(
+            project_skill_dir.join("SKILL.md"),
+            r#"---
+name: project-skill
+description: Project skill
+version: 1.0.0
+priority: 10
+---
+Project content"#,
+        )
+        .unwrap();
+
+        let builtin_skill_dir = builtin_dir.path().join("builtin-skill");
+        std::fs::create_dir_all(&builtin_skill_dir).unwrap();
+        std::fs::write(
+            builtin_skill_dir.join("SKILL.md"),
+            r#"---
+name: builtin-skill
+description: Builtin skill
+version: 1.0.0
+priority: 8
+---
+Builtin content"#,
+        )
+        .unwrap();
+
+        let compat_skill_dir = compat_dir.path().join("compat-skill");
+        std::fs::create_dir_all(&compat_skill_dir).unwrap();
+        std::fs::write(
+            compat_skill_dir.join("SKILL.md"),
+            r#"---
+name: compat-skill
+description: Compat skill
+version: 1.0.0
+priority: 5
+---
+Compat content"#,
+        )
+        .unwrap();
+
+        let sm = SkillManager::new()
+            .with_project_path(project_dir.path().to_path_buf())
+            .with_builtin_skills_path(builtin_dir.path().to_path_buf())
+            .with_compat_paths(vec![compat_dir.path().to_path_buf()]);
+
+        let skills = sm.list().unwrap();
+
+        assert!(skills.iter().any(|s| s.name == "project-skill"));
+        assert!(skills.iter().any(|s| s.name == "builtin-skill"));
+        assert!(skills.iter().any(|s| s.name == "compat-skill"));
+    }
+
+    #[test]
+    fn skills_discovery_builtin_skills_included() {
+        let sm = SkillManager::new();
+        let skills = sm.list().unwrap();
+
+        let builtin_names = vec![
+            "code-review",
+            "architect",
+            "debugger",
+            "test-writer",
+            "refactorer",
+            "doc-writer",
+            "security-auditor",
+            "performance",
+            "data-analyst",
+            "devops",
+        ];
+
+        for name in builtin_names {
+            assert!(
+                skills.iter().any(|s| s.name == name),
+                "Expected builtin skill '{}' to be discovered",
+                name
+            );
+        }
+    }
+
+    #[test]
+    fn skills_discovery_no_duplicates_within_scope() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let skill_dir = temp_dir.path().join("unique-skill");
+        std::fs::create_dir_all(&skill_dir).unwrap();
+        std::fs::write(
+            skill_dir.join("SKILL.md"),
+            r#"---
+name: unique-skill
+description: Should appear once
+version: 1.0.0
+priority: 5
+---
+Unique content"#,
+        )
+        .unwrap();
+
+        let sm = SkillManager::new().with_compat_paths(vec![]);
+        let discovered = sm.discover_in_dir(&temp_dir.path().to_path_buf()).unwrap();
+
+        let unique_count = discovered
+            .iter()
+            .filter(|s| s.name == "unique-skill")
+            .count();
+        assert_eq!(unique_count, 1, "Skill should appear exactly once");
+    }
+
+    #[test]
+    fn skills_discovery_scans_nested_directories() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let nested_dir = temp_dir.path().join("nested-skill");
+        std::fs::create_dir_all(&nested_dir).unwrap();
+        std::fs::write(
+            nested_dir.join("SKILL.md"),
+            r#"---
+name: nested-skill
+description: Nested skill in subdirectory
+version: 1.0.0
+priority: 5
+---
+Nested content"#,
+        )
+        .unwrap();
+
+        let sm = SkillManager::new().with_compat_paths(vec![]);
+        let discovered = sm.discover_in_dir(&temp_dir.path().to_path_buf()).unwrap();
+
+        assert!(discovered.iter().any(|s| s.name == "nested-skill"));
+    }
 }
