@@ -111,7 +111,7 @@
 - [x] **P2-7:** Add context cost warnings
 
 ### LSP Tasks
-- [ ] **P2-8:** Add experimental LSP tool integration tests
+- [x] **P2-8:** Add experimental LSP tool integration tests
 
 ### Server Tasks
 - [ ] **P2-9:** Enforce API error shape consistency

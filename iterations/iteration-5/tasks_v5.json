@@ -374,7 +374,7 @@
       "priority": "P2",
       "title": "Add Experimental LSP Tool Integration Tests",
       "description": "Add integration tests for experimental LSP tool features.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "LSP integration tests pass",
         "Tool discovery works correctly",

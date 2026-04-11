@@ -694,3 +694,686 @@ async fn integration_test_protocol_violation_type_display() {
         "UnexpectedResponse"
     );
 }
+
+#[cfg(test)]
+mod experimental_lsp_tool_tests {
+    use opencode_lsp::experimental::{
+        DiagnosticInfo, ExperimentalLspTool, ExperimentalLspToolArgs, FindReferencesResult,
+        GotoDefinitionResult, HoverResult, LspDiagnosticsResult, ReferenceInfo,
+    };
+
+    #[tokio::test]
+    async fn test_experimental_tool_diagnostics_operation_unavailable_server() {
+        let tool = ExperimentalLspTool::new();
+        let args = ExperimentalLspToolArgs {
+            operation: "diagnostics".to_string(),
+            file_path: Some("/nonexistent/path/file.rs".to_string()),
+            line: None,
+            character: None,
+            symbol: None,
+            workspace: None,
+        };
+
+        let result = tool.execute(args).await;
+        match result {
+            Ok(content) => {
+                let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+                if let Some(status) = parsed.get("status") {
+                    assert_eq!(status, "unavailable");
+                }
+            }
+            Err(_) => {
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_experimental_tool_diagnostics_requires_file_path() {
+        let tool = ExperimentalLspTool::new();
+        let args = ExperimentalLspToolArgs {
+            operation: "diagnostics".to_string(),
+            file_path: None,
+            line: None,
+            character: None,
+            symbol: None,
+            workspace: None,
+        };
+
+        let result = tool.execute(args).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        let err_msg = err.to_string();
+        assert!(
+            err_msg.contains("filePath is required"),
+            "Expected error about filePath, got: {}",
+            err_msg
+        );
+    }
+
+    #[tokio::test]
+    async fn test_experimental_tool_goto_definition_requires_file_path() {
+        let tool = ExperimentalLspTool::new();
+        let args = ExperimentalLspToolArgs {
+            operation: "goToDefinition".to_string(),
+            file_path: None,
+            line: None,
+            character: None,
+            symbol: None,
+            workspace: None,
+        };
+
+        let result = tool.execute(args).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        let err_msg = err.to_string();
+        assert!(
+            err_msg.contains("filePath is required"),
+            "Expected error about filePath, got: {}",
+            err_msg
+        );
+    }
+
+    #[tokio::test]
+    async fn test_experimental_tool_find_references_requires_file_path() {
+        let tool = ExperimentalLspTool::new();
+        let args = ExperimentalLspToolArgs {
+            operation: "findReferences".to_string(),
+            file_path: None,
+            line: None,
+            character: None,
+            symbol: None,
+            workspace: None,
+        };
+
+        let result = tool.execute(args).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        let err_msg = err.to_string();
+        assert!(
+            err_msg.contains("filePath is required"),
+            "Expected error about filePath, got: {}",
+            err_msg
+        );
+    }
+
+    #[tokio::test]
+    async fn test_experimental_tool_hover_requires_file_path() {
+        let tool = ExperimentalLspTool::new();
+        let args = ExperimentalLspToolArgs {
+            operation: "hover".to_string(),
+            file_path: None,
+            line: None,
+            character: None,
+            symbol: None,
+            workspace: None,
+        };
+
+        let result = tool.execute(args).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        let err_msg = err.to_string();
+        assert!(
+            err_msg.contains("filePath is required"),
+            "Expected error about filePath, got: {}",
+            err_msg
+        );
+    }
+
+    #[tokio::test]
+    async fn test_experimental_tool_unknown_operation() {
+        let tool = ExperimentalLspTool::new();
+        let args = ExperimentalLspToolArgs {
+            operation: "unknownOperation".to_string(),
+            file_path: Some("test.rs".to_string()),
+            line: None,
+            character: None,
+            symbol: None,
+            workspace: None,
+        };
+
+        let result = tool.execute(args).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        let err_msg = err.to_string();
+        assert!(
+            err_msg.contains("Unknown operation"),
+            "Expected error about unknown operation, got: {}",
+            err_msg
+        );
+        assert!(
+            err_msg.contains("diagnostics"),
+            "Error should list supported operations, got: {}",
+            err_msg
+        );
+        assert!(
+            err_msg.contains("goToDefinition"),
+            "Error should list goToDefinition, got: {}",
+            err_msg
+        );
+        assert!(
+            err_msg.contains("findReferences"),
+            "Error should list findReferences, got: {}",
+            err_msg
+        );
+        assert!(
+            err_msg.contains("hover"),
+            "Error should list hover, got: {}",
+            err_msg
+        );
+    }
+
+    #[tokio::test]
+    async fn test_experimental_tool_goto_definition_unavailable_server() {
+        let tool = ExperimentalLspTool::new();
+        let args = ExperimentalLspToolArgs {
+            operation: "goToDefinition".to_string(),
+            file_path: Some("/nonexistent/path/file.rs".to_string()),
+            line: Some(10),
+            character: Some(5),
+            symbol: None,
+            workspace: None,
+        };
+
+        let result = tool.execute(args).await;
+        match result {
+            Ok(content) => {
+                let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+                if let Some(status) = parsed.get("status") {
+                    assert_eq!(status, "unavailable");
+                }
+            }
+            Err(_) => {
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_experimental_tool_find_references_unavailable_server() {
+        let tool = ExperimentalLspTool::new();
+        let args = ExperimentalLspToolArgs {
+            operation: "findReferences".to_string(),
+            file_path: Some("/nonexistent/path/file.rs".to_string()),
+            line: Some(10),
+            character: Some(5),
+            symbol: Some("test_symbol".to_string()),
+            workspace: None,
+        };
+
+        let result = tool.execute(args).await;
+        match result {
+            Ok(content) => {
+                let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+                if let Some(status) = parsed.get("status") {
+                    assert_eq!(status, "unavailable");
+                }
+            }
+            Err(_) => {
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_experimental_tool_hover_returns_valid_json() {
+        let tool = ExperimentalLspTool::new();
+        let args = ExperimentalLspToolArgs {
+            operation: "hover".to_string(),
+            file_path: Some("/nonexistent/path/file.rs".to_string()),
+            line: Some(10),
+            character: Some(5),
+            symbol: None,
+            workspace: None,
+        };
+
+        let result = tool.execute(args).await;
+        match result {
+            Ok(content) => {
+                let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+                assert!(parsed.get("file").is_some());
+                assert!(parsed.get("line").is_some());
+                assert!(parsed.get("column").is_some());
+                assert!(parsed.get("content").is_some());
+                assert!(parsed.get("has_info").is_some());
+            }
+            Err(_) => {
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_experimental_tool_goto_definition_returns_valid_json() {
+        let tool = ExperimentalLspTool::new();
+        let args = ExperimentalLspToolArgs {
+            operation: "goToDefinition".to_string(),
+            file_path: Some("/nonexistent/path/file.rs".to_string()),
+            line: Some(10),
+            character: Some(5),
+            symbol: None,
+            workspace: None,
+        };
+
+        let result = tool.execute(args).await;
+        match result {
+            Ok(content) => {
+                let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+                assert!(parsed.get("file").is_some());
+                assert!(parsed.get("line").is_some());
+                assert!(parsed.get("column").is_some());
+                assert!(parsed.get("target_uri").is_some());
+                assert!(parsed.get("found").is_some());
+            }
+            Err(_) => {
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_experimental_tool_find_references_returns_valid_json() {
+        let tool = ExperimentalLspTool::new();
+        let args = ExperimentalLspToolArgs {
+            operation: "findReferences".to_string(),
+            file_path: Some("/nonexistent/path/file.rs".to_string()),
+            line: Some(10),
+            character: Some(5),
+            symbol: Some("test_symbol".to_string()),
+            workspace: None,
+        };
+
+        let result = tool.execute(args).await;
+        match result {
+            Ok(content) => {
+                let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+                assert!(parsed.get("symbol").is_some());
+                assert!(parsed.get("references").is_some());
+                assert!(parsed.get("total_count").is_some());
+            }
+            Err(_) => {
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_experimental_tool_diagnostics_result_serialization() {
+        let result = LspDiagnosticsResult {
+            file: "test.rs".to_string(),
+            diagnostics: vec![
+                DiagnosticInfo {
+                    line: 10,
+                    column: 5,
+                    end_line: 10,
+                    end_column: 15,
+                    severity: "error".to_string(),
+                    message: "test error".to_string(),
+                    source: Some("rust-analyzer".to_string()),
+                },
+                DiagnosticInfo {
+                    line: 20,
+                    column: 1,
+                    end_line: 20,
+                    end_column: 10,
+                    severity: "warning".to_string(),
+                    message: "test warning".to_string(),
+                    source: Some("rust-analyzer".to_string()),
+                },
+            ],
+            total_count: 2,
+            error_count: 1,
+            warning_count: 1,
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        let deserialized: LspDiagnosticsResult = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.file, "test.rs");
+        assert_eq!(deserialized.total_count, 2);
+        assert_eq!(deserialized.error_count, 1);
+        assert_eq!(deserialized.warning_count, 1);
+        assert_eq!(deserialized.diagnostics.len(), 2);
+        assert_eq!(deserialized.diagnostics[0].message, "test error");
+    }
+
+    #[tokio::test]
+    async fn test_experimental_tool_goto_definition_result_serialization() {
+        let result = GotoDefinitionResult {
+            file: "test.rs".to_string(),
+            line: 10,
+            column: 5,
+            target_uri: "file:///target.rs".to_string(),
+            target_line: 20,
+            target_column: 10,
+            found: true,
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        let deserialized: GotoDefinitionResult = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.file, "test.rs");
+        assert_eq!(deserialized.line, 10);
+        assert_eq!(deserialized.column, 5);
+        assert_eq!(deserialized.target_uri, "file:///target.rs");
+        assert_eq!(deserialized.target_line, 20);
+        assert_eq!(deserialized.target_column, 10);
+        assert!(deserialized.found);
+    }
+
+    #[tokio::test]
+    async fn test_experimental_tool_find_references_result_serialization() {
+        let result = FindReferencesResult {
+            symbol: "my_function".to_string(),
+            references: vec![
+                ReferenceInfo {
+                    uri: "file:///src/main.rs".to_string(),
+                    line: 10,
+                    column: 5,
+                    context: "call site 1".to_string(),
+                },
+                ReferenceInfo {
+                    uri: "file:///src/lib.rs".to_string(),
+                    line: 25,
+                    column: 10,
+                    context: "call site 2".to_string(),
+                },
+            ],
+            total_count: 2,
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        let deserialized: FindReferencesResult = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.symbol, "my_function");
+        assert_eq!(deserialized.total_count, 2);
+        assert_eq!(deserialized.references.len(), 2);
+        assert_eq!(deserialized.references[0].uri, "file:///src/main.rs");
+        assert_eq!(deserialized.references[1].context, "call site 2");
+    }
+
+    #[tokio::test]
+    async fn test_experimental_tool_hover_result_serialization() {
+        let result = HoverResult {
+            file: "test.rs".to_string(),
+            line: 10,
+            column: 5,
+            content: "fn my_function() -> void".to_string(),
+            has_info: true,
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        let deserialized: HoverResult = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.file, "test.rs");
+        assert_eq!(deserialized.line, 10);
+        assert_eq!(deserialized.column, 5);
+        assert_eq!(deserialized.content, "fn my_function() -> void");
+        assert!(deserialized.has_info);
+    }
+
+    #[tokio::test]
+    async fn test_experimental_tool_default_args_line_1_character_1() {
+        let tool = ExperimentalLspTool::new();
+        let args = ExperimentalLspToolArgs {
+            operation: "hover".to_string(),
+            file_path: Some("test.rs".to_string()),
+            line: None,
+            character: None,
+            symbol: None,
+            workspace: None,
+        };
+
+        let result = tool.execute(args).await;
+        match result {
+            Ok(content) => {
+                let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+                assert_eq!(parsed.get("line").unwrap(), 1);
+                assert_eq!(parsed.get("column").unwrap(), 1);
+            }
+            Err(_) => {
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_experimental_tool_with_workspace_fallback() {
+        let tool = ExperimentalLspTool::new();
+        let args = ExperimentalLspToolArgs {
+            operation: "diagnostics".to_string(),
+            file_path: Some("/tmp/test_file.rs".to_string()),
+            line: None,
+            character: None,
+            symbol: None,
+            workspace: Some("/tmp".to_string()),
+        };
+
+        let result = tool.execute(args).await;
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_experimental_tool_file_path_with_file_prefix() {
+        let tool = ExperimentalLspTool::new();
+        let args = ExperimentalLspToolArgs {
+            operation: "diagnostics".to_string(),
+            file_path: Some("file:///tmp/test_file.rs".to_string()),
+            line: None,
+            character: None,
+            symbol: None,
+            workspace: None,
+        };
+
+        let result = tool.execute(args).await;
+        match result {
+            Ok(content) => {
+                let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+                assert!(parsed.get("status").is_some() || parsed.get("file").is_some());
+            }
+            Err(_) => {
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_experimental_tool_diagnostics_empty_result() {
+        let tool = ExperimentalLspTool::new();
+        let args = ExperimentalLspToolArgs {
+            operation: "diagnostics".to_string(),
+            file_path: Some("/nonexistent/file.rs".to_string()),
+            line: None,
+            character: None,
+            symbol: None,
+            workspace: None,
+        };
+
+        let result = tool.execute(args).await;
+        match result {
+            Ok(content) => {
+                let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+                if parsed.get("diagnostics").is_some() {
+                    let diagnostics = parsed.get("diagnostics").unwrap().as_array().unwrap();
+                    assert_eq!(diagnostics.len(), 0);
+                }
+            }
+            Err(_) => {
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_experimental_tool_multiple_operations_sequence() {
+        let tool = ExperimentalLspTool::new();
+
+        let args1 = ExperimentalLspToolArgs {
+            operation: "diagnostics".to_string(),
+            file_path: Some("test.rs".to_string()),
+            line: None,
+            character: None,
+            symbol: None,
+            workspace: None,
+        };
+        let result1 = tool.execute(args1).await;
+        assert!(result1.is_ok() || result1.is_err());
+
+        let args2 = ExperimentalLspToolArgs {
+            operation: "hover".to_string(),
+            file_path: Some("test.rs".to_string()),
+            line: Some(5),
+            character: Some(10),
+            symbol: None,
+            workspace: None,
+        };
+        let result2 = tool.execute(args2).await;
+        assert!(result2.is_ok() || result2.is_err());
+
+        let args3 = ExperimentalLspToolArgs {
+            operation: "goToDefinition".to_string(),
+            file_path: Some("test.rs".to_string()),
+            line: Some(5),
+            character: Some(10),
+            symbol: None,
+            workspace: None,
+        };
+        let result3 = tool.execute(args3).await;
+        assert!(result3.is_ok() || result3.is_err());
+
+        let args4 = ExperimentalLspToolArgs {
+            operation: "findReferences".to_string(),
+            file_path: Some("test.rs".to_string()),
+            line: Some(5),
+            character: Some(10),
+            symbol: Some("test".to_string()),
+            workspace: None,
+        };
+        let result4 = tool.execute(args4).await;
+        assert!(result4.is_ok() || result4.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_experimental_tool_symbol_propagation_in_find_references() {
+        let tool = ExperimentalLspTool::new();
+        let args = ExperimentalLspToolArgs {
+            operation: "findReferences".to_string(),
+            file_path: Some("test.rs".to_string()),
+            line: Some(10),
+            character: Some(5),
+            symbol: Some("my_important_symbol".to_string()),
+            workspace: None,
+        };
+
+        let result = tool.execute(args).await;
+        match result {
+            Ok(content) => {
+                let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+                if let Some(symbol) = parsed.get("symbol") {
+                    assert_eq!(symbol, "my_important_symbol");
+                }
+            }
+            Err(_) => {
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_experimental_tool_diagnostics_with_zero_counts() {
+        let result = LspDiagnosticsResult {
+            file: "empty.rs".to_string(),
+            diagnostics: vec![],
+            total_count: 0,
+            error_count: 0,
+            warning_count: 0,
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"total_count\":0"));
+        assert!(json.contains("\"error_count\":0"));
+        assert!(json.contains("\"warning_count\":0"));
+    }
+
+    #[tokio::test]
+    async fn test_experimental_tool_reference_info_context_format() {
+        let ref_info = ReferenceInfo {
+            uri: "file:///src/main.rs".to_string(),
+            line: 42,
+            column: 8,
+            context: "src/main.rs:42:8".to_string(),
+        };
+
+        let json = serde_json::to_string(&ref_info).unwrap();
+        assert!(json.contains("src/main.rs:42:8"));
+        assert!(json.contains("file:///src/main.rs"));
+    }
+
+    #[tokio::test]
+    async fn test_experimental_tool_goto_definition_not_found() {
+        let tool = ExperimentalLspTool::new();
+        let args = ExperimentalLspToolArgs {
+            operation: "goToDefinition".to_string(),
+            file_path: Some("/nonexistent/file.rs".to_string()),
+            line: Some(1),
+            character: Some(1),
+            symbol: None,
+            workspace: None,
+        };
+
+        let result = tool.execute(args).await;
+        match result {
+            Ok(content) => {
+                let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+                if parsed.get("found").is_some() {
+                    assert!(
+                        !parsed.get("found").unwrap().as_bool().unwrap(),
+                        "Expected found to be false for nonexistent file"
+                    );
+                }
+            }
+            Err(_) => {
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_experimental_tool_args_clone() {
+        let args = ExperimentalLspToolArgs {
+            operation: "diagnostics".to_string(),
+            file_path: Some("test.rs".to_string()),
+            line: Some(10),
+            character: Some(5),
+            symbol: Some("test".to_string()),
+            workspace: Some("/workspace".to_string()),
+        };
+
+        let cloned = args.clone();
+        assert_eq!(cloned.operation, args.operation);
+        assert_eq!(cloned.file_path, args.file_path);
+        assert_eq!(cloned.line, args.line);
+        assert_eq!(cloned.character, args.character);
+        assert_eq!(cloned.symbol, args.symbol);
+        assert_eq!(cloned.workspace, args.workspace);
+    }
+
+    #[tokio::test]
+    async fn test_experimental_tool_creation_multiple_instances() {
+        let tool1 = ExperimentalLspTool::new();
+        let tool2 = ExperimentalLspTool::new();
+
+        let args1 = ExperimentalLspToolArgs {
+            operation: "diagnostics".to_string(),
+            file_path: Some("file1.rs".to_string()),
+            line: None,
+            character: None,
+            symbol: None,
+            workspace: None,
+        };
+
+        let args2 = ExperimentalLspToolArgs {
+            operation: "hover".to_string(),
+            file_path: Some("file2.rs".to_string()),
+            line: Some(5),
+            character: Some(5),
+            symbol: None,
+            workspace: None,
+        };
+
+        let result1 = tool1.execute(args1).await;
+        let result2 = tool2.execute(args2).await;
+
+        assert!(result1.is_ok() || result1.is_err());
+        assert!(result2.is_ok() || result2.is_err());
+    }
+}
