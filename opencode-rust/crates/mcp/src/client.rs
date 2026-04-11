@@ -119,6 +119,7 @@ enum RuntimeConnection {
         post_url: String,
         pending: PendingMap,
         reader_task: JoinHandle<()>,
+        oauth_token: Option<String>,
     },
 }
 
@@ -135,6 +136,7 @@ pub struct McpClient {
     state: Arc<Mutex<McpState>>,
     id_counter: Arc<AtomicU64>,
     handler: Option<TransportHandler>,
+    oauth_token: Option<String>,
 }
 
 impl McpClient {
@@ -148,6 +150,7 @@ impl McpClient {
             state: Arc::new(Mutex::new(McpState::default())),
             id_counter: Arc::new(AtomicU64::new(1)),
             handler: None,
+            oauth_token: None,
         }
     }
 
@@ -161,6 +164,7 @@ impl McpClient {
             state: Arc::new(Mutex::new(McpState::default())),
             id_counter: Arc::new(AtomicU64::new(1)),
             handler: Some(handler),
+            oauth_token: None,
         }
     }
 
@@ -181,6 +185,11 @@ impl McpClient {
 
     pub fn with_reconnect_base_delay(mut self, delay: Duration) -> Self {
         self.reconnect_base_delay = delay;
+        self
+    }
+
+    pub fn with_oauth_token(mut self, token: String) -> Self {
+        self.oauth_token = Some(token);
         self
     }
 
@@ -207,7 +216,7 @@ impl McpClient {
 
         let runtime = match &self.transport {
             McpTransport::Stdio(process) => Self::connect_stdio(process.clone()).await,
-            McpTransport::Sse(url) => Self::connect_sse(url.clone()).await,
+            McpTransport::Sse(url) => Self::connect_sse(url.clone(), self.oauth_token.clone()).await,
         };
 
         let runtime = match runtime {
@@ -551,8 +560,11 @@ impl McpClient {
                 client,
                 post_url,
                 pending,
+                oauth_token,
                 ..
-            } => send_with_pending_sse(client, post_url, pending, request, self.timeout).await,
+            } => {
+                send_with_pending_sse(client, post_url, pending, request, self.timeout, oauth_token.clone()).await
+            }
         };
 
         let mut state = self.state.lock().await;
@@ -670,7 +682,7 @@ impl McpClient {
         })
     }
 
-    async fn connect_sse(url: String) -> Result<RuntimeConnection, McpError> {
+    async fn connect_sse(url: String, oauth_token: Option<String>) -> Result<RuntimeConnection, McpError> {
         if url.trim().is_empty() {
             return Err(McpError::ConnectionFailed("empty sse url".to_string()));
         }
@@ -679,9 +691,13 @@ impl McpClient {
             .timeout(std::time::Duration::from_secs(5))
             .build()
             .map_err(|e| McpError::ConnectionFailed(format!("failed to create client: {}", e)))?;
-        let stream_response = client
-            .get(&url)
-            .header("Accept", "text/event-stream")
+        
+        let mut req_builder = client.get(&url).header("Accept", "text/event-stream");
+        if let Some(ref token) = oauth_token {
+            req_builder = req_builder.header("Authorization", format!("Bearer {}", token));
+        }
+        
+        let stream_response = req_builder
             .send()
             .await
             .map_err(|e| McpError::ConnectionFailed(format!("sse stream connect failed: {}", e)))?;
@@ -751,6 +767,7 @@ impl McpClient {
             post_url,
             pending,
             reader_task,
+            oauth_token,
         })
     }
 }
@@ -804,6 +821,7 @@ async fn send_with_pending_sse(
     pending: &PendingMap,
     request: JsonRpcRequest,
     timeout_duration: Duration,
+    oauth_token: Option<String>,
 ) -> Result<JsonRpcResponse, McpError> {
     let id = request
         .id
@@ -815,7 +833,13 @@ async fn send_with_pending_sse(
     pending.lock().await.insert(key.clone(), tx);
 
     let message = JsonRpcMessage::Request(request);
-    let response = match client.post(post_url).json(&message).send().await {
+    let mut req_builder = client.post(post_url).json(&message);
+    
+    if let Some(token) = oauth_token {
+        req_builder = req_builder.header("Authorization", format!("Bearer {}", token));
+    }
+    
+    let response = match req_builder.send().await {
         Ok(resp) => resp,
         Err(err) => {
             pending.lock().await.remove(&key);

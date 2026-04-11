@@ -1035,7 +1035,7 @@
       "priority": "P2",
       "title": "MCP per-server OAuth",
       "description": "Implement per-server OAuth authentication for MCP servers. Support different OAuth configs for different servers.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "OAuth config is per-server",
         "Different servers can have different OAuth settings",

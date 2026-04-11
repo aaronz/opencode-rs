@@ -7,6 +7,7 @@ use tokio::sync::RwLock;
 
 use opencode_core::ToolRegistry;
 
+use crate::auth::{McpOAuthConfig, McpOAuthManager};
 use crate::client::{ConnectionState, McpClient, McpError, McpResource, McpTool, McpTransport};
 use crate::tool_bridge::McpToolAdapter;
 
@@ -30,6 +31,7 @@ pub struct McpServerConfig {
     pub auto_connect: bool,
     pub health_check_interval: Option<Duration>,
     pub permission: McpPermission,
+    pub oauth: Option<McpOAuthConfig>,
 }
 
 impl McpServerConfig {
@@ -40,11 +42,17 @@ impl McpServerConfig {
             auto_connect: true,
             health_check_interval: None,
             permission: McpPermission::default(),
+            oauth: None,
         }
     }
 
     pub fn with_permission(mut self, permission: McpPermission) -> Self {
         self.permission = permission;
+        self
+    }
+
+    pub fn with_oauth(mut self, oauth: McpOAuthConfig) -> Self {
+        self.oauth = Some(oauth);
         self
     }
 }
