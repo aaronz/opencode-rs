@@ -1035,7 +1035,7 @@
       "priority": "P2",
       "title": "MCP per-server OAuth",
       "description": "Implement per-server OAuth authentication for MCP servers. Support different OAuth configs for different servers.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "OAuth config is per-server",
         "Different servers can have different OAuth settings",
@@ -1054,7 +1054,7 @@
       "priority": "P2",
       "title": "MCP timeout handling",
       "description": "Implement proper timeout handling for MCP server communications. Prevent hanging on unresponsive servers.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Timeouts are enforced for all MCP operations",
         "Timeout produces clear error message",
@@ -1063,7 +1063,7 @@
       "test_commands": [
         "cargo test -p opencode-mcp -- timeout"
       ],
-      "impl_notes": "Build on local MCP connection (P0-6).",
+      "impl_notes": "Build on local MCP connection (P0-6). Added 7 timeout tests covering: handler timeout enforcement, timeout error message clarity, unresponsive stdio server timeout, partial results handling, timeout during tool call, timeout during resource read, and stdio server hanging then responding.",
       "dependencies": [
         "P0-6"
       ]

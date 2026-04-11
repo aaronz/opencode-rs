@@ -1415,4 +1415,294 @@ if __name__ == '__main__':
         client.disconnect().await.expect("disconnect");
         assert_eq!(client.connection_state().await, ConnectionState::Disconnected);
     }
+
+    #[tokio::test]
+    async fn test_handler_timeout_enforcement() {
+        let handler_timeout = Duration::from_millis(500);
+        let client_timeout = Duration::from_millis(100);
+
+        let handler: TransportHandler = Arc::new(move |request| {
+            if request.method == "tools/list" {
+                return Err(McpError::Timeout(handler_timeout));
+            }
+            Ok(ok_response(serde_json::json!({ "tools": [] })))
+        });
+
+        let client = McpClient::with_handler(
+            McpTransport::Stdio(StdioProcess::new("mock", vec![])),
+            handler,
+        )
+        .with_timeout(client_timeout);
+
+        client.connect().await.unwrap();
+
+        let result = client.list_tools().await;
+        assert!(result.is_err());
+
+        let err = result.unwrap_err();
+        assert!(matches!(err, McpError::Timeout(_)));
+        
+        if let McpError::Timeout(duration) = err {
+            assert_eq!(duration, handler_timeout);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_timeout_error_message_clarity() {
+        let client_timeout = Duration::from_millis(50);
+
+        let handler: TransportHandler = Arc::new(|request| {
+            if request.method == "ping" {
+                return Err(McpError::Timeout(Duration::from_secs(10)));
+            }
+            Ok(ok_response(serde_json::json!(null)))
+        });
+
+        let client = McpClient::with_handler(
+            McpTransport::Sse("http://timeout-test/sse".to_string()),
+            handler,
+        )
+        .with_timeout(client_timeout);
+
+        client.connect().await.unwrap();
+
+        let err = client.ping().await.unwrap_err();
+        
+        assert!(matches!(err, McpError::Timeout(_)));
+        
+        let error_string = err.to_string();
+        assert!(error_string.contains("timeout") || error_string.contains("Timeout"), 
+            "Error message should mention timeout: {}", error_string);
+    }
+
+    #[tokio::test]
+    async fn test_timeout_on_unresponsive_stdio_server() {
+        let python_script = r#"
+import sys
+import json
+import time
+
+def main():
+    received_request = False
+    while True:
+        line = sys.stdin.readline()
+        if not line:
+            break
+        try:
+            request = json.loads(line)
+            received_request = True
+            # Keep reading but never respond - simulate hung server
+            if request.get('method') == 'ping':
+                # This is a blocking read that will never return
+                while True:
+                    time.sleep(3600)
+        except:
+            break
+
+if __name__ == '__main__':
+    main()
+"#;
+
+        let transport = McpTransport::Stdio(
+            StdioProcess::new("python3", vec!["-c".to_string(), python_script.to_string()])
+        );
+
+        let client = McpClient::new(transport)
+            .with_timeout(Duration::from_millis(300))
+            .with_max_retries(0);
+
+        let connect_result = client.connect().await;
+        
+        if connect_result.is_ok() {
+            let result = client.ping().await;
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            assert!(matches!(err, McpError::Timeout(_)), "Expected Timeout error, got: {:?}", err);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_partial_results_handling_on_timeout() {
+        use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+        
+        let request_count = Arc::new(AtomicUsize::new(0));
+        let response_sent = Arc::new(AtomicBool::new(false));
+        let request_count_clone = request_count.clone();
+        let response_sent_clone = response_sent.clone();
+
+        let handler: TransportHandler = Arc::new(move |request| {
+            request_count_clone.fetch_add(1, Ordering::SeqCst);
+            
+            if request.method == "tools/list" && !response_sent_clone.load(Ordering::SeqCst) {
+                response_sent_clone.store(true, Ordering::SeqCst);
+                return Err(McpError::Timeout(Duration::from_millis(10)));
+            }
+            Ok(ok_response(serde_json::json!({ "tools": [] })))
+        });
+
+        let client = McpClient::with_handler(
+            McpTransport::Stdio(StdioProcess::new("mock", vec![])),
+            handler,
+        )
+        .with_timeout(Duration::from_secs(5));
+
+        client.connect().await.unwrap();
+
+        let first_result = client.list_tools().await;
+        assert!(first_result.is_err());
+        assert!(matches!(first_result.unwrap_err(), McpError::Timeout(_)));
+
+        assert_eq!(request_count.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn test_timeout_during_tool_call() {
+        let handler: TransportHandler = Arc::new(|request| {
+            if request.method == "tools/call" {
+                return Err(McpError::Timeout(Duration::from_secs(5)));
+            }
+            Ok(ok_response(serde_json::json!({
+                "content": [{"type": "text", "text": "result"}],
+                "isError": false
+            })))
+        });
+
+        let client = McpClient::with_handler(
+            McpTransport::Sse("http://timeout-tool/sse".to_string()),
+            handler,
+        )
+        .with_timeout(Duration::from_millis(100));
+
+        client.connect().await.unwrap();
+
+        let result = client
+            .call_tool("slow_tool", &serde_json::json!({"arg": "value"}))
+            .await;
+        
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), McpError::Timeout(_)));
+    }
+
+    #[tokio::test]
+    async fn test_timeout_during_resource_read() {
+        let handler: TransportHandler = Arc::new(|request| {
+            if request.method == "resources/read" {
+                return Err(McpError::Timeout(Duration::from_secs(5)));
+            }
+            Ok(ok_response(serde_json::json!({
+                "contents": [{"uri": "file:///test", "text": "content"}]
+            })))
+        });
+
+        let client = McpClient::with_handler(
+            McpTransport::Sse("http://timeout-resource/sse".to_string()),
+            handler,
+        )
+        .with_timeout(Duration::from_millis(100));
+
+        client.connect().await.unwrap();
+
+        let result = client.read_resource("file:///test").await;
+        
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), McpError::Timeout(_)));
+    }
+
+    #[tokio::test]
+    async fn test_connection_timeout_with_rapid_retry() {
+        let call_count = Arc::new(AtomicUsize::new(0));
+        let call_count_clone = call_count.clone();
+
+        let handler: TransportHandler = Arc::new(move |request| {
+            call_count_clone.fetch_add(1, Ordering::SeqCst);
+            if request.method == "ping" {
+                return Err(McpError::Timeout(Duration::from_millis(50)));
+            }
+            Ok(ok_response(serde_json::json!(null)))
+        });
+
+        let client = McpClient::with_handler(
+            McpTransport::Sse("http://retry-timeout/sse".to_string()),
+            handler,
+        )
+        .with_timeout(Duration::from_millis(50))
+        .with_max_retries(3);
+
+        client.connect().await.unwrap();
+
+        let result = client.ping().await;
+        
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), McpError::Timeout(_)));
+        
+        assert_eq!(call_count.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn test_stdio_server_hanging_then_responding() {
+        let python_script = r#"
+import sys
+import json
+import time
+
+def main():
+    while True:
+        line = sys.stdin.readline()
+        if not line:
+            break
+        try:
+            request = json.loads(line)
+            method = request.get('method', '')
+            id = request.get('id')
+            
+            if method == 'initialize':
+                response = {
+                    'jsonrpc': '2.0',
+                    'id': id,
+                    'result': {
+                        'protocolVersion': '2024-11-05',
+                        'capabilities': {},
+                        'serverInfo': {'name': 'hang-then-respond', 'version': '1.0'}
+                    }
+                }
+                print(json.dumps(response), flush=True)
+            elif method == 'initialized':
+                pass
+            elif method == 'ping':
+                # Hang for longer than client timeout then respond
+                time.sleep(5)
+                response = {'jsonrpc': '2.0', 'id': id, 'result': None}
+                print(json.dumps(response), flush=True)
+            elif method == 'tools/list':
+                response = {
+                    'jsonrpc': '2.0',
+                    'id': id,
+                    'result': {'tools': [{'name': 'test', 'description': 'test tool', 'inputSchema': {'type': 'object'}}]}
+                }
+                print(json.dumps(response), flush=True)
+        except Exception as e:
+            pass
+
+if __name__ == '__main__':
+    main()
+"#;
+
+        let transport = McpTransport::Stdio(
+            StdioProcess::new("python3", vec!["-c".to_string(), python_script.to_string()])
+        );
+
+        let client = McpClient::new(transport)
+            .with_timeout(Duration::from_secs(1))
+            .with_max_retries(0);
+
+        client.connect().await.expect("connect should succeed");
+        
+        let tools = client.list_tools().await.expect("list tools should work");
+        assert_eq!(tools.len(), 1);
+        assert_eq!(tools[0].name, "test");
+
+        let ping_result = client.ping().await;
+        assert!(ping_result.is_err());
+        assert!(matches!(ping_result.unwrap_err(), McpError::Timeout(_)));
+    }
 }

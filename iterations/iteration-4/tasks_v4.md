@@ -163,7 +163,7 @@
 | Task ID | Title | Module | FR | Phase | Status | Dependencies |
 |---------|-------|--------|-----|-------|--------|--------------|
 | P2-5 | MCP per-server OAuth | mcp | FR-010 | Phase 3 | Pending | P0-8 |
-| P2-6 | MCP timeout handling | mcp | FR-010 | Phase 3 | Pending | P0-6 |
+| P2-6 | MCP timeout handling | mcp | FR-010 | Phase 3 | Done | P0-6 |
 | P2-7 | MCP context cost warnings | mcp | FR-010 | Phase 3 | Pending | P0-8 |
 
 ### LSP System (1 item)
