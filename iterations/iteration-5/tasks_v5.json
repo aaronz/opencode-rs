@@ -391,7 +391,7 @@
       "priority": "P2",
       "title": "Enforce API Error Shape Consistency",
       "description": "Enforce consistent error shape across all server API endpoints.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "All errors follow same JSON structure",
         "Error codes are consistent",

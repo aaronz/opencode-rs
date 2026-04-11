@@ -1,118 +1,26 @@
 use actix_web::{HttpResponse, ResponseError};
 use serde::Serialize;
 
-#[derive(Debug, Clone, Serialize)]
-pub struct ValidationError {
-    pub field: String,
-    pub message: String,
-    pub error_code: u16,
-}
-
-impl ValidationError {
-    pub fn new(field: impl Into<String>, message: impl Into<String>) -> Self {
-        Self {
-            field: field.into(),
-            message: message.into(),
-            error_code: 7001,
-        }
-    }
-
-    pub fn required(field: impl Into<String>) -> Self {
-        let f = field.into();
-        Self {
-            field: f.clone(),
-            message: format!("Field '{}' is required", f),
-            error_code: 7002,
-        }
-    }
-
-    pub fn format(field: impl Into<String>, expected: impl Into<String>) -> Self {
-        let f = field.into();
-        Self {
-            field: f.clone(),
-            message: format!(
-                "Field '{}' has invalid format. Expected: {}",
-                f,
-                expected.into()
-            ),
-            error_code: 7003,
-        }
-    }
-
-    pub fn out_of_range(field: impl Into<String>, min: Option<usize>, max: Option<usize>) -> Self {
-        let f = field.into();
-        let message = match (min, max) {
-            (Some(min), Some(max)) => format!("Field '{}' must be between {} and {}", f, min, max),
-            (Some(min), None) => format!("Field '{}' must be at least {}", f, min),
-            (None, Some(max)) => format!("Field '{}' must be at most {}", f, max),
-            (None, None) => format!("Field '{}' has invalid value", f),
-        };
-        Self {
-            field: f,
-            message,
-            error_code: 7001,
-        }
-    }
-
-    pub fn too_long(field: impl Into<String>, max_length: usize) -> Self {
-        let f = field.into();
-        Self {
-            field: f.clone(),
-            message: format!(
-                "Field '{}' exceeds maximum length of {} characters",
-                f, max_length
-            ),
-            error_code: 7001,
-        }
-    }
-
-    pub fn too_short(field: impl Into<String>, min_length: usize) -> Self {
-        let f = field.into();
-        Self {
-            field: f.clone(),
-            message: format!("Field '{}' must be at least {} characters", f, min_length),
-            error_code: 7001,
-        }
-    }
-
-    pub fn invalid_enum(field: impl Into<String>, valid_values: &[&str]) -> Self {
-        let f = field.into();
-        Self {
-            field: f.clone(),
-            message: format!(
-                "Field '{}' has invalid value. Valid values: {}",
-                f,
-                valid_values.join(", ")
-            ),
-            error_code: 7001,
-        }
-    }
-}
+use super::error::{ErrorResponse, FieldError};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ValidationErrors {
-    pub error: String,
-    pub message: String,
-    pub code: u16,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub details: Vec<ValidationError>,
+    #[serde(skip)]
+    pub details: Vec<FieldError>,
 }
 
 impl ValidationErrors {
     pub fn new() -> Self {
         Self {
-            error: "validation_error".to_string(),
-            message: "Request validation failed".to_string(),
-            code: 422,
             details: Vec::new(),
         }
     }
 
-    pub fn add(&mut self, error: ValidationError) {
+    pub fn add(&mut self, error: FieldError) {
         self.details.push(error);
     }
 
-    pub fn add_if(&mut self, condition: bool, error: ValidationError) {
+    pub fn add_if(&mut self, condition: bool, error: FieldError) {
         if condition {
             self.add(error);
         }
@@ -128,29 +36,26 @@ impl ValidationErrors {
 
     pub fn to_response(&self) -> HttpResponse {
         if self.details.is_empty() {
-            return HttpResponse::BadRequest().json(serde_json::json!({
-                "error": "validation_error",
-                "message": "Request validation failed",
-                "code": 422
-            }));
+            return ErrorResponse::validation_error("Request validation failed")
+                .to_response(actix_web::http::StatusCode::BAD_REQUEST);
         }
 
         if self.details.len() == 1 {
             let err = &self.details[0];
-            return HttpResponse::UnprocessableEntity().json(serde_json::json!({
-                "error": "validation_error",
-                "message": format!("Invalid value for '{}': {}", err.field, err.message),
-                "code": err.error_code,
-                "field": err.field
-            }));
+            return ErrorResponse::validation_error(format!(
+                "Invalid value for '{}': {}",
+                err.field, err.message
+            ))
+            .with_details(vec![err.clone()])
+            .to_response(actix_web::http::StatusCode::UNPROCESSABLE_ENTITY);
         }
 
-        HttpResponse::UnprocessableEntity().json(serde_json::json!({
-            "error": self.error,
-            "message": format!("Request validation failed with {} errors", self.details.len()),
-            "code": self.code,
-            "details": self.details
-        }))
+        ErrorResponse::validation_error(format!(
+            "Request validation failed with {} errors",
+            self.details.len()
+        ))
+        .with_details(self.details.clone())
+        .to_response(actix_web::http::StatusCode::UNPROCESSABLE_ENTITY)
     }
 }
 
@@ -190,7 +95,7 @@ impl<'a> StringValidator<'a> {
     pub fn not_empty(self) -> Self {
         self.errors.add_if(
             self.value.trim().is_empty(),
-            ValidationError::new(self.field, "cannot be empty"),
+            FieldError::with_code(self.field, "cannot be empty"),
         );
         self
     }
@@ -198,7 +103,7 @@ impl<'a> StringValidator<'a> {
     pub fn min_length(self, min: usize) -> Self {
         self.errors.add_if(
             self.value.len() < min,
-            ValidationError::too_short(self.field, min),
+            FieldError::too_short(self.field, min),
         );
         self
     }
@@ -206,7 +111,7 @@ impl<'a> StringValidator<'a> {
     pub fn max_length(self, max: usize) -> Self {
         self.errors.add_if(
             self.value.len() > max,
-            ValidationError::too_long(self.field, max),
+            FieldError::too_long(self.field, max),
         );
         self
     }
@@ -216,7 +121,7 @@ impl<'a> StringValidator<'a> {
         if let Some(re) = regex {
             self.errors.add_if(
                 !re.is_match(self.value),
-                ValidationError::format(self.field, description),
+                FieldError::format(self.field, description),
             );
         }
         self
@@ -225,7 +130,7 @@ impl<'a> StringValidator<'a> {
     pub fn valid_uuid(self) -> Self {
         self.errors.add_if(
             uuid::Uuid::parse_str(self.value).is_err(),
-            ValidationError::format(self.field, "valid UUID"),
+            FieldError::format(self.field, "valid UUID"),
         );
         self
     }
@@ -233,7 +138,7 @@ impl<'a> StringValidator<'a> {
     pub fn valid_url(self) -> Self {
         self.errors.add_if(
             url::Url::parse(self.value).is_err(),
-            ValidationError::format(self.field, "valid URL"),
+            FieldError::format(self.field, "valid URL"),
         );
         self
     }
@@ -258,10 +163,8 @@ impl<'a> OptionalStringValidator<'a> {
         if let Some(v) = self.value {
             let regex = regex_lite::Regex::new(pattern).ok();
             if let Some(re) = regex {
-                self.errors.add_if(
-                    !re.is_match(v),
-                    ValidationError::format(self.field, description),
-                );
+                self.errors
+                    .add_if(!re.is_match(v), FieldError::format(self.field, description));
             }
         }
         self
@@ -271,7 +174,7 @@ impl<'a> OptionalStringValidator<'a> {
         if let Some(v) = self.value {
             self.errors.add_if(
                 uuid::Uuid::parse_str(v).is_err(),
-                ValidationError::format(self.field, "valid UUID"),
+                FieldError::format(self.field, "valid UUID"),
             );
         }
         self
@@ -281,7 +184,7 @@ impl<'a> OptionalStringValidator<'a> {
         if let Some(v) = self.value {
             self.errors.add_if(
                 url::Url::parse(v).is_err(),
-                ValidationError::format(self.field, "valid URL"),
+                FieldError::format(self.field, "valid URL"),
             );
         }
         self
@@ -309,7 +212,7 @@ impl NumberValidator<usize> {
         unsafe {
             (&mut *self.errors).add_if(
                 self.value < min,
-                ValidationError::out_of_range(&self.field, Some(min), None),
+                FieldError::out_of_range(&self.field, Some(min), None),
             );
         }
         self
@@ -319,7 +222,7 @@ impl NumberValidator<usize> {
         unsafe {
             (&mut *self.errors).add_if(
                 self.value > max,
-                ValidationError::out_of_range(&self.field, None, Some(max)),
+                FieldError::out_of_range(&self.field, None, Some(max)),
             );
         }
         self
@@ -355,7 +258,7 @@ impl RequestValidator {
 
     pub fn validate_required_string(&mut self, field: &str, value: Option<&str>) {
         let Some(v) = value else {
-            self.errors.add(ValidationError::required(field));
+            self.errors.add(FieldError::required(field));
             return;
         };
         StringValidator::new(field, v, &mut self.errors)
@@ -376,7 +279,7 @@ impl RequestValidator {
 
     pub fn validate_required_uuid(&mut self, field: &str, value: Option<&str>) {
         let Some(v) = value else {
-            self.errors.add(ValidationError::required(field));
+            self.errors.add(FieldError::required(field));
             return;
         };
         StringValidator::new(field, v, &mut self.errors).valid_uuid();
@@ -390,7 +293,7 @@ impl RequestValidator {
         max: usize,
     ) {
         let Some(v) = value else {
-            self.errors.add(ValidationError::required(field));
+            self.errors.add(FieldError::required(field));
             return;
         };
         NumberValidator::new(field.to_string(), v, &mut self.errors).range(min, max);
@@ -411,7 +314,7 @@ impl RequestValidator {
     pub fn validate_enum(&mut self, field: &str, value: &str, allowed_values: &[&str]) {
         if !allowed_values.iter().any(|v| *v == value) {
             self.errors
-                .add(ValidationError::invalid_enum(field, allowed_values));
+                .add(FieldError::invalid_enum(field, allowed_values));
         }
     }
 
@@ -491,33 +394,33 @@ mod tests {
 
     #[test]
     fn test_validation_error_creation() {
-        let err = ValidationError::new("email", "invalid format");
+        let err = FieldError::with_code("email", "invalid format");
         assert_eq!(err.field, "email");
         assert_eq!(err.message, "invalid format");
-        assert_eq!(err.error_code, 7001);
+        assert_eq!(err.code, 7001);
     }
 
     #[test]
     fn test_validation_error_required() {
-        let err = ValidationError::required("name");
+        let err = FieldError::required("name");
         assert_eq!(err.field, "name");
         assert!(err.message.contains("required"));
-        assert_eq!(err.error_code, 7002);
+        assert_eq!(err.code, 7002);
     }
 
     #[test]
     fn test_validation_error_format() {
-        let err = ValidationError::format("email", "valid email");
+        let err = FieldError::format("email", "valid email");
         assert_eq!(err.field, "email");
         assert!(err.message.contains("invalid format"));
         assert!(err.message.contains("valid email"));
-        assert_eq!(err.error_code, 7003);
+        assert_eq!(err.code, 7003);
     }
 
     #[test]
     fn test_validation_errors_single() {
         let mut errors = ValidationErrors::new();
-        errors.add(ValidationError::new("field1", "error1"));
+        errors.add(FieldError::with_code("field1", "error1"));
 
         let resp = errors.to_response();
         assert_eq!(
@@ -529,8 +432,8 @@ mod tests {
     #[test]
     fn test_validation_errors_multiple() {
         let mut errors = ValidationErrors::new();
-        errors.add(ValidationError::new("field1", "error1"));
-        errors.add(ValidationError::new("field2", "error2"));
+        errors.add(FieldError::with_code("field1", "error1"));
+        errors.add(FieldError::with_code("field2", "error2"));
 
         let resp = errors.to_response();
         assert_eq!(
@@ -785,36 +688,36 @@ mod tests {
 
     #[test]
     fn test_validation_error_out_of_range() {
-        let err = ValidationError::out_of_range("num", Some(1), Some(10));
+        let err = FieldError::out_of_range("num", Some(1), Some(10));
         assert!(err.message.contains("between 1 and 10"));
 
-        let err = ValidationError::out_of_range("num", Some(1), None);
+        let err = FieldError::out_of_range("num", Some(1), None);
         assert!(err.message.contains("at least 1"));
 
-        let err = ValidationError::out_of_range("num", None, Some(10));
+        let err = FieldError::out_of_range("num", None, Some(10));
         assert!(err.message.contains("at most 10"));
 
-        let err = ValidationError::out_of_range("num", None, None);
+        let err = FieldError::out_of_range("num", None, None);
         assert!(err.message.contains("invalid value"));
     }
 
     #[test]
     fn test_validation_error_too_long() {
-        let err = ValidationError::too_long("field", 100);
+        let err = FieldError::too_long("field", 100);
         assert!(err.message.contains("100 characters"));
         assert!(err.message.contains("field"));
     }
 
     #[test]
     fn test_validation_error_too_short() {
-        let err = ValidationError::too_short("field", 5);
+        let err = FieldError::too_short("field", 5);
         assert!(err.message.contains("at least 5 characters"));
         assert!(err.message.contains("field"));
     }
 
     #[test]
     fn test_validation_error_invalid_enum() {
-        let err = ValidationError::invalid_enum("status", &["active", "inactive", "pending"]);
+        let err = FieldError::invalid_enum("status", &["active", "inactive", "pending"]);
         assert!(err.message.contains("active, inactive, pending"));
         assert!(err.message.contains("invalid value"));
     }
@@ -975,7 +878,7 @@ mod tests {
     #[test]
     fn test_validation_errors_response_with_single_error() {
         let mut errors = ValidationErrors::new();
-        errors.add(ValidationError::new("field1", "error1"));
+        errors.add(FieldError::with_code("field1", "error1"));
         let resp = errors.to_response();
         assert_eq!(
             resp.status(),
@@ -986,9 +889,9 @@ mod tests {
     #[test]
     fn test_validation_errors_response_with_multiple_errors() {
         let mut errors = ValidationErrors::new();
-        errors.add(ValidationError::new("field1", "error1"));
-        errors.add(ValidationError::new("field2", "error2"));
-        errors.add(ValidationError::new("field3", "error3"));
+        errors.add(FieldError::with_code("field1", "error1"));
+        errors.add(FieldError::with_code("field2", "error2"));
+        errors.add(FieldError::with_code("field3", "error3"));
         let resp = errors.to_response();
         assert_eq!(
             resp.status(),
@@ -999,11 +902,11 @@ mod tests {
     #[test]
     fn test_validation_errors_add_if() {
         let mut errors = ValidationErrors::new();
-        errors.add_if(true, ValidationError::new("field", "error"));
+        errors.add_if(true, FieldError::with_code("field", "error"));
         assert!(errors.has_errors());
 
         let mut errors = ValidationErrors::new();
-        errors.add_if(false, ValidationError::new("field", "error"));
+        errors.add_if(false, FieldError::with_code("field", "error"));
         assert!(!errors.has_errors());
     }
 
@@ -1012,10 +915,10 @@ mod tests {
         let mut errors = ValidationErrors::new();
         assert_eq!(errors.len(), 0);
 
-        errors.add(ValidationError::new("f1", "e1"));
+        errors.add(FieldError::with_code("f1", "e1"));
         assert_eq!(errors.len(), 1);
 
-        errors.add(ValidationError::new("f2", "e2"));
+        errors.add(FieldError::with_code("f2", "e2"));
         assert_eq!(errors.len(), 2);
     }
 
@@ -1128,8 +1031,8 @@ mod tests {
         assert!(display.contains("0 errors"));
 
         let mut errors = ValidationErrors::new();
-        errors.add(ValidationError::new("f1", "e1"));
-        errors.add(ValidationError::new("f2", "e2"));
+        errors.add(FieldError::with_code("f1", "e1"));
+        errors.add(FieldError::with_code("f2", "e2"));
         let display = format!("{}", errors);
         assert!(display.contains("2 errors"));
     }
