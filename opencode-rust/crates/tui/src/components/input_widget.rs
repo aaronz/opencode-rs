@@ -631,4 +631,84 @@ mod tests {
 
         assert_eq!(input.get_chips().len(), 0);
     }
+
+    #[test]
+    fn test_multiline_shift_enter_inserts_newline() {
+        let theme = crate::theme::Theme::default();
+        let mut input = InputWidget::new_multiline(theme);
+
+        input.handle_input(KeyEvent::from(KeyCode::Char('h')));
+        input.handle_input(KeyEvent::from(KeyCode::Char('i')));
+
+        let shift_enter = KeyEvent::new(KeyCode::Enter, KeyModifiers::SHIFT);
+        input.handle_input(shift_enter);
+
+        input.handle_input(KeyEvent::from(KeyCode::Char('t')));
+        input.handle_input(KeyEvent::from(KeyCode::Char('h')));
+        input.handle_input(KeyEvent::from(KeyCode::Char('e')));
+
+        assert_eq!(input.get_content(), "hi\nthe");
+    }
+
+    #[test]
+    fn test_multiline_enter_submits_single_line() {
+        let theme = crate::theme::Theme::default();
+        let mut input = InputWidget::new_multiline(theme);
+
+        input.handle_input(KeyEvent::from(KeyCode::Char('h')));
+        input.handle_input(KeyEvent::from(KeyCode::Char('e')));
+        input.handle_input(KeyEvent::from(KeyCode::Char('l')));
+        input.handle_input(KeyEvent::from(KeyCode::Char('l')));
+        input.handle_input(KeyEvent::from(KeyCode::Char('o')));
+
+        let action = input.handle_input(KeyEvent::from(KeyCode::Enter));
+
+        assert!(matches!(action, InputAction::Submit(content) if content == "hello"));
+        assert_eq!(input.get_content(), "");
+    }
+
+    #[test]
+    fn test_multiline_history_works_across_input() {
+        let theme = crate::theme::Theme::default();
+        let mut input = InputWidget::new_multiline(theme);
+
+        input.handle_input(KeyEvent::from(KeyCode::Char('f')));
+        input.handle_input(KeyEvent::from(KeyCode::Char('i')));
+        input.handle_input(KeyEvent::from(KeyCode::Char('r')));
+        input.handle_input(KeyEvent::from(KeyCode::Char('s')));
+        input.handle_input(KeyEvent::from(KeyCode::Char('t')));
+
+        let shift_enter = KeyEvent::new(KeyCode::Enter, KeyModifiers::SHIFT);
+        input.handle_input(shift_enter);
+
+        input.handle_input(KeyEvent::from(KeyCode::Char('s')));
+        input.handle_input(KeyEvent::from(KeyCode::Char('e')));
+        input.handle_input(KeyEvent::from(KeyCode::Char('c')));
+        input.handle_input(KeyEvent::from(KeyCode::Char('o')));
+        input.handle_input(KeyEvent::from(KeyCode::Char('n')));
+        input.handle_input(KeyEvent::from(KeyCode::Char('d')));
+
+        let action = input.handle_input(KeyEvent::from(KeyCode::Enter));
+        assert!(matches!(action, InputAction::Submit(content) if content == "first\nsecond"));
+
+        input.handle_input(KeyEvent::from(KeyCode::Up));
+
+        assert_eq!(input.get_content(), "first\nsecond");
+    }
+
+    #[test]
+    fn test_non_multiline_enter_always_submits() {
+        let theme = crate::theme::Theme::default();
+        let mut input = InputWidget::new(theme);
+
+        input.handle_input(KeyEvent::from(KeyCode::Char('t')));
+        input.handle_input(KeyEvent::from(KeyCode::Char('e')));
+        input.handle_input(KeyEvent::from(KeyCode::Char('s')));
+        input.handle_input(KeyEvent::from(KeyCode::Char('t')));
+
+        let shift_enter = KeyEvent::new(KeyCode::Enter, KeyModifiers::SHIFT);
+        let action = input.handle_input(shift_enter);
+
+        assert!(matches!(action, InputAction::Submit(content) if content == "test"));
+    }
 }

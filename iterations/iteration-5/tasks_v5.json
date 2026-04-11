@@ -132,7 +132,7 @@
       "priority": "P1",
       "title": "Add Multiline Input Terminal Support",
       "description": "Add multiline input support using Shift+Enter to allow users to enter multi-line messages in the terminal.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Shift+Enter inserts newline",
         "Enter submits single-line input",
@@ -142,7 +142,7 @@
       "test_commands": [
         "cargo test -p opencode-tui multiline"
       ],
-      "impl_notes": "Need to distinguish between Enter (submit) and Shift+Enter (newline)",
+      "impl_notes": "Multiline input already implemented in InputWidget. Added 4 unit tests covering Shift+Enter newline insertion, Enter submission, history navigation with multiline content, and non-multiline widget always submitting.",
       "dependencies": []
     },
     {
