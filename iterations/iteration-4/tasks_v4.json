@@ -1548,7 +1548,7 @@
       "priority": "P0",
       "title": "GitHub workflow tests",
       "description": "Write tests for GitHub workflow triggers. Test workflow triggering and status monitoring.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Workflow triggers work correctly",
         "Status monitoring is accurate",

@@ -292,10 +292,12 @@ mod tests {
             let mut buffer = [0_u8; 8192];
             let _ = stream.read(&mut buffer).unwrap();
 
-            let status_line = if status_code == 200 {
-                "HTTP/1.1 200 OK"
-            } else {
-                "HTTP/1.1 404 Not Found"
+            let status_line = match status_code {
+                200 => "HTTP/1.1 200 OK",
+                403 => "HTTP/1.1 403 Forbidden",
+                404 => "HTTP/1.1 404 Not Found",
+                500 => "HTTP/1.1 500 Internal Server Error",
+                _ => "HTTP/1.1 500 Internal Server Error",
             };
 
             let response = format!(
@@ -483,6 +485,429 @@ mod tests {
                 assert!(body.contains("workflow not found"));
             }
             _ => panic!("expected API error"),
+        }
+    }
+
+    #[test]
+    fn github_workflow_trigger_issue_comment_parsing() {
+        let trigger_payload = serde_json::json!({
+            "type": "issue_comment",
+            "action": "created",
+            "issue": {
+                "number": 123,
+                "title": "Help needed",
+                "body": "Issue body",
+                "html_url": "https://github.com/owner/repo/issues/123"
+            },
+            "comment": {
+                "id": 456,
+                "body": "/opencode fix bug",
+                "user": {"login": "developer", "id": 1}
+            }
+        })
+        .to_string();
+
+        let trigger = crate::GitHubTrigger::from_str(&trigger_payload).unwrap();
+        assert!(matches!(trigger, crate::GitHubTrigger::IssueComment { .. }));
+        assert!(trigger.is_comment_triggered());
+        assert_eq!(trigger.extract_session_id(), Some("issue-123".to_string()));
+
+        let context = trigger.extract_context();
+        assert!(matches!(
+            context,
+            crate::TriggerContext::Issue {
+                issue_number: 123,
+                comment_id: 456,
+                user,
+                body
+            } if user == "developer" && body == "/opencode fix bug"
+        ));
+    }
+
+    #[test]
+    fn github_workflow_trigger_pr_review_parsing() {
+        let trigger_payload = serde_json::json!({
+            "type": "pull_request_review",
+            "action": "submitted",
+            "pull_request": {
+                "number": 42,
+                "title": "Add feature",
+                "body": "PR description",
+                "html_url": "https://github.com/owner/repo/pull/42",
+                "state": "open",
+                "head": {"ref": "feature", "sha": "abc123"},
+                "base": {"ref": "main", "sha": "def456"}
+            },
+            "review": {
+                "id": 789,
+                "body": "LGTM!",
+                "state": "approved",
+                "user": {"login": "reviewer", "id": 2}
+            }
+        })
+        .to_string();
+
+        let trigger = crate::GitHubTrigger::from_str(&trigger_payload).unwrap();
+        assert!(matches!(
+            trigger,
+            crate::GitHubTrigger::PullRequestReview { .. }
+        ));
+        assert!(trigger.is_pr_review_triggered());
+        assert_eq!(trigger.extract_session_id(), Some("pr-42".to_string()));
+
+        let context = trigger.extract_context();
+        assert!(matches!(
+            context,
+            crate::TriggerContext::PullRequest {
+                pr_number: 42,
+                review_id: 789,
+                review_state,
+                user,
+                body
+            } if review_state == "approved" && user == "reviewer"
+        ));
+    }
+
+    #[test]
+    fn github_workflow_trigger_workflow_dispatch_parsing() {
+        let trigger_payload = serde_json::json!({
+            "type": "workflow_dispatch",
+            "inputs": {
+                "environment": {"type": "string", "value": "production"},
+                "debug": {"type": "boolean", "value": true}
+            }
+        })
+        .to_string();
+
+        let trigger = crate::GitHubTrigger::from_str(&trigger_payload).unwrap();
+        assert!(matches!(
+            trigger,
+            crate::GitHubTrigger::WorkflowDispatch { .. }
+        ));
+        assert_eq!(trigger.trigger_type(), "workflow_dispatch");
+        assert!(!trigger.is_comment_triggered());
+        assert!(!trigger.is_pr_review_triggered());
+        assert_eq!(trigger.extract_session_id(), None);
+    }
+
+    #[test]
+    fn github_workflow_status_monitoring_queued() {
+        let body = serde_json::json!({
+            "workflow_runs": [
+                {
+                    "id": 1001,
+                    "name": "CI",
+                    "head_branch": "main",
+                    "status": "queued",
+                    "conclusion": null
+                }
+            ]
+        })
+        .to_string();
+
+        let api_base = spawn_server(200, body);
+        let client = GitHubClient::new("token", &api_base);
+
+        let runs = client
+            .list_workflow_runs("owner", "repo", "ci.yml")
+            .unwrap();
+        assert_eq!(runs.len(), 1);
+        assert_eq!(runs[0].status, "queued");
+        assert!(runs[0].conclusion.is_none());
+    }
+
+    #[test]
+    fn github_workflow_status_monitoring_in_progress() {
+        let body = serde_json::json!({
+            "workflow_runs": [
+                {
+                    "id": 1002,
+                    "name": "CI",
+                    "head_branch": "feature",
+                    "status": "in_progress",
+                    "conclusion": null
+                }
+            ]
+        })
+        .to_string();
+
+        let api_base = spawn_server(200, body);
+        let client = GitHubClient::new("token", &api_base);
+
+        let runs = client
+            .list_workflow_runs("owner", "repo", "ci.yml")
+            .unwrap();
+        assert_eq!(runs.len(), 1);
+        assert_eq!(runs[0].status, "in_progress");
+        assert!(runs[0].conclusion.is_none());
+    }
+
+    #[test]
+    fn github_workflow_status_monitoring_completed_success() {
+        let body = serde_json::json!({
+            "workflow_runs": [
+                {
+                    "id": 1003,
+                    "name": "CI",
+                    "head_branch": "main",
+                    "status": "completed",
+                    "conclusion": "success"
+                }
+            ]
+        })
+        .to_string();
+
+        let api_base = spawn_server(200, body);
+        let client = GitHubClient::new("token", &api_base);
+
+        let runs = client
+            .list_workflow_runs("owner", "repo", "ci.yml")
+            .unwrap();
+        assert_eq!(runs.len(), 1);
+        assert_eq!(runs[0].status, "completed");
+        assert_eq!(runs[0].conclusion, Some("success".to_string()));
+    }
+
+    #[test]
+    fn github_workflow_status_monitoring_completed_failure() {
+        let body = serde_json::json!({
+            "workflow_runs": [
+                {
+                    "id": 1004,
+                    "name": "CI",
+                    "head_branch": "develop",
+                    "status": "completed",
+                    "conclusion": "failure"
+                }
+            ]
+        })
+        .to_string();
+
+        let api_base = spawn_server(200, body);
+        let client = GitHubClient::new("token", &api_base);
+
+        let runs = client
+            .list_workflow_runs("owner", "repo", "ci.yml")
+            .unwrap();
+        assert_eq!(runs.len(), 1);
+        assert_eq!(runs[0].status, "completed");
+        assert_eq!(runs[0].conclusion, Some("failure".to_string()));
+    }
+
+    #[test]
+    fn github_workflow_status_monitoring_completed_cancelled() {
+        let body = serde_json::json!({
+            "workflow_runs": [
+                {
+                    "id": 1005,
+                    "name": "CI",
+                    "head_branch": "main",
+                    "status": "completed",
+                    "conclusion": "cancelled"
+                }
+            ]
+        })
+        .to_string();
+
+        let api_base = spawn_server(200, body);
+        let client = GitHubClient::new("token", &api_base);
+
+        let runs = client
+            .list_workflow_runs("owner", "repo", "ci.yml")
+            .unwrap();
+        assert_eq!(runs.len(), 1);
+        assert_eq!(runs[0].status, "completed");
+        assert_eq!(runs[0].conclusion, Some("cancelled".to_string()));
+    }
+
+    #[test]
+    fn github_workflow_status_monitoring_multiple_runs() {
+        let body = serde_json::json!({
+            "workflow_runs": [
+                {
+                    "id": 2001,
+                    "name": "CI",
+                    "head_branch": "main",
+                    "status": "completed",
+                    "conclusion": "success"
+                },
+                {
+                    "id": 2002,
+                    "name": "CI",
+                    "head_branch": "develop",
+                    "status": "completed",
+                    "conclusion": "failure"
+                },
+                {
+                    "id": 2003,
+                    "name": "CI",
+                    "head_branch": "feature",
+                    "status": "in_progress",
+                    "conclusion": null
+                }
+            ]
+        })
+        .to_string();
+
+        let api_base = spawn_server(200, body);
+        let client = GitHubClient::new("token", &api_base);
+
+        let runs = client
+            .list_workflow_runs("owner", "repo", "ci.yml")
+            .unwrap();
+        assert_eq!(runs.len(), 3);
+
+        let completed_runs: Vec<_> = runs.iter().filter(|r| r.status == "completed").collect();
+        let in_progress_runs: Vec<_> = runs.iter().filter(|r| r.status == "in_progress").collect();
+
+        assert_eq!(completed_runs.len(), 2);
+        assert_eq!(in_progress_runs.len(), 1);
+    }
+
+    #[test]
+    fn github_workflow_error_handling_forbidden() {
+        let api_base = spawn_server(403, "{\"message\":\"Forbidden\"}".to_string());
+        let client = GitHubClient::new("token", &api_base);
+
+        let err = client
+            .list_workflow_runs("owner", "repo", "ci.yml")
+            .unwrap_err();
+        match err {
+            GitHubError::Api { status, body } => {
+                assert_eq!(status, 403);
+                assert!(body.contains("Forbidden"));
+            }
+            _ => panic!("expected API error"),
+        }
+    }
+
+    #[test]
+    fn github_workflow_error_handling_not_found() {
+        let api_base = spawn_server(404, "{\"message\":\"workflow not found\"}".to_string());
+        let client = GitHubClient::new("token", &api_base);
+
+        let err = client
+            .trigger_workflow("owner", "repo", "nonexistent.yml", "main")
+            .unwrap_err();
+        match err {
+            GitHubError::Api { status, body } => {
+                assert_eq!(status, 404);
+                assert!(body.contains("workflow not found"));
+            }
+            _ => panic!("expected API error"),
+        }
+    }
+
+    #[test]
+    fn github_workflow_error_handling_server_error() {
+        let api_base = spawn_server(500, "{\"message\":\"Internal Server Error\"}".to_string());
+        let client = GitHubClient::new("token", &api_base);
+
+        let err = client
+            .list_workflow_runs("owner", "repo", "ci.yml")
+            .unwrap_err();
+        match err {
+            GitHubError::Api { status, body } => {
+                assert_eq!(status, 500);
+                assert!(body.contains("Internal Server Error"));
+            }
+            _ => panic!("expected API error"),
+        }
+    }
+
+    #[test]
+    fn github_workflow_trigger_different_branches() {
+        let test_cases = vec![
+            ("main", "main"),
+            ("develop", "develop"),
+            ("feature/new-feature", "feature/new-feature"),
+            ("bugfix/issue-123", "bugfix/issue-123"),
+        ];
+
+        for (branch_ref, expected_branch) in test_cases {
+            let body = serde_json::json!({
+                "id": 0,
+                "name": "workflow.yml",
+                "head_branch": expected_branch,
+                "status": "queued",
+                "conclusion": null
+            })
+            .to_string();
+
+            let api_base = spawn_server(200, body.clone());
+            let client = GitHubClient::new("token", &api_base);
+
+            let result = client.trigger_workflow("owner", "repo", "workflow.yml", branch_ref);
+            assert!(result.is_ok(), "Failed for branch: {}", branch_ref);
+            assert_eq!(result.unwrap().head_branch, expected_branch);
+        }
+    }
+
+    #[test]
+    fn github_workflow_trigger_with_special_characters_in_repo() {
+        let body = serde_json::json!({
+            "id": 0,
+            "name": "CI",
+            "head_branch": "main",
+            "status": "queued",
+            "conclusion": null
+        })
+        .to_string();
+
+        let api_base = spawn_server(200, body);
+        let client = GitHubClient::new("token", &api_base);
+
+        let result = client.trigger_workflow("my-org", "my-repo", "ci.yml", "main");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().head_branch, "main");
+    }
+
+    #[test]
+    fn github_workflow_status_with_various_conclusions() {
+        let conclusions = vec![
+            ("success", Some("success".to_string())),
+            ("failure", Some("failure".to_string())),
+            ("cancelled", Some("cancelled".to_string())),
+            ("timed_out", Some("timed_out".to_string())),
+            ("action_required", Some("action_required".to_string())),
+            ("neutral", Some("neutral".to_string())),
+            ("skipped", Some("skipped".to_string())),
+            ("stale", Some("stale".to_string())),
+            ("null", None),
+        ];
+
+        for (conclusion_name, expected_conclusion) in conclusions {
+            let conclusion_value = if conclusion_name == "null" {
+                serde_json::Value::Null
+            } else {
+                serde_json::Value::String(conclusion_name.to_string())
+            };
+
+            let body = serde_json::json!({
+                "workflow_runs": [
+                    {
+                        "id": 3000,
+                        "name": "CI",
+                        "head_branch": "main",
+                        "status": "completed",
+                        "conclusion": conclusion_value
+                    }
+                ]
+            })
+            .to_string();
+
+            let api_base = spawn_server(200, body);
+            let client = GitHubClient::new("token", &api_base);
+
+            let runs = client
+                .list_workflow_runs("owner", "repo", "ci.yml")
+                .unwrap();
+            assert_eq!(runs.len(), 1);
+            assert_eq!(
+                runs[0].conclusion, expected_conclusion,
+                "Failed for conclusion: {}",
+                conclusion_name
+            );
         }
     }
 }
