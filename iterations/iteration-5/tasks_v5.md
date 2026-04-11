@@ -120,7 +120,7 @@
 - [x] **P2-10:** Complete plugin cleanup/unload implementation
 
 ### TUI Tasks
-- [ ] **P2-11:** Implement shell prefix (`!`) handler
+- [x] **P2-11:** Implement shell prefix (`!`) handler
 - [ ] **P2-12:** Complete home view (recent sessions, quick actions)
 
 ### LLM Tasks

@@ -106,7 +106,7 @@ This plan outlines the implementation roadmap for the OpenCode Rust port, derive
 | P2-8 | lsp | Experimental LSP tool testing | Deferred |
 | P2-9 | server | API error shape consistency | Deferred |
 | P2-10 | plugin | Plugin cleanup/unload | Done |
-| P2-11 | tui | Shell prefix (`!`) handler | Deferred |
+| P2-11 | tui | Shell prefix (`!`) handler | Done |
 | P2-12 | tui | Home view completion | Deferred |
 | P2-13 | llm | LLM variant/reasoning budget | Deferred |
 | P2-14 | git | GitLab Duo experimental marking | Deferred |

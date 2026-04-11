@@ -425,7 +425,7 @@
       "priority": "P2",
       "title": "Implement Shell Prefix (!) Handler",
       "description": "Implement shell prefix (!) handler to execute shell commands from within TUI.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Commands starting with ! are interpreted as shell commands",
         "Shell commands execute and return output",
