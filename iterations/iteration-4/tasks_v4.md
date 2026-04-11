@@ -182,7 +182,7 @@
 
 | Task ID | Title | Module | FR | Phase | Status | Dependencies |
 |---------|-------|--------|-----|-------|--------|--------------|
-| P2-10 | Server API error shape consistency | server | FR-004 | Phase 1 | Pending | P0-15 |
+| P2-10 | Server API error shape consistency | server | FR-004 | Phase 1 | Done | P0-15 |
 
 ### Plugin System (1 item)
 

@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use chrono::{Utc, Duration};
 use uuid::Uuid;
 
+use crate::routes::error::{bad_request, not_found};
 use crate::ServerState;
 
 use std::sync::OnceLock;
@@ -80,9 +81,7 @@ pub async fn get_sso_config(
             has_certificate: config.certificate.is_some(),
             enabled: config.enabled,
         }),
-        None => HttpResponse::NotFound().json(serde_json::json!({
-            "error": "SSO not configured"
-        })),
+        None => not_found("SSO not configured"),
     }
 }
 
@@ -94,9 +93,7 @@ pub async fn update_sso_config(
         "saml" => SsoProvider::Saml,
         "oidc" => SsoProvider::Oidc,
         _ => {
-            return HttpResponse::BadRequest().json(serde_json::json!({
-                "error": "Invalid provider. Must be 'saml' or 'oidc'"
-            }));
+            return bad_request("Invalid provider. Must be 'saml' or 'oidc'");
         }
     };
     
@@ -131,16 +128,12 @@ pub async fn oidc_authorize(
     let config = match manager.get_config() {
         Some(c) if c.enabled => c.clone(),
         _ => {
-            return HttpResponse::BadRequest().json(serde_json::json!({
-                "error": "SSO not enabled or not configured"
-            }));
+            return bad_request("SSO not enabled or not configured");
         }
     };
     
     if !matches!(config.provider, SsoProvider::Oidc) {
-        return HttpResponse::BadRequest().json(serde_json::json!({
-            "error": "Provider is not OIDC"
-        }));
+        return bad_request("Provider is not OIDC");
     }
     
     let state = format!("state-{}", uuid::Uuid::new_v4());

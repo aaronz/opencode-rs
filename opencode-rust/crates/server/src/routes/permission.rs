@@ -1,3 +1,4 @@
+use crate::routes::error::bad_request;
 use crate::ServerState;
 use actix_web::{web, HttpResponse, Responder};
 
@@ -20,9 +21,7 @@ pub async fn permission_reply(
     let (_session_id, _req_id) = path.into_inner();
     let decision = body.decision.to_lowercase();
     if decision != "allow" && decision != "deny" {
-        return HttpResponse::BadRequest().json(serde_json::json!({
-            "error": "decision must be 'allow' or 'deny'"
-        }));
+        return bad_request("decision must be 'allow' or 'deny'");
     }
     tracing::info!(
         "Permission reply: session={}, req={}, decision={}",

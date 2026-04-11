@@ -91,8 +91,7 @@ impl ValidationError {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ValidationErrors {
-    #[serde(rename = "error")]
-    pub error_type: String,
+    pub error: String,
     pub message: String,
     pub code: u16,
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -102,7 +101,7 @@ pub struct ValidationErrors {
 impl ValidationErrors {
     pub fn new() -> Self {
         Self {
-            error_type: "validation_error".to_string(),
+            error: "validation_error".to_string(),
             message: "Request validation failed".to_string(),
             code: 422,
             details: Vec::new(),
@@ -147,7 +146,7 @@ impl ValidationErrors {
         }
 
         HttpResponse::UnprocessableEntity().json(serde_json::json!({
-            "error": self.error_type,
+            "error": self.error,
             "message": format!("Request validation failed with {} errors", self.details.len()),
             "code": self.code,
             "details": self.details

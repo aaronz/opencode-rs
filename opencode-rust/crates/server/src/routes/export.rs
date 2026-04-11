@@ -2,6 +2,7 @@ use actix_web::{web, HttpResponse, Responder};
 use opencode_core::share::{ShareManager, ExportFormat, ExportOptions};
 use serde::{Deserialize, Serialize};
 
+use crate::routes::error::not_found;
 use crate::ServerState;
 
 /// Response for export endpoints
@@ -41,14 +42,10 @@ pub async fn export_session_json(
     let session = match state.storage.load_session(&session_id).await {
         Ok(Some(s)) => s,
         Ok(None) => {
-            return HttpResponse::NotFound().json(serde_json::json!({
-                "error": "Session not found"
-            }));
+            return not_found("Session not found");
         }
         Err(e) => {
-            return HttpResponse::NotFound().json(serde_json::json!({
-                "error": format!("Session not found: {}", e)
-            }));
+            return not_found(format!("Session not found: {}", e));
         }
     };
     
@@ -81,14 +78,10 @@ pub async fn export_session_markdown(
     let session = match state.storage.load_session(&session_id).await {
         Ok(Some(s)) => s,
         Ok(None) => {
-            return HttpResponse::NotFound().json(serde_json::json!({
-                "error": "Session not found"
-            }));
+            return not_found("Session not found");
         }
         Err(e) => {
-            return HttpResponse::NotFound().json(serde_json::json!({
-                "error": format!("Session not found: {}", e)
-            }));
+            return not_found(format!("Session not found: {}", e));
         }
     };
     
@@ -116,14 +109,10 @@ pub async fn export_session_patch(
     let session = match state.storage.load_session(&session_id).await {
         Ok(Some(s)) => s,
         Ok(None) => {
-            return HttpResponse::NotFound().json(serde_json::json!({
-                "error": "Session not found"
-            }));
+            return not_found("Session not found");
         }
         Err(e) => {
-            return HttpResponse::NotFound().json(serde_json::json!({
-                "error": format!("Session not found: {}", e)
-            }));
+            return not_found(format!("Session not found: {}", e));
         }
     };
     

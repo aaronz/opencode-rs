@@ -1,4 +1,4 @@
-use crate::routes::error::json_error;
+use crate::routes::error::{bad_request, json_error};
 use crate::routes::validation::{validate_pagination, validate_session_id, RequestValidator};
 use crate::ServerState;
 use actix_web::{http::StatusCode, web, HttpResponse, Responder};
@@ -750,9 +750,7 @@ pub async fn permission_reply(
 
     let decision = body.decision.to_lowercase();
     if decision != "allow" && decision != "deny" {
-        return HttpResponse::BadRequest().json(serde_json::json!({
-            "error": "decision must be 'allow' or 'deny'"
-        }));
+        return bad_request("decision must be 'allow' or 'deny'");
     }
     tracing::info!(
         "Permission reply: session={}, req={}, decision={}",

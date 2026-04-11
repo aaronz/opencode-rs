@@ -1111,7 +1111,7 @@
       "priority": "P2",
       "title": "Config auth/secret storage",
       "description": "Implement secure storage for authentication secrets in configuration. Use OS keychain or similar secure storage.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "Secrets are stored securely",
         "Secrets are not exposed in config files",
@@ -1130,7 +1130,7 @@
       "priority": "P2",
       "title": "Server API error shape consistency",
       "description": "Ensure consistent error response shape across all server API endpoints. All errors should follow the same format.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "All endpoints return consistent error format",
         "Error codes are consistent",
