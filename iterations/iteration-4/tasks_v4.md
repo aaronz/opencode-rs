@@ -195,7 +195,7 @@
 | Task ID | Title | Module | FR | Phase | Status | Dependencies |
 |---------|-------|--------|-----|-------|--------|--------------|
 | P2-12 | Shell prefix (`!`) handling | tui | FR-018 | Phase 2 | Done | P1-14 |
-| P2-13 | Home view | tui | FR-018 | Phase 2 | Pending | None |
+| P2-13 | Home view | tui | FR-018 | Phase 2 | Done | None |
 
 ### LLM/Provider System (1 item)
 

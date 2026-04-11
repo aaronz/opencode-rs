@@ -1187,7 +1187,7 @@
       "priority": "P2",
       "title": "Home view",
       "description": "Implement a home view in the TUI. Display overview information, recent sessions, and quick actions on startup.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Home view displays on startup",
         "Recent sessions are shown",

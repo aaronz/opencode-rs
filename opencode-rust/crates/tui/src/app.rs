@@ -5,6 +5,7 @@ use crate::components::{
 };
 use crate::config::{Config, DiffStyle, UserConfig};
 use crate::dialogs::*;
+use crate::dialogs::home_view::{HomeAction, HomeView};
 use crate::file_ref_handler::FileRefHandler;
 use crate::input::{EditorLauncher, InputBox, InputParser, InputProcessor, InputToken};
 use crate::layout::LayoutManager;
@@ -320,6 +321,7 @@ impl MessageMeta {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AppMode {
+    Home,
     Chat,
     Timeline,
     ForkDialog,
@@ -465,6 +467,7 @@ pub struct App {
     pub file_selection_dialog: FileSelectionDialog,
     pub directory_selection_dialog: DirectorySelectionDialog,
     pub release_notes_dialog: ReleaseNotesDialog,
+    pub home_view: HomeView,
     pub file_tree: Option<FileTree>,
     pub show_file_tree: bool,
     pub layout_manager: LayoutManager,
@@ -524,6 +527,19 @@ pub struct App {
     mcp_manager: &'static McpManager,
     pub lsp_client: Option<LspClient>,
     pub lsp_diagnostics: Vec<Diagnostic>,
+}
+
+fn format_time_elapsed(duration: std::time::Duration) -> String {
+    let secs = duration.as_secs();
+    if secs < 60 {
+        format!("{}s ago", secs)
+    } else if secs < 3600 {
+        format!("{}m ago", secs / 60)
+    } else if secs < 86400 {
+        format!("{}h ago", secs / 3600)
+    } else {
+        format!("{}d ago", secs / 86400)
+    }
 }
 
 impl App {
@@ -599,7 +615,7 @@ impl App {
             llm_provider: None,
             llm_rx: None,
             connect_rx: None,
-            mode: AppMode::Chat,
+            mode: AppMode::Home,
             tui_state: TuiState::Idle,
             reconnect_timeout: None,
             command_palette_input: String::new(),
@@ -622,6 +638,7 @@ impl App {
             file_selection_dialog: FileSelectionDialog::new(theme.clone()),
             directory_selection_dialog: DirectorySelectionDialog::new(theme.clone()),
             release_notes_dialog: ReleaseNotesDialog::new(theme.clone()),
+            home_view: HomeView::new(theme.clone()),
             file_tree: None,
             show_file_tree: false,
             layout_manager,
@@ -1298,6 +1315,7 @@ impl App {
             }
 
             match self.mode {
+                AppMode::Home => self.handle_home_view(&mut terminal)?,
                 AppMode::CommandPalette => self.handle_command_palette(&mut terminal)?,
                 AppMode::SlashCommand => self.handle_slash_command_dialog(&mut terminal)?,
                 AppMode::DiffReview => self.handle_diff_review_dialog(&mut terminal)?,
@@ -3125,6 +3143,9 @@ OpenCode Agent Configuration
 
     fn draw(&mut self, f: &mut Frame) {
         match self.mode.clone() {
+            AppMode::Home => {
+                self.draw_home_view(f);
+            }
             AppMode::Timeline => self.draw_timeline(f),
             AppMode::ForkDialog => {
                 self.draw_timeline(f);
@@ -3564,6 +3585,228 @@ OpenCode Agent Configuration
             }
         }
         Ok(())
+    }
+
+    fn handle_home_view(
+        &mut self,
+        _terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    ) -> io::Result<()> {
+        if let Event::Key(key) = event::read()? {
+            if key.kind == KeyEventKind::Press {
+                match key.code {
+                    KeyCode::Esc => {
+                        self.mode = AppMode::Chat;
+                    }
+                    KeyCode::Enter => {
+                        let action = self.home_view.get_selected_action();
+                        match action {
+                            HomeAction::NewSession => {
+                                let session_count = self.session_manager.len();
+                                self.session_manager
+                                    .add_session(format!("Session {}", session_count + 1));
+                                self.mode = AppMode::Chat;
+                            }
+                            HomeAction::ContinueLast => {
+                                if let Some(session) = self.session_manager.current() {
+                                    self.add_message(
+                                        format!("Continuing session: {}", session.name),
+                                        false,
+                                    );
+                                }
+                                self.mode = AppMode::Chat;
+                            }
+                            HomeAction::ViewSessions => {
+                                self.mode = AppMode::Sessions;
+                            }
+                            HomeAction::Settings => {
+                                self.mode = AppMode::Settings;
+                            }
+                            HomeAction::Quit => {
+                                disable_raw_mode()?;
+                                std::process::exit(0);
+                            }
+                        }
+                    }
+                    KeyCode::Up | KeyCode::Char('k') => {
+                        self.home_view.move_selection(-1);
+                    }
+                    KeyCode::Down | KeyCode::Char('j') => {
+                        self.home_view.move_selection(1);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn draw_home_view(&mut self, f: &mut Frame) {
+        let theme = self.theme_manager.current().clone();
+        let area = f.area();
+
+        let welcome_text = vec![
+            Line::from(vec![
+                Span::styled("Welcome to ", Style::default().fg(theme.muted_color())),
+                Span::styled(
+                    "OpenCode",
+                    Style::default()
+                        .fg(theme.primary_color())
+                        .add_modifier(Modifier::BOLD),
+                ),
+            ]),
+            Line::from(vec![
+                Span::styled(
+                    format!("Version {}", env!("CARGO_PKG_VERSION")),
+                    Style::default().fg(theme.muted_color()),
+                ),
+            ]),
+        ];
+
+        let info_text = vec![Line::from(vec![
+            Span::styled("Model: ", Style::default().fg(theme.muted_color())),
+            Span::styled(
+                if self.model_aliases.is_empty() {
+                    "Not configured"
+                } else {
+                    "Configured"
+                },
+                Style::default().fg(theme.secondary_color()),
+            ),
+            Span::raw("  |  "),
+            Span::styled("Dir: ", Style::default().fg(theme.muted_color())),
+            Span::styled(
+                std::env::current_dir()
+                    .ok()
+                    .and_then(|p| p.file_name()?.to_str().map(String::from))
+                    .unwrap_or_else(|| ".".to_string()),
+                Style::default().fg(theme.primary_color()),
+            ),
+        ])];
+
+        let actions_title = Line::from(Span::styled(
+            "Quick Actions",
+            Style::default()
+                .fg(theme.accent_color())
+                .add_modifier(Modifier::BOLD),
+        ));
+
+        let mut action_lines: Vec<Line> = vec![actions_title];
+        for action in HomeAction::all() {
+            let is_selected = action == self.home_view.get_selected_action();
+            let key_style = if is_selected {
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(theme.primary_color())
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default()
+                    .fg(theme.warning_color())
+                    .add_modifier(Modifier::BOLD)
+            };
+            let label_style = if is_selected {
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(theme.primary_color())
+            } else {
+                Style::default().fg(theme.foreground_color())
+            };
+            action_lines.push(Line::from(vec![
+                Span::styled(format!("[{}] ", action.key()), key_style),
+                Span::styled(action.label(), label_style),
+            ]));
+        }
+
+        let sessions_title = Line::from(Span::styled(
+            "Recent Sessions",
+            Style::default()
+                .fg(theme.accent_color())
+                .add_modifier(Modifier::BOLD),
+        ));
+
+        let mut session_lines: Vec<Line> = vec![sessions_title];
+        let sessions = self.session_manager.list();
+        if sessions.is_empty() {
+            session_lines.push(Line::from(Span::styled(
+                "No recent sessions",
+                Style::default().fg(theme.muted_color()),
+            )));
+        } else {
+            for session in sessions.iter().take(5) {
+                let time_ago = format_time_elapsed(session.time_since_active());
+                session_lines.push(Line::from(vec![
+                    Span::styled(&session.name, Style::default().fg(theme.foreground_color())),
+                    Span::styled(
+                        format!(" ({})", time_ago),
+                        Style::default().fg(theme.muted_color()),
+                    ),
+                ]));
+            }
+        }
+
+        let hint_line = Line::from(vec![
+            Span::styled("↑↓", Style::default().fg(theme.muted_color())),
+            Span::raw(" Navigate "),
+            Span::styled("Enter", Style::default().fg(theme.muted_color())),
+            Span::raw(" Select "),
+            Span::styled("Esc", Style::default().fg(theme.muted_color())),
+            Span::raw(" Start chatting"),
+        ]);
+
+        let content_height = 4 + action_lines.len() + 2 + session_lines.len() + 3;
+        let content_width = 50u16.min(area.width.saturating_sub(10));
+        let content_x = (area.width - content_width) / 2;
+        let content_y = (area.height / 2).saturating_sub((content_height as u16) / 2);
+
+        let block = Block::default()
+            .title("Home")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(theme.primary_color()));
+
+        let outer_area = Rect::new(content_x, content_y, content_width, content_height as u16);
+        f.render_widget(block.clone(), outer_area);
+
+        let inner_area = block.inner(outer_area);
+        let mut y = inner_area.y;
+
+        for line in welcome_text {
+            f.render_widget(
+                Paragraph::new(vec![line]),
+                Rect::new(inner_area.x, y, inner_area.width, 1),
+            );
+            y += 1;
+        }
+        y += 1;
+
+        for line in info_text {
+            f.render_widget(
+                Paragraph::new(vec![line]),
+                Rect::new(inner_area.x, y, inner_area.width, 1),
+            );
+            y += 1;
+        }
+        y += 1;
+
+        for line in action_lines {
+            f.render_widget(
+                Paragraph::new(vec![line]),
+                Rect::new(inner_area.x, y, inner_area.width, 1),
+            );
+            y += 1;
+        }
+        y += 1;
+
+        for line in session_lines {
+            f.render_widget(
+                Paragraph::new(vec![line]),
+                Rect::new(inner_area.x, y, inner_area.width, 1),
+            );
+            y += 1;
+        }
+
+        f.render_widget(
+            Paragraph::new(vec![hint_line]),
+            Rect::new(outer_area.x, outer_area.bottom().saturating_sub(1), outer_area.width, 1),
+        );
     }
 
     fn handle_sessions_dialog(
