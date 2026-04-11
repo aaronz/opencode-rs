@@ -12,6 +12,7 @@ pub mod error;
 pub mod google;
 pub mod groq;
 pub mod huggingface;
+pub mod lm_studio;
 pub mod mistral;
 pub mod model_selection;
 pub mod models;
@@ -38,6 +39,7 @@ pub use auth::{
 };
 pub use error::{with_retry, LlmError, RetryConfig};
 pub use huggingface::HuggingFaceProvider;
+pub use lm_studio::LmStudioProvider;
 pub use models::ModelRegistry;
 pub use ollama::OllamaProvider;
 pub use openai::{BrowserAuthModelInfo, OpenAiProvider};
@@ -50,7 +52,8 @@ pub use provider::{
     StreamingCallback,
 };
 pub use provider_abstraction::{
-    DynProvider, ProviderFactory, ProviderIdentity, ProviderManager, ProviderSpec,
+    DynProvider, LocalInferenceProviderFactory, LmStudioProviderFactory, ProviderFactory,
+    ProviderIdentity, ProviderManager, ProviderSpec,
 };
 pub use provider_adapter::{
     AnthropicAdapter, LocalEndpointAdapter, OpenAICompatibleAdapter, ProviderAdapter,

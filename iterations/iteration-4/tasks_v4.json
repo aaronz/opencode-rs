@@ -868,7 +868,7 @@
       "priority": "P1",
       "title": "Local model providers",
       "description": "Implement support for local model providers (Ollama, LM Studio, etc.). Support local inference endpoints.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Ollama provider works correctly",
         "LM Studio provider works correctly",

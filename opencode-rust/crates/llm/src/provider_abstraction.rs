@@ -7,6 +7,7 @@ use crate::error::LlmError;
 use crate::provider::{ChatMessage, ChatResponse, Model, Provider, StreamingCallback};
 use crate::{AnthropicProvider, OllamaProvider, OpenAiProvider};
 use crate::google::GoogleProvider;
+use crate::lm_studio::LmStudioProvider;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ProviderIdentity {
@@ -37,6 +38,14 @@ impl ProviderIdentity {
     pub fn ollama(model: &str) -> Self {
         Self::new("ollama", Some(model))
     }
+
+    pub fn lmstudio(model: &str) -> Self {
+        Self::new("lmstudio", Some(model))
+    }
+
+    pub fn local(model: &str) -> Self {
+        Self::new("local", Some(model))
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -62,6 +71,16 @@ pub enum ProviderSpec {
     #[serde(rename = "ollama")]
     Ollama {
         base_url: Option<String>,
+        model: String,
+    },
+    #[serde(rename = "lmstudio")]
+    LmStudio {
+        base_url: Option<String>,
+        model: String,
+    },
+    #[serde(rename = "local")]
+    LocalInference {
+        base_url: String,
         model: String,
     },
     #[serde(rename = "azure")]
@@ -96,6 +115,8 @@ impl ProviderSpec {
             Self::Anthropic { .. } => "anthropic",
             Self::Google { .. } => "google",
             Self::Ollama { .. } => "ollama",
+            Self::LmStudio { .. } => "lmstudio",
+            Self::LocalInference { .. } => "local",
             Self::Azure { .. } => "azure",
             Self::OpenRouter { .. } => "openrouter",
             Self::Mistral { .. } => "mistral",
@@ -109,6 +130,8 @@ impl ProviderSpec {
             Self::Anthropic { model, .. } => model,
             Self::Google { model, .. } => model,
             Self::Ollama { model, .. } => model,
+            Self::LmStudio { model, .. } => model,
+            Self::LocalInference { model, .. } => model,
             Self::Azure { deployment, .. } => deployment,
             Self::OpenRouter { model, .. } => model,
             Self::Mistral { model, .. } => model,
@@ -228,6 +251,8 @@ impl ProviderManager {
         self.register_factory(Box::new(AnthropicProviderFactory));
         self.register_factory(Box::new(GoogleProviderFactory));
         self.register_factory(Box::new(OllamaProviderFactory));
+        self.register_factory(Box::new(LmStudioProviderFactory));
+        self.register_factory(Box::new(LocalInferenceProviderFactory));
     }
 
     pub fn register_factory(&mut self, factory: Box<dyn ProviderFactory>) {
@@ -283,6 +308,14 @@ impl ProviderManager {
             },
             "ollama" => ProviderSpec::Ollama {
                 base_url: Some("http://localhost:11434".to_string()),
+                model: model.clone(),
+            },
+            "lmstudio" => ProviderSpec::LmStudio {
+                base_url: Some("http://localhost:1234".to_string()),
+                model: model.clone(),
+            },
+            "local" => ProviderSpec::LocalInference {
+                base_url: "http://localhost:8080".to_string(),
                 model: model.clone(),
             },
             _ => return Err(LlmError::Provider(format!("Cannot create provider '{}' from identity - missing configuration", identity.provider_type))),
@@ -407,6 +440,58 @@ impl ProviderFactory for OllamaProviderFactory {
 
     fn supports(&self, spec: &ProviderSpec) -> bool {
         matches!(spec, ProviderSpec::Ollama { .. })
+    }
+}
+
+pub struct LmStudioProviderFactory;
+
+impl ProviderFactory for LmStudioProviderFactory {
+    fn name(&self) -> &str {
+        "lmstudio"
+    }
+
+    fn create(&self, spec: &ProviderSpec) -> Result<DynProvider, LlmError> {
+        match spec {
+            ProviderSpec::LmStudio { base_url, model } => {
+                let provider = LmStudioProvider::new(model.clone(), base_url.clone());
+                let identity = ProviderIdentity::new("lmstudio", Some(model));
+                Ok(DynProvider::with_identity(provider, identity))
+            }
+            _ => Err(LlmError::Provider(format!(
+                "LmStudio factory cannot create provider from {:?}",
+                spec
+            ))),
+        }
+    }
+
+    fn supports(&self, spec: &ProviderSpec) -> bool {
+        matches!(spec, ProviderSpec::LmStudio { .. })
+    }
+}
+
+pub struct LocalInferenceProviderFactory;
+
+impl ProviderFactory for LocalInferenceProviderFactory {
+    fn name(&self) -> &str {
+        "local"
+    }
+
+    fn create(&self, spec: &ProviderSpec) -> Result<DynProvider, LlmError> {
+        match spec {
+            ProviderSpec::LocalInference { base_url, model } => {
+                let provider = LmStudioProvider::new(model.clone(), Some(base_url.clone()));
+                let identity = ProviderIdentity::new("local", Some(model));
+                Ok(DynProvider::with_identity(provider, identity))
+            }
+            _ => Err(LlmError::Provider(format!(
+                "LocalInference factory cannot create provider from {:?}",
+                spec
+            ))),
+        }
+    }
+
+    fn supports(&self, spec: &ProviderSpec) -> bool {
+        matches!(spec, ProviderSpec::LocalInference { .. })
     }
 }
 
