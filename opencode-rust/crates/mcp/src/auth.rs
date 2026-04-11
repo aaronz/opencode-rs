@@ -617,4 +617,183 @@ mod tests {
 
         assert!(manager.is_server_oauth_enabled("github"));
     }
+
+    #[test]
+    fn test_oauth_token_stored_per_server_not_shared() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mut store = McpAuthTokenStore::new(tmp.path().to_path_buf());
+        store.load().unwrap();
+
+        let token1 = McpOAuthToken {
+            server_name: "server-a".to_string(),
+            access_token: "token_for_server_a".to_string(),
+            refresh_token: Some("refresh_a".to_string()),
+            token_type: "Bearer".to_string(),
+            expires_in: 3600,
+            scope: Some("scope_a".to_string()),
+            received_at: chrono::Utc::now(),
+        };
+
+        let token2 = McpOAuthToken {
+            server_name: "server-b".to_string(),
+            access_token: "token_for_server_b".to_string(),
+            refresh_token: Some("refresh_b".to_string()),
+            token_type: "Bearer".to_string(),
+            expires_in: 7200,
+            scope: Some("scope_b".to_string()),
+            received_at: chrono::Utc::now(),
+        };
+
+        store.store_token(token1).unwrap();
+        store.store_token(token2).unwrap();
+
+        let retrieved_a = store.get_token("server-a").unwrap();
+        let retrieved_b = store.get_token("server-b").unwrap();
+
+        assert_eq!(retrieved_a.access_token, "token_for_server_a");
+        assert_eq!(retrieved_a.server_name, "server-a");
+        assert_eq!(retrieved_b.access_token, "token_for_server_b");
+        assert_eq!(retrieved_b.server_name, "server-b");
+
+        assert_ne!(retrieved_a.access_token, retrieved_b.access_token);
+        assert_ne!(retrieved_a.refresh_token, retrieved_b.refresh_token);
+        assert_ne!(retrieved_a.scope, retrieved_b.scope);
+    }
+
+    #[test]
+    fn test_oauth_token_retrieved_correctly_for_each_server() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mut manager = McpOAuthManager::new(tmp.path().to_path_buf());
+
+        let config1 = McpOAuthConfig::new(
+            "client1".to_string(),
+            "https://auth1.example.com/authorize".to_string(),
+            "https://auth1.example.com/token".to_string(),
+        );
+        let config2 = McpOAuthConfig::new(
+            "client2".to_string(),
+            "https://auth2.example.com/authorize".to_string(),
+            "https://auth2.example.com/token".to_string(),
+        );
+
+        manager.register_server_oauth("svc1", config1).unwrap();
+        manager.register_server_oauth("svc2", config2).unwrap();
+
+        let token1 = McpOAuthToken {
+            server_name: "svc1".to_string(),
+            access_token: "access_token_svc1".to_string(),
+            refresh_token: Some("refresh_token_svc1".to_string()),
+            token_type: "Bearer".to_string(),
+            expires_in: 3600,
+            scope: Some("read".to_string()),
+            received_at: chrono::Utc::now(),
+        };
+
+        let token2 = McpOAuthToken {
+            server_name: "svc2".to_string(),
+            access_token: "access_token_svc2".to_string(),
+            refresh_token: Some("refresh_token_svc2".to_string()),
+            token_type: "Bearer".to_string(),
+            expires_in: 7200,
+            scope: Some("write".to_string()),
+            received_at: chrono::Utc::now(),
+        };
+
+        manager.store_token(token1).unwrap();
+        manager.store_token(token2).unwrap();
+
+        let retrieved1 = manager.get_token("svc1").unwrap();
+        let retrieved2 = manager.get_token("svc2").unwrap();
+
+        assert_eq!(retrieved1.access_token, "access_token_svc1");
+        assert_eq!(
+            retrieved1.refresh_token.as_deref(),
+            Some("refresh_token_svc1")
+        );
+        assert_eq!(retrieved1.expires_in, 3600);
+
+        assert_eq!(retrieved2.access_token, "access_token_svc2");
+        assert_eq!(
+            retrieved2.refresh_token.as_deref(),
+            Some("refresh_token_svc2")
+        );
+        assert_eq!(retrieved2.expires_in, 7200);
+    }
+
+    #[test]
+    fn test_oauth_token_security_file_permissions() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mut store = McpAuthTokenStore::new(tmp.path().to_path_buf());
+        store.load().unwrap();
+
+        let token = McpOAuthToken {
+            server_name: "secure".to_string(),
+            access_token: "secret_access_token_12345".to_string(),
+            refresh_token: Some("secret_refresh_token_67890".to_string()),
+            token_type: "Bearer".to_string(),
+            expires_in: 3600,
+            scope: Some("admin".to_string()),
+            received_at: chrono::Utc::now(),
+        };
+
+        store.store_token(token).unwrap();
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let metadata = std::fs::metadata(store.file_path()).unwrap();
+            let permissions = metadata.permissions();
+            let mode = permissions.mode();
+            assert_eq!(
+                mode & 0o777,
+                0o600,
+                "Token file should have 0o600 permissions (owner read/write only)"
+            );
+        }
+
+        #[cfg(windows)]
+        {
+            let metadata = std::fs::metadata(store.file_path()).unwrap();
+            assert!(
+                metadata.permissions().readonly(),
+                "Token file should be readonly on Windows"
+            );
+        }
+    }
+
+    #[test]
+    fn test_oauth_token_persistence_across_store_reloads() {
+        let tmp = tempfile::tempdir().unwrap();
+        let data_path = tmp.path().to_path_buf();
+
+        {
+            let mut store = McpAuthTokenStore::new(data_path.clone());
+            store.load().unwrap();
+
+            let token = McpOAuthToken {
+                server_name: "persistent-server".to_string(),
+                access_token: "persistent_token_value".to_string(),
+                refresh_token: Some("persistent_refresh".to_string()),
+                token_type: "Bearer".to_string(),
+                expires_in: 3600,
+                scope: Some("persistent_scope".to_string()),
+                received_at: chrono::Utc::now(),
+            };
+
+            store.store_token(token).unwrap();
+        }
+
+        {
+            let mut store = McpAuthTokenStore::new(data_path);
+            store.load().unwrap();
+
+            let retrieved = store.get_token("persistent-server").unwrap();
+            assert_eq!(retrieved.access_token, "persistent_token_value");
+            assert_eq!(
+                retrieved.refresh_token.as_deref(),
+                Some("persistent_refresh")
+            );
+            assert_eq!(retrieved.server_name, "persistent-server");
+        }
+    }
 }

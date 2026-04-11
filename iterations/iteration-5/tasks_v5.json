@@ -323,7 +323,7 @@
       "priority": "P2",
       "title": "Complete Result Caching Invalidation",
       "description": "Complete result caching invalidation to ensure stale cache entries are properly invalidated.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "Cache is invalidated when source changes",
         "Invalidation is triggered appropriately",
@@ -340,7 +340,7 @@
       "priority": "P2",
       "title": "Verify Per-server OAuth Token Storage",
       "description": "Verify that per-server OAuth tokens are stored correctly for MCP integration.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "OAuth tokens are stored per-server",
         "Tokens are retrieved correctly",

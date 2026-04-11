@@ -107,7 +107,7 @@
 - [ ] **P2-5:** Complete result caching invalidation
 
 ### MCP Tasks
-- [ ] **P2-6:** Verify per-server OAuth token storage
+- [x] **P2-6:** Verify per-server OAuth token storage
 - [ ] **P2-7:** Add context cost warnings
 
 ### LSP Tasks
