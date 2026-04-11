@@ -3432,8 +3432,10 @@ version = "0.1.0"
 dependencies = [
  "criterion",
  "opencode-core",
+ "opencode-plugin",
  "opencode-storage",
  "opencode-tools",
+ "serde_json",
  "tempfile",
  "tokio",
 ]

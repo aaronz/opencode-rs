@@ -1643,7 +1643,7 @@
       "priority": "P0",
       "title": "Performance baselines",
       "description": "Establish performance baselines for all major subsystems. Measure and document performance characteristics.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Baselines are established for all P0 systems",
         "Performance is measured accurately",
