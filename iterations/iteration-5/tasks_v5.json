@@ -442,7 +442,7 @@
       "priority": "P2",
       "title": "Complete Home View",
       "description": "Complete home view with recent sessions and quick actions.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Recent sessions are displayed",
         "Quick actions are accessible",

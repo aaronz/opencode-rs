@@ -104,6 +104,15 @@ impl HomeView {
         let new_idx = new_idx.min(actions.len() - 1);
         self.selected_action = actions[new_idx];
     }
+
+    pub fn update_from_session_manager(&mut self, session_manager: &SessionManager) {
+        self.recent_sessions = session_manager
+            .list()
+            .into_iter()
+            .take(5)
+            .cloned()
+            .collect();
+    }
 }
 
 impl Dialog for HomeView {
@@ -388,5 +397,21 @@ mod tests {
     fn test_home_action_to_string() {
         assert_eq!(HomeAction::NewSession.to_string(), "new_session");
         assert_eq!(HomeAction::Settings.to_string(), "settings");
+    }
+
+    #[test]
+    fn test_home_view_update_from_session_manager() {
+        use crate::session::SessionManager;
+        let theme = crate::theme::Theme::default();
+        let mut view = HomeView::new(theme);
+        assert!(view.recent_sessions.is_empty());
+
+        let mut session_manager = SessionManager::new();
+        session_manager.add_session("Test Session 1");
+        session_manager.add_session("Test Session 2");
+
+        view.update_from_session_manager(&session_manager);
+        assert_eq!(view.recent_sessions.len(), 2);
+        assert_eq!(view.recent_sessions[0].name, "Test Session 1");
     }
 }

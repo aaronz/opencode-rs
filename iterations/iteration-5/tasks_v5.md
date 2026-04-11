@@ -121,7 +121,7 @@
 
 ### TUI Tasks
 - [x] **P2-11:** Implement shell prefix (`!`) handler
-- [ ] **P2-12:** Complete home view (recent sessions, quick actions)
+- [x] **P2-12:** Complete home view (recent sessions, quick actions)
 
 ### LLM Tasks
 - [ ] **P2-13:** Implement variant/reasoning budget
