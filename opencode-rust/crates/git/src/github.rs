@@ -373,4 +373,116 @@ mod tests {
             _ => panic!("expected api error"),
         }
     }
+
+    #[test]
+    fn github_triggers_workflow_via_api() {
+        let body = serde_json::json!({
+            "id": 12345678,
+            "name": "Test Workflow",
+            "head_branch": "main",
+            "status": "queued",
+            "conclusion": null
+        })
+        .to_string();
+
+        let api_base = spawn_server(200, body);
+        let client = GitHubClient::new("token", &api_base);
+
+        let result = client.trigger_workflow("owner", "repo", "test-workflow.yml", "main");
+        assert!(result.is_ok());
+
+        let run = result.unwrap();
+        assert_eq!(run.name, "test-workflow.yml");
+        assert_eq!(run.head_branch, "main");
+        assert_eq!(run.status, "queued");
+    }
+
+    #[test]
+    fn github_triggers_pass_correct_parameters() {
+        let body = r#"{}"#.to_string();
+        let api_base = spawn_server(200, body);
+        let client = GitHubClient::new("test-token", &api_base);
+
+        let result = client.trigger_workflow("myorg", "myrepo", "ci.yml", "feature-branch");
+        assert!(result.is_ok());
+
+        let run = result.unwrap();
+        assert_eq!(run.head_branch, "feature-branch");
+        assert_eq!(run.name, "ci.yml");
+    }
+
+    #[test]
+    fn github_triggers_report_workflow_status() {
+        let body = serde_json::json!({
+            "workflow_runs": [
+                {
+                    "id": 9876543,
+                    "name": "CI",
+                    "head_branch": "main",
+                    "status": "completed",
+                    "conclusion": "success"
+                },
+                {
+                    "id": 9876544,
+                    "name": "CI",
+                    "head_branch": "develop",
+                    "status": "in_progress",
+                    "conclusion": null
+                }
+            ]
+        })
+        .to_string();
+
+        let api_base = spawn_server(200, body);
+        let client = GitHubClient::new("token", &api_base);
+
+        let runs = client
+            .list_workflow_runs("owner", "repo", "ci.yml")
+            .unwrap();
+        assert_eq!(runs.len(), 2);
+
+        assert_eq!(runs[0].id, 9876543);
+        assert_eq!(runs[0].status, "completed");
+        assert_eq!(runs[0].conclusion, Some("success".to_string()));
+
+        assert_eq!(runs[1].id, 9876544);
+        assert_eq!(runs[1].status, "in_progress");
+        assert_eq!(runs[1].conclusion, None);
+    }
+
+    #[test]
+    fn github_triggers_workflow_dispatch_with_inputs() {
+        let body = serde_json::json!({
+            "id": 111,
+            "name": "manual-workflow",
+            "head_branch": "main",
+            "status": "queued",
+            "conclusion": null
+        })
+        .to_string();
+
+        let api_base = spawn_server(200, body);
+        let client = GitHubClient::new("token", &api_base);
+
+        let result = client.trigger_workflow("owner", "repo", "manual.yml", "main");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().status, "queued");
+    }
+
+    #[test]
+    fn github_triggers_error_handling() {
+        let api_base = spawn_server(404, "{\"message\":\"workflow not found\"}".to_string());
+        let client = GitHubClient::new("token", &api_base);
+
+        let err = client.trigger_workflow("owner", "repo", "nonexistent.yml", "main");
+        assert!(err.is_err());
+
+        match err.unwrap_err() {
+            GitHubError::Api { status, body } => {
+                assert_eq!(status, 404);
+                assert!(body.contains("workflow not found"));
+            }
+            _ => panic!("expected API error"),
+        }
+    }
 }

@@ -138,7 +138,7 @@
 
 | Task ID | Title | Module | FR | Phase | Status | Dependencies |
 |---------|-------|--------|-----|-------|--------|--------------|
-| P1-32 | GitHub workflow triggers | git | FR-016 | Phase 4 | Pending | Phase 4 start |
+| P1-32 | GitHub workflow triggers | git | FR-016 | Phase 4 | ✅ Done | Phase 4 start |
 
 ---
 

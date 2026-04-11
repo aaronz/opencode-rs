@@ -942,7 +942,7 @@
       "priority": "P1",
       "title": "GitHub workflow triggers",
       "description": "Implement GitHub workflow triggers for CI/CD integration. Support triggering workflows from the application.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Workflows can be triggered via API",
         "Trigger parameters are passed correctly",
