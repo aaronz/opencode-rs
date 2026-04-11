@@ -104,6 +104,20 @@ impl MigrationManager {
                     "INSERT INTO schema_migrations (version) VALUES (?)",
                     params![version],
                 )?;
+            } else if version == 2 {
+                c.execute_batch(
+                    "CREATE TABLE plugin_states (
+                        plugin_id TEXT PRIMARY KEY,
+                        state_data TEXT NOT NULL,
+                        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    );
+                    CREATE INDEX idx_plugin_states_updated_at ON plugin_states(updated_at);",
+                )?;
+
+                c.execute(
+                    "INSERT INTO schema_migrations (version) VALUES (?)",
+                    params![version],
+                )?;
             }
             Ok(())
         })

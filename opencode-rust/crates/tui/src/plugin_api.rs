@@ -771,6 +771,153 @@ pub enum PluginEventError {
     SubscriptionFailed(String),
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum PluginStateError {
+    #[error("state serialization error: {0}")]
+    SerializationError(String),
+    #[error("state I/O error: {0}")]
+    IoError(String),
+    #[error("plugin not found: {0}")]
+    PluginNotFound(String),
+    #[error("invalid state data: {0}")]
+    InvalidData(String),
+}
+
+pub struct PluginStateRegistry {
+    states: RwLock<HashMap<String, serde_json::Value>>,
+    state_dir: std::path::PathBuf,
+}
+
+impl PluginStateRegistry {
+    pub fn new(state_dir: std::path::PathBuf) -> Self {
+        Self {
+            states: RwLock::new(HashMap::new()),
+            state_dir,
+        }
+    }
+
+    pub fn with_default_dir() -> Self {
+        let state_dir = dirs::data_local_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join(".opencode")
+            .join("plugin_states");
+        Self::new(state_dir)
+    }
+
+    fn state_file_path(&self, plugin_id: &str) -> std::path::PathBuf {
+        let safe_filename = plugin_id.replace(['/', '\\', ':', '.'], "_");
+        self.state_dir.join(format!("{}.json", safe_filename))
+    }
+
+    pub fn save_state(
+        &self,
+        plugin_id: &str,
+        state: serde_json::Value,
+    ) -> Result<(), PluginStateError> {
+        let states_dir = &self.state_dir;
+        if !states_dir.exists() {
+            std::fs::create_dir_all(states_dir)
+                .map_err(|e| PluginStateError::IoError(e.to_string()))?;
+        }
+
+        let file_path = self.state_file_path(plugin_id);
+        let json = serde_json::to_string_pretty(&state)
+            .map_err(|e| PluginStateError::SerializationError(e.to_string()))?;
+
+        std::fs::write(&file_path, json).map_err(|e| PluginStateError::IoError(e.to_string()))?;
+
+        let mut states = self.states.write().unwrap();
+        states.insert(plugin_id.to_string(), state);
+
+        Ok(())
+    }
+
+    pub fn load_state(
+        &self,
+        plugin_id: &str,
+    ) -> Result<Option<serde_json::Value>, PluginStateError> {
+        {
+            let states = self.states.read().unwrap();
+            if let Some(state) = states.get(plugin_id) {
+                return Ok(Some(state.clone()));
+            }
+        }
+
+        let file_path = self.state_file_path(plugin_id);
+        if !file_path.exists() {
+            return Ok(None);
+        }
+
+        let content = std::fs::read_to_string(&file_path)
+            .map_err(|e| PluginStateError::IoError(e.to_string()))?;
+
+        let state: serde_json::Value = serde_json::from_str(&content)
+            .map_err(|e| PluginStateError::InvalidData(e.to_string()))?;
+
+        let mut states = self.states.write().unwrap();
+        states.insert(plugin_id.to_string(), state.clone());
+
+        Ok(Some(state))
+    }
+
+    pub fn delete_state(&self, plugin_id: &str) -> Result<(), PluginStateError> {
+        let file_path = self.state_file_path(plugin_id);
+        if file_path.exists() {
+            std::fs::remove_file(&file_path)
+                .map_err(|e| PluginStateError::IoError(e.to_string()))?;
+        }
+
+        let mut states = self.states.write().unwrap();
+        states.remove(plugin_id);
+
+        Ok(())
+    }
+
+    pub fn get_state_keys(&self) -> Vec<String> {
+        let states = self.states.read().unwrap();
+        states.keys().cloned().collect()
+    }
+
+    pub fn has_state(&self, plugin_id: &str) -> bool {
+        let states = self.states.read().unwrap();
+        if states.contains_key(plugin_id) {
+            return true;
+        }
+        drop(states);
+        self.state_file_path(plugin_id).exists()
+    }
+
+    pub fn clear_all_states(&self) -> Result<(), PluginStateError> {
+        let mut states = self.states.write().unwrap();
+        states.clear();
+
+        if self.state_dir.exists() {
+            for entry in std::fs::read_dir(&self.state_dir)
+                .map_err(|e| PluginStateError::IoError(e.to_string()))?
+            {
+                let entry = entry.map_err(|e| PluginStateError::IoError(e.to_string()))?;
+                if entry
+                    .path()
+                    .extension()
+                    .map(|e| e == "json")
+                    .unwrap_or(false)
+                {
+                    std::fs::remove_file(entry.path())
+                        .map_err(|e| PluginStateError::IoError(e.to_string()))?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl Default for PluginStateRegistry {
+    fn default() -> Self {
+        Self::with_default_dir()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

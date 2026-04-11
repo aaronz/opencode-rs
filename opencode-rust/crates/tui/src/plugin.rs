@@ -4,8 +4,9 @@ use std::sync::{Arc, RwLock};
 use crate::plugin_api::{
     CommandContext, CommandResult, PluginCommand, PluginCommandError, PluginCommandRegistry,
     PluginEvent, PluginEventData, PluginEventError, PluginEventRegistry, PluginRoute,
-    PluginRouteError, PluginRouteRegistry, PluginTheme, PluginThemeError, PluginThemeRegistry,
-    RegisteredEvent, RegisteredTheme, RouteContext, RouteParams, RouteResult,
+    PluginRouteError, PluginRouteRegistry, PluginStateError, PluginStateRegistry, PluginTheme,
+    PluginThemeError, PluginThemeRegistry, RegisteredEvent, RegisteredTheme, RouteContext,
+    RouteParams,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -34,6 +35,7 @@ pub struct TuiPluginManager {
     route_registry: Arc<PluginRouteRegistry>,
     theme_registry: Arc<PluginThemeRegistry>,
     event_registry: Arc<PluginEventRegistry>,
+    state_registry: Arc<PluginStateRegistry>,
 }
 
 impl TuiPluginManager {
@@ -45,6 +47,7 @@ impl TuiPluginManager {
             route_registry: Arc::new(PluginRouteRegistry::new()),
             theme_registry: Arc::new(PluginThemeRegistry::new()),
             event_registry: Arc::new(PluginEventRegistry::new()),
+            state_registry: Arc::new(PluginStateRegistry::with_default_dir()),
         }
     }
 
@@ -303,12 +306,45 @@ impl TuiPluginManager {
         self.event_registry.list_subscriptions_for_plugin(plugin_id)
     }
 
+    pub fn state_registry(&self) -> Arc<PluginStateRegistry> {
+        Arc::clone(&self.state_registry)
+    }
+
+    pub fn save_plugin_state(
+        &self,
+        plugin_id: &str,
+        state: serde_json::Value,
+    ) -> Result<(), PluginStateError> {
+        if !self.plugins.read().unwrap().contains_key(plugin_id) {
+            return Err(PluginStateError::PluginNotFound(plugin_id.to_string()));
+        }
+        self.state_registry.save_state(plugin_id, state)
+    }
+
+    pub fn load_plugin_state(
+        &self,
+        plugin_id: &str,
+    ) -> Result<Option<serde_json::Value>, PluginStateError> {
+        if !self.plugins.read().unwrap().contains_key(plugin_id) {
+            return Err(PluginStateError::PluginNotFound(plugin_id.to_string()));
+        }
+        self.state_registry.load_state(plugin_id)
+    }
+
+    pub fn delete_plugin_state(&self, plugin_id: &str) -> Result<(), PluginStateError> {
+        if !self.plugins.read().unwrap().contains_key(plugin_id) {
+            return Err(PluginStateError::PluginNotFound(plugin_id.to_string()));
+        }
+        self.state_registry.delete_state(plugin_id)
+    }
+
     pub fn clear(&self) {
         self.plugins.write().unwrap().clear();
         self.command_registry.clear();
         self.route_registry.clear();
         self.theme_registry.clear();
         self.event_registry.clear();
+        let _ = self.state_registry.clear_all_states();
     }
 }
 
@@ -589,11 +625,11 @@ mod tests {
             &self.name
         }
 
-        fn render(&self, _ctx: &RouteContext) -> RouteResult {
+        fn render(&self, _ctx: &RouteContext) -> crate::plugin_api::RouteResult {
             if self.should_succeed {
-                RouteResult::success("Route rendered")
+                crate::plugin_api::RouteResult::success("Route rendered")
             } else {
-                RouteResult::error("Route render failed")
+                crate::plugin_api::RouteResult::error("Route render failed")
             }
         }
     }

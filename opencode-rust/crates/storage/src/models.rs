@@ -237,3 +237,10 @@ impl TryFrom<SessionModel> for Session {
         serde_json::from_str(&model.data).map_err(|e| OpenCodeError::Storage(e.to_string()))
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PluginStateModel {
+    pub plugin_id: String,
+    pub state_data: String,
+    pub updated_at: DateTime<Utc>,
+}
