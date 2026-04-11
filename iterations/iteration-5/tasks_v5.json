@@ -1,3 +1,4 @@
+Updated P2-14 to status: done
 {
   "tasks": [
     {
@@ -476,7 +477,7 @@
       "priority": "P2",
       "title": "Mark GitLab Duo as Experimental",
       "description": "Mark GitLab Duo feature as experimental in documentation and code.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "GitLab Duo is marked as experimental",
         "Documentation reflects experimental status",

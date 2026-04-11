@@ -1,3 +1,29 @@
+//! GitLab CI Integration (Experimental)
+//!
+//! ⚠️ **Experimental Feature**: GitLab Duo support is experimental and subject to change.
+//!
+//! This module provides integration with GitLab CI/CD for the OpenCode agent.
+//! GitLab Duo is an experimental feature whose availability depends on:
+//! - GitLab product tier (Premium/Ultimate required for Duo features)
+//! - Deployment setup and configuration
+//! - upstream integration path adopted for the Rust port
+//!
+//! ## Usage Warning
+//!
+//! Users are advised that:
+//! - API surface may change in future releases
+//! - Not all GitLab Duo features may be available
+//! - Feature availability is environment-dependent
+//!
+//! ## Example
+//!
+//! ```ignore
+//! use opencode_git::{GitLabClient, setup_gitlab_ci};
+//!
+//! let client = GitLabClient::new(token, "https://gitlab.com/api/v4");
+//! let result = setup_gitlab_ci(&client, "group/project", "main", false);
+//! ```
+
 use crate::gitlab::GitLabClient;
 use crate::{GitLabError, SecretRequirement};
 use serde::{Deserialize, Serialize};

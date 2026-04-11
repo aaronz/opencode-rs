@@ -1,3 +1,18 @@
+//! Git and CI Integration Library
+//!
+//! This crate provides Git repository management and CI/CD integration capabilities.
+//!
+//! ## GitLab Duo (Experimental)
+//!
+//! ⚠️ **Warning**: GitLab Duo support is **experimental** and subject to change.
+//!
+//! GitLab Duo features depend on:
+//! - GitLab product tier (Premium/Ultimate required)
+//! - Deployment configuration
+//! - Environment setup
+//!
+//! See [`crate::gitlab_ci`] module for experimental GitLab CI features.
+
 use git2::{DiffFormat, DiffOptions, Repository, StatusOptions};
 use opencode_core::OpenCodeError;
 use std::path::Path;
@@ -5,6 +20,14 @@ use std::path::Path;
 pub mod github;
 pub mod gitlab;
 pub mod gitlab_ci;
+#[deprecated(
+    since = "0.1.0",
+    note = "GitLab Duo is experimental and environment-dependent. API may change in future releases."
+)]
+pub use gitlab_ci::{
+    get_gitlab_ci_template, setup_gitlab_ci, GitLabCiSetupResult, GitLabCiTemplate,
+    GitLabCiTrigger, GitLabJobResult, GitLabPipelineStatus, GitLabPipelineTriggerResult,
+};
 pub mod trigger;
 pub mod workflow;
 pub use github::{
@@ -14,10 +37,6 @@ pub use github::{
 pub use gitlab::{
     GitLabCiVariable, GitLabClient, GitLabError, GitLabFileCommit, GitLabFileContent, GitLabJob,
     GitLabPipeline, GitLabProject,
-};
-pub use gitlab_ci::{
-    get_gitlab_ci_template, setup_gitlab_ci, GitLabCiSetupResult, GitLabCiTemplate,
-    GitLabCiTrigger, GitLabJobResult, GitLabPipelineStatus, GitLabPipelineTriggerResult,
 };
 pub use trigger::{
     CiSecrets, GitHubTrigger, GitHubTrigger as Trigger, TriggerContext, TriggerParseError,
