@@ -238,7 +238,7 @@
       "priority": "P1",
       "title": "Add Request Validation Edge Case Tests",
       "description": "Add more request validation edge case tests for the server API.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Edge cases like empty strings, max length, special characters",
         "Invalid JSON handling",

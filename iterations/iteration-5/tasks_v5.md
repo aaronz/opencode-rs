@@ -89,7 +89,7 @@
 
 ### Server API Tasks
 
-- [ ] **P1-11:** Add more request validation edge case tests
+- [x] **P1-11:** Add more request validation edge case tests
 
 ---
 

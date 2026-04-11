@@ -588,4 +588,549 @@ mod tests {
         assert_eq!(limit, 200);
         assert_eq!(offset, 10000);
     }
+
+    #[test]
+    fn test_string_validator_empty_string() {
+        let mut errors = ValidationErrors::new();
+        StringValidator::new("field", "", &mut errors).not_empty();
+        assert!(errors.has_errors());
+        assert_eq!(errors.len(), 1);
+        assert!(errors.details[0].message.contains("cannot be empty"));
+    }
+
+    #[test]
+    fn test_string_validator_whitespace_only() {
+        let mut errors = ValidationErrors::new();
+        StringValidator::new("field", "   \t\n  ", &mut errors).not_empty();
+        assert!(errors.has_errors());
+    }
+
+    #[test]
+    fn test_string_validator_max_length_boundary() {
+        let mut errors = ValidationErrors::new();
+        StringValidator::new("field", "abc", &mut errors).max_length(3);
+        assert!(!errors.has_errors());
+
+        let mut errors = ValidationErrors::new();
+        StringValidator::new("field", "abcd", &mut errors).max_length(3);
+        assert!(errors.has_errors());
+    }
+
+    #[test]
+    fn test_string_validator_min_length_boundary() {
+        let mut errors = ValidationErrors::new();
+        StringValidator::new("field", "abc", &mut errors).min_length(3);
+        assert!(!errors.has_errors());
+
+        let mut errors = ValidationErrors::new();
+        StringValidator::new("field", "ab", &mut errors).min_length(3);
+        assert!(errors.has_errors());
+    }
+
+    #[test]
+    fn test_string_validator_special_characters() {
+        let mut errors = ValidationErrors::new();
+        StringValidator::new("field", "hello world!@#$%^&*()", &mut errors)
+            .min_length(1)
+            .max_length(100);
+        assert!(!errors.has_errors());
+
+        let mut errors = ValidationErrors::new();
+        StringValidator::new("field", "nöüe", &mut errors)
+            .min_length(1)
+            .max_length(100);
+        assert!(!errors.has_errors());
+
+        let mut errors = ValidationErrors::new();
+        StringValidator::new("field", "🎉🔥💻", &mut errors)
+            .min_length(1)
+            .max_length(100);
+        assert!(!errors.has_errors());
+    }
+
+    #[test]
+    fn test_string_validator_unicode() {
+        let mut errors = ValidationErrors::new();
+        StringValidator::new("field", "中文测试", &mut errors)
+            .min_length(1)
+            .max_length(100);
+        assert!(!errors.has_errors());
+
+        let mut errors = ValidationErrors::new();
+        StringValidator::new("field", "עברית", &mut errors)
+            .min_length(1)
+            .max_length(100);
+        assert!(!errors.has_errors());
+    }
+
+    #[test]
+    fn test_string_validator_regex_pattern() {
+        let mut errors = ValidationErrors::new();
+        StringValidator::new("field", "abc123", &mut errors)
+            .matches(r"^[a-z0-9]+$", "lowercase alphanumeric");
+        assert!(!errors.has_errors());
+
+        let mut errors = ValidationErrors::new();
+        StringValidator::new("field", "ABC123", &mut errors)
+            .matches(r"^[a-z0-9]+$", "lowercase alphanumeric");
+        assert!(errors.has_errors());
+    }
+
+    #[test]
+    fn test_string_validator_invalid_regex() {
+        let mut errors = ValidationErrors::new();
+        StringValidator::new("field", "value", &mut errors).matches(r"[invalid", "valid pattern");
+        assert!(!errors.has_errors());
+    }
+
+    #[test]
+    fn test_string_validator_uuid_variants() {
+        let valid_uuids = vec![
+            "550e8400-e29b-41d4-a716-446655440000",
+            "00000000-0000-0000-0000-000000000000",
+            "ffffffff-ffff-ffff-ffff-ffffffffffff",
+            "123e4567-e89b-12d3-a456-426614174000",
+        ];
+        for uuid in valid_uuids {
+            let mut errors = ValidationErrors::new();
+            StringValidator::new("id", uuid, &mut errors).valid_uuid();
+            assert!(!errors.has_errors(), "UUID {} should be valid", uuid);
+        }
+
+        let invalid_uuids = vec![
+            "not-a-uuid",
+            "550e8400-e29b-41d4-a716",
+            "550e8400-e29b-41d4-a716-44665544000g",
+            "",
+            "550e8400-e29b-41d4-a716-446655440000-extra",
+        ];
+        for uuid in invalid_uuids {
+            let mut errors = ValidationErrors::new();
+            StringValidator::new("id", uuid, &mut errors).valid_uuid();
+            assert!(errors.has_errors(), "UUID '{}' should be invalid", uuid);
+        }
+    }
+
+    #[test]
+    fn test_string_validator_url_variants() {
+        let valid_urls = vec![
+            "http://example.com",
+            "https://example.com",
+            "https://example.com:8080",
+            "https://example.com/path",
+            "https://example.com/path?query=1",
+            "https://user:pass@example.com",
+            "ftp://example.com",
+        ];
+        for url in valid_urls {
+            let mut errors = ValidationErrors::new();
+            StringValidator::new("url", url, &mut errors).valid_url();
+            assert!(!errors.has_errors(), "URL {} should be valid", url);
+        }
+
+        let invalid_urls = vec!["not-a-url", "example.com", "http://", ""];
+        for url in invalid_urls {
+            let mut errors = ValidationErrors::new();
+            StringValidator::new("url", url, &mut errors).valid_url();
+            assert!(errors.has_errors(), "URL '{}' should be invalid", url);
+        }
+    }
+
+    #[test]
+    fn test_optional_string_validator() {
+        let mut errors = ValidationErrors::new();
+        OptionalStringValidator::new("field", None, &mut errors)
+            .if_present_matches(r"^[a-z]+$", "lowercase letters");
+        assert!(!errors.has_errors());
+
+        let mut errors = ValidationErrors::new();
+        OptionalStringValidator::new("field", Some("ABC"), &mut errors)
+            .if_present_matches(r"^[a-z]+$", "lowercase letters");
+        assert!(errors.has_errors());
+    }
+
+    #[test]
+    fn test_number_validator_boundary() {
+        let mut errors = ValidationErrors::new();
+        NumberValidator::new("num".to_string(), 5usize, &mut errors).range(1, 10);
+        assert!(!errors.has_errors());
+
+        let mut errors = ValidationErrors::new();
+        NumberValidator::new("num".to_string(), 0usize, &mut errors).range(1, 10);
+        assert!(errors.has_errors());
+
+        let mut errors = ValidationErrors::new();
+        NumberValidator::new("num".to_string(), 11usize, &mut errors).range(1, 10);
+        assert!(errors.has_errors());
+    }
+
+    #[test]
+    fn test_number_validator_min_max() {
+        let mut errors = ValidationErrors::new();
+        NumberValidator::new("num".to_string(), 1usize, &mut errors).min(1);
+        assert!(!errors.has_errors());
+
+        let mut errors = ValidationErrors::new();
+        NumberValidator::new("num".to_string(), 0usize, &mut errors).min(1);
+        assert!(errors.has_errors());
+
+        let mut errors = ValidationErrors::new();
+        NumberValidator::new("num".to_string(), 10usize, &mut errors).max(10);
+        assert!(!errors.has_errors());
+
+        let mut errors = ValidationErrors::new();
+        NumberValidator::new("num".to_string(), 11usize, &mut errors).max(10);
+        assert!(errors.has_errors());
+    }
+
+    #[test]
+    fn test_validation_error_out_of_range() {
+        let err = ValidationError::out_of_range("num", Some(1), Some(10));
+        assert!(err.message.contains("between 1 and 10"));
+
+        let err = ValidationError::out_of_range("num", Some(1), None);
+        assert!(err.message.contains("at least 1"));
+
+        let err = ValidationError::out_of_range("num", None, Some(10));
+        assert!(err.message.contains("at most 10"));
+
+        let err = ValidationError::out_of_range("num", None, None);
+        assert!(err.message.contains("invalid value"));
+    }
+
+    #[test]
+    fn test_validation_error_too_long() {
+        let err = ValidationError::too_long("field", 100);
+        assert!(err.message.contains("100 characters"));
+        assert!(err.message.contains("field"));
+    }
+
+    #[test]
+    fn test_validation_error_too_short() {
+        let err = ValidationError::too_short("field", 5);
+        assert!(err.message.contains("at least 5 characters"));
+        assert!(err.message.contains("field"));
+    }
+
+    #[test]
+    fn test_validation_error_invalid_enum() {
+        let err = ValidationError::invalid_enum("status", &["active", "inactive", "pending"]);
+        assert!(err.message.contains("active, inactive, pending"));
+        assert!(err.message.contains("invalid value"));
+    }
+
+    #[test]
+    fn test_validate_session_id_edge_cases() {
+        assert!(validate_session_id("00000000-0000-0000-0000-000000000000").is_ok());
+        assert!(validate_session_id("ffffffff-ffff-ffff-ffff-ffffffffffff").is_ok());
+        assert!(validate_session_id("").is_err());
+        assert!(validate_session_id("invalid").is_err());
+        assert!(validate_session_id("123").is_err());
+    }
+
+    #[test]
+    fn test_validate_message_index_edge_cases() {
+        assert!(validate_message_index(0, 10).is_ok());
+        assert!(validate_message_index(5, 10).is_ok());
+        assert!(validate_message_index(9, 10).is_ok());
+        assert!(validate_message_index(10, 10).is_err());
+        assert!(validate_message_index(11, 10).is_err());
+        assert!(validate_message_index(0, 0).is_ok());
+        assert!(validate_message_index(100, 0).is_err());
+    }
+
+    #[test]
+    fn test_validate_command_edge_cases() {
+        assert!(validate_command("ls", None, None).is_ok());
+        assert!(validate_command("ls", Some(&vec!["-la".to_string()]), None).is_ok());
+        assert!(validate_command("", None, None).is_err());
+
+        let long_command = "a".repeat(1001);
+        assert!(validate_command(&long_command, None, None).is_err());
+
+        let long_arg = "a".repeat(10001);
+        assert!(validate_command("cmd", Some(&vec![long_arg]), None).is_err());
+
+        let long_workdir = "a".repeat(1001);
+        assert!(validate_command("cmd", None, Some(&long_workdir)).is_err());
+
+        let empty_arg = "".to_string();
+        assert!(validate_command("cmd", Some(&vec![empty_arg]), None).is_ok());
+    }
+
+    #[test]
+    fn test_request_validator_required_string_edge_cases() {
+        let mut validator = RequestValidator::new();
+        validator.validate_required_string("field", None);
+        assert!(!validator.is_valid());
+
+        let mut validator = RequestValidator::new();
+        validator.validate_required_string("field", Some(""));
+        assert!(!validator.is_valid());
+
+        let mut validator = RequestValidator::new();
+        validator.validate_required_string("field", Some("   "));
+        assert!(!validator.is_valid());
+
+        let mut validator = RequestValidator::new();
+        validator.validate_required_string("field", Some("value"));
+        assert!(validator.is_valid());
+    }
+
+    #[test]
+    fn test_request_validator_optional_string_edge_cases() {
+        let mut validator = RequestValidator::new();
+        validator.validate_optional_string("field", None, 100);
+        assert!(validator.is_valid());
+
+        let mut validator = RequestValidator::new();
+        validator.validate_optional_string("field", Some("value"), 100);
+        assert!(validator.is_valid());
+
+        let long_value = "a".repeat(101);
+        let mut validator = RequestValidator::new();
+        validator.validate_optional_string("field", Some(&long_value), 100);
+        assert!(!validator.is_valid());
+    }
+
+    #[test]
+    fn test_request_validator_required_uuid_edge_cases() {
+        let mut validator = RequestValidator::new();
+        validator.validate_required_uuid("id", None);
+        assert!(!validator.is_valid());
+
+        let mut validator = RequestValidator::new();
+        validator.validate_required_uuid("id", Some("invalid"));
+        assert!(!validator.is_valid());
+
+        let mut validator = RequestValidator::new();
+        validator.validate_required_uuid("id", Some("550e8400-e29b-41d4-a716-446655440000"));
+        assert!(validator.is_valid());
+    }
+
+    #[test]
+    fn test_request_validator_required_number_edge_cases() {
+        let mut validator = RequestValidator::new();
+        validator.validate_required_number("num", None, 0, 100);
+        assert!(!validator.is_valid());
+
+        let mut validator = RequestValidator::new();
+        validator.validate_required_number("num", Some(50), 0, 100);
+        assert!(validator.is_valid());
+
+        let mut validator = RequestValidator::new();
+        validator.validate_required_number("num", Some(0), 0, 100);
+        assert!(validator.is_valid());
+
+        let mut validator = RequestValidator::new();
+        validator.validate_required_number("num", Some(100), 0, 100);
+        assert!(validator.is_valid());
+
+        let mut validator = RequestValidator::new();
+        validator.validate_required_number("num", Some(101), 0, 100);
+        assert!(!validator.is_valid());
+
+        let mut validator = RequestValidator::new();
+        validator.validate_required_number("num", Some(200), 0, 100);
+        assert!(!validator.is_valid());
+    }
+
+    #[test]
+    fn test_request_validator_optional_number_edge_cases() {
+        let mut validator = RequestValidator::new();
+        validator.validate_optional_number("num", None, 0, 100);
+        assert!(validator.is_valid());
+
+        let mut validator = RequestValidator::new();
+        validator.validate_optional_number("num", Some(50), 0, 100);
+        assert!(validator.is_valid());
+
+        let mut validator = RequestValidator::new();
+        validator.validate_optional_number("num", Some(101), 0, 100);
+        assert!(!validator.is_valid());
+    }
+
+    #[test]
+    fn test_request_validator_enum_edge_cases() {
+        let mut validator = RequestValidator::new();
+        validator.validate_enum("status", "active", &["active", "inactive"]);
+        assert!(validator.is_valid());
+
+        let mut validator = RequestValidator::new();
+        validator.validate_enum("status", "unknown", &["active", "inactive"]);
+        assert!(!validator.is_valid());
+
+        let mut validator = RequestValidator::new();
+        validator.validate_enum("status", "ACTIVE", &["active", "inactive"]);
+        assert!(!validator.is_valid());
+    }
+
+    #[test]
+    fn test_validation_errors_response_with_empty_details() {
+        let errors = ValidationErrors::new();
+        let resp = errors.to_response();
+        assert_eq!(resp.status(), actix_web::http::StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn test_validation_errors_response_with_single_error() {
+        let mut errors = ValidationErrors::new();
+        errors.add(ValidationError::new("field1", "error1"));
+        let resp = errors.to_response();
+        assert_eq!(
+            resp.status(),
+            actix_web::http::StatusCode::UNPROCESSABLE_ENTITY
+        );
+    }
+
+    #[test]
+    fn test_validation_errors_response_with_multiple_errors() {
+        let mut errors = ValidationErrors::new();
+        errors.add(ValidationError::new("field1", "error1"));
+        errors.add(ValidationError::new("field2", "error2"));
+        errors.add(ValidationError::new("field3", "error3"));
+        let resp = errors.to_response();
+        assert_eq!(
+            resp.status(),
+            actix_web::http::StatusCode::UNPROCESSABLE_ENTITY
+        );
+    }
+
+    #[test]
+    fn test_validation_errors_add_if() {
+        let mut errors = ValidationErrors::new();
+        errors.add_if(true, ValidationError::new("field", "error"));
+        assert!(errors.has_errors());
+
+        let mut errors = ValidationErrors::new();
+        errors.add_if(false, ValidationError::new("field", "error"));
+        assert!(!errors.has_errors());
+    }
+
+    #[test]
+    fn test_validation_errors_len() {
+        let mut errors = ValidationErrors::new();
+        assert_eq!(errors.len(), 0);
+
+        errors.add(ValidationError::new("f1", "e1"));
+        assert_eq!(errors.len(), 1);
+
+        errors.add(ValidationError::new("f2", "e2"));
+        assert_eq!(errors.len(), 2);
+    }
+
+    #[test]
+    fn test_validate_pagination_edge_cases() {
+        assert_eq!(validate_pagination(None, None), (20, 0));
+        assert_eq!(validate_pagination(Some(0), None), (0, 0));
+        assert_eq!(validate_pagination(None, Some(0)), (20, 0));
+        assert_eq!(validate_pagination(Some(1), Some(1)), (1, 1));
+        assert_eq!(validate_pagination(Some(200), Some(10000)), (200, 10000));
+        assert_eq!(validate_pagination(Some(201), Some(10001)), (200, 10000));
+        assert_eq!(validate_pagination(Some(1000), Some(20000)), (200, 10000));
+    }
+
+    #[test]
+    fn test_string_validator_max_length_zero() {
+        let mut errors = ValidationErrors::new();
+        StringValidator::new("field", "", &mut errors).max_length(0);
+        assert!(!errors.has_errors());
+
+        let mut errors = ValidationErrors::new();
+        StringValidator::new("field", "a", &mut errors).max_length(0);
+        assert!(errors.has_errors());
+    }
+
+    #[test]
+    fn test_string_validator_min_length_zero() {
+        let mut errors = ValidationErrors::new();
+        StringValidator::new("field", "", &mut errors).min_length(0);
+        assert!(!errors.has_errors());
+
+        let mut errors = ValidationErrors::new();
+        StringValidator::new("field", "a", &mut errors).min_length(0);
+        assert!(!errors.has_errors());
+    }
+
+    #[test]
+    fn test_string_validator_emoji_and_symbols() {
+        let emoji = "👨‍👩‍👧‍👦 🔥 💻 42";
+        let mut errors = ValidationErrors::new();
+        StringValidator::new("field", emoji, &mut errors)
+            .min_length(1)
+            .max_length(50);
+        assert!(!errors.has_errors());
+
+        let sql_injection = "'; DROP TABLE users; --";
+        let mut errors = ValidationErrors::new();
+        StringValidator::new("field", sql_injection, &mut errors)
+            .min_length(1)
+            .max_length(1000);
+        assert!(!errors.has_errors());
+
+        let xss = "<script>alert('xss')</script>";
+        let mut errors = ValidationErrors::new();
+        StringValidator::new("field", xss, &mut errors)
+            .min_length(1)
+            .max_length(1000);
+        assert!(!errors.has_errors());
+    }
+
+    #[test]
+    fn test_validate_command_with_special_chars_in_args() {
+        let special_args = vec![
+            "arg with spaces".to_string(),
+            "arg\twith\ttabs".to_string(),
+            "arg\nwith\nnewlines".to_string(),
+            "arg\"with\"quotes".to_string(),
+            "arg'with'singlequotes".to_string(),
+            "arg$with$dollars".to_string(),
+            "arg`with`backticks".to_string(),
+        ];
+        for arg in special_args {
+            let result = validate_command("cmd", Some(&vec![arg.clone()]), None);
+            assert!(result.is_ok(), "arg '{}' should be valid", arg);
+        }
+    }
+
+    #[test]
+    fn test_validate_workdir_edge_cases() {
+        assert!(validate_command("ls", None, Some("/tmp")).is_ok());
+        assert!(validate_command("ls", None, Some("/")).is_ok());
+        assert!(validate_command("ls", None, Some("")).is_ok());
+        assert!(validate_command("ls", None, Some("   ")).is_ok());
+
+        let long_path = "/".repeat(1001);
+        let mut errors = ValidationErrors::new();
+        StringValidator::new("workdir", &long_path, &mut errors).max_length(1000);
+        assert!(errors.has_errors());
+
+        let max_path = "/".repeat(1000);
+        let mut errors = ValidationErrors::new();
+        StringValidator::new("workdir", &max_path, &mut errors).max_length(1000);
+        assert!(!errors.has_errors());
+    }
+
+    #[test]
+    fn test_request_validator_multiple_field_validation() {
+        let mut validator = RequestValidator::new();
+        validator.validate_required_string("field1", Some("value1"));
+        validator.validate_required_string("field2", Some(""));
+        validator.validate_required_string("field3", None);
+        assert!(!validator.is_valid());
+        assert_eq!(validator.errors().len(), 2);
+    }
+
+    #[test]
+    fn test_validation_error_display() {
+        let errors = ValidationErrors::new();
+        let display = format!("{}", errors);
+        assert!(display.contains("0 errors"));
+
+        let mut errors = ValidationErrors::new();
+        errors.add(ValidationError::new("f1", "e1"));
+        errors.add(ValidationError::new("f2", "e2"));
+        let display = format!("{}", errors);
+        assert!(display.contains("2 errors"));
+    }
 }
