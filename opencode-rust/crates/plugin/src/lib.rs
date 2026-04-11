@@ -1558,6 +1558,391 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_hook_order_on_tool_call_is_deterministic() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
+
+        let call_order = Arc::new(AtomicUsize::new(0));
+        let call_sequence: Arc<std::sync::Mutex<Vec<String>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+
+        struct OrderedToolPlugin {
+            name: String,
+            call_count: Arc<AtomicUsize>,
+            call_sequence: Arc<std::sync::Mutex<Vec<String>>>,
+        }
+
+        impl OrderedToolPlugin {
+            fn new(name: &str, call_count: Arc<AtomicUsize>, call_sequence: Arc<std::sync::Mutex<Vec<String>>>) -> Self {
+                Self {
+                    name: name.to_string(),
+                    call_count,
+                    call_sequence,
+                }
+            }
+        }
+
+        impl Plugin for OrderedToolPlugin {
+            fn name(&self) -> &str {
+                &self.name
+            }
+
+            fn version(&self) -> &str {
+                "1.0.0"
+            }
+
+            fn init(&mut self) -> Result<(), PluginError> {
+                Ok(())
+            }
+
+            fn shutdown(&mut self) -> Result<(), PluginError> {
+                Ok(())
+            }
+
+            fn description(&self) -> &str {
+                "ordered plugin for testing"
+            }
+
+            fn on_tool_call(&mut self, _tool_name: &str, _args: &Value, _session_id: &str) -> Result<(), PluginError> {
+                let order = self.call_count.fetch_add(1, Ordering::SeqCst);
+                let mut seq = self.call_sequence.lock().unwrap();
+                if seq.len() == order as usize {
+                    seq.push(self.name.clone());
+                } else {
+                    seq.push(format!("OUT_OF_ORDER:{}", self.name));
+                }
+                Ok(())
+            }
+        }
+
+        let mut manager = PluginManager::new();
+
+        let plugin_alpha = OrderedToolPlugin::new("tool-alpha", call_order.clone(), call_sequence.clone());
+        let plugin_beta = OrderedToolPlugin::new("tool-beta", call_order.clone(), call_sequence.clone());
+        let plugin_gamma = OrderedToolPlugin::new("tool-gamma", call_order.clone(), call_sequence.clone());
+
+        manager.register(Box::new(plugin_alpha)).unwrap();
+        manager.register(Box::new(plugin_beta)).unwrap();
+        manager.register(Box::new(plugin_gamma)).unwrap();
+
+        let args = serde_json::json!({"file": "test.txt"});
+        manager.on_tool_call_all("read", &args, "session-123").unwrap();
+
+        let sequence = call_sequence.lock().unwrap();
+        assert_eq!(sequence.len(), 3, "Expected 3 plugins to be called, got {}", sequence.len());
+        assert_eq!(sequence[0], "tool-alpha", "First plugin should be tool-alpha, got {}", sequence[0]);
+        assert_eq!(sequence[1], "tool-beta", "Second plugin should be tool-beta, got {}", sequence[1]);
+        assert_eq!(sequence[2], "tool-gamma", "Third plugin should be tool-gamma, got {}", sequence[2]);
+    }
+
+    #[test]
+    fn test_hook_order_on_message_is_deterministic() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
+
+        let call_order = Arc::new(AtomicUsize::new(0));
+        let call_sequence: Arc<std::sync::Mutex<Vec<String>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+
+        struct OrderedMessagePlugin {
+            name: String,
+            call_count: Arc<AtomicUsize>,
+            call_sequence: Arc<std::sync::Mutex<Vec<String>>>,
+        }
+
+        impl OrderedMessagePlugin {
+            fn new(name: &str, call_count: Arc<AtomicUsize>, call_sequence: Arc<std::sync::Mutex<Vec<String>>>) -> Self {
+                Self {
+                    name: name.to_string(),
+                    call_count,
+                    call_sequence,
+                }
+            }
+        }
+
+        impl Plugin for OrderedMessagePlugin {
+            fn name(&self) -> &str {
+                &self.name
+            }
+
+            fn version(&self) -> &str {
+                "1.0.0"
+            }
+
+            fn init(&mut self) -> Result<(), PluginError> {
+                Ok(())
+            }
+
+            fn shutdown(&mut self) -> Result<(), PluginError> {
+                Ok(())
+            }
+
+            fn description(&self) -> &str {
+                "ordered plugin for testing"
+            }
+
+            fn on_message(&mut self, _content: &str, _session_id: &str) -> Result<(), PluginError> {
+                let order = self.call_count.fetch_add(1, Ordering::SeqCst);
+                let mut seq = self.call_sequence.lock().unwrap();
+                if seq.len() == order as usize {
+                    seq.push(self.name.clone());
+                } else {
+                    seq.push(format!("OUT_OF_ORDER:{}", self.name));
+                }
+                Ok(())
+            }
+        }
+
+        let mut manager = PluginManager::new();
+
+        let plugin_first = OrderedMessagePlugin::new("msg-first", call_order.clone(), call_sequence.clone());
+        let plugin_second = OrderedMessagePlugin::new("msg-second", call_order.clone(), call_sequence.clone());
+        let plugin_third = OrderedMessagePlugin::new("msg-third", call_order.clone(), call_sequence.clone());
+
+        manager.register(Box::new(plugin_first)).unwrap();
+        manager.register(Box::new(plugin_second)).unwrap();
+        manager.register(Box::new(plugin_third)).unwrap();
+
+        manager.on_message_all("Hello world", "session-123").unwrap();
+
+        let sequence = call_sequence.lock().unwrap();
+        assert_eq!(sequence.len(), 3, "Expected 3 plugins to be called, got {}", sequence.len());
+        assert_eq!(sequence[0], "msg-first", "First plugin should be msg-first, got {}", sequence[0]);
+        assert_eq!(sequence[1], "msg-second", "Second plugin should be msg-second, got {}", sequence[1]);
+        assert_eq!(sequence[2], "msg-third", "Third plugin should be msg-third, got {}", sequence[2]);
+    }
+
+    #[test]
+    fn test_hook_order_on_session_end_is_deterministic() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
+
+        let call_order = Arc::new(AtomicUsize::new(0));
+        let call_sequence: Arc<std::sync::Mutex<Vec<String>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+
+        struct OrderedSessionPlugin {
+            name: String,
+            call_count: Arc<AtomicUsize>,
+            call_sequence: Arc<std::sync::Mutex<Vec<String>>>,
+        }
+
+        impl OrderedSessionPlugin {
+            fn new(name: &str, call_count: Arc<AtomicUsize>, call_sequence: Arc<std::sync::Mutex<Vec<String>>>) -> Self {
+                Self {
+                    name: name.to_string(),
+                    call_count,
+                    call_sequence,
+                }
+            }
+        }
+
+        impl Plugin for OrderedSessionPlugin {
+            fn name(&self) -> &str {
+                &self.name
+            }
+
+            fn version(&self) -> &str {
+                "1.0.0"
+            }
+
+            fn init(&mut self) -> Result<(), PluginError> {
+                Ok(())
+            }
+
+            fn shutdown(&mut self) -> Result<(), PluginError> {
+                Ok(())
+            }
+
+            fn description(&self) -> &str {
+                "ordered plugin for testing"
+            }
+
+            fn on_session_end(&mut self, _session_id: &str) -> Result<(), PluginError> {
+                let order = self.call_count.fetch_add(1, Ordering::SeqCst);
+                let mut seq = self.call_sequence.lock().unwrap();
+                if seq.len() == order as usize {
+                    seq.push(self.name.clone());
+                } else {
+                    seq.push(format!("OUT_OF_ORDER:{}", self.name));
+                }
+                Ok(())
+            }
+        }
+
+        let mut manager = PluginManager::new();
+
+        let plugin_end_a = OrderedSessionPlugin::new("end-a", call_order.clone(), call_sequence.clone());
+        let plugin_end_b = OrderedSessionPlugin::new("end-b", call_order.clone(), call_sequence.clone());
+        let plugin_end_c = OrderedSessionPlugin::new("end-c", call_order.clone(), call_sequence.clone());
+
+        manager.register(Box::new(plugin_end_a)).unwrap();
+        manager.register(Box::new(plugin_end_b)).unwrap();
+        manager.register(Box::new(plugin_end_c)).unwrap();
+
+        manager.on_session_end_all("session-123").unwrap();
+
+        let sequence = call_sequence.lock().unwrap();
+        assert_eq!(sequence.len(), 3, "Expected 3 plugins to be called, got {}", sequence.len());
+        assert_eq!(sequence[0], "end-a", "First plugin should be end-a, got {}", sequence[0]);
+        assert_eq!(sequence[1], "end-b", "Second plugin should be end-b, got {}", sequence[1]);
+        assert_eq!(sequence[2], "end-c", "Third plugin should be end-c, got {}", sequence[2]);
+    }
+
+    #[test]
+    fn test_hook_order_all_hooks_consistent() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
+
+        let start_order = Arc::new(AtomicUsize::new(0));
+        let start_sequence: Arc<std::sync::Mutex<Vec<String>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+
+        let tool_order = Arc::new(AtomicUsize::new(0));
+        let tool_sequence: Arc<std::sync::Mutex<Vec<String>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+
+        let msg_order = Arc::new(AtomicUsize::new(0));
+        let msg_sequence: Arc<std::sync::Mutex<Vec<String>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+
+        struct ConsistentPlugin {
+            name: String,
+            start_count: Arc<AtomicUsize>,
+            start_seq: Arc<std::sync::Mutex<Vec<String>>>,
+            tool_count: Arc<AtomicUsize>,
+            tool_seq: Arc<std::sync::Mutex<Vec<String>>>,
+            msg_count: Arc<AtomicUsize>,
+            msg_seq: Arc<std::sync::Mutex<Vec<String>>>,
+        }
+
+        impl ConsistentPlugin {
+            fn new(
+                name: &str,
+                start_count: Arc<AtomicUsize>,
+                start_seq: Arc<std::sync::Mutex<Vec<String>>>,
+                tool_count: Arc<AtomicUsize>,
+                tool_seq: Arc<std::sync::Mutex<Vec<String>>>,
+                msg_count: Arc<AtomicUsize>,
+                msg_seq: Arc<std::sync::Mutex<Vec<String>>>,
+            ) -> Self {
+                Self {
+                    name: name.to_string(),
+                    start_count,
+                    start_seq,
+                    tool_count,
+                    tool_seq,
+                    msg_count,
+                    msg_seq,
+                }
+            }
+        }
+
+        impl Plugin for ConsistentPlugin {
+            fn name(&self) -> &str {
+                &self.name
+            }
+
+            fn version(&self) -> &str {
+                "1.0.0"
+            }
+
+            fn init(&mut self) -> Result<(), PluginError> {
+                Ok(())
+            }
+
+            fn shutdown(&mut self) -> Result<(), PluginError> {
+                Ok(())
+            }
+
+            fn description(&self) -> &str {
+                "consistent order plugin"
+            }
+
+            fn on_start(&mut self) -> Result<(), PluginError> {
+                let order = self.start_count.fetch_add(1, Ordering::SeqCst);
+                let mut seq = self.start_seq.lock().unwrap();
+                if seq.len() == order as usize {
+                    seq.push(self.name.clone());
+                }
+                Ok(())
+            }
+
+            fn on_tool_call(&mut self, _tool_name: &str, _args: &Value, _session_id: &str) -> Result<(), PluginError> {
+                let order = self.tool_count.fetch_add(1, Ordering::SeqCst);
+                let mut seq = self.tool_seq.lock().unwrap();
+                if seq.len() == order as usize {
+                    seq.push(self.name.clone());
+                }
+                Ok(())
+            }
+
+            fn on_message(&mut self, _content: &str, _session_id: &str) -> Result<(), PluginError> {
+                let order = self.msg_count.fetch_add(1, Ordering::SeqCst);
+                let mut seq = self.msg_seq.lock().unwrap();
+                if seq.len() == order as usize {
+                    seq.push(self.name.clone());
+                }
+                Ok(())
+            }
+        }
+
+        let mut manager = PluginManager::new();
+
+        let plugin_a = ConsistentPlugin::new(
+            "consist-a",
+            start_order.clone(),
+            start_sequence.clone(),
+            tool_order.clone(),
+            tool_sequence.clone(),
+            msg_order.clone(),
+            msg_sequence.clone(),
+        );
+        let plugin_b = ConsistentPlugin::new(
+            "consist-b",
+            start_order.clone(),
+            start_sequence.clone(),
+            tool_order.clone(),
+            tool_sequence.clone(),
+            msg_order.clone(),
+            msg_sequence.clone(),
+        );
+        let plugin_c = ConsistentPlugin::new(
+            "consist-c",
+            start_order.clone(),
+            start_sequence.clone(),
+            tool_order.clone(),
+            tool_sequence.clone(),
+            msg_order.clone(),
+            msg_sequence.clone(),
+        );
+
+        manager.register(Box::new(plugin_a)).unwrap();
+        manager.register(Box::new(plugin_b)).unwrap();
+        manager.register(Box::new(plugin_c)).unwrap();
+
+        manager.on_start_all().unwrap();
+
+        let args = serde_json::json!({"file": "test.txt"});
+        manager.on_tool_call_all("read", &args, "session-123").unwrap();
+        manager.on_message_all("test message", "session-123").unwrap();
+
+        let start_seq = start_sequence.lock().unwrap();
+        let tool_seq = tool_sequence.lock().unwrap();
+        let msg_seq = msg_sequence.lock().unwrap();
+
+        assert_eq!(start_seq.len(), 3);
+        assert_eq!(tool_seq.len(), 3);
+        assert_eq!(msg_seq.len(), 3);
+
+        assert_eq!(start_seq[0], "consist-a");
+        assert_eq!(start_seq[1], "consist-b");
+        assert_eq!(start_seq[2], "consist-c");
+
+        assert_eq!(tool_seq[0], "consist-a");
+        assert_eq!(tool_seq[1], "consist-b");
+        assert_eq!(tool_seq[2], "consist-c");
+
+        assert_eq!(msg_seq[0], "consist-a");
+        assert_eq!(msg_seq[1], "consist-b");
+        assert_eq!(msg_seq[2], "consist-c");
+    }
+
     #[tokio::test]
     async fn test_plugin_tools_export_as_dyn_tool() {
         let mut manager = PluginManager::new();

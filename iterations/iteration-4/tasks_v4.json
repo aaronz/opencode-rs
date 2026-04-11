@@ -1395,7 +1395,7 @@
       "priority": "P0",
       "title": "Plugin hook order tests",
       "description": "Write tests verifying plugin hook execution order. Ensure deterministic ordering with IndexMap.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Hook execution order is deterministic",
         "Order is consistent across invocations",
