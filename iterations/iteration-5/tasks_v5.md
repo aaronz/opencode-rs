@@ -85,7 +85,7 @@
 
 ### Agent System Tasks
 
-- [ ] **P1-10:** Add test coverage for permission inheritance edge cases
+- [x] **P1-10:** Add test coverage for permission inheritance edge cases
 
 ### Server API Tasks
 

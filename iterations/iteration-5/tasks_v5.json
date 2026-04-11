@@ -221,7 +221,7 @@
       "priority": "P1",
       "title": "Add Permission Inheritance Edge Case Tests",
       "description": "Add test coverage for permission inheritance edge cases in the agent system.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Permission inheritance works correctly in nested contexts",
         "Edge cases are covered (denied permissions, partial access)",

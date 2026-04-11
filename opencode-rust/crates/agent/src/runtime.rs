@@ -1188,6 +1188,266 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_permission_inheritance_restricted_parent_readonly_subagent() {
+        let session = Session::default();
+        let config = RuntimeConfig {
+            max_iterations: 20,
+            max_tool_results_per_iteration: 10,
+            permission_scope: AgentPermissionScope::Restricted,
+        };
+        let runtime = AgentRuntime::with_config(session, AgentType::Build, config);
+
+        let subagent =
+            MockSubagent::new("response", AgentType::Explore).with_permissions(false, false);
+        let context = vec![Message::user("task")];
+
+        let result = runtime
+            .invoke_subagent(&subagent, context, &MockProvider, &ToolRegistry::new())
+            .await
+            .unwrap();
+
+        assert_eq!(
+            result.effective_permission_scope,
+            AgentPermissionScope::ReadOnly
+        );
+    }
+
+    #[tokio::test]
+    async fn test_permission_inheritance_full_parent_readonly_subagent() {
+        let session = Session::default();
+        let config = RuntimeConfig {
+            max_iterations: 20,
+            max_tool_results_per_iteration: 10,
+            permission_scope: AgentPermissionScope::Full,
+        };
+        let runtime = AgentRuntime::with_config(session, AgentType::Build, config);
+
+        let subagent =
+            MockSubagent::new("response", AgentType::Explore).with_permissions(false, false);
+        let context = vec![Message::user("task")];
+
+        let result = runtime
+            .invoke_subagent(&subagent, context, &MockProvider, &ToolRegistry::new())
+            .await
+            .unwrap();
+
+        assert_eq!(
+            result.effective_permission_scope,
+            AgentPermissionScope::ReadOnly
+        );
+    }
+
+    #[tokio::test]
+    async fn test_permission_inheritance_none_parent_readonly_subagent() {
+        let session = Session::default();
+        let config = RuntimeConfig {
+            max_iterations: 20,
+            max_tool_results_per_iteration: 10,
+            permission_scope: AgentPermissionScope::None,
+        };
+        let runtime = AgentRuntime::with_config(session, AgentType::Build, config);
+
+        let subagent =
+            MockSubagent::new("response", AgentType::Explore).with_permissions(false, false);
+        let context = vec![Message::user("task")];
+
+        let result = runtime
+            .invoke_subagent(&subagent, context, &MockProvider, &ToolRegistry::new())
+            .await
+            .unwrap();
+
+        assert_eq!(
+            result.effective_permission_scope,
+            AgentPermissionScope::None
+        );
+    }
+
+    #[tokio::test]
+    async fn test_permission_inheritance_none_parent_restricted_subagent() {
+        let session = Session::default();
+        let config = RuntimeConfig {
+            max_iterations: 20,
+            max_tool_results_per_iteration: 10,
+            permission_scope: AgentPermissionScope::None,
+        };
+        let runtime = AgentRuntime::with_config(session, AgentType::Build, config);
+
+        let subagent =
+            MockSubagent::new("response", AgentType::General).with_permissions(true, false);
+        let context = vec![Message::user("task")];
+
+        let result = runtime
+            .invoke_subagent(&subagent, context, &MockProvider, &ToolRegistry::new())
+            .await
+            .unwrap();
+
+        assert_eq!(
+            result.effective_permission_scope,
+            AgentPermissionScope::None
+        );
+    }
+
+    #[tokio::test]
+    async fn test_permission_inheritance_restricted_parent_full_subagent() {
+        let session = Session::default();
+        let config = RuntimeConfig {
+            max_iterations: 20,
+            max_tool_results_per_iteration: 10,
+            permission_scope: AgentPermissionScope::Restricted,
+        };
+        let runtime = AgentRuntime::with_config(session, AgentType::Build, config);
+
+        let subagent =
+            MockSubagent::new("response", AgentType::General).with_permissions(true, true);
+        let context = vec![Message::user("task")];
+
+        let result = runtime
+            .invoke_subagent(&subagent, context, &MockProvider, &ToolRegistry::new())
+            .await
+            .unwrap();
+
+        assert_eq!(
+            result.effective_permission_scope,
+            AgentPermissionScope::Restricted
+        );
+    }
+
+    #[tokio::test]
+    async fn test_permission_inheritance_multilevel_chain_full_readonly_none() {
+        let session = Session::default();
+        let config = RuntimeConfig {
+            max_iterations: 20,
+            max_tool_results_per_iteration: 10,
+            permission_scope: AgentPermissionScope::Full,
+        };
+        let runtime = AgentRuntime::with_config(session, AgentType::Build, config);
+
+        let level1_subagent =
+            MockSubagent::new("level1", AgentType::General).with_permissions(false, false);
+        let context1 = vec![Message::user("level1 task")];
+
+        let result1 = runtime
+            .invoke_subagent(&level1_subagent, context1, &MockProvider, &ToolRegistry::new())
+            .await
+            .unwrap();
+
+        assert_eq!(
+            result1.effective_permission_scope,
+            AgentPermissionScope::ReadOnly
+        );
+
+        let child_config = RuntimeConfig {
+            max_iterations: 20,
+            max_tool_results_per_iteration: 10,
+            permission_scope: result1.effective_permission_scope,
+        };
+        let child_runtime =
+            AgentRuntime::with_config(Session::default(), AgentType::General, child_config);
+
+        let level2_subagent =
+            MockSubagent::new("level2", AgentType::Explore).with_permissions(false, false);
+        let context2 = vec![Message::user("level2 task")];
+
+        let result2 = child_runtime
+            .invoke_subagent(&level2_subagent, context2, &MockProvider, &ToolRegistry::new())
+            .await
+            .unwrap();
+
+        assert_eq!(
+            result2.effective_permission_scope,
+            AgentPermissionScope::ReadOnly
+        );
+    }
+
+    #[tokio::test]
+    async fn test_permission_inheritance_multilevel_none_blocks_all() {
+        let session = Session::default();
+        let config = RuntimeConfig {
+            max_iterations: 20,
+            max_tool_results_per_iteration: 10,
+            permission_scope: AgentPermissionScope::None,
+        };
+        let runtime = AgentRuntime::with_config(session, AgentType::Build, config);
+
+        let subagent =
+            MockSubagent::new("result", AgentType::General).with_permissions(true, true);
+        let context = vec![Message::user("task")];
+
+        let result = runtime
+            .invoke_subagent(&subagent, context, &MockProvider, &ToolRegistry::new())
+            .await
+            .unwrap();
+
+        assert_eq!(
+            result.effective_permission_scope,
+            AgentPermissionScope::None
+        );
+    }
+
+    #[tokio::test]
+    async fn test_permission_inheritance_readonly_subagent_cannot_escalate() {
+        let session = Session::default();
+        let config = RuntimeConfig {
+            max_iterations: 20,
+            max_tool_results_per_iteration: 10,
+            permission_scope: AgentPermissionScope::ReadOnly,
+        };
+        let runtime = AgentRuntime::with_config(session, AgentType::Build, config);
+
+        let subagent =
+            MockSubagent::new("response", AgentType::General).with_permissions(true, true);
+        let context = vec![Message::user("task")];
+
+        let result = runtime
+            .invoke_subagent(&subagent, context, &MockProvider, &ToolRegistry::new())
+            .await
+            .unwrap();
+
+        assert_eq!(
+            result.effective_permission_scope,
+            AgentPermissionScope::ReadOnly
+        );
+        assert!(!result.effective_permission_scope.can_write_files());
+        assert!(!result.effective_permission_scope.can_run_commands());
+    }
+
+    #[tokio::test]
+    async fn test_permission_scope_intersection_readonly_restricted() {
+        let scope = AgentPermissionScope::ReadOnly.intersect(AgentPermissionScope::Restricted);
+        assert_eq!(scope, AgentPermissionScope::ReadOnly);
+    }
+
+    #[tokio::test]
+    async fn test_permission_scope_intersection_restricted_readonly() {
+        let scope = AgentPermissionScope::Restricted.intersect(AgentPermissionScope::ReadOnly);
+        assert_eq!(scope, AgentPermissionScope::ReadOnly);
+    }
+
+    #[tokio::test]
+    async fn test_permission_scope_intersection_restricted_none() {
+        let scope = AgentPermissionScope::Restricted.intersect(AgentPermissionScope::None);
+        assert_eq!(scope, AgentPermissionScope::None);
+    }
+
+    #[tokio::test]
+    async fn test_permission_scope_intersection_none_restricted() {
+        let scope = AgentPermissionScope::None.intersect(AgentPermissionScope::Restricted);
+        assert_eq!(scope, AgentPermissionScope::None);
+    }
+
+    #[tokio::test]
+    async fn test_permission_scope_intersection_readonly_none() {
+        let scope = AgentPermissionScope::ReadOnly.intersect(AgentPermissionScope::None);
+        assert_eq!(scope, AgentPermissionScope::None);
+    }
+
+    #[tokio::test]
+    async fn test_permission_scope_intersection_none_readonly() {
+        let scope = AgentPermissionScope::None.intersect(AgentPermissionScope::ReadOnly);
+        assert_eq!(scope, AgentPermissionScope::None);
+    }
+
+    #[tokio::test]
     async fn test_subagent_spawn_isolated_context() {
         let session = Session::default();
         let session_id = session.id;
