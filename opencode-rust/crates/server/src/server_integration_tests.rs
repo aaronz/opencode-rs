@@ -774,4 +774,289 @@ mod tests {
             assert!(scope.starts_with("/api"), "Scope {} should start with /api", scope);
         }
     }
+
+    // =========================================================================
+    // Session Lifecycle Tests (T-019-4)
+    // Note: Session CRUD operations are tested in tests/src/session_storage_tests.rs
+    // These tests focus on session/message behavior at the type level.
+    // =========================================================================
+
+    #[actix_web::test]
+    async fn session_lifecycle_permission_reply_valid_allow() {
+        use actix_web::web;
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::permission_reply(
+            web::Data::new(create_test_state()),
+            web::Path::from(("test-session".to_string(), "test-req".to_string())),
+            web::Json(crate::routes::session::PermissionReplyRequest {
+                decision: "allow".to_string(),
+            }),
+        )
+        .await
+        .respond_to(&req);
+
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn session_lifecycle_permission_reply_valid_deny() {
+        use actix_web::web;
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::permission_reply(
+            web::Data::new(create_test_state()),
+            web::Path::from(("test-session".to_string(), "test-req".to_string())),
+            web::Json(crate::routes::session::PermissionReplyRequest {
+                decision: "deny".to_string(),
+            }),
+        )
+        .await
+        .respond_to(&req);
+
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn session_lifecycle_permission_reply_invalid_decision() {
+        use actix_web::web;
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::permission_reply(
+            web::Data::new(create_test_state()),
+            web::Path::from(("test-session".to_string(), "test-req".to_string())),
+            web::Json(crate::routes::session::PermissionReplyRequest {
+                decision: "invalid".to_string(),
+            }),
+        )
+        .await
+        .respond_to(&req);
+
+        assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    // =========================================================================
+    // Message Lifecycle Tests (T-019-4)
+    // Note: Message CRUD operations are tested via Session tests in
+    // tests/src/session_storage_tests.rs and crates/core/src/session.rs
+    // =========================================================================
+
+    #[test]
+    fn message_lifecycle_role_parsing() {
+        use opencode_core::message::Role;
+
+        let msg_user = opencode_core::Message::user("test");
+        assert_eq!(msg_user.role, Role::User);
+
+        let msg_assistant = opencode_core::Message::assistant("test");
+        assert_eq!(msg_assistant.role, Role::Assistant);
+
+        let msg_system = opencode_core::Message::system("test");
+        assert_eq!(msg_system.role, Role::System);
+    }
+
+    #[test]
+    fn message_lifecycle_message_creation() {
+        use opencode_core::message::Role;
+
+        let msg = opencode_core::Message::new(Role::User, "Hello".to_string());
+        assert_eq!(msg.role, Role::User);
+        assert_eq!(msg.content, "Hello");
+        assert!(msg.parts.is_none());
+
+        let msg_with_content = opencode_core::Message::user("Test content");
+        assert_eq!(msg_with_content.content, "Test content");
+    }
+
+    #[test]
+    fn message_lifecycle_message_timestamp() {
+        use opencode_core::Message;
+
+        let before = chrono::Utc::now();
+        let msg = Message::user("Test");
+        let after = chrono::Utc::now();
+
+        assert!(msg.timestamp >= before && msg.timestamp <= after);
+    }
+
+    #[test]
+    fn message_lifecycle_message_serialization() {
+        use opencode_core::Message;
+
+        let msg = Message::user("Hello, JSON!");
+        let json = serde_json::to_string(&msg).expect("Should serialize");
+        assert!(json.contains("Hello, JSON!"));
+        assert!(json.contains("user"));
+
+        let deserialized: Message = serde_json::from_str(&json).expect("Should deserialize");
+        assert_eq!(deserialized.content, msg.content);
+        assert_eq!(deserialized.role, msg.role);
+    }
+
+    #[test]
+    fn session_lifecycle_session_state_transitions() {
+        use opencode_core::session_state::{is_valid_transition, SessionState};
+
+        assert!(is_valid_transition(SessionState::Idle, SessionState::Thinking));
+        assert!(is_valid_transition(SessionState::Thinking, SessionState::AwaitingPermission));
+        assert!(is_valid_transition(SessionState::AwaitingPermission, SessionState::ExecutingTool));
+        assert!(is_valid_transition(SessionState::ExecutingTool, SessionState::Thinking));
+        assert!(is_valid_transition(SessionState::Thinking, SessionState::Streaming));
+        assert!(is_valid_transition(SessionState::Streaming, SessionState::Completed));
+        assert!(is_valid_transition(SessionState::Completed, SessionState::Idle));
+
+        assert!(is_valid_transition(SessionState::Error, SessionState::Idle));
+        assert!(is_valid_transition(SessionState::Idle, SessionState::Summarizing));
+        assert!(is_valid_transition(SessionState::Summarizing, SessionState::Idle));
+
+        assert!(!is_valid_transition(SessionState::Aborted, SessionState::Thinking));
+    }
+
+    #[test]
+    fn session_lifecycle_fork_error_types() {
+        use opencode_core::Session;
+
+        let parent = Session::new();
+        let result = parent.fork_at_message(100);
+        assert!(result.is_err());
+
+        if let Err(opencode_core::session::ForkError::MessageIndexOutOfBounds { requested, len }) = result {
+            assert_eq!(requested, 100);
+            assert_eq!(len, 0);
+        } else {
+            panic!("Expected ForkError::MessageIndexOutOfBounds");
+        }
+    }
+
+    #[test]
+    fn session_lifecycle_share_error_types() {
+        use opencode_core::config::ShareMode;
+        use opencode_core::Session;
+
+        let mut session = Session::new();
+        session.set_share_mode(ShareMode::Disabled);
+
+        let result = session.generate_share_link();
+        assert!(result.is_err());
+
+        if let Err(opencode_core::session::ShareError::SharingDisabled) = result {
+        } else {
+            panic!("Expected ShareError::SharingDisabled");
+        }
+    }
+
+    #[test]
+    fn session_lifecycle_session_info_structure() {
+        use opencode_core::SessionInfo;
+        use chrono::Utc;
+
+        let info = SessionInfo {
+            id: uuid::Uuid::new_v4(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            message_count: 5,
+            preview: "Test preview".to_string(),
+        };
+
+        assert_eq!(info.message_count, 5);
+        assert_eq!(info.preview, "Test preview");
+    }
+
+    #[test]
+    fn session_lifecycle_message_parts_roundtrip() {
+        use opencode_core::part::Part;
+        use opencode_core::message::Role;
+        use opencode_core::Message;
+
+        let msg = Message::from_parts(Role::User, vec![Part::text("Hello"), Part::text("World")]);
+        assert!(msg.parts.is_some());
+        assert_eq!(msg.parts.as_ref().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn session_lifecycle_fork_at_message_preserves_order() {
+        use opencode_core::{Message, Session};
+
+        let mut parent = Session::new();
+        parent.add_message(Message::user("First"));
+        parent.add_message(Message::assistant("Second"));
+        parent.add_message(Message::user("Third"));
+
+        let child = parent.fork_at_message(1).expect("Should fork");
+        assert_eq!(child.messages.len(), 2);
+        assert_eq!(child.messages[0].content, "First");
+        assert_eq!(child.messages[1].content, "Second");
+    }
+
+    #[test]
+    fn session_lifecycle_add_message_creates_undo_history() {
+        use opencode_core::{Message, Session};
+
+        let mut session = Session::new();
+        assert!(session.undo_history.is_empty());
+
+        session.add_message(Message::user("Test"));
+        assert_eq!(session.undo_history.len(), 1);
+        assert!(session.redo_history.is_empty());
+    }
+
+    #[test]
+    fn session_lifecycle_undo_clears_redo() {
+        use opencode_core::{Message, Session};
+
+        let mut session = Session::new();
+        session.add_message(Message::user("First"));
+        session.add_message(Message::user("Second"));
+
+        session.undo(1).expect("Should undo");
+        assert_eq!(session.redo_history.len(), 1);
+
+        session.add_message(Message::user("New message"));
+        assert!(session.redo_history.is_empty());
+    }
+
+    #[test]
+    fn session_lifecycle_message_roles_serialization() {
+        use opencode_core::message::Role;
+        use opencode_core::Message;
+
+        for role in &[Role::System, Role::User, Role::Assistant] {
+            let msg = Message::new(role.clone(), "Test".to_string());
+            let json = serde_json::to_string(&msg).expect("Should serialize");
+
+            let deserialized: Message = serde_json::from_str(&json).expect("Should deserialize");
+            assert_eq!(deserialized.role, *role);
+        }
+    }
+
+    #[test]
+    fn session_lifecycle_share_mode_transitions() {
+        use opencode_core::config::ShareMode;
+        use opencode_core::Session;
+
+        let mut session = Session::new();
+
+        assert!(session.share_mode.is_none());
+        assert!(!session.is_shared());
+
+        session.set_share_mode(ShareMode::Manual);
+        assert_eq!(session.share_mode, Some(ShareMode::Manual));
+
+        session.set_share_mode(ShareMode::Disabled);
+        assert_eq!(session.share_mode, Some(ShareMode::Disabled));
+
+        session.set_share_mode(ShareMode::Auto);
+        assert_eq!(session.share_mode, Some(ShareMode::Auto));
+    }
+
+    #[test]
+    fn session_lifecycle_message_content_empty_vs_none() {
+        use opencode_core::Message;
+
+        let msg_empty = Message::user("");
+        assert_eq!(msg_empty.content, "");
+
+        let msg_with_content = Message::user("content");
+        assert_eq!(msg_with_content.content, "content");
+    }
 }

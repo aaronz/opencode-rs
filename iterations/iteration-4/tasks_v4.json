@@ -1318,7 +1318,7 @@
       "priority": "P0",
       "title": "Session/message lifecycle tests",
       "description": "Write tests for session and message lifecycle operations. Test all CRUD operations and edge cases.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Session CRUD operations work correctly",
         "Message CRUD operations work correctly",
