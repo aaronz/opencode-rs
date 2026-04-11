@@ -5,4 +5,5 @@ pub mod models;
 pub mod service;
 
 pub use database::StoragePool;
+pub use migration::MigrationManager;
 pub use service::StorageService;

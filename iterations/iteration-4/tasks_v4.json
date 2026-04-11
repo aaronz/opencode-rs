@@ -904,7 +904,7 @@
       "priority": "P1",
       "title": "Desktop/web session sharing",
       "description": "Implement session sharing between desktop and web interfaces. Sessions started in one interface should be accessible from another.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Desktop sessions are accessible from web",
         "Web sessions are accessible from desktop",
