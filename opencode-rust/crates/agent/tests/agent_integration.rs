@@ -1,6 +1,11 @@
 use opencode_agent::agent::{Agent, AgentType};
 use opencode_agent::build_agent::BuildAgent;
+use opencode_agent::debug_agent::DebugAgent;
+use opencode_agent::explore_agent::ExploreAgent;
+use opencode_agent::general_agent::GeneralAgent;
 use opencode_agent::plan_agent::PlanAgent;
+use opencode_agent::refactor_agent::RefactorAgent;
+use opencode_agent::review_agent::ReviewAgent;
 use opencode_agent::system_agents::{CompactionAgent, SummaryAgent, TitleAgent};
 
 #[test]
@@ -158,4 +163,157 @@ fn test_hidden_agents_have_descriptions() {
     assert!(!compaction.description().is_empty());
     assert!(!title.description().is_empty());
     assert!(!summary.description().is_empty());
+}
+
+#[test]
+fn test_build_agent_default_no_model_override() {
+    let agent = BuildAgent::new();
+    assert!(
+        agent.preferred_model().is_none(),
+        "BuildAgent should have no default model override"
+    );
+}
+
+#[test]
+fn test_build_agent_with_model_override() {
+    let agent = BuildAgent::new().with_model("gpt-4o-mini");
+    assert_eq!(agent.preferred_model(), Some("gpt-4o-mini".to_string()));
+}
+
+#[test]
+fn test_plan_agent_default_no_model_override() {
+    let agent = PlanAgent::new();
+    assert!(
+        agent.preferred_model().is_none(),
+        "PlanAgent should have no default model override"
+    );
+}
+
+#[test]
+fn test_plan_agent_with_model_override() {
+    let agent = PlanAgent::new().with_model("claude-3-5-sonnet");
+    assert_eq!(
+        agent.preferred_model(),
+        Some("claude-3-5-sonnet".to_string())
+    );
+}
+
+#[test]
+fn test_general_agent_default_no_model_override() {
+    let agent = GeneralAgent::new();
+    assert!(
+        agent.preferred_model().is_none(),
+        "GeneralAgent should have no default model override"
+    );
+}
+
+#[test]
+fn test_general_agent_with_model_override() {
+    let agent = GeneralAgent::new().with_model("gemini-1.5-pro");
+    assert_eq!(agent.preferred_model(), Some("gemini-1.5-pro".to_string()));
+}
+
+#[test]
+fn test_explore_agent_default_no_model_override() {
+    let agent = ExploreAgent::new();
+    assert!(
+        agent.preferred_model().is_none(),
+        "ExploreAgent should have no default model override"
+    );
+}
+
+#[test]
+fn test_explore_agent_with_model_override() {
+    let agent = ExploreAgent::new().with_model("llama-3.1-70b");
+    assert_eq!(agent.preferred_model(), Some("llama-3.1-70b".to_string()));
+}
+
+#[test]
+fn test_review_agent_default_no_model_override() {
+    let agent = ReviewAgent::new();
+    assert!(
+        agent.preferred_model().is_none(),
+        "ReviewAgent should have no default model override"
+    );
+}
+
+#[test]
+fn test_review_agent_with_model_override() {
+    let agent = ReviewAgent::new().with_model("gpt-4");
+    assert_eq!(agent.preferred_model(), Some("gpt-4".to_string()));
+}
+
+#[test]
+fn test_refactor_agent_default_no_model_override() {
+    let agent = RefactorAgent::new();
+    assert!(
+        agent.preferred_model().is_none(),
+        "RefactorAgent should have no default model override"
+    );
+}
+
+#[test]
+fn test_refactor_agent_with_model_override() {
+    let agent = RefactorAgent::new().with_model("claude-opus-4");
+    assert_eq!(agent.preferred_model(), Some("claude-opus-4".to_string()));
+}
+
+#[test]
+fn test_debug_agent_default_no_model_override() {
+    let agent = DebugAgent::new();
+    assert!(
+        agent.preferred_model().is_none(),
+        "DebugAgent should have no default model override"
+    );
+}
+
+#[test]
+fn test_debug_agent_with_model_override() {
+    let agent = DebugAgent::new().with_model("gpt-4-turbo");
+    assert_eq!(agent.preferred_model(), Some("gpt-4-turbo".to_string()));
+}
+
+#[test]
+fn test_compaction_agent_default_no_model_override() {
+    let agent = CompactionAgent::new();
+    assert!(
+        agent.preferred_model().is_none(),
+        "CompactionAgent should have no default model override"
+    );
+}
+
+#[test]
+fn test_compaction_agent_with_model_override() {
+    let agent = CompactionAgent::new().with_model("gpt-4o-mini");
+    assert_eq!(agent.preferred_model(), Some("gpt-4o-mini".to_string()));
+}
+
+#[test]
+fn test_title_agent_default_no_model_override() {
+    let agent = TitleAgent::new();
+    assert!(
+        agent.preferred_model().is_none(),
+        "TitleAgent should have no default model override"
+    );
+}
+
+#[test]
+fn test_title_agent_with_model_override() {
+    let agent = TitleAgent::new().with_model("gpt-4o-mini");
+    assert_eq!(agent.preferred_model(), Some("gpt-4o-mini".to_string()));
+}
+
+#[test]
+fn test_summary_agent_default_no_model_override() {
+    let agent = SummaryAgent::new();
+    assert!(
+        agent.preferred_model().is_none(),
+        "SummaryAgent should have no default model override"
+    );
+}
+
+#[test]
+fn test_summary_agent_with_model_override() {
+    let agent = SummaryAgent::new().with_model("gpt-4o-mini");
+    assert_eq!(agent.preferred_model(), Some("gpt-4o-mini".to_string()));
 }

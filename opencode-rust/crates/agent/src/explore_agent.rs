@@ -4,11 +4,18 @@ use opencode_core::{Message, OpenCodeError, Session, TokenBudget};
 use opencode_llm::{ChatMessage, Provider};
 use opencode_tools::ToolRegistry;
 
-pub struct ExploreAgent;
+pub struct ExploreAgent {
+    model: Option<String>,
+}
 
 impl ExploreAgent {
     pub fn new() -> Self {
-        Self
+        Self { model: None }
+    }
+
+    pub fn with_model(mut self, model: impl Into<String>) -> Self {
+        self.model = Some(model.into());
+        self
     }
 
     const SYSTEM_PROMPT: &'static str = r#"You are OpenCode Explore, a fast agent specialized for exploring codebases.
@@ -84,5 +91,9 @@ impl Agent for ExploreAgent {
             content: response.content,
             tool_calls: Vec::new(),
         })
+    }
+
+    fn preferred_model(&self) -> Option<String> {
+        self.model.clone()
     }
 }

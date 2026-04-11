@@ -849,7 +849,7 @@
       "priority": "P1",
       "title": "Per-agent model override",
       "description": "Allow individual agents to override the default model. Each agent should be able to specify its own model.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Agents can specify custom models",
         "Agent override takes precedence over provider default",

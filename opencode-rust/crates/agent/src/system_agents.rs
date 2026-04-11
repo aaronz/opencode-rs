@@ -4,11 +4,18 @@ use opencode_core::{Message, OpenCodeError, Session, TokenBudget};
 use opencode_llm::{ChatMessage, Provider};
 use opencode_tools::ToolRegistry;
 
-pub struct CompactionAgent;
+pub struct CompactionAgent {
+    model: Option<String>,
+}
 
 impl CompactionAgent {
     pub fn new() -> Self {
-        Self
+        Self { model: None }
+    }
+
+    pub fn with_model(mut self, model: impl Into<String>) -> Self {
+        self.model = Some(model.into());
+        self
     }
 
     const SYSTEM_PROMPT: &'static str = r#"You are OpenCode Compaction Agent.
@@ -85,13 +92,24 @@ impl Agent for CompactionAgent {
             tool_calls: Vec::new(),
         })
     }
+
+    fn preferred_model(&self) -> Option<String> {
+        self.model.clone()
+    }
 }
 
-pub struct TitleAgent;
+pub struct TitleAgent {
+    model: Option<String>,
+}
 
 impl TitleAgent {
     pub fn new() -> Self {
-        Self
+        Self { model: None }
+    }
+
+    pub fn with_model(mut self, model: impl Into<String>) -> Self {
+        self.model = Some(model.into());
+        self
     }
 
     const SYSTEM_PROMPT: &'static str = r#"You are OpenCode Title Agent.
@@ -170,13 +188,24 @@ impl Agent for TitleAgent {
             tool_calls: Vec::new(),
         })
     }
+
+    fn preferred_model(&self) -> Option<String> {
+        self.model.clone()
+    }
 }
 
-pub struct SummaryAgent;
+pub struct SummaryAgent {
+    model: Option<String>,
+}
 
 impl SummaryAgent {
     pub fn new() -> Self {
-        Self
+        Self { model: None }
+    }
+
+    pub fn with_model(mut self, model: impl Into<String>) -> Self {
+        self.model = Some(model.into());
+        self
     }
 
     const SYSTEM_PROMPT: &'static str = r#"You are OpenCode Summary Agent.
@@ -251,5 +280,9 @@ impl Agent for SummaryAgent {
             content: response.content,
             tool_calls: Vec::new(),
         })
+    }
+
+    fn preferred_model(&self) -> Option<String> {
+        self.model.clone()
     }
 }

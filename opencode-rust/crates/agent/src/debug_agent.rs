@@ -6,6 +6,7 @@ use opencode_tools::ToolRegistry;
 
 pub struct DebugAgent {
     system_prompt: String,
+    model: Option<String>,
 }
 
 impl DebugAgent {
@@ -37,7 +38,13 @@ Provide fixes in a clear format:
 Be thorough and help the user understand the issue.
 "#
             .to_string(),
+            model: None,
         }
+    }
+
+    pub fn with_model(mut self, model: impl Into<String>) -> Self {
+        self.model = Some(model.into());
+        self
     }
 }
 
@@ -96,6 +103,10 @@ impl Agent for DebugAgent {
             content: response.content,
             tool_calls: Vec::new(),
         })
+    }
+
+    fn preferred_model(&self) -> Option<String> {
+        self.model.clone()
     }
 }
 

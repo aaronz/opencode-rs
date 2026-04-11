@@ -7,6 +7,7 @@ use opencode_tools::ToolRegistry;
 pub struct BuildAgent {
     system_prompt: String,
     skill_prompt: Option<String>,
+    model: Option<String>,
 }
 
 impl BuildAgent {
@@ -28,11 +29,17 @@ After receiving tool results, continue with your response.
 Always be accurate and honest. If you're unsure about something, say so.
 "# .to_string(),
             skill_prompt: None,
+            model: None,
         }
     }
 
     pub fn with_skill_prompt(mut self, skill_prompt: impl Into<String>) -> Self {
         self.skill_prompt = Some(skill_prompt.into());
+        self
+    }
+
+    pub fn with_model(mut self, model: impl Into<String>) -> Self {
+        self.model = Some(model.into());
         self
     }
 
@@ -104,5 +111,9 @@ impl Agent for BuildAgent {
             content: response.content,
             tool_calls: Vec::new(),
         })
+    }
+
+    fn preferred_model(&self) -> Option<String> {
+        self.model.clone()
     }
 }

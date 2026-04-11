@@ -118,7 +118,7 @@
 |---------|-------|--------|-----|-------|--------|--------------|
 | P1-25 | Provider abstraction | llm | FR-012 | Phase 3 | Pending | None |
 | P1-26 | Default model selection precedence | llm | FR-012 | Phase 3 | Done | P1-25 |
-| P1-27 | Per-agent model override | llm | FR-012 | Phase 3 | Pending | P1-25 |
+| P1-27 | Per-agent model override | llm | FR-012 | Phase 3 | Done | P1-25 |
 | P1-28 | Local model providers | llm | FR-012 | Phase 3 | Pending | P1-25 |
 
 ### Skills System (1 item)

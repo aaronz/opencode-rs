@@ -68,6 +68,10 @@ pub trait Agent: Send + Sync {
         provider: &dyn Provider,
         tools: &ToolRegistry,
     ) -> Result<AgentResponse, OpenCodeError>;
+
+    fn preferred_model(&self) -> Option<String> {
+        None
+    }
 }
 
 pub fn messages_to_llm_format(messages: &[Message]) -> Vec<opencode_llm::ChatMessage> {

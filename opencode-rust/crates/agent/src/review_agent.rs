@@ -8,6 +8,7 @@ pub struct ReviewAgent {
     system_prompt: String,
     #[allow(dead_code)]
     review_focus: ReviewFocus,
+    model: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -55,6 +56,7 @@ Respond with your analysis in a clear, organized manner.
                 focus_prompt = focus_prompt
             ),
             review_focus: focus,
+            model: None,
         }
     }
 
@@ -64,6 +66,11 @@ Respond with your analysis in a clear, organized manner.
 
     pub fn with_performance_focus() -> Self {
         Self::with_focus(ReviewFocus::Performance)
+    }
+
+    pub fn with_model(mut self, model: impl Into<String>) -> Self {
+        self.model = Some(model.into());
+        self
     }
 }
 
@@ -122,6 +129,10 @@ impl Agent for ReviewAgent {
             content: response.content,
             tool_calls: Vec::new(),
         })
+    }
+
+    fn preferred_model(&self) -> Option<String> {
+        self.model.clone()
     }
 }
 

@@ -7,6 +7,7 @@ use opencode_tools::ToolRegistry;
 pub struct RefactorAgent {
     system_prompt: String,
     preview_mode: bool,
+    model: Option<String>,
 }
 
 impl RefactorAgent {
@@ -35,6 +36,7 @@ Always ensure refactoring preserves behavior. Run tests to validate.
 "#
                 .to_string(),
             preview_mode: false,
+            model: None,
         }
     }
 
@@ -49,6 +51,11 @@ Always ensure refactoring preserves behavior. Run tests to validate.
 
     pub fn preview() -> Self {
         Self::new().with_preview_mode()
+    }
+
+    pub fn with_model(mut self, model: impl Into<String>) -> Self {
+        self.model = Some(model.into());
+        self
     }
 }
 
@@ -107,6 +114,10 @@ impl Agent for RefactorAgent {
             content: response.content,
             tool_calls: Vec::new(),
         })
+    }
+
+    fn preferred_model(&self) -> Option<String> {
+        self.model.clone()
     }
 }
 
