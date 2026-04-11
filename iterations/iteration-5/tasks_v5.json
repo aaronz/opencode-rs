@@ -289,7 +289,7 @@
       "priority": "P2",
       "title": "Add Compaction Shareability Integration Tests",
       "description": "Add integration tests for session compaction shareability features.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Compaction produces shareable output",
         "Integration tests pass",
