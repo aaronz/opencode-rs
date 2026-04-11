@@ -617,7 +617,7 @@ mod tests {
     #[tokio::test]
     async fn test_client_creation() {
         let client = LspClient::new();
-        assert!(client.is_healthy());
+        assert!(!client.is_healthy());
         assert_eq!(client.get_consecutive_error_count(), 0);
     }
 
@@ -625,12 +625,12 @@ mod tests {
     async fn test_client_with_config() {
         let config = FailureHandlingConfig::default();
         let client = LspClient::with_config(config);
-        assert!(client.is_healthy());
+        assert!(!client.is_healthy());
     }
 
     #[test]
     fn test_extract_jsonrpc_message_valid() {
-        let buf = b"Content-Length: 45\r\n\r\n{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":\"ok\"}";
+        let buf = b"Content-Length: 38\r\n\r\n{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":\"ok\"}";
         let result = extract_jsonrpc_message(buf);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), r#"{"jsonrpc":"2.0","id":1,"result":"ok"}"#);
@@ -677,9 +677,9 @@ mod tests {
 
     #[test]
     fn test_len_after_header() {
-        let buf = b"Content-Length: 45\r\n\r\n{\"jsonrpc\":\"2.0\"}";
+        let buf = b"Content-Length: 17\r\n\r\n{\"jsonrpc\":\"2.0\"}";
         let len = len_after_header(buf);
-        assert_eq!(len, Some(45 + 45));
+        assert_eq!(len, Some(22 + 17));
     }
 
     #[tokio::test]

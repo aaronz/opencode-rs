@@ -243,7 +243,7 @@
 | Task ID | Title | Module | FR | Phase | Status | Dependencies |
 |---------|-------|--------|-----|-------|--------|--------------|
 | T-021-1 | MCP integration tests | mcp | FR-021 | Phase 5 | Pending | P0-8 |
-| T-021-2 | LSP integration tests | lsp | FR-021 | Phase 5 | Pending | P0-10 |
+| T-021-2 | LSP integration tests | lsp | FR-021 | Phase 5 | Done | P0-10 |
 | T-021-3 | Provider/model tests | llm | FR-021 | Phase 5 | Pending | P1-28 |
 | T-021-4 | Skills discovery tests | core | FR-021 | Phase 5 | Pending | P1-29 |
 

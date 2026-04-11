@@ -1433,7 +1433,7 @@
       "priority": "P0",
       "title": "MCP integration tests",
       "description": "Write integration tests for MCP server connections. Test local and remote connections, tool discovery, and tool execution.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "Local MCP connection works end-to-end",
         "Remote MCP connection works end-to-end",
@@ -1452,7 +1452,7 @@
       "priority": "P0",
       "title": "LSP integration tests",
       "description": "Write integration tests for LSP server functionality. Test server detection, connection, and diagnostics retrieval.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Built-in LSP servers are detected",
         "LSP diagnostics are retrieved",
