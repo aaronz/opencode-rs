@@ -1,5 +1,5 @@
 use opencode_llm::{
-    ChatMessage, LmStudioProvider, LocalInferenceProviderFactory, LmStudioProviderFactory,
+    ChatMessage, LmStudioProvider, LmStudioProviderFactory, LocalInferenceProviderFactory,
     OllamaProvider, Provider, ProviderFactory, ProviderManager, ProviderSpec,
 };
 

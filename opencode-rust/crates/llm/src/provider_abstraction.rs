@@ -4,10 +4,10 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
 use crate::error::LlmError;
-use crate::provider::{ChatMessage, ChatResponse, Model, Provider, StreamingCallback};
-use crate::{AnthropicProvider, OllamaProvider, OpenAiProvider};
 use crate::google::GoogleProvider;
 use crate::lm_studio::LmStudioProvider;
+use crate::provider::{ChatMessage, ChatResponse, Model, Provider, StreamingCallback};
+use crate::{AnthropicProvider, OllamaProvider, OpenAiProvider};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ProviderIdentity {
@@ -45,15 +45,17 @@ impl ReasoningBudget {
     pub fn for_provider(&self, provider_type: &str) -> Option<ProviderReasoningConfig> {
         match provider_type {
             "anthropic" => match self {
-                ReasoningBudget::None => Some(ProviderReasoningConfig::Anthropic {
-                    thinking: None,
-                }),
+                ReasoningBudget::None => {
+                    Some(ProviderReasoningConfig::Anthropic { thinking: None })
+                }
                 ReasoningBudget::Low => Some(ProviderReasoningConfig::Anthropic {
                     thinking: Some(AnthropicThinkingConfig::Low),
                 }),
-                ReasoningBudget::High | ReasoningBudget::Medium => Some(ProviderReasoningConfig::Anthropic {
-                    thinking: Some(AnthropicThinkingConfig::High),
-                }),
+                ReasoningBudget::High | ReasoningBudget::Medium => {
+                    Some(ProviderReasoningConfig::Anthropic {
+                        thinking: Some(AnthropicThinkingConfig::High),
+                    })
+                }
                 ReasoningBudget::Max => Some(ProviderReasoningConfig::Anthropic {
                     thinking: Some(AnthropicThinkingConfig::Max),
                 }),
@@ -196,10 +198,7 @@ pub enum ProviderSpec {
         base_url: Option<String>,
     },
     #[serde(rename = "google")]
-    Google {
-        api_key: String,
-        model: String,
-    },
+    Google { api_key: String, model: String },
     #[serde(rename = "ollama")]
     Ollama {
         base_url: Option<String>,
@@ -211,10 +210,7 @@ pub enum ProviderSpec {
         model: String,
     },
     #[serde(rename = "local")]
-    LocalInference {
-        base_url: String,
-        model: String,
-    },
+    LocalInference { base_url: String, model: String },
     #[serde(rename = "azure")]
     Azure {
         api_key: String,
@@ -229,15 +225,9 @@ pub enum ProviderSpec {
         base_url: Option<String>,
     },
     #[serde(rename = "mistral")]
-    Mistral {
-        api_key: String,
-        model: String,
-    },
+    Mistral { api_key: String, model: String },
     #[serde(rename = "groq")]
-    Groq {
-        api_key: String,
-        model: String,
-    },
+    Groq { api_key: String, model: String },
 }
 
 impl ProviderSpec {
@@ -309,7 +299,10 @@ impl DynProvider {
         }
     }
 
-    pub fn with_identity_and_inner(provider: Arc<dyn Provider>, identity: ProviderIdentity) -> Self {
+    pub fn with_identity_and_inner(
+        provider: Arc<dyn Provider>,
+        identity: ProviderIdentity,
+    ) -> Self {
         Self {
             inner: provider,
             identity,
@@ -419,29 +412,33 @@ impl ProviderManager {
     }
 
     pub fn create_provider(&self, spec: &ProviderSpec) -> Result<DynProvider, LlmError> {
-        let factory = self
-            .factories
-            .get(spec.provider_type())
-            .ok_or_else(|| LlmError::Provider(format!("Unknown provider type: {}", spec.provider_type())))?;
-        
+        let factory = self.factories.get(spec.provider_type()).ok_or_else(|| {
+            LlmError::Provider(format!("Unknown provider type: {}", spec.provider_type()))
+        })?;
+
         if !factory.supports(spec) {
             return Err(LlmError::Provider(format!(
                 "Factory '{}' does not support this configuration",
                 spec.provider_type()
             )));
         }
-        
+
         factory.create(spec)
     }
 
-    pub fn create_provider_by_identity(&self, identity: &ProviderIdentity) -> Result<DynProvider, LlmError> {
-        let factory = self
-            .factories
-            .get(&identity.provider_type)
-            .ok_or_else(|| LlmError::Provider(format!("Unknown provider type: {}", identity.provider_type)))?;
-        
-        let model = identity.model.clone().unwrap_or_else(|| "gpt-4o".to_string());
-        
+    pub fn create_provider_by_identity(
+        &self,
+        identity: &ProviderIdentity,
+    ) -> Result<DynProvider, LlmError> {
+        let factory = self.factories.get(&identity.provider_type).ok_or_else(|| {
+            LlmError::Provider(format!("Unknown provider type: {}", identity.provider_type))
+        })?;
+
+        let model = identity
+            .model
+            .clone()
+            .unwrap_or_else(|| "gpt-4o".to_string());
+
         let spec = match identity.provider_type.as_str() {
             "openai" => ProviderSpec::OpenAI {
                 api_key: std::env::var("OPENAI_API_KEY").unwrap_or_default(),
@@ -469,17 +466,25 @@ impl ProviderManager {
                 base_url: "http://localhost:8080".to_string(),
                 model: model.clone(),
             },
-            _ => return Err(LlmError::Provider(format!("Cannot create provider '{}' from identity - missing configuration", identity.provider_type))),
+            _ => {
+                return Err(LlmError::Provider(format!(
+                    "Cannot create provider '{}' from identity - missing configuration",
+                    identity.provider_type
+                )))
+            }
         };
-        
+
         let provider = factory.create(&spec)?;
-        
+
         let mut final_identity = identity.clone();
         if final_identity.model.is_none() {
             final_identity.model = Some(model);
         }
-        
-        Ok(DynProvider::with_identity_and_inner(provider.inner.clone(), final_identity))
+
+        Ok(DynProvider::with_identity_and_inner(
+            provider.inner.clone(),
+            final_identity,
+        ))
     }
 
     pub fn list_providers(&self) -> Vec<String> {
@@ -669,7 +674,7 @@ mod tests {
         let id1 = ProviderIdentity::anthropic("claude-3");
         let id2 = ProviderIdentity::anthropic("claude-3");
         let id3 = ProviderIdentity::openai("claude-3");
-        
+
         assert_eq!(id1, id2);
         assert_ne!(id1, id3);
     }
@@ -711,7 +716,7 @@ mod tests {
             model: "gpt-4".to_string(),
             base_url: None,
         };
-        
+
         let result = manager.create_provider(&spec);
         assert!(result.is_ok());
         let provider = result.unwrap();
@@ -726,7 +731,7 @@ mod tests {
             model: "claude-3".to_string(),
             base_url: None,
         };
-        
+
         let result = manager.create_provider(&spec);
         assert!(result.is_ok());
         let provider = result.unwrap();
@@ -740,7 +745,7 @@ mod tests {
             base_url: Some("http://localhost:11434".to_string()),
             model: "llama2".to_string(),
         };
-        
+
         let result = manager.create_provider(&spec);
         assert!(result.is_ok());
         let provider = result.unwrap();
@@ -762,7 +767,7 @@ mod tests {
             model: "gpt-4".to_string(),
             base_url: None,
         };
-        
+
         let result = manager.create_provider(&spec);
         assert!(result.is_ok());
     }
@@ -774,10 +779,10 @@ mod tests {
             model: "gpt-4".to_string(),
             base_url: None,
         };
-        
+
         let manager = ProviderManager::new();
         let provider = manager.create_provider(&spec).unwrap();
-        
+
         assert_eq!(provider.identity().provider_type, "openai");
         assert_eq!(provider.identity().model, Some("gpt-4".to_string()));
     }
@@ -789,10 +794,10 @@ mod tests {
             model: "gpt-4".to_string(),
             base_url: None,
         };
-        
+
         let manager = ProviderManager::new();
         let provider = manager.create_provider(&spec).unwrap();
-        
+
         let models = provider.get_models();
         assert!(!models.is_empty());
     }
@@ -804,13 +809,17 @@ mod tests {
             model: "gpt-4".to_string(),
             base_url: Some("https://api.openai.com".to_string()),
         };
-        
+
         let json = serde_json::to_string(&spec).unwrap();
         assert!(json.contains("\"type\":\"openai\""));
-        
+
         let deserialized: ProviderSpec = serde_json::from_str(&json).unwrap();
         match deserialized {
-            ProviderSpec::OpenAI { api_key, model, base_url } => {
+            ProviderSpec::OpenAI {
+                api_key,
+                model,
+                base_url,
+            } => {
                 assert_eq!(api_key, "test-key");
                 assert_eq!(model, "gpt-4");
                 assert_eq!(base_url, Some("https://api.openai.com".to_string()));
@@ -822,19 +831,19 @@ mod tests {
     #[test]
     fn test_factory_supports() {
         let factory = OpenAIProviderFactory {};
-        
+
         let openai_spec = ProviderSpec::OpenAI {
             api_key: "test".to_string(),
             model: "gpt-4".to_string(),
             base_url: None,
         };
-        
+
         let anthropic_spec = ProviderSpec::Anthropic {
             api_key: "test".to_string(),
             model: "claude-3".to_string(),
             base_url: None,
         };
-        
+
         assert!(factory.supports(&openai_spec));
         assert!(!factory.supports(&anthropic_spec));
     }
@@ -842,7 +851,7 @@ mod tests {
     #[test]
     fn test_create_provider_by_identity_with_model() {
         let manager = ProviderManager::new();
-        
+
         let identity = ProviderIdentity::openai("gpt-4o");
         let result = manager.create_provider_by_identity(&identity);
         assert!(result.is_ok());
@@ -851,30 +860,32 @@ mod tests {
     #[test]
     fn test_register_custom_factory() {
         struct CustomFactory;
-        
+
         impl ProviderFactory for CustomFactory {
             fn name(&self) -> &str {
                 "custom"
             }
-            
+
             fn create(&self, spec: &ProviderSpec) -> Result<DynProvider, LlmError> {
                 match spec {
                     ProviderSpec::OpenAI { api_key, model, .. } => {
                         let provider = OpenAiProvider::new(api_key.clone(), model.clone());
                         Ok(DynProvider::new(provider))
                     }
-                    _ => Err(LlmError::Provider("Custom factory only supports OpenAI".to_string())),
+                    _ => Err(LlmError::Provider(
+                        "Custom factory only supports OpenAI".to_string(),
+                    )),
                 }
             }
-            
+
             fn supports(&self, spec: &ProviderSpec) -> bool {
                 matches!(spec, ProviderSpec::OpenAI { .. })
             }
         }
-        
+
         let mut manager = ProviderManager::new();
         manager.register_factory(Box::new(CustomFactory));
-        
+
         assert!(manager.has_provider("custom"));
     }
 }

@@ -16,7 +16,10 @@ async fn acp_handshake_connection_establishes_correctly() {
 
     assert!(response.accepted, "Handshake should be accepted");
     assert!(response.error.is_none(), "Should have no error");
-    assert!(!response.session_id.is_empty(), "Session ID should be generated");
+    assert!(
+        !response.session_id.is_empty(),
+        "Session ID should be generated"
+    );
     assert_eq!(response.server_id, "test-server");
     assert_eq!(response.version, "1.0");
 }
@@ -38,8 +41,14 @@ async fn acp_handshake_capabilities_negotiated_properly() {
 
     let response = protocol.process_handshake(request);
 
-    assert!(response.accepted, "Handshake with capabilities should be accepted");
-    assert!(!response.session_id.is_empty(), "Session should be established with capabilities");
+    assert!(
+        response.accepted,
+        "Handshake with capabilities should be accepted"
+    );
+    assert!(
+        !response.session_id.is_empty(),
+        "Session should be established with capabilities"
+    );
 }
 
 #[tokio::test]
@@ -55,7 +64,10 @@ async fn acp_handshake_invalid_version_rejected() {
 
     let response = protocol.process_handshake(request);
 
-    assert!(!response.accepted, "Handshake with wrong version should be rejected");
+    assert!(
+        !response.accepted,
+        "Handshake with wrong version should be rejected"
+    );
     assert!(response.error.is_some(), "Should have an error message");
     let error = response.error.unwrap();
     assert!(
@@ -63,7 +75,10 @@ async fn acp_handshake_invalid_version_rejected() {
         "Error should mention version mismatch: {}",
         error
     );
-    assert!(response.session_id.is_empty(), "Session ID should be empty on rejection");
+    assert!(
+        response.session_id.is_empty(),
+        "Session ID should be empty on rejection"
+    );
 }
 
 #[tokio::test]
@@ -86,7 +101,10 @@ async fn acp_handshake_confirm_with_valid_session() {
     };
 
     let confirmed = protocol.confirm_handshake(ack);
-    assert!(confirmed, "Handshake should be confirmable with valid session");
+    assert!(
+        confirmed,
+        "Handshake should be confirmable with valid session"
+    );
 }
 
 #[tokio::test]
@@ -100,7 +118,10 @@ async fn acp_handshake_confirm_rejected_with_empty_session() {
     };
 
     let confirmed = protocol.confirm_handshake(ack);
-    assert!(!confirmed, "Confirmation should be rejected with empty session");
+    assert!(
+        !confirmed,
+        "Confirmation should be rejected with empty session"
+    );
 }
 
 #[tokio::test]
@@ -114,7 +135,10 @@ async fn acp_handshake_confirm_rejected_when_not_confirmed() {
     };
 
     let confirmed = protocol.confirm_handshake(ack);
-    assert!(!confirmed, "Confirmation should be rejected when confirmed=false");
+    assert!(
+        !confirmed,
+        "Confirmation should be rejected when confirmed=false"
+    );
 }
 
 #[tokio::test]

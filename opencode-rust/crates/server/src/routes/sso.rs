@@ -1,9 +1,9 @@
 use actix_web::{web, HttpResponse, Responder};
-use opencode_control_plane::sso::{SsoConfig, SsoManager, SsoProvider, OidcState};
+use chrono::{Duration, Utc};
+use opencode_control_plane::sso::{OidcState, SsoConfig, SsoManager, SsoProvider};
 use serde::{Deserialize, Serialize};
-use std::sync::Mutex;
 use std::collections::HashMap;
-use chrono::{Utc, Duration};
+use std::sync::Mutex;
 use uuid::Uuid;
 
 use crate::routes::error::{bad_request, not_found};
@@ -63,12 +63,10 @@ pub struct OidcCallbackResponse {
     pub error: Option<String>,
 }
 
-pub async fn get_sso_config(
-    _state: web::Data<ServerState>,
-) -> impl Responder {
+pub async fn get_sso_config(_state: web::Data<ServerState>) -> impl Responder {
     let manager = get_sso_manager();
     let manager = manager.lock().unwrap();
-    
+
     match manager.get_config() {
         Some(config) => HttpResponse::Ok().json(SsoConfigResponse {
             id: config.id.clone(),
@@ -96,7 +94,7 @@ pub async fn update_sso_config(
             return bad_request("Invalid provider. Must be 'saml' or 'oidc'");
         }
     };
-    
+
     let config = SsoConfig {
         id: format!("sso-{}", Uuid::new_v4()),
         provider,
@@ -108,48 +106,46 @@ pub async fn update_sso_config(
         redirect_uri: body.redirect_uri.clone(),
         enabled: body.enabled,
     };
-    
+
     let manager = get_sso_manager();
     let mut manager = manager.lock().unwrap();
     manager.set_config(config);
-    
+
     HttpResponse::Ok().json(serde_json::json!({
         "success": true,
         "message": "SSO config updated"
     }))
 }
 
-pub async fn oidc_authorize(
-    _state: web::Data<ServerState>,
-) -> impl Responder {
+pub async fn oidc_authorize(_state: web::Data<ServerState>) -> impl Responder {
     let manager = get_sso_manager();
     let manager = manager.lock().unwrap();
-    
+
     let config = match manager.get_config() {
         Some(c) if c.enabled => c.clone(),
         _ => {
             return bad_request("SSO not enabled or not configured");
         }
     };
-    
+
     if !matches!(config.provider, SsoProvider::Oidc) {
         return bad_request("Provider is not OIDC");
     }
-    
+
     let state = format!("state-{}", uuid::Uuid::new_v4());
     let nonce = format!("nonce-{}", uuid::Uuid::new_v4());
-    
+
     let oidc_state = OidcState {
         state: state.clone(),
         nonce: nonce.clone(),
         code_verifier: None,
         expires_at: Utc::now() + Duration::minutes(10),
     };
-    
+
     let states = get_oidc_states();
     let mut states = states.lock().unwrap();
     states.insert(state.clone(), oidc_state);
-    
+
     let auth_url = format!(
         "{}/authorize?response_type=code&client_id={}&redirect_uri={}&state={}&nonce={}",
         config.sso_url,
@@ -158,11 +154,8 @@ pub async fn oidc_authorize(
         state,
         nonce
     );
-    
-    HttpResponse::Ok().json(OidcAuthorizeResponse {
-        auth_url,
-        state,
-    })
+
+    HttpResponse::Ok().json(OidcAuthorizeResponse { auth_url, state })
 }
 
 pub async fn oidc_callback(
@@ -171,7 +164,7 @@ pub async fn oidc_callback(
 ) -> impl Responder {
     let states = get_oidc_states();
     let mut states = states.lock().unwrap();
-    
+
     let oidc_state = match states.remove(&body.state) {
         Some(s) => s,
         None => {
@@ -182,7 +175,7 @@ pub async fn oidc_callback(
             });
         }
     };
-    
+
     if oidc_state.expires_at < Utc::now() {
         return HttpResponse::BadRequest().json(OidcCallbackResponse {
             success: false,
@@ -190,7 +183,7 @@ pub async fn oidc_callback(
             error: Some("State expired".to_string()),
         });
     }
-    
+
     HttpResponse::Ok().json(OidcCallbackResponse {
         success: true,
         token: Some("mock-jwt-token".to_string()),
@@ -219,7 +212,7 @@ mod tests {
             has_certificate: true,
             enabled: true,
         };
-        
+
         let json = serde_json::to_string(&response).unwrap();
         assert!(json.contains("oidc"));
     }

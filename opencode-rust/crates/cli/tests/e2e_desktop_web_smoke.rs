@@ -6,9 +6,7 @@ use std::process::Stdio;
 use std::time::Duration;
 
 fn find_available_port() -> Option<u16> {
-    (3000..3100).find(|port| {
-        TcpListener::bind(format!("127.0.0.1:{}", port)).is_ok()
-    })
+    (3000..3100).find(|port| TcpListener::bind(format!("127.0.0.1:{}", port)).is_ok())
 }
 
 fn find_available_port_with_retry(max_attempts: u32) -> Option<u16> {
@@ -131,7 +129,10 @@ async fn desktop_web_session_sharing_via_share_server() {
         .await;
 
     assert!(can_read, "Should be able to read via share link");
-    assert!(can_write, "Should be able to write via share link in collaborative mode");
+    assert!(
+        can_write,
+        "Should be able to write via share link in collaborative mode"
+    );
 }
 
 #[test]

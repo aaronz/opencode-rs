@@ -216,7 +216,9 @@ impl McpClient {
 
         let runtime = match &self.transport {
             McpTransport::Stdio(process) => Self::connect_stdio(process.clone()).await,
-            McpTransport::Sse(url) => Self::connect_sse(url.clone(), self.oauth_token.clone()).await,
+            McpTransport::Sse(url) => {
+                Self::connect_sse(url.clone(), self.oauth_token.clone()).await
+            }
         };
 
         let runtime = match runtime {
@@ -563,7 +565,15 @@ impl McpClient {
                 oauth_token,
                 ..
             } => {
-                send_with_pending_sse(client, post_url, pending, request, self.timeout, oauth_token.clone()).await
+                send_with_pending_sse(
+                    client,
+                    post_url,
+                    pending,
+                    request,
+                    self.timeout,
+                    oauth_token.clone(),
+                )
+                .await
             }
         };
 
@@ -682,7 +692,10 @@ impl McpClient {
         })
     }
 
-    async fn connect_sse(url: String, oauth_token: Option<String>) -> Result<RuntimeConnection, McpError> {
+    async fn connect_sse(
+        url: String,
+        oauth_token: Option<String>,
+    ) -> Result<RuntimeConnection, McpError> {
         if url.trim().is_empty() {
             return Err(McpError::ConnectionFailed("empty sse url".to_string()));
         }
@@ -691,12 +704,12 @@ impl McpClient {
             .timeout(std::time::Duration::from_secs(5))
             .build()
             .map_err(|e| McpError::ConnectionFailed(format!("failed to create client: {}", e)))?;
-        
+
         let mut req_builder = client.get(&url).header("Accept", "text/event-stream");
         if let Some(ref token) = oauth_token {
             req_builder = req_builder.header("Authorization", format!("Bearer {}", token));
         }
-        
+
         let stream_response = req_builder
             .send()
             .await
@@ -834,11 +847,11 @@ async fn send_with_pending_sse(
 
     let message = JsonRpcMessage::Request(request);
     let mut req_builder = client.post(post_url).json(&message);
-    
+
     if let Some(token) = oauth_token {
         req_builder = req_builder.header("Authorization", format!("Bearer {}", token));
     }
-    
+
     let response = match req_builder.send().await {
         Ok(resp) => resp,
         Err(err) => {
@@ -1311,16 +1324,23 @@ if __name__ == '__main__':
     main()
 "#;
 
-        let transport = McpTransport::Stdio(
-            StdioProcess::new("python3", vec!["-c".to_string(), python_script.to_string()])
-        );
+        let transport = McpTransport::Stdio(StdioProcess::new(
+            "python3",
+            vec!["-c".to_string(), python_script.to_string()],
+        ));
 
         let client = McpClient::new(transport)
             .with_timeout(Duration::from_secs(10))
             .with_max_retries(2);
 
-        assert_eq!(client.connection_state().await, ConnectionState::Disconnected);
-        client.connect().await.expect("connect to local stdio server");
+        assert_eq!(
+            client.connection_state().await,
+            ConnectionState::Disconnected
+        );
+        client
+            .connect()
+            .await
+            .expect("connect to local stdio server");
         assert_eq!(client.connection_state().await, ConnectionState::Connected);
 
         let tools = client.list_tools().await.expect("list tools");
@@ -1337,7 +1357,10 @@ if __name__ == '__main__':
         assert!(!result.is_error);
 
         client.disconnect().await.expect("disconnect");
-        assert_eq!(client.connection_state().await, ConnectionState::Disconnected);
+        assert_eq!(
+            client.connection_state().await,
+            ConnectionState::Disconnected
+        );
         assert!(!client.is_connected().await);
     }
 
@@ -1353,7 +1376,10 @@ if __name__ == '__main__':
         // Test 2: Verify McpClient can be created with SSE transport
         let client = McpClient::new(McpTransport::Sse("http://127.0.0.1:19999/sse".to_string()))
             .with_timeout(Duration::from_secs(5));
-        assert_eq!(client.connection_state().await, ConnectionState::Disconnected);
+        assert_eq!(
+            client.connection_state().await,
+            ConnectionState::Disconnected
+        );
 
         // Test 3: Verify connection state machine works with handler
         // This validates the SSE transport configuration is correct
@@ -1367,19 +1393,28 @@ if __name__ == '__main__':
                         "serverInfo": {"name": "test-remote", "version": "1.0"}
                     }),
                 )),
-                "initialized" => Ok(JsonRpcResponse::success(request.id.clone(), serde_json::json!(null))),
+                "initialized" => Ok(JsonRpcResponse::success(
+                    request.id.clone(),
+                    serde_json::json!(null),
+                )),
                 "tools/list" => Ok(JsonRpcResponse::success(
                     request.id.clone(),
                     serde_json::json!({"tools": [
                         {"name": "remote_tool", "description": "A remote tool", "inputSchema": {"type": "object"}}
                     ]}),
                 )),
-                "ping" => Ok(JsonRpcResponse::success(request.id.clone(), serde_json::json!(null))),
+                "ping" => Ok(JsonRpcResponse::success(
+                    request.id.clone(),
+                    serde_json::json!(null),
+                )),
                 "tools/call" => Ok(JsonRpcResponse::success(
                     request.id.clone(),
                     serde_json::json!({"content": [{"type": "text", "text": "remote result"}], "isError": false}),
                 )),
-                _ => Ok(JsonRpcResponse::success(request.id.clone(), serde_json::json!(null))),
+                _ => Ok(JsonRpcResponse::success(
+                    request.id.clone(),
+                    serde_json::json!(null),
+                )),
             };
             response
         });
@@ -1388,32 +1423,38 @@ if __name__ == '__main__':
             McpTransport::Sse("http://mock-remote/sse".to_string()),
             handler,
         );
-        
+
         // Verify initial state
-        assert_eq!(client.connection_state().await, ConnectionState::Disconnected);
-        
+        assert_eq!(
+            client.connection_state().await,
+            ConnectionState::Disconnected
+        );
+
         // Connect and verify state transitions
         client.connect().await.expect("connect with SSE handler");
         assert_eq!(client.connection_state().await, ConnectionState::Connected);
-        
+
         // Verify tools can be listed from remote
         let tools = client.list_tools().await.expect("list remote tools");
         assert_eq!(tools.len(), 1);
         assert_eq!(tools[0].name, "remote_tool");
-        
+
         // Verify ping works for remote connection
         client.ping().await.expect("ping remote");
-        
+
         // Verify tool calls work
         let result = client
             .call_tool("some_tool", &serde_json::json!({"arg": "value"}))
             .await
             .expect("call remote tool");
         assert!(result.content.contains("remote result"));
-        
+
         // Verify disconnect works
         client.disconnect().await.expect("disconnect");
-        assert_eq!(client.connection_state().await, ConnectionState::Disconnected);
+        assert_eq!(
+            client.connection_state().await,
+            ConnectionState::Disconnected
+        );
     }
 
     #[tokio::test]
@@ -1441,7 +1482,7 @@ if __name__ == '__main__':
 
         let err = result.unwrap_err();
         assert!(matches!(err, McpError::Timeout(_)));
-        
+
         if let McpError::Timeout(duration) = err {
             assert_eq!(duration, handler_timeout);
         }
@@ -1467,12 +1508,15 @@ if __name__ == '__main__':
         client.connect().await.unwrap();
 
         let err = client.ping().await.unwrap_err();
-        
+
         assert!(matches!(err, McpError::Timeout(_)));
-        
+
         let error_string = err.to_string();
-        assert!(error_string.contains("timeout") || error_string.contains("Timeout"), 
-            "Error message should mention timeout: {}", error_string);
+        assert!(
+            error_string.contains("timeout") || error_string.contains("Timeout"),
+            "Error message should mention timeout: {}",
+            error_string
+        );
     }
 
     #[tokio::test]
@@ -1503,28 +1547,33 @@ if __name__ == '__main__':
     main()
 "#;
 
-        let transport = McpTransport::Stdio(
-            StdioProcess::new("python3", vec!["-c".to_string(), python_script.to_string()])
-        );
+        let transport = McpTransport::Stdio(StdioProcess::new(
+            "python3",
+            vec!["-c".to_string(), python_script.to_string()],
+        ));
 
         let client = McpClient::new(transport)
             .with_timeout(Duration::from_millis(300))
             .with_max_retries(0);
 
         let connect_result = client.connect().await;
-        
+
         if connect_result.is_ok() {
             let result = client.ping().await;
             assert!(result.is_err());
             let err = result.unwrap_err();
-            assert!(matches!(err, McpError::Timeout(_)), "Expected Timeout error, got: {:?}", err);
+            assert!(
+                matches!(err, McpError::Timeout(_)),
+                "Expected Timeout error, got: {:?}",
+                err
+            );
         }
     }
 
     #[tokio::test]
     async fn test_partial_results_handling_on_timeout() {
         use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-        
+
         let request_count = Arc::new(AtomicUsize::new(0));
         let response_sent = Arc::new(AtomicBool::new(false));
         let request_count_clone = request_count.clone();
@@ -1532,7 +1581,7 @@ if __name__ == '__main__':
 
         let handler: TransportHandler = Arc::new(move |request| {
             request_count_clone.fetch_add(1, Ordering::SeqCst);
-            
+
             if request.method == "tools/list" && !response_sent_clone.load(Ordering::SeqCst) {
                 response_sent_clone.store(true, Ordering::SeqCst);
                 return Err(McpError::Timeout(Duration::from_millis(10)));
@@ -1578,7 +1627,7 @@ if __name__ == '__main__':
         let result = client
             .call_tool("slow_tool", &serde_json::json!({"arg": "value"}))
             .await;
-        
+
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), McpError::Timeout(_)));
     }
@@ -1603,7 +1652,7 @@ if __name__ == '__main__':
         client.connect().await.unwrap();
 
         let result = client.read_resource("file:///test").await;
-        
+
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), McpError::Timeout(_)));
     }
@@ -1631,10 +1680,10 @@ if __name__ == '__main__':
         client.connect().await.unwrap();
 
         let result = client.ping().await;
-        
+
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), McpError::Timeout(_)));
-        
+
         assert_eq!(call_count.load(Ordering::SeqCst), 1);
     }
 
@@ -1687,16 +1736,17 @@ if __name__ == '__main__':
     main()
 "#;
 
-        let transport = McpTransport::Stdio(
-            StdioProcess::new("python3", vec!["-c".to_string(), python_script.to_string()])
-        );
+        let transport = McpTransport::Stdio(StdioProcess::new(
+            "python3",
+            vec!["-c".to_string(), python_script.to_string()],
+        ));
 
         let client = McpClient::new(transport)
             .with_timeout(Duration::from_secs(1))
             .with_max_retries(0);
 
         client.connect().await.expect("connect should succeed");
-        
+
         let tools = client.list_tools().await.expect("list tools should work");
         assert_eq!(tools.len(), 1);
         assert_eq!(tools[0].name, "test");

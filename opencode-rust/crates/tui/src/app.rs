@@ -4,8 +4,8 @@ use crate::components::{
     TerminalPanel, TitleBar, TitleBarAction,
 };
 use crate::config::{Config, DiffStyle, UserConfig};
-use crate::dialogs::*;
 use crate::dialogs::home_view::{HomeAction, HomeView};
+use crate::dialogs::*;
 use crate::file_ref_handler::FileRefHandler;
 use crate::input::{EditorLauncher, InputBox, InputParser, InputProcessor, InputToken};
 use crate::layout::LayoutManager;
@@ -1374,10 +1374,11 @@ impl App {
                             if self.partial_response.is_empty() {
                                 self.input_widget.start_typewriter(&chunk);
                             } else {
-                                self.input_widget
-                                    .typewriter_state
-                                    .as_mut()
-                                    .map(|s: &mut crate::components::input_widget::TypewriterState| s.append(&chunk));
+                                self.input_widget.typewriter_state.as_mut().map(
+                                    |s: &mut crate::components::input_widget::TypewriterState| {
+                                        s.append(&chunk)
+                                    },
+                                );
                             }
                             self.update_partial_response(chunk);
                         }
@@ -2687,11 +2688,19 @@ OpenCode Agent Configuration
                         let msg = format!(
                             "{} section {}",
                             section.title(),
-                            if section.collapsed { "collapsed" } else { "expanded" }
+                            if section.collapsed {
+                                "collapsed"
+                            } else {
+                                "expanded"
+                            }
                         );
                         self.add_message(msg, false);
                     }
-                    KeyCode::Left if key.modifiers.contains(KeyModifiers::CONTROL | KeyModifiers::ALT) => {
+                    KeyCode::Left
+                        if key
+                            .modifiers
+                            .contains(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
+                    {
                         self.sidebar.prev_section();
                         let _ = self.sidebar.save_to_file(&self.sidebar_file);
                         self.add_message(
@@ -2699,7 +2708,11 @@ OpenCode Agent Configuration
                             false,
                         );
                     }
-                    KeyCode::Right if key.modifiers.contains(KeyModifiers::CONTROL | KeyModifiers::ALT) => {
+                    KeyCode::Right
+                        if key
+                            .modifiers
+                            .contains(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
+                    {
                         self.sidebar.next_section();
                         let _ = self.sidebar.save_to_file(&self.sidebar_file);
                         self.add_message(
@@ -3654,12 +3667,10 @@ OpenCode Agent Configuration
                         .add_modifier(Modifier::BOLD),
                 ),
             ]),
-            Line::from(vec![
-                Span::styled(
-                    format!("Version {}", env!("CARGO_PKG_VERSION")),
-                    Style::default().fg(theme.muted_color()),
-                ),
-            ]),
+            Line::from(vec![Span::styled(
+                format!("Version {}", env!("CARGO_PKG_VERSION")),
+                Style::default().fg(theme.muted_color()),
+            )]),
         ];
 
         let info_text = vec![Line::from(vec![
@@ -3704,9 +3715,7 @@ OpenCode Agent Configuration
                     .add_modifier(Modifier::BOLD)
             };
             let label_style = if is_selected {
-                Style::default()
-                    .fg(Color::Black)
-                    .bg(theme.primary_color())
+                Style::default().fg(Color::Black).bg(theme.primary_color())
             } else {
                 Style::default().fg(theme.foreground_color())
             };
@@ -3805,7 +3814,12 @@ OpenCode Agent Configuration
 
         f.render_widget(
             Paragraph::new(vec![hint_line]),
-            Rect::new(outer_area.x, outer_area.bottom().saturating_sub(1), outer_area.width, 1),
+            Rect::new(
+                outer_area.x,
+                outer_area.bottom().saturating_sub(1),
+                outer_area.width,
+                1,
+            ),
         );
     }
 

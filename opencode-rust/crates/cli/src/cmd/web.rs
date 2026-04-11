@@ -38,10 +38,10 @@ async fn run_web(args: WebArgs) -> Result<(), Box<dyn std::error::Error>> {
     let default_server_cfg = ServerConfig::default();
     let server_cfg = config.server.as_ref().unwrap_or(&default_server_cfg);
 
-    let port = args.port
-        .or(server_cfg.port)
-        .unwrap_or(3000);
-    let host = args.hostname.clone()
+    let port = args.port.or(server_cfg.port).unwrap_or(3000);
+    let host = args
+        .hostname
+        .clone()
         .or_else(|| server_cfg.hostname.clone())
         .unwrap_or_else(|| "127.0.0.1".to_string());
 

@@ -434,14 +434,14 @@ mod tests {
         use crate::context_cost::{ContextCostTracker, CostLimits, SharedContextCostTracker};
 
         let tracker = SharedContextCostTracker::new();
-        
+
         let record = tracker.record_tool_call(
             "search_docs",
             "docs_server",
             "query about rust programming",
             "Found 42 results about rust programming language",
         );
-        
+
         assert_eq!(record.tool_name, "search_docs");
         assert_eq!(record.server_name, "docs_server");
         assert!(record.input_tokens > 0);
@@ -455,14 +455,19 @@ mod tests {
 
         let mut tracker = ContextCostTracker::new();
         tracker.update_limits(CostLimits::new(100));
-        
+
         tracker.record_tool_call("tool1", "server", "input", "output");
         assert!(!tracker.should_warn());
-        
+
         for _ in 0..10 {
-            tracker.record_tool_call("tool", "server", "some input text here that has meaningful content for token counting purposes", "some output text here that has meaningful content for token counting purposes");
+            tracker.record_tool_call(
+                "tool",
+                "server",
+                "some input text here that has meaningful content for token counting purposes",
+                "some output text here that has meaningful content for token counting purposes",
+            );
         }
-        
+
         assert!(tracker.should_warn());
         assert!(tracker.get_warning_message().is_some());
     }
@@ -473,16 +478,19 @@ mod tests {
 
         let mut tracker = ContextCostTracker::new();
         tracker.update_limits(CostLimits::new(10000));
-        
+
         let input = "This is a test input string for token counting";
         let output = "This is a test output string for token counting";
-        
+
         let record = tracker.record_tool_call("test_tool", "test_server", input, output);
-        
+
         assert!(record.input_tokens > 0);
         assert!(record.output_tokens > 0);
-        assert_eq!(record.total_tokens, record.input_tokens + record.output_tokens);
-        
+        assert_eq!(
+            record.total_tokens,
+            record.input_tokens + record.output_tokens
+        );
+
         let stats = tracker.stats();
         assert_eq!(stats.total_input_tokens, record.input_tokens);
         assert_eq!(stats.total_output_tokens, record.output_tokens);
@@ -495,7 +503,7 @@ mod tests {
 
         let mut tracker = ContextCostTracker::new();
         tracker.update_limits(CostLimits::new(1000));
-        
+
         assert_eq!(tracker.calculate_cost_level(0), CostLevel::Normal);
         assert_eq!(tracker.calculate_cost_level(400), CostLevel::Normal);
         assert_eq!(tracker.calculate_cost_level(500), CostLevel::Warning);
@@ -508,10 +516,10 @@ mod tests {
         use crate::context_cost::SharedContextCostTracker;
 
         let tracker = SharedContextCostTracker::new();
-        
+
         tracker.record_tool_call("tool1", "server1", "input1", "output1");
         tracker.record_tool_call("tool2", "server2", "input2", "output2");
-        
+
         assert_eq!(tracker.stats().tool_call_count, 2);
         assert!(tracker.total_tokens() > 0);
         assert!(tracker.remaining_tokens() < 128000);
@@ -523,7 +531,7 @@ mod tests {
 
         let mut tracker = ContextCostTracker::new();
         tracker.update_limits(CostLimits::new(100));
-        
+
         assert!(!tracker.would_exceed_limit(50));
         assert!(tracker.would_exceed_limit(100));
         assert!(tracker.would_exceed_limit(101));
@@ -535,10 +543,10 @@ mod tests {
 
         let mut tracker = ContextCostTracker::new();
         tracker.update_limits(CostLimits::new(10000));
-        
+
         tracker.record_tool_call("tool1", "server", "input1", "output1");
         tracker.record_tool_call("tool2", "server", "input2", "output2");
-        
+
         let records = tracker.records();
         assert_eq!(records.len(), 2);
         assert_eq!(records[0].tool_name, "tool1");
@@ -551,10 +559,10 @@ mod tests {
 
         let mut tracker = ContextCostTracker::new();
         tracker.update_limits(CostLimits::new(1000));
-        
+
         tracker.record_tool_call("tool", "server", "input", "output");
         assert_eq!(tracker.tool_call_count(), 1);
-        
+
         tracker.clear();
         assert_eq!(tracker.tool_call_count(), 0);
         assert_eq!(tracker.total_tokens(), 0);
@@ -603,7 +611,7 @@ mod tests {
         let exec = registry.get_executor("cost_server_costly_tool").unwrap();
         let out = exec(json!({"param": "value"})).unwrap();
         assert_eq!(out, "cost-tracked-result");
-        
+
         let stats = cost_tracker.stats();
         assert_eq!(stats.tool_call_count, 1);
     }

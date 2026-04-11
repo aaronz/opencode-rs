@@ -54,7 +54,10 @@ pub struct ToolContext {
 }
 
 impl ToolContext {
-    pub fn with_permission_scope(mut self, scope: opencode_permission::AgentPermissionScope) -> Self {
+    pub fn with_permission_scope(
+        mut self,
+        scope: opencode_permission::AgentPermissionScope,
+    ) -> Self {
         self.permission_scope = Some(scope);
         self
     }

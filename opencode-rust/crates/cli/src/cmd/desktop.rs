@@ -46,15 +46,19 @@ async fn run_desktop(args: DesktopArgs) -> Result<(), Box<dyn std::error::Error>
     let server_cfg = config.server.as_ref().unwrap_or(&default_server_cfg);
     let desktop_cfg = server_cfg.desktop.as_ref();
 
-    let port = args.port
+    let port = args
+        .port
         .or(desktop_cfg.and_then(|d| d.port))
         .or(server_cfg.port)
         .unwrap_or(3000);
-    let host = args.hostname.clone()
+    let host = args
+        .hostname
+        .clone()
         .or_else(|| desktop_cfg.and_then(|d| d.hostname.clone()))
         .or_else(|| server_cfg.hostname.clone())
         .unwrap_or_else(|| "127.0.0.1".to_string());
-    let acp_enabled = args.acp_enabled
+    let acp_enabled = args
+        .acp_enabled
         .or(desktop_cfg.and_then(|d| d.enabled))
         .or(server_cfg.acp.as_ref().and_then(|a| a.enabled))
         .unwrap_or(true);

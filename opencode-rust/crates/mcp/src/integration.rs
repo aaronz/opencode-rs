@@ -5,11 +5,7 @@ use opencode_core::ToolRegistry;
 use crate::client::McpClient;
 use crate::tool_bridge::McpToolAdapter;
 
-pub fn register_mcp_tools(
-    client: &McpClient,
-    server_name: &str,
-    registry: &mut ToolRegistry,
-) {
+pub fn register_mcp_tools(client: &McpClient, server_name: &str, registry: &mut ToolRegistry) {
     let client = client.clone();
     let tools = match run_async(async { client.list_tools().await }) {
         Ok(tools) => tools,
@@ -17,8 +13,7 @@ pub fn register_mcp_tools(
     };
 
     for tool in tools {
-        let adapter =
-            McpToolAdapter::new(std::sync::Arc::new(client.clone()), tool, server_name);
+        let adapter = McpToolAdapter::new(std::sync::Arc::new(client.clone()), tool, server_name);
         adapter.register_into(registry);
     }
 }
@@ -35,10 +30,10 @@ fn run_async<T>(future: impl Future<Output = T>) -> T {
 
 #[cfg(test)]
 mod integration {
-    use opencode_core::ToolRegistry;
     use crate::registry::{McpPermission, McpRegistry, McpServerConfig};
     use crate::tool_bridge::McpToolAdapter;
-    use crate::{McpTransport, ConnectionState, McpClient, McpTool, protocol::JsonRpcResponse};
+    use crate::{protocol::JsonRpcResponse, ConnectionState, McpClient, McpTool, McpTransport};
+    use opencode_core::ToolRegistry;
     use serde_json::json;
     use std::sync::Arc;
     use std::time::Duration;
@@ -128,17 +123,24 @@ if __name__ == '__main__':
     main()
 "#;
 
-        let transport = McpTransport::Stdio(
-            crate::client::StdioProcess::new("python3", vec!["-c".to_string(), python_script.to_string()])
-        );
+        let transport = McpTransport::Stdio(crate::client::StdioProcess::new(
+            "python3",
+            vec!["-c".to_string(), python_script.to_string()],
+        ));
 
         let client = McpClient::new(transport)
             .with_timeout(Duration::from_secs(10))
             .with_max_retries(2);
 
-        assert_eq!(client.connection_state().await, ConnectionState::Disconnected);
-        
-        client.connect().await.expect("connect to local stdio server");
+        assert_eq!(
+            client.connection_state().await,
+            ConnectionState::Disconnected
+        );
+
+        client
+            .connect()
+            .await
+            .expect("connect to local stdio server");
         assert_eq!(client.connection_state().await, ConnectionState::Connected);
 
         let tools = client.list_tools().await.expect("list tools");
@@ -163,63 +165,68 @@ if __name__ == '__main__':
         assert!(!result.is_error);
 
         client.disconnect().await.expect("disconnect");
-        assert_eq!(client.connection_state().await, ConnectionState::Disconnected);
+        assert_eq!(
+            client.connection_state().await,
+            ConnectionState::Disconnected
+        );
         assert!(!client.is_connected().await);
     }
 
     #[tokio::test]
     async fn test_remote_mcp_connection_end_to_end() {
-        let handler: TransportHandler = Arc::new(|request| {
-            match request.method.as_str() {
-                "initialize" => Ok(JsonRpcResponse::success(
-                    request.id.clone(),
-                    json!({
-                        "protocolVersion": "2024-11-05",
-                        "capabilities": {"tools": {"listChanged": true}},
-                        "serverInfo": {"name": "test-remote-server", "version": "1.0.0"}
-                    }),
-                )),
-                "initialized" => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
-                "ping" => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
-                "tools/list" => Ok(JsonRpcResponse::success(
-                    request.id.clone(),
-                    json!({"tools": [
-                        {"name": "search", "description": "Search remote resources", "inputSchema": {"type": "object", "properties": {"query": {"type": "string"}}}},
-                        {"name": "fetch", "description": "Fetch remote resource", "inputSchema": {"type": "object", "properties": {"url": {"type": "string"}}}}
-                    ]}),
-                )),
-                "tools/call" => {
-                    let tool_name = request.params.as_ref()
-                        .and_then(|p| p.get("name"))
-                        .and_then(|n| n.as_str())
-                        .unwrap_or("");
-                    let args = request.params.as_ref()
-                        .and_then(|p| p.get("arguments"))
-                        .cloned()
-                        .unwrap_or(json!({}));
-                    
-                    if tool_name == "search" {
-                        let query = args.get("query").and_then(|v| v.as_str()).unwrap_or("");
-                        Ok(JsonRpcResponse::success(
-                            request.id.clone(),
-                            json!({"content": [{"type": "text", "text": format!("search results for: {}", query)}], "isError": false}),
-                        ))
-                    } else if tool_name == "fetch" {
-                        let url = args.get("url").and_then(|v| v.as_str()).unwrap_or("");
-                        Ok(JsonRpcResponse::success(
-                            request.id.clone(),
-                            json!({"content": [{"type": "text", "text": format!("fetched: {}", url)}], "isError": false}),
-                        ))
-                    } else {
-                        Ok(JsonRpcResponse::error(
-                            request.id.clone(),
-                            -32601,
-                            format!("Unknown tool: {}", tool_name),
-                        ))
-                    }
-                },
-                _ => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
+        let handler: TransportHandler = Arc::new(|request| match request.method.as_str() {
+            "initialize" => Ok(JsonRpcResponse::success(
+                request.id.clone(),
+                json!({
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {"tools": {"listChanged": true}},
+                    "serverInfo": {"name": "test-remote-server", "version": "1.0.0"}
+                }),
+            )),
+            "initialized" => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
+            "ping" => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
+            "tools/list" => Ok(JsonRpcResponse::success(
+                request.id.clone(),
+                json!({"tools": [
+                    {"name": "search", "description": "Search remote resources", "inputSchema": {"type": "object", "properties": {"query": {"type": "string"}}}},
+                    {"name": "fetch", "description": "Fetch remote resource", "inputSchema": {"type": "object", "properties": {"url": {"type": "string"}}}}
+                ]}),
+            )),
+            "tools/call" => {
+                let tool_name = request
+                    .params
+                    .as_ref()
+                    .and_then(|p| p.get("name"))
+                    .and_then(|n| n.as_str())
+                    .unwrap_or("");
+                let args = request
+                    .params
+                    .as_ref()
+                    .and_then(|p| p.get("arguments"))
+                    .cloned()
+                    .unwrap_or(json!({}));
+
+                if tool_name == "search" {
+                    let query = args.get("query").and_then(|v| v.as_str()).unwrap_or("");
+                    Ok(JsonRpcResponse::success(
+                        request.id.clone(),
+                        json!({"content": [{"type": "text", "text": format!("search results for: {}", query)}], "isError": false}),
+                    ))
+                } else if tool_name == "fetch" {
+                    let url = args.get("url").and_then(|v| v.as_str()).unwrap_or("");
+                    Ok(JsonRpcResponse::success(
+                        request.id.clone(),
+                        json!({"content": [{"type": "text", "text": format!("fetched: {}", url)}], "isError": false}),
+                    ))
+                } else {
+                    Ok(JsonRpcResponse::error(
+                        request.id.clone(),
+                        -32601,
+                        format!("Unknown tool: {}", tool_name),
+                    ))
+                }
             }
+            _ => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
         });
 
         let client = McpClient::with_handler(
@@ -227,8 +234,11 @@ if __name__ == '__main__':
             handler,
         );
 
-        assert_eq!(client.connection_state().await, ConnectionState::Disconnected);
-        
+        assert_eq!(
+            client.connection_state().await,
+            ConnectionState::Disconnected
+        );
+
         client.connect().await.expect("connect with SSE handler");
         assert_eq!(client.connection_state().await, ConnectionState::Connected);
 
@@ -243,7 +253,9 @@ if __name__ == '__main__':
             .call_tool("search", &json!({"query": "rust programming"}))
             .await
             .expect("call search tool");
-        assert!(result.content.contains("search results for: rust programming"));
+        assert!(result
+            .content
+            .contains("search results for: rust programming"));
         assert!(!result.is_error);
 
         let result = client
@@ -254,59 +266,58 @@ if __name__ == '__main__':
         assert!(!result.is_error);
 
         client.disconnect().await.expect("disconnect");
-        assert_eq!(client.connection_state().await, ConnectionState::Disconnected);
+        assert_eq!(
+            client.connection_state().await,
+            ConnectionState::Disconnected
+        );
     }
 
     #[tokio::test]
     async fn test_tool_discovery_integration() {
-        let local_handler: TransportHandler = Arc::new(|request| {
-            match request.method.as_str() {
-                "initialize" => Ok(JsonRpcResponse::success(
-                    request.id.clone(),
-                    json!({"protocolVersion": "2024-11-05", "capabilities": {}, "serverInfo": {"name": "local", "version": "1.0"}}),
-                )),
-                "initialized" => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
-                "tools/list" => Ok(JsonRpcResponse::success(
-                    request.id.clone(),
-                    json!({"tools": [
-                        {"name": "local_tool_a", "description": "A local tool", "inputSchema": {"type": "object"}},
-                        {"name": "local_tool_b", "description": "Another local tool", "inputSchema": {"type": "object"}}
-                    ]}),
-                )),
-                "tools/call" => Ok(JsonRpcResponse::success(
-                    request.id.clone(),
-                    json!({"content": [{"type": "text", "text": "local-result"}], "isError": false}),
-                )),
-                _ => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
-            }
+        let local_handler: TransportHandler = Arc::new(|request| match request.method.as_str() {
+            "initialize" => Ok(JsonRpcResponse::success(
+                request.id.clone(),
+                json!({"protocolVersion": "2024-11-05", "capabilities": {}, "serverInfo": {"name": "local", "version": "1.0"}}),
+            )),
+            "initialized" => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
+            "tools/list" => Ok(JsonRpcResponse::success(
+                request.id.clone(),
+                json!({"tools": [
+                    {"name": "local_tool_a", "description": "A local tool", "inputSchema": {"type": "object"}},
+                    {"name": "local_tool_b", "description": "Another local tool", "inputSchema": {"type": "object"}}
+                ]}),
+            )),
+            "tools/call" => Ok(JsonRpcResponse::success(
+                request.id.clone(),
+                json!({"content": [{"type": "text", "text": "local-result"}], "isError": false}),
+            )),
+            _ => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
         });
 
-        let remote_handler: TransportHandler = Arc::new(|request| {
-            match request.method.as_str() {
-                "initialize" => Ok(JsonRpcResponse::success(
-                    request.id.clone(),
-                    json!({"protocolVersion": "2024-11-05", "capabilities": {}, "serverInfo": {"name": "remote", "version": "1.0"}}),
-                )),
-                "initialized" => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
-                "tools/list" => Ok(JsonRpcResponse::success(
-                    request.id.clone(),
-                    json!({"tools": [
-                        {"name": "remote_tool_x", "description": "A remote tool", "inputSchema": {"type": "object"}}
-                    ]}),
-                )),
-                "tools/call" => Ok(JsonRpcResponse::success(
-                    request.id.clone(),
-                    json!({"content": [{"type": "text", "text": "remote-result"}], "isError": false}),
-                )),
-                _ => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
-            }
+        let remote_handler: TransportHandler = Arc::new(|request| match request.method.as_str() {
+            "initialize" => Ok(JsonRpcResponse::success(
+                request.id.clone(),
+                json!({"protocolVersion": "2024-11-05", "capabilities": {}, "serverInfo": {"name": "remote", "version": "1.0"}}),
+            )),
+            "initialized" => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
+            "tools/list" => Ok(JsonRpcResponse::success(
+                request.id.clone(),
+                json!({"tools": [
+                    {"name": "remote_tool_x", "description": "A remote tool", "inputSchema": {"type": "object"}}
+                ]}),
+            )),
+            "tools/call" => Ok(JsonRpcResponse::success(
+                request.id.clone(),
+                json!({"content": [{"type": "text", "text": "remote-result"}], "isError": false}),
+            )),
+            _ => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
         });
 
         let local_client = Arc::new(McpClient::with_handler(
             McpTransport::Stdio(crate::client::StdioProcess::new("mock-local", vec![])),
             local_handler,
         ));
-        
+
         let remote_client = Arc::new(McpClient::with_handler(
             McpTransport::Sse("http://mock-remote/sse".to_string()),
             remote_handler,
@@ -316,9 +327,13 @@ if __name__ == '__main__':
         remote_client.connect().await.unwrap();
 
         let mut registry = McpRegistry::new();
-        registry.clients.insert("local_server".to_string(), local_client.clone());
-        registry.clients.insert("remote_server".to_string(), remote_client.clone());
-        
+        registry
+            .clients
+            .insert("local_server".to_string(), local_client.clone());
+        registry
+            .clients
+            .insert("remote_server".to_string(), remote_client.clone());
+
         registry.discovered_tools.insert(
             "local_server".to_string(),
             local_client.list_tools().await.unwrap(),
@@ -361,26 +376,24 @@ if __name__ == '__main__':
     #[test]
     fn test_mcp_registry_bridges_tools_correctly() {
         let rt = tokio::runtime::Runtime::new().unwrap();
-        
-        let handler: TransportHandler = Arc::new(|request| {
-            match request.method.as_str() {
-                "initialize" => Ok(JsonRpcResponse::success(
-                    request.id.clone(),
-                    json!({"protocolVersion": "2024-11-05", "capabilities": {}, "serverInfo": {"name": "bridge-test", "version": "1.0"}}),
-                )),
-                "initialized" => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
-                "tools/list" => Ok(JsonRpcResponse::success(
-                    request.id.clone(),
-                    json!({"tools": [
-                        {"name": "bridged_tool", "description": "A tool to be bridged", "inputSchema": {"type": "object", "properties": {"input": {"type": "string"}}}}
-                    ]}),
-                )),
-                "tools/call" => Ok(JsonRpcResponse::success(
-                    request.id.clone(),
-                    json!({"content": [{"type": "text", "text": "bridged-call-success"}], "isError": false}),
-                )),
-                _ => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
-            }
+
+        let handler: TransportHandler = Arc::new(|request| match request.method.as_str() {
+            "initialize" => Ok(JsonRpcResponse::success(
+                request.id.clone(),
+                json!({"protocolVersion": "2024-11-05", "capabilities": {}, "serverInfo": {"name": "bridge-test", "version": "1.0"}}),
+            )),
+            "initialized" => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
+            "tools/list" => Ok(JsonRpcResponse::success(
+                request.id.clone(),
+                json!({"tools": [
+                    {"name": "bridged_tool", "description": "A tool to be bridged", "inputSchema": {"type": "object", "properties": {"input": {"type": "string"}}}}
+                ]}),
+            )),
+            "tools/call" => Ok(JsonRpcResponse::success(
+                request.id.clone(),
+                json!({"content": [{"type": "text", "text": "bridged-call-success"}], "isError": false}),
+            )),
+            _ => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
         });
 
         let client = Arc::new(McpClient::with_handler(
@@ -390,7 +403,9 @@ if __name__ == '__main__':
         rt.block_on(client.connect()).unwrap();
 
         let mut registry = McpRegistry::new();
-        registry.clients.insert("bridge_server".to_string(), client.clone());
+        registry
+            .clients
+            .insert("bridge_server".to_string(), client.clone());
         registry.discovered_tools.insert(
             "bridge_server".to_string(),
             rt.block_on(client.list_tools()).unwrap(),
@@ -412,37 +427,37 @@ if __name__ == '__main__':
 
     #[tokio::test]
     async fn test_mcp_client_resources_end_to_end() {
-        let handler: TransportHandler = Arc::new(|request| {
-            match request.method.as_str() {
-                "initialize" => Ok(JsonRpcResponse::success(
+        let handler: TransportHandler = Arc::new(|request| match request.method.as_str() {
+            "initialize" => Ok(JsonRpcResponse::success(
+                request.id.clone(),
+                json!({"protocolVersion": "2024-11-05", "capabilities": {"resources": {}}, "serverInfo": {"name": "resources-test", "version": "1.0"}}),
+            )),
+            "initialized" => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
+            "resources/list" => Ok(JsonRpcResponse::success(
+                request.id.clone(),
+                json!({"resources": [
+                    {"uri": "file:///test/README.md", "name": "README", "description": "Project README", "mimeType": "text/markdown"},
+                    {"uri": "file:///test/config.json", "name": "Config", "description": "Configuration file", "mimeType": "application/json"}
+                ]}),
+            )),
+            "resources/read" => {
+                let uri = request
+                    .params
+                    .as_ref()
+                    .and_then(|p| p.get("uri"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                let content = if uri.contains("README") {
+                    "# Test Project\n\nWelcome to the test project."
+                } else {
+                    r#"{"setting": "value"}"#
+                };
+                Ok(JsonRpcResponse::success(
                     request.id.clone(),
-                    json!({"protocolVersion": "2024-11-05", "capabilities": {"resources": {}}, "serverInfo": {"name": "resources-test", "version": "1.0"}}),
-                )),
-                "initialized" => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
-                "resources/list" => Ok(JsonRpcResponse::success(
-                    request.id.clone(),
-                    json!({"resources": [
-                        {"uri": "file:///test/README.md", "name": "README", "description": "Project README", "mimeType": "text/markdown"},
-                        {"uri": "file:///test/config.json", "name": "Config", "description": "Configuration file", "mimeType": "application/json"}
-                    ]}),
-                )),
-                "resources/read" => {
-                    let uri = request.params.as_ref()
-                        .and_then(|p| p.get("uri"))
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("");
-                    let content = if uri.contains("README") {
-                        "# Test Project\n\nWelcome to the test project."
-                    } else {
-                        r#"{"setting": "value"}"#
-                    };
-                    Ok(JsonRpcResponse::success(
-                        request.id.clone(),
-                        json!({"contents": [{"uri": uri, "text": content, "mimeType": "text/plain"}]}),
-                    ))
-                },
-                _ => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
+                    json!({"contents": [{"uri": uri, "text": content, "mimeType": "text/plain"}]}),
+                ))
             }
+            _ => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
         });
 
         let client = McpClient::with_handler(
@@ -457,25 +472,29 @@ if __name__ == '__main__':
         assert!(resources.iter().any(|r| r.name == "README"));
         assert!(resources.iter().any(|r| r.name == "Config"));
 
-        let readme_content = client.read_resource("file:///test/README.md").await.unwrap();
+        let readme_content = client
+            .read_resource("file:///test/README.md")
+            .await
+            .unwrap();
         assert!(readme_content.contains("Test Project"));
 
-        let config_content = client.read_resource("file:///test/config.json").await.unwrap();
+        let config_content = client
+            .read_resource("file:///test/config.json")
+            .await
+            .unwrap();
         assert!(config_content.contains("setting"));
     }
 
     #[tokio::test]
     async fn test_mcp_connection_state_transitions() {
-        let handler: TransportHandler = Arc::new(|request| {
-            match request.method.as_str() {
-                "initialize" => Ok(JsonRpcResponse::success(
-                    request.id.clone(),
-                    json!({"protocolVersion": "2024-11-05", "capabilities": {}, "serverInfo": {"name": "state-test", "version": "1.0"}}),
-                )),
-                "initialized" => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
-                "ping" => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
-                _ => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
-            }
+        let handler: TransportHandler = Arc::new(|request| match request.method.as_str() {
+            "initialize" => Ok(JsonRpcResponse::success(
+                request.id.clone(),
+                json!({"protocolVersion": "2024-11-05", "capabilities": {}, "serverInfo": {"name": "state-test", "version": "1.0"}}),
+            )),
+            "initialized" => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
+            "ping" => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
+            _ => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
         });
 
         let client = McpClient::with_handler(
@@ -483,7 +502,10 @@ if __name__ == '__main__':
             handler,
         );
 
-        assert_eq!(client.connection_state().await, ConnectionState::Disconnected);
+        assert_eq!(
+            client.connection_state().await,
+            ConnectionState::Disconnected
+        );
         assert!(!client.is_connected().await);
 
         client.connect().await.unwrap();
@@ -493,61 +515,100 @@ if __name__ == '__main__':
         client.ping().await.unwrap();
 
         client.disconnect().await.unwrap();
-        assert_eq!(client.connection_state().await, ConnectionState::Disconnected);
+        assert_eq!(
+            client.connection_state().await,
+            ConnectionState::Disconnected
+        );
         assert!(!client.is_connected().await);
 
         client.connect().await.unwrap();
         assert_eq!(client.connection_state().await, ConnectionState::Connected);
 
         client.disconnect().await.unwrap();
-        assert_eq!(client.connection_state().await, ConnectionState::Disconnected);
+        assert_eq!(
+            client.connection_state().await,
+            ConnectionState::Disconnected
+        );
     }
 
     #[tokio::test]
     async fn test_multiple_servers_tool_discovery() {
-        let server1_handler: TransportHandler = Arc::new(|request| {
-            match request.method.as_str() {
-                "initialize" => Ok(JsonRpcResponse::success(request.id.clone(), json!({"protocolVersion": "2024-11-05", "capabilities": {}, "serverInfo": {"name": "server1", "version": "1.0"}}))),
-                "initialized" => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
-                "tools/list" => Ok(JsonRpcResponse::success(request.id.clone(), json!({"tools": [{"name": "tool1", "description": "From server 1", "inputSchema": {"type": "object"}}]}))),
-                _ => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
-            }
+        let server1_handler: TransportHandler = Arc::new(|request| match request.method.as_str() {
+            "initialize" => Ok(JsonRpcResponse::success(
+                request.id.clone(),
+                json!({"protocolVersion": "2024-11-05", "capabilities": {}, "serverInfo": {"name": "server1", "version": "1.0"}}),
+            )),
+            "initialized" => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
+            "tools/list" => Ok(JsonRpcResponse::success(
+                request.id.clone(),
+                json!({"tools": [{"name": "tool1", "description": "From server 1", "inputSchema": {"type": "object"}}]}),
+            )),
+            _ => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
         });
 
-        let server2_handler: TransportHandler = Arc::new(|request| {
-            match request.method.as_str() {
-                "initialize" => Ok(JsonRpcResponse::success(request.id.clone(), json!({"protocolVersion": "2024-11-05", "capabilities": {}, "serverInfo": {"name": "server2", "version": "1.0"}}))),
-                "initialized" => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
-                "tools/list" => Ok(JsonRpcResponse::success(request.id.clone(), json!({"tools": [{"name": "tool2", "description": "From server 2", "inputSchema": {"type": "object"}}]}))),
-                _ => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
-            }
+        let server2_handler: TransportHandler = Arc::new(|request| match request.method.as_str() {
+            "initialize" => Ok(JsonRpcResponse::success(
+                request.id.clone(),
+                json!({"protocolVersion": "2024-11-05", "capabilities": {}, "serverInfo": {"name": "server2", "version": "1.0"}}),
+            )),
+            "initialized" => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
+            "tools/list" => Ok(JsonRpcResponse::success(
+                request.id.clone(),
+                json!({"tools": [{"name": "tool2", "description": "From server 2", "inputSchema": {"type": "object"}}]}),
+            )),
+            _ => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
         });
 
-        let server3_handler: TransportHandler = Arc::new(|request| {
-            match request.method.as_str() {
-                "initialize" => Ok(JsonRpcResponse::success(request.id.clone(), json!({"protocolVersion": "2024-11-05", "capabilities": {}, "serverInfo": {"name": "server3", "version": "1.0"}}))),
-                "initialized" => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
-                "tools/list" => Ok(JsonRpcResponse::success(request.id.clone(), json!({"tools": [{"name": "tool3", "description": "From server 3", "inputSchema": {"type": "object"}}]}))),
-                _ => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
-            }
+        let server3_handler: TransportHandler = Arc::new(|request| match request.method.as_str() {
+            "initialize" => Ok(JsonRpcResponse::success(
+                request.id.clone(),
+                json!({"protocolVersion": "2024-11-05", "capabilities": {}, "serverInfo": {"name": "server3", "version": "1.0"}}),
+            )),
+            "initialized" => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
+            "tools/list" => Ok(JsonRpcResponse::success(
+                request.id.clone(),
+                json!({"tools": [{"name": "tool3", "description": "From server 3", "inputSchema": {"type": "object"}}]}),
+            )),
+            _ => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
         });
 
-        let client1 = Arc::new(McpClient::with_handler(McpTransport::Sse("http://server1/sse".to_string()), server1_handler));
-        let client2 = Arc::new(McpClient::with_handler(McpTransport::Sse("http://server2/sse".to_string()), server2_handler));
-        let client3 = Arc::new(McpClient::with_handler(McpTransport::Sse("http://server3/sse".to_string()), server3_handler));
+        let client1 = Arc::new(McpClient::with_handler(
+            McpTransport::Sse("http://server1/sse".to_string()),
+            server1_handler,
+        ));
+        let client2 = Arc::new(McpClient::with_handler(
+            McpTransport::Sse("http://server2/sse".to_string()),
+            server2_handler,
+        ));
+        let client3 = Arc::new(McpClient::with_handler(
+            McpTransport::Sse("http://server3/sse".to_string()),
+            server3_handler,
+        ));
 
         client1.connect().await.unwrap();
         client2.connect().await.unwrap();
         client3.connect().await.unwrap();
 
         let mut registry = McpRegistry::new();
-        registry.clients.insert("server1".to_string(), client1.clone());
-        registry.clients.insert("server2".to_string(), client2.clone());
-        registry.clients.insert("server3".to_string(), client3.clone());
+        registry
+            .clients
+            .insert("server1".to_string(), client1.clone());
+        registry
+            .clients
+            .insert("server2".to_string(), client2.clone());
+        registry
+            .clients
+            .insert("server3".to_string(), client3.clone());
 
-        registry.discovered_tools.insert("server1".to_string(), client1.list_tools().await.unwrap());
-        registry.discovered_tools.insert("server2".to_string(), client2.list_tools().await.unwrap());
-        registry.discovered_tools.insert("server3".to_string(), client3.list_tools().await.unwrap());
+        registry
+            .discovered_tools
+            .insert("server1".to_string(), client1.list_tools().await.unwrap());
+        registry
+            .discovered_tools
+            .insert("server2".to_string(), client2.list_tools().await.unwrap());
+        registry
+            .discovered_tools
+            .insert("server3".to_string(), client3.list_tools().await.unwrap());
 
         let all_tools: Vec<&McpTool> = registry
             .discovered_tools
@@ -569,13 +630,17 @@ if __name__ == '__main__':
 
     #[tokio::test]
     async fn test_mcp_tool_adapter_qualified_naming() {
-        let handler: TransportHandler = Arc::new(|request| {
-            match request.method.as_str() {
-                "initialize" => Ok(JsonRpcResponse::success(request.id.clone(), json!({"protocolVersion": "2024-11-05", "capabilities": {}, "serverInfo": {"name": "adapter-test", "version": "1.0"}}))),
-                "initialized" => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
-                "tools/call" => Ok(JsonRpcResponse::success(request.id.clone(), json!({"content": [{"type": "text", "text": "adapter-test-result"}], "isError": false}))),
-                _ => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
-            }
+        let handler: TransportHandler = Arc::new(|request| match request.method.as_str() {
+            "initialize" => Ok(JsonRpcResponse::success(
+                request.id.clone(),
+                json!({"protocolVersion": "2024-11-05", "capabilities": {}, "serverInfo": {"name": "adapter-test", "version": "1.0"}}),
+            )),
+            "initialized" => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
+            "tools/call" => Ok(JsonRpcResponse::success(
+                request.id.clone(),
+                json!({"content": [{"type": "text", "text": "adapter-test-result"}], "isError": false}),
+            )),
+            _ => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
         });
 
         let client = Arc::new(McpClient::with_handler(
@@ -605,14 +670,21 @@ if __name__ == '__main__':
 
     #[tokio::test]
     async fn test_mcp_registry_server_permissions() {
-        let handler: TransportHandler = Arc::new(|request| {
-            match request.method.as_str() {
-                "initialize" => Ok(JsonRpcResponse::success(request.id.clone(), json!({"protocolVersion": "2024-11-05", "capabilities": {}, "serverInfo": {"name": "perms-test", "version": "1.0"}}))),
-                "initialized" => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
-                "tools/list" => Ok(JsonRpcResponse::success(request.id.clone(), json!({"tools": [{"name": "perm_tool", "description": "Test tool", "inputSchema": {"type": "object"}}]}))),
-                "tools/call" => Ok(JsonRpcResponse::success(request.id.clone(), json!({"content": [{"type": "text", "text": "perm-ok"}], "isError": false}))),
-                _ => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
-            }
+        let handler: TransportHandler = Arc::new(|request| match request.method.as_str() {
+            "initialize" => Ok(JsonRpcResponse::success(
+                request.id.clone(),
+                json!({"protocolVersion": "2024-11-05", "capabilities": {}, "serverInfo": {"name": "perms-test", "version": "1.0"}}),
+            )),
+            "initialized" => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
+            "tools/list" => Ok(JsonRpcResponse::success(
+                request.id.clone(),
+                json!({"tools": [{"name": "perm_tool", "description": "Test tool", "inputSchema": {"type": "object"}}]}),
+            )),
+            "tools/call" => Ok(JsonRpcResponse::success(
+                request.id.clone(),
+                json!({"content": [{"type": "text", "text": "perm-ok"}], "isError": false}),
+            )),
+            _ => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
         });
 
         let client = Arc::new(McpClient::with_handler(
@@ -622,45 +694,81 @@ if __name__ == '__main__':
         client.connect().await.unwrap();
 
         let mut registry = McpRegistry::new();
-        registry.add_server("allow_server", McpServerConfig::new(McpTransport::Sse("http://allow/sse".to_string())).with_permission(McpPermission::Allow));
-        registry.add_server("ask_server", McpServerConfig::new(McpTransport::Sse("http://ask/sse".to_string())).with_permission(McpPermission::Ask));
-        registry.add_server("deny_server", McpServerConfig::new(McpTransport::Sse("http://deny/sse".to_string())).with_permission(McpPermission::Deny));
+        registry.add_server(
+            "allow_server",
+            McpServerConfig::new(McpTransport::Sse("http://allow/sse".to_string()))
+                .with_permission(McpPermission::Allow),
+        );
+        registry.add_server(
+            "ask_server",
+            McpServerConfig::new(McpTransport::Sse("http://ask/sse".to_string()))
+                .with_permission(McpPermission::Ask),
+        );
+        registry.add_server(
+            "deny_server",
+            McpServerConfig::new(McpTransport::Sse("http://deny/sse".to_string()))
+                .with_permission(McpPermission::Deny),
+        );
 
-        registry.clients.insert("allow_server".to_string(), client.clone());
-        registry.clients.insert("ask_server".to_string(), client.clone());
-        registry.clients.insert("deny_server".to_string(), client.clone());
+        registry
+            .clients
+            .insert("allow_server".to_string(), client.clone());
+        registry
+            .clients
+            .insert("ask_server".to_string(), client.clone());
+        registry
+            .clients
+            .insert("deny_server".to_string(), client.clone());
 
-        registry.discovered_tools.insert("allow_server".to_string(), client.list_tools().await.unwrap());
-        registry.discovered_tools.insert("ask_server".to_string(), client.list_tools().await.unwrap());
-        registry.discovered_tools.insert("deny_server".to_string(), client.list_tools().await.unwrap());
+        registry.discovered_tools.insert(
+            "allow_server".to_string(),
+            client.list_tools().await.unwrap(),
+        );
+        registry
+            .discovered_tools
+            .insert("ask_server".to_string(), client.list_tools().await.unwrap());
+        registry.discovered_tools.insert(
+            "deny_server".to_string(),
+            client.list_tools().await.unwrap(),
+        );
 
         let mut tool_registry = ToolRegistry::new();
         registry.bridge_to_tool_registry(&mut tool_registry);
 
         let allow_def = tool_registry.get("allow_server_perm_tool");
         assert!(allow_def.is_some());
-        assert!(!allow_def.unwrap().requires_approval, "Allow permission should not require approval");
+        assert!(
+            !allow_def.unwrap().requires_approval,
+            "Allow permission should not require approval"
+        );
 
         let ask_def = tool_registry.get("ask_server_perm_tool");
         assert!(ask_def.is_some());
-        assert!(ask_def.unwrap().requires_approval, "Ask permission should require approval");
+        assert!(
+            ask_def.unwrap().requires_approval,
+            "Ask permission should require approval"
+        );
     }
 
     #[test]
     fn test_tool_execution_after_discovery() {
         let rt = tokio::runtime::Runtime::new().unwrap();
-        
-        let handler: TransportHandler = Arc::new(|request| {
-            match request.method.as_str() {
-                "initialize" => Ok(JsonRpcResponse::success(request.id.clone(), json!({"protocolVersion": "2024-11-05", "capabilities": {}, "serverInfo": {"name": "exec-test", "version": "1.0"}}))),
-                "initialized" => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
-                "tools/list" => Ok(JsonRpcResponse::success(request.id.clone(), json!({"tools": [{"name": "exec_tool", "description": "Execution test", "inputSchema": {"type": "object"}}]}))),
-                "tools/call" => Ok(JsonRpcResponse::success(
-                    request.id.clone(),
-                    json!({"content": [{"type": "text", "text": "exec-result"}], "isError": false}),
-                )),
-                _ => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
-            }
+
+        let handler: TransportHandler = Arc::new(|request| match request.method.as_str() {
+            "initialize" => Ok(JsonRpcResponse::success(
+                request.id.clone(),
+                json!({"protocolVersion": "2024-11-05", "capabilities": {}, "serverInfo": {"name": "exec-test", "version": "1.0"}}),
+            )),
+            "initialized" => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
+            "tools/list" => Ok(JsonRpcResponse::success(
+                request.id.clone(),
+                json!({"tools": [{"name": "exec_tool", "description": "Execution test", "inputSchema": {"type": "object"}}]}),
+            )),
+            "tools/call" => Ok(JsonRpcResponse::success(
+                request.id.clone(),
+                json!({"content": [{"type": "text", "text": "exec-result"}], "isError": false}),
+            )),
+            _ => Ok(JsonRpcResponse::success(request.id.clone(), json!(null))),
         });
 
         let client = Arc::new(McpClient::with_handler(
@@ -670,8 +778,13 @@ if __name__ == '__main__':
         rt.block_on(client.connect()).unwrap();
 
         let mut registry = McpRegistry::new();
-        registry.clients.insert("exec_server".to_string(), client.clone());
-        registry.discovered_tools.insert("exec_server".to_string(), rt.block_on(client.list_tools()).unwrap());
+        registry
+            .clients
+            .insert("exec_server".to_string(), client.clone());
+        registry.discovered_tools.insert(
+            "exec_server".to_string(),
+            rt.block_on(client.list_tools()).unwrap(),
+        );
 
         let mut tool_registry = ToolRegistry::new();
         registry.bridge_to_tool_registry(&mut tool_registry);

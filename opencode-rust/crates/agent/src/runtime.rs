@@ -79,10 +79,19 @@ impl Default for RuntimeConfig {
 #[derive(Debug, Clone)]
 pub enum RuntimeError {
     SessionNotActive,
-    MaxIterationsExceeded { limit: usize },
-    NoSuchAgent { agent_type: AgentType },
-    ToolExecutionFailed { tool: String, reason: String },
-    PermissionDenied { tool: String },
+    MaxIterationsExceeded {
+        limit: usize,
+    },
+    NoSuchAgent {
+        agent_type: AgentType,
+    },
+    ToolExecutionFailed {
+        tool: String,
+        reason: String,
+    },
+    PermissionDenied {
+        tool: String,
+    },
     SessionLocked,
     /// Invariant violation: attempted to activate a second primary agent
     /// while one is already running.
@@ -91,7 +100,9 @@ pub enum RuntimeError {
         attempted: AgentType,
     },
     /// Invariant violation: attempted to deactivate or switch while transitioning.
-    AgentTransitionInProgress { current: AgentType },
+    AgentTransitionInProgress {
+        current: AgentType,
+    },
     /// Invariant violation: attempted to operate on inactive runtime.
     NoActivePrimaryAgent,
 }
@@ -172,17 +183,13 @@ impl PrimaryAgentTracker {
                 self.agent_type = Some(agent_type);
                 Ok(())
             }
-            PrimaryAgentState::Running => {
-                Err(RuntimeError::MultiplePrimaryAgents {
-                    current: self.agent_type.unwrap(),
-                    attempted: agent_type,
-                })
-            }
-            PrimaryAgentState::Transitioning => {
-                Err(RuntimeError::AgentTransitionInProgress {
-                    current: self.agent_type.unwrap(),
-                })
-            }
+            PrimaryAgentState::Running => Err(RuntimeError::MultiplePrimaryAgents {
+                current: self.agent_type.unwrap(),
+                attempted: agent_type,
+            }),
+            PrimaryAgentState::Transitioning => Err(RuntimeError::AgentTransitionInProgress {
+                current: self.agent_type.unwrap(),
+            }),
         }
     }
 
@@ -196,11 +203,9 @@ impl PrimaryAgentTracker {
                 self.state = PrimaryAgentState::Transitioning;
                 Ok(current)
             }
-            PrimaryAgentState::Transitioning => {
-                Err(RuntimeError::AgentTransitionInProgress {
-                    current: self.agent_type.unwrap(),
-                })
-            }
+            PrimaryAgentState::Transitioning => Err(RuntimeError::AgentTransitionInProgress {
+                current: self.agent_type.unwrap(),
+            }),
         }
     }
 
@@ -220,11 +225,9 @@ impl PrimaryAgentTracker {
                 self.agent_type = None;
                 Ok(current)
             }
-            PrimaryAgentState::Transitioning => {
-                Err(RuntimeError::AgentTransitionInProgress {
-                    current: self.agent_type.unwrap(),
-                })
-            }
+            PrimaryAgentState::Transitioning => Err(RuntimeError::AgentTransitionInProgress {
+                current: self.agent_type.unwrap(),
+            }),
         }
     }
 
@@ -254,9 +257,9 @@ pub struct AgentRuntime {
 impl AgentRuntime {
     pub fn new(session: Session, agent_type: AgentType) -> Self {
         let mut tracker = PrimaryAgentTracker::new();
-        tracker.activate(agent_type).expect(
-            "Failed to activate initial agent - this indicates a programming error",
-        );
+        tracker
+            .activate(agent_type)
+            .expect("Failed to activate initial agent - this indicates a programming error");
         Self {
             session: Arc::new(RwLock::new(session)),
             config: RuntimeConfig::default(),
@@ -266,9 +269,9 @@ impl AgentRuntime {
 
     pub fn with_config(session: Session, agent_type: AgentType, config: RuntimeConfig) -> Self {
         let mut tracker = PrimaryAgentTracker::new();
-        tracker.activate(agent_type).expect(
-            "Failed to activate initial agent - this indicates a programming error",
-        );
+        tracker
+            .activate(agent_type)
+            .expect("Failed to activate initial agent - this indicates a programming error");
         Self {
             session: Arc::new(RwLock::new(session)),
             config,
@@ -386,7 +389,10 @@ impl AgentRuntime {
         self.primary_tracker.deactivate()
     }
 
-    pub async fn activate_primary_agent(&mut self, new_type: AgentType) -> Result<(), RuntimeError> {
+    pub async fn activate_primary_agent(
+        &mut self,
+        new_type: AgentType,
+    ) -> Result<(), RuntimeError> {
         self.primary_tracker.activate(new_type)
     }
 
@@ -821,8 +827,16 @@ mod tests {
         assert!(result.is_err());
         let err = result.unwrap_err();
         let err_display = format!("{}", err);
-        assert!(err_display.contains("build"), "Error should contain 'build': {}", err_display);
-        assert!(err_display.contains("explore"), "Error should contain 'explore': {}", err_display);
+        assert!(
+            err_display.contains("build"),
+            "Error should contain 'build': {}",
+            err_display
+        );
+        assert!(
+            err_display.contains("explore"),
+            "Error should contain 'explore': {}",
+            err_display
+        );
     }
 
     #[test]
@@ -919,7 +933,10 @@ mod tests {
         let session = Session::default();
         let mut runtime = AgentRuntime::new(session, AgentType::Build);
         runtime.deactivate_primary_agent().await.unwrap();
-        runtime.activate_primary_agent(AgentType::Plan).await.unwrap();
+        runtime
+            .activate_primary_agent(AgentType::Plan)
+            .await
+            .unwrap();
         assert_eq!(runtime.active_agent(), Some(AgentType::Plan));
         assert!(runtime.is_primary_agent_active());
     }
@@ -1000,8 +1017,8 @@ mod tests {
         let session = Session::default();
         let runtime = AgentRuntime::new(session, AgentType::Build);
 
-        let subagent = MockSubagent::new("response", AgentType::Explore)
-            .with_permissions(true, true);
+        let subagent =
+            MockSubagent::new("response", AgentType::Explore).with_permissions(true, true);
         let context = vec![Message::user("task")];
 
         let result = runtime
@@ -1009,7 +1026,10 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(result.effective_permission_scope, AgentPermissionScope::Full);
+        assert_eq!(
+            result.effective_permission_scope,
+            AgentPermissionScope::Full
+        );
     }
 
     #[tokio::test]
@@ -1022,8 +1042,8 @@ mod tests {
         };
         let runtime = AgentRuntime::with_config(session, AgentType::Build, config);
 
-        let subagent = MockSubagent::new("response", AgentType::Explore)
-            .with_permissions(true, true);
+        let subagent =
+            MockSubagent::new("response", AgentType::Explore).with_permissions(true, true);
         let context = vec![Message::user("task")];
 
         let result = runtime
@@ -1031,7 +1051,10 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(result.effective_permission_scope, AgentPermissionScope::ReadOnly);
+        assert_eq!(
+            result.effective_permission_scope,
+            AgentPermissionScope::ReadOnly
+        );
     }
 
     #[tokio::test]
@@ -1044,8 +1067,8 @@ mod tests {
         };
         let runtime = AgentRuntime::with_config(session, AgentType::Build, config);
 
-        let subagent = MockSubagent::new("response", AgentType::Explore)
-            .with_permissions(true, true);
+        let subagent =
+            MockSubagent::new("response", AgentType::Explore).with_permissions(true, true);
         let context = vec![Message::user("task")];
 
         let result = runtime
@@ -1053,7 +1076,10 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(result.effective_permission_scope, AgentPermissionScope::None);
+        assert_eq!(
+            result.effective_permission_scope,
+            AgentPermissionScope::None
+        );
     }
 
     #[tokio::test]
@@ -1066,8 +1092,8 @@ mod tests {
         };
         let runtime = AgentRuntime::with_config(session, AgentType::Build, config);
 
-        let subagent = MockSubagent::new("response", AgentType::General)
-            .with_permissions(true, true);
+        let subagent =
+            MockSubagent::new("response", AgentType::General).with_permissions(true, true);
         let context = vec![Message::user("task")];
 
         let result = runtime
@@ -1075,7 +1101,10 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(result.effective_permission_scope, AgentPermissionScope::Restricted);
+        assert_eq!(
+            result.effective_permission_scope,
+            AgentPermissionScope::Restricted
+        );
     }
 
     #[tokio::test]
@@ -1088,8 +1117,8 @@ mod tests {
         };
         let runtime = AgentRuntime::with_config(session, AgentType::Build, config);
 
-        let subagent = MockSubagent::new("response", AgentType::General)
-            .with_permissions(true, true);
+        let subagent =
+            MockSubagent::new("response", AgentType::General).with_permissions(true, true);
         let context = vec![Message::user("task")];
 
         let result = runtime
@@ -1097,7 +1126,10 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(result.effective_permission_scope, AgentPermissionScope::Full);
+        assert_eq!(
+            result.effective_permission_scope,
+            AgentPermissionScope::Full
+        );
     }
 
     #[tokio::test]
@@ -1110,8 +1142,8 @@ mod tests {
         };
         let runtime = AgentRuntime::with_config(session, AgentType::Build, config);
 
-        let subagent = MockSubagent::new("response", AgentType::Explore)
-            .with_permissions(false, false);
+        let subagent =
+            MockSubagent::new("response", AgentType::Explore).with_permissions(false, false);
         let context = vec![Message::user("task")];
 
         let result = runtime
@@ -1119,7 +1151,10 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(result.effective_permission_scope, AgentPermissionScope::ReadOnly);
+        assert_eq!(
+            result.effective_permission_scope,
+            AgentPermissionScope::ReadOnly
+        );
     }
 
     #[tokio::test]
@@ -1146,7 +1181,10 @@ mod tests {
         let runtime = AgentRuntime::new(session, AgentType::Build)
             .with_permission_scope(AgentPermissionScope::ReadOnly);
 
-        assert_eq!(runtime.get_permission_scope(), AgentPermissionScope::ReadOnly);
+        assert_eq!(
+            runtime.get_permission_scope(),
+            AgentPermissionScope::ReadOnly
+        );
     }
 
     #[tokio::test]

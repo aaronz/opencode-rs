@@ -43,7 +43,10 @@ impl Provider for MockProvider {
     }
 
     fn get_models(&self) -> Vec<opencode_llm::provider::Model> {
-        vec![opencode_llm::provider::Model::new("mock-model", "Mock Model")]
+        vec![opencode_llm::provider::Model::new(
+            "mock-model",
+            "Mock Model",
+        )]
     }
 
     fn provider_name(&self) -> &str {
@@ -281,8 +284,7 @@ async fn test_subagent_exec_error_propagation_subagent_error_returns_err() {
     let session = Session::default();
     let runtime = AgentRuntime::new(session, AgentType::Build);
 
-    let subagent = MockSubagent::new("result", AgentType::General)
-        .with_error("subagent failed");
+    let subagent = MockSubagent::new("result", AgentType::General).with_error("subagent failed");
     let context = vec![Message::user("task")];
 
     let result = runtime
@@ -297,8 +299,7 @@ async fn test_subagent_exec_error_propagation_error_type_is_correct() {
     let session = Session::default();
     let runtime = AgentRuntime::new(session, AgentType::Build);
 
-    let subagent = MockSubagent::new("result", AgentType::General)
-        .with_error("specific error");
+    let subagent = MockSubagent::new("result", AgentType::General).with_error("specific error");
     let context = vec![Message::user("task")];
 
     let result = runtime
@@ -324,8 +325,7 @@ async fn test_subagent_exec_error_propagation_parent_context_preserved_on_error(
 
     let runtime = AgentRuntime::new(session, AgentType::Build);
 
-    let subagent = MockSubagent::new("result", AgentType::General)
-        .with_error("subagent error");
+    let subagent = MockSubagent::new("result", AgentType::General).with_error("subagent error");
     let context = vec![Message::user("child task")];
 
     let _result = runtime
@@ -424,8 +424,7 @@ async fn test_subagent_exec_permission_scope_full_parent() {
     };
     let runtime = AgentRuntime::with_config(session, AgentType::Build, config);
 
-    let subagent = MockSubagent::new("result", AgentType::General)
-        .with_permissions(true, true);
+    let subagent = MockSubagent::new("result", AgentType::General).with_permissions(true, true);
     let context = vec![Message::user("task")];
 
     let result = runtime
@@ -433,7 +432,10 @@ async fn test_subagent_exec_permission_scope_full_parent() {
         .await
         .expect("subagent invocation should succeed");
 
-    assert_eq!(result.effective_permission_scope, AgentPermissionScope::Full);
+    assert_eq!(
+        result.effective_permission_scope,
+        AgentPermissionScope::Full
+    );
 }
 
 #[tokio::test]
@@ -446,8 +448,7 @@ async fn test_subagent_exec_permission_scope_readonly_parent_restricts() {
     };
     let runtime = AgentRuntime::with_config(session, AgentType::Build, config);
 
-    let subagent = MockSubagent::new("result", AgentType::General)
-        .with_permissions(true, true);
+    let subagent = MockSubagent::new("result", AgentType::General).with_permissions(true, true);
     let context = vec![Message::user("task")];
 
     let result = runtime
@@ -455,7 +456,10 @@ async fn test_subagent_exec_permission_scope_readonly_parent_restricts() {
         .await
         .expect("subagent invocation should succeed");
 
-    assert_eq!(result.effective_permission_scope, AgentPermissionScope::ReadOnly);
+    assert_eq!(
+        result.effective_permission_scope,
+        AgentPermissionScope::ReadOnly
+    );
 }
 
 #[tokio::test]
@@ -468,8 +472,7 @@ async fn test_subagent_exec_permission_scope_none_parent_restricts_fully() {
     };
     let runtime = AgentRuntime::with_config(session, AgentType::Build, config);
 
-    let subagent = MockSubagent::new("result", AgentType::General)
-        .with_permissions(true, true);
+    let subagent = MockSubagent::new("result", AgentType::General).with_permissions(true, true);
     let context = vec![Message::user("task")];
 
     let result = runtime
@@ -477,7 +480,10 @@ async fn test_subagent_exec_permission_scope_none_parent_restricts_fully() {
         .await
         .expect("subagent invocation should succeed");
 
-    assert_eq!(result.effective_permission_scope, AgentPermissionScope::None);
+    assert_eq!(
+        result.effective_permission_scope,
+        AgentPermissionScope::None
+    );
 }
 
 #[tokio::test]
@@ -490,8 +496,7 @@ async fn test_subagent_exec_permission_scope_restricted_parent() {
     };
     let runtime = AgentRuntime::with_config(session, AgentType::Build, config);
 
-    let subagent = MockSubagent::new("result", AgentType::General)
-        .with_permissions(true, true);
+    let subagent = MockSubagent::new("result", AgentType::General).with_permissions(true, true);
     let context = vec![Message::user("task")];
 
     let result = runtime
@@ -499,5 +504,8 @@ async fn test_subagent_exec_permission_scope_restricted_parent() {
         .await
         .expect("subagent invocation should succeed");
 
-    assert_eq!(result.effective_permission_scope, AgentPermissionScope::Restricted);
+    assert_eq!(
+        result.effective_permission_scope,
+        AgentPermissionScope::Restricted
+    );
 }

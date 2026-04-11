@@ -10,12 +10,7 @@ async fn test_read_only_sharing_mode_works() {
 
     let session_id = "test-session-123".to_string();
     let link = server
-        .create_short_link_with_mode(
-            session_id.clone(),
-            ShareMode::ReadOnly,
-            None,
-            None,
-        )
+        .create_short_link_with_mode(session_id.clone(), ShareMode::ReadOnly, None, None)
         .await;
 
     assert_eq!(link.share_mode, ShareMode::ReadOnly);
@@ -32,12 +27,7 @@ async fn test_collaborative_mode_supports_concurrent_access() {
 
     let session_id = "test-session-456".to_string();
     let link = server
-        .create_short_link_with_mode(
-            session_id.clone(),
-            ShareMode::Collaborative,
-            None,
-            None,
-        )
+        .create_short_link_with_mode(session_id.clone(), ShareMode::Collaborative, None, None)
         .await;
 
     assert_eq!(link.share_mode, ShareMode::Collaborative);
@@ -54,12 +44,7 @@ async fn test_controlled_mode_access_control() {
 
     let session_id = "test-session-789".to_string();
     let link = server
-        .create_short_link_with_mode(
-            session_id.clone(),
-            ShareMode::Controlled,
-            None,
-            None,
-        )
+        .create_short_link_with_mode(session_id.clone(), ShareMode::Controlled, None, None)
         .await;
 
     assert_eq!(link.share_mode, ShareMode::Controlled);
@@ -84,10 +69,26 @@ async fn test_access_control_is_properly_enforced_read_only() {
         link.short_code.clone()
     };
 
-    assert!(server.check_permission(&short_code, ShareOperation::Read).await);
-    assert!(!server.check_permission(&short_code, ShareOperation::Write).await);
-    assert!(!server.check_permission(&short_code, ShareOperation::Delete).await);
-    assert!(!server.check_permission(&short_code, ShareOperation::Fork).await);
+    assert!(
+        server
+            .check_permission(&short_code, ShareOperation::Read)
+            .await
+    );
+    assert!(
+        !server
+            .check_permission(&short_code, ShareOperation::Write)
+            .await
+    );
+    assert!(
+        !server
+            .check_permission(&short_code, ShareOperation::Delete)
+            .await
+    );
+    assert!(
+        !server
+            .check_permission(&short_code, ShareOperation::Fork)
+            .await
+    );
 }
 
 #[tokio::test]
@@ -107,10 +108,26 @@ async fn test_access_control_is_properly_enforced_collaborative() {
         link.short_code.clone()
     };
 
-    assert!(server.check_permission(&short_code, ShareOperation::Read).await);
-    assert!(server.check_permission(&short_code, ShareOperation::Write).await);
-    assert!(server.check_permission(&short_code, ShareOperation::Fork).await);
-    assert!(!server.check_permission(&short_code, ShareOperation::Delete).await);
+    assert!(
+        server
+            .check_permission(&short_code, ShareOperation::Read)
+            .await
+    );
+    assert!(
+        server
+            .check_permission(&short_code, ShareOperation::Write)
+            .await
+    );
+    assert!(
+        server
+            .check_permission(&short_code, ShareOperation::Fork)
+            .await
+    );
+    assert!(
+        !server
+            .check_permission(&short_code, ShareOperation::Delete)
+            .await
+    );
 }
 
 #[tokio::test]
@@ -130,8 +147,16 @@ async fn test_access_control_is_properly_enforced_controlled() {
         link.short_code.clone()
     };
 
-    assert!(server.check_permission(&short_code, ShareOperation::Read).await);
-    assert!(!server.check_permission(&short_code, ShareOperation::Write).await);
+    assert!(
+        server
+            .check_permission(&short_code, ShareOperation::Read)
+            .await
+    );
+    assert!(
+        !server
+            .check_permission(&short_code, ShareOperation::Write)
+            .await
+    );
 }
 
 #[tokio::test]
@@ -151,10 +176,26 @@ async fn test_disabled_mode_denies_all_operations() {
         link.short_code.clone()
     };
 
-    assert!(!server.check_permission(&short_code, ShareOperation::Read).await);
-    assert!(!server.check_permission(&short_code, ShareOperation::Write).await);
-    assert!(!server.check_permission(&short_code, ShareOperation::Delete).await);
-    assert!(!server.check_permission(&short_code, ShareOperation::Fork).await);
+    assert!(
+        !server
+            .check_permission(&short_code, ShareOperation::Read)
+            .await
+    );
+    assert!(
+        !server
+            .check_permission(&short_code, ShareOperation::Write)
+            .await
+    );
+    assert!(
+        !server
+            .check_permission(&short_code, ShareOperation::Delete)
+            .await
+    );
+    assert!(
+        !server
+            .check_permission(&short_code, ShareOperation::Fork)
+            .await
+    );
 }
 
 #[tokio::test]
@@ -174,8 +215,16 @@ async fn test_manual_mode_allows_read_only() {
         link.short_code.clone()
     };
 
-    assert!(server.check_permission(&short_code, ShareOperation::Read).await);
-    assert!(!server.check_permission(&short_code, ShareOperation::Write).await);
+    assert!(
+        server
+            .check_permission(&short_code, ShareOperation::Read)
+            .await
+    );
+    assert!(
+        !server
+            .check_permission(&short_code, ShareOperation::Write)
+            .await
+    );
 }
 
 #[tokio::test]
@@ -195,13 +244,27 @@ async fn test_update_share_mode_changes_permissions() {
         link.short_code.clone()
     };
 
-    assert!(!server.check_permission(&short_code, ShareOperation::Write).await);
+    assert!(
+        !server
+            .check_permission(&short_code, ShareOperation::Write)
+            .await
+    );
 
-    let updated = server.update_share_mode(&short_code, ShareMode::Collaborative).await;
+    let updated = server
+        .update_share_mode(&short_code, ShareMode::Collaborative)
+        .await;
     assert!(updated);
 
-    assert!(server.check_permission(&short_code, ShareOperation::Write).await);
-    assert!(server.check_permission(&short_code, ShareOperation::Fork).await);
+    assert!(
+        server
+            .check_permission(&short_code, ShareOperation::Write)
+            .await
+    );
+    assert!(
+        server
+            .check_permission(&short_code, ShareOperation::Fork)
+            .await
+    );
 }
 
 #[tokio::test]
@@ -221,18 +284,28 @@ async fn test_add_allowed_operation_extends_permissions() {
         link.short_code.clone()
     };
 
-    assert!(!server.check_permission(&short_code, ShareOperation::Write).await);
+    assert!(
+        !server
+            .check_permission(&short_code, ShareOperation::Write)
+            .await
+    );
 
-    let added = server.add_allowed_operation(&short_code, ShareOperation::Write).await;
+    let added = server
+        .add_allowed_operation(&short_code, ShareOperation::Write)
+        .await;
     assert!(added);
 
-    assert!(server.check_permission(&short_code, ShareOperation::Write).await);
+    assert!(
+        server
+            .check_permission(&short_code, ShareOperation::Write)
+            .await
+    );
 }
 
 #[tokio::test]
 async fn test_sharing_modes_serialization() {
     use opencode_core::config::ShareMode;
-    
+
     let modes = vec![
         ShareMode::Manual,
         ShareMode::Auto,

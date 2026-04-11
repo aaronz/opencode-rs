@@ -9,6 +9,7 @@ pub mod compaction;
 pub mod config;
 pub mod context;
 pub mod control_plane;
+pub mod crash_recovery;
 pub mod directory;
 pub mod effect;
 pub mod env;
@@ -101,7 +102,10 @@ pub use message::{Message, Role};
 pub use part::Part;
 pub use permission::PermissionManager;
 pub use plugin::PluginManager;
-pub use project::{validate_workspace, normalize_path, ProjectManager, WorkspaceValidationError, WorkspaceValidationResult};
+pub use project::{
+    normalize_path, validate_workspace, ProjectManager, WorkspaceValidationError,
+    WorkspaceValidationResult,
+};
 pub use prompt::PromptManager;
 pub use pty::PtySession;
 pub use question::QuestionManager;

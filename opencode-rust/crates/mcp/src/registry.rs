@@ -415,7 +415,10 @@ mod tests {
             "docs-server",
             McpServerConfig::new(McpTransport::Stdio(crate::client::StdioProcess::new(
                 "npx",
-                vec!["-y".to_string(), "@modelcontextprotocol/server-filesystem".to_string()],
+                vec![
+                    "-y".to_string(),
+                    "@modelcontextprotocol/server-filesystem".to_string(),
+                ],
             )))
             .with_permission(McpPermission::Allow),
         );
@@ -491,8 +494,12 @@ mod tests {
         docs_client.connect().await.unwrap();
         remote_client.connect().await.unwrap();
 
-        registry.clients.insert("docs-server".to_string(), docs_client.clone());
-        registry.clients.insert("remote-server".to_string(), remote_client.clone());
+        registry
+            .clients
+            .insert("docs-server".to_string(), docs_client.clone());
+        registry
+            .clients
+            .insert("remote-server".to_string(), remote_client.clone());
 
         registry.discovered_tools.insert(
             "docs-server".to_string(),

@@ -233,7 +233,9 @@ pub async fn register_custom_tools(
             DiscoveredToolSource::Project => crate::registry::ToolSource::CustomProject,
             DiscoveredToolSource::Global => crate::registry::ToolSource::CustomGlobal,
         };
-        registry.register_with_source(custom_tool, tool_source).await;
+        registry
+            .register_with_source(custom_tool, tool_source)
+            .await;
         registered.push(name);
     }
 

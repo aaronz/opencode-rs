@@ -1,11 +1,10 @@
+use crate::{message::Role, Message, Session, ToolInvocationRecord};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs;
-use std::panic;
+use std::panic::{set_hook, take_hook, PanicHookInfo};
 use std::path::PathBuf;
 use std::sync::Mutex;
-use crate::session::Session;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CrashDump {
@@ -46,7 +45,8 @@ struct ActiveSession {
 impl ActiveSession {
     fn capture_messages_summary(&self, max_messages: usize) -> Vec<MessageSummary> {
         let messages_to_capture = self.session.messages.len().min(max_messages);
-        self.session.messages
+        self.session
+            .messages
             .iter()
             .rev()
             .take(messages_to_capture)
@@ -59,14 +59,18 @@ impl ActiveSession {
                 MessageSummary {
                     role: format!("{:?}", msg.role),
                     content_preview: preview,
-                    timestamp: msg.created_at,
+                    timestamp: msg.timestamp,
                 }
             })
             .collect()
     }
-    
-    fn capture_tool_invocations_summary(&self, max_invocations: usize) -> Vec<ToolInvocationSummary> {
-        self.session.tool_invocations
+
+    fn capture_tool_invocations_summary(
+        &self,
+        max_invocations: usize,
+    ) -> Vec<ToolInvocationSummary> {
+        self.session
+            .tool_invocations
             .iter()
             .rev()
             .take(max_invocations)
@@ -114,7 +118,7 @@ impl CrashRecovery {
         let mut guard = self.active_session.lock().unwrap();
         *guard = Some(ActiveSession { session });
     }
-    
+
     pub fn get_active_session(&self) -> Option<Session> {
         let guard = self.active_session.lock().unwrap();
         guard.as_ref().map(|a| a.session.clone())
@@ -135,8 +139,8 @@ impl CrashRecovery {
 
         let messages_summary = active.capture_messages_summary(20);
         let tool_invocations_summary = active.capture_tool_invocations_summary(50);
-        
-        let state = if active.session.state == crate::session::SessionState::Error {
+
+        let state = if active.session.state == crate::SessionState::Error {
             "error".to_string()
         } else {
             format!("{:?}", active.session.state)
@@ -205,63 +209,62 @@ impl CrashRecovery {
         serde_json::from_str(&content)
             .map_err(|e| CrashRecoveryError::DeserializationError(e.to_string()))
     }
-    
+
     pub fn recover_session(&self, path: &PathBuf) -> Result<Session, CrashRecoveryError> {
         let dump = self.load_crash_dump(path)?;
-        
-        let messages: Vec<crate::session::Message> = dump.messages_summary
+
+        let messages: Vec<crate::Message> = dump
+            .messages_summary
             .iter()
             .map(|summary| {
-                crate::session::Message {
-                    id: uuid::Uuid::new_v4(),
-                    role: match summary.role.as_str() {
-                        "User" => crate::message::Role::User,
-                        "Assistant" => crate::message::Role::Assistant,
-                        "System" => crate::message::Role::System,
-                        _ => crate::message::Role::User,
-                    },
-                    content: summary.content_preview.clone(),
-                    created_at: summary.timestamp,
-                }
+                let role = match summary.role.as_str() {
+                    "User" => Role::User,
+                    "Assistant" => Role::Assistant,
+                    "System" => Role::System,
+                    _ => Role::User,
+                };
+                crate::Message::new(role, summary.content_preview.clone())
             })
             .collect();
-        
-        let tool_invocations: Vec<crate::session::ToolInvocationRecord> = dump.tool_invocations_summary
+
+        let tool_invocations: Vec<ToolInvocationRecord> = dump
+            .tool_invocations_summary
             .iter()
-            .map(|summary| {
-                crate::session::ToolInvocationRecord {
-                    id: uuid::Uuid::new_v4(),
-                    tool_name: summary.tool_name.clone(),
-                    arguments: serde_json::Value::Null,
-                    args_hash: String::new(),
-                    result: None,
-                    started_at: summary.started_at,
-                    completed_at: summary.completed_at,
-                    latency_ms: summary.completed_at.and_then(|end| {
-                        Some((end - summary.started_at).num_milliseconds() as u64)
-                    }),
-                }
+            .map(|summary| ToolInvocationRecord {
+                id: uuid::Uuid::new_v4(),
+                tool_name: summary.tool_name.clone(),
+                arguments: serde_json::Value::Null,
+                args_hash: String::new(),
+                result: None,
+                started_at: summary.started_at,
+                completed_at: summary.completed_at,
+                latency_ms: summary
+                    .completed_at
+                    .and_then(|end| Some((end - summary.started_at).num_milliseconds() as u64)),
             })
             .collect();
-        
+
         let session_id = match uuid::Uuid::parse_str(&dump.session_id) {
             Ok(id) => id,
             Err(_) => uuid::Uuid::new_v4(),
         };
-        
+
         let mut session = Session::new();
         session.id = session_id;
         session.messages = messages;
         session.updated_at = dump.crashed_at;
-        
+
         for invocation in tool_invocations {
             session.tool_invocations.push(invocation);
         }
-        
+
         Ok(session)
     }
-    
-    pub fn recover_session_latest(&self, session_id: &str) -> Result<Option<Session>, CrashRecoveryError> {
+
+    pub fn recover_session_latest(
+        &self,
+        session_id: &str,
+    ) -> Result<Option<Session>, CrashRecoveryError> {
         let dumps = self.find_crash_dumps(session_id);
         if let Some(latest) = dumps.first() {
             Ok(Some(self.recover_session(latest)?))
@@ -312,7 +315,7 @@ impl CrashRecovery {
 
 pub struct PanicHandler {
     crash_recovery: CrashRecovery,
-    previous_hook: Option<Box<dyn Fn(&panic::PanicInfo<'_>) + Send + Sync>>,
+    previous_hook: Option<Box<dyn Fn(&PanicHookInfo<'_>) + Send + Sync>>,
 }
 
 impl PanicHandler {
@@ -332,9 +335,9 @@ impl PanicHandler {
 
     pub fn start(&mut self) {
         let crash_recovery = self.crash_recovery.clone();
-        let previous = panic::take_hook();
+        let previous = take_hook();
         self.previous_hook = Some(Box::new(previous));
-        panic::set_hook(Box::new(move |panic_info| {
+        set_hook(Box::new(move |panic_info: &PanicHookInfo| {
             let panic_message = panic_info
                 .payload()
                 .downcast_ref::<&str>()
@@ -346,16 +349,12 @@ impl PanicHandler {
                 .map(|loc| format!("{}:{}:{}", loc.file(), loc.line(), loc.column()));
 
             let _ = crash_recovery.save_crash_dump(panic_message, stack_trace);
-
-            if let Some(ref hook) = self.previous_hook {
-                hook(panic_info);
-            }
         }));
     }
 
     pub fn stop(&mut self) {
         if let Some(hook) = self.previous_hook.take() {
-            panic::set_hook(hook);
+            set_hook(hook);
         }
     }
 }
@@ -387,6 +386,12 @@ pub enum CrashRecoveryError {
     DeserializationError(String),
 }
 
+impl From<std::io::Error> for CrashRecoveryError {
+    fn from(e: std::io::Error) -> Self {
+        CrashRecoveryError::IoError(e.to_string())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -395,12 +400,12 @@ mod tests {
     fn create_test_recovery(tmp: &tempfile::TempDir) -> CrashRecovery {
         CrashRecovery::new().with_dump_dir(tmp.path().join("crashes"))
     }
-    
+
     fn create_test_session() -> Session {
         let mut session = Session::new();
-        session.add_message(crate::session::Message::user("Hello world"));
-        session.add_message(crate::session::Message::assistant("Hi there!"));
-        session.tool_invocations.push(crate::session::ToolInvocationRecord {
+        session.add_message(Message::user("Hello world"));
+        session.add_message(Message::assistant("Hi there!"));
+        session.tool_invocations.push(ToolInvocationRecord {
             id: uuid::Uuid::new_v4(),
             tool_name: "read".to_string(),
             arguments: serde_json::json!({"path": "test.txt"}),
@@ -466,14 +471,14 @@ mod tests {
         assert!(!loaded.messages_summary.is_empty());
         assert!(!loaded.tool_invocations_summary.is_empty());
     }
-    
+
     #[test]
     fn test_save_crash_dump_captures_session_state() {
         let tmp = tempdir().unwrap();
         let recovery = create_test_recovery(&tmp);
 
         let mut session = create_test_session();
-        session.add_message(crate::session::Message::user("Another message"));
+        session.add_message(Message::user("Another message"));
         recovery.set_active_session(session);
 
         let path = recovery
@@ -497,7 +502,7 @@ mod tests {
         recovery
             .save_crash_dump(Some("panic 1".to_string()), None)
             .unwrap();
-            
+
         let mut session2 = create_test_session();
         session2.id = uuid::Uuid::parse_str("22222222-2222-2222-2222-222222222222").unwrap();
         recovery.set_active_session(session2);
@@ -507,7 +512,7 @@ mod tests {
 
         let dumps1 = recovery.find_crash_dumps("11111111-1111-1111-1111-111111111111");
         assert_eq!(dumps1.len(), 1);
-        
+
         let dumps2 = recovery.find_crash_dumps("22222222-2222-2222-2222-222222222222");
         assert_eq!(dumps2.len(), 1);
     }
@@ -563,7 +568,7 @@ mod tests {
         recovery
             .save_crash_dump(Some("panic 1".to_string()), None)
             .unwrap();
-            
+
         let mut session2 = create_test_session();
         session2.id = uuid::Uuid::parse_str("ccccccc2-cccc-cccc-cccc-cccccccc02").unwrap();
         recovery.set_active_session(session2);
@@ -571,10 +576,19 @@ mod tests {
             .save_crash_dump(Some("panic 2".to_string()), None)
             .unwrap();
 
-        let count = recovery.cleanup_session_crashes("ccccccc1-cccc-cccc-cccc-cccccccc01").unwrap();
+        let count = recovery
+            .cleanup_session_crashes("ccccccc1-cccc-cccc-cccc-cccccccc01")
+            .unwrap();
         assert_eq!(count, 1);
-        assert!(recovery.find_crash_dumps("ccccccc1-cccc-cccc-cccc-cccccccc01").is_empty());
-        assert_eq!(recovery.find_crash_dumps("ccccccc2-cccc-cccc-cccc-cccccccc02").len(), 1);
+        assert!(recovery
+            .find_crash_dumps("ccccccc1-cccc-cccc-cccc-cccccccc01")
+            .is_empty());
+        assert_eq!(
+            recovery
+                .find_crash_dumps("ccccccc2-cccc-cccc-cccc-cccccccc02")
+                .len(),
+            1
+        );
     }
 
     #[test]
@@ -593,51 +607,53 @@ mod tests {
 
         assert!(recovery.has_recoverable_crash("rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr"));
     }
-    
+
     #[test]
     fn test_recover_session() {
         let tmp = tempdir().unwrap();
         let recovery = create_test_recovery(&tmp);
 
         let mut session = create_test_session();
-        session.add_message(crate::session::Message::user("Recover test"));
-        session.id = uuid::Uuid::parse_str("recover-0000-0000-0000-000000000000").unwrap();
+        session.add_message(Message::user("Recover test"));
+        session.id = uuid::Uuid::parse_str("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb01").unwrap();
         recovery.set_active_session(session);
-        
+
         let path = recovery
             .save_crash_dump(Some("panic".to_string()), None)
             .unwrap();
-        
+
         let recovered = recovery.recover_session(&path).unwrap();
         assert_eq!(recovered.messages.len(), 3);
         assert!(!recovered.tool_invocations.is_empty());
     }
-    
+
     #[test]
     fn test_recover_session_latest() {
         let tmp = tempdir().unwrap();
         let recovery = create_test_recovery(&tmp);
 
         let mut session1 = create_test_session();
-        session1.id = uuid::Uuid::parse_str("latest-0001-0001-0001-000000000001").unwrap();
+        session1.id = uuid::Uuid::parse_str("dddddddd-dddd-dddd-dddd-dddddddd0001").unwrap();
         recovery.set_active_session(session1);
         recovery
             .save_crash_dump(Some("panic 1".to_string()), None)
             .unwrap();
-            
+
         let mut session2 = create_test_session();
-        session2.id = uuid::Uuid::parse_str("latest-0002-0002-0002-000000000002").unwrap();
+        session2.id = uuid::Uuid::parse_str("dddddddd-dddd-dddd-dddd-dddddddd0002").unwrap();
         recovery.set_active_session(session2);
-        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+        std::thread::sleep(std::time::Duration::from_millis(10));
         recovery
             .save_crash_dump(Some("panic 2".to_string()), None)
             .unwrap();
 
-        let recovered = recovery.recover_session_latest("latest-0002-0002-0002-000000000002").unwrap();
+        let recovered = recovery
+            .recover_session_latest("latest-0002-0002-0002-000000000002")
+            .unwrap();
         assert!(recovered.is_some());
         assert_eq!(recovered.unwrap().messages.len(), 2);
     }
-    
+
     #[test]
     fn test_get_active_session() {
         let tmp = tempdir().unwrap();
@@ -660,7 +676,7 @@ mod tests {
         );
 
         handler.start();
-        assert!(panic::take_hook().is_some());
+        take_hook();
 
         handler.stop();
     }

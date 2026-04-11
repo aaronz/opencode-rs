@@ -49,7 +49,8 @@ impl LspClient {
         server_command: &str,
         root_path: &PathBuf,
     ) -> Result<(), OpenCodeError> {
-        self.start_with_name(server_command, root_path, server_command.to_string()).await
+        self.start_with_name(server_command, root_path, server_command.to_string())
+            .await
     }
 
     pub async fn start_with_name(
@@ -115,22 +116,44 @@ impl LspClient {
                                         match serde_json::from_str::<serde_json::Value>(&msg) {
                                             Ok(v) => {
                                                 consecutive_errors.store(0, Ordering::SeqCst);
-                                                if let Some(id) = v.get("id").and_then(|id| id.as_u64()) {
+                                                if let Some(id) =
+                                                    v.get("id").and_then(|id| id.as_u64())
+                                                {
                                                     let mut p = pending.lock().await;
                                                     if let Some(tx) = p.remove(&id) {
                                                         let _ = tx.send(Ok(msg));
                                                     }
-                                                } else if let Some(method) = v.get("method").and_then(|m| m.as_str()) {
+                                                } else if let Some(method) =
+                                                    v.get("method").and_then(|m| m.as_str())
+                                                {
                                                     if method == "textDocument/publishDiagnostics" {
-                                                        if let Some(params) = v.get("params").and_then(|p| p.as_object()) {
-                                                            if let Some(uri) = params.get("uri").and_then(|u| u.as_str()) {
-                                                                if let Some(diagnostics_arr) = params.get("diagnostics").and_then(|d| d.as_array()) {
-                                                                    let parsed_diagnostics: Vec<Diagnostic> = diagnostics_arr
+                                                        if let Some(params) = v
+                                                            .get("params")
+                                                            .and_then(|p| p.as_object())
+                                                        {
+                                                            if let Some(uri) = params
+                                                                .get("uri")
+                                                                .and_then(|u| u.as_str())
+                                                            {
+                                                                if let Some(diagnostics_arr) =
+                                                                    params
+                                                                        .get("diagnostics")
+                                                                        .and_then(|d| d.as_array())
+                                                                {
+                                                                    let parsed_diagnostics: Vec<
+                                                                        Diagnostic,
+                                                                    > = diagnostics_arr
                                                                         .iter()
-                                                                        .filter_map(parse_diagnostic)
+                                                                        .filter_map(
+                                                                            parse_diagnostic,
+                                                                        )
                                                                         .collect();
-                                                                    let mut diags = diagnostics.lock().await;
-                                                                    diags.insert(uri.to_string(), parsed_diagnostics);
+                                                                    let mut diags =
+                                                                        diagnostics.lock().await;
+                                                                    diags.insert(
+                                                                        uri.to_string(),
+                                                                        parsed_diagnostics,
+                                                                    );
                                                                 }
                                                             }
                                                         }
@@ -171,7 +194,12 @@ impl LspClient {
                                         let _ = violation;
                                         let _ = detail;
                                         if buf.len() > len_after_header(&buf).unwrap_or(buf.len()) {
-                                            buf = buf.split_at(len_after_header(&buf).unwrap_or(buf.len())).1.to_vec();
+                                            buf = buf
+                                                .split_at(
+                                                    len_after_header(&buf).unwrap_or(buf.len()),
+                                                )
+                                                .1
+                                                .to_vec();
                                         } else {
                                             buf.clear();
                                         }
@@ -234,16 +262,13 @@ impl LspClient {
         let msg = format!("Content-Length: {}\r\n\r\n{}", msg_str.len(), msg_str);
 
         if let Some(ref mut stdin) = self.stdin {
-            stdin
-                .write_all(msg.as_bytes())
-                .await
-                .map_err(|e| {
-                    self.is_running.store(false, Ordering::SeqCst);
-                    OpenCodeError::Tui(format!(
-                        "Failed to write to LSP server: {} (server may have crashed)",
-                        e
-                    ))
-                })?;
+            stdin.write_all(msg.as_bytes()).await.map_err(|e| {
+                self.is_running.store(false, Ordering::SeqCst);
+                OpenCodeError::Tui(format!(
+                    "Failed to write to LSP server: {} (server may have crashed)",
+                    e
+                ))
+            })?;
             stdin
                 .flush()
                 .await
@@ -438,11 +463,8 @@ impl LspClient {
         let params = serde_json::json!({});
         match self.send_request("window/showMessageRequest", params).await {
             Ok(id) => {
-                match tokio::time::timeout(
-                    Duration::from_secs(5),
-                    self.wait_for_response(id, 5),
-                )
-                .await
+                match tokio::time::timeout(Duration::from_secs(5), self.wait_for_response(id, 5))
+                    .await
                 {
                     Ok(Ok(_)) => Ok(true),
                     _ => Ok(false),
@@ -480,13 +502,13 @@ fn len_after_header(buf: &[u8]) -> Option<usize> {
 
 fn extract_jsonrpc_message(buf: &[u8]) -> Result<String, LspError> {
     let header = b"Content-Length: ";
-    let idx = buf
-        .windows(header.len())
-        .position(|w| w == header)
-        .ok_or(LspError::ProtocolViolation {
-            violation: ProtocolViolationType::MissingContentLength,
-            detail: "Content-Length header not found".to_string(),
-        })?;
+    let idx =
+        buf.windows(header.len())
+            .position(|w| w == header)
+            .ok_or(LspError::ProtocolViolation {
+                violation: ProtocolViolationType::MissingContentLength,
+                detail: "Content-Length header not found".to_string(),
+            })?;
 
     let after_header = &buf[idx + header.len()..];
     let end_of_headers = after_header
@@ -497,13 +519,12 @@ fn extract_jsonrpc_message(buf: &[u8]) -> Result<String, LspError> {
             detail: "Invalid header format".to_string(),
         })?;
 
-    let len_str =
-        std::str::from_utf8(&after_header[..end_of_headers])
-            .map_err(|_| LspError::ProtocolViolation {
-                violation: ProtocolViolationType::InvalidContentLength,
-                detail: "Content-Length is not valid UTF-8".to_string(),
-            })?
-            .trim();
+    let len_str = std::str::from_utf8(&after_header[..end_of_headers])
+        .map_err(|_| LspError::ProtocolViolation {
+            violation: ProtocolViolationType::InvalidContentLength,
+            detail: "Content-Length is not valid UTF-8".to_string(),
+        })?
+        .trim();
 
     let len: usize = len_str.parse().map_err(|_| LspError::ProtocolViolation {
         violation: ProtocolViolationType::InvalidContentLength,

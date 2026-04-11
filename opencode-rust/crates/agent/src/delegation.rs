@@ -13,7 +13,7 @@ use opencode_core::Message;
 use opencode_llm::Provider;
 use opencode_tools::ToolRegistry;
 
-use crate::{Agent, AgentResponse, AgentType, AgentRuntime, SubagentResult};
+use crate::{Agent, AgentResponse, AgentRuntime, AgentType, SubagentResult};
 
 /// Unique identifier for a delegated task.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -280,10 +280,8 @@ impl Task {
     pub fn mark_failed(&mut self, error: impl Into<String>) {
         self.status = TaskStatus::Failed;
         self.completed_at = Some(Utc::now());
-        self.progress_history.push(TaskProgress::failed(
-            self.id,
-            error,
-        ));
+        self.progress_history
+            .push(TaskProgress::failed(self.id, error));
     }
 
     /// Get the latest progress update.
@@ -302,9 +300,11 @@ impl Task {
     /// Get task duration if completed.
     pub fn duration(&self) -> Option<std::time::Duration> {
         match (self.started_at, self.completed_at) {
-            (Some(start), Some(end)) => {
-                Some(end.signed_duration_since(start).to_std().unwrap_or_default())
-            }
+            (Some(start), Some(end)) => Some(
+                end.signed_duration_since(start)
+                    .to_std()
+                    .unwrap_or_default(),
+            ),
             _ => None,
         }
     }
@@ -322,25 +322,39 @@ pub enum DelegationError {
     /// No active primary agent to perform delegation.
     NoActivePrimaryAgent,
     /// Task ownership violation - tried to manipulate task by non-owner.
-    OwnershipViolation { task_id: TaskId, expected_delegator: AgentType },
+    OwnershipViolation {
+        task_id: TaskId,
+        expected_delegator: AgentType,
+    },
 }
 
 impl std::fmt::Display for DelegationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             DelegationError::TaskNotDelegatable { task_id, status } => {
-                write!(f, "task {} is not delegatable (status: {})", task_id, status)
+                write!(
+                    f,
+                    "task {} is not delegatable (status: {})",
+                    task_id, status
+                )
             }
             DelegationError::SubagentExecutionFailed { task_id, reason } => {
                 write!(f, "task {} subagent execution failed: {}", task_id, reason)
             }
             DelegationError::ParentContextModified { task_id } => {
-                write!(f, "parent context was modified during task {} execution", task_id)
+                write!(
+                    f,
+                    "parent context was modified during task {} execution",
+                    task_id
+                )
             }
             DelegationError::NoActivePrimaryAgent => {
                 write!(f, "no active primary agent for delegation")
             }
-            DelegationError::OwnershipViolation { task_id, expected_delegator } => {
+            DelegationError::OwnershipViolation {
+                task_id,
+                expected_delegator,
+            } => {
                 write!(
                     f,
                     "task {} ownership violation - expected delegator: {}",
@@ -425,22 +439,22 @@ impl TaskDelegate {
         let task_result = match result {
             Ok(subagent_result) => {
                 let result = TaskResult::success(task.id, subagent_result, started_at);
-                
+
                 // Update task status
                 if let Some(active_task) = self.active_tasks.iter_mut().find(|t| t.id == task_id) {
                     active_task.mark_completed(&result);
                 }
-                
+
                 result
             }
             Err(e) => {
                 let error_message = e.to_string();
-                
+
                 // Update task status
                 if let Some(active_task) = self.active_tasks.iter_mut().find(|t| t.id == task_id) {
                     active_task.mark_failed(&error_message);
                 }
-                
+
                 TaskResult::failure(
                     task.id,
                     task.agent_type,
@@ -463,7 +477,7 @@ impl TaskDelegate {
     /// Report progress for an active task.
     pub fn report_progress(&mut self, progress: TaskProgress) -> Result<(), DelegationError> {
         let task_id = progress.task_id;
-        
+
         let task = self
             .active_tasks
             .iter_mut()
@@ -549,8 +563,16 @@ impl TaskDelegate {
         DelegationStatusSummary {
             active_count: self.active_tasks.len(),
             completed_count: self.completed_tasks.len(),
-            pending_count: self.active_tasks.iter().filter(|t| t.status == TaskStatus::Pending).count(),
-            in_progress_count: self.active_tasks.iter().filter(|t| t.status == TaskStatus::InProgress).count(),
+            pending_count: self
+                .active_tasks
+                .iter()
+                .filter(|t| t.status == TaskStatus::Pending)
+                .count(),
+            in_progress_count: self
+                .active_tasks
+                .iter()
+                .filter(|t| t.status == TaskStatus::InProgress)
+                .count(),
         }
     }
 }
@@ -620,12 +642,7 @@ mod tests {
 
     #[test]
     fn test_task_mark_started() {
-        let mut task = Task::new(
-            "Test task",
-            AgentType::Explore,
-            AgentType::Build,
-            vec![],
-        );
+        let mut task = Task::new("Test task", AgentType::Explore, AgentType::Build, vec![]);
         task.mark_started();
 
         assert_eq!(task.status, TaskStatus::InProgress);
@@ -635,12 +652,7 @@ mod tests {
 
     #[test]
     fn test_task_mark_completed() {
-        let mut task = Task::new(
-            "Test task",
-            AgentType::Explore,
-            AgentType::Build,
-            vec![],
-        );
+        let mut task = Task::new("Test task", AgentType::Explore, AgentType::Build, vec![]);
         task.mark_started();
 
         let result = TaskResult {
@@ -656,7 +668,7 @@ mod tests {
             completed_at: Utc::now(),
             summary: None,
         };
-        
+
         task.mark_completed(&result);
 
         assert_eq!(task.status, TaskStatus::Completed);
@@ -687,7 +699,7 @@ mod tests {
     fn test_task_progress_creation() {
         let task_id = TaskId::new();
         let progress = TaskProgress::new(task_id, TaskStatus::InProgress, "Working on it");
-        
+
         assert_eq!(progress.task_id, task_id);
         assert_eq!(progress.status, TaskStatus::InProgress);
         assert_eq!(progress.message, "Working on it");
@@ -697,13 +709,8 @@ mod tests {
     #[test]
     fn test_task_progress_with_percentage() {
         let task_id = TaskId::new();
-        let progress = TaskProgress::with_progress(
-            task_id,
-            TaskStatus::InProgress,
-            "50% done",
-            50,
-        );
-        
+        let progress = TaskProgress::with_progress(task_id, TaskStatus::InProgress, "50% done", 50);
+
         assert_eq!(progress.progress_percent, Some(50));
     }
 
@@ -720,9 +727,9 @@ mod tests {
             effective_permission_scope: opencode_permission::AgentPermissionScope::ReadOnly,
         };
         let started_at = Utc::now();
-        
+
         let result = TaskResult::success(task_id, subagent_result, started_at);
-        
+
         assert_eq!(result.task_id, task_id);
         assert_eq!(result.status, TaskStatus::Completed);
         assert_eq!(result.response.content, "Result");
@@ -732,7 +739,7 @@ mod tests {
     fn test_task_result_failure() {
         let task_id = TaskId::new();
         let started_at = Utc::now();
-        
+
         let result = TaskResult::failure(
             task_id,
             AgentType::Explore,
@@ -740,7 +747,7 @@ mod tests {
             started_at,
             "Something went wrong",
         );
-        
+
         assert_eq!(result.status, TaskStatus::Failed);
         assert!(result.response.content.contains("Something went wrong"));
     }
@@ -758,10 +765,10 @@ mod tests {
             effective_permission_scope: opencode_permission::AgentPermissionScope::ReadOnly,
         };
         let started_at = Utc::now();
-        
+
         let result = TaskResult::success(task_id, subagent_result, started_at)
             .with_summary("Summary of work done");
-        
+
         assert_eq!(result.summary, Some("Summary of work done".to_string()));
     }
 
@@ -785,7 +792,7 @@ mod tests {
 
         task.started_at = Some(Utc::now() - chrono::Duration::seconds(10));
         task.completed_at = Some(Utc::now());
-        
+
         let duration = task.duration().unwrap();
         assert!(duration.as_secs() >= 10);
     }
@@ -813,7 +820,7 @@ mod tests {
     fn test_task_delegate_status_summary() {
         let delegate = TaskDelegate::new();
         let summary = delegate.status_summary();
-        
+
         assert_eq!(summary.active_count, 0);
         assert_eq!(summary.completed_count, 0);
         assert_eq!(summary.pending_count, 0);
@@ -825,9 +832,11 @@ mod tests {
         let mut task = Task::new("Test", AgentType::Explore, AgentType::Build, vec![]);
         assert!(task.latest_progress().is_none());
 
-        task.progress_history.push(TaskProgress::pending(task.id, "Starting"));
-        task.progress_history.push(TaskProgress::in_progress(task.id, "Working"));
-        
+        task.progress_history
+            .push(TaskProgress::pending(task.id, "Starting"));
+        task.progress_history
+            .push(TaskProgress::in_progress(task.id, "Working"));
+
         let latest = task.latest_progress().unwrap();
         assert_eq!(latest.message, "Working");
     }

@@ -156,7 +156,11 @@ impl ToolRegistry {
         cache.clear();
     }
 
-    pub async fn get_cached_result(&self, tool_name: &str, args: &serde_json::Value) -> Option<ToolResult> {
+    pub async fn get_cached_result(
+        &self,
+        tool_name: &str,
+        args: &serde_json::Value,
+    ) -> Option<ToolResult> {
         let cache = self.cache.read().await;
         let key = compute_cache_key(tool_name, args);
         cache.get(&key).cloned()
@@ -204,7 +208,8 @@ impl ToolRegistry {
     }
 
     pub async fn register_plugin_tools(&self, tools: Vec<Box<dyn Tool>>) {
-        self.register_tools_with_source(tools, ToolSource::Plugin).await;
+        self.register_tools_with_source(tools, ToolSource::Plugin)
+            .await;
     }
 
     pub async fn register_tools_with_source(&self, tools: Vec<Box<dyn Tool>>, source: ToolSource) {
@@ -496,10 +501,20 @@ mod tests {
         struct ToolA;
         #[async_trait]
         impl Tool for ToolA {
-            fn name(&self) -> &str { "tool_a" }
-            fn description(&self) -> &str { "Tool A" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "tool_a"
+            }
+            fn description(&self) -> &str {
+                "Tool A"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 Ok(ToolResult::ok("a"))
             }
         }
@@ -508,10 +523,20 @@ mod tests {
         struct ToolB;
         #[async_trait]
         impl Tool for ToolB {
-            fn name(&self) -> &str { "tool_b" }
-            fn description(&self) -> &str { "Tool B" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "tool_b"
+            }
+            fn description(&self) -> &str {
+                "Tool B"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 Ok(ToolResult::ok("b"))
             }
         }
@@ -532,7 +557,11 @@ mod tests {
         registry.register(TestToolWithArgs).await;
 
         let result = registry
-            .execute("test_tool_with_args", serde_json::json!({"input": "hello"}), None)
+            .execute(
+                "test_tool_with_args",
+                serde_json::json!({"input": "hello"}),
+                None,
+            )
             .await;
 
         assert!(result.is_ok(), "Tool should execute successfully");
@@ -595,7 +624,10 @@ mod tests {
 
         match result {
             Err(OpenCodeError::Tool(msg)) => {
-                assert!(msg.contains("not found"), "Error should indicate tool not found");
+                assert!(
+                    msg.contains("not found"),
+                    "Error should indicate tool not found"
+                );
             }
             other => panic!("Expected tool not found error, got {:?}", other),
         }
@@ -607,10 +639,20 @@ mod tests {
         struct CustomTool;
         #[async_trait]
         impl Tool for CustomTool {
-            fn name(&self) -> &str { "collision_tool" }
-            fn description(&self) -> &str { "Custom tool" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "collision_tool"
+            }
+            fn description(&self) -> &str {
+                "Custom tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 Ok(ToolResult::ok("custom"))
             }
         }
@@ -619,18 +661,32 @@ mod tests {
         struct BuiltinTool;
         #[async_trait]
         impl Tool for BuiltinTool {
-            fn name(&self) -> &str { "collision_tool" }
-            fn description(&self) -> &str { "Builtin tool" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "collision_tool"
+            }
+            fn description(&self) -> &str {
+                "Builtin tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 Ok(ToolResult::ok("builtin"))
             }
         }
 
         let registry = ToolRegistry::new();
 
-        registry.register_with_source(CustomTool, ToolSource::CustomGlobal).await;
-        registry.register_with_source(BuiltinTool, ToolSource::Builtin).await;
+        registry
+            .register_with_source(CustomTool, ToolSource::CustomGlobal)
+            .await;
+        registry
+            .register_with_source(BuiltinTool, ToolSource::Builtin)
+            .await;
 
         let result = registry
             .execute("collision_tool", serde_json::json!({}), None)
@@ -645,10 +701,20 @@ mod tests {
         struct GlobalTool;
         #[async_trait]
         impl Tool for GlobalTool {
-            fn name(&self) -> &str { "collision_tool" }
-            fn description(&self) -> &str { "Global tool" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "collision_tool"
+            }
+            fn description(&self) -> &str {
+                "Global tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 Ok(ToolResult::ok("global"))
             }
         }
@@ -657,18 +723,32 @@ mod tests {
         struct PluginTool;
         #[async_trait]
         impl Tool for PluginTool {
-            fn name(&self) -> &str { "collision_tool" }
-            fn description(&self) -> &str { "Plugin tool" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "collision_tool"
+            }
+            fn description(&self) -> &str {
+                "Plugin tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 Ok(ToolResult::ok("plugin"))
             }
         }
 
         let registry = ToolRegistry::new();
 
-        registry.register_with_source(GlobalTool, ToolSource::CustomGlobal).await;
-        registry.register_with_source(PluginTool, ToolSource::Plugin).await;
+        registry
+            .register_with_source(GlobalTool, ToolSource::CustomGlobal)
+            .await;
+        registry
+            .register_with_source(PluginTool, ToolSource::Plugin)
+            .await;
 
         let result = registry
             .execute("collision_tool", serde_json::json!({}), None)
@@ -683,10 +763,20 @@ mod tests {
         struct ProjectTool;
         #[async_trait]
         impl Tool for ProjectTool {
-            fn name(&self) -> &str { "collision_tool" }
-            fn description(&self) -> &str { "Project tool" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "collision_tool"
+            }
+            fn description(&self) -> &str {
+                "Project tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 Ok(ToolResult::ok("project"))
             }
         }
@@ -695,18 +785,32 @@ mod tests {
         struct PluginTool;
         #[async_trait]
         impl Tool for PluginTool {
-            fn name(&self) -> &str { "collision_tool" }
-            fn description(&self) -> &str { "Plugin tool" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "collision_tool"
+            }
+            fn description(&self) -> &str {
+                "Plugin tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 Ok(ToolResult::ok("plugin"))
             }
         }
 
         let registry = ToolRegistry::new();
 
-        registry.register_with_source(ProjectTool, ToolSource::CustomProject).await;
-        registry.register_with_source(PluginTool, ToolSource::Plugin).await;
+        registry
+            .register_with_source(ProjectTool, ToolSource::CustomProject)
+            .await;
+        registry
+            .register_with_source(PluginTool, ToolSource::Plugin)
+            .await;
 
         let result = registry
             .execute("collision_tool", serde_json::json!({}), None)
@@ -721,10 +825,20 @@ mod tests {
         struct GlobalTool;
         #[async_trait]
         impl Tool for GlobalTool {
-            fn name(&self) -> &str { "collision_tool" }
-            fn description(&self) -> &str { "Global tool" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "collision_tool"
+            }
+            fn description(&self) -> &str {
+                "Global tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 Ok(ToolResult::ok("global"))
             }
         }
@@ -733,18 +847,32 @@ mod tests {
         struct ProjectTool;
         #[async_trait]
         impl Tool for ProjectTool {
-            fn name(&self) -> &str { "collision_tool" }
-            fn description(&self) -> &str { "Project tool" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "collision_tool"
+            }
+            fn description(&self) -> &str {
+                "Project tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 Ok(ToolResult::ok("project"))
             }
         }
 
         let registry = ToolRegistry::new();
 
-        registry.register_with_source(GlobalTool, ToolSource::CustomGlobal).await;
-        registry.register_with_source(ProjectTool, ToolSource::CustomProject).await;
+        registry
+            .register_with_source(GlobalTool, ToolSource::CustomGlobal)
+            .await;
+        registry
+            .register_with_source(ProjectTool, ToolSource::CustomProject)
+            .await;
 
         let result = registry
             .execute("collision_tool", serde_json::json!({}), None)
@@ -759,10 +887,20 @@ mod tests {
         struct FirstTool;
         #[async_trait]
         impl Tool for FirstTool {
-            fn name(&self) -> &str { "collision_tool" }
-            fn description(&self) -> &str { "First tool" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "collision_tool"
+            }
+            fn description(&self) -> &str {
+                "First tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 Ok(ToolResult::ok("first"))
             }
         }
@@ -771,18 +909,32 @@ mod tests {
         struct SecondTool;
         #[async_trait]
         impl Tool for SecondTool {
-            fn name(&self) -> &str { "collision_tool" }
-            fn description(&self) -> &str { "Second tool" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "collision_tool"
+            }
+            fn description(&self) -> &str {
+                "Second tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 Ok(ToolResult::ok("second"))
             }
         }
 
         let registry = ToolRegistry::new();
 
-        registry.register_with_source(FirstTool, ToolSource::CustomProject).await;
-        registry.register_with_source(SecondTool, ToolSource::CustomProject).await;
+        registry
+            .register_with_source(FirstTool, ToolSource::CustomProject)
+            .await;
+        registry
+            .register_with_source(SecondTool, ToolSource::CustomProject)
+            .await;
 
         let result = registry
             .execute("collision_tool", serde_json::json!({}), None)
@@ -797,10 +949,20 @@ mod tests {
         struct ToolA;
         #[async_trait]
         impl Tool for ToolA {
-            fn name(&self) -> &str { "test_tool" }
-            fn description(&self) -> &str { "Tool A" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "test_tool"
+            }
+            fn description(&self) -> &str {
+                "Tool A"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 Ok(ToolResult::ok("a"))
             }
         }
@@ -809,25 +971,49 @@ mod tests {
         struct ToolB;
         #[async_trait]
         impl Tool for ToolB {
-            fn name(&self) -> &str { "test_tool" }
-            fn description(&self) -> &str { "Tool B" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "test_tool"
+            }
+            fn description(&self) -> &str {
+                "Tool B"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 Ok(ToolResult::ok("b"))
             }
         }
 
         let registry1 = ToolRegistry::new();
-        registry1.register_with_source(ToolA, ToolSource::Builtin).await;
-        registry1.register_with_source(ToolB, ToolSource::CustomGlobal).await;
+        registry1
+            .register_with_source(ToolA, ToolSource::Builtin)
+            .await;
+        registry1
+            .register_with_source(ToolB, ToolSource::CustomGlobal)
+            .await;
 
-        let result1 = registry1.execute("test_tool", serde_json::json!({}), None).await.unwrap();
+        let result1 = registry1
+            .execute("test_tool", serde_json::json!({}), None)
+            .await
+            .unwrap();
 
         let registry2 = ToolRegistry::new();
-        registry2.register_with_source(ToolB, ToolSource::CustomGlobal).await;
-        registry2.register_with_source(ToolA, ToolSource::Builtin).await;
+        registry2
+            .register_with_source(ToolB, ToolSource::CustomGlobal)
+            .await;
+        registry2
+            .register_with_source(ToolA, ToolSource::Builtin)
+            .await;
 
-        let result2 = registry2.execute("test_tool", serde_json::json!({}), None).await.unwrap();
+        let result2 = registry2
+            .execute("test_tool", serde_json::json!({}), None)
+            .await
+            .unwrap();
 
         assert_eq!(result1.content, "a");
         assert_eq!(result2.content, "a");
@@ -839,10 +1025,20 @@ mod tests {
         struct BuiltinTool;
         #[async_trait]
         impl Tool for BuiltinTool {
-            fn name(&self) -> &str { "my_tool" }
-            fn description(&self) -> &str { "Builtin" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "my_tool"
+            }
+            fn description(&self) -> &str {
+                "Builtin"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 Ok(ToolResult::ok("builtin"))
             }
         }
@@ -851,28 +1047,52 @@ mod tests {
         struct CustomTool;
         #[async_trait]
         impl Tool for CustomTool {
-            fn name(&self) -> &str { "my_tool" }
-            fn description(&self) -> &str { "Custom" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "my_tool"
+            }
+            fn description(&self) -> &str {
+                "Custom"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 Ok(ToolResult::ok("custom"))
             }
         }
 
         let registry = ToolRegistry::new();
 
-        registry.register_with_source(BuiltinTool, ToolSource::Builtin).await;
-        registry.register_with_source(CustomTool, ToolSource::CustomGlobal).await;
+        registry
+            .register_with_source(BuiltinTool, ToolSource::Builtin)
+            .await;
+        registry
+            .register_with_source(CustomTool, ToolSource::CustomGlobal)
+            .await;
 
-        let result = registry.execute("my_tool", serde_json::json!({}), None).await.unwrap();
+        let result = registry
+            .execute("my_tool", serde_json::json!({}), None)
+            .await
+            .unwrap();
         assert_eq!(result.content, "builtin");
 
         let registry2 = ToolRegistry::new();
 
-        registry2.register_with_source(CustomTool, ToolSource::CustomGlobal).await;
-        registry2.register_with_source(BuiltinTool, ToolSource::Builtin).await;
+        registry2
+            .register_with_source(CustomTool, ToolSource::CustomGlobal)
+            .await;
+        registry2
+            .register_with_source(BuiltinTool, ToolSource::Builtin)
+            .await;
 
-        let result2 = registry2.execute("my_tool", serde_json::json!({}), None).await.unwrap();
+        let result2 = registry2
+            .execute("my_tool", serde_json::json!({}), None)
+            .await
+            .unwrap();
         assert_eq!(result2.content, "builtin");
     }
 
@@ -925,8 +1145,14 @@ mod tests {
         ) -> Result<ToolResult, OpenCodeError> {
             let mut count = self.call_count.lock().unwrap();
             *count += 1;
-            let input = args.get("input").and_then(|v| v.as_str()).unwrap_or("default");
-            Ok(ToolResult::ok(format!("called {} times: {}", *count, input)))
+            let input = args
+                .get("input")
+                .and_then(|v| v.as_str())
+                .unwrap_or("default");
+            Ok(ToolResult::ok(format!(
+                "called {} times: {}",
+                *count, input
+            )))
         }
     }
 
@@ -969,8 +1195,14 @@ mod tests {
         ) -> Result<ToolResult, OpenCodeError> {
             let mut count = self.call_count.lock().unwrap();
             *count += 1;
-            let input = args.get("input").and_then(|v| v.as_str()).unwrap_or("default");
-            Ok(ToolResult::ok(format!("called {} times: {}", *count, input)))
+            let input = args
+                .get("input")
+                .and_then(|v| v.as_str())
+                .unwrap_or("default");
+            Ok(ToolResult::ok(format!(
+                "called {} times: {}",
+                *count, input
+            )))
         }
     }
 
@@ -981,8 +1213,14 @@ mod tests {
 
         let args = serde_json::json!({"input": "test"});
 
-        let result1 = registry.execute("safe_test_tool", args.clone(), None).await.unwrap();
-        let result2 = registry.execute("safe_test_tool", args.clone(), None).await.unwrap();
+        let result1 = registry
+            .execute("safe_test_tool", args.clone(), None)
+            .await
+            .unwrap();
+        let result2 = registry
+            .execute("safe_test_tool", args.clone(), None)
+            .await
+            .unwrap();
 
         assert_eq!(result1.content, result2.content);
         assert!(result1.content.contains("called 1 times:"));
@@ -995,8 +1233,14 @@ mod tests {
 
         let args = serde_json::json!({"input": "test"});
 
-        let result1 = registry.execute("unsafe_test_tool", args.clone(), None).await.unwrap();
-        let result2 = registry.execute("unsafe_test_tool", args.clone(), None).await.unwrap();
+        let result1 = registry
+            .execute("unsafe_test_tool", args.clone(), None)
+            .await
+            .unwrap();
+        let result2 = registry
+            .execute("unsafe_test_tool", args.clone(), None)
+            .await
+            .unwrap();
 
         assert!(result1.content.contains("called 1 times:"));
         assert!(result2.content.contains("called 2 times:"));
@@ -1010,8 +1254,14 @@ mod tests {
         let args1 = serde_json::json!({"input": "test1"});
         let args2 = serde_json::json!({"input": "test2"});
 
-        let result1 = registry.execute("safe_test_tool", args1.clone(), None).await.unwrap();
-        let result2 = registry.execute("safe_test_tool", args2.clone(), None).await.unwrap();
+        let result1 = registry
+            .execute("safe_test_tool", args1.clone(), None)
+            .await
+            .unwrap();
+        let result2 = registry
+            .execute("safe_test_tool", args2.clone(), None)
+            .await
+            .unwrap();
 
         assert!(result1.content.contains("called 1 times:"));
         assert!(result2.content.contains("called 2 times:"));
@@ -1024,12 +1274,18 @@ mod tests {
 
         let args = serde_json::json!({"input": "test"});
 
-        let result1 = registry.execute("safe_test_tool", args.clone(), None).await.unwrap();
+        let result1 = registry
+            .execute("safe_test_tool", args.clone(), None)
+            .await
+            .unwrap();
         assert!(result1.content.contains("called 1 times:"));
 
         registry.invalidate_cache_for_tool("safe_test_tool").await;
 
-        let result2 = registry.execute("safe_test_tool", args.clone(), None).await.unwrap();
+        let result2 = registry
+            .execute("safe_test_tool", args.clone(), None)
+            .await
+            .unwrap();
         assert!(result2.content.contains("called 2 times:"));
     }
 
@@ -1039,12 +1295,27 @@ mod tests {
         struct AnotherSafeTool;
         #[async_trait]
         impl Tool for AnotherSafeTool {
-            fn name(&self) -> &str { "another_safe_tool" }
-            fn description(&self) -> &str { "Another safe tool" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(AnotherSafeTool) }
-            fn is_safe(&self) -> bool { true }
-            async fn execute(&self, args: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
-                let input = args.get("input").and_then(|v| v.as_str()).unwrap_or("default");
+            fn name(&self) -> &str {
+                "another_safe_tool"
+            }
+            fn description(&self) -> &str {
+                "Another safe tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(AnotherSafeTool)
+            }
+            fn is_safe(&self) -> bool {
+                true
+            }
+            async fn execute(
+                &self,
+                args: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
+                let input = args
+                    .get("input")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("default");
                 Ok(ToolResult::ok(format!("result: {}", input)))
             }
         }
@@ -1053,12 +1324,25 @@ mod tests {
         registry.register(SafeTestTool::new()).await;
         registry.register(AnotherSafeTool).await;
 
-        registry.execute("safe_test_tool", serde_json::json!({"input": "test"}), None).await.unwrap();
-        registry.execute("another_safe_tool", serde_json::json!({"input": "test"}), None).await.unwrap();
+        registry
+            .execute("safe_test_tool", serde_json::json!({"input": "test"}), None)
+            .await
+            .unwrap();
+        registry
+            .execute(
+                "another_safe_tool",
+                serde_json::json!({"input": "test"}),
+                None,
+            )
+            .await
+            .unwrap();
 
         registry.invalidate_all_cache().await;
 
-        let result = registry.execute("safe_test_tool", serde_json::json!({"input": "test"}), None).await.unwrap();
+        let result = registry
+            .execute("safe_test_tool", serde_json::json!({"input": "test"}), None)
+            .await
+            .unwrap();
         assert!(result.content.contains("called"));
     }
 
@@ -1068,11 +1352,23 @@ mod tests {
         struct SafeFailingTool;
         #[async_trait]
         impl Tool for SafeFailingTool {
-            fn name(&self) -> &str { "safe_failing_tool" }
-            fn description(&self) -> &str { "Safe failing tool" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(SafeFailingTool) }
-            fn is_safe(&self) -> bool { true }
-            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "safe_failing_tool"
+            }
+            fn description(&self) -> &str {
+                "Safe failing tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(SafeFailingTool)
+            }
+            fn is_safe(&self) -> bool {
+                true
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 Ok(ToolResult::err("intentional failure"))
             }
         }
@@ -1082,10 +1378,16 @@ mod tests {
 
         let args = serde_json::json!({});
 
-        let result1 = registry.execute("safe_failing_tool", args.clone(), None).await.unwrap();
+        let result1 = registry
+            .execute("safe_failing_tool", args.clone(), None)
+            .await
+            .unwrap();
         assert!(!result1.success);
 
-        let result2 = registry.execute("safe_failing_tool", args.clone(), None).await.unwrap();
+        let result2 = registry
+            .execute("safe_failing_tool", args.clone(), None)
+            .await
+            .unwrap();
         assert!(!result2.success);
         assert!(result2.error.unwrap().contains("intentional failure"));
     }
@@ -1096,10 +1398,20 @@ mod tests {
         struct ToolAlpha;
         #[async_trait]
         impl Tool for ToolAlpha {
-            fn name(&self) -> &str { "alpha" }
-            fn description(&self) -> &str { "Alpha tool" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "alpha"
+            }
+            fn description(&self) -> &str {
+                "Alpha tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 Ok(ToolResult::ok("alpha_result"))
             }
         }
@@ -1108,10 +1420,20 @@ mod tests {
         struct ToolBeta;
         #[async_trait]
         impl Tool for ToolBeta {
-            fn name(&self) -> &str { "beta" }
-            fn description(&self) -> &str { "Beta tool" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "beta"
+            }
+            fn description(&self) -> &str {
+                "Beta tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 Ok(ToolResult::ok("beta_result"))
             }
         }
@@ -1121,8 +1443,16 @@ mod tests {
         registry.register(ToolBeta).await;
 
         let calls = vec![
-            ToolCall { name: "alpha".to_string(), args: serde_json::json!({}), ctx: None },
-            ToolCall { name: "beta".to_string(), args: serde_json::json!({}), ctx: None },
+            ToolCall {
+                name: "alpha".to_string(),
+                args: serde_json::json!({}),
+                ctx: None,
+            },
+            ToolCall {
+                name: "beta".to_string(),
+                args: serde_json::json!({}),
+                ctx: None,
+            },
         ];
 
         let results = registry.execute_parallel(calls).await;
@@ -1130,7 +1460,10 @@ mod tests {
 
         let alpha_result = results.iter().find(|r| r.name == "alpha").unwrap();
         assert!(alpha_result.result.as_ref().is_ok());
-        assert_eq!(alpha_result.result.as_ref().unwrap().content, "alpha_result");
+        assert_eq!(
+            alpha_result.result.as_ref().unwrap().content,
+            "alpha_result"
+        );
 
         let beta_result = results.iter().find(|r| r.name == "beta").unwrap();
         assert!(beta_result.result.as_ref().is_ok());
@@ -1141,16 +1474,23 @@ mod tests {
     async fn test_execute_parallel_with_nonexistent_tool() {
         let registry = ToolRegistry::new();
 
-        let calls = vec![
-            ToolCall { name: "nonexistent".to_string(), args: serde_json::json!({}), ctx: None },
-        ];
+        let calls = vec![ToolCall {
+            name: "nonexistent".to_string(),
+            args: serde_json::json!({}),
+            ctx: None,
+        }];
 
         let results = registry.execute_parallel(calls).await;
         assert_eq!(results.len(), 1);
 
         let result = &results[0];
         assert!(result.result.is_err());
-        assert!(result.result.as_ref().unwrap_err().to_string().contains("not found"));
+        assert!(result
+            .result
+            .as_ref()
+            .unwrap_err()
+            .to_string()
+            .contains("not found"));
     }
 
     #[tokio::test]
@@ -1159,10 +1499,20 @@ mod tests {
         struct ParallelTool;
         #[async_trait]
         impl Tool for ParallelTool {
-            fn name(&self) -> &str { "parallel_tool" }
-            fn description(&self) -> &str { "Parallel tool" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "parallel_tool"
+            }
+            fn description(&self) -> &str {
+                "Parallel tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 Ok(ToolResult::ok("parallel_result"))
             }
         }
@@ -1171,16 +1521,23 @@ mod tests {
         registry.register(ParallelTool).await;
         registry.set_disabled(HashSet::from(["parallel_tool".to_string()]));
 
-        let calls = vec![
-            ToolCall { name: "parallel_tool".to_string(), args: serde_json::json!({}), ctx: None },
-        ];
+        let calls = vec![ToolCall {
+            name: "parallel_tool".to_string(),
+            args: serde_json::json!({}),
+            ctx: None,
+        }];
 
         let results = registry.execute_parallel(calls).await;
         assert_eq!(results.len(), 1);
 
         let result = &results[0];
         assert!(result.result.is_err());
-        assert!(result.result.as_ref().unwrap_err().to_string().contains("disabled"));
+        assert!(result
+            .result
+            .as_ref()
+            .unwrap_err()
+            .to_string()
+            .contains("disabled"));
     }
 
     #[tokio::test]
@@ -1196,10 +1553,20 @@ mod tests {
         struct ListToolA;
         #[async_trait]
         impl Tool for ListToolA {
-            fn name(&self) -> &str { "list_tool_a" }
-            fn description(&self) -> &str { "List tool A" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "list_tool_a"
+            }
+            fn description(&self) -> &str {
+                "List tool A"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 Ok(ToolResult::ok("a"))
             }
         }
@@ -1208,10 +1575,20 @@ mod tests {
         struct ListToolB;
         #[async_trait]
         impl Tool for ListToolB {
-            fn name(&self) -> &str { "list_tool_b" }
-            fn description(&self) -> &str { "List tool B" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "list_tool_b"
+            }
+            fn description(&self) -> &str {
+                "List tool B"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 Ok(ToolResult::ok("b"))
             }
         }
@@ -1234,10 +1611,20 @@ mod tests {
         struct BatchTool1;
         #[async_trait]
         impl Tool for BatchTool1 {
-            fn name(&self) -> &str { "batch_tool_1" }
-            fn description(&self) -> &str { "Batch tool 1" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "batch_tool_1"
+            }
+            fn description(&self) -> &str {
+                "Batch tool 1"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 Ok(ToolResult::ok("batch1"))
             }
         }
@@ -1246,20 +1633,29 @@ mod tests {
         struct BatchTool2;
         #[async_trait]
         impl Tool for BatchTool2 {
-            fn name(&self) -> &str { "batch_tool_2" }
-            fn description(&self) -> &str { "Batch tool 2" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "batch_tool_2"
+            }
+            fn description(&self) -> &str {
+                "Batch tool 2"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 Ok(ToolResult::ok("batch2"))
             }
         }
 
         let registry = ToolRegistry::new();
-        let tools: Vec<Box<dyn Tool>> = vec![
-            Box::new(BatchTool1),
-            Box::new(BatchTool2),
-        ];
-        registry.register_tools_with_source(tools, ToolSource::Plugin).await;
+        let tools: Vec<Box<dyn Tool>> = vec![Box::new(BatchTool1), Box::new(BatchTool2)];
+        registry
+            .register_tools_with_source(tools, ToolSource::Plugin)
+            .await;
 
         let tool1 = registry.get("batch_tool_1").await;
         assert!(tool1.is_some());
@@ -1274,10 +1670,20 @@ mod tests {
         struct PluginBatchTool;
         #[async_trait]
         impl Tool for PluginBatchTool {
-            fn name(&self) -> &str { "plugin_batch_tool" }
-            fn description(&self) -> &str { "Plugin batch tool" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "plugin_batch_tool"
+            }
+            fn description(&self) -> &str {
+                "Plugin batch tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 Ok(ToolResult::ok("plugin_batch"))
             }
         }
@@ -1296,12 +1702,27 @@ mod tests {
         struct CacheTestTool;
         #[async_trait]
         impl Tool for CacheTestTool {
-            fn name(&self) -> &str { "cache_test_tool" }
-            fn description(&self) -> &str { "Cache test tool" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            fn is_safe(&self) -> bool { true }
-            async fn execute(&self, args: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
-                let input = args.get("input").and_then(|v| v.as_str()).unwrap_or("default");
+            fn name(&self) -> &str {
+                "cache_test_tool"
+            }
+            fn description(&self) -> &str {
+                "Cache test tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            fn is_safe(&self) -> bool {
+                true
+            }
+            async fn execute(
+                &self,
+                args: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
+                let input = args
+                    .get("input")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("default");
                 Ok(ToolResult::ok(format!("cached: {}", input)))
             }
         }
@@ -1312,12 +1733,21 @@ mod tests {
         let args = serde_json::json!({"input": "test_value"});
 
         let cached = registry.get_cached_result("cache_test_tool", &args).await;
-        assert!(cached.is_none(), "Should not have cached result before execution");
+        assert!(
+            cached.is_none(),
+            "Should not have cached result before execution"
+        );
 
-        registry.execute("cache_test_tool", args.clone(), None).await.unwrap();
+        registry
+            .execute("cache_test_tool", args.clone(), None)
+            .await
+            .unwrap();
 
         let cached = registry.get_cached_result("cache_test_tool", &args).await;
-        assert!(cached.is_some(), "Should have cached result after execution");
+        assert!(
+            cached.is_some(),
+            "Should have cached result after execution"
+        );
         assert!(cached.unwrap().content.contains("cached: test_value"));
     }
 
@@ -1341,12 +1771,25 @@ mod tests {
         struct ContextTool;
         #[async_trait]
         impl Tool for ContextTool {
-            fn name(&self) -> &str { "context_tool" }
-            fn description(&self) -> &str { "Context tool" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, ctx: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "context_tool"
+            }
+            fn description(&self) -> &str {
+                "Context tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                ctx: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 if let Some(context) = ctx {
-                    Ok(ToolResult::ok(format!("session: {}, agent: {}", context.session_id, context.agent)))
+                    Ok(ToolResult::ok(format!(
+                        "session: {}, agent: {}",
+                        context.session_id, context.agent
+                    )))
                 } else {
                     Ok(ToolResult::ok("no context"))
                 }
@@ -1365,7 +1808,10 @@ mod tests {
             permission_scope: None,
         };
 
-        let result = registry.execute("context_tool", serde_json::json!({}), Some(ctx)).await.unwrap();
+        let result = registry
+            .execute("context_tool", serde_json::json!({}), Some(ctx))
+            .await
+            .unwrap();
         assert!(result.content.contains("session: test_session"));
         assert!(result.content.contains("agent: test_agent"));
     }
@@ -1376,10 +1822,20 @@ mod tests {
         struct FailingTool;
         #[async_trait]
         impl Tool for FailingTool {
-            fn name(&self) -> &str { "failing_tool" }
-            fn description(&self) -> &str { "Failing tool" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "failing_tool"
+            }
+            fn description(&self) -> &str {
+                "Failing tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 Ok(ToolResult::err("intentional error"))
             }
         }
@@ -1387,7 +1843,10 @@ mod tests {
         let registry = ToolRegistry::new();
         registry.register(FailingTool).await;
 
-        let result = registry.execute("failing_tool", serde_json::json!({}), None).await.unwrap();
+        let result = registry
+            .execute("failing_tool", serde_json::json!({}), None)
+            .await
+            .unwrap();
         assert!(!result.success);
         assert!(result.error.unwrap().contains("intentional error"));
     }
@@ -1410,10 +1869,20 @@ mod tests {
         struct DisabledTestTool;
         #[async_trait]
         impl Tool for DisabledTestTool {
-            fn name(&self) -> &str { "disabled_test_tool" }
-            fn description(&self) -> &str { "Disabled test tool" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "disabled_test_tool"
+            }
+            fn description(&self) -> &str {
+                "Disabled test tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 Ok(ToolResult::ok("should not reach"))
             }
         }
@@ -1425,11 +1894,16 @@ mod tests {
         let tool = registry.get("disabled_test_tool").await;
         assert!(tool.is_some(), "Tool should still be registered");
 
-        let result = registry.execute("disabled_test_tool", serde_json::json!({}), None).await;
+        let result = registry
+            .execute("disabled_test_tool", serde_json::json!({}), None)
+            .await;
         assert!(result.is_err());
 
         let list = registry.list_filtered(None).await;
-        let entry = list.iter().find(|(n, _, _)| n == "disabled_test_tool").unwrap();
+        let entry = list
+            .iter()
+            .find(|(n, _, _)| n == "disabled_test_tool")
+            .unwrap();
         assert!(entry.2, "Tool should be marked as disabled in listing");
     }
 
@@ -1439,17 +1913,33 @@ mod tests {
         struct ComplexArgsTool;
         #[async_trait]
         impl Tool for ComplexArgsTool {
-            fn name(&self) -> &str { "complex_args_tool" }
-            fn description(&self) -> &str { "Complex args tool" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, args: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "complex_args_tool"
+            }
+            fn description(&self) -> &str {
+                "Complex args tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                args: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 let output = format!(
                     "str: {}, int: {}, float: {}, bool: {}, array: {:?}",
-                    args.get("string").and_then(|v| v.as_str()).unwrap_or("missing"),
+                    args.get("string")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("missing"),
                     args.get("integer").and_then(|v| v.as_i64()).unwrap_or(0),
                     args.get("float").and_then(|v| v.as_f64()).unwrap_or(0.0),
-                    args.get("boolean").and_then(|v| v.as_bool()).unwrap_or(false),
-                    args.get("array").and_then(|v| v.as_array().map(|a| a.len())).unwrap_or(0),
+                    args.get("boolean")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false),
+                    args.get("array")
+                        .and_then(|v| v.as_array().map(|a| a.len()))
+                        .unwrap_or(0),
                 );
                 Ok(ToolResult::ok(output))
             }
@@ -1466,7 +1956,10 @@ mod tests {
             "array": [1, 2, 3]
         });
 
-        let result = registry.execute("complex_args_tool", args, None).await.unwrap();
+        let result = registry
+            .execute("complex_args_tool", args, None)
+            .await
+            .unwrap();
         assert!(result.success);
         assert!(result.content.contains("str: hello"));
         assert!(result.content.contains("int: 42"));
@@ -1481,10 +1974,20 @@ mod tests {
         struct CloneTestTool;
         #[async_trait]
         impl Tool for CloneTestTool {
-            fn name(&self) -> &str { "clone_test_tool" }
-            fn description(&self) -> &str { "Clone test tool" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "clone_test_tool"
+            }
+            fn description(&self) -> &str {
+                "Clone test tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
                 Ok(ToolResult::ok("clone_test"))
             }
         }

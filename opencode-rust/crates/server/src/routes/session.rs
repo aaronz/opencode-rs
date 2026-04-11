@@ -179,7 +179,12 @@ pub async fn fork_session(
     }
 
     let mut validator = RequestValidator::new();
-    validator.validate_required_number("fork_at_message_index", Some(req.fork_at_message_index), 0, 100000);
+    validator.validate_required_number(
+        "fork_at_message_index",
+        Some(req.fork_at_message_index),
+        0,
+        100000,
+    );
     if let Err(errors) = validator.validate() {
         return errors.to_response();
     }
@@ -743,7 +748,11 @@ pub async fn permission_reply(
     validator.validate_required_string("session_id", Some(&session_id));
     validator.validate_required_string("req_id", Some(&req_id));
     validator.validate_required_string("decision", Some(&body.decision));
-    validator.validate_enum("decision", &body.decision.to_lowercase(), &["allow", "deny"]);
+    validator.validate_enum(
+        "decision",
+        &body.decision.to_lowercase(),
+        &["allow", "deny"],
+    );
     if let Err(errors) = validator.validate() {
         return errors.to_response();
     }

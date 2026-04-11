@@ -83,10 +83,7 @@ impl ExperimentalLspTool {
         }
     }
 
-    pub async fn execute(
-        &self,
-        args: ExperimentalLspToolArgs,
-    ) -> Result<String, OpenCodeError> {
+    pub async fn execute(&self, args: ExperimentalLspToolArgs) -> Result<String, OpenCodeError> {
         match args.operation.as_str() {
             "diagnostics" => self.get_diagnostics(args).await,
             "goToDefinition" => self.goto_definition(args).await,
@@ -103,8 +100,9 @@ impl ExperimentalLspTool {
         &self,
         args: ExperimentalLspToolArgs,
     ) -> Result<String, OpenCodeError> {
-        let file_path = args.file_path.as_ref()
-            .ok_or_else(|| OpenCodeError::Tool("filePath is required for diagnostics".to_string()))?;
+        let file_path = args.file_path.as_ref().ok_or_else(|| {
+            OpenCodeError::Tool("filePath is required for diagnostics".to_string())
+        })?;
 
         let uri = if file_path.starts_with("file://") {
             file_path.to_string()
@@ -116,26 +114,34 @@ impl ExperimentalLspTool {
         };
 
         let mut client = self.client.lock().await;
-        
+
         if !client.is_healthy() {
-            let workspace = args.workspace.as_ref()
+            let workspace = args
+                .workspace
+                .as_ref()
                 .map(PathBuf::from)
-                .unwrap_or_else(|| PathBuf::from(file_path).parent().unwrap_or(&PathBuf::from(".")).to_path_buf());
-            
+                .unwrap_or_else(|| {
+                    PathBuf::from(file_path)
+                        .parent()
+                        .unwrap_or(&PathBuf::from("."))
+                        .to_path_buf()
+                });
+
             if let Err(e) = client.initialize(&workspace).await {
                 return Ok(serde_json::json!({
                     "status": "unavailable",
                     "message": format!("LSP server not available: {}", e),
                     "file": file_path
-                }).to_string());
+                })
+                .to_string());
             }
         }
 
-        let diagnostics = client.get_diagnostics(&uri).await
-            .unwrap_or_default();
+        let diagnostics = client.get_diagnostics(&uri).await.unwrap_or_default();
 
-        let diagnostic_infos: Vec<DiagnosticInfo> = diagnostics.iter().map(|d| {
-            DiagnosticInfo {
+        let diagnostic_infos: Vec<DiagnosticInfo> = diagnostics
+            .iter()
+            .map(|d| DiagnosticInfo {
                 line: d.range.start.line + 1,
                 column: d.range.start.character + 1,
                 end_line: d.range.end.line + 1,
@@ -143,11 +149,17 @@ impl ExperimentalLspTool {
                 severity: format!("{:?}", d.severity).to_lowercase(),
                 message: d.message.clone(),
                 source: d.source.clone(),
-            }
-        }).collect();
+            })
+            .collect();
 
-        let error_count = diagnostics.iter().filter(|d| d.severity == Severity::Error).count();
-        let warning_count = diagnostics.iter().filter(|d| d.severity == Severity::Warning).count();
+        let error_count = diagnostics
+            .iter()
+            .filter(|d| d.severity == Severity::Error)
+            .count();
+        let warning_count = diagnostics
+            .iter()
+            .filter(|d| d.severity == Severity::Warning)
+            .count();
 
         let result = LspDiagnosticsResult {
             file: file_path.clone(),
@@ -164,8 +176,9 @@ impl ExperimentalLspTool {
         &self,
         args: ExperimentalLspToolArgs,
     ) -> Result<String, OpenCodeError> {
-        let file_path = args.file_path.as_ref()
-            .ok_or_else(|| OpenCodeError::Tool("filePath is required for goToDefinition".to_string()))?;
+        let file_path = args.file_path.as_ref().ok_or_else(|| {
+            OpenCodeError::Tool("filePath is required for goToDefinition".to_string())
+        })?;
 
         let line = args.line.unwrap_or(1).saturating_sub(1);
         let character = args.character.unwrap_or(1).saturating_sub(1);
@@ -180,18 +193,26 @@ impl ExperimentalLspTool {
         };
 
         let mut client = self.client.lock().await;
-        
+
         if !client.is_healthy() {
-            let workspace = args.workspace.as_ref()
+            let workspace = args
+                .workspace
+                .as_ref()
                 .map(PathBuf::from)
-                .unwrap_or_else(|| PathBuf::from(file_path).parent().unwrap_or(&PathBuf::from(".")).to_path_buf());
-            
+                .unwrap_or_else(|| {
+                    PathBuf::from(file_path)
+                        .parent()
+                        .unwrap_or(&PathBuf::from("."))
+                        .to_path_buf()
+                });
+
             if let Err(e) = client.initialize(&workspace).await {
                 return Ok(serde_json::json!({
                     "status": "unavailable",
                     "message": format!("LSP server not available: {}", e),
                     "file": file_path
-                }).to_string());
+                })
+                .to_string());
             }
         }
 
@@ -228,8 +249,9 @@ impl ExperimentalLspTool {
         &self,
         args: ExperimentalLspToolArgs,
     ) -> Result<String, OpenCodeError> {
-        let file_path = args.file_path.as_ref()
-            .ok_or_else(|| OpenCodeError::Tool("filePath is required for findReferences".to_string()))?;
+        let file_path = args.file_path.as_ref().ok_or_else(|| {
+            OpenCodeError::Tool("filePath is required for findReferences".to_string())
+        })?;
 
         let line = args.line.unwrap_or(1).saturating_sub(1);
         let character = args.character.unwrap_or(1).saturating_sub(1);
@@ -244,32 +266,46 @@ impl ExperimentalLspTool {
         };
 
         let mut client = self.client.lock().await;
-        
+
         if !client.is_healthy() {
-            let workspace = args.workspace.as_ref()
+            let workspace = args
+                .workspace
+                .as_ref()
                 .map(PathBuf::from)
-                .unwrap_or_else(|| PathBuf::from(file_path).parent().unwrap_or(&PathBuf::from(".")).to_path_buf());
-            
+                .unwrap_or_else(|| {
+                    PathBuf::from(file_path)
+                        .parent()
+                        .unwrap_or(&PathBuf::from("."))
+                        .to_path_buf()
+                });
+
             if let Err(e) = client.initialize(&workspace).await {
                 return Ok(serde_json::json!({
                     "status": "unavailable",
                     "message": format!("LSP server not available: {}", e),
                     "file": file_path
-                }).to_string());
+                })
+                .to_string());
             }
         }
 
         let references = client.find_references(&uri, line, character).await?;
 
         let symbol = args.symbol.clone().unwrap_or_else(|| "unknown".to_string());
-        let ref_infos: Vec<ReferenceInfo> = references.iter().map(|loc| {
-            ReferenceInfo {
+        let ref_infos: Vec<ReferenceInfo> = references
+            .iter()
+            .map(|loc| ReferenceInfo {
                 uri: loc.uri.clone(),
                 line: loc.range.start.line + 1,
                 column: loc.range.start.character + 1,
-                context: format!("{}:{}:{}", loc.uri, loc.range.start.line + 1, loc.range.start.character + 1),
-            }
-        }).collect();
+                context: format!(
+                    "{}:{}:{}",
+                    loc.uri,
+                    loc.range.start.line + 1,
+                    loc.range.start.character + 1
+                ),
+            })
+            .collect();
 
         let result = FindReferencesResult {
             symbol,
@@ -280,11 +316,10 @@ impl ExperimentalLspTool {
         Ok(serde_json::to_string_pretty(&result).unwrap_or_else(|_| "{}".to_string()))
     }
 
-    async fn hover(
-        &self,
-        args: ExperimentalLspToolArgs,
-    ) -> Result<String, OpenCodeError> {
-        let file_path = args.file_path.as_ref()
+    async fn hover(&self, args: ExperimentalLspToolArgs) -> Result<String, OpenCodeError> {
+        let file_path = args
+            .file_path
+            .as_ref()
             .ok_or_else(|| OpenCodeError::Tool("filePath is required for hover".to_string()))?;
 
         let line = args.line.unwrap_or(1).saturating_sub(1);
@@ -525,14 +560,12 @@ mod tests {
     async fn test_find_references_result_serialization() {
         let result = FindReferencesResult {
             symbol: "my_function".to_string(),
-            references: vec![
-                ReferenceInfo {
-                    uri: "file:///src/main.rs".to_string(),
-                    line: 10,
-                    column: 5,
-                    context: "call site".to_string(),
-                },
-            ],
+            references: vec![ReferenceInfo {
+                uri: "file:///src/main.rs".to_string(),
+                line: 10,
+                column: 5,
+                context: "call site".to_string(),
+            }],
             total_count: 1,
         };
         let json = serde_json::to_string(&result).unwrap();

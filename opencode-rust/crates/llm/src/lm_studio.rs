@@ -255,9 +255,7 @@ mod tests {
             "llama2".to_string(),
             Some("http://localhost:19999".to_string()),
         );
-        let result = provider
-            .complete_streaming("hello", Box::new(|_| {}))
-            .await;
+        let result = provider.complete_streaming("hello", Box::new(|_| {})).await;
         assert!(result.is_err());
     }
 }

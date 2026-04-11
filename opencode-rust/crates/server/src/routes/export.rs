@@ -1,5 +1,5 @@
 use actix_web::{web, HttpResponse, Responder};
-use opencode_core::share::{ShareManager, ExportFormat, ExportOptions};
+use opencode_core::share::{ExportFormat, ExportOptions, ShareManager};
 use serde::{Deserialize, Serialize};
 
 use crate::routes::error::not_found;
@@ -38,7 +38,7 @@ pub async fn export_session_json(
     query: web::Query<ExportQuery>,
 ) -> impl Responder {
     let session_id = id.into_inner();
-    
+
     let session = match state.storage.load_session(&session_id).await {
         Ok(Some(s)) => s,
         Ok(None) => {
@@ -48,16 +48,16 @@ pub async fn export_session_json(
             return not_found(format!("Session not found: {}", e));
         }
     };
-    
+
     let options = ExportOptions {
         include_metadata: query.include_metadata,
         sanitize_sensitive: query.sanitize_sensitive,
         format: ExportFormat::Json,
     };
-    
+
     let share_manager = ShareManager::new();
     let content = share_manager.export_session(&session, &options);
-    
+
     HttpResponse::Ok()
         .content_type("application/json")
         .json(ExportResponse {
@@ -74,7 +74,7 @@ pub async fn export_session_markdown(
     id: web::Path<String>,
 ) -> impl Responder {
     let session_id = id.into_inner();
-    
+
     let session = match state.storage.load_session(&session_id).await {
         Ok(Some(s)) => s,
         Ok(None) => {
@@ -84,16 +84,16 @@ pub async fn export_session_markdown(
             return not_found(format!("Session not found: {}", e));
         }
     };
-    
+
     let options = ExportOptions {
         include_metadata: true,
         sanitize_sensitive: true,
         format: ExportFormat::Markdown,
     };
-    
+
     let share_manager = ShareManager::new();
     let content = share_manager.export_session(&session, &options);
-    
+
     HttpResponse::Ok()
         .content_type("text/markdown")
         .body(content)
@@ -105,7 +105,7 @@ pub async fn export_session_patch(
     id: web::Path<String>,
 ) -> impl Responder {
     let session_id = id.into_inner();
-    
+
     let session = match state.storage.load_session(&session_id).await {
         Ok(Some(s)) => s,
         Ok(None) => {
@@ -115,19 +115,17 @@ pub async fn export_session_patch(
             return not_found(format!("Session not found: {}", e));
         }
     };
-    
+
     let options = ExportOptions {
         include_metadata: true,
         sanitize_sensitive: true,
         format: ExportFormat::PatchBundle,
     };
-    
+
     let share_manager = ShareManager::new();
     let content = share_manager.export_session(&session, &options);
-    
-    HttpResponse::Ok()
-        .content_type("text/plain")
-        .body(content)
+
+    HttpResponse::Ok().content_type("text/plain").body(content)
 }
 
 pub fn init(cfg: &mut web::ServiceConfig) {
@@ -135,14 +133,14 @@ pub fn init(cfg: &mut web::ServiceConfig) {
         web::scope("/export/sessions")
             .route("/{id}", web::get().to(export_session_json))
             .route("/{id}/transcript", web::get().to(export_session_markdown))
-            .route("/{id}/patch", web::get().to(export_session_patch))
+            .route("/{id}/patch", web::get().to(export_session_patch)),
     );
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_export_response_serialization() {
         let response = ExportResponse {
@@ -151,7 +149,7 @@ mod tests {
             content: "{}".to_string(),
             content_type: "application/json".to_string(),
         };
-        
+
         let json = serde_json::to_string(&response).unwrap();
         assert!(json.contains("test-123"));
     }

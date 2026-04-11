@@ -160,12 +160,10 @@ impl opencode_tools::Tool for PluginToolAdapter {
         let executor = Arc::clone(&self.executor);
         let args_clone = args.clone();
 
-        let result = tokio::task::spawn_blocking(move || {
-            executor(args_clone)
-        })
-        .await
-        .map_err(|e| opencode_core::OpenCodeError::Tool(format!("Task join error: {}", e)))?
-        .map_err(|e| opencode_core::OpenCodeError::Tool(e))?;
+        let result = tokio::task::spawn_blocking(move || executor(args_clone))
+            .await
+            .map_err(|e| opencode_core::OpenCodeError::Tool(format!("Task join error: {}", e)))?
+            .map_err(|e| opencode_core::OpenCodeError::Tool(e))?;
 
         Ok(opencode_tools::ToolResult::ok(result))
     }
@@ -1410,7 +1408,8 @@ mod tests {
         use std::sync::Arc;
 
         let call_order = Arc::new(AtomicUsize::new(0));
-        let call_sequence: Arc<std::sync::Mutex<Vec<String>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let call_sequence: Arc<std::sync::Mutex<Vec<String>>> =
+            Arc::new(std::sync::Mutex::new(Vec::new()));
 
         struct OrderedPlugin {
             name: String,
@@ -1419,7 +1418,11 @@ mod tests {
         }
 
         impl OrderedPlugin {
-            fn new(name: &str, call_count: Arc<AtomicUsize>, call_sequence: Arc<std::sync::Mutex<Vec<String>>>) -> Self {
+            fn new(
+                name: &str,
+                call_count: Arc<AtomicUsize>,
+                call_sequence: Arc<std::sync::Mutex<Vec<String>>>,
+            ) -> Self {
                 Self {
                     name: name.to_string(),
                     call_count,
@@ -1474,10 +1477,27 @@ mod tests {
         manager.on_start_all().unwrap();
 
         let sequence = call_sequence.lock().unwrap();
-        assert_eq!(sequence.len(), 3, "Expected 3 plugins to be called, got {}", sequence.len());
-        assert_eq!(sequence[0], "alpha", "First plugin should be alpha, got {}", sequence[0]);
-        assert_eq!(sequence[1], "beta", "Second plugin should be beta, got {}", sequence[1]);
-        assert_eq!(sequence[2], "gamma", "Third plugin should be gamma, got {}", sequence[2]);
+        assert_eq!(
+            sequence.len(),
+            3,
+            "Expected 3 plugins to be called, got {}",
+            sequence.len()
+        );
+        assert_eq!(
+            sequence[0], "alpha",
+            "First plugin should be alpha, got {}",
+            sequence[0]
+        );
+        assert_eq!(
+            sequence[1], "beta",
+            "Second plugin should be beta, got {}",
+            sequence[1]
+        );
+        assert_eq!(
+            sequence[2], "gamma",
+            "Third plugin should be gamma, got {}",
+            sequence[2]
+        );
     }
 
     #[test]
@@ -1487,7 +1507,8 @@ mod tests {
 
         for iteration in 0..3 {
             let call_order = Arc::new(AtomicUsize::new(0));
-            let call_sequence: Arc<std::sync::Mutex<Vec<String>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+            let call_sequence: Arc<std::sync::Mutex<Vec<String>>> =
+                Arc::new(std::sync::Mutex::new(Vec::new()));
 
             struct OrderedPlugin {
                 name: String,
@@ -1496,7 +1517,11 @@ mod tests {
             }
 
             impl OrderedPlugin {
-                fn new(name: &str, call_count: Arc<AtomicUsize>, call_sequence: Arc<std::sync::Mutex<Vec<String>>>) -> Self {
+                fn new(
+                    name: &str,
+                    call_count: Arc<AtomicUsize>,
+                    call_sequence: Arc<std::sync::Mutex<Vec<String>>>,
+                ) -> Self {
                     Self {
                         name: name.to_string(),
                         call_count,
@@ -1540,9 +1565,12 @@ mod tests {
 
             let mut manager = PluginManager::new();
 
-            let plugin_a = OrderedPlugin::new("plugin-a", call_order.clone(), call_sequence.clone());
-            let plugin_b = OrderedPlugin::new("plugin-b", call_order.clone(), call_sequence.clone());
-            let plugin_c = OrderedPlugin::new("plugin-c", call_order.clone(), call_sequence.clone());
+            let plugin_a =
+                OrderedPlugin::new("plugin-a", call_order.clone(), call_sequence.clone());
+            let plugin_b =
+                OrderedPlugin::new("plugin-b", call_order.clone(), call_sequence.clone());
+            let plugin_c =
+                OrderedPlugin::new("plugin-c", call_order.clone(), call_sequence.clone());
 
             manager.register(Box::new(plugin_a)).unwrap();
             manager.register(Box::new(plugin_b)).unwrap();
@@ -1551,10 +1579,27 @@ mod tests {
             manager.on_start_all().unwrap();
 
             let sequence = call_sequence.lock().unwrap();
-            assert_eq!(sequence.len(), 3, "Iteration {}: Expected 3 plugins to be called", iteration);
-            assert_eq!(sequence[0], "plugin-a", "Iteration {}: First plugin should be plugin-a", iteration);
-            assert_eq!(sequence[1], "plugin-b", "Iteration {}: Second plugin should be plugin-b", iteration);
-            assert_eq!(sequence[2], "plugin-c", "Iteration {}: Third plugin should be plugin-c", iteration);
+            assert_eq!(
+                sequence.len(),
+                3,
+                "Iteration {}: Expected 3 plugins to be called",
+                iteration
+            );
+            assert_eq!(
+                sequence[0], "plugin-a",
+                "Iteration {}: First plugin should be plugin-a",
+                iteration
+            );
+            assert_eq!(
+                sequence[1], "plugin-b",
+                "Iteration {}: Second plugin should be plugin-b",
+                iteration
+            );
+            assert_eq!(
+                sequence[2], "plugin-c",
+                "Iteration {}: Third plugin should be plugin-c",
+                iteration
+            );
         }
     }
 
@@ -1564,7 +1609,8 @@ mod tests {
         use std::sync::Arc;
 
         let call_order = Arc::new(AtomicUsize::new(0));
-        let call_sequence: Arc<std::sync::Mutex<Vec<String>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let call_sequence: Arc<std::sync::Mutex<Vec<String>>> =
+            Arc::new(std::sync::Mutex::new(Vec::new()));
 
         struct OrderedToolPlugin {
             name: String,
@@ -1573,7 +1619,11 @@ mod tests {
         }
 
         impl OrderedToolPlugin {
-            fn new(name: &str, call_count: Arc<AtomicUsize>, call_sequence: Arc<std::sync::Mutex<Vec<String>>>) -> Self {
+            fn new(
+                name: &str,
+                call_count: Arc<AtomicUsize>,
+                call_sequence: Arc<std::sync::Mutex<Vec<String>>>,
+            ) -> Self {
                 Self {
                     name: name.to_string(),
                     call_count,
@@ -1603,7 +1653,12 @@ mod tests {
                 "ordered plugin for testing"
             }
 
-            fn on_tool_call(&mut self, _tool_name: &str, _args: &Value, _session_id: &str) -> Result<(), PluginError> {
+            fn on_tool_call(
+                &mut self,
+                _tool_name: &str,
+                _args: &Value,
+                _session_id: &str,
+            ) -> Result<(), PluginError> {
                 let order = self.call_count.fetch_add(1, Ordering::SeqCst);
                 let mut seq = self.call_sequence.lock().unwrap();
                 if seq.len() == order as usize {
@@ -1617,22 +1672,44 @@ mod tests {
 
         let mut manager = PluginManager::new();
 
-        let plugin_alpha = OrderedToolPlugin::new("tool-alpha", call_order.clone(), call_sequence.clone());
-        let plugin_beta = OrderedToolPlugin::new("tool-beta", call_order.clone(), call_sequence.clone());
-        let plugin_gamma = OrderedToolPlugin::new("tool-gamma", call_order.clone(), call_sequence.clone());
+        let plugin_alpha =
+            OrderedToolPlugin::new("tool-alpha", call_order.clone(), call_sequence.clone());
+        let plugin_beta =
+            OrderedToolPlugin::new("tool-beta", call_order.clone(), call_sequence.clone());
+        let plugin_gamma =
+            OrderedToolPlugin::new("tool-gamma", call_order.clone(), call_sequence.clone());
 
         manager.register(Box::new(plugin_alpha)).unwrap();
         manager.register(Box::new(plugin_beta)).unwrap();
         manager.register(Box::new(plugin_gamma)).unwrap();
 
         let args = serde_json::json!({"file": "test.txt"});
-        manager.on_tool_call_all("read", &args, "session-123").unwrap();
+        manager
+            .on_tool_call_all("read", &args, "session-123")
+            .unwrap();
 
         let sequence = call_sequence.lock().unwrap();
-        assert_eq!(sequence.len(), 3, "Expected 3 plugins to be called, got {}", sequence.len());
-        assert_eq!(sequence[0], "tool-alpha", "First plugin should be tool-alpha, got {}", sequence[0]);
-        assert_eq!(sequence[1], "tool-beta", "Second plugin should be tool-beta, got {}", sequence[1]);
-        assert_eq!(sequence[2], "tool-gamma", "Third plugin should be tool-gamma, got {}", sequence[2]);
+        assert_eq!(
+            sequence.len(),
+            3,
+            "Expected 3 plugins to be called, got {}",
+            sequence.len()
+        );
+        assert_eq!(
+            sequence[0], "tool-alpha",
+            "First plugin should be tool-alpha, got {}",
+            sequence[0]
+        );
+        assert_eq!(
+            sequence[1], "tool-beta",
+            "Second plugin should be tool-beta, got {}",
+            sequence[1]
+        );
+        assert_eq!(
+            sequence[2], "tool-gamma",
+            "Third plugin should be tool-gamma, got {}",
+            sequence[2]
+        );
     }
 
     #[test]
@@ -1641,7 +1718,8 @@ mod tests {
         use std::sync::Arc;
 
         let call_order = Arc::new(AtomicUsize::new(0));
-        let call_sequence: Arc<std::sync::Mutex<Vec<String>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let call_sequence: Arc<std::sync::Mutex<Vec<String>>> =
+            Arc::new(std::sync::Mutex::new(Vec::new()));
 
         struct OrderedMessagePlugin {
             name: String,
@@ -1650,7 +1728,11 @@ mod tests {
         }
 
         impl OrderedMessagePlugin {
-            fn new(name: &str, call_count: Arc<AtomicUsize>, call_sequence: Arc<std::sync::Mutex<Vec<String>>>) -> Self {
+            fn new(
+                name: &str,
+                call_count: Arc<AtomicUsize>,
+                call_sequence: Arc<std::sync::Mutex<Vec<String>>>,
+            ) -> Self {
                 Self {
                     name: name.to_string(),
                     call_count,
@@ -1694,21 +1776,43 @@ mod tests {
 
         let mut manager = PluginManager::new();
 
-        let plugin_first = OrderedMessagePlugin::new("msg-first", call_order.clone(), call_sequence.clone());
-        let plugin_second = OrderedMessagePlugin::new("msg-second", call_order.clone(), call_sequence.clone());
-        let plugin_third = OrderedMessagePlugin::new("msg-third", call_order.clone(), call_sequence.clone());
+        let plugin_first =
+            OrderedMessagePlugin::new("msg-first", call_order.clone(), call_sequence.clone());
+        let plugin_second =
+            OrderedMessagePlugin::new("msg-second", call_order.clone(), call_sequence.clone());
+        let plugin_third =
+            OrderedMessagePlugin::new("msg-third", call_order.clone(), call_sequence.clone());
 
         manager.register(Box::new(plugin_first)).unwrap();
         manager.register(Box::new(plugin_second)).unwrap();
         manager.register(Box::new(plugin_third)).unwrap();
 
-        manager.on_message_all("Hello world", "session-123").unwrap();
+        manager
+            .on_message_all("Hello world", "session-123")
+            .unwrap();
 
         let sequence = call_sequence.lock().unwrap();
-        assert_eq!(sequence.len(), 3, "Expected 3 plugins to be called, got {}", sequence.len());
-        assert_eq!(sequence[0], "msg-first", "First plugin should be msg-first, got {}", sequence[0]);
-        assert_eq!(sequence[1], "msg-second", "Second plugin should be msg-second, got {}", sequence[1]);
-        assert_eq!(sequence[2], "msg-third", "Third plugin should be msg-third, got {}", sequence[2]);
+        assert_eq!(
+            sequence.len(),
+            3,
+            "Expected 3 plugins to be called, got {}",
+            sequence.len()
+        );
+        assert_eq!(
+            sequence[0], "msg-first",
+            "First plugin should be msg-first, got {}",
+            sequence[0]
+        );
+        assert_eq!(
+            sequence[1], "msg-second",
+            "Second plugin should be msg-second, got {}",
+            sequence[1]
+        );
+        assert_eq!(
+            sequence[2], "msg-third",
+            "Third plugin should be msg-third, got {}",
+            sequence[2]
+        );
     }
 
     #[test]
@@ -1717,7 +1821,8 @@ mod tests {
         use std::sync::Arc;
 
         let call_order = Arc::new(AtomicUsize::new(0));
-        let call_sequence: Arc<std::sync::Mutex<Vec<String>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let call_sequence: Arc<std::sync::Mutex<Vec<String>>> =
+            Arc::new(std::sync::Mutex::new(Vec::new()));
 
         struct OrderedSessionPlugin {
             name: String,
@@ -1726,7 +1831,11 @@ mod tests {
         }
 
         impl OrderedSessionPlugin {
-            fn new(name: &str, call_count: Arc<AtomicUsize>, call_sequence: Arc<std::sync::Mutex<Vec<String>>>) -> Self {
+            fn new(
+                name: &str,
+                call_count: Arc<AtomicUsize>,
+                call_sequence: Arc<std::sync::Mutex<Vec<String>>>,
+            ) -> Self {
                 Self {
                     name: name.to_string(),
                     call_count,
@@ -1770,9 +1879,12 @@ mod tests {
 
         let mut manager = PluginManager::new();
 
-        let plugin_end_a = OrderedSessionPlugin::new("end-a", call_order.clone(), call_sequence.clone());
-        let plugin_end_b = OrderedSessionPlugin::new("end-b", call_order.clone(), call_sequence.clone());
-        let plugin_end_c = OrderedSessionPlugin::new("end-c", call_order.clone(), call_sequence.clone());
+        let plugin_end_a =
+            OrderedSessionPlugin::new("end-a", call_order.clone(), call_sequence.clone());
+        let plugin_end_b =
+            OrderedSessionPlugin::new("end-b", call_order.clone(), call_sequence.clone());
+        let plugin_end_c =
+            OrderedSessionPlugin::new("end-c", call_order.clone(), call_sequence.clone());
 
         manager.register(Box::new(plugin_end_a)).unwrap();
         manager.register(Box::new(plugin_end_b)).unwrap();
@@ -1781,10 +1893,27 @@ mod tests {
         manager.on_session_end_all("session-123").unwrap();
 
         let sequence = call_sequence.lock().unwrap();
-        assert_eq!(sequence.len(), 3, "Expected 3 plugins to be called, got {}", sequence.len());
-        assert_eq!(sequence[0], "end-a", "First plugin should be end-a, got {}", sequence[0]);
-        assert_eq!(sequence[1], "end-b", "Second plugin should be end-b, got {}", sequence[1]);
-        assert_eq!(sequence[2], "end-c", "Third plugin should be end-c, got {}", sequence[2]);
+        assert_eq!(
+            sequence.len(),
+            3,
+            "Expected 3 plugins to be called, got {}",
+            sequence.len()
+        );
+        assert_eq!(
+            sequence[0], "end-a",
+            "First plugin should be end-a, got {}",
+            sequence[0]
+        );
+        assert_eq!(
+            sequence[1], "end-b",
+            "Second plugin should be end-b, got {}",
+            sequence[1]
+        );
+        assert_eq!(
+            sequence[2], "end-c",
+            "Third plugin should be end-c, got {}",
+            sequence[2]
+        );
     }
 
     #[test]
@@ -1793,13 +1922,16 @@ mod tests {
         use std::sync::Arc;
 
         let start_order = Arc::new(AtomicUsize::new(0));
-        let start_sequence: Arc<std::sync::Mutex<Vec<String>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let start_sequence: Arc<std::sync::Mutex<Vec<String>>> =
+            Arc::new(std::sync::Mutex::new(Vec::new()));
 
         let tool_order = Arc::new(AtomicUsize::new(0));
-        let tool_sequence: Arc<std::sync::Mutex<Vec<String>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let tool_sequence: Arc<std::sync::Mutex<Vec<String>>> =
+            Arc::new(std::sync::Mutex::new(Vec::new()));
 
         let msg_order = Arc::new(AtomicUsize::new(0));
-        let msg_sequence: Arc<std::sync::Mutex<Vec<String>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let msg_sequence: Arc<std::sync::Mutex<Vec<String>>> =
+            Arc::new(std::sync::Mutex::new(Vec::new()));
 
         struct ConsistentPlugin {
             name: String,
@@ -1863,7 +1995,12 @@ mod tests {
                 Ok(())
             }
 
-            fn on_tool_call(&mut self, _tool_name: &str, _args: &Value, _session_id: &str) -> Result<(), PluginError> {
+            fn on_tool_call(
+                &mut self,
+                _tool_name: &str,
+                _args: &Value,
+                _session_id: &str,
+            ) -> Result<(), PluginError> {
                 let order = self.tool_count.fetch_add(1, Ordering::SeqCst);
                 let mut seq = self.tool_seq.lock().unwrap();
                 if seq.len() == order as usize {
@@ -1919,8 +2056,12 @@ mod tests {
         manager.on_start_all().unwrap();
 
         let args = serde_json::json!({"file": "test.txt"});
-        manager.on_tool_call_all("read", &args, "session-123").unwrap();
-        manager.on_message_all("test message", "session-123").unwrap();
+        manager
+            .on_tool_call_all("read", &args, "session-123")
+            .unwrap();
+        manager
+            .on_message_all("test message", "session-123")
+            .unwrap();
 
         let start_seq = start_sequence.lock().unwrap();
         let tool_seq = tool_sequence.lock().unwrap();
@@ -1986,7 +2127,10 @@ mod tests {
         tool_registry.register_plugin_tools(exported_tools).await;
 
         let retrieved = tool_registry.get("registry_tool").await;
-        assert!(retrieved.is_some(), "Plugin tool should appear in ToolRegistry");
+        assert!(
+            retrieved.is_some(),
+            "Plugin tool should appear in ToolRegistry"
+        );
         assert_eq!(retrieved.unwrap().name(), "registry_tool");
     }
 
@@ -2020,7 +2164,10 @@ mod tests {
         let result = tool_registry
             .execute("exec_tool", serde_json::json!({"msg": "hello"}), None)
             .await;
-        assert!(result.is_ok(), "Plugin tool should execute via ToolRegistry");
+        assert!(
+            result.is_ok(),
+            "Plugin tool should execute via ToolRegistry"
+        );
         assert_eq!(result.unwrap().content, "echo: hello");
     }
 
@@ -2060,17 +2207,28 @@ mod tests {
         // Plugin A has its own options - should be valid
         let mut plugin_a_options = IndexMap::new();
         plugin_a_options.insert("custom_key".to_string(), serde_json::json!("value"));
-        plugin_a_options.insert("another_setting".to_string(), serde_json::json!({"nested": true}));
+        plugin_a_options.insert(
+            "another_setting".to_string(),
+            serde_json::json!({"nested": true}),
+        );
 
         let result_a = validate_plugin_options("plugin-a", &plugin_a_options);
-        assert!(result_a.valid, "plugin-a options should be valid: {:?}", result_a.errors);
+        assert!(
+            result_a.valid,
+            "plugin-a options should be valid: {:?}",
+            result_a.errors
+        );
 
         // Plugin B has different options - should also be valid
         let mut plugin_b_options = IndexMap::new();
         plugin_b_options.insert("setting".to_string(), serde_json::json!(123));
 
         let result_b = validate_plugin_options("plugin-b", &plugin_b_options);
-        assert!(result_b.valid, "plugin-b options should be valid: {:?}", result_b.errors);
+        assert!(
+            result_b.valid,
+            "plugin-b options should be valid: {:?}",
+            result_b.errors
+        );
 
         // Verify the options are isolated (different plugins have different option maps)
         assert_ne!(
@@ -2087,8 +2245,18 @@ mod tests {
 
         // Test that plugins cannot override core config keys
         let core_config_keys = vec![
-            "model", "server", "provider", "permission", "mcp", "formatter",
-            "lsp", "agent", "plugin", "skills", "enterprise", "compaction",
+            "model",
+            "server",
+            "provider",
+            "permission",
+            "mcp",
+            "formatter",
+            "lsp",
+            "agent",
+            "plugin",
+            "skills",
+            "enterprise",
+            "compaction",
         ];
 
         for key in core_config_keys {
@@ -2099,8 +2267,7 @@ mod tests {
             assert!(
                 !result.valid,
                 "plugin should not be able to override core config key '{}': {:?}",
-                key,
-                result.errors
+                key, result.errors
             );
             assert!(
                 result.errors.iter().any(|e| e.contains("reserved")),
@@ -2118,7 +2285,10 @@ mod tests {
         // Plugins cannot use nested reserved keys like "server.port" or "mcp.foo"
         let reserved_nested_keys = vec![
             ("server.port", serde_json::json!(8080)),
-            ("mcp.local.command", serde_json::json!(vec!["npx".to_string()])),
+            (
+                "mcp.local.command",
+                serde_json::json!(vec!["npx".to_string()]),
+            ),
             ("provider.openai.api_key", serde_json::json!("secret")),
             ("permission.read", serde_json::json!("allow")),
         ];
@@ -2131,8 +2301,7 @@ mod tests {
             assert!(
                 !result.valid,
                 "plugin should not be able to use nested reserved key '{}': {:?}",
-                key,
-                result.errors
+                key, result.errors
             );
         }
     }
@@ -2181,7 +2350,11 @@ mod tests {
         ];
 
         let result = validate_plugin_isolation(&plugins);
-        assert!(result.valid, "plugins should be isolated from each other: {:?}", result.errors);
+        assert!(
+            result.valid,
+            "plugins should be isolated from each other: {:?}",
+            result.errors
+        );
     }
 
     #[test]
@@ -2203,9 +2376,15 @@ mod tests {
         ];
 
         let result = validate_plugin_isolation(&plugins);
-        assert!(!result.valid, "plugin config using other plugin name should be flagged");
         assert!(
-            result.errors.iter().any(|e| e.contains("isolation violation")),
+            !result.valid,
+            "plugin config using other plugin name should be flagged"
+        );
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.contains("isolation violation")),
             "error should mention isolation violation"
         );
     }
@@ -2234,13 +2413,41 @@ mod tests {
 
         // Verify the reserved keys list is comprehensive
         let expected_keys = vec![
-            "$schema", "log_level", "server", "command", "skills", "watcher",
-            "plugin", "snapshot", "share", "autoshare", "autoupdate",
-            "disabled_providers", "enabled_providers", "model", "small_model",
-            "default_agent", "username", "mode", "agent", "provider", "mcp",
-            "formatter", "lsp", "instructions", "agents_md", "permission",
-            "tools", "enterprise", "compaction", "experimental", "theme",
-            "tui", "api_key", "temperature", "max_tokens",
+            "$schema",
+            "log_level",
+            "server",
+            "command",
+            "skills",
+            "watcher",
+            "plugin",
+            "snapshot",
+            "share",
+            "autoshare",
+            "autoupdate",
+            "disabled_providers",
+            "enabled_providers",
+            "model",
+            "small_model",
+            "default_agent",
+            "username",
+            "mode",
+            "agent",
+            "provider",
+            "mcp",
+            "formatter",
+            "lsp",
+            "instructions",
+            "agents_md",
+            "permission",
+            "tools",
+            "enterprise",
+            "compaction",
+            "experimental",
+            "theme",
+            "tui",
+            "api_key",
+            "temperature",
+            "max_tokens",
         ];
 
         for key in expected_keys {
@@ -2311,7 +2518,11 @@ mod tests {
         .unwrap();
 
         let result = discovery::parse_metadata_file(&metadata_path);
-        assert!(result.is_ok(), "discovery should succeed for valid plugin options: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "discovery should succeed for valid plugin options: {:?}",
+            result.err()
+        );
         let discovered = result.unwrap();
         assert_eq!(discovered.config.name, "good-plugin");
         assert_eq!(
@@ -2405,12 +2616,18 @@ mod tests {
         let tool = PluginTool::new(tool_def, Box::new(|_args| Ok("ok".to_string())));
         manager.register_plugin_tool(tool).await.unwrap();
 
-        assert!(manager.get_plugin_tool_definition("cleanup_test_tool").await.is_some());
+        assert!(manager
+            .get_plugin_tool_definition("cleanup_test_tool")
+            .await
+            .is_some());
 
         manager.unload_plugin_async("tool-plugin").await.unwrap();
 
         assert!(!manager.is_plugin_loaded("tool-plugin"));
-        assert!(manager.get_plugin_tool_definition("cleanup_test_tool").await.is_none());
+        assert!(manager
+            .get_plugin_tool_definition("cleanup_test_tool")
+            .await
+            .is_none());
     }
 
     #[tokio::test]
@@ -2432,7 +2649,10 @@ mod tests {
         let tools = manager.list_plugin_tools().await;
         assert_eq!(tools.len(), 5);
 
-        manager.unload_plugin_async("multi-tool-plugin").await.unwrap();
+        manager
+            .unload_plugin_async("multi-tool-plugin")
+            .await
+            .unwrap();
 
         let tools = manager.list_plugin_tools().await;
         assert!(tools.is_empty());
@@ -2446,7 +2666,11 @@ mod tests {
         register_test_plugin_with_tools(&mut manager, "plugin-b");
         register_test_plugin_with_tools(&mut manager, "plugin-c");
 
-        for (tool_key, plugin_name) in [("tool_a", "plugin-a"), ("tool_b", "plugin-b"), ("tool_c", "plugin-c")] {
+        for (tool_key, plugin_name) in [
+            ("tool_a", "plugin-a"),
+            ("tool_b", "plugin-b"),
+            ("tool_c", "plugin-c"),
+        ] {
             let tool_def = PluginToolDefinition {
                 name: tool_key.to_string(),
                 description: format!("Tool for {}", tool_key),
@@ -2573,13 +2797,14 @@ mod tests {
         };
         let tool = PluginTool::new(
             tool_def,
-            Box::new(|_args| {
-                Ok("resource released".to_string())
-            }),
+            Box::new(|_args| Ok("resource released".to_string())),
         );
         manager.register_plugin_tool(tool).await.unwrap();
 
-        manager.unload_plugin_async("resource-plugin").await.unwrap();
+        manager
+            .unload_plugin_async("resource-plugin")
+            .await
+            .unwrap();
 
         let result = manager
             .execute_plugin_tool("resource_tool", serde_json::json!({}))

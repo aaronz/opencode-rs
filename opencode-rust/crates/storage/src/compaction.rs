@@ -78,18 +78,18 @@ impl ShareabilityVerifier {
         }
     }
 
-    pub fn verify_and_check_export(session: &Session) -> Result<ShareabilityVerification, ShareabilityError> {
+    pub fn verify_and_check_export(
+        session: &Session,
+    ) -> Result<ShareabilityVerification, ShareabilityError> {
         let mut verification = Self::verify(session);
-        
+
         if verification.is_shareable {
             match session.export_json() {
                 Ok(_) => {
                     verification.export_verified = true;
                     Ok(verification)
                 }
-                Err(e) => {
-                    Err(ShareabilityError::ExportVerificationFailed(e.to_string()))
-                }
+                Err(e) => Err(ShareabilityError::ExportVerificationFailed(e.to_string())),
             }
         } else {
             Ok(verification)
@@ -155,7 +155,7 @@ impl CompactionManager {
             session.shared_id = original_shared_id;
             session.share_mode = original_share_mode;
             session.share_expires_at = original_share_expires_at;
-            
+
             return Err(ShareabilityError::CompactionPreservedShareabilityFailed(
                 "Compaction would break shareability".to_string(),
             ));
@@ -174,7 +174,7 @@ impl CompactionManager {
         _max_tokens: usize,
     ) -> bool {
         let verification = ShareabilityVerifier::verify(session);
-        
+
         if !verification.is_shareable {
             return true;
         }
@@ -241,7 +241,7 @@ mod tests {
     async fn test_shareability_verification_expired_session() {
         let mut session = create_shareable_session();
         session.set_share_expiry(Some(Utc::now() - chrono::Duration::hours(1)));
-        
+
         let verification = ShareabilityVerifier::verify(&session);
 
         assert!(!verification.is_shareable);
@@ -252,7 +252,7 @@ mod tests {
     async fn test_shareability_verification_disabled_mode() {
         let mut session = create_shareable_session();
         session.set_share_mode(ShareMode::Disabled);
-        
+
         let verification = ShareabilityVerifier::verify(&session);
 
         assert!(!verification.is_shareable);
@@ -261,7 +261,7 @@ mod tests {
     #[tokio::test]
     async fn test_compaction_preserves_shareability() {
         let mut session = create_shareable_session();
-        
+
         for i in 0..20 {
             session.add_message(Message::assistant(format!("Response {}", i)));
         }
@@ -278,7 +278,7 @@ mod tests {
     #[tokio::test]
     async fn test_compaction_non_shareable_session() {
         let mut session = create_non_shareable_session();
-        
+
         for i in 0..20 {
             session.add_message(Message::assistant(format!("This is a longer response number {} with more content to ensure compaction happens", i)));
         }
@@ -295,9 +295,9 @@ mod tests {
     async fn test_compaction_verification_before_compaction() {
         let mut session = create_shareable_session();
         session.set_share_mode(ShareMode::Disabled);
-        
+
         let verification = ShareabilityVerifier::verify_and_check_export(&session);
-        
+
         assert!(verification.is_ok());
         let verification = verification.unwrap();
         assert!(!verification.is_shareable);
@@ -307,9 +307,9 @@ mod tests {
     #[tokio::test]
     async fn test_compaction_verification_passes_for_shareable() {
         let session = create_shareable_session();
-        
+
         let verification = ShareabilityVerifier::verify_and_check_export(&session);
-        
+
         assert!(verification.is_ok());
         let verification = verification.unwrap();
         assert!(verification.is_shareable);
@@ -319,18 +319,20 @@ mod tests {
     #[tokio::test]
     async fn test_can_compact_without_breaking_shareability_shareable() {
         let session = create_shareable_session();
-        
-        let can_compact = CompactionManager::can_compact_without_breaking_shareability(&session, 1000);
-        
+
+        let can_compact =
+            CompactionManager::can_compact_without_breaking_shareability(&session, 1000);
+
         assert!(can_compact);
     }
 
     #[tokio::test]
     async fn test_can_compact_without_breaking_shareability_non_shareable() {
         let session = create_non_shareable_session();
-        
-        let can_compact = CompactionManager::can_compact_without_breaking_shareability(&session, 1000);
-        
+
+        let can_compact =
+            CompactionManager::can_compact_without_breaking_shareability(&session, 1000);
+
         assert!(can_compact);
     }
 
@@ -340,7 +342,7 @@ mod tests {
         session.add_message(Message::user("Test".to_string()));
         session.set_share_mode(ShareMode::Auto);
         session.generate_share_link().unwrap();
-        
+
         for i in 0..20 {
             session.add_message(Message::assistant(format!("Response {}", i)));
         }
@@ -357,16 +359,23 @@ mod tests {
     async fn test_compaction_respects_max_tokens() {
         let mut session = Session::new();
         session.add_message(Message::system("System prompt".to_string()));
-        
+
         for i in 0..50 {
-            session.add_message(Message::user(format!("Long message number {} with content", i)));
-            session.add_message(Message::assistant(format!("Long response number {} with content", i)));
+            session.add_message(Message::user(format!(
+                "Long message number {} with content",
+                i
+            )));
+            session.add_message(Message::assistant(format!(
+                "Long response number {} with content",
+                i
+            )));
         }
 
         let max_tokens = 500;
         let original_count = session.messages.len();
-        
-        let result = CompactionManager::compact_with_shareability_verification(&mut session, max_tokens);
+
+        let result =
+            CompactionManager::compact_with_shareability_verification(&mut session, max_tokens);
 
         assert!(result.is_ok());
         let result = result.unwrap();
@@ -381,8 +390,9 @@ mod tests {
         session.add_message(Message::assistant("Short".to_string()));
 
         let original_len = session.messages.len();
-        
-        let result = CompactionManager::compact_with_shareability_verification(&mut session, 100000);
+
+        let result =
+            CompactionManager::compact_with_shareability_verification(&mut session, 100000);
 
         assert!(result.is_ok());
         let result = result.unwrap();
@@ -396,7 +406,7 @@ mod tests {
         session.add_message(Message::user("Test".to_string()));
         session.set_share_mode(ShareMode::Auto);
         session.generate_share_link().unwrap();
-        
+
         let verification = ShareabilityVerifier::verify(&session);
 
         assert!(verification.is_shareable);

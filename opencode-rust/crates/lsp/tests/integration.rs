@@ -104,7 +104,10 @@ async fn integration_test_path_indicator_file_exists() {
     std::fs::write(dir.path().join("go.mod"), "module test").unwrap();
 
     let indicator = PathIndicator::FileExists("go.mod".to_string());
-    assert!(indicator.matches(dir.path()), "FileExists indicator should match");
+    assert!(
+        indicator.matches(dir.path()),
+        "FileExists indicator should match"
+    );
 
     let indicator_not_exists = PathIndicator::FileExists("nonexistent".to_string());
     assert!(
@@ -119,7 +122,10 @@ async fn integration_test_path_indicator_dir_exists() {
     std::fs::create_dir(dir.path().join("src")).unwrap();
 
     let indicator = PathIndicator::DirExists("src".to_string());
-    assert!(indicator.matches(dir.path()), "DirExists indicator should match");
+    assert!(
+        indicator.matches(dir.path()),
+        "DirExists indicator should match"
+    );
 
     let indicator_not_exists = PathIndicator::DirExists("nonexistent".to_string());
     assert!(
@@ -186,12 +192,16 @@ async fn integration_test_builtin_server_python_match_any_true() {
 #[tokio::test]
 async fn integration_test_bundled_config_custom_paths() {
     let mut config = BundledConfig::default();
-    config
-        .custom_paths
-        .insert("rust-analyzer".to_string(), "/custom/rust-analyzer".to_string());
+    config.custom_paths.insert(
+        "rust-analyzer".to_string(),
+        "/custom/rust-analyzer".to_string(),
+    );
 
     let cmd = config.get_command("rust-analyzer", "rust-analyzer");
-    assert_eq!(cmd, "/custom/rust-analyzer", "Custom path should be used when set");
+    assert_eq!(
+        cmd, "/custom/rust-analyzer",
+        "Custom path should be used when set"
+    );
 
     let cmd_default = config.get_command("unknown-server", "default-command");
     assert_eq!(
@@ -203,12 +213,12 @@ async fn integration_test_bundled_config_custom_paths() {
 #[tokio::test]
 async fn integration_test_bundled_config_excluded_servers() {
     let mut config = BundledConfig::default();
-    config
-        .excluded_servers
-        .push("rust-analyzer".to_string());
+    config.excluded_servers.push("rust-analyzer".to_string());
 
     assert!(
-        config.excluded_servers.contains(&"rust-analyzer".to_string()),
+        config
+            .excluded_servers
+            .contains(&"rust-analyzer".to_string()),
         "rust-analyzer should be in excluded list"
     );
 }
@@ -503,14 +513,8 @@ async fn integration_test_crash_causes_all_types() {
             "assertion failed",
         ),
         (CrashCause::BrokenPipe, "broken pipe"),
-        (
-            CrashCause::ConnectionRefused,
-            "connection refused",
-        ),
-        (
-            CrashCause::Unknown("test".to_string()),
-            "unknown",
-        ),
+        (CrashCause::ConnectionRefused, "connection refused"),
+        (CrashCause::Unknown("test".to_string()), "unknown"),
     ];
 
     for (cause, expected_substring) in causes {
@@ -542,14 +546,8 @@ async fn integration_test_unhealthy_reasons_all_types() {
 
 #[tokio::test]
 async fn integration_test_language_detection_rust() {
-    assert_eq!(
-        Language::detect(&PathBuf::from("main.rs")),
-        Language::Rust
-    );
-    assert_eq!(
-        Language::detect(&PathBuf::from("lib.rs")),
-        Language::Rust
-    );
+    assert_eq!(Language::detect(&PathBuf::from("main.rs")), Language::Rust);
+    assert_eq!(Language::detect(&PathBuf::from("lib.rs")), Language::Rust);
 }
 
 #[tokio::test]
@@ -586,10 +584,7 @@ async fn integration_test_language_detection_python() {
 
 #[tokio::test]
 async fn integration_test_language_detection_go() {
-    assert_eq!(
-        Language::detect(&PathBuf::from("main.go")),
-        Language::Go
-    );
+    assert_eq!(Language::detect(&PathBuf::from("main.go")), Language::Go);
 }
 
 #[tokio::test]
@@ -627,7 +622,10 @@ async fn integration_test_language_server_command() {
         Language::JavaScript.server_command(),
         Some("typescript-language-server --stdio")
     );
-    assert_eq!(Language::Python.server_command(), Some("pyright-langserver --stdio"));
+    assert_eq!(
+        Language::Python.server_command(),
+        Some("pyright-langserver --stdio")
+    );
     assert_eq!(Language::Go.server_command(), Some("gopls"));
     assert_eq!(Language::Unknown.server_command(), None);
 }

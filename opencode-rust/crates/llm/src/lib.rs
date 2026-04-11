@@ -40,6 +40,7 @@ pub use auth::{
 pub use error::{with_retry, LlmError, RetryConfig};
 pub use huggingface::HuggingFaceProvider;
 pub use lm_studio::LmStudioProvider;
+pub use model_selection::{ModelSelection, ProviderType, UserModelConfig};
 pub use models::ModelRegistry;
 pub use ollama::OllamaProvider;
 pub use openai::{BrowserAuthModelInfo, OpenAiProvider};
@@ -52,7 +53,7 @@ pub use provider::{
     StreamingCallback,
 };
 pub use provider_abstraction::{
-    AnthropicThinkingConfig, DynProvider, LocalInferenceProviderFactory, LmStudioProviderFactory,
+    AnthropicThinkingConfig, DynProvider, LmStudioProviderFactory, LocalInferenceProviderFactory,
     ProviderFactory, ProviderIdentity, ProviderManager, ProviderReasoningConfig, ProviderSpec,
     ReasoningBudget,
 };
@@ -60,5 +61,4 @@ pub use provider_adapter::{
     AnthropicAdapter, LocalEndpointAdapter, OpenAICompatibleAdapter, ProviderAdapter,
 };
 pub use provider_filter::ProviderFilter;
-pub use model_selection::{ModelSelection, ProviderType, UserModelConfig};
 pub use transform::{MessageTransform, TransformPipeline};

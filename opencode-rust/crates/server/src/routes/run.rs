@@ -96,7 +96,13 @@ pub async fn run_prompt(
     let mut validator = RequestValidator::new();
     validator.validate_required_string("prompt", Some(&req.prompt));
     if let Some(ref agent) = req.agent {
-        validator.validate_enum("agent", agent, &["build", "plan", "explore", "review", "refactor", "debug", "general"]);
+        validator.validate_enum(
+            "agent",
+            agent,
+            &[
+                "build", "plan", "explore", "review", "refactor", "debug", "general",
+            ],
+        );
     }
     if let Some(ref model) = req.model {
         validator.validate_optional_string("model", Some(model), 100);

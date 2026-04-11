@@ -120,7 +120,10 @@ mod tests {
             .app_data(web::Data::new(state))
             .to_srv_request();
         let authorized = crate::middleware::is_api_key_authorized(&req);
-        assert!(authorized, "Request should be allowed when no API key is configured");
+        assert!(
+            authorized,
+            "Request should be allowed when no API key is configured"
+        );
     }
 
     #[actix_web::test]
@@ -132,7 +135,10 @@ mod tests {
             .app_data(web::Data::new(state))
             .to_srv_request();
         let authorized = crate::middleware::is_api_key_authorized(&req);
-        assert!(!authorized, "Request should be rejected when API key is configured but header is missing");
+        assert!(
+            !authorized,
+            "Request should be rejected when API key is configured but header is missing"
+        );
     }
 
     #[actix_web::test]
@@ -142,10 +148,16 @@ mod tests {
         let state = create_test_state_with_api_key(Some("test-api-key".to_string()));
         let req = TestRequest::default()
             .app_data(web::Data::new(state))
-            .insert_header((actix_web::http::header::HeaderName::from_static("x-api-key"), "wrong-api-key"))
+            .insert_header((
+                actix_web::http::header::HeaderName::from_static("x-api-key"),
+                "wrong-api-key",
+            ))
             .to_srv_request();
         let authorized = crate::middleware::is_api_key_authorized(&req);
-        assert!(!authorized, "Request should be rejected when API key is invalid");
+        assert!(
+            !authorized,
+            "Request should be rejected when API key is invalid"
+        );
     }
 
     #[actix_web::test]
@@ -155,10 +167,16 @@ mod tests {
         let state = create_test_state_with_api_key(Some("test-api-key".to_string()));
         let req = TestRequest::default()
             .app_data(web::Data::new(state))
-            .insert_header((actix_web::http::header::HeaderName::from_static("x-api-key"), "test-api-key"))
+            .insert_header((
+                actix_web::http::header::HeaderName::from_static("x-api-key"),
+                "test-api-key",
+            ))
             .to_srv_request();
         let authorized = crate::middleware::is_api_key_authorized(&req);
-        assert!(authorized, "Request should be allowed when API key is valid");
+        assert!(
+            authorized,
+            "Request should be allowed when API key is valid"
+        );
     }
 
     #[actix_web::test]
@@ -170,7 +188,10 @@ mod tests {
             .app_data(web::Data::new(state))
             .to_srv_request();
         let authorized = crate::middleware::is_api_key_authorized(&req);
-        assert!(authorized, "Request should be allowed when API key is empty string");
+        assert!(
+            authorized,
+            "Request should be allowed when API key is empty string"
+        );
     }
 
     // Streaming tests for P1-11: Streaming endpoints
@@ -189,7 +210,11 @@ mod tests {
         let parsed: StreamMessage = serde_json::from_str(&json).expect("should deserialize");
 
         match parsed {
-            StreamMessage::Message { session_id, content, role } => {
+            StreamMessage::Message {
+                session_id,
+                content,
+                role,
+            } => {
                 assert_eq!(session_id, "test-session");
                 assert_eq!(content, "Hello, streaming!");
                 assert_eq!(role, "user");
@@ -461,7 +486,11 @@ mod tests {
             .register_connection("c2".to_string(), ConnectionType::Sse, "s1".to_string())
             .await;
         monitor
-            .register_connection("c3".to_string(), ConnectionType::WebSocket, "s1".to_string())
+            .register_connection(
+                "c3".to_string(),
+                ConnectionType::WebSocket,
+                "s1".to_string(),
+            )
             .await;
 
         let stats = monitor.get_stats().await;
@@ -483,7 +512,9 @@ mod tests {
     async fn test_stream_message_heartbeat_variant() {
         use crate::streaming::StreamMessage;
 
-        let heartbeat = StreamMessage::Heartbeat { timestamp: 1234567890 };
+        let heartbeat = StreamMessage::Heartbeat {
+            timestamp: 1234567890,
+        };
 
         // Heartbeat has no session_id
         assert_eq!(heartbeat.session_id(), None);
@@ -513,7 +544,11 @@ mod tests {
             .register_connection("active1".to_string(), ConnectionType::Sse, "s1".to_string())
             .await;
         monitor
-            .register_connection("active2".to_string(), ConnectionType::WebSocket, "s1".to_string())
+            .register_connection(
+                "active2".to_string(),
+                ConnectionType::WebSocket,
+                "s1".to_string(),
+            )
             .await;
 
         let active = monitor.get_active_connections().await;
@@ -658,7 +693,10 @@ mod tests {
             .to_srv_request();
 
         let authorized = crate::middleware::is_api_key_authorized(&req);
-        assert!(!authorized, "Request with invalid API key should be rejected");
+        assert!(
+            !authorized,
+            "Request with invalid API key should be rejected"
+        );
     }
 
     #[actix_web::test]
@@ -670,7 +708,10 @@ mod tests {
             .to_srv_request();
 
         let authorized = crate::middleware::is_api_key_authorized(&req);
-        assert!(authorized, "Request should be allowed when no API key is configured");
+        assert!(
+            authorized,
+            "Request should be allowed when no API key is configured"
+        );
     }
 
     #[actix_web::test]
@@ -682,15 +723,15 @@ mod tests {
             .to_srv_request();
 
         let authorized = crate::middleware::is_api_key_authorized(&req);
-        assert!(authorized, "Request should be allowed when empty API key is configured");
+        assert!(
+            authorized,
+            "Request should be allowed when empty API key is configured"
+        );
     }
 
     #[test]
     fn route_group_config_routes_count() {
-        let expected_config_routes = [
-            ("GET", ""),
-            ("PATCH", ""),
-        ];
+        let expected_config_routes = [("GET", ""), ("PATCH", "")];
         assert_eq!(expected_config_routes.len(), 2);
     }
 
@@ -771,7 +812,11 @@ mod tests {
         ];
         assert_eq!(expected_api_scopes.len(), 13);
         for scope in expected_api_scopes {
-            assert!(scope.starts_with("/api"), "Scope {} should start with /api", scope);
+            assert!(
+                scope.starts_with("/api"),
+                "Scope {} should start with /api",
+                scope
+            );
         }
     }
 
@@ -897,19 +942,49 @@ mod tests {
     fn session_lifecycle_session_state_transitions() {
         use opencode_core::session_state::{is_valid_transition, SessionState};
 
-        assert!(is_valid_transition(SessionState::Idle, SessionState::Thinking));
-        assert!(is_valid_transition(SessionState::Thinking, SessionState::AwaitingPermission));
-        assert!(is_valid_transition(SessionState::AwaitingPermission, SessionState::ExecutingTool));
-        assert!(is_valid_transition(SessionState::ExecutingTool, SessionState::Thinking));
-        assert!(is_valid_transition(SessionState::Thinking, SessionState::Streaming));
-        assert!(is_valid_transition(SessionState::Streaming, SessionState::Completed));
-        assert!(is_valid_transition(SessionState::Completed, SessionState::Idle));
+        assert!(is_valid_transition(
+            SessionState::Idle,
+            SessionState::Thinking
+        ));
+        assert!(is_valid_transition(
+            SessionState::Thinking,
+            SessionState::AwaitingPermission
+        ));
+        assert!(is_valid_transition(
+            SessionState::AwaitingPermission,
+            SessionState::ExecutingTool
+        ));
+        assert!(is_valid_transition(
+            SessionState::ExecutingTool,
+            SessionState::Thinking
+        ));
+        assert!(is_valid_transition(
+            SessionState::Thinking,
+            SessionState::Streaming
+        ));
+        assert!(is_valid_transition(
+            SessionState::Streaming,
+            SessionState::Completed
+        ));
+        assert!(is_valid_transition(
+            SessionState::Completed,
+            SessionState::Idle
+        ));
 
         assert!(is_valid_transition(SessionState::Error, SessionState::Idle));
-        assert!(is_valid_transition(SessionState::Idle, SessionState::Summarizing));
-        assert!(is_valid_transition(SessionState::Summarizing, SessionState::Idle));
+        assert!(is_valid_transition(
+            SessionState::Idle,
+            SessionState::Summarizing
+        ));
+        assert!(is_valid_transition(
+            SessionState::Summarizing,
+            SessionState::Idle
+        ));
 
-        assert!(!is_valid_transition(SessionState::Aborted, SessionState::Thinking));
+        assert!(!is_valid_transition(
+            SessionState::Aborted,
+            SessionState::Thinking
+        ));
     }
 
     #[test]
@@ -920,7 +995,9 @@ mod tests {
         let result = parent.fork_at_message(100);
         assert!(result.is_err());
 
-        if let Err(opencode_core::session::ForkError::MessageIndexOutOfBounds { requested, len }) = result {
+        if let Err(opencode_core::session::ForkError::MessageIndexOutOfBounds { requested, len }) =
+            result
+        {
             assert_eq!(requested, 100);
             assert_eq!(len, 0);
         } else {
@@ -947,8 +1024,8 @@ mod tests {
 
     #[test]
     fn session_lifecycle_session_info_structure() {
-        use opencode_core::SessionInfo;
         use chrono::Utc;
+        use opencode_core::SessionInfo;
 
         let info = SessionInfo {
             id: uuid::Uuid::new_v4(),
@@ -964,8 +1041,8 @@ mod tests {
 
     #[test]
     fn session_lifecycle_message_parts_roundtrip() {
-        use opencode_core::part::Part;
         use opencode_core::message::Role;
+        use opencode_core::part::Part;
         use opencode_core::Message;
 
         let msg = Message::from_parts(Role::User, vec![Part::text("Hello"), Part::text("World")]);
@@ -1064,9 +1141,9 @@ mod tests {
 #[cfg(test)]
 mod security_tests {
     use actix_web::http::StatusCode;
-    use actix_web::Responder;
     use actix_web::test::TestRequest;
     use actix_web::web;
+    use actix_web::Responder;
 
     fn create_test_state_with_api_key(api_key: Option<String>) -> crate::ServerState {
         let temp_dir = tempfile::tempdir().unwrap();
@@ -1098,7 +1175,10 @@ mod security_tests {
             .app_data(web::Data::new(state))
             .to_srv_request();
         let authorized = crate::middleware::is_api_key_authorized(&req);
-        assert!(authorized, "Request should be allowed when no API key is configured");
+        assert!(
+            authorized,
+            "Request should be allowed when no API key is configured"
+        );
     }
 
     #[actix_web::test]
@@ -1108,7 +1188,10 @@ mod security_tests {
             .app_data(web::Data::new(state))
             .to_srv_request();
         let authorized = crate::middleware::is_api_key_authorized(&req);
-        assert!(!authorized, "Request should be rejected when API key is configured but header is missing");
+        assert!(
+            !authorized,
+            "Request should be rejected when API key is configured but header is missing"
+        );
     }
 
     #[actix_web::test]
@@ -1116,10 +1199,16 @@ mod security_tests {
         let state = create_test_state_with_api_key(Some("test-api-key".to_string()));
         let req = TestRequest::default()
             .app_data(web::Data::new(state))
-            .insert_header((actix_web::http::header::HeaderName::from_static("x-api-key"), "wrong-api-key"))
+            .insert_header((
+                actix_web::http::header::HeaderName::from_static("x-api-key"),
+                "wrong-api-key",
+            ))
             .to_srv_request();
         let authorized = crate::middleware::is_api_key_authorized(&req);
-        assert!(!authorized, "Request should be rejected when API key is invalid");
+        assert!(
+            !authorized,
+            "Request should be rejected when API key is invalid"
+        );
     }
 
     #[actix_web::test]
@@ -1127,10 +1216,16 @@ mod security_tests {
         let state = create_test_state_with_api_key(Some("test-api-key".to_string()));
         let req = TestRequest::default()
             .app_data(web::Data::new(state))
-            .insert_header((actix_web::http::header::HeaderName::from_static("x-api-key"), "test-api-key"))
+            .insert_header((
+                actix_web::http::header::HeaderName::from_static("x-api-key"),
+                "test-api-key",
+            ))
             .to_srv_request();
         let authorized = crate::middleware::is_api_key_authorized(&req);
-        assert!(authorized, "Request should be allowed when API key is valid");
+        assert!(
+            authorized,
+            "Request should be allowed when API key is valid"
+        );
     }
 
     #[actix_web::test]
@@ -1140,7 +1235,10 @@ mod security_tests {
             .app_data(web::Data::new(state))
             .to_srv_request();
         let authorized = crate::middleware::is_api_key_authorized(&req);
-        assert!(authorized, "Request should be allowed when API key is empty string");
+        assert!(
+            authorized,
+            "Request should be allowed when API key is empty string"
+        );
     }
 
     #[actix_web::test]
@@ -1148,10 +1246,16 @@ mod security_tests {
         let state = create_test_state_with_api_key(Some("secret-key".to_string()));
         let req = TestRequest::default()
             .app_data(web::Data::new(state))
-            .insert_header((actix_web::http::header::HeaderName::from_static("x-api-key"), ""))
+            .insert_header((
+                actix_web::http::header::HeaderName::from_static("x-api-key"),
+                "",
+            ))
             .to_srv_request();
         let authorized = crate::middleware::is_api_key_authorized(&req);
-        assert!(!authorized, "Empty header value should not match configured key");
+        assert!(
+            !authorized,
+            "Empty header value should not match configured key"
+        );
     }
 
     #[actix_web::test]
@@ -1159,7 +1263,10 @@ mod security_tests {
         let state = create_test_state_with_api_key(Some("secret-key".to_string()));
         let req = TestRequest::default()
             .app_data(web::Data::new(state))
-            .insert_header((actix_web::http::header::HeaderName::from_static("x-api-key"), "   "))
+            .insert_header((
+                actix_web::http::header::HeaderName::from_static("x-api-key"),
+                "   ",
+            ))
             .to_srv_request();
         let authorized = crate::middleware::is_api_key_authorized(&req);
         assert!(!authorized, "Whitespace-only key should not match");
@@ -1232,7 +1339,9 @@ mod security_tests {
     fn security_stream_message_heartbeat_has_no_session_id() {
         use crate::streaming::StreamMessage;
 
-        let heartbeat = StreamMessage::Heartbeat { timestamp: 1234567890 };
+        let heartbeat = StreamMessage::Heartbeat {
+            timestamp: 1234567890,
+        };
         assert_eq!(heartbeat.session_id(), None);
     }
 
@@ -1299,6 +1408,9 @@ mod security_tests {
         monitor.heartbeat_success("conn-hb").await;
 
         let info = monitor.get_connection("conn-hb").await.unwrap();
-        assert_eq!(info.heartbeat_failures, 0, "Success should reset failure count");
+        assert_eq!(
+            info.heartbeat_failures, 0,
+            "Success should reset failure count"
+        );
     }
 }

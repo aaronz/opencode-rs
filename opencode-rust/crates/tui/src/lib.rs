@@ -39,8 +39,8 @@ pub use input::{
     InputParser, InputProcessor, InputResult, InputToken,
 };
 pub use keybinding::{
-    DefaultKeybindings, Key, Keybinding, KeybindingAction, KeybindingConfig, KeybindingRegistry,
-    KeyCode, KeyModifiers,
+    DefaultKeybindings, Key, KeyCode, KeyModifiers, Keybinding, KeybindingAction, KeybindingConfig,
+    KeybindingRegistry,
 };
 pub use layout::{LayoutManager, LayoutPreset, LayoutProportions};
 pub use patch_preview::{PatchDecision, PatchPreview};

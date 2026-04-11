@@ -1683,7 +1683,7 @@
       "priority": "P0",
       "title": "Recovery tests",
       "description": "Write tests for system recovery scenarios. Test recovery from various failure modes.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "Recovery from failure modes is tested",
         "Data integrity is maintained",
@@ -1702,7 +1702,7 @@
       "priority": "P0",
       "title": "Crash recovery",
       "description": "Write tests for crash recovery. Test that system recovers correctly from crashes.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "Crash recovery preserves data",
         "System state is consistent after recovery",

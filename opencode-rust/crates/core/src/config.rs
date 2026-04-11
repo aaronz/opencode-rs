@@ -151,7 +151,7 @@ pub struct Config {
     pub theme: Option<ThemeConfig>,
 
     /// TUI (Terminal UI) configuration
-    /// 
+    ///
     /// This field is skipped during deserialization from opencode.json.
     /// TUI configuration should ONLY come from tui.json, not opencode.json.
     /// This field is only set programmatically after loading from tui.json.
@@ -1113,7 +1113,10 @@ pub struct TuiPluginConfig {
     /// Master switch for TUI plugin loading
     /// - `true` (default): plugins are loaded per their individual enabled settings
     /// - `false`: no plugins are loaded at all
-    #[serde(default = "default_plugin_enabled", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default = "default_plugin_enabled",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub plugin_enabled: Option<bool>,
 
     /// Per-plugin enabled state map
@@ -1304,11 +1307,13 @@ impl Config {
             v
         } else {
             let stripped = jsonc::strip_jsonc_comments(content);
-            serde_json::from_str(&stripped).map_err(|e| crate::OpenCodeError::Config(e.to_string()))?
+            serde_json::from_str(&stripped)
+                .map_err(|e| crate::OpenCodeError::Config(e.to_string()))?
         };
 
         let mut value = value;
-        Self::expand_variables(&mut value).map_err(|e| crate::OpenCodeError::Config(e.to_string()))?;
+        Self::expand_variables(&mut value)
+            .map_err(|e| crate::OpenCodeError::Config(e.to_string()))?;
         serde_json::from_value(value).map_err(|e| crate::OpenCodeError::Config(e.to_string()))
     }
 
@@ -1414,13 +1419,19 @@ impl Config {
         Self::expand_variables_inner(value, &config_values, &mut std::collections::HashSet::new())
     }
 
-    fn collect_config_values(value: &serde_json::Value) -> std::collections::HashMap<String, serde_json::Value> {
+    fn collect_config_values(
+        value: &serde_json::Value,
+    ) -> std::collections::HashMap<String, serde_json::Value> {
         let mut map = std::collections::HashMap::new();
         Self::collect_values_recursive(value, String::new(), &mut map);
         map
     }
 
-    fn collect_values_recursive(value: &serde_json::Value, prefix: String, map: &mut std::collections::HashMap<String, serde_json::Value>) {
+    fn collect_values_recursive(
+        value: &serde_json::Value,
+        prefix: String,
+        map: &mut std::collections::HashMap<String, serde_json::Value>,
+    ) {
         match value {
             serde_json::Value::Object(obj) => {
                 for (key, val) in obj {
@@ -1507,8 +1518,7 @@ impl Config {
                         };
                         return Err(OpenCodeError::ConfigInvalid(format!(
                             "Config variable ${} does not resolve to a string (got {})",
-                            var_name,
-                            type_name
+                            var_name, type_name
                         )));
                     }
                 };
@@ -1797,16 +1807,20 @@ impl Config {
     }
 
     fn validate_runtime_tui_fields(path: &Path) -> Result<(), Vec<String>> {
-        let content = std::fs::read_to_string(path).map_err(|e| vec![format!(
-            "Failed to read config file {}: {}",
-            path.display(),
-            e
-        )])?;
-        let value = parse_jsonc(&content).map_err(|e| vec![format!(
-            "Failed to parse config file {}: {}",
-            path.display(),
-            e
-        )])?;
+        let content = std::fs::read_to_string(path).map_err(|e| {
+            vec![format!(
+                "Failed to read config file {}: {}",
+                path.display(),
+                e
+            )]
+        })?;
+        let value = parse_jsonc(&content).map_err(|e| {
+            vec![format!(
+                "Failed to parse config file {}: {}",
+                path.display(),
+                e
+            )]
+        })?;
         let detected = Self::validate_runtime_no_tui_fields(&value);
         if !detected.is_empty() {
             return Err(detected);
@@ -1815,7 +1829,7 @@ impl Config {
     }
 
     /// Load multi-tier config with precedence: CLI → ENV → remote → global → project → .opencode
-    /// 
+    ///
     /// The precedence chain is (highest to lowest):
     /// 1. CLI arguments (via cli_overrides parameter)
     /// 2. Environment variables
@@ -1823,7 +1837,9 @@ impl Config {
     /// 4. Global config (~/.config/opencode/config.json)
     /// 5. Project-level config (opencode.json, .opencode/config.json)
     /// 6. Inline defaults (lowest)
-    pub async fn load_multi(cli_overrides: Option<&CliOverrideConfig>) -> Result<Self, crate::OpenCodeError> {
+    pub async fn load_multi(
+        cli_overrides: Option<&CliOverrideConfig>,
+    ) -> Result<Self, crate::OpenCodeError> {
         Self::warn_legacy_config_dir_if_exists();
         let mut configs: Vec<(String, Config)> = Vec::new();
 
@@ -1936,7 +1952,8 @@ impl Config {
                 for ext in &["json", "json5", "jsonc"] {
                     let project_config = ancestor.join(format!("opencode.{}", ext));
                     if project_config.exists() {
-                        if let Err(tui_fields) = Self::validate_runtime_tui_fields(&project_config) {
+                        if let Err(tui_fields) = Self::validate_runtime_tui_fields(&project_config)
+                        {
                             return Err(crate::OpenCodeError::Config(format!(
                                 "Config file {} contains TUI-specific fields that belong in tui.json: {}. \
                                 Please move these fields to tui.json or remove them from opencode.json.",
@@ -2575,12 +2592,17 @@ impl Config {
 
             // Map permission actions to disabled tools
             // "deny" means disabled, "allow" means NOT disabled, "ask" means NOT disabled
-            fn extract_action(rule: &PermissionRule, field_name: &str, disabled: &mut HashSet<String>) {
+            fn extract_action(
+                rule: &PermissionRule,
+                field_name: &str,
+                disabled: &mut HashSet<String>,
+            ) {
                 match rule {
                     PermissionRule::Action(PermissionAction::Deny) => {
                         disabled.insert(field_name.to_string());
                     }
-                    PermissionRule::Action(PermissionAction::Allow) | PermissionRule::Action(PermissionAction::Ask) => {
+                    PermissionRule::Action(PermissionAction::Allow)
+                    | PermissionRule::Action(PermissionAction::Ask) => {
                         // Not disabled
                     }
                     PermissionRule::Object(obj) => {
@@ -4498,8 +4520,14 @@ api_key = "sk-test123"
         // Since permission takes precedence over tools:
         // - bash: permission=allow → not disabled (even though tools said disabled)
         // - read: permission=deny → disabled (even though tools said enabled)
-        assert!(!tools_disabled.contains("bash"), "bash should be allowed via permission");
-        assert!(tools_disabled.contains("read"), "read should be denied via permission");
+        assert!(
+            !tools_disabled.contains("bash"),
+            "bash should be allowed via permission"
+        );
+        assert!(
+            tools_disabled.contains("read"),
+            "read should be denied via permission"
+        );
     }
 
     #[test]
@@ -4523,8 +4551,14 @@ api_key = "sk-test123"
         #[allow(deprecated)]
         let tools_disabled = config.get_disabled_tools();
 
-        assert!(tools_disabled.contains("bash"), "bash should be disabled via permission");
-        assert!(!tools_disabled.contains("read"), "read should not be disabled");
+        assert!(
+            tools_disabled.contains("bash"),
+            "bash should be disabled via permission"
+        );
+        assert!(
+            !tools_disabled.contains("read"),
+            "read should not be disabled"
+        );
     }
 
     #[test]
@@ -4557,13 +4591,22 @@ api_key = "sk-test123"
 
         // bash: tools=true at agent level BUT tools=false at top level
         // Top level takes precedence, so bash should be disabled
-        assert!(tools_disabled.contains("bash"), "bash should be disabled (top-level override)");
+        assert!(
+            tools_disabled.contains("bash"),
+            "bash should be disabled (top-level override)"
+        );
 
         // write: only in top level, tools=true, so not disabled
-        assert!(!tools_disabled.contains("write"), "write should not be disabled");
+        assert!(
+            !tools_disabled.contains("write"),
+            "write should not be disabled"
+        );
 
         // read: only in agent level (build is default), tools=false, so disabled
-        assert!(tools_disabled.contains("read"), "read should be disabled (default agent-level)");
+        assert!(
+            tools_disabled.contains("read"),
+            "read should be disabled (default agent-level)"
+        );
     }
 
     #[test]
@@ -4690,7 +4733,9 @@ api_key = "sk-test123"
     fn test_contains_keychain_reference() {
         assert!(Config::contains_keychain_reference("{keychain:my-secret}"));
         assert!(!Config::contains_keychain_reference("plain-text"));
-        assert!(Config::contains_keychain_reference("prefix {keychain:key} suffix"));
+        assert!(Config::contains_keychain_reference(
+            "prefix {keychain:key} suffix"
+        ));
     }
 
     // =========================================================================
@@ -4729,7 +4774,10 @@ api_key = "sk-test123"
 
         assert_eq!(merged.model, Some("base-model".to_string()));
         assert_eq!(merged.server.as_ref().unwrap().port, Some(3000));
-        assert_eq!(merged.server.as_ref().unwrap().hostname, Some("localhost".to_string()));
+        assert_eq!(
+            merged.server.as_ref().unwrap().hostname,
+            Some("localhost".to_string())
+        );
     }
 
     #[test]
@@ -4795,36 +4843,47 @@ api_key = "sk-test123"
     #[test]
     fn test_precedence_merge_provider_config_deep_merge() {
         let base = Config {
-            provider: Some(HashMap::from([
-                ("openai".to_string(), ProviderConfig {
+            provider: Some(HashMap::from([(
+                "openai".to_string(),
+                ProviderConfig {
                     id: Some("openai".to_string()),
                     options: Some(ProviderOptions {
                         api_key: Some("base-key".to_string()),
                         ..Default::default()
                     }),
                     ..Default::default()
-                }),
-            ])),
+                },
+            )])),
             ..Default::default()
         };
 
         let override_config = Config {
-            provider: Some(HashMap::from([
-                ("openai".to_string(), ProviderConfig {
+            provider: Some(HashMap::from([(
+                "openai".to_string(),
+                ProviderConfig {
                     options: Some(ProviderOptions {
                         api_key: Some("override-key".to_string()),
                         ..Default::default()
                     }),
                     ..Default::default()
-                }),
-            ])),
+                },
+            )])),
             ..Default::default()
         };
 
         let merged = Config::merge_configs(base, override_config);
 
         let openai_config = merged.provider.as_ref().unwrap().get("openai").unwrap();
-        assert_eq!(openai_config.options.as_ref().unwrap().api_key.as_ref().unwrap(), "override-key");
+        assert_eq!(
+            openai_config
+                .options
+                .as_ref()
+                .unwrap()
+                .api_key
+                .as_ref()
+                .unwrap(),
+            "override-key"
+        );
         assert_eq!(openai_config.id.as_ref().unwrap(), "openai");
     }
 
@@ -4832,16 +4891,17 @@ api_key = "sk-test123"
     fn test_precedence_merge_agent_config_deep_merge() {
         let base = Config {
             agent: Some(AgentMapConfig {
-                agents: HashMap::from([
-                    ("build".to_string(), AgentConfig {
+                agents: HashMap::from([(
+                    "build".to_string(),
+                    AgentConfig {
                         model: Some("claude-3".to_string()),
                         tools: Some(HashMap::from([
                             ("bash".to_string(), true),
                             ("read".to_string(), true),
                         ])),
                         ..Default::default()
-                    }),
-                ]),
+                    },
+                )]),
                 default_agent: Some("build".to_string()),
             }),
             ..Default::default()
@@ -4849,14 +4909,13 @@ api_key = "sk-test123"
 
         let override_config = Config {
             agent: Some(AgentMapConfig {
-                agents: HashMap::from([
-                    ("build".to_string(), AgentConfig {
-                        tools: Some(HashMap::from([
-                            ("bash".to_string(), false),
-                        ])),
+                agents: HashMap::from([(
+                    "build".to_string(),
+                    AgentConfig {
+                        tools: Some(HashMap::from([("bash".to_string(), false)])),
                         ..Default::default()
-                    }),
-                ]),
+                    },
+                )]),
                 ..Default::default()
             }),
             ..Default::default()
@@ -4881,7 +4940,8 @@ api_key = "sk-test123"
             "model": "config-file-model",
             "temperature": 0.3,
             "max_tokens": 1000
-        }).to_string();
+        })
+        .to_string();
         fs::write(&config_path, config_content).unwrap();
 
         set_env("OPENCODE_MODEL", "env-model");
@@ -4980,7 +5040,8 @@ api_key = "sk-test123"
             "provider": {
                 "openai": {"id": "openai"}
             }
-        }).to_string();
+        })
+        .to_string();
         fs::write(&config_path, config_content).unwrap();
 
         set_env("OPENCODE_CONFIG_DIR", &temp_dir);
@@ -4996,7 +5057,9 @@ api_key = "sk-test123"
             max_tokens: Some(8000),
             default_agent: Some("plan".to_string()),
         };
-        let config = runtime.block_on(Config::load_multi(Some(&cli_overrides))).unwrap();
+        let config = runtime
+            .block_on(Config::load_multi(Some(&cli_overrides)))
+            .unwrap();
 
         assert_eq!(config.model, Some("cli-model".to_string()));
         assert!(config.provider.as_ref().unwrap().contains_key("google"));
@@ -5022,16 +5085,26 @@ api_key = "sk-test123"
         fs::create_dir_all(&project_dir).unwrap();
 
         let global_path = global_dir.join("config.json");
-        fs::write(&global_path, serde_json::json!({
-            "model": "global-model",
-            "temperature": 0.1
-        }).to_string()).unwrap();
+        fs::write(
+            &global_path,
+            serde_json::json!({
+                "model": "global-model",
+                "temperature": 0.1
+            })
+            .to_string(),
+        )
+        .unwrap();
 
         let project_path = project_dir.join("opencode.json");
-        fs::write(&project_path, serde_json::json!({
-            "model": "project-model",
-            "temperature": 0.5
-        }).to_string()).unwrap();
+        fs::write(
+            &project_path,
+            serde_json::json!({
+                "model": "project-model",
+                "temperature": 0.5
+            })
+            .to_string(),
+        )
+        .unwrap();
 
         set_env("HOME", &temp_dir);
         std::env::set_current_dir(&project_dir).unwrap();
@@ -5057,16 +5130,26 @@ api_key = "sk-test123"
         fs::create_dir_all(&opencode_dir).unwrap();
 
         let project_path = project_dir.join("opencode.json");
-        fs::write(&project_path, serde_json::json!({
-            "model": "project-model",
-            "temperature": 0.1
-        }).to_string()).unwrap();
+        fs::write(
+            &project_path,
+            serde_json::json!({
+                "model": "project-model",
+                "temperature": 0.1
+            })
+            .to_string(),
+        )
+        .unwrap();
 
         let opencode_config_path = opencode_dir.join("config.json");
-        fs::write(&opencode_config_path, serde_json::json!({
-            "model": "opencode-dir-model",
-            "temperature": 0.9
-        }).to_string()).unwrap();
+        fs::write(
+            &opencode_config_path,
+            serde_json::json!({
+                "model": "opencode-dir-model",
+                "temperature": 0.9
+            })
+            .to_string(),
+        )
+        .unwrap();
 
         std::env::set_current_dir(&project_dir).unwrap();
 
@@ -5130,8 +5213,14 @@ api_key = "sk-test123"
         let merged = Config::merge_configs(base, override_config);
 
         let perm = merged.permission.as_ref().unwrap();
-        assert!(matches!(perm.bash, Some(PermissionRule::Action(PermissionAction::Deny))));
-        assert!(matches!(perm.read, Some(PermissionRule::Action(PermissionAction::Allow))));
+        assert!(matches!(
+            perm.bash,
+            Some(PermissionRule::Action(PermissionAction::Deny))
+        ));
+        assert!(matches!(
+            perm.read,
+            Some(PermissionRule::Action(PermissionAction::Allow))
+        ));
     }
 
     #[test]
@@ -5194,16 +5283,25 @@ api_key = "sk-test123"
         let temp_dir = unique_temp_dir("precedence_config_content");
 
         let config_path = temp_dir.join("config.json");
-        fs::write(&config_path, serde_json::json!({
-            "model": "file-model",
-            "temperature": 0.3
-        }).to_string()).unwrap();
+        fs::write(
+            &config_path,
+            serde_json::json!({
+                "model": "file-model",
+                "temperature": 0.3
+            })
+            .to_string(),
+        )
+        .unwrap();
 
         set_env("OPENCODE_CONFIG", &config_path);
-        set_env("OPENCODE_CONFIG_CONTENT", serde_json::json!({
-            "model": "env-content-model",
-            "temperature": 0.9
-        }).to_string());
+        set_env(
+            "OPENCODE_CONFIG_CONTENT",
+            serde_json::json!({
+                "model": "env-content-model",
+                "temperature": 0.9
+            })
+            .to_string(),
+        );
 
         let runtime = tokio::runtime::Runtime::new().unwrap();
         let config = runtime.block_on(Config::load_multi(None)).unwrap();
@@ -5254,9 +5352,42 @@ api_key = "sk-test123"
         config.apply_env_overrides();
 
         let providers = config.provider.as_ref().unwrap();
-        assert_eq!(providers.get("openai").unwrap().options.as_ref().unwrap().api_key.as_ref().unwrap(), "sk-openai-test");
-        assert_eq!(providers.get("anthropic").unwrap().options.as_ref().unwrap().api_key.as_ref().unwrap(), "sk-ant-test");
-        assert_eq!(providers.get("google").unwrap().options.as_ref().unwrap().api_key.as_ref().unwrap(), "google-test-key");
+        assert_eq!(
+            providers
+                .get("openai")
+                .unwrap()
+                .options
+                .as_ref()
+                .unwrap()
+                .api_key
+                .as_ref()
+                .unwrap(),
+            "sk-openai-test"
+        );
+        assert_eq!(
+            providers
+                .get("anthropic")
+                .unwrap()
+                .options
+                .as_ref()
+                .unwrap()
+                .api_key
+                .as_ref()
+                .unwrap(),
+            "sk-ant-test"
+        );
+        assert_eq!(
+            providers
+                .get("google")
+                .unwrap()
+                .options
+                .as_ref()
+                .unwrap()
+                .api_key
+                .as_ref()
+                .unwrap(),
+            "google-test-key"
+        );
 
         remove_env("OPENAI_API_KEY");
         remove_env("ANTHROPIC_API_KEY");

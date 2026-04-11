@@ -1,14 +1,14 @@
-mod state;
-mod pty;
 mod cli;
 mod diff;
 mod dsl;
+mod pty;
+mod state;
 
-pub use state::StateTester;
-pub use pty::PtySimulator;
 pub use cli::CliTester;
 pub use diff::BufferDiff;
 pub use dsl::TestDsl;
+pub use pty::PtySimulator;
+pub use state::StateTester;
 
 #[cfg(test)]
 mod tests {

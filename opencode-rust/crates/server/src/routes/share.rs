@@ -87,7 +87,8 @@ impl ShareServer {
         expiry_hours: Option<u64>,
         max_views: Option<u64>,
     ) -> ShortShareLink {
-        self.create_short_link_with_mode(session_id, ShareMode::Manual, expiry_hours, max_views).await
+        self.create_short_link_with_mode(session_id, ShareMode::Manual, expiry_hours, max_views)
+            .await
     }
 
     pub async fn create_short_link_with_mode(
@@ -133,7 +134,11 @@ impl ShareServer {
             ShareMode::Disabled => vec![],
             ShareMode::ReadOnly => vec![ShareOperation::Read],
             ShareMode::Manual | ShareMode::Auto => vec![ShareOperation::Read],
-            ShareMode::Collaborative => vec![ShareOperation::Read, ShareOperation::Write, ShareOperation::Fork],
+            ShareMode::Collaborative => vec![
+                ShareOperation::Read,
+                ShareOperation::Write,
+                ShareOperation::Fork,
+            ],
             ShareMode::Controlled => vec![ShareOperation::Read],
         }
     }
@@ -284,7 +289,12 @@ pub async fn create_short_link(
         Ok(Some(_session)) => {
             let share_mode = req.share_mode.clone().unwrap_or(ShareMode::Manual);
             let link = share_server
-                .create_short_link_with_mode(req.session_id.clone(), share_mode.clone(), req.expiry_hours, req.max_views)
+                .create_short_link_with_mode(
+                    req.session_id.clone(),
+                    share_mode.clone(),
+                    req.expiry_hours,
+                    req.max_views,
+                )
                 .await;
 
             let short_url = share_server.full_url(&link.short_code);
@@ -403,7 +413,9 @@ pub async fn access_shared_session(
     match state.storage.load_session(&link.session_id).await {
         Ok(Some(session)) => {
             let sanitized = session.sanitize_for_export();
-            let read_only = !share_server.check_permission(&short_code, ShareOperation::Write).await;
+            let read_only = !share_server
+                .check_permission(&short_code, ShareOperation::Write)
+                .await;
             HttpResponse::Ok().json(serde_json::json!({
                 "id": sanitized.id,
                 "created_at": sanitized.created_at,
