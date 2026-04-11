@@ -167,7 +167,7 @@
       "priority": "P1",
       "title": "Implement Dialog Components",
       "description": "Implement TUI Plugin API Dialog components: DialogAlert, DialogConfirm, DialogPrompt, DialogSelect.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "DialogAlert displays message and dismisses",
         "DialogConfirm displays with confirm/cancel options",
@@ -185,7 +185,7 @@
       "priority": "P1",
       "title": "Complete Slots System Implementation",
       "description": "Complete the slots system implementation for TUI Plugin API, including slot registration API.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Slots can be registered dynamically",
         "Slots render content correctly",

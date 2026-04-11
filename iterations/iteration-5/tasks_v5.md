@@ -76,8 +76,8 @@
 - [ ] **P1-7:** Implement DialogConfirm component
 - [ ] **P1-7:** Implement DialogPrompt component
 - [ ] **P1-7:** Implement DialogSelect component
-- [ ] **P1-8:** Complete slots system implementation
-- [ ] **P1-8:** Add slot registration API
+- [x] **P1-8:** Complete slots system implementation
+- [x] **P1-8:** Add slot registration API
 
 ### Desktop/Web/ACP Tasks
 

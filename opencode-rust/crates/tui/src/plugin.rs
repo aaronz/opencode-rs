@@ -5,9 +5,10 @@ use crate::plugin_api::{
     CommandContext, CommandResult, DialogRequest, DialogResult, PluginCommand, PluginCommandError,
     PluginCommandRegistry, PluginDialogError, PluginDialogRegistry, PluginDispose,
     PluginDisposeError, PluginDisposeRegistry, PluginEvent, PluginEventData, PluginEventError,
-    PluginEventRegistry, PluginRoute, PluginRouteError, PluginRouteRegistry, PluginStateError,
-    PluginStateRegistry, PluginTheme, PluginThemeError, PluginThemeRegistry, RegisteredEvent,
-    RegisteredTheme, RouteContext, RouteParams,
+    PluginEventRegistry, PluginRoute, PluginRouteError, PluginRouteRegistry, PluginSlot,
+    PluginSlotError, PluginSlotRegistry, PluginStateError, PluginStateRegistry, PluginTheme,
+    PluginThemeError, PluginThemeRegistry, RegisteredEvent, RegisteredSlot, RegisteredTheme,
+    RouteContext, RouteParams, SlotContext, SlotRenderResult,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -39,6 +40,7 @@ pub struct TuiPluginManager {
     state_registry: Arc<PluginStateRegistry>,
     dispose_registry: Arc<PluginDisposeRegistry>,
     dialog_registry: Arc<PluginDialogRegistry>,
+    slot_registry: Arc<PluginSlotRegistry>,
 }
 
 impl TuiPluginManager {
@@ -53,6 +55,7 @@ impl TuiPluginManager {
             state_registry: Arc::new(PluginStateRegistry::with_default_dir()),
             dispose_registry: Arc::new(PluginDisposeRegistry::new()),
             dialog_registry: Arc::new(PluginDialogRegistry::new()),
+            slot_registry: Arc::new(PluginSlotRegistry::new()),
         }
     }
 
@@ -420,6 +423,65 @@ impl TuiPluginManager {
         self.dialog_registry.cancel_dialog(plugin_id)
     }
 
+    pub fn slot_registry(&self) -> Arc<PluginSlotRegistry> {
+        Arc::clone(&self.slot_registry)
+    }
+
+    pub fn register_plugin_slot<S: PluginSlot + 'static>(
+        &self,
+        plugin_id: &str,
+        slot: S,
+    ) -> Result<(), PluginSlotError> {
+        if !self.plugins.read().unwrap().contains_key(plugin_id) {
+            return Err(PluginSlotError::PluginNotFound(plugin_id.to_string()));
+        }
+        self.slot_registry.register_slot(plugin_id, slot)
+    }
+
+    pub fn unregister_plugin_slots(&self, plugin_id: &str) {
+        self.slot_registry.unregister_plugin_slots(plugin_id);
+    }
+
+    pub fn unregister_plugin_slot(
+        &self,
+        plugin_id: &str,
+        slot_id: &str,
+    ) -> Result<(), PluginSlotError> {
+        self.slot_registry.unregister_slot(plugin_id, slot_id)
+    }
+
+    pub fn list_plugin_slots(&self) -> Vec<RegisteredSlot> {
+        self.slot_registry.list_slots()
+    }
+
+    pub fn list_slots_for_plugin(&self, plugin_id: &str) -> Vec<RegisteredSlot> {
+        self.slot_registry.list_slots_for_plugin(plugin_id)
+    }
+
+    pub fn list_slots_by_name(&self, slot_name: &str) -> Vec<RegisteredSlot> {
+        self.slot_registry.list_slots_by_name(slot_name)
+    }
+
+    pub fn render_plugin_slot(
+        &self,
+        plugin_id: &str,
+        slot_id: &str,
+        ctx: &SlotContext,
+    ) -> Result<SlotRenderResult, PluginSlotError> {
+        self.slot_registry.render(plugin_id, slot_id, ctx)
+    }
+
+    pub fn update_plugin_slot<S: PluginSlot + 'static>(
+        &self,
+        plugin_id: &str,
+        slot: S,
+    ) -> Result<(), PluginSlotError> {
+        if !self.plugins.read().unwrap().contains_key(plugin_id) {
+            return Err(PluginSlotError::PluginNotFound(plugin_id.to_string()));
+        }
+        self.slot_registry.update_slot(plugin_id, slot)
+    }
+
     pub fn clear(&self) {
         let active_plugin_ids: Vec<String> = {
             let plugins = self.plugins.read().unwrap();
@@ -448,6 +510,7 @@ impl TuiPluginManager {
         let _ = self.state_registry.clear_all_states();
         self.dispose_registry.clear();
         self.dialog_registry.clear();
+        self.slot_registry.clear();
     }
 }
 

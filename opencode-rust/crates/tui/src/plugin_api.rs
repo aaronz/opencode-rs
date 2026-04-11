@@ -1197,6 +1197,383 @@ impl Default for PluginDialogRegistry {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SlotId(pub String);
+
+impl SlotId {
+    pub fn new(id: impl Into<String>) -> Self {
+        Self(id.into())
+    }
+}
+
+impl std::fmt::Display for SlotId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SlotName {
+    App,
+    HomeLogo,
+    HomePrompt,
+    HomePromptRight,
+    SessionPrompt,
+    SessionPromptRight,
+    HomeBottom,
+    HomeFooter,
+    SidebarTitle,
+    SidebarContent,
+    SidebarFooter,
+    Custom(String),
+}
+
+impl SlotName {
+    pub fn as_str(&self) -> &str {
+        match self {
+            SlotName::App => "app",
+            SlotName::HomeLogo => "home_logo",
+            SlotName::HomePrompt => "home_prompt",
+            SlotName::HomePromptRight => "home_prompt_right",
+            SlotName::SessionPrompt => "session_prompt",
+            SlotName::SessionPromptRight => "session_prompt_right",
+            SlotName::HomeBottom => "home_bottom",
+            SlotName::HomeFooter => "home_footer",
+            SlotName::SidebarTitle => "sidebar_title",
+            SlotName::SidebarContent => "sidebar_content",
+            SlotName::SidebarFooter => "sidebar_footer",
+            SlotName::Custom(name) => name,
+        }
+    }
+
+    pub fn from_str(s: &str) -> Self {
+        match s {
+            "app" => SlotName::App,
+            "home_logo" => SlotName::HomeLogo,
+            "home_prompt" => SlotName::HomePrompt,
+            "home_prompt_right" => SlotName::HomePromptRight,
+            "session_prompt" => SlotName::SessionPrompt,
+            "session_prompt_right" => SlotName::SessionPromptRight,
+            "home_bottom" => SlotName::HomeBottom,
+            "home_footer" => SlotName::HomeFooter,
+            "sidebar_title" => SlotName::SidebarTitle,
+            "sidebar_content" => SlotName::SidebarContent,
+            "sidebar_footer" => SlotName::SidebarFooter,
+            other => SlotName::Custom(other.to_string()),
+        }
+    }
+}
+
+impl std::fmt::Display for SlotName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SlotContext {
+    pub plugin_id: String,
+    pub slot_name: String,
+    #[serde(default)]
+    pub session_id: Option<String>,
+    #[serde(default)]
+    pub workspace_id: Option<String>,
+    #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
+    pub share_url: Option<String>,
+    #[serde(default)]
+    pub visible: Option<bool>,
+    #[serde(default)]
+    pub disabled: Option<bool>,
+    #[serde(default)]
+    pub ref_: Option<String>,
+    #[serde(default)]
+    pub on_submit: Option<String>,
+}
+
+impl SlotContext {
+    pub fn new(plugin_id: impl Into<String>, slot_name: impl Into<String>) -> Self {
+        Self {
+            plugin_id: plugin_id.into(),
+            slot_name: slot_name.into(),
+            session_id: None,
+            workspace_id: None,
+            title: None,
+            share_url: None,
+            visible: None,
+            disabled: None,
+            ref_: None,
+            on_submit: None,
+        }
+    }
+
+    pub fn with_session_id(mut self, session_id: impl Into<String>) -> Self {
+        self.session_id = Some(session_id.into());
+        self
+    }
+
+    pub fn with_workspace_id(mut self, workspace_id: impl Into<String>) -> Self {
+        self.workspace_id = Some(workspace_id.into());
+        self
+    }
+
+    pub fn with_title(mut self, title: impl Into<String>) -> Self {
+        self.title = Some(title.into());
+        self
+    }
+
+    pub fn with_share_url(mut self, share_url: impl Into<String>) -> Self {
+        self.share_url = Some(share_url.into());
+        self
+    }
+
+    pub fn with_visible(mut self, visible: bool) -> Self {
+        self.visible = Some(visible);
+        self
+    }
+
+    pub fn with_disabled(mut self, disabled: bool) -> Self {
+        self.disabled = Some(disabled);
+        self
+    }
+
+    pub fn with_ref(mut self, ref_: impl Into<String>) -> Self {
+        self.ref_ = Some(ref_.into());
+        self
+    }
+
+    pub fn with_on_submit(mut self, on_submit: impl Into<String>) -> Self {
+        self.on_submit = Some(on_submit.into());
+        self
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SlotRenderResult {
+    pub success: bool,
+    pub content: Option<String>,
+    pub error: Option<String>,
+}
+
+impl SlotRenderResult {
+    pub fn success(content: impl Into<String>) -> Self {
+        Self {
+            success: true,
+            content: Some(content.into()),
+            error: None,
+        }
+    }
+
+    pub fn error(message: impl Into<String>) -> Self {
+        Self {
+            success: false,
+            content: None,
+            error: Some(message.into()),
+        }
+    }
+
+    pub fn empty() -> Self {
+        Self {
+            success: true,
+            content: None,
+            error: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RegisteredSlot {
+    pub plugin_id: String,
+    pub id: String,
+    pub slot_name: String,
+}
+
+pub trait PluginSlot: Send + Sync {
+    fn id(&self) -> &str;
+    fn slot_name(&self) -> &str;
+    fn render(&self, ctx: &SlotContext) -> SlotRenderResult;
+}
+
+pub struct PluginSlotRegistry {
+    slots: RwLock<HashMap<String, RegisteredSlot>>,
+    renderers: RwLock<HashMap<String, Box<dyn PluginSlot>>>,
+}
+
+impl PluginSlotRegistry {
+    pub fn new() -> Self {
+        Self {
+            slots: RwLock::new(HashMap::new()),
+            renderers: RwLock::new(HashMap::new()),
+        }
+    }
+
+    pub fn register_slot<S: PluginSlot + 'static>(
+        &self,
+        plugin_id: &str,
+        slot: S,
+    ) -> Result<(), PluginSlotError> {
+        let id = slot.id().to_string();
+        let full_id = format!("{}:{}", plugin_id, &id);
+
+        let mut slots = self.slots.write().unwrap();
+        if slots.contains_key(&full_id) {
+            return Err(PluginSlotError::SlotAlreadyRegistered(full_id));
+        }
+
+        let slot_name = slot.slot_name().to_string();
+        let registered = RegisteredSlot {
+            plugin_id: plugin_id.to_string(),
+            id: id.clone(),
+            slot_name: slot_name.clone(),
+        };
+
+        slots.insert(full_id.clone(), registered);
+
+        let mut renderers = self.renderers.write().unwrap();
+        renderers.insert(full_id, Box::new(slot));
+
+        Ok(())
+    }
+
+    pub fn unregister_slot(&self, plugin_id: &str, slot_id: &str) -> Result<(), PluginSlotError> {
+        let full_id = format!("{}:{}", plugin_id, slot_id);
+
+        let mut slots = self.slots.write().unwrap();
+        slots
+            .remove(&full_id)
+            .ok_or_else(|| PluginSlotError::SlotNotFound(full_id.clone()))?;
+
+        let mut renderers = self.renderers.write().unwrap();
+        renderers
+            .remove(&full_id)
+            .ok_or_else(|| PluginSlotError::SlotNotFound(full_id))?;
+
+        Ok(())
+    }
+
+    pub fn unregister_plugin_slots(&self, plugin_id: &str) {
+        let prefix = format!("{}:", plugin_id);
+
+        let mut slots = self.slots.write().unwrap();
+        let keys_to_remove: Vec<String> = slots
+            .keys()
+            .filter(|k| k.starts_with(&prefix))
+            .cloned()
+            .collect();
+
+        for key in keys_to_remove {
+            slots.remove(&key);
+        }
+
+        let mut renderers = self.renderers.write().unwrap();
+        let renderer_keys_to_remove: Vec<String> = renderers
+            .keys()
+            .filter(|k| k.starts_with(&prefix))
+            .cloned()
+            .collect();
+
+        for key in renderer_keys_to_remove {
+            renderers.remove(&key);
+        }
+    }
+
+    pub fn get_slot(&self, plugin_id: &str, slot_id: &str) -> Option<RegisteredSlot> {
+        let full_id = format!("{}:{}", plugin_id, slot_id);
+        self.slots.read().unwrap().get(&full_id).cloned()
+    }
+
+    pub fn list_slots(&self) -> Vec<RegisteredSlot> {
+        self.slots.read().unwrap().values().cloned().collect()
+    }
+
+    pub fn list_slots_for_plugin(&self, plugin_id: &str) -> Vec<RegisteredSlot> {
+        self.slots
+            .read()
+            .unwrap()
+            .values()
+            .filter(|s| s.plugin_id == plugin_id)
+            .cloned()
+            .collect()
+    }
+
+    pub fn list_slots_by_name(&self, slot_name: &str) -> Vec<RegisteredSlot> {
+        self.slots
+            .read()
+            .unwrap()
+            .values()
+            .filter(|s| s.slot_name == slot_name)
+            .cloned()
+            .collect()
+    }
+
+    pub fn render(
+        &self,
+        plugin_id: &str,
+        slot_id: &str,
+        ctx: &SlotContext,
+    ) -> Result<SlotRenderResult, PluginSlotError> {
+        let full_id = format!("{}:{}", plugin_id, slot_id);
+        let renderers = self.renderers.read().unwrap();
+        let renderer = renderers
+            .get(&full_id)
+            .ok_or_else(|| PluginSlotError::SlotNotFound(full_id.clone()))?;
+
+        Ok(renderer.render(ctx))
+    }
+
+    pub fn update_slot<S: PluginSlot + 'static>(
+        &self,
+        plugin_id: &str,
+        slot: S,
+    ) -> Result<(), PluginSlotError> {
+        let id = slot.id().to_string();
+        let full_id = format!("{}:{}", plugin_id, &id);
+
+        let mut slots = self.slots.write().unwrap();
+        if !slots.contains_key(&full_id) {
+            return Err(PluginSlotError::SlotNotFound(full_id.clone()));
+        }
+
+        let slot_name = slot.slot_name().to_string();
+        let registered = RegisteredSlot {
+            plugin_id: plugin_id.to_string(),
+            id: id.clone(),
+            slot_name: slot_name.clone(),
+        };
+
+        slots.insert(full_id.clone(), registered);
+
+        let mut renderers = self.renderers.write().unwrap();
+        renderers.insert(full_id, Box::new(slot));
+
+        Ok(())
+    }
+
+    pub fn clear(&self) {
+        self.slots.write().unwrap().clear();
+        self.renderers.write().unwrap().clear();
+    }
+}
+
+impl Default for PluginSlotRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum PluginSlotError {
+    #[error("slot not found: {0}")]
+    SlotNotFound(String),
+    #[error("slot already registered: {0}")]
+    SlotAlreadyRegistered(String),
+    #[error("plugin not found: {0}")]
+    PluginNotFound(String),
+    #[error("render error: {0}")]
+    RenderError(String),
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
