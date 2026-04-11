@@ -148,7 +148,7 @@
 
 | Task ID | Title | Module | FR | Phase | Status | Dependencies |
 |---------|-------|--------|-----|-------|--------|--------------|
-| P2-1 | Compaction with shareability verification | storage | FR-002 | Phase 5 | Pending | FR-002 complete |
+| P2-1 | Compaction with shareability verification | storage | FR-002 | Phase 5 | Done | FR-002 complete |
 | P2-2 | Workspace path validation | core | FR-001 | Phase 1 | Pending | None |
 
 ### Tools System (2 items)
