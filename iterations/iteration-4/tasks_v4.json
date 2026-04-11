@@ -887,7 +887,7 @@
       "priority": "P1",
       "title": "Skills compat paths (Claude/Agent-style)",
       "description": "Implement skills compatibility with Claude/Agent-style paths. Support standard skill discovery locations.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Skills are discovered from standard paths",
         "Claude-style skill format is supported",

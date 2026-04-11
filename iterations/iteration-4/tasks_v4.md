@@ -125,7 +125,7 @@
 
 | Task ID | Title | Module | FR | Phase | Status | Dependencies |
 |---------|-------|--------|-----|-------|--------|--------------|
-| P1-29 | Skills compat paths (Claude/Agent-style) | core | FR-014 | Phase 3 | Pending | None |
+| P1-29 | Skills compat paths (Claude/Agent-style) | core | FR-014 | Phase 3 | Done | None |
 
 ### Desktop/Web/ACP (3 items)
 

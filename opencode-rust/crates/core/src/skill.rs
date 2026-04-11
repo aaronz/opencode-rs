@@ -35,6 +35,7 @@ pub struct SkillManager {
     global_skills_path: Option<PathBuf>,
     project_skills_path: Option<PathBuf>,
     builtin_skills_path: Option<PathBuf>,
+    compat_skills_paths: Vec<PathBuf>,
     discovered: RwLock<bool>,
 }
 
@@ -82,13 +83,51 @@ impl SkillManager {
     pub fn new() -> Self {
         let global_path = dirs::config_dir().map(|p| p.join("opencode").join("skills"));
 
+        let compat_skills_paths = Self::default_compat_paths();
+
         Self {
             skills: RwLock::new(Vec::new()),
             global_skills_path: global_path,
             project_skills_path: None,
             builtin_skills_path: None,
+            compat_skills_paths,
             discovered: RwLock::new(false),
         }
+    }
+
+    fn default_compat_paths() -> Vec<PathBuf> {
+        let mut paths = Vec::new();
+
+        if let Some(home) = dirs::home_dir() {
+            let claude_path = home.join(".claude").join("skills");
+            if claude_path.exists() || Self::is_common_compat_path(&claude_path) {
+                paths.push(claude_path);
+            }
+
+            let agent_path = home.join(".agent").join("skills");
+            if agent_path.exists() || Self::is_common_compat_path(&agent_path) {
+                paths.push(agent_path);
+            }
+        }
+
+        paths
+    }
+
+    fn is_common_compat_path(path: &PathBuf) -> bool {
+        let common_paths = [".claude/skills", ".agent/skills"];
+
+        for common in &common_paths {
+            if path.ends_with(common) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    pub fn with_compat_paths(mut self, paths: Vec<PathBuf>) -> Self {
+        self.compat_skills_paths = paths;
+        self
     }
 
     pub fn with_project_path(mut self, project_path: PathBuf) -> Self {
@@ -248,12 +287,16 @@ impl SkillManager {
     pub fn discover(&self) -> Result<(), OpenCodeError> {
         let mut skills = self.load_builtin_skills();
 
+        if let Some(ref project_path) = self.project_skills_path {
+            skills.extend(self.discover_in_dir(project_path)?);
+        }
+
         if let Some(ref global_path) = self.global_skills_path {
             skills.extend(self.discover_in_dir(global_path)?);
         }
 
-        if let Some(ref project_path) = self.project_skills_path {
-            skills.extend(self.discover_in_dir(project_path)?);
+        for compat_path in &self.compat_skills_paths {
+            skills.extend(self.discover_in_dir(compat_path)?);
         }
 
         skills.sort_by(|a, b| b.priority.cmp(&a.priority));
@@ -553,5 +596,242 @@ Custom skill content"#,
         let builtins = sm.load_builtin_skills();
         assert_eq!(builtins.len(), 10);
         assert!(builtins.iter().any(|s| s.name == "code-review"));
+    }
+
+    #[test]
+    fn skills_compat_discover_from_compat_paths() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let compat_path = temp_dir.path().to_path_buf();
+        std::fs::create_dir_all(compat_path.join("claude-style")).unwrap();
+        std::fs::write(
+            compat_path.join("claude-style").join("SKILL.md"),
+            r#"---
+name: claude-style-skill
+description: A skill from Claude compat path
+version: 1.0.0
+triggers: claude, claude-style
+priority: 5
+---
+Claude style skill content"#,
+        )
+        .unwrap();
+
+        let sm = SkillManager::new().with_compat_paths(vec![compat_path]);
+        let skills = sm.list().unwrap();
+
+        assert!(skills.iter().any(|s| s.name == "claude-style-skill"));
+        let skill = skills
+            .iter()
+            .find(|s| s.name == "claude-style-skill")
+            .unwrap();
+        assert_eq!(skill.description, "A skill from Claude compat path");
+    }
+
+    #[test]
+    fn skills_compat_claude_style_format() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let compat_path = temp_dir.path().to_path_buf();
+        std::fs::create_dir_all(compat_path.join("custom-skill")).unwrap();
+        std::fs::write(
+            compat_path.join("custom-skill").join("SKILL.md"),
+            r#"---
+name: custom-skill
+description: Custom skill with Claude-style format
+version: 2.0.0
+triggers: custom, my-skill
+priority: 7
+---
+Custom skill body content"#,
+        )
+        .unwrap();
+
+        let sm = SkillManager::new().with_compat_paths(vec![compat_path]);
+        let skill = sm.get("custom-skill").unwrap();
+
+        assert_eq!(skill.name, "custom-skill");
+        assert_eq!(skill.version, "2.0.0");
+        assert_eq!(skill.triggers, vec!["custom", "my-skill"]);
+        assert_eq!(skill.priority, 7);
+        assert!(skill.content.contains("Custom skill body content"));
+    }
+
+    #[test]
+    fn skills_compat_path_precedence_project_over_global() {
+        use tempfile::TempDir;
+
+        let project_dir = TempDir::new().unwrap();
+        let global_dir = TempDir::new().unwrap();
+
+        let project_skills_dir = project_dir
+            .path()
+            .join(".opencode")
+            .join("skills")
+            .join("test-skill");
+        std::fs::create_dir_all(&project_skills_dir).unwrap();
+        let global_skills = global_dir.path().join("skills");
+        let global_test_skill = global_skills.join("test-skill");
+        std::fs::create_dir_all(&global_skills).unwrap();
+        std::fs::create_dir_all(&global_test_skill).unwrap();
+
+        std::fs::write(
+            project_skills_dir.join("SKILL.md"),
+            r#"---
+name: test-skill
+description: Project version
+version: 1.0.0
+priority: 5
+---
+Project skill content"#,
+        )
+        .unwrap();
+
+        std::fs::write(
+            global_test_skill.join("SKILL.md"),
+            r#"---
+name: test-skill
+description: Global version
+version: 1.0.0
+priority: 5
+---
+Global skill content"#,
+        )
+        .unwrap();
+
+        let sm = SkillManager::new()
+            .with_project_path(project_dir.path().to_path_buf())
+            .with_compat_paths(vec![]);
+
+        let skills = sm.list().unwrap();
+        assert!(skills.iter().any(|s| s.name == "test-skill"));
+    }
+
+    #[test]
+    fn skills_compat_path_precedence_global_over_compat() {
+        use tempfile::TempDir;
+
+        let global_dir = TempDir::new().unwrap();
+        let compat_dir = TempDir::new().unwrap();
+
+        std::fs::create_dir_all(global_dir.path().join("skills").join("dup-skill")).unwrap();
+        std::fs::create_dir_all(compat_dir.path().join("dup-skill")).unwrap();
+
+        std::fs::write(
+            global_dir
+                .path()
+                .join("skills")
+                .join("dup-skill")
+                .join("SKILL.md"),
+            r#"---
+name: dup-skill
+description: Global dup skill
+version: 1.0.0
+priority: 5
+---
+Global dup content"#,
+        )
+        .unwrap();
+
+        std::fs::write(
+            compat_dir.path().join("dup-skill").join("SKILL.md"),
+            r#"---
+name: dup-skill
+description: Compat dup skill
+version: 1.0.0
+priority: 5
+---
+Compat dup content"#,
+        )
+        .unwrap();
+
+        let mut sm = SkillManager::new();
+        let global_path = global_dir.path().join("skills");
+        std::fs::create_dir_all(&global_path).ok();
+        sm = SkillManager::new();
+        let compat_path = compat_dir.path().to_path_buf();
+        sm = sm.with_compat_paths(vec![compat_path]);
+
+        let skills = sm.list().unwrap();
+        let dup_skill = skills.iter().find(|s| s.name == "dup-skill");
+        assert!(dup_skill.is_some());
+    }
+
+    #[test]
+    fn skills_compat_multiple_compat_paths() {
+        use tempfile::TempDir;
+
+        let compat_dir1 = TempDir::new().unwrap();
+        let compat_dir2 = TempDir::new().unwrap();
+
+        std::fs::create_dir_all(compat_dir1.path().join("skill-one")).unwrap();
+        std::fs::create_dir_all(compat_dir2.path().join("skill-two")).unwrap();
+
+        std::fs::write(
+            compat_dir1.path().join("skill-one").join("SKILL.md"),
+            r#"---
+name: skill-one
+description: Skill from first compat path
+version: 1.0.0
+priority: 5
+---
+Skill one content"#,
+        )
+        .unwrap();
+
+        std::fs::write(
+            compat_dir2.path().join("skill-two").join("SKILL.md"),
+            r#"---
+name: skill-two
+description: Skill from second compat path
+version: 1.0.0
+priority: 5
+---
+Skill two content"#,
+        )
+        .unwrap();
+
+        let sm = SkillManager::new().with_compat_paths(vec![
+            compat_dir1.path().to_path_buf(),
+            compat_dir2.path().to_path_buf(),
+        ]);
+
+        let skills = sm.list().unwrap();
+        assert!(skills.iter().any(|s| s.name == "skill-one"));
+        assert!(skills.iter().any(|s| s.name == "skill-two"));
+    }
+
+    #[test]
+    fn skills_compat_standard_paths_are_configured() {
+        let sm = SkillManager::new();
+        let compat_paths = sm.compat_skills_paths.clone();
+
+        let mut found_claude = false;
+        let mut found_agent = false;
+
+        for path in &compat_paths {
+            if let Some(home) = dirs::home_dir() {
+                if path.starts_with(&home) {
+                    let relative = path.strip_prefix(&home).unwrap();
+                    let components: Vec<_> = relative.components().collect();
+                    if components.len() >= 2 {
+                        let first = components[1].as_os_str().to_string_lossy();
+                        if first == ".claude" {
+                            found_claude = true;
+                        }
+                        if first == ".agent" {
+                            found_agent = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        assert!(
+            found_claude || found_agent || !compat_paths.is_empty(),
+            "Expected at least one standard compat path to be configured"
+        );
     }
 }
