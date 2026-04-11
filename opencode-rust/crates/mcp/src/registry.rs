@@ -9,6 +9,7 @@ use opencode_core::ToolRegistry;
 
 use crate::auth::{McpOAuthConfig, McpOAuthManager};
 use crate::client::{ConnectionState, McpClient, McpError, McpResource, McpTool, McpTransport};
+use crate::context_cost::{CostLimits, SharedContextCostTracker};
 use crate::tool_bridge::McpToolAdapter;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -32,6 +33,7 @@ pub struct McpServerConfig {
     pub health_check_interval: Option<Duration>,
     pub permission: McpPermission,
     pub oauth: Option<McpOAuthConfig>,
+    pub cost_limits: Option<CostLimits>,
 }
 
 impl McpServerConfig {
@@ -43,6 +45,7 @@ impl McpServerConfig {
             health_check_interval: None,
             permission: McpPermission::default(),
             oauth: None,
+            cost_limits: None,
         }
     }
 
@@ -53,6 +56,11 @@ impl McpServerConfig {
 
     pub fn with_oauth(mut self, oauth: McpOAuthConfig) -> Self {
         self.oauth = Some(oauth);
+        self
+    }
+
+    pub fn with_cost_limits(mut self, limits: CostLimits) -> Self {
+        self.cost_limits = Some(limits);
         self
     }
 }
@@ -127,6 +135,45 @@ impl McpRegistry {
                 adapter.register_into(tool_registry);
             }
         }
+    }
+
+    pub fn bridge_to_tool_registry_with_cost_tracking(
+        &self,
+        tool_registry: &mut ToolRegistry,
+    ) -> HashMap<String, SharedContextCostTracker> {
+        let mut cost_trackers = HashMap::new();
+
+        for (server_name, tools) in &self.discovered_tools {
+            let Some(client) = self.clients.get(server_name) else {
+                continue;
+            };
+
+            let server_config = self.servers.get(server_name);
+            let requires_approval = server_config
+                .map(|cfg| cfg.permission == McpPermission::Ask)
+                .unwrap_or(false);
+
+            let cost_tracker = server_config
+                .and_then(|cfg| cfg.cost_limits.clone())
+                .map(|limits| SharedContextCostTracker::new().with_limits(limits));
+
+            if let Some(ref tracker) = cost_tracker {
+                cost_trackers.insert(server_name.clone(), tracker.clone());
+            }
+
+            for tool in tools {
+                let mut adapter = McpToolAdapter::new(client.clone(), tool.clone(), server_name)
+                    .with_requires_approval(requires_approval);
+
+                if let Some(ref tracker) = cost_tracker {
+                    adapter = adapter.with_cost_tracker(tracker.clone());
+                }
+
+                adapter.register_with_cost_tracking(tool_registry);
+            }
+        }
+
+        cost_trackers
     }
 
     pub async fn disconnect_all(&self) {
@@ -207,6 +254,16 @@ impl McpManager {
             .read()
             .await
             .bridge_to_tool_registry(tool_registry);
+    }
+
+    pub async fn bridge_to_tool_registry_with_cost_tracking(
+        &self,
+        tool_registry: &mut ToolRegistry,
+    ) -> HashMap<String, SharedContextCostTracker> {
+        self.registry
+            .read()
+            .await
+            .bridge_to_tool_registry_with_cost_tracking(tool_registry)
     }
 
     pub async fn disconnect_all(&self) {

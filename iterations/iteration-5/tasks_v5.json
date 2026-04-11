@@ -357,7 +357,7 @@
       "priority": "P2",
       "title": "Add Context Cost Warnings",
       "description": "Add warnings when context cost exceeds certain thresholds for MCP.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Cost warnings are displayed when threshold exceeded",
         "Warning threshold is configurable",

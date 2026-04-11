@@ -672,6 +672,18 @@ pub struct McpLocalConfig {
     /// Timeout in ms for MCP server requests
     #[serde(skip_serializing_if = "Option::is_none")]
     pub timeout: Option<u64>,
+
+    /// Maximum context tokens for cost tracking (e.g., model context window size)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<usize>,
+
+    /// Cost warning threshold (0.0-1.0) - triggers warning when context usage exceeds this
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cost_warning_threshold: Option<f64>,
+
+    /// Cost limit threshold (0.0-1.0) - triggers critical warning when context usage exceeds this
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cost_limit_threshold: Option<f64>,
 }
 
 /// OAuth configuration for remote MCP
@@ -711,6 +723,18 @@ pub struct McpRemoteConfig {
     /// Timeout in ms for MCP server requests
     #[serde(skip_serializing_if = "Option::is_none")]
     pub timeout: Option<u64>,
+
+    /// Maximum context tokens for cost tracking (e.g., model context window size)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<usize>,
+
+    /// Cost warning threshold (0.0-1.0) - triggers warning when context usage exceeds this
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cost_warning_threshold: Option<f64>,
+
+    /// Cost limit threshold (0.0-1.0) - triggers critical warning when context usage exceeds this
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cost_limit_threshold: Option<f64>,
 }
 
 /// OAuth can be config or false to disable

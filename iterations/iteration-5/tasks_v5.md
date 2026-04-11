@@ -108,7 +108,7 @@
 
 ### MCP Tasks
 - [x] **P2-6:** Verify per-server OAuth token storage
-- [ ] **P2-7:** Add context cost warnings
+- [x] **P2-7:** Add context cost warnings
 
 ### LSP Tasks
 - [ ] **P2-8:** Add experimental LSP tool integration tests
