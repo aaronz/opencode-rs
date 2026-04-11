@@ -58,10 +58,10 @@ impl McpServerConfig {
 }
 
 pub struct McpRegistry {
-    servers: HashMap<String, McpServerConfig>,
-    clients: HashMap<String, Arc<McpClient>>,
-    discovered_tools: HashMap<String, Vec<McpTool>>,
-    discovered_resources: HashMap<String, Vec<McpResource>>,
+    pub(crate) servers: HashMap<String, McpServerConfig>,
+    pub(crate) clients: HashMap<String, Arc<McpClient>>,
+    pub(crate) discovered_tools: HashMap<String, Vec<McpTool>>,
+    pub(crate) discovered_resources: HashMap<String, Vec<McpResource>>,
 }
 
 impl Default for McpRegistry {

@@ -161,7 +161,7 @@ impl McpToolAdapter {
 
 fn run_async<T>(future: impl Future<Output = T>) -> T {
     if let Ok(handle) = tokio::runtime::Handle::try_current() {
-        tokio::task::block_in_place(|| handle.block_on(future))
+        handle.block_on(future)
     } else {
         tokio::runtime::Runtime::new()
             .expect("failed to create tokio runtime for MCP tool adapter")
