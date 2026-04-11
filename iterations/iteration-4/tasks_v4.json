@@ -1168,7 +1168,7 @@
       "priority": "P2",
       "title": "Shell prefix (!) handling",
       "description": "Implement shell prefix (!) handling in the TUI. Commands starting with ! should be executed in a shell.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Shell commands are detected by ! prefix",
         "Commands are executed in shell",
