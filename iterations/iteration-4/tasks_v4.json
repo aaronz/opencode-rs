@@ -1509,7 +1509,7 @@
       "priority": "P0",
       "title": "Desktop/web smoke tests",
       "description": "Write smoke tests for desktop and web interfaces. Test basic functionality and session sharing.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Desktop interface starts correctly",
         "Web interface starts correctly",

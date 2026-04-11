@@ -251,7 +251,7 @@
 
 | Task ID | Title | Module | FR | Phase | Status | Dependencies |
 |---------|-------|--------|-----|-------|--------|--------------|
-| T-022-1 | Desktop/web smoke tests | cli | FR-022 | Phase 6 | Pending | Phase 4 P0s |
+| T-022-1 | Desktop/web smoke tests | cli | FR-022 | Phase 6 | ✅ Done | Phase 4 P0s |
 | T-022-2 | ACP handshake tests | cli | FR-022 | Phase 6 | Pending | ACP transport |
 | T-022-3 | GitHub workflow tests | git | FR-022 | Phase 6 | Pending | P1-32 |
 | T-022-4 | GitLab integration tests | git | FR-022 | Phase 6 | Pending | P2-16 |
