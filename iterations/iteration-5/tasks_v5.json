@@ -63,7 +63,7 @@
       "priority": "P1",
       "title": "Improve JSONC Error Messages",
       "description": "Add clearer error messages for JSONC parsing errors to help users identify and fix configuration issues.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "JSONC errors include file location",
         "Error messages explain the actual problem",
@@ -80,7 +80,7 @@
       "priority": "P1",
       "title": "Add Circular Variable Expansion Detection",
       "description": "Detect and report circular dependencies in variable expansion to prevent infinite loops in config processing.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Circular references are detected",
         "Clear error message identifies the cycle",

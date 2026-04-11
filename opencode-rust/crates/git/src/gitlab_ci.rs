@@ -403,51 +403,86 @@ mod gitlab_integration_tests {
                 let path = parts[1];
 
                 if path.contains("/projects/") && path.contains("/pipeline") && method == "POST" {
-                    (200, serde_json::json!({
-                        "id": 12345,
-                        "status": "pending",
-                        "ref": "main",
-                        "sha": "abc123",
-                        "web_url": "http://localhost/pipelines/12345",
-                        "created_at": "2026-04-11T10:00:00Z",
-                        "updated_at": "2026-04-11T10:00:00Z"
-                    }).to_string())
-                } else if path.contains("/projects/") && path.contains("/pipelines/") && path.contains("/jobs") && method == "GET" {
-                    (200, serde_json::json!([{
-                        "id": 1,
-                        "name": "opencode_agent",
-                        "stage": "opencode",
-                        "status": "running",
-                        "started_at": "2026-04-11T10:00:00Z",
-                        "finished_at": null,
-                        "duration": null,
-                        "web_url": "http://localhost/jobs/1"
-                    }]).to_string())
-                } else if path.contains("/projects/") && path.contains("/pipelines/") && method == "GET" {
-                    let pipeline_id = path.split("/pipelines/").nth(1)
+                    (
+                        200,
+                        serde_json::json!({
+                            "id": 12345,
+                            "status": "pending",
+                            "ref": "main",
+                            "sha": "abc123",
+                            "web_url": "http://localhost/pipelines/12345",
+                            "created_at": "2026-04-11T10:00:00Z",
+                            "updated_at": "2026-04-11T10:00:00Z"
+                        })
+                        .to_string(),
+                    )
+                } else if path.contains("/projects/")
+                    && path.contains("/pipelines/")
+                    && path.contains("/jobs")
+                    && method == "GET"
+                {
+                    (
+                        200,
+                        serde_json::json!([{
+                            "id": 1,
+                            "name": "opencode_agent",
+                            "stage": "opencode",
+                            "status": "running",
+                            "started_at": "2026-04-11T10:00:00Z",
+                            "finished_at": null,
+                            "duration": null,
+                            "web_url": "http://localhost/jobs/1"
+                        }])
+                        .to_string(),
+                    )
+                } else if path.contains("/projects/")
+                    && path.contains("/pipelines/")
+                    && method == "GET"
+                {
+                    let pipeline_id = path
+                        .split("/pipelines/")
+                        .nth(1)
                         .map(|s| s.split('/').next().unwrap_or("12345"))
                         .unwrap_or("12345");
-                    let status = if pipeline_id == "99999" { "failed" } else { "pending" };
-                    (200, serde_json::json!({
-                        "id": pipeline_id.parse::<u64>().unwrap_or(12345),
-                        "status": status,
-                        "ref": "main",
-                        "sha": "abc123",
-                        "web_url": format!("http://localhost/pipelines/{}", pipeline_id),
-                        "created_at": "2026-04-11T10:00:00Z",
-                        "updated_at": "2026-04-11T10:00:05Z"
-                    }).to_string())
-                } else if path.contains("/projects/") && path.contains("/repository/files/") && method == "GET" {
+                    let status = if pipeline_id == "99999" {
+                        "failed"
+                    } else {
+                        "pending"
+                    };
+                    (
+                        200,
+                        serde_json::json!({
+                            "id": pipeline_id.parse::<u64>().unwrap_or(12345),
+                            "status": status,
+                            "ref": "main",
+                            "sha": "abc123",
+                            "web_url": format!("http://localhost/pipelines/{}", pipeline_id),
+                            "created_at": "2026-04-11T10:00:00Z",
+                            "updated_at": "2026-04-11T10:00:05Z"
+                        })
+                        .to_string(),
+                    )
+                } else if path.contains("/projects/")
+                    && path.contains("/repository/files/")
+                    && method == "GET"
+                {
                     (404, r#"{"message":"file not found"}"#.to_string())
-                } else if path.contains("/projects/") && path.contains("/repository/files/") && method == "POST" {
-                    (201, serde_json::json!({
-                        "file_path": ".gitlab-ci.yml",
-                        "sha": "newfile123",
-                        "blob_sha": "blob456",
-                        "content_sha256": "content789",
-                        "commit_sha": "commit789",
-                        "branch": "main"
-                    }).to_string())
+                } else if path.contains("/projects/")
+                    && path.contains("/repository/files/")
+                    && method == "POST"
+                {
+                    (
+                        201,
+                        serde_json::json!({
+                            "file_path": ".gitlab-ci.yml",
+                            "sha": "newfile123",
+                            "blob_sha": "blob456",
+                            "content_sha256": "content789",
+                            "commit_sha": "commit789",
+                            "branch": "main"
+                        })
+                        .to_string(),
+                    )
                 } else {
                     (404, r#"{"message":"not found"}"#.to_string())
                 }
@@ -476,7 +511,11 @@ mod gitlab_integration_tests {
 
         let result = trigger.trigger_pipeline("main");
 
-        assert!(result.is_ok(), "Pipeline trigger should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Pipeline trigger should succeed: {:?}",
+            result.err()
+        );
         let trigger_result = result.unwrap();
         assert_eq!(trigger_result.pipeline_id, 12345);
         assert_eq!(trigger_result.branch, "main");
@@ -492,7 +531,11 @@ mod gitlab_integration_tests {
 
         let status = trigger.get_pipeline_status(12345);
 
-        assert!(status.is_ok(), "Pipeline status should be retrieved: {:?}", status.err());
+        assert!(
+            status.is_ok(),
+            "Pipeline status should be retrieved: {:?}",
+            status.err()
+        );
         let pipeline_status = status.unwrap();
         assert_eq!(pipeline_status.pipeline_id, 12345);
         assert_eq!(pipeline_status.status, "pending");
@@ -527,7 +570,11 @@ mod gitlab_integration_tests {
         let client = GitLabClient::new("test-token", &api_base);
 
         let setup_result = setup_gitlab_ci(&client, "group/project", "main", false);
-        assert!(setup_result.is_ok(), "CI setup should succeed: {:?}", setup_result.err());
+        assert!(
+            setup_result.is_ok(),
+            "CI setup should succeed: {:?}",
+            setup_result.err()
+        );
         let setup = setup_result.unwrap();
 
         assert_eq!(setup.ci_file_path, ".gitlab-ci.yml");
@@ -548,7 +595,10 @@ mod gitlab_integration_tests {
 
         let status = trigger.get_pipeline_status(99999);
 
-        assert!(status.is_ok(), "Pipeline status should be retrieved even for failed pipeline");
+        assert!(
+            status.is_ok(),
+            "Pipeline status should be retrieved even for failed pipeline"
+        );
         let pipeline_status = status.unwrap();
         assert_eq!(pipeline_status.pipeline_id, 99999);
         assert_eq!(pipeline_status.status, "failed");
@@ -560,7 +610,10 @@ mod gitlab_integration_tests {
         let client = GitLabClient::new("test-token", &api_base);
 
         let setup_result = setup_gitlab_ci(&client, "group/project", "develop", true);
-        assert!(setup_result.is_ok(), "CI setup with component should succeed");
+        assert!(
+            setup_result.is_ok(),
+            "CI setup with component should succeed"
+        );
         let setup = setup_result.unwrap();
 
         assert!(setup.use_component);
@@ -568,7 +621,10 @@ mod gitlab_integration_tests {
 
         let trigger = GitLabCiTrigger::new(client, "group/project");
         let pipeline_result = trigger.trigger_pipeline("develop");
-        assert!(pipeline_result.is_ok(), "Pipeline should be triggered on develop branch");
+        assert!(
+            pipeline_result.is_ok(),
+            "Pipeline should be triggered on develop branch"
+        );
         assert_eq!(pipeline_result.unwrap().branch, "develop");
     }
 
@@ -582,7 +638,11 @@ mod gitlab_integration_tests {
 
         for branch in branches {
             let result = trigger.trigger_pipeline(branch);
-            assert!(result.is_ok(), "Pipeline trigger should succeed for branch {}", branch);
+            assert!(
+                result.is_ok(),
+                "Pipeline trigger should succeed for branch {}",
+                branch
+            );
             let trigger_result = result.unwrap();
             assert_eq!(trigger_result.branch, branch);
             assert_eq!(trigger_result.pipeline_id, 12345);

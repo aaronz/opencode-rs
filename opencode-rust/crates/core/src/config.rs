@@ -1526,6 +1526,9 @@ impl Config {
                 let end_pos = start + end + 1;
                 s.replace_range(start..end_pos, &replacement);
 
+                if let Err(e) = Self::expand_string_variable(s, config_values, visited) {
+                    return Err(e);
+                }
                 visited.remove(&var_name);
             } else {
                 break;

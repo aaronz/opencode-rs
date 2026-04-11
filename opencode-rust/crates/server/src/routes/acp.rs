@@ -199,7 +199,12 @@ pub fn init(cfg: &mut web::ServiceConfig) {
 
 async fn acp_status(state: web::Data<ServerState>) -> impl Responder {
     HttpResponse::Ok().json(AcpStatusResponse {
-        status: if state.acp_enabled { "ready" } else { "disabled" }.to_string(),
+        status: if state.acp_enabled {
+            "ready"
+        } else {
+            "disabled"
+        }
+        .to_string(),
         version: "1.0".to_string(),
         acp_enabled: state.acp_enabled,
     })
@@ -268,7 +273,10 @@ async fn acp_connect(
     })
 }
 
-async fn acp_ack(state: web::Data<ServerState>, body: web::Json<AcpHandshakeAck>) -> impl Responder {
+async fn acp_ack(
+    state: web::Data<ServerState>,
+    body: web::Json<AcpHandshakeAck>,
+) -> impl Responder {
     if !state.acp_enabled {
         return HttpResponse::Ok().json(serde_json::json!({
             "confirmed": false,
