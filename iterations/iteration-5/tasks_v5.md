@@ -96,7 +96,7 @@
 ## P2 Issues (Nice to Have)
 
 ### Core Tasks
-- [ ] **P2-1:** Add `worktree_root` field distinction in Project type
+- [x] **P2-1:** Add `worktree_root` field distinction in Project type
 - [ ] **P2-2:** Enhance workspace path validation
 
 ### Storage Tasks

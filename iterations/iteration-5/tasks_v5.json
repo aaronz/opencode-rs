@@ -251,11 +251,11 @@
       "dependencies": []
     },
     {
-      "id": "P2-1",
+"id": "P2-1",
       "priority": "P2",
       "title": "Add worktree_root Field Distinction",
       "description": "Add worktree_root field distinction in Project type to handle Git worktree configurations properly.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Project type has worktree_root field",
         "Worktree detection works correctly",
@@ -264,7 +264,7 @@
       "test_commands": [
         "cargo test -p opencode-core worktree"
       ],
-      "impl_notes": "\u533a\u5206 worktree_root \u548c git_root",
+      "impl_notes": "Implemented: ProjectInfo has worktree_root field, detect_worktree_root function works correctly, agents_md uses stop_at_worktree_root for path operations",
       "dependencies": []
     },
     {
