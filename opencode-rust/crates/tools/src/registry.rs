@@ -2,10 +2,55 @@ use crate::{Tool, ToolContext, ToolResult};
 use opencode_core::OpenCodeError;
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 
 const CACHE_KEY_PREFIX: &str = "tool_cache:";
+const DEFAULT_CACHE_TTL: Duration = Duration::from_secs(300);
+
+struct CachedToolResult {
+    result: ToolResult,
+    cached_at: Instant,
+    ttl: Duration,
+    dependencies: HashSet<PathBuf>,
+}
+
+impl CachedToolResult {
+    fn new(result: ToolResult, ttl: Duration, dependencies: HashSet<PathBuf>) -> Self {
+        Self {
+            result,
+            cached_at: Instant::now(),
+            ttl,
+            dependencies,
+        }
+    }
+
+    fn is_expired(&self) -> bool {
+        self.cached_at.elapsed() > self.ttl
+    }
+
+    fn has_stale_dependencies(&self) -> bool {
+        let cached_duration = self.cached_at.elapsed();
+        for dep in &self.dependencies {
+            if let Ok(metadata) = std::fs::metadata(dep) {
+                if let Ok(modified) = metadata.modified() {
+                    if let Ok(modified_duration) = modified.duration_since(std::time::UNIX_EPOCH) {
+                        if modified_duration > cached_duration {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    fn is_valid(&self) -> bool {
+        !self.is_expired() && !self.has_stale_dependencies()
+    }
+}
 
 fn compute_cache_key(tool_name: &str, args: &serde_json::Value) -> String {
     let mut hasher = Sha256::new();
@@ -125,7 +170,8 @@ pub struct ToolCallResult {
 pub struct ToolRegistry {
     tools: Arc<RwLock<HashMap<String, ToolEntry>>>,
     disabled: HashSet<String>,
-    cache: Arc<RwLock<HashMap<String, ToolResult>>>,
+    cache: Arc<RwLock<HashMap<String, CachedToolResult>>>,
+    default_ttl: Duration,
 }
 
 impl ToolRegistry {
@@ -134,6 +180,16 @@ impl ToolRegistry {
             tools: Arc::new(RwLock::new(HashMap::new())),
             disabled: HashSet::new(),
             cache: Arc::new(RwLock::new(HashMap::new())),
+            default_ttl: DEFAULT_CACHE_TTL,
+        }
+    }
+
+    pub fn with_ttl(ttl: Duration) -> Self {
+        Self {
+            tools: Arc::new(RwLock::new(HashMap::new())),
+            disabled: HashSet::new(),
+            cache: Arc::new(RwLock::new(HashMap::new())),
+            default_ttl: ttl,
         }
     }
 
@@ -156,20 +212,49 @@ impl ToolRegistry {
         cache.clear();
     }
 
+    pub async fn invalidate_cache_for_file(&self, file_path: &PathBuf) {
+        let mut cache = self.cache.write().await;
+        cache.retain(|_key, cached| !cached.dependencies.contains(file_path));
+    }
+
+    pub async fn invalidate_cache_for_files(&self, file_paths: &HashSet<PathBuf>) {
+        let mut cache = self.cache.write().await;
+        cache.retain(|_key, cached| {
+            !cached.dependencies.iter().any(|dep| file_paths.contains(dep))
+        });
+    }
+
     pub async fn get_cached_result(
         &self,
         tool_name: &str,
         args: &serde_json::Value,
     ) -> Option<ToolResult> {
-        let cache = self.cache.read().await;
         let key = compute_cache_key(tool_name, args);
-        cache.get(&key).cloned()
+        let mut cache = self.cache.write().await;
+        
+        if let Some(cached) = cache.get(&key) {
+            if cached.is_valid() {
+                tracing::debug!(tool = %tool_name, "returning valid cached result");
+                return Some(cached.result.clone());
+            } else {
+                tracing::debug!(tool = %tool_name, "cached result expired or has stale dependencies, removing");
+                cache.remove(&key);
+            }
+        }
+        None
     }
 
-    async fn cache_result(&self, tool_name: &str, args: &serde_json::Value, result: ToolResult) {
+    async fn cache_result(
+        &self,
+        tool_name: &str,
+        args: &serde_json::Value,
+        result: ToolResult,
+        dependencies: HashSet<PathBuf>,
+    ) {
         let mut cache = self.cache.write().await;
         let key = compute_cache_key(tool_name, args);
-        cache.insert(key, result);
+        let cached = CachedToolResult::new(result, self.default_ttl, dependencies);
+        cache.insert(key, cached);
     }
 
     pub async fn register<T: Tool + 'static>(&self, tool: T) {
@@ -318,7 +403,8 @@ impl ToolRegistry {
         let result = tool.execute(args.clone(), ctx).await?;
 
         if is_safe && result.success {
-            self.cache_result(name, &args, result.clone()).await;
+            let dependencies = tool.get_dependencies(&args);
+            self.cache_result(name, &args, result.clone(), dependencies).await;
         }
 
         Ok(result)
@@ -1390,6 +1476,203 @@ mod tests {
             .unwrap();
         assert!(!result2.success);
         assert!(result2.error.unwrap().contains("intentional failure"));
+    }
+
+    #[tokio::test]
+    async fn test_result_caching_ttl_invalidation() {
+        use std::sync::atomic::{AtomicI32, Ordering};
+        use std::time::Duration;
+        
+        static CALL_COUNT: AtomicI32 = AtomicI32::new(0);
+        
+        #[derive(Clone)]
+        struct TtlTestTool;
+        #[async_trait]
+        impl Tool for TtlTestTool {
+            fn name(&self) -> &str {
+                "ttl_test_tool"
+            }
+            fn description(&self) -> &str {
+                "TTL test tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            fn is_safe(&self) -> bool {
+                true
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
+                let count = CALL_COUNT.fetch_add(1, Ordering::SeqCst);
+                Ok(ToolResult::ok(format!("call: {}", count + 1)))
+            }
+        }
+
+        let registry = ToolRegistry::with_ttl(Duration::from_millis(50));
+        registry.register(TtlTestTool).await;
+
+        let args = serde_json::json!({});
+
+        let result1 = registry
+            .execute("ttl_test_tool", args.clone(), None)
+            .await
+            .unwrap();
+        assert!(result1.content.contains("call: 1"));
+
+        tokio::time::sleep(Duration::from_millis(60)).await;
+
+        let result2 = registry
+            .execute("ttl_test_tool", args.clone(), None)
+            .await
+            .unwrap();
+        assert!(result2.content.contains("call: 2"), "Should re-execute after TTL expiration, got: {}", result2.content);
+    }
+
+    #[tokio::test]
+    async fn test_result_caching_dependency_invalidation() {
+        use tempfile::TempDir;
+
+        #[derive(Clone)]
+        struct FileDepTestTool;
+        #[async_trait]
+        impl Tool for FileDepTestTool {
+            fn name(&self) -> &str {
+                "file_dep_test_tool"
+            }
+            fn description(&self) -> &str {
+                "File dependency test tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            fn is_safe(&self) -> bool {
+                true
+            }
+            fn get_dependencies(&self, args: &serde_json::Value) -> HashSet<PathBuf> {
+                if let Some(path) = args.get("path").and_then(|v| v.as_str()) {
+                    let mut deps = HashSet::new();
+                    deps.insert(PathBuf::from(path));
+                    deps
+                } else {
+                    HashSet::new()
+                }
+            }
+            async fn execute(
+                &self,
+                args: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
+                let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
+                let content = std::fs::read_to_string(path).unwrap_or_default();
+                Ok(ToolResult::ok(format!("content: {}", content)))
+            }
+        }
+
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.txt");
+        std::fs::write(&file_path, "original").unwrap();
+
+        let registry = ToolRegistry::new();
+        registry.register(FileDepTestTool).await;
+
+        let args = serde_json::json!({"path": file_path.to_str().unwrap()});
+
+        let result1 = registry
+            .execute("file_dep_test_tool", args.clone(), None)
+            .await
+            .unwrap();
+        assert!(result1.content.contains("content: original"));
+
+        std::fs::write(&file_path, "modified").unwrap();
+
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        let result2 = registry
+            .execute("file_dep_test_tool", args.clone(), None)
+            .await
+            .unwrap();
+        assert!(result2.content.contains("content: modified"), 
+            "Should detect file change and re-execute, got: {}", result2.content);
+    }
+
+    #[tokio::test]
+    async fn test_invalidate_cache_for_file() {
+        use tempfile::TempDir;
+
+        #[derive(Clone)]
+        struct MultiFileDepTool;
+        #[async_trait]
+        impl Tool for MultiFileDepTool {
+            fn name(&self) -> &str {
+                "multi_file_dep_tool"
+            }
+            fn description(&self) -> &str {
+                "Multi file dependency tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            fn is_safe(&self) -> bool {
+                true
+            }
+            fn get_dependencies(&self, args: &serde_json::Value) -> HashSet<PathBuf> {
+                let mut deps = HashSet::new();
+                if let Some(paths) = args.get("paths").and_then(|v| v.as_array()) {
+                    for path in paths {
+                        if let Some(p) = path.as_str() {
+                            deps.insert(PathBuf::from(p));
+                        }
+                    }
+                }
+                deps
+            }
+            async fn execute(
+                &self,
+                args: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
+                let paths = args.get("paths").and_then(|v| v.as_array())
+                    .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>())
+                    .unwrap_or_default();
+                let contents: String = paths.iter()
+                    .map(|p| std::fs::read_to_string(p).unwrap_or_default())
+                    .collect();
+                Ok(ToolResult::ok(format!("contents: {}", contents)))
+            }
+        }
+
+        let temp_dir = TempDir::new().unwrap();
+        let file1_path = temp_dir.path().join("file1.txt");
+        let file2_path = temp_dir.path().join("file2.txt");
+        std::fs::write(&file1_path, "file1").unwrap();
+        std::fs::write(&file2_path, "file2").unwrap();
+
+        let registry = ToolRegistry::new();
+        registry.register(MultiFileDepTool).await;
+
+        let args = serde_json::json!({
+            "paths": [file1_path.to_str().unwrap(), file2_path.to_str().unwrap()]
+        });
+
+        let result1 = registry
+            .execute("multi_file_dep_tool", args.clone(), None)
+            .await
+            .unwrap();
+        assert!(result1.content.contains("contents: file1file2"));
+
+        std::fs::write(&file1_path, "file1_modified").unwrap();
+
+        registry.invalidate_cache_for_file(&file1_path).await;
+
+        let result2 = registry
+            .execute("multi_file_dep_tool", args.clone(), None)
+            .await
+            .unwrap();
+        assert!(result2.content.contains("file1_modified"), 
+            "Should re-execute after invalidating file1 dependency, got: {}", result2.content);
     }
 
     #[tokio::test]

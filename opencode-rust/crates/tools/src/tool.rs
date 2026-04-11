@@ -1,6 +1,8 @@
 use async_trait::async_trait;
 use opencode_core::OpenCodeError;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolResult {
@@ -76,5 +78,9 @@ pub trait Tool: Send + Sync {
 
     fn is_safe(&self) -> bool {
         false
+    }
+
+    fn get_dependencies(&self, _args: &serde_json::Value) -> HashSet<PathBuf> {
+        HashSet::new()
     }
 }

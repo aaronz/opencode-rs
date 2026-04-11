@@ -323,7 +323,7 @@
       "priority": "P2",
       "title": "Complete Result Caching Invalidation",
       "description": "Complete result caching invalidation to ensure stale cache entries are properly invalidated.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "Cache is invalidated when source changes",
         "Invalidation is triggered appropriately",
