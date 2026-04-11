@@ -1,5 +1,6 @@
 use clap::Args;
 use directories::ProjectDirs;
+use opencode_control_plane::SharedAcpStream;
 use opencode_core::bus::SharedEventBus;
 use opencode_core::config::ServerConfig;
 use opencode_core::Config;
@@ -94,6 +95,7 @@ async fn run_desktop(args: DesktopArgs) -> Result<(), Box<dyn std::error::Error>
         connection_monitor,
         share_server,
         acp_enabled,
+        acp_stream: SharedAcpStream::default(),
     };
 
     if auto_open_browser && !args.no_browser {

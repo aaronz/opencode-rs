@@ -41,7 +41,7 @@
       "priority": "P0",
       "title": "ACP HTTP+SSE Transport",
       "description": "ACP CLI commands exist but server transport is incomplete. Need to analyze current ACP CLI implementation, implement ACP HTTP+SSE endpoints in server, add ACP handshake flow, add ACP connect/ack endpoints, verify CLI commands connect properly, and add integration tests.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "ACP handshake endpoint responds correctly",
         "ACP connect endpoint establishes connection",

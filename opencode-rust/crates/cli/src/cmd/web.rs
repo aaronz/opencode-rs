@@ -1,5 +1,6 @@
 use clap::Args;
 use directories::ProjectDirs;
+use opencode_control_plane::SharedAcpStream;
 use opencode_core::bus::SharedEventBus;
 use opencode_core::config::ServerConfig;
 use opencode_core::Config;
@@ -74,6 +75,7 @@ async fn run_web(args: WebArgs) -> Result<(), Box<dyn std::error::Error>> {
         connection_monitor,
         share_server,
         acp_enabled: true,
+        acp_stream: SharedAcpStream::default(),
     };
 
     run_server(Arc::new(state), &host, port).await?;

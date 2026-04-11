@@ -20,7 +20,7 @@
 - **Status:** Build succeeds. Pre-existing test code bugs discovered (`Ordering` undeclared, `next_port` not found) - moved to P2-15.
 - **Estimated:** Done
 
-### P0-2: Desktop WebView Integration ✅ Done
+### P0-2: ✅ Done
 - **Severity:** BLOCKING (RESOLVED)
 - **Module:** `crates/cli/src/cmd/desktop.rs`
 - **Problem:** Only HTTP server scaffolding, no actual WebView component

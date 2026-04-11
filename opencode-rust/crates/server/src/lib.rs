@@ -2,12 +2,12 @@ use actix_web::dev::Service;
 use actix_web::{middleware as actix_middleware, web, App, HttpResponse, HttpServer, Responder};
 use futures::future::{ready, Either};
 use futures::FutureExt;
+use opencode_control_plane::SharedAcpStream;
 use opencode_core::bus::SharedEventBus;
 use opencode_core::config::ServerConfig;
 use opencode_core::Config;
 use opencode_llm::ModelRegistry;
 use opencode_storage::StorageService;
-use routes::acp::AcpState;
 use routes::share::ShareServer;
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -37,6 +37,7 @@ pub struct ServerState {
     pub connection_monitor: Arc<ConnectionMonitor>,
     pub share_server: Arc<RwLock<ShareServer>>,
     pub acp_enabled: bool,
+    pub acp_stream: SharedAcpStream,
 }
 
 pub async fn run_server(state: Arc<ServerState>, host: &str, port: u16) -> std::io::Result<()> {
@@ -50,7 +51,6 @@ pub async fn run_server(state: Arc<ServerState>, host: &str, port: u16) -> std::
         .clone()
         .unwrap_or_default();
     let cors_origins = server_cfg.cors.clone().unwrap_or_default();
-    let acp_enabled = state.acp_enabled;
 
     let mdns_service = if server_cfg.mdns == Some(true) {
         Some(mdns::MdnsService::start(&ServerConfig {
@@ -67,12 +67,10 @@ pub async fn run_server(state: Arc<ServerState>, host: &str, port: u16) -> std::
     };
 
     let state_data = web::Data::from(state);
-    let acp_state = web::Data::new(AcpState::new(acp_enabled));
 
     let result = HttpServer::new(move || {
         App::new()
             .app_data(state_data.clone())
-            .app_data(acp_state.clone())
             .wrap(actix_middleware::Logger::default())
             .wrap(middleware::cors_middleware(&cors_origins))
             .route("/", web::get().to(routes::web_ui::index))

@@ -19,6 +19,7 @@ opencode-storage = { workspace = true }
 opencode-tui.workspace = true
 opencode-mcp.workspace = true
 opencode-auth = { path = "../auth" }
+opencode-control-plane = { path = "../control-plane" }
 clap = { version = "4.5", features = ["derive"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true

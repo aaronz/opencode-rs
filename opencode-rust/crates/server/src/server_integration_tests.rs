@@ -29,6 +29,7 @@ mod tests {
                 crate::routes::share::ShareServer::with_default_config(),
             )),
             acp_enabled: true,
+            acp_stream: opencode_control_plane::AcpEventStream::new().into(),
         }
     }
 
@@ -52,6 +53,7 @@ mod tests {
                 crate::routes::share::ShareServer::with_default_config(),
             )),
             acp_enabled: true,
+            acp_stream: opencode_control_plane::AcpEventStream::new().into(),
         }
     }
 
@@ -1165,6 +1167,7 @@ mod security_tests {
                 crate::routes::share::ShareServer::with_default_config(),
             )),
             acp_enabled: true,
+            acp_stream: opencode_control_plane::AcpEventStream::new().into(),
         }
     }
 
