@@ -830,7 +830,7 @@
       "priority": "P1",
       "title": "Default model selection precedence",
       "description": "Implement default model selection with proper precedence. User config should override system defaults.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "User config overrides system defaults",
         "Provider-specific defaults are respected",

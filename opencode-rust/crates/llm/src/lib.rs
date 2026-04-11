@@ -13,6 +13,7 @@ pub mod google;
 pub mod groq;
 pub mod huggingface;
 pub mod mistral;
+pub mod model_selection;
 pub mod models;
 pub mod ollama;
 pub mod openai;
@@ -55,4 +56,5 @@ pub use provider_adapter::{
     AnthropicAdapter, LocalEndpointAdapter, OpenAICompatibleAdapter, ProviderAdapter,
 };
 pub use provider_filter::ProviderFilter;
+pub use model_selection::{ModelSelection, ProviderType, UserModelConfig};
 pub use transform::{MessageTransform, TransformPipeline};
