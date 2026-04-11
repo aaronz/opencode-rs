@@ -555,6 +555,320 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_primary_invariant_activate_from_inactive_succeeds() {
+        let mut tracker = PrimaryAgentTracker::new();
+        assert_eq!(tracker.state, PrimaryAgentState::Inactive);
+        assert!(tracker.agent_type.is_none());
+        assert!(!tracker.is_active());
+
+        tracker.activate(AgentType::Build).unwrap();
+
+        assert_eq!(tracker.state, PrimaryAgentState::Running);
+        assert_eq!(tracker.agent_type, Some(AgentType::Build));
+        assert!(tracker.is_active());
+        assert_eq!(tracker.active_type(), Some(AgentType::Build));
+    }
+
+    #[test]
+    fn test_primary_invariant_activate_from_running_fails_with_error() {
+        let mut tracker = PrimaryAgentTracker::new();
+        tracker.activate(AgentType::Build).unwrap();
+        assert_eq!(tracker.state, PrimaryAgentState::Running);
+
+        let result = tracker.activate(AgentType::Plan);
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        match err {
+            RuntimeError::MultiplePrimaryAgents { current, attempted } => {
+                assert_eq!(current, AgentType::Build);
+                assert_eq!(attempted, AgentType::Plan);
+            }
+            _ => panic!("Expected MultiplePrimaryAgents error, got: {:?}", err),
+        }
+        assert_eq!(tracker.state, PrimaryAgentState::Running);
+        assert_eq!(tracker.agent_type, Some(AgentType::Build));
+    }
+
+    #[test]
+    fn test_primary_invariant_activate_from_transitioning_fails() {
+        let mut tracker = PrimaryAgentTracker::new();
+        tracker.activate(AgentType::Build).unwrap();
+        tracker.begin_transition().unwrap();
+        assert_eq!(tracker.state, PrimaryAgentState::Transitioning);
+
+        let result = tracker.activate(AgentType::Plan);
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            RuntimeError::AgentTransitionInProgress { current } => {
+                assert_eq!(current, AgentType::Build);
+            }
+            _ => panic!("Expected AgentTransitionInProgress error"),
+        }
+        assert_eq!(tracker.state, PrimaryAgentState::Transitioning);
+    }
+
+    #[test]
+    fn test_primary_invariant_deactivate_from_running_succeeds() {
+        let mut tracker = PrimaryAgentTracker::new();
+        tracker.activate(AgentType::Build).unwrap();
+        assert!(tracker.is_active());
+
+        let deactivated = tracker.deactivate().unwrap();
+
+        assert_eq!(deactivated, AgentType::Build);
+        assert_eq!(tracker.state, PrimaryAgentState::Inactive);
+        assert!(tracker.agent_type.is_none());
+        assert!(!tracker.is_active());
+    }
+
+    #[test]
+    fn test_primary_invariant_deactivate_from_inactive_fails() {
+        let mut tracker = PrimaryAgentTracker::new();
+        assert_eq!(tracker.state, PrimaryAgentState::Inactive);
+
+        let result = tracker.deactivate();
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            RuntimeError::NoActivePrimaryAgent => {}
+            _ => panic!("Expected NoActivePrimaryAgent error"),
+        }
+        assert_eq!(tracker.state, PrimaryAgentState::Inactive);
+    }
+
+    #[test]
+    fn test_primary_invariant_deactivate_from_transitioning_fails() {
+        let mut tracker = PrimaryAgentTracker::new();
+        tracker.activate(AgentType::Build).unwrap();
+        tracker.begin_transition().unwrap();
+        assert_eq!(tracker.state, PrimaryAgentState::Transitioning);
+
+        let result = tracker.deactivate();
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            RuntimeError::AgentTransitionInProgress { current } => {
+                assert_eq!(current, AgentType::Build);
+            }
+            _ => panic!("Expected AgentTransitionInProgress error"),
+        }
+        assert_eq!(tracker.state, PrimaryAgentState::Transitioning);
+    }
+
+    #[test]
+    fn test_primary_invariant_begin_transition_from_running_succeeds() {
+        let mut tracker = PrimaryAgentTracker::new();
+        tracker.activate(AgentType::Build).unwrap();
+        assert!(tracker.is_active());
+
+        let current = tracker.begin_transition().unwrap();
+
+        assert_eq!(current, AgentType::Build);
+        assert_eq!(tracker.state, PrimaryAgentState::Transitioning);
+        assert_eq!(tracker.agent_type, Some(AgentType::Build));
+    }
+
+    #[test]
+    fn test_primary_invariant_begin_transition_from_inactive_fails() {
+        let mut tracker = PrimaryAgentTracker::new();
+        assert_eq!(tracker.state, PrimaryAgentState::Inactive);
+
+        let result = tracker.begin_transition();
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            RuntimeError::NoActivePrimaryAgent => {}
+            _ => panic!("Expected NoActivePrimaryAgent error"),
+        }
+        assert_eq!(tracker.state, PrimaryAgentState::Inactive);
+    }
+
+    #[test]
+    fn test_primary_invariant_begin_transition_from_transitioning_fails() {
+        let mut tracker = PrimaryAgentTracker::new();
+        tracker.activate(AgentType::Build).unwrap();
+        tracker.begin_transition().unwrap();
+        assert_eq!(tracker.state, PrimaryAgentState::Transitioning);
+
+        let result = tracker.begin_transition();
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            RuntimeError::AgentTransitionInProgress { current } => {
+                assert_eq!(current, AgentType::Build);
+            }
+            _ => panic!("Expected AgentTransitionInProgress error"),
+        }
+        assert_eq!(tracker.state, PrimaryAgentState::Transitioning);
+    }
+
+    #[test]
+    fn test_primary_invariant_complete_transition_restores_running() {
+        let mut tracker = PrimaryAgentTracker::new();
+        tracker.activate(AgentType::Build).unwrap();
+        tracker.begin_transition().unwrap();
+        assert_eq!(tracker.state, PrimaryAgentState::Transitioning);
+
+        tracker.complete_transition(AgentType::Plan);
+
+        assert_eq!(tracker.state, PrimaryAgentState::Running);
+        assert_eq!(tracker.agent_type, Some(AgentType::Plan));
+        assert!(tracker.is_active());
+        assert_eq!(tracker.active_type(), Some(AgentType::Plan));
+    }
+
+    #[test]
+    fn test_primary_invariant_exactly_one_through_full_cycle() {
+        let mut tracker = PrimaryAgentTracker::new();
+
+        assert_eq!(tracker.state, PrimaryAgentState::Inactive);
+        assert!(!tracker.is_active());
+
+        tracker.activate(AgentType::Build).unwrap();
+        assert_eq!(tracker.state, PrimaryAgentState::Running);
+        assert!(tracker.is_active());
+
+        tracker.begin_transition().unwrap();
+        assert_eq!(tracker.state, PrimaryAgentState::Transitioning);
+        assert!(!tracker.is_active());
+
+        tracker.complete_transition(AgentType::Plan);
+        assert_eq!(tracker.state, PrimaryAgentState::Running);
+        assert_eq!(tracker.agent_type, Some(AgentType::Plan));
+        assert!(tracker.is_active());
+    }
+
+    #[test]
+    fn test_primary_invariant_activate_after_transition_then_deactivate() {
+        let mut tracker = PrimaryAgentTracker::new();
+
+        tracker.activate(AgentType::Build).unwrap();
+        tracker.begin_transition().unwrap();
+        tracker.complete_transition(AgentType::Plan);
+        assert!(tracker.is_active());
+        assert_eq!(tracker.agent_type, Some(AgentType::Plan));
+        assert_eq!(tracker.active_type(), Some(AgentType::Plan));
+
+        tracker.deactivate().unwrap();
+        assert!(!tracker.is_active());
+        assert_eq!(tracker.state, PrimaryAgentState::Inactive);
+    }
+
+    #[test]
+    fn test_primary_invariant_inactive_state_requires_no_agent_type() {
+        let tracker = PrimaryAgentTracker::new();
+
+        assert_eq!(tracker.state, PrimaryAgentState::Inactive);
+        assert!(!tracker.is_active());
+        assert!(tracker.agent_type.is_none());
+        assert!(tracker.active_type().is_none());
+    }
+
+    #[test]
+    fn test_primary_invariant_transitioning_state_preserves_agent_type() {
+        let mut tracker = PrimaryAgentTracker::new();
+        tracker.activate(AgentType::Build).unwrap();
+        tracker.begin_transition().unwrap();
+
+        assert_eq!(tracker.state, PrimaryAgentState::Transitioning);
+        assert!(!tracker.is_active());
+        assert_eq!(tracker.agent_type, Some(AgentType::Build));
+        assert_eq!(tracker.active_type(), Some(AgentType::Build));
+    }
+
+    #[test]
+    fn test_primary_invariant_cannot_skip_transitioning() {
+        let mut tracker = PrimaryAgentTracker::new();
+        tracker.activate(AgentType::Build).unwrap();
+
+        tracker.complete_transition(AgentType::Plan);
+
+        assert_eq!(tracker.state, PrimaryAgentState::Running);
+        assert_eq!(tracker.agent_type, Some(AgentType::Plan));
+        assert!(tracker.is_active());
+    }
+
+    #[test]
+    fn test_primary_invariant_debug_clone_behavior() {
+        let mut tracker = PrimaryAgentTracker::new();
+        tracker.activate(AgentType::Build).unwrap();
+
+        let tracker_clone = tracker.clone();
+        assert_eq!(tracker.state, tracker_clone.state);
+        assert_eq!(tracker.agent_type, tracker_clone.agent_type);
+    }
+
+    #[test]
+    fn test_primary_invariant_agents_have_descriptions() {
+        let mut tracker = PrimaryAgentTracker::new();
+        tracker.activate(AgentType::Build).unwrap();
+
+        let display = format!("{:?}", tracker);
+        assert!(display.contains("Running"));
+        assert!(display.contains("Build"));
+    }
+
+    #[tokio::test]
+    async fn test_primary_invariant_runtime_agent_type_reflected_in_errors() {
+        let session = Session::default();
+        let mut runtime = AgentRuntime::new(session, AgentType::Build);
+
+        let result = runtime.activate_primary_agent(AgentType::Explore).await;
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        let err_display = format!("{}", err);
+        assert!(err_display.contains("build"), "Error should contain 'build': {}", err_display);
+        assert!(err_display.contains("explore"), "Error should contain 'explore': {}", err_display);
+    }
+
+    #[test]
+    fn test_primary_invariant_multiple_primary_agents_error_contains_both_types() {
+        let mut tracker = PrimaryAgentTracker::new();
+        tracker.activate(AgentType::Build).unwrap();
+
+        let result = tracker.activate(AgentType::Plan);
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        match err {
+            RuntimeError::MultiplePrimaryAgents { current, attempted } => {
+                assert_eq!(current, AgentType::Build);
+                assert_eq!(attempted, AgentType::Plan);
+            }
+            _ => panic!("Expected MultiplePrimaryAgents variant"),
+        }
+    }
+
+    #[test]
+    fn test_primary_invariant_agent_transition_in_progress_error() {
+        let mut tracker = PrimaryAgentTracker::new();
+        tracker.activate(AgentType::Build).unwrap();
+        tracker.begin_transition().unwrap();
+
+        let result = tracker.begin_transition();
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            RuntimeError::AgentTransitionInProgress { current } => {
+                assert_eq!(current, AgentType::Build);
+            }
+            _ => panic!("Expected AgentTransitionInProgress variant"),
+        }
+    }
+
+    #[test]
+    fn test_primary_invariant_no_active_primary_agent_error() {
+        let tracker = PrimaryAgentTracker::new();
+
+        assert_eq!(tracker.state, PrimaryAgentState::Inactive);
+        assert!(!tracker.is_active());
+        assert!(tracker.active_type().is_none());
+    }
+
     #[tokio::test]
     async fn test_runtime_starts_with_exactly_one_primary_agent() {
         let session = Session::default();

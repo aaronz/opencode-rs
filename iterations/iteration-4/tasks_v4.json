@@ -1338,7 +1338,7 @@
       "priority": "P0",
       "title": "Agent primary invariant tests (exactly one active)",
       "description": "Write tests verifying exactly one primary agent is active invariant. Test all ways the invariant could be violated.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Invariant is verified at all state transitions",
         "Concurrent activation attempts are handled",
