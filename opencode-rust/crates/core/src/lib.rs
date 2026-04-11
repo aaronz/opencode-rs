@@ -38,6 +38,7 @@ pub mod question;
 pub mod revert;
 pub mod server;
 pub mod session;
+pub mod session_sharing;
 pub mod session_state;
 pub mod share;
 pub mod shell;
@@ -114,6 +115,7 @@ pub use server::Server;
 /// A conversation session containing messages, metadata, and tool invocation history.
 /// Sessions can be saved to disk and restored for continued conversations.
 pub use session::{Session, SessionInfo, SessionSummaryMetadata, ShareError, ToolInvocationRecord};
+pub use session_sharing::{SessionSharing, SharingError};
 pub use session_state::{is_valid_transition, SessionState, StateTransitionError};
 pub use share::ShareManager;
 pub use shell::Shell;

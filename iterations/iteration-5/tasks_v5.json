@@ -202,7 +202,7 @@
       "priority": "P1",
       "title": "Complete Session Sharing Between Interfaces",
       "description": "Implement session sharing between CLI, TUI, desktop, and ACP interfaces so users can switch between modes seamlessly.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Session created in one interface is accessible in another",
         "Session state is synchronized",
