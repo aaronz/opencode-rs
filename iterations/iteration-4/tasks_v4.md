@@ -260,7 +260,7 @@
 
 | Task ID | Title | Module | FR | Phase | Status | Dependencies |
 |---------|-------|--------|-----|-------|--------|--------------|
-| T-023-1 | `tools` alias regression suite | config | FR-023 | Phase 5 | Pending | P1-9 |
+| T-023-1 | `tools` alias regression suite | config | FR-023 | Phase 5 | Done | P1-9 |
 | T-023-2 | Skill path regression suite | core | FR-023 | Phase 5 | Pending | P1-29 |
 | T-023-3 | Plugin ownership boundary suite | plugin | FR-023 | Phase 5 | Pending | P0-18 |
 
