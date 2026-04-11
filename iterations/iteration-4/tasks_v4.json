@@ -699,7 +699,7 @@
       "priority": "P1",
       "title": "TUI plugin commands API",
       "description": "Implement the TUI plugin commands API. Plugins should be able to register commands that appear in the TUI command palette.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "Plugins can register commands via API",
         "Registered commands appear in command palette",
@@ -718,7 +718,7 @@
       "priority": "P1",
       "title": "TUI plugin routes API",
       "description": "Implement the TUI plugin routes API. Plugins should be able to register custom routes/views in the TUI.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Plugins can register custom routes",
         "Routes are accessible in the TUI",
@@ -737,7 +737,7 @@
       "priority": "P1",
       "title": "TUI plugin theme API",
       "description": "Implement the TUI plugin theme API. Plugins should be able to customize colors and styling.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Plugins can register custom themes",
         "Theme changes apply correctly",

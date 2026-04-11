@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::sync::RwLock;
 
+use serde::{Deserialize, Serialize};
+
 pub const VERSION: &str = "1.0.0";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -34,6 +36,187 @@ pub struct CommandContextState {
 pub struct CommandMessage {
     pub role: String,
     pub content: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct RouteParams {
+    pub params: HashMap<String, String>,
+}
+
+impl RouteParams {
+    pub fn new() -> Self {
+        Self {
+            params: HashMap::new(),
+        }
+    }
+
+    pub fn with_param(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        self.params.insert(key.into(), value.into());
+        self
+    }
+
+    pub fn get(&self, key: &str) -> Option<&str> {
+        self.params.get(key).map(|s| s.as_str())
+    }
+}
+
+impl Default for RouteParams {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RouteContext {
+    pub plugin_id: String,
+    pub route_name: String,
+    pub params: RouteParams,
+}
+
+#[derive(Debug, Clone)]
+pub struct RouteResult {
+    pub success: bool,
+    pub message: String,
+}
+
+impl RouteResult {
+    pub fn success(message: impl Into<String>) -> Self {
+        Self {
+            success: true,
+            message: message.into(),
+        }
+    }
+
+    pub fn error(message: impl Into<String>) -> Self {
+        Self {
+            success: false,
+            message: message.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RegisteredRoute {
+    pub plugin_id: String,
+    pub name: String,
+}
+
+pub trait PluginRoute: Send + Sync {
+    fn name(&self) -> &str;
+    fn render(&self, ctx: &RouteContext) -> RouteResult;
+}
+
+pub struct PluginRouteRegistry {
+    routes: RwLock<HashMap<String, RegisteredRoute>>,
+    handlers: RwLock<HashMap<String, Box<dyn PluginRoute>>>,
+}
+
+impl PluginRouteRegistry {
+    pub fn new() -> Self {
+        Self {
+            routes: RwLock::new(HashMap::new()),
+            handlers: RwLock::new(HashMap::new()),
+        }
+    }
+
+    pub fn register_route<R: PluginRoute + 'static>(
+        &self,
+        plugin_id: &str,
+        route: R,
+    ) -> Result<(), PluginRouteError> {
+        let name = route.name().to_string();
+        let full_name = format!("{}:{}", plugin_id, name);
+
+        let mut routes = self.routes.write().unwrap();
+        if routes.contains_key(&full_name) {
+            return Err(PluginRouteError::RouteAlreadyRegistered(full_name));
+        }
+
+        let registered = RegisteredRoute {
+            plugin_id: plugin_id.to_string(),
+            name: name.clone(),
+        };
+
+        routes.insert(full_name.clone(), registered);
+
+        let mut handlers = self.handlers.write().unwrap();
+        handlers.insert(full_name, Box::new(route));
+
+        Ok(())
+    }
+
+    pub fn unregister_plugin_routes(&self, plugin_id: &str) {
+        let prefix = format!("{}:", plugin_id);
+
+        let mut routes = self.routes.write().unwrap();
+        let keys_to_remove: Vec<String> = routes
+            .keys()
+            .filter(|k| k.starts_with(&prefix))
+            .cloned()
+            .collect();
+
+        for key in keys_to_remove {
+            routes.remove(&key);
+        }
+
+        let mut handlers = self.handlers.write().unwrap();
+        let handler_keys_to_remove: Vec<String> = handlers
+            .keys()
+            .filter(|k| k.starts_with(&prefix))
+            .cloned()
+            .collect();
+
+        for key in handler_keys_to_remove {
+            handlers.remove(&key);
+        }
+    }
+
+    pub fn get_route(&self, plugin_id: &str, name: &str) -> Option<RegisteredRoute> {
+        let full_name = format!("{}:{}", plugin_id, name);
+        self.routes.read().unwrap().get(&full_name).cloned()
+    }
+
+    pub fn list_routes(&self) -> Vec<RegisteredRoute> {
+        self.routes.read().unwrap().values().cloned().collect()
+    }
+
+    pub fn execute(
+        &self,
+        plugin_id: &str,
+        name: &str,
+        ctx: &RouteContext,
+    ) -> Result<RouteResult, PluginRouteError> {
+        let full_name = format!("{}:{}", plugin_id, name);
+        let handlers = self.handlers.read().unwrap();
+        let handler = handlers
+            .get(&full_name)
+            .ok_or_else(|| PluginRouteError::RouteNotFound(full_name.clone()))?;
+
+        Ok(handler.render(ctx))
+    }
+
+    pub fn clear(&self) {
+        self.routes.write().unwrap().clear();
+        self.handlers.write().unwrap().clear();
+    }
+}
+
+impl Default for PluginRouteRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum PluginRouteError {
+    #[error("route not found: {0}")]
+    RouteNotFound(String),
+    #[error("route already registered: {0}")]
+    RouteAlreadyRegistered(String),
+    #[error("plugin not found: {0}")]
+    PluginNotFound(String),
+    #[error("render error: {0}")]
+    RenderError(String),
 }
 
 pub trait PluginCommand: Send + Sync {
@@ -206,6 +389,225 @@ pub enum PluginCommandError {
     PluginNotFound(String),
     #[error("execution error: {0}")]
     ExecutionError(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ThemeColors {
+    pub background: String,
+    pub foreground: String,
+    pub primary: String,
+    pub secondary: String,
+    pub accent: String,
+    pub error: String,
+    pub warning: String,
+    pub success: String,
+    pub muted: String,
+    pub border: String,
+}
+
+impl Default for ThemeColors {
+    fn default() -> Self {
+        Self {
+            background: "#1e1e2e".to_string(),
+            foreground: "#cdd6f4".to_string(),
+            primary: "#89b4fa".to_string(),
+            secondary: "#cba6f7".to_string(),
+            accent: "#f38ba8".to_string(),
+            error: "#f38ba8".to_string(),
+            warning: "#fab387".to_string(),
+            success: "#a6e3a1".to_string(),
+            muted: "#6c7086".to_string(),
+            border: "#313244".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PluginTheme {
+    pub name: String,
+    pub colors: ThemeColors,
+}
+
+impl PluginTheme {
+    pub fn new(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            colors: ThemeColors::default(),
+        }
+    }
+
+    pub fn with_colors(mut self, colors: ThemeColors) -> Self {
+        self.colors = colors;
+        self
+    }
+
+    pub fn background(mut self, color: impl Into<String>) -> Self {
+        self.colors.background = color.into();
+        self
+    }
+
+    pub fn foreground(mut self, color: impl Into<String>) -> Self {
+        self.colors.foreground = color.into();
+        self
+    }
+
+    pub fn primary(mut self, color: impl Into<String>) -> Self {
+        self.colors.primary = color.into();
+        self
+    }
+
+    pub fn secondary(mut self, color: impl Into<String>) -> Self {
+        self.colors.secondary = color.into();
+        self
+    }
+
+    pub fn accent(mut self, color: impl Into<String>) -> Self {
+        self.colors.accent = color.into();
+        self
+    }
+
+    pub fn error(mut self, color: impl Into<String>) -> Self {
+        self.colors.error = color.into();
+        self
+    }
+
+    pub fn warning(mut self, color: impl Into<String>) -> Self {
+        self.colors.warning = color.into();
+        self
+    }
+
+    pub fn success(mut self, color: impl Into<String>) -> Self {
+        self.colors.success = color.into();
+        self
+    }
+
+    pub fn muted(mut self, color: impl Into<String>) -> Self {
+        self.colors.muted = color.into();
+        self
+    }
+
+    pub fn border(mut self, color: impl Into<String>) -> Self {
+        self.colors.border = color.into();
+        self
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RegisteredTheme {
+    pub plugin_id: String,
+    pub name: String,
+}
+
+pub struct PluginThemeRegistry {
+    themes: RwLock<HashMap<String, RegisteredTheme>>,
+    theme_defs: RwLock<HashMap<String, PluginTheme>>,
+}
+
+impl PluginThemeRegistry {
+    pub fn new() -> Self {
+        Self {
+            themes: RwLock::new(HashMap::new()),
+            theme_defs: RwLock::new(HashMap::new()),
+        }
+    }
+
+    pub fn register_theme(
+        &self,
+        plugin_id: &str,
+        theme: PluginTheme,
+    ) -> Result<(), PluginThemeError> {
+        let name = theme.name.clone();
+        let full_name = format!("{}:{}", plugin_id, &name);
+
+        let mut themes = self.themes.write().unwrap();
+        if themes.contains_key(&full_name) {
+            return Err(PluginThemeError::ThemeAlreadyRegistered(full_name));
+        }
+
+        let registered = RegisteredTheme {
+            plugin_id: plugin_id.to_string(),
+            name: name.clone(),
+        };
+
+        themes.insert(full_name.clone(), registered);
+
+        let mut theme_defs = self.theme_defs.write().unwrap();
+        theme_defs.insert(full_name, theme);
+
+        Ok(())
+    }
+
+    pub fn unregister_plugin_themes(&self, plugin_id: &str) {
+        let prefix = format!("{}:", plugin_id);
+
+        let mut themes = self.themes.write().unwrap();
+        let keys_to_remove: Vec<String> = themes
+            .keys()
+            .filter(|k| k.starts_with(&prefix))
+            .cloned()
+            .collect();
+
+        for key in keys_to_remove {
+            themes.remove(&key);
+        }
+
+        let mut theme_defs = self.theme_defs.write().unwrap();
+        let def_keys_to_remove: Vec<String> = theme_defs
+            .keys()
+            .filter(|k| k.starts_with(&prefix))
+            .cloned()
+            .collect();
+
+        for key in def_keys_to_remove {
+            theme_defs.remove(&key);
+        }
+    }
+
+    pub fn get_theme(&self, plugin_id: &str, name: &str) -> Option<PluginTheme> {
+        let full_name = format!("{}:{}", plugin_id, name);
+        self.theme_defs.read().unwrap().get(&full_name).cloned()
+    }
+
+    pub fn list_themes(&self) -> Vec<RegisteredTheme> {
+        self.themes.read().unwrap().values().cloned().collect()
+    }
+
+    pub fn list_themes_for_plugin(&self, plugin_id: &str) -> Vec<RegisteredTheme> {
+        self.themes
+            .read()
+            .unwrap()
+            .values()
+            .filter(|t| t.plugin_id == plugin_id)
+            .cloned()
+            .collect()
+    }
+
+    pub fn get_all_themes(&self) -> Vec<PluginTheme> {
+        self.theme_defs.read().unwrap().values().cloned().collect()
+    }
+
+    pub fn clear(&self) {
+        self.themes.write().unwrap().clear();
+        self.theme_defs.write().unwrap().clear();
+    }
+}
+
+impl Default for PluginThemeRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum PluginThemeError {
+    #[error("theme not found: {0}")]
+    ThemeNotFound(String),
+    #[error("theme already registered: {0}")]
+    ThemeAlreadyRegistered(String),
+    #[error("plugin not found: {0}")]
+    PluginNotFound(String),
+    #[error("registration error: {0}")]
+    RegistrationError(String),
 }
 
 #[cfg(test)]
@@ -415,5 +817,189 @@ mod tests {
         let result = registry.register_command("plugin2", cmd2);
         assert!(result.is_ok());
         assert_eq!(registry.list_commands().len(), 2);
+    }
+
+    struct TestRoute {
+        name: String,
+        should_succeed: bool,
+    }
+
+    impl TestRoute {
+        fn new(name: &str, should_succeed: bool) -> Self {
+            Self {
+                name: name.to_string(),
+                should_succeed,
+            }
+        }
+    }
+
+    impl PluginRoute for TestRoute {
+        fn name(&self) -> &str {
+            &self.name
+        }
+
+        fn render(&self, _ctx: &RouteContext) -> RouteResult {
+            if self.should_succeed {
+                RouteResult::success("Route rendered")
+            } else {
+                RouteResult::error("Route render failed")
+            }
+        }
+    }
+
+    #[test]
+    fn test_plugin_route_registry_new() {
+        let registry = PluginRouteRegistry::new();
+        assert!(registry.list_routes().is_empty());
+    }
+
+    #[test]
+    fn test_plugin_routes_register_route() {
+        let registry = PluginRouteRegistry::new();
+        let route = TestRoute::new("demo", true);
+
+        registry.register_route("test.plugin", route).unwrap();
+
+        let routes = registry.list_routes();
+        assert_eq!(routes.len(), 1);
+        assert_eq!(routes[0].name, "demo");
+        assert_eq!(routes[0].plugin_id, "test.plugin");
+    }
+
+    #[test]
+    fn test_plugin_routes_register_duplicate() {
+        let registry = PluginRouteRegistry::new();
+        let route1 = TestRoute::new("demo", true);
+        let route2 = TestRoute::new("demo", true);
+
+        registry.register_route("test.plugin", route1).unwrap();
+
+        let result = registry.register_route("test.plugin", route2);
+        assert!(matches!(
+            result,
+            Err(PluginRouteError::RouteAlreadyRegistered(_))
+        ));
+    }
+
+    #[test]
+    fn test_plugin_routes_unregister_plugin_routes() {
+        let registry = PluginRouteRegistry::new();
+        let route1 = TestRoute::new("route1", true);
+        let route2 = TestRoute::new("route2", true);
+
+        registry.register_route("test.plugin", route1).unwrap();
+        registry.register_route("test.plugin", route2).unwrap();
+
+        assert_eq!(registry.list_routes().len(), 2);
+
+        registry.unregister_plugin_routes("test.plugin");
+        assert!(registry.list_routes().is_empty());
+    }
+
+    #[test]
+    fn test_plugin_routes_get_route() {
+        let registry = PluginRouteRegistry::new();
+        let route = TestRoute::new("get-route", true);
+
+        registry.register_route("get.plugin", route).unwrap();
+
+        let found = registry.get_route("get.plugin", "get-route");
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().name, "get-route");
+    }
+
+    #[test]
+    fn test_plugin_routes_execute() {
+        let registry = PluginRouteRegistry::new();
+        let route = TestRoute::new("exec-route", true);
+
+        registry.register_route("exec.plugin", route).unwrap();
+
+        let ctx = RouteContext {
+            plugin_id: "exec.plugin".to_string(),
+            route_name: "exec-route".to_string(),
+            params: RouteParams::new(),
+        };
+
+        let result = registry.execute("exec.plugin", "exec-route", &ctx).unwrap();
+        assert!(result.success);
+        assert_eq!(result.message, "Route rendered");
+    }
+
+    #[test]
+    fn test_plugin_routes_execute_with_params() {
+        let registry = PluginRouteRegistry::new();
+        let route = TestRoute::new("param-route", true);
+
+        registry.register_route("param.plugin", route).unwrap();
+
+        let ctx = RouteContext {
+            plugin_id: "param.plugin".to_string(),
+            route_name: "param-route".to_string(),
+            params: RouteParams::new().with_param("sessionID", "abc123"),
+        };
+
+        let result = registry
+            .execute("param.plugin", "param-route", &ctx)
+            .unwrap();
+        assert!(result.success);
+    }
+
+    #[test]
+    fn test_plugin_routes_execute_not_found() {
+        let registry = PluginRouteRegistry::new();
+        let ctx = RouteContext {
+            plugin_id: "test.plugin".to_string(),
+            route_name: "nonexistent".to_string(),
+            params: RouteParams::new(),
+        };
+
+        let result = registry.execute("test.plugin", "nonexistent", &ctx);
+        assert!(matches!(result, Err(PluginRouteError::RouteNotFound(_))));
+    }
+
+    #[test]
+    fn test_plugin_routes_multiple_plugins_same_name() {
+        let registry = PluginRouteRegistry::new();
+        let route1 = TestRoute::new("route", true);
+        let route2 = TestRoute::new("route", true);
+
+        registry.register_route("plugin1", route1).unwrap();
+
+        let result = registry.register_route("plugin2", route2);
+        assert!(result.is_ok());
+        assert_eq!(registry.list_routes().len(), 2);
+    }
+
+    #[test]
+    fn test_route_params_new() {
+        let params = RouteParams::new();
+        assert!(params.params.is_empty());
+    }
+
+    #[test]
+    fn test_route_params_with_param() {
+        let params = RouteParams::new().with_param("key", "value");
+        assert_eq!(params.get("key"), Some("value"));
+    }
+
+    #[test]
+    fn test_route_params_get_missing() {
+        let params = RouteParams::new();
+        assert_eq!(params.get("missing"), None);
+    }
+
+    #[test]
+    fn test_route_result_success() {
+        let result = RouteResult::success("OK");
+        assert!(result.success);
+        assert_eq!(result.message, "OK");
+    }
+
+    #[test]
+    fn test_route_result_error() {
+        let result = RouteResult::error("Failed");
+        assert!(!result.success);
+        assert_eq!(result.message, "Failed");
     }
 }

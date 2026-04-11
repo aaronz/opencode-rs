@@ -47,7 +47,9 @@ pub use patch_preview::{PatchDecision, PatchPreview};
 pub use plugin::{TuiPluginEntry, TuiPluginError, TuiPluginManager};
 pub use plugin_api::{
     ApiVersion, CommandContext, CommandContextState, CommandMessage, CommandResult, PluginCommand,
-    PluginCommandError, PluginCommandRegistry, RegisteredCommand, VERSION,
+    PluginCommandError, PluginCommandRegistry, PluginRoute, PluginRouteError,
+    PluginRouteRegistry, PluginTheme, PluginThemeError, PluginThemeRegistry, RegisteredCommand,
+    RegisteredRoute, RegisteredTheme, RouteContext, RouteParams, RouteResult, ThemeColors, VERSION,
 };
 pub use render::{MarkdownRenderer, SyntaxHighlighter};
 pub use right_panel::{RightPanel, RightPanelContent, RightPanelRenderData};

@@ -106,7 +106,7 @@
 | Task ID | Title | Module | FR | Phase | Status | Dependencies |
 |---------|-------|--------|-----|-------|--------|--------------|
 | P1-19 | TUI plugin commands API | tui | FR-009 | Phase 2 | Pending | P0-20 |
-| P1-20 | TUI plugin routes API | tui | FR-009 | Phase 2 | Pending | P0-20 |
+| P1-20 | TUI plugin routes API | tui | FR-009 | Phase 2 | Done | P0-20 |
 | P1-21 | TUI plugin theme API | tui | FR-009 | Phase 2 | Pending | P0-20 |
 | P1-22 | TUI plugin events API | tui | FR-009 | Phase 2 | Pending | P0-20 |
 | P1-23 | TUI plugin state API | tui | FR-009 | Phase 2 | Pending | P0-20 |
