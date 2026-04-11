@@ -20,6 +20,7 @@ pub mod openai_browser_auth;
 pub mod openrouter;
 pub mod perplexity;
 pub mod provider;
+pub mod provider_abstraction;
 pub mod provider_adapter;
 pub mod provider_filter;
 pub mod togetherai;
@@ -46,6 +47,9 @@ pub use openai_browser_auth::{
 pub use provider::{
     ChatMessage, ChatResponse, Model, Provider, ProviderConfig, SimpleProvider, StreamChunk,
     StreamingCallback,
+};
+pub use provider_abstraction::{
+    DynProvider, ProviderFactory, ProviderIdentity, ProviderManager, ProviderSpec,
 };
 pub use provider_adapter::{
     AnthropicAdapter, LocalEndpointAdapter, OpenAICompatibleAdapter, ProviderAdapter,
