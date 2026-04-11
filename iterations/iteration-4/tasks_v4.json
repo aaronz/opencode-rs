@@ -1111,7 +1111,7 @@
       "priority": "P2",
       "title": "Config auth/secret storage",
       "description": "Implement secure storage for authentication secrets in configuration. Use OS keychain or similar secure storage.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "Secrets are stored securely",
         "Secrets are not exposed in config files",

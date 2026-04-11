@@ -13,9 +13,11 @@ mod jsonc;
 mod merge;
 mod remote_cache;
 mod schema;
+mod secret_storage;
 pub use directory_scanner::{load_opencode_directory, OpencodeDirectoryScan};
 pub use jsonc::{is_jsonc_extension, parse_jsonc, JsoncError};
 use remote_cache::{load_cache, save_cache, RemoteConfigCache};
+use secret_storage::resolve_keychain_secret;
 
 /// Main configuration structure matching the TypeScript Config.Info schema
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
@@ -1365,6 +1367,45 @@ impl Config {
             }
         }
 
+        // Pattern: {keychain:secret_name}
+        while let Some(start) = result.find("{keychain:") {
+            if let Some(end) = result[start..].find('}') {
+                let secret_name = &result[start + 10..start + end];
+                let replacement = resolve_keychain_secret(secret_name)
+                    .unwrap_or_else(|| format!("{{keychain:{}}}", secret_name));
+                result = format!(
+                    "{}{}{}",
+                    &result[..start],
+                    replacement,
+                    &result[start + end + 1..]
+                );
+            } else {
+                break;
+            }
+        }
+
+        result
+    }
+
+    pub fn contains_keychain_reference(s: &str) -> bool {
+        s.contains("{keychain:")
+    }
+
+    pub fn redact_keychain_references(s: &str) -> String {
+        let mut result = s.to_string();
+        while let Some(start) = result.find("{keychain:") {
+            if let Some(end) = result[start..].find('}') {
+                let secret_name = &result[start + 10..start + end];
+                result = format!(
+                    "{}[keychain:{}]{}",
+                    &result[..start],
+                    secret_name,
+                    &result[start + end + 1..]
+                );
+            } else {
+                break;
+            }
+        }
         result
     }
 
@@ -4636,5 +4677,19 @@ api_key = "sk-test123"
             }
             _ => panic!("Expected grep to have Ask action"),
         }
+    }
+
+    #[test]
+    fn test_redact_keychain_references() {
+        let input = "api_key: {keychain:my-secret-key}";
+        let redacted = Config::redact_keychain_references(input);
+        assert_eq!(redacted, "api_key: [keychain:my-secret-key]");
+    }
+
+    #[test]
+    fn test_contains_keychain_reference() {
+        assert!(Config::contains_keychain_reference("{keychain:my-secret}"));
+        assert!(!Config::contains_keychain_reference("plain-text"));
+        assert!(Config::contains_keychain_reference("prefix {keychain:key} suffix"));
     }
 }
