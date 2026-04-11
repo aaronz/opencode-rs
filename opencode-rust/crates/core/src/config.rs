@@ -4692,4 +4692,574 @@ api_key = "sk-test123"
         assert!(!Config::contains_keychain_reference("plain-text"));
         assert!(Config::contains_keychain_reference("prefix {keychain:key} suffix"));
     }
+
+    // =========================================================================
+    // Config Precedence Merge Tests (T-019-2)
+    // =========================================================================
+    // Precedence chain (highest to lowest):
+    // 1. CLI arguments (via CliOverrideConfig)
+    // 2. Environment variables (OPENCODE_MODEL, etc.)
+    // 3. Remote config (OPENCODE_REMOTE_CONFIG, etc.)
+    // 4. Global config (~/.config/opencode/config.json)
+    // 5. Project-level config (opencode.json, .opencode/config.json)
+    // 6. .opencode/ directory scan
+    // 7. Inline defaults (Config::default)
+
+    #[test]
+    fn test_precedence_merge_deep_merge_nested_objects() {
+        let base = Config {
+            model: Some("base-model".to_string()),
+            server: Some(ServerConfig {
+                port: Some(8080),
+                hostname: Some("localhost".to_string()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let override_config = Config {
+            server: Some(ServerConfig {
+                port: Some(3000),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let merged = Config::merge_configs(base, override_config);
+
+        assert_eq!(merged.model, Some("base-model".to_string()));
+        assert_eq!(merged.server.as_ref().unwrap().port, Some(3000));
+        assert_eq!(merged.server.as_ref().unwrap().hostname, Some("localhost".to_string()));
+    }
+
+    #[test]
+    fn test_precedence_merge_arrays_are_replaced() {
+        let base = Config {
+            instructions: Some(vec!["instruction1".to_string(), "instruction2".to_string()]),
+            ..Default::default()
+        };
+
+        let override_config = Config {
+            instructions: Some(vec!["override1".to_string()]),
+            ..Default::default()
+        };
+
+        let merged = Config::merge_configs(base, override_config);
+
+        assert_eq!(merged.instructions.as_ref().unwrap().len(), 1);
+        assert_eq!(merged.instructions.as_ref().unwrap()[0], "override1");
+    }
+
+    #[test]
+    fn test_precedence_merge_scalar_values_override() {
+        let base = Config {
+            model: Some("base-model".to_string()),
+            temperature: Some(0.5),
+            max_tokens: Some(1000),
+            ..Default::default()
+        };
+
+        let override_config = Config {
+            model: Some("override-model".to_string()),
+            temperature: Some(0.9),
+            ..Default::default()
+        };
+
+        let merged = Config::merge_configs(base, override_config);
+
+        assert_eq!(merged.model, Some("override-model".to_string()));
+        assert_eq!(merged.temperature, Some(0.9));
+        assert_eq!(merged.max_tokens, Some(1000));
+    }
+
+    #[test]
+    fn test_precedence_merge_none_values_dont_override() {
+        let base = Config {
+            model: Some("base-model".to_string()),
+            temperature: Some(0.5),
+            ..Default::default()
+        };
+
+        let override_config = Config {
+            model: None,
+            temperature: None,
+            ..Default::default()
+        };
+
+        let merged = Config::merge_configs(base, override_config);
+
+        assert_eq!(merged.model, Some("base-model".to_string()));
+        assert_eq!(merged.temperature, Some(0.5));
+    }
+
+    #[test]
+    fn test_precedence_merge_provider_config_deep_merge() {
+        let base = Config {
+            provider: Some(HashMap::from([
+                ("openai".to_string(), ProviderConfig {
+                    id: Some("openai".to_string()),
+                    options: Some(ProviderOptions {
+                        api_key: Some("base-key".to_string()),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                }),
+            ])),
+            ..Default::default()
+        };
+
+        let override_config = Config {
+            provider: Some(HashMap::from([
+                ("openai".to_string(), ProviderConfig {
+                    options: Some(ProviderOptions {
+                        api_key: Some("override-key".to_string()),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                }),
+            ])),
+            ..Default::default()
+        };
+
+        let merged = Config::merge_configs(base, override_config);
+
+        let openai_config = merged.provider.as_ref().unwrap().get("openai").unwrap();
+        assert_eq!(openai_config.options.as_ref().unwrap().api_key.as_ref().unwrap(), "override-key");
+        assert_eq!(openai_config.id.as_ref().unwrap(), "openai");
+    }
+
+    #[test]
+    fn test_precedence_merge_agent_config_deep_merge() {
+        let base = Config {
+            agent: Some(AgentMapConfig {
+                agents: HashMap::from([
+                    ("build".to_string(), AgentConfig {
+                        model: Some("claude-3".to_string()),
+                        tools: Some(HashMap::from([
+                            ("bash".to_string(), true),
+                            ("read".to_string(), true),
+                        ])),
+                        ..Default::default()
+                    }),
+                ]),
+                default_agent: Some("build".to_string()),
+            }),
+            ..Default::default()
+        };
+
+        let override_config = Config {
+            agent: Some(AgentMapConfig {
+                agents: HashMap::from([
+                    ("build".to_string(), AgentConfig {
+                        tools: Some(HashMap::from([
+                            ("bash".to_string(), false),
+                        ])),
+                        ..Default::default()
+                    }),
+                ]),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let merged = Config::merge_configs(base, override_config);
+
+        let build_agent = merged.agent.as_ref().unwrap().agents.get("build").unwrap();
+        assert_eq!(build_agent.model.as_ref().unwrap(), "claude-3");
+        let tools = build_agent.tools.as_ref().unwrap();
+        assert_eq!(tools.get("bash"), Some(&false));
+        assert_eq!(tools.get("read"), Some(&true));
+    }
+
+    #[test]
+    fn test_precedence_env_overrides_config_file() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let temp_dir = unique_temp_dir("precedence_env_test");
+
+        let config_path = temp_dir.join("config.json");
+        let config_content = serde_json::json!({
+            "model": "config-file-model",
+            "temperature": 0.3,
+            "max_tokens": 1000
+        }).to_string();
+        fs::write(&config_path, config_content).unwrap();
+
+        set_env("OPENCODE_MODEL", "env-model");
+        set_env("OPENCODE_TEMPERATURE", "0.8");
+
+        let mut config = Config::load(&config_path).unwrap();
+        config.apply_env_overrides();
+
+        assert_eq!(config.model, Some("env-model".to_string()));
+        assert_eq!(config.temperature, Some(0.8));
+        assert_eq!(config.max_tokens, Some(1000));
+
+        remove_env("OPENCODE_MODEL");
+        remove_env("OPENCODE_TEMPERATURE");
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn test_precedence_cli_overrides_env() {
+        let _guard = ENV_LOCK.lock().unwrap();
+
+        set_env("OPENCODE_MODEL", "env-model");
+        set_env("OPENCODE_TEMPERATURE", "0.8");
+
+        let mut config = Config::default();
+        config.apply_env_overrides();
+
+        assert_eq!(config.model, Some("env-model".to_string()));
+        assert_eq!(config.temperature, Some(0.8));
+
+        let cli_overrides = CliOverrideConfig {
+            model: Some("cli-model".to_string()),
+            provider: Some("anthropic".to_string()),
+            temperature: Some(0.1),
+            max_tokens: Some(4000),
+            default_agent: Some("build".to_string()),
+        };
+        config.apply_cli_overrides(
+            cli_overrides.model,
+            cli_overrides.provider,
+            cli_overrides.temperature,
+            cli_overrides.max_tokens,
+            cli_overrides.default_agent.clone(),
+        );
+
+        assert_eq!(config.model, Some("cli-model".to_string()));
+        assert_eq!(config.temperature, Some(0.1));
+        assert_eq!(config.max_tokens, Some(4000));
+        assert_eq!(config.default_agent, Some("build".to_string()));
+
+        remove_env("OPENCODE_MODEL");
+        remove_env("OPENCODE_TEMPERATURE");
+    }
+
+    #[test]
+    fn test_precedence_cli_none_values_dont_override_env() {
+        let _guard = ENV_LOCK.lock().unwrap();
+
+        set_env("OPENCODE_MODEL", "env-model");
+        set_env("OPENCODE_TEMPERATURE", "0.8");
+
+        let mut config = Config::default();
+        config.apply_env_overrides();
+
+        let cli_overrides = CliOverrideConfig {
+            model: None,
+            provider: None,
+            temperature: None,
+            max_tokens: None,
+            default_agent: None,
+        };
+        config.apply_cli_overrides(
+            cli_overrides.model,
+            cli_overrides.provider,
+            cli_overrides.temperature,
+            cli_overrides.max_tokens,
+            cli_overrides.default_agent,
+        );
+
+        assert_eq!(config.model, Some("env-model".to_string()));
+        assert_eq!(config.temperature, Some(0.8));
+
+        remove_env("OPENCODE_MODEL");
+        remove_env("OPENCODE_TEMPERATURE");
+    }
+
+    #[test]
+    fn test_precedence_full_chain_integration() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let temp_dir = unique_temp_dir("precedence_full_chain");
+
+        let config_path = temp_dir.join("config.json");
+        let config_content = serde_json::json!({
+            "model": "file-model",
+            "temperature": 0.3,
+            "provider": {
+                "openai": {"id": "openai"}
+            }
+        }).to_string();
+        fs::write(&config_path, config_content).unwrap();
+
+        set_env("OPENCODE_CONFIG_DIR", &temp_dir);
+        set_env("OPENCODE_MODEL", "env-model");
+        set_env("OPENCODE_PROVIDER", "anthropic");
+        set_env("OPENCODE_TEMPERATURE", "0.8");
+
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let cli_overrides = CliOverrideConfig {
+            model: Some("cli-model".to_string()),
+            provider: Some("google".to_string()),
+            temperature: Some(0.1),
+            max_tokens: Some(8000),
+            default_agent: Some("plan".to_string()),
+        };
+        let config = runtime.block_on(Config::load_multi(Some(&cli_overrides))).unwrap();
+
+        assert_eq!(config.model, Some("cli-model".to_string()));
+        assert!(config.provider.as_ref().unwrap().contains_key("google"));
+        assert_eq!(config.temperature, Some(0.1));
+        assert_eq!(config.max_tokens, Some(8000));
+        assert_eq!(config.default_agent, Some("plan".to_string()));
+
+        remove_env("OPENCODE_CONFIG_DIR");
+        remove_env("OPENCODE_MODEL");
+        remove_env("OPENCODE_PROVIDER");
+        remove_env("OPENCODE_TEMPERATURE");
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn test_precedence_project_config_overrides_global() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let temp_dir = unique_temp_dir("precedence_project_global");
+
+        let global_dir = temp_dir.join("global");
+        let project_dir = temp_dir.join("project");
+        fs::create_dir_all(&global_dir).unwrap();
+        fs::create_dir_all(&project_dir).unwrap();
+
+        let global_path = global_dir.join("config.json");
+        fs::write(&global_path, serde_json::json!({
+            "model": "global-model",
+            "temperature": 0.1
+        }).to_string()).unwrap();
+
+        let project_path = project_dir.join("opencode.json");
+        fs::write(&project_path, serde_json::json!({
+            "model": "project-model",
+            "temperature": 0.5
+        }).to_string()).unwrap();
+
+        set_env("HOME", &temp_dir);
+        std::env::set_current_dir(&project_dir).unwrap();
+
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let config = runtime.block_on(Config::load_multi(None)).unwrap();
+
+        assert_eq!(config.model, Some("project-model".to_string()));
+        assert_eq!(config.temperature, Some(0.5));
+
+        std::env::set_current_dir(std::env::temp_dir()).unwrap();
+        remove_env("HOME");
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn test_precedence_opencode_dir_overrides_project() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let temp_dir = unique_temp_dir("precedence_opencode_dir");
+
+        let project_dir = temp_dir.join("project");
+        let opencode_dir = project_dir.join(".opencode");
+        fs::create_dir_all(&opencode_dir).unwrap();
+
+        let project_path = project_dir.join("opencode.json");
+        fs::write(&project_path, serde_json::json!({
+            "model": "project-model",
+            "temperature": 0.1
+        }).to_string()).unwrap();
+
+        let opencode_config_path = opencode_dir.join("config.json");
+        fs::write(&opencode_config_path, serde_json::json!({
+            "model": "opencode-dir-model",
+            "temperature": 0.9
+        }).to_string()).unwrap();
+
+        std::env::set_current_dir(&project_dir).unwrap();
+
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let config = runtime.block_on(Config::load_multi(None)).unwrap();
+
+        assert_eq!(config.model, Some("opencode-dir-model".to_string()));
+        assert_eq!(config.temperature, Some(0.9));
+
+        std::env::set_current_dir(std::env::temp_dir()).unwrap();
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn test_precedence_deep_merge_preserves_higher_level_nested_fields() {
+        let base = Config {
+            server: Some(ServerConfig {
+                port: Some(8080),
+                hostname: Some("localhost".to_string()),
+                mdns: Some(true),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let override_config = Config {
+            server: Some(ServerConfig {
+                port: Some(3000),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let merged = Config::merge_configs(base, override_config);
+
+        let server = merged.server.as_ref().unwrap();
+        assert_eq!(server.port, Some(3000));
+        assert_eq!(server.hostname, Some("localhost".to_string()));
+        assert_eq!(server.mdns, Some(true));
+    }
+
+    #[test]
+    fn test_precedence_permission_config_merge() {
+        let base = Config {
+            permission: Some(PermissionConfig {
+                bash: Some(PermissionRule::Action(PermissionAction::Ask)),
+                read: Some(PermissionRule::Action(PermissionAction::Allow)),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let override_config = Config {
+            permission: Some(PermissionConfig {
+                bash: Some(PermissionRule::Action(PermissionAction::Deny)),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let merged = Config::merge_configs(base, override_config);
+
+        let perm = merged.permission.as_ref().unwrap();
+        assert!(matches!(perm.bash, Some(PermissionRule::Action(PermissionAction::Deny))));
+        assert!(matches!(perm.read, Some(PermissionRule::Action(PermissionAction::Allow))));
+    }
+
+    #[test]
+    fn test_precedence_experimental_flags_merge() {
+        let base = Config {
+            experimental: Some(ExperimentalConfig {
+                batch_tool: Some(true),
+                open_telemetry: Some(false),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let override_config = Config {
+            experimental: Some(ExperimentalConfig {
+                open_telemetry: Some(true),
+                continue_loop_on_deny: Some(true),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let merged = Config::merge_configs(base, override_config);
+
+        let exp = merged.experimental.as_ref().unwrap();
+        assert_eq!(exp.batch_tool, Some(true));
+        assert_eq!(exp.open_telemetry, Some(true));
+        assert_eq!(exp.continue_loop_on_deny, Some(true));
+    }
+
+    #[test]
+    fn test_precedence_empty_config_merges_correctly() {
+        let base = Config::default();
+        let override_config = Config {
+            model: Some("override".to_string()),
+            ..Default::default()
+        };
+
+        let merged = Config::merge_configs(base, override_config);
+        assert_eq!(merged.model, Some("override".to_string()));
+    }
+
+    #[test]
+    fn test_precedence_default_config_is_lowest_priority() {
+        let override_config = Config {
+            model: Some("override".to_string()),
+            temperature: Some(0.9),
+            ..Default::default()
+        };
+
+        let merged = Config::merge_configs(Config::default(), override_config);
+
+        assert_eq!(merged.model, Some("override".to_string()));
+        assert_eq!(merged.temperature, Some(0.9));
+    }
+
+    #[test]
+    fn test_precedence_env_config_content_overrides_file() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let temp_dir = unique_temp_dir("precedence_config_content");
+
+        let config_path = temp_dir.join("config.json");
+        fs::write(&config_path, serde_json::json!({
+            "model": "file-model",
+            "temperature": 0.3
+        }).to_string()).unwrap();
+
+        set_env("OPENCODE_CONFIG", &config_path);
+        set_env("OPENCODE_CONFIG_CONTENT", serde_json::json!({
+            "model": "env-content-model",
+            "temperature": 0.9
+        }).to_string());
+
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let config = runtime.block_on(Config::load_multi(None)).unwrap();
+
+        assert_eq!(config.model, Some("env-content-model".to_string()));
+        assert_eq!(config.temperature, Some(0.9));
+
+        remove_env("OPENCODE_CONFIG");
+        remove_env("OPENCODE_CONFIG_CONTENT");
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn test_precedence_multiple_env_vars_stack() {
+        let _guard = ENV_LOCK.lock().unwrap();
+
+        set_env("OPENCODE_MODEL", "model-from-env");
+        set_env("OPENCODE_TEMPERATURE", "0.7");
+        set_env("OPENCODE_MAX_TOKENS", "5000");
+        set_env("OPENCODE_SMALL_MODEL", "small-model-from-env");
+        set_env("OPENCODE_DEFAULT_AGENT", "agent-from-env");
+
+        let mut config = Config::default();
+        config.apply_env_overrides();
+
+        assert_eq!(config.model, Some("model-from-env".to_string()));
+        assert_eq!(config.temperature, Some(0.7));
+        assert_eq!(config.max_tokens, Some(5000));
+        assert_eq!(config.small_model, Some("small-model-from-env".to_string()));
+        assert_eq!(config.default_agent, Some("agent-from-env".to_string()));
+
+        remove_env("OPENCODE_MODEL");
+        remove_env("OPENCODE_TEMPERATURE");
+        remove_env("OPENCODE_MAX_TOKENS");
+        remove_env("OPENCODE_SMALL_MODEL");
+        remove_env("OPENCODE_DEFAULT_AGENT");
+    }
+
+    #[test]
+    fn test_precedence_provider_api_keys_from_env() {
+        let _guard = ENV_LOCK.lock().unwrap();
+
+        set_env("OPENAI_API_KEY", "sk-openai-test");
+        set_env("ANTHROPIC_API_KEY", "sk-ant-test");
+        set_env("GOOGLE_API_KEY", "google-test-key");
+
+        let mut config = Config::default();
+        config.apply_env_overrides();
+
+        let providers = config.provider.as_ref().unwrap();
+        assert_eq!(providers.get("openai").unwrap().options.as_ref().unwrap().api_key.as_ref().unwrap(), "sk-openai-test");
+        assert_eq!(providers.get("anthropic").unwrap().options.as_ref().unwrap().api_key.as_ref().unwrap(), "sk-ant-test");
+        assert_eq!(providers.get("google").unwrap().options.as_ref().unwrap().api_key.as_ref().unwrap(), "google-test-key");
+
+        remove_env("OPENAI_API_KEY");
+        remove_env("ANTHROPIC_API_KEY");
+        remove_env("GOOGLE_API_KEY");
+    }
 }

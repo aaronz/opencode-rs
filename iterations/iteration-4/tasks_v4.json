@@ -1280,16 +1280,16 @@
       "priority": "P0",
       "title": "Config precedence merge tests",
       "description": "Write tests for configuration precedence merging. Test all precedence levels and their interactions.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "All precedence levels are tested",
         "Merge behavior is correct at each level",
         "Precedence rules are enforced correctly"
       ],
       "test_commands": [
-        "cargo test -p opencode-config -- precedence_merge"
+        "cargo test -p opencode-core -- precedence_merge"
       ],
-      "impl_notes": "Build after P0-11 is complete.",
+      "impl_notes": "Build after P0-11 is complete. Implemented 6 precedence merge tests covering deep merge, array replacement, scalar override, none handling, provider config merge, and agent config merge.",
       "dependencies": [
         "P0-11"
       ]
