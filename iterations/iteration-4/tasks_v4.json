@@ -1073,7 +1073,7 @@
       "priority": "P2",
       "title": "MCP context cost warnings",
       "description": "Implement context cost tracking and warnings for MCP operations. Warn when operations may exceed context limits.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Context costs are tracked",
         "Warnings are shown before limits are exceeded",
@@ -1082,7 +1082,7 @@
       "test_commands": [
         "cargo test -p opencode-mcp -- context_cost"
       ],
-      "impl_notes": "Build on MCP tool discovery (P0-8).",
+      "impl_notes": "Added context_cost.rs module with ContextCostTracker and SharedContextCostTracker for tracking MCP tool call costs. Implemented cost levels (Normal, Warning, Critical, LimitExceeded) based on configurable thresholds. Added warning system with cooldown to prevent spam. Integrated cost tracking into McpToolAdapter with executor_with_cost_tracking and register_with_cost_tracking methods. Added 11 comprehensive tests covering cost tracking, level calculation, warning generation, and tool integration.",
       "dependencies": [
         "P0-8"
       ]

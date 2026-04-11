@@ -1,11 +1,16 @@
 pub mod auth;
 pub mod client;
+pub mod context_cost;
 pub mod integration;
 pub mod pool;
 pub mod protocol;
 pub mod registry;
 pub mod server;
 pub mod tool_bridge;
+
+pub use context_cost::{
+    CostLevel, CostLimits, CostRecord, ContextCostStats, ContextCostTracker, SharedContextCostTracker,
+};
 
 pub use client::{
     ConnectionState, JsonRpcMessage, McpClient, McpError, McpResource, McpTool, McpToolResult,
