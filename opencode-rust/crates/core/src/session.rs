@@ -985,11 +985,11 @@ mod tests {
     }
 
     // =========================================================================
-    // Ownership Invariant Tests
+    // Ownership Tree Tests
     // =========================================================================
 
     #[test]
-    fn test_ownership_invariant_fork_creates_child_with_parent_reference() {
+    fn test_ownership_tree_fork_creates_child_with_parent_reference() {
         // Test that fork() correctly transfers ownership by establishing parent-child relationship
         let mut parent = Session::new();
         parent.add_message(Message::user("original message"));
@@ -1010,7 +1010,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ownership_invariant_fork_at_message_preserves_ownership() {
+    fn test_ownership_tree_fork_at_message_preserves_ownership() {
         // Test that fork_at_message() correctly transfers ownership at specific point
         let mut parent = Session::new();
         parent.add_message(Message::user("first"));
@@ -1033,7 +1033,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ownership_invariant_multi_level_fork_lineage_chain() {
+    fn test_ownership_tree_multi_level_fork_lineage_chain() {
         // Test that multi-level forking maintains correct lineage invariant
         let grandparent = Session::new();
         let grandparent_id = grandparent.id.to_string();
@@ -1072,7 +1072,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ownership_invariant_share_link_generation_manual_mode() {
+    fn test_ownership_tree_share_link_generation_manual_mode() {
         // Test that share link generation works correctly in Manual mode
         let mut session = Session::new();
         session.add_message(Message::user("secret content"));
@@ -1100,7 +1100,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ownership_invariant_share_link_generation_auto_mode() {
+    fn test_ownership_tree_share_link_generation_auto_mode() {
         // Test that share link generation works correctly in Auto mode
         let mut session = Session::new();
         session.set_share_mode(ShareMode::Auto);
@@ -1115,7 +1115,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ownership_invariant_share_link_blocked_when_disabled() {
+    fn test_ownership_tree_share_link_blocked_when_disabled() {
         // Test that share link generation fails when sharing is disabled
         let mut session = Session::new();
         session.set_share_mode(ShareMode::Disabled);
@@ -1136,7 +1136,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ownership_invariant_share_mode_transitions() {
+    fn test_ownership_tree_share_mode_transitions() {
         let mut session = Session::new();
 
         assert!(!session.is_shared());
@@ -1163,7 +1163,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ownership_invariant_share_expiry_enforces_temporal_bound() {
+    fn test_ownership_tree_share_expiry_enforces_temporal_bound() {
         // Test that share expiry correctly enforces temporal ownership bound
         let mut session = Session::new();
         session.generate_share_link().unwrap();
@@ -1193,7 +1193,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ownership_invariant_share_id_uniqueness() {
+    fn test_ownership_tree_share_id_uniqueness() {
         // Test that each session gets a unique share_id invariant
         let mut session1 = Session::new();
         let mut session2 = Session::new();
@@ -1214,7 +1214,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ownership_invariant_fork_inherits_share_mode_not_shared_id() {
+    fn test_ownership_tree_fork_inherits_share_mode_not_shared_id() {
         // Test that fork inherits share mode but generates new share_id
         let mut parent = Session::new();
         parent.set_share_mode(ShareMode::Auto);
@@ -1241,7 +1241,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ownership_invariant_serialization_preserves_lineage() {
+    fn test_ownership_tree_serialization_preserves_lineage() {
         // Test that serialization preserves ownership lineage invariant
         let grandparent = Session::new();
         let parent = grandparent.fork(Uuid::new_v4());
@@ -1276,7 +1276,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ownership_invariant_serialization_preserves_sharing_state() {
+    fn test_ownership_tree_serialization_preserves_sharing_state() {
         // Test that serialization preserves sharing ownership invariant
         let mut session = Session::new();
         session.set_share_mode(ShareMode::Manual);
@@ -1308,7 +1308,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ownership_invariant_fork_copies_messages_not_references() {
+    fn test_ownership_tree_fork_copies_messages_not_references() {
         // Test that fork creates independent message ownership (copy, not reference)
         let mut parent = Session::new();
         parent.add_message(Message::user("original"));
@@ -1331,7 +1331,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ownership_invariant_multiple_forks_from_same_parent() {
+    fn test_ownership_tree_multiple_forks_from_same_parent() {
         let mut parent = Session::new();
         let parent_id = parent.id.to_string();
         parent.add_message(Message::user("parent message"));
@@ -1359,7 +1359,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ownership_invariant_lineage_path_format_correctness() {
+    fn test_ownership_tree_lineage_path_format_correctness() {
         // Test that lineage_path maintains correct format invariant
         let session0 = Session::new();
         assert!(
@@ -1407,7 +1407,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ownership_invariant_share_mode_enum_consistency() {
+    fn test_ownership_tree_share_mode_enum_consistency() {
         // Test that ShareMode enum values are consistent
         let mut session = Session::new();
 
@@ -1430,7 +1430,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ownership_invariant_fork_preserves_tool_invocations() {
+    fn test_ownership_tree_fork_preserves_tool_invocations() {
         // Test that fork correctly handles tool invocation records
         let mut parent = Session::new();
         parent.add_message(Message::user("test"));
@@ -1446,7 +1446,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ownership_invariant_fork_at_message_invalid_index() {
+    fn test_ownership_tree_fork_at_message_invalid_index() {
         let mut parent = Session::new();
         parent.add_message(Message::user("only one"));
 
@@ -1463,7 +1463,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ownership_invariant_share_link_url_format() {
+    fn test_ownership_tree_share_link_url_format() {
         // Test that share link URL follows correct format invariant
         let mut session = Session::new();
         session.set_share_mode(ShareMode::Manual);
@@ -1480,7 +1480,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ownership_invariant_is_shared_logic() {
+    fn test_ownership_tree_is_shared_logic() {
         // Test the complete is_shared() invariant logic
         let mut session = Session::new();
 
@@ -1506,7 +1506,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ownership_invariant_session_state_machine_is_independent() {
+    fn test_ownership_tree_session_state_machine_is_independent() {
         // Test that session state is independent from ownership state
         let mut session = Session::new();
 
@@ -1532,7 +1532,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ownership_invariant_export_preserves_ownership_metadata() {
+    fn test_ownership_tree_export_preserves_ownership_metadata() {
         // Test that export includes ownership-related metadata
         let mut session = Session::new();
         session.add_message(Message::user("test"));
@@ -1548,7 +1548,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ownership_invariant_fork_history_starts_empty() {
+    fn test_ownership_tree_fork_history_starts_empty() {
         let mut parent = Session::new();
         parent.add_message(Message::user("parent"));
 

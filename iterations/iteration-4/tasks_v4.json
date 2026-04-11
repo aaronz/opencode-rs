@@ -1261,7 +1261,7 @@
       "priority": "P0",
       "title": "Core ownership tree tests (unit + integration)",
       "description": "Write comprehensive unit and integration tests for the core ownership tree system. Test all ownership relationships and transfer operations.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Unit tests cover all ownership operations",
         "Integration tests verify system behavior",
@@ -1270,7 +1270,7 @@
       "test_commands": [
         "cargo test -p opencode-core -- ownership_tree"
       ],
-      "impl_notes": "Build after P1-1 is complete.",
+      "impl_notes": "Build after P1-1 is complete. Renamed test functions from test_ownership_invariant_* to test_ownership_tree_* to match test filter.",
       "dependencies": [
         "P1-1"
       ]
