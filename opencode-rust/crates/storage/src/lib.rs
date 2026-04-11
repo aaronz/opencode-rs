@@ -5,6 +5,9 @@ pub mod migration;
 pub mod models;
 pub mod service;
 
+#[cfg(test)]
+mod recovery_tests;
+
 pub use compaction::{
     CompactionManager, CompactionWithShareabilityResult, ShareabilityError,
     ShareabilityVerifier, ShareabilityVerification,

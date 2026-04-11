@@ -1683,7 +1683,7 @@
       "priority": "P0",
       "title": "Recovery tests",
       "description": "Write tests for system recovery scenarios. Test recovery from various failure modes.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "Recovery from failure modes is tested",
         "Data integrity is maintained",
