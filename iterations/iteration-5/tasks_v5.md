@@ -39,7 +39,7 @@
 - **Status:** Desktop mode command is registered and accessible. WebView integration implemented via browser opening. Desktop mode launches without errors. Web content renders correctly in browser.
 - **Estimated:** Done
 
-### P0-3: ACP HTTP+SSE Transport
+### P0-3: ✅ Done
 - **Severity:** BLOCKING
 - **Modules:** `crates/cli/src/acp.rs`, `crates/server/src/routes/acp.rs`
 - **Problem:** ACP CLI commands exist but server transport incomplete

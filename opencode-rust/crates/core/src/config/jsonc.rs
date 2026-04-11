@@ -3,14 +3,90 @@ use std::path::Path;
 
 #[derive(Debug, thiserror::Error)]
 pub enum JsoncError {
-    #[error("JSON parse error: {0}")]
-    Parse(String),
+    #[error("Parse error at line {line}, column {column}: {message}")]
+    Parse {
+        line: usize,
+        column: usize,
+        message: String,
+        context: String,
+    },
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 }
 
+impl JsoncError {
+    pub fn new_parse_error(raw_error: json5::Error) -> Self {
+        let (line, column, message) = match raw_error {
+            json5::Error::Message { msg, location } => {
+                let (line, column) = location.map(|loc| (loc.line, loc.column)).unwrap_or((1, 1));
+                (line, column, msg)
+            }
+        };
+        let context = Self::generate_context(&message);
+
+        JsoncError::Parse {
+            line,
+            column,
+            message,
+            context,
+        }
+    }
+
+    fn generate_context(message: &str) -> String {
+        if message.contains("double-quote") || message.contains("quote") {
+            "JSON requires double quotes for strings. Replace single quotes with double quotes."
+                .to_string()
+        } else if message.contains("trailing") && message.contains("comma") {
+            "Remove the trailing comma before the closing bracket/brace.".to_string()
+        } else if message.contains("missing")
+            && (message.contains("colon")
+                || message.contains(":")
+                || message.contains("comma")
+                || message.contains(","))
+        {
+            "Ensure all object properties are separated by commas.".to_string()
+        } else if message.contains("missing")
+            && (message.contains("quote") || message.contains("\""))
+        {
+            "Ensure all string values are enclosed in double quotes.".to_string()
+        } else if message.contains("colon") || message.contains(":") {
+            "Check that property names are followed by a colon.".to_string()
+        } else if message.contains("bracket") || message.contains("]") {
+            "Check for mismatched or missing square brackets.".to_string()
+        } else if message.contains("brace") || message.contains("}") {
+            "Check for mismatched or missing curly braces.".to_string()
+        } else if message.contains("comment") {
+            "JSONC comments (// or /* */) are only allowed in .jsonc files, not .json files. Consider renaming to .jsonc or removing comments.".to_string()
+        } else if message.contains("escape") {
+            "Check for invalid escape sequences in strings. Use \\\\ for backslashes, \\\" for quotes.".to_string()
+        } else {
+            "Check the JSON/JSONC syntax near the error location.".to_string()
+        }
+    }
+
+    pub fn with_file_path(&self, path: &Path) -> String {
+        let path_str = path.display().to_string();
+        match self {
+            JsoncError::Parse {
+                line,
+                column,
+                message,
+                context,
+            } => {
+                format!(
+                    "Failed to parse JSONC file '{}': {} at line {}, column {}.\nHint: {}",
+                    path_str, message, line, column, context
+                )
+            }
+            JsoncError::Io(e) => {
+                format!("Failed to read JSONC file '{}': {}", path_str, e)
+            }
+        }
+    }
+}
+
 pub fn parse_jsonc(content: &str) -> Result<Value, JsoncError> {
-    json5::from_str(content).map_err(|e| JsoncError::Parse(e.to_string()))
+    json5::from_str(content).map_err(JsoncError::new_parse_error)
 }
 
 pub(crate) fn strip_jsonc_comments(input: &str) -> String {
@@ -147,10 +223,9 @@ mod tests {
         assert!(result.is_err());
         let error = result.unwrap_err();
         let error_msg = error.to_string();
-        // Error message should contain "JSON parse error" and indicate the issue
         assert!(
-            error_msg.contains("JSON"),
-            "Error should mention JSON: {}",
+            error_msg.contains("Parse error") && error_msg.contains("line"),
+            "Error should mention Parse error and include line number: {}",
             error_msg
         );
     }
@@ -173,7 +248,7 @@ mod tests {
         let result = parse_jsonc(input);
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert!(error.to_string().contains("JSON") || error.to_string().contains("parse"));
+        assert!(error.to_string().contains("Parse") || error.to_string().contains("line"));
     }
 
     #[test]
@@ -193,6 +268,6 @@ mod tests {
         assert!(result.is_err());
         let error = result.unwrap_err();
         let error_string = format!("{}", error);
-        assert!(error_string.contains("JSON") || error_string.contains("parse"));
+        assert!(error_string.contains("Parse") || error_string.contains("line"));
     }
 }
