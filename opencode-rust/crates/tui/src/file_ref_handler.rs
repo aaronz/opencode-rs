@@ -30,6 +30,56 @@ pub struct FileRefHandler {
     base_dir: PathBuf,
 }
 
+fn calculate_enhanced_score(candidate: &str, needle: &str, base_score: i64) -> i64 {
+    if needle.is_empty() {
+        return base_score;
+    }
+
+    let mut score = base_score;
+    let needle_lower = needle.to_lowercase();
+    let candidate_lower = candidate.to_lowercase();
+
+    if let Some(filename) = candidate.rsplit('/').next() {
+        let filename_lower = filename.to_lowercase();
+        if filename.starts_with(needle) {
+            score += 1000;
+        } else if let Some(first_char) = needle.chars().next() {
+            if filename_lower.starts_with(&first_char.to_string()) {
+                for (i, _) in filename_lower.char_indices() {
+                    if filename_lower[i..].starts_with(&needle_lower) {
+                        score += 500;
+                        break;
+                    }
+                }
+            }
+        }
+
+        let needle_chars: Vec<char> = needle_lower.chars().collect();
+        let mut match_count = 0;
+        let mut last_match_pos = 0;
+        for (i, c) in filename_lower.char_indices() {
+            if match_count < needle_chars.len() && c == needle_chars[match_count] {
+                if match_count == 0 || i == last_match_pos + 1 {
+                    match_count += 1;
+                    last_match_pos = i;
+                }
+            }
+        }
+        if match_count == needle_chars.len() {
+            score += 200;
+        }
+    }
+
+    let depth = candidate.chars().filter(|&c| c == '/').count() as i64;
+    score += depth * -5;
+
+    if let Some(pos) = candidate_lower.find(&needle_lower) {
+        score += (50 - pos as i64).max(0) / 5;
+    }
+
+    score
+}
+
 impl FileRefHandler {
     pub fn new() -> Self {
         Self {
@@ -81,9 +131,10 @@ impl FileRefHandler {
                 .to_string();
 
             if let Some(score) = matcher.fuzzy_match(&relative, query) {
+                let enhanced_score = calculate_enhanced_score(&relative, query, score);
                 results.push(FileSearchResult {
                     path: path.to_path_buf(),
-                    score,
+                    score: enhanced_score,
                     display_name: relative,
                 });
             }

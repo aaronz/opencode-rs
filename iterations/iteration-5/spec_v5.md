@@ -307,7 +307,7 @@ This document defines the specification for the OpenCode Rust port implementatio
   - Session view rendering ✅ (markdown, syntax highlighting, diff)
   - Slash commands ⚠️ (P1-4 - partial: `/compact`, `/connect`, `/help` incomplete)
   - Input model ⚠️ (P1-5 - partial: multiline, history, autocomplete)
-  - File references (`@`) fuzzy search ⚠️ (P1-6 - partial)
+  - File references (`@`) fuzzy search ✅ (P1-6 - improved)
   - Shell prefix (`!`) execution ❌ (P2-12 - not implemented)
   - Keybinding system ✅ (leader key, categories)
   - Sidebar (file tree, MCP/LSP status, diagnostics) ✅
@@ -437,7 +437,7 @@ This document defines the specification for the OpenCode Rust port implementatio
 | P1-3 | Deprecated fields (mode, tools, theme, keybinds) | config | FR-003 | Deferred |
 | P1-4 | Slash commands incomplete (`/compact`, `/connect`, `/help`) | tui | FR-018 | Deferred |
 | P1-5 | Multiline input terminal support | tui | FR-018 | Deferred |
-| P1-6 | File reference autocomplete improvement | tui | FR-018 | Deferred |
+| P1-6 | File reference autocomplete improvement | tui | FR-018 | Done |
 | P1-7 | TUI Plugin dialogs incomplete | tui | FR-009 | Deferred |
 | P1-8 | TUI Plugin slots system incomplete | tui | FR-009 | Deferred |
 | P1-9 | Session sharing between interfaces partial | cli | FR-015 | Deferred |

@@ -67,7 +67,7 @@ This plan outlines the implementation roadmap for the OpenCode Rust port, derive
 |----|-------|----------|--------|
 | P1-4 | Slash commands incomplete (`/compact`, `/connect`, `/help`) | High | Deferred |
 | P1-5 | Multiline input terminal support | Medium | Deferred |
-| P1-6 | File reference autocomplete improvement | Medium | Deferred |
+| P1-6 | File reference autocomplete improvement | Medium | Done |
 
 ### TUI Plugin API (FR-009)
 | ID | Issue | Priority | Status |

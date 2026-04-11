@@ -150,7 +150,7 @@
       "priority": "P1",
       "title": "Improve @ File Reference Fuzzy Search",
       "description": "Improve the fuzzy search algorithm for @ file references to provide better file matching and suggestions.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Fuzzy matching finds partial filename matches",
         "Results are ranked by relevance",
@@ -159,7 +159,7 @@
       "test_commands": [
         "cargo test -p opencode-tui fuzzy"
       ],
-      "impl_notes": "Consider using fuzzy matching library like fuzzy-matcher",
+      "impl_notes": "Added enhanced scoring with prefix match bonus (+1000), word boundary bonus (+500), consecutive match bonus (+200), path depth penalty (-5 per level), and earlier match bonus. Applied to both FileCompleter and FileRefHandler.",
       "dependencies": []
     },
     {
