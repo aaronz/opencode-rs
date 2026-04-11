@@ -2,6 +2,7 @@ use crate::routes::error::json_error;
 use crate::ServerState;
 use actix_web::{http::StatusCode, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
+use opencode_core::config::ShareMode;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -32,10 +33,20 @@ pub struct ShortShareLink {
     pub short_code: String,
     pub access_token: String,
     pub session_id: String,
+    pub share_mode: ShareMode,
     pub created_at: DateTime<Utc>,
     pub expires_at: Option<DateTime<Utc>>,
     pub view_count: u64,
     pub max_views: Option<u64>,
+    pub allowed_operations: Vec<ShareOperation>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum ShareOperation {
+    Read,
+    Write,
+    Delete,
+    Fork,
 }
 
 pub struct ShareServer {
@@ -76,6 +87,16 @@ impl ShareServer {
         expiry_hours: Option<u64>,
         max_views: Option<u64>,
     ) -> ShortShareLink {
+        self.create_short_link_with_mode(session_id, ShareMode::Manual, expiry_hours, max_views).await
+    }
+
+    pub async fn create_short_link_with_mode(
+        &self,
+        session_id: String,
+        share_mode: ShareMode,
+        expiry_hours: Option<u64>,
+        max_views: Option<u64>,
+    ) -> ShortShareLink {
         let short_code = self.generate_short_code();
         let access_token = self.generate_access_token();
 
@@ -87,20 +108,66 @@ impl ShareServer {
             None
         };
 
+        let allowed_operations = Self::get_allowed_operations_for_mode(&share_mode);
+
         let link = ShortShareLink {
             short_code,
             access_token,
             session_id,
+            share_mode,
             created_at: now,
             expires_at,
             view_count: 0,
             max_views,
+            allowed_operations,
         };
 
         let mut links = self.links.write().await;
         links.insert(link.short_code.clone(), link.clone());
 
         link
+    }
+
+    fn get_allowed_operations_for_mode(mode: &ShareMode) -> Vec<ShareOperation> {
+        match mode {
+            ShareMode::Disabled => vec![],
+            ShareMode::ReadOnly => vec![ShareOperation::Read],
+            ShareMode::Manual | ShareMode::Auto => vec![ShareOperation::Read],
+            ShareMode::Collaborative => vec![ShareOperation::Read, ShareOperation::Write, ShareOperation::Fork],
+            ShareMode::Controlled => vec![ShareOperation::Read],
+        }
+    }
+
+    pub async fn check_permission(&self, short_code: &str, operation: ShareOperation) -> bool {
+        let links = self.links.read().await;
+        if let Some(link) = links.get(short_code) {
+            if link.share_mode == ShareMode::Disabled {
+                return false;
+            }
+            return link.allowed_operations.contains(&operation);
+        }
+        false
+    }
+
+    pub async fn update_share_mode(&self, short_code: &str, new_mode: ShareMode) -> bool {
+        let mut links = self.links.write().await;
+        if let Some(link) = links.get_mut(short_code) {
+            link.share_mode = new_mode.clone();
+            link.allowed_operations = Self::get_allowed_operations_for_mode(&new_mode);
+            return true;
+        }
+        false
+    }
+
+    pub async fn add_allowed_operation(&self, short_code: &str, operation: ShareOperation) -> bool {
+        let mut links = self.links.write().await;
+        if let Some(link) = links.get_mut(short_code) {
+            if !link.allowed_operations.contains(&operation) {
+                link.allowed_operations.push(operation);
+            }
+            return true;
+        }
+        false
     }
 
     pub async fn get_short_link(&self, short_code: &str) -> Option<ShortShareLink> {
@@ -179,6 +246,8 @@ pub struct CreateShortLinkRequest {
     pub expiry_hours: Option<u64>,
     pub max_views: Option<u64>,
     pub include_access_token: Option<bool>,
+    #[serde(default)]
+    pub share_mode: Option<ShareMode>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -187,18 +256,22 @@ pub struct ShortLinkResponse {
     pub short_url: String,
     pub access_token: Option<String>,
     pub session_id: String,
+    pub share_mode: ShareMode,
     pub expires_at: Option<DateTime<Utc>>,
     pub max_views: Option<u64>,
+    pub allowed_operations: Vec<ShareOperation>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ShortLinkInfo {
     pub short_code: String,
     pub session_id: String,
+    pub share_mode: ShareMode,
     pub created_at: DateTime<Utc>,
     pub expires_at: Option<DateTime<Utc>>,
     pub view_count: u64,
     pub max_views: Option<u64>,
+    pub allowed_operations: Vec<ShareOperation>,
 }
 
 pub async fn create_short_link(
@@ -209,8 +282,9 @@ pub async fn create_short_link(
 
     match state.storage.load_session(&req.session_id).await {
         Ok(Some(_session)) => {
+            let share_mode = req.share_mode.clone().unwrap_or(ShareMode::Manual);
             let link = share_server
-                .create_short_link(req.session_id.clone(), req.expiry_hours, req.max_views)
+                .create_short_link_with_mode(req.session_id.clone(), share_mode.clone(), req.expiry_hours, req.max_views)
                 .await;
 
             let short_url = share_server.full_url(&link.short_code);
@@ -225,8 +299,10 @@ pub async fn create_short_link(
                 short_url,
                 access_token,
                 session_id: link.session_id,
+                share_mode,
                 expires_at: link.expires_at,
                 max_views: link.max_views,
+                allowed_operations: link.allowed_operations,
             })
         }
         Ok(None) => json_error(
@@ -262,10 +338,12 @@ pub async fn get_short_link_info(
             HttpResponse::Ok().json(ShortLinkInfo {
                 short_code: link.short_code,
                 session_id: link.session_id,
+                share_mode: link.share_mode,
                 created_at: link.created_at,
                 expires_at: link.expires_at,
                 view_count: link.view_count,
                 max_views: link.max_views,
+                allowed_operations: link.allowed_operations,
             })
         }
         None => json_error(
@@ -325,12 +403,15 @@ pub async fn access_shared_session(
     match state.storage.load_session(&link.session_id).await {
         Ok(Some(session)) => {
             let sanitized = session.sanitize_for_export();
+            let read_only = !share_server.check_permission(&short_code, ShareOperation::Write).await;
             HttpResponse::Ok().json(serde_json::json!({
                 "id": sanitized.id,
                 "created_at": sanitized.created_at,
                 "updated_at": sanitized.updated_at,
                 "messages": sanitized.messages,
-                "read_only": true,
+                "share_mode": link.share_mode,
+                "allowed_operations": link.allowed_operations,
+                "read_only": read_only,
                 "view_count": link.view_count + 1,
             }))
         }
@@ -452,10 +533,12 @@ pub async fn list_short_links(state: web::Data<ServerState>) -> impl Responder {
         .map(|link| ShortLinkInfo {
             short_code: link.short_code.clone(),
             session_id: link.session_id.clone(),
+            share_mode: link.share_mode.clone(),
             created_at: link.created_at,
             expires_at: link.expires_at,
             view_count: link.view_count,
             max_views: link.max_views,
+            allowed_operations: link.allowed_operations.clone(),
         })
         .collect();
 

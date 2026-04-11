@@ -337,6 +337,9 @@ pub enum ShareMode {
     Manual,
     Auto,
     Disabled,
+    ReadOnly,
+    Collaborative,
+    Controlled,
 }
 
 /// Auto-update setting

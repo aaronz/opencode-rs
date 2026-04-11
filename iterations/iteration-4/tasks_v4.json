@@ -923,7 +923,7 @@
       "priority": "P1",
       "title": "Desktop/web sharing modes",
       "description": "Implement different sharing modes for desktop/web session sharing. Support read-only, collaborative, and controlled access modes.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Read-only sharing mode works",
         "Collaborative mode supports concurrent access",

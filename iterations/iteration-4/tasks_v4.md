@@ -132,7 +132,7 @@
 | Task ID | Title | Module | FR | Phase | Status | Dependencies |
 |---------|-------|--------|-----|-------|--------|--------------|
 | P1-30 | Desktop/web session sharing | cli | FR-015 | Phase 4 | Pending | Phase 4 P0s |
-| P1-31 | Desktop/web sharing modes | cli | FR-015 | Phase 4 | Pending | P1-30 |
+| P1-31 | Desktop/web sharing modes | cli | FR-015 | Phase 4 | ✅ Done | P1-30 |
 
 ### GitHub Integration (3 items)
 
