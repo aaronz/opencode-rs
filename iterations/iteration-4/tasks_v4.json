@@ -1357,7 +1357,7 @@
       "priority": "P0",
       "title": "Subagent execution tests",
       "description": "Write tests for subagent execution. Test context isolation, result handoff, and error propagation.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Context isolation is verified",
         "Result handoff works correctly",
@@ -1366,7 +1366,7 @@
       "test_commands": [
         "cargo test -p opencode-agent -- subagent_exec"
       ],
-      "impl_notes": "Build after P0-2 is complete.",
+      "impl_notes": "Build after P0-2 is complete. Implemented 19 tests covering context isolation (5 tests), result handoff (5 tests), error propagation (4 tests), permission scope inheritance (5 tests).",
       "dependencies": [
         "P0-2"
       ]
