@@ -170,7 +170,7 @@
 
 | Task ID | Title | Module | FR | Phase | Status | Dependencies |
 |---------|-------|--------|-----|-------|--------|--------------|
-| P2-8 | Experimental LSP tool | lsp | FR-011 | Phase 3 | Pending | P0-10 |
+| P2-8 | Experimental LSP tool | lsp | FR-011 | Phase 3 | Done | P0-10 |
 
 ### Configuration System (2 items)
 

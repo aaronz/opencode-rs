@@ -3,6 +3,7 @@ pub mod builtin;
 pub mod client;
 pub mod custom;
 pub mod error;
+pub mod experimental;
 pub mod language;
 pub mod launch;
 pub mod manager;
@@ -18,6 +19,7 @@ pub use custom::{
 pub use error::{
     CrashCause, FailureHandlingConfig, LspError, ProtocolViolationType, UnhealthyReason,
 };
+pub use experimental::{ExperimentalLspTool, ExperimentalLspToolArgs};
 pub use language::Language;
 pub use launch::LaunchConfig;
 pub use manager::LspManager;

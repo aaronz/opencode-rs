@@ -1092,7 +1092,7 @@
       "priority": "P2",
       "title": "Experimental LSP tool",
       "description": "Implement an experimental LSP tool that exposes LSP functionality as a regular tool. Enable LSP features through the tool interface.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "LSP functionality is accessible as a tool",
         "Tool can perform basic LSP operations",
@@ -1101,7 +1101,7 @@
       "test_commands": [
         "cargo test -p opencode-lsp -- experimental_tool"
       ],
-      "impl_notes": "Build on diagnostics retrieval (P0-10).",
+      "impl_notes": "Build on diagnostics retrieval (P0-10). Implemented experimental.rs module with ExperimentalLspTool providing diagnostics, goToDefinition, findReferences, and hover operations via the LspClient. The tool uses real LSP protocol when available, with graceful fallback when LSP server is not running.",
       "dependencies": [
         "P0-10"
       ]
