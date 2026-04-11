@@ -2206,7 +2206,38 @@ impl App {
                     self.mode = AppMode::ReleaseNotes;
                 }
                 CommandAction::Compact => {
-                    self.add_message("Compacting session...".to_string(), false);
+                    use opencode_core::compaction::{CompactionConfig, Compactor};
+                    let compactor = Compactor::new(CompactionConfig::default());
+                    let core_messages: Vec<opencode_core::Message> = self
+                        .messages
+                        .iter()
+                        .map(|m| opencode_core::Message {
+                            role: if m.is_user {
+                                opencode_core::Role::User
+                            } else {
+                                opencode_core::Role::Assistant
+                            },
+                            content: m.content.clone(),
+                            timestamp: chrono::Utc::now(),
+                            parts: None,
+                        })
+                        .collect();
+                    let result = compactor.compact(core_messages);
+                    if result.was_compacted {
+                        self.messages.clear();
+                        for m in result.messages {
+                            self.messages.push(MessageMeta::assistant(m.content));
+                        }
+                        self.add_message(
+                            format!(
+                                "Session compacted: {} messages summarized",
+                                result.pruned_count
+                            ),
+                            false,
+                        );
+                    } else {
+                        self.add_message("Session doesn't need compaction".to_string(), false);
+                    }
                 }
                 CommandAction::Summarize => {
                     let msg_count = self.messages.len();

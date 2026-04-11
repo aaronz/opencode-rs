@@ -64,9 +64,9 @@
 
 ### TUI System Tasks
 
-- [ ] **P1-4:** Complete `/compact` slash command
-- [ ] **P1-4:** Complete `/connect` slash command
-- [ ] **P1-4:** Complete `/help` slash command
+- [x] **P1-4:** Complete `/compact` slash command
+- [x] **P1-4:** Complete `/connect` slash command
+- [x] **P1-4:** Complete `/help` slash command
 - [ ] **P1-5:** Add multiline input terminal support (Shift+Enter)
 - [ ] **P1-6:** Improve `@` file reference fuzzy search algorithm
 

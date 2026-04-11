@@ -114,7 +114,7 @@
       "priority": "P1",
       "title": "Complete Slash Commands (/compact, /connect, /help)",
       "description": "Complete implementation of slash commands: /compact for session compaction, /connect for ACP connections, /help for help display.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "/compact command works and compacts session",
         "/connect command initiates ACP connection",
