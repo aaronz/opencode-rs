@@ -234,7 +234,7 @@
 |---------|-------|--------|-----|-------|--------|--------------|
 | T-020-1 | Agent primary invariant tests (exactly one active) | agent | FR-020 | Phase 5 | Done | P0-1 |
 | T-020-2 | Subagent execution tests | agent | FR-020 | Phase 5 | Pending | P0-2 |
-| T-020-3 | Tool registry tests | tools | FR-020 | Phase 5 | Pending | P0-4 |
+| T-020-3 | Tool registry tests | tools | FR-020 | Phase 5 | ✅ Done | P0-4 |
 | T-020-4 | Plugin hook order tests | plugin | FR-020 | Phase 5 | Pending | P0-16 |
 | T-020-5 | TUI plugin lifecycle tests | tui | FR-020 | Phase 5 | Pending | P0-20 |
 

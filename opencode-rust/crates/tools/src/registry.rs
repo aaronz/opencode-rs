@@ -1089,4 +1089,414 @@ mod tests {
         assert!(!result2.success);
         assert!(result2.error.unwrap().contains("intentional failure"));
     }
+
+    #[tokio::test]
+    async fn test_execute_parallel_multiple_tools() {
+        #[derive(Clone)]
+        struct ToolAlpha;
+        #[async_trait]
+        impl Tool for ToolAlpha {
+            fn name(&self) -> &str { "alpha" }
+            fn description(&self) -> &str { "Alpha tool" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("alpha_result"))
+            }
+        }
+
+        #[derive(Clone)]
+        struct ToolBeta;
+        #[async_trait]
+        impl Tool for ToolBeta {
+            fn name(&self) -> &str { "beta" }
+            fn description(&self) -> &str { "Beta tool" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("beta_result"))
+            }
+        }
+
+        let registry = ToolRegistry::new();
+        registry.register(ToolAlpha).await;
+        registry.register(ToolBeta).await;
+
+        let calls = vec![
+            ToolCall { name: "alpha".to_string(), args: serde_json::json!({}), ctx: None },
+            ToolCall { name: "beta".to_string(), args: serde_json::json!({}), ctx: None },
+        ];
+
+        let results = registry.execute_parallel(calls).await;
+        assert_eq!(results.len(), 2);
+
+        let alpha_result = results.iter().find(|r| r.name == "alpha").unwrap();
+        assert!(alpha_result.result.as_ref().is_ok());
+        assert_eq!(alpha_result.result.as_ref().unwrap().content, "alpha_result");
+
+        let beta_result = results.iter().find(|r| r.name == "beta").unwrap();
+        assert!(beta_result.result.as_ref().is_ok());
+        assert_eq!(beta_result.result.as_ref().unwrap().content, "beta_result");
+    }
+
+    #[tokio::test]
+    async fn test_execute_parallel_with_nonexistent_tool() {
+        let registry = ToolRegistry::new();
+
+        let calls = vec![
+            ToolCall { name: "nonexistent".to_string(), args: serde_json::json!({}), ctx: None },
+        ];
+
+        let results = registry.execute_parallel(calls).await;
+        assert_eq!(results.len(), 1);
+
+        let result = &results[0];
+        assert!(result.result.is_err());
+        assert!(result.result.as_ref().unwrap_err().to_string().contains("not found"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_parallel_with_disabled_tool() {
+        #[derive(Clone)]
+        struct ParallelTool;
+        #[async_trait]
+        impl Tool for ParallelTool {
+            fn name(&self) -> &str { "parallel_tool" }
+            fn description(&self) -> &str { "Parallel tool" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("parallel_result"))
+            }
+        }
+
+        let mut registry = ToolRegistry::new();
+        registry.register(ParallelTool).await;
+        registry.set_disabled(HashSet::from(["parallel_tool".to_string()]));
+
+        let calls = vec![
+            ToolCall { name: "parallel_tool".to_string(), args: serde_json::json!({}), ctx: None },
+        ];
+
+        let results = registry.execute_parallel(calls).await;
+        assert_eq!(results.len(), 1);
+
+        let result = &results[0];
+        assert!(result.result.is_err());
+        assert!(result.result.as_ref().unwrap_err().to_string().contains("disabled"));
+    }
+
+    #[tokio::test]
+    async fn test_list_filtered_empty_registry() {
+        let registry = ToolRegistry::new();
+        let tools = registry.list_filtered(None).await;
+        assert!(tools.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_list_filtered_returns_all_registered_tools() {
+        #[derive(Clone)]
+        struct ListToolA;
+        #[async_trait]
+        impl Tool for ListToolA {
+            fn name(&self) -> &str { "list_tool_a" }
+            fn description(&self) -> &str { "List tool A" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("a"))
+            }
+        }
+
+        #[derive(Clone)]
+        struct ListToolB;
+        #[async_trait]
+        impl Tool for ListToolB {
+            fn name(&self) -> &str { "list_tool_b" }
+            fn description(&self) -> &str { "List tool B" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("b"))
+            }
+        }
+
+        let registry = ToolRegistry::new();
+        registry.register(ListToolA).await;
+        registry.register(ListToolB).await;
+
+        let tools = registry.list_filtered(None).await;
+        assert_eq!(tools.len(), 2);
+
+        let names: Vec<&str> = tools.iter().map(|(n, _, _)| n.as_str()).collect();
+        assert!(names.contains(&"list_tool_a"));
+        assert!(names.contains(&"list_tool_b"));
+    }
+
+    #[tokio::test]
+    async fn test_register_tools_with_source_batch() {
+        #[derive(Clone)]
+        struct BatchTool1;
+        #[async_trait]
+        impl Tool for BatchTool1 {
+            fn name(&self) -> &str { "batch_tool_1" }
+            fn description(&self) -> &str { "Batch tool 1" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("batch1"))
+            }
+        }
+
+        #[derive(Clone)]
+        struct BatchTool2;
+        #[async_trait]
+        impl Tool for BatchTool2 {
+            fn name(&self) -> &str { "batch_tool_2" }
+            fn description(&self) -> &str { "Batch tool 2" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("batch2"))
+            }
+        }
+
+        let registry = ToolRegistry::new();
+        let tools: Vec<Box<dyn Tool>> = vec![
+            Box::new(BatchTool1),
+            Box::new(BatchTool2),
+        ];
+        registry.register_tools_with_source(tools, ToolSource::Plugin).await;
+
+        let tool1 = registry.get("batch_tool_1").await;
+        assert!(tool1.is_some());
+
+        let tool2 = registry.get("batch_tool_2").await;
+        assert!(tool2.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_register_plugin_tools() {
+        #[derive(Clone)]
+        struct PluginBatchTool;
+        #[async_trait]
+        impl Tool for PluginBatchTool {
+            fn name(&self) -> &str { "plugin_batch_tool" }
+            fn description(&self) -> &str { "Plugin batch tool" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("plugin_batch"))
+            }
+        }
+
+        let registry = ToolRegistry::new();
+        let tools: Vec<Box<dyn Tool>> = vec![Box::new(PluginBatchTool)];
+        registry.register_plugin_tools(tools).await;
+
+        let tool = registry.get("plugin_batch_tool").await;
+        assert!(tool.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_get_cached_result() {
+        #[derive(Clone)]
+        struct CacheTestTool;
+        #[async_trait]
+        impl Tool for CacheTestTool {
+            fn name(&self) -> &str { "cache_test_tool" }
+            fn description(&self) -> &str { "Cache test tool" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            fn is_safe(&self) -> bool { true }
+            async fn execute(&self, args: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                let input = args.get("input").and_then(|v| v.as_str()).unwrap_or("default");
+                Ok(ToolResult::ok(format!("cached: {}", input)))
+            }
+        }
+
+        let registry = ToolRegistry::new();
+        registry.register(CacheTestTool).await;
+
+        let args = serde_json::json!({"input": "test_value"});
+
+        let cached = registry.get_cached_result("cache_test_tool", &args).await;
+        assert!(cached.is_none(), "Should not have cached result before execution");
+
+        registry.execute("cache_test_tool", args.clone(), None).await.unwrap();
+
+        let cached = registry.get_cached_result("cache_test_tool", &args).await;
+        assert!(cached.is_some(), "Should have cached result after execution");
+        assert!(cached.unwrap().content.contains("cached: test_value"));
+    }
+
+    #[tokio::test]
+    async fn test_empty_registry_returns_none_for_get() {
+        let registry = ToolRegistry::new();
+        let tool = registry.get("nonexistent").await;
+        assert!(tool.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_empty_registry_returns_none_for_get_with_status() {
+        let registry = ToolRegistry::new();
+        let result = registry.get_with_status("nonexistent").await;
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_execute_with_context() {
+        #[derive(Clone)]
+        struct ContextTool;
+        #[async_trait]
+        impl Tool for ContextTool {
+            fn name(&self) -> &str { "context_tool" }
+            fn description(&self) -> &str { "Context tool" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, ctx: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                if let Some(context) = ctx {
+                    Ok(ToolResult::ok(format!("session: {}, agent: {}", context.session_id, context.agent)))
+                } else {
+                    Ok(ToolResult::ok("no context"))
+                }
+            }
+        }
+
+        let registry = ToolRegistry::new();
+        registry.register(ContextTool).await;
+
+        let ctx = ToolContext {
+            session_id: "test_session".to_string(),
+            message_id: "test_message".to_string(),
+            agent: "test_agent".to_string(),
+            worktree: None,
+            directory: None,
+            permission_scope: None,
+        };
+
+        let result = registry.execute("context_tool", serde_json::json!({}), Some(ctx)).await.unwrap();
+        assert!(result.content.contains("session: test_session"));
+        assert!(result.content.contains("agent: test_agent"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_returns_error_on_tool_failure() {
+        #[derive(Clone)]
+        struct FailingTool;
+        #[async_trait]
+        impl Tool for FailingTool {
+            fn name(&self) -> &str { "failing_tool" }
+            fn description(&self) -> &str { "Failing tool" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::err("intentional error"))
+            }
+        }
+
+        let registry = ToolRegistry::new();
+        registry.register(FailingTool).await;
+
+        let result = registry.execute("failing_tool", serde_json::json!({}), None).await.unwrap();
+        assert!(!result.success);
+        assert!(result.error.unwrap().contains("intentional error"));
+    }
+
+    #[tokio::test]
+    async fn test_is_disabled_after_set_disabled() {
+        let mut registry = ToolRegistry::new();
+        assert!(!registry.is_disabled("any_tool"));
+
+        registry.set_disabled(HashSet::from(["tool_a".to_string(), "tool_b".to_string()]));
+
+        assert!(registry.is_disabled("tool_a"));
+        assert!(registry.is_disabled("tool_b"));
+        assert!(!registry.is_disabled("tool_c"));
+    }
+
+    #[tokio::test]
+    async fn test_disabled_tool_still_registered_but_not_executable() {
+        #[derive(Clone)]
+        struct DisabledTestTool;
+        #[async_trait]
+        impl Tool for DisabledTestTool {
+            fn name(&self) -> &str { "disabled_test_tool" }
+            fn description(&self) -> &str { "Disabled test tool" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("should not reach"))
+            }
+        }
+
+        let mut registry = ToolRegistry::new();
+        registry.register(DisabledTestTool).await;
+        registry.set_disabled(HashSet::from(["disabled_test_tool".to_string()]));
+
+        let tool = registry.get("disabled_test_tool").await;
+        assert!(tool.is_some(), "Tool should still be registered");
+
+        let result = registry.execute("disabled_test_tool", serde_json::json!({}), None).await;
+        assert!(result.is_err());
+
+        let list = registry.list_filtered(None).await;
+        let entry = list.iter().find(|(n, _, _)| n == "disabled_test_tool").unwrap();
+        assert!(entry.2, "Tool should be marked as disabled in listing");
+    }
+
+    #[tokio::test]
+    async fn test_tool_execution_with_complex_args() {
+        #[derive(Clone)]
+        struct ComplexArgsTool;
+        #[async_trait]
+        impl Tool for ComplexArgsTool {
+            fn name(&self) -> &str { "complex_args_tool" }
+            fn description(&self) -> &str { "Complex args tool" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, args: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                let output = format!(
+                    "str: {}, int: {}, float: {}, bool: {}, array: {:?}",
+                    args.get("string").and_then(|v| v.as_str()).unwrap_or("missing"),
+                    args.get("integer").and_then(|v| v.as_i64()).unwrap_or(0),
+                    args.get("float").and_then(|v| v.as_f64()).unwrap_or(0.0),
+                    args.get("boolean").and_then(|v| v.as_bool()).unwrap_or(false),
+                    args.get("array").and_then(|v| v.as_array().map(|a| a.len())).unwrap_or(0),
+                );
+                Ok(ToolResult::ok(output))
+            }
+        }
+
+        let registry = ToolRegistry::new();
+        registry.register(ComplexArgsTool).await;
+
+        let args = serde_json::json!({
+            "string": "hello",
+            "integer": 42,
+            "float": 3.14,
+            "boolean": true,
+            "array": [1, 2, 3]
+        });
+
+        let result = registry.execute("complex_args_tool", args, None).await.unwrap();
+        assert!(result.success);
+        assert!(result.content.contains("str: hello"));
+        assert!(result.content.contains("int: 42"));
+        assert!(result.content.contains("float: 3.14"));
+        assert!(result.content.contains("bool: true"));
+        assert!(result.content.contains("array: 3"));
+    }
+
+    #[tokio::test]
+    async fn test_registry_clone_is_independent() {
+        #[derive(Clone)]
+        struct CloneTestTool;
+        #[async_trait]
+        impl Tool for CloneTestTool {
+            fn name(&self) -> &str { "clone_test_tool" }
+            fn description(&self) -> &str { "Clone test tool" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("clone_test"))
+            }
+        }
+
+        let registry = ToolRegistry::new();
+        registry.register(CloneTestTool).await;
+
+        let tools1 = registry.list_filtered(None).await;
+        assert_eq!(tools1.len(), 1);
+
+        let registry2 = ToolRegistry::new();
+        let tools2 = registry2.list_filtered(None).await;
+        assert_eq!(tools2.len(), 0, "Cloned registry should be independent");
+    }
 }

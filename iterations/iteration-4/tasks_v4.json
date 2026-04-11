@@ -1376,7 +1376,7 @@
       "priority": "P0",
       "title": "Tool registry tests",
       "description": "Write comprehensive tests for the ToolRegistry. Test registration, lookup, execution, and lifecycle management.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Tool registration works correctly",
         "Tool lookup is accurate",
