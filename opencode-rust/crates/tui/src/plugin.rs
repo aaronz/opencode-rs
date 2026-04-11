@@ -2,11 +2,12 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 use crate::plugin_api::{
-    CommandContext, CommandResult, PluginCommand, PluginCommandError, PluginCommandRegistry,
-    PluginDispose, PluginDisposeError, PluginDisposeRegistry, PluginEvent, PluginEventData,
-    PluginEventError, PluginEventRegistry, PluginRoute, PluginRouteError, PluginRouteRegistry,
-    PluginStateError, PluginStateRegistry, PluginTheme, PluginThemeError, PluginThemeRegistry,
-    RegisteredEvent, RegisteredTheme, RouteContext, RouteParams,
+    CommandContext, CommandResult, DialogRequest, DialogResult, PluginCommand, PluginCommandError,
+    PluginCommandRegistry, PluginDialogError, PluginDialogRegistry, PluginDispose,
+    PluginDisposeError, PluginDisposeRegistry, PluginEvent, PluginEventData, PluginEventError,
+    PluginEventRegistry, PluginRoute, PluginRouteError, PluginRouteRegistry, PluginStateError,
+    PluginStateRegistry, PluginTheme, PluginThemeError, PluginThemeRegistry, RegisteredEvent,
+    RegisteredTheme, RouteContext, RouteParams,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -37,6 +38,7 @@ pub struct TuiPluginManager {
     event_registry: Arc<PluginEventRegistry>,
     state_registry: Arc<PluginStateRegistry>,
     dispose_registry: Arc<PluginDisposeRegistry>,
+    dialog_registry: Arc<PluginDialogRegistry>,
 }
 
 impl TuiPluginManager {
@@ -50,6 +52,7 @@ impl TuiPluginManager {
             event_registry: Arc::new(PluginEventRegistry::new()),
             state_registry: Arc::new(PluginStateRegistry::with_default_dir()),
             dispose_registry: Arc::new(PluginDisposeRegistry::new()),
+            dialog_registry: Arc::new(PluginDialogRegistry::new()),
         }
     }
 
@@ -386,6 +389,37 @@ impl TuiPluginManager {
         self.dispose_registry.has_disposer(plugin_id)
     }
 
+    pub fn dialog_registry(&self) -> Arc<PluginDialogRegistry> {
+        Arc::clone(&self.dialog_registry)
+    }
+
+    pub fn request_plugin_dialog(
+        &self,
+        request: DialogRequest,
+    ) -> Result<DialogResult, PluginDialogError> {
+        self.dialog_registry.request_dialog(request)
+    }
+
+    pub fn get_pending_dialogs(&self) -> Vec<DialogRequest> {
+        self.dialog_registry.get_pending_dialogs()
+    }
+
+    pub fn has_active_dialog(&self, plugin_id: &str) -> bool {
+        self.dialog_registry.has_active_dialog(plugin_id)
+    }
+
+    pub fn complete_plugin_dialog(
+        &self,
+        plugin_id: &str,
+        result: DialogResult,
+    ) -> Result<(), PluginDialogError> {
+        self.dialog_registry.complete_dialog(plugin_id, result)
+    }
+
+    pub fn cancel_plugin_dialog(&self, plugin_id: &str) -> Result<(), PluginDialogError> {
+        self.dialog_registry.cancel_dialog(plugin_id)
+    }
+
     pub fn clear(&self) {
         let active_plugin_ids: Vec<String> = {
             let plugins = self.plugins.read().unwrap();
@@ -413,6 +447,7 @@ impl TuiPluginManager {
         self.event_registry.clear();
         let _ = self.state_registry.clear_all_states();
         self.dispose_registry.clear();
+        self.dialog_registry.clear();
     }
 }
 

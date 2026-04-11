@@ -990,6 +990,213 @@ impl Default for PluginStateRegistry {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DialogType {
+    Alert,
+    Confirm,
+    Prompt,
+    Select,
+}
+
+#[derive(Debug, Clone)]
+pub struct DialogRequest {
+    pub plugin_id: String,
+    pub dialog_type: DialogType,
+    pub title: String,
+    pub message: String,
+    pub options: Option<Vec<String>>,
+    pub default_value: Option<String>,
+}
+
+impl DialogRequest {
+    pub fn alert(
+        plugin_id: impl Into<String>,
+        title: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self {
+            plugin_id: plugin_id.into(),
+            dialog_type: DialogType::Alert,
+            title: title.into(),
+            message: message.into(),
+            options: None,
+            default_value: None,
+        }
+    }
+
+    pub fn confirm(
+        plugin_id: impl Into<String>,
+        title: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self {
+            plugin_id: plugin_id.into(),
+            dialog_type: DialogType::Confirm,
+            title: title.into(),
+            message: message.into(),
+            options: None,
+            default_value: None,
+        }
+    }
+
+    pub fn prompt(
+        plugin_id: impl Into<String>,
+        title: impl Into<String>,
+        message: impl Into<String>,
+        placeholder: impl Into<String>,
+    ) -> Self {
+        Self {
+            plugin_id: plugin_id.into(),
+            dialog_type: DialogType::Prompt,
+            title: title.into(),
+            message: message.into(),
+            options: None,
+            default_value: Some(placeholder.into()),
+        }
+    }
+
+    pub fn select(
+        plugin_id: impl Into<String>,
+        title: impl Into<String>,
+        message: impl Into<String>,
+        options: Vec<String>,
+    ) -> Self {
+        Self {
+            plugin_id: plugin_id.into(),
+            dialog_type: DialogType::Select,
+            title: title.into(),
+            message: message.into(),
+            options: Some(options),
+            default_value: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ActiveDialog {
+    pub request: DialogRequest,
+    pub result_tx: std::sync::mpsc::Sender<DialogResult>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DialogResult {
+    Confirmed(String),
+    Cancelled,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum PluginDialogError {
+    #[error("dialog request failed: {0}")]
+    RequestFailed(String),
+    #[error("plugin not found: {0}")]
+    PluginNotFound(String),
+    #[error("no active dialog for plugin: {0}")]
+    NoActiveDialog(String),
+    #[error("dialog result channel closed")]
+    ChannelClosed,
+}
+
+pub struct PluginDialogRegistry {
+    pending_dialogs: RwLock<Vec<DialogRequest>>,
+    active_dialogs: RwLock<HashMap<String, ActiveDialog>>,
+}
+
+impl PluginDialogRegistry {
+    pub fn new() -> Self {
+        Self {
+            pending_dialogs: RwLock::new(Vec::new()),
+            active_dialogs: RwLock::new(HashMap::new()),
+        }
+    }
+
+    pub fn request_dialog(
+        &self,
+        request: DialogRequest,
+    ) -> Result<DialogResult, PluginDialogError> {
+        let plugin_id = request.plugin_id.clone();
+
+        let (result_tx, result_rx) = std::sync::mpsc::channel();
+
+        {
+            let mut pending = self.pending_dialogs.write().unwrap();
+            pending.push(request.clone());
+        }
+
+        {
+            let mut active = self.active_dialogs.write().unwrap();
+            active.insert(plugin_id.clone(), ActiveDialog { request, result_tx });
+        }
+
+        result_rx
+            .recv()
+            .map_err(|_| PluginDialogError::ChannelClosed)
+    }
+
+    pub fn get_pending_dialogs(&self) -> Vec<DialogRequest> {
+        self.pending_dialogs.read().unwrap().clone()
+    }
+
+    pub fn get_active_dialog(&self, plugin_id: &str) -> Option<ActiveDialog> {
+        self.active_dialogs.read().unwrap().get(plugin_id).cloned()
+    }
+
+    pub fn has_active_dialog(&self, plugin_id: &str) -> bool {
+        self.active_dialogs.read().unwrap().contains_key(plugin_id)
+    }
+
+    pub fn complete_dialog(
+        &self,
+        plugin_id: &str,
+        result: DialogResult,
+    ) -> Result<(), PluginDialogError> {
+        let active_dialog = {
+            let mut active = self.active_dialogs.write().unwrap();
+            active
+                .remove(plugin_id)
+                .ok_or_else(|| PluginDialogError::NoActiveDialog(plugin_id.to_string()))?
+        };
+
+        {
+            let mut pending = self.pending_dialogs.write().unwrap();
+            pending.retain(|r| r.plugin_id != plugin_id);
+        }
+
+        active_dialog
+            .result_tx
+            .send(result)
+            .map_err(|_| PluginDialogError::ChannelClosed)?;
+
+        Ok(())
+    }
+
+    pub fn cancel_dialog(&self, plugin_id: &str) -> Result<(), PluginDialogError> {
+        self.complete_dialog(plugin_id, DialogResult::Cancelled)
+    }
+
+    pub fn clear_pending(&self) {
+        let mut pending = self.pending_dialogs.write().unwrap();
+        pending.clear();
+    }
+
+    pub fn clear_active(&self) {
+        let mut active = self.active_dialogs.write().unwrap();
+        for (_, dialog) in active.drain() {
+            let _ = dialog.result_tx.send(DialogResult::Cancelled);
+        }
+    }
+
+    pub fn clear(&self) {
+        self.clear_active();
+        self.clear_pending();
+    }
+}
+
+impl Default for PluginDialogRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

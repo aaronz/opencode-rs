@@ -167,7 +167,7 @@
       "priority": "P1",
       "title": "Implement Dialog Components",
       "description": "Implement TUI Plugin API Dialog components: DialogAlert, DialogConfirm, DialogPrompt, DialogSelect.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "DialogAlert displays message and dismisses",
         "DialogConfirm displays with confirm/cancel options",

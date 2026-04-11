@@ -46,8 +46,9 @@ pub use layout::{LayoutManager, LayoutPreset, LayoutProportions};
 pub use patch_preview::{PatchDecision, PatchPreview};
 pub use plugin::{TuiPluginEntry, TuiPluginError, TuiPluginManager};
 pub use plugin_api::{
-    ApiVersion, CommandContext, CommandContextState, CommandMessage, CommandResult, PluginCommand,
-    PluginCommandError, PluginCommandRegistry, PluginDispose, PluginDisposeError,
+    ApiVersion, CommandContext, CommandContextState, CommandMessage, CommandResult, DialogRequest,
+    DialogResult, DialogType, PluginCommand, PluginCommandError, PluginCommandRegistry,
+    PluginDialogError, PluginDialogRegistry, PluginDispose, PluginDisposeError,
     PluginDisposeRegistry, PluginEvent, PluginEventData, PluginEventError, PluginEventRegistry,
     PluginRoute, PluginRouteError, PluginRouteRegistry, PluginStateError, PluginStateRegistry,
     PluginTheme, PluginThemeError, PluginThemeRegistry, RegisteredCommand, RegisteredEvent,
