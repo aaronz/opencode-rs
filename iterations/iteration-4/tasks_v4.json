@@ -1529,7 +1529,7 @@
       "priority": "P0",
       "title": "ACP handshake tests",
       "description": "Write tests for ACP protocol handshake. Test connection establishment, capability negotiation, and error handling.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Handshake establishes connection correctly",
         "Capabilities are negotiated properly",
