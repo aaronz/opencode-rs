@@ -610,6 +610,167 @@ pub enum PluginThemeError {
     RegistrationError(String),
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PluginEventData {
+    pub event_name: String,
+    pub source_plugin: Option<String>,
+    pub payload: serde_json::Value,
+}
+
+impl PluginEventData {
+    pub fn new(event_name: impl Into<String>, payload: serde_json::Value) -> Self {
+        Self {
+            event_name: event_name.into(),
+            source_plugin: None,
+            payload,
+        }
+    }
+
+    pub fn with_source(mut self, plugin_id: impl Into<String>) -> Self {
+        self.source_plugin = Some(plugin_id.into());
+        self
+    }
+}
+
+pub trait PluginEvent: Send + Sync {
+    fn event_name(&self) -> &str;
+    fn handle(&self, data: &PluginEventData) -> Result<(), PluginEventError>;
+}
+
+#[derive(Debug, Clone)]
+pub struct RegisteredEvent {
+    pub plugin_id: String,
+    pub event_name: String,
+}
+
+pub struct PluginEventRegistry {
+    events: RwLock<HashMap<String, Vec<RegisteredEvent>>>,
+    handlers: RwLock<HashMap<String, Vec<Box<dyn PluginEvent>>>>,
+}
+
+impl PluginEventRegistry {
+    pub fn new() -> Self {
+        Self {
+            events: RwLock::new(HashMap::new()),
+            handlers: RwLock::new(HashMap::new()),
+        }
+    }
+
+    pub fn subscribe<E: PluginEvent + 'static>(
+        &self,
+        plugin_id: &str,
+        event: E,
+    ) -> Result<(), PluginEventError> {
+        let event_name = event.event_name().to_string();
+
+        let registered = RegisteredEvent {
+            plugin_id: plugin_id.to_string(),
+            event_name: event_name.clone(),
+        };
+
+        self.events
+            .write()
+            .unwrap()
+            .entry(event_name.clone())
+            .or_insert_with(Vec::new)
+            .push(registered);
+
+        self.handlers
+            .write()
+            .unwrap()
+            .entry(event_name)
+            .or_insert_with(Vec::new)
+            .push(Box::new(event));
+
+        Ok(())
+    }
+
+    pub fn unsubscribe_plugin(&self, plugin_id: &str) {
+        let mut events = self.events.write().unwrap();
+        let mut handlers = self.handlers.write().unwrap();
+
+        let event_names: Vec<String> = events.keys().cloned().collect();
+
+        for event_name in event_names {
+            let plugin_indices: Vec<usize> = events
+                .get(&event_name)
+                .map(|v| {
+                    v.iter()
+                        .enumerate()
+                        .filter(|(_, e)| e.plugin_id == plugin_id)
+                        .map(|(i, _)| i)
+                        .collect()
+                })
+                .unwrap_or_default();
+
+            for index in plugin_indices.into_iter().rev() {
+                if let Some(v) = events.get_mut(&event_name) {
+                    v.remove(index);
+                }
+            }
+
+            if events
+                .get(&event_name)
+                .map(|v| v.is_empty())
+                .unwrap_or(false)
+            {
+                events.remove(&event_name);
+                handlers.remove(&event_name);
+            }
+        }
+    }
+
+    pub fn list_subscriptions(&self) -> Vec<RegisteredEvent> {
+        let events = self.events.read().unwrap();
+        events.values().flatten().cloned().collect()
+    }
+
+    pub fn list_subscriptions_for_plugin(&self, plugin_id: &str) -> Vec<RegisteredEvent> {
+        let events = self.events.read().unwrap();
+        events
+            .values()
+            .flatten()
+            .filter(|e| e.plugin_id == plugin_id)
+            .cloned()
+            .collect()
+    }
+
+    pub fn emit(&self, data: &PluginEventData) -> Vec<Result<(), PluginEventError>> {
+        let handlers = self.handlers.read().unwrap();
+        let event_name = &data.event_name;
+
+        let Some(event_handlers) = handlers.get(event_name) else {
+            return vec![];
+        };
+
+        event_handlers
+            .iter()
+            .map(|handler| handler.handle(data))
+            .collect()
+    }
+
+    pub fn clear(&self) {
+        self.events.write().unwrap().clear();
+        self.handlers.write().unwrap().clear();
+    }
+}
+
+impl Default for PluginEventRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum PluginEventError {
+    #[error("event handler error: {0}")]
+    HandlerError(String),
+    #[error("plugin not found: {0}")]
+    PluginNotFound(String),
+    #[error("subscription failed: {0}")]
+    SubscriptionFailed(String),
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

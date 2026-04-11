@@ -3,8 +3,9 @@ use std::sync::{Arc, RwLock};
 
 use crate::plugin_api::{
     CommandContext, CommandResult, PluginCommand, PluginCommandError, PluginCommandRegistry,
-    PluginRoute, PluginRouteError, PluginRouteRegistry, PluginTheme, PluginThemeError,
-    PluginThemeRegistry, RegisteredTheme, RouteContext, RouteParams, RouteResult,
+    PluginEvent, PluginEventData, PluginEventError, PluginEventRegistry, PluginRoute,
+    PluginRouteError, PluginRouteRegistry, PluginTheme, PluginThemeError, PluginThemeRegistry,
+    RegisteredEvent, RegisteredTheme, RouteContext, RouteParams, RouteResult,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -32,6 +33,7 @@ pub struct TuiPluginManager {
     command_registry: Arc<PluginCommandRegistry>,
     route_registry: Arc<PluginRouteRegistry>,
     theme_registry: Arc<PluginThemeRegistry>,
+    event_registry: Arc<PluginEventRegistry>,
 }
 
 impl TuiPluginManager {
@@ -42,6 +44,7 @@ impl TuiPluginManager {
             command_registry: Arc::new(PluginCommandRegistry::new()),
             route_registry: Arc::new(PluginRouteRegistry::new()),
             theme_registry: Arc::new(PluginThemeRegistry::new()),
+            event_registry: Arc::new(PluginEventRegistry::new()),
         }
     }
 
@@ -269,11 +272,43 @@ impl TuiPluginManager {
         self.theme_registry.get_all_themes()
     }
 
+    pub fn event_registry(&self) -> Arc<PluginEventRegistry> {
+        Arc::clone(&self.event_registry)
+    }
+
+    pub fn subscribe_to_event<E: PluginEvent + 'static>(
+        &self,
+        plugin_id: &str,
+        event: E,
+    ) -> Result<(), PluginEventError> {
+        if !self.plugins.read().unwrap().contains_key(plugin_id) {
+            return Err(PluginEventError::PluginNotFound(plugin_id.to_string()));
+        }
+        self.event_registry.subscribe(plugin_id, event)
+    }
+
+    pub fn unsubscribe_plugin_events(&self, plugin_id: &str) {
+        self.event_registry.unsubscribe_plugin(plugin_id);
+    }
+
+    pub fn emit_event(&self, data: PluginEventData) -> Vec<Result<(), PluginEventError>> {
+        self.event_registry.emit(&data)
+    }
+
+    pub fn list_event_subscriptions(&self) -> Vec<RegisteredEvent> {
+        self.event_registry.list_subscriptions()
+    }
+
+    pub fn list_event_subscriptions_for_plugin(&self, plugin_id: &str) -> Vec<RegisteredEvent> {
+        self.event_registry.list_subscriptions_for_plugin(plugin_id)
+    }
+
     pub fn clear(&self) {
         self.plugins.write().unwrap().clear();
         self.command_registry.clear();
         self.route_registry.clear();
         self.theme_registry.clear();
+        self.event_registry.clear();
     }
 }
 

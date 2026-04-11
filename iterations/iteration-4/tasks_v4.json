@@ -756,7 +756,7 @@
       "priority": "P1",
       "title": "TUI plugin events API",
       "description": "Implement the TUI plugin events API. Plugins should be able to subscribe to and emit TUI events.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Plugins can subscribe to events",
         "Plugins can emit events",
