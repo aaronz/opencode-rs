@@ -1702,7 +1702,7 @@
       "priority": "P0",
       "title": "Crash recovery",
       "description": "Write tests for crash recovery. Test that system recovers correctly from crashes.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "Crash recovery preserves data",
         "System state is consistent after recovery",
@@ -1721,7 +1721,7 @@
       "priority": "P0",
       "title": "Snapshot/revert durability",
       "description": "Write tests for snapshot and revert durability. Ensure snapshots are durable and revert is reliable.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "Snapshots are durable across restarts",
         "Revert operations are reliable",

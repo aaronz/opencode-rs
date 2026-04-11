@@ -50,6 +50,11 @@ impl CheckpointManager {
         self
     }
 
+    pub fn with_checkpoints_dir(mut self, dir: PathBuf) -> Self {
+        self.checkpoints_dir = dir;
+        self
+    }
+
     pub fn checkpoint_dir(&self, session_id: &Uuid) -> PathBuf {
         self.checkpoints_dir.join(session_id.to_string())
     }

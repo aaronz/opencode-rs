@@ -9,6 +9,8 @@ pub mod service;
 mod crash_recovery_tests;
 #[cfg(test)]
 mod recovery_tests;
+#[cfg(test)]
+mod snapshot_durability_tests;
 
 pub use compaction::{
     CompactionManager, CompactionWithShareabilityResult, ShareabilityError,
