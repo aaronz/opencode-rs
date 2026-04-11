@@ -452,4 +452,206 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn ownership_boundary_plugins_isolated_from_each_other() {
+        let plugins = vec![
+            ("plugin-a".to_string(), {
+                let mut m = IndexMap::new();
+                m.insert("custom_option".to_string(), serde_json::json!("value"));
+                m
+            }),
+            ("plugin-b".to_string(), {
+                let mut m = IndexMap::new();
+                m.insert("other_option".to_string(), serde_json::json!("other_value"));
+                m
+            }),
+        ];
+
+        let result = validate_plugin_isolation(&plugins);
+        assert!(
+            result.valid,
+            "plugins should be isolated from each other: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn ownership_boundary_plugin_cannot_access_other_plugin_config() {
+        let plugins = vec![
+            ("plugin-a".to_string(), {
+                let mut m = IndexMap::new();
+                m.insert(
+                    "plugin-b".to_string(),
+                    serde_json::json!("malicious_config"),
+                );
+                m
+            }),
+            ("plugin-b".to_string(), {
+                let mut m = IndexMap::new();
+                m.insert("option_b".to_string(), serde_json::json!("value"));
+                m
+            }),
+        ];
+
+        let result = validate_plugin_isolation(&plugins);
+        assert!(
+            !result.valid,
+            "plugin should not be able to access other plugin's config"
+        );
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.contains("config isolation violation")),
+            "should report config isolation violation: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn ownership_boundary_core_config_protected_from_plugins() {
+        let mut options = IndexMap::new();
+        options.insert("model".to_string(), serde_json::json!("gpt-5"));
+        options.insert("provider".to_string(), serde_json::json!({"openai": true}));
+
+        let result = validate_plugin_options("test-plugin", &options);
+        assert!(
+            !result.valid,
+            "plugins should not be able to override core config"
+        );
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.contains("reserved option key 'model'")),
+            "should report reserved key 'model' violation"
+        );
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.contains("reserved option key 'provider'")),
+            "should report reserved key 'provider' violation"
+        );
+    }
+
+    #[test]
+    fn ownership_boundary_nested_core_config_protected() {
+        let mut options = IndexMap::new();
+        options.insert("server.port".to_string(), serde_json::json!(8080));
+
+        let result = validate_plugin_options("test-plugin", &options);
+        assert!(
+            !result.valid,
+            "plugins should not be able to override nested core config"
+        );
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.contains("nested reserved key 'server.port'")),
+            "should report nested reserved key violation: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn ownership_boundary_violations_are_blocked() {
+        let mut options = IndexMap::new();
+        options.insert(
+            "permission".to_string(),
+            serde_json::json!({"read": "allow"}),
+        );
+        options.insert("mcp.server".to_string(), serde_json::json!("external"));
+        options.insert("api_key".to_string(), serde_json::json!("secret"));
+
+        let result = validate_plugin_options("test-plugin", &options);
+        assert!(!result.valid, "all boundary violations should be blocked");
+        assert_eq!(
+            result.errors.len(),
+            3,
+            "should catch all 3 violations: {:?}",
+            result.errors
+        );
+
+        let error_msgs: Vec<&str> = result.errors.iter().map(|s| s.as_str()).collect();
+        assert!(
+            error_msgs.iter().any(|m| m.contains("permission")),
+            "should block permission override"
+        );
+        assert!(
+            error_msgs.iter().any(|m| m.contains("mcp.server")),
+            "should block mcp override"
+        );
+        assert!(
+            error_msgs.iter().any(|m| m.contains("api_key")),
+            "should block api_key override"
+        );
+    }
+
+    #[test]
+    fn ownership_boundary_deep_nested_violation_blocked() {
+        let mut options = IndexMap::new();
+        options.insert(
+            "custom".to_string(),
+            serde_json::json!({
+                "level1": {
+                    "server": {
+                        "port": 8080
+                    }
+                }
+            }),
+        );
+
+        let result = validate_plugin_options("test-plugin", &options);
+        assert!(!result.valid, "deeply nested violations should be blocked");
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.contains("nested reserved key")),
+            "should detect deeply nested reserved key: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn ownership_boundary_plugin_options_cannot_leak_to_core() {
+        let mut options = IndexMap::new();
+        options.insert("log_level".to_string(), serde_json::json!("debug"));
+        options.insert(
+            "snapshot".to_string(),
+            serde_json::json!({"enabled": false}),
+        );
+        options.insert("experimental".to_string(), serde_json::json!(true));
+
+        let result = validate_plugin_options("test-plugin", &options);
+        assert!(
+            !result.valid,
+            "plugin options should not leak to core config"
+        );
+        assert_eq!(
+            result.errors.len(),
+            3,
+            "should catch all 3 core config leaks: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn ownership_boundary_all_reserved_prefixes_blocked() {
+        for prefix in RESERVED_KEY_PREFIXES {
+            let mut options = IndexMap::new();
+            let key = format!("{}something", prefix);
+            options.insert(key.clone(), serde_json::json!("value"));
+
+            let result = validate_plugin_options("test-plugin", &options);
+            assert!(
+                !result.valid,
+                "prefix '{}' should be blocked but got: {:?}",
+                prefix, result.errors
+            );
+        }
+    }
 }

@@ -1624,7 +1624,7 @@
       "priority": "P0",
       "title": "Plugin ownership boundary suite",
       "description": "Write regression tests for plugin ownership boundaries. Ensure plugins cannot access each other's configuration.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Plugins cannot read each other's config",
         "Core config is protected from plugins",
