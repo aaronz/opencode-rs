@@ -188,7 +188,7 @@
 
 | Task ID | Title | Module | FR | Phase | Status | Dependencies |
 |---------|-------|--------|-----|-------|--------|--------------|
-| P2-11 | Plugin cleanup/unload | plugin | FR-008 | Phase 2 | Pending | P0-17 |
+| P2-11 | Plugin cleanup/unload | plugin | FR-008 | Phase 2 | Done | P0-17 |
 
 ### TUI System (2 items)
 

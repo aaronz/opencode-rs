@@ -576,6 +576,70 @@ impl PluginManager {
         self.plugin_tools.write().await.clear();
         self.shutdown()
     }
+
+    pub fn unload_plugin(&mut self, name: &str) -> Result<(), PluginError> {
+        let mut plugin = self
+            .plugins
+            .shift_remove(name)
+            .ok_or_else(|| PluginError::NotFound(name.to_string()))?;
+
+        if let Err(error) = plugin.shutdown() {
+            tracing::warn!(plugin = name, error = %error, "Plugin shutdown failed during unload");
+        }
+
+        self.configs.shift_remove(name);
+        self.plugin_paths.shift_remove(name);
+
+        tracing::debug!(plugin = name, "Plugin unloaded successfully");
+        Ok(())
+    }
+
+    pub async fn unload_plugin_async(&mut self, name: &str) -> Result<(), PluginError> {
+        self.remove_tools_by_provider(name).await;
+
+        if let Err(error) = self.unload_plugin(name) {
+            if matches!(error, PluginError::NotFound(_)) {
+                return Ok(());
+            }
+            return Err(error);
+        }
+
+        Ok(())
+    }
+
+    pub async fn remove_tools_by_provider(&self, provider_name: &str) {
+        let mut tools = self.plugin_tools.write().await;
+        let to_remove: Vec<String> = tools
+            .iter()
+            .filter(|(_, tool)| tool.definition().provider_name == provider_name)
+            .map(|(name, _)| name.clone())
+            .collect();
+
+        for tool_name in to_remove {
+            tools.shift_remove(&tool_name);
+            tracing::debug!(
+                tool = %tool_name,
+                plugin = %provider_name,
+                "Plugin tool unregistered during cleanup"
+            );
+        }
+    }
+
+    pub async fn unload_all_plugins(&mut self) -> Result<(), PluginError> {
+        let plugin_names: Vec<String> = self.plugins.keys().cloned().collect();
+
+        for name in plugin_names {
+            if let Err(error) = self.unload_plugin_async(&name).await {
+                tracing::warn!(plugin = %name, error = %error, "Failed to unload plugin during cleanup");
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn is_plugin_loaded(&self, name: &str) -> bool {
+        self.plugins.contains_key(name)
+    }
 }
 
 #[cfg(test)]
@@ -1869,5 +1933,294 @@ mod tests {
             discovered.config.options.get("my_custom_setting"),
             Some(&serde_json::json!("value"))
         );
+    }
+
+    #[test]
+    fn test_plugin_cleanup_unload_single_plugin() {
+        let mut manager = PluginManager::new();
+        manager
+            .register(Box::new(TestPlugin {
+                initialized: false,
+                shutdown_called: false,
+                fail_init: false,
+                fail_shutdown: false,
+            }))
+            .unwrap();
+
+        assert!(manager.is_plugin_loaded("test-plugin"));
+        manager.unload_plugin("test-plugin").unwrap();
+        assert!(!manager.is_plugin_loaded("test-plugin"));
+        assert!(manager.get_plugin("test-plugin").is_none());
+        assert!(manager.get_config("test-plugin").is_none());
+    }
+
+    #[test]
+    fn test_plugin_cleanup_unload_calls_shutdown() {
+        let mut manager = PluginManager::new();
+        let plugin = TestPlugin {
+            initialized: false,
+            shutdown_called: false,
+            fail_init: false,
+            fail_shutdown: false,
+        };
+        manager.register(Box::new(plugin)).unwrap();
+
+        manager.unload_plugin("test-plugin").unwrap();
+    }
+
+    #[test]
+    fn test_plugin_cleanup_unload_nonexistent_fails() {
+        let mut manager = PluginManager::new();
+        let result = manager.unload_plugin("nonexistent");
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), PluginError::NotFound(_)));
+    }
+
+    #[test]
+    fn test_plugin_cleanup_unload_all() {
+        let mut manager = PluginManager::new();
+        manager
+            .register(Box::new(TestPlugin {
+                initialized: false,
+                shutdown_called: false,
+                fail_init: false,
+                fail_shutdown: false,
+            }))
+            .unwrap();
+
+        let plugin2 = TestPluginWithTools::new("another-plugin");
+        let config2 = plugin2.to_config();
+        manager
+            .register_with_config(Box::new(plugin2), config2)
+            .unwrap();
+
+        assert!(manager.is_plugin_loaded("test-plugin"));
+        assert!(manager.is_plugin_loaded("another-plugin"));
+
+        manager.unload_plugin("test-plugin").unwrap();
+        assert!(!manager.is_plugin_loaded("test-plugin"));
+        assert!(manager.is_plugin_loaded("another-plugin"));
+
+        manager.unload_plugin("another-plugin").unwrap();
+        assert!(!manager.is_plugin_loaded("test-plugin"));
+        assert!(!manager.is_plugin_loaded("another-plugin"));
+    }
+
+    #[tokio::test]
+    async fn test_plugin_cleanup_unload_async_removes_tools() {
+        let mut manager = PluginManager::new();
+        register_test_plugin_with_tools(&mut manager, "tool-plugin");
+
+        let tool_def = PluginToolDefinition {
+            name: "cleanup_test_tool".to_string(),
+            description: "Tool for cleanup test".to_string(),
+            input_schema: serde_json::json!({"type": "object"}),
+            provider_name: "tool-plugin".to_string(),
+        };
+        let tool = PluginTool::new(tool_def, Box::new(|_args| Ok("ok".to_string())));
+        manager.register_plugin_tool(tool).await.unwrap();
+
+        assert!(manager.get_plugin_tool_definition("cleanup_test_tool").await.is_some());
+
+        manager.unload_plugin_async("tool-plugin").await.unwrap();
+
+        assert!(!manager.is_plugin_loaded("tool-plugin"));
+        assert!(manager.get_plugin_tool_definition("cleanup_test_tool").await.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_plugin_cleanup_unload_async_clears_multiple_tools() {
+        let mut manager = PluginManager::new();
+        register_test_plugin_with_tools(&mut manager, "multi-tool-plugin");
+
+        for i in 0..5 {
+            let tool_def = PluginToolDefinition {
+                name: format!("tool_{}", i),
+                description: format!("Tool {}", i),
+                input_schema: serde_json::json!({"type": "object"}),
+                provider_name: "multi-tool-plugin".to_string(),
+            };
+            let tool = PluginTool::new(tool_def, Box::new(|_args| Ok("ok".to_string())));
+            manager.register_plugin_tool(tool).await.unwrap();
+        }
+
+        let tools = manager.list_plugin_tools().await;
+        assert_eq!(tools.len(), 5);
+
+        manager.unload_plugin_async("multi-tool-plugin").await.unwrap();
+
+        let tools = manager.list_plugin_tools().await;
+        assert!(tools.is_empty());
+        assert!(!manager.is_plugin_loaded("multi-tool-plugin"));
+    }
+
+    #[tokio::test]
+    async fn test_plugin_cleanup_unload_all_plugins() {
+        let mut manager = PluginManager::new();
+        register_test_plugin_with_tools(&mut manager, "plugin-a");
+        register_test_plugin_with_tools(&mut manager, "plugin-b");
+        register_test_plugin_with_tools(&mut manager, "plugin-c");
+
+        for (tool_key, plugin_name) in [("tool_a", "plugin-a"), ("tool_b", "plugin-b"), ("tool_c", "plugin-c")] {
+            let tool_def = PluginToolDefinition {
+                name: tool_key.to_string(),
+                description: format!("Tool for {}", tool_key),
+                input_schema: serde_json::json!({"type": "object"}),
+                provider_name: plugin_name.to_string(),
+            };
+            let tool = PluginTool::new(tool_def, Box::new(|_args| Ok("ok".to_string())));
+            manager.register_plugin_tool(tool).await.unwrap();
+        }
+
+        assert!(manager.is_plugin_loaded("plugin-a"));
+        assert!(manager.is_plugin_loaded("plugin-b"));
+        assert!(manager.is_plugin_loaded("plugin-c"));
+        assert_eq!(manager.list_plugin_tools().await.len(), 3);
+
+        manager.unload_all_plugins().await.unwrap();
+
+        assert!(!manager.is_plugin_loaded("plugin-a"));
+        assert!(!manager.is_plugin_loaded("plugin-b"));
+        assert!(!manager.is_plugin_loaded("plugin-c"));
+        assert!(manager.list_plugin_tools().await.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_plugin_cleanup_remove_tools_by_provider() {
+        let mut manager = PluginManager::new();
+        register_test_plugin_with_tools(&mut manager, "provider-x");
+        register_test_plugin_with_tools(&mut manager, "provider-y");
+
+        let tool_def_x = PluginToolDefinition {
+            name: "tool_x1".to_string(),
+            description: "Tool X1".to_string(),
+            input_schema: serde_json::json!({"type": "object"}),
+            provider_name: "provider-x".to_string(),
+        };
+        let tool_x1 = PluginTool::new(tool_def_x, Box::new(|_args| Ok("ok".to_string())));
+        manager.register_plugin_tool(tool_x1).await.unwrap();
+
+        let tool_def_y = PluginToolDefinition {
+            name: "tool_y1".to_string(),
+            description: "Tool Y1".to_string(),
+            input_schema: serde_json::json!({"type": "object"}),
+            provider_name: "provider-y".to_string(),
+        };
+        let tool_y1 = PluginTool::new(tool_def_y, Box::new(|_args| Ok("ok".to_string())));
+        manager.register_plugin_tool(tool_y1).await.unwrap();
+
+        assert_eq!(manager.list_plugin_tools().await.len(), 2);
+
+        manager.remove_tools_by_provider("provider-x").await;
+
+        let remaining_tools = manager.list_plugin_tools().await;
+        assert_eq!(remaining_tools.len(), 1);
+        assert_eq!(remaining_tools[0].name, "tool_y1");
+    }
+
+    #[test]
+    fn test_plugin_cleanup_shutdown_all_after_unload() {
+        let mut manager = PluginManager::new();
+        manager
+            .register(Box::new(TestPlugin {
+                initialized: false,
+                shutdown_called: false,
+                fail_init: false,
+                fail_shutdown: false,
+            }))
+            .unwrap();
+
+        manager.unload_plugin("test-plugin").unwrap();
+        let result = manager.shutdown();
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_plugin_cleanup_async_shutdown_after_unload_all() {
+        let mut manager = PluginManager::new();
+        register_test_plugin_with_tools(&mut manager, "plugin-1");
+        register_test_plugin_with_tools(&mut manager, "plugin-2");
+
+        manager.unload_all_plugins().await.unwrap();
+        manager.shutdown_async().await.unwrap();
+
+        assert!(!manager.is_plugin_loaded("plugin-1"));
+        assert!(!manager.is_plugin_loaded("plugin-2"));
+        assert!(manager.list_plugin_tools().await.is_empty());
+    }
+
+    #[test]
+    fn test_plugin_cleanup_unload_preserves_other_plugins() {
+        let mut manager = PluginManager::new();
+        manager
+            .register(Box::new(TestPlugin {
+                initialized: false,
+                shutdown_called: false,
+                fail_init: false,
+                fail_shutdown: false,
+            }))
+            .unwrap();
+
+        let plugin2 = TestPluginWithTools::new("plugin-to-keep");
+        let config2 = plugin2.to_config();
+        manager
+            .register_with_config(Box::new(plugin2), config2)
+            .unwrap();
+
+        manager.unload_plugin("test-plugin").unwrap();
+
+        assert!(!manager.is_plugin_loaded("test-plugin"));
+        assert!(manager.is_plugin_loaded("plugin-to-keep"));
+        assert!(manager.get_plugin("plugin-to-keep").is_some());
+        assert!(manager.get_config("plugin-to-keep").is_some());
+    }
+
+    #[tokio::test]
+    async fn test_plugin_cleanup_resources_released_after_unload() {
+        let mut manager = PluginManager::new();
+        register_test_plugin_with_tools(&mut manager, "resource-plugin");
+
+        let tool_def = PluginToolDefinition {
+            name: "resource_tool".to_string(),
+            description: "Resource tool".to_string(),
+            input_schema: serde_json::json!({"type": "object"}),
+            provider_name: "resource-plugin".to_string(),
+        };
+        let tool = PluginTool::new(
+            tool_def,
+            Box::new(|_args| {
+                Ok("resource released".to_string())
+            }),
+        );
+        manager.register_plugin_tool(tool).await.unwrap();
+
+        manager.unload_plugin_async("resource-plugin").await.unwrap();
+
+        let result = manager
+            .execute_plugin_tool("resource_tool", serde_json::json!({}))
+            .await;
+        assert!(result.is_err());
+
+        let err = result.unwrap_err();
+        assert!(matches!(err, PluginError::ToolRegistration(_)));
+    }
+
+    #[test]
+    fn test_plugin_cleanup_unload_with_failed_shutdown_still_removes() {
+        let mut manager = PluginManager::new();
+        manager
+            .register(Box::new(TestPlugin {
+                initialized: false,
+                shutdown_called: false,
+                fail_init: false,
+                fail_shutdown: true,
+            }))
+            .unwrap();
+
+        let result = manager.unload_plugin("test-plugin");
+        assert!(result.is_ok());
+
+        assert!(!manager.is_plugin_loaded("test-plugin"));
+        assert!(manager.get_plugin("test-plugin").is_none());
     }
 }

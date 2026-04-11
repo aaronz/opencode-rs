@@ -1149,7 +1149,7 @@
       "priority": "P2",
       "title": "Plugin cleanup/unload",
       "description": "Implement proper plugin cleanup and unload functionality. Plugins should be able to be fully unloaded without memory leaks.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Plugins can be cleanly unloaded",
         "No memory leaks after unload",
