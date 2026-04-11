@@ -125,6 +125,32 @@ impl GitLabClient {
         Ok(response.pipelines)
     }
 
+    pub fn get_pipeline(
+        &self,
+        project_id: &str,
+        pipeline_id: u64,
+    ) -> Result<GitLabPipeline, GitLabError> {
+        let encoded_id = urlencoding::encode(project_id);
+        let url = format!(
+            "{}/projects/{}/pipelines/{}",
+            self.api_base, encoded_id, pipeline_id
+        );
+        self.send(self.authed(self.client.get(url)))
+    }
+
+    pub fn get_pipeline_jobs(
+        &self,
+        project_id: &str,
+        pipeline_id: u64,
+    ) -> Result<Vec<GitLabJob>, GitLabError> {
+        let encoded_id = urlencoding::encode(project_id);
+        let url = format!(
+            "{}/projects/{}/pipelines/{}/jobs",
+            self.api_base, encoded_id, pipeline_id
+        );
+        self.send(self.authed(self.client.get(url)))
+    }
+
     pub fn get_ci_variables(&self, project_id: &str) -> Result<Vec<GitLabCiVariable>, GitLabError> {
         let encoded_id = urlencoding::encode(project_id);
         let url = format!("{}/projects/{}/variables", self.api_base, encoded_id);
@@ -214,6 +240,18 @@ pub struct GitLabPipeline {
     pub web_url: String,
     pub created_at: String,
     pub updated_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitLabJob {
+    pub id: u64,
+    pub name: String,
+    pub stage: String,
+    pub status: String,
+    pub started_at: Option<String>,
+    pub finished_at: Option<String>,
+    pub duration: Option<f64>,
+    pub web_url: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

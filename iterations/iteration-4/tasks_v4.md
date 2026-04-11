@@ -213,7 +213,7 @@
 
 | Task ID | Title | Module | FR | Phase | Status | Dependencies |
 |---------|-------|--------|-----|-------|--------|--------------|
-| P2-16 | GitLab CI component | git | FR-017 | Phase 4 | Pending | FR-016 complete |
+| P2-16 | GitLab CI component | git | FR-017 | Phase 4 | Done | FR-016 complete |
 
 ---
 

@@ -12,11 +12,12 @@ pub use github::{
     IssueUpdates,
 };
 pub use gitlab::{
-    GitLabCiVariable, GitLabClient, GitLabError, GitLabFileCommit, GitLabFileContent,
+    GitLabCiVariable, GitLabClient, GitLabError, GitLabFileCommit, GitLabFileContent, GitLabJob,
     GitLabPipeline, GitLabProject,
 };
 pub use gitlab_ci::{
     get_gitlab_ci_template, setup_gitlab_ci, GitLabCiSetupResult, GitLabCiTemplate,
+    GitLabCiTrigger, GitLabJobResult, GitLabPipelineStatus, GitLabPipelineTriggerResult,
 };
 pub use trigger::{
     CiSecrets, GitHubTrigger, GitHubTrigger as Trigger, TriggerContext, TriggerParseError,

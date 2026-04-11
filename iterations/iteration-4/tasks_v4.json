@@ -1242,7 +1242,7 @@
       "priority": "P2",
       "title": "GitLab CI component",
       "description": "Implement GitLab CI component integration. Support triggering and monitoring GitLab CI pipelines.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "GitLab pipelines can be triggered",
         "Pipeline status is monitored",

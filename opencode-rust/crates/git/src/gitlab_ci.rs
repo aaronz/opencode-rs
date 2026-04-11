@@ -185,6 +185,87 @@ pub struct GitLabCiSetupResult {
     pub use_component: bool,
 }
 
+#[derive(Debug, Clone)]
+pub struct GitLabCiTrigger {
+    client: GitLabClient,
+    project_id: String,
+}
+
+impl GitLabCiTrigger {
+    pub fn new(client: GitLabClient, project_id: &str) -> Self {
+        Self {
+            client,
+            project_id: project_id.to_string(),
+        }
+    }
+
+    pub fn trigger_pipeline(
+        &self,
+        branch: &str,
+    ) -> Result<GitLabPipelineTriggerResult, GitLabError> {
+        let pipeline = self.client.create_pipeline(&self.project_id, branch)?;
+        Ok(GitLabPipelineTriggerResult {
+            pipeline_id: pipeline.id,
+            pipeline_url: pipeline.web_url,
+            branch: branch.to_string(),
+            status: pipeline.status,
+        })
+    }
+
+    pub fn get_pipeline_status(
+        &self,
+        pipeline_id: u64,
+    ) -> Result<GitLabPipelineStatus, GitLabError> {
+        let pipeline = self.client.get_pipeline(&self.project_id, pipeline_id)?;
+        let jobs = self
+            .client
+            .get_pipeline_jobs(&self.project_id, pipeline_id)?;
+
+        let job_results: Vec<GitLabJobResult> = jobs
+            .into_iter()
+            .map(|job| GitLabJobResult {
+                name: job.name,
+                stage: job.stage,
+                status: job.status,
+                duration: job.duration,
+                web_url: job.web_url,
+            })
+            .collect();
+
+        Ok(GitLabPipelineStatus {
+            pipeline_id: pipeline.id,
+            status: pipeline.status,
+            web_url: pipeline.web_url,
+            jobs: job_results,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitLabPipelineTriggerResult {
+    pub pipeline_id: u64,
+    pub pipeline_url: String,
+    pub branch: String,
+    pub status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitLabPipelineStatus {
+    pub pipeline_id: u64,
+    pub status: String,
+    pub web_url: String,
+    pub jobs: Vec<GitLabJobResult>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitLabJobResult {
+    pub name: String,
+    pub stage: String,
+    pub status: String,
+    pub duration: Option<f64>,
+    pub web_url: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -230,5 +311,66 @@ mod tests {
         assert!(yaml.contains("rules:"));
         assert!(yaml.contains("merge_request_event"));
         assert!(yaml.contains("web"));
+    }
+
+    #[test]
+    fn test_gitlab_pipeline_trigger_result_serialization() {
+        let result = GitLabPipelineTriggerResult {
+            pipeline_id: 12345,
+            pipeline_url: "https://gitlab.com/group/project/-/pipelines/12345".to_string(),
+            branch: "main".to_string(),
+            status: "pending".to_string(),
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"pipeline_id\":12345"));
+        assert!(json.contains("\"branch\":\"main\""));
+        assert!(json.contains("\"status\":\"pending\""));
+    }
+
+    #[test]
+    fn test_gitlab_pipeline_status_serialization() {
+        let status = GitLabPipelineStatus {
+            pipeline_id: 12345,
+            status: "running".to_string(),
+            web_url: "https://gitlab.com/group/project/-/pipelines/12345".to_string(),
+            jobs: vec![GitLabJobResult {
+                name: "opencode_agent".to_string(),
+                stage: "opencode".to_string(),
+                status: "running".to_string(),
+                duration: Some(120.5),
+                web_url: "https://gitlab.com/group/project/-/jobs/1".to_string(),
+            }],
+        };
+
+        let json = serde_json::to_string(&status).unwrap();
+        assert!(json.contains("\"pipeline_id\":12345"));
+        assert!(json.contains("\"status\":\"running\""));
+        assert!(json.contains("\"jobs\""));
+        assert!(json.contains("\"name\":\"opencode_agent\""));
+        assert!(json.contains("\"duration\":120.5"));
+    }
+
+    #[test]
+    fn test_gitlab_job_result_serialization() {
+        let job = GitLabJobResult {
+            name: "test_job".to_string(),
+            stage: "test".to_string(),
+            status: "success".to_string(),
+            duration: Some(45.0),
+            web_url: "https://gitlab.com/job/1".to_string(),
+        };
+
+        let json = serde_json::to_string(&job).unwrap();
+        assert!(json.contains("\"name\":\"test_job\""));
+        assert!(json.contains("\"stage\":\"test\""));
+        assert!(json.contains("\"status\":\"success\""));
+        assert!(json.contains("\"duration\":45"));
+    }
+
+    #[test]
+    fn test_gitlab_ci_trigger_creation() {
+        let client = GitLabClient::new("test-token", "https://gitlab.com/api/v4");
+        let _trigger = GitLabCiTrigger::new(client, "group/project");
     }
 }
