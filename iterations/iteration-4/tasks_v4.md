@@ -225,7 +225,7 @@
 |---------|-------|--------|-----|-------|--------|--------------|
 | T-019-1 | Core ownership tree tests (unit + integration) | core | FR-019 | Phase 5 | ✅ Done | P1-1 |
 | T-019-2 | Config precedence merge tests | config | FR-019 | Phase 5 | ✅ Done | P0-11 |
-| T-019-3 | API route-group tests | server | FR-019 | Phase 5 | Pending | P0-13 |
+| T-019-3 | API route-group tests | server | FR-019 | Phase 5 | ✅ Done | P0-13 |
 | T-019-4 | Session/message lifecycle tests | server | FR-019 | Phase 5 | Pending | P0-15 |
 
 ### Runtime Architecture Tests (FR-020)

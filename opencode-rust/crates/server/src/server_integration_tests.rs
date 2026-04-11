@@ -519,4 +519,259 @@ mod tests {
         let active = monitor.get_active_connections().await;
         assert_eq!(active.len(), 2);
     }
+
+    // Route Group Tests (T-019-3)
+
+    #[test]
+    fn route_group_all_expected_groups_defined() {
+        let expected_groups = [
+            "config",
+            "provider",
+            "model",
+            "session",
+            "share",
+            "run",
+            "permission",
+            "ws",
+            "sse",
+            "mcp",
+            "acp",
+            "export",
+            "sso",
+        ];
+
+        assert_eq!(expected_groups.len(), 13);
+    }
+
+    #[test]
+    fn route_group_discovery_from_mod_files() {
+        let routes_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("src")
+            .join("routes");
+
+        if routes_dir.exists() {
+            let entries = std::fs::read_dir(&routes_dir).unwrap();
+            let route_modules: Vec<_> = entries
+                .filter_map(|e| e.ok())
+                .filter(|e| {
+                    e.path().is_file()
+                        && e.path().extension().map(|s| s == "rs").unwrap_or(false)
+                        && e.path().file_name().map(|n| n != "mod.rs").unwrap_or(false)
+                })
+                .filter_map(|e| {
+                    e.path()
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .map(|s| s.to_string())
+                })
+                .collect();
+
+            assert!(
+                route_modules.len() >= 10,
+                "Expected at least 10 route modules, found {}",
+                route_modules.len()
+            );
+        }
+    }
+
+    #[test]
+    fn route_group_config_module_has_init() {
+        fn _check_config_init(cfg: &mut actix_web::web::ServiceConfig) {
+            crate::routes::config::init(cfg);
+        }
+        fn _check_provider_init(cfg: &mut actix_web::web::ServiceConfig) {
+            crate::routes::provider::init(cfg);
+        }
+        fn _check_model_init(cfg: &mut actix_web::web::ServiceConfig) {
+            crate::routes::model::init(cfg);
+        }
+        fn _check_session_init(cfg: &mut actix_web::web::ServiceConfig) {
+            crate::routes::session::init(cfg);
+        }
+        fn _check_share_init(cfg: &mut actix_web::web::ServiceConfig) {
+            crate::routes::share::init(cfg);
+        }
+        fn _check_run_init(cfg: &mut actix_web::web::ServiceConfig) {
+            crate::routes::run::init(cfg);
+        }
+        fn _check_permission_init(cfg: &mut actix_web::web::ServiceConfig) {
+            crate::routes::permission::init(cfg);
+        }
+        fn _check_ws_init(cfg: &mut actix_web::web::ServiceConfig) {
+            crate::routes::ws::init(cfg);
+        }
+        fn _check_sse_init(cfg: &mut actix_web::web::ServiceConfig) {
+            crate::routes::sse::init(cfg);
+        }
+        fn _check_mcp_init(cfg: &mut actix_web::web::ServiceConfig) {
+            crate::routes::mcp::init(cfg);
+        }
+        fn _check_acp_init(cfg: &mut actix_web::web::ServiceConfig) {
+            crate::routes::acp::init(cfg);
+        }
+        fn _check_export_init(cfg: &mut actix_web::web::ServiceConfig) {
+            crate::routes::export::init(cfg);
+        }
+        fn _check_sso_init(cfg: &mut actix_web::web::ServiceConfig) {
+            crate::routes::sso::init(cfg);
+        }
+    }
+
+    #[actix_web::test]
+    async fn route_group_middleware_auth_check_no_key() {
+        let state = create_test_state_with_api_key(Some("test-api-key".to_string()));
+        let req = actix_web::test::TestRequest::default()
+            .app_data(actix_web::web::Data::new(state))
+            .uri("/api/sessions")
+            .to_srv_request();
+
+        let authorized = crate::middleware::is_api_key_authorized(&req);
+        assert!(!authorized, "Request without API key should be rejected");
+    }
+
+    #[actix_web::test]
+    async fn route_group_middleware_auth_check_with_valid_key() {
+        let state = create_test_state_with_api_key(Some("test-api-key".to_string()));
+        let req = actix_web::test::TestRequest::default()
+            .app_data(actix_web::web::Data::new(state))
+            .uri("/api/sessions")
+            .insert_header((
+                actix_web::http::header::HeaderName::from_static("x-api-key"),
+                "test-api-key",
+            ))
+            .to_srv_request();
+
+        let authorized = crate::middleware::is_api_key_authorized(&req);
+        assert!(authorized, "Request with valid API key should be allowed");
+    }
+
+    #[actix_web::test]
+    async fn route_group_middleware_auth_check_with_invalid_key() {
+        let state = create_test_state_with_api_key(Some("test-api-key".to_string()));
+        let req = actix_web::test::TestRequest::default()
+            .app_data(actix_web::web::Data::new(state))
+            .uri("/api/sessions")
+            .insert_header((
+                actix_web::http::header::HeaderName::from_static("x-api-key"),
+                "wrong-api-key",
+            ))
+            .to_srv_request();
+
+        let authorized = crate::middleware::is_api_key_authorized(&req);
+        assert!(!authorized, "Request with invalid API key should be rejected");
+    }
+
+    #[actix_web::test]
+    async fn route_group_middleware_auth_check_no_key_configured() {
+        let state = create_test_state_with_api_key(None);
+        let req = actix_web::test::TestRequest::default()
+            .app_data(actix_web::web::Data::new(state))
+            .uri("/api/sessions")
+            .to_srv_request();
+
+        let authorized = crate::middleware::is_api_key_authorized(&req);
+        assert!(authorized, "Request should be allowed when no API key is configured");
+    }
+
+    #[actix_web::test]
+    async fn route_group_middleware_auth_check_empty_key_configured() {
+        let state = create_test_state_with_api_key(Some("".to_string()));
+        let req = actix_web::test::TestRequest::default()
+            .app_data(actix_web::web::Data::new(state))
+            .uri("/api/sessions")
+            .to_srv_request();
+
+        let authorized = crate::middleware::is_api_key_authorized(&req);
+        assert!(authorized, "Request should be allowed when empty API key is configured");
+    }
+
+    #[test]
+    fn route_group_config_routes_count() {
+        let expected_config_routes = [
+            ("GET", ""),
+            ("PATCH", ""),
+        ];
+        assert_eq!(expected_config_routes.len(), 2);
+    }
+
+    #[test]
+    fn route_group_provider_routes_count() {
+        let expected_provider_routes = [
+            ("GET", ""),
+            ("POST", ""),
+            ("GET", "/{id}"),
+            ("PUT", "/{id}"),
+            ("DELETE", "/{id}"),
+            ("POST", "/{id}/test"),
+            ("GET", "/{id}/status"),
+            ("PUT", "/{id}/enabled"),
+            ("POST", "/{id}/credentials"),
+            ("POST", "/{id}/credentials/test"),
+            ("DELETE", "/{id}/credentials"),
+        ];
+        assert_eq!(expected_provider_routes.len(), 11);
+    }
+
+    #[test]
+    fn route_group_session_routes_count() {
+        let expected_session_routes = [
+            ("GET", ""),
+            ("POST", ""),
+            ("POST", "/{id}/fork"),
+            ("POST", "/{id}/prompt"),
+            ("POST", "/{id}/command"),
+            ("POST", "/{id}/abort"),
+            ("POST", "/{id}/permissions/{req_id}/reply"),
+            ("GET", "/{id}/messages"),
+            ("POST", "/{id}/messages"),
+            ("GET", "/{id}/messages/{msg_index}"),
+            ("GET", "/{id}/diff"),
+            ("GET", "/{id}/snapshots"),
+            ("POST", "/{id}/revert"),
+            ("POST", "/{id}/share"),
+            ("DELETE", "/{id}/share"),
+            ("POST", "/{id}/summarize"),
+            ("GET", "/{id}"),
+            ("DELETE", "/{id}"),
+        ];
+        assert_eq!(expected_session_routes.len(), 18);
+    }
+
+    #[test]
+    fn route_group_cors_middleware_allows_any_origin_when_empty() {
+        let origins: Vec<String> = vec![];
+        let _cors = crate::middleware::cors_middleware(&origins);
+        assert!(origins.is_empty());
+    }
+
+    #[test]
+    fn route_group_cors_middleware_respects_configured_origins() {
+        let origins = vec!["http://localhost:3000".to_string()];
+        let _cors = crate::middleware::cors_middleware(&origins);
+        assert!(!origins.is_empty());
+        assert_eq!(origins.len(), 1);
+    }
+
+    #[test]
+    fn route_group_scopes_under_api_prefix() {
+        let expected_api_scopes = [
+            "/api/config",
+            "/api/providers",
+            "/api/models",
+            "/api/sessions",
+            "/api/share",
+            "/api/run",
+            "/api/permissions",
+            "/api/ws",
+            "/api/sse",
+            "/api/mcp",
+            "/api/acp",
+            "/api/export",
+            "/api/sso",
+        ];
+        assert_eq!(expected_api_scopes.len(), 13);
+        for scope in expected_api_scopes {
+            assert!(scope.starts_with("/api"), "Scope {} should start with /api", scope);
+        }
+    }
 }

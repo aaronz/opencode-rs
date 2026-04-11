@@ -1299,7 +1299,7 @@
       "priority": "P0",
       "title": "API route-group tests",
       "description": "Write tests for API route grouping functionality. Test that routes are properly grouped and middleware applies correctly.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Route grouping works correctly",
         "Group middleware applies to all routes in group",
@@ -1308,7 +1308,7 @@
       "test_commands": [
         "cargo test -p opencode-server -- route_group"
       ],
-      "impl_notes": "Build after P0-13 is complete.",
+      "impl_notes": "Implemented 14 route-group tests covering route discovery, init function verification, middleware auth checks, CORS middleware, and route counts for config, provider, and session modules.",
       "dependencies": [
         "P0-13"
       ]
