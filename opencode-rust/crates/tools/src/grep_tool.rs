@@ -28,6 +28,10 @@ impl Tool for GrepTool {
         Box::new(GrepTool)
     }
 
+    fn is_safe(&self) -> bool {
+        true
+    }
+
     async fn execute(
         &self,
         args: serde_json::Value,

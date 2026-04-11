@@ -1,8 +1,18 @@
 use crate::{Tool, ToolContext, ToolResult};
 use opencode_core::OpenCodeError;
+use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::RwLock;
+
+const CACHE_KEY_PREFIX: &str = "tool_cache:";
+
+fn compute_cache_key(tool_name: &str, args: &serde_json::Value) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(args.to_string().as_bytes());
+    let args_hash = format!("{:x}", hasher.finalize());
+    format!("{}{}:{}", CACHE_KEY_PREFIX, tool_name, args_hash)
+}
 
 /// Source of a tool, used for deterministic collision resolution
 /// Lower ordinal = higher priority (can override lower priority tools)
@@ -115,6 +125,7 @@ pub struct ToolCallResult {
 pub struct ToolRegistry {
     tools: Arc<RwLock<HashMap<String, ToolEntry>>>,
     disabled: HashSet<String>,
+    cache: Arc<RwLock<HashMap<String, ToolResult>>>,
 }
 
 impl ToolRegistry {
@@ -122,6 +133,7 @@ impl ToolRegistry {
         Self {
             tools: Arc::new(RwLock::new(HashMap::new())),
             disabled: HashSet::new(),
+            cache: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -131,6 +143,29 @@ impl ToolRegistry {
 
     pub fn is_disabled(&self, name: &str) -> bool {
         self.disabled.contains(name)
+    }
+
+    pub async fn invalidate_cache_for_tool(&self, tool_name: &str) {
+        let mut cache = self.cache.write().await;
+        let prefix = format!("{}{}:", CACHE_KEY_PREFIX, tool_name);
+        cache.retain(|key, _| !key.starts_with(&prefix));
+    }
+
+    pub async fn invalidate_all_cache(&self) {
+        let mut cache = self.cache.write().await;
+        cache.clear();
+    }
+
+    pub async fn get_cached_result(&self, tool_name: &str, args: &serde_json::Value) -> Option<ToolResult> {
+        let cache = self.cache.read().await;
+        let key = compute_cache_key(tool_name, args);
+        cache.get(&key).cloned()
+    }
+
+    async fn cache_result(&self, tool_name: &str, args: &serde_json::Value, result: ToolResult) {
+        let mut cache = self.cache.write().await;
+        let key = compute_cache_key(tool_name, args);
+        cache.insert(key, result);
     }
 
     pub async fn register<T: Tool + 'static>(&self, tool: T) {
@@ -265,7 +300,23 @@ impl ToolRegistry {
             .get(name)
             .await
             .ok_or_else(|| OpenCodeError::Tool(format!("Tool '{}' not found", name)))?;
-        tool.execute(args, ctx).await
+
+        let is_safe = tool.is_safe();
+
+        if is_safe {
+            if let Some(cached) = self.get_cached_result(name, &args).await {
+                tracing::debug!(tool = %name, "returning cached result");
+                return Ok(cached);
+            }
+        }
+
+        let result = tool.execute(args.clone(), ctx).await?;
+
+        if is_safe && result.success {
+            self.cache_result(name, &args, result.clone()).await;
+        }
+
+        Ok(result)
     }
 
     pub async fn execute_parallel(&self, calls: Vec<ToolCall>) -> Vec<ToolCallResult> {
@@ -833,5 +884,209 @@ mod tests {
 
         assert!(ToolSource::Builtin <= ToolSource::Builtin);
         assert!(ToolSource::CustomGlobal >= ToolSource::CustomGlobal);
+    }
+
+    #[derive(Clone)]
+    struct SafeTestTool {
+        call_count: std::sync::Arc<std::sync::Mutex<u32>>,
+    }
+
+    impl SafeTestTool {
+        fn new() -> Self {
+            Self {
+                call_count: std::sync::Arc::new(std::sync::Mutex::new(0)),
+            }
+        }
+    }
+
+    #[async_trait]
+    impl Tool for SafeTestTool {
+        fn name(&self) -> &str {
+            "safe_test_tool"
+        }
+
+        fn description(&self) -> &str {
+            "Safe test tool"
+        }
+
+        fn clone_tool(&self) -> Box<dyn Tool> {
+            let count = std::sync::Arc::clone(&self.call_count);
+            Box::new(SafeTestTool { call_count: count })
+        }
+
+        fn is_safe(&self) -> bool {
+            true
+        }
+
+        async fn execute(
+            &self,
+            args: serde_json::Value,
+            _ctx: Option<ToolContext>,
+        ) -> Result<ToolResult, OpenCodeError> {
+            let mut count = self.call_count.lock().unwrap();
+            *count += 1;
+            let input = args.get("input").and_then(|v| v.as_str()).unwrap_or("default");
+            Ok(ToolResult::ok(format!("called {} times: {}", *count, input)))
+        }
+    }
+
+    #[derive(Clone)]
+    struct UnsafeTestTool {
+        call_count: std::sync::Arc<std::sync::Mutex<u32>>,
+    }
+
+    impl UnsafeTestTool {
+        fn new() -> Self {
+            Self {
+                call_count: std::sync::Arc::new(std::sync::Mutex::new(0)),
+            }
+        }
+    }
+
+    #[async_trait]
+    impl Tool for UnsafeTestTool {
+        fn name(&self) -> &str {
+            "unsafe_test_tool"
+        }
+
+        fn description(&self) -> &str {
+            "Unsafe test tool"
+        }
+
+        fn clone_tool(&self) -> Box<dyn Tool> {
+            let count = std::sync::Arc::clone(&self.call_count);
+            Box::new(UnsafeTestTool { call_count: count })
+        }
+
+        fn is_safe(&self) -> bool {
+            false
+        }
+
+        async fn execute(
+            &self,
+            args: serde_json::Value,
+            _ctx: Option<ToolContext>,
+        ) -> Result<ToolResult, OpenCodeError> {
+            let mut count = self.call_count.lock().unwrap();
+            *count += 1;
+            let input = args.get("input").and_then(|v| v.as_str()).unwrap_or("default");
+            Ok(ToolResult::ok(format!("called {} times: {}", *count, input)))
+        }
+    }
+
+    #[tokio::test]
+    async fn test_result_caching_safe_tools_cached() {
+        let registry = ToolRegistry::new();
+        registry.register(SafeTestTool::new()).await;
+
+        let args = serde_json::json!({"input": "test"});
+
+        let result1 = registry.execute("safe_test_tool", args.clone(), None).await.unwrap();
+        let result2 = registry.execute("safe_test_tool", args.clone(), None).await.unwrap();
+
+        assert_eq!(result1.content, result2.content);
+        assert!(result1.content.contains("called 1 times:"));
+    }
+
+    #[tokio::test]
+    async fn test_result_caching_unsafe_tools_not_cached() {
+        let registry = ToolRegistry::new();
+        registry.register(UnsafeTestTool::new()).await;
+
+        let args = serde_json::json!({"input": "test"});
+
+        let result1 = registry.execute("unsafe_test_tool", args.clone(), None).await.unwrap();
+        let result2 = registry.execute("unsafe_test_tool", args.clone(), None).await.unwrap();
+
+        assert!(result1.content.contains("called 1 times:"));
+        assert!(result2.content.contains("called 2 times:"));
+    }
+
+    #[tokio::test]
+    async fn test_result_caching_different_args_not_cached() {
+        let registry = ToolRegistry::new();
+        registry.register(SafeTestTool::new()).await;
+
+        let args1 = serde_json::json!({"input": "test1"});
+        let args2 = serde_json::json!({"input": "test2"});
+
+        let result1 = registry.execute("safe_test_tool", args1.clone(), None).await.unwrap();
+        let result2 = registry.execute("safe_test_tool", args2.clone(), None).await.unwrap();
+
+        assert!(result1.content.contains("called 1 times:"));
+        assert!(result2.content.contains("called 2 times:"));
+    }
+
+    #[tokio::test]
+    async fn test_result_caching_cache_invalidation() {
+        let registry = ToolRegistry::new();
+        registry.register(SafeTestTool::new()).await;
+
+        let args = serde_json::json!({"input": "test"});
+
+        let result1 = registry.execute("safe_test_tool", args.clone(), None).await.unwrap();
+        assert!(result1.content.contains("called 1 times:"));
+
+        registry.invalidate_cache_for_tool("safe_test_tool").await;
+
+        let result2 = registry.execute("safe_test_tool", args.clone(), None).await.unwrap();
+        assert!(result2.content.contains("called 2 times:"));
+    }
+
+    #[tokio::test]
+    async fn test_result_caching_invalidate_all() {
+        #[derive(Clone)]
+        struct AnotherSafeTool;
+        #[async_trait]
+        impl Tool for AnotherSafeTool {
+            fn name(&self) -> &str { "another_safe_tool" }
+            fn description(&self) -> &str { "Another safe tool" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(AnotherSafeTool) }
+            fn is_safe(&self) -> bool { true }
+            async fn execute(&self, args: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                let input = args.get("input").and_then(|v| v.as_str()).unwrap_or("default");
+                Ok(ToolResult::ok(format!("result: {}", input)))
+            }
+        }
+
+        let registry = ToolRegistry::new();
+        registry.register(SafeTestTool::new()).await;
+        registry.register(AnotherSafeTool).await;
+
+        registry.execute("safe_test_tool", serde_json::json!({"input": "test"}), None).await.unwrap();
+        registry.execute("another_safe_tool", serde_json::json!({"input": "test"}), None).await.unwrap();
+
+        registry.invalidate_all_cache().await;
+
+        let result = registry.execute("safe_test_tool", serde_json::json!({"input": "test"}), None).await.unwrap();
+        assert!(result.content.contains("called"));
+    }
+
+    #[tokio::test]
+    async fn test_result_caching_failure_not_cached() {
+        #[derive(Clone)]
+        struct SafeFailingTool;
+        #[async_trait]
+        impl Tool for SafeFailingTool {
+            fn name(&self) -> &str { "safe_failing_tool" }
+            fn description(&self) -> &str { "Safe failing tool" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(SafeFailingTool) }
+            fn is_safe(&self) -> bool { true }
+            async fn execute(&self, _: serde_json::Value, _: Option<ToolContext>) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::err("intentional failure"))
+            }
+        }
+
+        let registry = ToolRegistry::new();
+        registry.register(SafeFailingTool).await;
+
+        let args = serde_json::json!({});
+
+        let result1 = registry.execute("safe_failing_tool", args.clone(), None).await.unwrap();
+        assert!(!result1.success);
+
+        let result2 = registry.execute("safe_failing_tool", args.clone(), None).await.unwrap();
+        assert!(!result2.success);
+        assert!(result2.error.unwrap().contains("intentional failure"));
     }
 }

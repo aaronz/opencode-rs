@@ -27,6 +27,10 @@ impl Tool for FileReadTool {
         Box::new(FileReadTool)
     }
 
+    fn is_safe(&self) -> bool {
+        true
+    }
+
     async fn execute(
         &self,
         args: serde_json::Value,
@@ -124,6 +128,10 @@ impl Tool for GlobTool {
         Box::new(GlobTool)
     }
 
+    fn is_safe(&self) -> bool {
+        true
+    }
+
     async fn execute(
         &self,
         args: serde_json::Value,
@@ -174,6 +182,10 @@ impl Tool for StatTool {
 
     fn clone_tool(&self) -> Box<dyn Tool> {
         Box::new(StatTool)
+    }
+
+    fn is_safe(&self) -> bool {
+        true
     }
 
     async fn execute(

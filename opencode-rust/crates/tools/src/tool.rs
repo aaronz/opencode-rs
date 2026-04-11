@@ -70,4 +70,8 @@ pub trait Tool: Send + Sync {
         args: serde_json::Value,
         ctx: Option<ToolContext>,
     ) -> Result<ToolResult, OpenCodeError>;
+
+    fn is_safe(&self) -> bool {
+        false
+    }
 }

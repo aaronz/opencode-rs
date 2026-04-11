@@ -26,6 +26,10 @@ impl Tool for GlobTool {
         Box::new(GlobTool)
     }
 
+    fn is_safe(&self) -> bool {
+        true
+    }
+
     async fn execute(
         &self,
         args: serde_json::Value,

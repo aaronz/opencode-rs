@@ -45,6 +45,10 @@ impl Tool for ReadTool {
         Box::new(ReadTool::new())
     }
 
+    fn is_safe(&self) -> bool {
+        true
+    }
+
     async fn execute(
         &self,
         args: serde_json::Value,
