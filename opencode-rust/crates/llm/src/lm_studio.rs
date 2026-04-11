@@ -137,6 +137,7 @@ impl Provider for LmStudioProvider {
         Ok(ChatResponse {
             content,
             model: result.model.unwrap_or_else(|| self.model.clone()),
+            usage: None,
         })
     }
 

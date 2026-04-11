@@ -4,6 +4,7 @@ pub mod auth;
 pub mod auth_layered;
 pub mod azure;
 pub mod bedrock;
+pub mod budget;
 pub mod cerebras;
 pub mod cohere;
 pub mod copilot;
@@ -50,7 +51,7 @@ pub use openai_browser_auth::{
 };
 pub use provider::{
     ChatMessage, ChatResponse, Model, Provider, ProviderConfig, SimpleProvider, StreamChunk,
-    StreamingCallback,
+    StreamingCallback, Usage,
 };
 pub use provider_abstraction::{
     AnthropicThinkingConfig, DynProvider, LmStudioProviderFactory, LocalInferenceProviderFactory,
@@ -61,4 +62,8 @@ pub use provider_adapter::{
     AnthropicAdapter, LocalEndpointAdapter, OpenAICompatibleAdapter, ProviderAdapter,
 };
 pub use provider_filter::ProviderFilter;
+pub use budget::{
+    BudgetExceededError, BudgetLimit, BudgetTracker, ConversationBudgetState,
+    RequestBudgetState, VariantCost,
+};
 pub use transform::{MessageTransform, TransformPipeline};

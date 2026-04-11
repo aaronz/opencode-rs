@@ -154,6 +154,7 @@ impl Provider for OllamaProvider {
         Ok(ChatResponse {
             content: result.message.content,
             model: result.model.unwrap_or_else(|| self.model.clone()),
+            usage: None,
         })
     }
 

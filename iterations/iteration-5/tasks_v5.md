@@ -124,7 +124,7 @@
 - [x] **P2-12:** Complete home view (recent sessions, quick actions)
 
 ### LLM Tasks
-- [ ] **P2-13:** Implement variant/reasoning budget
+- [x] **P2-13:** Implement variant/reasoning budget
 
 ### Git Tasks
 - [ ] **P2-14:** Mark GitLab Duo as experimental

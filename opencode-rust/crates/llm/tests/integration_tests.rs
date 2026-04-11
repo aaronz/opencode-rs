@@ -1,3 +1,7 @@
+use opencode_llm::budget::{
+    BudgetExceededError, BudgetLimit, BudgetTracker, ConversationBudgetState, RequestBudgetState,
+    Usage, VariantCost,
+};
 use opencode_llm::model_selection::{ModelSelection, ProviderType, UserModelConfig};
 use opencode_llm::provider_abstraction::{
     ProviderIdentity, ProviderManager, ProviderSpec, ReasoningBudget,
@@ -569,4 +573,256 @@ fn test_integration_user_config_model_preferences() {
         "gpt-4o",
         "Should use global default for unknown provider"
     );
+}
+
+#[test]
+fn test_budget_usage_new_and_cost_calculation() {
+    let usage = Usage::new(1000, 500);
+    assert_eq!(usage.prompt_tokens, 1000);
+    assert_eq!(usage.completion_tokens, 500);
+    assert_eq!(usage.total_tokens, 1500);
+
+    let cost = usage.calculate_cost(0.005);
+    assert!((cost - 0.0075).abs() < 0.0001);
+}
+
+#[test]
+fn test_budget_tracker_records_usage() {
+    let tracker = BudgetTracker::new();
+    let usage = Usage::new(100, 50);
+
+    let state = tracker.record_usage(&usage);
+
+    assert_eq!(state.request_num, 1);
+    assert_eq!(state.prompt_tokens, 100);
+    assert_eq!(state.completion_tokens, 50);
+    assert_eq!(state.total_tokens, 150);
+}
+
+#[test]
+fn test_budget_tracker_accumulates_across_requests() {
+    let tracker = BudgetTracker::new();
+    tracker.record_usage(&Usage::new(100, 50));
+    tracker.record_usage(&Usage::new(200, 100));
+
+    let state = tracker.get_conversation_state();
+    assert_eq!(state.total_requests, 2);
+    assert_eq!(state.total_prompt_tokens, 300);
+    assert_eq!(state.total_completion_tokens, 150);
+    assert_eq!(state.total_tokens, 450);
+}
+
+#[test]
+fn test_budget_tracker_variant_costs() {
+    let tracker = BudgetTracker::new();
+    tracker.record_variant_usage("variant_a", &Usage::new(100, 50));
+    tracker.record_variant_usage("variant_b", &Usage::new(200, 100));
+
+    let state = tracker.get_conversation_state();
+    assert_eq!(state.variant_costs.len(), 2);
+    assert_eq!(state.variant_costs[0].variant_id, "variant_a");
+    assert_eq!(state.variant_costs[1].variant_id, "variant_b");
+    assert_eq!(state.variant_costs[0].total_tokens, 150);
+    assert_eq!(state.variant_costs[1].total_tokens, 300);
+}
+
+#[test]
+fn test_budget_limit_per_request_enforcement() {
+    let tracker = BudgetTracker::with_reasoning_budget(None, 0.001);
+    let tracker = BudgetTracker::with_request_limit(tracker, 500);
+
+    let small_usage = Usage::new(100, 100);
+    assert!(tracker.check_request_budget(&small_usage).is_ok());
+
+    let large_usage = Usage::new(1000, 1000);
+    assert!(tracker.check_request_budget(&large_usage).is_err());
+}
+
+#[test]
+fn test_budget_limit_combined_enforcement() {
+    let limit = BudgetLimit::Combined {
+        per_request: 0.005,
+        per_conversation: 0.01,
+    };
+
+    assert!(limit.is_exceeded(0.006, 0.0));
+    assert!(limit.is_exceeded(0.0, 0.015));
+    assert!(!limit.is_exceeded(0.004, 0.009));
+}
+
+#[test]
+fn test_budget_tracker_conversation_limit() {
+    let tracker = BudgetTracker::with_reasoning_budget(None, 1.0);
+    let tracker = BudgetTracker::with_conversation_limit(tracker, 1000);
+
+    assert!(tracker.check_conversation_budget(0.0005).is_ok());
+    assert!(tracker.check_conversation_budget(0.002).is_err());
+}
+
+#[test]
+fn test_budget_tracker_with_reasoning_budget() {
+    let tracker = BudgetTracker::with_reasoning_budget(Some(ReasoningBudget::High), 0.005);
+
+    assert_eq!(tracker.reasoning_budget(), Some(ReasoningBudget::High));
+
+    tracker.record_usage(&Usage::new(500, 250));
+
+    let state = tracker.get_conversation_state();
+    assert_eq!(state.total_tokens, 750);
+}
+
+#[test]
+fn test_budget_tracker_cost_calculation() {
+    let tracker = BudgetTracker::with_reasoning_budget(None, 0.01);
+
+    tracker.record_usage(&Usage::new(1000, 500));
+
+    let state = tracker.get_conversation_state();
+    assert!((state.total_cost_usd - 0.015).abs() < 0.0001);
+}
+
+#[test]
+fn test_budget_tracker_remaining_budget() {
+    let tracker = BudgetTracker::with_reasoning_budget(None, 0.001);
+    let tracker = BudgetTracker::with_request_limit(tracker, 1000);
+
+    tracker.record_usage(&Usage::new(100, 100));
+
+    let remaining = tracker.remaining_request_budget();
+    assert!(remaining.is_some());
+}
+
+#[test]
+fn test_budget_tracker_reset() {
+    let tracker = BudgetTracker::new();
+    tracker.record_usage(&Usage::new(100, 50));
+
+    tracker.reset_conversation_budget();
+
+    let state = tracker.get_conversation_state();
+    assert_eq!(state.total_requests, 0);
+    assert_eq!(state.total_prompt_tokens, 0);
+    assert_eq!(state.total_completion_tokens, 0);
+}
+
+#[test]
+fn test_budget_tracker_clone_shares_state() {
+    let tracker = BudgetTracker::new();
+    tracker.record_usage(&Usage::new(100, 50));
+
+    let cloned = tracker.clone();
+    cloned.record_usage(&Usage::new(200, 100));
+
+    let state = tracker.get_conversation_state();
+    assert_eq!(state.total_requests, 2);
+    assert_eq!(cloned.get_conversation_state().total_requests, 2);
+}
+
+#[test]
+fn test_budget_exceeded_error_display() {
+    let error = BudgetExceededError {
+        limit_type: BudgetLimit::PerRequest(0.01),
+        request_cost: 0.015,
+        conversation_cost: 0.0,
+    };
+
+    let display = format!("{}", error);
+    assert!(display.contains("0.015"));
+    assert!(display.contains("0.01"));
+}
+
+#[test]
+fn test_conversation_budget_state_serialization() {
+    let state = ConversationBudgetState {
+        total_requests: 5,
+        total_prompt_tokens: 1000,
+        total_completion_tokens: 500,
+        total_tokens: 1500,
+        total_cost_usd: 0.015,
+        variant_costs: vec![
+            VariantCost {
+                variant_id: "v1".to_string(),
+                prompt_tokens: 500,
+                completion_tokens: 250,
+                total_tokens: 750,
+                cost_usd: 0.0075,
+            },
+        ],
+    };
+
+    let json = serde_json::to_string(&state).unwrap();
+    let deserialized: ConversationBudgetState = serde_json::from_str(&json).unwrap();
+
+    assert_eq!(deserialized.total_requests, 5);
+    assert_eq!(deserialized.variant_costs.len(), 1);
+    assert_eq!(deserialized.variant_costs[0].variant_id, "v1");
+}
+
+#[test]
+fn test_variant_cost_serialization() {
+    let variant = VariantCost {
+        variant_id: "test-variant".to_string(),
+        prompt_tokens: 100,
+        completion_tokens: 50,
+        total_tokens: 150,
+        cost_usd: 0.00075,
+    };
+
+    let json = serde_json::to_string(&variant).unwrap();
+    let deserialized: VariantCost = serde_json::from_str(&json).unwrap();
+
+    assert_eq!(deserialized.variant_id, "test-variant");
+    assert_eq!(deserialized.total_tokens, 150);
+}
+
+#[test]
+fn test_budget_tracker_variants_within_budget() {
+    let tracker = BudgetTracker::with_reasoning_budget(None, 0.001);
+    let tracker = BudgetTracker::with_conversation_limit(tracker, 10000);
+
+    tracker.record_variant_usage("v1", &Usage::new(1000, 500));
+    tracker.record_variant_usage("v2", &Usage::new(1000, 500));
+    tracker.record_variant_usage("v3", &Usage::new(1000, 500));
+
+    let state = tracker.get_conversation_state();
+    assert_eq!(state.variant_costs.len(), 3);
+
+    let total_variant_tokens: u64 = state.variant_costs.iter().map(|v| v.total_tokens).sum();
+    assert_eq!(total_variant_tokens, 4500);
+
+    let total_variant_cost: f64 = state.variant_costs.iter().map(|v| v.cost_usd).sum();
+    assert!((total_variant_cost - 0.0045).abs() < 0.0001);
+
+    assert!((tracker.total_cost_usd() - 0.0).abs() < 0.0001);
+}
+
+#[test]
+fn test_budget_tracker_request_budget_state() {
+    let tracker = BudgetTracker::new();
+    tracker.record_usage(&Usage::new(100, 50));
+
+    let state = tracker.get_request_state();
+    assert_eq!(state.request_num, 1);
+    assert_eq!(state.prompt_tokens, 100);
+    assert_eq!(state.completion_tokens, 50);
+    assert_eq!(state.total_tokens, 150);
+}
+
+#[test]
+fn test_budget_limit_none_never_exceeded() {
+    let limit = BudgetLimit::None;
+    assert!(!limit.is_exceeded(999999.0, 999999.0));
+    assert!(limit.check_and_update(0.0, 0.0).is_ok());
+}
+
+#[test]
+fn test_budget_tracker_tracks_both_token_types() {
+    let tracker = BudgetTracker::new();
+    tracker.record_usage(&Usage::new(1000, 0));
+    tracker.record_usage(&Usage::new(0, 1000));
+
+    let state = tracker.get_conversation_state();
+    assert_eq!(state.total_prompt_tokens, 1000);
+    assert_eq!(state.total_completion_tokens, 1000);
+    assert_eq!(state.total_tokens, 2000);
 }

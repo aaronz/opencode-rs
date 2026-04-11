@@ -459,7 +459,7 @@
       "priority": "P2",
       "title": "Implement Variant/Reasoning Budget",
       "description": "Implement variant and reasoning budget for LLM interactions to control costs.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Budget limits are enforced",
         "Variants are generated within budget",

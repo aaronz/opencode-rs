@@ -76,10 +76,48 @@ impl From<&Message> for ChatMessage {
     }
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct Usage {
+    pub prompt_tokens: u64,
+    pub completion_tokens: u64,
+    pub total_tokens: u64,
+}
+
+impl Usage {
+    pub fn new(prompt_tokens: u64, completion_tokens: u64) -> Self {
+        let total_tokens = prompt_tokens + completion_tokens;
+        Self {
+            prompt_tokens,
+            completion_tokens,
+            total_tokens,
+        }
+    }
+
+    pub fn calculate_cost(&self, cost_per_1k_tokens: f64) -> f64 {
+        (self.total_tokens as f64 / 1000.0) * cost_per_1k_tokens
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ChatResponse {
     pub content: String,
     pub model: String,
+    pub usage: Option<Usage>,
+}
+
+impl ChatResponse {
+    pub fn new(content: String, model: String) -> Self {
+        Self {
+            content,
+            model,
+            usage: None,
+        }
+    }
+
+    pub fn with_usage(mut self, usage: Usage) -> Self {
+        self.usage = Some(usage);
+        self
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -108,10 +146,7 @@ pub trait Provider: Send + Sync {
             .collect::<Vec<_>>()
             .join("\n");
         let content = self.complete(&prompt, None).await?;
-        Ok(ChatResponse {
-            content,
-            model: String::new(),
-        })
+        Ok(ChatResponse::new(content, String::new()))
     }
 
     fn get_models(&self) -> Vec<Model> {
