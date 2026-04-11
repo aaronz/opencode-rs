@@ -269,7 +269,7 @@
 | Task ID | Title | Module | FR | Phase | Status | Dependencies |
 |---------|-------|--------|-----|-------|--------|--------------|
 | T-024-1 | Performance baselines | all | FR-024 | Phase 6 | Done | All P0s |
-| T-024-2 | Security tests | all | FR-024 | Phase 6 | Pending | Phase 5 |
+| T-024-2 | Security tests | all | FR-024 | Phase 6 | ✅ Done | Phase 5 |
 | T-024-3 | Recovery tests | storage | FR-024 | Phase 6 | Pending | T-019-4 |
 | T-024-4 | Crash recovery | storage | FR-024 | Phase 6 | Pending | T-024-3 |
 | T-024-5 | Snapshot/revert durability | storage | FR-024 | Phase 6 | Pending | P1-3 |

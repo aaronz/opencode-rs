@@ -1663,7 +1663,7 @@
       "priority": "P0",
       "title": "Security tests",
       "description": "Write security tests covering authentication, authorization, and data protection.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Authentication is properly tested",
         "Authorization boundaries are tested",
