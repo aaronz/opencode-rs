@@ -463,4 +463,201 @@ mod tests {
             ApprovalResult::RequireApproval
         );
     }
+
+    #[test]
+    fn skills_permission_restrictions_respect_boundaries() {
+        let mut resolver = SkillResolver::default();
+
+        let mut per_skill_rules = HashMap::new();
+        per_skill_rules.insert("code-review".to_string(), PermissionAction::Allow);
+        per_skill_rules.insert("security-auditor".to_string(), PermissionAction::Deny);
+        per_skill_rules.insert("refactorer".to_string(), PermissionAction::Ask);
+        let rule = PermissionRule::Object(per_skill_rules);
+        resolver.set_skill_permission(Some(rule));
+
+        resolver.match_and_enable("code-review");
+        resolver.match_and_enable("security-auditor");
+        resolver.match_and_enable("refactorer");
+        resolver.match_and_enable("debugger");
+
+        assert_eq!(
+            resolver.skill_state("code-review"),
+            Some(SkillState::Enabled),
+            "Allowed skill should be enabled"
+        );
+        assert_eq!(
+            resolver.skill_state("security-auditor"),
+            Some(SkillState::Disabled),
+            "Denied skill should be disabled"
+        );
+        assert_eq!(
+            resolver.skill_state("refactorer"),
+            Some(SkillState::PendingApproval),
+            "Skill requiring approval should be pending"
+        );
+        assert_eq!(
+            resolver.skill_state("debugger"),
+            Some(SkillState::PendingApproval),
+            "Unknown skill with per-skill rules should require approval"
+        );
+    }
+
+    #[test]
+    fn skills_permission_unauthorized_actions_blocked() {
+        let mut resolver = SkillResolver::default();
+        resolver.set_skill_permission(Some(PermissionRule::Action(PermissionAction::Deny)));
+
+        let matched = resolver.match_and_enable("code-review");
+        assert!(
+            matched.is_empty(),
+            "No skills should be enabled when all are denied"
+        );
+
+        assert_eq!(
+            resolver.skill_state("code-review"),
+            Some(SkillState::Disabled),
+            "Skill should be marked as disabled"
+        );
+
+        let enabled = resolver.get_enabled_skills();
+        assert!(
+            enabled.iter().all(|s| s.name != "code-review"),
+            "Denied skill should not appear in enabled skills"
+        );
+    }
+
+    #[test]
+    fn skills_permission_errors_clear_and_actionable() {
+        let mut resolver = SkillResolver::default();
+        resolver.set_skill_permission(Some(PermissionRule::Action(PermissionAction::Ask)));
+
+        resolver.match_and_enable("code-review");
+
+        let state = resolver.skill_state("code-review");
+        assert_eq!(
+            state,
+            Some(SkillState::PendingApproval),
+            "Skill should require approval"
+        );
+
+        let approved = resolver.approve_skill("code-review");
+        assert!(
+            approved.is_some(),
+            "approve_skill should return Some when skill is pending"
+        );
+        assert_eq!(
+            resolver.skill_state("code-review"),
+            Some(SkillState::Enabled),
+            "After approval, skill should be enabled"
+        );
+
+        let denied = resolver.deny_skill("code-review");
+        assert!(
+            denied.is_none(),
+            "deny_skill should return None for already approved skill (not PendingApproval)"
+        );
+        assert_eq!(
+            resolver.skill_state("code-review"),
+            Some(SkillState::Enabled),
+            "Already approved skill should remain enabled after denied call"
+        );
+    }
+
+    #[test]
+    fn skills_permission_deny_overrides_ask_and_allow() {
+        let mut resolver = SkillResolver::default();
+
+        let mut per_skill_rules = HashMap::new();
+        per_skill_rules.insert("code-review".to_string(), PermissionAction::Allow);
+        per_skill_rules.insert("security-auditor".to_string(), PermissionAction::Deny);
+        let rule = PermissionRule::Object(per_skill_rules);
+        resolver.set_skill_permission(Some(rule));
+
+        resolver.match_and_enable("code-review");
+        resolver.match_and_enable("security-auditor");
+
+        assert_eq!(
+            resolver.skill_state("code-review"),
+            Some(SkillState::Enabled),
+            "Explicitly allowed skill should be enabled"
+        );
+        assert_eq!(
+            resolver.skill_state("security-auditor"),
+            Some(SkillState::Disabled),
+            "Explicitly denied skill should be disabled even if other skills are allowed"
+        );
+
+        let enabled = resolver.get_enabled_skills();
+        assert!(!enabled.iter().any(|s| s.name == "security-auditor"));
+        assert!(enabled.iter().any(|s| s.name == "code-review"));
+    }
+
+    #[test]
+    fn skills_permission_unknown_skill_requires_approval() {
+        let mut resolver = SkillResolver::default();
+        resolver.set_skill_permission(Some(PermissionRule::Action(PermissionAction::Ask)));
+
+        resolver.match_and_enable("code-review");
+
+        assert_eq!(
+            resolver.skill_state("code-review"),
+            Some(SkillState::PendingApproval),
+            "Skill should require approval when permission is Ask"
+        );
+    }
+
+    #[test]
+    fn skills_permission_approve_denied_skill_returns_none() {
+        let mut resolver = SkillResolver::default();
+        resolver.set_skill_permission(Some(PermissionRule::Action(PermissionAction::Deny)));
+        resolver.match_and_enable("code-review");
+
+        assert_eq!(
+            resolver.skill_state("code-review"),
+            Some(SkillState::Disabled)
+        );
+
+        let approved = resolver.approve_skill("code-review");
+        assert!(
+            approved.is_none(),
+            "approve_skill should return None for denied skill"
+        );
+    }
+
+    #[test]
+    fn skills_permission_deny_approved_skill_returns_none() {
+        let mut resolver = SkillResolver::default();
+        resolver.set_skill_permission(Some(PermissionRule::Action(PermissionAction::Allow)));
+        resolver.match_and_enable("code-review");
+
+        assert_eq!(
+            resolver.skill_state("code-review"),
+            Some(SkillState::Enabled)
+        );
+
+        let denied = resolver.deny_skill("code-review");
+        assert!(
+            denied.is_none(),
+            "deny_skill should return None for already enabled skill"
+        );
+    }
+
+    #[test]
+    fn skills_permission_boundary_test_case_sensitivity() {
+        let mut resolver = SkillResolver::default();
+
+        let mut per_skill_rules = HashMap::new();
+        per_skill_rules.insert("Code-Review".to_string(), PermissionAction::Allow);
+        per_skill_rules.insert("CODE-REVIEW".to_string(), PermissionAction::Deny);
+        let rule = PermissionRule::Object(per_skill_rules);
+        resolver.set_skill_permission(Some(rule));
+
+        resolver.match_and_enable("code-review");
+
+        assert_eq!(
+            resolver.skill_state("code-review"),
+            Some(SkillState::PendingApproval),
+            "Case-sensitive matching: 'code-review' should not match 'Code-Review' or 'CODE-REVIEW'"
+        );
+    }
 }

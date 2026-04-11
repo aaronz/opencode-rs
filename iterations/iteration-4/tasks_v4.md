@@ -207,7 +207,7 @@
 
 | Task ID | Title | Module | FR | Phase | Status | Dependencies |
 |---------|-------|--------|-----|-------|--------|--------------|
-| P2-15 | Skills permission restrictions | core | FR-014 | Phase 3 | Pending | P1-29 |
+| P2-15 | Skills permission restrictions | core | FR-014 | Phase 3 | Done | P1-29 |
 
 ### GitLab Integration (1 item)
 

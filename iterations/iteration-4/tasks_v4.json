@@ -1223,7 +1223,7 @@
       "priority": "P2",
       "title": "Skills permission restrictions",
       "description": "Implement permission restrictions for skills. Skills should only be able to perform actions allowed by their permission scope.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Skills respect permission boundaries",
         "Unauthorized skill actions are blocked",
