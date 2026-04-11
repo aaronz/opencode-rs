@@ -45,3 +45,13 @@ impl Default for PluginLoader {
         Self::new()
     }
 }
+
+impl Drop for PluginLoader {
+    fn drop(&mut self) {
+        while let Some(lib) = self.libraries.pop() {
+            if let Err(e) = lib.close() {
+                tracing::warn!(error = %e, "Failed to close plugin library");
+            }
+        }
+    }
+}

@@ -408,7 +408,7 @@
       "priority": "P2",
       "title": "Complete Plugin Cleanup/Unload Implementation",
       "description": "Complete plugin cleanup and unload implementation to properly release resources.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Plugins can be unloaded cleanly",
         "Resources are properly released",

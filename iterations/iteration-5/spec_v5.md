@@ -457,7 +457,7 @@ This document defines the specification for the OpenCode Rust port implementatio
 | P2-7 | Context cost warnings | mcp | FR-010 | Deferred |
 | P2-8 | Experimental LSP tool testing | lsp | FR-011 | Deferred |
 | P2-9 | API error shape consistency | server | FR-004 | Deferred |
-| P2-10 | Plugin cleanup/unload | plugin | FR-008 | Deferred |
+| P2-10 | Plugin cleanup/unload | plugin | FR-008 | Done |
 | P2-11 | Shell prefix (`!`) handler | tui | FR-018 | Deferred |
 | P2-12 | Home view completion | tui | FR-018 | Deferred |
 | P2-13 | LLM variant/reasoning budget | llm | FR-012 | Deferred |

@@ -554,6 +554,21 @@ impl Default for PluginManager {
     }
 }
 
+impl Drop for PluginManager {
+    fn drop(&mut self) {
+        if !self.plugins.is_empty() {
+            for (name, plugin) in self.plugins.iter_mut() {
+                if let Err(error) = plugin.shutdown() {
+                    tracing::warn!(plugin = name, error = %error, "Plugin shutdown failed during drop");
+                }
+            }
+        }
+        self.plugins.clear();
+        self.configs.clear();
+        self.plugin_paths.clear();
+    }
+}
+
 pub fn initialize_plugins(project_path: Option<&Path>) -> Result<PluginManager, PluginError> {
     let mut manager = PluginManager::new();
     let loaded = manager.discover_and_load(project_path)?;

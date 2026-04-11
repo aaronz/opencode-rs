@@ -117,7 +117,7 @@
 - [ ] **P2-9:** Enforce API error shape consistency
 
 ### Plugin Tasks
-- [ ] **P2-10:** Complete plugin cleanup/unload implementation
+- [x] **P2-10:** Complete plugin cleanup/unload implementation
 
 ### TUI Tasks
 - [ ] **P2-11:** Implement shell prefix (`!`) handler
