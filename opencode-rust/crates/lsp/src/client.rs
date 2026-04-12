@@ -1,5 +1,6 @@
+#[allow(unused_imports)]
 use crate::error::{
-    FailureHandlingConfig, LspError, ProtocolViolationType, UnhealthyReason,
+    CrashCause, FailureHandlingConfig, LspError, ProtocolViolationType, UnhealthyReason,
 };
 use crate::types::{CompletionItem, Diagnostic, Location, Position, Range, Severity};
 use opencode_core::OpenCodeError;

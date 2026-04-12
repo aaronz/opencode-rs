@@ -45,7 +45,7 @@
 - [x] Document complete removal plan for v4.0
 - [x] Track `tools`, `theme`, `keybinds` for future removal
 
-### P1-10: Variant/Reasoning Budget
+### P1-10: ✅ Done
 - [x] Mark as experimental in documentation
 - [x] Add experimental flag to variant/reasoning budget feature
 
@@ -54,7 +54,9 @@
 ## P2 Tasks (Deferred)
 
 ### P2-16: Remaining Clippy Warnings
-- [ ] Review and address remaining clippy warnings (non-blocking)
+- [x] Review and address remaining clippy warnings (non-blocking)
+  - Fixed test compilation errors in opencode-llm and opencode-lsp
+  - Used correct module paths for importing re-exported types in test modules
 
 ### P2-17: Per-Crate Test Backlog
 - [ ] Continue per-crate test implementation

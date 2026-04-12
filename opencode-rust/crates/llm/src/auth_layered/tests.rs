@@ -1,6 +1,10 @@
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::auth_layered::{
+        AccessControlResult, AnthropicTransport, AuthMechanism, AwsSigV4Transport,
+        CompositeCredentialResolver, CredentialResolver, CredentialSource,
+        OpenAICompatibleTransport, ProviderTransport, RuntimeAccessControl, TransportLayer,
+    };
     use std::collections::HashMap;
 
     #[test]
