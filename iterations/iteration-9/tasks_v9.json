@@ -128,14 +128,14 @@
       "priority": "P0",
       "title": "Fix and_then to map in crash_recovery.rs",
       "description": "Change and_then to map at crash_recovery.rs line 241 to fix clippy warning.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "clippy warning in crash_recovery.rs resolved"
       ],
       "test_commands": [
         "cargo clippy -p opencode-core -- -D warnings"
       ],
-      "impl_notes": "and_then should be map when Result value is not being filtered.",
+      "impl_notes": "Code already uses map at line 241. Clippy passes without changes needed.",
       "dependencies": []
     },
     {
