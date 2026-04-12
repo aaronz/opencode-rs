@@ -201,7 +201,7 @@
       "priority": "P2",
       "title": "Per-server OAuth token storage verification",
       "description": "Verify per-server OAuth token storage in crates/mcp.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Each MCP server has isolated OAuth token storage",
         "Tokens are securely stored per server"

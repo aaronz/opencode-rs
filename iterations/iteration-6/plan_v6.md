@@ -93,7 +93,7 @@
 | P2-3 | Compaction shareability verification | storage | ✅ Done | |
 | P2-4 | Deterministic collision resolution | tools | ✅ Done | |
 | P2-5 | Result caching invalidation | tools | Deferred | |
-| P2-6 | Per-server OAuth verification | mcp | Deferred | |
+| P2-6 | Per-server OAuth verification | mcp | ✅ Done | |
 | P2-7 | Context cost warnings | mcp | Deferred | |
 | P2-8 | Experimental LSP tool testing | lsp | Deferred | |
 | P2-9 | API error shape consistency | server | Deferred | |

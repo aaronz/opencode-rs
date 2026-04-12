@@ -89,7 +89,7 @@
 - [x] P2-5: Result caching invalidation (`crates/tools`)
 
 ### MCP
-- [ ] P2-6: Per-server OAuth token storage verification (`crates/mcp`)
+- [x] P2-6: Per-server OAuth token storage verification (`crates/mcp`)
 - [ ] P2-7: Context cost warnings (`crates/mcp`)
 
 ### LSP
