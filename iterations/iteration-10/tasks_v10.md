@@ -47,11 +47,11 @@
   - **Fix:** Already fixed - code at line 1594 uses correct pattern
   - **Verification:** `cargo clippy -p opencode-core -- -D warnings`
 
-- [ ] **Task:** Remove unnecessary borrow
+- [x] **Task:** Remove unnecessary borrow ✅
   - **File:** `crates/core/src/config.rs`
-  - **Line:** 2068
+  - **Line:** 2068 (original) → 2041 (current)
   - **Error:** `needless_borrows_for_generic_args`
-  - **Fix:** Remove unnecessary borrow
+  - **Fix:** Removed unnecessary borrow (`&`) before `result.tui.clone().unwrap_or_default()`. The fix was applied in commit a7e89e0.
   - **Verification:** `cargo clippy -p opencode-core -- -D warnings`
 
 ##### command.rs - 1 error
