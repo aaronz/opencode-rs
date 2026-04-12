@@ -104,7 +104,7 @@
       "priority": "P1",
       "title": "Session Sharing Between Interfaces",
       "description": "Implement cross-interface session synchronization for CLI, TUI, Web, Desktop modes. FR-015 reference.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "Session state is synchronized between interfaces",
         "Session can be resumed across different interface modes"
@@ -121,7 +121,7 @@
       "priority": "P2",
       "title": "Project VCS worktree root distinction",
       "description": "Distinguish between project root and VCS worktree root in crates/core.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "VCS worktree root is correctly identified",
         "Project root vs worktree root are properly distinguished"

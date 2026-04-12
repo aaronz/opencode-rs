@@ -67,7 +67,7 @@
 - **Current:** Multiline, Shift+Enter for new line - implemented in App::handle_input
 - [ ] **Action:** Verify terminal support works correctly
 
-### P1-9: Session Sharing Between Interfaces
+### P1-9: ✅ Done
 - [ ] **Status:** Deferred (Partial)
 - [ ] **Module:** `crates/cli`
 - [ ] **FR Reference:** FR-015
@@ -78,7 +78,7 @@
 ## P2 - Nice to Have (Post-Release)
 
 ### Core Architecture
-- [ ] P2-1: Project VCS worktree root distinction (`crates/core`)
+- [x] P2-1: Project VCS worktree root distinction (`crates/core`)
 - [ ] P2-2: Workspace path validation (`crates/core`)
 
 ### Storage
