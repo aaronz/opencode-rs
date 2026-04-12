@@ -10,6 +10,7 @@ pub struct ProjectInfo {
     pub has_git: bool,
     pub has_tests: bool,
     pub has_docs: bool,
+    pub vcs_root: Option<PathBuf>,
     pub worktree_root: Option<PathBuf>,
 }
 
@@ -27,11 +28,18 @@ impl ProjectManager {
             return None;
         }
 
-        let has_git = Self::find_git_repository(&root).is_some();
+        let vcs_root = Self::find_git_repository(&root);
+        let has_git = vcs_root.is_some();
         let has_tests = root.join("tests").exists() || root.join("test").exists();
         let has_docs = root.join("docs").exists() || root.join("README.md").exists();
 
-        let worktree_root = Self::detect_worktree_root_from_subdirectory(&root);
+        let is_worktree = Self::is_worktree_path(&root);
+        let detected_worktree_root = Self::detect_worktree_root_from_subdirectory(&root);
+        let worktree_root = if is_worktree {
+            detected_worktree_root.or(Some(root.clone()))
+        } else {
+            None
+        };
 
         let language = if root.join("Cargo.toml").exists() {
             "rust".to_string()
@@ -57,6 +65,7 @@ impl ProjectManager {
             has_git,
             has_tests,
             has_docs,
+            vcs_root,
             worktree_root,
         })
     }
@@ -90,6 +99,20 @@ impl ProjectManager {
             }
         }
         None
+    }
+
+    fn is_worktree_path(start: &PathBuf) -> bool {
+        let mut current = start.clone();
+        loop {
+            let git_path = current.join(".git");
+            if git_path.exists() {
+                return git_path.is_file();
+            }
+            if !current.pop() {
+                break;
+            }
+        }
+        false
     }
 
     fn parse_worktree_git_file(git_path: &Path) -> Option<PathBuf> {
@@ -442,6 +465,7 @@ mod tests {
             has_git: false,
             has_tests: false,
             has_docs: false,
+            vcs_root: None,
             worktree_root: None,
         };
         pm.set_current(info);
@@ -458,6 +482,7 @@ mod tests {
             has_git: false,
             has_tests: false,
             has_docs: false,
+            vcs_root: None,
             worktree_root: None,
         });
         assert!(pm.is_rust());
