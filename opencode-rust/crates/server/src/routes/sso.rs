@@ -168,20 +168,12 @@ pub async fn oidc_callback(
     let oidc_state = match states.remove(&body.state) {
         Some(s) => s,
         None => {
-            return HttpResponse::BadRequest().json(OidcCallbackResponse {
-                success: false,
-                token: None,
-                error: Some("Invalid state".to_string()),
-            });
+            return bad_request("Invalid state parameter");
         }
     };
 
     if oidc_state.expires_at < Utc::now() {
-        return HttpResponse::BadRequest().json(OidcCallbackResponse {
-            success: false,
-            token: None,
-            error: Some("State expired".to_string()),
-        });
+        return bad_request("OIDC state has expired. Please try again");
     }
 
     HttpResponse::Ok().json(OidcCallbackResponse {

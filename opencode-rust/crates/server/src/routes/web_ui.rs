@@ -1,6 +1,8 @@
 use actix_files as fs;
-use actix_web::{HttpResponse, Responder};
+use actix_web::{Either, HttpResponse, Responder};
 use std::path::PathBuf;
+
+use super::error::not_found;
 
 const INDEX_HTML: &str = include_str!("../../static/index.html");
 
@@ -38,10 +40,12 @@ pub async fn serve_static(req: actix_web::HttpRequest) -> impl Responder {
     let full_path = base.join(&path);
 
     if full_path.exists() && full_path.starts_with(&base) {
-        fs::NamedFile::open(full_path)
-            .map_err(|_| actix_web::error::ErrorNotFound("File not found"))
+        match fs::NamedFile::open(full_path) {
+            Ok(file) => Either::Left(file),
+            Err(_) => Either::Right(not_found("Static file not found")),
+        }
     } else {
-        Err(actix_web::error::ErrorNotFound("File not found"))
+        Either::Right(not_found("Static file not found"))
     }
 }
 

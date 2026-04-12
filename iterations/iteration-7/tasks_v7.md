@@ -88,7 +88,7 @@
 - [x] P2-8: Experimental LSP tool testing (`crates/lsp`) ✅ Done (Iteration 7, MockLspServer added)
 
 ### Server
-- [ ] P2-9: API error shape consistency enforcement (`crates/server`)
+- [x] P2-9: API error shape consistency enforcement (`crates/server`) ✅ Done
 
 ### Plugin
 - [x] P2-10: Plugin cleanup/unload (`crates/plugin`) ✅ Done (Iteration 7)

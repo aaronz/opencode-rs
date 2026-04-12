@@ -279,7 +279,7 @@
       "priority": "P2",
       "title": "API Error Shape Consistency Enforcement",
       "description": "Enforce consistent error response shape across all API endpoints in crate/server",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "All error responses follow same JSON structure",
         "Error codes are consistent",
@@ -289,7 +289,7 @@
         "cargo test -p opencode-server api",
         "cargo test -p opencode-server error"
       ],
-      "impl_notes": "Post-release - API error shape consistency enforcement",
+      "impl_notes": "Fixed SSO callback errors to use bad_request() instead of OidcCallbackResponse. Fixed web_ui serve_static to use Either<NamedFile, HttpResponse> with not_found() for consistent error shape.",
       "dependencies": []
     },
     {
