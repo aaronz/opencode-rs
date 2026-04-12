@@ -193,7 +193,7 @@
       "priority": "P1",
       "title": "Variant/Reasoning Budget",
       "description": "Mark variant/reasoning budget as experimental in documentation and add experimental flag to the feature.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Variant/reasoning budget marked as experimental in docs",
         "Experimental flag added to feature gate"

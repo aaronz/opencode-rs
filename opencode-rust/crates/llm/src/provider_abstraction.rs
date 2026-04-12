@@ -17,6 +17,61 @@ pub struct ProviderIdentity {
     pub reasoning_budget: Option<ReasoningBudget>,
 }
 
+impl ProviderIdentity {
+    pub fn with_variant(mut self, variant: impl Into<String>) -> Self {
+        self.variant = Some(variant.into());
+        self
+    }
+
+    #[deprecated(
+        since = "0.1.0",
+        note = "Variant/Reasoning budget is experimental. Enable the `experimental-variant-reasoning` feature flag to use."
+    )]
+    pub fn with_reasoning_budget(mut self, budget: ReasoningBudget) -> Self {
+        self.reasoning_budget = Some(budget);
+        self
+    }
+
+    #[deprecated(
+        since = "0.1.0",
+        note = "Variant/Reasoning budget is experimental. Enable the `experimental-variant-reasoning` feature flag to use."
+    )]
+    pub fn get_reasoning_config(&self) -> Option<ProviderReasoningConfig> {
+        self.reasoning_budget?.for_provider(&self.provider_type)
+    }
+}
+
+/// ⚠️ **Experimental Feature**: Variant/Reasoning Budget support is experimental and subject to change.
+///
+/// This enum defines reasoning budget levels that can be applied to LLM providers that support
+/// extended reasoning capabilities (e.g., Anthropic's thinking budgets, OpenAI's reasoning effort).
+///
+/// ## Provider Support
+///
+/// - **Anthropic**: Supports `Low`, `Medium`, `High`, `Max` via `thinking` config
+/// - **OpenAI**: Supports `Minimal`, `Low`, `Medium`, `High`, `XHigh` via `reasoning_effort`
+/// - **Google**: Supports `Low`, `Medium`, `High` via `thinking_throttle`
+///
+/// ## Usage Warning
+///
+/// - API surface may change in future releases
+/// - Not all providers support all budget levels
+/// - Feature availability depends on provider API capabilities
+///
+/// ## Feature Flag
+///
+/// This feature requires the `experimental-variant-reasoning` feature flag to be enabled.
+/// Without the feature flag, the `with_reasoning_budget` and `get_reasoning_config` methods
+/// will emit deprecation warnings.
+///
+/// # Example
+///
+/// ```ignore
+/// use opencode_llm::{ProviderIdentity, ReasoningBudget};
+///
+/// let identity = ProviderIdentity::openai("o1-preview")
+///     .with_reasoning_budget(ReasoningBudget::High);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ReasoningBudget {
     None,
@@ -30,6 +85,10 @@ pub enum ReasoningBudget {
 
 impl ReasoningBudget {
     #[allow(clippy::should_implement_trait)]
+    #[deprecated(
+        since = "0.1.0",
+        note = "Variant/Reasoning budget is experimental. Enable the `experimental-variant-reasoning` feature flag to use."
+    )]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "none" => Some(ReasoningBudget::None),
@@ -43,6 +102,13 @@ impl ReasoningBudget {
         }
     }
 
+    /// ⚠️ **Experimental**: This method is part of the experimental variant/reasoning budget feature.
+    ///
+    /// Converts this `ReasoningBudget` to a provider-specific `ProviderReasoningConfig`.
+    ///
+    /// Not all providers support all budget levels. Returns `None` if the provider
+    /// does not support reasoning budgets or if the specific budget level is not
+    /// supported by that provider.
     pub fn for_provider(&self, provider_type: &str) -> Option<ProviderReasoningConfig> {
         match provider_type {
             "anthropic" => match self {
@@ -166,20 +232,6 @@ impl ProviderIdentity {
 
     pub fn local(model: &str) -> Self {
         Self::new("local", Some(model))
-    }
-
-    pub fn with_variant(mut self, variant: impl Into<String>) -> Self {
-        self.variant = Some(variant.into());
-        self
-    }
-
-    pub fn with_reasoning_budget(mut self, budget: ReasoningBudget) -> Self {
-        self.reasoning_budget = Some(budget);
-        self
-    }
-
-    pub fn get_reasoning_config(&self) -> Option<ProviderReasoningConfig> {
-        self.reasoning_budget?.for_provider(&self.provider_type)
     }
 }
 
@@ -357,6 +409,7 @@ impl DynProvider {
         self.identity.reasoning_budget
     }
 
+    #[allow(deprecated)]
     pub fn reasoning_config(&self) -> Option<ProviderReasoningConfig> {
         self.identity.get_reasoning_config()
     }

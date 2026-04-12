@@ -40,14 +40,14 @@
 
 ## P1 Tasks (Important)
 
-### P1-3: Deprecated Fields Removal
+### P1-3: ✅ Done
 - [x] Add deprecation warnings for `mode` field (config.rs, command.rs)
 - [x] Document complete removal plan for v4.0
 - [x] Track `tools`, `theme`, `keybinds` for future removal
 
 ### P1-10: Variant/Reasoning Budget
-- [ ] Mark as experimental in documentation
-- [ ] Add experimental flag to variant/reasoning budget feature
+- [x] Mark as experimental in documentation
+- [x] Add experimental flag to variant/reasoning budget feature
 
 ---
 

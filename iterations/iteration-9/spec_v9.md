@@ -236,7 +236,7 @@ This document defines the specification for the OpenCode Rust port implementatio
   - OpenAI, Anthropic, Google, Azure, Bedrock ✅
   - Ollama, LM Studio, Local models ✅
 - **P1 Gap:**
-  - Variant/reasoning budget (P1-10 - Deferred, marked experimental)
+  - Variant/reasoning budget (P1-10 - ✅ Done, marked experimental)
 
 ### 3.11 Formatters (Phase 3)
 
@@ -465,18 +465,18 @@ This document defines the specification for the OpenCode Rust port implementatio
 
 **P0 Blockers Summary:** 1 remaining (P0-9: 18 clippy errors)
 
-### P1 - Important Issues (2 remaining)
+### P1 - Important Issues (1 remaining)
 
 | ID | Issue | Module | FR Reference | Status |
 |----|-------|--------|---------------|--------|
 | P1-3 | Deprecated fields (mode, tools, theme, keybinds) | config | FR-003 | 🚧 In Progress |
-| P1-10 | Variant/reasoning budget | llm | FR-012 | Deferred (marked experimental) |
 
 **Completed P1 Issues (Iteration 9):**
 | ID | Issue | Status |
 |----|-------|--------|
 | P1-2 | Circular variable expansion detection | ✅ Done |
 | P1-9 | Session sharing between interfaces | ✅ Done |
+| P1-10 | Variant/reasoning budget | ✅ Done |
 
 **Completed P1 Issues (Iteration 8):**
 | ID | Issue | Status |

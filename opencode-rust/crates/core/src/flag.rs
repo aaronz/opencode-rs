@@ -292,6 +292,16 @@ impl FlagManager {
         );
 
         flags.insert(
+            "OPENCODE_EXPERIMENTAL_VARIANT_REASONING".to_string(),
+            Flag {
+                name: "OPENCODE_EXPERIMENTAL_VARIANT_REASONING".to_string(),
+                description: "Enable experimental variant/reasoning budget support".to_string(),
+                default: false,
+                value: false,
+            },
+        );
+
+        flags.insert(
             "OPENCODE_DISABLE_CHANNEL_DB".to_string(),
             Flag {
                 name: "OPENCODE_DISABLE_CHANNEL_DB".to_string(),
@@ -427,6 +437,13 @@ impl FlagManager {
 
     pub fn opencode_experimental_lsp_tool(&self) -> bool {
         self.opencode_experimental() || self.get("OPENCODE_EXPERIMENTAL_LSP_TOOL").unwrap_or(false)
+    }
+
+    pub fn opencode_experimental_variant_reasoning(&self) -> bool {
+        self.opencode_experimental()
+            || self
+                .get("OPENCODE_EXPERIMENTAL_VARIANT_REASONING")
+                .unwrap_or(false)
     }
 
     pub fn opencode_experimental_bash_timeout_ms(&self) -> Option<u64> {
