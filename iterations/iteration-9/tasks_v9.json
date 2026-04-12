@@ -301,7 +301,7 @@
       "priority": "P1",
       "title": "Phase 6 Release Qualification - Non-functional Baselines",
       "description": "Verify non-functional baselines as part of Phase 6 release qualification.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "Performance baselines verified",
         "Memory baselines verified",
@@ -310,7 +310,7 @@
       "test_commands": [
         "cargo bench --all-features"
       ],
-      "impl_notes": "Phase 6 release gate - verify non-functional requirements.",
+      "impl_notes": "Phase 6 release gate - verify non-functional requirements. Benchmarks ran successfully: config_parsing, token_counting, plugin_manager, session_operations, storage_operations, tool_registry all passed.",
       "dependencies": [
         "VERIF-1",
         "VERIF-2",
