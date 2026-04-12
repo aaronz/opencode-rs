@@ -210,14 +210,14 @@
       "priority": "P2",
       "title": "Experimental LSP tool testing",
       "description": "Experimental LSP tool testing deferred in lsp module",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "LSP tool testing implemented"
       ],
       "test_commands": [
         "cargo test -p opencode-lsp"
       ],
-      "impl_notes": "Deferred",
+      "impl_notes": "Completed",
       "dependencies": []
     },
     {

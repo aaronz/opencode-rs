@@ -201,7 +201,7 @@ Session sharing mechanism already implemented in `session_sharing.rs`. Fixed pre
 
 | ID | Task | Module | Status |
 |----|------|--------|--------|
-| P2-8 | Experimental LSP tool testing | lsp | 📋 Deferred |
+| P2-8 | Experimental LSP tool testing | lsp | ✅ Done |
 
 ### Server API
 
