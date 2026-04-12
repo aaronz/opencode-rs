@@ -396,7 +396,7 @@
       "priority": "DC",
       "title": "Rename unused complete variable in mcp_auth.rs",
       "description": "Unused complete variable in cli/mcp_auth.rs:216. Severity: Low",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Unused variable renamed to _complete",
         "cargo clippy passes"

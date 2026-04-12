@@ -213,7 +213,7 @@ fn run_login(
     println!();
     println!("Device Authorization Required:");
     println!("1. Visit: {}", session.verification_uri);
-    if let Some(ref complete) = session.verification_uri_complete {
+    if let Some(ref _complete) = session.verification_uri_complete {
         println!("2. Enter code: {}", session.user_code);
     } else {
         println!("2. Enter user code: {}", session.user_code);
