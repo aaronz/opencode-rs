@@ -2823,6 +2823,11 @@ OpenCode Agent Configuration
                         self.refresh_skills_panel_from_resolver();
                     }
                     KeyCode::Enter => {
+                        if key.modifiers.contains(KeyModifiers::SHIFT) {
+                            self.input.push('\n');
+                            self.input_box.set_input(self.input.clone());
+                            return Ok(());
+                        }
                         let input = self.input.clone();
                         if !input.is_empty() {
                             if input.trim() == "/confirm-shell" {

@@ -49,7 +49,7 @@
 - [ ] **FR Reference:** FR-003
 - **Action:** Add detection algorithm for circular references in variable expansion
 
-### P1-3: Deprecated Fields Removal ✅ Done
+### P1-3: ✅ Done
 - [x] **Status:** Done
 - [x] **Module:** `crates/config`
 - [x] **FR Reference:** FR-003
@@ -61,11 +61,11 @@
 - **Note:** Removed in major version (v4.0)
 
 ### P1-5: Multiline Input Terminal Support
-- [ ] **Status:** Deferred (Partial)
+- [x] **Status:** ✅ Done
 - [ ] **Module:** `crates/tui`
 - [ ] **FR Reference:** FR-018
-- **Current:** Multiline, Shift+Enter for new line
-- **Action:** Verify terminal support works correctly
+- **Current:** Multiline, Shift+Enter for new line - implemented in App::handle_input
+- [ ] **Action:** Verify terminal support works correctly
 
 ### P1-9: Session Sharing Between Interfaces
 - [ ] **Status:** Deferred (Partial)

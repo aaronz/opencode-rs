@@ -461,7 +461,7 @@ This document defines the specification for the OpenCode Rust port implementatio
 | P1-1 | JSONC error messages clarity | config | FR-003 | ✅ Done |
 | P1-2 | Circular variable expansion detection | config | FR-003 | Deferred |
 | P1-3 | Deprecated fields (mode, tools, theme, keybinds) | config | FR-003 | Deferred |
-| P1-5 | Multiline input terminal support | tui | FR-018 | Deferred |
+| P1-5 | Multiline input terminal support | tui | FR-018 | ✅ Done |
 | P1-9 | Session sharing between interfaces partial | cli | FR-015 | Deferred |
 
 **Completed P1 Issues:**
@@ -474,6 +474,7 @@ This document defines the specification for the OpenCode Rust port implementatio
 | P1-8 | TUI Plugin slots system incomplete | ✅ Done |
 | P1-10 | Permission inheritance edge cases | ✅ Done |
 | P1-11 | Request validation edge cases | ✅ Done |
+| P1-5 | Multiline input terminal support | ✅ Done |
 
 ### P2 - Nice to Have (14 items)
 

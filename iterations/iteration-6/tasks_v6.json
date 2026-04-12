@@ -88,7 +88,7 @@
       "priority": "P1",
       "title": "Multiline Input Terminal Support",
       "description": "Verify multiline input with Shift+Enter for new line works correctly in terminal. FR-018 reference.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Shift+Enter inserts newline in multiline input",
         "Terminal support works correctly"
@@ -96,7 +96,7 @@
       "test_commands": [
         "cargo test --package opencode-tui -- multiline"
       ],
-      "impl_notes": "Deferred (Partial) - verify in crates/tui",
+      "impl_notes": "Implemented - Shift+Enter handling added to App::handle_input in crates/tui/src/app.rs:2825",
       "dependencies": []
     },
     {
