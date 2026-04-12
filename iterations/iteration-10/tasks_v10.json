@@ -85,7 +85,7 @@
       "priority": "P0",
       "title": "Fix deprecated AgentConfig::mode field in command.rs",
       "description": "Remove or replace usage of deprecated AgentConfig::mode field in crates/core/src/command.rs line 567. Use 'permission' field instead.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "No deprecated AgentConfig::mode field usage in command.rs",
         "cargo clippy -p opencode-core -- -D warnings passes"
@@ -93,7 +93,7 @@
       "test_commands": [
         "cargo clippy -p opencode-core -- -D warnings"
       ],
-      "impl_notes": "Use permission field instead of deprecated mode field",
+      "impl_notes": "No deprecated AgentConfig::mode field usage present in command.rs. Clippy passes.",
       "dependencies": []
     },
     {
@@ -101,7 +101,7 @@
       "priority": "P0",
       "title": "Use ok_or() instead of closure",
       "description": "Use ok_or() directly instead of closure in crates/core/src/session_sharing.rs line 323. Fix clippy error 'redundant_closure'.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "No redundant_closure error at line 323",
         "cargo clippy -p opencode-core -- -D warnings passes"
@@ -109,7 +109,7 @@
       "test_commands": [
         "cargo clippy -p opencode-core -- -D warnings"
       ],
-      "impl_notes": "Use ok_or() directly instead of closure for Option::None",
+      "impl_notes": "Code uses correct pattern. Clippy passes with no redundant_closure error.",
       "dependencies": []
     },
     {
@@ -117,7 +117,7 @@
       "priority": "P0",
       "title": "Use entry() API properly",
       "description": "Use entry() API to avoid redundant lookup in crates/core/src/session_sharing.rs line 225. Fix clippy error 'map_entry' - contains_key followed by insert.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "No map_entry error at line 225",
         "cargo clippy -p opencode-core -- -D warnings passes"
@@ -125,7 +125,7 @@
       "test_commands": [
         "cargo clippy -p opencode-core -- -D warnings"
       ],
-      "impl_notes": "Use entry() API instead of contains_key followed by insert",
+      "impl_notes": "Code uses correct entry API pattern. Clippy passes.",
       "dependencies": []
     },
     {
@@ -133,7 +133,7 @@
       "priority": "P0",
       "title": "Replace and_then with map",
       "description": "Replace Option.and_then(|x| Some(y)) with map(|x| y) in crates/core/src/crash_recovery.rs line 241. Fix clippy error 'and_then'.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "No and_then error at line 241",
         "cargo clippy -p opencode-core -- -D warnings passes"
@@ -141,7 +141,7 @@
       "test_commands": [
         "cargo clippy -p opencode-core -- -D warnings"
       ],
-      "impl_notes": "Replace and_then with map for Option transformation",
+      "impl_notes": "Code uses correct pattern. Clippy passes with no and_then error.",
       "dependencies": []
     },
     {
@@ -149,7 +149,7 @@
       "priority": "P0",
       "title": "Factor complex type into type alias",
       "description": "Factor complex type into type definitions in crates/core/src/skill.rs. Fix clippy error 'very_complex_type'.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "No very_complex_type error in skill.rs",
         "cargo clippy -p opencode-core -- -D warnings passes"
@@ -157,7 +157,7 @@
       "test_commands": [
         "cargo clippy -p opencode-core -- -D warnings"
       ],
-      "impl_notes": "Factor parts of complex type into type definitions",
+      "impl_notes": "Complex types properly defined. Clippy passes.",
       "dependencies": []
     },
     {
@@ -165,7 +165,7 @@
       "priority": "P0",
       "title": "Change &PathBuf to &Path",
       "description": "Change &PathBuf parameter to &Path in crates/core/src/skill.rs line 116. Fix clippy error 'needless_borrow' (5 occurrences).",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "No needless_borrow errors for PathBuf in skill.rs",
         "cargo clippy -p opencode-core -- -D warnings passes"
@@ -173,7 +173,7 @@
       "test_commands": [
         "cargo clippy -p opencode-core -- -D warnings"
       ],
-      "impl_notes": "Change all &PathBuf parameters to &Path (5 occurrences)",
+      "impl_notes": "Parameters correctly use &Path. Clippy passes.",
       "dependencies": []
     },
     {
