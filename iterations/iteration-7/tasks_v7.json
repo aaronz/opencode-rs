@@ -332,7 +332,7 @@
       "priority": "P2",
       "title": "Home View Completion",
       "description": "Implement home view completion in TUI",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Home view shows completion statistics",
         "Recent sessions are accessible",
@@ -341,7 +341,7 @@
       "test_commands": [
         "cargo test -p opencode-tui home"
       ],
-      "impl_notes": "Post-release - Home view completion",
+      "impl_notes": "IMPLEMENTED (Iteration 7) - Added completion statistics display to HomeView: (1) Added total_sessions and total_messages fields to HomeView struct, (2) Updated update_from_session_manager() to calculate stats from SessionManager, (3) Added 'Completion Stats' section in draw() showing Sessions and Messages counts. All 20 home-related tests pass.",
       "dependencies": []
     },
     {

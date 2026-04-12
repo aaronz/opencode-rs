@@ -16,6 +16,8 @@ pub struct HomeView {
     recent_sessions: Vec<Session>,
     model: String,
     directory: String,
+    total_sessions: usize,
+    total_messages: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -67,6 +69,8 @@ impl HomeView {
             recent_sessions: Vec::new(),
             model: String::new(),
             directory: String::new(),
+            total_sessions: 0,
+            total_messages: 0,
         }
     }
 
@@ -112,6 +116,8 @@ impl HomeView {
             .take(5)
             .cloned()
             .collect();
+        self.total_sessions = session_manager.len();
+        self.total_messages = session_manager.list().iter().map(|s| s.message_count).sum();
     }
 }
 
@@ -173,6 +179,29 @@ impl Dialog for HomeView {
         ]);
         f.render_widget(
             Paragraph::new(vec![info_line]),
+            Rect::new(inner.x, y_offset, inner.width, 1),
+        );
+        y_offset += 2;
+
+        let stats_line = Line::from(vec![
+            Span::styled("Sessions: ", Style::default().fg(theme.muted_color())),
+            Span::styled(
+                self.total_sessions.to_string(),
+                Style::default()
+                    .fg(theme.accent_color())
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw("  |  "),
+            Span::styled("Messages: ", Style::default().fg(theme.muted_color())),
+            Span::styled(
+                self.total_messages.to_string(),
+                Style::default()
+                    .fg(theme.accent_color())
+                    .add_modifier(Modifier::BOLD),
+            ),
+        ]);
+        f.render_widget(
+            Paragraph::new(vec![stats_line]),
             Rect::new(inner.x, y_offset, inner.width, 1),
         );
         y_offset += 2;
@@ -413,5 +442,23 @@ mod tests {
         view.update_from_session_manager(&session_manager);
         assert_eq!(view.recent_sessions.len(), 2);
         assert_eq!(view.recent_sessions[0].name, "Test Session 1");
+        assert_eq!(view.total_sessions, 2);
+        assert_eq!(view.total_messages, 0);
+    }
+
+    #[test]
+    fn test_home_view_completion_statistics() {
+        use crate::session::SessionManager;
+        let theme = crate::theme::Theme::default();
+        let mut view = HomeView::new(theme);
+
+        let mut session_manager = SessionManager::new();
+        session_manager.add_session("Session 1");
+        session_manager.add_session("Session 2");
+        session_manager.add_session("Session 3");
+
+        view.update_from_session_manager(&session_manager);
+        assert_eq!(view.total_sessions, 3);
+        assert_eq!(view.total_messages, 0);
     }
 }
