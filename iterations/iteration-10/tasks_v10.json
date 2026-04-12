@@ -37,7 +37,7 @@
       "priority": "P0",
       "title": "Fix deprecated AgentConfig::mode field",
       "description": "Remove or replace usage of deprecated AgentConfig::mode field in crates/core/src/config.rs line 2771. Use 'permission' field instead.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "No deprecated AgentConfig::mode field usage in config.rs",
         "cargo clippy -p opencode-core -- -D warnings passes"
