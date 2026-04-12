@@ -79,7 +79,7 @@
 
 ### Core Architecture
 - [x] P2-1: Project VCS worktree root distinction (`crates/core`)
-- [ ] P2-2: Workspace path validation (`crates/core`)
+- [x] P2-2: Workspace path validation (`crates/core`)
 
 ### Storage
 - [ ] P2-3: Compaction shareability verification (`crates/storage`)
@@ -127,6 +127,7 @@
 - [x] P1-11: Request validation edge cases
 
 ### P2 Issues Completed
+- [x] P2-2: Workspace path validation (`crates/core`)
 - [x] P2-10: Plugin cleanup/unload
 
 ---
@@ -154,7 +155,7 @@
 |----------|-------|-----------|
 | P0 Blockers | 2 | 1 |
 | P1 Issues | 11 | 6 |
-| P2 Issues | 15 | 1 |
+| P2 Issues | 15 | 2 |
 
 ---
 

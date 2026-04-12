@@ -137,7 +137,7 @@
       "priority": "P2",
       "title": "Workspace path validation",
       "description": "Add workspace path validation in crates/core.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "Invalid workspace paths are rejected",
         "Valid workspace paths are accepted"
