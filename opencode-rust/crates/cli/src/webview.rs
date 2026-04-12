@@ -1,3 +1,4 @@
+use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 
 #[cfg(feature = "desktop")]
@@ -10,87 +11,90 @@ use wry::application::window::WindowBuilder;
 use wry::webview::{WebView, WebViewBuilder};
 
 #[cfg(feature = "desktop")]
-pub struct WebViewInstance {
-    _webview: WebView,
+pub struct WebViewManager {
+    stop_tx: Sender<()>,
+    join_handle: Option<thread::JoinHandle<()>>,
 }
 
 #[cfg(feature = "desktop")]
-impl WebViewInstance {
+impl WebViewManager {
     pub fn new(url: &str, title: &str) -> Result<Self, Box<dyn std::error::Error>> {
-        let event_loop: EventLoop<()> = EventLoop::new();
-        let window = WindowBuilder::new().with_title(title).build(&event_loop)?;
+        let (stop_tx, stop_rx) = channel::<()>();
+        let title = title.to_string();
+        let url = url.to_string();
 
-        let webview = WebViewBuilder::new(window)?.with_url(url)?.build()?;
-
-        Ok(WebViewInstance { _webview: webview })
-    }
-
-    pub fn run(self, event_loop: EventLoop<()>) {
-        event_loop.run(move |event, _, control_flow| {
-            *control_flow = ControlFlow::Wait;
-            if let Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                ..
-            } = event
-            {
-                *control_flow = ControlFlow::Exit;
+        let join_handle = thread::spawn(move || {
+            if let Err(e) = run_webview_thread(&url, &title, stop_rx) {
+                eprintln!("WebView error: {}", e);
             }
         });
-    }
-}
 
-#[cfg(not(feature = "desktop"))]
-pub struct WebViewInstance;
-
-#[cfg(not(feature = "desktop"))]
-impl WebViewInstance {
-    pub fn new(_url: &str, _title: &str) -> Result<Self, Box<dyn std::error::Error>> {
-        Ok(WebViewInstance)
+        Ok(WebViewManager {
+            stop_tx,
+            join_handle: Some(join_handle),
+        })
     }
 
-    pub fn run(self) -> Result<(), Box<dyn std::error::Error>> {
-        Ok(())
+    pub fn stop(&self) {
+        let _ = self.stop_tx.send(());
+    }
+
+    pub fn wait_until_stopped(&mut self) {
+        if let Some(handle) = self.join_handle.take() {
+            let _ = handle.join();
+        }
     }
 }
 
 #[cfg(feature = "desktop")]
-pub fn spawn_webview_thread(
-    url: String,
-    title: String,
-) -> Result<thread::JoinHandle<()>, Box<dyn std::error::Error>> {
-    let handle = thread::spawn(move || {
-        let event_loop: EventLoop<()> = EventLoop::new();
-        let window = WindowBuilder::new()
-            .with_title(&title)
-            .build(&event_loop)
-            .expect("Failed to create window");
+fn run_webview_thread(
+    url: &str,
+    title: &str,
+    stop_rx: Receiver<()>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let event_loop: EventLoop<()> = EventLoop::new();
+    let window = WindowBuilder::new().with_title(title).build(&event_loop)?;
 
-        let webview = WebViewBuilder::new(window)
-            .expect("Failed to create WebViewBuilder")
-            .with_url(&url)
-            .expect("Failed to set URL")
-            .build()
-            .expect("Failed to build WebView");
+    let _webview = WebViewBuilder::new(window)?.with_url(url)?.build()?;
 
-        event_loop.run(move |event, _, control_flow| {
-            *control_flow = ControlFlow::Wait;
-            if let Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                ..
-            } = event
-            {
-                *control_flow = ControlFlow::Exit;
-            }
-        });
+    event_loop.run(move |event, _, control_flow| {
+        *control_flow = ControlFlow::Wait;
+
+        if stop_rx.try_recv().is_ok() {
+            *control_flow = ControlFlow::Exit;
+            return;
+        }
+
+        if let Event::WindowEvent {
+            event: WindowEvent::CloseRequested,
+            ..
+        } = event
+        {
+            *control_flow = ControlFlow::Exit;
+        }
     });
 
-    Ok(handle)
+    Ok(())
 }
 
 #[cfg(not(feature = "desktop"))]
-pub fn spawn_webview_thread(
-    _url: String,
-    _title: String,
-) -> Result<thread::JoinHandle<()>, Box<dyn std::error::Error>> {
-    Ok(thread::spawn(|| {}))
+pub struct WebViewManager;
+
+#[cfg(not(feature = "desktop"))]
+impl WebViewManager {
+    pub fn new(_url: &str, _title: &str) -> Result<Self, Box<dyn std::error::Error>> {
+        Ok(WebViewManager)
+    }
+
+    pub fn stop(&self) {}
+
+    pub fn wait_until_stopped(&mut self) {}
+}
+
+#[cfg(feature = "desktop")]
+impl Drop for WebViewManager {
+    fn drop(&mut self) {
+        self.stop();
+        self.wait_until_stopped();
+    }
 }

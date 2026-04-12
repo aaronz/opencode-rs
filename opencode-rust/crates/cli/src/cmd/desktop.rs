@@ -13,7 +13,7 @@ use std::sync::Arc;
 use std::sync::RwLock;
 
 #[cfg(feature = "desktop")]
-use crate::webview::spawn_webview_thread;
+use crate::webview::WebViewManager;
 
 #[derive(Args, Debug)]
 pub struct DesktopArgs {
@@ -100,23 +100,35 @@ async fn run_desktop(args: DesktopArgs) -> Result<(), Box<dyn std::error::Error>
         acp_stream: SharedAcpStream::default(),
     };
 
-    if auto_open_browser && !args.no_browser {
+    #[cfg(feature = "desktop")]
+    let mut webview_manager = if auto_open_browser && !args.no_browser {
         let url = format!("http://{}:{}", host, port);
-        
-        #[cfg(feature = "desktop")]
-        {
-            println!("Opening embedded WebView...");
-            let _webview_handle = spawn_webview_thread(url, "OpenCode".to_string())
-                .map_err(|e| format!("Failed to spawn WebView: {}", e))?;
-        }
+        println!("Opening embedded WebView...");
+        Some(WebViewManager::new(&url, "OpenCode").map_err(|e| format!("Failed to create WebView: {}", e))?)
+    } else {
+        None
+    };
 
-        #[cfg(not(feature = "desktop"))]
-        {
-            let _ = open_browser(&url);
-        }
-    }
+    #[cfg(not(feature = "desktop"))]
+    let webview_manager = if auto_open_browser && !args.no_browser {
+        let url = format!("http://{}:{}", host, port);
+        drop(url);
+        Some(())
+    } else {
+        None
+    };
 
     run_server(Arc::new(state), &host, port).await?;
+
+    #[cfg(feature = "desktop")]
+    if let Some(ref mut manager) = webview_manager {
+        println!("Stopping WebView...");
+        manager.stop();
+        manager.wait_until_stopped();
+    }
+
+    #[cfg(not(feature = "desktop"))]
+    let _ = webview_manager;
 
     Ok(())
 }

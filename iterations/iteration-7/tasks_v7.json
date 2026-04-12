@@ -1,0 +1,545 @@
+{
+  "tasks": [
+    {
+      "id": "P0-new-2",
+      "priority": "P0",
+      "title": "Desktop WebView Integration",
+      "description": "Implement actual WebView component per PRD 13. Currently desktop.rs uses wry for WebView but only spawns browser when desktop feature is off. When desktop feature is enabled, spawn_webview_thread creates WebView but doesn't properly integrate with app lifecycle.",
+      "status": "done",
+      "test_criteria": [
+        "WebView successfully spawns when desktop feature is enabled",
+        "WebView properly shares state with TUI/server",
+        "WebView loads local HTTP server URL correctly",
+        "WebView integrates with desktop mode lifecycle (start/stop)"
+      ],
+      "test_commands": [
+        "cargo build --features desktop",
+        "cargo test --features desktop -- --test-threads=1"
+      ],
+      "impl_notes": "IMPLEMENTED - Created WebViewManager struct with proper lifecycle management. WebView is created with WebViewManager::new(url, title), runs in background thread, and properly shuts down via stop() and wait_until_stopped() when server stops. Drop implementation ensures cleanup. State shared via existing ServerState (event_bus, storage, etc.).",
+      "dependencies": []
+    },
+    {
+      "id": "P0-new-1",
+      "priority": "P0",
+      "title": "Git Crate Syntax Error",
+      "description": "Git crate had syntax error preventing build",
+      "status": "done",
+      "test_criteria": [
+        "Build succeeds: cargo build",
+        "Tests pass: cargo test -p opencode-git"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-git",
+        "cargo test -p opencode-git"
+      ],
+      "impl_notes": "RESOLVED - build succeeds",
+      "dependencies": []
+    },
+    {
+      "id": "P0-new-3",
+      "priority": "P0",
+      "title": "ACP HTTP+SSE Transport",
+      "description": "Implement ACP HTTP+SSE transport layer",
+      "status": "done",
+      "test_criteria": [
+        "ACP HTTP+SSE transport implemented",
+        "Integration tests pass"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli --features acp"
+      ],
+      "impl_notes": "IMPLEMENTED",
+      "dependencies": []
+    },
+    {
+      "id": "P1-1",
+      "priority": "P1",
+      "title": "JSONC Error Messages Clarity",
+      "description": "Enhance JsoncError with source line extraction and caret display for better error messages",
+      "status": "done",
+      "test_criteria": [
+        "JsoncError displays source line with caret pointing to error position",
+        "Error messages are clear and actionable"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core jsonc"
+      ],
+      "impl_notes": "Enhanced JsoncError with source line extraction and caret display in crates/core (config/jsonc.rs)",
+      "dependencies": []
+    },
+    {
+      "id": "P1-2",
+      "priority": "P1",
+      "title": "Circular Variable Expansion Detection",
+      "description": "Add detection algorithm for circular references in variable expansion",
+      "status": "todo",
+      "test_criteria": [
+        "Detection algorithm identifies circular references",
+        "Error message clearly indicates which variables are involved in the cycle",
+        "Algorithm handles indirect circular references"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-config circular",
+        "cargo test -p opencode-config variable"
+      ],
+      "impl_notes": "Deferred - implement in crates/config for FR-003 variable expansion",
+      "dependencies": []
+    },
+    {
+      "id": "P1-3",
+      "priority": "P1",
+      "title": "Deprecated Fields Planning",
+      "description": "Plan removal of deprecated fields: mode, tools, theme, keybinds in v4.0 major version",
+      "status": "todo",
+      "test_criteria": [
+        "Deprecation warnings added for mode, tools, theme, keybinds fields",
+        "Migration guide documented for v4.0",
+        "Fields marked for removal in next major version"
+      ],
+      "test_commands": [
+        "cargo build --release 2>&1 | grep -i deprecat"
+      ],
+      "impl_notes": "Deferred (planning phase) - FR-003 - Plan removal in v4.0 major version",
+      "dependencies": []
+    },
+    {
+      "id": "P1-5",
+      "priority": "P1",
+      "title": "Multiline Input Terminal Support",
+      "description": "Implement Shift+Enter for new line in terminal input widget",
+      "status": "done",
+      "test_criteria": [
+        "Shift+Enter inserts new line in input",
+        "Enter submits single-line input",
+        "Tests pass"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui multiline",
+        "cargo test -p opencode-tui input"
+      ],
+      "impl_notes": "Done (Iteration 7) - Implementation in input_widget.rs",
+      "dependencies": []
+    },
+    {
+      "id": "P1-9",
+      "priority": "P1",
+      "title": "Session Sharing Between Interfaces",
+      "description": "Implement cross-interface session synchronization for TUI, CLI, Web, and Desktop interfaces",
+      "status": "todo",
+      "test_criteria": [
+        "Session created in one interface is accessible from another",
+        "Session state stays synchronized across interfaces",
+        "No data loss when switching between interfaces"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli session",
+        "cargo test -p opencode-core session"
+      ],
+      "impl_notes": "Deferred (Partial) - FR-015 - Implement cross-interface session synchronization",
+      "dependencies": []
+    },
+    {
+      "id": "P2-1",
+      "priority": "P2",
+      "title": "Project VCS Worktree Root Distinction",
+      "description": "Distinguish between project root and VCS worktree root in crate/core",
+      "status": "todo",
+      "test_criteria": [
+        "Project root correctly identified",
+        "VCS worktree root correctly identified when inside worktree",
+        "Both paths accessible when they differ"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core vcs",
+        "cargo test -p opencode-core worktree"
+      ],
+      "impl_notes": "Post-release - Project VCS worktree root distinction",
+      "dependencies": []
+    },
+    {
+      "id": "P2-2",
+      "priority": "P2",
+      "title": "Workspace Path Validation",
+      "description": "Validate workspace paths in crate/core",
+      "status": "done",
+      "test_criteria": [
+        "Invalid paths are rejected with clear error",
+        "Valid paths are accepted"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core workspace"
+      ],
+      "impl_notes": "Done - Workspace path validation",
+      "dependencies": []
+    },
+    {
+      "id": "P2-3",
+      "priority": "P2",
+      "title": "Compaction Shareability Verification",
+      "description": "Verify compaction can be shared between contexts",
+      "status": "done",
+      "test_criteria": [
+        "Compaction data can be serialized",
+        "Compaction can be restored in different context"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-storage compaction"
+      ],
+      "impl_notes": "Done - Compaction shareability verification",
+      "dependencies": []
+    },
+    {
+      "id": "P2-4",
+      "priority": "P2",
+      "title": "Deterministic Collision Resolution",
+      "description": "Implement deterministic collision resolution for tools",
+      "status": "done",
+      "test_criteria": [
+        "Collision resolution is deterministic across runs",
+        "Same result produced for same collision scenario"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools collision"
+      ],
+      "impl_notes": "Done - Deterministic collision resolution",
+      "dependencies": []
+    },
+    {
+      "id": "P2-5",
+      "priority": "P2",
+      "title": "Result Caching Invalidation",
+      "description": "Implement result caching with proper invalidation for tools",
+      "status": "todo",
+      "test_criteria": [
+        "Cached results are returned when inputs match",
+        "Cache is invalidated when source files change",
+        "Cache can be manually invalidated"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools cache"
+      ],
+      "impl_notes": "Post-release - Result caching invalidation",
+      "dependencies": []
+    },
+    {
+      "id": "P2-6",
+      "priority": "P2",
+      "title": "Per-server OAuth Token Storage",
+      "description": "Implement per-server OAuth token storage in MCP crate",
+      "status": "done",
+      "test_criteria": [
+        "OAuth tokens stored per server",
+        "Tokens are securely stored",
+        "Tokens are retrieved correctly for each server"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-mcp oauth",
+        "cargo test -p opencode-mcp token"
+      ],
+      "impl_notes": "Done (Iteration 7) - Per-server OAuth token storage",
+      "dependencies": []
+    },
+    {
+      "id": "P2-7",
+      "priority": "P2",
+      "title": "Context Cost Warnings",
+      "description": "Implement context cost warnings to alert users when context is becoming large",
+      "status": "done",
+      "test_criteria": [
+        "Warnings displayed when context exceeds threshold",
+        "Warnings include cost information",
+        "User can configure warning thresholds"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-mcp context_cost"
+      ],
+      "impl_notes": "Done (Iteration 7) - Context cost warnings in context_cost.rs",
+      "dependencies": []
+    },
+    {
+      "id": "P2-8",
+      "priority": "P2",
+      "title": "Experimental LSP Tool Testing",
+      "description": "Add testing support for experimental LSP tool in crate/lsp",
+      "status": "todo",
+      "test_criteria": [
+        "LSP tool can be tested in isolation",
+        "Mock LSP server responds correctly",
+        "Integration tests pass"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-lsp"
+      ],
+      "impl_notes": "Post-release - Experimental LSP tool testing",
+      "dependencies": []
+    },
+    {
+      "id": "P2-9",
+      "priority": "P2",
+      "title": "API Error Shape Consistency Enforcement",
+      "description": "Enforce consistent error response shape across all API endpoints in crate/server",
+      "status": "todo",
+      "test_criteria": [
+        "All error responses follow same JSON structure",
+        "Error codes are consistent",
+        "Error messages are descriptive and actionable"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server api",
+        "cargo test -p opencode-server error"
+      ],
+      "impl_notes": "Post-release - API error shape consistency enforcement",
+      "dependencies": []
+    },
+    {
+      "id": "P2-10",
+      "priority": "P2",
+      "title": "Plugin Cleanup/Unload",
+      "description": "Implement proper plugin cleanup and unload functionality",
+      "status": "done",
+      "test_criteria": [
+        "Plugins can be unloaded cleanly",
+        "Resources are released on unload",
+        "No memory leaks after plugin unload"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin unload",
+        "cargo test -p opencode-plugin cleanup"
+      ],
+      "impl_notes": "Done (Iteration 7) - Plugin cleanup/unload",
+      "dependencies": []
+    },
+    {
+      "id": "P2-11",
+      "priority": "P2",
+      "title": "Shell Prefix (!) Handler",
+      "description": "Implement shell prefix (!) handler in TUI for direct shell commands",
+      "status": "todo",
+      "test_criteria": [
+        "Commands starting with ! are executed as shell commands",
+        "Output is displayed correctly",
+        "Errors are handled gracefully"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui shell"
+      ],
+      "impl_notes": "Post-release - Shell prefix (!) handler",
+      "dependencies": []
+    },
+    {
+      "id": "P2-12",
+      "priority": "P2",
+      "title": "Home View Completion",
+      "description": "Implement home view completion in TUI",
+      "status": "todo",
+      "test_criteria": [
+        "Home view shows completion statistics",
+        "Recent sessions are accessible",
+        "Quick actions are available"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui home"
+      ],
+      "impl_notes": "Post-release - Home view completion",
+      "dependencies": []
+    },
+    {
+      "id": "P2-13",
+      "priority": "P2",
+      "title": "LLM Variant/Reasoning Budget",
+      "description": "Implement LLM variant selection and reasoning budget in crate/llm",
+      "status": "todo",
+      "test_criteria": [
+        "Users can select LLM variant",
+        "Reasoning budget can be configured",
+        "Budget is respected during generation"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm variant",
+        "cargo test -p opencode-llm budget"
+      ],
+      "impl_notes": "Post-release - LLM variant/reasoning budget",
+      "dependencies": []
+    },
+    {
+      "id": "P2-14",
+      "priority": "P2",
+      "title": "GitLab Duo Experimental Marking",
+      "description": "Mark GitLab Duo features as experimental in documentation",
+      "status": "todo",
+      "test_criteria": [
+        "GitLab Duo features marked experimental in docs",
+        "Users are warned about experimental status",
+        "Documentation is clear about what's experimental"
+      ],
+      "test_commands": [],
+      "impl_notes": "Post-release - marked experimental in docs",
+      "dependencies": []
+    },
+    {
+      "id": "P2-15",
+      "priority": "P2",
+      "title": "Git Test Code Cleanup",
+      "description": "Clean up unused test code in git crate: remove unused next_port() function (line 413), remove or use GitLabMockServer struct (line 706), clean up associated unused items",
+      "status": "todo",
+      "test_criteria": [
+        "Unused next_port() function removed",
+        "GitLabMockServer struct removed or used",
+        "No compiler warnings about unused items",
+        "All tests still pass"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-git 2>&1 | grep -E '(warning|unused)'",
+        "cargo test -p opencode-git"
+      ],
+      "impl_notes": "BUG (not feature gap) - Remove unused next_port() function, GitLabMockServer struct, and associated unused items",
+      "dependencies": []
+    },
+    {
+      "id": "CQ-1",
+      "priority": "P3",
+      "title": "Remove Unused Message Import",
+      "description": "Remove unused Message import in core/crash_recovery.rs:1",
+      "status": "todo",
+      "test_criteria": [
+        "Import removed",
+        "Code still compiles",
+        "No warnings about unused import"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-core 2>&1 | grep -i 'crash_recovery'"
+      ],
+      "impl_notes": "Low severity - Remove unused import",
+      "dependencies": []
+    },
+    {
+      "id": "CQ-2",
+      "priority": "P3",
+      "title": "Remove or Use Unused SecretStorage Methods",
+      "description": "Remove or use 6 unused methods in core/config/secret_storage.rs:36",
+      "status": "todo",
+      "test_criteria": [
+        "Unused methods removed or documented as intentionally kept",
+        "No warnings about unused methods"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-core 2>&1 | grep -i 'secret_storage'"
+      ],
+      "impl_notes": "Low severity - Remove or use 6 unused methods",
+      "dependencies": []
+    },
+    {
+      "id": "CQ-3",
+      "priority": "P3",
+      "title": "Fix Unused e Variable in LSP Tool",
+      "description": "Prefix unused e variable with _e in tools/lsp_tool.rs:311,526,626,783",
+      "status": "todo",
+      "test_criteria": [
+        "Unused e variables prefixed with _e",
+        "Code compiles without warnings"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-tools 2>&1 | grep -i 'lsp_tool'"
+      ],
+      "impl_notes": "Low severity - Prefix unused e variable with _e",
+      "dependencies": []
+    },
+    {
+      "id": "CQ-4",
+      "priority": "P3",
+      "title": "Fix Unused body Variable in GitHub",
+      "description": "Prefix unused body variable with _body in git/github.rs:566",
+      "status": "todo",
+      "test_criteria": [
+        "Unused body variable prefixed with _body",
+        "Code compiles without warnings"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-git 2>&1 | grep -i 'github'"
+      ],
+      "impl_notes": "Low severity - Prefix unused body variable with _body",
+      "dependencies": []
+    },
+    {
+      "id": "CQ-5",
+      "priority": "P3",
+      "title": "Remove or Use Unused next_port Function",
+      "description": "Remove or use unused next_port function in git/gitlab_ci.rs:413",
+      "status": "todo",
+      "test_criteria": [
+        "Function removed or used",
+        "No warnings about unused function"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-git 2>&1 | grep -i 'next_port'"
+      ],
+      "impl_notes": "Low severity - Remove or use next_port function",
+      "dependencies": []
+    },
+    {
+      "id": "CQ-6",
+      "priority": "P3",
+      "title": "Remove or Use Unused GitLabMockServer",
+      "description": "Remove or use unused GitLabMockServer struct in git/gitlab_ci.rs:706",
+      "status": "todo",
+      "test_criteria": [
+        "Struct removed or used",
+        "No warnings about unused struct"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-git 2>&1 | grep -i 'GitLabMockServer'"
+      ],
+      "impl_notes": "Low severity - Remove or use GitLabMockServer",
+      "dependencies": []
+    },
+    {
+      "id": "CQ-7",
+      "priority": "P3",
+      "title": "Remove Unused Imports in CLI Quick Command",
+      "description": "Remove unused imports in cli/src/cmd/quick.rs:5-6",
+      "status": "todo",
+      "test_criteria": [
+        "Unused imports removed",
+        "Code compiles without warnings"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-cli 2>&1 | grep -i 'quick'"
+      ],
+      "impl_notes": "Low severity - Remove unused imports",
+      "dependencies": []
+    },
+    {
+      "id": "CQ-8",
+      "priority": "P3",
+      "title": "Remove or Use Unused save_session_records",
+      "description": "Remove or use unused save_session_records in cli/src/cmd/session.rs:42",
+      "status": "todo",
+      "test_criteria": [
+        "Function removed or used",
+        "No warnings about unused function"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-cli 2>&1 | grep -i 'save_session'"
+      ],
+      "impl_notes": "Low severity - Remove or use save_session_records",
+      "dependencies": []
+    },
+    {
+      "id": "CQ-9",
+      "priority": "P3",
+      "title": "Fix Unused complete Variable in MCP Auth",
+      "description": "Prefix unused complete variable with _complete in cli/src/cmd/mcp_auth.rs:216",
+      "status": "todo",
+      "test_criteria": [
+        "Unused complete variable prefixed with _complete",
+        "Code compiles without warnings"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-cli 2>&1 | grep -i 'mcp_auth'"
+      ],
+      "impl_notes": "Low severity - Prefix unused complete variable with _complete",
+      "dependencies": []
+    }
+  ]
+}
