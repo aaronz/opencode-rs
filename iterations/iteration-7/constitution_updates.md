@@ -261,7 +261,7 @@ mod test_infrastructure {
 | P0-new-3 | ACP HTTP+SSE transport | Art VI §6.2 | ✅ VERIFIED |
 | P1-1 | JSONC error messages | Amend B §B.1 | ✅ IMPLEMENTED |
 | P1-2 | Circular variable expansion | Amend B §B.2 | ⚠️ Deferred |
-| P1-3 | Deprecated fields | Art III §3.1 + Amend D §D.2 | ⚠️ Deferred |
+| P1-3 | Deprecated fields | Art III §3.1 + Amend D §D.2 | ✅ **IMPLEMENTED** |
 | P1-5 | Multiline input | Amend C §C.1 | ✅ **IMPLEMENTED** |
 | P1-7 | TUI Plugin dialogs | Amend C §C.2 | ✅ IMPLEMENTED |
 | P1-8 | TUI Plugin slots | Amend C §C.3 | ✅ IMPLEMENTED |

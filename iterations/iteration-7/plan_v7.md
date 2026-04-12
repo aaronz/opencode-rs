@@ -81,7 +81,7 @@
 |----|------|--------|--------|--------|
 | P1-1 | JSONC error messages clarity | config | ✅ Done | Enhanced error formatting |
 | P1-2 | Circular variable expansion detection | config | Deferred | Add detection algorithm |
-| P1-3 | Deprecated fields (mode, tools, theme, keybinds) | config | Deferred | Plan removal in v4.0 |
+| P1-3 | Deprecated fields (mode, tools, theme, keybinds) | config | ✅ **Done** | Added #[deprecated] attrs, check_deprecated_fields() |
 | P1-5 | Multiline input terminal support | tui | ✅ **Done** | Shift+Enter for new line |
 | P1-9 | Session sharing between interfaces | cli | Deferred | Cross-interface sync |
 

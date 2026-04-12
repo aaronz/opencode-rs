@@ -95,13 +95,13 @@ This report analyzes the gaps between the current implementation and the PRD spe
 |----|-------|--------|---------------|--------|------------|
 | P1-1 | JSONC error messages clarity | config | FR-003 | ✅ Done | Enhanced error formatting |
 | P1-2 | Circular variable expansion detection | config | FR-003 | Deferred | Add detection algorithm |
-| P1-3 | Deprecated fields (mode, tools, theme, keybinds) | config | FR-003 | Deferred | Remove in v4.0 |
+| P1-3 | Deprecated fields (mode, tools, theme, keybinds) | config | FR-003 | ✅ **DONE** | Remove in v4.0 |
 | P1-5 | Multiline input terminal support | tui | FR-018 | ✅ **DONE** | Shift+Enter for new line |
 | P1-9 | Session sharing between interfaces partial | cli | FR-015 | Deferred | Cross-interface sync |
 | P1-10 | Permission inheritance edge cases | agent | FR-005 | ✅ Done | Test coverage added |
 | P1-11 | Request validation edge cases | server | FR-004 | ✅ Done | Tests added |
 
-**P1 Issues Summary:** 5 deferred, 7 completed
+**P1 Issues Summary:** 4 deferred, 8 completed
 
 ### P2 - Nice to Have (14 items)
 

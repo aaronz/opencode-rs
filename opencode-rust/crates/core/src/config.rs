@@ -426,6 +426,12 @@ pub struct AgentConfig {
     pub description: Option<String>,
 
     /// Agent mode
+    ///
+    /// # Deprecated
+    ///
+    /// This field is deprecated and will be removed in v4.0.
+    /// Use 'permission' field instead to control agent access levels.
+    #[deprecated(since = "0.3.0", note = "Use 'permission' field instead. Will be removed in v4.0.")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mode: Option<AgentMode>,
 
@@ -455,6 +461,12 @@ pub struct AgentConfig {
 }
 
 /// Agent mode enumeration
+///
+/// # Deprecated
+///
+/// This enum is deprecated and will be removed in v4.0.
+/// Use 'permission' field instead to control agent access levels.
+#[deprecated(since = "0.3.0", note = "Use 'permission' field instead. Will be removed in v4.0.")]
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum AgentMode {
@@ -1300,9 +1312,47 @@ impl Config {
         };
 
         let mut value = value;
+        Self::check_deprecated_fields(&value);
         Self::expand_variables(&mut value)
             .map_err(|e| crate::OpenCodeError::Config(e.to_string()))?;
         serde_json::from_value(value).map_err(|e| crate::OpenCodeError::Config(e.to_string()))
+    }
+
+    /// Check for deprecated fields and emit warnings
+    fn check_deprecated_fields(value: &serde_json::Value) {
+        if let Some(obj) = value.as_object() {
+            let deprecated_fields = [
+                ("mode", "Use 'agent[].permission' instead. Will be removed in v4.0."),
+                ("tools", "Use 'permission' field instead. Will be removed in v4.0."),
+                ("theme", "Theme configuration has moved to 'tui.json'. Will be removed from opencode.json in v4.0."),
+                ("keybinds", "Keybinds configuration has moved to 'tui.json'. Will be removed from opencode.json in v4.0."),
+            ];
+
+            for (field, message) in deprecated_fields {
+                if obj.contains_key(field) {
+                    tracing::warn!(
+                        "Deprecated config field '{}' detected: {}. \
+                        See https://docs.opencode.ai/config/migration for migration guide.",
+                        field, message
+                    );
+                }
+            }
+
+            if let Some(agents) = obj.get("agent").and_then(|v| v.as_object()) {
+                for (agent_name, agent_value) in agents {
+                    if let Some(agent_obj) = agent_value.as_object() {
+                        if agent_obj.contains_key("mode") {
+                            tracing::warn!(
+                                "Deprecated config field 'agent.{}.mode' detected: \
+                                Use 'permission' field instead. Will be removed in v4.0. \
+                                See https://docs.opencode.ai/config/migration for migration guide.",
+                                agent_name
+                            );
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /// Substitute {env:VAR} and {file:path} patterns in config content.
@@ -2693,6 +2743,14 @@ impl Config {
                             severity: ValidationSeverity::Error,
                         });
                     }
+                }
+
+                if agent.mode.is_some() {
+                    errors.push(ValidationError {
+                        field: format!("agent.{}.mode", name),
+                        message: "The 'mode' field is deprecated and will be removed in v4.0. Use 'permission' field instead.".to_string(),
+                        severity: ValidationSeverity::Warning,
+                    });
                 }
             }
 

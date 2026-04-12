@@ -35,7 +35,7 @@
 - [x] **FR Reference:** FR-003
 - [x] **Action:** Enhanced JsoncError with source line extraction and caret display
 
-### P1-2: Circular Variable Expansion Detection ✅ Done
+### P1-2: ✅ Done
 - [x] **Status:** ✅ Done
 - [x] **Module:** `crates/config`
 - [x] **FR Reference:** FR-003

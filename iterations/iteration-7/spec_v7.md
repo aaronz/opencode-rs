@@ -73,7 +73,7 @@ This document defines the specification for the OpenCode Rust port implementatio
 - **P1 Gaps:**
   - JSONC error messages improved with source line display and caret (P1-1 - ✅ Done)
   - Circular variable expansion detection incomplete (P1-2 - deferred)
-  - Deprecated fields remaining: `mode`, `tools`, `theme`, `keybinds` (P1-3 - deferred)
+  - Deprecated fields remaining: `mode`, `tools`, `theme`, `keybinds` (P1-3 - ✅ Done)
 
 ### 3.3 Server API (Phase 1)
 
@@ -459,13 +459,13 @@ This document defines the specification for the OpenCode Rust port implementatio
 | **P0-new-2** | **Desktop WebView integration** | **cli** | **FR-015** | ❌ **STUB ONLY** |
 | P0-new-3 | ACP HTTP+SSE transport | cli/server | FR-015 | ✅ **IMPLEMENTED** |
 
-### P1 - Important Issues (5 remaining)
+### P1 - Important Issues (4 remaining)
 
 | ID | Issue | Module | FR Reference | Status |
 |----|-------|--------|---------------|--------|
 | P1-1 | JSONC error messages clarity | config | FR-003 | ✅ Done |
 | P1-2 | Circular variable expansion detection | config | FR-003 | Deferred |
-| P1-3 | Deprecated fields (mode, tools, theme, keybinds) | config | FR-003 | Deferred |
+| P1-3 | Deprecated fields (mode, tools, theme, keybinds) | config | FR-003 | ✅ Done |
 | P1-9 | Session sharing between interfaces partial | cli | FR-015 | Deferred |
 | P1-10 | Permission inheritance edge cases | agent | FR-005 | ✅ Done |
 | P1-11 | Request validation edge cases | server | FR-004 | ✅ Done |
@@ -473,6 +473,7 @@ This document defines the specification for the OpenCode Rust port implementatio
 **Completed P1 Issues (Iteration 7):**
 | ID | Issue | Status |
 |----|-------|--------|
+| P1-3 | Deprecated fields (mode, tools, theme, keybinds) | ✅ **Done** (Iteration 7) |
 | P1-5 | Multiline input terminal support | ✅ **Done** (Iteration 7) |
 
 **Completed P1 Issues (Prior):**

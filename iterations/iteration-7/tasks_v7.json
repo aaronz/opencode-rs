@@ -91,7 +91,7 @@
       "priority": "P1",
       "title": "Deprecated Fields Planning",
       "description": "Plan removal of deprecated fields: mode, tools, theme, keybinds in v4.0 major version",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Deprecation warnings added for mode, tools, theme, keybinds fields",
         "Migration guide documented for v4.0",
@@ -100,7 +100,7 @@
       "test_commands": [
         "cargo build --release 2>&1 | grep -i deprecat"
       ],
-      "impl_notes": "Deferred (planning phase) - FR-003 - Plan removal in v4.0 major version",
+      "impl_notes": "Added #[deprecated] attributes to AgentConfig.mode and AgentMode enum. Added check_deprecated_fields() to detect and warn about mode, tools, theme, keybinds in raw JSON. Deprecation warnings appear during build.",
       "dependencies": []
     },
     {
