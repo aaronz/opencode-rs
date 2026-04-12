@@ -438,12 +438,14 @@ mod tests {
 
         let error = StreamMessage::Error {
             session_id: Some("err-session".to_string()),
+            error: "TEST_ERROR".to_string(),
             code: "TEST_ERROR".to_string(),
             message: "This is a test error".to_string(),
         };
 
         let json = serde_json::to_value(&error).expect("should serialize");
         assert_eq!(json["type"], "error");
+        assert_eq!(json["error"], "TEST_ERROR");
         assert_eq!(json["code"], "TEST_ERROR");
         assert_eq!(json["message"], "This is a test error");
         assert_eq!(json["session_id"], "err-session");
@@ -1354,6 +1356,7 @@ mod security_tests {
 
         let error = StreamMessage::Error {
             session_id: Some("err-session".to_string()),
+            error: "TEST_ERROR".to_string(),
             code: "TEST_ERROR".to_string(),
             message: "This is a test error".to_string(),
         };

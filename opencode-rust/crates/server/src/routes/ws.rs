@@ -179,6 +179,7 @@ pub async fn ws_index(
                     } else {
                         let fallback = StreamMessage::Error {
                             session_id: Some(handshake_session_id.clone()),
+                            error: "serialization_error".to_string(),
                             code: "serialization_error".to_string(),
                             message: "failed to serialize websocket stream payload".to_string(),
                         };
@@ -216,6 +217,7 @@ pub async fn ws_index(
                         Message::Binary(_) => {
                             let _ = tx.send(StreamMessage::Error {
                                 session_id: Some(handshake_session_id.clone()),
+                                error: "unsupported_binary".to_string(),
                                 code: "unsupported_binary".to_string(),
                                 message: "binary websocket messages are not supported".to_string(),
                             }).await;
@@ -264,6 +266,7 @@ async fn handle_ws_message(
                     let _ = tx
                         .send(StreamMessage::Error {
                             session_id: Some(session_id),
+                            error: "invalid_reconnect_token".to_string(),
                             code: "invalid_reconnect_token".to_string(),
                             message: "unable to resume stream for provided token".to_string(),
                         })
@@ -286,6 +289,7 @@ async fn handle_ws_message(
                     let _ = tx
                         .send(StreamMessage::Error {
                             session_id: Some(session_id),
+                            error: "session_load_error".to_string(),
                             code: "session_load_error".to_string(),
                             message: format!("failed to load session: {e}"),
                         })
@@ -326,6 +330,7 @@ async fn handle_ws_message(
             let _ = tx
                 .send(StreamMessage::Error {
                     session_id: None,
+                    error: "parse_error".to_string(),
                     code: "parse_error".to_string(),
                     message: format!("invalid websocket payload: {e}"),
                 })

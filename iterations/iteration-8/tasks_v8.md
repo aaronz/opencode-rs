@@ -207,7 +207,7 @@ Session sharing mechanism already implemented in `session_sharing.rs`. Fixed pre
 
 | ID | Task | Module | Status |
 |----|------|--------|--------|
-| P2-9 | API error shape consistency | server | 📋 Deferred |
+| P2-9 | API error shape consistency | server | ✅ Done |
 
 ### Plugin System
 

@@ -40,6 +40,7 @@ pub enum StreamMessage {
     },
     Error {
         session_id: Option<String>,
+        error: String,
         code: String,
         message: String,
     },
@@ -122,6 +123,7 @@ impl StreamMessage {
             }),
             InternalEvent::Error { source, message } => Some(Self::Error {
                 session_id: None,
+                error: source.clone(),
                 code: source.clone(),
                 message: message.clone(),
             }),
@@ -241,6 +243,7 @@ mod tests {
     fn error_message_format_is_standardized() {
         let error = StreamMessage::Error {
             session_id: Some("session-err".to_string()),
+            error: "PARSE_ERROR".to_string(),
             code: "PARSE_ERROR".to_string(),
             message: "invalid payload".to_string(),
         };
@@ -248,6 +251,7 @@ mod tests {
         let value = serde_json::to_value(&error).expect("serialize should work");
         assert_eq!(value["type"], "error");
         assert_eq!(value["session_id"], "session-err");
+        assert_eq!(value["error"], "PARSE_ERROR");
         assert_eq!(value["code"], "PARSE_ERROR");
         assert_eq!(value["message"], "invalid payload");
     }

@@ -225,14 +225,14 @@
       "priority": "P2",
       "title": "API error shape consistency",
       "description": "API error shape consistency deferred in server module",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Error shapes consistent across API"
       ],
       "test_commands": [
         "cargo test -p opencode-server"
       ],
-      "impl_notes": "Deferred",
+      "impl_notes": "Completed - Added error field to StreamMessage::Error for consistency with ErrorResponse, added code field to ACP ack error response",
       "dependencies": []
     },
     {

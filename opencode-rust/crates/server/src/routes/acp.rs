@@ -280,7 +280,8 @@ async fn acp_ack(
     if !state.acp_enabled {
         return HttpResponse::Ok().json(serde_json::json!({
             "confirmed": false,
-            "error": "ACP is disabled"
+            "error": "ACP is disabled",
+            "code": 6001
         }));
     }
 
