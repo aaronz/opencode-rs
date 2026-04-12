@@ -181,7 +181,7 @@ Session sharing mechanism already implemented in `session_sharing.rs`. Fixed pre
 | ID | Task | Module | Status |
 |----|------|--------|--------|
 | P2-1 | Project VCS worktree root distinction | core | 📋 Deferred |
-| P2-2 | Workspace path validation | core | 📋 Deferred |
+| P2-2 | Workspace path validation | core | ✅ Done |
 
 ### Tool System
 

@@ -109,7 +109,7 @@ This report analyzes the gaps between the current implementation and the PRD spe
 | ID | Issue | Module | FR Reference | Status | Notes |
 |----|-------|--------|---------------|--------|-------|
 | P2-1 | Project VCS worktree root distinction | core | FR-001 | Deferred | |
-| P2-2 | Workspace path validation | core | FR-001 | Deferred | |
+| P2-2 | Workspace path validation | core | FR-001 | ✅ Done | ProjectManager::detect() now uses validate_workspace() |
 | P2-3 | Compaction shareability verification | storage | FR-002 | ✅ Done | |
 | P2-4 | Deterministic collision resolution | tools | FR-006 | ✅ Done | |
 | P2-5 | Result caching invalidation | tools | FR-006 | ✅ Done | |

@@ -136,7 +136,7 @@ error: unreachable pattern
 | ID | Issue | Module | Status | Notes |
 |----|-------|--------|--------|-------|
 | P2-1 | Project VCS worktree root distinction | core | Deferred | Add `worktree_root` field if distinct |
-| P2-2 | Workspace path validation | core | Deferred | Ensure paths resolve within project |
+| P2-2 | Workspace path validation | core | ✅ Done | ProjectManager::detect() now calls validate_workspace() |
 | P2-3 | Compaction shareability verification | storage | ✅ Done | |
 | P2-4 | Deterministic collision resolution | tools | ✅ Done | |
 | P2-5 | Result caching invalidation | tools | ✅ Done | |

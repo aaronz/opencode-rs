@@ -24,42 +24,47 @@ impl ProjectManager {
     }
 
     pub fn detect(root: PathBuf) -> Option<ProjectInfo> {
-        if !root.exists() {
+        if root.is_relative() {
             return None;
         }
 
-        let vcs_root = Self::find_git_repository(&root);
-        let has_git = vcs_root.is_some();
-        let has_tests = root.join("tests").exists() || root.join("test").exists();
-        let has_docs = root.join("docs").exists() || root.join("README.md").exists();
+        let validated = match validate_workspace(&root) {
+            Ok(v) => v,
+            Err(_) => return None,
+        };
 
-        let is_worktree = Self::is_worktree_path(&root);
-        let detected_worktree_root = Self::detect_worktree_root_from_subdirectory(&root);
+        let vcs_root = Self::find_git_repository(&validated);
+        let has_git = vcs_root.is_some();
+        let has_tests = validated.join("tests").exists() || validated.join("test").exists();
+        let has_docs = validated.join("docs").exists() || validated.join("README.md").exists();
+
+        let is_worktree = Self::is_worktree_path(&validated);
+        let detected_worktree_root = Self::detect_worktree_root_from_subdirectory(&validated);
         let worktree_root = if is_worktree {
-            detected_worktree_root.or(Some(root.clone()))
+            detected_worktree_root.or(Some(validated.clone()))
         } else {
             None
         };
 
-        let language = if root.join("Cargo.toml").exists() {
+        let language = if validated.join("Cargo.toml").exists() {
             "rust".to_string()
-        } else if root.join("package.json").exists() {
+        } else if validated.join("package.json").exists() {
             "javascript".to_string()
-        } else if root.join("pyproject.toml").exists() || root.join("setup.py").exists() {
+        } else if validated.join("pyproject.toml").exists() || validated.join("setup.py").exists() {
             "python".to_string()
-        } else if root.join("go.mod").exists() {
+        } else if validated.join("go.mod").exists() {
             "go".to_string()
         } else {
             "unknown".to_string()
         };
 
-        let name = root
+        let name = validated
             .file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_default();
 
         Some(ProjectInfo {
-            root,
+            root: validated,
             name,
             language,
             has_git,
@@ -558,7 +563,7 @@ mod tests {
         assert!(info.has_git);
         assert!(info.worktree_root.is_some());
         assert_eq!(info.worktree_root.unwrap(), tmp.path().join("main-repo"));
-        assert_eq!(info.root, subdir);
+        assert_eq!(info.root, subdir.canonicalize().unwrap());
     }
 
     #[test]
@@ -572,7 +577,7 @@ mod tests {
         let info = ProjectManager::detect(subdir.clone()).unwrap();
         assert!(info.has_git);
         assert!(info.worktree_root.is_none());
-        assert_eq!(info.root, subdir);
+        assert_eq!(info.root, subdir.canonicalize().unwrap());
     }
 
     #[test]
@@ -591,12 +596,15 @@ mod tests {
         let info = ProjectManager::detect(tmp.path().to_path_buf()).unwrap();
         assert!(info.has_git);
         assert!(info.worktree_root.is_some());
-        assert_eq!(info.root, tmp.path());
+        assert_eq!(info.root, tmp.path().canonicalize().unwrap());
         assert_eq!(info.worktree_root.unwrap(), tmp.path().join("main-repo"));
 
         std::fs::create_dir(tmp.path().join("src")).unwrap();
         let subdir_info = ProjectManager::detect(tmp.path().join("src")).unwrap();
-        assert_eq!(subdir_info.root, tmp.path().join("src"));
+        assert_eq!(
+            subdir_info.root,
+            tmp.path().join("src").canonicalize().unwrap()
+        );
         assert_eq!(
             subdir_info.worktree_root.unwrap(),
             tmp.path().join("main-repo")

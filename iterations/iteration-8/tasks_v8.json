@@ -120,7 +120,7 @@
       "priority": "P2",
       "title": "Project VCS worktree root distinction",
       "description": "Project VCS worktree root distinction needed in core module",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "Implementation complete and tested"
       ],
@@ -135,14 +135,14 @@
       "priority": "P2",
       "title": "Workspace path validation",
       "description": "Workspace path validation needed in core module",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Implementation complete and tested"
       ],
       "test_commands": [
         "cargo test -p opencode-core"
       ],
-      "impl_notes": "Deferred - Can be addressed post-release",
+      "impl_notes": "Implemented workspace path validation in ProjectManager::detect(). The detect() function now calls validate_workspace() to ensure paths are validated before creating ProjectInfo. Validation includes: absolute path check, existence check, directory check, readability check, circular symlink detection, and path traversal detection. Updated tests to compare against canonicalized paths since validate_workspace() canonicalizes the path.",
       "dependencies": []
     },
     {
