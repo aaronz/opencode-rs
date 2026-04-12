@@ -72,7 +72,7 @@
       "priority": "P1",
       "title": "Deprecated Fields Removal",
       "description": "Remove deprecated fields from config: mode, tools, theme, keybinds. Note: Remove in major version (v4.0). FR-003 reference.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Deprecated fields no longer exist in Config struct",
         "Config migration path exists for v4.0"

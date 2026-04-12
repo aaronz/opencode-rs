@@ -1,4 +1,3 @@
-use crate::tool_config::ToolConfig;
 use crate::OpenCodeError;
 use chrono::{DateTime, Duration, Utc};
 use reqwest::header::{CACHE_CONTROL, ETAG, IF_MODIFIED_SINCE, IF_NONE_MATCH, LAST_MODIFIED};
@@ -91,11 +90,6 @@ pub struct Config {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub username: Option<String>,
 
-    /// Deprecated: Use `agent` field instead
-    #[deprecated(since = "2.0.0", note = "Use 'agent' field instead")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub mode: Option<HashMap<String, AgentConfig>>,
-
     /// Agent configuration
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent: Option<AgentMapConfig>,
@@ -128,11 +122,6 @@ pub struct Config {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub permission: Option<PermissionConfig>,
 
-    /// Legacy tools configuration (deprecated, use permission instead)
-    #[deprecated(since = "3.0.0", note = "Use 'permission' field instead")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tools: Option<HashMap<String, bool>>,
-
     /// Enterprise configuration
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enterprise: Option<EnterpriseConfig>,
@@ -144,16 +133,6 @@ pub struct Config {
     /// Experimental features
     #[serde(skip_serializing_if = "Option::is_none")]
     pub experimental: Option<ExperimentalConfig>,
-
-    /// Theme configuration
-    #[deprecated(since = "3.0.0", note = "Move to tui.json")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub theme: Option<ThemeConfig>,
-
-    /// Keybinds configuration
-    #[deprecated(since = "3.0.0", note = "Move to tui.json")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub keybinds: Option<KeybindConfig>,
 
     /// TUI (Terminal UI) configuration
     ///
@@ -437,11 +416,6 @@ pub struct AgentConfig {
     /// Agent prompt
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt: Option<String>,
-
-    /// Deprecated: Use 'permission' field instead
-    #[deprecated(since = "3.0.0", note = "Use 'permission' field instead")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tools: Option<HashMap<String, bool>>,
 
     /// Disable this agent
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1310,21 +1284,6 @@ impl Config {
 
         Self::log_schema_validation(&config);
 
-        #[allow(deprecated)]
-        if config.mode.is_some() {
-            tracing::warn!(
-                "The 'mode' field is deprecated. Please migrate to the new TUI configuration in tui.json. See https://opencode.ai/docs/migration for details."
-            );
-        }
-
-        #[allow(deprecated)]
-        if config.tools.is_some() {
-            tracing::warn!(
-                "The 'tools' field is deprecated and will be removed in a future version. \
-                Please migrate to the 'permission' field instead. See https://opencode.ai/docs/migration for details."
-            );
-        }
-
         config.apply_env_overrides();
         Ok(config)
     }
@@ -2032,33 +1991,9 @@ impl Config {
         // Directory scanning is error-tolerant: missing directories log warnings, never block loading.
         Self::merge_opencode_directory_into_config(&mut result);
 
-        let mut migrated_tui = result.tui.clone().unwrap_or_default();
-        #[allow(deprecated)]
-        {
-            if result.theme.is_some() {
-                tracing::warn!(
-                    "'theme' in main config is deprecated since 3.0.0. Move it to tui.json."
-                );
-            }
-
-            if migrated_tui.theme.is_none() {
-                migrated_tui.theme = result.theme.clone();
-            }
-
-            if result.keybinds.is_some() {
-                tracing::warn!(
-                    "'keybinds' in main config is deprecated since 3.0.0. Move it to tui.json."
-                );
-            }
-
-            if migrated_tui.keybinds.is_none() {
-                migrated_tui.keybinds = result.keybinds.clone();
-            }
-        }
-
         let file_tui = Self::load_tui_config()?;
-        let base =
-            serde_json::to_value(&migrated_tui).unwrap_or(Value::Object(serde_json::Map::new()));
+        let base = serde_json::to_value(&result.tui.clone().unwrap_or_default())
+            .unwrap_or(Value::Object(serde_json::Map::new()));
         let override_val =
             serde_json::to_value(&file_tui).unwrap_or(Value::Object(serde_json::Map::new()));
         let merged_tui = merge::deep_merge(&base, &override_val);
@@ -2393,27 +2328,6 @@ impl Config {
             }
         }
 
-        if tool_count > 0 {
-            #[allow(deprecated)]
-            let tools = config.tools.get_or_insert_with(HashMap::new);
-            for tool_info in scan.tools {
-                tools.entry(tool_info.name).or_insert(true);
-            }
-        }
-
-        if theme_count > 0 {
-            #[allow(deprecated)]
-            if config.theme.is_none() {
-                if let Some(first_theme) = scan.themes.first() {
-                    config.theme = Some(ThemeConfig {
-                        name: Some(first_theme.name.clone()),
-                        path: Some(first_theme.path.clone()),
-                        ..Default::default()
-                    });
-                }
-            }
-        }
-
         if agent_count > 0 || mode_count > 0 {
             tracing::info!(
                 "Loaded .opencode/ directory: {agent_count} agents, {command_count} commands, {mode_count} modes, {skill_count} skills, {tool_count} tools, {theme_count} themes, {plugin_count} plugins"
@@ -2628,7 +2542,6 @@ impl Config {
             .unwrap_or(false)
     }
 
-    #[allow(deprecated)]
     pub fn get_disabled_tools(&self) -> HashSet<String> {
         // P1-9: tools → permission alias
         // permission takes precedence over tools (new key wins)
@@ -2731,24 +2644,7 @@ impl Config {
             return disabled;
         }
 
-        // Fall back to deprecated 'tools' field
-        let has_top_level_tools = self.tools.is_some();
-        let agent_tools = self
-            .agent
-            .as_ref()
-            .and_then(|agents| agents.get_default_agent())
-            .and_then(|agent| agent.tools.as_ref());
-
-        if has_top_level_tools || agent_tools.is_some() {
-            tracing::warn!(
-                "The 'tools' field is deprecated. Please migrate to the 'permission' field. \
-                See https://opencode.ai/docs/migration for details."
-            );
-        }
-
-        ToolConfig::merge(self.tools.as_ref(), agent_tools)
-            .disabled_tools()
-            .clone()
+        HashSet::new()
     }
 
     /// Validate the configuration and return a list of validation errors
@@ -3365,60 +3261,6 @@ mod tests {
     }
 
     #[test]
-    fn test_get_disabled_tools_uses_top_level_over_default_agent_tools() {
-        let config = Config {
-            tools: Some(HashMap::from([
-                ("bash".to_string(), false),
-                ("read".to_string(), true),
-            ])),
-            agent: Some(AgentMapConfig {
-                agents: HashMap::from([(
-                    "default".to_string(),
-                    AgentConfig {
-                        tools: Some(HashMap::from([
-                            ("bash".to_string(), true),
-                            ("read".to_string(), false),
-                            ("write".to_string(), false),
-                        ])),
-                        ..Default::default()
-                    },
-                )]),
-                default_agent: Some("default".to_string()),
-            }),
-            ..Default::default()
-        };
-
-        let disabled = config.get_disabled_tools();
-        assert!(disabled.contains("bash"));
-        assert!(!disabled.contains("read"));
-        assert!(disabled.contains("write"));
-    }
-
-    #[test]
-    fn test_get_disabled_tools_uses_agent_tools_when_top_level_missing() {
-        let config = Config {
-            agent: Some(AgentMapConfig {
-                agents: HashMap::from([(
-                    "default".to_string(),
-                    AgentConfig {
-                        tools: Some(HashMap::from([
-                            ("grep".to_string(), false),
-                            ("glob".to_string(), true),
-                        ])),
-                        ..Default::default()
-                    },
-                )]),
-                default_agent: Some("default".to_string()),
-            }),
-            ..Default::default()
-        };
-
-        let disabled = config.get_disabled_tools();
-        assert!(disabled.contains("grep"));
-        assert!(!disabled.contains("glob"));
-    }
-
-    #[test]
     fn test_substitute_variables_env() {
         set_env("TEST_VAR", "test_value");
         let input = "key: {env:TEST_VAR}";
@@ -3962,48 +3804,6 @@ mod tests {
     }
 
     #[test]
-    fn test_deprecation_warning_detection_fields_present() {
-        let runtime_json = serde_json::json!({
-            "model": "openai/gpt-4.1",
-            "theme": { "name": "legacy-theme" },
-            "keybinds": { "commands": "ctrl+k" }
-        });
-
-        let fields = Config::validate_runtime_no_tui_fields(&runtime_json);
-        assert!(!fields.contains(&"theme".to_string()), "theme is deprecated, should not be in error list");
-        assert!(!fields.contains(&"keybinds".to_string()), "keybinds is deprecated, should not be in error list");
-    }
-
-    #[test]
-    fn test_migration_prefers_tui_values_over_legacy_main_fields() {
-        #[allow(deprecated)]
-        let runtime = Config {
-            theme: Some(ThemeConfig {
-                name: Some("legacy".to_string()),
-                ..Default::default()
-            }),
-            tui: Some(TuiConfig {
-                theme: Some(ThemeConfig {
-                    name: Some("new".to_string()),
-                    ..Default::default()
-                }),
-                ..Default::default()
-            }),
-            ..Default::default()
-        };
-
-        let mut migrated = runtime.tui.clone().unwrap_or_default();
-        #[allow(deprecated)]
-        {
-            if migrated.theme.is_none() {
-                migrated.theme = runtime.theme.clone();
-            }
-        }
-
-        assert_eq!(migrated.theme.and_then(|t| t.name), Some("new".to_string()));
-    }
-
-    #[test]
     fn test_tui_runtime_field_separation_validation() {
         let tui_json = serde_json::json!({
             "scroll_speed": 3,
@@ -4069,39 +3869,6 @@ mod tests {
             remove_env("HOME");
         }
         let _ = fs::remove_dir_all(temp_home);
-    }
-
-    #[test]
-    fn test_load_with_hierarchy_rejects_tui_fields_in_opencode_config() {
-        let temp_dir = unique_temp_dir("opencode_tui_field_rejection");
-        let old_config_dir = std::env::var("OPENCODE_CONFIG_DIR").ok();
-
-        let config_json = serde_json::json!({
-            "model": "openai/gpt-4.1",
-            "theme": { "name": "legacy-theme" }
-        });
-        fs::write(
-            temp_dir.join("config.json"),
-            serde_json::to_string_pretty(&config_json).unwrap(),
-        )
-        .unwrap();
-
-        set_env("OPENCODE_CONFIG_DIR", &temp_dir);
-
-        let runtime = tokio::runtime::Runtime::new().unwrap();
-        let result = runtime.block_on(Config::load_multi(None));
-
-        assert!(result.is_ok(), "theme is deprecated, should be allowed with warning");
-        let config = result.unwrap();
-        assert!(config.tui.is_some(), "theme should be migrated to tui config");
-        assert!(config.tui.as_ref().unwrap().theme.is_some(), "theme should be in tui config");
-
-        if let Some(prev) = old_config_dir {
-            set_env("OPENCODE_CONFIG_DIR", prev);
-        } else {
-            remove_env("OPENCODE_CONFIG_DIR");
-        }
-        let _ = fs::remove_dir_all(temp_dir);
     }
 
     #[test]
@@ -4471,260 +4238,6 @@ api_key = "sk-test123"
         let _ = fs::remove_dir_all(temp_dir);
     }
 
-    // =========================================================================
-    // P1-9: tools → permission alias regression tests
-    // =========================================================================
-
-    #[test]
-    fn test_tools_alias_old_key_still_works() {
-        // Regression test: old 'tools' key should still work as alias
-        // JSON config with deprecated 'tools' field should parse correctly
-        let config_json = serde_json::json!({
-            "model": "openai/gpt-4o",
-            "tools": {
-                "bash": false,
-                "read": true,
-                "edit": false
-            }
-        });
-
-        let config: Config = serde_json::from_value(config_json).unwrap();
-
-        // The tools field should be populated
-        #[allow(deprecated)]
-        {
-            assert!(config.tools.is_some());
-            let tools = config.tools.as_ref().unwrap();
-            assert_eq!(tools.get("bash"), Some(&false));
-            assert_eq!(tools.get("read"), Some(&true));
-            assert_eq!(tools.get("edit"), Some(&false));
-        }
-    }
-
-    #[test]
-    fn test_tools_alias_agent_level_works() {
-        // Regression test: 'tools' at agent level should still work
-        let config_json = serde_json::json!({
-            "model": "openai/gpt-4o",
-            "agent": {
-                "plan": {
-                    "model": "anthropic/claude-3-5",
-                    "tools": {
-                        "grep": false,
-                        "glob": true
-                    }
-                }
-            }
-        });
-
-        let config: Config = serde_json::from_value(config_json).unwrap();
-
-        #[allow(deprecated)]
-        {
-            let agent_config = config.agent.as_ref().unwrap().get_agent("plan").unwrap();
-            assert!(agent_config.tools.is_some());
-            let tools = agent_config.tools.as_ref().unwrap();
-            assert_eq!(tools.get("grep"), Some(&false));
-            assert_eq!(tools.get("glob"), Some(&true));
-        }
-    }
-
-    #[test]
-    fn test_tools_alias_permission_takes_precedence() {
-        // Test: when both 'tools' and 'permission' are present,
-        // 'permission' should take precedence (new key wins)
-        let config_json = serde_json::json!({
-            "model": "openai/gpt-4o",
-            "tools": {
-                "bash": false,
-                "read": true
-            },
-            "permission": {
-                "bash": "allow",
-                "read": "deny"
-            }
-        });
-
-        let config: Config = serde_json::from_value(config_json).unwrap();
-
-        // permission field should exist and have the values
-        assert!(config.permission.is_some());
-        let permission = config.permission.as_ref().unwrap();
-
-        // bash should be allow (from permission), not disabled (from tools)
-        #[allow(deprecated)]
-        let tools_disabled = config.get_disabled_tools();
-
-        // The permission "allow" means tool is NOT disabled
-        // The permission "deny" means tool IS disabled
-        // Note: bash in permission is "allow" so it should NOT be in disabled
-        // read in permission is "deny" so it SHOULD be in disabled
-        // But tools says bash=false (disabled) and read=true (enabled)
-        // Since permission takes precedence over tools:
-        // - bash: permission=allow → not disabled (even though tools said disabled)
-        // - read: permission=deny → disabled (even though tools said enabled)
-        assert!(
-            !tools_disabled.contains("bash"),
-            "bash should be allowed via permission"
-        );
-        assert!(
-            tools_disabled.contains("read"),
-            "read should be denied via permission"
-        );
-    }
-
-    #[test]
-    fn test_tools_alias_permission_only_when_no_tools() {
-        // Test: when only 'permission' is specified (no 'tools'),
-        // permission should work normally
-        let config_json = serde_json::json!({
-            "model": "openai/gpt-4o",
-            "permission": {
-                "bash": "deny",
-                "read": "allow"
-            }
-        });
-
-        let config: Config = serde_json::from_value(config_json).unwrap();
-
-        assert!(config.permission.is_some());
-        let _permission = config.permission.as_ref().unwrap();
-
-        // When permission is deny, tool should be disabled
-        #[allow(deprecated)]
-        let tools_disabled = config.get_disabled_tools();
-
-        assert!(
-            tools_disabled.contains("bash"),
-            "bash should be disabled via permission"
-        );
-        assert!(
-            !tools_disabled.contains("read"),
-            "read should not be disabled"
-        );
-    }
-
-    #[test]
-    fn test_tools_alias_top_level_over_agent_level() {
-        // Test: tools at top level should override tools at default agent level
-        // (matching existing behavior in ToolConfig::merge)
-        let config_json = serde_json::json!({
-            "model": "openai/gpt-4o",
-            "tools": {
-                "bash": false,
-                "write": true
-            },
-            "agent": {
-                "default_agent": "build",
-                "agents": {
-                    "build": {
-                        "tools": {
-                            "bash": true,
-                            "read": false
-                        }
-                    }
-                }
-            }
-        });
-
-        let config: Config = serde_json::from_value(config_json).unwrap();
-
-        #[allow(deprecated)]
-        let tools_disabled = config.get_disabled_tools();
-
-        // bash: tools=true at agent level BUT tools=false at top level
-        // Top level takes precedence, so bash should be disabled
-        assert!(
-            tools_disabled.contains("bash"),
-            "bash should be disabled (top-level override)"
-        );
-
-        // write: only in top level, tools=true, so not disabled
-        assert!(
-            !tools_disabled.contains("write"),
-            "write should not be disabled"
-        );
-
-        // read: only in agent level (build is default), tools=false, so disabled
-        assert!(
-            tools_disabled.contains("read"),
-            "read should be disabled (default agent-level)"
-        );
-    }
-
-    #[test]
-    fn test_tools_alias_deprecation_warning_emitted() {
-        // Test: using deprecated 'tools' field should emit deprecation warning
-        let config_json = serde_json::json!({
-            "model": "openai/gpt-4o",
-            "tools": {
-                "bash": false
-            }
-        });
-
-        let config: Config = serde_json::from_value(config_json).unwrap();
-
-        // When tools is set, get_disabled_tools() should emit warning about deprecation
-        // We capture this via the tracing output
-        #[allow(deprecated)]
-        {
-            let _disabled = config.get_disabled_tools();
-            // The warning is logged via tracing::warn! when tools.is_some()
-        }
-    }
-
-    #[test]
-    fn test_tools_alias_round_trip_serialization() {
-        // Test: config with tools field can be serialized and deserialized
-        let config = Config {
-            model: Some("openai/gpt-4o".to_string()),
-            #[allow(deprecated)]
-            tools: Some(HashMap::from([
-                ("bash".to_string(), false),
-                ("read".to_string(), true),
-            ])),
-            ..Default::default()
-        };
-
-        // Serialize to JSON
-        let json = serde_json::to_value(&config).unwrap();
-
-        // Deserialize back
-        let deserialized: Config = serde_json::from_value(json).unwrap();
-
-        #[allow(deprecated)]
-        {
-            assert!(deserialized.tools.is_some());
-            let tools = deserialized.tools.as_ref().unwrap();
-            assert_eq!(tools.get("bash"), Some(&false));
-            assert_eq!(tools.get("read"), Some(&true));
-        }
-    }
-
-    #[test]
-    fn test_tools_alias_migration_docs_reference() {
-        // Test: verify migration path documentation exists in the codebase
-        // The deprecation notice should reference migration docs URL
-        let config_json = serde_json::json!({
-            "model": "openai/gpt-4o",
-            "tools": {
-                "bash": false
-            }
-        });
-
-        let config: Config = serde_json::from_value(config_json).unwrap();
-
-        // The deprecation warning message should mention the migration URL
-        #[allow(deprecated)]
-        let _disabled = config.get_disabled_tools();
-
-        // This test documents that the migration path is:
-        // 1. Old config uses 'tools' field with boolean values
-        // 2. New config should use 'permission' field with "allow"/"deny"/"ask" values
-        // 3. Migration guide available at https://opencode.ai/docs/migration
-        assert!(true, "Migration path documented in deprecation warning");
-    }
-
     #[test]
     fn test_permission_config_allows_explicit_actions() {
         // Test: permission config should accept allow/deny/ask actions
@@ -4928,49 +4441,6 @@ api_key = "sk-test123"
             "override-key"
         );
         assert_eq!(openai_config.id.as_ref().unwrap(), "openai");
-    }
-
-    #[test]
-    fn test_precedence_merge_agent_config_deep_merge() {
-        let base = Config {
-            agent: Some(AgentMapConfig {
-                agents: HashMap::from([(
-                    "build".to_string(),
-                    AgentConfig {
-                        model: Some("claude-3".to_string()),
-                        tools: Some(HashMap::from([
-                            ("bash".to_string(), true),
-                            ("read".to_string(), true),
-                        ])),
-                        ..Default::default()
-                    },
-                )]),
-                default_agent: Some("build".to_string()),
-            }),
-            ..Default::default()
-        };
-
-        let override_config = Config {
-            agent: Some(AgentMapConfig {
-                agents: HashMap::from([(
-                    "build".to_string(),
-                    AgentConfig {
-                        tools: Some(HashMap::from([("bash".to_string(), false)])),
-                        ..Default::default()
-                    },
-                )]),
-                ..Default::default()
-            }),
-            ..Default::default()
-        };
-
-        let merged = Config::merge_configs(base, override_config);
-
-        let build_agent = merged.agent.as_ref().unwrap().agents.get("build").unwrap();
-        assert_eq!(build_agent.model.as_ref().unwrap(), "claude-3");
-        let tools = build_agent.tools.as_ref().unwrap();
-        assert_eq!(tools.get("bash"), Some(&false));
-        assert_eq!(tools.get("read"), Some(&true));
     }
 
     #[test]

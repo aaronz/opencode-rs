@@ -572,10 +572,6 @@ fn format_agents(config: &Config) -> String {
         if agent.permission.is_some() {
             capabilities.push("permission=custom".to_string());
         }
-        #[allow(deprecated)]
-        if agent.tools.is_some() {
-            capabilities.push("tools=legacy".to_string());
-        }
         if agent.disable.unwrap_or(false) {
             capabilities.push("disabled=true".to_string());
         }

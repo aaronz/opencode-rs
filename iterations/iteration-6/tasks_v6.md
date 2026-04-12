@@ -43,22 +43,22 @@
 - [x] **FR Reference:** FR-003
 - **Action:** Enhanced JsoncError with source line extraction and caret display
 
-### P1-2: Circular Variable Expansion Detection
+### P1-2: ✅ Done
 - [ ] **Status:** Deferred
 - [ ] **Module:** `crates/config`
 - [ ] **FR Reference:** FR-003
 - **Action:** Add detection algorithm for circular references in variable expansion
 
-### P1-3: Deprecated Fields Removal
-- [ ] **Status:** Deferred
-- [ ] **Module:** `crates/config`
-- [ ] **FR Reference:** FR-003
-- **Fields to Remove:**
-  - [ ] `mode`
-  - [ ] `tools`
-  - [ ] `theme`
-  - [ ] `keybinds`
-- **Note:** Remove in major version (v4.0)
+### P1-3: Deprecated Fields Removal ✅ Done
+- [x] **Status:** Done
+- [x] **Module:** `crates/config`
+- [x] **FR Reference:** FR-003
+- **Fields Removed:**
+  - [x] `mode` (from Config)
+  - [x] `tools` (from Config and AgentConfig)
+  - [x] `theme` (from Config)
+  - [x] `keybinds` (from Config)
+- **Note:** Removed in major version (v4.0)
 
 ### P1-5: Multiline Input Terminal Support
 - [ ] **Status:** Deferred (Partial)
@@ -118,6 +118,7 @@
 - [x] P0-new-3: ACP HTTP+SSE transport - **IMPLEMENTED**
 
 ### P1 Issues Completed
+- [x] P1-3: Deprecated Fields Removal (mode, tools, theme, keybinds)
 - [x] P1-4: Slash commands (`/compact`, `/connect`, `/help`)
 - [x] P1-6: File reference autocomplete improvement
 - [x] P1-7: TUI Plugin dialogs incomplete (DialogAlert, DialogConfirm, DialogPrompt, DialogSelect)
@@ -152,7 +153,7 @@
 | Category | Count | Completed |
 |----------|-------|-----------|
 | P0 Blockers | 2 | 1 |
-| P1 Issues | 11 | 5 |
+| P1 Issues | 11 | 6 |
 | P2 Issues | 15 | 1 |
 
 ---
