@@ -53,14 +53,14 @@
       "priority": "P0",
       "title": "Fix question_mark clippy in config.rs",
       "description": "Rewrite clippy warning at config.rs line 1594 using ? operator instead of current pattern.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "clippy question_mark warning resolved"
       ],
       "test_commands": [
         "cargo clippy -p opencode-core -- -D warnings"
       ],
-      "impl_notes": "Replace error handling pattern with ? operator.",
+      "impl_notes": "Already fixed in P0-9 commit a7e89e0 - replaced `if let Err(e) = ... { return Err(e); }` pattern with `?` operator at line 1594.",
       "dependencies": []
     },
     {
