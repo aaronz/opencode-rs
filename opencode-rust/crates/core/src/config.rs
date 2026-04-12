@@ -395,7 +395,6 @@ impl AgentMapConfig {
 }
 
 /// Agent configuration
-#[allow(deprecated)]
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct AgentConfig {
     /// Model to use

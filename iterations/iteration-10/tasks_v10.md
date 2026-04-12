@@ -33,11 +33,11 @@
   - **Fix:** Removed deprecated mode field and AgentMode enum
   - **Verification:** `cargo clippy -p opencode-core -- -D warnings`
 
-- [ ] **Task:** Fix deprecated `AgentConfig::mode` field
+- [x] **Task:** Fix deprecated `AgentConfig::mode` field ✅
   - **File:** `crates/core/src/config.rs`
-  - **Line:** 2771
+  - **Line:** 2771 (original) → struct definition area
   - **Error:** deprecated field `AgentConfig::mode`
-  - **Fix:** Remove usage or use `permission` field instead
+  - **Fix:** Removed unnecessary `#[allow(deprecated)]` attribute from AgentConfig struct. The deprecated mode field was already removed in previous commits.
   - **Verification:** `cargo clippy -p opencode-core -- -D warnings`
 
 - [ ] **Task:** Rewrite block with `?` operator
