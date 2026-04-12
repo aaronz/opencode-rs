@@ -1044,10 +1044,15 @@ impl ThemeConfig {
         let configured = self.path.as_ref()?;
         let raw = configured.to_string_lossy();
 
+        let home_dir = std::env::var("HOME")
+            .ok()
+            .map(PathBuf::from)
+            .or_else(dirs_next::home_dir);
+
         let resolved = if raw == "~" {
-            dirs::home_dir()?
+            home_dir?
         } else if let Some(stripped) = raw.strip_prefix("~/") {
-            dirs::home_dir()?.join(stripped)
+            home_dir?.join(stripped)
         } else if configured.is_relative() {
             config_dir
                 .map(|dir| dir.join(configured))

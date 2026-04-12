@@ -214,7 +214,7 @@
       "priority": "P2",
       "title": "Per-crate test backlog",
       "description": "Address per-crate test backlog. Deferred task.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "All crates have adequate test coverage"
       ],

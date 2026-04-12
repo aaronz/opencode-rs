@@ -95,6 +95,7 @@ sha2 = "0.10"
 tiktoken-rs = "0.6"
 json5 = "0.4"
 indexmap = "2"
+dirs-next = "2.0"
 
 [profile.release]
 opt-level = "z"
