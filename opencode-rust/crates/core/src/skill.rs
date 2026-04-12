@@ -1,6 +1,6 @@
 use crate::OpenCodeError;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::RwLock;
 use walkdir::WalkDir;
 
@@ -113,7 +113,7 @@ impl SkillManager {
         paths
     }
 
-    fn is_common_compat_path(path: &PathBuf) -> bool {
+    fn is_common_compat_path(path: &Path) -> bool {
         let common_paths = [".claude/skills", ".agent/skills"];
 
         for common in &common_paths {

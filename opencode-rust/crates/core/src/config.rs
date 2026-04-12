@@ -395,6 +395,7 @@ impl AgentMapConfig {
 }
 
 /// Agent configuration
+#[allow(deprecated)]
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct AgentConfig {
     /// Model to use
@@ -432,6 +433,7 @@ pub struct AgentConfig {
     /// This field is deprecated and will be removed in v4.0.
     /// Use 'permission' field instead to control agent access levels.
     #[deprecated(since = "0.3.0", note = "Use 'permission' field instead. Will be removed in v4.0.")]
+    #[allow(deprecated)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mode: Option<AgentMode>,
 
@@ -1591,9 +1593,7 @@ impl Config {
                 let end_pos = start + end + 1;
                 s.replace_range(start..end_pos, &replacement);
 
-                if let Err(e) = Self::expand_string_variable(s, config_values, path) {
-                    return Err(e);
-                }
+                Self::expand_string_variable(s, config_values, path)?;
                 path.pop();
             } else {
                 break;
@@ -2065,7 +2065,7 @@ impl Config {
         Self::merge_opencode_directory_into_config(&mut result);
 
         let file_tui = Self::load_tui_config()?;
-        let base = serde_json::to_value(&result.tui.clone().unwrap_or_default())
+        let base = serde_json::to_value(result.tui.clone().unwrap_or_default())
             .unwrap_or(Value::Object(serde_json::Map::new()));
         let override_val =
             serde_json::to_value(&file_tui).unwrap_or(Value::Object(serde_json::Map::new()));
@@ -2768,6 +2768,7 @@ impl Config {
                     }
                 }
 
+                #[allow(deprecated)]
                 if agent.mode.is_some() {
                     errors.push(ValidationError {
                         field: format!("agent.{}.mode", name),

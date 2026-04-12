@@ -39,6 +39,7 @@ struct LmStudioChoice {
 #[derive(Deserialize)]
 struct LmStudioMessage {
     content: String,
+    #[allow(dead_code)]
     role: Option<String>,
 }
 
@@ -50,6 +51,7 @@ struct LmStudioStreamChunk {
 #[derive(Deserialize)]
 struct LmStudioStreamChoice {
     delta: Option<LmStudioDelta>,
+    #[allow(dead_code)]
     finish_reason: Option<String>,
 }
 
@@ -71,6 +73,7 @@ impl LmStudioProvider {
         format!("{}/v1/chat/completions", self.base_url)
     }
 
+    #[allow(dead_code)]
     fn models_url(&self) -> String {
         format!("{}/v1/models", self.base_url)
     }
@@ -131,7 +134,7 @@ impl Provider for LmStudioProvider {
         let content = result
             .choices
             .first()
-            .and_then(|c| Some(c.message.content.clone()))
+            .map(|c| c.message.content.clone())
             .unwrap_or_default();
 
         Ok(ChatResponse {

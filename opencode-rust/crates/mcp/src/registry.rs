@@ -1,3 +1,5 @@
+#![allow(clippy::clone_on_copy)]
+
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
@@ -12,17 +14,12 @@ use crate::client::{ConnectionState, McpClient, McpError, McpResource, McpTool, 
 use crate::context_cost::{CostLimits, SharedContextCostTracker};
 use crate::tool_bridge::McpToolAdapter;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum McpPermission {
-    Allow,
+    #[default]
     Ask,
+    Allow,
     Deny,
-}
-
-impl Default for McpPermission {
-    fn default() -> Self {
-        Self::Ask
-    }
 }
 
 #[derive(Debug, Clone)]

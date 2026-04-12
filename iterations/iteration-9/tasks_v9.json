@@ -1,0 +1,863 @@
+{
+  "tasks": [
+    {
+      "id": "P0-9",
+      "priority": "P0",
+      "title": "Fix Clippy Errors (18 total)",
+      "description": "Fix all 18 clippy errors across ratatui-testing (1 error) and opencode-core (17 errors). This is a blocking P0 task that must be resolved before any other tasks can proceed.",
+      "status": "in_progress",
+      "test_criteria": [
+        "cargo clippy --all -- -D warnings passes with no errors",
+        "All 18 clippy warnings are resolved"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Parent task for all clippy error fixes. Subtasks detail specific files and issues.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-9-RATATUI-1",
+      "priority": "P0",
+      "title": "Add impl Default for StateTester",
+      "description": "Add `impl Default for StateTester` in ratatui-testing/src/state.rs:6 to fix clippy error.",
+      "status": "todo",
+      "test_criteria": [
+        "StateTester implements Default trait",
+        "cargo clippy -p ratatui-testing passes"
+      ],
+      "test_commands": [
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Straightforward implementation of Default trait for StateTester struct.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-9-CORE-1",
+      "priority": "P0",
+      "title": "Fix deprecated AgentMode enum usage in config.rs",
+      "description": "Fix deprecated `AgentMode` enum usage in config.rs line 436 (2 occurrences) and line 2771 for `AgentConfig::mode` field usage.",
+      "status": "todo",
+      "test_criteria": [
+        "No deprecated AgentMode enum usage",
+        "No deprecated AgentConfig::mode field usage"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Replace deprecated AgentMode with current enum. Replace deprecated mode field access with current alternative.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-9-CORE-2",
+      "priority": "P0",
+      "title": "Fix question_mark clippy in config.rs",
+      "description": "Rewrite clippy warning at config.rs line 1594 using ? operator instead of current pattern.",
+      "status": "todo",
+      "test_criteria": [
+        "clippy question_mark warning resolved"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Replace error handling pattern with ? operator.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-9-CORE-3",
+      "priority": "P0",
+      "title": "Fix needless_borrows_for_generic_args in config.rs",
+      "description": "Remove unnecessary borrow at config.rs line 2068 to fix needless_borrows_for_generic_args clippy warning.",
+      "status": "todo",
+      "test_criteria": [
+        "clippy needless_borrows_for_generic_args warning resolved"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Remove unnecessary borrow in generic type context.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-9-CORE-4",
+      "priority": "P0",
+      "title": "Fix deprecated AgentConfig::mode in command.rs",
+      "description": "Fix deprecated `AgentConfig::mode` field usage at command.rs line 567.",
+      "status": "todo",
+      "test_criteria": [
+        "No deprecated AgentConfig::mode field usage in command.rs"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Replace deprecated mode field access with current alternative.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-9-CORE-5",
+      "priority": "P0",
+      "title": "Fix redundant_closure in session_sharing.rs",
+      "description": "Use ok_or instead of redundant closure at session_sharing.rs line 323.",
+      "status": "todo",
+      "test_criteria": [
+        "clippy redundant_closure warning resolved"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Replace closure with ok_or method call.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-9-CORE-6",
+      "priority": "P0",
+      "title": "Fix map_entry in session_sharing.rs",
+      "description": "Use entry API instead of map_entry at session_sharing.rs line 225.",
+      "status": "todo",
+      "test_criteria": [
+        "clippy map_entry warning resolved"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Refactor to use std::collections::hash_map::Entry API.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-9-CORE-7",
+      "priority": "P0",
+      "title": "Fix and_then to map in crash_recovery.rs",
+      "description": "Change and_then to map at crash_recovery.rs line 241 to fix clippy warning.",
+      "status": "todo",
+      "test_criteria": [
+        "clippy warning in crash_recovery.rs resolved"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "and_then should be map when Result value is not being filtered.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-9-CORE-8",
+      "priority": "P0",
+      "title": "Fix very_complex_type in skill.rs",
+      "description": "Factor very_complex_type into separate type definitions at skill.rs.",
+      "status": "todo",
+      "test_criteria": [
+        "clippy very_complex_type warning resolved"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Extract complex type into intermediate type aliases.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-9-CORE-9",
+      "priority": "P0",
+      "title": "Fix PathBuf to Path in skill.rs",
+      "description": "Change &PathBuf to &Path at skill.rs line 116 (5 occurrences) to fix clippy warnings.",
+      "status": "todo",
+      "test_criteria": [
+        "All &PathBuf references changed to &Path",
+        "clippy warnings resolved"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "PathBuf implements Deref to Path, so &PathBuf can be replaced with &Path.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-3",
+      "priority": "P1",
+      "title": "Deprecated Fields Removal",
+      "description": "Add deprecation warnings for mode field (config.rs, command.rs), document complete removal plan for v4.0, and track tools, theme, keybinds for future removal.",
+      "status": "todo",
+      "test_criteria": [
+        "Deprecation warnings added to mode field",
+        "Removal plan documented for v4.0",
+        "tools, theme, keybinds tracked for future removal"
+      ],
+      "test_commands": [
+        "cargo doc -p opencode-core --no-deps"
+      ],
+      "impl_notes": "Add #[deprecated] attributes and create documentation for removal timeline.",
+      "dependencies": [
+        "P0-9"
+      ]
+    },
+    {
+      "id": "P1-10",
+      "priority": "P1",
+      "title": "Variant/Reasoning Budget",
+      "description": "Mark variant/reasoning budget as experimental in documentation and add experimental flag to the feature.",
+      "status": "todo",
+      "test_criteria": [
+        "Variant/reasoning budget marked as experimental in docs",
+        "Experimental flag added to feature gate"
+      ],
+      "test_commands": [
+        "cargo doc -p opencode-core --no-deps --all-features"
+      ],
+      "impl_notes": "Update feature documentation and add experimental warning.",
+      "dependencies": [
+        "P0-9"
+      ]
+    },
+    {
+      "id": "P2-16",
+      "priority": "P2",
+      "title": "Remaining Clippy Warnings",
+      "description": "Review and address remaining clippy warnings that are non-blocking.",
+      "status": "todo",
+      "test_criteria": [
+        "All non-blocking clippy warnings reviewed",
+        "Actionable warnings addressed"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -W clippy::all"
+      ],
+      "impl_notes": "Non-blocking warnings that can be addressed after P0 issues.",
+      "dependencies": [
+        "P0-9"
+      ]
+    },
+    {
+      "id": "P2-17",
+      "priority": "P2",
+      "title": "Per-Crate Test Backlog",
+      "description": "Continue per-crate test implementation and address test coverage gaps.",
+      "status": "todo",
+      "test_criteria": [
+        "Test coverage gaps identified",
+        "Per-crate tests implemented for priority crates"
+      ],
+      "test_commands": [
+        "cargo test --all -- --test-threads=1"
+      ],
+      "impl_notes": "Systematic test coverage improvement across crates.",
+      "dependencies": [
+        "P0-9"
+      ]
+    },
+    {
+      "id": "VERIF-1",
+      "priority": "P0",
+      "title": "Run Clippy After P0-9 Fixes",
+      "description": "Run cargo clippy --all -- -D warnings and verify it passes with no errors after all P0-9 fixes are applied.",
+      "status": "todo",
+      "test_criteria": [
+        "cargo clippy --all -- -D warnings exits with code 0",
+        "No clippy warnings in output"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Verification task - run after all P0-9 subtasks are complete.",
+      "dependencies": [
+        "P0-9"
+      ]
+    },
+    {
+      "id": "VERIF-2",
+      "priority": "P0",
+      "title": "Run Build After P0-9 Fixes",
+      "description": "Run cargo build --release and verify it compiles successfully after all P0-9 fixes are applied.",
+      "status": "todo",
+      "test_criteria": [
+        "cargo build --release exits with code 0",
+        "Binary produced successfully"
+      ],
+      "test_commands": [
+        "cargo build --release"
+      ],
+      "impl_notes": "Verification task - run after all P0-9 subtasks are complete.",
+      "dependencies": [
+        "P0-9"
+      ]
+    },
+    {
+      "id": "VERIF-3",
+      "priority": "P0",
+      "title": "Run Tests After P0-9 Fixes",
+      "description": "Run cargo test and verify all tests pass after all P0-9 fixes are applied.",
+      "status": "todo",
+      "test_criteria": [
+        "cargo test exits with code 0",
+        "All tests pass"
+      ],
+      "test_commands": [
+        "cargo test"
+      ],
+      "impl_notes": "Verification task - run after all P0-9 subtasks are complete.",
+      "dependencies": [
+        "P0-9"
+      ]
+    },
+    {
+      "id": "VERIF-4",
+      "priority": "P1",
+      "title": "Phase 6 Release Qualification - Non-functional Baselines",
+      "description": "Verify non-functional baselines as part of Phase 6 release qualification.",
+      "status": "todo",
+      "test_criteria": [
+        "Performance baselines verified",
+        "Memory baselines verified",
+        "All non-functional requirements met"
+      ],
+      "test_commands": [
+        "cargo bench --all-features"
+      ],
+      "impl_notes": "Phase 6 release gate - verify non-functional requirements.",
+      "dependencies": [
+        "VERIF-1",
+        "VERIF-2",
+        "VERIF-3"
+      ]
+    },
+    {
+      "id": "VERIF-5",
+      "priority": "P1",
+      "title": "Phase 6 Release Qualification - Complete Release",
+      "description": "Complete Phase 6 release qualification process.",
+      "status": "todo",
+      "test_criteria": [
+        "Release checklist completed",
+        "All P0 blockers resolved",
+        "Release notes drafted"
+      ],
+      "test_commands": [],
+      "impl_notes": "Final release gate for Phase 6.",
+      "dependencies": [
+        "VERIF-4"
+      ]
+    },
+    {
+      "id": "P0-8",
+      "priority": "P0",
+      "title": "Clippy unreachable pattern (permission/models.rs)",
+      "description": "Fixed clippy unreachable pattern issue in permission/models.rs.",
+      "status": "done",
+      "test_criteria": [
+        "clippy unreachable pattern warning resolved"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-NEW-1",
+      "priority": "P0",
+      "title": "Git crate syntax error",
+      "description": "Fixed git crate syntax error.",
+      "status": "done",
+      "test_criteria": [
+        "Git operations work correctly"
+      ],
+      "test_commands": [
+        "cargo build --release"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-NEW-2",
+      "priority": "P0",
+      "title": "Desktop WebView integration",
+      "description": "Fixed desktop WebView integration.",
+      "status": "done",
+      "test_criteria": [
+        "Desktop WebView works correctly"
+      ],
+      "test_commands": [
+        "cargo build --release"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-NEW-3",
+      "priority": "P0",
+      "title": "ACP HTTP+SSE transport",
+      "description": "Fixed ACP HTTP+SSE transport.",
+      "status": "done",
+      "test_criteria": [
+        "ACP transport works correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-2",
+      "priority": "P1",
+      "title": "Circular variable expansion detection",
+      "description": "Fixed circular variable expansion detection.",
+      "status": "done",
+      "test_criteria": [
+        "Circular expansion detected and prevented"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-5",
+      "priority": "P1",
+      "title": "Multiline input terminal support",
+      "description": "Fixed multiline input terminal support.",
+      "status": "done",
+      "test_criteria": [
+        "Multiline input works in terminal"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-7",
+      "priority": "P1",
+      "title": "TUI Plugin dialogs incomplete",
+      "description": "Fixed TUI Plugin dialogs incomplete issue.",
+      "status": "done",
+      "test_criteria": [
+        "Plugin dialogs work correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-8",
+      "priority": "P1",
+      "title": "TUI Plugin slots system incomplete",
+      "description": "Fixed TUI Plugin slots system incomplete issue.",
+      "status": "done",
+      "test_criteria": [
+        "Plugin slots system works correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-9",
+      "priority": "P1",
+      "title": "Session sharing between interfaces",
+      "description": "Fixed session sharing between interfaces.",
+      "status": "done",
+      "test_criteria": [
+        "Sessions can be shared between interfaces"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-10-CIRC",
+      "priority": "P1",
+      "title": "Permission inheritance edge cases",
+      "description": "Fixed permission inheritance edge cases.",
+      "status": "done",
+      "test_criteria": [
+        "Permission inheritance works correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-permission"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-11",
+      "priority": "P1",
+      "title": "Request validation edge cases",
+      "description": "Fixed request validation edge cases.",
+      "status": "done",
+      "test_criteria": [
+        "Request validation handles edge cases correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-1",
+      "priority": "P2",
+      "title": "Project VCS worktree root distinction",
+      "description": "Fixed project VCS worktree root distinction.",
+      "status": "done",
+      "test_criteria": [
+        "VCS worktree root correctly identified"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-git"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-2",
+      "priority": "P2",
+      "title": "Workspace path validation",
+      "description": "Fixed workspace path validation.",
+      "status": "done",
+      "test_criteria": [
+        "Workspace paths validated correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-4",
+      "priority": "P2",
+      "title": "Deterministic collision resolution",
+      "description": "Fixed deterministic collision resolution.",
+      "status": "done",
+      "test_criteria": [
+        "Collisions resolved deterministically"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-5",
+      "priority": "P2",
+      "title": "Result caching invalidation",
+      "description": "Fixed result caching invalidation.",
+      "status": "done",
+      "test_criteria": [
+        "Cache invalidation works correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-6",
+      "priority": "P2",
+      "title": "Per-server OAuth token storage",
+      "description": "Fixed per-server OAuth token storage.",
+      "status": "done",
+      "test_criteria": [
+        "OAuth tokens stored per-server correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-storage"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-7",
+      "priority": "P2",
+      "title": "Context cost warnings",
+      "description": "Fixed context cost warnings.",
+      "status": "done",
+      "test_criteria": [
+        "Context cost warnings display correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-8",
+      "priority": "P2",
+      "title": "Experimental LSP tool testing",
+      "description": "Fixed experimental LSP tool testing.",
+      "status": "done",
+      "test_criteria": [
+        "LSP tool experimental features work"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-lsp"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-9",
+      "priority": "P2",
+      "title": "API error shape consistency",
+      "description": "Fixed API error shape consistency.",
+      "status": "done",
+      "test_criteria": [
+        "API errors have consistent shape"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-10",
+      "priority": "P2",
+      "title": "Plugin cleanup/unload",
+      "description": "Fixed plugin cleanup/unload.",
+      "status": "done",
+      "test_criteria": [
+        "Plugins cleanup/unload correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-11",
+      "priority": "P2",
+      "title": "Shell prefix (!) handler",
+      "description": "Fixed shell prefix (!) handler.",
+      "status": "done",
+      "test_criteria": [
+        "Shell prefix command works correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-12",
+      "priority": "P2",
+      "title": "Home view completion",
+      "description": "Fixed home view completion.",
+      "status": "done",
+      "test_criteria": [
+        "Home view displays correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-13",
+      "priority": "P2",
+      "title": "LLM reasoning budget",
+      "description": "Fixed LLM reasoning budget.",
+      "status": "done",
+      "test_criteria": [
+        "LLM reasoning budget works correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-14",
+      "priority": "P2",
+      "title": "GitLab Duo marking",
+      "description": "Fixed GitLab Duo marking.",
+      "status": "done",
+      "test_criteria": [
+        "GitLab Duo marking works correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-git"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-15",
+      "priority": "P2",
+      "title": "Git test cleanup",
+      "description": "Fixed git test cleanup.",
+      "status": "done",
+      "test_criteria": [
+        "Git tests pass cleanly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-git"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "DC-1",
+      "priority": "P2",
+      "title": "Dead Code - Unused Message import",
+      "description": "Removed unused Message import (DC-1).",
+      "status": "done",
+      "test_criteria": [
+        "Unused import removed"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "DC-2",
+      "priority": "P2",
+      "title": "Dead Code - Unused SecretStorage methods",
+      "description": "Removed unused SecretStorage methods (DC-2).",
+      "status": "done",
+      "test_criteria": [
+        "Unused methods removed"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "DC-3",
+      "priority": "P2",
+      "title": "Dead Code - Unused e variable in lsp_tool",
+      "description": "Removed unused e variable in lsp_tool (DC-3).",
+      "status": "done",
+      "test_criteria": [
+        "Unused variable removed"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "DC-4",
+      "priority": "P2",
+      "title": "Dead Code - Unused body variable in github",
+      "description": "Removed unused body variable in github (DC-4).",
+      "status": "done",
+      "test_criteria": [
+        "Unused variable removed"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "DC-5",
+      "priority": "P2",
+      "title": "Dead Code - Unused open_browser function",
+      "description": "Removed unused open_browser function (DC-5).",
+      "status": "done",
+      "test_criteria": [
+        "Unused function removed"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "DC-6",
+      "priority": "P2",
+      "title": "Dead Code - Unused format_time_elapsed function",
+      "description": "Removed unused format_time_elapsed function (DC-6).",
+      "status": "done",
+      "test_criteria": [
+        "Unused function removed"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "DC-7",
+      "priority": "P2",
+      "title": "Dead Code - Unused complete variable",
+      "description": "Removed unused complete variable (DC-7).",
+      "status": "done",
+      "test_criteria": [
+        "Unused variable removed"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "DC-8",
+      "priority": "P2",
+      "title": "Dead Code - Unused models_url function",
+      "description": "Removed unused models_url function (DC-8).",
+      "status": "done",
+      "test_criteria": [
+        "Unused function removed"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "DC-9",
+      "priority": "P2",
+      "title": "Dead Code - Unused ChatStreamChunk struct",
+      "description": "Removed unused ChatStreamChunk struct (DC-9).",
+      "status": "done",
+      "test_criteria": [
+        "Unused struct removed"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    },
+    {
+      "id": "DC-10",
+      "priority": "P2",
+      "title": "Dead Code - Unused role field",
+      "description": "Removed unused role field (DC-10).",
+      "status": "done",
+      "test_criteria": [
+        "Unused field removed"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Completed in Iteration 9.",
+      "dependencies": []
+    }
+  ]
+}

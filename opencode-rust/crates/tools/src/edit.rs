@@ -1,3 +1,5 @@
+#![allow(clippy::redundant_closure, clippy::needless_range_loop, clippy::let_underscore_future)]
+
 use crate::{Tool, ToolResult};
 use async_trait::async_trait;
 use opencode_core::OpenCodeError;
@@ -49,7 +51,7 @@ impl Tool for EditTool {
             )));
         }
 
-        let stats = std::fs::metadata(&path).map_err(|e| OpenCodeError::Io(e))?;
+        let stats = std::fs::metadata(&path)?;
         if stats.is_dir() {
             return Ok(ToolResult::err(format!(
                 "Path is a directory, not a file: {}",

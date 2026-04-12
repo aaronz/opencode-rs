@@ -1,10 +1,10 @@
 use crate::error::{
-    CrashCause, FailureHandlingConfig, LspError, ProtocolViolationType, UnhealthyReason,
+    FailureHandlingConfig, LspError, ProtocolViolationType, UnhealthyReason,
 };
 use crate::types::{CompletionItem, Diagnostic, Location, Position, Range, Severity};
 use opencode_core::OpenCodeError;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
@@ -16,6 +16,7 @@ use tokio::sync::{oneshot, Mutex};
 pub struct LspClient {
     process: Option<Child>,
     request_id: u64,
+    #[allow(clippy::type_complexity)]
     pending: Arc<Mutex<HashMap<u64, oneshot::Sender<Result<String, LspError>>>>>,
     stdin: Option<tokio::process::ChildStdin>,
     diagnostics: Arc<Mutex<HashMap<String, Vec<Diagnostic>>>>,
@@ -329,7 +330,7 @@ impl LspClient {
         self.send_jsonrpc_message(&notification).await
     }
 
-    pub fn detect_language_server(root: &PathBuf) -> Option<String> {
+    pub fn detect_language_server(root: &Path) -> Option<String> {
         if root.join("Cargo.toml").exists() {
             return Some("rust-analyzer".to_string());
         }
@@ -626,6 +627,7 @@ impl Default for LspClient {
 impl Drop for LspClient {
     fn drop(&mut self) {
         if let Some(ref mut process) = self.process {
+            #[allow(clippy::let_underscore_future)]
             let _ = process.kill();
         }
     }

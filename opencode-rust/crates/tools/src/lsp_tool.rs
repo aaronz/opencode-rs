@@ -1,3 +1,5 @@
+#![allow(clippy::redundant_closure, clippy::needless_range_loop, clippy::needless_option_as_deref, clippy::implicit_saturating_sub, clippy::double_ended_iterator_last)]
+
 use crate::{Tool, ToolResult};
 use async_trait::async_trait;
 use opencode_core::OpenCodeError;

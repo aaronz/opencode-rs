@@ -240,7 +240,7 @@ impl CrashRecovery {
                 completed_at: summary.completed_at,
                 latency_ms: summary
                     .completed_at
-                    .and_then(|end| Some((end - summary.started_at).num_milliseconds() as u64)),
+                    .map(|end| (end - summary.started_at).num_milliseconds() as u64),
             })
             .collect();
 
@@ -313,6 +313,7 @@ impl CrashRecovery {
     }
 }
 
+#[allow(clippy::type_complexity)]
 pub struct PanicHandler {
     crash_recovery: CrashRecovery,
     previous_hook: Option<Box<dyn Fn(&PanicHookInfo<'_>) + Send + Sync>>,

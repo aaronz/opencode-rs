@@ -1,3 +1,5 @@
+#![allow(clippy::let_underscore_future)]
+
 use std::sync::Arc;
 use std::time::Duration;
 

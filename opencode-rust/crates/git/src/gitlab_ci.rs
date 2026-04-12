@@ -68,7 +68,7 @@ impl GitLabCiTemplate {
         let variables_yaml: Vec<String> = self
             .secrets
             .iter()
-            .map(|s| format!("  {}: {}", s.name, format!("${{{}}}", s.name)))
+            .map(|s| format!("  {}: ${}", s.name, s.name))
             .collect();
 
         format!(

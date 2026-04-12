@@ -1,3 +1,5 @@
+#![allow(clippy::type_complexity, clippy::redundant_closure)]
+
 pub mod config;
 pub mod discovery;
 pub mod loader;

@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum ProviderType {
+    #[default]
     OpenAI,
     Anthropic,
     Google,
@@ -30,6 +31,7 @@ pub enum ProviderType {
 }
 
 impl ProviderType {
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "openai" => ProviderType::OpenAI,
@@ -89,25 +91,10 @@ impl ProviderType {
     }
 }
 
-impl Default for ProviderType {
-    fn default() -> Self {
-        ProviderType::OpenAI
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct UserModelConfig {
     pub provider_defaults: HashMap<String, String>,
     pub global_default: Option<String>,
-}
-
-impl Default for UserModelConfig {
-    fn default() -> Self {
-        Self {
-            provider_defaults: HashMap::new(),
-            global_default: None,
-        }
-    }
 }
 
 #[derive(Debug, Clone)]

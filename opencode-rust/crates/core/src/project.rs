@@ -75,6 +75,7 @@ impl ProjectManager {
         })
     }
 
+    #[allow(clippy::ptr_arg)]
     fn find_git_repository(start: &PathBuf) -> Option<PathBuf> {
         let mut current = start.clone();
         loop {
@@ -89,6 +90,7 @@ impl ProjectManager {
         None
     }
 
+    #[allow(clippy::ptr_arg)]
     fn detect_worktree_root_from_subdirectory(start: &PathBuf) -> Option<PathBuf> {
         let mut current = start.clone();
         loop {
@@ -106,6 +108,7 @@ impl ProjectManager {
         None
     }
 
+    #[allow(clippy::ptr_arg)]
     fn is_worktree_path(start: &PathBuf) -> bool {
         let mut current = start.clone();
         loop {
@@ -408,7 +411,7 @@ fn validate_workspace_impl(
     Ok(normalized)
 }
 
-pub fn is_absolute_path(path: &PathBuf) -> bool {
+pub fn is_absolute_path(path: &Path) -> bool {
     path.is_absolute()
 }
 

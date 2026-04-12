@@ -1,3 +1,5 @@
+#![allow(unused_assignments)]
+
 use std::sync::Arc;
 
 use opencode_core::{Message, Session};

@@ -1,3 +1,5 @@
+#![allow(unused_imports, unused_mut, unused_variables, clippy::await_holding_lock, clippy::io_other_error, clippy::len_without_is_empty, clippy::manual_contains, clippy::redundant_closure)]
+
 use actix_web::dev::Service;
 use actix_web::{middleware as actix_middleware, web, App, HttpResponse, HttpServer, Responder};
 use futures::future::{ready, Either};

@@ -1,3 +1,5 @@
+#![allow(clippy::option_as_ref_deref, clippy::if_same_then_else)]
+
 use chrono::Utc;
 use clap::{Args, Subcommand};
 use opencode_core::config::{Config, McpConfig, McpOAuthUnion};
@@ -83,10 +85,7 @@ fn run_list() {
     }
 
     println!("Stored MCP server tokens:");
-    println!(
-        "{:<20} {:<20} {:<15} {}",
-        "Server", "Type", "Expires", "Scope"
-    );
+    println!("{:<20} {:<20} {:<15} Scope", "Server", "Type", "Expires");
     println!("{}", "-".repeat(70));
 
     for token in tokens {

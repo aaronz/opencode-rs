@@ -150,7 +150,7 @@ impl McpToolAdapter {
     }
 
     pub fn register_with_cost_tracking(&self, registry: &mut ToolRegistry) {
-        if let Some(_) = &self.cost_tracker {
+        if self.cost_tracker.is_some() {
             let (executor, _) = self.executor_with_cost_tracking();
             registry.register(self.definition(), executor);
         } else {

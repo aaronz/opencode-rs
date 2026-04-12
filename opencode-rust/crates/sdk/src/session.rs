@@ -189,10 +189,11 @@ pub struct SdkSession {
 }
 
 /// Session state enumeration.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum SessionState {
     /// Session is idle and ready for input.
+    #[default]
     Idle,
 
     /// Session is processing a request.
@@ -206,12 +207,6 @@ pub enum SessionState {
 
     /// Session encountered an error.
     Error,
-}
-
-impl Default for SessionState {
-    fn default() -> Self {
-        Self::Idle
-    }
 }
 
 impl std::fmt::Display for SessionState {

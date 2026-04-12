@@ -265,10 +265,10 @@ fn classify_word(source: &str, word: &str, _current_line: usize) -> String {
 
     let lines: Vec<&str> = source.lines().collect();
     for line in &lines {
-        if line.contains(&format!("fn {}", word)) || line.contains(&format!("pub fn {}", word)) {
-            if line.contains("->") {
-                return " (function)".to_string();
-            }
+        if (line.contains(&format!("fn {}", word)) || line.contains(&format!("pub fn {}", word)))
+            && line.contains("->")
+        {
+            return " (function)".to_string();
         }
         if line.contains(&format!("struct {}", word)) {
             return " (struct)".to_string();

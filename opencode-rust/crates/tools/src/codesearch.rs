@@ -44,7 +44,7 @@ impl Tool for CodeSearchTool {
             .arg(&args.pattern)
             .arg(&path)
             .output()
-            .map_err(|e| OpenCodeError::Io(e))?;
+            .map_err(OpenCodeError::Io)?;
 
         let result = String::from_utf8_lossy(&output.stdout).to_string();
 

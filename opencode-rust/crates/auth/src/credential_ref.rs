@@ -91,18 +91,13 @@ pub struct CredentialStoreEntry {
     pub previous_value: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, Default)]
 pub enum CredentialType {
+    #[default]
     ApiKey,
     Oauth,
     Saml,
     Oidc,
-}
-
-impl Default for CredentialType {
-    fn default() -> Self {
-        Self::ApiKey
-    }
 }
 
 /// CredentialResolver trait for resolving CredentialRef to actual values

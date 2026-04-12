@@ -70,7 +70,7 @@ impl SessionSharing {
 
     pub fn create_session(&self, name: Option<String>) -> Result<Session, SharingError> {
         let mut session = Session::new();
-        let msg_content = name.unwrap_or_else(|| String::new());
+        let msg_content = name.unwrap_or_default();
         session.add_message(crate::message::Message::user(msg_content));
 
         let path = self.session_path(&session.id);
@@ -222,16 +222,13 @@ impl SessionSharing {
                 .map_err(|e| SharingError::LockError(e.to_string()))?;
 
             for (id, path) in sessions_to_load {
-                if !sessions.contains_key(&id) {
+                if let std::collections::hash_map::Entry::Vacant(e) = sessions.entry(id) {
                     if let Ok(session) = Session::load(&path) {
-                        sessions.insert(
-                            id,
-                            SessionEntry {
-                                session,
-                                version: 1,
-                                path,
-                            },
-                        );
+                        e.insert(SessionEntry {
+                            session,
+                            version: 1,
+                            path,
+                        });
                     }
                 }
             }
@@ -323,7 +320,7 @@ impl SessionSharing {
         sessions
             .get(&id_str)
             .map(|entry| entry.version)
-            .ok_or_else(|| SharingError::SessionNotFound(id_str))
+            .ok_or(SharingError::SessionNotFound(id_str))
     }
 
     pub fn reload_session(&self, id: &Uuid) -> Result<Session, SharingError> {

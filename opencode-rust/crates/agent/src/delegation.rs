@@ -482,7 +482,7 @@ impl TaskDelegate {
             .active_tasks
             .iter_mut()
             .find(|t| t.id == task_id)
-            .ok_or_else(|| DelegationError::TaskNotDelegatable {
+            .ok_or(DelegationError::TaskNotDelegatable {
                 task_id,
                 status: TaskStatus::Pending,
             })?;
@@ -522,7 +522,7 @@ impl TaskDelegate {
             .active_tasks
             .iter_mut()
             .find(|t| t.id == task_id)
-            .ok_or_else(|| DelegationError::TaskNotDelegatable {
+            .ok_or(DelegationError::TaskNotDelegatable {
                 task_id,
                 status: TaskStatus::Pending,
             })?;

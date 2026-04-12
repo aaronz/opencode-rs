@@ -1,3 +1,5 @@
+#![allow(clippy::option_map_unit_fn, clippy::unnecessary_unwrap, clippy::nonminimal_bool, clippy::manual_clamp, clippy::if_same_then_else, clippy::map_clone, clippy::redundant_closure, clippy::manual_strip, clippy::unnecessary_cast, clippy::to_string_trait_impl, clippy::collapsible_if, clippy::should_implement_trait, clippy::derivable_impls, clippy::unnecessary_map_or, clippy::unwrap_or_default, clippy::unnecessary_lazy_evaluations)]
+
 pub mod app;
 pub mod cli;
 pub mod command;

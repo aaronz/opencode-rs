@@ -36,7 +36,7 @@ impl BudgetLimit {
     ) -> Result<(), BudgetExceededError> {
         if self.is_exceeded(request_cost, conversation_cost) {
             Err(BudgetExceededError {
-                limit_type: self.clone(),
+                limit_type: *self,
                 request_cost,
                 conversation_cost,
             })
@@ -139,13 +139,13 @@ impl BudgetTracker {
         }
     }
 
-    pub fn with_conversation_limit(mut self, limit_cents: u64) -> Self {
+    pub fn with_conversation_limit(self, limit_cents: u64) -> Self {
         self.conversation_budget
             .store(limit_cents, Ordering::Relaxed);
         self
     }
 
-    pub fn with_request_limit(mut self, limit_cents: u64) -> Self {
+    pub fn with_request_limit(self, limit_cents: u64) -> Self {
         self.request_budget.store(limit_cents, Ordering::Relaxed);
         self
     }

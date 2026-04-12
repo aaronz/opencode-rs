@@ -68,7 +68,7 @@ impl Tool for ApplyPatchTool {
             return Ok(ToolResult::err("Empty patch".to_string()));
         }
 
-        let hunks = parse_hunks(trimmed).map_err(|e| OpenCodeError::Tool(e))?;
+        let hunks = parse_hunks(trimmed).map_err(OpenCodeError::Tool)?;
 
         if hunks.is_empty() {
             return Ok(ToolResult::err("No hunks found in patch".to_string()));
@@ -114,7 +114,7 @@ impl Tool for ApplyPatchTool {
                     };
 
                     let new_content =
-                        apply_chunks(&old_content, chunks).map_err(|e| OpenCodeError::Tool(e))?;
+                        apply_chunks(&old_content, chunks).map_err(OpenCodeError::Tool)?;
 
                     match std::fs::write(&file_path, &new_content) {
                         Ok(_) => results.push(format!("M {}", path)),
@@ -186,7 +186,7 @@ fn parse_hunks(patch: &str) -> Result<Vec<HunkType>, String> {
             current_type = Some("delete");
         } else if line.starts_with("*** ") {
             // Skip other markers
-        } else if let Some(_) = current_file {
+        } else if current_file.is_some() {
             current_lines.push(line.to_string());
         }
     }
@@ -249,12 +249,12 @@ fn parse_update_chunks(lines: &[String]) -> Vec<UpdateChunk> {
             }
             in_chunk = true;
         } else if in_chunk {
-            if line.starts_with('-') {
-                current_old.push(line[1..].to_string());
-            } else if line.starts_with('+') {
-                current_new.push(line[1..].to_string());
-            } else if line.starts_with(' ') {
-                let ctx = line[1..].to_string();
+            if let Some(stripped) = line.strip_prefix('-') {
+                current_old.push(stripped.to_string());
+            } else if let Some(stripped) = line.strip_prefix('+') {
+                current_new.push(stripped.to_string());
+            } else if let Some(stripped) = line.strip_prefix(' ') {
+                let ctx = stripped.to_string();
                 current_old.push(ctx.clone());
                 current_new.push(ctx);
             } else if line.is_empty() {

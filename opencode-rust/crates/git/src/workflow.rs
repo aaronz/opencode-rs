@@ -59,6 +59,7 @@ impl GitHubAppClient {
         self.send(self.authed(self.client.get(url)).bearer_auth(token))
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn create_or_update_file(
         &self,
         token: &str,

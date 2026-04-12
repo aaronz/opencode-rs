@@ -179,10 +179,11 @@ fn redact_sensitive_info(content: &str) -> String {
         "token_",
         "_token",
     ];
+    let fallback_regex = regex::Regex::new(r"api_key").unwrap();
     let mut result = content.to_string();
     for pattern in sensitive_patterns {
         let regex = regex::Regex::new(&format!(r#"(?i){}"#, pattern))
-            .unwrap_or_else(|_| regex::Regex::new(r"api_key").unwrap());
+            .unwrap_or_else(|_| fallback_regex.clone());
         result = regex.replace_all(&result, "***REDACTED***").to_string();
     }
     result

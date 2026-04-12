@@ -1,6 +1,6 @@
 use chrono::Utc;
 use opencode_core::compaction::{CompactionResult, Compactor};
-use opencode_core::{Message, Session};
+use opencode_core::Session;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -32,25 +32,13 @@ impl std::fmt::Display for ShareabilityError {
 
 impl std::error::Error for ShareabilityError {}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ShareabilityVerification {
     pub is_shareable: bool,
     pub has_share_id: bool,
     pub share_mode: Option<String>,
     pub is_expired: bool,
     pub export_verified: bool,
-}
-
-impl Default for ShareabilityVerification {
-    fn default() -> Self {
-        Self {
-            is_shareable: false,
-            has_share_id: false,
-            share_mode: None,
-            is_expired: false,
-            export_verified: false,
-        }
-    }
 }
 
 pub struct ShareabilityVerifier;

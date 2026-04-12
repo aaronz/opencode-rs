@@ -101,10 +101,9 @@ pub fn append_session_message(session_id: &str, content: &str) -> bool {
         Err(_) => return false,
     };
 
-    match sharing.add_message(&id, Message::user(content.to_string())) {
-        Ok(_) => true,
-        Err(_) => false,
-    }
+    sharing
+        .add_message(&id, Message::user(content.to_string()))
+        .is_ok()
 }
 
 fn create_session(name: Option<String>, json: bool) {
@@ -113,7 +112,7 @@ fn create_session(name: Option<String>, json: bool) {
         .create_session(name)
         .expect("Failed to create session");
 
-    sync_workspace_sessions_from_sharing(&[session.clone()]);
+    sync_workspace_sessions_from_sharing(std::slice::from_ref(&session));
 
     let name = session
         .messages

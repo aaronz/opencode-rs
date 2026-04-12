@@ -29,6 +29,7 @@ pub enum ReasoningBudget {
 }
 
 impl ReasoningBudget {
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "none" => Some(ReasoningBudget::None),
@@ -418,7 +419,7 @@ impl ProviderConfig {
 
         Some(Self {
             spec,
-            reasoning_budget: identity.reasoning_budget.clone(),
+            reasoning_budget: identity.reasoning_budget,
             variant: identity.variant.clone(),
         })
     }
@@ -527,18 +528,14 @@ impl ProviderFactory for OpenAIProviderFactory {
             ProviderSpec::OpenAI { api_key, model, .. } => {
                 let mut provider = OpenAiProvider::new(api_key.clone(), model.clone());
                 
-                if let Some(reasoning_budget) = &config.reasoning_budget {
-                    if let Some(reasoning_config) = reasoning_budget.for_provider("openai") {
-                        if let ProviderReasoningConfig::OpenAI { reasoning_effort } = reasoning_config {
-                            if let Some(effort) = reasoning_effort {
-                                provider = provider.with_reasoning_effort(effort.clone());
-                            }
-                        }
-                    }
+                if let Some(ProviderReasoningConfig::OpenAI { reasoning_effort: Some(effort) }) =
+                    config.reasoning_budget.as_ref().and_then(|rb| rb.for_provider("openai"))
+                {
+                    provider = provider.with_reasoning_effort(effort.clone());
                 }
                 
                 let mut identity = ProviderIdentity::openai(model);
-                identity.reasoning_budget = config.reasoning_budget.clone();
+                identity.reasoning_budget = config.reasoning_budget;
                 identity.variant = config.variant.clone();
                 Ok(DynProvider::with_identity(provider, identity))
             }
@@ -566,18 +563,14 @@ impl ProviderFactory for AnthropicProviderFactory {
             ProviderSpec::Anthropic { api_key, model, .. } => {
                 let mut provider = AnthropicProvider::new(api_key.clone(), model.clone());
                 
-                if let Some(reasoning_budget) = &config.reasoning_budget {
-                    if let Some(reasoning_config) = reasoning_budget.for_provider("anthropic") {
-                        if let ProviderReasoningConfig::Anthropic { thinking } = reasoning_config {
-                            if let Some(thinking_config) = thinking {
-                                provider = provider.with_thinking_budget(thinking_config);
-                            }
-                        }
-                    }
+                if let Some(ProviderReasoningConfig::Anthropic { thinking: Some(thinking_config) }) =
+                    config.reasoning_budget.as_ref().and_then(|rb| rb.for_provider("anthropic"))
+                {
+                    provider = provider.with_thinking_budget(thinking_config);
                 }
                 
                 let mut identity = ProviderIdentity::anthropic(model);
-                identity.reasoning_budget = config.reasoning_budget.clone();
+                identity.reasoning_budget = config.reasoning_budget;
                 identity.variant = config.variant.clone();
                 Ok(DynProvider::with_identity(provider, identity))
             }
@@ -605,18 +598,14 @@ impl ProviderFactory for GoogleProviderFactory {
             ProviderSpec::Google { api_key, model } => {
                 let mut provider = GoogleProvider::new(api_key.clone(), model.clone());
                 
-                if let Some(reasoning_budget) = &config.reasoning_budget {
-                    if let Some(reasoning_config) = reasoning_budget.for_provider("google") {
-                        if let ProviderReasoningConfig::Google { thinking_throttle } = reasoning_config {
-                            if let Some(throttle) = thinking_throttle {
-                                provider = provider.with_thinking_throttle(throttle.clone());
-                            }
-                        }
-                    }
+                if let Some(ProviderReasoningConfig::Google { thinking_throttle: Some(throttle) }) =
+                    config.reasoning_budget.as_ref().and_then(|rb| rb.for_provider("google"))
+                {
+                    provider = provider.with_thinking_throttle(throttle.clone());
                 }
                 
                 let mut identity = ProviderIdentity::google(model);
-                identity.reasoning_budget = config.reasoning_budget.clone();
+                identity.reasoning_budget = config.reasoning_budget;
                 identity.variant = config.variant.clone();
                 Ok(DynProvider::with_identity(provider, identity))
             }
@@ -644,7 +633,7 @@ impl ProviderFactory for OllamaProviderFactory {
             ProviderSpec::Ollama { base_url, model } => {
                 let provider = OllamaProvider::new(model.clone(), base_url.clone());
                 let mut identity = ProviderIdentity::ollama(model);
-                identity.reasoning_budget = config.reasoning_budget.clone();
+                identity.reasoning_budget = config.reasoning_budget;
                 identity.variant = config.variant.clone();
                 Ok(DynProvider::with_identity(provider, identity))
             }
@@ -672,7 +661,7 @@ impl ProviderFactory for LmStudioProviderFactory {
             ProviderSpec::LmStudio { base_url, model } => {
                 let provider = LmStudioProvider::new(model.clone(), base_url.clone());
                 let mut identity = ProviderIdentity::new("lmstudio", Some(model));
-                identity.reasoning_budget = config.reasoning_budget.clone();
+                identity.reasoning_budget = config.reasoning_budget;
                 identity.variant = config.variant.clone();
                 Ok(DynProvider::with_identity(provider, identity))
             }
@@ -700,7 +689,7 @@ impl ProviderFactory for LocalInferenceProviderFactory {
             ProviderSpec::LocalInference { base_url, model } => {
                 let provider = LmStudioProvider::new(model.clone(), Some(base_url.clone()));
                 let mut identity = ProviderIdentity::new("local", Some(model));
-                identity.reasoning_budget = config.reasoning_budget.clone();
+                identity.reasoning_budget = config.reasoning_budget;
                 identity.variant = config.variant.clone();
                 Ok(DynProvider::with_identity(provider, identity))
             }

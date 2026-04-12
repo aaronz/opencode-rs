@@ -163,17 +163,12 @@ pub enum McpServerType {
     Remote,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum McpPermission {
-    Allow,
+    #[default]
     Ask,
+    Allow,
     Deny,
-}
-
-impl Default for McpPermission {
-    fn default() -> Self {
-        Self::Ask
-    }
 }
 
 #[derive(Debug, Clone)]

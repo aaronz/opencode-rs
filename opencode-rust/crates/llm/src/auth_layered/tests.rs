@@ -1,18 +1,7 @@
-use std::collections::HashMap;
-
-use crate::auth_layered::layer1_credential_source::CredentialResolver;
-use crate::auth_layered::layer3_provider_transport::ProviderTransport;
-use crate::auth_layered::{
-    AccessControlResult, AuthMechanism, CompositeCredentialResolver, CredentialSource,
-    RuntimeAccessControl,
-};
-use crate::auth_layered::{
-    AnthropicTransport, AwsSigV4Transport, OpenAICompatibleTransport, TransportLayer,
-};
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
 
     #[test]
     fn test_layer1_credential_source_env_var() {

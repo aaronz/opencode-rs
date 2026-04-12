@@ -7,7 +7,7 @@ use crate::language::Language;
 use crate::launch::LaunchConfig;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
 /// Represents the capabilities of a custom LSP server.
@@ -404,10 +404,7 @@ impl CustomRegistry {
     }
 
     /// Generate launch configurations for all enabled servers.
-    pub fn generate_launch_configs(
-        &self,
-        root: &PathBuf,
-    ) -> Result<Vec<LaunchConfig>, RegisterError> {
+    pub fn generate_launch_configs(&self, root: &Path) -> Result<Vec<LaunchConfig>, RegisterError> {
         let servers = self.enabled()?;
         Ok(servers
             .iter()
@@ -428,7 +425,11 @@ impl CustomRegistry {
                 Some(LaunchConfig {
                     command: cmd_str,
                     args: Vec::new(),
-                    root: server.config.root.clone().unwrap_or_else(|| root.clone()),
+                    root: server
+                        .config
+                        .root
+                        .clone()
+                        .unwrap_or_else(|| root.to_path_buf()),
                     language,
                     initialization_options: server.config.initialization_options.clone(),
                     settings: server.config.settings.clone(),
