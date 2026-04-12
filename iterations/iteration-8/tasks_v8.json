@@ -348,7 +348,7 @@
       "priority": "DC",
       "title": "Rename unused body variable in github.rs",
       "description": "Unused body variable in git/github.rs:566. Severity: Low",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Unused variable renamed to _body",
         "cargo clippy passes"

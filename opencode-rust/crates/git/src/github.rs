@@ -563,7 +563,7 @@ mod tests {
                 review_id: 789,
                 review_state,
                 user,
-                body: _
+                body: _body
             } if review_state == "approved" && user == "reviewer"
         ));
     }
