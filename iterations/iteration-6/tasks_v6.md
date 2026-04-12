@@ -82,7 +82,7 @@
 - [x] P2-2: Workspace path validation (`crates/core`)
 
 ### Storage
-- [ ] P2-3: Compaction shareability verification (`crates/storage`)
+- [x] P2-3: Compaction shareability verification (`crates/storage`)
 
 ### Tools
 - [ ] P2-4: Deterministic collision resolution (`crates/tools`)

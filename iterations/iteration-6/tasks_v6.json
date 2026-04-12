@@ -137,7 +137,7 @@
       "priority": "P2",
       "title": "Workspace path validation",
       "description": "Add workspace path validation in crates/core.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "Invalid workspace paths are rejected",
         "Valid workspace paths are accepted"
@@ -153,7 +153,7 @@
       "priority": "P2",
       "title": "Compaction shareability verification",
       "description": "Verify compaction shareability in crates/storage.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Compaction operation completes successfully",
         "Shareability metadata is correctly stored"

@@ -482,7 +482,7 @@ This document defines the specification for the OpenCode Rust port implementatio
 |----|-------|--------|---------------|--------|
 | P2-1 | Project VCS worktree root distinction | core | FR-001 | Deferred |
 | P2-2 | Workspace path validation | core | FR-001 | ✅ Done |
-| P2-3 | Compaction shareability verification | storage | FR-002 | Deferred |
+| P2-3 | Compaction shareability verification | storage | FR-002 | ✅ Done |
 | P2-4 | Deterministic collision resolution | tools | FR-006 | Deferred |
 | P2-5 | Result caching invalidation | tools | FR-006 | Deferred |
 | P2-6 | Per-server OAuth token storage | mcp | FR-010 | Deferred |
