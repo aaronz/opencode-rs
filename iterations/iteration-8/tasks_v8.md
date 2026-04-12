@@ -242,7 +242,7 @@ Session sharing mechanism already implemented in `session_sharing.rs`. Fixed pre
 | DC-6 | `format_time_elapsed` function unused | tui | app.rs:534 | Low | Remove or use ✅ |
 | DC-7 | Unused `complete` variable | cli | mcp_auth.rs:216 | Low | Rename to `_complete` ✅ |
 | DC-8 | Unused `models_url` function | llm | ollama.rs | Low | Remove or use ✅ (N/A - issue doesn't exist in ollama.rs) |
-| DC-9 | Unused `ChatStreamChunk` struct | llm | ollama.rs | Low | Remove or use |
+| DC-9 | Unused `ChatStreamChunk` struct | llm | ollama.rs | Low | Remove or use ✅ |
 | DC-10 | Unused `role` field | llm | ollama.rs:48 | Low | Remove or use |
 
 ---

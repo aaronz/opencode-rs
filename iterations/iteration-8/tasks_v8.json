@@ -428,7 +428,7 @@
       "priority": "DC",
       "title": "Remove unused ChatStreamChunk struct",
       "description": "Unused ChatStreamChunk struct in llm/ollama.rs. Severity: Low",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Unused struct removed",
         "cargo clippy passes"

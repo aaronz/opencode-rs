@@ -54,12 +54,6 @@ struct StreamChunk {
     done: bool,
 }
 
-#[derive(Deserialize)]
-struct ChatStreamChunk {
-    message: Option<OllamaMessage>,
-    done: Option<bool>,
-}
-
 impl OllamaProvider {
     pub fn new(model: String, base_url: Option<String>) -> Self {
         Self {
