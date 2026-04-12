@@ -1445,7 +1445,7 @@ impl Config {
 
     pub fn expand_variables(value: &mut serde_json::Value) -> Result<(), OpenCodeError> {
         let config_values = Self::collect_config_values(value);
-        Self::expand_variables_inner(value, &config_values, &mut std::collections::HashSet::new())
+        Self::expand_variables_inner(value, &config_values, &mut Vec::new())
     }
 
     fn collect_config_values(
@@ -1487,19 +1487,19 @@ impl Config {
     fn expand_variables_inner(
         value: &mut serde_json::Value,
         config_values: &std::collections::HashMap<String, serde_json::Value>,
-        visited: &mut std::collections::HashSet<String>,
+        path: &mut Vec<String>,
     ) -> Result<(), OpenCodeError> {
         match value {
-            serde_json::Value::String(s) => Self::expand_string_variable(s, config_values, visited),
+            serde_json::Value::String(s) => Self::expand_string_variable(s, config_values, path),
             serde_json::Value::Object(obj) => {
                 for (_, v) in obj {
-                    Self::expand_variables_inner(v, config_values, visited)?;
+                    Self::expand_variables_inner(v, config_values, path)?;
                 }
                 Ok(())
             }
             serde_json::Value::Array(arr) => {
                 for v in arr {
-                    Self::expand_variables_inner(v, config_values, visited)?;
+                    Self::expand_variables_inner(v, config_values, path)?;
                 }
                 Ok(())
             }
@@ -1510,16 +1510,21 @@ impl Config {
     fn expand_string_variable(
         s: &mut String,
         config_values: &std::collections::HashMap<String, serde_json::Value>,
-        visited: &mut std::collections::HashSet<String>,
+        path: &mut Vec<String>,
     ) -> Result<(), OpenCodeError> {
         while let Some(start) = s.find("${") {
             if let Some(end) = s[start..].find('}') {
                 let var_name = s[start + 2..start + end].to_string();
 
-                if visited.contains(&var_name) {
+                if let Some(circular_start) = path.iter().position(|v| v == &var_name) {
+                    let chain: Vec<&str> = path[circular_start..]
+                        .iter()
+                        .chain(std::iter::once(&var_name))
+                        .map(|s| s.as_str())
+                        .collect();
                     return Err(OpenCodeError::ConfigInvalid(format!(
-                        "Circular config variable reference: ${}",
-                        var_name
+                        "Circular config variable reference detected: ${}",
+                        chain.join(" -> $")
                     )));
                 }
 
@@ -1530,7 +1535,7 @@ impl Config {
                     ))
                 })?;
 
-                visited.insert(var_name.clone());
+                path.push(var_name.clone());
 
                 let replacement = match var_value {
                     serde_json::Value::String(v) => v.clone(),
@@ -1538,7 +1543,7 @@ impl Config {
                     serde_json::Value::Bool(b) => b.to_string(),
                     serde_json::Value::Null => String::new(),
                     _ => {
-                        visited.remove(&var_name);
+                        path.pop();
                         let type_name = match var_value {
                             serde_json::Value::Object(_) => "object",
                             serde_json::Value::Array(_) => "array",
@@ -1555,10 +1560,10 @@ impl Config {
                 let end_pos = start + end + 1;
                 s.replace_range(start..end_pos, &replacement);
 
-                if let Err(e) = Self::expand_string_variable(s, config_values, visited) {
+                if let Err(e) = Self::expand_string_variable(s, config_values, path) {
                     return Err(e);
                 }
-                visited.remove(&var_name);
+                path.pop();
             } else {
                 break;
             }

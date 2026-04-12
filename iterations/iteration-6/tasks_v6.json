@@ -56,7 +56,7 @@
       "priority": "P1",
       "title": "Circular Variable Expansion Detection",
       "description": "Add detection algorithm for circular references in variable expansion. FR-003 reference.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Circular variable references are detected and reported",
         "Error message identifies the circular chain"
@@ -64,7 +64,7 @@
       "test_commands": [
         "cargo test --package opencode-config -- variable"
       ],
-      "impl_notes": "Deferred - implement detection algorithm in crates/config",
+      "impl_notes": "Implemented circular detection with chain reporting in crates/core/src/config.rs. Changed visited HashSet to path Vec to track expansion chain. When cycle detected, error message shows full chain like '$a -> $b -> $a'. Tests pass for circular reference detection.",
       "dependencies": []
     },
     {
