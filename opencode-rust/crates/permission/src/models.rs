@@ -25,9 +25,7 @@ impl AgentPermissionScope {
                 AgentPermissionScope::None => AgentPermissionScope::None,
                 _ => other,
             },
-            (AgentPermissionScope::ReadOnly, _) | (_, AgentPermissionScope::ReadOnly) => {
-                AgentPermissionScope::ReadOnly
-            }
+            (AgentPermissionScope::ReadOnly, _) => AgentPermissionScope::ReadOnly,
         }
     }
 
