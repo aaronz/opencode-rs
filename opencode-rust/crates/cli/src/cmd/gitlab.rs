@@ -1,6 +1,20 @@
 use clap::{Args, Subcommand};
 use opencode_git::{get_gitlab_ci_template, setup_gitlab_ci, GitLabClient};
 
+const GITLAB_EXPERIMENTAL_WARNING: &str = r#"
+⚠️  GitLab Duo support is **experimental** and subject to change.
+
+GitLab Duo features depend on:
+- GitLab product tier (Premium/Ultimate required)
+- Deployment configuration
+- Environment setup
+
+Users are advised that:
+- API surface may change in future releases
+- Not all GitLab Duo features may be available
+- Feature availability is environment-dependent
+"#;
+
 #[derive(Args, Debug)]
 pub struct GitLabArgs {
     #[command(subcommand)]
@@ -47,6 +61,7 @@ pub enum GitLabAction {
 }
 
 pub fn run(args: GitLabArgs) {
+    eprintln!("{}", GITLAB_EXPERIMENTAL_WARNING);
     match args.action {
         GitLabAction::Login => {
             println!("GitLab login - TODO: Implement OAuth flow");

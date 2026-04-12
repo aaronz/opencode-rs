@@ -101,7 +101,7 @@
 - [ ] P2-13: LLM variant/reasoning budget (`crates/llm`)
 
 ### Git
-- [ ] P2-14: GitLab Duo experimental marking (`crates/git`) - marked experimental in docs
+- [x] P2-14: GitLab Duo experimental marking (`crates/git`) ✅ Done
 - [ ] **P2-15: Git test code cleanup** ❌ BUG (not feature gap)
   - [ ] Remove unused `next_port()` function (line 413)
   - [ ] Remove or use `GitLabMockServer` struct (line 706)

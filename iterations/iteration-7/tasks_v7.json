@@ -349,7 +349,7 @@
       "priority": "P2",
       "title": "LLM Variant/Reasoning Budget",
       "description": "Implement LLM variant selection and reasoning budget in crate/llm",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "Users can select LLM variant",
         "Reasoning budget can be configured",
@@ -367,14 +367,14 @@
       "priority": "P2",
       "title": "GitLab Duo Experimental Marking",
       "description": "Mark GitLab Duo features as experimental in documentation",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "GitLab Duo features marked experimental in docs",
         "Users are warned about experimental status",
         "Documentation is clear about what's experimental"
       ],
       "test_commands": [],
-      "impl_notes": "Post-release - marked experimental in docs",
+      "impl_notes": "IMPLEMENTED - Added experimental warning to CLI gitlab.rs that prints warning when GitLab commands are run. The library code (lib.rs, gitlab_ci.rs) already had module-level experimental warnings and #[deprecated] attribute on re-exports.",
       "dependencies": []
     },
     {
