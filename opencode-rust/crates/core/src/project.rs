@@ -625,11 +625,12 @@ mod tests {
     #[test]
     fn test_normalize_path_relative() {
         let tmp = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().unwrap();
         std::env::set_current_dir(tmp.path()).unwrap();
         let result = normalize_path(&PathBuf::from("."));
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), tmp.path().canonicalize().unwrap());
-        std::env::set_current_dir("/").unwrap();
+        std::env::set_current_dir(original_dir).unwrap();
     }
 
     #[test]
@@ -680,6 +681,7 @@ mod tests {
     #[test]
     fn test_validate_workspace_relative_path() {
         let tmp = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().unwrap();
         std::env::set_current_dir(tmp.path()).unwrap();
         let result = validate_workspace(&PathBuf::from("."));
         assert!(result.is_err());
@@ -687,7 +689,7 @@ mod tests {
             WorkspaceValidationError::PathNotAbsolute(_) => {}
             e => panic!("Expected PathNotAbsolute, got: {}", e),
         }
-        std::env::set_current_dir("/").unwrap();
+        std::env::set_current_dir(original_dir).unwrap();
     }
 
     #[test]
@@ -714,6 +716,7 @@ mod tests {
     #[test]
     fn test_resolve_relative_path() {
         let tmp = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().unwrap();
         std::env::set_current_dir(tmp.path()).unwrap();
 
         let resolved = resolve_relative_path(&PathBuf::from("subdir")).unwrap();
@@ -724,7 +727,7 @@ mod tests {
         let resolved = resolve_relative_path(&absolute).unwrap();
         assert_eq!(resolved, absolute);
 
-        std::env::set_current_dir("/").unwrap();
+        std::env::set_current_dir(original_dir).unwrap();
     }
 
     #[test]

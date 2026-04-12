@@ -283,7 +283,7 @@
       "priority": "P0",
       "title": "Run Tests After P0-9 Fixes",
       "description": "Run cargo test and verify all tests pass after all P0-9 fixes are applied.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "cargo test exits with code 0",
         "All tests pass"
@@ -291,7 +291,7 @@
       "test_commands": [
         "cargo test"
       ],
-      "impl_notes": "Verification task - run after all P0-9 subtasks are complete.",
+      "impl_notes": "Verification task - run after all P0-9 subtasks are complete. Fixed flaky test_find_up by using CARGO_MANIFEST_DIR environment variable instead of relying on current_dir which could be polluted by other tests.",
       "dependencies": [
         "P0-9"
       ]

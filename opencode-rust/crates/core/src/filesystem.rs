@@ -135,11 +135,17 @@ mod tests {
 
     #[test]
     fn test_find_up() {
-        let cwd = std::env::current_dir().expect("current dir should exist");
-        let result = AppFileSystem::find_up("Cargo.toml", cwd.to_str().unwrap(), None);
+        let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| {
+            std::env::current_dir()
+                .unwrap_or_else(|_| PathBuf::from("/"))
+                .to_string_lossy()
+                .to_string()
+        });
+        let result = AppFileSystem::find_up("Cargo.toml", &manifest_dir, None);
         assert!(
             !result.is_empty(),
-            "Should find Cargo.toml from current directory"
+            "Should find Cargo.toml from manifest dir: {}",
+            manifest_dir
         );
     }
 }
