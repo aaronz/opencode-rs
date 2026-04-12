@@ -124,7 +124,7 @@ cargo clippy --all -- -D warnings  # passes
 
 ## P2 Tasks (Nice to Have - Deferred)
 
-- [ ] P2-16: Remaining clippy warnings (not errors)
+- [x] P2-16: Remaining clippy warnings (not errors)
 - [ ] P2-17: Per-crate test backlog
 
 ---

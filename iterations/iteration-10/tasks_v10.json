@@ -199,7 +199,7 @@
       "priority": "P2",
       "title": "Fix remaining clippy warnings",
       "description": "Fix remaining clippy warnings that are not errors. Deferred task.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "cargo clippy passes with no warnings"
       ],

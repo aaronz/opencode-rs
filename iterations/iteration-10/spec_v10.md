@@ -518,7 +518,7 @@ This document defines the specification for the OpenCode Rust port implementatio
 
 | ID | Issue | Module | FR Reference | Status |
 |----|-------|--------|-------------|--------|
-| P2-16 | Remaining clippy warnings | various | n/a | Deferred |
+| P2-16 | Remaining clippy warnings | various | n/a | ✅ Done |
 | P2-17 | Per-crate test backlog | tests | FR-026/027 | Deferred |
 
 **Completed P2 Issues (Iteration 9):**
