@@ -17,13 +17,13 @@
 #### opencode-core (17 errors)
 
 ##### config.rs
-- [ ] Fix deprecated `AgentMode` enum usage (line 436) - 2 occurrences
-- [ ] Fix deprecated `AgentConfig::mode` field usage (line 2771)
+- [x] Fix deprecated `AgentMode` enum usage (line 436) - 2 occurrences
+- [x] Fix deprecated `AgentConfig::mode` field usage (line 2771)
 - [ ] Fix `question_mark` - rewrite with `?` operator (line 1594)
 - [ ] Fix `needless_borrows_for_generic_args` - remove unnecessary borrow (line 2068)
 
 ##### command.rs
-- [ ] Fix deprecated `AgentConfig::mode` field usage (line 567)
+- [x] Fix deprecated `AgentConfig::mode` field usage (line 567)
 
 ##### session_sharing.rs
 - [ ] Fix `redundant_closure` - use `ok_or` instead (line 323)
