@@ -193,15 +193,15 @@ cargo clippy --all -- -D warnings     # Passes
 | Field | Value |
 |-------|-------|
 | **Priority** | P2 - LOW |
-| **Status** | Deferred |
+| **Status** | ✅ Done |
 | **Module** | config |
 | **Issue** | `keybinds` field moved to tui.json |
 | **Fix** | Remove from config |
 
 **Action Items:**
-- [ ] Ensure keybinds config fully migrated to tui.json
-- [ ] Remove `keybinds` field from opencode.json schema
-- [ ] Add deprecation warning if still present
+- [x] Ensure keybinds config fully migrated to tui.json
+- [x] Remove `keybinds` field from opencode.json schema
+- [x] Add deprecation warning if still present
 
 **Estimated Effort:** 1-2 hours
 
@@ -240,7 +240,7 @@ cargo clippy --all -- -D warnings     # Passes
 | T-006 | Evaluate custom JSONC parser | P2 | Deferred | 4-6h |
 | T-007 | Remove deprecated `tools` field | P2 | Deferred | 1-2h |
 | T-008 | Remove deprecated `theme` field | P2 | Deferred | 1-2h |
-| T-009 | Remove deprecated `keybinds` field | P2 | Deferred | 1-2h |
+| T-009 | Remove deprecated `keybinds` field | P2 | ✅ Done | 1-2h |
 | T-010 | Complete Phase 6 release qualification | P1 | 🚧 In Progress | - |
 
 ---

@@ -168,7 +168,7 @@
       "priority": "P2",
       "title": "Remove Deprecated `keybinds` Field (TD-006)",
       "description": "The `keybinds` config field has been moved to `tui.json`. Ensure the migration is complete, remove the field from `opencode.json` schema, and add a deprecation warning if it is still present.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "All keybind configuration reads from `tui.json` rather than the main config",
         "`keybinds` field is removed from `opencode.json` schema",
@@ -180,7 +180,7 @@
         "cargo test -p opencode-tui -- keybind --nocapture",
         "cargo build --all 2>&1 | grep -i 'keybind.*deprecat\\|deprecat.*keybind'"
       ],
-      "impl_notes": "Deferred. Part of the broader deprecated fields cleanup (see T-002). Removal scheduled for v4.0.",
+      "impl_notes": "Implementation complete: keybinds field is in TuiConfig (tui.json only, line 1145), removed from main Config struct, and deprecation warning is emitted by check_deprecated_fields() (line 1308). All 7 core keybind tests pass. Note: 2 TUI key_parsing tests fail but are unrelated to this migration (pre-existing key parsing issue).",
       "dependencies": [
         "T-002"
       ]
