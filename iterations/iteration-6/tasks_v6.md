@@ -93,7 +93,7 @@
 - [x] P2-7: Context cost warnings (`crates/mcp`)
 
 ### LSP
-- [ ] P2-8: Experimental LSP tool testing (`crates/lsp`)
+- [x] P2-8: Experimental LSP tool testing (`crates/lsp`)
 
 ### Server
 - [ ] P2-9: API error shape consistency enforcement (`crates/server`)

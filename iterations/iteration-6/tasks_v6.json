@@ -233,7 +233,7 @@
       "priority": "P2",
       "title": "Experimental LSP tool testing",
       "description": "Test experimental LSP tool in crates/lsp.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "LSP tool can be loaded and executed",
         "LSP features work correctly"
