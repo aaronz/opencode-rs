@@ -3,8 +3,8 @@
 **Generated:** 2026-04-13  
 **Based on:** Iteration 11 gap analysis  
 **Total Tasks:** 10  
-**Completed:** 0  
-**In Progress:** 2  
+**Completed:** 1  
+**In Progress:** 1  
 **Pending:** 8  
 
 ---
@@ -16,20 +16,25 @@
 | Field | Value |
 |-------|-------|
 | **Priority** | P1 - HIGH |
-| **Status** | ❌ FAILING |
+| **Status** | ✅ Done |
 | **Module** | core/config |
 | **Issue** | `dirs::home_dir()` doesn't respect `HOME` env var on macOS |
 | **Test** | `test_theme_config_resolve_path_tilde_expansion` |
 | **Fix Required** | Use `dirs_next::home_dir()` or mock properly |
 
 **Action Items:**
-- [ ] Find the test file containing `test_theme_config_resolve_path_tilde_expansion`
-- [ ] Identify where `dirs::home_dir()` is called
-- [ ] Replace with `dirs_next::home_dir()` OR add proper mocking for HOME env var
-- [ ] Verify test passes on macOS
-- [ ] Ensure test still passes on Linux
+- [x] Find the test file containing `test_theme_config_resolve_path_tilde_expansion`
+- [x] Identify where `dirs::home_dir()` is called
+- [x] Replace with `dirs_next::home_dir()` OR add proper mocking for HOME env var
+- [x] Verify test passes on macOS
+- [x] Ensure test still passes on Linux
 
 **Estimated Effort:** 1-2 hours
+
+**Changes Made:**
+- Added `dirs-next = "2.0"` to workspace dependencies in `Cargo.toml`
+- Added `dirs-next = { workspace = true }` to core crate dependencies
+- Replaced `dirs::home_dir()` with `dirs_next::home_dir()` in `ThemeConfig::resolve_path()` method in `crates/core/src/config.rs:1048-1050`
 
 ---
 
@@ -211,7 +216,7 @@
 - [x] All P0 blockers resolved
 - [x] Clippy passes with `-D warnings`
 - [x] All major PRD features implemented
-- [ ] Fix flaky test (T-001)
+- [x] Fix flaky test (T-001)
 - [ ] Complete non-functional test baselines
 - [ ] Final release sign-off
 
@@ -221,7 +226,7 @@
 
 | ID | Task | Priority | Status | Estimated Effort |
 |----|------|----------|--------|------------------|
-| T-001 | Fix flaky test `test_theme_config_resolve_path_tilde_expansion` | **P1** | ❌ FAILING | 1-2h |
+| T-001 | Fix flaky test `test_theme_config_resolve_path_tilde_expansion` | **P1** | ✅ Done | 1-2h |
 | T-002 | Plan deprecated fields removal | **P1** | 🚧 In Progress | 2-3h |
 | T-003 | Resolve remaining clippy warnings | P2 | Deferred | 4-8h |
 | T-004 | Complete per-crate test backlog | P2 | Deferred | Ongoing |
@@ -239,8 +244,9 @@
 | ID | Issue | Fixed In |
 |----|-------|----------|
 | P0-9 | Clippy fails with `-D warnings` (18 errors) | **Iteration 11** |
+| P1-F1 | `test_theme_config_resolve_path_tilde_expansion` fails on macOS | **Iteration 11** |
 
 ---
 
 *Task list generated: 2026-04-13*
-*Next step: Fix T-001 (flaky test)*
+*Next step: Complete Phase 6 release qualification (T-010)*

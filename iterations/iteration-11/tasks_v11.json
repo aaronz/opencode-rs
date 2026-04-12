@@ -5,7 +5,7 @@
       "priority": "P1",
       "title": "Fix Flaky Test `test_theme_config_resolve_path_tilde_expansion`",
       "description": "`dirs::home_dir()` doesn't respect `HOME` env var on macOS, causing the test `test_theme_config_resolve_path_tilde_expansion` to fail. Replace with `dirs_next::home_dir()` or add proper mocking for the HOME env var.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "Test `test_theme_config_resolve_path_tilde_expansion` passes on macOS",
         "Test `test_theme_config_resolve_path_tilde_expansion` passes on Linux",
