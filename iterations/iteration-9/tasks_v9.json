@@ -143,7 +143,7 @@
       "priority": "P0",
       "title": "Fix very_complex_type in skill.rs",
       "description": "Factor very_complex_type into separate type definitions at skill.rs.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "clippy very_complex_type warning resolved"
       ],
