@@ -174,15 +174,15 @@ cargo clippy --all -- -D warnings     # Passes
 | Field | Value |
 |-------|-------|
 | **Priority** | P2 - LOW |
-| **Status** | Deferred |
+| **Status** | ✅ Done |
 | **Module** | config |
 | **Issue** | `theme` field moved to tui.json |
 | **Fix** | Remove from config |
 
 **Action Items:**
-- [ ] Ensure theme config fully migrated to tui.json
-- [ ] Remove `theme` field from opencode.json schema
-- [ ] Add deprecation warning if still present
+- [x] Ensure theme config fully migrated to tui.json
+- [x] Remove `theme` field from opencode.json schema
+- [x] Add deprecation warning if still present
 
 **Estimated Effort:** 1-2 hours
 

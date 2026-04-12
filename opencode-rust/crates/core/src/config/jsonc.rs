@@ -1,5 +1,5 @@
 use jsonc_parser::errors::ParseError;
-use jsonc_parser::parse_to_serde_value;
+use jsonc_parser::parse_to_value;
 use serde_json::Value;
 use std::path::Path;
 
@@ -19,9 +19,9 @@ pub enum JsoncError {
 
 impl JsoncError {
     pub fn new_parse_error(err: ParseError, source: &str) -> Self {
-        let line = err.position.line;
-        let column = err.position.column;
-        let message = err.kind.to_string();
+        let line = err.line_display();
+        let column = err.column_display();
+        let message = err.kind().to_string();
         let context = Self::generate_context(&message);
         let source_line = Self::extract_source_line(source, line);
 
@@ -125,9 +125,45 @@ impl JsoncError {
     }
 }
 
+fn json_value_to_serde_value(json: jsonc_parser::JsonValue) -> Value {
+    use jsonc_parser::JsonValue;
+    match json {
+        JsonValue::String(s) => Value::String(s.into_owned()),
+        JsonValue::Number(n) => {
+            if let Ok(i) = n.parse::<i64>() {
+                Value::Number(i.into())
+            } else if let Ok(f) = n.parse::<f64>() {
+                serde_json::Number::from_f64(f)
+                    .map(Value::Number)
+                    .unwrap_or(Value::Null)
+            } else {
+                Value::Null
+            }
+        }
+        JsonValue::Boolean(b) => Value::Bool(b),
+        JsonValue::Object(o) => {
+            let map: serde_json::Map<String, Value> = o
+                .into_iter()
+                .map(|(k, v)| (k, json_value_to_serde_value(v)))
+                .collect();
+            Value::Object(map)
+        }
+        JsonValue::Array(a) => Value::Array(a.into_iter().map(json_value_to_serde_value).collect()),
+        JsonValue::Null => Value::Null,
+    }
+}
+
 pub fn parse_jsonc(content: &str) -> Result<Value, JsoncError> {
-    parse_to_serde_value(content, &Default::default())
-        .map_err(|err| JsoncError::new_parse_error(err, content))
+    parse_to_value(content, &Default::default())
+        .map_err(|err| JsoncError::new_parse_error(err, content))?
+        .ok_or_else(|| JsoncError::Parse {
+            line: 0,
+            column: 0,
+            message: "Empty JSON content".to_string(),
+            context: String::new(),
+            source_line: None,
+        })
+        .map(|v| json_value_to_serde_value(v))
 }
 
 pub(crate) fn strip_jsonc_comments(input: &str) -> String {

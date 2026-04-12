@@ -124,7 +124,7 @@
       "priority": "P2",
       "title": "Remove Deprecated `tools` Field (TD-004)",
       "description": "The `tools` config field is deprecated and should be migrated to the `permission` field. Ensure all usages are migrated, add a deprecation warning if not present, and schedule removal for v4.0.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "All code references to the deprecated `tools` field emit a deprecation warning",
         "All internal usages have been migrated to use `permission` field instead",
@@ -146,7 +146,7 @@
       "priority": "P2",
       "title": "Remove Deprecated `theme` Field (TD-005)",
       "description": "The `theme` config field has been moved to `tui.json`. Ensure the migration is complete, remove the field from `opencode.json` schema, and add a deprecation warning if it is still present.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "All theme configuration reads from `tui.json` rather than the main config",
         "`theme` field is removed from `opencode.json` schema",
@@ -158,7 +158,7 @@
         "cargo test -p opencode-tui -- theme --nocapture",
         "cargo build --all 2>&1 | grep -i 'theme.*deprecat\\|deprecat.*theme'"
       ],
-      "impl_notes": "Deferred. Part of the broader deprecated fields cleanup (see T-002). Removal scheduled for v4.0.",
+      "impl_notes": "Implementation complete: theme field is in TuiConfig (tui.json only), removed from main Config struct, and deprecation warning is emitted by check_deprecated_fields().",
       "dependencies": [
         "T-002"
       ]
