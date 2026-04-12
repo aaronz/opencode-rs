@@ -217,7 +217,7 @@
       "priority": "P2",
       "title": "Context cost warnings",
       "description": "Add context cost warnings in crates/mcp.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Warning is shown when context cost exceeds threshold",
         "Warning includes cost information"

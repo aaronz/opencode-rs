@@ -431,7 +431,7 @@ mod tests {
 
     #[test]
     fn test_context_cost_tracker_integration() {
-        use crate::context_cost::{ContextCostTracker, CostLimits, SharedContextCostTracker};
+        use crate::context_cost::SharedContextCostTracker;
 
         let tracker = SharedContextCostTracker::new();
 
@@ -469,7 +469,12 @@ mod tests {
         }
 
         assert!(tracker.should_warn());
-        assert!(tracker.get_warning_message().is_some());
+        let warning_message = tracker.get_warning_message();
+        assert!(warning_message.is_some());
+
+        let msg = warning_message.unwrap();
+        assert!(msg.contains("tokens"), "Warning should contain token count");
+        assert!(msg.contains("compact"), "Warning should suggest /compact command");
     }
 
     #[test]

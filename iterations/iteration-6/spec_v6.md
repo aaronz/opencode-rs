@@ -196,7 +196,7 @@ This document defines the specification for the OpenCode Rust port implementatio
   - Permission gating for MCP tools ✅
   - Timeout and unavailable-server handling ✅
 - **P2 Gaps:**
-  - Context cost warnings (P2-7 - deferred)
+  - Context cost warnings (P2-7 - ✅ Done)
   - Per-server OAuth token storage verification (P2-6 - ✅ Done)
 
 ### 3.9 LSP System (Phase 3)
@@ -486,7 +486,7 @@ This document defines the specification for the OpenCode Rust port implementatio
 | P2-4 | Deterministic collision resolution | tools | FR-006 | ✅ Done |
 | P2-5 | Result caching invalidation | tools | FR-006 | Deferred |
 | P2-6 | Per-server OAuth token storage | mcp | FR-010 | ✅ Done |
-| P2-7 | Context cost warnings | mcp | FR-010 | Deferred |
+| P2-7 | Context cost warnings | mcp | FR-010 | ✅ Done |
 | P2-8 | Experimental LSP tool testing | lsp | FR-011 | Deferred |
 | P2-9 | API error shape consistency | server | FR-004 | Deferred |
 | P2-11 | Shell prefix (`!`) handler | tui | FR-018 | Deferred |
@@ -499,6 +499,7 @@ This document defines the specification for the OpenCode Rust port implementatio
 | ID | Issue | Status |
 |----|-------|--------|
 | P2-2 | Workspace path validation | ✅ Done |
+| P2-7 | Context cost warnings | ✅ Done |
 | P2-10 | Plugin cleanup/unload | ✅ Done |
 
 ---

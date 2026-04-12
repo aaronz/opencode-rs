@@ -7,7 +7,7 @@ use tokio::sync::RwLock;
 
 use opencode_core::ToolRegistry;
 
-use crate::auth::{McpOAuthConfig, McpOAuthManager};
+use crate::auth::McpOAuthConfig;
 use crate::client::{ConnectionState, McpClient, McpError, McpResource, McpTool, McpTransport};
 use crate::context_cost::{CostLimits, SharedContextCostTracker};
 use crate::tool_bridge::McpToolAdapter;

@@ -326,7 +326,7 @@ impl SharedContextCostTracker {
     }
 
     pub fn with_model(self, model: &str) -> Self {
-        let mut tracker = self.inner.lock().unwrap();
+        let tracker = self.inner.lock().unwrap();
         let limits = tracker.limits;
         let tool_call_count = tracker.tool_call_count;
         let records = tracker.records.clone();

@@ -90,7 +90,7 @@
 
 ### MCP
 - [x] P2-6: Per-server OAuth token storage verification (`crates/mcp`)
-- [ ] P2-7: Context cost warnings (`crates/mcp`)
+- [x] P2-7: Context cost warnings (`crates/mcp`)
 
 ### LSP
 - [ ] P2-8: Experimental LSP tool testing (`crates/lsp`)
