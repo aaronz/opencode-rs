@@ -332,7 +332,7 @@
       "priority": "DC",
       "title": "Rename unused e variable in lsp_tool.rs",
       "description": "Unused e variable in lsp_tool.rs:311,526,626,783. Severity: Low",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Unused variables renamed to _e",
         "cargo clippy passes"

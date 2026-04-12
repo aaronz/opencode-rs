@@ -308,7 +308,7 @@ impl LspTool {
                 .await
             {
                 Ok(result) => return Ok(result),
-                Err(e) if attempt < max_retries - 1 => {
+                Err(_e) if attempt < max_retries - 1 => {
                     tokio::time::sleep(tokio::time::Duration::from_millis(retry_delay_ms[attempt]))
                         .await;
                 }
@@ -523,7 +523,7 @@ impl LspTool {
                 .await
             {
                 Ok(result) => return Ok(result),
-                Err(e) if attempt < max_retries - 1 => {
+                Err(_e) if attempt < max_retries - 1 => {
                     tokio::time::sleep(tokio::time::Duration::from_millis(retry_delay_ms[attempt]))
                         .await;
                 }
@@ -623,7 +623,7 @@ impl LspTool {
         for attempt in 0..max_retries {
             match self.hover_impl(file, line, character, workspace).await {
                 Ok(result) => return Ok(result),
-                Err(e) if attempt < max_retries - 1 => {
+                Err(_e) if attempt < max_retries - 1 => {
                     tokio::time::sleep(tokio::time::Duration::from_millis(retry_delay_ms[attempt]))
                         .await;
                 }
@@ -780,7 +780,7 @@ impl LspTool {
                 .await
             {
                 Ok(result) => return Ok(result),
-                Err(e) if attempt < max_retries - 1 => {
+                Err(_e) if attempt < max_retries - 1 => {
                     tokio::time::sleep(tokio::time::Duration::from_millis(retry_delay_ms[attempt]))
                         .await;
                 }
