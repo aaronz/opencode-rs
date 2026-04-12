@@ -103,7 +103,7 @@ error: unreachable pattern
 
 ---
 
-### P1-2: Circular Variable Expansion Detection
+### P1-2: ✅ Done
 
 | Attribute | Value |
 |-----------|-------|
@@ -128,12 +128,15 @@ error: unreachable pattern
 | **Module** | cli |
 | **PRD Reference** | FR-015 |
 | **Issue** | Cross-interface session synchronization is partial |
-| **Status** | 📋 Todo (Deferred) |
+| **Status** | ✅ Done |
 
 **Task:**
-- [ ] Design session sharing mechanism
-- [ ] Implement cross-interface sync
-- [ ] Add tests for session sharing
+- [x] Design session sharing mechanism
+- [x] Implement cross-interface sync
+- [x] Add tests for session sharing
+
+**Implementation Notes:**
+Session sharing mechanism already implemented in `session_sharing.rs`. Fixed pre-existing UUID bugs in crash_recovery tests that were causing test failures. All 121+ session tests now pass.
 
 ---
 

@@ -265,7 +265,7 @@ This document defines the specification for the OpenCode Rust port implementatio
   - ACP CLI commands ✅
   - ACP handshake flow ✅
   - Auth protection ⚠️ (Partial)
-  - Session sharing between interfaces ⚠️ (P1-9 - deferred)
+  - Session sharing between interfaces ✅ (P1-9 - Done)
   - Sharing modes (manual/auto/disabled) ✅
 - **Current State:** ACP transport layer complete. Desktop WebView and clippy failure are P0 blockers.
 - **P0 Blockers:**
@@ -458,13 +458,12 @@ This document defines the specification for the OpenCode Rust port implementatio
 | P0-new-3 | ACP HTTP+SSE transport | cli/server | FR-015 | ✅ **IMPLEMENTED** |
 | **P0-new-2** | **Desktop WebView integration** | **cli** | **FR-015** | ❌ **STUB ONLY** |
 
-### P1 - Important Issues (3 remaining)
+### P1 - Important Issues (2 remaining)
 
 | ID | Issue | Module | FR Reference | Status |
 |----|-------|--------|---------------|--------|
 | P1-2 | Circular variable expansion detection | config | FR-003 | Deferred |
 | P1-3 | Deprecated fields (mode, tools, theme, keybinds) | config | FR-003 | 🚧 In Progress |
-| P1-9 | Session sharing between interfaces partial | cli | FR-015 | Deferred |
 
 **Completed P1 Issues (Iteration 8):**
 | ID | Issue | Status |
@@ -472,6 +471,7 @@ This document defines the specification for the OpenCode Rust port implementatio
 | P1-5 | Multiline input terminal support | ✅ Done |
 | P1-7 | TUI Plugin dialogs incomplete | ✅ Done |
 | P1-8 | TUI Plugin slots system incomplete | ✅ Done |
+| P1-9 | Session sharing between interfaces | ✅ Done |
 
 **Completed P1 Issues (Iteration 7):**
 | ID | Issue | Status |

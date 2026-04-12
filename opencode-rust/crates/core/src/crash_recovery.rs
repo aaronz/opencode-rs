@@ -563,29 +563,29 @@ mod tests {
         let recovery = create_test_recovery(&tmp);
 
         let mut session1 = create_test_session();
-        session1.id = uuid::Uuid::parse_str("ccccccc1-cccc-cccc-cccc-cccccccc01").unwrap();
+        session1.id = uuid::Uuid::parse_str("ccccccc1-cccc-cccc-cccc-cccccccccccc").unwrap();
         recovery.set_active_session(session1);
         recovery
             .save_crash_dump(Some("panic 1".to_string()), None)
             .unwrap();
 
         let mut session2 = create_test_session();
-        session2.id = uuid::Uuid::parse_str("ccccccc2-cccc-cccc-cccc-cccccccc02").unwrap();
+        session2.id = uuid::Uuid::parse_str("ccccccc2-cccc-cccc-cccc-cccccccccccc").unwrap();
         recovery.set_active_session(session2);
         recovery
             .save_crash_dump(Some("panic 2".to_string()), None)
             .unwrap();
 
         let count = recovery
-            .cleanup_session_crashes("ccccccc1-cccc-cccc-cccc-cccccccc01")
+            .cleanup_session_crashes("ccccccc1-cccc-cccc-cccc-cccccccccccc")
             .unwrap();
         assert_eq!(count, 1);
         assert!(recovery
-            .find_crash_dumps("ccccccc1-cccc-cccc-cccc-cccccccc01")
+            .find_crash_dumps("ccccccc1-cccc-cccc-cccc-cccccccccccc")
             .is_empty());
         assert_eq!(
             recovery
-                .find_crash_dumps("ccccccc2-cccc-cccc-cccc-cccccccc02")
+                .find_crash_dumps("ccccccc2-cccc-cccc-cccc-cccccccccccc")
                 .len(),
             1
         );
@@ -615,7 +615,7 @@ mod tests {
 
         let mut session = create_test_session();
         session.add_message(Message::user("Recover test"));
-        session.id = uuid::Uuid::parse_str("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb01").unwrap();
+        session.id = uuid::Uuid::parse_str("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb").unwrap();
         recovery.set_active_session(session);
 
         let path = recovery
@@ -648,7 +648,7 @@ mod tests {
             .unwrap();
 
         let recovered = recovery
-            .recover_session_latest("latest-0002-0002-0002-000000000002")
+            .recover_session_latest("dddddddd-dddd-dddd-dddd-dddddddd0002")
             .unwrap();
         assert!(recovered.is_some());
         assert_eq!(recovered.unwrap().messages.len(), 2);
