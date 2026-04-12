@@ -380,7 +380,7 @@
       "priority": "DC",
       "title": "Remove or use format_time_elapsed function",
       "description": "format_time_elapsed function unused in tui/app.rs:534. Severity: Low",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Unused function removed or used",
         "cargo clippy passes"

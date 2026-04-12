@@ -531,19 +531,6 @@ pub struct App {
     pub lsp_diagnostics: Vec<Diagnostic>,
 }
 
-fn format_time_elapsed(duration: std::time::Duration) -> String {
-    let secs = duration.as_secs();
-    if secs < 60 {
-        format!("{}s ago", secs)
-    } else if secs < 3600 {
-        format!("{}m ago", secs / 60)
-    } else if secs < 86400 {
-        format!("{}h ago", secs / 3600)
-    } else {
-        format!("{}d ago", secs / 86400)
-    }
-}
-
 impl App {
     pub fn new() -> Self {
         let mut timeline_state = ListState::default();
