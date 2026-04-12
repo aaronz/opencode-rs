@@ -174,7 +174,7 @@
       "priority": "P1",
       "title": "Deprecated Fields Removal",
       "description": "Add deprecation warnings for mode field (config.rs, command.rs), document complete removal plan for v4.0, and track tools, theme, keybinds for future removal.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Deprecation warnings added to mode field",
         "Removal plan documented for v4.0",
