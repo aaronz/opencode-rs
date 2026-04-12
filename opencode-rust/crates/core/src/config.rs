@@ -1273,7 +1273,7 @@ impl Config {
             Config::default()
         } else {
             let content = std::fs::read_to_string(path)?;
-            let content = Self::substitute_variables(&content, path.parent());
+            let content = Self::substitute_variables(&content, path.parent())?;
             if path.extension().and_then(|s| s.to_str()) == Some("json")
                 || path.extension().and_then(|s| s.to_str()) == Some("jsonc")
                 || path.extension().and_then(|s| s.to_str()) == Some("json5")
@@ -1355,79 +1355,101 @@ impl Config {
         }
     }
 
-    /// Substitute {env:VAR} and {file:path} patterns in config content.
-    /// Runs up to 3 passes to resolve nested variables like {file:{env:DIR}/file.txt}.
-    pub fn substitute_variables(input: &str, config_dir: Option<&Path>) -> String {
+    pub fn substitute_variables(input: &str, config_dir: Option<&Path>) -> Result<String, OpenCodeError> {
+        Self::substitute_variables_inner(input, config_dir, &mut HashSet::new())
+    }
+
+    fn substitute_variables_inner(
+        input: &str,
+        config_dir: Option<&Path>,
+        expanding: &mut HashSet<String>,
+    ) -> Result<String, OpenCodeError> {
         let mut result = input.to_string();
 
         for _ in 0..3 {
             let before = result.clone();
-            result = Self::substitute_variables_single_pass(&result, config_dir);
+            result = Self::substitute_variables_single_pass(&result, config_dir, expanding)?;
             if result == before {
                 break;
             }
         }
 
-        result
+        Ok(result)
     }
 
-    fn substitute_variables_single_pass(input: &str, config_dir: Option<&Path>) -> String {
+    fn substitute_variables_single_pass(
+        input: &str,
+        config_dir: Option<&Path>,
+        expanding: &mut HashSet<String>,
+    ) -> Result<String, OpenCodeError> {
         let mut result = input.to_string();
 
-        // Pattern: {env:VARIABLE_NAME}
         while let Some(start) = result.find("{env:") {
             if let Some(end) = result[start..].find('}') {
-                let var_name = &result[start + 5..start + end];
-                let replacement = std::env::var(var_name).unwrap_or_default();
-                result = format!(
-                    "{}{}{}",
-                    &result[..start],
-                    replacement,
-                    &result[start + end + 1..]
-                );
+                let var_name = result[start + 5..start + end].to_string();
+
+                if expanding.contains(&var_name) {
+                    let chain: Vec<&str> = expanding.iter().chain(std::iter::once(&var_name)).map(|s| s.as_str()).collect();
+                    return Err(OpenCodeError::ConfigInvalid(format!(
+                        "Circular environment variable reference detected: {{env:{}}}",
+                        chain.join(" -> {env:")
+                    )));
+                }
+
+                expanding.insert(var_name.clone());
+                let replacement = std::env::var(&var_name).unwrap_or_default();
+                let expansion_result = Self::substitute_variables_inner(&replacement, config_dir, expanding);
+                expanding.remove(&var_name);
+                let expansion_result = expansion_result?;
+                result = format!("{}{}{}", &result[..start], expansion_result, &result[start + end + 1..]);
             } else {
                 break;
             }
         }
 
-        // Pattern: {file:path/to/file}
         while let Some(start) = result.find("{file:") {
             if let Some(end) = result[start..].find('}') {
-                let file_path = &result[start + 6..start + end];
-                let replacement = match Self::resolve_file_variable_path(file_path, config_dir) {
-                    Some(path) => std::fs::read_to_string(&path)
-                        .unwrap_or_else(|_| format!("{{file:{}}}", file_path)),
-                    _ => String::new(),
+                let file_path = result[start + 6..start + end].to_string();
+
+                if expanding.contains(&file_path) {
+                    let chain: Vec<&str> = expanding.iter().chain(std::iter::once(&file_path)).map(|s| s.as_str()).collect();
+                    return Err(OpenCodeError::ConfigInvalid(format!(
+                        "Circular file variable reference detected: {{file:{}}}",
+                        chain.join(" -> {file:")
+                    )));
+                }
+
+                expanding.insert(file_path.clone());
+                let replacement = match Self::resolve_file_variable_path(&file_path, config_dir) {
+                    Some(path) => {
+                        let path_str = path.to_string_lossy().to_string();
+                        let content = std::fs::read_to_string(&path)
+                            .unwrap_or_else(|_| format!("{{file:{}}}", &file_path));
+                        let expanded_content = Self::substitute_variables_inner(&content, config_dir, expanding)?;
+                        (path_str, expanded_content)
+                    }
+                    _ => (file_path.clone(), String::new()),
                 };
-                result = format!(
-                    "{}{}{}",
-                    &result[..start],
-                    replacement,
-                    &result[start + end + 1..]
-                );
+                expanding.remove(&file_path);
+
+                result = format!("{}{}{}", &result[..start], replacement.1, &result[start + end + 1..]);
             } else {
                 break;
             }
         }
 
-        // Pattern: {keychain:secret_name}
         while let Some(start) = result.find("{keychain:") {
             if let Some(end) = result[start..].find('}') {
-                let secret_name = &result[start + 10..start + end];
-                let replacement = resolve_keychain_secret(secret_name)
+                let secret_name = result[start + 10..start + end].to_string();
+                let replacement = resolve_keychain_secret(&secret_name)
                     .unwrap_or_else(|| format!("{{keychain:{}}}", secret_name));
-                result = format!(
-                    "{}{}{}",
-                    &result[..start],
-                    replacement,
-                    &result[start + end + 1..]
-                );
+                result = format!("{}{}{}", &result[..start], replacement, &result[start + end + 1..]);
             } else {
                 break;
             }
         }
 
-        result
+        Ok(result)
     }
 
     pub fn contains_keychain_reference(s: &str) -> bool {
@@ -1950,9 +1972,10 @@ impl Config {
 
         // Priority 2: OPENCODE_CONFIG_CONTENT env var
         if let Ok(content) = std::env::var("OPENCODE_CONFIG_CONTENT") {
-            let content = Self::substitute_variables(&content, None);
-            if let Ok(config) = Self::parse_config_content(&content, "json") {
-                configs.push(("env-content".to_string(), config));
+            if let Ok(content) = Self::substitute_variables(&content, None) {
+                if let Ok(config) = Self::parse_config_content(&content, "json") {
+                    configs.push(("env-content".to_string(), config));
+                }
             }
         }
 
@@ -3322,7 +3345,7 @@ mod tests {
     fn test_substitute_variables_env() {
         set_env("TEST_VAR", "test_value");
         let input = "key: {env:TEST_VAR}";
-        let result = Config::substitute_variables(input, None);
+        let result = Config::substitute_variables(input, None).unwrap();
         assert_eq!(result, "key: test_value");
         remove_env("TEST_VAR");
     }
@@ -3331,7 +3354,7 @@ mod tests {
     fn test_substitute_variables_missing_env() {
         remove_env("NONEXISTENT_VAR");
         let input = "key: {env:NONEXISTENT_VAR}";
-        let result = Config::substitute_variables(input, None);
+        let result = Config::substitute_variables(input, None).unwrap();
         assert_eq!(result, "key: ");
     }
 
@@ -3340,7 +3363,7 @@ mod tests {
         set_env("VAR1", "value1");
         set_env("VAR2", "value2");
         let input = "{env:VAR1} and {env:VAR2}";
-        let result = Config::substitute_variables(input, None);
+        let result = Config::substitute_variables(input, None).unwrap();
         assert_eq!(result, "value1 and value2");
         remove_env("VAR1");
         remove_env("VAR2");
@@ -3478,7 +3501,7 @@ mod tests {
         let old_home = std::env::var("HOME").ok();
         set_env("HOME", &temp_home);
 
-        let result = Config::substitute_variables("{file:~/.test_file}", None);
+        let result = Config::substitute_variables("{file:~/.test_file}", None).unwrap();
         assert_eq!(result, "secret-value");
 
         if let Some(home) = old_home {
@@ -3491,7 +3514,7 @@ mod tests {
 
     #[test]
     fn test_substitute_file_tilde_expansion_failure_returns_empty() {
-        let result = Config::substitute_variables("start-{file:~someone/path}-end", None);
+        let result = Config::substitute_variables("start-{file:~someone/path}-end", None).unwrap();
         assert_eq!(result, "start--end");
     }
 
@@ -3501,7 +3524,7 @@ mod tests {
         let instructions = config_dir.join("instructions.md");
         fs::write(&instructions, "relative-content").unwrap();
 
-        let result = Config::substitute_variables("{file:./instructions.md}", Some(&config_dir));
+        let result = Config::substitute_variables("{file:./instructions.md}", Some(&config_dir)).unwrap();
         assert_eq!(result, "relative-content");
 
         let _ = fs::remove_dir_all(config_dir);
@@ -3516,7 +3539,7 @@ mod tests {
         fs::create_dir_all(&shared_dir).unwrap();
         fs::write(shared_dir.join("config.md"), "parent-content").unwrap();
 
-        let result = Config::substitute_variables("{file:../shared/config.md}", Some(&config_dir));
+        let result = Config::substitute_variables("{file:../shared/config.md}", Some(&config_dir)).unwrap();
         assert_eq!(result, "parent-content");
 
         let _ = fs::remove_dir_all(root_dir);
@@ -3529,7 +3552,7 @@ mod tests {
         fs::write(temp_dir.join("instructions.md"), "cwd-content").unwrap();
         std::env::set_current_dir(&temp_dir).unwrap();
 
-        let result = Config::substitute_variables("{file:instructions.md}", None);
+        let result = Config::substitute_variables("{file:instructions.md}", None).unwrap();
         assert_eq!(result, "cwd-content");
 
         std::env::set_current_dir(cwd).unwrap();

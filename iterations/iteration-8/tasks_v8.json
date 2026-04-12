@@ -56,7 +56,7 @@
       "priority": "P1",
       "title": "Circular Variable Expansion Detection",
       "description": "Circular references in {env:VAR} and {file:PATH} expansion not detected. PRD Reference: FR-003. Status: Deferred",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Detection algorithm identifies circular references",
         "Error message displayed for circular expansion",

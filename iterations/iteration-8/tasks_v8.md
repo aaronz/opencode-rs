@@ -111,12 +111,12 @@ error: unreachable pattern
 | **Module** | config |
 | **PRD Reference** | FR-003 |
 | **Issue** | Circular references in `{env:VAR}` and `{file:PATH}` expansion not detected |
-| **Status** | 📋 Todo (Deferred) |
+| **Status** | ✅ Done |
 
 **Task:**
-- [ ] Add detection algorithm for circular references
-- [ ] Add error message for circular expansion
-- [ ] Add tests for circular expansion scenarios
+- [x] Add detection algorithm for circular references
+- [x] Add error message for circular expansion
+- [x] Add tests for circular expansion scenarios
 
 ---
 
