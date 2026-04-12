@@ -83,14 +83,14 @@
       "priority": "P0",
       "title": "Fix deprecated AgentConfig::mode in command.rs",
       "description": "Fix deprecated `AgentConfig::mode` field usage at command.rs line 567.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "No deprecated AgentConfig::mode field usage in command.rs"
       ],
       "test_commands": [
         "cargo clippy -p opencode-core -- -D warnings"
       ],
-      "impl_notes": "Replace deprecated mode field access with current alternative.",
+      "impl_notes": "Removed deprecated mode field access since permission.is_some() already displays 'permission=custom' when custom permissions are set.",
       "dependencies": []
     },
     {

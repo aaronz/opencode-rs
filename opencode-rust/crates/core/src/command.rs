@@ -564,10 +564,6 @@ fn format_agents(config: &Config) -> String {
         let description = agent.description.as_deref().unwrap_or("no description");
 
         let mut capabilities = Vec::new();
-        #[allow(deprecated)]
-        if let Some(mode) = &agent.mode {
-            capabilities.push(format!("mode={mode:?}"));
-        }
         if let Some(steps) = agent.steps.or(agent.max_steps) {
             capabilities.push(format!("steps={steps}"));
         }
