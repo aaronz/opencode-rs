@@ -1,10 +1,6 @@
 use clap::{Args, Subcommand};
 use opencode_core::Config;
 
-use crate::cmd::session::load_session_records;
-use crate::cmd::session::save_session_records;
-use crate::cmd::session::SessionRecord;
-
 #[derive(Args, Debug)]
 pub struct QuickArgs {
     #[command(subcommand)]
@@ -39,6 +35,7 @@ pub fn run(args: QuickArgs) {
             let session = sharing
                 .create_session(Some(name.clone()))
                 .expect("Failed to create session");
+            crate::cmd::session::save_session_records(&[]);
             println!("Quick session created: {} ({})", name, session.id);
         }
         Some(QuickAction::SwitchModel { model }) => {

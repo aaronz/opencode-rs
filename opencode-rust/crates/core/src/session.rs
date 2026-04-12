@@ -495,6 +495,11 @@ impl Session {
     }
 
     pub fn sessions_dir() -> PathBuf {
+        if let Ok(data_dir) = std::env::var("OPENCODE_DATA_DIR") {
+            let path = PathBuf::from(data_dir).join("sessions");
+            let _ = std::fs::create_dir_all(&path);
+            return path;
+        }
         directories::ProjectDirs::from("com", "opencode", "rs")
             .map(|dirs| dirs.data_dir().join("sessions"))
             .unwrap_or_else(|| PathBuf::from("~/.local/share/opencode-rs/sessions"))

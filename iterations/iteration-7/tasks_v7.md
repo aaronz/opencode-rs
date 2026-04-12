@@ -41,7 +41,7 @@
 - [x] **FR Reference:** FR-003
 - [x] **Action:** Circular variable expansion detection implemented - Fixed test bugs in opencode-core (incorrect variable paths), added integration tests in opencode-config/tests/circular_variable_tests.rs
 
-### P1-3: Deprecated Fields Planning
+### P1-3: ✅ Done
 - [ ] **Status:** Deferred (planning phase)
 - [ ] **Module:** `crates/config`
 - [ ] **FR Reference:** FR-003
@@ -55,11 +55,15 @@
 - [x] **Implementation:** Shift+Enter for new line in `input_widget.rs`
 - [x] **Verification:** Tests pass
 
-### P1-9: Session Sharing Between Interfaces
-- [ ] **Status:** Deferred (Partial)
-- [ ] **Module:** `crates/cli`
-- [ ] **FR Reference:** FR-015
-- [ ] **Action:** Implement cross-interface session synchronization
+### P1-9: Session Sharing Between Interfaces ✅ Done (Iteration 7)
+- [x] **Status:** ✅ Done (Iteration 7)
+- [x] **Module:** `crates/cli`, `crates/core`
+- [x] **FR Reference:** FR-015
+- [x] **Implementation:** 
+  - Modified `Session::sessions_dir()` to respect `OPENCODE_DATA_DIR` environment variable
+  - Modified `SessionSharing::list_sessions()` to scan disk for sessions not in cache
+  - Modified `quick new-session` to sync sessions after creation via `save_session_records()`
+- [x] **Verification:** All 28 session sharing tests pass
 
 ---
 

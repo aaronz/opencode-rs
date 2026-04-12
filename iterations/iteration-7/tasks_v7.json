@@ -126,7 +126,7 @@
       "priority": "P1",
       "title": "Session Sharing Between Interfaces",
       "description": "Implement cross-interface session synchronization for TUI, CLI, Web, and Desktop interfaces",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Session created in one interface is accessible from another",
         "Session state stays synchronized across interfaces",
@@ -136,7 +136,7 @@
         "cargo test -p opencode-cli session",
         "cargo test -p opencode-core session"
       ],
-      "impl_notes": "Deferred (Partial) - FR-015 - Implement cross-interface session synchronization",
+      "impl_notes": "IMPLEMENTED (Iteration 7) - Fixed cross-interface session sharing: (1) Modified Session::sessions_dir() to respect OPENCODE_DATA_DIR environment variable, (2) Modified SessionSharing::list_sessions() to scan disk for sessions not in cache, (3) Modified quick new-session to sync sessions after creation via save_session_records(). All 28 session sharing tests pass.",
       "dependencies": []
     },
     {

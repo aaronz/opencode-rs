@@ -193,6 +193,50 @@ impl SessionSharing {
     }
 
     pub fn list_sessions(&self) -> Result<Vec<SessionInfo>, SharingError> {
+        let cached_ids: std::collections::HashSet<String> = {
+            let sessions = self
+                .sessions
+                .read()
+                .map_err(|e| SharingError::LockError(e.to_string()))?;
+            sessions.keys().cloned().collect()
+        };
+
+        let mut sessions_to_load: Vec<(String, PathBuf)> = Vec::new();
+        if let Ok(entries) = std::fs::read_dir(&self.base_path) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().and_then(|s| s.to_str()) == Some("json") {
+                    if let Some(filename) = path.file_stem().and_then(|s| s.to_str()) {
+                        if !cached_ids.contains(filename) {
+                            sessions_to_load.push((filename.to_string(), path));
+                        }
+                    }
+                }
+            }
+        }
+
+        if !sessions_to_load.is_empty() {
+            let mut sessions = self
+                .sessions
+                .write()
+                .map_err(|e| SharingError::LockError(e.to_string()))?;
+
+            for (id, path) in sessions_to_load {
+                if !sessions.contains_key(&id) {
+                    if let Ok(session) = Session::load(&path) {
+                        sessions.insert(
+                            id,
+                            SessionEntry {
+                                session,
+                                version: 1,
+                                path,
+                            },
+                        );
+                    }
+                }
+            }
+        }
+
         let sessions = self
             .sessions
             .read()
