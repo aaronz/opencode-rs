@@ -73,7 +73,7 @@
       "priority": "P1",
       "title": "Circular Variable Expansion Detection",
       "description": "Add detection algorithm for circular references in variable expansion",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Detection algorithm identifies circular references",
         "Error message clearly indicates which variables are involved in the cycle",
@@ -83,7 +83,7 @@
         "cargo test -p opencode-config circular",
         "cargo test -p opencode-config variable"
       ],
-      "impl_notes": "Deferred - implement in crates/config for FR-003 variable expansion",
+      "impl_notes": "Implemented circular variable expansion detection in crates/config - Fixed test bugs in opencode-core config tests (incorrect variable paths), added integration tests in opencode-config/tests/circular_variable_tests.rs",
       "dependencies": []
     },
     {

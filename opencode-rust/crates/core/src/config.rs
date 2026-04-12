@@ -3376,7 +3376,7 @@ mod tests {
         let mut value = serde_json::json!({
             "outer": {
                 "inner": {
-                    "ref": "${outer.inner.value}"
+                    "ref": "${outer.value}"
                 },
                 "value": "deep"
             }
@@ -3403,6 +3403,7 @@ mod tests {
     #[test]
     fn test_variable_expansion_partial_string_preserved() {
         let mut value = serde_json::json!({
+            "model": "openai/gpt-4o",
             "prefix": "before-${model}-after"
         });
         let result = Config::expand_variables(&mut value);

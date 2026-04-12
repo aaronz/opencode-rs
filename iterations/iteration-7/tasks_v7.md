@@ -8,7 +8,7 @@
 
 ## P0 - Blocking Issues (Must Fix Before Release)
 
-### P0-new-2: Desktop WebView Integration ✅ Done (Iteration 7)
+### P0-new-2: ✅ Done
 - [x] **Status:** ✅ Done (Iteration 7)
 - [x] **Module:** `crates/cli`
 - [x] **FR Reference:** FR-015 (Desktop/Web/ACP Interface)
@@ -35,11 +35,11 @@
 - [x] **FR Reference:** FR-003
 - [x] **Action:** Enhanced JsoncError with source line extraction and caret display
 
-### P1-2: Circular Variable Expansion Detection
-- [ ] **Status:** Deferred
-- [ ] **Module:** `crates/config`
-- [ ] **FR Reference:** FR-003
-- [ ] **Action:** Add detection algorithm for circular references in variable expansion
+### P1-2: Circular Variable Expansion Detection ✅ Done
+- [x] **Status:** ✅ Done
+- [x] **Module:** `crates/config`
+- [x] **FR Reference:** FR-003
+- [x] **Action:** Circular variable expansion detection implemented - Fixed test bugs in opencode-core (incorrect variable paths), added integration tests in opencode-config/tests/circular_variable_tests.rs
 
 ### P1-3: Deprecated Fields Planning
 - [ ] **Status:** Deferred (planning phase)
