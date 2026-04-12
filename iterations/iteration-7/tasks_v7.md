@@ -55,7 +55,7 @@
 - [x] **Implementation:** Shift+Enter for new line in `input_widget.rs`
 - [x] **Verification:** Tests pass
 
-### P1-9: Session Sharing Between Interfaces ✅ Done (Iteration 7)
+### P1-9: ✅ Done
 - [x] **Status:** ✅ Done (Iteration 7)
 - [x] **Module:** `crates/cli`, `crates/core`
 - [x] **FR Reference:** FR-015
@@ -70,7 +70,7 @@
 ## P2 - Nice to Have (Post-Release)
 
 ### Core Architecture
-- [ ] P2-1: Project VCS worktree root distinction (`crates/core`)
+- [x] P2-1: Project VCS worktree root distinction (`crates/core`) ✅ Done
 - [x] P2-2: Workspace path validation (`crates/core`) ✅ Done
 
 ### Storage

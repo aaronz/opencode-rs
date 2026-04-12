@@ -27,11 +27,11 @@ impl ProjectManager {
             return None;
         }
 
-        let has_git = root.join(".git").exists();
+        let has_git = Self::find_git_repository(&root).is_some();
         let has_tests = root.join("tests").exists() || root.join("test").exists();
         let has_docs = root.join("docs").exists() || root.join("README.md").exists();
 
-        let worktree_root = Self::detect_worktree_root(&root);
+        let worktree_root = Self::detect_worktree_root_from_subdirectory(&root);
 
         let language = if root.join("Cargo.toml").exists() {
             "rust".to_string()
@@ -61,26 +61,49 @@ impl ProjectManager {
         })
     }
 
-    fn detect_worktree_root(root: &PathBuf) -> Option<PathBuf> {
-        let git_path = root.join(".git");
-        if !git_path.exists() {
-            return None;
+    fn find_git_repository(start: &PathBuf) -> Option<PathBuf> {
+        let mut current = start.clone();
+        loop {
+            let git_path = current.join(".git");
+            if git_path.exists() {
+                return Some(current.clone());
+            }
+            if !current.pop() {
+                break;
+            }
         }
+        None
+    }
 
-        if git_path.is_file() {
-            if let Ok(content) = std::fs::read_to_string(&git_path) {
-                for line in content.lines() {
-                    if line.starts_with("gitdir:") {
-                        let path = line.trim_start_matches("gitdir:").trim();
-                        let worktree_path = PathBuf::from(path);
-                        if let Some(parent) = worktree_path.parent() {
-                            if parent.file_name().map(|n| n == "worktrees" || n == "git")
-                                == Some(true)
-                            {
-                                if let Some(git_dir) = parent.parent() {
-                                    if let Some(project_root) = git_dir.parent() {
-                                        return Some(project_root.to_path_buf());
-                                    }
+    fn detect_worktree_root_from_subdirectory(start: &PathBuf) -> Option<PathBuf> {
+        let mut current = start.clone();
+        loop {
+            let git_path = current.join(".git");
+            if git_path.exists() {
+                if git_path.is_file() {
+                    return Self::parse_worktree_git_file(&git_path);
+                }
+                return None;
+            }
+            if !current.pop() {
+                break;
+            }
+        }
+        None
+    }
+
+    fn parse_worktree_git_file(git_path: &Path) -> Option<PathBuf> {
+        if let Ok(content) = std::fs::read_to_string(git_path) {
+            for line in content.lines() {
+                if line.starts_with("gitdir:") {
+                    let path = line.trim_start_matches("gitdir:").trim();
+                    let worktree_path = PathBuf::from(path);
+                    if let Some(parent) = worktree_path.parent() {
+                        if parent.file_name().map(|n| n == "worktrees" || n == "git") == Some(true)
+                        {
+                            if let Some(git_dir) = parent.parent() {
+                                if let Some(project_root) = git_dir.parent() {
+                                    return Some(project_root.to_path_buf());
                                 }
                             }
                         }
@@ -488,6 +511,71 @@ mod tests {
         let info = ProjectManager::detect(tmp.path().to_path_buf()).unwrap();
         assert!(!info.has_git);
         assert!(info.worktree_root.is_none());
+    }
+
+    #[test]
+    fn test_vcs_detect_worktree_from_subdirectory() {
+        let tmp = TempDir::new().unwrap();
+        let git_file = tmp.path().join(".git");
+        let main_repo_git = tmp.path().join("main-repo").join(".git");
+        let worktree_ref_path = main_repo_git.join("worktrees").join("feature-branch");
+        std::fs::create_dir_all(&worktree_ref_path).unwrap();
+        std::fs::write(
+            &git_file,
+            format!("gitdir: {}", worktree_ref_path.to_string_lossy()),
+        )
+        .unwrap();
+
+        let subdir = tmp.path().join("src").join("components");
+        std::fs::create_dir_all(&subdir).unwrap();
+
+        let info = ProjectManager::detect(subdir.clone()).unwrap();
+        assert!(info.has_git);
+        assert!(info.worktree_root.is_some());
+        assert_eq!(info.worktree_root.unwrap(), tmp.path().join("main-repo"));
+        assert_eq!(info.root, subdir);
+    }
+
+    #[test]
+    fn test_vcs_detect_regular_git_from_subdirectory() {
+        let tmp = TempDir::new().unwrap();
+        std::fs::create_dir(tmp.path().join(".git")).unwrap();
+
+        let subdir = tmp.path().join("src").join("components");
+        std::fs::create_dir_all(&subdir).unwrap();
+
+        let info = ProjectManager::detect(subdir.clone()).unwrap();
+        assert!(info.has_git);
+        assert!(info.worktree_root.is_none());
+        assert_eq!(info.root, subdir);
+    }
+
+    #[test]
+    fn test_vcs_project_root_and_worktree_root_both_accessible() {
+        let tmp = TempDir::new().unwrap();
+        let git_file = tmp.path().join(".git");
+        let main_repo_git = tmp.path().join("main-repo").join(".git");
+        let worktree_ref_path = main_repo_git.join("worktrees").join("feature-branch");
+        std::fs::create_dir_all(&worktree_ref_path).unwrap();
+        std::fs::write(
+            &git_file,
+            format!("gitdir: {}", worktree_ref_path.to_string_lossy()),
+        )
+        .unwrap();
+
+        let info = ProjectManager::detect(tmp.path().to_path_buf()).unwrap();
+        assert!(info.has_git);
+        assert!(info.worktree_root.is_some());
+        assert_eq!(info.root, tmp.path());
+        assert_eq!(info.worktree_root.unwrap(), tmp.path().join("main-repo"));
+
+        std::fs::create_dir(tmp.path().join("src")).unwrap();
+        let subdir_info = ProjectManager::detect(tmp.path().join("src")).unwrap();
+        assert_eq!(subdir_info.root, tmp.path().join("src"));
+        assert_eq!(
+            subdir_info.worktree_root.unwrap(),
+            tmp.path().join("main-repo")
+        );
     }
 
     #[test]

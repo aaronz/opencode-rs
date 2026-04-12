@@ -144,7 +144,7 @@
       "priority": "P2",
       "title": "Project VCS Worktree Root Distinction",
       "description": "Distinguish between project root and VCS worktree root in crate/core",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Project root correctly identified",
         "VCS worktree root correctly identified when inside worktree",
@@ -154,7 +154,7 @@
         "cargo test -p opencode-core vcs",
         "cargo test -p opencode-core worktree"
       ],
-      "impl_notes": "Post-release - Project VCS worktree root distinction",
+      "impl_notes": "Added find_git_repository and detect_worktree_root_from_subdirectory functions to traverse upward and detect worktrees from subdirectories. Added 3 new tests with vcs prefix.",
       "dependencies": []
     },
     {
