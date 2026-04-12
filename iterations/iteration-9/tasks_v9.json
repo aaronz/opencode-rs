@@ -5,7 +5,7 @@
       "priority": "P0",
       "title": "Fix Clippy Errors (18 total)",
       "description": "Fix all 18 clippy errors across ratatui-testing (1 error) and opencode-core (17 errors). This is a blocking P0 task that must be resolved before any other tasks can proceed.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "cargo clippy --all -- -D warnings passes with no errors",
         "All 18 clippy warnings are resolved"
@@ -21,7 +21,7 @@
       "priority": "P0",
       "title": "Add impl Default for StateTester",
       "description": "Add `impl Default for StateTester` in ratatui-testing/src/state.rs:6 to fix clippy error.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "StateTester implements Default trait",
         "cargo clippy -p ratatui-testing passes"
