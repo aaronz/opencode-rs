@@ -63,7 +63,7 @@
       "priority": "P2",
       "title": "Complete Per-Crate Test Backlog (P2-17)",
       "description": "Per-crate test coverage is incomplete. Review coverage per crate, identify missing test cases from the backlog (FR-026, FR-027), add edge case tests, and ensure mock helpers are properly used.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "Each crate has measurable test coverage for its public API",
         "Edge cases identified in FR-026 and FR-027 are covered by tests",
