@@ -46,7 +46,7 @@
       "priority": "P2",
       "title": "Resolve Remaining Clippy Warnings (P2-16)",
       "description": "Some clippy warnings remain in the codebase (not errors, so they do not block release). Identify, categorize, and fix warnings where feasible within release scope.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "`cargo clippy --all -- -W clippy::all` produces zero or documented/suppressed warnings",
         "All remaining warnings are either fixed or explicitly `#[allow(...)]`-annotated with a comment explaining why"

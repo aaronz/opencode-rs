@@ -3,9 +3,9 @@
 **Generated:** 2026-04-13  
 **Based on:** Iteration 11 gap analysis  
 **Total Tasks:** 10  
-**Completed:** 1  
+**Completed:** 2  
 **In Progress:** 1  
-**Pending:** 8  
+**Pending:** 7  
 
 ---
 
@@ -70,15 +70,21 @@
 | Field | Value |
 |-------|-------|
 | **Priority** | P2 - LOW |
-| **Status** | Deferred |
+| **Status** | ✅ Done |
 | **Module** | various |
 | **Issue** | Some clippy warnings remain (not errors) |
 | **Note** | Does not block release |
 
 **Action Items:**
-- [ ] Run `cargo clippy --all -- -W clippy::all` to identify warnings
-- [ ] Categorize warnings by severity
-- [ ] Fix warnings in non-deferred scope if time permits
+- [x] Run `cargo clippy --all -- -W clippy::all` to identify warnings
+- [x] Categorize warnings by severity
+- [x] Fix warnings in non-deferred scope if time permits
+
+**Verification:**
+```
+cargo clippy --all -- -W clippy::all  # Zero warnings
+cargo clippy --all -- -D warnings     # Passes
+```
 
 **Estimated Effort:** 4-8 hours (if deferred, skip for now)
 
@@ -228,7 +234,7 @@
 |----|------|----------|--------|------------------|
 | T-001 | Fix flaky test `test_theme_config_resolve_path_tilde_expansion` | **P1** | ✅ Done | 1-2h |
 | T-002 | Plan deprecated fields removal | **P1** | 🚧 In Progress | 2-3h |
-| T-003 | Resolve remaining clippy warnings | P2 | Deferred | 4-8h |
+| T-003 | Resolve remaining clippy warnings | P2 | ✅ Done | 4-8h |
 | T-004 | Complete per-crate test backlog | P2 | Deferred | Ongoing |
 | T-005 | Remove magic numbers in compaction | P2 | Deferred | 2-3h |
 | T-006 | Evaluate custom JSONC parser | P2 | Deferred | 4-6h |
