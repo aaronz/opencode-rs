@@ -63,7 +63,7 @@
       "priority": "P2",
       "title": "Complete Per-Crate Test Backlog (P2-17)",
       "description": "Per-crate test coverage is incomplete. Review coverage per crate, identify missing test cases from the backlog (FR-026, FR-027), add edge case tests, and ensure mock helpers are properly used.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "Each crate has measurable test coverage for its public API",
         "Edge cases identified in FR-026 and FR-027 are covered by tests",
@@ -85,7 +85,7 @@
       "priority": "P2",
       "title": "Remove Magic Numbers in Compaction (TD-007)",
       "description": "Magic numbers exist in the compaction logic in the `core` crate. Extract them to named configuration constants and add to the config schema if appropriate.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "No raw numeric literals remain in compaction logic (or are justified with comments)",
         "Extracted constants are named and documented",
@@ -96,7 +96,7 @@
         "cargo test -p opencode-core -- compaction --nocapture",
         "cargo clippy --all -- -D warnings"
       ],
-      "impl_notes": "Deferred. Search for magic numbers with `rg '[0-9]\\{3,\\}' crates/core/src/` to locate candidates. Use `const` or config fields.",
+      "impl_notes": "Extracted magic numbers to named constants: CONTEXT_PRIORITY_*, TOKEN_BUDGET_*_PERCENT, CONTEXT_RANKING_*_WEIGHT, DEFAULT_MAX_TOKENS, DEFAULT_PRESERVE_RECENT_MESSAGES, SUMMARY_TOPICS_EXTRACTION_LIMIT, SUMMARY_PREVIEW_MAX_CHARS, MAX_COMPACTION_ITERATIONS, MIN_RESERVED_TOKENS_WARNING, DEFAULT_RESERVED_TOKENS. All 24 compaction tests pass. Clippy passes.",
       "dependencies": []
     },
     {

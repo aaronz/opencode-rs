@@ -9,6 +9,28 @@ pub const COMPACTION_WARN_THRESHOLD: f32 = 0.85;
 pub const COMPACTION_START_THRESHOLD: f32 = 0.92;
 pub const COMPACTION_FORCE_THRESHOLD: f32 = 0.95;
 
+const CONTEXT_PRIORITY_SYSTEM: u8 = 100;
+const CONTEXT_PRIORITY_PROMPT: u8 = 90;
+const CONTEXT_PRIORITY_PROJECT: u8 = 80;
+const CONTEXT_PRIORITY_SESSION: u8 = 50;
+const CONTEXT_PRIORITY_TOOL: u8 = 20;
+
+const TOKEN_BUDGET_MAIN_CONTEXT_PERCENT: f64 = 0.70;
+const TOKEN_BUDGET_TOOL_OUTPUT_PERCENT: f64 = 0.20;
+const TOKEN_BUDGET_RESPONSE_SPACE_PERCENT: f64 = 0.10;
+
+const CONTEXT_RANKING_RECENTCY_WEIGHT: f64 = 0.4;
+const CONTEXT_RANKING_RELEVANCE_WEIGHT: f64 = 0.3;
+const CONTEXT_RANKING_IMPORTANCE_WEIGHT: f64 = 0.3;
+
+const DEFAULT_MAX_TOKENS: usize = 100_000;
+const DEFAULT_PRESERVE_RECENT_MESSAGES: usize = 10;
+const SUMMARY_TOPICS_EXTRACTION_LIMIT: usize = 5;
+const SUMMARY_PREVIEW_MAX_CHARS: usize = 80;
+const MAX_COMPACTION_ITERATIONS: usize = 10;
+const MIN_RESERVED_TOKENS_WARNING: u32 = 5000;
+const DEFAULT_RESERVED_TOKENS: u32 = 10_000;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompactionError {
     InvalidReserved(u32),
@@ -59,11 +81,11 @@ pub enum ContextLevel {
 impl ContextLevel {
     pub fn priority(&self) -> u8 {
         match self {
-            ContextLevel::L0 => 100, // System - highest priority
-            ContextLevel::L4 => 90,  // Current prompt - very high
-            ContextLevel::L1 => 80,  // Project context - high
-            ContextLevel::L2 => 50,  // Recent session - medium
-            ContextLevel::L3 => 20,  // Tool results - lower
+            ContextLevel::L0 => CONTEXT_PRIORITY_SYSTEM,
+            ContextLevel::L4 => CONTEXT_PRIORITY_PROMPT,
+            ContextLevel::L1 => CONTEXT_PRIORITY_PROJECT,
+            ContextLevel::L2 => CONTEXT_PRIORITY_SESSION,
+            ContextLevel::L3 => CONTEXT_PRIORITY_TOOL,
         }
     }
 }
@@ -97,9 +119,9 @@ impl Default for TokenBudget {
         Self {
             total: 128_000,
             model_max_tokens: Self::default_model_max_tokens(),
-            main_context_percent: 0.70,
-            tool_output_percent: 0.20,
-            response_space_percent: 0.10,
+            main_context_percent: TOKEN_BUDGET_MAIN_CONTEXT_PERCENT,
+            tool_output_percent: TOKEN_BUDGET_TOOL_OUTPUT_PERCENT,
+            response_space_percent: TOKEN_BUDGET_RESPONSE_SPACE_PERCENT,
             warning_threshold: COMPACTION_WARN_THRESHOLD as f64,
             compact_threshold: COMPACTION_START_THRESHOLD as f64,
             continuation_threshold: COMPACTION_FORCE_THRESHOLD as f64,
@@ -229,7 +251,9 @@ pub struct ContextRanking {
 
 impl ContextRanking {
     pub fn new(message_index: usize, recency: f64, relevance: f64, importance: f64) -> Self {
-        let overall = recency * 0.4 + relevance * 0.3 + importance * 0.3;
+        let overall = recency * CONTEXT_RANKING_RECENTCY_WEIGHT
+            + relevance * CONTEXT_RANKING_RELEVANCE_WEIGHT
+            + importance * CONTEXT_RANKING_IMPORTANCE_WEIGHT;
         Self {
             message_index,
             recency,
@@ -298,9 +322,9 @@ pub struct CompactionConfig {
 impl Default for CompactionConfig {
     fn default() -> Self {
         Self {
-            max_tokens: 100_000,
+            max_tokens: DEFAULT_MAX_TOKENS,
             preserve_system_messages: true,
-            preserve_recent_messages: 10,
+            preserve_recent_messages: DEFAULT_PRESERVE_RECENT_MESSAGES,
             summary_prefix: "[Context compacted]".to_string(),
             token_budget: TokenBudget::default(),
         }
@@ -368,9 +392,10 @@ impl Compactor {
             let topics: Vec<String> = pruned
                 .iter()
                 .filter(|m| m.role == Role::User)
-                .take(5)
+                .take(SUMMARY_TOPICS_EXTRACTION_LIMIT)
                 .map(|m| {
-                    let preview: String = m.content.chars().take(80).collect();
+                    let preview: String =
+                        m.content.chars().take(SUMMARY_PREVIEW_MAX_CHARS).collect();
                     format!("- {}", preview)
                 })
                 .collect();
@@ -409,7 +434,10 @@ impl Compactor {
         let mut result = self.compact(messages);
         let mut iterations = 0;
 
-        while result.was_compacted && self.needs_compaction(&result.messages) && iterations < 10 {
+        while result.was_compacted
+            && self.needs_compaction(&result.messages)
+            && iterations < MAX_COMPACTION_ITERATIONS
+        {
             let prev_count = result.messages.len();
             let next = self.compact(result.messages);
             result.pruned_count += next.pruned_count;
@@ -433,10 +461,11 @@ impl Compactor {
             return Err(CompactionError::InvalidReserved(reserved));
         }
 
-        if reserved < 5000 {
+        if reserved < MIN_RESERVED_TOKENS_WARNING {
             warn!(
                 reserved,
-                "compaction reserved tokens below recommended minimum (5000)"
+                "compaction reserved tokens below recommended minimum ({})",
+                MIN_RESERVED_TOKENS_WARNING
             );
         }
 
@@ -501,7 +530,7 @@ impl Compactor {
             return Ok(false);
         }
 
-        let reserved = config.reserved.unwrap_or(10_000);
+        let reserved = config.reserved.unwrap_or(DEFAULT_RESERVED_TOKENS);
         Self::validate_reserved(reserved)?;
         if reserved as usize >= model_max_context {
             return Err(CompactionError::ReservedExceedsModelContext {
@@ -526,7 +555,9 @@ impl Compactor {
         }
 
         let token_budget = TokenBudget::from_config(config, model_max_context);
-        let preserve_recent = config.preserve_recent_messages.unwrap_or(10);
+        let preserve_recent = config
+            .preserve_recent_messages
+            .unwrap_or(DEFAULT_PRESERVE_RECENT_MESSAGES);
         let preserve_system = config.preserve_system_messages.unwrap_or(true);
         let summary_prefix = config
             .summary_prefix
