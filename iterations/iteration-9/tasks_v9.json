@@ -265,7 +265,7 @@
       "priority": "P0",
       "title": "Run Build After P0-9 Fixes",
       "description": "Run cargo build --release and verify it compiles successfully after all P0-9 fixes are applied.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "cargo build --release exits with code 0",
         "Binary produced successfully"

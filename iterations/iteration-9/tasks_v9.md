@@ -70,8 +70,8 @@
 ## Verification Tasks
 
 ### After P0-9 Fixes
-- [ ] Run `cargo clippy --all -- -D warnings` - must pass
-- [ ] Run `cargo build --release` - must compile
+- [x] Run `cargo clippy --all -- -D warnings` - must pass
+- [x] Run `cargo build --release` - must compile
 - [ ] Run `cargo test` - all tests must pass
 
 ### Phase 6 Release Qualification
