@@ -68,14 +68,14 @@
       "priority": "P0",
       "title": "Fix needless_borrows_for_generic_args in config.rs",
       "description": "Remove unnecessary borrow at config.rs line 2068 to fix needless_borrows_for_generic_args clippy warning.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "clippy needless_borrows_for_generic_args warning resolved"
       ],
       "test_commands": [
         "cargo clippy -p opencode-core -- -D warnings"
       ],
-      "impl_notes": "Remove unnecessary borrow in generic type context.",
+      "impl_notes": "Fixed in commit a7e89e0 as part of P0-9 clippy fixes. Clippy passes with -D warnings.",
       "dependencies": []
     },
     {
