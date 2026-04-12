@@ -229,7 +229,7 @@
       "priority": "P2",
       "title": "Per-Crate Test Backlog",
       "description": "Continue per-crate test implementation and address test coverage gaps.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Test coverage gaps identified",
         "Per-crate tests implemented for priority crates"

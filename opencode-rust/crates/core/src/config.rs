@@ -1970,16 +1970,7 @@ impl Config {
             }
         }
 
-        // Priority 2: OPENCODE_CONFIG_CONTENT env var
-        if let Ok(content) = std::env::var("OPENCODE_CONFIG_CONTENT") {
-            if let Ok(content) = Self::substitute_variables(&content, None) {
-                if let Ok(config) = Self::parse_config_content(&content, "json") {
-                    configs.push(("env-content".to_string(), config));
-                }
-            }
-        }
-
-        // Priority 3: OPENCODE_CONFIG path
+        // Priority 2: OPENCODE_CONFIG path
         if let Ok(config_path) = std::env::var("OPENCODE_CONFIG") {
             let path = PathBuf::from(config_path);
             if path.exists() {
@@ -1993,6 +1984,15 @@ impl Config {
                 }
                 let config = Self::load(&path)?;
                 configs.push(("env-path".to_string(), config));
+            }
+        }
+
+        // Priority 3: OPENCODE_CONFIG_CONTENT env var (overrides OPENCODE_CONFIG file)
+        if let Ok(content) = std::env::var("OPENCODE_CONFIG_CONTENT") {
+            if let Ok(content) = Self::substitute_variables(&content, None) {
+                if let Ok(config) = Self::parse_config_content(&content, "json") {
+                    configs.push(("env-content".to_string(), config));
+                }
             }
         }
 
@@ -4535,7 +4535,7 @@ api_key = "sk-test123"
         let config_content = serde_json::json!({
             "model": "config-file-model",
             "temperature": 0.3,
-            "max_tokens": 1000
+            "maxTokens": 1000
         })
         .to_string();
         fs::write(&config_path, config_content).unwrap();

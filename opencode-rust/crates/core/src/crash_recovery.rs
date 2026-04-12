@@ -601,13 +601,13 @@ mod tests {
         assert!(!recovery.has_recoverable_crash("session-none"));
 
         let mut session = create_test_session();
-        session.id = uuid::Uuid::parse_str("rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr").unwrap();
+        session.id = uuid::Uuid::parse_str("dddddddd-dddd-dddd-dddd-ddddddddaaaa").unwrap();
         recovery.set_active_session(session);
         recovery
             .save_crash_dump(Some("panic".to_string()), None)
             .unwrap();
 
-        assert!(recovery.has_recoverable_crash("rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr"));
+        assert!(recovery.has_recoverable_crash("dddddddd-dddd-dddd-dddd-ddddddddaaaa"));
     }
 
     #[test]
