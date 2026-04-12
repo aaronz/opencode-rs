@@ -7,6 +7,7 @@ pub mod experimental;
 pub mod language;
 pub mod launch;
 pub mod manager;
+pub mod mock;
 pub mod server;
 pub mod types;
 
@@ -23,5 +24,6 @@ pub use experimental::{ExperimentalLspTool, ExperimentalLspToolArgs};
 pub use language::Language;
 pub use launch::LaunchConfig;
 pub use manager::LspManager;
+pub use mock::MockLspServer;
 pub use server::LspServer;
 pub use types::{Diagnostic, Location, Severity, Symbol};

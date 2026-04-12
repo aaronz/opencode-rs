@@ -262,7 +262,7 @@
       "priority": "P2",
       "title": "Experimental LSP Tool Testing",
       "description": "Add testing support for experimental LSP tool in crate/lsp",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "LSP tool can be tested in isolation",
         "Mock LSP server responds correctly",
@@ -271,7 +271,7 @@
       "test_commands": [
         "cargo test -p opencode-lsp"
       ],
-      "impl_notes": "Post-release - Experimental LSP tool testing",
+      "impl_notes": "Done (Iteration 7) - Added MockLspServer for testing support with unit and integration tests",
       "dependencies": []
     },
     {

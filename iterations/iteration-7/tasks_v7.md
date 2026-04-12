@@ -85,7 +85,7 @@
 - [x] P2-7: Context cost warnings (`crates/mcp`) ✅ Done (Iteration 7, context_cost.rs)
 
 ### LSP
-- [ ] P2-8: Experimental LSP tool testing (`crates/lsp`)
+- [x] P2-8: Experimental LSP tool testing (`crates/lsp`) ✅ Done (Iteration 7, MockLspServer added)
 
 ### Server
 - [ ] P2-9: API error shape consistency enforcement (`crates/server`)
