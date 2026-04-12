@@ -98,14 +98,14 @@
       "priority": "P0",
       "title": "Fix redundant_closure in session_sharing.rs",
       "description": "Use ok_or instead of redundant closure at session_sharing.rs line 323.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "clippy redundant_closure warning resolved"
       ],
       "test_commands": [
         "cargo clippy -p opencode-core -- -D warnings"
       ],
-      "impl_notes": "Replace closure with ok_or method call.",
+      "impl_notes": "Fixed in commit a7e89e0 as part of P0-9 clippy fixes. Changed `.ok_or_else(|| SharingError::SessionNotFound(id_str))` to `.ok_or(SharingError::SessionNotFound(id_str))`.",
       "dependencies": []
     },
     {
