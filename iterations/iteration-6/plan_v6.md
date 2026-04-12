@@ -78,7 +78,7 @@
 
 | ID | Task | Module | Status | Action |
 |----|------|--------|--------|--------|
-| P1-1 | JSONC error messages clarity | config | Deferred | Improve error messages |
+| P1-1 | JSONC error messages clarity | config | ✅ Done | Enhanced error formatting |
 | P1-2 | Circular variable expansion detection | config | Deferred | Add detection algorithm |
 | P1-3 | Deprecated fields (mode, tools, theme, keybinds) | config | Deferred | Remove in v4.0 |
 | P1-5 | Multiline input terminal support | tui | Deferred | Shift+Enter for new line |

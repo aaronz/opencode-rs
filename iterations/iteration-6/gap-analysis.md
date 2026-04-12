@@ -94,7 +94,7 @@ This report analyzes the gaps between the current implementation and the PRD spe
 
 | ID | Issue | Module | FR Reference | Status | Resolution |
 |----|-------|--------|---------------|--------|------------|
-| P1-1 | JSONC error messages clarity | config | FR-003 | Deferred | Improve error messages |
+| P1-1 | JSONC error messages clarity | config | FR-003 | ✅ Done | Enhanced error formatting |
 | P1-2 | Circular variable expansion detection | config | FR-003 | Deferred | Add detection algorithm |
 | P1-3 | Deprecated fields (mode, tools, theme, keybinds) | config | FR-003 | Deferred | Remove in v4.0 |
 | P1-4 | Slash commands (`/compact`, `/connect`, `/help`) | tui | FR-018 | ✅ Done | Completed in Iteration 5 |

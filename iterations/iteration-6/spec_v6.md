@@ -71,7 +71,7 @@ This document defines the specification for the OpenCode Rust port implementatio
   - Auth/secret storage paths ✅
   - Config ownership boundary: `opencode.json` vs `tui.json` split ✅
 - **P1 Gaps:**
-  - JSONC error messages could be clearer (P1-1 - deferred)
+  - JSONC error messages improved with source line display and caret (P1-1 - ✅ Done)
   - Circular variable expansion detection incomplete (P1-2 - deferred)
   - Deprecated fields remaining: `mode`, `tools`, `theme`, `keybinds` (P1-3 - deferred)
 
@@ -458,7 +458,7 @@ This document defines the specification for the OpenCode Rust port implementatio
 
 | ID | Issue | Module | FR Reference | Status |
 |----|-------|--------|---------------|--------|
-| P1-1 | JSONC error messages clarity | config | FR-003 | Deferred |
+| P1-1 | JSONC error messages clarity | config | FR-003 | ✅ Done |
 | P1-2 | Circular variable expansion detection | config | FR-003 | Deferred |
 | P1-3 | Deprecated fields (mode, tools, theme, keybinds) | config | FR-003 | Deferred |
 | P1-5 | Multiline input terminal support | tui | FR-018 | Deferred |
@@ -467,6 +467,7 @@ This document defines the specification for the OpenCode Rust port implementatio
 **Completed P1 Issues:**
 | ID | Issue | Status |
 |----|-------|--------|
+| P1-1 | JSONC error messages clarity | ✅ Done |
 | P1-4 | Slash commands (`/compact`, `/connect`, `/help`) | ✅ Done |
 | P1-6 | File reference autocomplete improvement | ✅ Done |
 | P1-7 | TUI Plugin dialogs incomplete | ✅ Done |

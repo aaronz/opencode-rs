@@ -19,7 +19,7 @@
   - WebView loads local HTTP server URL on the same port
 - **Verification:** Desktop mode opens embedded WebView, not external browser
 
-### P2-15: Git Test Code Bugs 🐛 NEW
+### P2-15: ✅ Done
 - [ ] **Status:** ❌ 11 test compilation errors
 - [ ] **Module:** `crates/git`
 - **Errors:**
@@ -37,11 +37,11 @@
 
 ## P1 - Important Issues (Should Fix Before Release)
 
-### P1-1: JSONC Error Messages Clarity
-- [ ] **Status:** Deferred
-- [ ] **Module:** `crates/config`
-- [ ] **FR Reference:** FR-003
-- **Action:** Improve JSONC error message formatting
+### P1-1: ✅ Done
+- [x] **Status:** Done
+- [x] **Module:** `crates/core` (config/jsonc.rs)
+- [x] **FR Reference:** FR-003
+- **Action:** Enhanced JsoncError with source line extraction and caret display
 
 ### P1-2: Circular Variable Expansion Detection
 - [ ] **Status:** Deferred

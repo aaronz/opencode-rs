@@ -9,6 +9,7 @@ pub enum JsoncError {
         column: usize,
         message: String,
         context: String,
+        source_line: Option<String>,
     },
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
@@ -16,6 +17,10 @@ pub enum JsoncError {
 
 impl JsoncError {
     pub fn new_parse_error(raw_error: json5::Error) -> Self {
+        Self::new_parse_error_with_source(raw_error, "")
+    }
+
+    pub fn new_parse_error_with_source(raw_error: json5::Error, source: &str) -> Self {
         let (line, column, message) = match raw_error {
             json5::Error::Message { msg, location } => {
                 let (line, column) = location.map(|loc| (loc.line, loc.column)).unwrap_or((1, 1));
@@ -23,44 +28,58 @@ impl JsoncError {
             }
         };
         let context = Self::generate_context(&message);
+        let source_line = Self::extract_source_line(source, line);
 
         JsoncError::Parse {
             line,
             column,
             message,
             context,
+            source_line,
         }
     }
 
+    fn extract_source_line(source: &str, line_num: usize) -> Option<String> {
+        if source.is_empty() {
+            return None;
+        }
+        source
+            .lines()
+            .nth(line_num.saturating_sub(1))
+            .map(|l| l.to_string())
+    }
+
     fn generate_context(message: &str) -> String {
-        if message.contains("double-quote") || message.contains("quote") {
-            "JSON requires double quotes for strings. Replace single quotes with double quotes."
+        let msg_lower = message.to_lowercase();
+        if msg_lower.contains("double-quote") || msg_lower.contains("single-quote") {
+            "JSON requires double quotes for strings. Replace any single quotes with double quotes."
                 .to_string()
-        } else if message.contains("trailing") && message.contains("comma") {
-            "Remove the trailing comma before the closing bracket/brace.".to_string()
-        } else if message.contains("missing")
-            && (message.contains("colon")
-                || message.contains(":")
-                || message.contains("comma")
-                || message.contains(","))
-        {
-            "Ensure all object properties are separated by commas.".to_string()
-        } else if message.contains("missing")
-            && (message.contains("quote") || message.contains("\""))
-        {
-            "Ensure all string values are enclosed in double quotes.".to_string()
-        } else if message.contains("colon") || message.contains(":") {
-            "Check that property names are followed by a colon.".to_string()
-        } else if message.contains("bracket") || message.contains("]") {
-            "Check for mismatched or missing square brackets.".to_string()
-        } else if message.contains("brace") || message.contains("}") {
-            "Check for mismatched or missing curly braces.".to_string()
-        } else if message.contains("comment") {
-            "JSONC comments (// or /* */) are only allowed in .jsonc files, not .json files. Consider renaming to .jsonc or removing comments.".to_string()
-        } else if message.contains("escape") {
-            "Check for invalid escape sequences in strings. Use \\\\ for backslashes, \\\" for quotes.".to_string()
+        } else if msg_lower.contains("trailing comma") {
+            "Remove the trailing comma before the closing bracket or brace.".to_string()
+        } else if msg_lower.contains("missing comma") {
+            "Add a comma after each property except the last one in objects and arrays.".to_string()
+        } else if msg_lower.contains("missing colon") || msg_lower.contains("expected colon") {
+            "Ensure each property name is followed by a colon (:).".to_string()
+        } else if msg_lower.contains("unterminated string") {
+            "String values must be enclosed in double quotes. Check for missing closing quotes."
+                .to_string()
+        } else if msg_lower.contains("invalid escape") || msg_lower.contains("unknown escape") {
+            "Use valid escape sequences: \\\\ for backslash, \\\" for double quote, \\n for newline, \\t for tab.".to_string()
+        } else if msg_lower.contains("unexpected token") || msg_lower.contains("unexpected end") {
+            if msg_lower.contains("comment") {
+                "JSONC comments (// or /* */) require proper syntax. Ensure multi-line comments close with */.".to_string()
+            } else {
+                "Check for mismatched brackets, braces, or quotes in the affected area.".to_string()
+            }
+        } else if msg_lower.contains("comment") {
+            "JSONC comments (// or /* */) are only allowed in .jsonc files, not .json files. Consider renaming the file to .jsonc or removing comments.".to_string()
+        } else if msg_lower.contains("bracket") || msg_lower.contains("]") {
+            "Check for mismatched or missing square brackets [ ].".to_string()
+        } else if msg_lower.contains("brace") || msg_lower.contains("}") {
+            "Check for mismatched or missing curly braces { }.".to_string()
         } else {
-            "Check the JSON/JSONC syntax near the error location.".to_string()
+            "Review the JSON/JSONC syntax near the error location for missing or extra characters."
+                .to_string()
         }
     }
 
@@ -72,21 +91,47 @@ impl JsoncError {
                 column,
                 message,
                 context,
+                source_line,
             } => {
-                format!(
-                    "Failed to parse JSONC file '{}': {} at line {}, column {}.\nHint: {}",
-                    path_str, message, line, column, context
-                )
+                let location = format!("line {}, column {}", line, column);
+                let mut result = format!(
+                    "Failed to parse JSONC file '{}': {}\n  --> {}",
+                    path_str, message, location
+                );
+
+                if let Some(ref line_content) = source_line {
+                    result.push_str(&format!(
+                        "\n  |\n  | {}\n  | {}^",
+                        line_content,
+                        " ".repeat(*column - 1)
+                    ));
+                }
+
+                result.push_str(&format!("\n  = help: {}", context));
+                result
             }
             JsoncError::Io(e) => {
                 format!("Failed to read JSONC file '{}': {}", path_str, e)
             }
         }
     }
+
+    pub fn with_source(mut self, source: &str) -> Self {
+        if let JsoncError::Parse {
+            ref mut source_line,
+            line,
+            ..
+        } = self
+        {
+            *source_line = Self::extract_source_line(source, line);
+        }
+        self
+    }
 }
 
 pub fn parse_jsonc(content: &str) -> Result<Value, JsoncError> {
-    json5::from_str(content).map_err(JsoncError::new_parse_error)
+    json5::from_str(content)
+        .map_err(|e| JsoncError::new_parse_error_with_source(e, content).with_source(content))
 }
 
 pub(crate) fn strip_jsonc_comments(input: &str) -> String {

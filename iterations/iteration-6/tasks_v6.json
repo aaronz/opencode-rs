@@ -40,7 +40,7 @@
       "priority": "P1",
       "title": "JSONC Error Messages Clarity",
       "description": "Improve JSONC error message formatting for better user understanding. FR-003 reference.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "JSONC parsing errors show clear line/column information",
         "Error messages are user-friendly"
@@ -48,7 +48,7 @@
       "test_commands": [
         "cargo test --package opencode-config -- jsonc"
       ],
-      "impl_notes": "Deferred - improve error formatting in crates/config",
+      "impl_notes": "Enhanced JsoncError to show source line with caret marker. Improved generate_context() with case-insensitive matching and more user-friendly hints. Updated with_file_path() to display error in clear format.",
       "dependencies": []
     },
     {

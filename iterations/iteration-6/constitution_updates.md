@@ -40,7 +40,7 @@ Iteration 5's Constitution (v2.1) with Amendments A-D successfully addressed:
 | Art VI §6.1 | Desktop WebView | ❌ Still stub (P0-new-2) |
 | Art VI §6.2 | ACP HTTP+SSE transport | ✅ **IMPLEMENTED** |
 | Amend A §A.1 | Build integrity gate | ✅ RESOLVED (P0-new-1) |
-| Amend B §B.1 | JSONC error messages | ⚠️ Deferred (P1-1) |
+| Amend B §B.1 | JSONC error messages | ✅ **IMPLEMENTED** (P1-1) |
 | Amend B §B.2 | Circular variable expansion | ⚠️ Deferred (P1-2) |
 | Amend C §C.1 | Slash command contract | ✅ VERIFIED |
 | Amend C §C.2 | TUI Plugin dialogs | ✅ **IMPLEMENTED** (P1-7) |
@@ -262,7 +262,7 @@ async fn bind_available_port() -> tokio::net::TcpListener {
 
 | Item | Gap ID | Constraint | Target |
 |------|--------|------------|--------|
-| JSONC error messages | P1-1 | Improve error quality | Future |
+| JSONC error messages | P1-1 | ✅ Implemented | - |
 | Circular variable detection | P1-2 | Add detection algorithm | Future |
 | Deprecated field warnings | P1-3, Amend D §D.2 | Emit warnings at startup | Future |
 | Multiline input | P1-5 | Shift+Enter support | Future |
