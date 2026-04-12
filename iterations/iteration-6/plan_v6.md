@@ -91,7 +91,7 @@
 | P2-1 | Project VCS worktree root distinction | core | Deferred | |
 | P2-2 | Workspace path validation | core | Deferred | |
 | P2-3 | Compaction shareability verification | storage | ✅ Done | |
-| P2-4 | Deterministic collision resolution | tools | Deferred | |
+| P2-4 | Deterministic collision resolution | tools | ✅ Done | |
 | P2-5 | Result caching invalidation | tools | Deferred | |
 | P2-6 | Per-server OAuth verification | mcp | Deferred | |
 | P2-7 | Context cost warnings | mcp | Deferred | |

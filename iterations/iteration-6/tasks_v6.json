@@ -169,7 +169,7 @@
       "priority": "P2",
       "title": "Deterministic collision resolution",
       "description": "Implement deterministic collision resolution in crates/tools.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Tool name collisions are resolved deterministically",
         "Same input always produces same resolution"

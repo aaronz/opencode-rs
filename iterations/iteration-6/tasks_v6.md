@@ -85,7 +85,7 @@
 - [x] P2-3: Compaction shareability verification (`crates/storage`)
 
 ### Tools
-- [ ] P2-4: Deterministic collision resolution (`crates/tools`)
+- [x] P2-4: Deterministic collision resolution (`crates/tools`)
 - [ ] P2-5: Result caching invalidation (`crates/tools`)
 
 ### MCP
