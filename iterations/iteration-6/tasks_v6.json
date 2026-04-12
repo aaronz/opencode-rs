@@ -249,7 +249,7 @@
       "priority": "P2",
       "title": "API error shape consistency enforcement",
       "description": "Enforce consistent API error shape in crates/server.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "All API errors follow consistent JSON structure",
         "Error responses include required fields"

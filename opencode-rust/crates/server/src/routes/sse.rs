@@ -2,6 +2,8 @@ use std::sync::Arc;
 
 use actix_web::{web, Error, HttpRequest, HttpResponse};
 use futures::stream::{self, Stream};
+
+use crate::routes::error::ErrorResponse;
 use opencode_core::bus::InternalEvent;
 use opencode_core::{Message as CoreMessage, Session};
 use serde::Deserialize;
@@ -289,13 +291,11 @@ pub async fn sse_send_message(
         Ok(Some(s)) => s,
         Ok(None) => Session::new(),
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(StreamMessage::Error {
-                    session_id: Some(session_id),
-                    code: "session_load_error".to_string(),
-                    message: e.to_string(),
-                }),
-            );
+            return Ok(ErrorResponse::storage_error(format!(
+                "Failed to load session {}: {}",
+                session_id, e
+            ))
+            .to_response(actix_web::http::StatusCode::INTERNAL_SERVER_ERROR));
         }
     };
 

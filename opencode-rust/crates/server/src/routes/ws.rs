@@ -12,6 +12,7 @@ use serde::Deserialize;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
 
+use crate::routes::error::json_error;
 use crate::streaming::conn_state::ConnectionType;
 use crate::streaming::heartbeat::HeartbeatManager;
 use crate::streaming::{ReplayEntry, StreamMessage};
@@ -90,13 +91,11 @@ pub async fn ws_index(
                 .unregister_connection(&connection_id, "handshake_failed")
                 .await;
 
-            return Ok(HttpResponse::BadRequest()
-                .content_type("application/json")
-                .json(serde_json::json!({
-                    "error": "websocket_handshake_failed",
-                    "message": "Failed to establish WebSocket connection",
-                    "details": e.to_string()
-                })));
+            return Ok(json_error(
+                actix_web::http::StatusCode::BAD_REQUEST,
+                "websocket_handshake_failed",
+                format!("Failed to establish WebSocket connection: {}", e),
+            ));
         }
     };
 
