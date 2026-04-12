@@ -114,10 +114,10 @@ cargo clippy --all -- -D warnings  # passes
 
 ### P1-3: Deprecated Fields
 
-- [ ] **Task:** Plan removal of deprecated `mode` field
+- [x] **Task:** Plan removal of deprecated `mode` field ✅
   - **Module:** config
-  - **Status:** In Progress
-  - **Notes:** Full removal deferred to v4.0
+  - **Status:** Done
+  - **Notes:** Full removal deferred to v4.0. Migration plan documented in `P1-3-1_mode_field_removal_plan.md`
   - **Related:** TD-003, TD-004, TD-005, TD-006
 
 ---
@@ -147,9 +147,9 @@ cargo clippy -p opencode-core -- -D warnings
 | Category | Total | Completed | Remaining |
 |----------|-------|----------|-----------|
 | P0 Tasks | 18 | 18 | 0 |
-| P1 Tasks | 1 | 0 | 1 |
+| P1 Tasks | 1 | 1 | 0 |
 | P2 Tasks | 2 | 0 | 2 |
-| **Total** | **21** | **18** | **3** |
+| **Total** | **21** | **19** | **2** |
 
 ---
 

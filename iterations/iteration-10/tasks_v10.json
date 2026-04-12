@@ -180,14 +180,14 @@
       "id": "P1-3-1",
       "priority": "P1",
       "title": "Plan removal of deprecated mode field",
-      "description": "Plan full removal of deprecated mode field. Status: In Progress. Full removal deferred to v4.0. Related: TD-003, TD-004, TD-005, TD-006.",
-      "status": "todo",
+      "description": "Plan full removal of deprecated mode field. Status: Done. Full removal deferred to v4.0. Related: TD-003, TD-004, TD-005, TD-006.",
+      "status": "done",
       "test_criteria": [
         "Removal plan documented",
         "Migration path for mode field to permission field established"
       ],
       "test_commands": [],
-      "impl_notes": "This is a planning task. Full removal deferred to v4.0. Coordinate with P0-9-2, P0-9-3, P0-9-6.",
+      "impl_notes": "Planning task complete. Created P1-3-1_mode_field_removal_plan.md with full migration path documentation. Dependencies P0-9-2, P0-9-3, P0-9-6 all completed.",
       "dependencies": [
         "P0-9-2",
         "P0-9-3",
