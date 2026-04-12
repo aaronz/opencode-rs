@@ -2,6 +2,7 @@ use crate::{Tool, ToolResult};
 use async_trait::async_trait;
 use opencode_core::OpenCodeError;
 use serde::Deserialize;
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 pub struct GlobTool;
@@ -28,6 +29,16 @@ impl Tool for GlobTool {
 
     fn is_safe(&self) -> bool {
         true
+    }
+
+    fn get_dependencies(&self, args: &serde_json::Value) -> HashSet<PathBuf> {
+        let mut deps = HashSet::new();
+        if let Some(path) = args.get("path").and_then(|v| v.as_str()) {
+            deps.insert(PathBuf::from(path));
+        } else {
+            deps.insert(PathBuf::from("."));
+        }
+        deps
     }
 
     async fn execute(

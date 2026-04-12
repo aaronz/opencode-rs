@@ -185,7 +185,7 @@
       "priority": "P2",
       "title": "Result caching invalidation",
       "description": "Implement result caching invalidation in crates/tools.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Cache is invalidated when source changes",
         "Cache miss triggers recomputation"
