@@ -94,7 +94,7 @@
 - [x] P2-10: Plugin cleanup/unload (`crates/plugin`) ✅ Done (Iteration 7)
 
 ### TUI
-- [ ] P2-11: Shell prefix (`!`) handler (`crates/tui`)
+- [x] P2-11: Shell prefix (`!`) handler (`crates/tui`) ✅ Done
 - [ ] P2-12: Home view completion (`crates/tui`)
 
 ### LLM

@@ -117,13 +117,13 @@ This report analyzes the gaps between the current implementation and the PRD spe
 | P2-8 | Experimental LSP tool testing | lsp | FR-011 | Deferred | |
 | P2-9 | API error shape consistency | server | FR-004 | Deferred | |
 | P2-10 | Plugin cleanup/unload | plugin | FR-008 | ✅ Done | |
-| P2-11 | Shell prefix (`!`) handler | tui | FR-018 | Deferred | |
+| P2-11 | Shell prefix (`!`) handler | tui | FR-018 | ✅ Done | Implemented via InputParser and ShellHandler |
 | P2-12 | Home view completion | tui | FR-018 | Deferred | |
 | P2-13 | LLM variant/reasoning budget | llm | FR-012 | Deferred | |
 | P2-14 | GitLab Duo experimental marking | git | FR-017 | Deferred | Marked as experimental in docs |
 | **P2-15** | **Git test code bugs** | **git** | **n/a** | ❌ **BUG** | 8 duplicate test names, unused imports |
 
-**P2 Issues Summary:** 10 deferred, 4 completed, 1 bug
+**P2 Issues Summary:** 9 deferred, 5 completed, 1 bug
 
 ---
 

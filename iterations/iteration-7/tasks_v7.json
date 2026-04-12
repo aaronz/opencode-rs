@@ -315,7 +315,7 @@
       "priority": "P2",
       "title": "Shell Prefix (!) Handler",
       "description": "Implement shell prefix (!) handler in TUI for direct shell commands",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Commands starting with ! are executed as shell commands",
         "Output is displayed correctly",
@@ -324,7 +324,7 @@
       "test_commands": [
         "cargo test -p opencode-tui shell"
       ],
-      "impl_notes": "Post-release - Shell prefix (!) handler",
+      "impl_notes": "Done - Shell prefix (!) handler implemented via InputParser for detection and ShellHandler for execution with full test coverage",
       "dependencies": []
     },
     {

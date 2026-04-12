@@ -99,7 +99,7 @@
 | P2-8 | Experimental LSP tool testing | lsp | Deferred | |
 | P2-9 | API error shape consistency | server | Deferred | |
 | P2-10 | Plugin cleanup/unload | plugin | ✅ **Done** | Iteration 7 |
-| P2-11 | Shell prefix (`!`) handler | tui | Deferred | |
+| P2-11 | Shell prefix (`!`) handler | tui | ✅ **Done** | Iteration 7 |
 | P2-12 | Home view completion | tui | Deferred | |
 | P2-13 | LLM variant/reasoning budget | llm | Deferred | |
 | P2-14 | GitLab Duo experimental marking | git | Deferred | Marked experimental in docs |

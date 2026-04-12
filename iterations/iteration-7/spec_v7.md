@@ -308,14 +308,14 @@ This document defines the specification for the OpenCode Rust port implementatio
   - **Slash commands ✅ (All implemented: `/compact`, `/connect`, `/help`)**
   - **Multiline input ✅ (P1-5 - ✅ DONE in Iteration 7)**
   - File references (`@`) fuzzy search ✅
-  - Shell prefix (`!`) execution ❌ (P2-11 - deferred)
+  - Shell prefix (`!`) execution ✅ (P2-11 - Done)
   - Keybinding system ✅ (leader key, categories)
   - Sidebar (file tree, MCP/LSP status, diagnostics) ✅
   - Home view ⚠️ (P2-12 - partial: recent sessions, quick actions)
 - **P1 Gaps:**
   - Multiline input terminal support (P1-5 - ✅ Done in Iteration 7)
 - **P2 Gaps:**
-  - Shell prefix (`!`) handler (P2-11 - deferred)
+  - Shell prefix (`!`) handler ✅ (P2-11 - Done)
   - Home view completion (P2-12 - deferred)
 
 ### 3.16 Test Infrastructure (Phase 5-6)
