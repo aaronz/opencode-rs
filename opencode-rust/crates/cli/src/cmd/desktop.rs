@@ -7,10 +7,12 @@ use opencode_core::Config;
 use opencode_llm::ModelRegistry;
 use opencode_server::routes::share::ShareServer;
 use opencode_server::streaming::{conn_state::ConnectionMonitor, ReconnectionStore};
-use opencode_server::{run_server, ServerState};
+use opencode_server::{run_server_with_shutdown, ServerState};
 use opencode_storage::StorageService;
 use std::sync::Arc;
 use std::sync::RwLock;
+use tokio::signal;
+use tokio::sync::oneshot;
 
 #[cfg(feature = "desktop")]
 use crate::webview::WebViewManager;
@@ -110,26 +112,65 @@ async fn run_desktop(args: DesktopArgs) -> Result<(), Box<dyn std::error::Error>
     };
 
     #[cfg(not(feature = "desktop"))]
-    let webview_manager = if auto_open_browser && !args.no_browser {
+    let webview_manager: Option<()> = if auto_open_browser && !args.no_browser {
         let url = format!("http://{}:{}", host, port);
-        drop(url);
+        println!("Desktop WebView not available, opening browser...");
+        let _ = open_browser(&url);
         Some(())
     } else {
         None
     };
 
-    run_server(Arc::new(state), &host, port).await?;
+    let (server_shutdown_tx, server_shutdown_rx) = oneshot::channel::<()>();
 
     #[cfg(feature = "desktop")]
-    if let Some(ref mut manager) = webview_manager {
+    let webview_close_rx = webview_manager.as_mut().and_then(|m| m.close_receiver());
+
+    #[cfg(not(feature = "desktop"))]
+    let webview_close_rx: Option<oneshot::Receiver<()>> = None;
+
+    let shutdown_result = tokio::select! {
+        result = run_server_with_shutdown(Arc::new(state), &host, port, server_shutdown_rx) => {
+            result
+        }
+        _ = async {
+            if let Some(rx) = webview_close_rx {
+                rx.await.ok();
+            } else {
+                std::future::pending().await
+            }
+        } => {
+            let _ = server_shutdown_tx.send(());
+            Ok::<_, std::io::Error>(())
+        }
+        _ = signal::ctrl_c() => {
+            println!("Received Ctrl+C, shutting down...");
+            #[cfg(feature = "desktop")]
+            if let Some(ref manager) = webview_manager {
+                manager.stop();
+            }
+            let _ = server_shutdown_tx.send(());
+            Ok::<_, std::io::Error>(())
+        }
+    };
+
+    if let Err(e) = shutdown_result {
+        eprintln!("Shutdown error: {}", e);
+    }
+
+    #[cfg(feature = "desktop")]
+    {
         println!("Stopping WebView...");
-        manager.stop();
-        manager.wait_until_stopped();
+        if let Some(ref mut manager) = webview_manager {
+            manager.stop();
+            manager.wait_until_stopped();
+        }
     }
 
     #[cfg(not(feature = "desktop"))]
     let _ = webview_manager;
 
+    println!("Desktop mode shutdown complete");
     Ok(())
 }
 

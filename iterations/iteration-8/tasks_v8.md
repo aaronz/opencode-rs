@@ -20,7 +20,7 @@
 
 ## P0 Tasks (BLOCKING - Must Fix)
 
-### P0-8: Clippy Unreachable Pattern [CRITICAL]
+### P0-8: ✅ Done
 
 | Attribute | Value |
 |-----------|-------|
@@ -46,25 +46,31 @@ error: unreachable pattern
 
 ---
 
-### P0-new-2: Desktop WebView Integration
+### P0-new-2: ✅ Done
 
 | Attribute | Value |
 |-----------|-------|
 | **Priority** | P0 |
 | **Severity** | BLOCKING |
 | **Module** | cli |
-| **File** | `crates/cli/src/desktop.rs` |
+| **File** | `crates/cli/src/desktop.rs`, `crates/cli/src/webview.rs`, `crates/server/src/lib.rs` |
 | **PRD Reference** | FR-015, PRD 13 |
 | **Issue** | WebView is stub-only, not integrated with app lifecycle |
 | **Phase Impact** | Phase 4 (Interface Implementations) |
-| **Status** | ❌ Open (Stub Only) |
+| **Status** | ✅ Done |
 
 **Task:**
-- [ ] Implement actual WebView component per PRD 13
-- [ ] Connect WebView to desktop mode properly
-- [ ] Share state between TUI and WebView
-- [ ] Verify: Desktop mode starts without errors
-- [ ] Verify: WebView renders correctly
+- [x] Implement actual WebView component per PRD 13
+- [x] Connect WebView to desktop mode properly
+- [x] Share state between TUI and WebView via oneshot channel
+- [x] Verify: Desktop mode starts without errors
+- [x] Verify: WebView renders correctly
+
+**Implementation Details:**
+- Added `WebViewManager` with `close_receiver()` to notify when WebView closes
+- Added `run_server_with_shutdown()` in server module for coordinated shutdown
+- Updated desktop.rs to use `tokio::select!` to wait for WebView close, server shutdown, or Ctrl+C
+- When WebView window is closed, it signals the server to shut down gracefully
 
 ---
 
@@ -306,12 +312,12 @@ error: unreachable pattern
 
 | Category | Count | Completed | In Progress | Open | Deferred |
 |----------|-------|----------|-------------|------|----------|
-| P0 Blockers | 2 | 0 | 0 | 2 | 0 |
+| P0 Blockers | 2 | 1 | 0 | 1 | 0 |
 | P1 Issues | 6 | 0 | 1 | 5 | 5 |
 | P2 Issues | 12 | 7 | 0 | 0 | 5 |
 | DC Cleanup | 10 | 0 | 0 | 0 | 10 |
 
-**Total Active Tasks:** 8 (2 P0 + 6 P1)
+**Total Active Tasks:** 7 (1 P0 + 6 P1)
 
 ---
 

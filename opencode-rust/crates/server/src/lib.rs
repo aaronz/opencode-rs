@@ -12,6 +12,7 @@ use routes::share::ShareServer;
 use std::sync::Arc;
 use std::sync::RwLock;
 use streaming::{conn_state::ConnectionMonitor, ReconnectionStore};
+use tokio::sync::oneshot;
 
 #[cfg(test)]
 mod server_integration_tests;
@@ -111,6 +112,92 @@ pub async fn run_server(state: Arc<ServerState>, host: &str, port: u16) -> std::
     }
 
     result
+}
+
+pub async fn run_server_with_shutdown(
+    state: Arc<ServerState>,
+    host: &str,
+    port: u16,
+    mut shutdown_rx: oneshot::Receiver<()>,
+) -> std::io::Result<()> {
+    validate_port(port)?;
+
+    let server_cfg = state
+        .config
+        .read()
+        .expect("server config lock poisoned")
+        .server
+        .clone()
+        .unwrap_or_default();
+    let cors_origins = server_cfg.cors.clone().unwrap_or_default();
+
+    let mdns_service = if server_cfg.mdns == Some(true) {
+        Some(mdns::MdnsService::start(&ServerConfig {
+            port: Some(port),
+            hostname: Some(host.to_string()),
+            mdns: server_cfg.mdns,
+            mdns_domain: server_cfg.mdns_domain.clone(),
+            cors: server_cfg.cors.clone(),
+            desktop: None,
+            acp: None,
+        })?)
+    } else {
+        None
+    };
+
+    let state_data = web::Data::from(state);
+
+    let server = HttpServer::new(move || {
+        App::new()
+            .app_data(state_data.clone())
+            .wrap(actix_middleware::Logger::default())
+            .wrap(middleware::cors_middleware(&cors_origins))
+            .route("/", web::get().to(routes::web_ui::index))
+            .route("/api/docs", web::get().to(routes::web_ui::api_docs))
+            .route(
+                "/static/{filename:.*}",
+                web::get().to(routes::web_ui::serve_static),
+            )
+            .route("/health", web::get().to(health_check))
+            .service(
+                web::scope("/api")
+                    .wrap_fn(|req, srv| {
+                        if !middleware::is_api_key_authorized(&req) {
+                            let response = routes::error::json_error(
+                                actix_web::http::StatusCode::UNAUTHORIZED,
+                                "unauthorized",
+                                "Missing or invalid x-api-key header",
+                            );
+                            return Either::Left(ready(Ok(
+                                req.into_response(response.map_into_right_body())
+                            )));
+                        }
+
+                        Either::Right(
+                            srv.call(req)
+                                .map(|res| res.map(|res| res.map_into_left_body())),
+                        )
+                    })
+                    .configure(routes::config_routes),
+            )
+    })
+    .bind((host, port))?
+    .run();
+
+    tokio::select! {
+        result = server => {
+            if let Some(mdns) = mdns_service {
+                mdns.stop();
+            }
+            result
+        }
+        _ = shutdown_rx => {
+            if let Some(mdns) = mdns_service {
+                mdns.stop();
+            }
+            Ok(())
+        }
+    }
 }
 
 fn validate_port(port: u16) -> std::io::Result<()> {

@@ -22,7 +22,7 @@
       "priority": "P0",
       "title": "Desktop WebView Integration",
       "description": "WebView is stub-only, not integrated with app lifecycle. File: crates/cli/src/desktop.rs. PRD Reference: FR-015, PRD 13. Phase Impact: Phase 4 (Interface Implementations)",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Desktop mode starts without errors",
         "WebView renders correctly and displays content"

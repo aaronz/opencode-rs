@@ -1,5 +1,6 @@
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
+use tokio::sync::oneshot;
 
 #[cfg(feature = "desktop")]
 use wry::application::event::{Event, WindowEvent};
@@ -8,11 +9,12 @@ use wry::application::event_loop::{ControlFlow, EventLoop};
 #[cfg(feature = "desktop")]
 use wry::application::window::WindowBuilder;
 #[cfg(feature = "desktop")]
-use wry::webview::{WebView, WebViewBuilder};
+use wry::webview::WebViewBuilder;
 
 #[cfg(feature = "desktop")]
 pub struct WebViewManager {
     stop_tx: Sender<()>,
+    close_rx: Option<oneshot::Receiver<()>>,
     join_handle: Option<thread::JoinHandle<()>>,
 }
 
@@ -20,17 +22,19 @@ pub struct WebViewManager {
 impl WebViewManager {
     pub fn new(url: &str, title: &str) -> Result<Self, Box<dyn std::error::Error>> {
         let (stop_tx, stop_rx) = channel::<()>();
+        let (close_tx, close_rx) = oneshot::channel::<()>();
         let title = title.to_string();
         let url = url.to_string();
 
         let join_handle = thread::spawn(move || {
-            if let Err(e) = run_webview_thread(&url, &title, stop_rx) {
+            if let Err(e) = run_webview_thread(&url, &title, stop_rx, close_tx) {
                 eprintln!("WebView error: {}", e);
             }
         });
 
         Ok(WebViewManager {
             stop_tx,
+            close_rx: Some(close_rx),
             join_handle: Some(join_handle),
         })
     }
@@ -44,6 +48,10 @@ impl WebViewManager {
             let _ = handle.join();
         }
     }
+
+    pub fn close_receiver(&mut self) -> Option<oneshot::Receiver<()>> {
+        self.close_rx.take()
+    }
 }
 
 #[cfg(feature = "desktop")]
@@ -51,17 +59,23 @@ fn run_webview_thread(
     url: &str,
     title: &str,
     stop_rx: Receiver<()>,
+    close_tx: oneshot::Sender<()>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let event_loop: EventLoop<()> = EventLoop::new();
     let window = WindowBuilder::new().with_title(title).build(&event_loop)?;
 
     let _webview = WebViewBuilder::new(window)?.with_url(url)?.build()?;
 
+    let mut close_tx = Some(close_tx);
+
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
 
         if stop_rx.try_recv().is_ok() {
             *control_flow = ControlFlow::Exit;
+            if let Some(tx) = close_tx.take() {
+                let _ = tx.send(());
+            }
             return;
         }
 
@@ -71,9 +85,13 @@ fn run_webview_thread(
         } = event
         {
             *control_flow = ControlFlow::Exit;
+            if let Some(tx) = close_tx.take() {
+                let _ = tx.send(());
+            }
         }
     });
 
+    #[allow(unreachable_code)]
     Ok(())
 }
 
@@ -89,6 +107,10 @@ impl WebViewManager {
     pub fn stop(&self) {}
 
     pub fn wait_until_stopped(&mut self) {}
+
+    pub fn close_receiver(&mut self) -> Option<oneshot::Receiver<()>> {
+        None
+    }
 }
 
 #[cfg(feature = "desktop")]
