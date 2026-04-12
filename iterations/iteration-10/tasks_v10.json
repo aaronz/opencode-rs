@@ -1,0 +1,228 @@
+{
+  "tasks": [
+    {
+      "id": "P0-9-1",
+      "priority": "P0",
+      "title": "Add impl Default for StateTester",
+      "description": "Implement Default trait for StateTester in ratatui-testing/src/state.rs line 6. Fix clippy error 'new_without_default'.",
+      "status": "done",
+      "test_criteria": [
+        "StateTester implements Default trait",
+        "cargo clippy -p ratatui-testing -- -D warnings passes without new_without_default error"
+      ],
+      "test_commands": [
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Implement Default trait for StateTester struct",
+      "dependencies": []
+    },
+    {
+      "id": "P0-9-2",
+      "priority": "P0",
+      "title": "Fix deprecated AgentMode enum usage",
+      "description": "Remove or replace usage of deprecated AgentMode enum in crates/core/src/config.rs line 436. Use 'permission' field instead.",
+      "status": "todo",
+      "test_criteria": [
+        "No deprecated AgentMode enum usage in config.rs",
+        "cargo clippy -p opencode-core -- -D warnings passes"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Use permission field instead of deprecated AgentMode enum",
+      "dependencies": []
+    },
+    {
+      "id": "P0-9-3",
+      "priority": "P0",
+      "title": "Fix deprecated AgentConfig::mode field",
+      "description": "Remove or replace usage of deprecated AgentConfig::mode field in crates/core/src/config.rs line 2771. Use 'permission' field instead.",
+      "status": "todo",
+      "test_criteria": [
+        "No deprecated AgentConfig::mode field usage in config.rs",
+        "cargo clippy -p opencode-core -- -D warnings passes"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Use permission field instead of deprecated mode field",
+      "dependencies": []
+    },
+    {
+      "id": "P0-9-4",
+      "priority": "P0",
+      "title": "Rewrite block with ? operator",
+      "description": "Replace manual error handling with ? operator in crates/core/src/config.rs line 1594. Fix clippy error 'question_mark'.",
+      "status": "todo",
+      "test_criteria": [
+        "Block at line 1594 rewritten with ? operator",
+        "cargo clippy -p opencode-core -- -D warnings passes without question_mark error"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Replace manual error handling with ? operator",
+      "dependencies": []
+    },
+    {
+      "id": "P0-9-5",
+      "priority": "P0",
+      "title": "Remove unnecessary borrow",
+      "description": "Remove unnecessary borrow in crates/core/src/config.rs line 2068. Fix clippy error 'needless_borrows_for_generic_args'.",
+      "status": "todo",
+      "test_criteria": [
+        "No needless borrow errors in config.rs",
+        "cargo clippy -p opencode-core -- -D warnings passes"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Remove unnecessary borrow for generic args",
+      "dependencies": []
+    },
+    {
+      "id": "P0-9-6",
+      "priority": "P0",
+      "title": "Fix deprecated AgentConfig::mode field in command.rs",
+      "description": "Remove or replace usage of deprecated AgentConfig::mode field in crates/core/src/command.rs line 567. Use 'permission' field instead.",
+      "status": "todo",
+      "test_criteria": [
+        "No deprecated AgentConfig::mode field usage in command.rs",
+        "cargo clippy -p opencode-core -- -D warnings passes"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Use permission field instead of deprecated mode field",
+      "dependencies": []
+    },
+    {
+      "id": "P0-9-7",
+      "priority": "P0",
+      "title": "Use ok_or() instead of closure",
+      "description": "Use ok_or() directly instead of closure in crates/core/src/session_sharing.rs line 323. Fix clippy error 'redundant_closure'.",
+      "status": "todo",
+      "test_criteria": [
+        "No redundant_closure error at line 323",
+        "cargo clippy -p opencode-core -- -D warnings passes"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Use ok_or() directly instead of closure for Option::None",
+      "dependencies": []
+    },
+    {
+      "id": "P0-9-8",
+      "priority": "P0",
+      "title": "Use entry() API properly",
+      "description": "Use entry() API to avoid redundant lookup in crates/core/src/session_sharing.rs line 225. Fix clippy error 'map_entry' - contains_key followed by insert.",
+      "status": "todo",
+      "test_criteria": [
+        "No map_entry error at line 225",
+        "cargo clippy -p opencode-core -- -D warnings passes"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Use entry() API instead of contains_key followed by insert",
+      "dependencies": []
+    },
+    {
+      "id": "P0-9-9",
+      "priority": "P0",
+      "title": "Replace and_then with map",
+      "description": "Replace Option.and_then(|x| Some(y)) with map(|x| y) in crates/core/src/crash_recovery.rs line 241. Fix clippy error 'and_then'.",
+      "status": "todo",
+      "test_criteria": [
+        "No and_then error at line 241",
+        "cargo clippy -p opencode-core -- -D warnings passes"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Replace and_then with map for Option transformation",
+      "dependencies": []
+    },
+    {
+      "id": "P0-9-10",
+      "priority": "P0",
+      "title": "Factor complex type into type alias",
+      "description": "Factor complex type into type definitions in crates/core/src/skill.rs. Fix clippy error 'very_complex_type'.",
+      "status": "todo",
+      "test_criteria": [
+        "No very_complex_type error in skill.rs",
+        "cargo clippy -p opencode-core -- -D warnings passes"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Factor parts of complex type into type definitions",
+      "dependencies": []
+    },
+    {
+      "id": "P0-9-11",
+      "priority": "P0",
+      "title": "Change &PathBuf to &Path",
+      "description": "Change &PathBuf parameter to &Path in crates/core/src/skill.rs line 116. Fix clippy error 'needless_borrow' (5 occurrences).",
+      "status": "todo",
+      "test_criteria": [
+        "No needless_borrow errors for PathBuf in skill.rs",
+        "cargo clippy -p opencode-core -- -D warnings passes"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Change all &PathBuf parameters to &Path (5 occurrences)",
+      "dependencies": []
+    },
+    {
+      "id": "P1-3-1",
+      "priority": "P1",
+      "title": "Plan removal of deprecated mode field",
+      "description": "Plan full removal of deprecated mode field. Status: In Progress. Full removal deferred to v4.0. Related: TD-003, TD-004, TD-005, TD-006.",
+      "status": "todo",
+      "test_criteria": [
+        "Removal plan documented",
+        "Migration path for mode field to permission field established"
+      ],
+      "test_commands": [],
+      "impl_notes": "This is a planning task. Full removal deferred to v4.0. Coordinate with P0-9-2, P0-9-3, P0-9-6.",
+      "dependencies": [
+        "P0-9-2",
+        "P0-9-3",
+        "P0-9-6"
+      ]
+    },
+    {
+      "id": "P2-16",
+      "priority": "P2",
+      "title": "Fix remaining clippy warnings",
+      "description": "Fix remaining clippy warnings that are not errors. Deferred task.",
+      "status": "todo",
+      "test_criteria": [
+        "cargo clippy passes with no warnings"
+      ],
+      "test_commands": [
+        "cargo clippy --all"
+      ],
+      "impl_notes": "Deferred - nice to have",
+      "dependencies": []
+    },
+    {
+      "id": "P2-17",
+      "priority": "P2",
+      "title": "Per-crate test backlog",
+      "description": "Address per-crate test backlog. Deferred task.",
+      "status": "todo",
+      "test_criteria": [
+        "All crates have adequate test coverage"
+      ],
+      "test_commands": [
+        "cargo test --all"
+      ],
+      "impl_notes": "Deferred - nice to have",
+      "dependencies": []
+    }
+  ]
+}

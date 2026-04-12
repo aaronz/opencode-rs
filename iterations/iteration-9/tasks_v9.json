@@ -301,7 +301,7 @@
       "priority": "P1",
       "title": "Phase 6 Release Qualification - Non-functional Baselines",
       "description": "Verify non-functional baselines as part of Phase 6 release qualification.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "Performance baselines verified",
         "Memory baselines verified",
