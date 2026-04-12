@@ -9,9 +9,11 @@ use opencode_server::routes::share::ShareServer;
 use opencode_server::streaming::{conn_state::ConnectionMonitor, ReconnectionStore};
 use opencode_server::{run_server, ServerState};
 use opencode_storage::StorageService;
-use std::process::Command;
 use std::sync::Arc;
 use std::sync::RwLock;
+
+#[cfg(feature = "desktop")]
+use crate::webview::spawn_webview_thread;
 
 #[derive(Args, Debug)]
 pub struct DesktopArgs {
@@ -100,7 +102,18 @@ async fn run_desktop(args: DesktopArgs) -> Result<(), Box<dyn std::error::Error>
 
     if auto_open_browser && !args.no_browser {
         let url = format!("http://{}:{}", host, port);
-        let _ = open_browser(&url);
+        
+        #[cfg(feature = "desktop")]
+        {
+            println!("Opening embedded WebView...");
+            let _webview_handle = spawn_webview_thread(url, "OpenCode".to_string())
+                .map_err(|e| format!("Failed to spawn WebView: {}", e))?;
+        }
+
+        #[cfg(not(feature = "desktop"))]
+        {
+            let _ = open_browser(&url);
+        }
     }
 
     run_server(Arc::new(state), &host, port).await?;
@@ -108,24 +121,31 @@ async fn run_desktop(args: DesktopArgs) -> Result<(), Box<dyn std::error::Error>
     Ok(())
 }
 
+#[cfg(not(feature = "desktop"))]
+use std::process::Command;
+
+#[cfg(not(feature = "desktop"))]
 #[cfg(target_os = "macos")]
 fn open_browser(url: &str) -> std::io::Result<()> {
     Command::new("open").arg(url).spawn()?;
     Ok(())
 }
 
+#[cfg(not(feature = "desktop"))]
 #[cfg(target_os = "windows")]
 fn open_browser(url: &str) -> std::io::Result<()> {
     Command::new("cmd").args(["/c", "start", url]).spawn()?;
     Ok(())
 }
 
+#[cfg(not(feature = "desktop"))]
 #[cfg(target_os = "linux")]
 fn open_browser(url: &str) -> std::io::Result<()> {
     Command::new("xdg-open").arg(url).spawn()?;
     Ok(())
 }
 
+#[cfg(not(feature = "desktop"))]
 #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
 fn open_browser(_url: &str) -> std::io::Result<()> {
     Ok(())

@@ -9,6 +9,10 @@ license.workspace = true
 name = "opencode-rs"
 path = "src/main.rs"
 
+[features]
+default = []
+desktop = ["dep:wry", "dep:webkit2gtk"]
+
 [dependencies]
 opencode-core.workspace = true
 opencode-llm.workspace = true
@@ -34,6 +38,16 @@ reqwest.workspace = true
 base64 = "0.22"
 sha2 = "0.10"
 uuid.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+wry = { version = "0.24", optional = true }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+wry = { version = "0.24", optional = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+wry = { version = "0.24", optional = true }
+webkit2gtk = { version = "0.18", optional = true }
 
 [dev-dependencies]
 tempfile = "3"

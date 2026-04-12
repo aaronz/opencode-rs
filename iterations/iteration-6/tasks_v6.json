@@ -1,0 +1,470 @@
+{
+  "tasks": [
+    {
+      "id": "P0-new-2",
+      "priority": "P0",
+      "title": "Desktop WebView Integration",
+      "description": "Implement actual WebView component for desktop mode per PRD 13. Currently desktop.rs only starts HTTP server and opens browser. FR-015 (Desktop/Web/ACP Interface) requires embedded WebView.",
+      "status": "done",
+      "test_criteria": [
+        "Desktop mode opens embedded WebView",
+        "No external browser is launched",
+        "WebView renders application UI correctly"
+      ],
+      "test_commands": [
+        "cargo build --package opencode-cli --features desktop",
+        "cargo test --package opencode-cli"
+      ],
+      "impl_notes": "Added webview.rs module with wry-based WebView implementation. Modified desktop.rs to use embedded WebView when desktop feature is enabled. WebView loads local HTTP server URL.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-15",
+      "priority": "P0",
+      "title": "Git Test Code Bugs",
+      "description": "Fix 11 test compilation errors in crates/git: 8 duplicate test name definitions, missing use std::sync::atomic::Ordering import, missing next_port() helper function.",
+      "status": "todo",
+      "test_criteria": [
+        "cargo test --package opencode-git passes without compilation errors",
+        "No duplicate test names",
+        "All imports present"
+      ],
+      "test_commands": [
+        "cargo test --package opencode-git 2>&1 | head -50"
+      ],
+      "impl_notes": "Add use std::sync::atomic::Ordering import. Define or remove next_port() helper. Fix duplicate test module at lines 405+ and 697+ in crates/git/src/gitlab_ci.rs",
+      "dependencies": []
+    },
+    {
+      "id": "P1-1",
+      "priority": "P1",
+      "title": "JSONC Error Messages Clarity",
+      "description": "Improve JSONC error message formatting for better user understanding. FR-003 reference.",
+      "status": "todo",
+      "test_criteria": [
+        "JSONC parsing errors show clear line/column information",
+        "Error messages are user-friendly"
+      ],
+      "test_commands": [
+        "cargo test --package opencode-config -- jsonc"
+      ],
+      "impl_notes": "Deferred - improve error formatting in crates/config",
+      "dependencies": []
+    },
+    {
+      "id": "P1-2",
+      "priority": "P1",
+      "title": "Circular Variable Expansion Detection",
+      "description": "Add detection algorithm for circular references in variable expansion. FR-003 reference.",
+      "status": "todo",
+      "test_criteria": [
+        "Circular variable references are detected and reported",
+        "Error message identifies the circular chain"
+      ],
+      "test_commands": [
+        "cargo test --package opencode-config -- variable"
+      ],
+      "impl_notes": "Deferred - implement detection algorithm in crates/config",
+      "dependencies": []
+    },
+    {
+      "id": "P1-3",
+      "priority": "P1",
+      "title": "Deprecated Fields Removal",
+      "description": "Remove deprecated fields from config: mode, tools, theme, keybinds. Note: Remove in major version (v4.0). FR-003 reference.",
+      "status": "todo",
+      "test_criteria": [
+        "Deprecated fields no longer exist in Config struct",
+        "Config migration path exists for v4.0"
+      ],
+      "test_commands": [
+        "cargo check --package opencode-config 2>&1 | grep -i deprecate || echo 'No deprecation warnings'"
+      ],
+      "impl_notes": "Deferred for major version v4.0 - remove in crates/config",
+      "dependencies": []
+    },
+    {
+      "id": "P1-5",
+      "priority": "P1",
+      "title": "Multiline Input Terminal Support",
+      "description": "Verify multiline input with Shift+Enter for new line works correctly in terminal. FR-018 reference.",
+      "status": "todo",
+      "test_criteria": [
+        "Shift+Enter inserts newline in multiline input",
+        "Terminal support works correctly"
+      ],
+      "test_commands": [
+        "cargo test --package opencode-tui -- multiline"
+      ],
+      "impl_notes": "Deferred (Partial) - verify in crates/tui",
+      "dependencies": []
+    },
+    {
+      "id": "P1-9",
+      "priority": "P1",
+      "title": "Session Sharing Between Interfaces",
+      "description": "Implement cross-interface session synchronization for CLI, TUI, Web, Desktop modes. FR-015 reference.",
+      "status": "todo",
+      "test_criteria": [
+        "Session state is synchronized between interfaces",
+        "Session can be resumed across different interface modes"
+      ],
+      "test_commands": [
+        "cargo test --package opencode-cli -- session",
+        "cargo test --package opencode-core -- session"
+      ],
+      "impl_notes": "Deferred (Partial) - implement in crates/cli",
+      "dependencies": []
+    },
+    {
+      "id": "P2-1",
+      "priority": "P2",
+      "title": "Project VCS worktree root distinction",
+      "description": "Distinguish between project root and VCS worktree root in crates/core.",
+      "status": "todo",
+      "test_criteria": [
+        "VCS worktree root is correctly identified",
+        "Project root vs worktree root are properly distinguished"
+      ],
+      "test_commands": [
+        "cargo test --package opencode-core -- worktree"
+      ],
+      "impl_notes": "Post-release - implement in crates/core",
+      "dependencies": []
+    },
+    {
+      "id": "P2-2",
+      "priority": "P2",
+      "title": "Workspace path validation",
+      "description": "Add workspace path validation in crates/core.",
+      "status": "todo",
+      "test_criteria": [
+        "Invalid workspace paths are rejected",
+        "Valid workspace paths are accepted"
+      ],
+      "test_commands": [
+        "cargo test --package opencode-core -- workspace"
+      ],
+      "impl_notes": "Post-release - implement in crates/core",
+      "dependencies": []
+    },
+    {
+      "id": "P2-3",
+      "priority": "P2",
+      "title": "Compaction shareability verification",
+      "description": "Verify compaction shareability in crates/storage.",
+      "status": "todo",
+      "test_criteria": [
+        "Compaction operation completes successfully",
+        "Shareability metadata is correctly stored"
+      ],
+      "test_commands": [
+        "cargo test --package opencode-storage -- compact"
+      ],
+      "impl_notes": "Post-release - implement in crates/storage",
+      "dependencies": []
+    },
+    {
+      "id": "P2-4",
+      "priority": "P2",
+      "title": "Deterministic collision resolution",
+      "description": "Implement deterministic collision resolution in crates/tools.",
+      "status": "todo",
+      "test_criteria": [
+        "Tool name collisions are resolved deterministically",
+        "Same input always produces same resolution"
+      ],
+      "test_commands": [
+        "cargo test --package opencode-tools -- collision"
+      ],
+      "impl_notes": "Post-release - implement in crates/tools",
+      "dependencies": []
+    },
+    {
+      "id": "P2-5",
+      "priority": "P2",
+      "title": "Result caching invalidation",
+      "description": "Implement result caching invalidation in crates/tools.",
+      "status": "todo",
+      "test_criteria": [
+        "Cache is invalidated when source changes",
+        "Cache miss triggers recomputation"
+      ],
+      "test_commands": [
+        "cargo test --package opencode-tools -- cache"
+      ],
+      "impl_notes": "Post-release - implement in crates/tools",
+      "dependencies": []
+    },
+    {
+      "id": "P2-6",
+      "priority": "P2",
+      "title": "Per-server OAuth token storage verification",
+      "description": "Verify per-server OAuth token storage in crates/mcp.",
+      "status": "todo",
+      "test_criteria": [
+        "Each MCP server has isolated OAuth token storage",
+        "Tokens are securely stored per server"
+      ],
+      "test_commands": [
+        "cargo test --package opencode-mcp -- oauth"
+      ],
+      "impl_notes": "Post-release - implement in crates/mcp",
+      "dependencies": []
+    },
+    {
+      "id": "P2-7",
+      "priority": "P2",
+      "title": "Context cost warnings",
+      "description": "Add context cost warnings in crates/mcp.",
+      "status": "todo",
+      "test_criteria": [
+        "Warning is shown when context cost exceeds threshold",
+        "Warning includes cost information"
+      ],
+      "test_commands": [
+        "cargo test --package opencode-mcp -- cost"
+      ],
+      "impl_notes": "Post-release - implement in crates/mcp",
+      "dependencies": []
+    },
+    {
+      "id": "P2-8",
+      "priority": "P2",
+      "title": "Experimental LSP tool testing",
+      "description": "Test experimental LSP tool in crates/lsp.",
+      "status": "todo",
+      "test_criteria": [
+        "LSP tool can be loaded and executed",
+        "LSP features work correctly"
+      ],
+      "test_commands": [
+        "cargo test --package opencode-lsp"
+      ],
+      "impl_notes": "Post-release - implement in crates/lsp",
+      "dependencies": []
+    },
+    {
+      "id": "P2-9",
+      "priority": "P2",
+      "title": "API error shape consistency enforcement",
+      "description": "Enforce consistent API error shape in crates/server.",
+      "status": "todo",
+      "test_criteria": [
+        "All API errors follow consistent JSON structure",
+        "Error responses include required fields"
+      ],
+      "test_commands": [
+        "cargo test --package opencode-server -- error"
+      ],
+      "impl_notes": "Post-release - implement in crates/server",
+      "dependencies": []
+    },
+    {
+      "id": "P2-11",
+      "priority": "P2",
+      "title": "Shell prefix (!) handler",
+      "description": "Implement shell prefix (!) handler in crates/tui.",
+      "status": "todo",
+      "test_criteria": [
+        "Commands starting with ! are treated as shell commands",
+        "Shell commands execute correctly"
+      ],
+      "test_commands": [
+        "cargo test --package opencode-tui -- shell"
+      ],
+      "impl_notes": "Post-release - implement in crates/tui",
+      "dependencies": []
+    },
+    {
+      "id": "P2-12",
+      "priority": "P2",
+      "title": "Home view completion",
+      "description": "Complete home view in crates/tui.",
+      "status": "todo",
+      "test_criteria": [
+        "Home view displays all expected information",
+        "Home view is fully functional"
+      ],
+      "test_commands": [
+        "cargo test --package opencode-tui -- home"
+      ],
+      "impl_notes": "Post-release - implement in crates/tui",
+      "dependencies": []
+    },
+    {
+      "id": "P2-13",
+      "priority": "P2",
+      "title": "LLM variant/reasoning budget",
+      "description": "Implement LLM variant/reasoning budget in crates/llm.",
+      "status": "todo",
+      "test_criteria": [
+        "LLM variant selection works correctly",
+        "Reasoning budget is enforced"
+      ],
+      "test_commands": [
+        "cargo test --package opencode-llm -- reasoning"
+      ],
+      "impl_notes": "Post-release - implement in crates/llm",
+      "dependencies": []
+    },
+    {
+      "id": "P2-14",
+      "priority": "P2",
+      "title": "GitLab Duo experimental marking",
+      "description": "Mark GitLab Duo features as experimental in crates/git.",
+      "status": "todo",
+      "test_criteria": [
+        "GitLab Duo features are marked as experimental",
+        "User-facing documentation mentions experimental status"
+      ],
+      "test_commands": [
+        "cargo test --package opencode-git -- gitlab"
+      ],
+      "impl_notes": "Post-release - implement in crates/git",
+      "dependencies": []
+    },
+    {
+      "id": "P0-new-1",
+      "priority": "P0",
+      "title": "Git crate syntax error",
+      "description": "Fixed git crate syntax error - build succeeds.",
+      "status": "done",
+      "test_criteria": [
+        "cargo build --package opencode-git succeeds"
+      ],
+      "test_commands": [
+        "cargo build --package opencode-git"
+      ],
+      "impl_notes": "RESOLVED",
+      "dependencies": []
+    },
+    {
+      "id": "P0-new-3",
+      "priority": "P0",
+      "title": "ACP HTTP+SSE transport",
+      "description": "Implemented ACP HTTP+SSE transport.",
+      "status": "done",
+      "test_criteria": [
+        "ACP transport works with HTTP and SSE"
+      ],
+      "test_commands": [
+        "cargo test --package opencode-cli -- acp"
+      ],
+      "impl_notes": "IMPLEMENTED",
+      "dependencies": []
+    },
+    {
+      "id": "P1-4",
+      "priority": "P1",
+      "title": "Slash commands",
+      "description": "Implemented slash commands (/compact, /connect, /help).",
+      "status": "done",
+      "test_criteria": [
+        "/compact command works",
+        "/connect command works",
+        "/help command works"
+      ],
+      "test_commands": [
+        "cargo test --package opencode-cli -- slash"
+      ],
+      "impl_notes": "COMPLETED",
+      "dependencies": []
+    },
+    {
+      "id": "P1-6",
+      "priority": "P1",
+      "title": "File reference autocomplete improvement",
+      "description": "Improved file reference autocomplete.",
+      "status": "done",
+      "test_criteria": [
+        "File reference autocomplete suggests correct paths"
+      ],
+      "test_commands": [
+        "cargo test --package opencode-tui -- autocomplete"
+      ],
+      "impl_notes": "COMPLETED",
+      "dependencies": []
+    },
+    {
+      "id": "P1-7",
+      "priority": "P1",
+      "title": "TUI Plugin dialogs",
+      "description": "Completed TUI Plugin dialogs (DialogAlert, DialogConfirm, DialogPrompt, DialogSelect).",
+      "status": "done",
+      "test_criteria": [
+        "DialogAlert displays correctly",
+        "DialogConfirm works",
+        "DialogPrompt works",
+        "DialogSelect works"
+      ],
+      "test_commands": [
+        "cargo test --package opencode-tui -- dialog"
+      ],
+      "impl_notes": "COMPLETED",
+      "dependencies": []
+    },
+    {
+      "id": "P1-8",
+      "priority": "P1",
+      "title": "TUI Plugin slots system",
+      "description": "Completed TUI Plugin slots system.",
+      "status": "done",
+      "test_criteria": [
+        "Plugin slots are properly registered",
+        "Slot content renders correctly"
+      ],
+      "test_commands": [
+        "cargo test --package opencode-tui -- slot"
+      ],
+      "impl_notes": "COMPLETED",
+      "dependencies": []
+    },
+    {
+      "id": "P1-10",
+      "priority": "P1",
+      "title": "Permission inheritance edge cases",
+      "description": "Fixed permission inheritance edge cases.",
+      "status": "done",
+      "test_criteria": [
+        "Permission inheritance works in all edge cases"
+      ],
+      "test_commands": [
+        "cargo test --package opencode-permission -- inheritance"
+      ],
+      "impl_notes": "COMPLETED",
+      "dependencies": []
+    },
+    {
+      "id": "P1-11",
+      "priority": "P1",
+      "title": "Request validation edge cases",
+      "description": "Fixed request validation edge cases.",
+      "status": "done",
+      "test_criteria": [
+        "Request validation handles all edge cases"
+      ],
+      "test_commands": [
+        "cargo test --package opencode-core -- validation"
+      ],
+      "impl_notes": "COMPLETED",
+      "dependencies": []
+    },
+    {
+      "id": "P2-10",
+      "priority": "P2",
+      "title": "Plugin cleanup/unload",
+      "description": "Implemented plugin cleanup/unload.",
+      "status": "done",
+      "test_criteria": [
+        "Plugin cleanup completes successfully",
+        "Plugin unload releases all resources"
+      ],
+      "test_commands": [
+        "cargo test --package opencode-plugin -- cleanup"
+      ],
+      "impl_notes": "COMPLETED",
+      "dependencies": []
+    }
+  ]
+}

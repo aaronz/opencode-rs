@@ -1,6 +1,9 @@
 mod cmd;
 mod output;
 
+#[cfg(feature = "desktop")]
+mod webview;
+
 use clap::{Args, Parser, Subcommand};
 use cmd::{
     account::{self, AccountArgs},
