@@ -300,7 +300,7 @@
       "priority": "DC",
       "title": "Remove unused Message import",
       "description": "Unused Message import in crash_recovery.rs:1. Severity: Low",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Unused import removed",
         "cargo clippy passes"

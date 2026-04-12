@@ -1,4 +1,4 @@
-use crate::{message::Role, Message, Session, ToolInvocationRecord};
+use crate::{message::Role, Session, ToolInvocationRecord};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -395,6 +395,7 @@ impl From<std::io::Error> for CrashRecoveryError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Message;
     use tempfile::tempdir;
 
     fn create_test_recovery(tmp: &tempfile::TempDir) -> CrashRecovery {
