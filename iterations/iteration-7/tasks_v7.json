@@ -210,7 +210,7 @@
       "priority": "P2",
       "title": "Result Caching Invalidation",
       "description": "Implement result caching with proper invalidation for tools",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Cached results are returned when inputs match",
         "Cache is invalidated when source files change",
@@ -219,7 +219,7 @@
       "test_commands": [
         "cargo test -p opencode-tools cache"
       ],
-      "impl_notes": "Post-release - Result caching invalidation",
+      "impl_notes": "Implemented - CachedToolResult with TTL and dependency tracking, invalidation methods (invalidate_cache_for_tool, invalidate_all_cache, invalidate_cache_for_file, invalidate_cache_for_files), has_stale_dependencies for automatic invalidation on file change",
       "dependencies": []
     },
     {

@@ -78,7 +78,7 @@
 
 ### Tools
 - [x] P2-4: Deterministic collision resolution (`crates/tools`) ✅ Done
-- [ ] P2-5: Result caching invalidation (`crates/tools`)
+- [x] P2-5: Result caching invalidation (`crates/tools`) ✅ Done
 
 ### MCP
 - [x] P2-6: Per-server OAuth token storage (`crates/mcp`) ✅ Done (Iteration 7)

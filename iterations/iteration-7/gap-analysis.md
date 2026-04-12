@@ -111,7 +111,7 @@ This report analyzes the gaps between the current implementation and the PRD spe
 | P2-2 | Workspace path validation | core | FR-001 | Deferred | |
 | P2-3 | Compaction shareability verification | storage | FR-002 | ✅ Done | |
 | P2-4 | Deterministic collision resolution | tools | FR-006 | ✅ Done | |
-| P2-5 | Result caching invalidation | tools | FR-006 | Deferred | |
+| P2-5 | Result caching invalidation | tools | FR-006 | ✅ Done | |
 | P2-6 | Per-server OAuth verification | mcp | FR-010 | ✅ Done | |
 | P2-7 | Context cost warnings | mcp | FR-010 | ✅ Done | Implemented in context_cost.rs |
 | P2-8 | Experimental LSP tool testing | lsp | FR-011 | Deferred | |
