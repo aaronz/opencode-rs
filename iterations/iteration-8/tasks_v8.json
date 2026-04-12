@@ -316,7 +316,7 @@
       "priority": "DC",
       "title": "Remove or use SecretStorage methods",
       "description": "Unused SecretStorage methods in secret_storage.rs:36. Severity: Low",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Unused methods removed or used",
         "cargo clippy passes"
@@ -324,7 +324,7 @@
       "test_commands": [
         "cargo clippy --all -- -D warnings"
       ],
-      "impl_notes": "Remove or use the unused SecretStorage methods",
+      "impl_notes": "Removed 5 unused public methods (set_secret, delete_secret, list_secrets, secrets_path, has_secret). Marked with_path as #[cfg(test)] since only needed for testing. Kept get_secret which is used by resolve_keychain_secret.",
       "dependencies": []
     },
     {
