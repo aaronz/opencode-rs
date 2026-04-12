@@ -45,7 +45,6 @@ struct OllamaChatResponse {
 #[derive(Deserialize)]
 struct OllamaMessage {
     content: String,
-    role: Option<String>,
 }
 
 #[derive(Deserialize)]
