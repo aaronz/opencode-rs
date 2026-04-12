@@ -147,6 +147,7 @@ impl Provider for MockLLMProvider {
         Ok(ChatResponse {
             content,
             model: self.config.model.clone(),
+            usage: None,
         })
     }
 

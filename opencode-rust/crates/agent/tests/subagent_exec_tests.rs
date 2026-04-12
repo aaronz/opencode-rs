@@ -39,6 +39,7 @@ impl Provider for MockProvider {
         Ok(opencode_llm::provider::ChatResponse {
             content: format!("mock response to: {}", content),
             model: "mock-model".to_string(),
+            usage: None,
         })
     }
 

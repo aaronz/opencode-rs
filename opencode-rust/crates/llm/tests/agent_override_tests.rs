@@ -269,3 +269,124 @@ fn test_reasoning_config_conversion() {
         _ => panic!("Expected Anthropic reasoning config"),
     }
 }
+
+#[test]
+fn test_openai_provider_factory_applies_reasoning_effort() {
+    let manager = ProviderManager::new();
+
+    let identity =
+        ProviderIdentity::openai("o1-preview").with_reasoning_budget(ReasoningBudget::High);
+    let provider = manager.create_provider_by_identity(&identity).unwrap();
+
+    assert_eq!(provider.provider_name(), "openai");
+    assert_eq!(provider.reasoning_budget(), Some(ReasoningBudget::High));
+
+    let config = provider.reasoning_config();
+    assert!(config.is_some());
+    match config.unwrap() {
+        opencode_llm::ProviderReasoningConfig::OpenAI { reasoning_effort } => {
+            assert_eq!(reasoning_effort, Some("high".to_string()));
+        }
+        _ => panic!("Expected OpenAI reasoning config"),
+    }
+}
+
+#[test]
+fn test_anthropic_provider_factory_applies_thinking_budget() {
+    let manager = ProviderManager::new();
+
+    let identity = ProviderIdentity::anthropic("claude-3-5-sonnet-20241022")
+        .with_reasoning_budget(ReasoningBudget::Max);
+    let provider = manager.create_provider_by_identity(&identity).unwrap();
+
+    assert_eq!(provider.provider_name(), "anthropic");
+    assert_eq!(provider.reasoning_budget(), Some(ReasoningBudget::Max));
+
+    let config = provider.reasoning_config();
+    assert!(config.is_some());
+    match config.unwrap() {
+        opencode_llm::ProviderReasoningConfig::Anthropic { thinking } => {
+            assert!(thinking.is_some());
+        }
+        _ => panic!("Expected Anthropic reasoning config"),
+    }
+}
+
+#[test]
+fn test_google_provider_factory_applies_thinking_throttle() {
+    let manager = ProviderManager::new();
+
+    let identity =
+        ProviderIdentity::google("gemini-1.5-pro").with_reasoning_budget(ReasoningBudget::Low);
+    let provider = manager.create_provider_by_identity(&identity).unwrap();
+
+    assert_eq!(provider.provider_name(), "google");
+    assert_eq!(provider.reasoning_budget(), Some(ReasoningBudget::Low));
+
+    let config = provider.reasoning_config();
+    assert!(config.is_some());
+    match config.unwrap() {
+        opencode_llm::ProviderReasoningConfig::Google { thinking_throttle } => {
+            assert_eq!(thinking_throttle, Some("low".to_string()));
+        }
+        _ => panic!("Expected Google reasoning config"),
+    }
+}
+
+#[test]
+fn test_reasoning_budget_all_levels_openai() {
+    let levels = vec![
+        (ReasoningBudget::None, None as Option<String>),
+        (ReasoningBudget::Minimal, Some("minimal".to_string())),
+        (ReasoningBudget::Low, Some("low".to_string())),
+        (ReasoningBudget::Medium, Some("medium".to_string())),
+        (ReasoningBudget::High, Some("high".to_string())),
+        (ReasoningBudget::XHigh, Some("xhigh".to_string())),
+        (ReasoningBudget::Max, Some("xhigh".to_string())),
+    ];
+
+    for (budget, expected_effort) in levels {
+        let config = budget.for_provider("openai");
+        match config {
+            Some(opencode_llm::ProviderReasoningConfig::OpenAI { reasoning_effort }) => {
+                assert_eq!(reasoning_effort, expected_effort, "Failed for {:?}", budget);
+            }
+            _ => panic!("Expected OpenAI config for {:?}", budget),
+        }
+    }
+}
+
+#[test]
+fn test_reasoning_budget_all_levels_anthropic() {
+    let levels = vec![
+        ReasoningBudget::None,
+        ReasoningBudget::Minimal,
+        ReasoningBudget::Low,
+        ReasoningBudget::Medium,
+        ReasoningBudget::High,
+        ReasoningBudget::XHigh,
+        ReasoningBudget::Max,
+    ];
+
+    for budget in levels {
+        let config = budget.for_provider("anthropic");
+        match config {
+            Some(opencode_llm::ProviderReasoningConfig::Anthropic { thinking }) => {
+                if budget == ReasoningBudget::None {
+                    assert!(
+                        thinking.is_none(),
+                        "Expected None thinking for {:?}",
+                        budget
+                    );
+                } else {
+                    assert!(
+                        thinking.is_some(),
+                        "Expected Some thinking for {:?}",
+                        budget
+                    );
+                }
+            }
+            _ => panic!("Expected Anthropic config for {:?}", budget),
+        }
+    }
+}

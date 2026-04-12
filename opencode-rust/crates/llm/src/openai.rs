@@ -19,6 +19,7 @@ pub struct OpenAiProvider {
     base_url: String,
     model: String,
     auth_mode: OpenAiAuthMode,
+    reasoning_effort: Option<String>,
 }
 
 enum OpenAiAuthMode {
@@ -34,6 +35,13 @@ struct ChatRequest {
     model: String,
     messages: Vec<Message>,
     stream: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reasoning: Option<ReasoningRequest>,
+}
+
+#[derive(Serialize)]
+struct ReasoningRequest {
+    effort: String,
 }
 
 #[derive(Serialize)]
@@ -137,7 +145,13 @@ impl OpenAiProvider {
             base_url: OPENAI_API_BASE_URL.to_string(),
             model,
             auth_mode: OpenAiAuthMode::ApiKey,
+            reasoning_effort: None,
         }
+    }
+
+    pub fn with_reasoning_effort(mut self, effort: String) -> Self {
+        self.reasoning_effort = Some(effort);
+        self
     }
 
     pub fn new_browser_auth(
@@ -154,6 +168,7 @@ impl OpenAiProvider {
                 session: Mutex::new(session),
                 store,
             },
+            reasoning_effort: None,
         }
     }
 
@@ -351,10 +366,15 @@ impl Provider for OpenAiProvider {
             content: prompt.to_string(),
         }];
 
+        let reasoning = self.reasoning_effort.as_ref().map(|e| ReasoningRequest {
+            effort: e.clone(),
+        });
+
         let request = ChatRequest {
             model: self.model.clone(),
             messages,
             stream: false,
+            reasoning,
         };
 
         let response = self
@@ -406,10 +426,15 @@ impl Provider for OpenAiProvider {
             content: prompt.to_string(),
         }];
 
+        let reasoning = self.reasoning_effort.as_ref().map(|e| ReasoningRequest {
+            effort: e.clone(),
+        });
+
         let request = ChatRequest {
             model: self.model.clone(),
             messages,
             stream: true,
+            reasoning,
         };
 
         let response = self

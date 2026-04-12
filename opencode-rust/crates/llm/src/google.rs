@@ -10,11 +10,19 @@ pub struct GoogleProvider {
     api_key: String,
     base_url: String,
     model: String,
+    thinking_throttle: Option<String>,
 }
 
 #[derive(Serialize)]
 struct GoogleRequest {
     contents: Vec<GoogleContent>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    thinking_config: Option<GoogleThinkingConfig>,
+}
+
+#[derive(Serialize)]
+struct GoogleThinkingConfig {
+    thinking_throttle: String,
 }
 
 #[derive(Serialize)]
@@ -54,7 +62,13 @@ impl GoogleProvider {
             api_key,
             base_url: "https://generativelanguage.googleapis.com/v1beta".to_string(),
             model,
+            thinking_throttle: None,
         }
+    }
+
+    pub fn with_thinking_throttle(mut self, throttle: String) -> Self {
+        self.thinking_throttle = Some(throttle);
+        self
     }
 }
 
@@ -71,7 +85,16 @@ impl Provider for GoogleProvider {
             }],
         }];
 
-        let request = GoogleRequest { contents };
+        let thinking_config = self.thinking_throttle.as_ref().map(|t| {
+            GoogleThinkingConfig {
+                thinking_throttle: t.clone(),
+            }
+        });
+
+        let request = GoogleRequest {
+            contents,
+            thinking_config,
+        };
 
         let response = self
             .client
@@ -122,7 +145,16 @@ impl Provider for GoogleProvider {
             }],
         }];
 
-        let request = GoogleRequest { contents };
+        let thinking_config = self.thinking_throttle.as_ref().map(|t| {
+            GoogleThinkingConfig {
+                thinking_throttle: t.clone(),
+            }
+        });
+
+        let request = GoogleRequest {
+            contents,
+            thinking_config,
+        };
 
         let response = self
             .client

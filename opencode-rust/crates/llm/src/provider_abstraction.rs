@@ -369,9 +369,64 @@ impl std::fmt::Debug for DynProvider {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct ProviderConfig {
+    pub spec: ProviderSpec,
+    pub reasoning_budget: Option<ReasoningBudget>,
+    pub variant: Option<String>,
+}
+
+impl ProviderConfig {
+    pub fn from_spec(spec: ProviderSpec) -> Self {
+        Self {
+            spec,
+            reasoning_budget: None,
+            variant: None,
+        }
+    }
+
+    pub fn from_identity(identity: &ProviderIdentity) -> Option<Self> {
+        let spec = match identity.provider_type.as_str() {
+            "openai" => ProviderSpec::OpenAI {
+                api_key: std::env::var("OPENAI_API_KEY").unwrap_or_default(),
+                model: identity.model.clone().unwrap_or_else(|| "gpt-4o".to_string()),
+                base_url: None,
+            },
+            "anthropic" => ProviderSpec::Anthropic {
+                api_key: std::env::var("ANTHROPIC_API_KEY").unwrap_or_default(),
+                model: identity.model.clone().unwrap_or_else(|| "claude-3-5-sonnet-20241022".to_string()),
+                base_url: None,
+            },
+            "google" => ProviderSpec::Google {
+                api_key: std::env::var("GOOGLE_API_KEY").unwrap_or_default(),
+                model: identity.model.clone().unwrap_or_else(|| "gemini-1.5-pro".to_string()),
+            },
+            "ollama" => ProviderSpec::Ollama {
+                base_url: Some("http://localhost:11434".to_string()),
+                model: identity.model.clone().unwrap_or_else(|| "llama3".to_string()),
+            },
+            "lmstudio" => ProviderSpec::LmStudio {
+                base_url: Some("http://localhost:1234".to_string()),
+                model: identity.model.clone().unwrap_or_else(|| "llama3".to_string()),
+            },
+            "local" => ProviderSpec::LocalInference {
+                base_url: "http://localhost:8080".to_string(),
+                model: identity.model.clone().unwrap_or_else(|| "llama3".to_string()),
+            },
+            _ => return None,
+        };
+
+        Some(Self {
+            spec,
+            reasoning_budget: identity.reasoning_budget.clone(),
+            variant: identity.variant.clone(),
+        })
+    }
+}
+
 pub trait ProviderFactory: Send + Sync {
     fn name(&self) -> &str;
-    fn create(&self, spec: &ProviderSpec) -> Result<DynProvider, LlmError>;
+    fn create(&self, config: &ProviderConfig) -> Result<DynProvider, LlmError>;
     fn supports(&self, spec: &ProviderSpec) -> bool;
 }
 
@@ -412,79 +467,37 @@ impl ProviderManager {
     }
 
     pub fn create_provider(&self, spec: &ProviderSpec) -> Result<DynProvider, LlmError> {
-        let factory = self.factories.get(spec.provider_type()).ok_or_else(|| {
-            LlmError::Provider(format!("Unknown provider type: {}", spec.provider_type()))
+        let config = ProviderConfig::from_spec(spec.clone());
+        let factory = self.factories.get(config.spec.provider_type()).ok_or_else(|| {
+            LlmError::Provider(format!("Unknown provider type: {}", config.spec.provider_type()))
         })?;
 
-        if !factory.supports(spec) {
+        if !factory.supports(&config.spec) {
             return Err(LlmError::Provider(format!(
                 "Factory '{}' does not support this configuration",
-                spec.provider_type()
+                config.spec.provider_type()
             )));
         }
 
-        factory.create(spec)
+        factory.create(&config)
     }
 
     pub fn create_provider_by_identity(
         &self,
         identity: &ProviderIdentity,
     ) -> Result<DynProvider, LlmError> {
+        let config = ProviderConfig::from_identity(identity).ok_or_else(|| {
+            LlmError::Provider(format!(
+                "Cannot create provider '{}' from identity - missing configuration",
+                identity.provider_type
+            ))
+        })?;
+
         let factory = self.factories.get(&identity.provider_type).ok_or_else(|| {
             LlmError::Provider(format!("Unknown provider type: {}", identity.provider_type))
         })?;
 
-        let model = identity
-            .model
-            .clone()
-            .unwrap_or_else(|| "gpt-4o".to_string());
-
-        let spec = match identity.provider_type.as_str() {
-            "openai" => ProviderSpec::OpenAI {
-                api_key: std::env::var("OPENAI_API_KEY").unwrap_or_default(),
-                model: model.clone(),
-                base_url: None,
-            },
-            "anthropic" => ProviderSpec::Anthropic {
-                api_key: std::env::var("ANTHROPIC_API_KEY").unwrap_or_default(),
-                model: model.clone(),
-                base_url: None,
-            },
-            "google" => ProviderSpec::Google {
-                api_key: std::env::var("GOOGLE_API_KEY").unwrap_or_default(),
-                model: model.clone(),
-            },
-            "ollama" => ProviderSpec::Ollama {
-                base_url: Some("http://localhost:11434".to_string()),
-                model: model.clone(),
-            },
-            "lmstudio" => ProviderSpec::LmStudio {
-                base_url: Some("http://localhost:1234".to_string()),
-                model: model.clone(),
-            },
-            "local" => ProviderSpec::LocalInference {
-                base_url: "http://localhost:8080".to_string(),
-                model: model.clone(),
-            },
-            _ => {
-                return Err(LlmError::Provider(format!(
-                    "Cannot create provider '{}' from identity - missing configuration",
-                    identity.provider_type
-                )))
-            }
-        };
-
-        let provider = factory.create(&spec)?;
-
-        let mut final_identity = identity.clone();
-        if final_identity.model.is_none() {
-            final_identity.model = Some(model);
-        }
-
-        Ok(DynProvider::with_identity_and_inner(
-            provider.inner.clone(),
-            final_identity,
-        ))
+        factory.create(&config)
     }
 
     pub fn list_providers(&self) -> Vec<String> {
@@ -509,16 +522,29 @@ impl ProviderFactory for OpenAIProviderFactory {
         "openai"
     }
 
-    fn create(&self, spec: &ProviderSpec) -> Result<DynProvider, LlmError> {
-        match spec {
+    fn create(&self, config: &ProviderConfig) -> Result<DynProvider, LlmError> {
+        match &config.spec {
             ProviderSpec::OpenAI { api_key, model, .. } => {
-                let provider = OpenAiProvider::new(api_key.clone(), model.clone());
-                let identity = ProviderIdentity::openai(model);
+                let mut provider = OpenAiProvider::new(api_key.clone(), model.clone());
+                
+                if let Some(reasoning_budget) = &config.reasoning_budget {
+                    if let Some(reasoning_config) = reasoning_budget.for_provider("openai") {
+                        if let ProviderReasoningConfig::OpenAI { reasoning_effort } = reasoning_config {
+                            if let Some(effort) = reasoning_effort {
+                                provider = provider.with_reasoning_effort(effort.clone());
+                            }
+                        }
+                    }
+                }
+                
+                let mut identity = ProviderIdentity::openai(model);
+                identity.reasoning_budget = config.reasoning_budget.clone();
+                identity.variant = config.variant.clone();
                 Ok(DynProvider::with_identity(provider, identity))
             }
             _ => Err(LlmError::Provider(format!(
                 "OpenAI factory cannot create provider from {:?}",
-                spec
+                config.spec
             ))),
         }
     }
@@ -535,16 +561,29 @@ impl ProviderFactory for AnthropicProviderFactory {
         "anthropic"
     }
 
-    fn create(&self, spec: &ProviderSpec) -> Result<DynProvider, LlmError> {
-        match spec {
+    fn create(&self, config: &ProviderConfig) -> Result<DynProvider, LlmError> {
+        match &config.spec {
             ProviderSpec::Anthropic { api_key, model, .. } => {
-                let provider = AnthropicProvider::new(api_key.clone(), model.clone());
-                let identity = ProviderIdentity::anthropic(model);
+                let mut provider = AnthropicProvider::new(api_key.clone(), model.clone());
+                
+                if let Some(reasoning_budget) = &config.reasoning_budget {
+                    if let Some(reasoning_config) = reasoning_budget.for_provider("anthropic") {
+                        if let ProviderReasoningConfig::Anthropic { thinking } = reasoning_config {
+                            if let Some(thinking_config) = thinking {
+                                provider = provider.with_thinking_budget(thinking_config);
+                            }
+                        }
+                    }
+                }
+                
+                let mut identity = ProviderIdentity::anthropic(model);
+                identity.reasoning_budget = config.reasoning_budget.clone();
+                identity.variant = config.variant.clone();
                 Ok(DynProvider::with_identity(provider, identity))
             }
             _ => Err(LlmError::Provider(format!(
                 "Anthropic factory cannot create provider from {:?}",
-                spec
+                config.spec
             ))),
         }
     }
@@ -561,16 +600,29 @@ impl ProviderFactory for GoogleProviderFactory {
         "google"
     }
 
-    fn create(&self, spec: &ProviderSpec) -> Result<DynProvider, LlmError> {
-        match spec {
+    fn create(&self, config: &ProviderConfig) -> Result<DynProvider, LlmError> {
+        match &config.spec {
             ProviderSpec::Google { api_key, model } => {
-                let provider = GoogleProvider::new(api_key.clone(), model.clone());
-                let identity = ProviderIdentity::google(model);
+                let mut provider = GoogleProvider::new(api_key.clone(), model.clone());
+                
+                if let Some(reasoning_budget) = &config.reasoning_budget {
+                    if let Some(reasoning_config) = reasoning_budget.for_provider("google") {
+                        if let ProviderReasoningConfig::Google { thinking_throttle } = reasoning_config {
+                            if let Some(throttle) = thinking_throttle {
+                                provider = provider.with_thinking_throttle(throttle.clone());
+                            }
+                        }
+                    }
+                }
+                
+                let mut identity = ProviderIdentity::google(model);
+                identity.reasoning_budget = config.reasoning_budget.clone();
+                identity.variant = config.variant.clone();
                 Ok(DynProvider::with_identity(provider, identity))
             }
             _ => Err(LlmError::Provider(format!(
                 "Google factory cannot create provider from {:?}",
-                spec
+                config.spec
             ))),
         }
     }
@@ -587,16 +639,18 @@ impl ProviderFactory for OllamaProviderFactory {
         "ollama"
     }
 
-    fn create(&self, spec: &ProviderSpec) -> Result<DynProvider, LlmError> {
-        match spec {
+    fn create(&self, config: &ProviderConfig) -> Result<DynProvider, LlmError> {
+        match &config.spec {
             ProviderSpec::Ollama { base_url, model } => {
                 let provider = OllamaProvider::new(model.clone(), base_url.clone());
-                let identity = ProviderIdentity::ollama(model);
+                let mut identity = ProviderIdentity::ollama(model);
+                identity.reasoning_budget = config.reasoning_budget.clone();
+                identity.variant = config.variant.clone();
                 Ok(DynProvider::with_identity(provider, identity))
             }
             _ => Err(LlmError::Provider(format!(
                 "Ollama factory cannot create provider from {:?}",
-                spec
+                config.spec
             ))),
         }
     }
@@ -613,16 +667,18 @@ impl ProviderFactory for LmStudioProviderFactory {
         "lmstudio"
     }
 
-    fn create(&self, spec: &ProviderSpec) -> Result<DynProvider, LlmError> {
-        match spec {
+    fn create(&self, config: &ProviderConfig) -> Result<DynProvider, LlmError> {
+        match &config.spec {
             ProviderSpec::LmStudio { base_url, model } => {
                 let provider = LmStudioProvider::new(model.clone(), base_url.clone());
-                let identity = ProviderIdentity::new("lmstudio", Some(model));
+                let mut identity = ProviderIdentity::new("lmstudio", Some(model));
+                identity.reasoning_budget = config.reasoning_budget.clone();
+                identity.variant = config.variant.clone();
                 Ok(DynProvider::with_identity(provider, identity))
             }
             _ => Err(LlmError::Provider(format!(
                 "LmStudio factory cannot create provider from {:?}",
-                spec
+                config.spec
             ))),
         }
     }
@@ -639,16 +695,18 @@ impl ProviderFactory for LocalInferenceProviderFactory {
         "local"
     }
 
-    fn create(&self, spec: &ProviderSpec) -> Result<DynProvider, LlmError> {
-        match spec {
+    fn create(&self, config: &ProviderConfig) -> Result<DynProvider, LlmError> {
+        match &config.spec {
             ProviderSpec::LocalInference { base_url, model } => {
                 let provider = LmStudioProvider::new(model.clone(), Some(base_url.clone()));
-                let identity = ProviderIdentity::new("local", Some(model));
+                let mut identity = ProviderIdentity::new("local", Some(model));
+                identity.reasoning_budget = config.reasoning_budget.clone();
+                identity.variant = config.variant.clone();
                 Ok(DynProvider::with_identity(provider, identity))
             }
             _ => Err(LlmError::Provider(format!(
                 "LocalInference factory cannot create provider from {:?}",
-                spec
+                config.spec
             ))),
         }
     }
@@ -866,8 +924,8 @@ mod tests {
                 "custom"
             }
 
-            fn create(&self, spec: &ProviderSpec) -> Result<DynProvider, LlmError> {
-                match spec {
+            fn create(&self, config: &ProviderConfig) -> Result<DynProvider, LlmError> {
+                match &config.spec {
                     ProviderSpec::OpenAI { api_key, model, .. } => {
                         let provider = OpenAiProvider::new(api_key.clone(), model.clone());
                         Ok(DynProvider::new(provider))

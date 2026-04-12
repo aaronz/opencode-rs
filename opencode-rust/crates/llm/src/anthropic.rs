@@ -3,12 +3,14 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
 use crate::provider::{Provider, StreamingCallback};
+use crate::provider_abstraction::AnthropicThinkingConfig;
 use opencode_core::OpenCodeError;
 
 pub struct AnthropicProvider {
     client: Client,
     api_key: String,
     model: String,
+    thinking_budget: Option<AnthropicThinkingConfig>,
 }
 
 #[derive(Serialize)]
@@ -17,6 +19,15 @@ struct AnthropicRequest {
     messages: Vec<AnthropicMessage>,
     max_tokens: u32,
     stream: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    thinking: Option<AnthropicThinking>,
+}
+
+#[derive(Serialize)]
+struct AnthropicThinking {
+    #[serde(rename = "type")]
+    thinking_type: String,
+    budget_tokens: u32,
 }
 
 #[derive(Serialize)]
@@ -53,7 +64,13 @@ impl AnthropicProvider {
             client: Client::new(),
             api_key,
             model,
+            thinking_budget: None,
         }
+    }
+
+    pub fn with_thinking_budget(mut self, config: AnthropicThinkingConfig) -> Self {
+        self.thinking_budget = Some(config);
+        self
     }
 }
 
@@ -69,11 +86,24 @@ impl Provider for AnthropicProvider {
             content: prompt.to_string(),
         }];
 
+        let thinking = self.thinking_budget.map(|config| {
+            let budget_tokens = match config {
+                AnthropicThinkingConfig::Low => 1000,
+                AnthropicThinkingConfig::High => 8000,
+                AnthropicThinkingConfig::Max => 16000,
+            };
+            AnthropicThinking {
+                thinking_type: "enabled".to_string(),
+                budget_tokens,
+            }
+        });
+
         let request = AnthropicRequest {
             model: self.model.clone(),
             messages,
             max_tokens: 4096,
             stream: false,
+            thinking,
         };
 
         let response = self
@@ -120,11 +150,24 @@ impl Provider for AnthropicProvider {
             content: prompt.to_string(),
         }];
 
+        let thinking = self.thinking_budget.map(|config| {
+            let budget_tokens = match config {
+                AnthropicThinkingConfig::Low => 1000,
+                AnthropicThinkingConfig::High => 8000,
+                AnthropicThinkingConfig::Max => 16000,
+            };
+            AnthropicThinking {
+                thinking_type: "enabled".to_string(),
+                budget_tokens,
+            }
+        });
+
         let request = AnthropicRequest {
             model: self.model.clone(),
             messages,
             max_tokens: 4096,
             stream: true,
+            thinking,
         };
 
         let response = self

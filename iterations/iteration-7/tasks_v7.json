@@ -349,7 +349,7 @@
       "priority": "P2",
       "title": "LLM Variant/Reasoning Budget",
       "description": "Implement LLM variant selection and reasoning budget in crate/llm",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "Users can select LLM variant",
         "Reasoning budget can be configured",
