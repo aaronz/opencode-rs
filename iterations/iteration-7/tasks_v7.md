@@ -102,10 +102,10 @@
 
 ### Git
 - [x] P2-14: GitLab Duo experimental marking (`crates/git`) ✅ Done
-- [ ] **P2-15: Git test code cleanup** ❌ BUG (not feature gap)
-  - [ ] Remove unused `next_port()` function (line 413)
-  - [ ] Remove or use `GitLabMockServer` struct (line 706)
-  - [ ] Clean up associated unused items: `new`, `handle_request`, `url`, `stop`
+- [x] **P2-15: Git test code cleanup** ✅ Done
+  - [x] Remove unused `next_port()` function (line 413)
+  - [x] Remove or use `GitLabMockServer` struct (line 706)
+  - [x] Clean up associated unused items: `new`, `handle_request`, `url`, `stop`
 
 ---
 

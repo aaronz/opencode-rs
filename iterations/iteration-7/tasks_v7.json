@@ -382,7 +382,7 @@
       "priority": "P2",
       "title": "Git Test Code Cleanup",
       "description": "Clean up unused test code in git crate: remove unused next_port() function (line 413), remove or use GitLabMockServer struct (line 706), clean up associated unused items",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Unused next_port() function removed",
         "GitLabMockServer struct removed or used",
