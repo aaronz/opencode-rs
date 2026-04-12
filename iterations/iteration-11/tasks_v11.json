@@ -104,7 +104,7 @@
       "priority": "P2",
       "title": "Evaluate Custom JSONC Parser (TD-008)",
       "description": "The codebase uses a custom JSONC parser. Evaluate replacing it with an existing crate such as `json_comments`. Research performance, maintenance, and migration cost.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "Research findings documented (crates evaluated, pros/cons)",
         "Performance benchmark comparison exists if migration is recommended",
@@ -124,7 +124,7 @@
       "priority": "P2",
       "title": "Remove Deprecated `tools` Field (TD-004)",
       "description": "The `tools` config field is deprecated and should be migrated to the `permission` field. Ensure all usages are migrated, add a deprecation warning if not present, and schedule removal for v4.0.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "All code references to the deprecated `tools` field emit a deprecation warning",
         "All internal usages have been migrated to use `permission` field instead",
