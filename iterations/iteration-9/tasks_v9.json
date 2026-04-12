@@ -158,7 +158,7 @@
       "priority": "P0",
       "title": "Fix PathBuf to Path in skill.rs",
       "description": "Change &PathBuf to &Path at skill.rs line 116 (5 occurrences) to fix clippy warnings.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "All &PathBuf references changed to &Path",
         "clippy warnings resolved"
@@ -166,7 +166,7 @@
       "test_commands": [
         "cargo clippy -p opencode-core -- -D warnings"
       ],
-      "impl_notes": "PathBuf implements Deref to Path, so &PathBuf can be replaced with &Path.",
+      "impl_notes": "Changed &PathBuf to &Path at line 210 (discover_in_dir function). PathBuf implements Deref to Path, so &PathBuf can be replaced with &Path.",
       "dependencies": []
     },
     {

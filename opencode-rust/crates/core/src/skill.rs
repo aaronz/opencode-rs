@@ -207,7 +207,7 @@ impl SkillManager {
         Some((meta, body))
     }
 
-    pub fn discover_in_dir(&self, dir: &PathBuf) -> Result<Vec<Skill>, OpenCodeError> {
+    pub fn discover_in_dir(&self, dir: &Path) -> Result<Vec<Skill>, OpenCodeError> {
         let mut found = Vec::new();
         if !dir.exists() {
             return Ok(found);
