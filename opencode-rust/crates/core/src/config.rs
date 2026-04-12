@@ -426,17 +426,6 @@ pub struct AgentConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 
-    /// Agent mode
-    ///
-    /// # Deprecated
-    ///
-    /// This field is deprecated and will be removed in v4.0.
-    /// Use 'permission' field instead to control agent access levels.
-    #[deprecated(since = "0.3.0", note = "Use 'permission' field instead. Will be removed in v4.0.")]
-    #[allow(deprecated)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub mode: Option<AgentMode>,
-
     /// Hide from @ autocomplete menu
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hidden: Option<bool>,
@@ -460,21 +449,6 @@ pub struct AgentConfig {
     /// Permission configuration
     #[serde(skip_serializing_if = "Option::is_none")]
     pub permission: Option<PermissionConfig>,
-}
-
-/// Agent mode enumeration
-///
-/// # Deprecated
-///
-/// This enum is deprecated and will be removed in v4.0.
-/// Use 'permission' field instead to control agent access levels.
-#[deprecated(since = "0.3.0", note = "Use 'permission' field instead. Will be removed in v4.0.")]
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum AgentMode {
-    Subagent,
-    Primary,
-    All,
 }
 
 /// Provider configuration with model overrides and options
@@ -2766,15 +2740,6 @@ impl Config {
                             severity: ValidationSeverity::Error,
                         });
                     }
-                }
-
-                #[allow(deprecated)]
-                if agent.mode.is_some() {
-                    errors.push(ValidationError {
-                        field: format!("agent.{}.mode", name),
-                        message: "The 'mode' field is deprecated and will be removed in v4.0. Use 'permission' field instead.".to_string(),
-                        severity: ValidationSeverity::Warning,
-                    });
                 }
             }
 

@@ -26,11 +26,11 @@
 
 ##### Config.rs - 4 errors
 
-- [ ] **Task:** Fix deprecated `AgentMode` enum usage
+- [x] **Task:** Fix deprecated `AgentMode` enum usage ✅
   - **File:** `crates/core/src/config.rs`
   - **Line:** 436
   - **Error:** deprecated enum `AgentMode`
-  - **Fix:** Remove usage or use `permission` field instead
+  - **Fix:** Removed deprecated mode field and AgentMode enum
   - **Verification:** `cargo clippy -p opencode-core -- -D warnings`
 
 - [ ] **Task:** Fix deprecated `AgentConfig::mode` field
@@ -141,10 +141,10 @@ cargo clippy -p opencode-core -- -D warnings
 
 | Category | Total | Completed | Remaining |
 |----------|-------|----------|-----------|
-| P0 Tasks | 18 | 0 | 18 |
+| P0 Tasks | 18 | 1 | 17 |
 | P1 Tasks | 1 | 0 | 1 |
 | P2 Tasks | 2 | 0 | 2 |
-| **Total** | **21** | **0** | **21** |
+| **Total** | **21** | **1** | **20** |
 
 ---
 

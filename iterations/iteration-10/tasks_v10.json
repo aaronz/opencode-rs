@@ -21,7 +21,7 @@
       "priority": "P0",
       "title": "Fix deprecated AgentMode enum usage",
       "description": "Remove or replace usage of deprecated AgentMode enum in crates/core/src/config.rs line 436. Use 'permission' field instead.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "No deprecated AgentMode enum usage in config.rs",
         "cargo clippy -p opencode-core -- -D warnings passes"
@@ -29,7 +29,7 @@
       "test_commands": [
         "cargo clippy -p opencode-core -- -D warnings"
       ],
-      "impl_notes": "Use permission field instead of deprecated AgentMode enum",
+      "impl_notes": "Removed deprecated mode field and AgentMode enum from AgentConfig. Agent permission is controlled via permission field instead.",
       "dependencies": []
     },
     {
