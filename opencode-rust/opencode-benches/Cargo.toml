@@ -12,6 +12,7 @@ criterion = "0.5"
 tokio = { version = "1.45", features = ["full"] }
 tempfile = "3"
 serde_json = "1"
+jsonc-parser = { version = "0.32", features = ["serde"] }
 
 [[bench]]
 name = "session_operations"
@@ -37,3 +38,8 @@ path = "benches/config_and_token.rs"
 name = "plugin_operations"
 harness = false
 path = "benches/plugin_operations.rs"
+
+[[bench]]
+name = "jsonc_parsing"
+harness = false
+path = "benches/jsonc_parsing.rs"

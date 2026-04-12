@@ -104,7 +104,7 @@
       "priority": "P2",
       "title": "Evaluate Custom JSONC Parser (TD-008)",
       "description": "The codebase uses a custom JSONC parser. Evaluate replacing it with an existing crate such as `json_comments`. Research performance, maintenance, and migration cost.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "Research findings documented (crates evaluated, pros/cons)",
         "Performance benchmark comparison exists if migration is recommended",

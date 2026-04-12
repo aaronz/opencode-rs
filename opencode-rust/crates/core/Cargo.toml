@@ -31,7 +31,7 @@ notify = "6"
 globset = "0.4"
 sha2 = "0.10"
 tiktoken-rs.workspace = true
-json5 = "0.4"
+jsonc-parser = { workspace = true }
 aes-gcm.workspace = true
 rand.workspace = true
 

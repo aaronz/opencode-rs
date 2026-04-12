@@ -1,3 +1,5 @@
+use jsonc_parser::errors::ParseError;
+use jsonc_parser::parse_to_serde_value;
 use serde_json::Value;
 use std::path::Path;
 
@@ -16,17 +18,10 @@ pub enum JsoncError {
 }
 
 impl JsoncError {
-    pub fn new_parse_error(raw_error: json5::Error) -> Self {
-        Self::new_parse_error_with_source(raw_error, "")
-    }
-
-    pub fn new_parse_error_with_source(raw_error: json5::Error, source: &str) -> Self {
-        let (line, column, message) = match raw_error {
-            json5::Error::Message { msg, location } => {
-                let (line, column) = location.map(|loc| (loc.line, loc.column)).unwrap_or((1, 1));
-                (line, column, msg)
-            }
-        };
+    pub fn new_parse_error(err: ParseError, source: &str) -> Self {
+        let line = err.position.line;
+        let column = err.position.column;
+        let message = err.kind.to_string();
         let context = Self::generate_context(&message);
         let source_line = Self::extract_source_line(source, line);
 
@@ -116,6 +111,7 @@ impl JsoncError {
         }
     }
 
+    #[allow(dead_code)]
     pub fn with_source(mut self, source: &str) -> Self {
         if let JsoncError::Parse {
             ref mut source_line,
@@ -130,8 +126,8 @@ impl JsoncError {
 }
 
 pub fn parse_jsonc(content: &str) -> Result<Value, JsoncError> {
-    json5::from_str(content)
-        .map_err(|e| JsoncError::new_parse_error_with_source(e, content).with_source(content))
+    parse_to_serde_value(content, &Default::default())
+        .map_err(|err| JsoncError::new_parse_error(err, content))
 }
 
 pub(crate) fn strip_jsonc_comments(input: &str) -> String {
@@ -259,7 +255,6 @@ mod tests {
 
     #[test]
     fn test_invalid_jsonc_produces_clear_error() {
-        // Invalid JSON - missing closing brace
         let input = r#"{
     // Comment
     "key": "value"
@@ -286,7 +281,6 @@ mod tests {
 
     #[test]
     fn test_mixed_comments_invalid_json_after_stripping() {
-        // JSON that becomes invalid after comment stripping (unterminated string)
         let input = r#"{
     "key": "value
 }"#;
