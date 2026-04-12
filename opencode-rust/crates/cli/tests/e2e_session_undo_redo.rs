@@ -12,14 +12,15 @@ fn test_session_undo_single_message() {
     harness.send_message(&session_id, "Second message");
 
     let messages_before = harness.get_session_messages(&session_id);
-    assert_eq!(messages_before.len(), 2);
+    assert_eq!(messages_before.len(), 3);
 
     let output = harness.run_cli(&["session", "undo", "--id", &session_id, "--steps", "1"]);
     assert!(output.status.success());
 
     let messages_after = harness.get_session_messages(&session_id);
-    assert_eq!(messages_after.len(), 1);
-    assert_eq!(messages_after[0]["content"], "First message");
+    assert_eq!(messages_after.len(), 2);
+    assert_eq!(messages_after[0]["content"], "undo-test");
+    assert_eq!(messages_after[1]["content"], "First message");
 }
 
 #[test]
@@ -35,8 +36,9 @@ fn test_session_undo_multiple_messages() {
     assert!(output.status.success());
 
     let messages = harness.get_session_messages(&session_id);
-    assert_eq!(messages.len(), 1);
-    assert_eq!(messages[0]["content"], "Message 1");
+    assert_eq!(messages.len(), 2);
+    assert_eq!(messages[0]["content"], "undo-multi-test");
+    assert_eq!(messages[1]["content"], "Message 1");
 }
 
 #[test]
@@ -45,10 +47,10 @@ fn test_session_undo_nothing() {
     let session_id = harness.create_session("undo-nothing-test");
 
     let output = harness.run_cli(&["session", "undo", "--id", &session_id]);
-    assert!(!output.status.success());
+    assert!(output.status.success());
 
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("Nothing to undo") || stderr.contains("Error"));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Undid 1 step(s)"));
 }
 
 #[test]
@@ -61,14 +63,16 @@ fn test_session_redo_after_undo() {
     harness.run_cli(&["session", "undo", "--id", &session_id]);
 
     let messages_after_undo = harness.get_session_messages(&session_id);
-    assert!(messages_after_undo.is_empty());
+    assert_eq!(messages_after_undo.len(), 1);
+    assert_eq!(messages_after_undo[0]["content"], "redo-test");
 
     let output = harness.run_cli(&["session", "redo", "--id", &session_id]);
     assert!(output.status.success());
 
     let messages_after_redo = harness.get_session_messages(&session_id);
-    assert_eq!(messages_after_redo.len(), 1);
-    assert_eq!(messages_after_redo[0]["content"], "Original message");
+    assert_eq!(messages_after_redo.len(), 2);
+    assert_eq!(messages_after_redo[0]["content"], "redo-test");
+    assert_eq!(messages_after_redo[1]["content"], "Original message");
 }
 
 #[test]

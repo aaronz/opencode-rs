@@ -90,14 +90,14 @@
       "priority": "P1",
       "title": "test_prompt_history_persistence",
       "description": "Assertion failed in history persistence test. File: crates/cli/tests/e2e_prompt_history.rs",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "cargo test test_prompt_history_persistence passes"
       ],
       "test_commands": [
         "cargo test -p opencode-cli test_prompt_history_persistence"
       ],
-      "impl_notes": "Investigate root cause of persistence failure and fix history persistence logic",
+      "impl_notes": "Fixed load_session_records() in session.rs to actually load messages from sessions instead of returning empty messages array. Also fixed related tests (e2e_session_persistence.rs, e2e_session_undo_redo.rs, e2e_session_workflows.rs) that had incorrect message count expectations due to not accounting for session creation message.",
       "dependencies": []
     },
     {
@@ -105,14 +105,14 @@
       "priority": "P1",
       "title": "test_prompt_history_navigation",
       "description": "history.len() >= 3 assertion failed. File: crates/cli/tests/e2e_prompt_history.rs",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "cargo test test_prompt_history_navigation passes"
       ],
       "test_commands": [
         "cargo test -p opencode-cli test_prompt_history_navigation"
       ],
-      "impl_notes": "Investigate root cause of navigation logic issue and fix history navigation",
+      "impl_notes": "Same root cause as P1-cli-1 - load_session_records() was returning empty messages. Fixed along with P1-cli-1.",
       "dependencies": []
     },
     {

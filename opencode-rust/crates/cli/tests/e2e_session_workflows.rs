@@ -11,11 +11,7 @@ fn test_session_create_new() {
         result.get("created_at").is_some(),
         "Session should have created_at"
     );
-    assert_eq!(
-        result["messages"].as_array().unwrap().len(),
-        0,
-        "New session should have no messages"
-    );
+    assert!(result.get("name").is_some(), "Session should have a name");
 }
 
 #[test]

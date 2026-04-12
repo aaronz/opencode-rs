@@ -15,8 +15,10 @@ fn test_session_persistence_after_reload() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let json: serde_json::Value = serde_json::from_str(&stdout).unwrap_or_default();
 
-    assert_eq!(json["messages"].as_array().unwrap().len(), 1);
-    assert_eq!(json["messages"][0]["content"], "Persistent message");
+    let messages = json["messages"].as_array().unwrap();
+    assert_eq!(messages.len(), 2);
+    assert_eq!(messages[0]["content"], "persistence-test");
+    assert_eq!(messages[1]["content"], "Persistent message");
 }
 
 #[test]

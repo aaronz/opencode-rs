@@ -25,16 +25,28 @@ pub struct SessionMessage {
 
 pub fn load_session_records() -> Vec<SessionRecord> {
     let sharing = get_session_sharing();
-    sharing
-        .list_sessions()
-        .unwrap_or_default()
+    let infos = sharing.list_sessions().unwrap_or_default();
+
+    infos
         .into_iter()
-        .map(|info| SessionRecord {
-            id: info.id.to_string(),
-            name: info.preview.chars().take(30).collect(),
-            created_at: info.created_at.to_rfc3339(),
-            messages: Vec::new(),
-            redo_history: Vec::new(),
+        .filter_map(|info| {
+            sharing
+                .get_session(&info.id)
+                .ok()
+                .map(|session| SessionRecord {
+                    id: info.id.to_string(),
+                    name: info.preview.chars().take(30).collect(),
+                    created_at: info.created_at.to_rfc3339(),
+                    messages: session
+                        .messages
+                        .iter()
+                        .map(|m| SessionMessage {
+                            role: format!("{:?}", m.role).to_lowercase(),
+                            content: m.content.clone(),
+                        })
+                        .collect(),
+                    redo_history: Vec::new(),
+                })
         })
         .collect()
 }

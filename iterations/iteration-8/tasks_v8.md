@@ -120,7 +120,7 @@ error: unreachable pattern
 
 ---
 
-### P1-9: Session Sharing Between Interfaces
+### P1-9: ✅ Done
 
 | Attribute | Value |
 |-----------|-------|
