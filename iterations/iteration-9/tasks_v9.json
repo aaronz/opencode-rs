@@ -113,14 +113,14 @@
       "priority": "P0",
       "title": "Fix map_entry in session_sharing.rs",
       "description": "Use entry API instead of map_entry at session_sharing.rs line 225.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "clippy map_entry warning resolved"
       ],
       "test_commands": [
         "cargo clippy -p opencode-core -- -D warnings"
       ],
-      "impl_notes": "Refactor to use std::collections::hash_map::Entry API.",
+      "impl_notes": "Code at line 225 already uses Entry API correctly: `if let std::collections::hash_map::Entry::Vacant(e) = sessions.entry(id)`.",
       "dependencies": []
     },
     {
