@@ -238,7 +238,7 @@ Session sharing mechanism already implemented in `session_sharing.rs`. Fixed pre
 | DC-2 | Unused `SecretStorage` methods | core | secret_storage.rs:36 | Low | Remove or use |
 | DC-3 | Unused `e` variable | tools | lsp_tool.rs:311,526,626,783 | Low | Rename to `_e` |
 | DC-4 | Unused `body` variable | git | github.rs:566 | Low | Rename to `_body` |
-| DC-5 | `open_browser` function unused | cli | desktop.rs:141 | Low | Remove or use |
+| DC-5 | `open_browser` function unused | cli | desktop.rs:141 | Low | Remove or use ✅ |
 | DC-6 | `format_time_elapsed` function unused | tui | app.rs:534 | Low | Remove or use |
 | DC-7 | Unused `complete` variable | cli | mcp_auth.rs:216 | Low | Rename to `_complete` |
 | DC-8 | Unused `models_url` function | llm | ollama.rs | Low | Remove or use |

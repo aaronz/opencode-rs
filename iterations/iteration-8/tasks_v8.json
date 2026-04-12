@@ -364,7 +364,7 @@
       "priority": "DC",
       "title": "Remove or use open_browser function",
       "description": "open_browser function unused in cli/desktop.rs:141. Severity: Low",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Unused function removed or used",
         "cargo clippy passes"
@@ -372,7 +372,7 @@
       "test_commands": [
         "cargo clippy --all -- -D warnings"
       ],
-      "impl_notes": "Remove or use the unused open_browser function",
+      "impl_notes": "Remove or use the unused open_browser function - FIXED: The open_browser function is now being used at line 118 when desktop feature is not enabled. Issue was fixed by commit 131a17e which added the open_browser(&url) call.",
       "dependencies": []
     },
     {
