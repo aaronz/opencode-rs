@@ -10,9 +10,17 @@ use ratatui::{
     Frame,
 };
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum HomeViewSection {
+    QuickActions,
+    RecentSessions,
+}
+
 pub struct HomeView {
     theme: Theme,
     selected_action: HomeAction,
+    focused_section: HomeViewSection,
+    selected_session_index: Option<usize>,
     recent_sessions: Vec<Session>,
     model: String,
     directory: String,
@@ -66,6 +74,8 @@ impl HomeView {
         Self {
             theme,
             selected_action: HomeAction::NewSession,
+            focused_section: HomeViewSection::QuickActions,
+            selected_session_index: None,
             recent_sessions: Vec::new(),
             model: String::new(),
             directory: String::new(),
@@ -118,6 +128,45 @@ impl HomeView {
             .collect();
         self.total_sessions = session_manager.len();
         self.total_messages = session_manager.list().iter().map(|s| s.message_count).sum();
+        if self.selected_session_index.is_none() && !self.recent_sessions.is_empty() {
+            self.selected_session_index = Some(0);
+        }
+        if self
+            .selected_session_index
+            .map(|i| i >= self.recent_sessions.len())
+            .unwrap_or(false)
+        {
+            self.selected_session_index = self.recent_sessions.len().checked_sub(1);
+        }
+    }
+
+    pub fn get_focused_section(&self) -> HomeViewSection {
+        self.focused_section
+    }
+
+    pub fn set_focused_section(&mut self, section: HomeViewSection) {
+        self.focused_section = section;
+    }
+
+    pub fn switch_section(&mut self) {
+        self.focused_section = match self.focused_section {
+            HomeViewSection::QuickActions => HomeViewSection::RecentSessions,
+            HomeViewSection::RecentSessions => HomeViewSection::QuickActions,
+        };
+    }
+
+    pub fn get_selected_session_index(&self) -> Option<usize> {
+        self.selected_session_index
+    }
+
+    pub fn move_session_selection(&mut self, delta: i32) {
+        if self.recent_sessions.is_empty() {
+            return;
+        }
+        let current_idx = self.selected_session_index.unwrap_or(0);
+        let new_idx = ((current_idx as i32) + delta).max(0) as usize;
+        let new_idx = new_idx.min(self.recent_sessions.len() - 1);
+        self.selected_session_index = Some(new_idx);
     }
 }
 
@@ -219,7 +268,8 @@ impl Dialog for HomeView {
         y_offset += 1;
 
         for action in HomeAction::all() {
-            let is_selected = action == self.selected_action;
+            let is_selected = self.focused_section == HomeViewSection::QuickActions
+                && action == self.selected_action;
             let action_style = if is_selected {
                 Style::default()
                     .fg(Color::Black)
@@ -275,13 +325,28 @@ impl Dialog for HomeView {
             let session_items: Vec<ListItem> = self
                 .recent_sessions
                 .iter()
-                .map(|s| {
+                .enumerate()
+                .map(|(idx, s)| {
                     let time_ago = format_time_elapsed(s.time_since_active());
+                    let is_selected = self.focused_section == HomeViewSection::RecentSessions
+                        && self.selected_session_index == Some(idx);
+                    let name_style = if is_selected {
+                        Style::default()
+                            .fg(Color::Black)
+                            .bg(theme.primary_color())
+                            .add_modifier(Modifier::BOLD)
+                    } else {
+                        Style::default().fg(theme.foreground_color())
+                    };
                     ListItem::new(Line::from(vec![
-                        Span::styled(&s.name, Style::default().fg(theme.foreground_color())),
+                        Span::styled(&s.name, name_style),
                         Span::styled(
                             format!(" ({})", time_ago),
-                            Style::default().fg(theme.muted_color()),
+                            Style::default().fg(if is_selected {
+                                Color::Black
+                            } else {
+                                theme.muted_color()
+                            }),
                         ),
                     ]))
                 })
@@ -303,11 +368,13 @@ impl Dialog for HomeView {
                 .highlight_style(Style::default().bg(theme.primary_color()).fg(Color::Black));
 
             let mut state = ratatui::widgets::ListState::default();
-            state.select(Some(0));
+            state.select(self.selected_session_index);
             f.render_stateful_widget(list, sessions_area, &mut state);
         }
 
         let hint_line = Line::from(vec![
+            Span::styled("Tab", Style::default().fg(theme.muted_color())),
+            Span::raw(" Switch section "),
             Span::styled("↑↓", Style::default().fg(theme.muted_color())),
             Span::raw(" Navigate "),
             Span::styled("Enter", Style::default().fg(theme.muted_color())),
@@ -327,32 +394,59 @@ impl Dialog for HomeView {
     fn handle_input(&mut self, key: KeyEvent) -> DialogAction {
         match key.code {
             KeyCode::Esc => DialogAction::Close,
-            KeyCode::Enter => DialogAction::Confirm(self.selected_action.to_string()),
+            KeyCode::Tab => {
+                self.switch_section();
+                DialogAction::None
+            }
+            KeyCode::Enter => {
+                if self.focused_section == HomeViewSection::RecentSessions {
+                    if let Some(idx) = self.selected_session_index {
+                        DialogAction::Confirm(format!("load_session:{}", idx))
+                    } else {
+                        DialogAction::Confirm(self.selected_action.to_string())
+                    }
+                } else {
+                    DialogAction::Confirm(self.selected_action.to_string())
+                }
+            }
             KeyCode::Up | KeyCode::Char('k') => {
-                self.move_selection(-1);
+                if self.focused_section == HomeViewSection::QuickActions {
+                    self.move_selection(-1);
+                } else {
+                    self.move_session_selection(-1);
+                }
                 DialogAction::None
             }
             KeyCode::Down | KeyCode::Char('j') => {
-                self.move_selection(1);
+                if self.focused_section == HomeViewSection::QuickActions {
+                    self.move_selection(1);
+                } else {
+                    self.move_session_selection(1);
+                }
                 DialogAction::None
             }
             KeyCode::Char('n') => {
+                self.focused_section = HomeViewSection::QuickActions;
                 self.selected_action = HomeAction::NewSession;
                 DialogAction::Confirm(self.selected_action.to_string())
             }
             KeyCode::Char('c') => {
+                self.focused_section = HomeViewSection::QuickActions;
                 self.selected_action = HomeAction::ContinueLast;
                 DialogAction::Confirm(self.selected_action.to_string())
             }
             KeyCode::Char('s') => {
+                self.focused_section = HomeViewSection::QuickActions;
                 self.selected_action = HomeAction::ViewSessions;
                 DialogAction::Confirm(self.selected_action.to_string())
             }
             KeyCode::Char(',') => {
+                self.focused_section = HomeViewSection::QuickActions;
                 self.selected_action = HomeAction::Settings;
                 DialogAction::Confirm(self.selected_action.to_string())
             }
             KeyCode::Char('q') => {
+                self.focused_section = HomeViewSection::QuickActions;
                 self.selected_action = HomeAction::Quit;
                 DialogAction::Confirm(self.selected_action.to_string())
             }

@@ -4,7 +4,7 @@ use crate::components::{
     TerminalPanel, TitleBar, TitleBarAction,
 };
 use crate::config::{Config, DiffStyle, UserConfig};
-use crate::dialogs::home_view::{HomeAction, HomeView};
+use crate::dialogs::home_view::{HomeAction, HomeView, HomeViewSection};
 use crate::dialogs::*;
 use crate::file_ref_handler::FileRefHandler;
 use crate::input::{EditorLauncher, InputBox, InputParser, InputProcessor, InputToken};
@@ -3649,41 +3649,66 @@ OpenCode Agent Configuration
                     KeyCode::Esc => {
                         self.mode = AppMode::Chat;
                     }
+                    KeyCode::Tab => {
+                        self.home_view.switch_section();
+                    }
                     KeyCode::Enter => {
-                        let action = self.home_view.get_selected_action();
-                        match action {
-                            HomeAction::NewSession => {
-                                let session_count = self.session_manager.len();
-                                self.session_manager
-                                    .add_session(format!("Session {}", session_count + 1));
-                                self.mode = AppMode::Chat;
-                            }
-                            HomeAction::ContinueLast => {
-                                if let Some(session) = self.session_manager.current() {
+                        if self.home_view.get_focused_section() == HomeViewSection::RecentSessions {
+                            if let Some(idx) = self.home_view.get_selected_session_index() {
+                                let session_name = self.session_manager.get_session(idx).map(|s| s.name.clone());
+                                if session_name.is_some() {
+                                    self.session_manager.select(idx);
                                     self.add_message(
-                                        format!("Continuing session: {}", session.name),
+                                        format!("Loaded session: {}", session_name.unwrap()),
                                         false,
                                     );
+                                    self.mode = AppMode::Chat;
                                 }
-                                self.mode = AppMode::Chat;
                             }
-                            HomeAction::ViewSessions => {
-                                self.mode = AppMode::Sessions;
-                            }
-                            HomeAction::Settings => {
-                                self.mode = AppMode::Settings;
-                            }
-                            HomeAction::Quit => {
-                                disable_raw_mode()?;
-                                std::process::exit(0);
+                        } else {
+                            let action = self.home_view.get_selected_action();
+                            match action {
+                                HomeAction::NewSession => {
+                                    let session_count = self.session_manager.len();
+                                    self.session_manager
+                                        .add_session(format!("Session {}", session_count + 1));
+                                    self.mode = AppMode::Chat;
+                                }
+                                HomeAction::ContinueLast => {
+                                    if let Some(session) = self.session_manager.current() {
+                                        self.add_message(
+                                            format!("Continuing session: {}", session.name),
+                                            false,
+                                        );
+                                    }
+                                    self.mode = AppMode::Chat;
+                                }
+                                HomeAction::ViewSessions => {
+                                    self.mode = AppMode::Sessions;
+                                }
+                                HomeAction::Settings => {
+                                    self.mode = AppMode::Settings;
+                                }
+                                HomeAction::Quit => {
+                                    disable_raw_mode()?;
+                                    std::process::exit(0);
+                                }
                             }
                         }
                     }
                     KeyCode::Up | KeyCode::Char('k') => {
-                        self.home_view.move_selection(-1);
+                        if self.home_view.get_focused_section() == HomeViewSection::RecentSessions {
+                            self.home_view.move_session_selection(-1);
+                        } else {
+                            self.home_view.move_selection(-1);
+                        }
                     }
                     KeyCode::Down | KeyCode::Char('j') => {
-                        self.home_view.move_selection(1);
+                        if self.home_view.get_focused_section() == HomeViewSection::RecentSessions {
+                            self.home_view.move_session_selection(1);
+                        } else {
+                            self.home_view.move_selection(1);
+                        }
                     }
                     _ => {}
                 }

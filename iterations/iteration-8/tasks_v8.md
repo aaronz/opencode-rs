@@ -220,7 +220,7 @@ Session sharing mechanism already implemented in `session_sharing.rs`. Fixed pre
 | ID | Task | Module | Status |
 |----|------|--------|--------|
 | P2-11 | Shell prefix (`!`) handler | tui | ✅ Done |
-| P2-12 | Home view completion | tui | 📋 Deferred |
+| P2-12 | Home view completion | tui | ✅ Done |
 
 ### Storage
 

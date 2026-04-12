@@ -9,6 +9,7 @@ pub mod diff_review;
 pub mod directory_selection;
 pub mod file_selection;
 pub mod home_view;
+pub use home_view::{HomeAction, HomeView, HomeViewSection};
 pub mod model_selection;
 pub mod provider_management;
 pub mod release_notes;

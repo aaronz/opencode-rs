@@ -269,15 +269,15 @@
       "id": "P2-12",
       "priority": "P2",
       "title": "Home view completion",
-      "description": "Home view completion deferred in tui module",
-      "status": "todo",
+      "description": "Home view completion implemented in tui module",
+      "status": "done",
       "test_criteria": [
         "Home view completion implemented"
       ],
       "test_commands": [
         "cargo test -p opencode-tui"
       ],
-      "impl_notes": "Deferred",
+      "impl_notes": "Completed",
       "dependencies": []
     },
     {
