@@ -40,11 +40,11 @@
   - **Fix:** Removed unnecessary `#[allow(deprecated)]` attribute from AgentConfig struct. The deprecated mode field was already removed in previous commits.
   - **Verification:** `cargo clippy -p opencode-core -- -D warnings`
 
-- [ ] **Task:** Rewrite block with `?` operator
+- [x] **Task:** Rewrite block with `?` operator ✅
   - **File:** `crates/core/src/config.rs`
   - **Line:** 1594
   - **Error:** `question_mark` - block may be rewritten with `?`
-  - **Fix:** Replace manual error handling with `?` operator
+  - **Fix:** Already fixed - code at line 1594 uses correct pattern
   - **Verification:** `cargo clippy -p opencode-core -- -D warnings`
 
 - [ ] **Task:** Remove unnecessary borrow
@@ -141,10 +141,10 @@ cargo clippy -p opencode-core -- -D warnings
 
 | Category | Total | Completed | Remaining |
 |----------|-------|----------|-----------|
-| P0 Tasks | 18 | 1 | 17 |
+| P0 Tasks | 18 | 2 | 16 |
 | P1 Tasks | 1 | 0 | 1 |
 | P2 Tasks | 2 | 0 | 2 |
-| **Total** | **21** | **1** | **20** |
+| **Total** | **21** | **2** | **19** |
 
 ---
 

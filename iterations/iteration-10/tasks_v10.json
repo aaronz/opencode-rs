@@ -53,7 +53,7 @@
       "priority": "P0",
       "title": "Rewrite block with ? operator",
       "description": "Replace manual error handling with ? operator in crates/core/src/config.rs line 1594. Fix clippy error 'question_mark'.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Block at line 1594 rewritten with ? operator",
         "cargo clippy -p opencode-core -- -D warnings passes without question_mark error"
