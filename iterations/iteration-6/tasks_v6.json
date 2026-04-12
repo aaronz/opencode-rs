@@ -23,7 +23,7 @@
       "priority": "P0",
       "title": "Git Test Code Bugs",
       "description": "Fix 11 test compilation errors in crates/git: 8 duplicate test name definitions, missing use std::sync::atomic::Ordering import, missing next_port() helper function.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "cargo test --package opencode-git passes without compilation errors",
         "No duplicate test names",

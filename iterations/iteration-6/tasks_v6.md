@@ -8,7 +8,7 @@
 
 ## P0 - Blocking Issues (Must Fix Before Release)
 
-### P0-new-2: Desktop WebView Integration ✅ DONE
+### P0-new-2: ✅ Done
 - [x] **Status:** ✅ IMPLEMENTED
 - [ ] **Module:** `crates/cli`
 - [ ] **FR Reference:** FR-015 (Desktop/Web/ACP Interface)

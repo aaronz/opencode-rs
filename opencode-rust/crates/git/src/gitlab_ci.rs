@@ -406,8 +406,17 @@ mod gitlab_integration_tests {
     use super::*;
     use std::io::{Read, Write};
     use std::net::TcpListener;
+    use std::sync::atomic::Ordering;
     use std::sync::mpsc;
     use std::thread;
+
+    fn next_port() -> u16 {
+        TcpListener::bind("127.0.0.1:0")
+            .unwrap()
+            .local_addr()
+            .unwrap()
+            .port()
+    }
 
     fn spawn_gitlab_mock_server() -> String {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -845,170 +854,5 @@ mod gitlab_integration_tests {
         fn drop(&mut self) {
             self.stop();
         }
-    }
-
-    #[test]
-    fn test_gitlab_pipeline_trigger() {
-        let server = GitLabMockServer::new();
-        let client = GitLabClient::new("test-token", &server.url());
-        let trigger = GitLabCiTrigger::new(client, "group/project");
-
-        let result = trigger.trigger_pipeline("main");
-
-        assert!(
-            result.is_ok(),
-            "Pipeline trigger should succeed: {:?}",
-            result.err()
-        );
-        let trigger_result = result.unwrap();
-        assert_eq!(trigger_result.pipeline_id, 12345);
-        assert_eq!(trigger_result.branch, "main");
-        assert_eq!(trigger_result.status, "pending");
-        assert!(trigger_result.pipeline_url.contains("/pipelines/12345"));
-    }
-
-    #[test]
-    fn test_gitlab_pipeline_status_monitoring() {
-        let server = GitLabMockServer::new();
-        let client = GitLabClient::new("test-token", &server.url());
-        let trigger = GitLabCiTrigger::new(client, "group/project");
-
-        let status = trigger.get_pipeline_status(12345);
-
-        assert!(
-            status.is_ok(),
-            "Pipeline status should be retrieved: {:?}",
-            status.err()
-        );
-        let pipeline_status = status.unwrap();
-        assert_eq!(pipeline_status.pipeline_id, 12345);
-        assert_eq!(pipeline_status.status, "pending");
-        assert!(!pipeline_status.web_url.is_empty());
-        assert_eq!(pipeline_status.jobs.len(), 1);
-        assert_eq!(pipeline_status.jobs[0].name, "opencode_agent");
-        assert_eq!(pipeline_status.jobs[0].stage, "opencode");
-        assert_eq!(pipeline_status.jobs[0].status, "running");
-    }
-
-    #[test]
-    fn test_gitlab_pipeline_trigger_and_monitor_end_to_end() {
-        let server = GitLabMockServer::new();
-        let client = GitLabClient::new("test-token", &server.url());
-        let trigger = GitLabCiTrigger::new(client, "group/project");
-
-        let trigger_result = trigger.trigger_pipeline("feature-branch");
-        assert!(trigger_result.is_ok(), "Pipeline trigger should succeed");
-        let pipeline_id = trigger_result.unwrap().pipeline_id;
-
-        let status = trigger.get_pipeline_status(pipeline_id);
-        assert!(status.is_ok(), "Pipeline status should be retrieved");
-        let pipeline_status = status.unwrap();
-        assert_eq!(pipeline_status.pipeline_id, pipeline_id);
-        assert_eq!(pipeline_status.status, "pending");
-        assert!(!pipeline_status.jobs.is_empty());
-    }
-
-    #[test]
-    fn test_gitlab_ci_setup_and_trigger() {
-        let server = GitLabMockServer::new();
-        let client = GitLabClient::new("test-token", &server.url());
-
-        let setup_result = setup_gitlab_ci(&client, "group/project", "main", false);
-        assert!(
-            setup_result.is_ok(),
-            "CI setup should succeed: {:?}",
-            setup_result.err()
-        );
-        let setup = setup_result.unwrap();
-
-        assert_eq!(setup.ci_file_path, ".gitlab-ci.yml");
-        assert_eq!(setup.commit_sha, "commit789");
-        assert!(!setup.use_component);
-        assert_eq!(setup.secrets_required.len(), 2);
-
-        let trigger = GitLabCiTrigger::new(client, "group/project");
-        let pipeline_result = trigger.trigger_pipeline("main");
-        assert!(pipeline_result.is_ok(), "Pipeline should be triggered");
-    }
-
-    #[test]
-    fn test_gitlab_pipeline_status_with_failed_pipeline() {
-        let server = GitLabMockServer::new();
-        let client = GitLabClient::new("test-token", &server.url());
-        let trigger = GitLabCiTrigger::new(client, "group/project");
-
-        let status = trigger.get_pipeline_status(99999);
-
-        assert!(
-            status.is_ok(),
-            "Pipeline status should be retrieved even for failed pipeline"
-        );
-        let pipeline_status = status.unwrap();
-        assert_eq!(pipeline_status.pipeline_id, 99999);
-        assert_eq!(pipeline_status.status, "failed");
-    }
-
-    #[test]
-    fn test_gitlab_ci_template_end_to_end_with_component() {
-        let server = GitLabMockServer::new();
-        let client = GitLabClient::new("test-token", &server.url());
-
-        let setup_result = setup_gitlab_ci(&client, "group/project", "develop", true);
-        assert!(
-            setup_result.is_ok(),
-            "CI setup with component should succeed"
-        );
-        let setup = setup_result.unwrap();
-
-        assert!(setup.use_component);
-        assert_eq!(setup.ci_file_path, ".gitlab-ci.yml");
-
-        let trigger = GitLabCiTrigger::new(client, "group/project");
-        let pipeline_result = trigger.trigger_pipeline("develop");
-        assert!(
-            pipeline_result.is_ok(),
-            "Pipeline should be triggered on develop branch"
-        );
-        assert_eq!(pipeline_result.unwrap().branch, "develop");
-    }
-
-    #[test]
-    fn test_gitlab_pipeline_trigger_multiple_branches() {
-        let server = GitLabMockServer::new();
-        let client = GitLabClient::new("test-token", &server.url());
-        let trigger = GitLabCiTrigger::new(client, "group/project");
-
-        let branches = vec!["main", "develop", "feature/test", "release/v1.0"];
-
-        for branch in branches {
-            let result = trigger.trigger_pipeline(branch);
-            assert!(
-                result.is_ok(),
-                "Pipeline trigger should succeed for branch {}",
-                branch
-            );
-            let trigger_result = result.unwrap();
-            assert_eq!(trigger_result.branch, branch);
-            assert_eq!(trigger_result.pipeline_id, 12345);
-        }
-    }
-
-    #[test]
-    fn test_gitlab_ci_get_template() {
-        let template = get_gitlab_ci_template("group/project", "main");
-        let yaml = template.generate_yaml();
-
-        assert!(yaml.contains("stages:"));
-        assert!(yaml.contains("opencode_agent:"));
-        assert!(yaml.contains("workflow:"));
-        assert!(yaml.contains("merge_request_event"));
-
-        let setup_result = setup_gitlab_ci(
-            &GitLabClient::new("test-token", "http://localhost:99999"),
-            "group/project",
-            "main",
-            false,
-        );
-        assert!(setup_result.is_err());
     }
 }
