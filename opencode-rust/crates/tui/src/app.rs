@@ -22,7 +22,8 @@ use crossterm::{
 };
 use opencode_auth::CredentialStore;
 use opencode_core::{
-    AgentExecutor, CostCalculator, SkillResolver, SkillState, TokenCounter, ToolRegistry,
+    AgentExecutor, CostCalculator, SessionSharing, SkillResolver, SkillState, TokenCounter,
+    ToolRegistry,
 };
 use opencode_llm::{
     BrowserAuthModelInfo, OpenAiBrowserAuthService, OpenAiBrowserAuthStore, OpenAiBrowserSession,
@@ -452,6 +453,7 @@ pub struct App {
     pub slash_command_dialog: SlashCommandOverlay,
     pub diff_review_dialog: Option<DiffReviewOverlay>,
     pub session_manager: SessionManager,
+    pub session_sharing: SessionSharing,
     pub scroll_offset: usize,
     pub scroll_state: ScrollState,
     pub timeline_state: ListState,
@@ -623,6 +625,7 @@ impl App {
             slash_command_dialog: SlashCommandOverlay::new(theme.clone()),
             diff_review_dialog: None,
             session_manager: SessionManager::with_file(config_dir.join("sessions.txt")),
+            session_sharing: SessionSharing::with_default_path(),
             scroll_offset: 0,
             scroll_state: ScrollState::new(),
             timeline_state,

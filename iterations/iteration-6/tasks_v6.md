@@ -60,7 +60,7 @@
   - [x] `keybinds` (from Config)
 - **Note:** Removed in major version (v4.0)
 
-### P1-5: Multiline Input Terminal Support
+### P1-5: ✅ Done
 - [x] **Status:** ✅ Done
 - [ ] **Module:** `crates/tui`
 - [ ] **FR Reference:** FR-018

@@ -1,13 +1,12 @@
-use crate::cmd::workspace::{save_workspace_sessions, SessionInfo, WORKSPACE_SESSIONS};
+use crate::cmd::workspace::{
+    save_workspace_sessions, SessionInfo as WorkspaceSessionInfo, WORKSPACE_SESSIONS,
+};
 use clap::{Args, Subcommand};
-use std::path::PathBuf;
-use std::time::{SystemTime, UNIX_EPOCH};
-
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
-pub struct SessionMessage {
-    pub role: String,
-    pub content: String,
-}
+use opencode_core::message::Message;
+use opencode_core::session::SessionInfo;
+use opencode_core::session_sharing::SessionSharing;
+use opencode_core::Session;
+use uuid::Uuid;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct SessionRecord {
@@ -18,241 +17,355 @@ pub struct SessionRecord {
     pub redo_history: Vec<SessionMessage>,
 }
 
-fn sessions_path() -> PathBuf {
-    if let Ok(data_dir) = std::env::var("OPENCODE_DATA_DIR") {
-        let path = PathBuf::from(data_dir);
-        let _ = std::fs::create_dir_all(&path);
-        return path.join("sessions.json");
-    }
-
-    directories::ProjectDirs::from("com", "opencode", "rs")
-        .map(|dirs| dirs.data_dir().join("sessions.json"))
-        .unwrap_or_else(|| PathBuf::from("./sessions.json"))
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct SessionMessage {
+    pub role: String,
+    pub content: String,
 }
 
 pub fn load_session_records() -> Vec<SessionRecord> {
-    let path = sessions_path();
-    std::fs::read_to_string(path)
-        .ok()
-        .and_then(|content| serde_json::from_str::<Vec<SessionRecord>>(&content).ok())
+    let sharing = get_session_sharing();
+    sharing
+        .list_sessions()
         .unwrap_or_default()
-}
-
-pub fn save_session_records(records: &[SessionRecord]) {
-    let path = sessions_path();
-    if let Some(parent) = path.parent() {
-        let _ = std::fs::create_dir_all(parent);
-    }
-    let serialized = serde_json::to_string_pretty(records).unwrap();
-    std::fs::write(path, serialized).unwrap();
-}
-
-fn sync_workspace_sessions(records: &[SessionRecord]) {
-    let sessions = records
-        .iter()
-        .map(|record| SessionInfo {
-            id: record.id.clone(),
-            name: record.name.clone(),
+        .into_iter()
+        .map(|info| SessionRecord {
+            id: info.id.to_string(),
+            name: info.preview.chars().take(30).collect(),
+            created_at: info.created_at.to_rfc3339(),
+            messages: Vec::new(),
+            redo_history: Vec::new(),
         })
-        .collect::<Vec<_>>();
-    *WORKSPACE_SESSIONS.lock().unwrap() = sessions.clone();
-    save_workspace_sessions(&sessions);
+        .collect()
 }
 
-fn now_string() -> String {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_secs().to_string())
-        .unwrap_or_else(|_| "0".to_string())
-}
-
-fn next_session_id(name: Option<&str>) -> String {
-    match name {
-        Some(name) => format!("session-{}", name),
-        None => format!("session-{}", now_string()),
+pub fn save_session_records(_records: &[SessionRecord]) {
+    let sharing = get_session_sharing();
+    if let Ok(sessions) = sharing.list_sessions() {
+        sync_workspace_sessions_from_infos(&sessions);
     }
+}
+
+fn get_session_sharing() -> SessionSharing {
+    SessionSharing::with_default_path()
+}
+
+pub fn get_session_sharing_for_quick() -> SessionSharing {
+    SessionSharing::with_default_path()
+}
+
+fn sync_workspace_sessions_from_sharing(sessions: &[Session]) {
+    let infos: Vec<WorkspaceSessionInfo> = sessions
+        .iter()
+        .map(|session| WorkspaceSessionInfo {
+            id: session.id.to_string(),
+            name: session
+                .messages
+                .first()
+                .map(|m| m.content.chars().take(30).collect())
+                .unwrap_or_else(|| "Untitled".to_string()),
+        })
+        .collect();
+    *WORKSPACE_SESSIONS.lock().unwrap() = infos.clone();
+    save_workspace_sessions(&infos);
+}
+
+fn sync_workspace_sessions_from_infos(infos: &[SessionInfo]) {
+    let workspace_infos: Vec<WorkspaceSessionInfo> = infos
+        .iter()
+        .map(|info| WorkspaceSessionInfo {
+            id: info.id.to_string(),
+            name: info.preview.chars().take(30).collect(),
+        })
+        .collect();
+    *WORKSPACE_SESSIONS.lock().unwrap() = workspace_infos.clone();
+    save_workspace_sessions(&workspace_infos);
 }
 
 pub fn append_session_message(session_id: &str, content: &str) -> bool {
-    let mut records = load_session_records();
-    if let Some(record) = records.iter_mut().find(|record| record.id == session_id) {
-        record.messages.push(SessionMessage {
-            role: "user".to_string(),
-            content: content.to_string(),
-        });
-        record.redo_history.clear();
-        save_session_records(&records);
-        true
-    } else {
-        false
+    let sharing = get_session_sharing();
+    let id = match Uuid::parse_str(session_id) {
+        Ok(id) => id,
+        Err(_) => return false,
+    };
+
+    match sharing.add_message(&id, Message::user(content.to_string())) {
+        Ok(_) => true,
+        Err(_) => false,
     }
 }
 
 fn create_session(name: Option<String>, json: bool) {
-    let mut records = load_session_records();
-    let session_name = name.unwrap_or_else(|| "default".to_string());
-    let id = next_session_id(Some(&session_name));
-    let record = SessionRecord {
-        id: id.clone(),
-        name: session_name.clone(),
-        created_at: now_string(),
-        messages: Vec::new(),
-        redo_history: Vec::new(),
-    };
-    records.push(record.clone());
-    save_session_records(&records);
-    sync_workspace_sessions(&records);
+    let sharing = get_session_sharing();
+    let session = sharing
+        .create_session(name)
+        .expect("Failed to create session");
+
+    sync_workspace_sessions_from_sharing(&[session.clone()]);
+
+    let name = session
+        .messages
+        .first()
+        .map(|m| m.content.chars().take(30).collect())
+        .unwrap_or_else(|| "Untitled".to_string());
 
     if json {
-        println!("{}", serde_json::to_string(&record).unwrap());
-    } else {
-        println!("Session ID: {}", id);
-        println!("Session created: {}", session_name);
-    }
-}
-
-fn show_session(session_id: &str, json: bool) {
-    let records = load_session_records();
-    if let Some(record) = records.iter().find(|record| record.id == session_id) {
-        if json {
-            println!("{}", serde_json::to_string(record).unwrap());
-        } else {
-            println!("Session: {}", record.id);
-        }
-    } else {
-        eprintln!("Error: Session '{}' does not exist", session_id);
-        std::process::exit(1);
-    }
-}
-
-fn delete_session(session_id: &str) {
-    let mut records = load_session_records();
-    let original_len = records.len();
-    records.retain(|record| record.id != session_id);
-    if records.len() == original_len {
-        eprintln!("Error: Session '{}' does not exist", session_id);
-        std::process::exit(1);
-    }
-    save_session_records(&records);
-    sync_workspace_sessions(&records);
-    println!("Deleted session: {}", session_id);
-}
-
-fn undo_session(session_id: &str, steps: usize) {
-    let mut records = load_session_records();
-    let record = match records.iter_mut().find(|record| record.id == session_id) {
-        Some(record) => record,
-        None => {
-            eprintln!("Error: Session '{}' does not exist", session_id);
-            std::process::exit(1);
-        }
-    };
-
-    if record.messages.is_empty() {
-        eprintln!("Nothing to undo");
-        std::process::exit(1);
-    }
-
-    let count = steps.min(record.messages.len());
-    let mut undone = record.messages.split_off(record.messages.len() - count);
-    undone.reverse();
-    for message in undone {
-        record.redo_history.push(message);
-    }
-    save_session_records(&records);
-    println!("Undid {} step(s)", count);
-}
-
-fn redo_session(session_id: &str, steps: usize) {
-    let mut records = load_session_records();
-    let record = match records.iter_mut().find(|record| record.id == session_id) {
-        Some(record) => record,
-        None => {
-            eprintln!("Error: Session '{}' does not exist", session_id);
-            std::process::exit(1);
-        }
-    };
-
-    if record.redo_history.is_empty() {
-        eprintln!("Nothing to redo");
-        std::process::exit(1);
-    }
-
-    let count = steps.min(record.redo_history.len());
-    let start = record.redo_history.len() - count;
-    let redo_messages = record.redo_history.split_off(start);
-    for message in redo_messages {
-        record.messages.push(message);
-    }
-    save_session_records(&records);
-    println!("Redid {} step(s)", count);
-}
-
-fn fork_session(session_id: &str) {
-    let mut records = load_session_records();
-    let record = match records.iter().find(|record| record.id == session_id) {
-        Some(record) => record.clone(),
-        None => {
-            eprintln!("Error: Session '{}' does not exist", session_id);
-            std::process::exit(1);
-        }
-    };
-    let new_id = format!("{}-fork-{}", session_id, now_string());
-    let forked = SessionRecord {
-        id: new_id.clone(),
-        name: format!("{}-fork", record.name),
-        created_at: now_string(),
-        messages: record.messages,
-        redo_history: Vec::new(),
-    };
-    records.push(forked);
-    save_session_records(&records);
-    sync_workspace_sessions(&records);
-    println!(
-        "{}",
-        serde_json::to_string(&serde_json::json!({ "new_id": new_id })).unwrap()
-    );
-}
-
-fn share_session(session_id: &str) {
-    let records = load_session_records();
-    if records.iter().any(|record| record.id == session_id) {
         println!(
             "{}",
             serde_json::to_string(&serde_json::json!({
-                "share_url": format!("https://example.com/share/{}", session_id),
+                "id": session.id.to_string(),
+                "name": name,
+                "created_at": session.created_at.to_rfc3339(),
             }))
             .unwrap()
         );
     } else {
-        eprintln!("Error: Session '{}' does not exist", session_id);
-        std::process::exit(1);
+        println!("Session ID: {}", session.id);
+        println!("Session created: {}", name);
+    }
+}
+
+fn show_session(session_id: &str, json: bool) {
+    let sharing = get_session_sharing();
+    let id = match Uuid::parse_str(session_id) {
+        Ok(id) => id,
+        Err(_) => {
+            eprintln!("Error: Invalid session ID format '{}'", session_id);
+            std::process::exit(1);
+        }
+    };
+
+    match sharing.get_session(&id) {
+        Ok(session) => {
+            if json {
+                let output = serde_json::to_string_pretty(&session).unwrap();
+                println!("{}", output);
+            } else {
+                println!("Session: {}", session.id);
+                println!("Messages: {}", session.messages.len());
+                println!(
+                    "Created: {}",
+                    session.created_at.format("%Y-%m-%d %H:%M:%S")
+                );
+                println!(
+                    "Updated: {}",
+                    session.updated_at.format("%Y-%m-%d %H:%M:%S")
+                );
+            }
+        }
+        Err(e) => {
+            eprintln!("Error: Session '{}' does not exist: {}", session_id, e);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn delete_session(session_id: &str) {
+    let sharing = get_session_sharing();
+    let id = match Uuid::parse_str(session_id) {
+        Ok(id) => id,
+        Err(_) => {
+            eprintln!("Error: Invalid session ID format '{}'", session_id);
+            std::process::exit(1);
+        }
+    };
+
+    match sharing.delete_session(&id) {
+        Ok(_) => {
+            let sessions = sharing.list_sessions().unwrap_or_default();
+            sync_workspace_sessions_from_infos(&sessions);
+            println!("Deleted session: {}", session_id);
+        }
+        Err(e) => {
+            eprintln!("Error: Failed to delete session '{}': {}", session_id, e);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn undo_session(session_id: &str, steps: usize) {
+    let sharing = get_session_sharing();
+    let id = match Uuid::parse_str(session_id) {
+        Ok(id) => id,
+        Err(_) => {
+            eprintln!("Error: Invalid session ID format '{}'", session_id);
+            std::process::exit(1);
+        }
+    };
+
+    let mut session = match sharing.get_session(&id) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("Error: Session '{}' does not exist: {}", session_id, e);
+            std::process::exit(1);
+        }
+    };
+
+    match session.undo(steps) {
+        Ok(count) => {
+            if let Err(e) = sharing.save_session(&session) {
+                eprintln!("Error: Failed to save session: {}", e);
+                std::process::exit(1);
+            }
+            println!("Undid {} step(s)", count);
+        }
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn redo_session(session_id: &str, steps: usize) {
+    let sharing = get_session_sharing();
+    let id = match Uuid::parse_str(session_id) {
+        Ok(id) => id,
+        Err(_) => {
+            eprintln!("Error: Invalid session ID format '{}'", session_id);
+            std::process::exit(1);
+        }
+    };
+
+    let mut session = match sharing.get_session(&id) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("Error: Session '{}' does not exist: {}", session_id, e);
+            std::process::exit(1);
+        }
+    };
+
+    match session.redo(steps) {
+        Ok(count) => {
+            if let Err(e) = sharing.save_session(&session) {
+                eprintln!("Error: Failed to save session: {}", e);
+                std::process::exit(1);
+            }
+            println!("Redid {} step(s)", count);
+        }
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn fork_session(session_id: &str) {
+    let sharing = get_session_sharing();
+    let id = match Uuid::parse_str(session_id) {
+        Ok(id) => id,
+        Err(_) => {
+            eprintln!("Error: Invalid session ID format '{}'", session_id);
+            std::process::exit(1);
+        }
+    };
+
+    match sharing.fork_session(&id, Uuid::new_v4()) {
+        Ok(child) => {
+            let sessions = sharing.list_sessions().unwrap_or_default();
+            sync_workspace_sessions_from_infos(&sessions);
+            println!(
+                "{}",
+                serde_json::to_string(&serde_json::json!({ "new_id": child.id.to_string() }))
+                    .unwrap()
+            );
+        }
+        Err(e) => {
+            eprintln!("Error: Failed to fork session '{}': {}", session_id, e);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn share_session(session_id: &str) {
+    let sharing = get_session_sharing();
+    let id = match Uuid::parse_str(session_id) {
+        Ok(id) => id,
+        Err(_) => {
+            eprintln!("Error: Invalid session ID format '{}'", session_id);
+            std::process::exit(1);
+        }
+    };
+
+    let mut session = match sharing.get_session(&id) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("Error: Session '{}' does not exist: {}", session_id, e);
+            std::process::exit(1);
+        }
+    };
+
+    match session.generate_share_link() {
+        Ok(url) => {
+            println!(
+                "{}",
+                serde_json::to_string(&serde_json::json!({
+                    "share_url": url,
+                }))
+                .unwrap()
+            );
+        }
+        Err(e) => {
+            eprintln!("Error: Failed to share session: {}", e);
+            std::process::exit(1);
+        }
     }
 }
 
 fn export_session(session_id: &str) {
-    let records = load_session_records();
-    let session = records.iter().find(|r| r.id == session_id);
-    match session {
-        Some(s) => {
-            let output = serde_json::to_string_pretty(s).unwrap();
+    let sharing = get_session_sharing();
+    let id = match Uuid::parse_str(session_id) {
+        Ok(id) => id,
+        Err(_) => {
+            eprintln!("Error: Invalid session ID format '{}'", session_id);
+            std::process::exit(1);
+        }
+    };
+
+    match sharing.get_session(&id) {
+        Ok(session) => {
+            let output = serde_json::to_string_pretty(&session).unwrap();
             println!("{}", output);
         }
-        None => {
-            eprintln!("Error: Session '{}' does not exist", session_id);
+        Err(e) => {
+            eprintln!("Error: Session '{}' does not exist: {}", session_id, e);
             std::process::exit(1);
         }
     }
 }
 
 fn export_all_sessions() {
-    let records = load_session_records();
+    let sharing = get_session_sharing();
+    let sessions = sharing.list_sessions().unwrap_or_default();
     let export = serde_json::json!({
-        "sessions": records,
-        "count": records.len(),
+        "sessions": sessions,
+        "count": sessions.len(),
     });
     let output = serde_json::to_string_pretty(&export).unwrap();
     println!("{}", output);
+}
+
+fn list_sessions(json: bool) {
+    let sharing = get_session_sharing();
+    let sessions = sharing.list_sessions().unwrap_or_default();
+
+    if json {
+        let output = serde_json::to_string_pretty(&sessions).unwrap();
+        println!("{}", output);
+    } else {
+        if sessions.is_empty() {
+            println!("No sessions found");
+            return;
+        }
+        for session_info in &sessions {
+            println!(
+                "{} - {} ({} messages, updated {})",
+                session_info.id,
+                session_info.preview,
+                session_info.message_count,
+                session_info.updated_at.format("%Y-%m-%d %H:%M")
+            );
+        }
+    }
 }
 
 #[derive(Args, Debug)]
@@ -298,6 +411,12 @@ pub enum SessionAction {
         #[arg(short, long)]
         id: Option<String>,
 
+        #[arg(short, long)]
+        json: bool,
+    },
+
+    #[command(about = "List all sessions")]
+    List {
         #[arg(short, long)]
         json: bool,
     },
@@ -367,6 +486,9 @@ pub fn run(args: SessionArgs) {
                 eprintln!("Error: Session ID required for show");
                 std::process::exit(1);
             }
+        }
+        Some(SessionAction::List { json }) => {
+            list_sessions(json);
         }
         Some(SessionAction::Message { id, content }) => {
             let id = id.or(args.id);
@@ -456,7 +578,7 @@ pub fn run(args: SessionArgs) {
                 show_session(id, args.json);
                 return;
             }
-            println!("Session action: {:?}", args.action);
+            list_sessions(args.json);
         }
     }
 }
