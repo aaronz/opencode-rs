@@ -246,7 +246,7 @@
       "priority": "P2",
       "title": "TUI Input Model Tests",
       "description": "No tests for input model (multiline, history, autocomplete). Add tests for multiline input handling, input history navigation, and autocomplete triggering.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "Multiline input handling has test coverage",
         "Input history navigation has test coverage",
