@@ -164,7 +164,7 @@
       "priority": "P1",
       "title": "Missing create->fork->share->compact->revert integration test",
       "description": "Add integration test covering complete session lifecycle: Create session, Fork child session, Share session, Compact session, Revert to checkpoint. Verify session state integrity after each operation.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify session creation works correctly",
         "AddIntegrationTest: verify fork child session creates valid child",
@@ -179,7 +179,7 @@
         "cargo clippy --all -- -D warnings",
         "cargo build --release"
       ],
-      "impl_notes": "Integration test covering full session lifecycle operations.",
+      "impl_notes": "Integration test covering full session lifecycle operations. Also fixed bug in StorageService::save_session where it was storing SessionModel JSON instead of Session JSON in data column.",
       "dependencies": []
     },
     {

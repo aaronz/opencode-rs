@@ -60,6 +60,7 @@ pub struct PluginPermissions {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "lowercase")]
 pub enum PluginDomain {
     #[default]
     Runtime,
@@ -623,6 +624,8 @@ impl PluginManager {
         &mut self,
         discovered: Vec<discovery::DiscoveredPlugin>,
     ) -> Result<Vec<String>, PluginError> {
+        use crate::config::validate_runtime_loadable;
+
         let mut loaded = Vec::new();
 
         for entry in discovered {
@@ -630,6 +633,17 @@ impl PluginManager {
 
             if !entry.config.enabled {
                 tracing::debug!(plugin = entry.config.name, "Skipping disabled plugin");
+                continue;
+            }
+
+            let validation = validate_runtime_loadable(&entry.config.name, entry.config.domain);
+            if !validation.valid {
+                tracing::warn!(
+                    plugin = entry.config.name,
+                    domain = ?entry.config.domain,
+                    errors = ?validation.errors,
+                    "Runtime plugin has invalid domain, skipping"
+                );
                 continue;
             }
 
@@ -3472,6 +3486,187 @@ mod tests {
                 "Iteration {}: Third plugin should be plugin-c (priority=30), got {}",
                 iteration,
                 sequence[2]
+            );
+        }
+    }
+
+    mod config_validation_tests {
+        use super::*;
+
+        #[test]
+        fn config_validation_runtime_plugin_accepted_in_runtime_context() {
+            use crate::config::validate_runtime_loadable;
+
+            let result = validate_runtime_loadable("my-runtime-plugin", PluginDomain::Runtime);
+            assert!(
+                result.valid,
+                "Runtime plugin should be accepted in runtime context: {:?}",
+                result.errors
+            );
+        }
+
+        #[test]
+        fn config_validation_tui_plugin_accepted_in_tui_context() {
+            use crate::config::validate_tui_loadable;
+
+            let result = validate_tui_loadable("my-tui-plugin", PluginDomain::Tui);
+            assert!(
+                result.valid,
+                "TUI plugin should be accepted in TUI context: {:?}",
+                result.errors
+            );
+        }
+
+        #[test]
+        fn config_validation_runtime_plugin_rejected_in_tui_context() {
+            use crate::config::validate_tui_loadable;
+
+            let result = validate_tui_loadable("my-runtime-plugin", PluginDomain::Runtime);
+            assert!(
+                !result.valid,
+                "Runtime plugin should be rejected in TUI context"
+            );
+            assert!(
+                result.errors.iter().any(|e| e.contains("domain violation")),
+                "Error should mention domain violation: {:?}",
+                result.errors
+            );
+        }
+
+        #[test]
+        fn config_validation_tui_plugin_rejected_in_runtime_context() {
+            use crate::config::validate_runtime_loadable;
+
+            let result = validate_runtime_loadable("my-tui-plugin", PluginDomain::Tui);
+            assert!(
+                !result.valid,
+                "TUI plugin should be rejected in runtime context"
+            );
+            assert!(
+                result.errors.iter().any(|e| e.contains("domain violation")),
+                "Error should mention domain violation: {:?}",
+                result.errors
+            );
+        }
+
+        #[test]
+        fn config_validation_mixed_domains_detected_in_runtime() {
+            use crate::config::validate_plugin_ownership;
+
+            let plugins = vec![
+                ("runtime-plugin-1".to_string(), PluginDomain::Runtime),
+                ("runtime-plugin-2".to_string(), PluginDomain::Runtime),
+                ("tui-plugin-mistake".to_string(), PluginDomain::Tui),
+            ];
+
+            let result = validate_plugin_ownership(&plugins, PluginDomain::Runtime);
+            assert!(
+                !result.valid,
+                "Mixed domains should be detected in runtime context"
+            );
+            assert!(
+                result.errors.iter().any(|e| e.contains("tui-plugin-mistake")),
+                "Error should identify the problematic plugin: {:?}",
+                result.errors
+            );
+        }
+
+        #[test]
+        fn config_validation_mixed_domains_detected_in_tui() {
+            use crate::config::validate_plugin_ownership;
+
+            let plugins = vec![
+                ("tui-plugin-1".to_string(), PluginDomain::Tui),
+                ("tui-plugin-2".to_string(), PluginDomain::Tui),
+                ("runtime-plugin-mistake".to_string(), PluginDomain::Runtime),
+            ];
+
+            let result = validate_plugin_ownership(&plugins, PluginDomain::Tui);
+            assert!(
+                !result.valid,
+                "Mixed domains should be detected in TUI context"
+            );
+            assert!(
+                result.errors.iter().any(|e| e.contains("runtime-plugin-mistake")),
+                "Error should identify the problematic plugin: {:?}",
+                result.errors
+            );
+        }
+
+        #[test]
+        fn config_validation_all_runtime_plugins_valid_in_runtime() {
+            use crate::config::validate_plugin_ownership;
+
+            let plugins = vec![
+                ("plugin-a".to_string(), PluginDomain::Runtime),
+                ("plugin-b".to_string(), PluginDomain::Runtime),
+                ("plugin-c".to_string(), PluginDomain::Runtime),
+            ];
+
+            let result = validate_plugin_ownership(&plugins, PluginDomain::Runtime);
+            assert!(
+                result.valid,
+                "All Runtime plugins should be valid in runtime context: {:?}",
+                result.errors
+            );
+            assert!(result.errors.is_empty());
+        }
+
+        #[test]
+        fn config_validation_all_tui_plugins_valid_in_tui() {
+            use crate::config::validate_plugin_ownership;
+
+            let plugins = vec![
+                ("tui-plugin-a".to_string(), PluginDomain::Tui),
+                ("tui-plugin-b".to_string(), PluginDomain::Tui),
+            ];
+
+            let result = validate_plugin_ownership(&plugins, PluginDomain::Tui);
+            assert!(
+                result.valid,
+                "All TUI plugins should be valid in TUI context: {:?}",
+                result.errors
+            );
+            assert!(result.errors.is_empty());
+        }
+
+        #[test]
+        fn config_validation_error_message_contains_plugin_name() {
+            use crate::config::validate_plugin_domain;
+
+            let result = validate_plugin_domain("special-plugin", PluginDomain::Tui, PluginDomain::Runtime);
+            assert!(!result.valid);
+            let error = result.errors.first().unwrap();
+            assert!(
+                error.contains("special-plugin"),
+                "Error should contain plugin name: {}",
+                error
+            );
+            assert!(
+                error.contains("tui") && error.contains("runtime"),
+                "Error should mention both domains: {}",
+                error
+            );
+        }
+
+        #[test]
+        fn config_validation_empty_plugins_list_is_valid() {
+            use crate::config::validate_plugin_ownership;
+
+            let plugins: Vec<(String, PluginDomain)> = vec![];
+            let result = validate_plugin_ownership(&plugins, PluginDomain::Runtime);
+            assert!(result.valid, "Empty plugin list should be valid");
+        }
+
+        #[test]
+        fn config_validation_single_mismatched_plugin_detected() {
+            use crate::config::validate_plugin_ownership;
+
+            let plugins = vec![("only-tui".to_string(), PluginDomain::Tui)];
+            let result = validate_plugin_ownership(&plugins, PluginDomain::Runtime);
+            assert!(
+                !result.valid,
+                "Single TUI plugin in runtime context should fail"
             );
         }
     }

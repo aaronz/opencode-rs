@@ -371,7 +371,7 @@ $(cat $constitution 2>/dev/null || echo "使用默认Constitution")
     if [ -n "$task_details_obj" ]; then
         local test_commands=$(echo "$task_details_obj" | python3 -c "import sys,json; print(' '.join(json.load(sys.stdin).get('test_commands', ['cargo build'])))" 2>/dev/null || echo "cargo build")
         echo "运行: $test_commands"
-        test_output=$(eval "$test_commands" 2>&1) && echo "测试通过" || { echo "⚠️  测试有问题，请检查"; test_passed=false; }
+        test_output=$(cd opencode-rust && eval "$test_commands" 2>&1) && echo "测试通过" || { echo "⚠️  测试有问题，请检查"; test_passed=false; }
     fi
 
     if [ "$test_passed" = false ]; then
@@ -413,7 +413,7 @@ $(echo "$task_details" | python3 -c "import sys,json; d=json.load(sys.stdin); pr
         echo ""
         echo "验证修复..."
 
-        test_output=$(eval "$test_commands" 2>&1) && test_passed=true || test_passed=false
+        test_output=$(cd opencode-rust && eval "$test_commands" 2>&1) && test_passed=true || test_passed=false
 
         if [ "$test_passed" = false ]; then
             echo "⚠️  再次测试失败，需要手动检查"

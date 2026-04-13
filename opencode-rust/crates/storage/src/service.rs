@@ -14,8 +14,7 @@ impl StorageService {
 
     pub async fn save_session(&self, session: &Session) -> Result<(), OpenCodeError> {
         let model = SessionModel::from(session.clone());
-        let json =
-            serde_json::to_string(&model).map_err(|e| OpenCodeError::Storage(e.to_string()))?;
+        let session_json = model.data.clone();
 
         let conn = self.pool.get().await?;
         let id = model.id.clone();
@@ -26,7 +25,7 @@ impl StorageService {
             c.execute(
                 "INSERT OR REPLACE INTO sessions (id, created_at, updated_at, data) 
                  VALUES (?1, ?2, ?3, ?4)",
-                params![id, created_at, updated_at, json],
+                params![id, created_at, updated_at, session_json],
             )
         })
         .await

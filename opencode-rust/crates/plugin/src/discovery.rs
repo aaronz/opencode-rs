@@ -92,6 +92,8 @@ struct PluginMetadata {
     filesystem_scope: Option<String>,
     #[serde(default)]
     network_allowed: bool,
+    #[serde(default)]
+    domain: Option<crate::PluginDomain>,
 }
 
 fn default_true() -> bool {
@@ -102,7 +104,6 @@ pub(crate) fn parse_metadata_file(path: &Path) -> Result<DiscoveredPlugin, Plugi
     let content = fs::read_to_string(path)?;
     let metadata: PluginMetadata = serde_json::from_str(&content)?;
 
-    // Validate plugin options don't use reserved config keys
     let validation_result = validate_plugin_options(&metadata.name, &metadata.options);
     if !validation_result.valid {
         return Err(PluginError::ConfigValidation(
@@ -110,6 +111,8 @@ pub(crate) fn parse_metadata_file(path: &Path) -> Result<DiscoveredPlugin, Plugi
             validation_result.errors.join("; "),
         ));
     }
+
+    let domain = metadata.domain.unwrap_or(crate::PluginDomain::Runtime);
 
     let library_path = {
         let main = PathBuf::from(&metadata.main);
@@ -126,7 +129,7 @@ pub(crate) fn parse_metadata_file(path: &Path) -> Result<DiscoveredPlugin, Plugi
             version: metadata.version,
             enabled: metadata.enabled,
             priority: metadata.priority,
-            domain: crate::PluginDomain::Runtime,
+            domain,
             options: metadata.options,
             permissions: PluginPermissions {
                 capabilities: metadata.capabilities,
@@ -250,5 +253,119 @@ mod tests {
         assert_eq!(plugins[0].config.name, "demo");
         assert_eq!(plugins[0].config.version, "2.0.0");
         assert_eq!(plugins[0].library_path, project_dir.join("project.so"));
+    }
+
+    #[test]
+    fn parse_plugin_metadata_with_explicit_runtime_domain() {
+        let temp = tempfile::tempdir().unwrap();
+        let metadata_path = temp.path().join("runtime.plugin.json");
+        fs::write(
+            &metadata_path,
+            r#"{
+                "name": "my-runtime-plugin",
+                "version": "1.0.0",
+                "description": "A runtime plugin",
+                "main": "plugin.so",
+                "domain": "runtime"
+            }"#,
+        )
+        .unwrap();
+
+        let discovered = parse_metadata_file(&metadata_path).unwrap();
+        assert_eq!(discovered.config.name, "my-runtime-plugin");
+        assert_eq!(discovered.config.domain, crate::PluginDomain::Runtime);
+    }
+
+    #[test]
+    fn parse_plugin_metadata_with_tui_domain() {
+        let temp = tempfile::tempdir().unwrap();
+        let metadata_path = temp.path().join("tui.plugin.json");
+        fs::write(
+            &metadata_path,
+            r#"{
+                "name": "my-tui-plugin",
+                "version": "1.0.0",
+                "description": "A TUI plugin",
+                "main": "tui_plugin.so",
+                "domain": "tui"
+            }"#,
+        )
+        .unwrap();
+
+        let discovered = parse_metadata_file(&metadata_path).unwrap();
+        assert_eq!(discovered.config.name, "my-tui-plugin");
+        assert_eq!(discovered.config.domain, crate::PluginDomain::Tui);
+    }
+
+    #[test]
+    fn parse_plugin_metadata_defaults_to_runtime_domain() {
+        let temp = tempfile::tempdir().unwrap();
+        let metadata_path = temp.path().join("default.plugin.json");
+        fs::write(
+            &metadata_path,
+            r#"{
+                "name": "default-plugin",
+                "version": "1.0.0",
+                "description": "Plugin without explicit domain",
+                "main": "plugin.so"
+            }"#,
+        )
+        .unwrap();
+
+        let discovered = parse_metadata_file(&metadata_path).unwrap();
+        assert_eq!(discovered.config.name, "default-plugin");
+        assert_eq!(
+            discovered.config.domain,
+            crate::PluginDomain::Runtime,
+            "Plugin without domain should default to Runtime"
+        );
+    }
+
+    #[test]
+    fn discovery_parses_domain_from_metadata() {
+        let temp = tempfile::tempdir().unwrap();
+        let plugins_dir = temp.path().join("plugins");
+        fs::create_dir_all(&plugins_dir).unwrap();
+
+        fs::write(
+            plugins_dir.join("runtime-plugin.plugin.json"),
+            r#"{
+                "name": "runtime-plugin",
+                "version": "1.0.0",
+                "description": "Runtime",
+                "main": "runtime.so",
+                "domain": "runtime"
+            }"#,
+        )
+        .unwrap();
+
+        fs::write(
+            plugins_dir.join("tui-plugin.plugin.json"),
+            r#"{
+                "name": "tui-plugin",
+                "version": "1.0.0",
+                "description": "TUI",
+                "main": "tui.so",
+                "domain": "tui"
+            }"#,
+        )
+        .unwrap();
+
+        let discovery = PluginDiscovery::with_dirs(None, Some(plugins_dir));
+        let plugins = discovery.discover().unwrap();
+
+        assert_eq!(plugins.len(), 2);
+
+        let runtime_plugin = plugins
+            .iter()
+            .find(|p| p.config.name == "runtime-plugin")
+            .expect("runtime-plugin should be discovered");
+        assert_eq!(runtime_plugin.config.domain, crate::PluginDomain::Runtime);
+
+        let tui_plugin = plugins
+            .iter()
+            .find(|p| p.config.name == "tui-plugin")
+            .expect("tui-plugin should be discovered");
+        assert_eq!(tui_plugin.config.domain, crate::PluginDomain::Tui);
     }
 }
