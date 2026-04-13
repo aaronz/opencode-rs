@@ -193,7 +193,7 @@ cargo test -p opencode-core -- fork_acyclicity  # 8 tests passed
 
 ---
 
-### P1-8: Implement ACP Transport
+### P1-8: ✅ Done
 **Issue:** ACP transport not implemented (event structs exist)  
 **Module:** control-plane  
 **FR Reference:** FR-015  
@@ -229,18 +229,28 @@ cargo test -p opencode-core -- fork_acyclicity  # 8 tests passed
 
 ## P2 Tasks (Medium Priority)
 
-### P2-1: TUI Slash Command Tests
+### P2-1: ✅ Done
 **Issue:** No automated tests for slash command execution  
 **Module:** tui  
 **FR Reference:** FR-018  
-**Status:** TODO  
+**Status:** ✅ Done  
 
-- [ ] Add tests for `/compact` command
-- [ ] Add tests for `/connect` command
-- [ ] Add tests for `/help` command
-- [ ] Add tests for unknown/invalid slash commands
+- [x] Add tests for `/compact` command
+- [x] Add tests for `/connect` command
+- [x] Add tests for `/help` command
+- [x] Add tests for unknown/invalid slash commands
 
 **Acceptance Criteria:** Slash commands have test coverage
+
+**Test Commands:**
+```bash
+cargo test -p opencode-tui -- slash  # 33 tests passed (28 new + 5 existing)
+```
+
+**Implementation Notes:**
+- Added 28 tests in `crates/tui/tests/slash_command_tests.rs`
+- Added `filtered_commands()` getter method to `SlashCommandOverlay` in `crates/tui/src/dialogs/slash_command.rs`
+- Tests cover command registry lookup, filtering, and action variants
 
 ---
 

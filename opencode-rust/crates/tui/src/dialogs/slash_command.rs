@@ -40,6 +40,10 @@ impl SlashCommandOverlay {
     pub fn get_selected_command(&self) -> Option<String> {
         self.filtered_commands.get(self.selected_index).cloned()
     }
+
+    pub fn filtered_commands(&self) -> &[String] {
+        &self.filtered_commands
+    }
 }
 
 impl Dialog for SlashCommandOverlay {

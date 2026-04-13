@@ -297,11 +297,23 @@ JSON格式必须包含以下字段：
 }
 
 ## 要求
-1. 每个任务必须有清晰可测试的test_criteria
-2. test_commands应该是可以验证任务完成的具体命令
-3. dependencies应该引用其他任务的ID（如果有依赖）
-4. 解析Markdown中的状态标记（- [ ] = todo, - [x] = done）
-5. 输出必须是有效的JSON，直接写入文件，不要有其他内容"
+1. 每个任务必须有清晰可测试的test_criteria，且必须包含**自动化测试用例设计**
+2. test_commands必须是可自动化执行的验证命令，包括：
+   - cargo test 指定具体测试文件或函数（如 cargo test -p opencode-core --test session_storage）
+   - cargo clippy 进行代码质量检查
+   - cargo build --release 确保发布构建成功
+3. test_criteria 必须包含**自动化测试场景**，格式如：
+   - "添加UnitTest: 测试XXX功能正常"
+   - "添加IntegrationTest: 验证XXX与YYY集成正确"
+   - "添加RegressionTest: 确保XXX修改不破坏现有功能"
+   - "添加ErrorHandlingTest: 测试XXX边界条件和错误处理"
+   - "执行TestSuite: 运行所有相关测试确保无回归"
+4. 自动检测bug能力：
+   - 每个test_criteria应包含可捕获的断言/预期结果
+   - 测试失败时应能定位到具体文件和函数
+5. dependencies应该引用其他任务的ID（如果有依赖）
+6. 解析Markdown中的状态标记（- [ ] = todo, - [x] = done）
+7. 输出必须是有效的JSON，直接写入文件，不要有其他内容"
 
     run_opencode_with_session_export "$prompt" "$SESSION_EXPORT_DIR/tasks_json_${task_file##*/}.json" "$MODEL"
 

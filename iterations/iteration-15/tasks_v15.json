@@ -208,7 +208,7 @@
       "priority": "P1",
       "title": "Refactor Config Crate",
       "description": "crates/config/src/lib.rs is empty re-export. Move config logic from crates/core/src/config.rs to crates/config/. Ensure crates/config/ contains actual config implementation. Update imports in dependent crates. Verify config precedence and ownership still works.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "Config logic resides in crates/config/ crate",
         "All config functionality preserved after refactor",
@@ -228,7 +228,7 @@
       "priority": "P2",
       "title": "TUI Slash Command Tests",
       "description": "No automated tests for slash command execution. Add tests for /compact command, /connect command, /help command, and unknown/invalid slash commands.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "/compact command has test coverage",
         "/connect command has test coverage",
@@ -238,7 +238,7 @@
       "test_commands": [
         "cargo test -p opencode-tui -- slash"
       ],
-      "impl_notes": "Use ratatui-testing framework to simulate command input and verify output.",
+      "impl_notes": "Added 28 tests in crates/tui/tests/slash_command_tests.rs covering /compact, /connect, /help commands and unknown/invalid slash commands. Also added filtered_commands() getter method to SlashCommandOverlay.",
       "dependencies": []
     },
     {
