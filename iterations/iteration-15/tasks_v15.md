@@ -138,7 +138,7 @@ cargo test -p opencode-core -- fork_acyclicity  # 8 tests passed
 
 ---
 
-### P1-5: Complete Session Lifecycle Integration Tests
+### P1-5: ✅ Done
 **Issue:** Missing create→fork→share→compact→revert integration test  
 **Module:** storage  
 **FR Reference:** FR-002  

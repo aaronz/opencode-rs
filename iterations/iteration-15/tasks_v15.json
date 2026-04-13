@@ -152,7 +152,7 @@
       "priority": "P1",
       "title": "Implement Desktop App",
       "description": "Desktop app not implemented (stubs only). Implement desktop startup flow in crates/cli/. Integrate WebView for desktop shell. Implement desktop-specific configuration handling. Add desktop mode to CLI argument parsing.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "Desktop app starts successfully",
         "WebView displays TUI content",
