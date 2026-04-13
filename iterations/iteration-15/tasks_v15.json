@@ -99,7 +99,7 @@
       "priority": "P1",
       "title": "Test Primary Agent Invariant",
       "description": "No test verifying exactly-one-active-primary-agent. Add unit test in crates/agent/ verifying single active primary agent. Test that creating new primary agent deactivates previous. Test that hidden agents (compaction, title, summary) don't affect invariant. Add integration test for session with multiple agent switches.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Test confirms exactly one active primary agent per session",
         "Test verifies invariant maintained across agent switches",
@@ -109,7 +109,7 @@
         "cargo test -p opencode-agent -- primary_agent",
         "cargo test -p opencode-integration-tests -- agent_switch"
       ],
-      "impl_notes": "Add assertion in agent module that verifies only one primary agent is active at a time.",
+      "impl_notes": "Added unit tests in crates/agent/src/runtime.rs for primary agent invariant. Tests verify: hidden agents (CompactionAgent, TitleAgent, SummaryAgent) return is_visible()=false and don't affect invariant; hidden subagent execution preserves primary agent state; switching between visible agents maintains invariant. Created integration tests in tests/src/agent_switch_tests.rs covering multiple agent switches, deactivation/reactivation, and session preservation.",
       "dependencies": []
     },
     {

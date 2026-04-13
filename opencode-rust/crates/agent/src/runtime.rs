@@ -1550,6 +1550,219 @@ mod tests {
             .unwrap();
     }
 
+    #[test]
+    fn test_primary_agent_hidden_agents_are_not_visible() {
+        use crate::system_agents::{CompactionAgent, TitleAgent, SummaryAgent};
+
+        let compaction = CompactionAgent::new();
+        let title = TitleAgent::new();
+        let summary = SummaryAgent::new();
+
+        assert!(
+            !compaction.is_visible(),
+            "CompactionAgent should not be visible"
+        );
+        assert!(!title.is_visible(), "TitleAgent should not be visible");
+        assert!(
+            !summary.is_visible(),
+            "SummaryAgent should not be visible"
+        );
+    }
+
+    #[test]
+    fn test_primary_agent_hidden_agent_types_not_treated_as_primary() {
+        let mut tracker = PrimaryAgentTracker::new();
+
+        tracker.activate(AgentType::Build).unwrap();
+        assert!(tracker.is_active());
+        assert_eq!(tracker.active_type(), Some(AgentType::Build));
+
+        let compaction_err = tracker.activate(AgentType::Compaction);
+        assert!(
+            compaction_err.is_err(),
+            "Compaction should fail because Build is already active"
+        );
+        match compaction_err {
+            Err(RuntimeError::MultiplePrimaryAgents { current, attempted }) => {
+                assert_eq!(current, AgentType::Build);
+                assert_eq!(attempted, AgentType::Compaction);
+            }
+            _ => panic!("Expected MultiplePrimaryAgents error"),
+        }
+
+        let title_err = tracker.activate(AgentType::Title);
+        assert!(
+            title_err.is_err(),
+            "Title should fail because Build is already active"
+        );
+
+        let summary_err = tracker.activate(AgentType::Summary);
+        assert!(
+            summary_err.is_err(),
+            "Summary should fail because Build is already active"
+        );
+
+        assert_eq!(tracker.active_type(), Some(AgentType::Build));
+        assert!(tracker.is_active());
+    }
+
+    #[test]
+    fn test_primary_agent_switching_still_fails_with_hidden_types() {
+        let mut tracker = PrimaryAgentTracker::new();
+
+        tracker.activate(AgentType::Build).unwrap();
+        tracker.begin_transition().unwrap();
+
+        let result = tracker.activate(AgentType::Compaction);
+        assert!(result.is_err());
+        match result {
+            Err(RuntimeError::AgentTransitionInProgress { .. }) => {}
+            _ => panic!("Expected AgentTransitionInProgress error"),
+        }
+
+        tracker.complete_transition(AgentType::Plan);
+        assert_eq!(tracker.active_type(), Some(AgentType::Plan));
+    }
+
+    #[tokio::test]
+    async fn test_hidden_agent_subagent_does_not_affect_primary_invariant() {
+        use crate::system_agents::CompactionAgent;
+
+        let session = Session::default();
+        let runtime = AgentRuntime::new(session, AgentType::Build);
+
+        assert!(runtime.is_primary_agent_active());
+        assert_eq!(runtime.active_agent(), Some(AgentType::Build));
+
+        let compaction = CompactionAgent::new();
+        let context = vec![Message::user("compact task")];
+        let _result = runtime
+            .invoke_subagent(&compaction, context, &MockProvider, &ToolRegistry::new())
+            .await;
+
+        assert!(
+            runtime.is_primary_agent_active(),
+            "Primary agent should still be active after hidden subagent"
+        );
+        assert_eq!(
+            runtime.active_agent(),
+            Some(AgentType::Build),
+            "Active agent should still be Build after hidden subagent"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_multiple_hidden_subagents_preserve_invariant() {
+        use crate::system_agents::{CompactionAgent, SummaryAgent, TitleAgent};
+
+        let session = Session::default();
+        let runtime = AgentRuntime::new(session, AgentType::Build);
+
+        assert_eq!(runtime.active_agent(), Some(AgentType::Build));
+
+        let compaction = CompactionAgent::new();
+        let context1 = vec![Message::user("compact task")];
+        let _ = runtime
+            .invoke_subagent(&compaction, context1, &MockProvider, &ToolRegistry::new())
+            .await;
+
+        assert!(runtime.is_primary_agent_active());
+        assert_eq!(runtime.active_agent(), Some(AgentType::Build));
+
+        let title = TitleAgent::new();
+        let context2 = vec![Message::user("title task")];
+        let _ = runtime
+            .invoke_subagent(&title, context2, &MockProvider, &ToolRegistry::new())
+            .await;
+
+        assert!(runtime.is_primary_agent_active());
+        assert_eq!(runtime.active_agent(), Some(AgentType::Build));
+
+        let summary = SummaryAgent::new();
+        let context3 = vec![Message::user("summary task")];
+        let _ = runtime
+            .invoke_subagent(&summary, context3, &MockProvider, &ToolRegistry::new())
+            .await;
+
+        assert!(runtime.is_primary_agent_active());
+        assert_eq!(runtime.active_agent(), Some(AgentType::Build));
+    }
+
+    #[tokio::test]
+    async fn test_hidden_subagent_preserves_primary_after_switch() {
+        use crate::system_agents::{CompactionAgent, TitleAgent};
+
+        let session = Session::default();
+        let mut runtime = AgentRuntime::new(session, AgentType::Build);
+
+        assert_eq!(runtime.active_agent(), Some(AgentType::Build));
+
+        runtime.switch_primary_agent(AgentType::Plan).await.unwrap();
+        assert_eq!(runtime.active_agent(), Some(AgentType::Plan));
+
+        let compaction = CompactionAgent::new();
+        let context = vec![Message::user("compact after switch")];
+        let _ = runtime
+            .invoke_subagent(&compaction, context, &MockProvider, &ToolRegistry::new())
+            .await;
+
+        assert!(runtime.is_primary_agent_active());
+        assert_eq!(runtime.active_agent(), Some(AgentType::Plan));
+
+        let title = TitleAgent::new();
+        let context2 = vec![Message::user("title after switch")];
+        let _ = runtime
+            .invoke_subagent(&title, context2, &MockProvider, &ToolRegistry::new())
+            .await;
+
+        assert_eq!(runtime.active_agent(), Some(AgentType::Plan));
+    }
+
+    #[tokio::test]
+    async fn test_hidden_subagent_after_deactivate_preserves_inactive() {
+        use crate::system_agents::CompactionAgent;
+
+        let session = Session::default();
+        let mut runtime = AgentRuntime::new(session, AgentType::Build);
+
+        runtime.deactivate_primary_agent().await.unwrap();
+        assert!(!runtime.is_primary_agent_active());
+        assert_eq!(runtime.primary_agent_state(), PrimaryAgentState::Inactive);
+
+        let compaction = CompactionAgent::new();
+        let context = vec![Message::user("compact when inactive")];
+        let result = runtime
+            .invoke_subagent(&compaction, context, &MockProvider, &ToolRegistry::new())
+            .await;
+
+        assert!(
+            result.is_err(),
+            "Should fail because no primary agent is active"
+        );
+
+        assert!(!runtime.is_primary_agent_active());
+    }
+
+    #[tokio::test]
+    async fn test_visible_agent_switch_then_hidden_subagent() {
+        use crate::system_agents::TitleAgent;
+
+        let session = Session::default();
+        let mut runtime = AgentRuntime::new(session, AgentType::Build);
+
+        runtime.switch_primary_agent(AgentType::Explore).await.unwrap();
+        assert_eq!(runtime.active_agent(), Some(AgentType::Explore));
+
+        let title = TitleAgent::new();
+        let context = vec![Message::user("generate title")];
+        let _ = runtime
+            .invoke_subagent(&title, context, &MockProvider, &ToolRegistry::new())
+            .await;
+
+        assert_eq!(runtime.active_agent(), Some(AgentType::Explore));
+        assert!(runtime.is_primary_agent_active());
+    }
+
     struct MockProvider;
 
     impl MockProvider {

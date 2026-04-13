@@ -4,6 +4,8 @@ pub mod conventions;
 #[cfg(test)]
 pub mod agent_llm_tests;
 #[cfg(test)]
+pub mod agent_switch_tests;
+#[cfg(test)]
 pub mod agent_tool_tests;
 #[cfg(test)]
 pub mod common;

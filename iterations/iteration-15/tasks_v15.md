@@ -81,7 +81,7 @@
 
 ---
 
-### P1-2: Enforce Plugin Config Ownership
+### P1-2: ✅ Done
 **Issue:** Server/runtime and TUI plugin configs can be mixed  
 **Module:** plugin  
 **FR Reference:** FR-008  
@@ -102,16 +102,17 @@
 **Issue:** No test verifying exactly-one-active-primary-agent  
 **Module:** agent  
 **FR Reference:** FR-005  
-**Status:** TODO  
+**Status:** ✅ Done  
 
-- [ ] Add unit test in `crates/agent/` verifying single active primary agent
-- [ ] Test that creating new primary agent deactivates previous
-- [ ] Test that hidden agents (compaction, title, summary) don't affect invariant
-- [ ] Add integration test for session with multiple agent switches
+- [x] Add unit test in `crates/agent/` verifying single active primary agent
+- [x] Test that creating new primary agent deactivates previous
+- [x] Test that hidden agents (compaction, title, summary) don't affect invariant
+- [x] Add integration test for session with multiple agent switches
 
 **Acceptance Criteria:**
 - Test confirms exactly one active primary agent per session
 - Test verifies invariant maintained across agent switches
+- Hidden agents (compaction, title, summary) don't affect invariant
 
 ---
 
