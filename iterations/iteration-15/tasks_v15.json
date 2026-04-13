@@ -99,7 +99,7 @@
       "priority": "P1",
       "title": "Server/runtime and TUI plugin configs can be mixed",
       "description": "Add validation in config loading to separate plugin configs. Ensure opencode.json plugins stay in server/runtime domain. Ensure tui.json plugins stay in TUI domain.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify server/runtime plugins in opencode.json are accepted",
         "AddUnitTest: verify TUI plugins in tui.json are accepted",

@@ -366,18 +366,62 @@ $(cat $constitution 2>/dev/null || echo "使用默认Constitution")
     echo "验证实现..."
 
     local test_passed=true
+    local test_output=""
     local task_details_obj=$(echo "$task_details" | python3 -c "import sys,json; print(json.dumps(json.load(sys.stdin)))" 2>/dev/null)
     if [ -n "$task_details_obj" ]; then
         local test_commands=$(echo "$task_details_obj" | python3 -c "import sys,json; print(' '.join(json.load(sys.stdin).get('test_commands', ['cargo build'])))" 2>/dev/null || echo "cargo build")
         echo "运行: $test_commands"
-        eval "$test_commands" 2>/dev/null && echo "测试通过" || { echo "⚠️  测试有问题，请检查"; test_passed=false; }
+        test_output=$(eval "$test_commands" 2>&1) && echo "测试通过" || { echo "⚠️  测试有问题，请检查"; test_passed=false; }
     fi
 
     if [ "$test_passed" = false ]; then
         echo ""
-        echo "❌ 测试失败，任务保持 in_progress 状态"
-        update_task_status "$task_json" "$task_id" "in_progress"
-        return 1
+        echo "❌ 测试失败，重新生成修复方案..."
+
+        local fix_prompt="任务 $task_id 测试失败，需要修复。
+
+## 测试失败输出
+\`\`\`
+$test_output
+\`\`\`
+
+## 任务信息
+$(echo "$task_details" | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'ID: {d.get(\"id\",\"\")}'); print(f'标题: {d.get(\"title\",\"\")}'); print(f'描述: {d.get(\"description\",\"\")}'); print(f'测试命令: {chr(10).join(d.get(\"test_commands\",[]))}')" 2>/dev/null)
+
+## 重要约束
+- 禁止使用 subagent 或 task 工具 spawning 其他 agent
+- 必须直接在当前 session 中修复所有问题
+- 分析测试失败原因，修复代码，确保所有测试通过
+
+## 任务
+1. 分析测试失败原因
+2. 修复代码问题
+3. 重新运行测试验证修复
+4. 确保 cargo build 和 cargo test 通过
+
+## 验证
+- 必须通过: cargo build
+- 必须通过: cargo test
+
+## 完成后的操作
+1. 更新任务JSON文件中的状态为 done
+2. 如果有对应的Markdown任务文件，也需要更新状态为 ✅ Done
+3. 提交代码变更"
+
+        run_opencode_with_session_export "$fix_prompt" "$SESSION_EXPORT_DIR/task_${task_id}_fix.json" "$MODEL"
+
+        echo ""
+        echo "验证修复..."
+
+        test_output=$(eval "$test_commands" 2>&1) && test_passed=true || test_passed=false
+
+        if [ "$test_passed" = false ]; then
+            echo "⚠️  再次测试失败，需要手动检查"
+            echo "失败输出:"
+            echo "$test_output"
+            update_task_status "$task_json" "$task_id" "in_progress"
+            return 1
+        fi
     fi
 
     if [ -n "$(git status --porcelain)" ]; then
