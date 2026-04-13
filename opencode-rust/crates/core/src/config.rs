@@ -13,7 +13,7 @@ mod merge;
 mod remote_cache;
 mod schema;
 mod secret_storage;
-pub use directory_scanner::{load_opencode_directory, OpencodeDirectoryScan};
+pub use directory_scanner::{load_opencode_directory, DirectoryScanner, OpencodeDirectoryScan, ToolInfo};
 pub use jsonc::{is_jsonc_extension, parse_jsonc, JsoncError};
 use remote_cache::{load_cache, save_cache, RemoteConfigCache};
 use secret_storage::resolve_keychain_secret;

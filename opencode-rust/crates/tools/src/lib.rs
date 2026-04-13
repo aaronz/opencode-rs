@@ -38,7 +38,8 @@ pub mod write_test;
 
 pub use codesearch::CodeSearchTool;
 pub use discovery::{
-    register_custom_tools, CustomTool, DiscoveredTool, ToolDefinition, ToolDiscovery,
+    build_default_registry, register_custom_tools, CustomTool, DiscoveredTool, ToolDefinition,
+    ToolDiscovery,
 };
 pub use multiedit::MultiEditTool;
 pub use registry::{ToolRegistry, ToolSource};

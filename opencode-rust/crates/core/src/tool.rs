@@ -1,7 +1,9 @@
+use crate::config::{DirectoryScanner, ToolInfo};
 use crate::session::Session;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -141,6 +143,127 @@ impl ToolRegistry {
             .keys()
             .map(|name| (name, self.is_disabled(name)))
             .collect()
+    }
+}
+
+fn register_custom_tool(registry: &mut ToolRegistry, tool_info: ToolInfo) {
+    let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&tool_info.content) else {
+        tracing::warn!(
+            "Failed to parse tool content for {}: not valid JSON",
+            tool_info.name
+        );
+        return;
+    };
+
+    let name = parsed
+        .get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or(&tool_info.name)
+        .to_string();
+
+    let description = parsed
+        .get("description")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    let args = parsed.get("args");
+    let parameters = if let Some(obj) = args.and_then(|v| v.as_object()) {
+        let props = obj.get("properties").and_then(|v| v.as_object());
+        props
+            .map(|properties| {
+                properties
+                    .iter()
+                    .map(|(param_name, param_def)| {
+                        let required = obj
+                            .get("required")
+                            .and_then(|v| v.as_array())
+                            .map(|arr| arr.iter().any(|r| r.as_str() == Some(param_name)))
+                            .unwrap_or(false);
+
+                        ToolParameter {
+                            name: param_name.clone(),
+                            description: param_def
+                                .get("description")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string(),
+                            required,
+                            schema: param_def.clone(),
+                        }
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+
+    let file_path = tool_info.path.clone();
+    let tool_def = ToolDefinition {
+        name: name.clone(),
+        description,
+        parameters,
+        ..Default::default()
+    };
+
+    let executor = Arc::new(move |args: serde_json::Value| {
+        let args_str =
+            serde_json::to_string(&args).map_err(|e| format!("Failed to serialize args: {}", e))?;
+
+        let extension = file_path
+            .extension()
+            .and_then(|e: &std::ffi::OsStr| e.to_str())
+            .ok_or_else(|| "Missing file extension".to_string())?;
+
+        let node_cmd = match extension {
+            "js" | "ts" | "mjs" | "cjs" => "node",
+            _ => {
+                return Err(format!(
+                    "Unsupported file extension for tool execution: {}",
+                    extension
+                ));
+            }
+        };
+
+        let output = std::process::Command::new(node_cmd)
+            .arg(&file_path)
+            .arg("--args")
+            .arg(&args_str)
+            .output()
+            .map_err(|e| format!("Failed to execute tool: {}", e))?;
+
+        if output.status.success() {
+            Ok(String::from_utf8_lossy(&output.stdout).to_string())
+        } else {
+            Err(String::from_utf8_lossy(&output.stderr).to_string())
+        }
+    });
+
+    registry.register(tool_def, executor);
+}
+
+fn register_discovered_custom_tools(registry: &mut ToolRegistry, project_root: Option<PathBuf>) {
+    let scanner = DirectoryScanner::new();
+
+    if let Some(ref root) = project_root {
+        let opencode_path = root.join(".opencode");
+        if opencode_path.exists() {
+            let tools = scanner.scan_tools(&opencode_path);
+            for tool_info in tools {
+                register_custom_tool(registry, tool_info);
+            }
+        }
+    }
+
+    if let Some(global_path) = dirs::config_dir() {
+        let global_opencode = global_path.join("opencode");
+        if global_opencode.exists() {
+            let tools = scanner.scan_tools(&global_opencode);
+            for tool_info in tools {
+                register_custom_tool(registry, tool_info);
+            }
+        }
     }
 }
 
@@ -513,7 +636,21 @@ pub fn build_default_registry() -> ToolRegistry {
         }),
     );
 
+    let project_root = find_project_root();
+    register_discovered_custom_tools(&mut registry, project_root);
+
     registry
+}
+
+fn find_project_root() -> Option<PathBuf> {
+    let cwd = std::env::current_dir().ok()?;
+    for ancestor in cwd.ancestors() {
+        let opencode_dir = ancestor.join(".opencode");
+        if opencode_dir.exists() && opencode_dir.is_dir() {
+            return Some(ancestor.to_path_buf());
+        }
+    }
+    None
 }
 
 #[cfg(test)]
@@ -660,5 +797,229 @@ mod tests {
         assert!(load.is_ok());
 
         let _ = Session::delete(&session_id);
+    }
+
+    #[test]
+    fn test_directory_scanner_registers_discovered_tools_with_registry() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let tools_dir = temp_dir.path().join(".opencode").join("tools");
+        fs::create_dir_all(&tools_dir).unwrap();
+
+        fs::write(
+            tools_dir.join("test_tool.js"),
+            r#"export default tool({
+                name: "test_discovery_tool",
+                description: "A test discovery tool",
+                args: { type: "object", properties: { input: { type: "string" } } }
+            });"#,
+        )
+        .unwrap();
+
+        let mut registry = ToolRegistry::new();
+        let scanner = DirectoryScanner::new();
+        let opencode_path = temp_dir.path().join(".opencode");
+        let tools = scanner.scan_tools(&opencode_path);
+
+        assert_eq!(tools.len(), 1);
+        assert_eq!(tools[0].name, "test_discovery_tool");
+
+        for tool_info in tools {
+            register_custom_tool(&mut registry, tool_info);
+        }
+
+        assert!(
+            registry.contains("test_discovery_tool"),
+            "Custom tool should be registered in registry"
+        );
+        assert_eq!(
+            registry.list(),
+            vec!["test_discovery_tool"],
+            "Registry should contain only the discovered tool"
+        );
+    }
+
+    #[test]
+    fn test_custom_tools_appear_in_registry_listing_after_discovery() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let tools_dir = temp_dir.path().join(".opencode").join("tools");
+        fs::create_dir_all(&tools_dir).unwrap();
+
+        fs::write(
+            tools_dir.join("listing_tool.js"),
+            r#"export default tool({
+                name: "listing_tool",
+                description: "A tool to test listing",
+                args: {}
+            });"#,
+        )
+        .unwrap();
+
+        let mut registry = ToolRegistry::new();
+        let scanner = DirectoryScanner::new();
+        let opencode_path = temp_dir.path().join(".opencode");
+        let tools = scanner.scan_tools(&opencode_path);
+
+        for tool_info in tools {
+            register_custom_tool(&mut registry, tool_info);
+        }
+
+        let listed = registry.list();
+        assert!(
+            listed.contains(&"listing_tool".to_string()),
+            "Discovered tool should appear in listing. Found: {:?}",
+            listed
+        );
+    }
+
+    #[test]
+    fn test_custom_tool_discovery_registration_execution_pipeline() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let tools_dir = temp_dir.path().join(".opencode").join("tools");
+        fs::create_dir_all(&tools_dir).unwrap();
+
+        fs::write(
+            tools_dir.join("exec_tool.js"),
+            r#"export default tool({
+                name: "exec_pipeline_tool",
+                description: "Test pipeline",
+                args: { type: "object", properties: { message: { type: "string" } } }
+            });
+            const argsIdx = process.argv.findIndex(a => a === '--args');
+            const args = argsIdx >= 0 ? JSON.parse(process.argv[argsIdx + 1] || '{}') : {};
+            console.log(args.message || 'default');
+            "#,
+        )
+        .unwrap();
+
+        let mut registry = ToolRegistry::new();
+        let scanner = DirectoryScanner::new();
+        let opencode_path = temp_dir.path().join(".opencode");
+        let tools = scanner.scan_tools(&opencode_path);
+
+        for tool_info in tools {
+            register_custom_tool(&mut registry, tool_info);
+        }
+
+        assert!(
+            registry.contains("exec_pipeline_tool"),
+            "Tool should be registered"
+        );
+
+        let executor = registry.get_executor("exec_pipeline_tool");
+        assert!(
+            executor.is_some(),
+            "Executor should be available for registered tool"
+        );
+    }
+
+    #[test]
+    fn test_builtin_tools_still_work_after_custom_tool_registration() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let tools_dir = temp_dir.path().join(".opencode").join("tools");
+        fs::create_dir_all(&tools_dir).unwrap();
+
+        fs::write(
+            tools_dir.join("custom.js"),
+            r#"export default tool({
+                name: "custom_tool",
+                description: "A custom tool",
+                args: {}
+            });"#,
+        )
+        .unwrap();
+
+        let mut registry = ToolRegistry::new();
+
+        registry.register(
+            ToolDefinition {
+                name: "builtin_tool".to_string(),
+                description: "A built-in tool".to_string(),
+                parameters: vec![],
+                ..Default::default()
+            },
+            Arc::new(|_| Ok("builtin result".to_string())),
+        );
+
+        let scanner = DirectoryScanner::new();
+        let opencode_path = temp_dir.path().join(".opencode");
+        let tools = scanner.scan_tools(&opencode_path);
+
+        for tool_info in tools {
+            register_custom_tool(&mut registry, tool_info);
+        }
+
+        assert!(
+            registry.contains("builtin_tool"),
+            "Built-in tool should still be in registry"
+        );
+        assert!(
+            registry.contains("custom_tool"),
+            "Custom tool should be registered"
+        );
+
+        let builtin_executor = registry.get_executor("builtin_tool");
+        assert!(
+            builtin_executor.is_some(),
+            "Built-in tool executor should still work"
+        );
+
+        let result = builtin_executor.unwrap()(serde_json::json!({}));
+        assert!(
+            result.is_ok() && result.unwrap() == "builtin result",
+            "Built-in tool should execute correctly"
+        );
+    }
+
+    #[test]
+    fn test_error_handling_custom_tool_parsing_failure() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let tools_dir = temp_dir.path().join(".opencode").join("tools");
+        fs::create_dir_all(&tools_dir).unwrap();
+
+        fs::write(
+            tools_dir.join("invalid.js"),
+            r#"const someVar = {
+                name: "invalid_tool",
+                description: "Invalid tool - no export default"
+            };
+            export default someVar;
+            "#,
+        )
+        .unwrap();
+
+        let mut registry = ToolRegistry::new();
+        let scanner = DirectoryScanner::new();
+        let opencode_path = temp_dir.path().join(".opencode");
+        let tools = scanner.scan_tools(&opencode_path);
+
+        assert_eq!(
+            tools.len(),
+            0,
+            "Tool without proper export pattern should not be discovered"
+        );
+
+        for tool_info in tools {
+            register_custom_tool(&mut registry, tool_info);
+        }
+
+        assert!(
+            !registry.contains("invalid_tool"),
+            "Invalid tool should not be registered"
+        );
     }
 }
