@@ -80,7 +80,7 @@
       "priority": "P1",
       "title": "Enforce Plugin Config Ownership",
       "description": "Server/runtime and TUI plugin configs can be mixed. Add validation in config loading to separate plugin configs. Ensure opencode.json plugins stay in server/runtime domain. Ensure tui.json plugins stay in TUI domain. Add warning/error when configs are incorrectly mixed.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Plugin config ownership boundary is enforced",
         "Mixed configs produce warning or error",

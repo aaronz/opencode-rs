@@ -126,6 +126,7 @@ pub(crate) fn parse_metadata_file(path: &Path) -> Result<DiscoveredPlugin, Plugi
             version: metadata.version,
             enabled: metadata.enabled,
             priority: metadata.priority,
+            domain: crate::PluginDomain::Runtime,
             options: metadata.options,
             permissions: PluginPermissions {
                 capabilities: metadata.capabilities,

@@ -59,12 +59,29 @@ pub struct PluginPermissions {
     pub network_allowed: bool,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum PluginDomain {
+    #[default]
+    Runtime,
+    Tui,
+}
+
+impl PluginDomain {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            PluginDomain::Runtime => "runtime",
+            PluginDomain::Tui => "tui",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginConfig {
     pub name: String,
     pub version: String,
     pub enabled: bool,
     pub priority: i32,
+    pub domain: PluginDomain,
     pub options: IndexMap<String, Value>,
     pub permissions: PluginPermissions,
 }
@@ -82,6 +99,7 @@ impl Default for PluginConfig {
             version: String::new(),
             enabled: true,
             priority: 0,
+            domain: PluginDomain::Runtime,
             options: IndexMap::new(),
             permissions: PluginPermissions::default(),
         }
@@ -283,6 +301,7 @@ impl PluginManager {
             version: plugin.version().to_string(),
             enabled: true,
             priority: 0,
+            domain: PluginDomain::Runtime,
             options: IndexMap::new(),
             permissions: PluginPermissions::default(),
         };
@@ -881,6 +900,7 @@ mod tests {
                 version: "1.0.0".to_string(),
                 enabled: true,
                 priority: 0,
+                domain: PluginDomain::Runtime,
                 options: IndexMap::new(),
                 permissions: PluginPermissions {
                     capabilities: vec![PluginCapability::AddTools],
@@ -964,6 +984,7 @@ mod tests {
                 version: "1.0.0".to_string(),
                 enabled: true,
                 priority: 0,
+                domain: PluginDomain::Runtime,
                 options: IndexMap::new(),
                 permissions: PluginPermissions {
                     capabilities: vec![], // No AddTools capability
@@ -1190,6 +1211,7 @@ mod tests {
             version: "2.0.0".to_string(),
             enabled: true,
             priority: 0,
+            domain: PluginDomain::Runtime,
             options: serde_json::json!({"key": "value"})
                 .as_object()
                 .unwrap()
@@ -3254,6 +3276,7 @@ mod tests {
             version: "1.0.0".to_string(),
             enabled: true,
             priority: 100,
+            domain: PluginDomain::Runtime,
             options: IndexMap::new(),
             permissions: PluginPermissions::default(),
         };
@@ -3262,6 +3285,7 @@ mod tests {
             version: "1.0.0".to_string(),
             enabled: true,
             priority: -100,
+            domain: PluginDomain::Runtime,
             options: IndexMap::new(),
             permissions: PluginPermissions::default(),
         };
@@ -3270,6 +3294,7 @@ mod tests {
             version: "1.0.0".to_string(),
             enabled: true,
             priority: 0,
+            domain: PluginDomain::Runtime,
             options: IndexMap::new(),
             permissions: PluginPermissions::default(),
         };
@@ -3278,6 +3303,7 @@ mod tests {
             version: "1.0.0".to_string(),
             enabled: true,
             priority: 50,
+            domain: PluginDomain::Runtime,
             options: IndexMap::new(),
             permissions: PluginPermissions::default(),
         };
@@ -3392,6 +3418,7 @@ mod tests {
                 version: "1.0.0".to_string(),
                 enabled: true,
                 priority: 10,
+                domain: PluginDomain::Runtime,
                 options: IndexMap::new(),
                 permissions: PluginPermissions::default(),
             };
@@ -3400,6 +3427,7 @@ mod tests {
                 version: "1.0.0".to_string(),
                 enabled: true,
                 priority: 20,
+                domain: PluginDomain::Runtime,
                 options: IndexMap::new(),
                 permissions: PluginPermissions::default(),
             };
@@ -3408,6 +3436,7 @@ mod tests {
                 version: "1.0.0".to_string(),
                 enabled: true,
                 priority: 30,
+                domain: PluginDomain::Runtime,
                 options: IndexMap::new(),
                 permissions: PluginPermissions::default(),
             };

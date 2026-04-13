@@ -11,6 +11,12 @@
 //! - Override core config keys (like `model`, `server`, `permission`, etc.)
 //! - Leak into other plugins' configurations
 //!
+//! # Plugin Domain Separation
+//!
+//! Plugins have a `domain` field that specifies where they can be loaded:
+//! - `Runtime` domain plugins can only be loaded in server/runtime context (opencode.json)
+//! - `Tui` domain plugins can only be loaded in TUI context (tui.json)
+//!
 //! # Reserved Keys
 //!
 //! The following top-level keys are reserved and cannot be used in plugin options:
@@ -23,6 +29,7 @@
 //! - Legacy/theme keys: `theme`, `tui`
 //! - Auth/connection keys: `api_key`, `temperature`, `max_tokens`
 
+use crate::PluginDomain;
 use indexmap::IndexMap;
 use serde_json::Value;
 use thiserror::Error;
@@ -42,6 +49,15 @@ pub enum ConfigValidationError {
     ConfigLeak {
         from_plugin: String,
         to_plugin: String,
+    },
+
+    #[error(
+        "plugin domain violation: plugin '{plugin}' has domain '{actual}' but is being loaded in '{expected}' context"
+    )]
+    DomainMismatch {
+        plugin: String,
+        actual: String,
+        expected: String,
     },
 }
 
@@ -262,6 +278,129 @@ pub fn validate_plugin_isolation(
                     ));
                 }
             }
+        }
+    }
+
+    result
+}
+
+/// Validates that a plugin's domain matches the loading context.
+///
+/// # Arguments
+/// * `plugin_name` - The name of the plugin (for error reporting)
+/// * `plugin_domain` - The domain specified in the plugin config
+/// * `loading_context` - The context we're loading in (Runtime or Tui)
+///
+/// # Returns
+/// A `ConfigValidationResult` indicating whether validation passed.
+pub fn validate_plugin_domain(
+    plugin_name: &str,
+    plugin_domain: PluginDomain,
+    loading_context: PluginDomain,
+) -> ConfigValidationResult {
+    if plugin_domain == loading_context {
+        return ConfigValidationResult::valid();
+    }
+
+    ConfigValidationResult::invalid(vec![format!(
+        "plugin domain violation: plugin '{}' has domain '{}' but is being loaded in '{}' context",
+        plugin_name,
+        plugin_domain.as_str(),
+        loading_context.as_str()
+    )])
+}
+
+/// Validates that a plugin can be loaded in the runtime context.
+///
+/// Runtime plugins (domain = Runtime) can only be loaded from opencode.json or .opencode/plugins.
+/// TUI plugins (domain = Tui) should NOT be loaded in runtime context.
+pub fn validate_runtime_loadable(
+    plugin_name: &str,
+    plugin_domain: PluginDomain,
+) -> ConfigValidationResult {
+    validate_plugin_domain(plugin_name, plugin_domain, PluginDomain::Runtime)
+}
+
+/// Validates that a plugin can be loaded in the TUI context.
+///
+/// TUI plugins (domain = Tui) can only be loaded from tui.json.
+/// Runtime plugins (domain = Runtime) should NOT be loaded in TUI context.
+pub fn validate_tui_loadable(
+    plugin_name: &str,
+    plugin_domain: PluginDomain,
+) -> ConfigValidationResult {
+    validate_plugin_domain(plugin_name, plugin_domain, PluginDomain::Tui)
+}
+
+/// Result of domain ownership validation.
+#[derive(Debug, Clone, Default)]
+pub struct DomainOwnershipResult {
+    pub valid: bool,
+    pub warnings: Vec<String>,
+    pub errors: Vec<String>,
+}
+
+impl DomainOwnershipResult {
+    pub fn valid() -> Self {
+        Self {
+            valid: true,
+            warnings: Vec::new(),
+            errors: Vec::new(),
+        }
+    }
+
+    pub fn invalid(errors: Vec<String>) -> Self {
+        Self {
+            valid: false,
+            warnings: Vec::new(),
+            errors,
+        }
+    }
+
+    pub fn with_warning(warning: String) -> Self {
+        Self {
+            valid: true,
+            warnings: vec![warning],
+            errors: Vec::new(),
+        }
+    }
+
+    pub fn add_error(&mut self, error: String) {
+        self.valid = false;
+        self.errors.push(error);
+    }
+
+    pub fn add_warning(&mut self, warning: String) {
+        self.warnings.push(warning);
+    }
+
+    pub fn merge(&mut self, other: DomainOwnershipResult) {
+        if !other.valid {
+            self.valid = false;
+        }
+        self.errors.extend(other.errors);
+        self.warnings.extend(other.warnings);
+    }
+}
+
+/// Validates plugin config ownership - ensures plugins are loaded in the correct context.
+///
+/// # Arguments
+/// * `plugins` - List of (plugin_name, plugin_domain) tuples
+/// * `loading_context` - The context we're loading in (Runtime or Tui)
+///
+/// # Returns
+/// A `DomainOwnershipResult` with any errors or warnings.
+pub fn validate_plugin_ownership(
+    plugins: &[(String, PluginDomain)],
+    loading_context: PluginDomain,
+) -> DomainOwnershipResult {
+    let mut result = DomainOwnershipResult::valid();
+
+    for (plugin_name, plugin_domain) in plugins {
+        let validation = validate_plugin_domain(plugin_name, *plugin_domain, loading_context);
+        if !validation.valid {
+            result.add_error(validation.errors.into_iter().next().unwrap_or_default());
         }
     }
 
@@ -653,5 +792,123 @@ mod tests {
                 prefix, result.errors
             );
         }
+    }
+
+    #[test]
+    fn config_ownership_runtime_plugin_in_runtime_context() {
+        let result = validate_runtime_loadable("test-plugin", PluginDomain::Runtime);
+        assert!(
+            result.valid,
+            "runtime plugin should be loadable in runtime context"
+        );
+    }
+
+    #[test]
+    fn config_ownership_tui_plugin_in_tui_context() {
+        let result = validate_tui_loadable("test-plugin", PluginDomain::Tui);
+        assert!(result.valid, "tui plugin should be loadable in tui context");
+    }
+
+    #[test]
+    fn config_ownership_tui_plugin_rejected_in_runtime() {
+        let result = validate_runtime_loadable("tui-plugin", PluginDomain::Tui);
+        assert!(
+            !result.valid,
+            "tui plugin should NOT be loadable in runtime context"
+        );
+        assert!(
+            result.errors.iter().any(|e| e.contains("domain violation")),
+            "should report domain violation: {:?}",
+            result.errors
+        );
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.contains("tui") && e.contains("runtime")),
+            "error should mention both tui and runtime contexts: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn config_ownership_runtime_plugin_rejected_in_tui() {
+        let result = validate_tui_loadable("runtime-plugin", PluginDomain::Runtime);
+        assert!(
+            !result.valid,
+            "runtime plugin should NOT be loadable in tui context"
+        );
+        assert!(
+            result.errors.iter().any(|e| e.contains("domain violation")),
+            "should report domain violation: {:?}",
+            result.errors
+        );
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.contains("runtime") && e.contains("tui")),
+            "error should mention both runtime and tui contexts: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn config_ownership_plugin_ownership_validation() {
+        let plugins = vec![
+            ("runtime-plugin".to_string(), PluginDomain::Runtime),
+            ("another-runtime".to_string(), PluginDomain::Runtime),
+        ];
+        let result = validate_plugin_ownership(&plugins, PluginDomain::Runtime);
+        assert!(
+            result.valid,
+            "all runtime plugins in runtime context should pass: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn config_ownership_plugin_ownership_validation_mixed_domains() {
+        let plugins = vec![
+            ("runtime-plugin".to_string(), PluginDomain::Runtime),
+            ("tui-plugin".to_string(), PluginDomain::Tui),
+        ];
+        let result = validate_plugin_ownership(&plugins, PluginDomain::Runtime);
+        assert!(
+            !result.valid,
+            "mixed domains should fail when loading in runtime context"
+        );
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.contains("tui-plugin") && e.contains("domain violation")),
+            "should report domain violation for tui-plugin: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn config_ownership_multiple_tui_plugins_in_tui_context() {
+        let plugins = vec![
+            ("tui-plugin-1".to_string(), PluginDomain::Tui),
+            ("tui-plugin-2".to_string(), PluginDomain::Tui),
+        ];
+        let result = validate_plugin_ownership(&plugins, PluginDomain::Tui);
+        assert!(
+            result.valid,
+            "all tui plugins in tui context should pass: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn config_ownership_plugin_domain_mismatch_error_message() {
+        let result = validate_plugin_domain("my-plugin", PluginDomain::Tui, PluginDomain::Runtime);
+        assert!(!result.valid);
+        let error = result.errors.first().unwrap();
+        assert!(error.contains("my-plugin"));
+        assert!(error.contains("'tui'"));
+        assert!(error.contains("'runtime'"));
     }
 }

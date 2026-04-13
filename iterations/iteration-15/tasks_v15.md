@@ -64,7 +64,7 @@
 
 ## P1 Tasks (High Priority)
 
-### P1-1: Fix Hook Execution Determinism ✅ Done
+### P1-1: ✅ Done
 **Issue:** Hooks execute in HashMap iteration order (non-deterministic)  
 **Module:** plugin  
 **FR Reference:** FR-008  
