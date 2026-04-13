@@ -30,7 +30,7 @@
       "priority": "P0",
       "title": "Discovered tools recorded in config but NOT registered with ToolRegistry",
       "description": "Create registration flow from DirectoryScanner to ToolRegistry. Ensure discovered custom tools appear in tool listing. Verify custom tools can be executed through standard tool pipeline.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify DirectoryScanner registers discovered tools with ToolRegistry",
         "AddUnitTest: verify custom tools appear in ToolRegistry listing after discovery",
@@ -54,7 +54,7 @@
       "priority": "P0",
       "title": "PluginToolAdapter exists but no mechanism to register plugin tools",
       "description": "Add register_tool() method to Plugin trait in crates/plugin/src/lib.rs. Implement tool registration in PluginManager. Integrate PluginManager with ToolRegistry for plugin-provided tools.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify Plugin trait has register_tool() method",
         "AddUnitTest: verify PluginManager implements tool registration",

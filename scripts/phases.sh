@@ -365,11 +365,19 @@ $(cat $constitution 2>/dev/null || echo "使用默认Constitution")
     echo ""
     echo "验证实现..."
 
+    local test_passed=true
     local task_details_obj=$(echo "$task_details" | python3 -c "import sys,json; print(json.dumps(json.load(sys.stdin)))" 2>/dev/null)
     if [ -n "$task_details_obj" ]; then
         local test_commands=$(echo "$task_details_obj" | python3 -c "import sys,json; print(' '.join(json.load(sys.stdin).get('test_commands', ['cargo build'])))" 2>/dev/null || echo "cargo build")
         echo "运行: $test_commands"
-        eval "$test_commands" 2>/dev/null && echo "测试通过" || echo "⚠️  测试有问题，请检查"
+        eval "$test_commands" 2>/dev/null && echo "测试通过" || { echo "⚠️  测试有问题，请检查"; test_passed=false; }
+    fi
+
+    if [ "$test_passed" = false ]; then
+        echo ""
+        echo "❌ 测试失败，任务保持 in_progress 状态"
+        update_task_status "$task_json" "$task_id" "in_progress"
+        return 1
     fi
 
     if [ -n "$(git status --porcelain)" ]; then

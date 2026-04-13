@@ -30,12 +30,12 @@
 **Issue:** Discovered tools recorded in config but NOT registered with ToolRegistry  
 **Module:** tools  
 **FR Reference:** FR-007  
-**Status:** TODO  
+**Status:** ✅ Done  
 
-- [ ] Create registration flow from `DirectoryScanner` to `ToolRegistry`
-- [ ] Ensure discovered custom tools appear in tool listing
-- [ ] Verify custom tools can be executed through standard tool pipeline
-- [ ] Add integration test for custom tool discovery → registration → execution
+- [x] Create registration flow from `DirectoryScanner` to `ToolRegistry`
+- [x] Ensure discovered custom tools appear in tool listing
+- [x] Verify custom tools can be executed through standard tool pipeline
+- [x] Add integration test for custom tool discovery → registration → execution
 
 **Acceptance Criteria:**
 - Discovered custom tools appear in `ToolRegistry` listing
@@ -47,13 +47,13 @@
 **Issue:** `PluginToolAdapter` exists but no mechanism to register plugin tools  
 **Module:** plugin  
 **FR Reference:** FR-008  
-**Status:** TODO  
+**Status:** ✅ Done  
 
-- [ ] Add `register_tool()` method to `Plugin` trait in `crates/plugin/src/lib.rs`
-- [ ] Implement tool registration in `PluginManager`
-- [ ] Integrate `PluginManager` with `ToolRegistry` for plugin-provided tools
-- [ ] Add tests verifying plugin tools appear in registry after plugin activation
-- [ ] Verify plugin tools respect permission system
+- [x] Add `register_tool()` method to `Plugin` trait in `crates/plugin/src/lib.rs`
+- [x] Implement tool registration in `PluginManager`
+- [x] Integrate `PluginManager` with `ToolRegistry` for plugin-provided tools
+- [x] Add tests verifying plugin tools appear in registry after plugin activation
+- [x] Verify plugin tools respect permission system
 
 **Acceptance Criteria:**
 - Plugins can add tools to agent toolset via `register_tool()`
