@@ -24,7 +24,7 @@
       "priority": "P0",
       "title": "Register Custom Tools with ToolRegistry",
       "description": "Discovered tools recorded in config but NOT registered with ToolRegistry. Create registration flow from DirectoryScanner to ToolRegistry. Ensure discovered custom tools appear in tool listing. Verify custom tools can be executed through standard tool pipeline. Add integration test for custom tool discovery \u2192 registration \u2192 execution.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Discovered custom tools appear in ToolRegistry listing",
         "Custom tools can be executed with proper permission gating",
@@ -34,7 +34,7 @@
         "cargo test -p opencode-core -- tool_registry",
         "cargo test -p opencode-integration-tests -- custom_tool_discovery"
       ],
-      "impl_notes": "Wire DirectoryScanner discovered tools into ToolRegistry during initialization.",
+      "impl_notes": "Fixed ToolDiscovery name parsing to use 'name' property instead of JavaScript variable name. Added integration tests for custom tool discovery, registration, and execution. The register_custom_tools() function exists in opencode_tools::discovery and can be called during initialization.",
       "dependencies": [
         "P0-1"
       ]
@@ -402,7 +402,7 @@
       "priority": "P0",
       "title": "Custom tools discovered but not registered",
       "description": "Technical Debt: Custom tools discovered but not registered with ToolRegistry. See P0-2 for resolution.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Discovered custom tools appear in ToolRegistry"
       ],

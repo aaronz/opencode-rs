@@ -8,7 +8,7 @@
 
 ## P0 Tasks (Blocking - Must Fix)
 
-### P0-1: Fix Custom Tool Discovery Format
+### P0-1: ✅ Done
 **Issue:** Custom tool discovery scans TOOL.md instead of .ts/.js  
 **Module:** tools  
 **FR Reference:** FR-007  

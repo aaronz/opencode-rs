@@ -114,12 +114,23 @@ impl ToolDiscovery {
     }
 
     fn extract_tool_definition(&self, content: &str) -> Option<ToolDefinition> {
-        let name_regex = Regex::new(r#"(?:const|let|var)\s+(\w+)\s*=\s*\{"#).ok()?;
+        let var_name_regex = Regex::new(r#"(?:const|let|var)\s+(\w+)\s*=\s*\{"#).ok()?;
+        let name_in_obj_regex = Regex::new(r#"name\s*:\s*["']([^"']+)["']"#).ok()?;
         let desc_regex = Regex::new(r#"description\s*:\s*["']([^"']+)["']"#).ok()?;
         let params_regex = Regex::new(r#"parameters\s*:\s*(\{[^}]+\})"#).ok()?;
 
-        let name_capture = name_regex.captures(content)?;
-        let tool_var_name = name_capture.get(1)?.as_str();
+        let var_name = var_name_regex
+            .captures(content)
+            .and_then(|c| c.get(1))
+            .map(|m| m.as_str().to_lowercase().replace('_', "-"));
+
+        let name = name_in_obj_regex
+            .captures(content)
+            .and_then(|c| c.get(1))
+            .map(|m| m.as_str().to_string())
+            .or(var_name);
+
+        let name = name?;
 
         let desc_capture = desc_regex.captures(content)?;
         let description = desc_capture.get(1)?.as_str().to_string();
@@ -134,7 +145,7 @@ impl ToolDiscovery {
             }));
 
         Some(ToolDefinition {
-            name: tool_var_name.to_lowercase().replace('_', "-"),
+            name,
             description,
             parameters,
         })
@@ -280,7 +291,7 @@ export default myTool;
         let tools = discovery.discover_tools();
 
         assert_eq!(tools.len(), 1);
-        assert_eq!(tools[0].definition.name, "mytool");
+        assert_eq!(tools[0].definition.name, "my_tool");
         assert_eq!(tools[0].definition.description, "A test tool");
     }
 
