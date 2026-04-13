@@ -12,6 +12,8 @@ pub mod common;
 #[cfg(test)]
 pub mod compaction_shareability_tests;
 #[cfg(test)]
+pub mod session_lifecycle_tests;
+#[cfg(test)]
 pub mod mcp_protocol_tests;
 #[cfg(test)]
 pub mod session_storage_tests;

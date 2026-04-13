@@ -116,7 +116,7 @@
 
 ---
 
-### P1-4: Test Ownership Tree Acyclicity
+### P1-4: ✅ Done
 **Issue:** No unit tests for Project→Session→Message→Part ownership tree  
 **Module:** core  
 **FR Reference:** FR-001  

@@ -135,7 +135,7 @@
       "priority": "P1",
       "title": "Complete Session Lifecycle Integration Tests",
       "description": "Missing create\u2192fork\u2192share\u2192compact\u2192revert integration test. Add integration test covering complete session lifecycle: Create session, Fork child session, Share session (export/share mechanism), Compact session (context compression), Revert to checkpoint. Verify session state integrity after each operation. Verify message history preserved correctly through operations.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "Complete lifecycle test passes",
         "Session state consistent after each operation",
