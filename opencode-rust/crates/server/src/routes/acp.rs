@@ -64,6 +64,7 @@ mod tests {
     use actix_web::http::StatusCode;
     use actix_web::test::TestRequest;
     use actix_web::Responder;
+    use crate::routes::acp_ws::{AcpClientRegistry, SharedAcpClientRegistry};
 
     fn create_test_server_state() -> ServerState {
         let temp_dir = tempfile::tempdir().unwrap();
@@ -84,6 +85,9 @@ mod tests {
             )),
             acp_enabled: true,
             acp_stream: opencode_control_plane::AcpEventStream::new().into(),
+            acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
+                AcpClientRegistry::new(),
+            )),
         }
     }
 
@@ -107,6 +111,9 @@ mod tests {
             )),
             acp_enabled: false,
             acp_stream: opencode_control_plane::AcpEventStream::new().into(),
+            acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
+                AcpClientRegistry::new(),
+            )),
         }
     }
 

@@ -34,6 +34,9 @@ echo "Project: $PROJECT_DIR"
 echo "Build type: ${DEBUG:-release}"
 echo ""
 
+echo "Cleaning target folder..."
+rm -rf "$PROJECT_DIR/target"
+
 echo "Building workspace..."
 cargo build $CARGO_BUILD_FLAGS
 

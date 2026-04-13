@@ -30,6 +30,9 @@ mod tests {
             )),
             acp_enabled: true,
             acp_stream: opencode_control_plane::AcpEventStream::new().into(),
+            acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
+                crate::routes::acp_ws::AcpClientRegistry::new(),
+            )),
         }
     }
 
@@ -54,6 +57,9 @@ mod tests {
             )),
             acp_enabled: true,
             acp_stream: opencode_control_plane::AcpEventStream::new().into(),
+            acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
+                crate::routes::acp_ws::AcpClientRegistry::new(),
+            )),
         }
     }
 
@@ -1170,6 +1176,9 @@ mod security_tests {
             )),
             acp_enabled: true,
             acp_stream: opencode_control_plane::AcpEventStream::new().into(),
+            acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
+                crate::routes::acp_ws::AcpClientRegistry::new(),
+            )),
         }
     }
 

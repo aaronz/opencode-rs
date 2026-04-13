@@ -159,7 +159,7 @@ cargo test -p opencode-core -- fork_acyclicity  # 8 tests passed
 
 ---
 
-### P1-6: Implement Desktop App
+### P1-6: ✅ Done
 **Issue:** Desktop app not implemented (stubs only)  
 **Module:** cli  
 **FR Reference:** FR-015  

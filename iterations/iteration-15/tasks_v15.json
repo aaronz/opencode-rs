@@ -152,7 +152,7 @@
       "priority": "P1",
       "title": "Implement Desktop App",
       "description": "Desktop app not implemented (stubs only). Implement desktop startup flow in crates/cli/. Integrate WebView for desktop shell. Implement desktop-specific configuration handling. Add desktop mode to CLI argument parsing.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "Desktop app starts successfully",
         "WebView displays TUI content",
@@ -172,7 +172,7 @@
       "priority": "P1",
       "title": "Implement Web Server Mode",
       "description": "Web server mode incomplete (stub only). Implement full web server in crates/cli/src/cmd/web.rs. Add authentication protection to web endpoints. Implement session sharing between web and TUI modes. Add web-specific route handlers.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "Web server serves authenticated endpoints",
         "Sessions accessible from both web and TUI interfaces",
@@ -190,7 +190,7 @@
       "priority": "P1",
       "title": "Implement ACP Transport",
       "description": "ACP transport not implemented (event structs exist). Implement ACP handshake mechanism. Implement ACP transport layer for editor communication. Add connection management for ACP clients. Integrate with server for ACP endpoint handling.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "ACP handshake completes successfully",
         "Editor integration works via ACP transport",

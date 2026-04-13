@@ -6,6 +6,7 @@ use opencode_core::config::ServerConfig;
 use opencode_core::Config;
 use opencode_llm::ModelRegistry;
 use opencode_server::routes::share::ShareServer;
+use opencode_server::routes::acp_ws::SharedAcpClientRegistry;
 use opencode_server::streaming::{conn_state::ConnectionMonitor, ReconnectionStore};
 use opencode_server::{run_server, ServerState};
 use opencode_storage::StorageService;
@@ -76,6 +77,7 @@ async fn run_web(args: WebArgs) -> Result<(), Box<dyn std::error::Error>> {
         share_server,
         acp_enabled: true,
         acp_stream: SharedAcpStream::default(),
+        acp_client_registry: SharedAcpClientRegistry::default(),
     };
 
     run_server(Arc::new(state), &host, port).await?;

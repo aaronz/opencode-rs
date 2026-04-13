@@ -11,6 +11,7 @@ use opencode_core::Config;
 use opencode_llm::ModelRegistry;
 use opencode_storage::StorageService;
 use routes::share::ShareServer;
+use routes::acp_ws::SharedAcpClientRegistry;
 use std::sync::Arc;
 use std::sync::RwLock;
 use streaming::{conn_state::ConnectionMonitor, ReconnectionStore};
@@ -41,6 +42,7 @@ pub struct ServerState {
     pub share_server: Arc<RwLock<ShareServer>>,
     pub acp_enabled: bool,
     pub acp_stream: SharedAcpStream,
+    pub acp_client_registry: SharedAcpClientRegistry,
 }
 
 pub async fn run_server(state: Arc<ServerState>, host: &str, port: u16) -> std::io::Result<()> {

@@ -2,6 +2,8 @@
 pub mod conventions;
 
 #[cfg(test)]
+pub mod acp_transport_tests;
+#[cfg(test)]
 pub mod agent_llm_tests;
 #[cfg(test)]
 pub mod agent_switch_tests;

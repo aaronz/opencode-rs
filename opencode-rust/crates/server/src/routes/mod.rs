@@ -1,6 +1,7 @@
 use actix_web::web;
 
 pub mod acp;
+pub mod acp_ws;
 pub mod config;
 pub mod error;
 pub mod export;
@@ -29,6 +30,7 @@ pub fn config_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(web::scope("/sse").configure(sse::init));
     cfg.service(web::scope("/mcp").configure(mcp::init));
     cfg.service(web::scope("/acp").configure(acp::init));
+    cfg.service(web::scope("/acpws").configure(acp_ws::init));
     cfg.service(web::scope("/export").configure(export::init));
     cfg.service(web::scope("/sso").configure(sso::init));
 }
