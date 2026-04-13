@@ -1,0 +1,540 @@
+{
+  "tasks": [
+    {
+      "id": "P0-1",
+      "priority": "P0",
+      "title": "Fix Custom Tool Discovery Format",
+      "description": "Custom tool discovery scans TOOL.md instead of .ts/.js. Modify DirectoryScanner::scan_tools() in crates/core/src/config/directory_scanner.rs:228 to change file extension filter from TOOL.md to .ts and .js. Parse JavaScript/TypeScript tool definitions with export default tool({...}) pattern. Extract tool name, description, and argument schema from parsed files. Verify discovery works for both project-level (.opencode/tools/) and global-level (~/.config/opencode/tools/).",
+      "status": "done",
+      "test_criteria": [
+        "Custom tools in .opencode/tools/*.ts are discovered",
+        "Custom tools in .opencode/tools/*.js are discovered",
+        "Tool definitions are parsed correctly (name, description, args schema)",
+        "Both project-level and global-level discovery work"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core -- directory_scanner",
+        "cargo test -p opencode-tools -- custom_tool"
+      ],
+      "impl_notes": "Parse TypeScript/JavaScript using swc or similar. Support export default tool({name, description, args}) pattern.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-2",
+      "priority": "P0",
+      "title": "Register Custom Tools with ToolRegistry",
+      "description": "Discovered tools recorded in config but NOT registered with ToolRegistry. Create registration flow from DirectoryScanner to ToolRegistry. Ensure discovered custom tools appear in tool listing. Verify custom tools can be executed through standard tool pipeline. Add integration test for custom tool discovery \u2192 registration \u2192 execution.",
+      "status": "todo",
+      "test_criteria": [
+        "Discovered custom tools appear in ToolRegistry listing",
+        "Custom tools can be executed with proper permission gating",
+        "Integration test passes for discovery \u2192 registration \u2192 execution"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core -- tool_registry",
+        "cargo test -p opencode-integration-tests -- custom_tool_discovery"
+      ],
+      "impl_notes": "Wire DirectoryScanner discovered tools into ToolRegistry during initialization.",
+      "dependencies": [
+        "P0-1"
+      ]
+    },
+    {
+      "id": "P0-3",
+      "priority": "P0",
+      "title": "Implement Plugin Tool Registration",
+      "description": "PluginToolAdapter exists but no mechanism to register plugin tools. Add register_tool() method to Plugin trait in crates/plugin/src/lib.rs. Implement tool registration in PluginManager. Integrate PluginManager with ToolRegistry for plugin-provided tools. Add tests verifying plugin tools appear in registry after plugin activation. Verify plugin tools respect permission system.",
+      "status": "todo",
+      "test_criteria": [
+        "Plugins can add tools to agent toolset via register_tool()",
+        "Plugin tools appear in ToolRegistry after plugin activation",
+        "Plugin tools are subject to same permission gating as built-in tools"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin --",
+        "cargo test -p opencode-integration-tests -- plugin_tool"
+      ],
+      "impl_notes": "Plugin trait needs register_tool(self, tool: Tool) method. PluginManager handles storage and ToolRegistry integration.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-1",
+      "priority": "P1",
+      "title": "Fix Hook Execution Determinism",
+      "description": "Hooks execute in HashMap iteration order (non-deterministic). Add explicit priority field to plugin/hook configuration. Replace HashMap iteration with ordered iteration using priority. Document execution order guarantees in code. Add test verifying deterministic execution order across multiple runs.",
+      "status": "todo",
+      "test_criteria": [
+        "Hooks execute in consistent, predictable order",
+        "Test confirms same plugin order produces same hook execution order",
+        "Execution order is documented"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin -- hook",
+        "cargo test -p opencode-plugin -- determinism"
+      ],
+      "impl_notes": "Use BTreeMap or Vec with priority sorting instead of HashMap for hook storage.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-2",
+      "priority": "P1",
+      "title": "Enforce Plugin Config Ownership",
+      "description": "Server/runtime and TUI plugin configs can be mixed. Add validation in config loading to separate plugin configs. Ensure opencode.json plugins stay in server/runtime domain. Ensure tui.json plugins stay in TUI domain. Add warning/error when configs are incorrectly mixed.",
+      "status": "todo",
+      "test_criteria": [
+        "Plugin config ownership boundary is enforced",
+        "Mixed configs produce warning or error",
+        "opencode.json plugins only load in server/runtime context",
+        "tui.json plugins only load in TUI context"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin -- config_ownership",
+        "cargo test -p opencode-core -- plugin_config"
+      ],
+      "impl_notes": "Add domain field to plugin config. Validate domain matches loading context.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-3",
+      "priority": "P1",
+      "title": "Test Primary Agent Invariant",
+      "description": "No test verifying exactly-one-active-primary-agent. Add unit test in crates/agent/ verifying single active primary agent. Test that creating new primary agent deactivates previous. Test that hidden agents (compaction, title, summary) don't affect invariant. Add integration test for session with multiple agent switches.",
+      "status": "todo",
+      "test_criteria": [
+        "Test confirms exactly one active primary agent per session",
+        "Test verifies invariant maintained across agent switches",
+        "Hidden agents (compaction, title, summary) don't affect invariant"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-agent -- primary_agent",
+        "cargo test -p opencode-integration-tests -- agent_switch"
+      ],
+      "impl_notes": "Add assertion in agent module that verifies only one primary agent is active at a time.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-4",
+      "priority": "P1",
+      "title": "Test Ownership Tree Acyclicity",
+      "description": "No unit tests for Project\u2192Session\u2192Message\u2192Part ownership tree. Add unit test in crates/core/ verifying ownership tree is acyclic. Test that cycles cannot be created (Project\u2192Session\u2192Message\u2192Part\u2192Project). Add integration test for fork chain maintaining acyclicity.",
+      "status": "todo",
+      "test_criteria": [
+        "Ownership tree acyclicity is verified by tests",
+        "Fork operations maintain tree structure correctly",
+        "Cannot create cycles in ownership tree"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core -- ownership_tree",
+        "cargo test -p opencode-core -- fork_acyclicity"
+      ],
+      "impl_notes": "Add depth-first traversal to detect cycles. Verify fork operations maintain proper parent-child relationships.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-5",
+      "priority": "P1",
+      "title": "Complete Session Lifecycle Integration Tests",
+      "description": "Missing create\u2192fork\u2192share\u2192compact\u2192revert integration test. Add integration test covering complete session lifecycle: Create session, Fork child session, Share session (export/share mechanism), Compact session (context compression), Revert to checkpoint. Verify session state integrity after each operation. Verify message history preserved correctly through operations.",
+      "status": "todo",
+      "test_criteria": [
+        "Complete lifecycle test passes",
+        "Session state consistent after each operation",
+        "Message history preserved correctly through all operations"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests -- session_lifecycle"
+      ],
+      "impl_notes": "Create integration test that performs all operations in sequence and verifies state at each step.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-6",
+      "priority": "P1",
+      "title": "Implement Desktop App",
+      "description": "Desktop app not implemented (stubs only). Implement desktop startup flow in crates/cli/. Integrate WebView for desktop shell. Implement desktop-specific configuration handling. Add desktop mode to CLI argument parsing.",
+      "status": "todo",
+      "test_criteria": [
+        "Desktop app starts successfully",
+        "WebView displays TUI content",
+        "Desktop mode CLI flag works"
+      ],
+      "test_commands": [
+        "cargo build --features desktop",
+        "cargo test -p opencode-cli -- desktop"
+      ],
+      "impl_notes": "Use raw-window-handle and webview2-rs for cross-platform WebView. Desktop mode starts both TUI and web server.",
+      "dependencies": [
+        "P1-7"
+      ]
+    },
+    {
+      "id": "P1-7",
+      "priority": "P1",
+      "title": "Implement Web Server Mode",
+      "description": "Web server mode incomplete (stub only). Implement full web server in crates/cli/src/cmd/web.rs. Add authentication protection to web endpoints. Implement session sharing between web and TUI modes. Add web-specific route handlers.",
+      "status": "todo",
+      "test_criteria": [
+        "Web server serves authenticated endpoints",
+        "Sessions accessible from both web and TUI interfaces",
+        "Authentication protects all web endpoints"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- web",
+        "cargo test -p opencode-server -- auth"
+      ],
+      "impl_notes": "Use actix-web for HTTP server. Implement token-based authentication. Share session state between TUI and web contexts.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-8",
+      "priority": "P1",
+      "title": "Implement ACP Transport",
+      "description": "ACP transport not implemented (event structs exist). Implement ACP handshake mechanism. Implement ACP transport layer for editor communication. Add connection management for ACP clients. Integrate with server for ACP endpoint handling.",
+      "status": "todo",
+      "test_criteria": [
+        "ACP handshake completes successfully",
+        "Editor integration works via ACP transport",
+        "ACP client connection management works"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-control-plane -- acp",
+        "cargo test -p opencode-integration-tests -- acp_transport"
+      ],
+      "impl_notes": "Implement ACP protocol over WebSocket. Handle client registration and message routing.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-9",
+      "priority": "P1",
+      "title": "Refactor Config Crate",
+      "description": "crates/config/src/lib.rs is empty re-export. Move config logic from crates/core/src/config.rs to crates/config/. Ensure crates/config/ contains actual config implementation. Update imports in dependent crates. Verify config precedence and ownership still works.",
+      "status": "todo",
+      "test_criteria": [
+        "Config logic resides in crates/config/ crate",
+        "All config functionality preserved after refactor",
+        "Config precedence still works correctly",
+        "Config ownership still works correctly"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-config",
+        "cargo test -p opencode-config --",
+        "cargo test -p opencode-core -- config"
+      ],
+      "impl_notes": "Move Config struct, loading logic, and validation from core to config crate. Update all imports.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-1",
+      "priority": "P2",
+      "title": "TUI Slash Command Tests",
+      "description": "No automated tests for slash command execution. Add tests for /compact command, /connect command, /help command, and unknown/invalid slash commands.",
+      "status": "todo",
+      "test_criteria": [
+        "/compact command has test coverage",
+        "/connect command has test coverage",
+        "/help command has test coverage",
+        "Unknown/invalid slash commands have test coverage"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui -- slash"
+      ],
+      "impl_notes": "Use ratatui-testing framework to simulate command input and verify output.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-2",
+      "priority": "P2",
+      "title": "TUI Input Model Tests",
+      "description": "No tests for input model (multiline, history, autocomplete). Add tests for multiline input handling, input history navigation, and autocomplete triggering.",
+      "status": "todo",
+      "test_criteria": [
+        "Multiline input handling has test coverage",
+        "Input history navigation has test coverage",
+        "Autocomplete triggering has test coverage"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui -- input"
+      ],
+      "impl_notes": "Test InputModel state transitions and event handling.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-3",
+      "priority": "P2",
+      "title": "TUI Sidebar Tests",
+      "description": "No tests for sidebar visibility and content. Add tests for sidebar visibility toggle, file tree content, MCP/LSP status display, and diagnostics display.",
+      "status": "todo",
+      "test_criteria": [
+        "Sidebar visibility toggle has test coverage",
+        "File tree content has test coverage",
+        "MCP/LSP status display has test coverage",
+        "Diagnostics display has test coverage"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui -- sidebar"
+      ],
+      "impl_notes": "Test Sidebar component visibility and content rendering.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-4",
+      "priority": "P2",
+      "title": "Per-Agent Model Override Test",
+      "description": "Per-agent model override not explicitly tested. Add test for agent-specific model selection. Verify build agent uses default model. Verify model override affects only specified agent.",
+      "status": "todo",
+      "test_criteria": [
+        "Agent-specific model selection is verified",
+        "build agent uses default model",
+        "Model override affects only specified agent"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm -- model_override"
+      ],
+      "impl_notes": "Test that AgentConfig.model field overrides global provider model for specific agents.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-5",
+      "priority": "P2",
+      "title": "Route-Group Presence Tests",
+      "description": "No integration tests for route groups. Add tests for session route group, config route group, provider route group, permission route group, and MCP route group.",
+      "status": "todo",
+      "test_criteria": [
+        "Session route group has tests",
+        "Config route group has tests",
+        "Provider route group has tests",
+        "Permission route group has tests",
+        "MCP route group has tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- route_group"
+      ],
+      "impl_notes": "Add integration tests for each route group ensuring endpoints are accessible and return expected responses.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-6",
+      "priority": "P2",
+      "title": "API Negative Tests",
+      "description": "No negative tests for unauthorized/malformed requests. Add tests for unauthorized access (missing auth token), invalid auth token, malformed request bodies, and invalid session/message IDs.",
+      "status": "todo",
+      "test_criteria": [
+        "Unauthorized access (missing auth token) returns 401",
+        "Invalid auth token returns 401",
+        "Malformed request bodies return 400",
+        "Invalid session/message IDs return 404"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- api_negative"
+      ],
+      "impl_notes": "Test API security by sending malformed/malicious requests and verifying proper error responses.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-7",
+      "priority": "P2",
+      "title": "Hidden vs Visible Agent UI Tests",
+      "description": "Hidden vs visible agent UI behavior untested. Add tests for visible agents (build, plan) in selection flows. Add tests for hidden agents (compaction, title, summary) not in selection. Verify UI displays correct agent list.",
+      "status": "todo",
+      "test_criteria": [
+        "Visible agents (build, plan) appear in selection flows",
+        "Hidden agents (compaction, title, summary) don't appear in selection",
+        "UI displays correct agent list based on visibility"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui -- agent_visibility"
+      ],
+      "impl_notes": "Test that hidden agents are filtered from UI selection but still functional.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-8",
+      "priority": "P2",
+      "title": "Theme Auto-Sync Test",
+      "description": "Theme auto-sync on install not tested. Add test for theme auto-sync when plugin installed. Verify theme applies immediately after install.",
+      "status": "todo",
+      "test_criteria": [
+        "Theme auto-sync when plugin installed works",
+        "Theme applies immediately after install"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui -- theme_sync"
+      ],
+      "impl_notes": "Test that plugin install hook triggers theme reload.",
+      "dependencies": []
+    },
+    {
+      "id": "TD-001",
+      "priority": "P1",
+      "title": "Empty crates/config/ crate",
+      "description": "Technical Debt: crates/config/src/lib.rs is empty re-export. See P1-9 for resolution.",
+      "status": "todo",
+      "test_criteria": [
+        "Config logic resides in crates/config/ crate"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-config"
+      ],
+      "impl_notes": "Duplicated in P1-9. Resolved by completing P1-9.",
+      "dependencies": [
+        "P1-9"
+      ]
+    },
+    {
+      "id": "TD-002",
+      "priority": "P0",
+      "title": "DirectoryScanner discovery mismatch",
+      "description": "Technical Debt: DirectoryScanner scans TOOL.md but should scan .ts/.js. See P0-1 for resolution.",
+      "status": "todo",
+      "test_criteria": [
+        "Custom tools in .ts/.js are discovered"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core -- directory_scanner"
+      ],
+      "impl_notes": "Duplicated in P0-1. Resolved by completing P0-1.",
+      "dependencies": [
+        "P0-1"
+      ]
+    },
+    {
+      "id": "TD-003",
+      "priority": "P0",
+      "title": "Custom tools discovered but not registered",
+      "description": "Technical Debt: Custom tools discovered but not registered with ToolRegistry. See P0-2 for resolution.",
+      "status": "todo",
+      "test_criteria": [
+        "Discovered custom tools appear in ToolRegistry"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core -- tool_registry"
+      ],
+      "impl_notes": "Duplicated in P0-2. Resolved by completing P0-2.",
+      "dependencies": [
+        "P0-2"
+      ]
+    },
+    {
+      "id": "TD-004",
+      "priority": "P1",
+      "title": "Non-deterministic plugin hook execution",
+      "description": "Technical Debt: Hooks execute in HashMap iteration order. See P1-1 for resolution.",
+      "status": "todo",
+      "test_criteria": [
+        "Hooks execute in deterministic order"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin -- hook"
+      ],
+      "impl_notes": "Duplicated in P1-1. Resolved by completing P1-1.",
+      "dependencies": [
+        "P1-1"
+      ]
+    },
+    {
+      "id": "TD-005",
+      "priority": "P0",
+      "title": "Plugin register_tool() method missing",
+      "description": "Technical Debt: Plugin cannot register tools. See P0-3 for resolution.",
+      "status": "todo",
+      "test_criteria": [
+        "Plugin can register tools via register_tool()"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin --"
+      ],
+      "impl_notes": "Duplicated in P0-3. Resolved by completing P0-3.",
+      "dependencies": [
+        "P0-3"
+      ]
+    },
+    {
+      "id": "TD-006",
+      "priority": "P1",
+      "title": "ACP transport layer missing",
+      "description": "Technical Debt: ACP transport not implemented. See P1-8 for resolution.",
+      "status": "todo",
+      "test_criteria": [
+        "ACP transport layer is implemented"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-control-plane -- acp"
+      ],
+      "impl_notes": "Duplicated in P1-8. Resolved by completing P1-8.",
+      "dependencies": [
+        "P1-8"
+      ]
+    },
+    {
+      "id": "TD-007",
+      "priority": "P2",
+      "title": "Remove deprecated mode field",
+      "description": "Technical Debt: Deprecated mode field in config. Remove in v4.0.",
+      "status": "todo",
+      "test_criteria": [
+        "mode field is removed from config",
+        "Code does not reference deprecated mode field"
+      ],
+      "test_commands": [
+        "cargo build --all-features",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Remove mode field from Config struct and all usages. Schedule for v4.0.",
+      "dependencies": []
+    },
+    {
+      "id": "TD-008",
+      "priority": "P2",
+      "title": "Remove deprecated tools field",
+      "description": "Technical Debt: Deprecated tools field. Remove after migration period.",
+      "status": "todo",
+      "test_criteria": [
+        "tools field is removed from config",
+        "Migration from tools to custom tool discovery is complete"
+      ],
+      "test_commands": [
+        "cargo build --all-features",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Remove tools field after custom tool discovery (P0-1, P0-2) is complete.",
+      "dependencies": [
+        "P0-1",
+        "P0-2"
+      ]
+    },
+    {
+      "id": "TD-009",
+      "priority": "P2",
+      "title": "Remove deprecated theme field",
+      "description": "Technical Debt: Deprecated theme field (already moved to tui.json). Remove after migration.",
+      "status": "todo",
+      "test_criteria": [
+        "theme field is removed from main config",
+        "Theme only exists in tui.json"
+      ],
+      "test_commands": [
+        "cargo build --all-features",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Theme already moved to tui.json. Remove from main config.",
+      "dependencies": []
+    },
+    {
+      "id": "TD-010",
+      "priority": "P2",
+      "title": "Remove deprecated keybinds field",
+      "description": "Technical Debt: Deprecated keybinds field (already moved to tui.json). Remove after migration.",
+      "status": "todo",
+      "test_criteria": [
+        "keybinds field is removed from main config",
+        "Keybinds only exists in tui.json"
+      ],
+      "test_commands": [
+        "cargo build --all-features",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Keybinds already moved to tui.json. Remove from main config.",
+      "dependencies": []
+    }
+  ]
+}

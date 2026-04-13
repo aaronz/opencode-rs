@@ -223,8 +223,55 @@ impl DirectoryScanner {
         skills
     }
 
+    fn is_tool_file(path: &Path) -> bool {
+        path.extension()
+            .map(|ext| ext == "ts" || ext == "js" || ext == "mts" || ext == "cts")
+            .unwrap_or(false)
+    }
+
+    fn parse_tool_file(content: &str, path: &Path) -> Option<(String, String)> {
+        let export_pattern = Regex::new(r"export\s+default\s+tool\s*\(\s*\{").ok()?;
+        if !export_pattern.is_match(content) {
+            return None;
+        }
+
+        let name_re = Regex::new(r#"name\s*:\s*["']([^"']+)["']"#).ok()?;
+        let desc_re = Regex::new(r#"description\s*:\s*["']([^"']+)["']"#).ok()?;
+        let args_re = Regex::new(r#"args\s*:\s*(\{[^}]*\})"#).ok()?;
+
+        let name = name_re
+            .captures(content)
+            .and_then(|c| c.get(1))
+            .map(|m| m.as_str().to_string())
+            .or_else(|| path.file_stem().and_then(|s| s.to_str()).map(String::from))?;
+
+        let description = desc_re
+            .captures(content)
+            .and_then(|c| c.get(1))
+            .map(|m| m.as_str().to_string())?;
+
+        let args_schema = args_re
+            .captures(content)
+            .and_then(|c| c.get(1))
+            .and_then(|m| serde_json::from_str::<serde_json::Value>(m.as_str()).ok())
+            .unwrap_or_else(|| {
+                serde_json::json!({
+                    "type": "object",
+                    "properties": {}
+                })
+            });
+
+        let result = serde_json::json!({
+            "name": name,
+            "description": description,
+            "args": args_schema
+        });
+
+        Some((name, result.to_string()))
+    }
+
     /// Scan tools from .opencode/tools/ directory
-    /// Each tool is in a subdirectory with TOOL.md file
+    /// Each tool is a .ts or .js file with export default tool({...}) pattern
     pub fn scan_tools(&self, base_path: &Path) -> Vec<ToolInfo> {
         let tools_dir = base_path.join("tools");
         if !tools_dir.exists() {
@@ -235,19 +282,14 @@ impl DirectoryScanner {
         if let Ok(entries) = std::fs::read_dir(&tools_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.is_dir() {
-                    let tool_md = path.join("TOOL.md");
-                    if tool_md.exists() {
-                        if let Ok(content) = std::fs::read_to_string(&tool_md) {
-                            let name = path
-                                .file_name()
-                                .and_then(|n| n.to_str())
-                                .unwrap_or("unnamed")
-                                .to_string();
+                if Self::is_tool_file(&path) {
+                    if let Ok(content) = std::fs::read_to_string(&path) {
+                        if let Some((name, parsed_content)) = Self::parse_tool_file(&content, &path)
+                        {
                             tools.push(ToolInfo {
                                 name,
-                                path: tool_md,
-                                content,
+                                path,
+                                content: parsed_content,
                             });
                         }
                     }
@@ -624,6 +666,94 @@ mod tests {
 
         assert_eq!(themes.len(), 1);
         assert_eq!(themes[0].name, "test-theme");
+    }
+
+    #[test]
+    fn test_scan_tools_typescript() {
+        let temp = TempDir::new().unwrap();
+        let tools_dir = temp.path().join(".opencode").join("tools");
+        fs::create_dir_all(&tools_dir).unwrap();
+        fs::write(
+            tools_dir.join("my_tool.ts"),
+            r#"export default tool({
+                name: "my_tool",
+                description: "A test tool",
+                args: {
+                    type: "object",
+                    properties: {
+                        input: { type: "string" }
+                    }
+                }
+            });
+"#,
+        )
+        .unwrap();
+
+        let scanner = DirectoryScanner::new();
+        let tools = scanner.scan_tools(&temp.path().join(".opencode"));
+
+        assert_eq!(tools.len(), 1);
+        assert_eq!(tools[0].name, "my_tool");
+        let parsed: serde_json::Value =
+            serde_json::from_str(&tools[0].content).expect("valid json");
+        assert_eq!(parsed["name"], "my_tool");
+        assert_eq!(parsed["description"], "A test tool");
+        assert_eq!(parsed["args"]["type"], "object");
+    }
+
+    #[test]
+    fn test_scan_tools_javascript() {
+        let temp = TempDir::new().unwrap();
+        let tools_dir = temp.path().join(".opencode").join("tools");
+        fs::create_dir_all(&tools_dir).unwrap();
+        fs::write(
+            tools_dir.join("another_tool.js"),
+            r#"export default tool({
+                name: "another_tool",
+                description: "A JavaScript tool",
+                args: { type: "object", properties: {} }
+            });
+"#,
+        )
+        .unwrap();
+
+        let scanner = DirectoryScanner::new();
+        let tools = scanner.scan_tools(&temp.path().join(".opencode"));
+
+        assert_eq!(tools.len(), 1);
+        assert_eq!(tools[0].name, "another_tool");
+    }
+
+    #[test]
+    fn test_scan_tools_multiple() {
+        let temp = TempDir::new().unwrap();
+        let tools_dir = temp.path().join(".opencode").join("tools");
+        fs::create_dir_all(&tools_dir).unwrap();
+        fs::write(
+            tools_dir.join("tool1.ts"),
+            r#"export default tool({
+                name: "tool_one",
+                description: "First tool",
+                args: {}
+            });
+"#,
+        )
+        .unwrap();
+        fs::write(
+            tools_dir.join("tool2.js"),
+            r#"export default tool({
+                name: "tool_two",
+                description: "Second tool",
+                args: {}
+            });
+"#,
+        )
+        .unwrap();
+
+        let scanner = DirectoryScanner::new();
+        let tools = scanner.scan_tools(&temp.path().join(".opencode"));
+
+        assert_eq!(tools.len(), 2);
     }
 
     #[test]
