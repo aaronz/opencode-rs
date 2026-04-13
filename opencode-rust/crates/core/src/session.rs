@@ -1938,4 +1938,488 @@ mod tests {
         // Verify timestamps did change
         assert!(loaded.updated_at > loaded.created_at);
     }
+
+    // =========================================================================
+    // Ownership Tree Acyclicity Tests (P1-4)
+    // =========================================================================
+
+    fn build_session_graph(sessions: &[Session]) -> std::collections::HashMap<Uuid, Option<Uuid>> {
+        let mut graph: std::collections::HashMap<Uuid, Option<Uuid>> =
+            std::collections::HashMap::new();
+        for session in sessions {
+            graph.insert(
+                session.id,
+                session
+                    .parent_session_id
+                    .as_ref()
+                    .and_then(|s| s.parse().ok()),
+            );
+        }
+        graph
+    }
+
+    fn detect_cycle_in_graph(
+        graph: &std::collections::HashMap<Uuid, Option<Uuid>>,
+        start_id: Uuid,
+    ) -> bool {
+        let mut visited = std::collections::HashSet::new();
+        let mut rec_stack = std::collections::HashSet::new();
+
+        fn dfs(
+            graph: &std::collections::HashMap<Uuid, Option<Uuid>>,
+            node_id: Uuid,
+            visited: &mut std::collections::HashSet<Uuid>,
+            rec_stack: &mut std::collections::HashSet<Uuid>,
+        ) -> bool {
+            if rec_stack.contains(&node_id) {
+                return true;
+            }
+
+            if visited.contains(&node_id) {
+                return false;
+            }
+
+            visited.insert(node_id);
+            rec_stack.insert(node_id);
+
+            if let Some(parent_id) = graph.get(&node_id).and_then(|p| *p) {
+                if dfs(graph, parent_id, visited, rec_stack) {
+                    return true;
+                }
+            }
+
+            rec_stack.remove(&node_id);
+            false
+        }
+
+        dfs(graph, start_id, &mut visited, &mut rec_stack)
+    }
+
+    #[test]
+    fn test_ownership_tree_acyclicity_simple_session() {
+        // Test: A single session with no parent has no cycle
+        let session = Session::new();
+        let sessions = vec![session.clone()];
+        let graph = build_session_graph(&sessions);
+
+        let has_cycle = detect_cycle_in_graph(&graph, session.id);
+        assert!(!has_cycle, "Single root session cannot have a cycle");
+    }
+
+    #[test]
+    fn test_ownership_tree_acyclicity_simple_fork_chain() {
+        // Test: A simple parent -> child fork chain is acyclic
+        let parent = Session::new();
+        let child = parent.fork(Uuid::new_v4());
+
+        let sessions = vec![parent.clone(), child.clone()];
+        let graph = build_session_graph(&sessions);
+
+        // Check child has no cycle (its parent exists and is not itself)
+        let child_has_cycle = detect_cycle_in_graph(&graph, child.id);
+        assert!(
+            !child_has_cycle,
+            "Child session in simple fork chain cannot have cycle"
+        );
+
+        // Check parent has no cycle
+        let parent_has_cycle = detect_cycle_in_graph(&graph, parent.id);
+        assert!(
+            !parent_has_cycle,
+            "Parent session in simple fork chain cannot have cycle"
+        );
+    }
+
+    #[test]
+    fn test_ownership_tree_acyclicity_multi_level_fork_chain() {
+        // Test: A multi-level fork chain (grandparent -> parent -> child) is acyclic
+        let grandparent = Session::new();
+        let parent = grandparent.fork(Uuid::new_v4());
+        let child = parent.fork(Uuid::new_v4());
+
+        let sessions = vec![grandparent.clone(), parent.clone(), child.clone()];
+        let graph = build_session_graph(&sessions);
+
+        // Verify no session in the chain has a cycle
+        for session in &[&grandparent, &parent, &child] {
+            let has_cycle = detect_cycle_in_graph(&graph, session.id);
+            assert!(
+                !has_cycle,
+                "Session in multi-level fork chain cannot have cycle"
+            );
+        }
+
+        // Verify lineage_path is correct (no cycles in path)
+        assert_eq!(
+            child.lineage_path,
+            Some(grandparent.id.to_string()),
+            "Child's lineage_path must reference grandparent"
+        );
+    }
+
+    #[test]
+    fn test_ownership_tree_acyclicity_many_forks() {
+        // Test: A chain of many forks remains acyclic
+        let mut sessions = vec![Session::new()];
+
+        // Create a chain of 10 forks
+        for _ in 0..10 {
+            let last = sessions.last().unwrap();
+            sessions.push(last.fork(Uuid::new_v4()));
+        }
+
+        let graph = build_session_graph(&sessions);
+
+        // Verify all sessions in the chain are acyclic
+        for session in &sessions {
+            let has_cycle = detect_cycle_in_graph(&graph, session.id);
+            assert!(
+                !has_cycle,
+                "Session in 10-level fork chain cannot have cycle"
+            );
+        }
+
+        // Verify the final session has correct deep lineage
+        let final_session = sessions.last().unwrap();
+        let lineage_ids: Vec<Uuid> = final_session
+            .lineage_path
+            .as_ref()
+            .map(|p| p.split('/').filter_map(|s| s.parse().ok()).collect())
+            .unwrap_or_default();
+        assert_eq!(lineage_ids.len(), 9, "9-level deep lineage expected");
+    }
+
+    #[test]
+    fn test_ownership_tree_no_self_reference() {
+        // Test: A session's parent_session_id cannot point to itself
+        let mut session = Session::new();
+        session.parent_session_id = Some(session.id.to_string());
+
+        let sessions = vec![session.clone()];
+        let graph = build_session_graph(&sessions);
+
+        let has_cycle = detect_cycle_in_graph(&graph, session.id);
+        assert!(has_cycle, "Session with self-reference must have cycle");
+    }
+
+    #[test]
+    fn test_ownership_tree_direct_parent_no_cycle() {
+        // Test: A session A pointing to parent B where B is root has no cycle
+        let mut session_a = Session::new();
+        let session_b = Session::new();
+
+        // A points to B, B is root (no parent)
+        session_a.parent_session_id = Some(session_b.id.to_string());
+
+        let sessions = vec![session_a.clone(), session_b.clone()];
+        let graph = build_session_graph(&sessions);
+
+        // This should NOT be a cycle because B has no parent to return to
+        let a_has_cycle = detect_cycle_in_graph(&graph, session_a.id);
+        assert!(
+            !a_has_cycle,
+            "Session A pointing to root session B must not have cycle"
+        );
+    }
+
+    #[test]
+    fn test_ownership_tree_indirect_cycle_detection() {
+        // Test: Detect indirect cycle where A->B->C->A
+        let mut session_a = Session::new();
+        let mut session_b = Session::new();
+        let session_c = Session::new();
+
+        session_a.parent_session_id = Some(session_b.id.to_string());
+        session_b.parent_session_id = Some(session_c.id.to_string());
+        // session_c.parent_session_id = None (root) - but we need to make it cycle back
+
+        // For cycle: C should point back to A
+        // This creates A->B->C->A cycle
+        let sessions = vec![session_a.clone(), session_b.clone(), session_c.clone()];
+        let mut graph = build_session_graph(&sessions);
+
+        // Create the cycle by making C point back to A
+        graph.insert(session_c.id, Some(session_a.id));
+
+        let has_cycle = detect_cycle_in_graph(&graph, session_a.id);
+        assert!(has_cycle, "Indirect cycle A->B->C->A must be detected");
+    }
+
+    // =========================================================================
+    // Fork Acyclicity Tests (P1-4)
+    // =========================================================================
+
+    #[test]
+    fn test_fork_acyclicity_simple() {
+        // Test: Simple fork creates acyclic parent-child relationship
+        let parent = Session::new();
+        let child = parent.fork(Uuid::new_v4());
+
+        // Child should have parent reference
+        assert_eq!(
+            child.parent_session_id.as_deref(),
+            Some(parent.id.to_string().as_str()),
+            "Child must reference parent"
+        );
+
+        // Parent should NOT have parent reference
+        assert!(
+            parent.parent_session_id.is_none(),
+            "Parent must not have parent reference"
+        );
+
+        // Lineage path computation must not create cycles
+        let child_lineage = child.compute_lineage_path();
+        assert!(child_lineage.is_some(), "Child must have lineage path");
+        assert!(
+            !child_lineage.unwrap().contains(&child.id.to_string()),
+            "Lineage path must not contain child's own ID"
+        );
+    }
+
+    #[test]
+    fn test_fork_acyclicity_multi_generation() {
+        // Test: Multiple generations of forks maintain acyclicity
+        let gen0 = Session::new();
+        let gen1 = gen0.fork(Uuid::new_v4());
+        let gen2 = gen1.fork(Uuid::new_v4());
+        let gen3 = gen2.fork(Uuid::new_v4());
+
+        // Verify parent references form a proper chain (no cycles)
+        assert_eq!(
+            gen3.parent_session_id.as_deref(),
+            Some(gen2.id.to_string().as_str()),
+            "Gen3 must reference Gen2"
+        );
+        assert_eq!(
+            gen2.parent_session_id.as_deref(),
+            Some(gen1.id.to_string().as_str()),
+            "Gen2 must reference Gen1"
+        );
+        assert_eq!(
+            gen1.parent_session_id.as_deref(),
+            Some(gen0.id.to_string().as_str()),
+            "Gen1 must reference Gen0"
+        );
+        assert!(
+            gen0.parent_session_id.is_none(),
+            "Gen0 must be root (no parent)"
+        );
+
+        // Verify lineage path is correct and acyclic
+        let lineage = gen3.lineage_path.as_deref();
+        assert!(lineage.is_some(), "Gen3 must have lineage path");
+        let lineage_str = lineage.unwrap();
+        assert!(
+            !lineage_str.contains(&gen3.id.to_string()),
+            "Lineage must not contain own ID"
+        );
+        assert!(
+            lineage_str.contains(&gen0.id.to_string()),
+            "Lineage must contain root ID"
+        );
+    }
+
+    #[test]
+    fn test_fork_acyclicity_after_serialization() {
+        // Test: Fork chain remains acyclic after save/load cycle
+        let grandparent = Session::new();
+        let parent = grandparent.fork(Uuid::new_v4());
+        let child = parent.fork(Uuid::new_v4());
+
+        // Save and reload
+        let tmp = tempfile::TempDir::new().unwrap();
+        let path = tmp.path().join("session.json");
+        child.save(&path).unwrap();
+        let loaded = Session::load(&path).unwrap();
+
+        // Verify acyclicity invariants preserved
+        assert!(
+            loaded.parent_session_id.is_some(),
+            "Loaded session must have parent reference"
+        );
+        assert!(
+            loaded.lineage_path.is_some(),
+            "Loaded session must have lineage path"
+        );
+        assert!(
+            !loaded
+                .lineage_path
+                .as_ref()
+                .unwrap()
+                .contains(&loaded.id.to_string()),
+            "Lineage must not contain own ID"
+        );
+
+        // Verify lineage chain is still correct
+        let grandparent_id = grandparent.id.to_string();
+        assert_eq!(
+            loaded.lineage_path.as_deref(),
+            Some(grandparent_id.as_str()),
+            "Loaded lineage must still reference grandparent"
+        );
+    }
+
+    #[test]
+    fn test_fork_acyclicity_lineage_path_integrity() {
+        // Test: Lineage path maintains integrity and cannot create cycles
+        let session0 = Session::new();
+        let session1 = session0.fork(Uuid::new_v4());
+        let session2 = session1.fork(Uuid::new_v4());
+
+        // Build expected lineage
+        let expected_lineage = format!("{}/{}", session0.id, session1.id);
+
+        assert_eq!(
+            session2.compute_lineage_path().as_deref(),
+            Some(expected_lineage.as_str()),
+            "Computed lineage path must be correct"
+        );
+
+        // Verify no ID appears twice in the lineage
+        let full_lineage = session2.compute_lineage_path().unwrap();
+        let lineage_parts: Vec<&str> = full_lineage.split('/').collect();
+        let mut seen = std::collections::HashSet::new();
+        for part in &lineage_parts {
+            assert!(
+                seen.insert(*part),
+                "Duplicate ID in lineage path indicates cycle"
+            );
+        }
+
+        // Verify session's own ID is not in lineage
+        assert!(
+            !lineage_parts.contains(&session2.id.to_string().as_str()),
+            "Session's own ID must not appear in its lineage"
+        );
+    }
+
+    #[test]
+    fn test_fork_acyclicity_multiple_children_from_same_parent() {
+        // Test: Multiple forks from same parent all maintain acyclicity
+        let parent = Session::new();
+        let child1 = parent.fork(Uuid::new_v4());
+        let child2 = parent.fork(Uuid::new_v4());
+        let child3 = parent.fork(Uuid::new_v4());
+
+        // All children should reference same parent
+        let parent_id = parent.id.to_string();
+        assert_eq!(
+            child1.parent_session_id.as_deref(),
+            Some(parent_id.as_str()),
+            "Child1 must reference parent"
+        );
+        assert_eq!(
+            child2.parent_session_id.as_deref(),
+            Some(parent_id.as_str()),
+            "Child2 must reference parent"
+        );
+        assert_eq!(
+            child3.parent_session_id.as_deref(),
+            Some(parent_id.as_str()),
+            "Child3 must reference parent"
+        );
+
+        // None should have cycles
+        let sessions = vec![
+            parent.clone(),
+            child1.clone(),
+            child2.clone(),
+            child3.clone(),
+        ];
+        let graph = build_session_graph(&sessions);
+
+        for child in &[&child1, &child2, &child3] {
+            let has_cycle = detect_cycle_in_graph(&graph, child.id);
+            assert!(!has_cycle, "Child from same parent cannot have cycle");
+        }
+    }
+
+    #[test]
+    fn test_fork_acyclicity_fork_at_message_preserves_chain() {
+        // Test: fork_at_message preserves the acyclic parent-child chain
+        let mut parent = Session::new();
+        parent.add_message(Message::user("msg1"));
+        parent.add_message(Message::assistant("msg2"));
+        parent.add_message(Message::user("msg3"));
+
+        let child = parent.fork_at_message(1).unwrap();
+
+        // Child must reference parent
+        assert_eq!(
+            child.parent_session_id.as_deref(),
+            Some(parent.id.to_string().as_str()),
+            "Child must reference parent"
+        );
+
+        // Child's lineage must be correct
+        assert_eq!(
+            child.lineage_path.as_deref(),
+            None,
+            "First fork lineage_path is None (computed path is parent ID)"
+        );
+
+        // Verify child has correct messages (only up to index 1)
+        assert_eq!(child.messages.len(), 2, "Child must have messages[0..=1]");
+
+        // Lineage must not contain own ID
+        let child_lineage = child.compute_lineage_path();
+        assert!(
+            !child_lineage
+                .as_ref()
+                .unwrap_or(&String::new())
+                .contains(&child.id.to_string()),
+            "Lineage must not contain own ID"
+        );
+    }
+
+    #[test]
+    fn test_fork_acyclicity_deep_chain_verify_no_back_reference() {
+        // Test: Deep fork chain never creates back-references that could cause cycles
+        let mut sessions = vec![Session::new()];
+
+        // Create 5-level chain
+        for _ in 0..5 {
+            let last = sessions.last().unwrap();
+            sessions.push(last.fork(Uuid::new_v4()));
+        }
+
+        // Verify no session in chain has parent_session_id pointing forward
+        for (i, session) in sessions.iter().enumerate() {
+            if let Some(parent_id_str) = &session.parent_session_id {
+                if let Ok(parent_id) = parent_id_str.parse::<Uuid>() {
+                    // Parent must be in sessions before this one
+                    let parent_exists_before = sessions[..i].iter().any(|s| s.id == parent_id);
+                    assert!(
+                        parent_exists_before,
+                        "Session at index {} has invalid parent reference (parent not in earlier chain)",
+                        i
+                    );
+
+                    // Parent ID must not equal this session's ID
+                    assert_ne!(session.id, parent_id, "Session cannot be its own parent");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_fork_acyclicity_compute_lineage_path_never_self_references() {
+        // Test: compute_lineage_path() never returns a path containing the session's own ID
+        let session = Session::new();
+
+        // New session has no lineage
+        let lineage = session.compute_lineage_path();
+        assert!(lineage.is_none() || !lineage.as_ref().unwrap().contains(&session.id.to_string()));
+
+        // After fork, verify compute_lineage_path doesn't include own ID
+        let child = session.fork(Uuid::new_v4());
+        let child_lineage = child.compute_lineage_path();
+        if let Some(ref path) = child_lineage {
+            assert!(
+                !path.contains(&child.id.to_string()),
+                "compute_lineage_path must not include own ID"
+            );
+        }
+    }
 }

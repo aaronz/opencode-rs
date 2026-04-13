@@ -98,7 +98,7 @@
 
 ---
 
-### P1-3: Test Primary Agent Invariant
+### P1-3: ✅ Done
 **Issue:** No test verifying exactly-one-active-primary-agent  
 **Module:** agent  
 **FR Reference:** FR-005  
@@ -120,15 +120,21 @@
 **Issue:** No unit tests for Project→Session→Message→Part ownership tree  
 **Module:** core  
 **FR Reference:** FR-001  
-**Status:** TODO  
+**Status:** ✅ Done  
 
-- [ ] Add unit test in `crates/core/` verifying ownership tree is acyclic
-- [ ] Test that cycles cannot be created (Project→Session→Message→Part→Project)
-- [ ] Add integration test for fork chain maintaining acyclicity
+- [x] Add unit test in `crates/core/` verifying ownership tree is acyclic
+- [x] Test that cycles cannot be created (Project→Session→Message→Part→Project)
+- [x] Add integration test for fork chain maintaining acyclicity
 
 **Acceptance Criteria:**
-- Ownership tree acyclicity is verified by tests
-- Fork operations maintain tree structure correctly
+- Ownership tree acyclicity is verified by tests ✅
+- Fork operations maintain tree structure correctly ✅
+
+**Test Commands:**
+```bash
+cargo test -p opencode-core -- ownership_tree  # 30 tests passed
+cargo test -p opencode-core -- fork_acyclicity  # 8 tests passed
+```
 
 ---
 

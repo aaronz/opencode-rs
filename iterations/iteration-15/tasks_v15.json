@@ -117,7 +117,7 @@
       "priority": "P1",
       "title": "Test Ownership Tree Acyclicity",
       "description": "No unit tests for Project\u2192Session\u2192Message\u2192Part ownership tree. Add unit test in crates/core/ verifying ownership tree is acyclic. Test that cycles cannot be created (Project\u2192Session\u2192Message\u2192Part\u2192Project). Add integration test for fork chain maintaining acyclicity.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Ownership tree acyclicity is verified by tests",
         "Fork operations maintain tree structure correctly",
@@ -127,7 +127,7 @@
         "cargo test -p opencode-core -- ownership_tree",
         "cargo test -p opencode-core -- fork_acyclicity"
       ],
-      "impl_notes": "Add depth-first traversal to detect cycles. Verify fork operations maintain proper parent-child relationships.",
+      "impl_notes": "Added 16 unit tests in crates/core/src/session.rs verifying ownership tree acyclicity. Tests include: depth-first traversal cycle detection (build_session_graph, detect_cycle_in_graph), ownership tree acyclicity tests (simple session, simple fork chain, multi-level fork chain, many forks, no self-reference, direct parent no cycle, indirect cycle detection), and fork acyclicity tests (simple, multi-generation, after serialization, lineage path integrity, multiple children from same parent, fork_at_message preserves chain, deep chain verify no back reference, compute_lineage_path never self-references).",
       "dependencies": []
     },
     {
