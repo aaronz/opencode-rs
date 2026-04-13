@@ -346,22 +346,24 @@ impl LspTool {
     #[cfg(test)]
     fn test_extract_symbol_from_line(line: &str) -> Option<String> {
         let trimmed = line.trim();
-        if trimmed.contains("fn ")
-            || trimmed.contains("struct ")
-            || trimmed.contains("enum ")
-            || trimmed.contains("impl ")
-        {
-            Some(
-                trimmed
-                    .split(|c: char| !c.is_alphanumeric() && c != '_')
-                    .filter(|s| !s.is_empty())
-                    .last()
-                    .map(|s| s.to_string())
-                    .unwrap_or_default(),
-            )
+        let (keyword, after_idx) = if let Some(idx) = trimmed.find("fn ") {
+            ("fn ", idx)
+        } else if let Some(idx) = trimmed.find("struct ") {
+            ("struct ", idx)
+        } else if let Some(idx) = trimmed.find("enum ") {
+            ("enum ", idx)
+        } else if trimmed.starts_with("impl ") {
+            return Some(trimmed.to_string());
         } else {
-            None
-        }
+            return None;
+        };
+
+        let after_keyword = trimmed[after_idx + keyword.len()..].trim_start();
+        after_keyword
+            .split(|c: char| !c.is_alphanumeric() && c != '_')
+            .next()
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string())
     }
 
     async fn goto_definition_impl(
@@ -496,7 +498,7 @@ impl LspTool {
                 || trimmed.starts_with("type ")
             {
                 return Ok(
-                    ToolResult::ok(format!("{}:{} -> {}:1", file, line + 1, idx + 1))
+                    ToolResult::ok(format!("{}:{} -> {}:1: {}", file, line + 1, idx + 1, trimmed))
                         .with_title(format!("Go to Definition {}", file)),
                 );
             }
@@ -662,7 +664,7 @@ impl LspTool {
             .with_title(format!("Hover {}", file)));
         }
 
-        let output = Command::new("sh")
+        let output = match Command::new("sh")
             .arg("-c")
             .arg(format!(
                 "echo '{}' | timeout 5 rust-analyzer --ipa-lookup 2>/dev/null || echo ''",
@@ -679,7 +681,12 @@ impl LspTool {
             .current_dir(&root)
             .output()
             .await
-            .map_err(|e| OpenCodeError::Tool(format!("Failed to run rust-analyzer: {}", e)))?;
+        {
+            Ok(output) => output,
+            Err(_) => {
+                return self.hover_fallback(file, line, character).await;
+            }
+        };
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         if stdout.trim().is_empty() {
@@ -740,9 +747,16 @@ impl LspTool {
         line: u32,
         _character: u32,
     ) -> Result<ToolResult, OpenCodeError> {
-        let content = tokio::fs::read_to_string(file)
-            .await
-            .map_err(|e| OpenCodeError::Tool(format!("Failed to read file: {}", e)))?;
+        let content = match tokio::fs::read_to_string(file).await {
+            Ok(c) => c,
+            Err(_) => {
+                return Ok(ToolResult::ok(format!(
+                    "No hover information available for {} (file not found)",
+                    file
+                ))
+                .with_title(format!("Hover {}", file)));
+            }
+        };
 
         let target_line = content.lines().nth(line as usize);
 
@@ -983,7 +997,7 @@ mod tests {
             .await;
         assert!(result.is_ok());
         let tool_result = result.unwrap();
-        assert!(tool_result.content.contains("Hover information"));
+        assert!(tool_result.content.contains("No hover information available"));
     }
 
     #[tokio::test]
@@ -1624,8 +1638,8 @@ mod tests {
         let tool = LspTool;
         let result = tool.hover_fallback("/nonexistent/path/file.rs", 0, 0).await;
 
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert!(err.to_string().contains("Failed to read file"));
+        assert!(result.is_ok());
+        let tool_result = result.unwrap();
+        assert!(tool_result.content.contains("file not found"));
     }
 }

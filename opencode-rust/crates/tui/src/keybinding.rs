@@ -46,7 +46,8 @@ impl Key {
         let mut code = None;
 
         for part in parts {
-            match part.to_uppercase().as_str() {
+            let part_upper = part.to_uppercase();
+            match part_upper.as_str() {
                 "CTRL" => modifiers |= KeyModifiers::CONTROL,
                 "ALT" => modifiers |= KeyModifiers::ALT,
                 "SHIFT" => modifiers |= KeyModifiers::SHIFT,
@@ -62,14 +63,14 @@ impl Key {
                 "END" => code = Some(KeyCode::End),
                 "PAGEUP" => code = Some(KeyCode::PageUp),
                 "PAGEDOWN" => code = Some(KeyCode::PageDown),
-                "SPACE" => code = Some(KeyCode::Char(' ')),
+                "SPACE" => code = Some(KeyCode::Space),
                 c if c.starts_with('F') && c.len() <= 3 => {
                     if let Ok(n) = c[1..].parse::<u8>() {
                         code = Some(KeyCode::F(n));
                     }
                 }
                 c if c.len() == 1 => {
-                    let mut ch = c.chars().next().unwrap();
+                    let mut ch = part.chars().next().unwrap();
                     if modifiers.contains(KeyModifiers::SHIFT) {
                         ch = ch.to_ascii_uppercase();
                     }
@@ -409,6 +410,20 @@ impl DefaultKeybindings {
         );
         map.insert(
             KeybindingAction::ScrollDown,
+            Key {
+                modifiers: KeyModifiers::empty(),
+                code: KeyCode::PageDown,
+            },
+        );
+        map.insert(
+            KeybindingAction::PageUp,
+            Key {
+                modifiers: KeyModifiers::empty(),
+                code: KeyCode::PageUp,
+            },
+        );
+        map.insert(
+            KeybindingAction::PageDown,
             Key {
                 modifiers: KeyModifiers::empty(),
                 code: KeyCode::PageDown,

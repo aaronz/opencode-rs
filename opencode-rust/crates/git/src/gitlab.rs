@@ -234,6 +234,7 @@ pub struct GitLabFileCommit {
 pub struct GitLabPipeline {
     pub id: u64,
     pub status: String,
+    #[serde(rename = "ref")]
     pub ref_: String,
     #[serde(rename = "sha")]
     pub commit_sha: String,

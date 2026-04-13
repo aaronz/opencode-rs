@@ -513,7 +513,12 @@ mod tests {
     fn test_parse_hex_color() {
         let color = parse_hex_color("#89b4fa");
         assert!(color.is_some());
-        assert_eq!(color.unwrap(), Color::Rgb(0x89, 0xb4, 0xfa));
+        let expected = if supports_truecolor() {
+            Color::Rgb(0x89, 0xb4, 0xfa)
+        } else {
+            Color::Indexed(110)
+        };
+        assert_eq!(color.unwrap(), expected);
     }
 
     #[test]

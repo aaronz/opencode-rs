@@ -416,113 +416,122 @@ mod gitlab_integration_tests {
 
         thread::spawn(move || {
             tx.send(()).unwrap();
-            let (mut stream, _) = listener.accept().unwrap();
-            let mut buffer = [0u8; 8192];
-            let n = stream.read(&mut buffer).unwrap();
+            loop {
+                let (mut stream, _) = match listener.accept() {
+                    Ok(s) => s,
+                    Err(_) => break,
+                };
+                let mut buffer = [0u8; 8192];
+                let n = match stream.read(&mut buffer) {
+                    Ok(n) if n > 0 => n,
+                    _ => break,
+                };
 
-            let request_str = String::from_utf8_lossy(&buffer[..n]).to_string();
-            let request_line = request_str.lines().next().unwrap_or("");
-            let parts: Vec<&str> = request_line.split_whitespace().collect();
+                let request_str = String::from_utf8_lossy(&buffer[..n]).to_string();
+                let request_line = request_str.lines().next().unwrap_or("");
+                let parts: Vec<&str> = request_line.split_whitespace().collect();
 
-            let (status, response_body) = if parts.len() >= 2 {
-                let method = parts[0];
-                let path = parts[1];
+                let (status, response_body) = if parts.len() >= 2 {
+                    let method = parts[0];
+                    let path = parts[1];
 
-                if path.contains("/projects/") && path.contains("/pipeline") && method == "POST" {
-                    (
-                        200,
-                        serde_json::json!({
-                            "id": 12345,
-                            "status": "pending",
-                            "ref": "main",
-                            "sha": "abc123",
-                            "web_url": "http://localhost/pipelines/12345",
-                            "created_at": "2026-04-11T10:00:00Z",
-                            "updated_at": "2026-04-11T10:00:00Z"
-                        })
-                        .to_string(),
-                    )
-                } else if path.contains("/projects/")
-                    && path.contains("/pipelines/")
-                    && path.contains("/jobs")
-                    && method == "GET"
-                {
-                    (
-                        200,
-                        serde_json::json!([{
-                            "id": 1,
-                            "name": "opencode_agent",
-                            "stage": "opencode",
-                            "status": "running",
-                            "started_at": "2026-04-11T10:00:00Z",
-                            "finished_at": null,
-                            "duration": null,
-                            "web_url": "http://localhost/jobs/1"
-                        }])
-                        .to_string(),
-                    )
-                } else if path.contains("/projects/")
-                    && path.contains("/pipelines/")
-                    && method == "GET"
-                {
-                    let pipeline_id = path
-                        .split("/pipelines/")
-                        .nth(1)
-                        .map(|s| s.split('/').next().unwrap_or("12345"))
-                        .unwrap_or("12345");
-                    let status = if pipeline_id == "99999" {
-                        "failed"
+                    if path.contains("/projects/") && path.contains("/pipeline") && method == "POST"
+                    {
+                        (
+                            200,
+                            serde_json::json!({
+                                "id": 12345,
+                                "status": "pending",
+                                "ref": "main",
+                                "sha": "abc123",
+                                "web_url": "http://localhost/pipelines/12345",
+                                "created_at": "2026-04-11T10:00:00Z",
+                                "updated_at": "2026-04-11T10:00:00Z"
+                            })
+                            .to_string(),
+                        )
+                    } else if path.contains("/projects/")
+                        && path.contains("/pipelines/")
+                        && path.contains("/jobs")
+                        && method == "GET"
+                    {
+                        (
+                            200,
+                            serde_json::json!([{
+                                "id": 1,
+                                "name": "opencode_agent",
+                                "stage": "opencode",
+                                "status": "running",
+                                "started_at": "2026-04-11T10:00:00Z",
+                                "finished_at": null,
+                                "duration": null,
+                                "web_url": "http://localhost/jobs/1"
+                            }])
+                            .to_string(),
+                        )
+                    } else if path.contains("/projects/")
+                        && path.contains("/pipelines/")
+                        && method == "GET"
+                    {
+                        let pipeline_id = path
+                            .split("/pipelines/")
+                            .nth(1)
+                            .map(|s| s.split('/').next().unwrap_or("12345"))
+                            .unwrap_or("12345");
+                        let status = if pipeline_id == "99999" {
+                            "failed"
+                        } else {
+                            "pending"
+                        };
+                        (
+                            200,
+                            serde_json::json!({
+                                "id": pipeline_id.parse::<u64>().unwrap_or(12345),
+                                "status": status,
+                                "ref": "main",
+                                "sha": "abc123",
+                                "web_url": format!("http://localhost/pipelines/{}", pipeline_id),
+                                "created_at": "2026-04-11T10:00:00Z",
+                                "updated_at": "2026-04-11T10:00:05Z"
+                            })
+                            .to_string(),
+                        )
+                    } else if path.contains("/projects/")
+                        && path.contains("/repository/files/")
+                        && method == "GET"
+                    {
+                        (404, r#"{"message":"file not found"}"#.to_string())
+                    } else if path.contains("/projects/")
+                        && path.contains("/repository/files/")
+                        && method == "POST"
+                    {
+                        (
+                            201,
+                            serde_json::json!({
+                                "file_path": ".gitlab-ci.yml",
+                                "sha": "newfile123",
+                                "blob_sha": "blob456",
+                                "content_sha256": "content789",
+                                "commit_sha": "commit789",
+                                "branch": "main"
+                            })
+                            .to_string(),
+                        )
                     } else {
-                        "pending"
-                    };
-                    (
-                        200,
-                        serde_json::json!({
-                            "id": pipeline_id.parse::<u64>().unwrap_or(12345),
-                            "status": status,
-                            "ref": "main",
-                            "sha": "abc123",
-                            "web_url": format!("http://localhost/pipelines/{}", pipeline_id),
-                            "created_at": "2026-04-11T10:00:00Z",
-                            "updated_at": "2026-04-11T10:00:05Z"
-                        })
-                        .to_string(),
-                    )
-                } else if path.contains("/projects/")
-                    && path.contains("/repository/files/")
-                    && method == "GET"
-                {
-                    (404, r#"{"message":"file not found"}"#.to_string())
-                } else if path.contains("/projects/")
-                    && path.contains("/repository/files/")
-                    && method == "POST"
-                {
-                    (
-                        201,
-                        serde_json::json!({
-                            "file_path": ".gitlab-ci.yml",
-                            "sha": "newfile123",
-                            "blob_sha": "blob456",
-                            "content_sha256": "content789",
-                            "commit_sha": "commit789",
-                            "branch": "main"
-                        })
-                        .to_string(),
-                    )
+                        (404, r#"{"message":"not found"}"#.to_string())
+                    }
                 } else {
-                    (404, r#"{"message":"not found"}"#.to_string())
-                }
-            } else {
-                (400, r#"{"message":"bad request"}"#.to_string())
-            };
+                    (400, r#"{"message":"bad request"}"#.to_string())
+                };
 
-            let response = format!(
-                "HTTP/1.1 {} OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                status,
-                response_body.len(),
-                response_body
-            );
-            stream.write_all(response.as_bytes()).unwrap();
+                let response = format!(
+                    "HTTP/1.1 {} OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    status,
+                    response_body.len(),
+                    response_body
+                );
+                stream.write_all(response.as_bytes()).unwrap();
+            }
         });
 
         rx.recv().unwrap();
