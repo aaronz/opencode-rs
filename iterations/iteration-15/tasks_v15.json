@@ -44,7 +44,7 @@
       "priority": "P0",
       "title": "Implement Plugin Tool Registration",
       "description": "PluginToolAdapter exists but no mechanism to register plugin tools. Add register_tool() method to Plugin trait in crates/plugin/src/lib.rs. Implement tool registration in PluginManager. Integrate PluginManager with ToolRegistry for plugin-provided tools. Add tests verifying plugin tools appear in registry after plugin activation. Verify plugin tools respect permission system.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Plugins can add tools to agent toolset via register_tool()",
         "Plugin tools appear in ToolRegistry after plugin activation",

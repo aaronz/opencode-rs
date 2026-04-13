@@ -26,7 +26,7 @@
 
 ---
 
-### P0-2: Register Custom Tools with ToolRegistry
+### P0-2: ✅ Done
 **Issue:** Discovered tools recorded in config but NOT registered with ToolRegistry  
 **Module:** tools  
 **FR Reference:** FR-007  
