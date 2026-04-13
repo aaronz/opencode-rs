@@ -64,8 +64,28 @@ pub struct PluginConfig {
     pub name: String,
     pub version: String,
     pub enabled: bool,
+    pub priority: i32,
     pub options: IndexMap<String, Value>,
     pub permissions: PluginPermissions,
+}
+
+impl PluginConfig {
+    pub fn priority(&self) -> i32 {
+        self.priority
+    }
+}
+
+impl Default for PluginConfig {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            version: String::new(),
+            enabled: true,
+            priority: 0,
+            options: IndexMap::new(),
+            permissions: PluginPermissions::default(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -262,6 +282,7 @@ impl PluginManager {
             name: plugin.name().to_string(),
             version: plugin.version().to_string(),
             enabled: true,
+            priority: 0,
             options: IndexMap::new(),
             permissions: PluginPermissions::default(),
         };
@@ -297,10 +318,12 @@ impl PluginManager {
     pub fn startup(&mut self) -> Result<(), PluginError> {
         let mut failed = Vec::new();
 
-        for (name, plugin) in self.plugins.iter_mut() {
-            if let Err(error) = plugin.init() {
-                tracing::warn!(plugin = name, error = %error, "Plugin startup failed");
-                failed.push(name.clone());
+        for name in self.sorted_plugin_names() {
+            if let Some(plugin) = self.plugins.get_mut(&name) {
+                if let Err(error) = plugin.init() {
+                    tracing::warn!(plugin = name, error = %error, "Plugin startup failed");
+                    failed.push(name);
+                }
             }
         }
 
@@ -314,10 +337,12 @@ impl PluginManager {
     pub fn shutdown(&mut self) -> Result<(), PluginError> {
         let mut failures = Vec::new();
 
-        for (name, plugin) in self.plugins.iter_mut() {
-            if let Err(error) = plugin.shutdown() {
-                tracing::warn!(plugin = name, error = %error, "Plugin shutdown failed");
-                failures.push((name.clone(), error.to_string()));
+        for name in self.sorted_plugin_names() {
+            if let Some(plugin) = self.plugins.get_mut(&name) {
+                if let Err(error) = plugin.shutdown() {
+                    tracing::warn!(plugin = name, error = %error, "Plugin shutdown failed");
+                    failures.push((name, error.to_string()));
+                }
             }
         }
 
@@ -342,13 +367,18 @@ impl PluginManager {
         self.shutdown()
     }
 
+    /// Executes `on_start` hooks on all plugins in priority order (lowest priority first).
+    /// This ensures deterministic execution order based on plugin configuration priority.
+    /// Errors from individual plugins are collected but do not stop execution of remaining plugins.
     pub fn on_start_all(&mut self) -> Result<(), PluginError> {
         let mut failed = Vec::new();
 
-        for (name, plugin) in self.plugins.iter_mut() {
-            if let Err(error) = plugin.on_start() {
-                tracing::warn!(plugin = name, error = %error, "Plugin on_start hook failed");
-                failed.push(name.clone());
+        for name in self.sorted_plugin_names() {
+            if let Some(plugin) = self.plugins.get_mut(&name) {
+                if let Err(error) = plugin.on_start() {
+                    tracing::warn!(plugin = name, error = %error, "Plugin on_start hook failed");
+                    failed.push(name);
+                }
             }
         }
 
@@ -359,48 +389,63 @@ impl PluginManager {
         Ok(())
     }
 
+    /// Executes `on_tool_call` hooks on all plugins in priority order (lowest priority first).
+    /// This ensures deterministic execution order based on plugin configuration priority.
+    /// Returns error if any plugin's hook returns error, stopping execution at that point.
     pub fn on_tool_call_all(
         &mut self,
         tool_name: &str,
         args: &Value,
         session_id: &str,
     ) -> Result<(), PluginError> {
-        for (name, plugin) in self.plugins.iter_mut() {
-            if let Err(error) = plugin.on_tool_call(tool_name, args, session_id) {
-                tracing::warn!(
-                    plugin = name,
-                    tool = tool_name,
-                    error = %error,
-                    "Plugin on_tool_call hook blocked execution"
-                );
-                return Err(error);
+        for name in self.sorted_plugin_names() {
+            if let Some(plugin) = self.plugins.get_mut(&name) {
+                if let Err(error) = plugin.on_tool_call(tool_name, args, session_id) {
+                    tracing::warn!(
+                        plugin = name,
+                        tool = tool_name,
+                        error = %error,
+                        "Plugin on_tool_call hook blocked execution"
+                    );
+                    return Err(error);
+                }
             }
         }
         Ok(())
     }
 
+    /// Executes `on_message` hooks on all plugins in priority order (lowest priority first).
+    /// This ensures deterministic execution order based on plugin configuration priority.
+    /// Errors from individual plugins are logged but do not stop execution of remaining plugins.
     pub fn on_message_all(&mut self, content: &str, session_id: &str) -> Result<(), PluginError> {
-        for (name, plugin) in self.plugins.iter_mut() {
-            if let Err(error) = plugin.on_message(content, session_id) {
-                tracing::warn!(
-                    plugin = name,
-                    error = %error,
-                    "Plugin on_message hook failed"
-                );
+        for name in self.sorted_plugin_names() {
+            if let Some(plugin) = self.plugins.get_mut(&name) {
+                if let Err(error) = plugin.on_message(content, session_id) {
+                    tracing::warn!(
+                        plugin = name,
+                        error = %error,
+                        "Plugin on_message hook failed"
+                    );
+                }
             }
         }
         Ok(())
     }
 
+    /// Executes `on_session_end` hooks on all plugins in priority order (lowest priority first).
+    /// This ensures deterministic execution order based on plugin configuration priority.
+    /// Errors from individual plugins are logged but do not stop execution of remaining plugins.
     pub fn on_session_end_all(&mut self, session_id: &str) -> Result<(), PluginError> {
-        for (name, plugin) in self.plugins.iter_mut() {
-            if let Err(error) = plugin.on_session_end(session_id) {
-                tracing::warn!(
-                    plugin = name,
-                    session_id = session_id,
-                    error = %error,
-                    "Plugin on_session_end hook failed"
-                );
+        for name in self.sorted_plugin_names() {
+            if let Some(plugin) = self.plugins.get_mut(&name) {
+                if let Err(error) = plugin.on_session_end(session_id) {
+                    tracing::warn!(
+                        plugin = name,
+                        session_id = session_id,
+                        error = %error,
+                        "Plugin on_session_end hook failed"
+                    );
+                }
             }
         }
         Ok(())
@@ -532,6 +577,27 @@ impl PluginManager {
         self.plugins.insert(key.clone(), plugin);
         self.configs.insert(key, config);
         Ok(())
+    }
+
+    /// Returns plugin names sorted by their priority in ascending order.
+    /// Plugins with lower priority values execute first.
+    /// This ensures deterministic hook execution order based on explicit priority configuration.
+    /// Default priority is 0. Plugins with the same priority execute in registration order.
+    fn sorted_plugin_names(&self) -> Vec<String> {
+        let mut names_with_priority: Vec<(String, i32)> = self
+            .plugins
+            .keys()
+            .map(|name| {
+                let priority = self
+                    .configs
+                    .get(name)
+                    .map(|c| c.priority)
+                    .unwrap_or(0);
+                (name.clone(), priority)
+            })
+            .collect();
+        names_with_priority.sort_by_key(|(_, priority)| *priority);
+        names_with_priority.into_iter().map(|(name, _)| name).collect()
     }
 
     fn load_discovered(
@@ -814,6 +880,7 @@ mod tests {
                 name: self.name.clone(),
                 version: "1.0.0".to_string(),
                 enabled: true,
+                priority: 0,
                 options: IndexMap::new(),
                 permissions: PluginPermissions {
                     capabilities: vec![PluginCapability::AddTools],
@@ -896,6 +963,7 @@ mod tests {
                 name: self.name.clone(),
                 version: "1.0.0".to_string(),
                 enabled: true,
+                priority: 0,
                 options: IndexMap::new(),
                 permissions: PluginPermissions {
                     capabilities: vec![], // No AddTools capability
@@ -1121,6 +1189,7 @@ mod tests {
             name: "test".to_string(),
             version: "2.0.0".to_string(),
             enabled: true,
+            priority: 0,
             options: serde_json::json!({"key": "value"})
                 .as_object()
                 .unwrap()
@@ -3109,5 +3178,272 @@ mod tests {
 
         assert!(!manager.is_plugin_loaded("test-plugin"));
         assert!(manager.get_plugin("test-plugin").is_none());
+    }
+
+    #[test]
+    fn test_hook_order_is_deterministic_by_priority() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
+
+        let call_order = Arc::new(AtomicUsize::new(0));
+        let call_sequence: Arc<std::sync::Mutex<Vec<String>>> =
+            Arc::new(std::sync::Mutex::new(Vec::new()));
+
+        struct PriorityPlugin {
+            name: String,
+            call_count: Arc<AtomicUsize>,
+            call_sequence: Arc<std::sync::Mutex<Vec<String>>>,
+        }
+
+        impl PriorityPlugin {
+            fn new(
+                name: &str,
+                call_count: Arc<AtomicUsize>,
+                call_sequence: Arc<std::sync::Mutex<Vec<String>>>,
+            ) -> Self {
+                Self {
+                    name: name.to_string(),
+                    call_count,
+                    call_sequence,
+                }
+            }
+        }
+
+        impl Plugin for PriorityPlugin {
+            fn name(&self) -> &str {
+                &self.name
+            }
+
+            fn version(&self) -> &str {
+                "1.0.0"
+            }
+
+            fn init(&mut self) -> Result<(), PluginError> {
+                Ok(())
+            }
+
+            fn shutdown(&mut self) -> Result<(), PluginError> {
+                Ok(())
+            }
+
+            fn description(&self) -> &str {
+                "priority plugin for testing"
+            }
+
+            fn on_start(&mut self) -> Result<(), PluginError> {
+                let order = self.call_count.fetch_add(1, Ordering::SeqCst);
+                let mut seq = self.call_sequence.lock().unwrap();
+                if seq.len() == order as usize {
+                    seq.push(self.name.clone());
+                } else {
+                    seq.push(format!("OUT_OF_ORDER:{}", self.name));
+                }
+                Ok(())
+            }
+        }
+
+        let mut manager = PluginManager::new();
+
+        let plugin_high = PriorityPlugin::new("high-priority", call_order.clone(), call_sequence.clone());
+        let plugin_low = PriorityPlugin::new("low-priority", call_order.clone(), call_sequence.clone());
+        let plugin_default = PriorityPlugin::new("default-priority", call_order.clone(), call_sequence.clone());
+        let plugin_medium = PriorityPlugin::new("medium-priority", call_order.clone(), call_sequence.clone());
+
+        let config_high = PluginConfig {
+            name: "high-priority".to_string(),
+            version: "1.0.0".to_string(),
+            enabled: true,
+            priority: 100,
+            options: IndexMap::new(),
+            permissions: PluginPermissions::default(),
+        };
+        let config_low = PluginConfig {
+            name: "low-priority".to_string(),
+            version: "1.0.0".to_string(),
+            enabled: true,
+            priority: -100,
+            options: IndexMap::new(),
+            permissions: PluginPermissions::default(),
+        };
+        let config_default = PluginConfig {
+            name: "default-priority".to_string(),
+            version: "1.0.0".to_string(),
+            enabled: true,
+            priority: 0,
+            options: IndexMap::new(),
+            permissions: PluginPermissions::default(),
+        };
+        let config_medium = PluginConfig {
+            name: "medium-priority".to_string(),
+            version: "1.0.0".to_string(),
+            enabled: true,
+            priority: 50,
+            options: IndexMap::new(),
+            permissions: PluginPermissions::default(),
+        };
+
+        manager.register_with_config(Box::new(plugin_high), config_high).unwrap();
+        manager.register_with_config(Box::new(plugin_low), config_low).unwrap();
+        manager.register_with_config(Box::new(plugin_default), config_default).unwrap();
+        manager.register_with_config(Box::new(plugin_medium), config_medium).unwrap();
+
+        manager.on_start_all().unwrap();
+
+        let sequence = call_sequence.lock().unwrap();
+        assert_eq!(sequence.len(), 4, "Expected 4 plugins to be called");
+        assert_eq!(
+            sequence[0], "low-priority",
+            "First plugin should be low-priority (priority=-100), got {}",
+            sequence[0]
+        );
+        assert_eq!(
+            sequence[1], "default-priority",
+            "Second plugin should be default-priority (priority=0), got {}",
+            sequence[1]
+        );
+        assert_eq!(
+            sequence[2], "medium-priority",
+            "Third plugin should be medium-priority (priority=50), got {}",
+            sequence[2]
+        );
+        assert_eq!(
+            sequence[3], "high-priority",
+            "Fourth plugin should be high-priority (priority=100), got {}",
+            sequence[3]
+        );
+    }
+
+    #[test]
+    fn test_hook_execution_deterministic_across_multiple_runs() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
+
+        for iteration in 0..5 {
+            let call_order = Arc::new(AtomicUsize::new(0));
+            let call_sequence: Arc<std::sync::Mutex<Vec<String>>> =
+                Arc::new(std::sync::Mutex::new(Vec::new()));
+
+            struct DeterministicPlugin {
+                name: String,
+                call_count: Arc<AtomicUsize>,
+                call_sequence: Arc<std::sync::Mutex<Vec<String>>>,
+            }
+
+            impl DeterministicPlugin {
+                fn new(
+                    name: &str,
+                    call_count: Arc<AtomicUsize>,
+                    call_sequence: Arc<std::sync::Mutex<Vec<String>>>,
+                ) -> Self {
+                    Self {
+                        name: name.to_string(),
+                        call_count,
+                        call_sequence,
+                    }
+                }
+            }
+
+            impl Plugin for DeterministicPlugin {
+                fn name(&self) -> &str {
+                    &self.name
+                }
+
+                fn version(&self) -> &str {
+                    "1.0.0"
+                }
+
+                fn init(&mut self) -> Result<(), PluginError> {
+                    Ok(())
+                }
+
+                fn shutdown(&mut self) -> Result<(), PluginError> {
+                    Ok(())
+                }
+
+                fn description(&self) -> &str {
+                    "deterministic plugin for testing"
+                }
+
+                fn on_tool_call(
+                    &mut self,
+                    _tool_name: &str,
+                    _args: &Value,
+                    _session_id: &str,
+                ) -> Result<(), PluginError> {
+                    let order = self.call_count.fetch_add(1, Ordering::SeqCst);
+                    let mut seq = self.call_sequence.lock().unwrap();
+                    if seq.len() == order as usize {
+                        seq.push(self.name.clone());
+                    } else {
+                        seq.push(format!("OUT_OF_ORDER:{}", self.name));
+                    }
+                    Ok(())
+                }
+            }
+
+            let mut manager = PluginManager::new();
+
+            let plugin_a = DeterministicPlugin::new("plugin-a", call_order.clone(), call_sequence.clone());
+            let plugin_b = DeterministicPlugin::new("plugin-b", call_order.clone(), call_sequence.clone());
+            let plugin_c = DeterministicPlugin::new("plugin-c", call_order.clone(), call_sequence.clone());
+
+            let config_a = PluginConfig {
+                name: "plugin-a".to_string(),
+                version: "1.0.0".to_string(),
+                enabled: true,
+                priority: 10,
+                options: IndexMap::new(),
+                permissions: PluginPermissions::default(),
+            };
+            let config_b = PluginConfig {
+                name: "plugin-b".to_string(),
+                version: "1.0.0".to_string(),
+                enabled: true,
+                priority: 20,
+                options: IndexMap::new(),
+                permissions: PluginPermissions::default(),
+            };
+            let config_c = PluginConfig {
+                name: "plugin-c".to_string(),
+                version: "1.0.0".to_string(),
+                enabled: true,
+                priority: 30,
+                options: IndexMap::new(),
+                permissions: PluginPermissions::default(),
+            };
+
+            manager.register_with_config(Box::new(plugin_a), config_a).unwrap();
+            manager.register_with_config(Box::new(plugin_b), config_b).unwrap();
+            manager.register_with_config(Box::new(plugin_c), config_c).unwrap();
+
+            let args = serde_json::json!({"file": "test.txt"});
+            manager.on_tool_call_all("read", &args, "session-123").unwrap();
+
+            let sequence = call_sequence.lock().unwrap();
+            assert_eq!(
+                sequence.len(),
+                3,
+                "Iteration {}: Expected 3 plugins to be called",
+                iteration
+            );
+            assert_eq!(
+                sequence[0], "plugin-a",
+                "Iteration {}: First plugin should be plugin-a (priority=10), got {}",
+                iteration,
+                sequence[0]
+            );
+            assert_eq!(
+                sequence[1], "plugin-b",
+                "Iteration {}: Second plugin should be plugin-b (priority=20), got {}",
+                iteration,
+                sequence[1]
+            );
+            assert_eq!(
+                sequence[2], "plugin-c",
+                "Iteration {}: Third plugin should be plugin-c (priority=30), got {}",
+                iteration,
+                sequence[2]
+            );
+        }
     }
 }

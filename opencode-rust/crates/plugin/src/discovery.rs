@@ -81,6 +81,8 @@ struct PluginMetadata {
     #[serde(default = "default_true")]
     enabled: bool,
     #[serde(default)]
+    priority: i32,
+    #[serde(default)]
     options: IndexMap<String, Value>,
     #[serde(default)]
     capabilities: Vec<PluginCapability>,
@@ -123,6 +125,7 @@ pub(crate) fn parse_metadata_file(path: &Path) -> Result<DiscoveredPlugin, Plugi
             name: metadata.name,
             version: metadata.version,
             enabled: metadata.enabled,
+            priority: metadata.priority,
             options: metadata.options,
             permissions: PluginPermissions {
                 capabilities: metadata.capabilities,

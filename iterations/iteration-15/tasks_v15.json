@@ -62,7 +62,7 @@
       "priority": "P1",
       "title": "Fix Hook Execution Determinism",
       "description": "Hooks execute in HashMap iteration order (non-deterministic). Add explicit priority field to plugin/hook configuration. Replace HashMap iteration with ordered iteration using priority. Document execution order guarantees in code. Add test verifying deterministic execution order across multiple runs.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "Hooks execute in consistent, predictable order",
         "Test confirms same plugin order produces same hook execution order",

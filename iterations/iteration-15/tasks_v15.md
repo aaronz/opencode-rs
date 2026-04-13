@@ -43,7 +43,7 @@
 
 ---
 
-### P0-3: Implement Plugin Tool Registration
+### P0-3: ✅ Done
 **Issue:** `PluginToolAdapter` exists but no mechanism to register plugin tools  
 **Module:** plugin  
 **FR Reference:** FR-008  
@@ -64,16 +64,16 @@
 
 ## P1 Tasks (High Priority)
 
-### P1-1: Fix Hook Execution Determinism
+### P1-1: Fix Hook Execution Determinism ✅ Done
 **Issue:** Hooks execute in HashMap iteration order (non-deterministic)  
 **Module:** plugin  
 **FR Reference:** FR-008  
-**Status:** TODO  
+**Status:** ✅ Done  
 
-- [ ] Add explicit `priority` field to plugin/hook configuration
-- [ ] Replace HashMap iteration with ordered iteration using priority
-- [ ] Document execution order guarantees in code
-- [ ] Add test verifying deterministic execution order across multiple runs
+- [x] Add explicit `priority` field to plugin/hook configuration
+- [x] Replace HashMap iteration with ordered iteration using priority
+- [x] Document execution order guarantees in code
+- [x] Add test verifying deterministic execution order across multiple runs
 
 **Acceptance Criteria:**
 - Hooks execute in consistent, predictable order
