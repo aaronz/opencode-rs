@@ -135,7 +135,7 @@
       "priority": "P1",
       "title": "Complete Session Lifecycle Integration Tests",
       "description": "Missing create\u2192fork\u2192share\u2192compact\u2192revert integration test. Add integration test covering complete session lifecycle: Create session, Fork child session, Share session (export/share mechanism), Compact session (context compression), Revert to checkpoint. Verify session state integrity after each operation. Verify message history preserved correctly through operations.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "Complete lifecycle test passes",
         "Session state consistent after each operation",
@@ -144,7 +144,7 @@
       "test_commands": [
         "cargo test -p opencode-integration-tests -- session_lifecycle"
       ],
-      "impl_notes": "Create integration test that performs all operations in sequence and verifies state at each step.",
+      "impl_notes": "Created session_lifecycle_tests.rs with 6 integration tests: test_session_lifecycle_create_fork_share_compact_revert (full lifecycle), test_session_lifecycle_fork_preserves_message_history (fork with lineage), test_session_lifecycle_share_preserves_across_operations (share across fork/compact), test_session_lifecycle_compact_preserves_recent_messages (compaction behavior), test_session_lifecycle_revert_with_checkpoints (revert and checkpoint integration), test_session_lifecycle_full_integration_sequence (all operations in sequence). All tests pass with cargo test -p opencode-integration-tests -- session_lifecycle.",
       "dependencies": []
     },
     {
