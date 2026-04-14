@@ -85,6 +85,7 @@ impl WebServerState {
             acp_enabled: self.acp_enabled,
             acp_stream: self.acp_stream.clone(),
             acp_client_registry: self.acp_client_registry.clone(),
+            temp_db_dir: None,
         }
     }
 }

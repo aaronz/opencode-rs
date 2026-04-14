@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
 use std::cell::RefCell;
+use std::fmt::Debug;
 use std::io::{BufRead, BufReader, Write};
 
 pub struct PtySimulator {
@@ -8,6 +9,17 @@ pub struct PtySimulator {
     pub child: RefCell<Option<Box<dyn Child>>>,
     pub writer: Option<Box<dyn Write + Send>>,
     pub reader: Option<Box<dyn BufRead>>,
+}
+
+impl Debug for PtySimulator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PtySimulator")
+            .field("master", &"Box<dyn MasterPty>")
+            .field("child", &self.child)
+            .field("has_writer", &self.writer.is_some())
+            .field("has_reader", &self.reader.is_some())
+            .finish()
+    }
 }
 
 impl PtySimulator {

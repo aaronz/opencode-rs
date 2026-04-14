@@ -75,8 +75,8 @@ impl FileSelectionDialog {
         self.selected_indices
             .iter()
             .filter_map(|&idx| filtered.get(idx))
-            .filter(|e| !e.is_dir && e.name != "..")
-            .filter_map(|e| e.path.as_ref())
+            .filter(|(_, e)| !e.is_dir && e.name != "..")
+            .filter_map(|(_, e)| e.path.as_ref())
             .map(|p| p.to_string_lossy().to_string())
             .collect()
     }
@@ -117,10 +117,11 @@ impl FileSelectionDialog {
         entries
     }
 
-    fn filtered_entries(&self) -> Vec<&FileEntry> {
+    fn filtered_entries(&self) -> Vec<(usize, &FileEntry)> {
         self.entries
             .iter()
-            .filter(|e| {
+            .enumerate()
+            .filter(|(_, e)| {
                 self.filter.is_empty()
                     || e.name.to_lowercase().contains(&self.filter.to_lowercase())
             })
@@ -153,8 +154,7 @@ impl Dialog for FileSelectionDialog {
         let filtered = self.filtered_entries();
         let items: Vec<ListItem> = filtered
             .iter()
-            .enumerate()
-            .map(|(idx, entry)| {
+            .map(|(original_idx, entry)| {
                 let icon = if entry.name == ".." {
                     "⬆"
                 } else if entry.is_dir {
@@ -163,7 +163,7 @@ impl Dialog for FileSelectionDialog {
                     "📄"
                 };
 
-                let is_selected = self.selected_indices.contains(&idx);
+                let is_selected = self.selected_indices.contains(original_idx);
                 let checkbox = if entry.is_dir || entry.name == ".." {
                     "  "
                 } else if is_selected {
@@ -235,7 +235,7 @@ impl Dialog for FileSelectionDialog {
                     let selected = self.selected_paths();
                     if selected.is_empty() {
                         let filtered = self.filtered_entries();
-                        if let Some(entry) = filtered.get(self.selected_index) {
+                        if let Some((_, entry)) = filtered.get(self.selected_index) {
                             if !entry.is_dir && entry.name != ".." {
                                 let full_path = entry
                                     .path
@@ -252,7 +252,7 @@ impl Dialog for FileSelectionDialog {
                     }
                 }
                 let filtered = self.filtered_entries();
-                if let Some(entry) = filtered.get(self.selected_index) {
+                if let Some((original_idx, entry)) = filtered.get(self.selected_index) {
                     if entry.is_dir {
                         let new_path = if entry.name == ".." {
                             self.current_dir
@@ -266,7 +266,7 @@ impl Dialog for FileSelectionDialog {
                         self.entries = Self::read_dir(&self.current_dir);
                         self.selected_index = 0;
                         DialogAction::None
-                    } else if self.selected_indices.contains(&self.selected_index) {
+                    } else if self.selected_indices.contains(original_idx) {
                         let selected = self.selected_paths();
                         if selected.len() == 1 {
                             DialogAction::Confirm(selected.into_iter().next().unwrap())
@@ -292,28 +292,33 @@ impl Dialog for FileSelectionDialog {
                     .contains(crossterm::event::KeyModifiers::CONTROL)
                 {
                     let filtered = self.filtered_entries();
-                    if let Some(entry) = filtered.get(self.selected_index) {
+                    if let Some((original_idx, entry)) = filtered.get(self.selected_index) {
                         if !entry.is_dir && entry.name != ".." {
                             if let Some(idx) = self
                                 .selected_indices
                                 .iter()
-                                .position(|&i| i == self.selected_index)
+                                .position(|&i| i == *original_idx)
                             {
                                 self.selected_indices.remove(idx);
                             } else {
-                                self.selected_indices.push(self.selected_index);
+                                self.selected_indices.push(*original_idx);
                             }
                         }
                     }
                 } else {
-                    if let Some(idx) = self
-                        .selected_indices
-                        .iter()
-                        .position(|&i| i == self.selected_index)
-                    {
-                        self.selected_indices.remove(idx);
-                    } else {
-                        self.selected_indices.push(self.selected_index);
+                    let filtered = self.filtered_entries();
+                    if let Some((original_idx, entry)) = filtered.get(self.selected_index) {
+                        if !entry.is_dir && entry.name != ".." {
+                            if let Some(idx) = self
+                                .selected_indices
+                                .iter()
+                                .position(|&i| i == *original_idx)
+                            {
+                                self.selected_indices.remove(idx);
+                            } else {
+                                self.selected_indices.push(*original_idx);
+                            }
+                        }
                     }
                 }
                 DialogAction::None

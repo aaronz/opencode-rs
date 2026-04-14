@@ -102,6 +102,7 @@ async fn run_desktop(args: DesktopArgs) -> Result<(), Box<dyn std::error::Error>
         acp_enabled,
         acp_stream: SharedAcpStream::default(),
         acp_client_registry: SharedAcpClientRegistry::default(),
+        temp_db_dir: None,
     };
 
     #[cfg(feature = "desktop")]

@@ -1596,8 +1596,9 @@ impl App {
                     KeyCode::Enter => {
                         if let Some(cmd_name) = self.slash_command_dialog.get_selected_command() {
                             self.execute_slash_command(&cmd_name);
+                        } else {
+                            self.mode = AppMode::Chat;
                         }
-                        self.mode = AppMode::Chat;
                         self.command_palette_input.clear();
                     }
                     KeyCode::Char(c) => {

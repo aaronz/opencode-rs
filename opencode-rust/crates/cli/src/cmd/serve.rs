@@ -77,6 +77,7 @@ async fn run_serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
         acp_enabled: true,
         acp_stream: SharedAcpStream::default(),
         acp_client_registry: SharedAcpClientRegistry::default(),
+        temp_db_dir: None,
     };
 
     run_server(Arc::new(state), &host, port).await?;

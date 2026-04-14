@@ -8,6 +8,7 @@ use opencode_tools::ToolRegistry;
 pub struct BuildAgent {
     system_prompt: String,
     skill_prompt: Option<String>,
+    agents_md_content: Option<String>,
     model: Option<String>,
     variant: Option<String>,
     reasoning_budget: Option<ReasoningBudget>,
@@ -30,8 +31,10 @@ When you need to use a tool, respond with a JSON object containing tool_calls.
 After receiving tool results, continue with your response.
 
 Always be accurate and honest. If you're unsure about something, say so.
-"# .to_string(),
+"#
+            .to_string(),
             skill_prompt: None,
+            agents_md_content: None,
             model: None,
             variant: None,
             reasoning_budget: None,
@@ -40,6 +43,11 @@ Always be accurate and honest. If you're unsure about something, say so.
 
     pub fn with_skill_prompt(mut self, skill_prompt: impl Into<String>) -> Self {
         self.skill_prompt = Some(skill_prompt.into());
+        self
+    }
+
+    pub fn with_agents_md_content(mut self, content: impl Into<String>) -> Self {
+        self.agents_md_content = Some(content.into());
         self
     }
 
@@ -59,15 +67,29 @@ Always be accurate and honest. If you're unsure about something, say so.
     }
 
     fn composed_system_prompt(&self) -> String {
-        if let Some(skill_prompt) = self.skill_prompt.as_deref() {
-            if !skill_prompt.trim().is_empty() {
-                return format!(
-                    "{}\n\n[Enabled Skills]\n{}",
-                    self.system_prompt, skill_prompt
+        let mut prompt = self.system_prompt.clone();
+
+        if let Some(agents_md) = self.agents_md_content.as_deref() {
+            if !agents_md.trim().is_empty() {
+                prompt = format!(
+                    "{}\n\n# Project Guidelines (from AGENTS.md)\n{}",
+                    prompt, agents_md
                 );
             }
         }
-        self.system_prompt.clone()
+
+        if let Some(skill_prompt) = self.skill_prompt.as_deref() {
+            if !skill_prompt.trim().is_empty() {
+                prompt = format!("{}\n\n[Enabled Skills]\n{}", prompt, skill_prompt);
+            }
+        }
+
+        prompt
+    }
+
+    #[cfg(test)]
+    pub fn system_prompt_for_testing(&self) -> String {
+        self.composed_system_prompt()
     }
 }
 
@@ -138,5 +160,58 @@ impl Agent for BuildAgent {
 
     fn preferred_reasoning_budget(&self) -> Option<ReasoningBudget> {
         self.reasoning_budget
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_build_agent_with_agents_md_content() {
+        let agents_md = r#"## Testing Conventions
+
+All dialog tests must cover:
+1. Empty collection + Enter closes
+2. Empty collection + navigation doesn't panic
+"#;
+        let agent = BuildAgent::new().with_agents_md_content(agents_md);
+
+        let prompt = agent.system_prompt_for_testing();
+        assert!(prompt.contains("# Project Guidelines (from AGENTS.md)"));
+        assert!(prompt.contains("Testing Conventions"));
+        assert!(prompt.contains("Empty collection + Enter closes"));
+    }
+
+    #[test]
+    fn test_build_agent_without_agents_md_content() {
+        let agent = BuildAgent::new();
+
+        let prompt = agent.system_prompt_for_testing();
+        assert!(!prompt.contains("# Project Guidelines (from AGENTS.md)"));
+    }
+
+    #[test]
+    fn test_build_agent_with_empty_agents_md() {
+        let agent = BuildAgent::new().with_agents_md_content("");
+
+        let prompt = agent.system_prompt_for_testing();
+        assert!(!prompt.contains("# Project Guidelines (from AGENTS.md)"));
+    }
+
+    #[test]
+    fn test_build_agent_with_skill_prompt_and_agents_md() {
+        let agents_md = "## Project Rules\nUse clippy before commit.";
+        let skill_prompt = "# Enabled Skills\n- skill1: Test skill";
+
+        let agent = BuildAgent::new()
+            .with_agents_md_content(agents_md)
+            .with_skill_prompt(skill_prompt);
+
+        let prompt = agent.system_prompt_for_testing();
+        assert!(prompt.contains("# Project Guidelines (from AGENTS.md)"));
+        assert!(prompt.contains("# Enabled Skills"));
+        assert!(prompt.contains("Project Rules"));
+        assert!(prompt.contains("skill1"));
     }
 }

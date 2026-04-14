@@ -66,6 +66,7 @@ impl fmt::Display for StateDiff {
     }
 }
 
+#[derive(Debug)]
 pub struct StateTester {
     snapshots: HashMap<String, StateSnapshot>,
     default_path: String,
@@ -115,7 +116,7 @@ impl StateTester {
     }
 
     pub fn compare(&self, current: &Value, snapshot: &StateSnapshot) -> Result<StateDiff> {
-        let differences = self.diff_values(&current, &snapshot.json, "$");
+        let differences = self.diff_values(current, &snapshot.json, "$");
         let total_diffs = differences.len();
         Ok(StateDiff {
             differences,

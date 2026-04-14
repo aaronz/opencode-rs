@@ -2,6 +2,8 @@
 
 This file provides guidance for AI coding agents operating in this repository.
 
+**Important**: The content of this file is automatically loaded into the agent's system prompt when working in this project. Keep this file concise and focused on project-specific guidelines that the agent should follow.
+
 ## Repository Overview
 
 This is a monorepo containing:
@@ -214,6 +216,108 @@ Use test helpers from `tests/src/common/`:
 - `MockServer`: Mock HTTP server for testing
 - `MockLLMProvider`: Mock LLM provider for testing
 
+### TUI Dialog Testing
+
+Dialogs have common edge cases that must be tested:
+
+#### Required Dialog Tests
+
+Every dialog with a list/selection must have these tests:
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // 1. Empty collection + Enter should close the dialog
+    #[test]
+    fn empty_list_enter_closes() {
+        let mut dialog = create_dialog_with_items(vec![]);
+        assert_eq!(dialog.handle_input(enter_key()), DialogAction::Close);
+    }
+
+    // 2. Empty collection + navigation should not panic
+    #[test]
+    fn empty_list_up_does_not_panic() {
+        let mut dialog = create_dialog_with_items(vec![]);
+        dialog.handle_input(up_key());
+    }
+
+    // 3. Single item navigation (Down at end should stay at 0)
+    #[test]
+    fn single_item_down_stays_at_zero() {
+        let mut dialog = create_dialog_with_items(vec!["item"]);
+        dialog.handle_input(down_key());
+    }
+
+    // 4. Render with empty state must show something visible
+    #[test]
+    fn test_dialog_renders_empty_state() {
+        let backend = TestBackend::new(80, 30);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| {
+            let dialog = create_dialog_with_items(vec![]);
+            dialog.draw(f, f.area());
+        }).unwrap();
+        let buffer = terminal.backend().buffer();
+        let has_border = buffer.content.iter()
+            .any(|cell| cell.symbol() == "─" || cell.symbol() == "│");
+        assert!(has_border, "Empty dialog should render border");
+    }
+}
+```
+
+#### Rendering Tests Pattern
+
+Use `ratatui::backend::TestBackend` to verify UI renders correctly:
+
+```rust
+use ratatui::{backend::TestBackend, Frame, Terminal};
+
+#[test]
+fn test_dialog_renders_models() {
+    let backend = TestBackend::new(80, 30);
+    let mut terminal = Terminal::new(backend).unwrap();
+
+    terminal.draw(|f: &mut Frame| {
+        let dialog = ConnectModelDialog::new(Theme::default(), vec![]);
+        dialog.draw(f, f.area());
+    }).unwrap();
+
+    let buffer = terminal.backend().buffer();
+    let has_border = buffer.content.iter()
+        .any(|cell| cell.symbol() == "─" || cell.symbol() == "│");
+    assert!(has_border, "Dialog should render with border");
+}
+```
+
+#### Dialog Index Safety Rules
+
+When dialogs have filtering, `selected_indices` must track **original** indices:
+
+```rust
+// WRONG: Mixing filtered index with original indices
+let filtered = self.filtered_entries();
+let is_selected = self.selected_indices.contains(&filtered_idx); // Bug!
+
+// CORRECT: filtered_entries returns (original_idx, item)
+let filtered = self.filtered_entries(); // Vec<(usize, &Item)>
+let is_selected = self.selected_indices.contains(original_idx);
+```
+
+#### Empty State Rendering Rule
+
+When a list is empty, always render a visible message:
+
+```rust
+if self.items.is_empty() {
+    let empty_msg = Paragraph::new("No items match filter")
+        .style(Style::default().fg(self.theme.muted_color()));
+    f.render_widget(empty_msg, inner_area);
+    return;
+}
+```
+
 ### Documentation
 
 Document public API with doc comments:
@@ -265,7 +369,8 @@ ratatui-testing/            # TUI testing framework library
 │   ├── pty.rs             # PTY simulation
 │   ├── cli.rs             # CLI testing
 │   ├── diff.rs            # Buffer diffing
-│   └── dsl.rs             # Test DSL
+│   ├── dsl.rs             # Test DSL
+│   └── dialog_tester.rs    # Dialog rendering test helpers
 └── tests/
 ```
 
@@ -308,6 +413,34 @@ The CI runs on push to main/dev and PRs:
 1. Create agent module in `crates/agent/src/`
 2. Implement `Agent` trait
 3. Export from `crates/agent/src/lib.rs`
+
+### Adding a New Dialog
+
+When adding a dialog to `crates/tui/src/dialogs/`:
+
+1. **Implement the `Dialog` trait**
+2. **Handle empty state**: Always show a visible message when the list is empty
+3. **Handle Enter on empty**: Return `DialogAction::Close` not `None`
+4. **Track indices correctly**: If using filtering + selection, store original indices
+5. **Add unit tests**:
+   - Empty collection + Enter closes
+   - Empty collection + navigation doesn't panic
+   - Single item navigation
+   - Filter reduces to empty
+6. **Add rendering tests** (in `tests/` folder):
+   - Verify empty state renders with border
+   - Verify content renders with models/items
+   - Use `ratatui::backend::TestBackend`
+
+Example empty state handling:
+```rust
+if self.items.is_empty() {
+    let empty_msg = Paragraph::new("No items available")
+        .style(Style::default().fg(self.theme.muted_color()));
+    f.render_widget(empty_msg, inner_area);
+    return;
+}
+```
 
 ### Desktop/Web/ACP Interface
 

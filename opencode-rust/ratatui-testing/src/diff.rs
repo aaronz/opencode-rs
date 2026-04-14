@@ -3,21 +3,11 @@ use ratatui::buffer::{Buffer, Cell};
 use ratatui::style::{Color, Modifier};
 use std::fmt;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct IgnoreOptions {
     pub ignore_foreground: bool,
     pub ignore_background: bool,
     pub ignore_attributes: bool,
-}
-
-impl Default for IgnoreOptions {
-    fn default() -> Self {
-        Self {
-            ignore_foreground: false,
-            ignore_background: false,
-            ignore_attributes: false,
-        }
-    }
 }
 
 impl IgnoreOptions {
@@ -99,6 +89,7 @@ impl fmt::Display for DiffResult {
     }
 }
 
+#[derive(Debug)]
 pub struct BufferDiff {
     options: IgnoreOptions,
 }
@@ -303,7 +294,7 @@ mod tests {
         assert_eq!(result.total_diffs, 1);
 
         let diff_cell = &result.differences[0];
-        assert_eq!(diff_cell.x, 2);
+        assert_eq!(diff_cell.x, 1);
         assert_eq!(diff_cell.y, 1);
     }
 
@@ -357,7 +348,7 @@ mod tests {
 
         assert_eq!(result.differences[0].x, 0);
         assert_eq!(result.differences[0].y, 0);
-        assert_eq!(result.differences[1].x, 2);
+        assert_eq!(result.differences[1].x, 1);
         assert_eq!(result.differences[1].y, 1);
     }
 

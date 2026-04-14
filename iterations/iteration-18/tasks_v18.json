@@ -183,7 +183,7 @@
       "priority": "P2",
       "title": "Implement ratatui-testing BufferDiff (FR-023.2)",
       "description": "Implement BufferDiff struct for comparing two Buffers cell-by-cell. Must report exact x,y of differences, support ignoring foreground color, background color, and attributes (bold, italic, etc.), and provide human-readable diff output.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify BufferDiff compares two Buffers cell-by-cell",
         "AddUnitTest: verify exact x,y position of differences is reported",
@@ -197,7 +197,7 @@
       "test_commands": [
         "cargo test -p ratatui-testing"
       ],
-      "impl_notes": "Module: ratatui-testing. Reference FR-023.2. Read current stub in diff.rs. Implement BufferDiff struct, diff() method, diff_str() method, DiffResult and CellDiff types.",
+      "impl_notes": "Module: ratatui-testing. Full BufferDiff implementation with cell-by-cell comparison, x,y position reporting, IgnoreOptions for configurable comparison, and DiffResult with human-readable Display implementation. All 11 diff tests pass.",
       "dependencies": []
     },
     {
@@ -225,7 +225,7 @@
       "priority": "P2",
       "title": "Implement ratatui-testing TestDsl (FR-023.4)",
       "description": "Implement TestDsl struct composing PtySimulator, BufferDiff, StateTester. Must render widget to Buffer, compose PTY/BufferDiff/StateTester, provide fluent API chains, and support wait-for predicates.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify TestDsl::new() creates instance with defaults",
         "AddUnitTest: verify with_pty() and pty_mut() methods work",
@@ -241,7 +241,7 @@
       "test_commands": [
         "cargo test -p ratatui-testing"
       ],
-      "impl_notes": "Module: ratatui-testing. Reference FR-023.4. Read current stub in dsl.rs. Implement TestDsl struct composing PtySimulator, BufferDiff, StateTester with fluent API.",
+      "impl_notes": "Module: ratatui-testing. Full TestDsl implementation including: 1) Widget rendering to Buffer via TestBackend/Terminal, 2) PTY/BufferDiff/StateTester composition via fluent API, 3) Method chaining with builder pattern, 4) Wait-for predicate support with wait_for, wait_with_predicates, poll_until, poll_until_async. All 30 DSL tests pass.",
       "dependencies": [
         "P2-5",
         "P2-6"

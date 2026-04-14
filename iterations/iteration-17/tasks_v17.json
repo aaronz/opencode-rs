@@ -171,7 +171,7 @@
       "priority": "P2",
       "title": "Implement ratatui-testing BufferDiff",
       "description": "Implement cell-by-cell comparison of ratatui Buffer with x,y position reporting of differences, configurable ignore options (foreground, background, attributes), and human-readable diff output. Reference: FR-025",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify cell-by-cell Buffer comparison works correctly",
         "AddUnitTest: verify x,y position reporting of differences",
@@ -181,7 +181,7 @@
       "test_commands": [
         "cargo test -p ratatui-testing"
       ],
-      "impl_notes": "Module: ratatui-testing. Read current stub in ratatui-testing/src/diff.rs and implement full functionality",
+      "impl_notes": "Module: ratatui-testing. Full BufferDiff implementation with cell-by-cell comparison, x,y position reporting, IgnoreOptions for configurable comparison, and DiffResult with human-readable Display implementation. All tests pass.",
       "dependencies": []
     },
     {
@@ -189,7 +189,7 @@
       "priority": "P2",
       "title": "Implement ratatui-testing StateTester",
       "description": "Implement JSON state capture mechanism, snapshot comparison, and JSON diff reporting. Reference: FR-026",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify JSON state capture mechanism works correctly",
         "AddUnitTest: verify snapshot comparison functionality",
@@ -198,7 +198,7 @@
       "test_commands": [
         "cargo test -p ratatui-testing"
       ],
-      "impl_notes": "Module: ratatui-testing. Read current stub in ratatui-testing/src/state.rs and implement full functionality",
+      "impl_notes": "Module: ratatui-testing. Full StateTester implementation with StateSnapshot, StateDiff, StateDiffEntry, and DiffType types. Includes capture_state, compare, assert_state methods. All 27 state tests pass.",
       "dependencies": [
         "FR-025"
       ]
@@ -208,7 +208,7 @@
       "priority": "P2",
       "title": "Implement ratatui-testing TestDsl",
       "description": "Implement widget rendering to Buffer, PTY/BufferDiff/StateTester composition, fluent API with method chaining, and wait-for predicate support. Reference: FR-027",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify widget rendering to Buffer works correctly",
         "AddUnitTest: verify PTY/BufferDiff/StateTester composition",
@@ -218,7 +218,7 @@
       "test_commands": [
         "cargo test -p ratatui-testing"
       ],
-      "impl_notes": "Module: ratatui-testing. Read current stub in ratatui-testing/src/dsl.rs and implement full functionality",
+      "impl_notes": "Module: ratatui-testing. Full implementation includes: 1) Widget rendering to Buffer using TestBackend/Terminal, 2) PTY/BufferDiff/StateTester composition via fluent API, 3) Method chaining with builder pattern (with_size, init_terminal, with_pty, with_buffer_diff, with_state_tester, render, etc.), 4) Wait-for predicate support with wait_for, wait_with_predicates, poll_until, and poll_until_async methods. All 55 unit tests pass.",
       "dependencies": [
         "FR-025",
         "FR-026"
