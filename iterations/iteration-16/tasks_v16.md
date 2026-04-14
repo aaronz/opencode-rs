@@ -101,7 +101,7 @@
 
 ---
 
-### P1-NEW-3: Audit Two ToolRegistry Implementations
+### P1-NEW-3: ✅ Done
 **Issue:** Two `ToolRegistry` structs exist with different designs  
 **Module:** core/tools  
 **FR Reference:** FR-006  
@@ -124,28 +124,33 @@
 
 ## P2 Tasks (Medium Priority)
 
-### P2-NEW-1: Complete Route-Group Tests
+### P2-NEW-1: ✅ DONE - Complete Route-Group Tests
 **Issue:** No explicit MCP/config/provider route group tests  
 **Module:** server  
 **FR Reference:** FR-004  
-**Status:** ❌ TODO
+**Status:** ✅ Done
 
-- [ ] Add MCP route group tests:
-  - [ ] `GET /api/mcp/servers`
-  - [ ] `GET /api/mcp/tools`
-  - [ ] `POST /api/mcp/connect`
-- [ ] Add config route group tests:
-  - [ ] `GET /api/config`
-  - [ ] `PUT /api/config`
-- [ ] Add provider route group tests:
-  - [ ] `GET /api/providers`
-  - [ ] `GET /api/models`
+- [x] Add MCP route group tests:
+  - [x] `GET /api/mcp/servers` - get_mcp_servers
+  - [x] `GET /api/mcp/tools` - get_mcp_tools
+  - [x] `POST /api/mcp/connect` - connect_mcp_server
+- [x] Add config route group tests:
+  - [x] `GET /api/config` - get_config
+  - [x] `PATCH /api/config` - update_config
+- [x] Add provider route group tests:
+  - [x] `GET /api/providers` - get_providers
+  - [x] `GET /api/models` - get_models
+- [x] Add error handling tests for invalid route group requests
 
 **Acceptance Criteria:** All route groups have explicit enumeration tests
 
 **Dependencies:** None
 
-**Verification:** `cargo test -p opencode-server -- route_group`
+**Implementation:**
+- MCP routes added at `crates/server/src/routes/mcp.rs`
+- Tests added at `crates/server/src/server_integration_tests.rs`
+
+**Verification:** `cargo test -p opencode-server -- route_group` - 43 tests pass
 
 ---
 

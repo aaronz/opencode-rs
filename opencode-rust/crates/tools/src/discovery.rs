@@ -781,10 +781,14 @@ export default registrationTestTool;
 
         let registry = crate::ToolRegistry::new();
 
-        let registered = register_custom_tools(&registry, Some(temp_dir.path().to_path_buf())).await;
+        let registered =
+            register_custom_tools(&registry, Some(temp_dir.path().to_path_buf())).await;
 
         assert_eq!(registered.len(), 1, "Should discover exactly one tool");
-        assert_eq!(registered[0], "registration_test", "Tool name should be 'registration_test'");
+        assert_eq!(
+            registered[0], "registration_test",
+            "Tool name should be 'registration_test'"
+        );
 
         let tools = registry.list_filtered(None).await;
         let tool_names: Vec<&str> = tools.iter().map(|(n, _, _)| n.as_str()).collect();

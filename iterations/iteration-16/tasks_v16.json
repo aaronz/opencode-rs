@@ -104,7 +104,7 @@
       "priority": "P1",
       "title": "Audit Two ToolRegistry Implementations",
       "description": "Trace all usages of core::ToolRegistry in agent runtime, verify opencode_tools::ToolRegistry features (caching, async) available, either consolidate to single registry OR document intentional separation, add documentation explaining the relationship",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify core::ToolRegistry usages are documented",
         "AddUnitTest: verify opencode_tools::ToolRegistry caching/async features work",
@@ -126,7 +126,7 @@
       "priority": "P2",
       "title": "Complete Route-Group Tests",
       "description": "Add MCP route group tests (GET /api/mcp/servers, GET /api/mcp/tools, POST /api/mcp/connect), config route group tests (GET /api/config, PUT /api/config), and provider route group tests (GET /api/providers, GET /api/models)",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify GET /api/mcp/servers returns server list",
         "AddIntegrationTest: verify GET /api/mcp/tools returns available tools",
@@ -142,7 +142,7 @@
         "cargo build -p opencode-server",
         "cargo clippy -p opencode-server -- -D warnings"
       ],
-      "impl_notes": "Session/permission route tests already done. MCP/config/provider tests need to be added",
+      "impl_notes": "MCP routes added at crates/server/src/routes/mcp.rs (get_mcp_servers, get_mcp_tools, connect_mcp_server). Tests added at crates/server/src/server_integration_tests.rs",
       "dependencies": []
     },
     {

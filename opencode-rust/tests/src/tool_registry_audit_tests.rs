@@ -498,7 +498,10 @@ mod opencode_tools_caching_tests {
             .unwrap();
 
         assert!(result1.content.contains("call 1:"));
-        assert!(result2.content.contains("call 1:"), "Second call should use cached result");
+        assert!(
+            result2.content.contains("call 1:"),
+            "Second call should use cached result"
+        );
     }
 
     #[tokio::test]
@@ -519,7 +522,10 @@ mod opencode_tools_caching_tests {
             .unwrap();
 
         assert!(result1.content.contains("call 1:"));
-        assert!(result2.content.contains("call 2:"), "Different args should not use cached result");
+        assert!(
+            result2.content.contains("call 2:"),
+            "Different args should not use cached result"
+        );
     }
 
     #[tokio::test]
@@ -542,7 +548,10 @@ mod opencode_tools_caching_tests {
             .execute("safe_caching_tool", args.clone(), None)
             .await
             .unwrap();
-        assert!(result2.content.contains("call 2:"), "After TTL, should re-execute");
+        assert!(
+            result2.content.contains("call 2:"),
+            "After TTL, should re-execute"
+        );
     }
 
     #[tokio::test]
@@ -558,13 +567,18 @@ mod opencode_tools_caching_tests {
             .unwrap();
         assert!(result1.content.contains("call 1:"));
 
-        registry.invalidate_cache_for_tool("safe_caching_tool").await;
+        registry
+            .invalidate_cache_for_tool("safe_caching_tool")
+            .await;
 
         let result2 = registry
             .execute("safe_caching_tool", args.clone(), None)
             .await
             .unwrap();
-        assert!(result2.content.contains("call 2:"), "After invalidation, should re-execute");
+        assert!(
+            result2.content.contains("call 2:"),
+            "After invalidation, should re-execute"
+        );
     }
 
     #[tokio::test]
@@ -603,7 +617,11 @@ mod opencode_tools_caching_tests {
         registry.register(AnotherSafeTool).await;
 
         registry
-            .execute("safe_caching_tool", serde_json::json!({"input": "test"}), None)
+            .execute(
+                "safe_caching_tool",
+                serde_json::json!({"input": "test"}),
+                None,
+            )
             .await
             .unwrap();
         registry
@@ -618,7 +636,11 @@ mod opencode_tools_caching_tests {
         registry.invalidate_all_cache().await;
 
         let result = registry
-            .execute("safe_caching_tool", serde_json::json!({"input": "test"}), None)
+            .execute(
+                "safe_caching_tool",
+                serde_json::json!({"input": "test"}),
+                None,
+            )
             .await
             .unwrap();
         assert!(result.content.contains("call"));
@@ -651,7 +673,10 @@ mod opencode_tools_caching_tests {
                     .and_then(|v| v.as_str())
                     .unwrap_or("default");
                 tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-                Ok(opencode_tools::ToolResult::ok(format!("processed: {}", input)))
+                Ok(opencode_tools::ToolResult::ok(format!(
+                    "processed: {}",
+                    input
+                )))
             }
         }
 

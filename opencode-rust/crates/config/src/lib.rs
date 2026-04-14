@@ -3180,7 +3180,10 @@ mod tests {
             "mode": "agent"
         }"#;
         let result = Config::parse_json_content(json_content);
-        assert!(result.is_ok(), "Deprecated 'mode' field should not cause parse error");
+        assert!(
+            result.is_ok(),
+            "Deprecated 'mode' field should not cause parse error"
+        );
         let config = result.unwrap();
         assert_eq!(config.model, Some("openai/gpt-4o".to_string()));
     }
@@ -3258,7 +3261,10 @@ mod tests {
             "tools": ["read", "write", "bash"]
         }"#;
         let result = Config::parse_json_content(json_content);
-        assert!(result.is_ok(), "Deprecated 'tools' field should not cause parse error");
+        assert!(
+            result.is_ok(),
+            "Deprecated 'tools' field should not cause parse error"
+        );
         let config = result.unwrap();
         assert_eq!(config.model, Some("test-model".to_string()));
     }
@@ -3286,15 +3292,11 @@ mod tests {
         let result = Config::parse_json_content(json_content);
         assert!(result.is_ok());
         let config = result.unwrap();
-        let permission = config.permission.expect("permission should exist after migration");
-        assert!(
-            permission.read.is_some(),
-            "read permission should be set"
-        );
-        assert!(
-            permission.bash.is_some(),
-            "bash permission should be set"
-        );
+        let permission = config
+            .permission
+            .expect("permission should exist after migration");
+        assert!(permission.read.is_some(), "read permission should be set");
+        assert!(permission.bash.is_some(), "bash permission should be set");
     }
 
     #[test]

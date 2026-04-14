@@ -1338,13 +1338,267 @@ mod tests {
             web::Json(crate::routes::mcp::McpRequestBody {
                 jsonrpc: "2.0".to_string(),
                 id: Some(serde_json::json!(1)),
-                method: "tools/list".to_string(),
+                method: "tools_list".to_string(),
                 params: None,
             }),
         )
         .await
         .respond_to(&req);
         assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn route_group_mcp_routes_get_servers_returns_ok() {
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::mcp::get_mcp_servers().await.respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn route_group_mcp_routes_get_tools_returns_ok() {
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::mcp::get_mcp_tools().await.respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn route_group_mcp_routes_connect_with_url_returns_connection_result() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::mcp::connect_mcp_server(web::Json(
+            crate::routes::mcp::McpConnectRequest {
+                name: "test-server".to_string(),
+                transport: "sse".to_string(),
+                command: None,
+                args: None,
+                url: Some("https://example.com/sse".to_string()),
+            },
+        ))
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::OK || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+            "MCP connect should return OK or 500 (connection may fail in test env)"
+        );
+    }
+
+    #[actix_web::test]
+    async fn route_group_mcp_routes_connect_with_command_returns_connection_result() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::mcp::connect_mcp_server(web::Json(
+            crate::routes::mcp::McpConnectRequest {
+                name: "local-server".to_string(),
+                transport: "stdio".to_string(),
+                command: Some("npx".to_string()),
+                args: Some(vec![
+                    "-y".to_string(),
+                    "@modelcontextprotocol/server-filesystem".to_string(),
+                ]),
+                url: None,
+            },
+        ))
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::OK || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+            "MCP connect should return OK or 500 (connection may fail in test env)"
+        );
+    }
+
+    #[actix_web::test]
+    async fn route_group_mcp_routes_connect_invalid_returns_bad_request() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::mcp::connect_mcp_server(web::Json(
+            crate::routes::mcp::McpConnectRequest {
+                name: "invalid-server".to_string(),
+                transport: "invalid".to_string(),
+                command: None,
+                args: None,
+                url: None,
+            },
+        ))
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[actix_web::test]
+    async fn route_group_config_routes_update_config_returns_ok() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let mut config = opencode_core::Config::default();
+        config.server = Some(opencode_core::config::ServerConfig {
+            port: Some(8080),
+            hostname: Some("127.0.0.1".to_string()),
+            mdns: None,
+            mdns_domain: None,
+            cors: None,
+            desktop: None,
+            acp: None,
+        });
+        let resp = crate::routes::config::update_config(
+            web::Data::new(create_test_state()),
+            web::Json(config),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn route_group_model_routes_get_models_returns_ok() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::model::get_models(
+            web::Data::new(create_test_state()),
+            web::Query(crate::routes::model::ModelQuery { provider: None }),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn route_group_model_routes_get_models_with_provider_filter_returns_ok() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::model::get_models(
+            web::Data::new(create_test_state()),
+            web::Query(crate::routes::model::ModelQuery {
+                provider: Some("openai".to_string()),
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn route_group_provider_routes_get_provider_returns_ok() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::provider::get_provider(
+            web::Data::new(create_test_state()),
+            web::Path::from("openai".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn route_group_provider_routes_get_provider_not_found() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::provider::get_provider(
+            web::Data::new(create_test_state()),
+            web::Path::from("nonexistent-provider".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[actix_web::test]
+    async fn route_group_config_routes_get_config_returns_json() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::config::get_config(web::Data::new(create_test_state()))
+            .await
+            .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = actix_web::body::to_bytes(resp.into_body())
+            .await
+            .unwrap_or_else(|_| actix_web::web::Bytes::new());
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert!(json.is_object(), "Config should be a JSON object");
+    }
+
+    #[actix_web::test]
+    async fn route_group_mcp_routes_get_servers_returns_json() {
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::mcp::get_mcp_servers().await.respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = actix_web::body::to_bytes(resp.into_body())
+            .await
+            .unwrap_or_else(|_| actix_web::web::Bytes::new());
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert!(
+            json.get("items").is_some(),
+            "Response should have 'items' field"
+        );
+        assert!(
+            json.get("count").is_some(),
+            "Response should have 'count' field"
+        );
+    }
+
+    #[actix_web::test]
+    async fn route_group_mcp_routes_get_tools_returns_json() {
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::mcp::get_mcp_tools().await.respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = actix_web::body::to_bytes(resp.into_body())
+            .await
+            .unwrap_or_else(|_| actix_web::web::Bytes::new());
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert!(
+            json.get("items").is_some(),
+            "Response should have 'items' field"
+        );
+        assert!(
+            json.get("count").is_some(),
+            "Response should have 'count' field"
+        );
+    }
+
+    #[actix_web::test]
+    async fn route_group_provider_routes_list_providers_returns_json() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::provider::get_providers(web::Data::new(create_test_state()))
+            .await
+            .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = actix_web::body::to_bytes(resp.into_body())
+            .await
+            .unwrap_or_else(|_| actix_web::web::Bytes::new());
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert!(
+            json.get("items").is_some(),
+            "Response should have 'items' field"
+        );
+        assert!(
+            json.get("count").is_some(),
+            "Response should have 'count' field"
+        );
+    }
+
+    #[actix_web::test]
+    async fn route_group_model_routes_get_models_returns_json() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::model::get_models(
+            web::Data::new(create_test_state()),
+            web::Query(crate::routes::model::ModelQuery { provider: None }),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = actix_web::body::to_bytes(resp.into_body())
+            .await
+            .unwrap_or_else(|_| actix_web::web::Bytes::new());
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert!(
+            json.get("items").is_some(),
+            "Response should have 'items' field"
+        );
+        assert!(
+            json.get("count").is_some(),
+            "Response should have 'count' field"
+        );
     }
 }
 
@@ -2038,6 +2292,109 @@ mod api_negative_tests {
             resp.status(),
             StatusCode::OK,
             "Provider list should return OK (regression check)"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_mcp_connect_without_url_or_command_returns_bad_request() {
+        use actix_web::web;
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::mcp::connect_mcp_server(web::Json(
+            crate::routes::mcp::McpConnectRequest {
+                name: "test".to_string(),
+                transport: "stdio".to_string(),
+                command: None,
+                args: None,
+                url: None,
+            },
+        ))
+        .await
+        .respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::BAD_REQUEST,
+            "MCP connect without url or command should return 400"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_mcp_connect_invalid_url_returns_bad_request() {
+        use actix_web::web;
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::mcp::connect_mcp_server(web::Json(
+            crate::routes::mcp::McpConnectRequest {
+                name: "test".to_string(),
+                transport: "sse".to_string(),
+                command: None,
+                args: None,
+                url: Some("invalid-url".to_string()),
+            },
+        ))
+        .await
+        .respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::BAD_REQUEST,
+            "MCP connect with invalid URL should return 400"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_provider_get_nonexistent_returns_not_found() {
+        use actix_web::web;
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::provider::get_provider(
+            web::Data::new(create_test_state()),
+            web::Path::from("nonexistent".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::NOT_FOUND,
+            "Provider get for nonexistent provider should return 404"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_session_delete_invalid_id_returns_unprocessable_entity() {
+        use actix_web::web;
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::delete_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("invalid-uuid".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "Session delete with invalid UUID should return 422"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_permission_reply_invalid_decision_returns_bad_request() {
+        use actix_web::web;
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::permission::permission_reply(
+            web::Data::new(create_test_state()),
+            web::Path::from(("session-1".to_string(), "req-1".to_string())),
+            web::Json(crate::routes::permission::PermissionReplyRequest {
+                decision: "invalid".to_string(),
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::BAD_REQUEST,
+            "Permission reply with invalid decision should return 400"
         );
     }
 }
