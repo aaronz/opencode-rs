@@ -399,13 +399,13 @@ cargo build --release                          # Passed
 **Severity:** High  
 **Action:** See P1-1
 
-### TD-005: Plugin register_tool() method missing
+### TD-005: ✅ Done
 **Severity:** CRITICAL  
 **Action:** See P0-3
 
-### TD-006: ACP transport layer missing
+### TD-006: ✅ Done
 **Severity:** High  
-**Action:** See P1-8
+**Action:** See P1-8 - ACP transport layer fully implemented with handshake, messages, connection management, and event streaming.
 
 ### TD-007: Deprecated mode field
 **Severity:** Medium  

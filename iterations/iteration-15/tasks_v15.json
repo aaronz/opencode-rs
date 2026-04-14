@@ -527,7 +527,7 @@
       "priority": "P0",
       "title": "Plugin register_tool() method missing",
       "description": "Technical debt CRITICAL: PluginToolAdapter exists but no mechanism to register plugin tools. See P0-3 for resolution.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify Plugin trait has register_tool method",
         "RunTestSuite: cargo test -p opencode-plugin -- plugin_tool"
@@ -547,7 +547,7 @@
       "priority": "P1",
       "title": "ACP transport layer missing",
       "description": "Technical debt High: ACP transport not implemented (event structs exist). See P1-8 for resolution.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify ACP transport layer implementation",
         "RunTestSuite: cargo test -p opencode-control-plane -- acp"
@@ -557,7 +557,7 @@
         "cargo clippy --all -- -D warnings",
         "cargo build --release"
       ],
-      "impl_notes": "Resolved by P1-8 task.",
+      "impl_notes": "Resolved by P1-8 task. ACP transport layer fully implemented with handshake, messages, connection management, and event streaming.",
       "dependencies": [
         "P1-8"
       ]
