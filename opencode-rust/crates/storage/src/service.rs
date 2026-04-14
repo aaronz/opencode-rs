@@ -314,7 +314,7 @@ impl StorageService {
             let mut stmt = c.prepare(
                 "SELECT id, username, email, password_hash, created_at, updated_at, last_login_at, is_active, data FROM accounts WHERE id = ?1"
             )?;
-            
+
             let mut rows = stmt.query_map(params![id_str], |row| {
                 let id: String = row.get(0)?;
                 let username: String = row.get(1)?;
@@ -337,7 +337,7 @@ impl StorageService {
                     data,
                 })
             })?;
-            
+
             if let Some(Ok(model)) = rows.next() {
                 Ok::<Option<AccountModel>, rusqlite::Error>(Some(model))
             } else {
@@ -360,7 +360,7 @@ impl StorageService {
                  ORDER BY updated_at DESC 
                  LIMIT ?1 OFFSET ?2"
             )?;
-            
+
             let rows = stmt.query_map(params![limit as i32, offset as i32], |row| {
                 let id: String = row.get(0)?;
                 let username: String = row.get(1)?;
@@ -383,12 +383,12 @@ impl StorageService {
                     data,
                 })
             })?;
-            
+
             let mut accounts = Vec::new();
             for row in rows {
                 accounts.push(row?);
             }
-            
+
             Ok::<Vec<AccountModel>, rusqlite::Error>(accounts)
         }).await.map_err(|e| OpenCodeError::Storage(e.to_string()))??;
         Ok(res)

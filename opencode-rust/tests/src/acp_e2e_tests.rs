@@ -9,6 +9,8 @@ mod tests {
     fn create_test_server_state() -> opencode_server::ServerState {
         let temp_dir = tempfile::tempdir().unwrap();
         let db_path = temp_dir.path().join("test.db");
+        let temp_db_dir: Option<Box<dyn std::any::Any + Send + Sync>> =
+            Some(Box::new(temp_dir));
         opencode_server::ServerState {
             storage: std::sync::Arc::new(opencode_storage::StorageService::new(
                 opencode_storage::database::StoragePool::new(&db_path).unwrap(),
@@ -17,6 +19,7 @@ mod tests {
             config: std::sync::Arc::new(std::sync::RwLock::new(opencode_core::Config::default())),
             event_bus: opencode_core::bus::SharedEventBus::default(),
             reconnection_store: opencode_server::streaming::ReconnectionStore::default(),
+            temp_db_dir,
             connection_monitor: std::sync::Arc::new(
                 opencode_server::streaming::conn_state::ConnectionMonitor::new(),
             ),
