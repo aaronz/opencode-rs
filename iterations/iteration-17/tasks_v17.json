@@ -1,0 +1,280 @@
+{
+  "tasks": [
+    {
+      "id": "P0-1",
+      "priority": "P0",
+      "title": "Custom tool discovery scans TOOL.md instead of .ts/.js",
+      "description": "Custom tool discovery was scanning TOOL.md instead of .ts/.js files. This has been fixed.",
+      "status": "done",
+      "test_criteria": [
+        "AddRegressionTest: verify custom tool discovery correctly scans .ts/.js files",
+        "RunTestSuite: execute tool discovery tests to ensure no regressions"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools",
+        "cargo test -p opencode-core"
+      ],
+      "impl_notes": "Module: tools - COMPLETE",
+      "dependencies": []
+    },
+    {
+      "id": "P0-2",
+      "priority": "P0",
+      "title": "Custom tools not registered with ToolRegistry",
+      "description": "Custom tools were not being registered with the ToolRegistry. This has been fixed.",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify custom tools are registered in ToolRegistry",
+        "RunTestSuite: execute registration tests to ensure tools are available"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools tool_registry",
+        "cargo test -p opencode-core"
+      ],
+      "impl_notes": "Module: tools - COMPLETE",
+      "dependencies": []
+    },
+    {
+      "id": "P0-3",
+      "priority": "P0",
+      "title": "Plugin tool registration missing",
+      "description": "Plugin tool registration was missing. This has been fixed.",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify plugin tools are properly registered",
+        "RunTestSuite: execute plugin registration tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin",
+        "cargo test -p opencode-tools"
+      ],
+      "impl_notes": "Module: plugin - COMPLETE",
+      "dependencies": []
+    },
+    {
+      "id": "P1-NEW-2",
+      "priority": "P1",
+      "title": "Fix Duplicate directory_scanner.rs",
+      "description": "Fix duplicate directory_scanner.rs files: delete crates/core/src/config/directory_scanner.rs and update crates/core/src/lib.rs to use opencode_config::DirectoryScanner. Technical Debt: TD-011",
+      "status": "done",
+      "test_criteria": [
+        "AddRegressionTest: verify core builds without directory_scanner.rs in core/src/config",
+        "AddUnitTest: verify DirectoryScanner is correctly imported from opencode_config",
+        "RunTestSuite: execute config-related tests to ensure no breakage"
+      ],
+      "test_commands": [
+        "cargo build --all-features",
+        "cargo test -p opencode-core",
+        "cargo test -p opencode-config"
+      ],
+      "impl_notes": "Module: config/core - HIGH priority, blocks release. Steps: 1) Read crates/core/src/config/directory_scanner.rs to confirm contents, 2) Read crates/config/src/directory_scanner.rs to verify duplicates, 3) Delete crates/core/src/config/directory_scanner.rs, 4) Update crates/core/src/lib.rs to use opencode_config::DirectoryScanner, 5) Search for remaining references to deleted file, 6) Verify with cargo build and tests",
+      "dependencies": []
+    },
+    {
+      "id": "P1-NEW-3",
+      "priority": "P1",
+      "title": "Audit Two ToolRegistry Implementations",
+      "description": "Audit two ToolRegistry implementations: crates/core/src/tool.rs and crates/tools/src/registry.rs. Trace all usages of core::ToolRegistry in agent runtime, verify which features from opencode_tools::ToolRegistry are needed, and determine consolidation approach. Technical Debt: TD-012",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify core::ToolRegistry functionality is preserved after audit",
+        "AddIntegrationTest: verify agent runtime works with consolidated registry",
+        "AddRegressionTest: ensure all tool operations work correctly"
+      ],
+      "test_commands": [
+        "cargo build --all-features",
+        "cargo test -p opencode-agent",
+        "cargo test -p opencode-tools"
+      ],
+      "impl_notes": "Module: core/tools - HIGH priority, blocks release. Options: A) Consolidate to single registry, B) Document intentional separation, C) Migrate agent to use full-featured registry",
+      "dependencies": [
+        "P1-NEW-2"
+      ]
+    },
+    {
+      "id": "P2-NEW-1",
+      "priority": "P2",
+      "title": "Add Route-Group Tests",
+      "description": "Add explicit route group tests for MCP, config, and provider endpoints. Reference: FR-004",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify /api/mcp/servers endpoint returns correct responses",
+        "AddIntegrationTest: verify /api/mcp/tools endpoint returns correct responses",
+        "AddIntegrationTest: verify MCP server registration workflow",
+        "AddIntegrationTest: verify /api/config endpoints work correctly",
+        "AddIntegrationTest: verify /api/providers endpoints work correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server server_integration"
+      ],
+      "impl_notes": "Module: server. Add tests for MCP route group (servers, tools), config route group, and provider route group",
+      "dependencies": []
+    },
+    {
+      "id": "P2-NEW-2",
+      "priority": "P2",
+      "title": "Add Malformed Request Body Tests",
+      "description": "Add tests for malformed request bodies including invalid JSON, missing required fields, extra unknown fields, wrong field types, empty body, and invalid session/message IDs. Reference: FR-004",
+      "status": "todo",
+      "test_criteria": [
+        "AddErrorHandlingTest: verify missing required fields returns 400 Bad Request",
+        "AddErrorHandlingTest: verify extra unknown fields are handled gracefully",
+        "AddErrorHandlingTest: verify wrong field types returns 400 Bad Request",
+        "AddErrorHandlingTest: verify empty body returns 400 Bad Request",
+        "AddErrorHandlingTest: verify operations on non-existent session return 404",
+        "AddErrorHandlingTest: verify operations on deleted session return 410 Gone",
+        "AddErrorHandlingTest: verify invalid session ID format returns 400 Bad Request"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server"
+      ],
+      "impl_notes": "Module: server. Test auth and session handling with malformed requests",
+      "dependencies": []
+    },
+    {
+      "id": "P2-NEW-3",
+      "priority": "P2",
+      "title": "Add Hook Determinism Test",
+      "description": "Add test to verify sorted_plugin_names() returns consistent ordering across 100 invocations with different plugin priorities. Reference: FR-008",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: register multiple plugins with different priorities",
+        "AddRegressionTest: verify sorted_plugin_names() returns consistent order across 100 calls",
+        "RunTestSuite: execute sorted_plugin_names test to verify determinism"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin sorted_plugin_names"
+      ],
+      "impl_notes": "Module: plugin. Read plugin/src/lib.rs around line 602-621 for sorted_plugin_names() implementation",
+      "dependencies": []
+    },
+    {
+      "id": "P2-NEW-4",
+      "priority": "P2",
+      "title": "Add Security Tests",
+      "description": "Add SQL injection and path traversal security tests. Reference: FR-004",
+      "status": "todo",
+      "test_criteria": [
+        "AddErrorHandlingTest: verify SQL injection in session IDs is prevented",
+        "AddErrorHandlingTest: verify SQL injection in message content is prevented",
+        "AddErrorHandlingTest: verify path traversal in file operations is prevented",
+        "AddErrorHandlingTest: verify ../ in paths is properly sanitized"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server"
+      ],
+      "impl_notes": "Module: server. Test SQL injection in session IDs and message content, path traversal in file operations",
+      "dependencies": []
+    },
+    {
+      "id": "FR-025",
+      "priority": "P2",
+      "title": "Implement ratatui-testing BufferDiff",
+      "description": "Implement cell-by-cell comparison of ratatui Buffer with x,y position reporting of differences, configurable ignore options (foreground, background, attributes), and human-readable diff output. Reference: FR-025",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify cell-by-cell Buffer comparison works correctly",
+        "AddUnitTest: verify x,y position reporting of differences",
+        "AddUnitTest: verify configurable ignore options (foreground, background, attributes)",
+        "AddUnitTest: verify human-readable diff output format"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing"
+      ],
+      "impl_notes": "Module: ratatui-testing. Read current stub in ratatui-testing/src/diff.rs and implement full functionality",
+      "dependencies": []
+    },
+    {
+      "id": "FR-026",
+      "priority": "P2",
+      "title": "Implement ratatui-testing StateTester",
+      "description": "Implement JSON state capture mechanism, snapshot comparison, and JSON diff reporting. Reference: FR-026",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify JSON state capture mechanism works correctly",
+        "AddUnitTest: verify snapshot comparison functionality",
+        "AddUnitTest: verify JSON diff reporting provides useful output"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing"
+      ],
+      "impl_notes": "Module: ratatui-testing. Read current stub in ratatui-testing/src/state.rs and implement full functionality",
+      "dependencies": [
+        "FR-025"
+      ]
+    },
+    {
+      "id": "FR-027",
+      "priority": "P2",
+      "title": "Implement ratatui-testing TestDsl",
+      "description": "Implement widget rendering to Buffer, PTY/BufferDiff/StateTester composition, fluent API with method chaining, and wait-for predicate support. Reference: FR-027",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify widget rendering to Buffer works correctly",
+        "AddUnitTest: verify PTY/BufferDiff/StateTester composition",
+        "AddUnitTest: verify fluent API with method chaining",
+        "AddUnitTest: verify wait-for predicate support"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing"
+      ],
+      "impl_notes": "Module: ratatui-testing. Read current stub in ratatui-testing/src/dsl.rs and implement full functionality",
+      "dependencies": [
+        "FR-025",
+        "FR-026"
+      ]
+    },
+    {
+      "id": "FR-028",
+      "priority": "P2",
+      "title": "Implement ratatui-testing CliTester",
+      "description": "Implement process spawning with arguments, stdout/stderr capture, exit code capture, and temp directory cleanup. Reference: FR-028",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify process spawning with arguments works correctly",
+        "AddUnitTest: verify stdout/stderr capture",
+        "AddUnitTest: verify exit code capture",
+        "AddUnitTest: verify temp directory cleanup"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing"
+      ],
+      "impl_notes": "Module: ratatui-testing. Read current stub in ratatui-testing/src/cli.rs and implement full functionality",
+      "dependencies": [
+        "FR-027"
+      ]
+    },
+    {
+      "id": "PHASE-6",
+      "priority": "P2",
+      "title": "Release Qualification",
+      "description": "Run full test suite, clippy, formatting check, doc tests, performance benchmarks, memory profiling, security audit, and documentation completeness check for release.",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: execute cargo test --all-features to verify all tests pass",
+        "AddRegressionTest: run cargo clippy to ensure code quality",
+        "AddRegressionTest: run cargo fmt to ensure formatting compliance",
+        "RunTestSuite: execute cargo test --doc to verify documentation tests"
+      ],
+      "test_commands": [
+        "cargo test --all-features",
+        "cargo clippy --all -- -D warnings",
+        "cargo fmt --all -- --check",
+        "cargo test --doc"
+      ],
+      "impl_notes": "Phase 6 release qualification. Must pass all tests before release.",
+      "dependencies": [
+        "P1-NEW-2",
+        "P1-NEW-3",
+        "P2-NEW-1",
+        "P2-NEW-2",
+        "P2-NEW-3",
+        "P2-NEW-4",
+        "FR-025",
+        "FR-026",
+        "FR-027",
+        "FR-028"
+      ]
+    }
+  ]
+}
