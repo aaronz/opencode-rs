@@ -88,6 +88,7 @@ mod tests {
             acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
                 AcpClientRegistry::new(),
             )),
+            temp_db_dir: Some(Box::new(temp_dir)),
         }
     }
 
@@ -114,6 +115,7 @@ mod tests {
             acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
                 AcpClientRegistry::new(),
             )),
+            temp_db_dir: Some(Box::new(temp_dir)),
         }
     }
 

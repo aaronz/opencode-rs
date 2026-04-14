@@ -6,7 +6,7 @@ use ratatui::{
     layout::Rect,
     style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, List, ListItem},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame,
 };
 
@@ -42,6 +42,14 @@ impl Dialog for ConnectModelDialog {
         f.render_widget(block.clone(), dialog_area);
 
         let inner = block.inner(dialog_area);
+
+        if self.models.is_empty() {
+            let empty_msg = Paragraph::new("No models available")
+                .style(Style::default().fg(self.theme.muted_color()));
+            f.render_widget(empty_msg, inner);
+            return;
+        }
+
         let items: Vec<ListItem> = self
             .models
             .iter()
@@ -96,23 +104,169 @@ mod tests {
     use super::*;
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
+    fn make_model(id: &str, name: &str) -> BrowserAuthModelInfo {
+        BrowserAuthModelInfo {
+            id: id.into(),
+            name: name.into(),
+        }
+    }
+
     #[test]
     fn connect_model_dialog_confirms_selected_model() {
         let mut dialog = ConnectModelDialog::new(
             Theme::default(),
             vec![
-                BrowserAuthModelInfo {
-                    id: "gpt-5.3-codex".into(),
-                    name: "GPT-5.3 Codex".into(),
-                },
-                BrowserAuthModelInfo {
-                    id: "gpt-4o".into(),
-                    name: "GPT-4o".into(),
-                },
+                make_model("gpt-5.3-codex", "GPT-5.3 Codex"),
+                make_model("gpt-4o", "GPT-4o"),
             ],
         );
 
         let action = dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
         assert_eq!(action, DialogAction::Confirm("gpt-5.3-codex".into()));
+    }
+
+    #[test]
+    fn empty_models_enter_closes_dialog() {
+        let mut dialog = ConnectModelDialog::new(Theme::default(), vec![]);
+
+        let action = dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert_eq!(action, DialogAction::Close);
+    }
+
+    #[test]
+    fn empty_models_up_does_not_panic() {
+        let mut dialog = ConnectModelDialog::new(Theme::default(), vec![]);
+
+        let action = dialog.handle_input(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
+        assert_eq!(action, DialogAction::None);
+    }
+
+    #[test]
+    fn empty_models_down_does_not_panic() {
+        let mut dialog = ConnectModelDialog::new(Theme::default(), vec![]);
+
+        let action = dialog.handle_input(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+        assert_eq!(action, DialogAction::None);
+    }
+
+    #[test]
+    fn single_model_down_stays_at_zero() {
+        let mut dialog =
+            ConnectModelDialog::new(Theme::default(), vec![make_model("gpt-4o", "GPT-4o")]);
+
+        dialog.handle_input(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    }
+
+    #[test]
+    fn single_model_up_wraps_to_zero() {
+        let mut dialog =
+            ConnectModelDialog::new(Theme::default(), vec![make_model("gpt-4o", "GPT-4o")]);
+
+        dialog.handle_input(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
+    }
+
+    #[test]
+    fn two_models_navigate_down_wraps() {
+        let mut dialog = ConnectModelDialog::new(
+            Theme::default(),
+            vec![
+                make_model("gpt-4o", "GPT-4o"),
+                make_model("gpt-4o-mini", "GPT-4o Mini"),
+            ],
+        );
+
+        dialog.handle_input(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+        let action = dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert_eq!(action, DialogAction::Confirm("gpt-4o-mini".into()));
+
+        dialog.handle_input(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+        let action = dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert_eq!(action, DialogAction::Confirm("gpt-4o".into()));
+    }
+
+    #[test]
+    fn two_models_navigate_up_wraps_to_last() {
+        let mut dialog = ConnectModelDialog::new(
+            Theme::default(),
+            vec![
+                make_model("gpt-4o", "GPT-4o"),
+                make_model("gpt-4o-mini", "GPT-4o Mini"),
+            ],
+        );
+
+        let action = dialog.handle_input(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
+        assert_eq!(action, DialogAction::None);
+        let action = dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert_eq!(action, DialogAction::Confirm("gpt-4o-mini".into()));
+    }
+
+    #[test]
+    fn three_models_traverse_all() {
+        let mut dialog = ConnectModelDialog::new(
+            Theme::default(),
+            vec![
+                make_model("gpt-4o", "GPT-4o"),
+                make_model("gpt-4o-mini", "GPT-4o Mini"),
+                make_model("claude-3.5", "Claude 3.5"),
+            ],
+        );
+
+        assert_eq!(
+            dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)),
+            DialogAction::Confirm("gpt-4o".into())
+        );
+
+        assert_eq!(
+            dialog.handle_input(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE)),
+            DialogAction::None
+        );
+        assert_eq!(
+            dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)),
+            DialogAction::Confirm("gpt-4o-mini".into())
+        );
+
+        assert_eq!(
+            dialog.handle_input(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE)),
+            DialogAction::None
+        );
+        assert_eq!(
+            dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)),
+            DialogAction::Confirm("claude-3.5".into())
+        );
+    }
+
+    #[test]
+    fn escape_always_closes() {
+        let mut dialog = ConnectModelDialog::new(Theme::default(), vec![]);
+        assert_eq!(
+            dialog.handle_input(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE)),
+            DialogAction::Close
+        );
+
+        let mut dialog =
+            ConnectModelDialog::new(Theme::default(), vec![make_model("gpt-4o", "GPT-4o")]);
+        assert_eq!(
+            dialog.handle_input(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE)),
+            DialogAction::Close
+        );
+    }
+
+    #[test]
+    fn unhandled_keys_return_none() {
+        let mut dialog =
+            ConnectModelDialog::new(Theme::default(), vec![make_model("gpt-4o", "GPT-4o")]);
+
+        assert_eq!(
+            dialog.handle_input(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE)),
+            DialogAction::None
+        );
+        assert_eq!(
+            dialog.handle_input(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE)),
+            DialogAction::None
+        );
+        assert_eq!(
+            dialog.handle_input(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE)),
+            DialogAction::None
+        );
     }
 }

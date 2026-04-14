@@ -18,7 +18,9 @@ use crossterm::{
     cursor,
     event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, LeaveAlternateScreen},
+    terminal::{
+        disable_raw_mode, enable_raw_mode, Clear as TermClear, ClearType, LeaveAlternateScreen,
+    },
 };
 use opencode_auth::CredentialStore;
 use opencode_core::{
@@ -1286,6 +1288,7 @@ impl App {
         let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
         execute!(
             io::stdout(),
+            TermClear(ClearType::All),
             cursor::SetCursorStyle::BlinkingBlock,
             cursor::Show
         )?;

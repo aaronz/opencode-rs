@@ -102,7 +102,7 @@
       "priority": "P2",
       "title": "Add Route-Group Tests",
       "description": "Add explicit route group tests for server integration. Test /api/mcp/servers, /api/mcp/tools, MCP server registration, /api/config endpoints, and /api/providers endpoints.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify /api/mcp/servers endpoint returns correct status",
         "AddIntegrationTest: verify /api/mcp/tools endpoint lists available tools",
@@ -114,7 +114,7 @@
       "test_commands": [
         "cargo test -p opencode-server server_integration"
       ],
-      "impl_notes": "Module: server. Reference FR-004. Add tests in existing server test structure.",
+      "impl_notes": "Module: server. Added 13 explicit route-group tests for MCP (servers endpoint structure, tools endpoint structure, connection states, handler, registration workflow), config (endpoint structure, update), and provider (list, get, status, create, delete) endpoints. All 32 route-group tests pass.",
       "dependencies": []
     },
     {

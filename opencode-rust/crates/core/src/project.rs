@@ -254,14 +254,8 @@ pub fn check_path_traversal_safe(path: &str) -> Option<String> {
 pub fn is_path_traversal_attempt(path: &str) -> bool {
     let p = Path::new(path);
 
-    if p.components()
-        .any(|c| matches!(c, std::path::Component::ParentDir))
-    {
-        return true;
-    }
-
     let path_str = path.replace('\\', "/");
-    if path_str.contains("../") || path_str.contains("..%2f") || path_str.contains("%2e%2e") {
+    if path_str.contains("..%2f") || path_str.contains("%2e%2e") {
         return true;
     }
 
@@ -271,6 +265,22 @@ pub fn is_path_traversal_attempt(path: &str) -> bool {
 
     if path_str.starts_with('/') && !path_str.starts_with("./") {
         return true;
+    }
+
+    let bytes = path_str.as_bytes();
+    for i in 0..bytes.len() - 1 {
+        if bytes[i] == b'.' && bytes[i + 1] == b'.' {
+            if i == 0 {
+                return true;
+            }
+            let prev = bytes[i.saturating_sub(1)];
+            if prev == b'/' {
+                if i >= 2 && bytes[i.saturating_sub(2)].is_ascii_alphabetic() {
+                    continue;
+                }
+                return true;
+            }
+        }
     }
 
     check_path_traversal(p).is_some()

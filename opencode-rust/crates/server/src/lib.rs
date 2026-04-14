@@ -47,6 +47,7 @@ pub struct ServerState {
     pub config: Arc<RwLock<Config>>,
     pub event_bus: SharedEventBus,
     pub reconnection_store: ReconnectionStore,
+    pub temp_db_dir: Option<Box<dyn std::any::Any + Send + Sync>>,
     pub connection_monitor: Arc<ConnectionMonitor>,
     pub share_server: Arc<RwLock<ShareServer>>,
     pub acp_enabled: bool,

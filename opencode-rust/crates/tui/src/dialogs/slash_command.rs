@@ -6,7 +6,7 @@ use ratatui::{
     layout::Rect,
     style::{Color, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, List, ListItem},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame,
 };
 
@@ -71,18 +71,25 @@ impl Dialog for SlashCommandOverlay {
         .block(Block::default().borders(Borders::ALL));
         f.render_widget(input_widget, inner_area);
 
-        let items: Vec<ListItem> = self
-            .filtered_commands
-            .iter()
-            .map(|cmd| ListItem::new(cmd.clone()))
-            .collect();
-
         let list_area = Rect::new(
             inner_area.x,
             inner_area.y + 3,
             inner_area.width,
             inner_area.height.saturating_sub(4),
         );
+
+        if self.filtered_commands.is_empty() {
+            let empty_msg = Paragraph::new("No commands match")
+                .style(Style::default().fg(self.theme.muted_color()));
+            f.render_widget(empty_msg, list_area);
+            return;
+        }
+
+        let items: Vec<ListItem> = self
+            .filtered_commands
+            .iter()
+            .map(|cmd| ListItem::new(cmd.clone()))
+            .collect();
 
         let list = List::new(items)
             .block(Block::default().borders(Borders::ALL))
@@ -94,7 +101,10 @@ impl Dialog for SlashCommandOverlay {
             );
 
         let mut state = ratatui::widgets::ListState::default();
-        state.select(Some(self.selected_index));
+        state.select(Some(
+            self.selected_index
+                .min(self.filtered_commands.len().saturating_sub(1)),
+        ));
         f.render_stateful_widget(list, list_area, &mut state);
     }
 
@@ -102,10 +112,12 @@ impl Dialog for SlashCommandOverlay {
         match key.code {
             KeyCode::Esc => DialogAction::Close,
             KeyCode::Enter => {
-                if let Some(cmd_name) = self.get_selected_command() {
+                if self.filtered_commands.is_empty() {
+                    DialogAction::Close
+                } else if let Some(cmd_name) = self.get_selected_command() {
                     DialogAction::Confirm(cmd_name)
                 } else {
-                    DialogAction::None
+                    DialogAction::Close
                 }
             }
             KeyCode::Up => {
@@ -129,6 +141,7 @@ impl Dialog for SlashCommandOverlay {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
     #[test]
     fn test_slash_command_overlay_new() {
@@ -146,5 +159,55 @@ mod tests {
 
         overlay.update_input(&registry, "p");
         assert!(!overlay.filtered_commands.is_empty());
+    }
+
+    #[test]
+    fn test_slash_command_empty_filter_closes_dialog() {
+        let theme = crate::theme::Theme::default();
+        let mut overlay = SlashCommandOverlay::new(theme);
+        let registry = CommandRegistry::new();
+
+        overlay.update_input(&registry, "zzzz_no_command_exists");
+        assert!(overlay.filtered_commands.is_empty());
+
+        let action = overlay.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert_eq!(action, DialogAction::Close);
+    }
+
+    #[test]
+    fn test_slash_command_enter_confirms_selected() {
+        let theme = crate::theme::Theme::default();
+        let mut overlay = SlashCommandOverlay::new(theme);
+        let registry = CommandRegistry::new();
+
+        overlay.update_input(&registry, "p");
+        let cmd = overlay.get_selected_command().unwrap();
+
+        let action = overlay.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert_eq!(action, DialogAction::Confirm(cmd));
+    }
+
+    #[test]
+    fn test_slash_command_escape_closes() {
+        let theme = crate::theme::Theme::default();
+        let mut overlay = SlashCommandOverlay::new(theme);
+
+        let action = overlay.handle_input(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+        assert_eq!(action, DialogAction::Close);
+    }
+
+    #[test]
+    fn test_slash_command_up_navigation() {
+        let theme = crate::theme::Theme::default();
+        let mut overlay = SlashCommandOverlay::new(theme);
+        let registry = CommandRegistry::new();
+
+        overlay.update_input(&registry, "");
+        let first_cmd = overlay.get_selected_command().unwrap();
+
+        overlay.handle_input(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
+        let after_up_cmd = overlay.get_selected_command().unwrap();
+
+        assert_eq!(first_cmd, after_up_cmd);
     }
 }

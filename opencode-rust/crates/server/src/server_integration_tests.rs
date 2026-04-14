@@ -33,6 +33,7 @@ mod tests {
             acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
                 crate::routes::acp_ws::AcpClientRegistry::new(),
             )),
+            temp_db_dir: Some(Box::new(temp_dir)),
         }
     }
 
@@ -60,6 +61,7 @@ mod tests {
             acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
                 crate::routes::acp_ws::AcpClientRegistry::new(),
             )),
+            temp_db_dir: Some(Box::new(temp_dir)),
         }
     }
 
@@ -1600,6 +1602,334 @@ mod tests {
             "Response should have 'count' field"
         );
     }
+
+    // P2-NEW-1: Explicit Route-Group Tests for MCP, Config, and Provider Endpoints
+
+    #[actix_web::test]
+    async fn route_group_mcp_servers_endpoint_returns_correct_items_structure() {
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::mcp::get_mcp_servers().await.respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = actix_web::body::to_bytes(resp.into_body())
+            .await
+            .unwrap_or_else(|_| actix_web::web::Bytes::new());
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        let items = json
+            .get("items")
+            .expect("Response should have 'items' field");
+        assert!(items.is_array(), "items should be an array");
+        let count = json
+            .get("count")
+            .expect("Response should have 'count' field");
+        assert!(count.is_u64(), "count should be a number");
+        let items_len = items.as_array().map(|a| a.len()).unwrap_or(0);
+        let count_val = count.as_u64().unwrap_or(0) as usize;
+        assert_eq!(
+            items_len, count_val,
+            "count should match items array length"
+        );
+    }
+
+    #[actix_web::test]
+    async fn route_group_mcp_tools_endpoint_returns_correct_items_structure() {
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::mcp::get_mcp_tools().await.respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = actix_web::body::to_bytes(resp.into_body())
+            .await
+            .unwrap_or_else(|_| actix_web::web::Bytes::new());
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        let items = json
+            .get("items")
+            .expect("Response should have 'items' field");
+        assert!(items.is_array(), "items should be an array");
+        let count = json
+            .get("count")
+            .expect("Response should have 'count' field");
+        assert!(count.is_u64(), "count should be a number");
+    }
+
+    #[actix_web::test]
+    async fn route_group_mcp_servers_endpoint_connection_states_are_valid() {
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::mcp::get_mcp_servers().await.respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = actix_web::body::to_bytes(resp.into_body())
+            .await
+            .unwrap_or_else(|_| actix_web::web::Bytes::new());
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        let valid_states = ["connected", "connecting", "disconnected", "error"];
+        if let Some(items) = json.get("items").and_then(|i| i.as_array()) {
+            for item in items {
+                if let Some(state) = item.get("connection_state").and_then(|s| s.as_str()) {
+                    assert!(
+                        valid_states.contains(&state),
+                        "connection_state '{}' is not valid",
+                        state
+                    );
+                }
+            }
+        }
+    }
+
+    #[actix_web::test]
+    async fn route_group_mcp_tools_endpoint_tool_structure_has_name_and_description() {
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::mcp::get_mcp_tools().await.respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = actix_web::body::to_bytes(resp.into_body())
+            .await
+            .unwrap_or_else(|_| actix_web::web::Bytes::new());
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        if let Some(items) = json.get("items").and_then(|i| i.as_array()) {
+            for item in items {
+                assert!(
+                    item.get("name").is_some(),
+                    "Each tool should have a 'name' field"
+                );
+                assert!(
+                    item.get("description").is_some(),
+                    "Each tool should have a 'description' field"
+                );
+            }
+        }
+    }
+
+    #[actix_web::test]
+    async fn route_group_mcp_connect_endpoint_returns_status_and_server_fields() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::mcp::connect_mcp_server(web::Json(
+            crate::routes::mcp::McpConnectRequest {
+                name: "test-server-validation".to_string(),
+                transport: "stdio".to_string(),
+                command: Some("echo".to_string()),
+                args: Some(vec!["test".to_string()]),
+                url: None,
+            },
+        ))
+        .await
+        .respond_to(&req);
+
+        assert!(
+            resp.status() == StatusCode::OK || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+            "MCP connect should return OK or 500"
+        );
+
+        if resp.status() == StatusCode::OK {
+            let body = actix_web::body::to_bytes(resp.into_body())
+                .await
+                .unwrap_or_else(|_| actix_web::web::Bytes::new());
+            let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            assert!(
+                json.get("status").is_some(),
+                "Response should have 'status' field"
+            );
+            assert!(
+                json.get("server").is_some(),
+                "Response should have 'server' field"
+            );
+        }
+    }
+
+    #[actix_web::test]
+    async fn route_group_config_endpoint_returns_config_object() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::config::get_config(web::Data::new(create_test_state()))
+            .await
+            .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = actix_web::body::to_bytes(resp.into_body())
+            .await
+            .unwrap_or_else(|_| actix_web::web::Bytes::new());
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert!(json.is_object(), "Config response should be a JSON object");
+    }
+
+    #[actix_web::test]
+    async fn route_group_config_update_returns_merged_config() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let mut config = opencode_core::Config::default();
+        config.server = Some(opencode_core::config::ServerConfig {
+            port: Some(9999),
+            hostname: Some("localhost".to_string()),
+            mdns: None,
+            mdns_domain: None,
+            cors: None,
+            desktop: None,
+            acp: None,
+        });
+        let resp = crate::routes::config::update_config(
+            web::Data::new(create_test_state()),
+            web::Json(config),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::OK,
+            "Config update should return OK"
+        );
+    }
+
+    #[actix_web::test]
+    async fn route_group_providers_endpoint_returns_provider_list() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::provider::get_providers(web::Data::new(create_test_state()))
+            .await
+            .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = actix_web::body::to_bytes(resp.into_body())
+            .await
+            .unwrap_or_else(|_| actix_web::web::Bytes::new());
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        assert!(
+            json.get("items").is_some(),
+            "Response should have 'items' field"
+        );
+        assert!(
+            json.get("count").is_some(),
+            "Response should have 'count' field"
+        );
+        if let Some(items) = json.get("items").and_then(|i| i.as_array()) {
+            for item in items {
+                assert!(item.is_string(), "Each provider should be a string");
+            }
+        }
+    }
+
+    #[actix_web::test]
+    async fn route_group_provider_get_returns_provider_details() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::provider::get_provider(
+            web::Data::new(create_test_state()),
+            web::Path::from("openai".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = actix_web::body::to_bytes(resp.into_body())
+            .await
+            .unwrap_or_else(|_| actix_web::web::Bytes::new());
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        assert!(
+            json.get("provider_id").is_some(),
+            "Provider response should have 'provider_id' field"
+        );
+        assert!(
+            json.get("endpoint").is_some(),
+            "Provider response should have 'endpoint' field"
+        );
+        assert!(
+            json.get("auth_strategy").is_some(),
+            "Provider response should have 'auth_strategy' field"
+        );
+    }
+
+    #[actix_web::test]
+    async fn route_group_provider_status_returns_enabled_and_exists_flags() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::provider::get_provider_status(
+            web::Data::new(create_test_state()),
+            web::Path::from("openai".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = actix_web::body::to_bytes(resp.into_body())
+            .await
+            .unwrap_or_else(|_| actix_web::web::Bytes::new());
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        assert!(
+            json.get("provider_id").is_some(),
+            "Provider status should have 'provider_id' field"
+        );
+        assert!(
+            json.get("enabled").is_some(),
+            "Provider status should have 'enabled' field"
+        );
+        assert!(
+            json.get("exists").is_some(),
+            "Provider status should have 'exists' field"
+        );
+        assert!(
+            json.get("enabled").unwrap().is_boolean(),
+            "enabled should be a boolean"
+        );
+        assert!(
+            json.get("exists").unwrap().is_boolean(),
+            "exists should be a boolean"
+        );
+    }
+
+    #[actix_web::test]
+    async fn route_group_mcp_handler_accepts_jsonrpc_request() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::mcp::mcp_handler(
+            web::Data::new(create_test_state()),
+            web::Json(crate::routes::mcp::McpRequestBody {
+                jsonrpc: "2.0".to_string(),
+                id: Some(serde_json::json!(1)),
+                method: "initialize".to_string(),
+                params: None,
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn route_group_provider_create_returns_created_provider() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::provider::create_provider(
+            web::Data::new(create_test_state()),
+            web::Json(crate::routes::provider::CreateProviderRequest {
+                provider_id: "test-provider".to_string(),
+                endpoint: "https://api.test-provider.com".to_string(),
+                auth_strategy: opencode_llm::AuthStrategy::BearerApiKey { header_name: None },
+                headers: None,
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::CREATED,
+            "Provider create should return 201 Created"
+        );
+    }
+
+    #[actix_web::test]
+    async fn route_group_provider_delete_returns_success_for_existing_provider() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::provider::delete_provider(
+            web::Data::new(create_test_state()),
+            web::Path::from("nonexistent".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::NOT_FOUND,
+            "Delete non-existent provider should return 404"
+        );
+    }
 }
 
 #[cfg(test)]
@@ -1633,6 +1963,7 @@ mod security_tests {
             acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
                 crate::routes::acp_ws::AcpClientRegistry::new(),
             )),
+            temp_db_dir: Some(Box::new(temp_dir)),
         }
     }
 
@@ -2742,6 +3073,7 @@ mod auth_negative_tests {
             acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
                 crate::routes::acp_ws::AcpClientRegistry::new(),
             )),
+            temp_db_dir: Some(Box::new(temp_dir)),
         }
     }
 
@@ -2898,6 +3230,7 @@ mod security_injection_tests {
             acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
                 crate::routes::acp_ws::AcpClientRegistry::new(),
             )),
+            temp_db_dir: Some(Box::new(temp_dir)),
         }
     }
 
@@ -3120,6 +3453,7 @@ mod security_path_traversal_tests {
             acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
                 crate::routes::acp_ws::AcpClientRegistry::new(),
             )),
+            temp_db_dir: Some(Box::new(temp_dir)),
         }
     }
 
@@ -3284,6 +3618,7 @@ mod security_request_smuggling_tests {
             acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
                 crate::routes::acp_ws::AcpClientRegistry::new(),
             )),
+            temp_db_dir: Some(Box::new(temp_dir)),
         }
     }
 

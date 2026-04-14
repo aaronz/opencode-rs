@@ -101,6 +101,8 @@ impl Dialog for ModelSelectionDialog {
             .constraints([Constraint::Length(3), Constraint::Min(0)])
             .split(inner_area);
 
+        let filtered = self.filtered_models();
+
         let filter_text = if self.filter.is_empty() {
             "Type to filter...".to_string()
         } else {
@@ -110,7 +112,13 @@ impl Dialog for ModelSelectionDialog {
             .block(Block::default().borders(Borders::ALL).title("Search"));
         f.render_widget(filter_widget, chunks[0]);
 
-        let filtered = self.filtered_models();
+        if filtered.is_empty() {
+            let empty_msg = Paragraph::new("No models match filter")
+                .style(Style::default().fg(self.theme.muted_color()));
+            f.render_widget(empty_msg, chunks[1]);
+            return;
+        }
+
         let items: Vec<ListItem> = filtered
             .iter()
             .map(|model| {
@@ -141,7 +149,9 @@ impl Dialog for ModelSelectionDialog {
             .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
         let mut state = ratatui::widgets::ListState::default();
-        state.select(Some(self.selected_index));
+        state.select(Some(
+            self.selected_index.min(filtered.len().saturating_sub(1)),
+        ));
         f.render_stateful_widget(list, chunks[1], &mut state);
     }
 
@@ -150,10 +160,12 @@ impl Dialog for ModelSelectionDialog {
             KeyCode::Esc => DialogAction::Close,
             KeyCode::Enter => {
                 let filtered = self.filtered_models();
-                if let Some(model) = filtered.get(self.selected_index) {
+                if filtered.is_empty() {
+                    DialogAction::Close
+                } else if let Some(model) = filtered.get(self.selected_index) {
                     DialogAction::Confirm(model.id.clone())
                 } else {
-                    DialogAction::None
+                    DialogAction::Close
                 }
             }
             KeyCode::Up => {
@@ -181,5 +193,101 @@ impl Dialog for ModelSelectionDialog {
             }
             _ => DialogAction::None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    fn make_model(id: &str, name: &str, provider: &str) -> ModelInfo {
+        ModelInfo {
+            id: id.into(),
+            name: name.into(),
+            provider: provider.into(),
+            is_paid: true,
+            is_available: true,
+        }
+    }
+
+    #[test]
+    fn model_selection_dialog_confirms_selected_model() {
+        let mut dialog = ModelSelectionDialog::new(Theme::default());
+
+        let action = dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert_eq!(action, DialogAction::Confirm("gpt-4o".into()));
+    }
+
+    #[test]
+    fn model_selection_filter_reduces_list() {
+        let theme = Theme::default();
+        let mut dialog = ModelSelectionDialog::new(theme);
+        dialog.models = vec![
+            make_model("gpt-4o", "GPT-4o", "OpenAI"),
+            make_model("claude", "Claude 3.5", "Anthropic"),
+        ];
+
+        dialog.handle_input(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE));
+
+        let filtered = dialog.filtered_models();
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].id, "claude");
+    }
+
+    #[test]
+    fn model_selection_empty_filter_closes_dialog() {
+        let theme = Theme::default();
+        let mut dialog = ModelSelectionDialog::new(theme);
+        dialog.models = vec![make_model("gpt-4o", "GPT-4o", "OpenAI")];
+
+        dialog.handle_input(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE));
+        dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert_eq!(
+            dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)),
+            DialogAction::Close
+        );
+    }
+
+    #[test]
+    fn model_selection_navigation_wraps() {
+        let theme = Theme::default();
+        let mut dialog = ModelSelectionDialog::new(theme);
+        dialog.models = vec![
+            make_model("gpt-4o", "GPT-4o", "OpenAI"),
+            make_model("claude", "Claude 3.5", "Anthropic"),
+        ];
+
+        dialog.handle_input(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+        let action = dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert_eq!(action, DialogAction::Confirm("claude".into()));
+    }
+
+    #[test]
+    fn model_selection_escape_always_closes() {
+        let theme = Theme::default();
+        let mut dialog = ModelSelectionDialog::new(theme);
+        dialog.models = vec![];
+
+        assert_eq!(
+            dialog.handle_input(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE)),
+            DialogAction::Close
+        );
+    }
+
+    #[test]
+    fn model_selection_backspace_resets_filter() {
+        let theme = Theme::default();
+        let mut dialog = ModelSelectionDialog::new(theme);
+        dialog.models = vec![
+            make_model("gpt-4o", "GPT-4o", "OpenAI"),
+            make_model("claude", "Claude 3.5", "Anthropic"),
+        ];
+
+        dialog.handle_input(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE));
+        assert_eq!(dialog.filtered_models().len(), 1);
+
+        dialog.handle_input(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
+        assert_eq!(dialog.filtered_models().len(), 2);
     }
 }

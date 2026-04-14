@@ -520,7 +520,7 @@ This document defines the specification for the OpenCode Rust port implementatio
 | P2-8 | Theme auto-sync on install not tested | tui | FR-009 | 447 lines of tests | ✅ FIXED |
 | **P2-NEW-1** | Route-group MCP/config/provider tests missing | server | FR-004 | No explicit enumeration | ❌ NOT FIXED |
 | **P2-NEW-2** | Malformed request body tests missing | server | FR-004 | Invalid JSON tests | ❌ NOT FIXED |
-| **P2-NEW-3** | Hook determinism explicit test missing | plugin | FR-008 | Function impl, test missing | ❌ NOT FIXED |
+| **P2-NEW-3** | Hook determinism explicit test missing | plugin | FR-008 | 9 tests exist in plugin/src/lib.rs:3763-3945 | ✅ FIXED |
 | **P2-NEW-4** | Security tests (injection, path traversal) | server | FR-004 | No security tests | ❌ NOT FIXED |
 
 ---

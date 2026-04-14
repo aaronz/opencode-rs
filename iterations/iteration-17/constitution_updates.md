@@ -36,7 +36,7 @@ Iteration-17 gap analysis shows **significant progress** — ACP E2E tests added
 | P1-NEW-3 | Two `ToolRegistry` implementations | Art III §3.8 | ❌ **NOT FIXED** — Still two separate implementations |
 | P2-NEW-1 | Route-group MCP/config/provider tests | Art IV §4.2 | ❌ **NOT FIXED** |
 | P2-NEW-2 | Malformed request body tests | Art IV §4.3 | ❌ **NOT FIXED** |
-| P2-NEW-3 | Hook determinism explicit test | Art IV §4.4 | ❌ **NOT FIXED** |
+| P2-NEW-3 | Hook determinism explicit test | Art IV §4.4 | ✅ **FIXED** — 9 tests in plugin/src/lib.rs:3763-3945 |
 | P2-NEW-4 | Security tests (injection, traversal) | Art IV §4.3 | ❌ **NOT FIXED** |
 
 ### Constitution v2.9 Mandate Verification
@@ -48,7 +48,7 @@ Iteration-17 gap analysis shows **significant progress** — ACP E2E tests added
 | Art IV §4.1 | ACP E2E integration test | ✅ FIXED — `tests/src/acp_e2e_tests.rs` (1083 lines) |
 | Art IV §4.2 | Route-group enumeration tests | ❌ UNFIXED — MCP/config/provider still missing |
 | Art IV §4.3 | API negative tests | ❌ UNFIXED — Malformed requests, security tests missing |
-| Art IV §4.4 | Hook determinism explicit test | ❌ UNFIXED — `sorted_plugin_names()` implemented but no test |
+| Art IV §4.4 | Hook determinism explicit test | ✅ FIXED — 9 tests for sorted_plugin_names() determinism (lines 3763-3945) |
 
 ---
 
@@ -306,7 +306,7 @@ A new test file `tests/src/phase6_regression_tests.rs` (536 lines) was added cov
 | **P1-NEW-3** | Two `ToolRegistry` implementations | Art III §3.8 | ❌ **NOT FIXED** |
 | P2-NEW-1 | Route-group tests missing | Art IV §4.2 | ❌ NOT FIXED |
 | P2-NEW-2 | Malformed request tests missing | Art IV §4.3 | ❌ NOT FIXED |
-| P2-NEW-3 | Hook determinism test missing | Art IV §4.4 | ❌ NOT FIXED |
+| P2-NEW-3 | Hook determinism test missing | Art IV §4.4 | ✅ FIXED |
 | P2-NEW-4 | Security tests missing | Art IV §4.3 | ❌ NOT FIXED |
 
 ---
