@@ -1,0 +1,306 @@
+{
+  "tasks": [
+    {
+      "id": "P0-1",
+      "priority": "P0",
+      "title": "Custom tool discovery scans TOOL.md instead of .ts/.js",
+      "description": "Custom tool discovery scans TOOL.md instead of .ts/.js files. The tool discovery mechanism should scan for .ts and .js files, not TOOL.md documentation files.",
+      "status": "done",
+      "test_criteria": [
+        "AddRegressionTest: verify tool discovery finds .ts/.js files in tool directories",
+        "AddRegressionTest: ensure TOOL.md files are not treated as tool source files",
+        "RunTestSuite: execute tool discovery tests to confirm correct file filtering"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools -- tool_discovery",
+        "cargo build --all-features"
+      ],
+      "impl_notes": "Module: tools. Check file extension filtering in tool scanner implementation.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-2",
+      "priority": "P0",
+      "title": "Custom tools not registered with ToolRegistry",
+      "description": "Custom tools are not being registered with the ToolRegistry, causing them to be unavailable at runtime.",
+      "status": "done",
+      "test_criteria": [
+        "AddRegressionTest: verify custom tools appear in ToolRegistry listing",
+        "AddRegressionTest: ensure custom tools can be executed via registry",
+        "RunTestSuite: execute tool registration tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools -- tool_registration",
+        "cargo build --all-features"
+      ],
+      "impl_notes": "Module: tools. Ensure custom tool loader calls ToolRegistry::register().",
+      "dependencies": [
+        "P0-1"
+      ]
+    },
+    {
+      "id": "P0-3",
+      "priority": "P0",
+      "title": "Plugin tool registration missing",
+      "description": "Plugin tool registration is missing, preventing plugins from exposing their tools to the agent runtime.",
+      "status": "done",
+      "test_criteria": [
+        "AddRegressionTest: verify plugin tools are exposed via plugin registry",
+        "AddRegressionTest: ensure plugins can register multiple tools",
+        "RunTestSuite: execute plugin integration tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin -- tool",
+        "cargo build --all-features"
+      ],
+      "impl_notes": "Module: plugin. Check plugin_init() registers tools with ToolRegistry.",
+      "dependencies": [
+        "P0-2"
+      ]
+    },
+    {
+      "id": "P1-NEW-2",
+      "priority": "P1",
+      "title": "Fix Duplicate directory_scanner.rs",
+      "description": "There is a duplicate directory_scanner.rs file causing compilation issues. Need to consolidate into single location in config/core.",
+      "status": "done",
+      "test_criteria": [
+        "AddRegressionTest: verify directory scanning works from single location",
+        "RunTestSuite: cargo build succeeds without duplicate file errors",
+        "AddUnitTest: verify directory scanner finds files correctly"
+      ],
+      "test_commands": [
+        "cargo build --all-features",
+        "cargo test -p opencode-config -- directory_scanner"
+      ],
+      "impl_notes": "Module: config/core. Remove duplicate, keep single source of truth.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-NEW-3",
+      "priority": "P1",
+      "title": "Audit Two ToolRegistry Implementations",
+      "description": "There are two ToolRegistry implementations: crates/core/src/tool.rs (~1025 lines) and crates/tools/src/registry.rs (~2288 lines). Need to audit and determine which is the canonical implementation. Steps: 1) Read core ToolRegistry, 2) Read tools ToolRegistry, 3) Search all usages of opencode_core::ToolRegistry, 4) Verify agent runtime uses opencode_tools::ToolRegistry, 5) Determine if core::ToolRegistry is dead code, 6) If dead code, remove from core and update exports.",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify agent runtime uses opencode_tools::ToolRegistry",
+        "AddRegressionTest: ensure tool execution still works after potential removal",
+        "RunTestSuite: cargo build --all-features succeeds",
+        "AddIntegrationTest: verify tool registry operations work end-to-end"
+      ],
+      "test_commands": [
+        "cargo build --all-features",
+        "cargo test -p opencode-core",
+        "cargo test -p opencode-tools -- ToolRegistry",
+        "grep -r 'opencode_core::ToolRegistry\\|core::ToolRegistry\\|crate::ToolRegistry' --include='*.rs'"
+      ],
+      "impl_notes": "Module: core/tools. HIGH priority - blocks release. Determine canonical implementation and remove dead code if applicable.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-1",
+      "priority": "P2",
+      "title": "Add Route-Group Tests",
+      "description": "Add explicit route group tests for server integration. Test /api/mcp/servers, /api/mcp/tools, MCP server registration, /api/config endpoints, and /api/providers endpoints.",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify /api/mcp/servers endpoint returns correct status",
+        "AddIntegrationTest: verify /api/mcp/tools endpoint lists available tools",
+        "AddIntegrationTest: verify MCP server registration workflow",
+        "AddIntegrationTest: verify /api/config endpoint handles GET/PUT",
+        "AddIntegrationTest: verify /api/providers endpoint lists providers",
+        "RunTestSuite: execute server_integration tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server server_integration"
+      ],
+      "impl_notes": "Module: server. Reference FR-004. Add tests in existing server test structure.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-2",
+      "priority": "P2",
+      "title": "Add Malformed Request Body Tests",
+      "description": "Add tests for malformed request handling: invalid JSON body (missing required fields, extra unknown fields, wrong field types, empty body), invalid session/message IDs (operations on non-existent session, deleted session, invalid ID format).",
+      "status": "todo",
+      "test_criteria": [
+        "AddErrorHandlingTest: verify missing required fields returns 400",
+        "AddErrorHandlingTest: verify extra unknown fields are rejected",
+        "AddErrorHandlingTest: verify wrong field types return validation error",
+        "AddErrorHandlingTest: verify empty body returns appropriate error",
+        "AddErrorHandlingTest: verify operations on non-existent session return 404",
+        "AddErrorHandlingTest: verify operations on deleted session return 410",
+        "AddErrorHandlingTest: verify invalid session ID format returns 400",
+        "RunTestSuite: execute server error handling tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server"
+      ],
+      "impl_notes": "Module: server. Reference FR-004. Follow existing auth test patterns.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-3",
+      "priority": "P2",
+      "title": "Add Hook Determinism Test",
+      "description": "Create test for hook deterministic ordering. Register multiple plugins with different priorities, call sorted_plugin_names() 100 times, verify consistent ordering across all invocations.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: register 5+ plugins with varying priorities",
+        "AddUnitTest: call sorted_plugin_names() 100 times consecutively",
+        "AddUnitTest: assert ordering is identical across all 100 invocations",
+        "AddRegressionTest: verify priority ordering is lexicographically stable",
+        "RunTestSuite: execute sorted_plugin_names tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin sorted_plugin_names"
+      ],
+      "impl_notes": "Module: plugin. Reference FR-008. Read plugin/src/lib.rs around line 602-621.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-4",
+      "priority": "P2",
+      "title": "Add Security Tests",
+      "description": "Add security tests for SQL injection and path traversal: SQL injection in session IDs, SQL injection in message content, path traversal in file operations, ../ in paths.",
+      "status": "todo",
+      "test_criteria": [
+        "AddErrorHandlingTest: verify SQL injection in session ID is sanitized",
+        "AddErrorHandlingTest: verify SQL injection in message content is sanitized",
+        "AddErrorHandlingTest: verify path traversal with ../ is blocked",
+        "AddErrorHandlingTest: verify path traversal in file operations returns error",
+        "AddRegressionTest: ensure sanitization does not break valid inputs",
+        "RunTestSuite: execute server security tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server"
+      ],
+      "impl_notes": "Module: server. Reference FR-004. Test both input validation and sanitization.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-5",
+      "priority": "P2",
+      "title": "Implement ratatui-testing BufferDiff (FR-023.2)",
+      "description": "Implement BufferDiff struct for comparing two Buffers cell-by-cell. Must report exact x,y of differences, support ignoring foreground color, background color, and attributes (bold, italic, etc.), and provide human-readable diff output.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify BufferDiff compares two Buffers cell-by-cell",
+        "AddUnitTest: verify exact x,y position of differences is reported",
+        "AddUnitTest: verify ignoring foreground color option works",
+        "AddUnitTest: verify ignoring background color option works",
+        "AddUnitTest: verify ignoring attributes (bold, italic) option works",
+        "AddUnitTest: verify human-readable diff output format",
+        "AddIntegrationTest: verify diff_str() method works for string comparison",
+        "RunTestSuite: execute ratatui-testing BufferDiff tests"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing"
+      ],
+      "impl_notes": "Module: ratatui-testing. Reference FR-023.2. Read current stub in diff.rs. Implement BufferDiff struct, diff() method, diff_str() method, DiffResult and CellDiff types.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-6",
+      "priority": "P2",
+      "title": "Implement ratatui-testing StateTester (FR-023.3)",
+      "description": "Implement StateTester for capturing serializable state to JSON, comparing current state to captured snapshot, and reporting mismatches with JSON diff.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify capture() method serializes state to JSON",
+        "AddUnitTest: verify assert_state() compares current to snapshot",
+        "AddUnitTest: verify assert_state_matches() returns pass on identical state",
+        "AddUnitTest: verify JSON diff is shown on mismatch",
+        "AddIntegrationTest: verify StateTester works with complex nested state",
+        "RunTestSuite: execute ratatui-testing StateTester tests"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing"
+      ],
+      "impl_notes": "Module: ratatui-testing. Reference FR-023.3. Read current stub in state.rs. Implement StateTester struct, capture() method, assert_state() method, assert_state_matches() method.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-7",
+      "priority": "P2",
+      "title": "Implement ratatui-testing TestDsl (FR-023.4)",
+      "description": "Implement TestDsl struct composing PtySimulator, BufferDiff, StateTester. Must render widget to Buffer, compose PTY/BufferDiff/StateTester, provide fluent API chains, and support wait-for predicates.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify TestDsl::new() creates instance with defaults",
+        "AddUnitTest: verify with_pty() and pty_mut() methods work",
+        "AddUnitTest: verify buffer_diff() returns BufferDiff instance",
+        "AddUnitTest: verify state_tester() returns StateTester instance",
+        "AddIntegrationTest: verify render() renders widget to Buffer correctly",
+        "AddIntegrationTest: verify assert_buffer_eq() compares rendered output",
+        "AddIntegrationTest: verify send_keys() sends input to PTY",
+        "AddIntegrationTest: verify wait_for() predicate support works",
+        "AddIntegrationTest: verify capture_state() and assert_state() methods",
+        "RunTestSuite: execute ratatui-testing TestDsl tests"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing"
+      ],
+      "impl_notes": "Module: ratatui-testing. Reference FR-023.4. Read current stub in dsl.rs. Implement TestDsl struct composing PtySimulator, BufferDiff, StateTester with fluent API.",
+      "dependencies": [
+        "P2-5",
+        "P2-6"
+      ]
+    },
+    {
+      "id": "P2-8",
+      "priority": "P2",
+      "title": "Implement ratatui-testing CliTester (FR-023.5)",
+      "description": "Implement CliTester for spawning processes with args, capturing stdout/stderr, returning exit code, and cleaning up temp directories.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify CliTester::new() creates instance",
+        "AddUnitTest: verify with_temp_dir() creates temporary directory",
+        "AddIntegrationTest: verify run() spawns process with correct args",
+        "AddIntegrationTest: verify capture_stdout() returns stdout output",
+        "AddIntegrationTest: verify capture_stderr() returns stderr output",
+        "AddIntegrationTest: verify exit code is returned correctly",
+        "AddRegressionTest: verify temp directory is cleaned up after test",
+        "RunTestSuite: execute ratatui-testing CliTester tests"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing"
+      ],
+      "impl_notes": "Module: ratatui-testing. Reference FR-023.5. Read current stub in cli.rs. Implement CliTester struct with temp_dir, run() method, capture_stdout/capture_stderr methods, and CliOutput struct.",
+      "dependencies": []
+    },
+    {
+      "id": "PHASE-6",
+      "priority": "P2",
+      "title": "Release Qualification",
+      "description": "Run full release qualification checklist: full test suite, clippy, formatting check, doc tests, performance benchmarks, memory profiling, security audit, documentation completeness check.",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: cargo test --all-features passes completely",
+        "AddRegressionTest: cargo clippy --all -- -D warnings passes with no warnings",
+        "AddRegressionTest: cargo fmt --all -- --check passes with correct formatting",
+        "RunTestSuite: cargo test --doc passes all doc tests",
+        "AddRegressionTest: no new compiler warnings or errors introduced",
+        "AddRegressionTest: all existing tests continue to pass"
+      ],
+      "test_commands": [
+        "cargo test --all-features",
+        "cargo clippy --all -- -D warnings",
+        "cargo fmt --all -- --check",
+        "cargo test --doc"
+      ],
+      "impl_notes": "Phase 6 release qualification. Run after all P0/P1/P2 tasks complete.",
+      "dependencies": [
+        "P1-NEW-3",
+        "P2-1",
+        "P2-2",
+        "P2-3",
+        "P2-4",
+        "P2-5",
+        "P2-6",
+        "P2-7",
+        "P2-8"
+      ]
+    }
+  ]
+}

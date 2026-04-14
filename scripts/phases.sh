@@ -369,9 +369,19 @@ $(cat $constitution 2>/dev/null || echo "使用默认Constitution")
     local test_output=""
     local task_details_obj=$(echo "$task_details" | python3 -c "import sys,json; print(json.dumps(json.load(sys.stdin)))" 2>/dev/null)
     if [ -n "$task_details_obj" ]; then
-        local test_commands=$(echo "$task_details_obj" | python3 -c "import sys,json; print(' '.join(json.load(sys.stdin).get('test_commands', ['cargo build'])))" 2>/dev/null || echo "cargo build")
-        echo "运行: $test_commands"
-        test_output=$(cd opencode-rust && eval "$test_commands" 2>&1) && echo "测试通过" || { echo "⚠️  测试有问题，请检查"; test_passed=false; }
+        local test_commands=$(echo "$task_details_obj" | python3 -c "import sys,json; cmds=json.load(sys.stdin).get('test_commands', ['cargo build']); print('\n'.join(cmds) if cmds else 'cargo build')" 2>/dev/null || echo "cargo build")
+        echo "运行测试命令..."
+        while IFS= read -r cmd; do
+            echo "执行: $cmd"
+            if ! (cd opencode-rust && eval "$cmd" 2>&1); then
+                echo "⚠️  测试有问题，请检查"
+                test_passed=false
+                break
+            fi
+        done <<< "$test_commands"
+        if [ "$test_passed" = true ]; then
+            echo "测试通过"
+        fi
     fi
 
     if [ "$test_passed" = false ]; then
