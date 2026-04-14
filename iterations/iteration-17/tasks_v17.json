@@ -75,7 +75,7 @@
       "priority": "P1",
       "title": "Audit Two ToolRegistry Implementations",
       "description": "Audit two ToolRegistry implementations: crates/core/src/tool.rs and crates/tools/src/registry.rs. Trace all usages of core::ToolRegistry in agent runtime, verify which features from opencode_tools::ToolRegistry are needed, and determine consolidation approach. Technical Debt: TD-012",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify core::ToolRegistry functionality is preserved after audit",
         "AddIntegrationTest: verify agent runtime works with consolidated registry",

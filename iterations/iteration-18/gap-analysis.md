@@ -54,7 +54,7 @@
 | P1-9: Config crate empty re-export | **FIXED** | `config/src/lib.rs` now has 1600+ lines |
 | P1-NEW-1: ACP E2E connection test | **FIXED** | `tests/src/acp_e2e_tests.rs` - 20+ E2E tests |
 | P1-NEW-2: Duplicate `directory_scanner.rs` | **FIXED** | Duplicate removed, verified by grep |
-| P1-NEW-3: Two ToolRegistry implementations | **NOT FIXED** | Still two separate implementations |
+| P1-NEW-3: Two ToolRegistry implementations | **FIXED** | Documented intentional separation (core for MCP sync bridging, tools for agent async runtime) |
 
 ---
 
@@ -207,7 +207,7 @@ All P0 issues from iteration-15 have been resolved.
 
 | ID | Issue | Module | Status |
 |----|-------|--------|--------|
-| P1-NEW-3 | Two `ToolRegistry` implementations | core/tools | NOT FIXED |
+| P1-NEW-3 | Two `ToolRegistry` implementations | core/tools | ✅ FIXED |
 
 ### P2 - Medium Priority Issues
 

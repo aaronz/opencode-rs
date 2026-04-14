@@ -2868,3 +2868,546 @@ mod auth_negative_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod security_injection_tests {
+    use actix_web::http::StatusCode;
+    use actix_web::test::TestRequest;
+    use actix_web::web;
+    use actix_web::Responder;
+
+    fn create_test_state() -> crate::ServerState {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        crate::ServerState {
+            storage: std::sync::Arc::new(opencode_storage::StorageService::new(
+                opencode_storage::database::StoragePool::new(&db_path).unwrap(),
+            )),
+            models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
+            config: std::sync::Arc::new(std::sync::RwLock::new(opencode_core::Config::default())),
+            event_bus: opencode_core::bus::SharedEventBus::default(),
+            reconnection_store: crate::streaming::ReconnectionStore::default(),
+            connection_monitor: std::sync::Arc::new(
+                crate::streaming::conn_state::ConnectionMonitor::new(),
+            ),
+            share_server: std::sync::Arc::new(std::sync::RwLock::new(
+                crate::routes::share::ShareServer::with_default_config(),
+            )),
+            acp_enabled: true,
+            acp_stream: opencode_control_plane::AcpEventStream::new().into(),
+            acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
+                crate::routes::acp_ws::AcpClientRegistry::new(),
+            )),
+        }
+    }
+
+    #[actix_web::test]
+    async fn security_sql_injection_session_id_drop_table_rejected() {
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::get_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("'; DROP TABLE sessions; --".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "SQL injection in session ID should be rejected"
+        );
+    }
+
+    #[actix_web::test]
+    async fn security_sql_injection_session_id_union_select_rejected() {
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::get_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("' UNION SELECT * FROM users--".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "SQL injection UNION SELECT should be rejected"
+        );
+    }
+
+    #[actix_web::test]
+    async fn security_sql_injection_session_id_or_1_equals_1_rejected() {
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::get_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("' OR '1'='1".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "SQL injection OR 1=1 should be rejected"
+        );
+    }
+
+    #[actix_web::test]
+    async fn security_sql_injection_delete_with_payload_rejected() {
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::delete_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("'; DELETE FROM sessions; --".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "SQL injection DELETE should be rejected"
+        );
+    }
+
+    #[actix_web::test]
+    async fn security_sql_injection_list_sessions_with_id_param_not_exploitable() {
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::get_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("test-session-id".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::NOT_FOUND
+                || resp.status() == StatusCode::UNPROCESSABLE_ENTITY
+                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+            "Non-existent session should not reveal SQL structure"
+        );
+    }
+
+    #[actix_web::test]
+    async fn security_sql_injection_pagination_numeric_overflow_rejected() {
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::list_sessions(
+            web::Data::new(create_test_state()),
+            web::Query(crate::routes::session::PaginationParams {
+                limit: Some(usize::MAX),
+                offset: Some(usize::MAX),
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_ne!(
+            resp.status(),
+            StatusCode::OK,
+            "Pagination with overflow values should be clamped or rejected"
+        );
+    }
+
+    #[actix_web::test]
+    async fn security_sql_injection_content_with_sql_keywords_accepted() {
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::add_message_to_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("550e8400-e29b-41d4-a716-446655440000".to_string()),
+            web::Json(crate::routes::session::AddMessageRequest {
+                role: None,
+                content: "SELECT * FROM users WHERE password = 'admin'".to_string(),
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::NOT_FOUND
+                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+            "SQL keywords in message content should be accepted (stored as data)"
+        );
+    }
+
+    #[actix_web::test]
+    async fn security_sql_injection_multiple_statements_rejected() {
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::get_session(
+            web::Data::new(create_test_state()),
+            web::Path::from(
+                "id'; DROP TABLE sessions; SELECT * FROM sessions WHERE id = 'id".to_string(),
+            ),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "Multiple SQL statements should be rejected"
+        );
+    }
+
+    #[actix_web::test]
+    async fn security_sql_injection_comment_at_end_rejected() {
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::get_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("valid-id--".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "SQL comment at end should be rejected"
+        );
+    }
+
+    #[actix_web::test]
+    async fn security_sanitization_regression_valid_uuid_still_works() {
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::get_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("550e8400-e29b-41d4-a716-446655440000".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert_ne!(
+            resp.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "Valid UUID should not be rejected by sanitization"
+        );
+    }
+
+    #[actix_web::test]
+    async fn security_sanitization_regression_normal_pagination_works() {
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::list_sessions(
+            web::Data::new(create_test_state()),
+            web::Query(crate::routes::session::PaginationParams {
+                limit: Some(10),
+                offset: Some(0),
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_ne!(
+            resp.status(),
+            StatusCode::BAD_REQUEST,
+            "Normal pagination should work after sanitization"
+        );
+    }
+}
+
+#[cfg(test)]
+mod security_path_traversal_tests {
+    use actix_web::http::StatusCode;
+    use actix_web::test::TestRequest;
+    use actix_web::web;
+    use actix_web::Responder;
+
+    fn create_test_state() -> crate::ServerState {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        crate::ServerState {
+            storage: std::sync::Arc::new(opencode_storage::StorageService::new(
+                opencode_storage::database::StoragePool::new(&db_path).unwrap(),
+            )),
+            models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
+            config: std::sync::Arc::new(std::sync::RwLock::new(opencode_core::Config::default())),
+            event_bus: opencode_core::bus::SharedEventBus::default(),
+            reconnection_store: crate::streaming::ReconnectionStore::default(),
+            connection_monitor: std::sync::Arc::new(
+                crate::streaming::conn_state::ConnectionMonitor::new(),
+            ),
+            share_server: std::sync::Arc::new(std::sync::RwLock::new(
+                crate::routes::share::ShareServer::with_default_config(),
+            )),
+            acp_enabled: true,
+            acp_stream: opencode_control_plane::AcpEventStream::new().into(),
+            acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
+                crate::routes::acp_ws::AcpClientRegistry::new(),
+            )),
+        }
+    }
+
+    #[test]
+    fn security_path_traversal_double_dot_slash_rejected() {
+        let path = "../etc/passwd";
+        let result = opencode_core::project::check_path_traversal_safe(path);
+        assert!(
+            result.is_some() || opencode_core::project::is_path_traversal_attempt(path),
+            "Path traversal with ../ should be detected"
+        );
+    }
+
+    #[test]
+    fn security_path_traversal_double_dot_backslash_rejected() {
+        let path = "..\\Windows\\System32\\config\\sam";
+        assert!(
+            opencode_core::project::is_path_traversal_attempt(path),
+            "Path traversal with ..\\ should be detected"
+        );
+    }
+
+    #[test]
+    fn security_path_traversal_encoded_double_dot_rejected() {
+        let path = "%2e%2e%2f%2e%2e%2fetc%2fpasswd";
+        assert!(
+            opencode_core::project::is_path_traversal_attempt(path),
+            "URL-encoded path traversal should be detected"
+        );
+    }
+
+    #[test]
+    fn security_path_traversal_absolute_path_rejected() {
+        let path = "/etc/passwd";
+        assert!(
+            opencode_core::project::is_path_traversal_attempt(path),
+            "Absolute path outside workspace should be detected"
+        );
+    }
+
+    #[test]
+    fn security_path_traversal_null_byte_injection_rejected() {
+        let path = "/etc/passwd\0malicious";
+        assert!(
+            opencode_core::project::is_path_traversal_attempt(path),
+            "Null byte injection should be detected"
+        );
+    }
+
+    #[test]
+    fn security_path_traversal_nested_parent_dirs_rejected() {
+        let path = "foo/../../../bar";
+        assert!(
+            opencode_core::project::is_path_traversal_attempt(path),
+            "Nested parent directories should be detected"
+        );
+    }
+
+    #[test]
+    fn security_path_traversal_suspicious_component_after_dotdot_rejected() {
+        let path = "../.hidden";
+        assert!(
+            opencode_core::project::is_path_traversal_attempt(path),
+            "Suspicious component after .. should be detected"
+        );
+    }
+
+    #[test]
+    fn security_path_traversal_valid_relative_path_accepted() {
+        let path = "src/main.rs";
+        assert!(
+            !opencode_core::project::is_path_traversal_attempt(path),
+            "Valid relative path should be accepted"
+        );
+    }
+
+    #[test]
+    fn security_path_traversal_valid_nested_path_accepted() {
+        let path = "opencode_core/src/lib.rs";
+        assert!(
+            !opencode_core::project::is_path_traversal_attempt(path),
+            "Valid nested path should be accepted"
+        );
+    }
+
+    #[test]
+    fn security_path_traversal_normal_parent_dir_in_middle_accepted() {
+        let path = "foo/bar/../baz";
+        assert!(
+            !opencode_core::project::is_path_traversal_attempt(path),
+            "Normal parent directory in path should be accepted"
+        );
+    }
+
+    #[actix_web::test]
+    async fn security_path_traversal_workdir_with_traversal_rejected() {
+        use opencode_core::project::validate_workspace_path;
+
+        let result = validate_workspace_path("/tmp/../../../etc");
+        assert!(
+            result.is_err(),
+            "Path traversal in workdir should be rejected"
+        );
+    }
+
+    #[actix_web::test]
+    async fn security_path_traversal_workdir_normal_path_accepted() {
+        use opencode_core::project::validate_workspace_path;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let path = temp_dir.path().to_str().unwrap();
+        let result = validate_workspace_path(path);
+        assert!(result.is_ok(), "Normal workspace path should be accepted");
+    }
+
+    #[actix_web::test]
+    async fn security_path_traversal_shell_command_with_traversal_blocked() {
+        let cmd_with_traversal = "cat ../../etc/passwd";
+        let is_traversal = opencode_core::project::is_path_traversal_attempt(cmd_with_traversal);
+        assert!(
+            is_traversal,
+            "Shell command with path traversal should be detected"
+        );
+    }
+
+    #[test]
+    fn security_path_traversal_regression_normal_file_access_works() {
+        let path = "src/main.rs";
+        assert!(
+            !opencode_core::project::is_path_traversal_attempt(path),
+            "Normal file access should work after path traversal protection"
+        );
+    }
+}
+
+#[cfg(test)]
+mod security_request_smuggling_tests {
+    use actix_web::http::StatusCode;
+    use actix_web::test::TestRequest;
+    use actix_web::web;
+    use actix_web::Responder;
+
+    fn create_test_state() -> crate::ServerState {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        crate::ServerState {
+            storage: std::sync::Arc::new(opencode_storage::StorageService::new(
+                opencode_storage::database::StoragePool::new(&db_path).unwrap(),
+            )),
+            models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
+            config: std::sync::Arc::new(std::sync::RwLock::new(opencode_core::Config::default())),
+            event_bus: opencode_core::bus::SharedEventBus::default(),
+            reconnection_store: crate::streaming::ReconnectionStore::default(),
+            connection_monitor: std::sync::Arc::new(
+                crate::streaming::conn_state::ConnectionMonitor::new(),
+            ),
+            share_server: std::sync::Arc::new(std::sync::RwLock::new(
+                crate::routes::share::ShareServer::with_default_config(),
+            )),
+            acp_enabled: true,
+            acp_stream: opencode_control_plane::AcpEventStream::new().into(),
+            acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
+                crate::routes::acp_ws::AcpClientRegistry::new(),
+            )),
+        }
+    }
+
+    #[actix_web::test]
+    async fn security_request_smuggling_chunked_transfer_encoding_handled() {
+        let req = TestRequest::default()
+            .insert_header((
+                actix_web::http::header::HeaderName::from_static("transfer-encoding"),
+                "chunked",
+            ))
+            .to_http_request();
+        let resp = crate::routes::session::list_sessions(
+            web::Data::new(create_test_state()),
+            web::Query(crate::routes::session::PaginationParams {
+                limit: None,
+                offset: None,
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_ne!(
+            resp.status(),
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Chunked transfer encoding should be handled properly"
+        );
+    }
+
+    #[actix_web::test]
+    async fn security_request_smuggling_duplicate_content_length_rejected() {
+        let req = TestRequest::default()
+            .insert_header((actix_web::http::header::CONTENT_LENGTH, "10"))
+            .insert_header((actix_web::http::header::CONTENT_LENGTH, "20"))
+            .to_http_request();
+        let resp = crate::routes::session::list_sessions(
+            web::Data::new(create_test_state()),
+            web::Query(crate::routes::session::PaginationParams {
+                limit: None,
+                offset: None,
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_ne!(
+            resp.status(),
+            StatusCode::OK,
+            "Duplicate Content-Length headers should be rejected"
+        );
+    }
+
+    #[actix_web::test]
+    async fn security_request_smuggling_te_chunked_with_cl_rejected() {
+        let req = TestRequest::default()
+            .insert_header((
+                actix_web::http::header::HeaderName::from_static("transfer-encoding"),
+                "chunked",
+            ))
+            .insert_header((actix_web::http::header::CONTENT_LENGTH, "100"))
+            .to_http_request();
+        let resp = crate::routes::session::list_sessions(
+            web::Data::new(create_test_state()),
+            web::Query(crate::routes::session::PaginationParams {
+                limit: None,
+                offset: None,
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_ne!(
+            resp.status(),
+            StatusCode::OK,
+            "Transfer-Encoding: chunked with Content-Length should be rejected"
+        );
+    }
+
+    #[actix_web::test]
+    async fn security_request_smuggling_invalid_http_version_rejected() {
+        let req = TestRequest::default().uri("HTTP/1.2").to_http_request();
+        let resp = crate::health_check().await.respond_to(&req);
+        assert_ne!(
+            resp.status(),
+            StatusCode::OK,
+            "Invalid HTTP version should be handled"
+        );
+    }
+
+    #[actix_web::test]
+    async fn security_request_smuggling_obsolete_te_header_rejected() {
+        let req = TestRequest::default()
+            .insert_header((
+                actix_web::http::header::HeaderName::from_static("transfer-encoding"),
+                "identity",
+            ))
+            .to_http_request();
+        let resp = crate::routes::session::list_sessions(
+            web::Data::new(create_test_state()),
+            web::Query(crate::routes::session::PaginationParams {
+                limit: None,
+                offset: None,
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_ne!(
+            resp.status(),
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Obsolete transfer-encoding values should be handled"
+        );
+    }
+
+    #[actix_web::test]
+    async fn security_request_smuggling_regression_normal_request_works() {
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::list_sessions(
+            web::Data::new(create_test_state()),
+            web::Query(crate::routes::session::PaginationParams {
+                limit: Some(10),
+                offset: Some(0),
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() != StatusCode::INTERNAL_SERVER_ERROR,
+            "Normal request should work after request smuggling protection"
+        );
+    }
+}

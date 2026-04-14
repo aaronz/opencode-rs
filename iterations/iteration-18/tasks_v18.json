@@ -144,7 +144,7 @@
       "priority": "P2",
       "title": "Add Hook Determinism Test",
       "description": "Create test for hook deterministic ordering. Register multiple plugins with different priorities, call sorted_plugin_names() 100 times, verify consistent ordering across all invocations.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: register 5+ plugins with varying priorities",
         "AddUnitTest: call sorted_plugin_names() 100 times consecutively",
@@ -155,7 +155,7 @@
       "test_commands": [
         "cargo test -p opencode-plugin sorted_plugin_names"
       ],
-      "impl_notes": "Module: plugin. Reference FR-008. Read plugin/src/lib.rs around line 602-621.",
+      "impl_notes": "Module: plugin. Added 9 comprehensive tests for sorted_plugin_names() covering 100-iteration consistency, priority ordering, stress testing, equal priorities, missing configs, empty manager, negative priorities, large priority range, and mixed priorities.",
       "dependencies": []
     },
     {

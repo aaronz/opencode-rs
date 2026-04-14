@@ -173,7 +173,7 @@
 
 ---
 
-### P2-NEW-3: Hook Determinism Explicit Test
+### P2-NEW-3: ✅ Done
 **Issue:** `sorted_plugin_names()` implemented but no explicit test  
 **Module:** plugin  
 **FR Reference:** FR-008  

@@ -247,6 +247,35 @@ fn check_path_traversal(path: &Path) -> Option<String> {
     None
 }
 
+pub fn check_path_traversal_safe(path: &str) -> Option<String> {
+    check_path_traversal(Path::new(path))
+}
+
+pub fn is_path_traversal_attempt(path: &str) -> bool {
+    let p = Path::new(path);
+
+    if p.components()
+        .any(|c| matches!(c, std::path::Component::ParentDir))
+    {
+        return true;
+    }
+
+    let path_str = path.replace('\\', "/");
+    if path_str.contains("../") || path_str.contains("..%2f") || path_str.contains("%2e%2e") {
+        return true;
+    }
+
+    if path.contains('\0') {
+        return true;
+    }
+
+    if path_str.starts_with('/') && !path_str.starts_with("./") {
+        return true;
+    }
+
+    check_path_traversal(p).is_some()
+}
+
 #[derive(Debug)]
 pub enum WorkspaceValidationError {
     PathNotFound(String),
@@ -311,6 +340,11 @@ pub type WorkspaceValidationResult = Result<PathBuf, WorkspaceValidationError>;
 
 pub fn validate_workspace(path: &PathBuf) -> WorkspaceValidationResult {
     validate_workspace_impl(path, None)
+}
+
+pub fn validate_workspace_path(path: &str) -> WorkspaceValidationResult {
+    let path_buf = PathBuf::from(path);
+    validate_workspace(&path_buf)
 }
 
 pub fn validate_workspace_with_allowed_roots(

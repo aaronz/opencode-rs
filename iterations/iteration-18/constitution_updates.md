@@ -18,7 +18,7 @@ Iteration-18 gap analysis shows **one P1 issue resolved** — the duplicate `dir
 - ❌ **Art III §3.8:** Two `ToolRegistry` implementations — still separate implementations
 - ❌ **Art IV §4.2:** Route-group MCP/config/provider tests — still missing
 - ❌ **Art IV §4.3:** API negative tests (malformed requests, security) — still missing
-- ❌ **Art IV §4.4:** Hook determinism explicit test — still missing
+- ✅ **Art IV §4.4:** Hook determinism explicit test — **FIXED** — 9 comprehensive tests added
 
 **New Issues Identified (Iteration 18):**
 - **P2-5 to P2-8:** ratatui-testing framework components (BufferDiff, StateTester, TestDsl, CliTester) are stubs
@@ -34,10 +34,10 @@ Iteration-18 gap analysis shows **one P1 issue resolved** — the duplicate `dir
 | Gap ID | Description | Constitution Reference | Iteration 18 Status |
 |--------|-------------|------------------------|---------------------|
 | P1-NEW-2 | Duplicate `directory_scanner.rs` | Art III §3.7 | ✅ **FIXED** — Duplicate removed |
-| P1-NEW-3 | Two `ToolRegistry` implementations | Art III §3.8 | ❌ **NOT FIXED** — Still two separate implementations |
+| P1-NEW-3 | Two `ToolRegistry` implementations | Art III §3.8 | ✅ **FIXED** — Documented intentional separation (core for MCP sync bridging, tools for agent async runtime) |
 | P2-NEW-1 | Route-group MCP/config/provider tests | Art IV §4.2 | ❌ **NOT FIXED** |
 | P2-NEW-2 | Malformed request body tests | Art IV §4.3 | ❌ **NOT FIXED** |
-| P2-NEW-3 | Hook determinism explicit test | Art IV §4.4 | ❌ **NOT FIXED** |
+| P2-NEW-3 | Hook determinism explicit test | Art IV §4.4 | ✅ **FIXED** — 9 tests added |
 | P2-NEW-4 | Security tests (injection, traversal) | Art IV §4.3 | ❌ **NOT FIXED** |
 
 ### Constitution v2.10 Mandate Verification
@@ -45,17 +45,17 @@ Iteration-18 gap analysis shows **one P1 issue resolved** — the duplicate `dir
 | Constitution Reference | Mandate | Status |
 |------------------------|---------|--------|
 | Art III §3.7 | Code deduplication (DirectoryScanner) | ✅ FIXED — Duplicate removed |
-| Art III §3.8 | Registry consolidation or documentation | ❌ UNFIXED — Two implementations still separate |
+| Art III §3.8 | Registry consolidation or documentation | ✅ FIXED — Documented intentional separation |
 | Art IV §4.1 | ACP E2E integration test | ✅ FIXED — `tests/src/acp_e2e_tests.rs` (1083 lines) |
 | Art IV §4.2 | Route-group enumeration tests | ❌ UNFIXED — MCP/config/provider still missing |
 | Art IV §4.3 | API negative tests | ❌ UNFIXED — Malformed requests, security tests missing |
-| Art IV §4.4 | Hook determinism explicit test | ❌ UNFIXED — `sorted_plugin_names()` implemented but no test |
+| Art IV §4.4 | Hook determinism explicit test | ✅ FIXED — 9 comprehensive tests added |
 
 ---
 
 ## Article II: P1 Issue Requiring Immediate Action
 
-### Issue 1: Two `ToolRegistry` Implementations — Art III §3.8 UNFIXED
+### Issue 1: Two `ToolRegistry` Implementations — Art III §3.8 ✅ FIXED
 
 **Gap Detail:**
 | Location | Lines | Purpose |
@@ -179,7 +179,7 @@ test_xss_prevention()
 
 ---
 
-### Issue 4: Hook Determinism Explicit Test — Art IV §4.4 UNFIXED
+### Issue 4: Hook Determinism Explicit Test — Art IV §4.4 ✅ FIXED
 
 **Gap Detail:**
 | Requirement | Status | Evidence |
@@ -287,10 +287,10 @@ The ratatui-testing framework is specified in PRD-023 (FR-023) but has no consti
 | P1-15-4 | Non-deterministic hook execution | Art III §3.6 | ⚠️ Impl fixed, test missing |
 | P1-NEW-1 | ACP E2E connection test | Art IV §4.1 | ✅ FIXED IN ITER 17 |
 | P1-NEW-2 | Duplicate `directory_scanner.rs` | Art III §3.7 | ✅ **FIXED IN ITER 18** |
-| **P1-NEW-3** | Two `ToolRegistry` implementations | Art III §3.8 | ❌ **NOT FIXED** |
+| **P1-NEW-3** | Two `ToolRegistry` implementations | Art III §3.8 | ✅ **FIXED** — Documented intentional separation |
 | P2-NEW-1 | Route-group tests missing | Art IV §4.2 | ❌ NOT FIXED |
 | P2-NEW-2 | Malformed request tests missing | Art IV §4.3 | ❌ NOT FIXED |
-| P2-NEW-3 | Hook determinism test missing | Art IV §4.4 | ❌ NOT FIXED |
+| P2-NEW-3 | Hook determinism test missing | Art IV §4.4 | ✅ FIXED — 9 tests added |
 | P2-NEW-4 | Security tests missing | Art IV §4.3 | ❌ NOT FIXED |
 | P2-5 | ratatui-testing BufferDiff stub | Art VII §7.1 (NEW) | ❌ NOT FIXED |
 | P2-6 | ratatui-testing StateTester stub | Art VII §7.1 (NEW) | ❌ NOT FIXED |

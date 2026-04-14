@@ -171,7 +171,7 @@
       "priority": "P2",
       "title": "Hook Determinism Explicit Test",
       "description": "Register multiple plugins with different priorities, call sorted_plugin_names() 100 times, verify consistent ordering across all iterations, add stress test for edge cases",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify sorted_plugin_names() returns consistent order across 100 iterations",
         "AddIntegrationTest: verify plugins with different priorities are sorted correctly",
@@ -191,7 +191,7 @@
       "priority": "P2",
       "title": "Security Tests",
       "description": "Add SQL injection tests on all database endpoints, path traversal tests on file operations, request smuggling tests, and verify proper sanitization to identify and document security vulnerabilities",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddErrorHandlingTest: verify database endpoints reject SQL injection attempts",
         "AddErrorHandlingTest: verify file operations reject path traversal sequences",

@@ -603,7 +603,7 @@ impl PluginManager {
     /// Plugins with lower priority values execute first.
     /// This ensures deterministic hook execution order based on explicit priority configuration.
     /// Default priority is 0. Plugins with the same priority execute in registration order.
-    fn sorted_plugin_names(&self) -> Vec<String> {
+    pub(crate) fn sorted_plugin_names(&self) -> Vec<String> {
         let mut names_with_priority: Vec<(String, i32)> = self
             .plugins
             .keys()
@@ -3697,6 +3697,250 @@ mod tests {
                 !result.valid,
                 "Single TUI plugin in runtime context should fail"
             );
+        }
+    }
+
+    mod sorted_plugin_names_tests {
+        use super::*;
+
+        struct PriorityTestPlugin {
+            name: String,
+            priority: i32,
+        }
+
+        impl PriorityTestPlugin {
+            fn new(name: &str, priority: i32) -> Self {
+                Self {
+                    name: name.to_string(),
+                    priority,
+                }
+            }
+
+            fn to_config(&self) -> PluginConfig {
+                PluginConfig {
+                    name: self.name.clone(),
+                    version: "1.0.0".to_string(),
+                    enabled: true,
+                    priority: self.priority,
+                    domain: PluginDomain::Runtime,
+                    options: IndexMap::new(),
+                    permissions: PluginPermissions::default(),
+                }
+            }
+        }
+
+        impl Plugin for PriorityTestPlugin {
+            fn name(&self) -> &str {
+                &self.name
+            }
+
+            fn version(&self) -> &str {
+                "1.0.0"
+            }
+
+            fn init(&mut self) -> Result<(), PluginError> {
+                Ok(())
+            }
+
+            fn shutdown(&mut self) -> Result<(), PluginError> {
+                Ok(())
+            }
+
+            fn description(&self) -> &str {
+                "priority test plugin"
+            }
+        }
+
+        fn register_priority_plugin(manager: &mut PluginManager, name: &str, priority: i32) {
+            let plugin = PriorityTestPlugin::new(name, priority);
+            let config = plugin.to_config();
+            manager
+                .register_with_config(Box::new(plugin), config)
+                .unwrap();
+        }
+
+        #[test]
+        fn test_sorted_plugin_names_returns_consistent_order_100_iterations() {
+            let mut manager = PluginManager::new();
+            register_priority_plugin(&mut manager, "plugin-a", 10);
+            register_priority_plugin(&mut manager, "plugin-b", 20);
+            register_priority_plugin(&mut manager, "plugin-c", 30);
+
+            let first_call = manager.sorted_plugin_names();
+            assert_eq!(
+                first_call,
+                vec!["plugin-a", "plugin-b", "plugin-c"],
+                "First call should return expected order"
+            );
+
+            for i in 0..99 {
+                let result = manager.sorted_plugin_names();
+                assert_eq!(
+                    result, first_call,
+                    "Iteration {}: sorted_plugin_names() should return consistent order",
+                    i
+                );
+            }
+        }
+
+        #[test]
+        fn test_sorted_plugin_names_orders_by_priority_ascending() {
+            let mut manager = PluginManager::new();
+            register_priority_plugin(&mut manager, "high", 100);
+            register_priority_plugin(&mut manager, "low", -100);
+            register_priority_plugin(&mut manager, "default", 0);
+            register_priority_plugin(&mut manager, "medium", 50);
+
+            let names = manager.sorted_plugin_names();
+
+            assert_eq!(names.len(), 4);
+            assert_eq!(names[0], "low", "First should be 'low' (priority=-100)");
+            assert_eq!(
+                names[1], "default",
+                "Second should be 'default' (priority=0)"
+            );
+            assert_eq!(names[2], "medium", "Third should be 'medium' (priority=50)");
+            assert_eq!(names[3], "high", "Fourth should be 'high' (priority=100)");
+        }
+
+        #[test]
+        fn test_sorted_plugin_names_many_plugins_stress() {
+            let mut manager = PluginManager::new();
+
+            for i in 0..50 {
+                register_priority_plugin(&mut manager, &format!("plugin-{}", i), i as i32);
+            }
+
+            let names = manager.sorted_plugin_names();
+            assert_eq!(names.len(), 50);
+
+            for i in 0..50 {
+                assert_eq!(
+                    names[i],
+                    format!("plugin-{}", i),
+                    "Position {} should be plugin-{}",
+                    i,
+                    i
+                );
+            }
+
+            let first_call = names;
+            for _ in 0..10 {
+                let result = manager.sorted_plugin_names();
+                assert_eq!(
+                    result, first_call,
+                    "Order should remain consistent under stress"
+                );
+            }
+        }
+
+        #[test]
+        fn test_sorted_plugin_names_equal_priority_uses_registration_order() {
+            let mut manager = PluginManager::new();
+            register_priority_plugin(&mut manager, "first", 0);
+            register_priority_plugin(&mut manager, "second", 0);
+            register_priority_plugin(&mut manager, "third", 0);
+
+            let names = manager.sorted_plugin_names();
+
+            assert_eq!(names.len(), 3);
+            assert_eq!(
+                names[0], "first",
+                "First registered with priority 0 should be first"
+            );
+            assert_eq!(
+                names[1], "second",
+                "Second registered with priority 0 should be second"
+            );
+            assert_eq!(
+                names[2], "third",
+                "Third registered with priority 0 should be third"
+            );
+        }
+
+        #[test]
+        fn test_sorted_plugin_names_missing_config_defaults_to_zero() {
+            let mut manager = PluginManager::new();
+
+            let plugin = PriorityTestPlugin::new("no-config-plugin", 0);
+            let config = PluginConfig {
+                name: "no-config-plugin".to_string(),
+                version: "1.0.0".to_string(),
+                enabled: true,
+                priority: 0,
+                domain: PluginDomain::Runtime,
+                options: IndexMap::new(),
+                permissions: PluginPermissions::default(),
+            };
+            manager
+                .register_with_config(Box::new(plugin), config)
+                .unwrap();
+
+            let names = manager.sorted_plugin_names();
+            assert_eq!(names.len(), 1);
+            assert_eq!(names[0], "no-config-plugin");
+        }
+
+        #[test]
+        fn test_sorted_plugin_names_empty_manager_returns_empty_vec() {
+            let manager = PluginManager::new();
+            let names = manager.sorted_plugin_names();
+            assert!(names.is_empty());
+        }
+
+        #[test]
+        fn test_sorted_plugin_names_negative_priorities_sorted_correctly() {
+            let mut manager = PluginManager::new();
+            register_priority_plugin(&mut manager, "p-negative-large", -1000);
+            register_priority_plugin(&mut manager, "p-negative-small", -1);
+            register_priority_plugin(&mut manager, "p-zero", 0);
+            register_priority_plugin(&mut manager, "p-positive", 1);
+
+            let names = manager.sorted_plugin_names();
+
+            assert_eq!(names.len(), 4);
+            assert_eq!(names[0], "p-negative-large");
+            assert_eq!(names[1], "p-negative-small");
+            assert_eq!(names[2], "p-zero");
+            assert_eq!(names[3], "p-positive");
+        }
+
+        #[test]
+        fn test_sorted_plugin_names_large_priority_range() {
+            let mut manager = PluginManager::new();
+            register_priority_plugin(&mut manager, "max", i32::MAX);
+            register_priority_plugin(&mut manager, "min", i32::MIN);
+            register_priority_plugin(&mut manager, "mid", 0);
+
+            let names = manager.sorted_plugin_names();
+
+            assert_eq!(names.len(), 3);
+            assert_eq!(names[0], "min");
+            assert_eq!(names[1], "mid");
+            assert_eq!(names[2], "max");
+        }
+
+        #[test]
+        fn test_sorted_plugin_names_determinism_with_mixed_priorities() {
+            let mut manager = PluginManager::new();
+
+            register_priority_plugin(&mut manager, "a", 30);
+            register_priority_plugin(&mut manager, "b", 10);
+            register_priority_plugin(&mut manager, "c", 50);
+            register_priority_plugin(&mut manager, "d", 5);
+            register_priority_plugin(&mut manager, "e", 25);
+
+            let names = manager.sorted_plugin_names();
+
+            assert_eq!(names, vec!["d", "b", "e", "a", "c"]);
+
+            for _ in 0..100 {
+                assert_eq!(
+                    manager.sorted_plugin_names(),
+                    names,
+                    "sorted_plugin_names() should be deterministic across 100 iterations"
+                );
+            }
         }
     }
 }
