@@ -604,7 +604,7 @@
       "priority": "P2",
       "title": "Deprecated theme field",
       "description": "Technical debt Low: Deprecated theme field already moved to tui.json.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify theme field in tui.json works correctly"
       ],
@@ -613,7 +613,7 @@
         "cargo clippy --all -- -D warnings",
         "cargo build --release"
       ],
-      "impl_notes": "Already moved to tui.json.",
+      "impl_notes": "Added regression tests in crates/tui/tests/theme_config_tests.rs with 18 tests covering theme field in tui.json.",
       "dependencies": []
     },
     {
