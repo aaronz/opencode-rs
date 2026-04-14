@@ -93,8 +93,8 @@ impl SidebarSection {
 #[derive(Debug, Clone)]
 pub struct SidebarFileTree {
     root_path: PathBuf,
-    items: Vec<SidebarFileTreeItem>,
-    state: ListState,
+    pub items: Vec<SidebarFileTreeItem>,
+    pub state: ListState,
 }
 
 #[derive(Debug, Clone)]
@@ -229,6 +229,14 @@ impl Sidebar {
             active_section: 0,
             theme,
             collapsed: false,
+        }
+    }
+
+    pub fn set_file_tree_root(&mut self, root_path: std::path::PathBuf) {
+        if let Some(section) = self.sections.first_mut() {
+            if section.section_type == SidebarSectionType::Files {
+                section.file_tree = Some(SidebarFileTree::new(root_path));
+            }
         }
     }
 

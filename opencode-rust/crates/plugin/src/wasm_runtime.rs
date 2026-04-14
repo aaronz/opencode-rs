@@ -583,7 +583,7 @@ mod tests {
             }
         }
 
-        let mut plugin = WasmPlugin::new(
+        let plugin = WasmPlugin::new(
             "test-plugin".to_string(),
             "1.0.0".to_string(),
             WasmCapabilities::default(),
