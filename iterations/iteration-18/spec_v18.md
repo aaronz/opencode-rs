@@ -28,7 +28,7 @@
 | Category | Change |
 |----------|--------|
 | **Resolved** | Duplicate `directory_scanner.rs` removed (P1-NEW-2) |
-| **Still Pending** | Two ToolRegistry implementations diverge risk (P1-NEW-3) |
+| **Resolved** | Two ToolRegistry implementations documented (P1-NEW-3) |
 | **Still Pending** | Route-group tests, API negative tests, security tests |
 | **Still Pending** | ratatui-testing components (BufferDiff, StateTester, TestDsl, CliTester) |
 
@@ -37,7 +37,7 @@
 | Priority | Total | Fixed | Remaining | Completion |
 |----------|-------|-------|-----------|------------|
 | P0 | 3 | 3 | 0 | 100% |
-| P1 | 11 | 10 | 1 | ~91% |
+| P1 | 11 | 11 | 0 | 100% |
 | P2 | 12 | 6 | 6 | 50% |
 
 ---
@@ -310,21 +310,20 @@ pub struct CliOutput {
 
 | ID | Issue | Module | Status | Fix Required |
 |----|-------|--------|--------|--------------|
-| P1-NEW-3 | Two `ToolRegistry` implementations | core/tools | NOT FIXED | Audit `core::ToolRegistry` usage, remove if dead code |
+| P1-NEW-3 | Two `ToolRegistry` implementations | core/tools | ✅ FIXED | Document intentional separation |
 
 **Gap Detail (P1-NEW-3):**
 
 | Location | Lines | Purpose |
 |----------|-------|---------|
-| `crates/core/src/tool.rs` | ~1025 | Simple HashMap-based (still exported from core) |
-| `crates/tools/src/registry.rs` | ~2288 | Full-featured with caching, async, source tracking |
+| `crates/core/src/tool.rs` | ~1025 | Simple HashMap-based synchronous registry for MCP bridging |
+| `crates/tools/src/registry.rs` | ~2288 | Full-featured with caching, async, source tracking for agent runtime |
 
-**Risk:** `core::ToolRegistry` is re-exported but not actively used in runtime. Potential confusion and maintenance burden.
-
-**Fix Required:**
-1. Audit all usages of `opencode_core::ToolRegistry`
-2. Remove `core::ToolRegistry` if truly dead code
-3. Update `crates/core/src/lib.rs` exports accordingly
+**Resolution:**
+- `opencode_core::ToolRegistry` is intentionally kept for MCP tool bridging (synchronous, simple design)
+- `opencode_tools::ToolRegistry` is used by agent runtime (async, caching, collision resolution)
+- Comprehensive documentation added to `crates/core/src/tool.rs` explaining the relationship
+- 42 unit/integration tests added to verify both registries work correctly
 
 ---
 

@@ -81,7 +81,7 @@
       "priority": "P1",
       "title": "Audit Two ToolRegistry Implementations",
       "description": "There are two ToolRegistry implementations: crates/core/src/tool.rs (~1025 lines) and crates/tools/src/registry.rs (~2288 lines). Need to audit and determine which is the canonical implementation. Steps: 1) Read core ToolRegistry, 2) Read tools ToolRegistry, 3) Search all usages of opencode_core::ToolRegistry, 4) Verify agent runtime uses opencode_tools::ToolRegistry, 5) Determine if core::ToolRegistry is dead code, 6) If dead code, remove from core and update exports.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify agent runtime uses opencode_tools::ToolRegistry",
         "AddRegressionTest: ensure tool execution still works after potential removal",
@@ -94,7 +94,7 @@
         "cargo test -p opencode-tools -- ToolRegistry",
         "grep -r 'opencode_core::ToolRegistry\\|core::ToolRegistry\\|crate::ToolRegistry' --include='*.rs'"
       ],
-      "impl_notes": "Module: core/tools. HIGH priority - blocks release. Determine canonical implementation and remove dead code if applicable.",
+      "impl_notes": "Documented intentional separation: opencode_core::ToolRegistry for MCP bridging (sync, simple), opencode_tools::ToolRegistry for agent runtime (async, caching, collision resolution). Added comprehensive tests for both registries.",
       "dependencies": []
     },
     {

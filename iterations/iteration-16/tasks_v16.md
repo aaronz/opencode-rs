@@ -79,7 +79,7 @@
 
 ---
 
-### P1-NEW-2: Remove Duplicate directory_scanner.rs
+### P1-NEW-2: ✅ Done
 **Issue:** Identical file exists at `crates/core/src/config/directory_scanner.rs` (832 lines)  
 **Module:** config  
 **FR Reference:** FR-003  

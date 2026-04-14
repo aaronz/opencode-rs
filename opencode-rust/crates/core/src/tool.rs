@@ -1,3 +1,66 @@
+//! Core tool types and simple synchronous tool registry.
+//!
+//! # Tool Registry Architecture
+//!
+//! OpenCode uses two distinct tool registry implementations with intentionally different designs:
+//!
+//! ## 1. `opencode_core::ToolRegistry` (this module)
+//!
+//! A **simple synchronous registry** designed for:
+//! - MCP (Model Context Protocol) tool bridging
+//! - Legacy compatibility
+//! - Blocking/synchronous tool execution
+//!
+//! **Characteristics:**
+//! - Synchronous executor functions (`Fn(serde_json::Value) -> Result<String, String>`)
+//! - No async support
+//! - No caching
+//! - HashMap-based storage
+//!
+//! ## 2. `opencode_tools::ToolRegistry` (`crates/tools/src/registry.rs`)
+//!
+//! An **advanced async registry** designed for:
+//! - Agent runtime tool management
+//! - Concurrent tool execution
+//! - Result caching with TTL and dependency invalidation
+//! - Priority-based collision resolution (Builtin > Plugin > CustomProject > CustomGlobal)
+//! - Model-specific tool filtering
+//!
+//! **Characteristics:**
+//! - Async tool execution via `Tool` trait
+//! - Built-in result caching with SHA256-based cache keys
+//! - TTL-based and dependency-based cache invalidation
+//! - RwLock-based interior mutability for thread safety
+//!
+//! # Relationship Between Registries
+//!
+//! The two registries serve different purposes and are **not directly compatible**:
+//!
+//! ```ignore
+//! MCP Server → MCP Registry → bridge_to_tool_registry() → opencode_core::ToolRegistry
+//!                                                              ↓
+//!                                                      (used by TUI, MCP)
+//!                                                              
+//! Agent Runtime → opencode_tools::ToolRegistry
+//!                                    ↑
+//!                            (used by agent runtime, plugins)
+//! ```
+//!
+//! MCP tools are bridged to `opencode_core::ToolRegistry` which is used by the TUI layer.
+//! The agent runtime uses `opencode_tools::ToolRegistry` directly.
+//!
+//! # When to Use Which Registry
+//!
+//! - **Use `opencode_core::ToolRegistry`** for:
+//!   - MCP tool registration
+//!   - TUI-level tool management
+//!   - Legacy code that expects synchronous execution
+//!
+//! - **Use `opencode_tools::ToolRegistry`** for:
+//!   - Agent runtime tool execution
+//!   - Plugin tool registration
+//!   - Any code requiring async execution, caching, or collision resolution
+
 use crate::config::{DirectoryScanner, ToolInfo};
 use crate::session::Session;
 use chrono::{DateTime, Utc};

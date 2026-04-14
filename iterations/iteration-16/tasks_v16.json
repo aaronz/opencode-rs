@@ -104,7 +104,7 @@
       "priority": "P1",
       "title": "Audit Two ToolRegistry Implementations",
       "description": "Trace all usages of core::ToolRegistry in agent runtime, verify opencode_tools::ToolRegistry features (caching, async) available, either consolidate to single registry OR document intentional separation, add documentation explaining the relationship",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify core::ToolRegistry usages are documented",
         "AddUnitTest: verify opencode_tools::ToolRegistry caching/async features work",
