@@ -3124,4 +3124,82 @@ mod tests {
         assert!(config.enabled);
         assert_eq!(config.speed, None);
     }
+
+    #[test]
+    fn test_deprecated_mode_field_still_parses() {
+        let json_content = r#"{
+            "model": "openai/gpt-4o",
+            "mode": "agent"
+        }"#;
+        let result = Config::parse_json_content(json_content);
+        assert!(result.is_ok(), "Deprecated 'mode' field should not cause parse error");
+        let config = result.unwrap();
+        assert_eq!(config.model, Some("openai/gpt-4o".to_string()));
+    }
+
+    #[test]
+    fn test_deprecated_mode_field_emits_warning() {
+        use tracing::Level;
+
+        let json_content = r#"{
+            "model": "openai/gpt-4o",
+            "mode": "agent"
+        }"#;
+
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let path = temp_file.path().to_path_buf();
+
+        let subscriber = tracing_subscriber::fmt()
+            .with_max_level(Level::WARN)
+            .with_writer(std::fs::File::create(&path).unwrap())
+            .with_ansi(false)
+            .finish();
+
+        tracing::subscriber::with_default(subscriber, || {
+            let result = Config::parse_json_content(json_content);
+            assert!(result.is_ok());
+        });
+
+        let output = std::fs::read_to_string(&path).unwrap();
+        assert!(
+            output.contains("Deprecated config field 'mode'"),
+            "Warning about deprecated 'mode' field should have been emitted, but got: {}",
+            output
+        );
+    }
+
+    #[test]
+    fn test_deprecated_mode_agent_mode_field_emits_warning() {
+        use tracing::Level;
+
+        let json_content = r#"{
+            "model": "openai/gpt-4o",
+            "agent": {
+                "build": {
+                    "mode": "agent"
+                }
+            }
+        }"#;
+
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let path = temp_file.path().to_path_buf();
+
+        let subscriber = tracing_subscriber::fmt()
+            .with_max_level(Level::WARN)
+            .with_writer(std::fs::File::create(&path).unwrap())
+            .with_ansi(false)
+            .finish();
+
+        tracing::subscriber::with_default(subscriber, || {
+            let result = Config::parse_json_content(json_content);
+            assert!(result.is_ok());
+        });
+
+        let output = std::fs::read_to_string(&path).unwrap();
+        assert!(
+            output.contains("agent.build.mode"),
+            "Warning about deprecated 'agent.<name>.mode' field should have been emitted, but got: {}",
+            output
+        );
+    }
 }

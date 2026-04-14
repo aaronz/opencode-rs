@@ -567,7 +567,7 @@
       "priority": "P2",
       "title": "Deprecated mode field",
       "description": "Technical debt Medium: Deprecated mode field to be removed in v4.0.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify mode field still works during deprecation period",
         "AddUnitTest: verify warning emitted when mode field used"

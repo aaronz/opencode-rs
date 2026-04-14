@@ -407,9 +407,9 @@ cargo build --release                          # Passed
 **Severity:** High  
 **Action:** See P1-8 - ACP transport layer fully implemented with handshake, messages, connection management, and event streaming.
 
-### TD-007: Deprecated mode field
+### TD-007: ✅ Done
 **Severity:** Medium  
-**Action:** Remove in v4.0
+**Action:** Remove in v4.0 - Added regression tests and unit tests for deprecated mode field warning.
 
 ### TD-008: Deprecated tools field
 **Severity:** Medium  
