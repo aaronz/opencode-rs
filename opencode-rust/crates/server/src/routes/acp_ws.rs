@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -14,7 +15,7 @@ use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 
 use crate::routes::error::json_error;
-use crate::streaming::conn_state::{ConnectionType, ConnectionMonitor};
+use crate::streaming::conn_state::{ConnectionMonitor, ConnectionType};
 use crate::streaming::StreamMessage;
 use crate::ServerState;
 
@@ -237,7 +238,8 @@ pub async fn acp_ws_index(
         let mut last_heartbeat = Instant::now();
         let conn_id_for_task = conn_id.clone();
 
-        let mut handshake_completed = false;
+        let handshake_completed = Arc::new(AtomicBool::new(false));
+        let handshake_completed_for_handler = handshake_completed.clone();
         let mut acp_session_id = String::new();
         let mut client_registry = state.acp_client_registry.write().await;
         client_registry.register(
@@ -252,7 +254,7 @@ pub async fn acp_ws_index(
         );
         drop(client_registry);
 
-        let _heartbeat_handle = spawn_acp_heartbeat(tx.clone());
+        let _heartbeat_handle = spawn_acp_heartbeat(tx.clone(), handshake_completed.clone());
 
         let tx_bus = tx.clone();
         let mut bus_rx = acp_stream.subscribe();
@@ -272,9 +274,7 @@ pub async fn acp_ws_index(
             }
         });
 
-        let _ = tx
-            .send(AcpWsOutgoing::Connected { session_id: None })
-            .await;
+        let _ = tx.send(AcpWsOutgoing::Connected { session_id: None }).await;
 
         loop {
             if last_heartbeat.elapsed() > ACP_WS_CLIENT_TIMEOUT {
@@ -322,7 +322,7 @@ pub async fn acp_ws_index(
                                 &text,
                                 &state,
                                 &tx,
-                                &mut handshake_completed,
+                                &handshake_completed_for_handler,
                                 &mut acp_session_id,
                             ).await;
                             conn_monitor.heartbeat_success(&conn_id_for_task).await;
@@ -364,7 +364,7 @@ async fn handle_acp_ws_message(
     text: &str,
     state: &Arc<ServerState>,
     tx: &mpsc::Sender<AcpWsOutgoing>,
-    handshake_completed: &mut bool,
+    handshake_completed: &Arc<AtomicBool>,
     acp_session_id: &mut String,
 ) {
     match serde_json::from_str::<AcpWsMessage>(text) {
@@ -375,8 +375,7 @@ async fn handle_acp_ws_message(
                 })
                 .await;
         }
-        Ok(AcpWsMessage::Pong) => {
-        }
+        Ok(AcpWsMessage::Pong) => {}
         Ok(AcpWsMessage::Close) => {
             let _ = session.clone().close(None).await;
         }
@@ -394,7 +393,7 @@ async fn handle_acp_ws_message(
             let response = protocol.process_handshake(request);
 
             if response.accepted {
-                *handshake_completed = true;
+                handshake_completed.store(true, Ordering::SeqCst);
                 *acp_session_id = response.session_id.clone();
 
                 {
@@ -427,8 +426,11 @@ async fn handle_acp_ws_message(
                 })
                 .await;
         }
-        Ok(AcpWsMessage::HandshakeAck { session_id, confirmed }) => {
-            if !*handshake_completed {
+        Ok(AcpWsMessage::HandshakeAck {
+            session_id,
+            confirmed,
+        }) => {
+            if !handshake_completed.load(Ordering::SeqCst) {
                 let _ = tx
                     .send(AcpWsOutgoing::Error {
                         code: "handshake_not_completed".to_string(),
@@ -450,8 +452,11 @@ async fn handle_acp_ws_message(
                 state.acp_stream.publish(event);
             }
         }
-        Ok(AcpWsMessage::EditorMessage { session_id, content }) => {
-            if !*handshake_completed || session_id != *acp_session_id {
+        Ok(AcpWsMessage::EditorMessage {
+            session_id,
+            content,
+        }) => {
+            if !handshake_completed.load(Ordering::SeqCst) || session_id != *acp_session_id {
                 let _ = tx
                     .send(AcpWsOutgoing::Error {
                         code: "invalid_session".to_string(),
@@ -485,7 +490,7 @@ async fn handle_acp_ws_message(
             args,
             call_id,
         }) => {
-            if !*handshake_completed || session_id != *acp_session_id {
+            if !handshake_completed.load(Ordering::SeqCst) || session_id != *acp_session_id {
                 let _ = tx
                     .send(AcpWsOutgoing::Error {
                         code: "invalid_session".to_string(),
@@ -513,7 +518,7 @@ async fn handle_acp_ws_message(
             output,
             success,
         }) => {
-            if !*handshake_completed || session_id != *acp_session_id {
+            if !handshake_completed.load(Ordering::SeqCst) || session_id != *acp_session_id {
                 return;
             }
 
@@ -530,7 +535,7 @@ async fn handle_acp_ws_message(
                 .await;
         }
         Ok(AcpWsMessage::Status { status }) => {
-            if !*handshake_completed {
+            if !handshake_completed.load(Ordering::SeqCst) {
                 return;
             }
 
@@ -579,7 +584,11 @@ fn acp_event_to_outgoing(event: AcpAgentEvent) -> Option<AcpWsOutgoing> {
         AcpEventType::ToolCallStarted => Some(AcpWsOutgoing::ToolCall {
             session_id: event.agent_id,
             tool_name: event.payload.get("tool")?.as_str()?.to_string(),
-            args: event.payload.get("args").cloned().unwrap_or(serde_json::Value::Null),
+            args: event
+                .payload
+                .get("args")
+                .cloned()
+                .unwrap_or(serde_json::Value::Null),
             call_id: event.payload.get("call_id")?.as_str()?.to_string(),
         }),
         AcpEventType::ToolCallCompleted => Some(AcpWsOutgoing::ToolResult {
@@ -618,17 +627,24 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.route("", web::get().to(acp_ws_index));
 }
 
-fn spawn_acp_heartbeat(tx: mpsc::Sender<AcpWsOutgoing>) -> tokio::task::JoinHandle<()> {
+fn spawn_acp_heartbeat(
+    tx: mpsc::Sender<AcpWsOutgoing>,
+    handshake_completed: Arc<AtomicBool>,
+) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
+        while !handshake_completed.load(Ordering::SeqCst) {
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
         let mut ticker = tokio::time::interval(ACP_WS_HEARTBEAT_INTERVAL);
+        ticker.tick().await;
         loop {
-            ticker.tick().await;
             let heartbeat = AcpWsOutgoing::Heartbeat {
                 timestamp: chrono::Utc::now().timestamp(),
             };
             if tx.send(heartbeat).await.is_err() {
                 break;
             }
+            ticker.tick().await;
         }
     })
 }
@@ -695,7 +711,7 @@ mod tests {
     #[test]
     fn test_acp_client_registry_register_and_get() {
         let mut registry = AcpClientRegistry::new();
-        
+
         registry.register(
             "conn-1".to_string(),
             AcpClientConnection {
@@ -715,7 +731,7 @@ mod tests {
     #[test]
     fn test_acp_client_registry_unregister() {
         let mut registry = AcpClientRegistry::new();
-        
+
         registry.register(
             "conn-1".to_string(),
             AcpClientConnection {
@@ -735,7 +751,7 @@ mod tests {
     #[test]
     fn test_acp_client_registry_get_by_session() {
         let mut registry = AcpClientRegistry::new();
-        
+
         registry.register(
             "conn-1".to_string(),
             AcpClientConnection {
@@ -765,7 +781,7 @@ mod tests {
     fn test_parse_query() {
         let query = "client_id=editor1&session_id=abc123";
         let params = parse_query(query);
-        
+
         assert_eq!(params.get("client_id"), Some(&"editor1".to_string()));
         assert_eq!(params.get("session_id"), Some(&"abc123".to_string()));
     }
@@ -781,7 +797,7 @@ mod tests {
     fn test_acp_event_to_outgoing_status_changed() {
         let event = AcpAgentEvent::status("agent-1", "running");
         let outgoing = acp_event_to_outgoing(event);
-        
+
         assert!(outgoing.is_some());
         match outgoing.unwrap() {
             AcpWsOutgoing::StatusUpdate { session_id, status } => {
@@ -796,10 +812,15 @@ mod tests {
     fn test_acp_event_to_outgoing_tool_started() {
         let event = AcpAgentEvent::tool_started("agent-1", "read", "call-1");
         let outgoing = acp_event_to_outgoing(event);
-        
+
         assert!(outgoing.is_some());
         match outgoing.unwrap() {
-            AcpWsOutgoing::ToolCall { session_id, tool_name, call_id, .. } => {
+            AcpWsOutgoing::ToolCall {
+                session_id,
+                tool_name,
+                call_id,
+                ..
+            } => {
                 assert_eq!(session_id, "agent-1");
                 assert_eq!(tool_name, "read");
                 assert_eq!(call_id, "call-1");

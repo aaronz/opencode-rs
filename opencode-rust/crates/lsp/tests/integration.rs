@@ -722,8 +722,7 @@ mod experimental_lsp_tool_tests {
                     assert_eq!(status, "unavailable");
                 }
             }
-            Err(_) => {
-            }
+            Err(_) => {}
         }
     }
 
@@ -882,8 +881,7 @@ mod experimental_lsp_tool_tests {
                     assert_eq!(status, "unavailable");
                 }
             }
-            Err(_) => {
-            }
+            Err(_) => {}
         }
     }
 
@@ -907,8 +905,7 @@ mod experimental_lsp_tool_tests {
                     assert_eq!(status, "unavailable");
                 }
             }
-            Err(_) => {
-            }
+            Err(_) => {}
         }
     }
 
@@ -934,8 +931,7 @@ mod experimental_lsp_tool_tests {
                 assert!(parsed.get("content").is_some());
                 assert!(parsed.get("has_info").is_some());
             }
-            Err(_) => {
-            }
+            Err(_) => {}
         }
     }
 
@@ -961,8 +957,7 @@ mod experimental_lsp_tool_tests {
                 assert!(parsed.get("target_uri").is_some());
                 assert!(parsed.get("found").is_some());
             }
-            Err(_) => {
-            }
+            Err(_) => {}
         }
     }
 
@@ -986,8 +981,7 @@ mod experimental_lsp_tool_tests {
                 assert!(parsed.get("references").is_some());
                 assert!(parsed.get("total_count").is_some());
             }
-            Err(_) => {
-            }
+            Err(_) => {}
         }
     }
 
@@ -1125,8 +1119,7 @@ mod experimental_lsp_tool_tests {
                 assert_eq!(parsed.get("line").unwrap(), 1);
                 assert_eq!(parsed.get("column").unwrap(), 1);
             }
-            Err(_) => {
-            }
+            Err(_) => {}
         }
     }
 
@@ -1164,8 +1157,7 @@ mod experimental_lsp_tool_tests {
                 let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
                 assert!(parsed.get("status").is_some() || parsed.get("file").is_some());
             }
-            Err(_) => {
-            }
+            Err(_) => {}
         }
     }
 
@@ -1190,8 +1182,7 @@ mod experimental_lsp_tool_tests {
                     assert_eq!(diagnostics.len(), 0);
                 }
             }
-            Err(_) => {
-            }
+            Err(_) => {}
         }
     }
 
@@ -1264,8 +1255,7 @@ mod experimental_lsp_tool_tests {
                     assert_eq!(symbol, "my_important_symbol");
                 }
             }
-            Err(_) => {
-            }
+            Err(_) => {}
         }
     }
 
@@ -1322,8 +1312,7 @@ mod experimental_lsp_tool_tests {
                     );
                 }
             }
-            Err(_) => {
-            }
+            Err(_) => {}
         }
     }
 

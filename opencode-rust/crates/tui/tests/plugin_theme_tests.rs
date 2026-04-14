@@ -445,3 +445,379 @@ fn test_different_plugins_can_have_same_theme_name() {
     assert_eq!(from_a.colors.primary, "#ff0000");
     assert_eq!(from_b.colors.primary, "#00ff00");
 }
+
+#[test]
+fn test_theme_auto_sync_when_plugin_installed() {
+    let manager = TuiPluginManager::new();
+
+    manager
+        .register_plugin(
+            "autosync.plugin".to_string(),
+            "npm:autosync.plugin".to_string(),
+            "@autosync/plugin@1.0.0".to_string(),
+            true,
+        )
+        .unwrap();
+
+    let theme = PluginTheme::new("autosync-theme")
+        .background("#0d1117")
+        .foreground("#c9d1d9")
+        .primary("#58a6ff");
+
+    manager
+        .register_plugin_theme("autosync.plugin", theme)
+        .unwrap();
+
+    let all_themes = manager.get_all_plugin_themes();
+    assert_eq!(all_themes.len(), 1);
+    assert_eq!(all_themes[0].name, "autosync-theme");
+    assert_eq!(all_themes[0].colors.background, "#0d1117");
+}
+
+#[test]
+fn test_theme_auto_sync_multiple_plugins_installed() {
+    let manager = TuiPluginManager::new();
+
+    manager
+        .register_plugin(
+            "plugin-a".to_string(),
+            "npm:plugin-a".to_string(),
+            "@plugin-a@1.0.0".to_string(),
+            true,
+        )
+        .unwrap();
+    manager
+        .register_plugin(
+            "plugin-b".to_string(),
+            "npm:plugin-b".to_string(),
+            "@plugin-b@1.0.0".to_string(),
+            true,
+        )
+        .unwrap();
+
+    let theme_a = PluginTheme::new("theme-a").primary("#ff0000");
+    let theme_b = PluginTheme::new("theme-b").primary("#00ff00");
+
+    manager.register_plugin_theme("plugin-a", theme_a).unwrap();
+    manager.register_plugin_theme("plugin-b", theme_b).unwrap();
+
+    let all_themes = manager.get_all_plugin_themes();
+    assert_eq!(all_themes.len(), 2);
+
+    let from_a = manager.get_plugin_theme("plugin-a", "theme-a").unwrap();
+    let from_b = manager.get_plugin_theme("plugin-b", "theme-b").unwrap();
+
+    assert_eq!(from_a.colors.primary, "#ff0000");
+    assert_eq!(from_b.colors.primary, "#00ff00");
+}
+
+#[test]
+fn test_theme_applies_immediately_after_install() {
+    let manager = TuiPluginManager::new();
+
+    manager
+        .register_plugin(
+            "immediate.plugin".to_string(),
+            "npm:immediate.plugin".to_string(),
+            "@immediate/plugin@1.0.0".to_string(),
+            true,
+        )
+        .unwrap();
+
+    let theme = PluginTheme::new("immediate-theme")
+        .background("#1a1b26")
+        .foreground("#c0caf5")
+        .primary("#7aa2f7");
+
+    manager
+        .register_plugin_theme("immediate.plugin", theme)
+        .unwrap();
+
+    let registered_themes = manager.list_plugin_themes();
+    assert_eq!(registered_themes.len(), 1);
+    assert_eq!(registered_themes[0].name, "immediate-theme");
+    assert_eq!(registered_themes[0].plugin_id, "immediate.plugin");
+
+    let fetched_theme = manager.get_plugin_theme("immediate.plugin", "immediate-theme");
+    assert!(fetched_theme.is_some());
+    let fetched = fetched_theme.unwrap();
+    assert_eq!(fetched.colors.background, "#1a1b26");
+    assert_eq!(fetched.colors.foreground, "#c0caf5");
+    assert_eq!(fetched.colors.primary, "#7aa2f7");
+}
+
+#[test]
+fn test_existing_themes_not_affected_by_new_plugin_theme() {
+    let manager = TuiPluginManager::new();
+
+    manager
+        .register_plugin(
+            "existing.plugin".to_string(),
+            "npm:existing.plugin".to_string(),
+            "@existing/plugin@1.0.0".to_string(),
+            true,
+        )
+        .unwrap();
+
+    let existing_theme = PluginTheme::new("existing-theme")
+        .background("#111111")
+        .primary("#aaaaaa");
+    manager
+        .register_plugin_theme("existing.plugin", existing_theme)
+        .unwrap();
+
+    let original_theme = manager.get_plugin_theme("existing.plugin", "existing-theme");
+    assert!(original_theme.is_some());
+    assert_eq!(original_theme.unwrap().colors.background, "#111111");
+
+    manager
+        .register_plugin(
+            "new.plugin".to_string(),
+            "npm:new.plugin".to_string(),
+            "@new/plugin@1.0.0".to_string(),
+            true,
+        )
+        .unwrap();
+
+    let new_theme = PluginTheme::new("new-theme")
+        .background("#222222")
+        .primary("#bbbbbb");
+    manager
+        .register_plugin_theme("new.plugin", new_theme)
+        .unwrap();
+
+    let existing_still_there = manager.get_plugin_theme("existing.plugin", "existing-theme");
+    assert!(existing_still_there.is_some());
+    assert_eq!(existing_still_there.unwrap().colors.background, "#111111");
+
+    let new_is_there = manager.get_plugin_theme("new.plugin", "new-theme");
+    assert!(new_is_there.is_some());
+    assert_eq!(new_is_there.unwrap().colors.background, "#222222");
+
+    let all_themes = manager.get_all_plugin_themes();
+    assert_eq!(all_themes.len(), 2);
+}
+
+#[test]
+fn test_plugin_theme_unregistration_does_not_affect_other_plugins() {
+    let manager = TuiPluginManager::new();
+
+    manager
+        .register_plugin(
+            "keep.plugin".to_string(),
+            "npm:keep.plugin".to_string(),
+            "@keep/plugin@1.0.0".to_string(),
+            true,
+        )
+        .unwrap();
+    manager
+        .register_plugin(
+            "remove.plugin".to_string(),
+            "npm:remove.plugin".to_string(),
+            "@remove/plugin@1.0.0".to_string(),
+            true,
+        )
+        .unwrap();
+
+    let theme_keep = PluginTheme::new("keep-theme").primary("#111111");
+    let theme_remove = PluginTheme::new("remove-theme").primary("#222222");
+
+    manager
+        .register_plugin_theme("keep.plugin", theme_keep)
+        .unwrap();
+    manager
+        .register_plugin_theme("remove.plugin", theme_remove)
+        .unwrap();
+
+    assert_eq!(manager.get_all_plugin_themes().len(), 2);
+
+    manager.unregister_plugin_themes("remove.plugin");
+
+    assert!(manager
+        .get_plugin_theme("remove.plugin", "remove-theme")
+        .is_none());
+
+    let kept = manager.get_plugin_theme("keep.plugin", "keep-theme");
+    assert!(kept.is_some());
+    assert_eq!(kept.unwrap().colors.primary, "#111111");
+
+    assert_eq!(manager.get_all_plugin_themes().len(), 1);
+}
+
+#[test]
+fn test_theme_auto_sync_with_multiple_themes_per_plugin() {
+    let manager = TuiPluginManager::new();
+
+    manager
+        .register_plugin(
+            "multi.theme.plugin".to_string(),
+            "npm:multi.theme.plugin".to_string(),
+            "@multi/theme/plugin@1.0.0".to_string(),
+            true,
+        )
+        .unwrap();
+
+    let theme1 = PluginTheme::new("dark").background("#000000");
+    let theme2 = PluginTheme::new("light").background("#ffffff");
+
+    manager
+        .register_plugin_theme("multi.theme.plugin", theme1)
+        .unwrap();
+    manager
+        .register_plugin_theme("multi.theme.plugin", theme2)
+        .unwrap();
+
+    let themes_for_plugin = manager.list_themes_for_plugin("multi.theme.plugin");
+    assert_eq!(themes_for_plugin.len(), 2);
+
+    let all_themes = manager.get_all_plugin_themes();
+    assert_eq!(all_themes.len(), 2);
+
+    assert_eq!(
+        manager
+            .get_plugin_theme("multi.theme.plugin", "dark")
+            .unwrap()
+            .colors
+            .background,
+        "#000000"
+    );
+    assert_eq!(
+        manager
+            .get_plugin_theme("multi.theme.plugin", "light")
+            .unwrap()
+            .colors
+            .background,
+        "#ffffff"
+    );
+}
+
+#[test]
+fn test_theme_auto_sync_idempotent_registration() {
+    let manager = TuiPluginManager::new();
+
+    manager
+        .register_plugin(
+            "idempotent.plugin".to_string(),
+            "npm:idempotent.plugin".to_string(),
+            "@idempotent/plugin@1.0.0".to_string(),
+            true,
+        )
+        .unwrap();
+
+    let theme1 = PluginTheme::new("idempotent-theme").primary("#111111");
+    let theme2 = PluginTheme::new("idempotent-theme").primary("#222222");
+
+    manager
+        .register_plugin_theme("idempotent.plugin", theme1)
+        .unwrap();
+
+    let result = manager.register_plugin_theme("idempotent.plugin", theme2);
+    assert!(result.is_err());
+
+    let themes = manager.get_all_plugin_themes();
+    assert_eq!(themes.len(), 1);
+    assert_eq!(
+        manager
+            .get_plugin_theme("idempotent.plugin", "idempotent-theme")
+            .unwrap()
+            .colors
+            .primary,
+        "#111111"
+    );
+}
+
+#[test]
+fn test_theme_manager_not_affected_by_plugin_themes() {
+    use opencode_tui::theme::ThemeManager;
+
+    let mut theme_manager = ThemeManager::new();
+    theme_manager.set_theme_by_name("catppuccin").unwrap();
+
+    let initial_theme = theme_manager.current().name.clone();
+    assert_eq!(initial_theme, "catppuccin");
+
+    let manager = TuiPluginManager::new();
+
+    manager
+        .register_plugin(
+            "theme.plugin".to_string(),
+            "npm:theme.plugin".to_string(),
+            "@theme/plugin@1.0.0".to_string(),
+            true,
+        )
+        .unwrap();
+
+    let plugin_theme = PluginTheme::new("plugin-custom").background("#999999");
+    manager
+        .register_plugin_theme("theme.plugin", plugin_theme)
+        .unwrap();
+
+    assert_eq!(
+        manager.get_all_plugin_themes().len(),
+        1,
+        "Plugin should have its theme"
+    );
+
+    assert_eq!(
+        theme_manager.current().name,
+        initial_theme,
+        "ThemeManager should not be affected by plugin themes"
+    );
+
+    let next_theme = theme_manager.set_theme_by_name("tokyonight");
+    assert!(next_theme.is_ok());
+    assert_eq!(theme_manager.current().name, "tokyonight");
+
+    assert_eq!(
+        manager.get_all_plugin_themes().len(),
+        1,
+        "Plugin themes should remain unchanged"
+    );
+}
+
+#[test]
+fn test_plugin_activate_does_not_change_theme() {
+    let manager = TuiPluginManager::new();
+
+    manager
+        .register_plugin(
+            "activate.test.plugin".to_string(),
+            "npm:activate.test.plugin".to_string(),
+            "@activate/test/plugin@1.0.0".to_string(),
+            true,
+        )
+        .unwrap();
+
+    let theme = PluginTheme::new("activate-test-theme")
+        .background("#123456")
+        .primary("#654321");
+
+    manager
+        .register_plugin_theme("activate.test.plugin", theme)
+        .unwrap();
+
+    let theme_before = manager.get_plugin_theme("activate.test.plugin", "activate-test-theme");
+    assert!(theme_before.is_some());
+    assert_eq!(theme_before.unwrap().colors.background, "#123456");
+
+    manager.activate("activate.test.plugin").unwrap();
+    assert!(manager.is_plugin_active("activate.test.plugin"));
+
+    let theme_after = manager.get_plugin_theme("activate.test.plugin", "activate-test-theme");
+    assert!(theme_after.is_some());
+    assert_eq!(
+        theme_after.unwrap().colors.background,
+        "#123456",
+        "Theme should remain unchanged after plugin activation"
+    );
+
+    manager.deactivate("activate.test.plugin").unwrap();
+
+    let theme_still_same = manager.get_plugin_theme("activate.test.plugin", "activate-test-theme");
+    assert!(theme_still_same.is_some());
+    assert_eq!(
+        theme_still_same.unwrap().colors.background,
+        "#123456",
+        "Theme should remain unchanged after plugin deactivation"
+    );
+}

@@ -12,7 +12,9 @@ mod merge;
 mod remote_cache;
 mod schema;
 mod secret_storage;
-pub use directory_scanner::{load_opencode_directory, DirectoryScanner, OpencodeDirectoryScan, ToolInfo};
+pub use directory_scanner::{
+    load_opencode_directory, DirectoryScanner, OpencodeDirectoryScan, ToolInfo,
+};
 pub use jsonc::{is_jsonc_extension, parse_jsonc, JsoncError};
 use remote_cache::{load_cache, save_cache, RemoteConfigCache};
 use secret_storage::resolve_keychain_secret;
@@ -517,9 +519,7 @@ pub enum TimeoutConfig {
 pub enum McpConfig {
     Local(McpLocalConfig),
     Remote(McpRemoteConfig),
-    Simple {
-        enabled: bool,
-    },
+    Simple { enabled: bool },
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
@@ -1077,14 +1077,12 @@ impl Config {
             v
         } else {
             let stripped = jsonc::strip_jsonc_comments(content);
-            serde_json::from_str(&stripped)
-                .map_err(|e| ConfigError::Config(e.to_string()))?
+            serde_json::from_str(&stripped).map_err(|e| ConfigError::Config(e.to_string()))?
         };
 
         let mut value = value;
         Self::check_deprecated_fields(&value);
-        Self::expand_variables(&mut value)
-            .map_err(|e| ConfigError::Config(e.to_string()))?;
+        Self::expand_variables(&mut value).map_err(|e| ConfigError::Config(e.to_string()))?;
         serde_json::from_value(value).map_err(|e| ConfigError::Config(e.to_string()))
     }
 
@@ -1102,7 +1100,8 @@ impl Config {
                     tracing::warn!(
                         "Deprecated config field '{}' detected: {}. \
                         See https://docs.opencode.ai/config/migration for migration guide.",
-                        field, message
+                        field,
+                        message
                     );
                 }
             }
@@ -1124,7 +1123,10 @@ impl Config {
         }
     }
 
-    pub fn substitute_variables(input: &str, config_dir: Option<&Path>) -> Result<String, ConfigError> {
+    pub fn substitute_variables(
+        input: &str,
+        config_dir: Option<&Path>,
+    ) -> Result<String, ConfigError> {
         Self::substitute_variables_inner(input, config_dir, &mut HashSet::new())
     }
 
@@ -1158,7 +1160,11 @@ impl Config {
                 let var_name = result[start + 5..start + end].to_string();
 
                 if expanding.contains(&var_name) {
-                    let chain: Vec<&str> = expanding.iter().chain(std::iter::once(&var_name)).map(|s| s.as_str()).collect();
+                    let chain: Vec<&str> = expanding
+                        .iter()
+                        .chain(std::iter::once(&var_name))
+                        .map(|s| s.as_str())
+                        .collect();
                     return Err(ConfigError::Config(format!(
                         "Circular environment variable reference detected: {{env:{}}}",
                         chain.join(" -> {env:")
@@ -1167,10 +1173,16 @@ impl Config {
 
                 expanding.insert(var_name.clone());
                 let replacement = std::env::var(&var_name).unwrap_or_default();
-                let expansion_result = Self::substitute_variables_inner(&replacement, config_dir, expanding);
+                let expansion_result =
+                    Self::substitute_variables_inner(&replacement, config_dir, expanding);
                 expanding.remove(&var_name);
                 let expansion_result = expansion_result?;
-                result = format!("{}{}{}", &result[..start], expansion_result, &result[start + end + 1..]);
+                result = format!(
+                    "{}{}{}",
+                    &result[..start],
+                    expansion_result,
+                    &result[start + end + 1..]
+                );
             } else {
                 break;
             }
@@ -1181,7 +1193,11 @@ impl Config {
                 let file_path = result[start + 6..start + end].to_string();
 
                 if expanding.contains(&file_path) {
-                    let chain: Vec<&str> = expanding.iter().chain(std::iter::once(&file_path)).map(|s| s.as_str()).collect();
+                    let chain: Vec<&str> = expanding
+                        .iter()
+                        .chain(std::iter::once(&file_path))
+                        .map(|s| s.as_str())
+                        .collect();
                     return Err(ConfigError::Config(format!(
                         "Circular file variable reference detected: {{file:{}}}",
                         chain.join(" -> {file:")
@@ -1194,14 +1210,20 @@ impl Config {
                         let path_str = path.to_string_lossy().to_string();
                         let content = std::fs::read_to_string(&path)
                             .unwrap_or_else(|_| format!("{{file:{}}}", &file_path));
-                        let expanded_content = Self::substitute_variables_inner(&content, config_dir, expanding)?;
+                        let expanded_content =
+                            Self::substitute_variables_inner(&content, config_dir, expanding)?;
                         (path_str, expanded_content)
                     }
                     _ => (file_path.clone(), String::new()),
                 };
                 expanding.remove(&file_path);
 
-                result = format!("{}{}{}", &result[..start], replacement.1, &result[start + end + 1..]);
+                result = format!(
+                    "{}{}{}",
+                    &result[..start],
+                    replacement.1,
+                    &result[start + end + 1..]
+                );
             } else {
                 break;
             }
@@ -1212,7 +1234,12 @@ impl Config {
                 let secret_name = result[start + 10..start + end].to_string();
                 let replacement = resolve_keychain_secret(&secret_name)
                     .unwrap_or_else(|| format!("{{keychain:{}}}", secret_name));
-                result = format!("{}{}{}", &result[..start], replacement, &result[start + end + 1..]);
+                result = format!(
+                    "{}{}{}",
+                    &result[..start],
+                    replacement,
+                    &result[start + end + 1..]
+                );
             } else {
                 break;
             }
@@ -1329,10 +1356,7 @@ impl Config {
                 }
 
                 let var_value = config_values.get(&var_name).ok_or_else(|| {
-                    ConfigError::Config(format!(
-                        "Undefined config variable: ${}",
-                        var_name
-                    ))
+                    ConfigError::Config(format!("Undefined config variable: ${}", var_name))
                 })?;
 
                 path.push(var_name.clone());
@@ -2003,8 +2027,8 @@ impl Config {
                 return Ok(config);
             }
             let stripped = jsonc::strip_jsonc_comments(content);
-            let config = serde_json::from_str(&stripped)
-                .map_err(|e| ConfigError::Config(e.to_string()))?;
+            let config =
+                serde_json::from_str(&stripped).map_err(|e| ConfigError::Config(e.to_string()))?;
             Self::log_schema_validation(&config);
             Ok(config)
         } else {
@@ -2323,8 +2347,7 @@ impl Config {
                         disabled.insert(field_name.to_string());
                     }
                     PermissionRule::Action(PermissionAction::Allow)
-                    | PermissionRule::Action(PermissionAction::Ask) => {
-                    }
+                    | PermissionRule::Action(PermissionAction::Ask) => {}
                     PermissionRule::Object(obj) => {
                         for (name, action) in obj {
                             if matches!(action, PermissionAction::Deny) {
@@ -2666,8 +2689,8 @@ impl Config {
     }
 
     pub fn migrate_from_ts_format(json_content: &str) -> Result<Self, ConfigError> {
-        let json_value: serde_json::Value = serde_json::from_str(json_content)
-            .map_err(|e| ConfigError::Config(e.to_string()))?;
+        let json_value: serde_json::Value =
+            serde_json::from_str(json_content).map_err(|e| ConfigError::Config(e.to_string()))?;
 
         let mut config = Config::default();
 

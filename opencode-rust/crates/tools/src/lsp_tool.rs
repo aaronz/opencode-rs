@@ -1,4 +1,10 @@
-#![allow(clippy::redundant_closure, clippy::needless_range_loop, clippy::needless_option_as_deref, clippy::implicit_saturating_sub, clippy::double_ended_iterator_last)]
+#![allow(
+    clippy::redundant_closure,
+    clippy::needless_range_loop,
+    clippy::needless_option_as_deref,
+    clippy::implicit_saturating_sub,
+    clippy::double_ended_iterator_last
+)]
 
 use crate::{Tool, ToolResult};
 use async_trait::async_trait;
@@ -497,10 +503,14 @@ impl LspTool {
                 || trimmed.starts_with("trait ")
                 || trimmed.starts_with("type ")
             {
-                return Ok(
-                    ToolResult::ok(format!("{}:{} -> {}:1: {}", file, line + 1, idx + 1, trimmed))
-                        .with_title(format!("Go to Definition {}", file)),
-                );
+                return Ok(ToolResult::ok(format!(
+                    "{}:{} -> {}:1: {}",
+                    file,
+                    line + 1,
+                    idx + 1,
+                    trimmed
+                ))
+                .with_title(format!("Go to Definition {}", file)));
             }
         }
 
@@ -997,7 +1007,9 @@ mod tests {
             .await;
         assert!(result.is_ok());
         let tool_result = result.unwrap();
-        assert!(tool_result.content.contains("No hover information available"));
+        assert!(tool_result
+            .content
+            .contains("No hover information available"));
     }
 
     #[tokio::test]

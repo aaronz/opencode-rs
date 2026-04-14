@@ -1,8 +1,10 @@
 use crate::common::{MockLLMProvider, TempProject};
 use opencode_agent::{Agent, BuildAgent};
-use opencode_core::{checkpoint::CheckpointManager, message::Message, revert::RevertManager, Session};
+use opencode_core::{
+    checkpoint::CheckpointManager, message::Message, revert::RevertManager, Session,
+};
 use opencode_mcp::{JsonRpcRequest, JsonRpcResponse};
-use opencode_plugin::{Plugin, PluginConfig, PluginDomain, PluginManager, PluginError};
+use opencode_plugin::{Plugin, PluginConfig, PluginDomain, PluginError, PluginManager};
 use opencode_tools::build_default_registry;
 use opencode_tools::{Tool, ToolRegistry};
 use uuid::Uuid;
@@ -61,7 +63,7 @@ fn test_phase6_regression_session_checkpoint_revert_integration() {
     let revert_point = revert_manager.create_point(2, "Revert point".to_string());
 
     session.add_message(Message::assistant("Extra response".to_string()));
-    
+
     revert_manager
         .revert_to(&mut session, &revert_point.id)
         .expect("Revert should succeed");
@@ -96,15 +98,13 @@ async fn test_phase6_regression_tool_registry_agent_integration() {
 #[test]
 fn test_phase6_regression_mcp_protocol_session_integration() {
     let request = JsonRpcRequest::new("tools/list", Some(serde_json::json!({})));
-    
+
     assert_eq!(request.jsonrpc, "2.0");
     assert_eq!(request.method, "tools/list");
-    
-    let response = JsonRpcResponse::success(
-        Some(serde_json::json!(1)),
-        serde_json::json!({"tools": []}),
-    );
-    
+
+    let response =
+        JsonRpcResponse::success(Some(serde_json::json!(1)), serde_json::json!({"tools": []}));
+
     assert_eq!(response.jsonrpc, "2.0");
     assert!(response.result.is_some());
     assert!(response.error.is_none());
@@ -118,49 +118,65 @@ async fn test_phase6_regression_message_processing_flow() {
         .with_response("Third response");
 
     let mut session = Session::new();
-    
+
     session.add_message(Message::user("First message".to_string()));
     let agent = BuildAgent::new();
     let tools = ToolRegistry::new();
-    
+
     let response1 = agent.run(&mut session, &provider, &tools).await.unwrap();
     assert_eq!(response1.content, "First response");
-    
+
     session.add_message(Message::user("Second message".to_string()));
     let response2 = agent.run(&mut session, &provider, &tools).await.unwrap();
     assert_eq!(response2.content, "Second response");
-    
+
     session.add_message(Message::user("Third message".to_string()));
     let response3 = agent.run(&mut session, &provider, &tools).await.unwrap();
     assert_eq!(response3.content, "Third response");
-    
+
     assert_eq!(session.messages.len(), 6);
 }
 
 #[test]
 fn test_phase6_regression_plugin_manager_lifecycle() {
     let mut manager = PluginManager::new();
-    
+
     struct SimplePlugin;
-    
+
     impl Plugin for SimplePlugin {
-        fn name(&self) -> &str { "simple-plugin" }
-        fn version(&self) -> &str { "1.0.0" }
-        fn description(&self) -> &str { "Simple plugin for testing" }
-        fn init(&mut self) -> Result<(), PluginError> { Ok(()) }
-        fn shutdown(&mut self) -> Result<(), PluginError> { Ok(()) }
+        fn name(&self) -> &str {
+            "simple-plugin"
+        }
+        fn version(&self) -> &str {
+            "1.0.0"
+        }
+        fn description(&self) -> &str {
+            "Simple plugin for testing"
+        }
+        fn init(&mut self) -> Result<(), PluginError> {
+            Ok(())
+        }
+        fn shutdown(&mut self) -> Result<(), PluginError> {
+            Ok(())
+        }
     }
-    
-    manager.register(Box::new(SimplePlugin)).expect("Plugin should register");
+
+    manager
+        .register(Box::new(SimplePlugin))
+        .expect("Plugin should register");
     manager.startup().expect("Startup should succeed");
-    
+
     let plugin = manager.get_plugin("simple-plugin");
     assert!(plugin.is_some());
-    
+
     manager.on_start_all().expect("on_start_all should succeed");
-    manager.on_message_all("test message", "test-session").expect("on_message should succeed");
-    manager.on_session_end_all("test-session").expect("on_session_end should succeed");
-    
+    manager
+        .on_message_all("test message", "test-session")
+        .expect("on_message should succeed");
+    manager
+        .on_session_end_all("test-session")
+        .expect("on_session_end should succeed");
+
     manager.shutdown_all().expect("Shutdown should succeed");
 }
 
@@ -201,7 +217,9 @@ fn test_phase6_regression_full_session_lifecycle() {
     assert_eq!(loaded_main.id, initial_id);
 
     let exploration_path = project.path().join("exploration.json");
-    exploration.save(&exploration_path).expect("Save exploration");
+    exploration
+        .save(&exploration_path)
+        .expect("Save exploration");
     let loaded_exploration = Session::load(&exploration_path).expect("Load exploration");
 
     assert_eq!(
@@ -211,7 +229,8 @@ fn test_phase6_regression_full_session_lifecycle() {
     );
 
     let mut revert_manager = RevertManager::new(5);
-    let revert_point = revert_manager.create_point(original_message_count, "Before exploration".to_string());
+    let revert_point =
+        revert_manager.create_point(original_message_count, "Before exploration".to_string());
 
     let mut to_revert = Session::load(&main_path).expect("Load for revert");
     to_revert.add_message(Message::user("Extra message".to_string()));
@@ -229,10 +248,10 @@ async fn test_phase6_regression_tool_execution_pipeline() {
     project.create_file("test_file.txt", "Hello, World!");
 
     let registry = build_default_registry(None).await;
-    
+
     let tools = registry.list_filtered(None).await;
     let tool_names: Vec<&str> = tools.iter().map(|(n, _, _)| n.as_str()).collect();
-    
+
     assert!(
         tool_names.contains(&"read"),
         "Read tool should be available. Found: {:?}",
@@ -370,11 +389,11 @@ fn test_phase6_regression_share_mode_persists() {
 
     let mut session = Session::new();
     session.add_message(Message::user("Share me".to_string()));
-    
+
     use opencode_core::config::ShareMode;
     session.set_share_mode(ShareMode::Manual);
     let _share_link = session.generate_share_link().expect("Should generate link");
-    
+
     let original_share_id = session.shared_id.clone();
     assert!(session.is_shared());
 
@@ -407,7 +426,7 @@ fn test_phase6_regression_checkpoints_list_and_load() {
     let _cp1 = checkpoint_manager
         .create(&session, "Checkpoint 1")
         .expect("cp1");
-    
+
     session.add_message(Message::assistant("Response".to_string()));
 
     let _cp2 = checkpoint_manager
@@ -531,6 +550,12 @@ async fn test_phase6_regression_all_default_tools_available() {
     let tools = registry.list_filtered(None).await;
     let tool_names: Vec<&str> = tools.iter().map(|(n, _, _)| n.as_str()).collect();
 
-    assert!(tool_names.contains(&"read"), "read tool should be available");
-    assert!(tool_names.contains(&"write"), "write tool should be available");
+    assert!(
+        tool_names.contains(&"read"),
+        "read tool should be available"
+    );
+    assert!(
+        tool_names.contains(&"write"),
+        "write tool should be available"
+    );
 }

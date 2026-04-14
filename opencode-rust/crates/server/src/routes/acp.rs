@@ -61,10 +61,10 @@ impl AcpState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::routes::acp_ws::{AcpClientRegistry, SharedAcpClientRegistry};
     use actix_web::http::StatusCode;
     use actix_web::test::TestRequest;
     use actix_web::Responder;
-    use crate::routes::acp_ws::{AcpClientRegistry, SharedAcpClientRegistry};
 
     fn create_test_server_state() -> ServerState {
         let temp_dir = tempfile::tempdir().unwrap();

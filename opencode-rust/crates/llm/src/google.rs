@@ -85,11 +85,12 @@ impl Provider for GoogleProvider {
             }],
         }];
 
-        let thinking_config = self.thinking_throttle.as_ref().map(|t| {
-            GoogleThinkingConfig {
+        let thinking_config = self
+            .thinking_throttle
+            .as_ref()
+            .map(|t| GoogleThinkingConfig {
                 thinking_throttle: t.clone(),
-            }
-        });
+            });
 
         let request = GoogleRequest {
             contents,
@@ -145,11 +146,12 @@ impl Provider for GoogleProvider {
             }],
         }];
 
-        let thinking_config = self.thinking_throttle.as_ref().map(|t| {
-            GoogleThinkingConfig {
+        let thinking_config = self
+            .thinking_throttle
+            .as_ref()
+            .map(|t| GoogleThinkingConfig {
                 thinking_throttle: t.clone(),
-            }
-        });
+            });
 
         let request = GoogleRequest {
             contents,

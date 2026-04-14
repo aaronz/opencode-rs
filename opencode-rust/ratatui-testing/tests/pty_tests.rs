@@ -1,5 +1,4 @@
 use ratatui_testing::PtySimulator;
-use std::time::Duration;
 
 #[test]
 fn test_pty_simulator_new_creates_valid_pty_pair() {
@@ -11,7 +10,7 @@ fn test_pty_simulator_new_creates_valid_pty_pair() {
 
     let pty = result.unwrap();
     assert!(pty.master.is_some(), "Master PTY should be Some");
-    assert!(pty.child.is_some(), "Child process should be Some");
+    assert!(pty.child.borrow().is_some(), "Child process should be Some");
     assert!(pty.writer.is_some(), "Writer should be Some");
     assert!(pty.reader.is_some(), "Reader should be Some");
 }

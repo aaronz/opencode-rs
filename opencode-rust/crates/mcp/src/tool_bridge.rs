@@ -474,7 +474,10 @@ mod tests {
 
         let msg = warning_message.unwrap();
         assert!(msg.contains("tokens"), "Warning should contain token count");
-        assert!(msg.contains("compact"), "Warning should suggest /compact command");
+        assert!(
+            msg.contains("compact"),
+            "Warning should suggest /compact command"
+        );
     }
 
     #[test]

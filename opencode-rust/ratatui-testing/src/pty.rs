@@ -1,17 +1,26 @@
 use anyhow::{Context, Result};
-use portable_pty::{Child, CommandBuilder, MasterPty, PtyPair};
-use std::io::{BufRead, Write};
+use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
+use std::cell::RefCell;
+use std::io::{BufRead, BufReader, Write};
 
 pub struct PtySimulator {
-    master: Option<Box<dyn MasterPty>>,
-    child: Option<Box<dyn Child>>,
-    writer: Option<Box<dyn Write + Send>>,
-    reader: Option<Box<dyn BufRead>>,
+    pub master: Option<Box<dyn MasterPty>>,
+    pub child: RefCell<Option<Box<dyn Child>>>,
+    pub writer: Option<Box<dyn Write + Send>>,
+    pub reader: Option<Box<dyn BufRead>>,
 }
 
 impl PtySimulator {
     pub fn new(command: &[&str]) -> Result<Self> {
-        let pair = PtyPair::new().context("Failed to create PTY pair")?;
+        let pty_system = native_pty_system();
+        let pair = pty_system
+            .openpty(PtySize {
+                rows: 24,
+                cols: 80,
+                pixel_width: 0,
+                pixel_height: 0,
+            })
+            .context("Failed to create PTY pair")?;
 
         let mut cmd = CommandBuilder::new(command[0]);
         for arg in &command[1..] {
@@ -35,9 +44,9 @@ impl PtySimulator {
 
         Ok(Self {
             master: Some(pair.master),
-            child: Some(child),
+            child: RefCell::new(Some(child)),
             writer: Some(Box::new(writer)),
-            reader: Some(Box::new(reader)),
+            reader: Some(Box::new(BufReader::new(reader))),
         })
     }
 
@@ -52,7 +61,7 @@ impl PtySimulator {
         }
     }
 
-    pub fn read_output(&mut self, timeout: std::time::Duration) -> Result<String> {
+    pub fn read_output(&mut self, _timeout: std::time::Duration) -> Result<String> {
         match &mut self.reader {
             Some(reader) => {
                 let mut buffer = String::new();
@@ -66,7 +75,12 @@ impl PtySimulator {
     pub fn resize(&mut self, cols: u16, rows: u16) -> Result<()> {
         match &mut self.master {
             Some(master) => {
-                master.resize(cols, rows)?;
+                master.resize(PtySize {
+                    rows,
+                    cols,
+                    pixel_width: 0,
+                    pixel_height: 0,
+                })?;
                 Ok(())
             }
             None => anyhow::bail!("PTY master not available"),
@@ -82,8 +96,8 @@ impl PtySimulator {
     }
 
     pub fn is_child_running(&self) -> bool {
-        match &self.child {
-            Some(child) => child.try_is_running().unwrap_or(false),
+        match self.child.borrow_mut().as_mut() {
+            Some(child) => child.try_wait().ok().flatten().is_none(),
             None => false,
         }
     }
@@ -93,7 +107,7 @@ impl Default for PtySimulator {
     fn default() -> Self {
         Self {
             master: None,
-            child: None,
+            child: RefCell::new(None),
             writer: None,
             reader: None,
         }

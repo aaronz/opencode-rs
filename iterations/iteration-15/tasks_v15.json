@@ -254,7 +254,7 @@
       "priority": "P1",
       "title": "Refactor Config Crate - crates/config/src/lib.rs is empty re-export",
       "description": "Move config logic from crates/core/src/config.rs to crates/config/. Ensure crates/config/ contains actual config implementation. Update imports in dependent crates. Verify config precedence and ownership still works.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify config logic resides in crates/config/ crate",
         "AddUnitTest: verify config precedence works correctly after refactor",
@@ -297,7 +297,7 @@
       "priority": "P2",
       "title": "TUI Input Model Tests - No tests for input model",
       "description": "Add tests for multiline input handling, input history navigation, and autocomplete triggering in TUI input model.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify multiline input handling works correctly",
         "AddUnitTest: verify input history navigation (up/down arrows)",
@@ -310,7 +310,7 @@
         "cargo clippy --all -- -D warnings",
         "cargo build --release"
       ],
-      "impl_notes": "Tests for multiline input, history navigation, and autocomplete in TUI.",
+      "impl_notes": "22 tests added in crates/tui/tests/input_model_tests.rs covering multiline input (Shift+Enter newline insertion, multi-line accumulation, regular Enter submits), input history navigation (previous/next/reset/dedup/max-size/search/clear), and autocomplete triggering (file ref @, slash command /, Tab completion, partial match, no-match, no-duplicates, cursor position).",
       "dependencies": []
     },
     {
@@ -318,7 +318,7 @@
       "priority": "P2",
       "title": "TUI Sidebar Tests - No tests for sidebar visibility and content",
       "description": "Add tests for sidebar visibility toggle, file tree content, MCP/LSP status display, and diagnostics display.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify sidebar visibility toggle works",
         "AddUnitTest: verify file tree content displays correctly",
@@ -340,7 +340,7 @@
       "priority": "P2",
       "title": "Per-Agent Model Override Test - not explicitly tested",
       "description": "Add test for agent-specific model selection. Verify build agent uses default model. Verify model override affects only specified agent.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify agent-specific model selection works",
         "AddUnitTest: verify build agent uses default model",
@@ -360,7 +360,7 @@
       "priority": "P2",
       "title": "Route-Group Presence Tests - No integration tests for route groups",
       "description": "Add tests for session, config, provider, permission, and MCP route groups in server module.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify session route group handlers work",
         "AddIntegrationTest: verify config route group handlers work",
@@ -383,7 +383,7 @@
       "priority": "P2",
       "title": "API Negative Tests - No negative tests for unauthorized/malformed requests",
       "description": "Add tests for unauthorized access (missing auth token), invalid auth token, malformed request bodies, and invalid session/message IDs.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddErrorHandlingTest: verify unauthorized access returns 401 without auth token",
         "AddErrorHandlingTest: verify invalid auth token returns 401",
@@ -406,7 +406,7 @@
       "priority": "P2",
       "title": "Hidden vs Visible Agent UI Tests - untested behavior",
       "description": "Add tests for visible agents (build, plan) in selection flows and hidden agents (compaction, title, summary) not appearing in selection.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify visible agents (build, plan) appear in selection flows",
         "AddUnitTest: verify hidden agents (compaction, title, summary) not in selection",
@@ -427,7 +427,7 @@
       "priority": "P2",
       "title": "Theme Auto-Sync Test - not tested on install",
       "description": "Add test for theme auto-sync when plugin installed. Verify theme applies immediately after install.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify theme auto-sync when plugin installed",
         "AddIntegrationTest: verify theme applies immediately after install",
@@ -447,7 +447,7 @@
       "priority": "P1",
       "title": "Empty crates/config/ crate",
       "description": "Technical debt: crates/config/src/lib.rs is empty re-export. See P1-9 for resolution.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify config logic moved to crates/config/",
         "RunTestSuite: cargo test -p opencode-config --"
@@ -487,7 +487,7 @@
       "priority": "P0",
       "title": "Custom tools discovered but not registered",
       "description": "Technical debt CRITICAL: Discovered tools recorded in config but NOT registered with ToolRegistry. See P0-2 for resolution.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify custom tool discovery -> registration -> execution",
         "RunTestSuite: cargo test -p opencode-tools -- custom_tool"
@@ -497,7 +497,7 @@
         "cargo clippy --all -- -D warnings",
         "cargo build --release"
       ],
-      "impl_notes": "Resolved by P0-2 task.",
+      "impl_notes": "Added integration test 'custom_tool_registration' in crates/tools/src/discovery.rs. Test verifies custom tool discovery, registration, and execution flow. All test commands pass.",
       "dependencies": [
         "P0-2"
       ]

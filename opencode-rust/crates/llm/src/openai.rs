@@ -366,9 +366,10 @@ impl Provider for OpenAiProvider {
             content: prompt.to_string(),
         }];
 
-        let reasoning = self.reasoning_effort.as_ref().map(|e| ReasoningRequest {
-            effort: e.clone(),
-        });
+        let reasoning = self
+            .reasoning_effort
+            .as_ref()
+            .map(|e| ReasoningRequest { effort: e.clone() });
 
         let request = ChatRequest {
             model: self.model.clone(),
@@ -426,9 +427,10 @@ impl Provider for OpenAiProvider {
             content: prompt.to_string(),
         }];
 
-        let reasoning = self.reasoning_effort.as_ref().map(|e| ReasoningRequest {
-            effort: e.clone(),
-        });
+        let reasoning = self
+            .reasoning_effort
+            .as_ref()
+            .map(|e| ReasoningRequest { effort: e.clone() });
 
         let request = ChatRequest {
             model: self.model.clone(),

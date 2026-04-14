@@ -1,5 +1,5 @@
 use crate::common::TempProject;
-use opencode_tools::{register_custom_tools, read::ReadTool, write::WriteTool, Tool, ToolRegistry};
+use opencode_tools::{read::ReadTool, register_custom_tools, write::WriteTool, Tool, ToolRegistry};
 
 #[tokio::test]
 async fn test_tool_registry_register_and_execute() {
@@ -203,10 +203,10 @@ async fn test_write_tool_creates_nested_directories() {
 #[tokio::test]
 async fn test_custom_tool_discovery_registration_execution() {
     let project = TempProject::new();
-    
+
     let tools_dir = project.path().join(".opencode/tools");
     std::fs::create_dir_all(&tools_dir).expect("Failed to create tools dir");
-    
+
     let tool_content = r#"
 const echoTool = {
     name: "echo",
@@ -218,17 +218,16 @@ const args = argsIdx >= 0 ? JSON.parse(process.argv[argsIdx + 1] || '{}') : {};
 console.log(args.message || '');
 export default echoTool;
 "#;
-    
-    std::fs::write(tools_dir.join("echo.js"), tool_content)
-        .expect("Failed to write tool file");
-    
+
+    std::fs::write(tools_dir.join("echo.js"), tool_content).expect("Failed to write tool file");
+
     let registry = ToolRegistry::new();
-    
+
     let registered = register_custom_tools(&registry, Some(project.path().to_path_buf())).await;
-    
+
     assert_eq!(registered.len(), 1, "Should discover exactly one tool");
     assert_eq!(registered[0], "echo", "Tool name should be 'echo'");
-    
+
     let tools = registry.list_filtered(None).await;
     let tool_names: Vec<&str> = tools.iter().map(|(n, _, _)| n.as_str()).collect();
     assert!(
@@ -236,11 +235,15 @@ export default echoTool;
         "Custom tool 'echo' should appear in tool listing. Found: {:?}",
         tool_names
     );
-    
+
     let result = registry
-        .execute("echo", serde_json::json!({"message": "Hello, World!"}), None)
+        .execute(
+            "echo",
+            serde_json::json!({"message": "Hello, World!"}),
+            None,
+        )
         .await;
-    
+
     assert!(result.is_ok(), "Tool execution should succeed");
     let result = result.unwrap();
     assert!(result.success, "Tool should execute successfully");
@@ -254,26 +257,26 @@ export default echoTool;
 #[tokio::test]
 async fn test_custom_tool_discovery_multiple_tools() {
     let project = TempProject::new();
-    
+
     let tools_dir = project.path().join(".opencode/tools");
     std::fs::create_dir_all(&tools_dir).expect("Failed to create tools dir");
-    
+
     std::fs::write(
         tools_dir.join("tool1.js"),
         r#"const toolOne = { name: "tool_one", description: "First tool", parameters: {} }; export default toolOne;"#,
     ).expect("Failed to write tool1");
-    
+
     std::fs::write(
         tools_dir.join("tool2.ts"),
         r#"const toolTwo = { name: "tool_two", description: "Second tool", parameters: {} }; export default toolTwo;"#,
     ).expect("Failed to write tool2");
-    
+
     let registry = ToolRegistry::new();
-    
+
     let registered = register_custom_tools(&registry, Some(project.path().to_path_buf())).await;
-    
+
     assert_eq!(registered.len(), 2, "Should discover exactly two tools");
-    
+
     let tools = registry.list_filtered(None).await;
     let tool_names: Vec<&str> = tools.iter().map(|(n, _, _)| n.as_str()).collect();
     assert!(
@@ -289,10 +292,13 @@ async fn test_custom_tool_discovery_multiple_tools() {
 #[tokio::test]
 async fn test_custom_tool_discovery_no_tools() {
     let project = TempProject::new();
-    
+
     let registry = ToolRegistry::new();
-    
+
     let registered = register_custom_tools(&registry, Some(project.path().to_path_buf())).await;
-    
-    assert!(registered.is_empty(), "Should discover no tools when none exist");
+
+    assert!(
+        registered.is_empty(),
+        "Should discover no tools when none exist"
+    );
 }

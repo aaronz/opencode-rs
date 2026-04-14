@@ -1,4 +1,8 @@
-#![allow(clippy::redundant_closure, clippy::needless_range_loop, clippy::let_underscore_future)]
+#![allow(
+    clippy::redundant_closure,
+    clippy::needless_range_loop,
+    clippy::let_underscore_future
+)]
 
 use crate::{Tool, ToolResult};
 use async_trait::async_trait;

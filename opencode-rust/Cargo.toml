@@ -80,6 +80,7 @@ opencode-lsp = { path = "crates/lsp" }
 opencode-storage = { path = "crates/storage" }
 opencode-server = { path = "crates/server" }
 opencode-mcp = { path = "crates/mcp" }
+opencode-control-plane = { path = "crates/control-plane" }
 opencode-permission = { path = "crates/permission" }
 opencode-plugin = { path = "crates/plugin" }
 opencode-sdk = { path = "crates/sdk" }

@@ -1,6 +1,8 @@
 use chrono::Utc;
 use opencode_storage::migration::MigrationManager;
-use opencode_storage::models::{AccountModel, InvocationStatus, ProjectModel, SessionModel, ToolInvocation};
+use opencode_storage::models::{
+    AccountModel, InvocationStatus, ProjectModel, SessionModel, ToolInvocation,
+};
 use opencode_storage::StoragePool;
 use uuid::Uuid;
 
@@ -14,8 +16,7 @@ fn test_session_model_serialization() {
     };
 
     let json = serde_json::to_string(&model).expect("Should serialize");
-    let deserialized: SessionModel =
-        serde_json::from_str(&json).expect("Should deserialize");
+    let deserialized: SessionModel = serde_json::from_str(&json).expect("Should deserialize");
 
     assert_eq!(deserialized.id, model.id);
 }

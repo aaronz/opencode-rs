@@ -51,7 +51,7 @@ fn test_multiple_widgets_layout() {
             let messages_area = Rect::new(0, 1, 80, 18);
             let input_area = Rect::new(0, 19, 80, 3);
             let status_area = Rect::new(0, 22, 80, 1);
-            let terminal_area = Rect::new(0, 23, 80, 1);
+            let _terminal_area = Rect::new(0, 23, 80, 1);
 
             let title_block = Block::default().borders(ratatui::widgets::Borders::ALL);
             f.render_widget(title_block, title_area);

@@ -72,13 +72,12 @@ pub use compaction::{
 /// Loaded from config.toml, environment variables, and command-line arguments.
 pub use config::Config;
 
+pub use config::DirectoryScanner;
 /// Context for agent execution, including token budgeting and message management.
 /// Use ContextBuilder to construct contexts with token limits.
 pub use context::{estimate_tokens, trim_to_budget, Context, ContextBudget, ContextBuilder};
 pub use control_plane::ControlPlane;
-pub use directory::{
-    AgentDefinition, CommandDefinition, DirectoryScanner, ModeDefinition, PluginInfo, ThemeInfo,
-};
+pub use directory::{AgentDefinition, CommandDefinition, ModeDefinition, PluginInfo, ThemeInfo};
 pub use effect::{Effect, EffectError, EffectResult};
 pub use env::EnvManager;
 /// Main error type for OpenCode RS. Covers IO, JSON, Network, Config, Session, Tool, LLM, and Provider errors.

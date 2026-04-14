@@ -1,4 +1,13 @@
-#![allow(unused_imports, unused_mut, unused_variables, clippy::await_holding_lock, clippy::io_other_error, clippy::len_without_is_empty, clippy::manual_contains, clippy::redundant_closure)]
+#![allow(
+    unused_imports,
+    unused_mut,
+    unused_variables,
+    clippy::await_holding_lock,
+    clippy::io_other_error,
+    clippy::len_without_is_empty,
+    clippy::manual_contains,
+    clippy::redundant_closure
+)]
 
 use actix_web::dev::Service;
 use actix_web::{middleware as actix_middleware, web, App, HttpResponse, HttpServer, Responder};
@@ -10,8 +19,8 @@ use opencode_core::config::ServerConfig;
 use opencode_core::Config;
 use opencode_llm::ModelRegistry;
 use opencode_storage::StorageService;
-use routes::share::ShareServer;
 use routes::acp_ws::SharedAcpClientRegistry;
+use routes::share::ShareServer;
 use std::sync::Arc;
 use std::sync::RwLock;
 use streaming::{conn_state::ConnectionMonitor, ReconnectionStore};

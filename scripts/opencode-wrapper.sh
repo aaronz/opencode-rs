@@ -151,7 +151,7 @@ run_opencode_with_session_export() {
     local temp_output
     temp_output=$(mktemp)
 
-    opencode run -m "$model" "$prompt" --format json 2>&1 > "$temp_output" || true
+    opencode run -m "$model" --dangerously-skip-permissions "$prompt" --format json 2>&1 > "$temp_output" || true
 
     if [ -f "$temp_output" ] && [ -s "$temp_output" ]; then
         local session_id

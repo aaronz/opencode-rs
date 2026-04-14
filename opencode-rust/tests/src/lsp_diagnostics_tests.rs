@@ -6,25 +6,25 @@ use std::time::Duration;
 #[tokio::test]
 async fn test_lsp_diagnostics_flow_end_to_end() {
     let project = TempProject::new();
-    
+
     project.create_file(
         "test.rs",
         r#"fn main() {
     println!("Hello, world!");
-}"#
+}"#,
     );
-    
+
     let mut mock_server = MockLspServer::start().expect("Mock LSP server should start");
     let server_pid = mock_server.pid();
     assert!(server_pid > 0, "Server should have a valid PID");
-    
+
     mock_server.stop();
 }
 
 #[tokio::test]
 async fn test_lsp_mock_server_handles_initialize() {
     let mut mock_server = MockLspServer::start().expect("Mock LSP server should start");
-    
+
     let response_script = r#"
 while IFS= read -r line; do
     if [[ "$line" == $'\r' ]] || [[ "$line" == $'\n' ]] || [[ -z "$line" ]]; then
@@ -48,10 +48,10 @@ fi
 
     let mut server_with_init = MockLspServer::start_with_script(response_script)
         .expect("Server with initialize script should start");
-    
+
     let pid = server_with_init.pid();
     assert!(pid > 0);
-    
+
     server_with_init.stop();
 }
 
@@ -83,10 +83,10 @@ fi
 
     let mut server = MockLspServer::start_with_script(definition_script)
         .expect("Server with definition script should start");
-    
+
     let pid = server.pid();
     assert!(pid > 0);
-    
+
     server.stop();
 }
 
@@ -118,10 +118,10 @@ fi
 
     let mut server = MockLspServer::start_with_script(references_script)
         .expect("Server with references script should start");
-    
+
     let pid = server.pid();
     assert!(pid > 0);
-    
+
     server.stop();
 }
 
@@ -151,23 +151,28 @@ fi
 
     let mut server = MockLspServer::start_with_script(shutdown_script)
         .expect("Server with shutdown script should start");
-    
+
     tokio::time::sleep(Duration::from_millis(100)).await;
-    
+
     server.stop();
 }
 
 #[tokio::test]
 async fn test_lsp_session_message_processing() {
     let project = TempProject::new();
-    
+
     let mut session = opencode_core::Session::new();
     session.add_message(Message::user("Analyze this code".to_string()));
-    session.add_message(Message::assistant("I'll analyze the code structure".to_string()));
-    
+    session.add_message(Message::assistant(
+        "I'll analyze the code structure".to_string(),
+    ));
+
     assert_eq!(session.messages.len(), 2);
     assert_eq!(session.messages[0].content, "Analyze this code");
-    assert_eq!(session.messages[1].content, "I'll analyze the code structure");
+    assert_eq!(
+        session.messages[1].content,
+        "I'll analyze the code structure"
+    );
 }
 
 #[tokio::test]
@@ -202,9 +207,9 @@ fi
 
     let mut server = MockLspServer::start_with_script(multi_request_script)
         .expect("Server with multi-request script should start");
-    
+
     let pid = server.pid();
     assert!(pid > 0);
-    
+
     server.stop();
 }

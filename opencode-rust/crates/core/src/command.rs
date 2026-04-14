@@ -421,7 +421,10 @@ impl Default for CommandRegistry {
     }
 }
 
-pub fn substitute_command_variables(template: &str, context: &CommandContext) -> Result<String, OpenCodeError> {
+pub fn substitute_command_variables(
+    template: &str,
+    context: &CommandContext,
+) -> Result<String, OpenCodeError> {
     let mut result = Config::substitute_variables(template, Some(Path::new(&context.working_dir)))?;
 
     result = result.replace("{input}", &context.variables.input);
@@ -1159,7 +1162,8 @@ mod tests {
 
         let ctx = CommandContext::new(vec![], HashMap::new(), dir.path().display().to_string());
         let output =
-            substitute_command_variables(&format!("before {{file:{}}} after", file_name), &ctx).unwrap();
+            substitute_command_variables(&format!("before {{file:{}}} after", file_name), &ctx)
+                .unwrap();
         assert_eq!(output, "before file-content after");
     }
 }

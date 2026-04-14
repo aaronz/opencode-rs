@@ -117,7 +117,9 @@ impl Agent for MockVisibleAgent {
         _provider: &dyn Provider,
         _tools: &ToolRegistry,
     ) -> Result<opencode_agent::AgentResponse, opencode_core::OpenCodeError> {
-        session.add_message(opencode_core::Message::assistant(self.response_content.clone()));
+        session.add_message(opencode_core::Message::assistant(
+            self.response_content.clone(),
+        ));
         Ok(opencode_agent::AgentResponse {
             content: self.response_content.clone(),
             tool_calls: Vec::new(),
@@ -149,13 +151,22 @@ async fn test_agent_switch_multiple_times() {
     runtime.switch_primary_agent(AgentType::Plan).await.unwrap();
     assert_eq!(runtime.active_agent(), Some(AgentType::Plan));
 
-    runtime.switch_primary_agent(AgentType::Explore).await.unwrap();
+    runtime
+        .switch_primary_agent(AgentType::Explore)
+        .await
+        .unwrap();
     assert_eq!(runtime.active_agent(), Some(AgentType::Explore));
 
-    runtime.switch_primary_agent(AgentType::General).await.unwrap();
+    runtime
+        .switch_primary_agent(AgentType::General)
+        .await
+        .unwrap();
     assert_eq!(runtime.active_agent(), Some(AgentType::General));
 
-    runtime.switch_primary_agent(AgentType::Build).await.unwrap();
+    runtime
+        .switch_primary_agent(AgentType::Build)
+        .await
+        .unwrap();
     assert_eq!(runtime.active_agent(), Some(AgentType::Build));
 }
 
@@ -189,7 +200,10 @@ async fn test_agent_switch_deactivate_activate() {
     assert!(!runtime.is_primary_agent_active());
     assert_eq!(runtime.primary_agent_state(), PrimaryAgentState::Inactive);
 
-    runtime.activate_primary_agent(AgentType::Plan).await.unwrap();
+    runtime
+        .activate_primary_agent(AgentType::Plan)
+        .await
+        .unwrap();
     assert!(runtime.is_primary_agent_active());
     assert_eq!(runtime.active_agent(), Some(AgentType::Plan));
 }
@@ -214,11 +228,17 @@ async fn test_agent_switch_reactivation_after_deactivate() {
     runtime.deactivate_primary_agent().await.unwrap();
     assert!(!runtime.is_primary_agent_active());
 
-    runtime.activate_primary_agent(AgentType::Review).await.unwrap();
+    runtime
+        .activate_primary_agent(AgentType::Review)
+        .await
+        .unwrap();
     assert!(runtime.is_primary_agent_active());
     assert_eq!(runtime.active_agent(), Some(AgentType::Review));
 
-    runtime.switch_primary_agent(AgentType::Refactor).await.unwrap();
+    runtime
+        .switch_primary_agent(AgentType::Refactor)
+        .await
+        .unwrap();
     assert_eq!(runtime.active_agent(), Some(AgentType::Refactor));
 }
 

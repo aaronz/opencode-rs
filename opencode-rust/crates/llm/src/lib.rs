@@ -38,6 +38,10 @@ pub use auth::{
     AuthApplicator, AuthManager, AuthStrategy, Credential, CredentialStore, OAuthSessionManager,
     OAuthTokenResponse, ProviderAuthConfig,
 };
+pub use budget::{
+    BudgetExceededError, BudgetLimit, BudgetTracker, ConversationBudgetState, RequestBudgetState,
+    VariantCost,
+};
 pub use error::{with_retry, LlmError, RetryConfig};
 pub use huggingface::HuggingFaceProvider;
 pub use lm_studio::LmStudioProvider;
@@ -62,8 +66,4 @@ pub use provider_adapter::{
     AnthropicAdapter, LocalEndpointAdapter, OpenAICompatibleAdapter, ProviderAdapter,
 };
 pub use provider_filter::ProviderFilter;
-pub use budget::{
-    BudgetExceededError, BudgetLimit, BudgetTracker, ConversationBudgetState,
-    RequestBudgetState, VariantCost,
-};
 pub use transform::{MessageTransform, TransformPipeline};

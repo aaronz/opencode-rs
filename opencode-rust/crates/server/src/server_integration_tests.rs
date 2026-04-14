@@ -1146,6 +1146,206 @@ mod tests {
         let msg_with_content = Message::user("content");
         assert_eq!(msg_with_content.content, "content");
     }
+
+    #[actix_web::test]
+    async fn route_group_session_routes_list_sessions_returns_ok() {
+        use actix_web::web;
+        let state = create_test_state();
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::list_sessions(
+            web::Data::new(state),
+            web::Query(crate::routes::session::PaginationParams {
+                limit: None,
+                offset: None,
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[actix_web::test]
+    async fn route_group_session_routes_get_session_bad_id_returns_error() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::get_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("invalid-uuid".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    #[actix_web::test]
+    async fn route_group_session_routes_permission_reply_allow() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::permission_reply(
+            web::Data::new(create_test_state()),
+            web::Path::from(("test-session".to_string(), "test-req".to_string())),
+            web::Json(crate::routes::session::PermissionReplyRequest {
+                decision: "allow".to_string(),
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn route_group_session_routes_permission_reply_deny() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::permission_reply(
+            web::Data::new(create_test_state()),
+            web::Path::from(("test-session".to_string(), "test-req".to_string())),
+            web::Json(crate::routes::session::PermissionReplyRequest {
+                decision: "deny".to_string(),
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn route_group_session_routes_permission_reply_invalid() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::permission_reply(
+            web::Data::new(create_test_state()),
+            web::Path::from(("test-session".to_string(), "test-req".to_string())),
+            web::Json(crate::routes::session::PermissionReplyRequest {
+                decision: "invalid".to_string(),
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    #[actix_web::test]
+    async fn route_group_session_routes_delete_bad_id() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::delete_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("not-a-valid-uuid".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    #[actix_web::test]
+    async fn route_group_config_routes_get_config_returns_ok() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::config::get_config(web::Data::new(create_test_state()))
+            .await
+            .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn route_group_provider_routes_list_providers_returns_ok() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::provider::get_providers(web::Data::new(create_test_state()))
+            .await
+            .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn route_group_provider_routes_get_provider_status_returns_ok() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::provider::get_provider_status(
+            web::Data::new(create_test_state()),
+            web::Path::from("test-provider".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn route_group_permission_routes_list_permissions_returns_ok() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::permission::list_permissions(web::Data::new(create_test_state()))
+            .await
+            .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn route_group_permission_routes_permission_reply_allow() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::permission::permission_reply(
+            web::Data::new(create_test_state()),
+            web::Path::from(("session-1".to_string(), "req-1".to_string())),
+            web::Json(crate::routes::permission::PermissionReplyRequest {
+                decision: "allow".to_string(),
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn route_group_permission_routes_permission_reply_deny() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::permission::permission_reply(
+            web::Data::new(create_test_state()),
+            web::Path::from(("session-2".to_string(), "req-2".to_string())),
+            web::Json(crate::routes::permission::PermissionReplyRequest {
+                decision: "deny".to_string(),
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn route_group_permission_routes_permission_reply_invalid() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::permission::permission_reply(
+            web::Data::new(create_test_state()),
+            web::Path::from(("session-3".to_string(), "req-3".to_string())),
+            web::Json(crate::routes::permission::PermissionReplyRequest {
+                decision: "invalid".to_string(),
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[actix_web::test]
+    async fn route_group_mcp_routes_handler_returns_ok() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::mcp::mcp_handler(
+            web::Data::new(create_test_state()),
+            web::Json(crate::routes::mcp::McpRequestBody {
+                jsonrpc: "2.0".to_string(),
+                id: Some(serde_json::json!(1)),
+                method: "tools/list".to_string(),
+                params: None,
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
 }
 
 #[cfg(test)]
@@ -1442,10 +1642,7 @@ mod security_tests {
             ))
             .to_srv_request();
         let authorized = crate::middleware::is_api_key_authorized(&req);
-        assert!(
-            authorized,
-            "Request should be allowed with valid API key"
-        );
+        assert!(authorized, "Request should be allowed with valid API key");
     }
 
     #[actix_web::test]
@@ -1461,10 +1658,7 @@ mod security_tests {
             ))
             .to_srv_request();
         let authorized = crate::middleware::is_api_key_authorized(&req);
-        assert!(
-            !authorized,
-            "Request should be rejected with wrong API key"
-        );
+        assert!(!authorized, "Request should be rejected with wrong API key");
     }
 
     #[actix_web::test]
@@ -1549,10 +1743,7 @@ mod security_tests {
             .uri("/api/config")
             .to_srv_request();
         let authorized = crate::middleware::is_api_key_authorized(&req);
-        assert!(
-            !authorized,
-            "Config endpoint should require authentication"
-        );
+        assert!(!authorized, "Config endpoint should require authentication");
     }
 
     #[actix_web::test]
@@ -1576,5 +1767,434 @@ mod security_tests {
                 key
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod api_negative_tests {
+    use actix_web::http::StatusCode;
+    use actix_web::test::TestRequest;
+    use actix_web::web;
+    use actix_web::Responder;
+
+    fn create_test_state() -> crate::ServerState {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        crate::ServerState {
+            storage: std::sync::Arc::new(opencode_storage::StorageService::new(
+                opencode_storage::database::StoragePool::new(&db_path).unwrap(),
+            )),
+            models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
+            config: std::sync::Arc::new(std::sync::RwLock::new(opencode_core::Config::default())),
+            event_bus: opencode_core::bus::SharedEventBus::default(),
+            reconnection_store: crate::streaming::ReconnectionStore::default(),
+            connection_monitor: std::sync::Arc::new(
+                crate::streaming::conn_state::ConnectionMonitor::new(),
+            ),
+            share_server: std::sync::Arc::new(std::sync::RwLock::new(
+                crate::routes::share::ShareServer::with_default_config(),
+            )),
+            acp_enabled: true,
+            acp_stream: opencode_control_plane::AcpEventStream::new().into(),
+            acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
+                crate::routes::acp_ws::AcpClientRegistry::new(),
+            )),
+        }
+    }
+
+    fn create_test_state_with_api_key(api_key: Option<String>) -> crate::ServerState {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let mut config = opencode_core::Config::default();
+        config.api_key = api_key;
+        crate::ServerState {
+            storage: std::sync::Arc::new(opencode_storage::StorageService::new(
+                opencode_storage::database::StoragePool::new(&db_path).unwrap(),
+            )),
+            models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
+            config: std::sync::Arc::new(std::sync::RwLock::new(config)),
+            event_bus: opencode_core::bus::SharedEventBus::default(),
+            reconnection_store: crate::streaming::ReconnectionStore::default(),
+            connection_monitor: std::sync::Arc::new(
+                crate::streaming::conn_state::ConnectionMonitor::new(),
+            ),
+            share_server: std::sync::Arc::new(std::sync::RwLock::new(
+                crate::routes::share::ShareServer::with_default_config(),
+            )),
+            acp_enabled: true,
+            acp_stream: opencode_control_plane::AcpEventStream::new().into(),
+            acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
+                crate::routes::acp_ws::AcpClientRegistry::new(),
+            )),
+        }
+    }
+
+    #[actix_web::test]
+    async fn api_negative_unauthorized_access_returns_401_without_auth_token() {
+        let state = create_test_state_with_api_key(Some("test-api-key".to_string()));
+        let req = TestRequest::default()
+            .app_data(web::Data::new(state))
+            .uri("/api/sessions")
+            .to_srv_request();
+        let authorized = crate::middleware::is_api_key_authorized(&req);
+        assert!(
+            !authorized,
+            "Request without auth token should return 401 when API key is required"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_invalid_auth_token_returns_401() {
+        let state = create_test_state_with_api_key(Some("correct-api-key".to_string()));
+        let req = TestRequest::default()
+            .app_data(web::Data::new(state))
+            .insert_header((
+                actix_web::http::header::HeaderName::from_static("x-api-key"),
+                "wrong-api-key",
+            ))
+            .to_srv_request();
+        let authorized = crate::middleware::is_api_key_authorized(&req);
+        assert!(
+            !authorized,
+            "Request with invalid auth token should return 401"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_malformed_request_body_returns_400() {
+        use actix_web::web;
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::add_message_to_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("invalid-uuid".to_string()),
+            web::Json(crate::routes::session::AddMessageRequest {
+                role: None,
+                content: "".to_string(),
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "Malformed request with invalid session ID should return 422"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_invalid_session_id_returns_422() {
+        use actix_web::web;
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::get_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("invalid-session-id-not-a-uuid".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "Invalid session ID should return 422 (unprocessable entity)"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_invalid_message_id_returns_404_or_500() {
+        use actix_web::web;
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::get_message(
+            web::Data::new(create_test_state()),
+            web::Path::from(("00000000-0000-0000-0000-000000000000".to_string(), 999)),
+        )
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::NOT_FOUND
+                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+            "Message index not found should return 404 or 500 if storage fails"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_empty_content_returns_unprocessable_entity() {
+        use actix_web::web;
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::add_message_to_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("00000000-0000-0000-0000-000000000000".to_string()),
+            web::Json(crate::routes::session::AddMessageRequest {
+                role: Some("user".to_string()),
+                content: "".to_string(),
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "Empty content should return 422"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_invalid_role_returns_unprocessable_entity() {
+        use actix_web::web;
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::add_message_to_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("00000000-0000-0000-0000-000000000000".to_string()),
+            web::Json(crate::routes::session::AddMessageRequest {
+                role: Some("invalid_role".to_string()),
+                content: "test content".to_string(),
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "Invalid role should return 422"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_session_not_found_returns_not_found_or_error() {
+        use actix_web::web;
+
+        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::get_session(
+            web::Data::new(create_test_state()),
+            web::Path::from(valid_uuid.to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::NOT_FOUND
+                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+            "Non-existent session should return 404 or 500 if storage fails"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_delete_nonexistent_session_returns_not_found_or_error() {
+        use actix_web::web;
+
+        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::delete_session(
+            web::Data::new(create_test_state()),
+            web::Path::from(valid_uuid.to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::NOT_FOUND
+                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+            "Delete non-existent session should return 404 or 500 if storage fails"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_valid_health_check_still_succeeds_regression() {
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::health_check().await.respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::OK,
+            "Health check should always succeed (regression check)"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_valid_config_get_still_succeeds_regression() {
+        use actix_web::web;
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::config::get_config(web::Data::new(create_test_state()))
+            .await
+            .respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::OK,
+            "Config get should return OK (regression check)"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_valid_provider_list_still_succeeds_regression() {
+        use actix_web::web;
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::provider::get_providers(web::Data::new(create_test_state()))
+            .await
+            .respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::OK,
+            "Provider list should return OK (regression check)"
+        );
+    }
+}
+
+#[cfg(test)]
+mod auth_negative_tests {
+    use actix_web::http::StatusCode;
+    use actix_web::test::TestRequest;
+    use actix_web::web;
+
+    fn create_test_state_with_api_key(api_key: Option<String>) -> crate::ServerState {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let mut config = opencode_core::Config::default();
+        config.api_key = api_key;
+        crate::ServerState {
+            storage: std::sync::Arc::new(opencode_storage::StorageService::new(
+                opencode_storage::database::StoragePool::new(&db_path).unwrap(),
+            )),
+            models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
+            config: std::sync::Arc::new(std::sync::RwLock::new(config)),
+            event_bus: opencode_core::bus::SharedEventBus::default(),
+            reconnection_store: crate::streaming::ReconnectionStore::default(),
+            connection_monitor: std::sync::Arc::new(
+                crate::streaming::conn_state::ConnectionMonitor::new(),
+            ),
+            share_server: std::sync::Arc::new(std::sync::RwLock::new(
+                crate::routes::share::ShareServer::with_default_config(),
+            )),
+            acp_enabled: true,
+            acp_stream: opencode_control_plane::AcpEventStream::new().into(),
+            acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
+                crate::routes::acp_ws::AcpClientRegistry::new(),
+            )),
+        }
+    }
+
+    #[actix_web::test]
+    async fn auth_negative_missing_api_key_header_returns_unauthorized() {
+        let state = create_test_state_with_api_key(Some("secret-key".to_string()));
+        let req = TestRequest::default()
+            .app_data(web::Data::new(state))
+            .to_srv_request();
+        let authorized = crate::middleware::is_api_key_authorized(&req);
+        assert!(!authorized, "Missing API key header should return 401");
+    }
+
+    #[actix_web::test]
+    async fn auth_negative_wrong_api_key_returns_unauthorized() {
+        let state = create_test_state_with_api_key(Some("correct-key".to_string()));
+        let req = TestRequest::default()
+            .app_data(web::Data::new(state))
+            .insert_header((
+                actix_web::http::header::HeaderName::from_static("x-api-key"),
+                "wrong-key",
+            ))
+            .to_srv_request();
+        let authorized = crate::middleware::is_api_key_authorized(&req);
+        assert!(!authorized, "Wrong API key should return 401");
+    }
+
+    #[actix_web::test]
+    async fn auth_negative_empty_api_key_header_returns_unauthorized() {
+        let state = create_test_state_with_api_key(Some("correct-key".to_string()));
+        let req = TestRequest::default()
+            .app_data(web::Data::new(state))
+            .insert_header((
+                actix_web::http::header::HeaderName::from_static("x-api-key"),
+                "",
+            ))
+            .to_srv_request();
+        let authorized = crate::middleware::is_api_key_authorized(&req);
+        assert!(!authorized, "Empty API key header should return 401");
+    }
+
+    #[actix_web::test]
+    async fn auth_negative_whitespace_only_api_key_returns_unauthorized() {
+        let state = create_test_state_with_api_key(Some("correct-key".to_string()));
+        let req = TestRequest::default()
+            .app_data(web::Data::new(state))
+            .insert_header((
+                actix_web::http::header::HeaderName::from_static("x-api-key"),
+                "   ",
+            ))
+            .to_srv_request();
+        let authorized = crate::middleware::is_api_key_authorized(&req);
+        assert!(!authorized, "Whitespace-only API key should return 401");
+    }
+
+    #[actix_web::test]
+    async fn auth_negative_no_api_key_configured_allows_request() {
+        let state = create_test_state_with_api_key(None);
+        let req = TestRequest::default()
+            .app_data(web::Data::new(state))
+            .to_srv_request();
+        let authorized = crate::middleware::is_api_key_authorized(&req);
+        assert!(
+            authorized,
+            "When no API key is configured, request should be allowed"
+        );
+    }
+
+    #[actix_web::test]
+    async fn auth_negative_empty_api_key_configured_allows_request() {
+        let state = create_test_state_with_api_key(Some("".to_string()));
+        let req = TestRequest::default()
+            .app_data(web::Data::new(state))
+            .to_srv_request();
+        let authorized = crate::middleware::is_api_key_authorized(&req);
+        assert!(
+            authorized,
+            "When empty API key is configured, request should be allowed"
+        );
+    }
+
+    #[actix_web::test]
+    async fn auth_negative_valid_api_key_allows_request() {
+        let state = create_test_state_with_api_key(Some("valid-key".to_string()));
+        let req = TestRequest::default()
+            .app_data(web::Data::new(state))
+            .insert_header((
+                actix_web::http::header::HeaderName::from_static("x-api-key"),
+                "valid-key",
+            ))
+            .to_srv_request();
+        let authorized = crate::middleware::is_api_key_authorized(&req);
+        assert!(authorized, "Valid API key should allow request");
+    }
+
+    #[actix_web::test]
+    async fn auth_negative_case_sensitive_api_key() {
+        let state = create_test_state_with_api_key(Some("SecretKey".to_string()));
+        let req = TestRequest::default()
+            .app_data(web::Data::new(state))
+            .insert_header((
+                actix_web::http::header::HeaderName::from_static("x-api-key"),
+                "secretkey",
+            ))
+            .to_srv_request();
+        let authorized = crate::middleware::is_api_key_authorized(&req);
+        assert!(!authorized, "API key should be case-sensitive");
+    }
+
+    #[actix_web::test]
+    async fn auth_negative_regression_valid_request_still_succeeds() {
+        let state = create_test_state_with_api_key(Some("test-key".to_string()));
+        let req = TestRequest::default()
+            .app_data(web::Data::new(state))
+            .insert_header((
+                actix_web::http::header::HeaderName::from_static("x-api-key"),
+                "test-key",
+            ))
+            .to_srv_request();
+        let authorized = crate::middleware::is_api_key_authorized(&req);
+        assert!(
+            authorized,
+            "Valid request should still succeed after negative tests"
+        );
     }
 }

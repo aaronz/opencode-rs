@@ -443,29 +443,47 @@ impl ProviderConfig {
         let spec = match identity.provider_type.as_str() {
             "openai" => ProviderSpec::OpenAI {
                 api_key: std::env::var("OPENAI_API_KEY").unwrap_or_default(),
-                model: identity.model.clone().unwrap_or_else(|| "gpt-4o".to_string()),
+                model: identity
+                    .model
+                    .clone()
+                    .unwrap_or_else(|| "gpt-4o".to_string()),
                 base_url: None,
             },
             "anthropic" => ProviderSpec::Anthropic {
                 api_key: std::env::var("ANTHROPIC_API_KEY").unwrap_or_default(),
-                model: identity.model.clone().unwrap_or_else(|| "claude-3-5-sonnet-20241022".to_string()),
+                model: identity
+                    .model
+                    .clone()
+                    .unwrap_or_else(|| "claude-3-5-sonnet-20241022".to_string()),
                 base_url: None,
             },
             "google" => ProviderSpec::Google {
                 api_key: std::env::var("GOOGLE_API_KEY").unwrap_or_default(),
-                model: identity.model.clone().unwrap_or_else(|| "gemini-1.5-pro".to_string()),
+                model: identity
+                    .model
+                    .clone()
+                    .unwrap_or_else(|| "gemini-1.5-pro".to_string()),
             },
             "ollama" => ProviderSpec::Ollama {
                 base_url: Some("http://localhost:11434".to_string()),
-                model: identity.model.clone().unwrap_or_else(|| "llama3".to_string()),
+                model: identity
+                    .model
+                    .clone()
+                    .unwrap_or_else(|| "llama3".to_string()),
             },
             "lmstudio" => ProviderSpec::LmStudio {
                 base_url: Some("http://localhost:1234".to_string()),
-                model: identity.model.clone().unwrap_or_else(|| "llama3".to_string()),
+                model: identity
+                    .model
+                    .clone()
+                    .unwrap_or_else(|| "llama3".to_string()),
             },
             "local" => ProviderSpec::LocalInference {
                 base_url: "http://localhost:8080".to_string(),
-                model: identity.model.clone().unwrap_or_else(|| "llama3".to_string()),
+                model: identity
+                    .model
+                    .clone()
+                    .unwrap_or_else(|| "llama3".to_string()),
             },
             _ => return None,
         };
@@ -522,9 +540,15 @@ impl ProviderManager {
 
     pub fn create_provider(&self, spec: &ProviderSpec) -> Result<DynProvider, LlmError> {
         let config = ProviderConfig::from_spec(spec.clone());
-        let factory = self.factories.get(config.spec.provider_type()).ok_or_else(|| {
-            LlmError::Provider(format!("Unknown provider type: {}", config.spec.provider_type()))
-        })?;
+        let factory = self
+            .factories
+            .get(config.spec.provider_type())
+            .ok_or_else(|| {
+                LlmError::Provider(format!(
+                    "Unknown provider type: {}",
+                    config.spec.provider_type()
+                ))
+            })?;
 
         if !factory.supports(&config.spec) {
             return Err(LlmError::Provider(format!(
@@ -580,13 +604,17 @@ impl ProviderFactory for OpenAIProviderFactory {
         match &config.spec {
             ProviderSpec::OpenAI { api_key, model, .. } => {
                 let mut provider = OpenAiProvider::new(api_key.clone(), model.clone());
-                
-                if let Some(ProviderReasoningConfig::OpenAI { reasoning_effort: Some(effort) }) =
-                    config.reasoning_budget.as_ref().and_then(|rb| rb.for_provider("openai"))
+
+                if let Some(ProviderReasoningConfig::OpenAI {
+                    reasoning_effort: Some(effort),
+                }) = config
+                    .reasoning_budget
+                    .as_ref()
+                    .and_then(|rb| rb.for_provider("openai"))
                 {
                     provider = provider.with_reasoning_effort(effort.clone());
                 }
-                
+
                 let mut identity = ProviderIdentity::openai(model);
                 identity.reasoning_budget = config.reasoning_budget;
                 identity.variant = config.variant.clone();
@@ -615,13 +643,17 @@ impl ProviderFactory for AnthropicProviderFactory {
         match &config.spec {
             ProviderSpec::Anthropic { api_key, model, .. } => {
                 let mut provider = AnthropicProvider::new(api_key.clone(), model.clone());
-                
-                if let Some(ProviderReasoningConfig::Anthropic { thinking: Some(thinking_config) }) =
-                    config.reasoning_budget.as_ref().and_then(|rb| rb.for_provider("anthropic"))
+
+                if let Some(ProviderReasoningConfig::Anthropic {
+                    thinking: Some(thinking_config),
+                }) = config
+                    .reasoning_budget
+                    .as_ref()
+                    .and_then(|rb| rb.for_provider("anthropic"))
                 {
                     provider = provider.with_thinking_budget(thinking_config);
                 }
-                
+
                 let mut identity = ProviderIdentity::anthropic(model);
                 identity.reasoning_budget = config.reasoning_budget;
                 identity.variant = config.variant.clone();
@@ -650,13 +682,17 @@ impl ProviderFactory for GoogleProviderFactory {
         match &config.spec {
             ProviderSpec::Google { api_key, model } => {
                 let mut provider = GoogleProvider::new(api_key.clone(), model.clone());
-                
-                if let Some(ProviderReasoningConfig::Google { thinking_throttle: Some(throttle) }) =
-                    config.reasoning_budget.as_ref().and_then(|rb| rb.for_provider("google"))
+
+                if let Some(ProviderReasoningConfig::Google {
+                    thinking_throttle: Some(throttle),
+                }) = config
+                    .reasoning_budget
+                    .as_ref()
+                    .and_then(|rb| rb.for_provider("google"))
                 {
                     provider = provider.with_thinking_throttle(throttle.clone());
                 }
-                
+
                 let mut identity = ProviderIdentity::google(model);
                 identity.reasoning_budget = config.reasoning_budget;
                 identity.variant = config.variant.clone();

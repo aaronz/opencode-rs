@@ -253,11 +253,9 @@ pub async fn register_custom_tools(
     registered
 }
 
-pub async fn build_default_registry(
-    project_root: Option<PathBuf>,
-) -> crate::ToolRegistry {
+pub async fn build_default_registry(project_root: Option<PathBuf>) -> crate::ToolRegistry {
     let registry = crate::ToolRegistry::new();
-    
+
     registry.register(crate::read::ReadTool::new()).await;
     registry.register(crate::write::WriteTool).await;
     registry.register(crate::edit::EditTool).await;
@@ -267,8 +265,12 @@ pub async fn build_default_registry(
     registry.register(crate::grep_tool::GrepTool).await;
     registry.register(crate::codesearch::CodeSearchTool).await;
     registry.register(crate::task::TaskTool).await;
-    registry.register(crate::session_tools::SessionLoadTool).await;
-    registry.register(crate::session_tools::SessionSaveTool).await;
+    registry
+        .register(crate::session_tools::SessionLoadTool)
+        .await;
+    registry
+        .register(crate::session_tools::SessionSaveTool)
+        .await;
     registry.register(crate::multiedit::MultiEditTool).await;
     registry.register(crate::webfetch::WebfetchTool).await;
     registry.register(crate::web_search::WebSearchTool).await;
@@ -282,10 +284,12 @@ pub async fn build_default_registry(
     registry.register(crate::git_tools::GitLogTool).await;
     registry.register(crate::git_tools::GitShowTool).await;
     registry.register(crate::apply_patch::ApplyPatchTool).await;
-    registry.register(crate::truncation_dir::TruncationDirTool).await;
-    
+    registry
+        .register(crate::truncation_dir::TruncationDirTool)
+        .await;
+
     let _ = register_custom_tools(&registry, project_root).await;
-    
+
     registry
 }
 
@@ -393,7 +397,8 @@ export default echoTool;
         );
 
         let registry = crate::ToolRegistry::new();
-        let registered = register_custom_tools(&registry, Some(temp_dir.path().to_path_buf())).await;
+        let registered =
+            register_custom_tools(&registry, Some(temp_dir.path().to_path_buf())).await;
 
         assert_eq!(registered.len(), 1, "Should discover exactly one tool");
         assert_eq!(registered[0], "echo", "Tool name should be 'echo'");
@@ -407,7 +412,10 @@ export default echoTool;
         );
 
         let tool = registry.get("echo").await;
-        assert!(tool.is_some(), "Custom tool should be retrievable from registry");
+        assert!(
+            tool.is_some(),
+            "Custom tool should be retrievable from registry"
+        );
     }
 
     #[tokio::test]
@@ -429,7 +437,8 @@ export default echoTool;
         );
 
         let registry = crate::ToolRegistry::new();
-        let registered = register_custom_tools(&registry, Some(temp_dir.path().to_path_buf())).await;
+        let registered =
+            register_custom_tools(&registry, Some(temp_dir.path().to_path_buf())).await;
 
         assert_eq!(registered.len(), 2, "Should discover exactly two tools");
 
@@ -450,9 +459,13 @@ export default echoTool;
         let temp_dir = TempDir::new().unwrap();
 
         let registry = crate::ToolRegistry::new();
-        let registered = register_custom_tools(&registry, Some(temp_dir.path().to_path_buf())).await;
+        let registered =
+            register_custom_tools(&registry, Some(temp_dir.path().to_path_buf())).await;
 
-        assert!(registered.is_empty(), "Should discover no tools when none exist");
+        assert!(
+            registered.is_empty(),
+            "Should discover no tools when none exist"
+        );
     }
 
     #[tokio::test]
@@ -471,7 +484,10 @@ export default echoTool;
         let _ = register_custom_tools(&registry, Some(temp_dir.path().to_path_buf())).await;
 
         let tool = registry.get("check_tool").await;
-        assert!(tool.is_some(), "Registry should contain discovered tool 'check_tool'");
+        assert!(
+            tool.is_some(),
+            "Registry should contain discovered tool 'check_tool'"
+        );
         assert_eq!(tool.unwrap().name(), "check_tool");
     }
 
@@ -514,16 +530,23 @@ export default echoTool;
             r#"const newTool = { name: "new_tool", description: "A new tool", parameters: {} }; export default newTool;"#,
         );
 
-        let registered = register_custom_tools(&registry, Some(temp_dir.path().to_path_buf())).await;
+        let registered =
+            register_custom_tools(&registry, Some(temp_dir.path().to_path_buf())).await;
 
         assert_eq!(registered.len(), 1);
         assert_eq!(registered[0], "new_tool");
 
         let existing = registry.get("existing_tool").await;
-        assert!(existing.is_some(), "Existing tool should still be in registry");
+        assert!(
+            existing.is_some(),
+            "Existing tool should still be in registry"
+        );
 
         let new_tool = registry.get("new_tool").await;
-        assert!(new_tool.is_some(), "Newly discovered tool should be in registry");
+        assert!(
+            new_tool.is_some(),
+            "Newly discovered tool should be in registry"
+        );
     }
 
     #[tokio::test]
@@ -545,7 +568,10 @@ export default echoTool;
             });
         }));
 
-        assert!(result.is_ok() || result.is_err(), "Should handle parse errors gracefully");
+        assert!(
+            result.is_ok() || result.is_err(),
+            "Should handle parse errors gracefully"
+        );
     }
 
     #[tokio::test]
@@ -553,9 +579,13 @@ export default echoTool;
         let temp_dir = TempDir::new().unwrap();
 
         let registry = crate::ToolRegistry::new();
-        let registered = register_custom_tools(&registry, Some(temp_dir.path().to_path_buf())).await;
+        let registered =
+            register_custom_tools(&registry, Some(temp_dir.path().to_path_buf())).await;
 
-        assert!(registered.is_empty(), "Should handle missing tools directory gracefully");
+        assert!(
+            registered.is_empty(),
+            "Should handle missing tools directory gracefully"
+        );
     }
 
     #[tokio::test]
@@ -584,7 +614,11 @@ export default execTool;
         let _ = register_custom_tools(&registry, Some(temp_dir.path().to_path_buf())).await;
 
         let result = registry
-            .execute("exec_test", serde_json::json!({"input": "test_value"}), None)
+            .execute(
+                "exec_test",
+                serde_json::json!({"input": "test_value"}),
+                None,
+            )
             .await;
 
         assert!(result.is_ok(), "Tool execution should succeed");
@@ -622,13 +656,23 @@ export default fullFlowTool;
         let registry = build_default_registry(Some(temp_dir.path().to_path_buf())).await;
 
         let custom_tool = registry.get("full_flow").await;
-        assert!(custom_tool.is_some(), "Custom tool should be registered via build_default_registry");
+        assert!(
+            custom_tool.is_some(),
+            "Custom tool should be registered via build_default_registry"
+        );
 
         let builtin_tool = registry.get("read").await;
-        assert!(builtin_tool.is_some(), "Built-in tool 'read' should still be registered");
+        assert!(
+            builtin_tool.is_some(),
+            "Built-in tool 'read' should still be registered"
+        );
 
         let result = registry
-            .execute("full_flow", serde_json::json!({"message": "flow_test"}), None)
+            .execute(
+                "full_flow",
+                serde_json::json!({"message": "flow_test"}),
+                None,
+            )
             .await;
 
         match result {
@@ -643,17 +687,45 @@ export default fullFlowTool;
         let tools_dir = temp_dir.path().join(".opencode/tools");
         std::fs::create_dir_all(&tools_dir).unwrap();
 
-        std::fs::write(tools_dir.join("valid.js"), r#"const v = { name: "v", description: "v", parameters: {} }; export default v;"#).unwrap();
-        std::fs::write(tools_dir.join("valid.ts"), r#"const v2 = { name: "v2", description: "v2", parameters: {} }; export default v2;"#).unwrap();
-        std::fs::write(tools_dir.join("valid.mjs"), r#"const v3 = { name: "v3", description: "v3", parameters: {} }; export default v3;"#).unwrap();
-        std::fs::write(tools_dir.join("valid.cjs"), r#"const v4 = { name: "v4", description: "v4", parameters: {} }; export default v4;"#).unwrap();
-        std::fs::write(tools_dir.join("invalid.txt"), r#"const i = { name: "i", description: "i", parameters: {} }; export default i;"#).unwrap();
-        std::fs::write(tools_dir.join("invalid.md"), r#"const i2 = { name: "i2", description: "i2", parameters: {} }; export default i2;"#).unwrap();
+        std::fs::write(
+            tools_dir.join("valid.js"),
+            r#"const v = { name: "v", description: "v", parameters: {} }; export default v;"#,
+        )
+        .unwrap();
+        std::fs::write(
+            tools_dir.join("valid.ts"),
+            r#"const v2 = { name: "v2", description: "v2", parameters: {} }; export default v2;"#,
+        )
+        .unwrap();
+        std::fs::write(
+            tools_dir.join("valid.mjs"),
+            r#"const v3 = { name: "v3", description: "v3", parameters: {} }; export default v3;"#,
+        )
+        .unwrap();
+        std::fs::write(
+            tools_dir.join("valid.cjs"),
+            r#"const v4 = { name: "v4", description: "v4", parameters: {} }; export default v4;"#,
+        )
+        .unwrap();
+        std::fs::write(
+            tools_dir.join("invalid.txt"),
+            r#"const i = { name: "i", description: "i", parameters: {} }; export default i;"#,
+        )
+        .unwrap();
+        std::fs::write(
+            tools_dir.join("invalid.md"),
+            r#"const i2 = { name: "i2", description: "i2", parameters: {} }; export default i2;"#,
+        )
+        .unwrap();
 
         let discovery = ToolDiscovery::new(Some(temp_dir.path().to_path_buf()));
         let tools = discovery.discover_tools();
 
-        assert_eq!(tools.len(), 4, "Should discover only .js, .ts, .mjs, .cjs files");
+        assert_eq!(
+            tools.len(),
+            4,
+            "Should discover only .js, .ts, .mjs, .cjs files"
+        );
         let names: Vec<&str> = tools.iter().map(|t| t.definition.name.as_str()).collect();
         assert!(names.contains(&"v"));
         assert!(names.contains(&"v2"));
@@ -677,7 +749,72 @@ export default fullFlowTool;
         let discovery = ToolDiscovery::new(Some(temp_dir.path().to_path_buf()));
         let tools = discovery.discover_tools();
 
-        assert_eq!(tools.len(), 1, "Should discover tools in nested directories");
+        assert_eq!(
+            tools.len(),
+            1,
+            "Should discover tools in nested directories"
+        );
         assert_eq!(tools[0].definition.name, "nested_tool");
+    }
+
+    #[tokio::test]
+    async fn custom_tool_registration() {
+        let temp_dir = TempDir::new().unwrap();
+        let tools_dir = temp_dir.path().join(".opencode/tools");
+        std::fs::create_dir_all(&tools_dir).unwrap();
+
+        create_test_tool_file(
+            &tools_dir,
+            "registration_test.js",
+            r#"
+const registrationTestTool = {
+    name: "registration_test",
+    description: "Test tool for custom_tool_registration",
+    parameters: { type: "object", properties: { value: { type: "string" } } }
+};
+const argsIdx = process.argv.findIndex(a => a === '--args');
+const args = argsIdx >= 0 ? JSON.parse(process.argv[argsIdx + 1] || '{}') : {};
+console.log(args.value || 'default_value');
+export default registrationTestTool;
+"#,
+        );
+
+        let registry = crate::ToolRegistry::new();
+
+        let registered = register_custom_tools(&registry, Some(temp_dir.path().to_path_buf())).await;
+
+        assert_eq!(registered.len(), 1, "Should discover exactly one tool");
+        assert_eq!(registered[0], "registration_test", "Tool name should be 'registration_test'");
+
+        let tools = registry.list_filtered(None).await;
+        let tool_names: Vec<&str> = tools.iter().map(|(n, _, _)| n.as_str()).collect();
+        assert!(
+            tool_names.contains(&"registration_test"),
+            "Custom tool 'registration_test' should appear in tool listing. Found: {:?}",
+            tool_names
+        );
+
+        let tool = registry.get("registration_test").await;
+        assert!(
+            tool.is_some(),
+            "Custom tool should be retrievable from registry"
+        );
+        assert_eq!(
+            tool.unwrap().name(),
+            "registration_test",
+            "Tool name should match"
+        );
+
+        let result = registry
+            .execute(
+                "registration_test",
+                serde_json::json!({"value": "test_value"}),
+                None,
+            )
+            .await;
+
+        assert!(result.is_ok(), "Tool execution should succeed");
+        let result = result.unwrap();
+        assert!(result.success, "Tool should execute successfully");
     }
 }

@@ -372,7 +372,6 @@ impl Default for FileRefHandler {
 mod tests {
     use super::*;
     use std::fs;
-    use std::path::PathBuf;
     use tempfile::TempDir;
 
     fn handler() -> FileRefHandler {

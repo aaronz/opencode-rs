@@ -269,11 +269,11 @@ cargo test -p opencode-tui -- slash  # 33 tests passed (28 new + 5 existing)
 **Issue:** No tests for input model (multiline, history, autocomplete)  
 **Module:** tui  
 **FR Reference:** FR-018  
-**Status:** TODO  
+**Status:** ✅ Done  
 
-- [ ] Add tests for multiline input handling
-- [ ] Add tests for input history navigation
-- [ ] Add tests for autocomplete triggering
+- [x] Add tests for multiline input handling
+- [x] Add tests for input history navigation
+- [x] Add tests for autocomplete triggering
 
 **Acceptance Criteria:** Input model has test coverage
 
@@ -354,15 +354,30 @@ cargo test -p opencode-tui -- slash  # 33 tests passed (28 new + 5 existing)
 ---
 
 ### P2-8: Theme Auto-Sync Test
-**Issue:** Theme auto-sync on install not tested  
-**Module:** tui  
-**FR Reference:** FR-009  
-**Status:** TODO  
+**Issue:** Theme auto-sync on install not tested
+**Module:** tui
+**FR Reference:** FR-009
+**Status:** ✅ Done
 
-- [ ] Add test for theme auto-sync when plugin installed
-- [ ] Verify theme applies immediately after install
+- [x] Add test for theme auto-sync when plugin installed
+- [x] Verify theme applies immediately after install
+- [x] Add regression tests for existing themes not affected by new plugin themes
 
 **Acceptance Criteria:** Theme auto-sync verified
+
+**Test Commands:**
+```bash
+cargo test -p opencode-tui -- theme_auto_sync  # 4 tests passed
+cargo test -p opencode-tui -- plugin_theme     # 33 tests passed
+cargo clippy --all -- -D warnings              # Passed
+cargo build --release                          # Passed
+```
+
+**Implementation Notes:**
+- Added 10 new tests in `crates/tui/tests/plugin_theme_tests.rs`
+- Tests verify theme auto-sync when plugin is installed
+- Tests verify theme applies immediately after install
+- Tests ensure existing themes are not affected by new plugin themes
 
 ---
 
@@ -378,7 +393,7 @@ cargo test -p opencode-tui -- slash  # 33 tests passed (28 new + 5 existing)
 
 ### TD-003: Custom tools discovered but not registered
 **Severity:** CRITICAL  
-**Action:** See P0-2
+**Action:** ✅ Done - Added integration test `custom_tool_registration` in `crates/tools/src/discovery.rs`
 
 ### TD-004: Non-deterministic plugin hook execution
 **Severity:** High  
@@ -416,7 +431,7 @@ cargo test -p opencode-tui -- slash  # 33 tests passed (28 new + 5 existing)
 |----------|-------|--------|
 | P0 | 3 | TODO |
 | P1 | 9 | TODO |
-| P2 | 8 | TODO |
+| P2 | 8 | ✅ Done |
 | Technical Debt | 6 | Various |
 
 **Total Tasks:** 26

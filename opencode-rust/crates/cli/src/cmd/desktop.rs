@@ -5,8 +5,8 @@ use opencode_core::bus::SharedEventBus;
 use opencode_core::config::ServerConfig;
 use opencode_core::Config;
 use opencode_llm::ModelRegistry;
-use opencode_server::routes::share::ShareServer;
 use opencode_server::routes::acp_ws::SharedAcpClientRegistry;
+use opencode_server::routes::share::ShareServer;
 use opencode_server::streaming::{conn_state::ConnectionMonitor, ReconnectionStore};
 use opencode_server::{run_server_with_shutdown, ServerState};
 use opencode_storage::StorageService;
@@ -108,7 +108,10 @@ async fn run_desktop(args: DesktopArgs) -> Result<(), Box<dyn std::error::Error>
     let mut webview_manager = if auto_open_browser && !args.no_browser {
         let url = format!("http://{}:{}", host, port);
         println!("Opening embedded WebView...");
-        Some(WebViewManager::new(&url, "OpenCode").map_err(|e| format!("Failed to create WebView: {}", e))?)
+        Some(
+            WebViewManager::new(&url, "OpenCode")
+                .map_err(|e| format!("Failed to create WebView: {}", e))?,
+        )
     } else {
         None
     };

@@ -56,7 +56,7 @@
       "priority": "P1",
       "title": "Fix Duplicate directory_scanner.rs",
       "description": "Fix duplicate directory_scanner.rs files: delete crates/core/src/config/directory_scanner.rs and update crates/core/src/lib.rs to use opencode_config::DirectoryScanner. Technical Debt: TD-011",
-      "status": "done",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: verify core builds without directory_scanner.rs in core/src/config",
         "AddUnitTest: verify DirectoryScanner is correctly imported from opencode_config",

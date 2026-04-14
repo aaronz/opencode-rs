@@ -220,7 +220,10 @@ impl ToolRegistry {
     pub async fn invalidate_cache_for_files(&self, file_paths: &HashSet<PathBuf>) {
         let mut cache = self.cache.write().await;
         cache.retain(|_key, cached| {
-            !cached.dependencies.iter().any(|dep| file_paths.contains(dep))
+            !cached
+                .dependencies
+                .iter()
+                .any(|dep| file_paths.contains(dep))
         });
     }
 
@@ -231,7 +234,7 @@ impl ToolRegistry {
     ) -> Option<ToolResult> {
         let key = compute_cache_key(tool_name, args);
         let mut cache = self.cache.write().await;
-        
+
         if let Some(cached) = cache.get(&key) {
             if cached.is_valid() {
                 tracing::debug!(tool = %tool_name, "returning valid cached result");
@@ -404,7 +407,8 @@ impl ToolRegistry {
 
         if is_safe && result.success {
             let dependencies = tool.get_dependencies(&args);
-            self.cache_result(name, &args, result.clone(), dependencies).await;
+            self.cache_result(name, &args, result.clone(), dependencies)
+                .await;
         }
 
         Ok(result)
@@ -1482,9 +1486,9 @@ mod tests {
     async fn test_result_caching_ttl_invalidation() {
         use std::sync::atomic::{AtomicI32, Ordering};
         use std::time::Duration;
-        
+
         static CALL_COUNT: AtomicI32 = AtomicI32::new(0);
-        
+
         #[derive(Clone)]
         struct TtlTestTool;
         #[async_trait]
@@ -1528,7 +1532,11 @@ mod tests {
             .execute("ttl_test_tool", args.clone(), None)
             .await
             .unwrap();
-        assert!(result2.content.contains("call: 2"), "Should re-execute after TTL expiration, got: {}", result2.content);
+        assert!(
+            result2.content.contains("call: 2"),
+            "Should re-execute after TTL expiration, got: {}",
+            result2.content
+        );
     }
 
     #[tokio::test]
@@ -1594,8 +1602,11 @@ mod tests {
             .execute("file_dep_test_tool", args.clone(), None)
             .await
             .unwrap();
-        assert!(result2.content.contains("content: modified"), 
-            "Should detect file change and re-execute, got: {}", result2.content);
+        assert!(
+            result2.content.contains("content: modified"),
+            "Should detect file change and re-execute, got: {}",
+            result2.content
+        );
     }
 
     #[tokio::test]
@@ -1634,10 +1645,13 @@ mod tests {
                 args: serde_json::Value,
                 _: Option<ToolContext>,
             ) -> Result<ToolResult, OpenCodeError> {
-                let paths = args.get("paths").and_then(|v| v.as_array())
+                let paths = args
+                    .get("paths")
+                    .and_then(|v| v.as_array())
                     .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>())
                     .unwrap_or_default();
-                let contents: String = paths.iter()
+                let contents: String = paths
+                    .iter()
                     .map(|p| std::fs::read_to_string(p).unwrap_or_default())
                     .collect();
                 Ok(ToolResult::ok(format!("contents: {}", contents)))
@@ -1671,8 +1685,11 @@ mod tests {
             .execute("multi_file_dep_tool", args.clone(), None)
             .await
             .unwrap();
-        assert!(result2.content.contains("file1_modified"), 
-            "Should re-execute after invalidating file1 dependency, got: {}", result2.content);
+        assert!(
+            result2.content.contains("file1_modified"),
+            "Should re-execute after invalidating file1 dependency, got: {}",
+            result2.content
+        );
     }
 
     #[tokio::test]

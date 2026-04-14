@@ -3642,7 +3642,10 @@ OpenCode Agent Configuration
                     KeyCode::Enter => {
                         if self.home_view.get_focused_section() == HomeViewSection::RecentSessions {
                             if let Some(idx) = self.home_view.get_selected_session_index() {
-                                let session_name = self.session_manager.get_session(idx).map(|s| s.name.clone());
+                                let session_name = self
+                                    .session_manager
+                                    .get_session(idx)
+                                    .map(|s| s.name.clone());
                                 if session_name.is_some() {
                                     self.session_manager.select(idx);
                                     self.add_message(

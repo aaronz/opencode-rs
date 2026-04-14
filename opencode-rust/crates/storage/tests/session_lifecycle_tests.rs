@@ -191,10 +191,8 @@ async fn test_session_lifecycle_storage_revert_to_checkpoint() {
         .expect("Should save session with extra messages");
 
     let mut revert_manager = RevertManager::new(5);
-    let revert_point = revert_manager.create_point(
-        original_message_count,
-        "Before new messages".to_string(),
-    );
+    let revert_point =
+        revert_manager.create_point(original_message_count, "Before new messages".to_string());
 
     revert_manager
         .revert_to(&mut session, &revert_point.id)

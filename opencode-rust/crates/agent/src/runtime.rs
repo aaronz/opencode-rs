@@ -1329,7 +1329,12 @@ mod tests {
         let context1 = vec![Message::user("level1 task")];
 
         let result1 = runtime
-            .invoke_subagent(&level1_subagent, context1, &MockProvider, &ToolRegistry::new())
+            .invoke_subagent(
+                &level1_subagent,
+                context1,
+                &MockProvider,
+                &ToolRegistry::new(),
+            )
             .await
             .unwrap();
 
@@ -1351,7 +1356,12 @@ mod tests {
         let context2 = vec![Message::user("level2 task")];
 
         let result2 = child_runtime
-            .invoke_subagent(&level2_subagent, context2, &MockProvider, &ToolRegistry::new())
+            .invoke_subagent(
+                &level2_subagent,
+                context2,
+                &MockProvider,
+                &ToolRegistry::new(),
+            )
             .await
             .unwrap();
 
@@ -1371,8 +1381,7 @@ mod tests {
         };
         let runtime = AgentRuntime::with_config(session, AgentType::Build, config);
 
-        let subagent =
-            MockSubagent::new("result", AgentType::General).with_permissions(true, true);
+        let subagent = MockSubagent::new("result", AgentType::General).with_permissions(true, true);
         let context = vec![Message::user("task")];
 
         let result = runtime
@@ -1552,7 +1561,7 @@ mod tests {
 
     #[test]
     fn test_primary_agent_hidden_agents_are_not_visible() {
-        use crate::system_agents::{CompactionAgent, TitleAgent, SummaryAgent};
+        use crate::system_agents::{CompactionAgent, SummaryAgent, TitleAgent};
 
         let compaction = CompactionAgent::new();
         let title = TitleAgent::new();
@@ -1563,10 +1572,7 @@ mod tests {
             "CompactionAgent should not be visible"
         );
         assert!(!title.is_visible(), "TitleAgent should not be visible");
-        assert!(
-            !summary.is_visible(),
-            "SummaryAgent should not be visible"
-        );
+        assert!(!summary.is_visible(), "SummaryAgent should not be visible");
     }
 
     #[test]
@@ -1750,7 +1756,10 @@ mod tests {
         let session = Session::default();
         let mut runtime = AgentRuntime::new(session, AgentType::Build);
 
-        runtime.switch_primary_agent(AgentType::Explore).await.unwrap();
+        runtime
+            .switch_primary_agent(AgentType::Explore)
+            .await
+            .unwrap();
         assert_eq!(runtime.active_agent(), Some(AgentType::Explore));
 
         let title = TitleAgent::new();

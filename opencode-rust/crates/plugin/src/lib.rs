@@ -608,16 +608,15 @@ impl PluginManager {
             .plugins
             .keys()
             .map(|name| {
-                let priority = self
-                    .configs
-                    .get(name)
-                    .map(|c| c.priority)
-                    .unwrap_or(0);
+                let priority = self.configs.get(name).map(|c| c.priority).unwrap_or(0);
                 (name.clone(), priority)
             })
             .collect();
         names_with_priority.sort_by_key(|(_, priority)| *priority);
-        names_with_priority.into_iter().map(|(name, _)| name).collect()
+        names_with_priority
+            .into_iter()
+            .map(|(name, _)| name)
+            .collect()
     }
 
     fn load_discovered(
@@ -3280,10 +3279,17 @@ mod tests {
 
         let mut manager = PluginManager::new();
 
-        let plugin_high = PriorityPlugin::new("high-priority", call_order.clone(), call_sequence.clone());
-        let plugin_low = PriorityPlugin::new("low-priority", call_order.clone(), call_sequence.clone());
-        let plugin_default = PriorityPlugin::new("default-priority", call_order.clone(), call_sequence.clone());
-        let plugin_medium = PriorityPlugin::new("medium-priority", call_order.clone(), call_sequence.clone());
+        let plugin_high =
+            PriorityPlugin::new("high-priority", call_order.clone(), call_sequence.clone());
+        let plugin_low =
+            PriorityPlugin::new("low-priority", call_order.clone(), call_sequence.clone());
+        let plugin_default = PriorityPlugin::new(
+            "default-priority",
+            call_order.clone(),
+            call_sequence.clone(),
+        );
+        let plugin_medium =
+            PriorityPlugin::new("medium-priority", call_order.clone(), call_sequence.clone());
 
         let config_high = PluginConfig {
             name: "high-priority".to_string(),
@@ -3322,10 +3328,18 @@ mod tests {
             permissions: PluginPermissions::default(),
         };
 
-        manager.register_with_config(Box::new(plugin_high), config_high).unwrap();
-        manager.register_with_config(Box::new(plugin_low), config_low).unwrap();
-        manager.register_with_config(Box::new(plugin_default), config_default).unwrap();
-        manager.register_with_config(Box::new(plugin_medium), config_medium).unwrap();
+        manager
+            .register_with_config(Box::new(plugin_high), config_high)
+            .unwrap();
+        manager
+            .register_with_config(Box::new(plugin_low), config_low)
+            .unwrap();
+        manager
+            .register_with_config(Box::new(plugin_default), config_default)
+            .unwrap();
+        manager
+            .register_with_config(Box::new(plugin_medium), config_medium)
+            .unwrap();
 
         manager.on_start_all().unwrap();
 
@@ -3423,9 +3437,12 @@ mod tests {
 
             let mut manager = PluginManager::new();
 
-            let plugin_a = DeterministicPlugin::new("plugin-a", call_order.clone(), call_sequence.clone());
-            let plugin_b = DeterministicPlugin::new("plugin-b", call_order.clone(), call_sequence.clone());
-            let plugin_c = DeterministicPlugin::new("plugin-c", call_order.clone(), call_sequence.clone());
+            let plugin_a =
+                DeterministicPlugin::new("plugin-a", call_order.clone(), call_sequence.clone());
+            let plugin_b =
+                DeterministicPlugin::new("plugin-b", call_order.clone(), call_sequence.clone());
+            let plugin_c =
+                DeterministicPlugin::new("plugin-c", call_order.clone(), call_sequence.clone());
 
             let config_a = PluginConfig {
                 name: "plugin-a".to_string(),
@@ -3455,12 +3472,20 @@ mod tests {
                 permissions: PluginPermissions::default(),
             };
 
-            manager.register_with_config(Box::new(plugin_a), config_a).unwrap();
-            manager.register_with_config(Box::new(plugin_b), config_b).unwrap();
-            manager.register_with_config(Box::new(plugin_c), config_c).unwrap();
+            manager
+                .register_with_config(Box::new(plugin_a), config_a)
+                .unwrap();
+            manager
+                .register_with_config(Box::new(plugin_b), config_b)
+                .unwrap();
+            manager
+                .register_with_config(Box::new(plugin_c), config_c)
+                .unwrap();
 
             let args = serde_json::json!({"file": "test.txt"});
-            manager.on_tool_call_all("read", &args, "session-123").unwrap();
+            manager
+                .on_tool_call_all("read", &args, "session-123")
+                .unwrap();
 
             let sequence = call_sequence.lock().unwrap();
             assert_eq!(
@@ -3472,20 +3497,17 @@ mod tests {
             assert_eq!(
                 sequence[0], "plugin-a",
                 "Iteration {}: First plugin should be plugin-a (priority=10), got {}",
-                iteration,
-                sequence[0]
+                iteration, sequence[0]
             );
             assert_eq!(
                 sequence[1], "plugin-b",
                 "Iteration {}: Second plugin should be plugin-b (priority=20), got {}",
-                iteration,
-                sequence[1]
+                iteration, sequence[1]
             );
             assert_eq!(
                 sequence[2], "plugin-c",
                 "Iteration {}: Third plugin should be plugin-c (priority=30), got {}",
-                iteration,
-                sequence[2]
+                iteration, sequence[2]
             );
         }
     }
@@ -3565,7 +3587,10 @@ mod tests {
                 "Mixed domains should be detected in runtime context"
             );
             assert!(
-                result.errors.iter().any(|e| e.contains("tui-plugin-mistake")),
+                result
+                    .errors
+                    .iter()
+                    .any(|e| e.contains("tui-plugin-mistake")),
                 "Error should identify the problematic plugin: {:?}",
                 result.errors
             );
@@ -3587,7 +3612,10 @@ mod tests {
                 "Mixed domains should be detected in TUI context"
             );
             assert!(
-                result.errors.iter().any(|e| e.contains("runtime-plugin-mistake")),
+                result
+                    .errors
+                    .iter()
+                    .any(|e| e.contains("runtime-plugin-mistake")),
                 "Error should identify the problematic plugin: {:?}",
                 result.errors
             );
@@ -3634,7 +3662,8 @@ mod tests {
         fn config_validation_error_message_contains_plugin_name() {
             use crate::config::validate_plugin_domain;
 
-            let result = validate_plugin_domain("special-plugin", PluginDomain::Tui, PluginDomain::Runtime);
+            let result =
+                validate_plugin_domain("special-plugin", PluginDomain::Tui, PluginDomain::Runtime);
             assert!(!result.valid);
             let error = result.errors.first().unwrap();
             assert!(

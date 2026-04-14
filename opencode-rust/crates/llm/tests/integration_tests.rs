@@ -739,15 +739,13 @@ fn test_conversation_budget_state_serialization() {
         total_completion_tokens: 500,
         total_tokens: 1500,
         total_cost_usd: 0.015,
-        variant_costs: vec![
-            VariantCost {
-                variant_id: "v1".to_string(),
-                prompt_tokens: 500,
-                completion_tokens: 250,
-                total_tokens: 750,
-                cost_usd: 0.0075,
-            },
-        ],
+        variant_costs: vec![VariantCost {
+            variant_id: "v1".to_string(),
+            prompt_tokens: 500,
+            completion_tokens: 250,
+            total_tokens: 750,
+            cost_usd: 0.0075,
+        }],
     };
 
     let json = serde_json::to_string(&state).unwrap();
