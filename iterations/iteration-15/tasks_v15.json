@@ -527,7 +527,7 @@
       "priority": "P0",
       "title": "Plugin register_tool() method missing",
       "description": "Technical debt CRITICAL: PluginToolAdapter exists but no mechanism to register plugin tools. See P0-3 for resolution.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify Plugin trait has register_tool method",
         "RunTestSuite: cargo test -p opencode-plugin -- plugin_tool"

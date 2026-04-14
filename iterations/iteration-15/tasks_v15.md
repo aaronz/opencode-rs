@@ -391,7 +391,7 @@ cargo build --release                          # Passed
 **Severity:** CRITICAL  
 **Action:** See P0-1
 
-### TD-003: Custom tools discovered but not registered
+### TD-003: ✅ Done
 **Severity:** CRITICAL  
 **Action:** ✅ Done - Added integration test `custom_tool_registration` in `crates/tools/src/discovery.rs`
 
