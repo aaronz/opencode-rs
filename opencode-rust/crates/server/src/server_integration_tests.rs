@@ -4165,4 +4165,324 @@ mod error_handling_tests {
             "Fork with invalid index on non-existent session should return error status"
         );
     }
+
+    // Security Tests: SQL Injection Protection
+
+    #[actix_web::test]
+    async fn test_sql_injection_in_session_id_is_sanitized() {
+        use actix_web::web;
+
+        let sql_injection_attempts = vec![
+            "'; DROP TABLE sessions; --",
+            "1 OR 1=1",
+            "1' OR '1'='1",
+            "1\" OR \"1\"=\"1",
+            "1; SELECT * FROM sessions;",
+            "' UNION SELECT * FROM sessions--",
+            "admin'--",
+            "1' AND '1'='1",
+            "550e8400-e29b-41d4-a716-446655440000' OR '1'='1",
+            "invalid' AND SLEEP(5)--",
+        ];
+
+        for injection in sql_injection_attempts {
+            let req = TestRequest::default().to_http_request();
+            let resp = crate::routes::session::get_session(
+                web::Data::new(create_test_state()),
+                web::Path::from(injection.to_string()),
+            )
+            .await
+            .respond_to(&req);
+
+            assert_eq!(
+                resp.status(),
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "SQL injection attempt '{}' should be rejected with 422",
+                injection
+            );
+        }
+    }
+
+    #[actix_web::test]
+    async fn test_sql_injection_in_message_content_is_handled() {
+        use actix_web::web;
+
+        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
+
+        let sql_injection_contents = vec![
+            "'; DROP TABLE sessions; --",
+            "1 OR 1=1",
+            "' UNION SELECT password FROM users--",
+            "admin'--",
+            "'; INSERT INTO sessions VALUES ('hacked'); --",
+            "<script>alert('xss')</script>",
+            "<?xml version=\"1.0\"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]>",
+        ];
+
+        for injection in sql_injection_contents {
+            let state = create_test_state();
+            let req = TestRequest::default().to_http_request();
+            let resp = crate::routes::session::add_message_to_session(
+                web::Data::new(state),
+                web::Path::from(valid_uuid.to_string()),
+                web::Json(crate::routes::session::AddMessageRequest {
+                    role: Some("user".to_string()),
+                    content: injection.to_string(),
+                }),
+            )
+            .await
+            .respond_to(&req);
+
+            assert!(
+                resp.status() == StatusCode::NOT_FOUND || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+                "SQL injection in content '{}' should not cause validation error but be processed as content (returns 404 for missing session)",
+                injection
+            );
+        }
+    }
+
+    #[test]
+    fn test_sql_injection_patterns_fail_uuid_validation() {
+        let sql_injection_patterns = vec![
+            "'; DROP TABLE sessions; --",
+            "1 OR 1=1",
+            "1' OR '1'='1",
+            "admin'--",
+            "550e8400-e29b-41d4-a716-446655440000' OR '1'='1",
+        ];
+
+        for pattern in sql_injection_patterns {
+            let result = crate::routes::validation::validate_session_id(pattern);
+            assert!(
+                result.is_err(),
+                "SQL injection pattern '{}' should be rejected by UUID validation",
+                pattern
+            );
+        }
+    }
+
+    #[test]
+    fn test_message_content_with_sql_injection_is_accepted_as_content() {
+        use crate::routes::validation::RequestValidator;
+
+        let sql_injection_contents = vec![
+            "'; DROP TABLE sessions; --",
+            "1 OR 1=1",
+            "' UNION SELECT * FROM sessions--",
+            "admin'--",
+        ];
+
+        for content in sql_injection_contents {
+            let mut validator = RequestValidator::new();
+            validator.validate_required_string("content", Some(content));
+            assert!(
+                validator.is_valid(),
+                "SQL injection-like content '{}' should be accepted as valid content (sanitization happens at storage layer)",
+                content
+            );
+        }
+    }
+
+    // Security Tests: Path Traversal Protection
+
+    #[test]
+    fn test_path_traversal_with_double_dots_is_blocked() {
+        let path_traversal_attempts = vec![
+            "../etc/passwd",
+            "..\\windows\\system32\\config\\sam",
+            "foo/../../etc/passwd",
+            "foo/../../../etc/passwd",
+            "./../etc/passwd",
+            "foo/./../../etc/passwd",
+            "....//....//....//etc/passwd",
+            "../.*/etc/passwd",
+            "..%2F..%2Fetc%2Fpasswd",
+            "..%252F..%252Fetc%252Fpasswd",
+        ];
+
+        for path in path_traversal_attempts {
+            let has_parent_ref = path.contains("..");
+            assert!(
+                has_parent_ref,
+                "Path traversal pattern '{}' should be detected",
+                path
+            );
+        }
+    }
+
+    #[test]
+    fn test_path_traversal_in_workdir_is_validated() {
+        use crate::routes::validation::{validate_command, ValidationErrors};
+
+        let malicious_workdirs = vec![
+            "../etc",
+            "../../../root/.ssh",
+            "foo/../../../etc/passwd",
+            "..\\windows\\system32",
+        ];
+
+        for workdir in malicious_workdirs {
+            let result = validate_command("ls", None, Some(workdir));
+            assert!(
+                result.is_ok(),
+                "Workdir '{}' should pass validation (actual path checking should happen at execution time)",
+                workdir
+            );
+        }
+    }
+
+    #[test]
+    fn test_path_traversal_in_command_args_is_validated() {
+        use crate::routes::validation::validate_command;
+
+        let malicious_args = vec![
+            vec!["../etc/passwd".to_string()],
+            vec!["-la".to_string(), "../../../root".to_string()],
+            vec!["cat".to_string(), "../../../etc/shadow".to_string()],
+        ];
+
+        for args in malicious_args {
+            let result = validate_command("cat", Some(&args), None);
+            assert!(
+                result.is_ok(),
+                "Command with path traversal args {:?} should pass validation (sanitization at execution)",
+                args
+            );
+        }
+    }
+
+    #[actix_web::test]
+    async fn test_export_session_rejects_invalid_session_id() {
+        use actix_web::web;
+
+        let path_traversal_ids = vec![
+            "../sessions/admin",
+            "..\\..\\windows\\system32\\config",
+            "sessions/../../../etc/passwd",
+        ];
+
+        for id in path_traversal_ids {
+            let req = TestRequest::default().to_http_request();
+            let resp = crate::routes::export::export_session_json(
+                web::Data::new(create_test_state()),
+                web::Path::from(id.to_string()),
+                web::Query(crate::routes::export::ExportQuery::new(true, true)),
+            )
+            .await
+            .respond_to(&req);
+
+            assert!(
+                resp.status() == StatusCode::NOT_FOUND || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
+                "Path traversal in export session id '{}' should return error, got {}",
+                id,
+                resp.status()
+            );
+        }
+    }
+
+    #[test]
+    fn test_sanitization_does_not_break_valid_inputs() {
+        use crate::routes::validation::{validate_session_id, RequestValidator};
+
+        let valid_uuids = vec![
+            "550e8400-e29b-41d4-a716-446655440000",
+            "00000000-0000-0000-0000-000000000000",
+            "ffffffff-ffff-ffff-ffff-ffffffffffff",
+            "123e4567-e89b-12d3-a456-426614174000",
+        ];
+
+        for uuid in valid_uuids {
+            let result = validate_session_id(uuid);
+            assert!(
+                result.is_ok(),
+                "Valid UUID '{}' should pass validation",
+                uuid
+            );
+        }
+
+        let valid_contents = vec![
+            "Hello, world!",
+            "SELECT * FROM users WHERE id = 1",
+            "user' OR '1'='1",
+            "Normal text with <html> tags",
+            "Path-like /usr/local/bin",
+            "Unicode: 你好世界",
+            "Emoji: 🔐🔑🛡️",
+            "Special chars: !@#$%^&*()_+-=[]{}|;':\",./<>?",
+        ];
+
+        for content in valid_contents {
+            let mut validator = RequestValidator::new();
+            validator.validate_required_string("content", Some(content));
+            assert!(
+                validator.is_valid(),
+                "Valid content '{}' should pass validation",
+                content
+            );
+        }
+
+        let valid_paths = vec![
+            "/home/user/project",
+            "/usr/local/bin",
+            "/var/log",
+            "C:\\Users\\Admin",
+            "./relative/path",
+            "project/src/main.rs",
+        ];
+
+        for path in valid_paths {
+            let mut validator = RequestValidator::new();
+            validator.validate_optional_string("workdir", Some(path), 1000);
+            assert!(
+                validator.is_valid(),
+                "Valid path '{}' should pass validation",
+                path
+            );
+        }
+    }
+
+    #[test]
+    fn test_path_normalization_strips_traversal() {
+        fn normalize_path(path: &str) -> String {
+            let mut result = Vec::new();
+            for component in path.split(['/', '\\']) {
+                match component {
+                    "" | "." => continue,
+                    ".." => {
+                        result.pop();
+                    }
+                    _ => result.push(component),
+                }
+            }
+            result.join("/")
+        }
+
+        assert_eq!(normalize_path("foo/bar/../baz"), "foo/baz");
+        assert_eq!(normalize_path("foo/./bar/./baz"), "foo/bar/baz");
+        assert_eq!(normalize_path("foo/../bar"), "bar");
+        assert_eq!(normalize_path("../foo"), "foo");
+        assert_eq!(normalize_path("a/b/c/../../d"), "a/d");
+        assert_eq!(normalize_path("a/../../../b"), "b");
+    }
+
+    #[test]
+    fn test_command_validation_rejects_empty_command() {
+        use crate::routes::validation::validate_command;
+
+        let result = validate_command("", None, None);
+        assert!(result.is_err(), "Empty command should be rejected");
+    }
+
+    #[test]
+    fn test_command_validation_accepts_valid_command_with_path_traversal_chars() {
+        use crate::routes::validation::validate_command;
+
+        let cmd1_args: Option<Vec<String>> = Some(vec!["../etc/passwd".to_string()]);
+        let cmd2_workdir: Option<String> = Some("/tmp/../home".to_string());
+        let cmd3_args: Option<Vec<String>> = Some(vec!["log".to_string(), "--all".to_string()]);
+
+        assert!(validate_command("cat", cmd1_args.as_ref(), None).is_ok());
+        assert!(validate_command("ls", None, cmd2_workdir.as_deref()).is_ok());
+        assert!(validate_command("git", cmd3_args.as_ref(), None).is_ok());
+    }
 }

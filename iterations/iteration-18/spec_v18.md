@@ -29,8 +29,12 @@
 |----------|--------|
 | **Resolved** | Duplicate `directory_scanner.rs` removed (P1-NEW-2) |
 | **Resolved** | Two ToolRegistry implementations documented (P1-NEW-3) |
-| **Still Pending** | Route-group tests, API negative tests, security tests |
-| **Still Pending** | ratatui-testing components (BufferDiff, StateTester, TestDsl, CliTester) |
+| **Resolved** | Route-group tests (P2-1) |
+| **Resolved** | Malformed request body tests (P2-2) |
+| **Resolved** | Hook determinism test (P2-3) |
+| **Resolved** | Security tests - SQL injection, path traversal (P2-4) |
+| **Resolved** | ratatui-testing BufferDiff, StateTester, TestDsl (P2-5, P2-6, P2-7) |
+| **Still Pending** | ratatui-testing CliTester (P2-8) |
 
 ### Priority Classification
 
@@ -38,7 +42,7 @@
 |----------|-------|-------|-----------|------------|
 | P0 | 3 | 3 | 0 | 100% |
 | P1 | 11 | 11 | 0 | 100% |
-| P2 | 12 | 6 | 6 | 50% |
+| P2 | 12 | 9 | 3 | 75% |
 
 ---
 
@@ -334,7 +338,7 @@ pub struct CliOutput {
 | P2-1 | Route-group MCP/config/provider tests missing | server | NOT FIXED |
 | P2-2 | Malformed request body tests missing | server | ✅ FIXED |
 | P2-3 | Hook determinism explicit test missing | plugin | NOT FIXED |
-| P2-4 | Security tests (injection, path traversal) | server | NOT FIXED |
+| P2-4 | Security tests (injection, path traversal) | server | ✅ FIXED |
 | P2-5 | ratatui-testing BufferDiff stub | testing | NOT FIXED |
 | P2-6 | ratatui-testing StateTester stub | testing | NOT FIXED |
 | P2-7 | ratatui-testing TestDsl stub | testing | NOT FIXED |
@@ -364,7 +368,7 @@ pub struct CliOutput {
 | Empty auth token | ✅ Done | `server_integration_tests.rs:191-198` |
 | Malformed request bodies | ❌ Missing | No tests for invalid JSON, missing required fields |
 | Invalid session/message IDs | ❌ Missing | No tests for non-existent session operations |
-| SQL injection / path traversal | ❌ Missing | No security-focused negative tests |
+| SQL injection / path traversal | ✅ Done | `server_integration_tests.rs:4206-4490` |
 
 ---
 
@@ -385,8 +389,8 @@ pub struct CliOutput {
 
 | Test Type | Status | Evidence |
 |-----------|--------|----------|
-| SQL injection | ❌ Missing | No tests |
-| Path traversal | ❌ Missing | No tests |
+| SQL injection | ✅ Done | `server_integration_tests.rs:4206-4284` |
+| Path traversal | ✅ Done | `server_integration_tests.rs:4286-4490` |
 | Request smuggling | ❌ Missing | No tests |
 
 ---

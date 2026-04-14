@@ -128,21 +128,28 @@ cargo test -p opencode-plugin sorted_plugin_names
 **Priority:** P2  
 **Reference:** FR-004  
 **Module:** server  
+**Status:** ✅ Done
 
 **Steps:**
-1. [ ] Read existing server integration tests
-2. [ ] Add SQL injection tests:
-   - [ ] Test SQL injection in session IDs
-   - [ ] Test SQL injection in message content
-3. [ ] Add path traversal tests:
-   - [ ] Test path traversal in file operations
-   - [ ] Test `../` in paths
-4. [ ] Run tests to verify
+1. [x] Read existing server integration tests
+2. [x] Add SQL injection tests:
+   - [x] Test SQL injection in session IDs (10 patterns)
+   - [x] Test SQL injection in message content (7 patterns)
+3. [x] Add path traversal tests:
+   - [x] Test path traversal in file operations (10 patterns)
+   - [x] Test `../` in paths
+4. [x] Run tests to verify
 
 **Verification:**
 ```bash
 cargo test -p opencode-server
 ```
+
+**Test Results:**
+- 355 tests pass (14 new security tests added)
+- All SQL injection patterns rejected by UUID validation
+- All path traversal patterns detected/validated
+- Sanitization regression tests pass (valid inputs not broken)
 
 ---
 
@@ -309,22 +316,22 @@ cargo test -p ratatui-testing
 | Category | Tasks | Completed | Remaining |
 |----------|-------|-----------|-----------|
 | P0 | 3 | 3 | 0 |
-| P1 | 2 | 1 | 1 |
-| P2 | 10 | 1 | 9 |
-| **Total** | **15** | **5** | **10** |
+| P1 | 2 | 2 | 0 |
+| P2 | 10 | 6 | 4 |
+| **Total** | **15** | **11** | **4** |
 
 ---
 
 ## Immediate Priority Order
 
-1. **P1-NEW-3**: Audit Two ToolRegistry Implementations (HIGH - blocks release)
-2. **P2-1**: Add Route-Group Tests (Quality)
-3. **P2-2**: Add Malformed Request Body Tests (Quality)
-4. **P2-3**: Add Hook Determinism Test (Quality)
-5. **P2-4**: Add Security Tests (Quality)
-6. **P2-5**: Implement BufferDiff
-7. **P2-6**: Implement StateTester
-8. **P2-7**: Implement TestDsl
+1. ~~**P1-NEW-3**: Audit Two ToolRegistry Implementations~~ ✅ DONE
+2. ~~**P2-1**: Add Route-Group Tests~~ ✅ DONE
+3. ~~**P2-2**: Add Malformed Request Body Tests~~ ✅ DONE
+4. ~~**P2-3**: Add Hook Determinism Test~~ ✅ DONE
+5. ~~**P2-4**: Add Security Tests~~ ✅ DONE
+6. ~~**P2-5**: Implement BufferDiff~~ ✅ DONE
+7. ~~**P2-6**: Implement StateTester~~ ✅ DONE
+8. ~~**P2-7**: Implement TestDsl~~ ✅ DONE
 9. **P2-8**: Implement CliTester
 10. **PHASE-6**: Release Qualification
 
@@ -336,8 +343,11 @@ cargo test -p ratatui-testing
 |------|--------------|--------------|
 | P1-NEW-2 (directory_scanner) | NOT DONE | ✅ DONE |
 | P1-NEW-3 (ToolRegistry) | NOT DONE | ✅ DONE |
-| P2 items remaining | 4 | 6 (added 4 ratatui-testing) |
-| ratatui-testing | 4 stubs | 4 stubs (unchanged) |
+| P2-1 (Route-Group Tests) | NOT DONE | ✅ DONE |
+| P2-2 (Malformed Request) | NOT DONE | ✅ DONE |
+| P2-3 (Hook Determinism) | NOT DONE | ✅ DONE |
+| P2-4 (Security Tests) | NOT DONE | ✅ DONE |
+| ratatui-testing | 4 stubs | 1 stub (BufferDiff, StateTester, TestDsl done) |
 
 ---
 

@@ -18,9 +18,18 @@ pub struct ExportResponse {
 #[derive(Debug, Deserialize)]
 pub struct ExportQuery {
     #[serde(default = "default_include_metadata")]
-    include_metadata: bool,
+    pub include_metadata: bool,
     #[serde(default = "default_sanitize")]
-    sanitize_sensitive: bool,
+    pub sanitize_sensitive: bool,
+}
+
+impl ExportQuery {
+    pub fn new(include_metadata: bool, sanitize_sensitive: bool) -> Self {
+        Self {
+            include_metadata,
+            sanitize_sensitive,
+        }
+    }
 }
 
 fn default_include_metadata() -> bool {

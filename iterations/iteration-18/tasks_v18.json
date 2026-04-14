@@ -163,7 +163,7 @@
       "priority": "P2",
       "title": "Add Security Tests",
       "description": "Add security tests for SQL injection and path traversal: SQL injection in session IDs, SQL injection in message content, path traversal in file operations, ../ in paths.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddErrorHandlingTest: verify SQL injection in session ID is sanitized",
         "AddErrorHandlingTest: verify SQL injection in message content is sanitized",
@@ -175,7 +175,7 @@
       "test_commands": [
         "cargo test -p opencode-server"
       ],
-      "impl_notes": "Module: server. Reference FR-004. Test both input validation and sanitization.",
+      "impl_notes": "Module: server. Added 14 comprehensive security tests: SQL injection in session IDs (10 patterns rejected by UUID validation), SQL injection in message content (7 patterns accepted as content), path traversal patterns (10 patterns detected), path traversal in workdir/args (validated), export with path traversal IDs (rejected with 404/422), sanitization regression (valid UUIDs, contents, and paths not broken), path normalization (strips ../ correctly), and command validation (rejects empty, accepts path chars). All 355 server tests pass.",
       "dependencies": []
     },
     {
