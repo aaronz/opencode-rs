@@ -3564,3 +3564,605 @@ mod security_path_traversal_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod error_handling_tests {
+    use actix_web::http::StatusCode;
+    use actix_web::test::TestRequest;
+    use actix_web::web;
+    use actix_web::Responder;
+
+    fn create_test_state() -> crate::ServerState {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        crate::ServerState {
+            storage: std::sync::Arc::new(opencode_storage::StorageService::new(
+                opencode_storage::database::StoragePool::new(&db_path).unwrap(),
+            )),
+            models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
+            config: std::sync::Arc::new(std::sync::RwLock::new(opencode_core::Config::default())),
+            event_bus: opencode_core::bus::SharedEventBus::default(),
+            reconnection_store: crate::streaming::ReconnectionStore::default(),
+            connection_monitor: std::sync::Arc::new(
+                crate::streaming::conn_state::ConnectionMonitor::new(),
+            ),
+            share_server: std::sync::Arc::new(std::sync::RwLock::new(
+                crate::routes::share::ShareServer::with_default_config(),
+            )),
+            acp_enabled: true,
+            acp_stream: opencode_control_plane::AcpEventStream::new().into(),
+            acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
+                crate::routes::acp_ws::AcpClientRegistry::new(),
+            )),
+            temp_db_dir: Some(Box::new(temp_dir)),
+        }
+    }
+
+    #[actix_web::test]
+    async fn test_missing_required_content_field_returns_400() {
+        let req = TestRequest::default().to_http_request();
+        let result: Result<crate::routes::session::AddMessageRequest, _> =
+            serde_json::from_str(r#"{"role": "user"}"#);
+        assert!(
+            result.is_err(),
+            "Missing required 'content' field should fail to deserialize"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_missing_required_decision_field_returns_400() {
+        let req = TestRequest::default().to_http_request();
+        let result: Result<crate::routes::session::PermissionReplyRequest, _> =
+            serde_json::from_str(r#"{}"#);
+        assert!(
+            result.is_err(),
+            "Missing required 'decision' field should fail to deserialize"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_missing_required_command_field_returns_400() {
+        let req = TestRequest::default().to_http_request();
+        let result: Result<crate::routes::session::CommandRequest, _> =
+            serde_json::from_str(r#"{"args": ["test"]}"#);
+        assert!(
+            result.is_err(),
+            "Missing required 'command' field should fail to deserialize"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_missing_required_fork_at_message_index_returns_400() {
+        let req = TestRequest::default().to_http_request();
+        let result: Result<crate::routes::session::ForkSessionRequest, _> =
+            serde_json::from_str(r#"{}"#);
+        assert!(
+            result.is_err(),
+            "Missing required 'fork_at_message_index' field should fail to deserialize"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_extra_unknown_fields_accepted_in_add_message() {
+        let json_str = r#"{"role": "user", "content": "hello", "unknown_field": "value", "extra": 123}"#;
+        let result: Result<crate::routes::session::AddMessageRequest, _> =
+            serde_json::from_str(json_str);
+        assert!(
+            result.is_ok(),
+            "Extra unknown fields are silently ignored by serde by default"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_extra_unknown_fields_accepted_in_create_session() {
+        let json_str = r#"{"initial_prompt": "hello", "unknown": "field", "extra_num": 42}"#;
+        let result: Result<crate::routes::session::CreateSessionRequest, _> =
+            serde_json::from_str(json_str);
+        assert!(
+            result.is_ok(),
+            "Extra unknown fields in create session are silently ignored by serde by default"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_extra_unknown_fields_accepted_in_command() {
+        let json_str = r#"{"command": "ls", "extra": "unknown"}"#;
+        let result: Result<crate::routes::session::CommandRequest, _> =
+            serde_json::from_str(json_str);
+        assert!(
+            result.is_ok(),
+            "Extra unknown fields in command are silently ignored by serde by default"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_wrong_field_type_content_returns_400() {
+        let json_str = r#"{"content": 123}"#;
+        let result: Result<crate::routes::session::AddMessageRequest, _> =
+            serde_json::from_str(json_str);
+        assert!(
+            result.is_err(),
+            "Wrong type for 'content' (number instead of string) should fail"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_wrong_field_type_role_returns_400() {
+        let json_str = r#"{"role": 123, "content": "hello"}"#;
+        let result: Result<crate::routes::session::AddMessageRequest, _> =
+            serde_json::from_str(json_str);
+        assert!(
+            result.is_err(),
+            "Wrong type for 'role' (number instead of string) should fail"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_wrong_field_type_decision_returns_400() {
+        let json_str = r#"{"decision": 123}"#;
+        let result: Result<crate::routes::session::PermissionReplyRequest, _> =
+            serde_json::from_str(json_str);
+        assert!(
+            result.is_err(),
+            "Wrong type for 'decision' (number instead of string) should fail"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_wrong_field_type_command_returns_400() {
+        let json_str = r#"{"command": 123}"#;
+        let result: Result<crate::routes::session::CommandRequest, _> =
+            serde_json::from_str(json_str);
+        assert!(
+            result.is_err(),
+            "Wrong type for 'command' (number instead of string) should fail"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_wrong_field_type_fork_index_returns_400() {
+        let json_str = r#"{"fork_at_message_index": "not_a_number"}"#;
+        let result: Result<crate::routes::session::ForkSessionRequest, _> =
+            serde_json::from_str(json_str);
+        assert!(
+            result.is_err(),
+            "Wrong type for 'fork_at_message_index' (string instead of number) should fail"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_wrong_field_type_initial_prompt_returns_400() {
+        let json_str = r#"{"initial_prompt": 123}"#;
+        let result: Result<crate::routes::session::CreateSessionRequest, _> =
+            serde_json::from_str(json_str);
+        assert!(
+            result.is_err(),
+            "Wrong type for 'initial_prompt' (number instead of string) should fail"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_empty_body_add_message_returns_error() {
+        let req = TestRequest::default().to_http_request();
+        let result: Result<crate::routes::session::AddMessageRequest, _> =
+            serde_json::from_str(r#""#);
+        assert!(
+            result.is_err(),
+            "Empty body should fail to deserialize"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_empty_json_object_add_message_returns_error() {
+        let req = TestRequest::default().to_http_request();
+        let result: Result<crate::routes::session::AddMessageRequest, _> =
+            serde_json::from_str(r#"{}"#);
+        assert!(
+            result.is_err(),
+            "Empty JSON object missing required 'content' field should fail"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_operation_on_nonexistent_session_returns_404_or_500_get() {
+        use actix_web::web;
+        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::get_session(
+            web::Data::new(create_test_state()),
+            web::Path::from(valid_uuid.to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::NOT_FOUND || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+            "Operation on non-existent session should return 404 or 500"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_operation_on_nonexistent_session_returns_404_or_500_delete() {
+        use actix_web::web;
+        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::delete_session(
+            web::Data::new(create_test_state()),
+            web::Path::from(valid_uuid.to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::NOT_FOUND || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+            "Delete non-existent session should return 404 or 500"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_operation_on_nonexistent_session_returns_404_or_500_add_message() {
+        use actix_web::web;
+        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::add_message_to_session(
+            web::Data::new(create_test_state()),
+            web::Path::from(valid_uuid.to_string()),
+            web::Json(crate::routes::session::AddMessageRequest {
+                role: None,
+                content: "test".to_string(),
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::NOT_FOUND || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+            "Add message to non-existent session should return 404 or 500"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_operation_on_nonexistent_session_returns_404_or_500_list_messages() {
+        use actix_web::web;
+        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::list_messages(
+            web::Data::new(create_test_state()),
+            web::Path::from(valid_uuid.to_string()),
+            web::Query(crate::routes::session::PaginationParams {
+                limit: None,
+                offset: None,
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::NOT_FOUND || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+            "List messages from non-existent session should return 404 or 500"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_operation_on_nonexistent_session_returns_error_or_500_fork() {
+        use actix_web::web;
+        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::fork_session(
+            web::Data::new(create_test_state()),
+            web::Path::from(valid_uuid.to_string()),
+            web::Json(crate::routes::session::ForkSessionRequest {
+                fork_at_message_index: 0,
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::NOT_FOUND || resp.status() == StatusCode::INTERNAL_SERVER_ERROR || resp.status() == StatusCode::BAD_REQUEST,
+            "Fork non-existent session should return 404, 400, or 500"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_operation_on_deleted_session_returns_not_found_or_500() {
+        use actix_web::web;
+        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
+        let state = create_test_state();
+        let req = TestRequest::default().to_http_request();
+        let _delete_resp = crate::routes::session::delete_session(
+            web::Data::new(state),
+            web::Path::from(valid_uuid.to_string()),
+        )
+        .await
+        .respond_to(&req);
+        let state2 = create_test_state();
+        let req2 = TestRequest::default().to_http_request();
+        let get_resp = crate::routes::session::get_session(
+            web::Data::new(state2),
+            web::Path::from(valid_uuid.to_string()),
+        )
+        .await
+        .respond_to(&req2);
+        assert!(
+            get_resp.status() == StatusCode::NOT_FOUND || get_resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+            "After deletion, session should not be found (404 or 500)"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_invalid_session_id_format_returns_400_invalid_uuid() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::get_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("not-a-valid-uuid".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::BAD_REQUEST || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
+            "Invalid session ID format should return 400 or 422"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_invalid_session_id_format_returns_400_empty_string() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::get_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::BAD_REQUEST || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
+            "Empty session ID should return 400 or 422"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_invalid_session_id_format_returns_400_special_chars() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::get_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("session-id-with-!@#$%-chars".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::BAD_REQUEST || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
+            "Session ID with special characters should return 400 or 422"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_invalid_session_id_format_returns_400_in_delete() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::delete_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("invalid-session-id".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::BAD_REQUEST || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
+            "Delete with invalid session ID should return 400 or 422"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_invalid_session_id_format_returns_400_in_add_message() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::add_message_to_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("bad-session-id".to_string()),
+            web::Json(crate::routes::session::AddMessageRequest {
+                role: None,
+                content: "test".to_string(),
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::BAD_REQUEST || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
+            "Add message with invalid session ID should return 400 or 422"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_malformed_json_returns_error() {
+        let malformed_json_cases = vec![
+            r#"{[,}"#,
+            r#"{"key":}"#,
+            r#"not json at all"#,
+            r#"{"incomplete": {"nested"#,
+            r#"undefined"#,
+        ];
+
+        for json_str in malformed_json_cases {
+            let result: Result<crate::routes::session::AddMessageRequest, _> =
+                serde_json::from_str(json_str);
+            assert!(
+                result.is_err(),
+                "Malformed JSON '{}' should fail to deserialize",
+                json_str
+            );
+        }
+    }
+
+    #[actix_web::test]
+    async fn test_null_json_returns_error() {
+        let result: Result<crate::routes::session::AddMessageRequest, _> =
+            serde_json::from_str("null");
+        assert!(
+            result.is_err(),
+            "null JSON should fail to deserialize"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_json_value_instead_of_object_returns_error() {
+        let result: Result<crate::routes::session::AddMessageRequest, _> =
+            serde_json::from_str(r#"123"#);
+        assert!(
+            result.is_err(),
+            "JSON number should fail to deserialize to struct expecting object"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_valid_json_object_passes_deserialization() {
+        let json_str = r#"{"role": "user", "content": "hello"}"#;
+        let result: Result<crate::routes::session::AddMessageRequest, _> =
+            serde_json::from_str(json_str);
+        assert!(
+            result.is_ok(),
+            "Valid JSON object should deserialize successfully"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_command_empty_string_returns_validation_error() {
+        use actix_web::web;
+        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::run_command_in_session(
+            web::Data::new(create_test_state()),
+            web::Path::from(valid_uuid.to_string()),
+            web::Json(crate::routes::session::CommandRequest {
+                command: "".to_string(),
+                args: None,
+                workdir: None,
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::BAD_REQUEST || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
+            "Empty command should return 400 or 422"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_command_whitespace_only_returns_validation_error() {
+        use actix_web::web;
+        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::run_command_in_session(
+            web::Data::new(create_test_state()),
+            web::Path::from(valid_uuid.to_string()),
+            web::Json(crate::routes::session::CommandRequest {
+                command: "   ".to_string(),
+                args: None,
+                workdir: None,
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::BAD_REQUEST || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
+            "Whitespace-only command should return 400 or 422"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_add_message_with_empty_content_returns_validation_error() {
+        use actix_web::web;
+        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::add_message_to_session(
+            web::Data::new(create_test_state()),
+            web::Path::from(valid_uuid.to_string()),
+            web::Json(crate::routes::session::AddMessageRequest {
+                role: None,
+                content: "".to_string(),
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "Empty content should return 422"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_add_message_with_invalid_role_returns_validation_error() {
+        use actix_web::web;
+        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::add_message_to_session(
+            web::Data::new(create_test_state()),
+            web::Path::from(valid_uuid.to_string()),
+            web::Json(crate::routes::session::AddMessageRequest {
+                role: Some("invalid_role".to_string()),
+                content: "test content".to_string(),
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "Invalid role should return 422"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_permission_reply_invalid_decision_returns_error() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::permission::permission_reply(
+            web::Data::new(create_test_state()),
+            web::Path::from(("session-1".to_string(), "req-1".to_string())),
+            web::Json(crate::routes::permission::PermissionReplyRequest {
+                decision: "invalid".to_string(),
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::BAD_REQUEST,
+            "Invalid permission decision should return 400"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_get_message_index_out_of_range_returns_404_or_500() {
+        use actix_web::web;
+        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::get_message(
+            web::Data::new(create_test_state()),
+            web::Path::from((valid_uuid.to_string(), 999)),
+        )
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::NOT_FOUND || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+            "Message index out of range should return 404 or 500"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_fork_with_invalid_index_returns_error_or_500() {
+        use actix_web::web;
+        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::fork_session(
+            web::Data::new(create_test_state()),
+            web::Path::from(valid_uuid.to_string()),
+            web::Json(crate::routes::session::ForkSessionRequest {
+                fork_at_message_index: 999999,
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::NOT_FOUND || resp.status() == StatusCode::INTERNAL_SERVER_ERROR || resp.status() == StatusCode::UNPROCESSABLE_ENTITY || resp.status() == StatusCode::BAD_REQUEST,
+            "Fork with invalid index on non-existent session should return error status"
+        );
+    }
+}

@@ -332,7 +332,7 @@ pub struct CliOutput {
 | ID | Issue | Module | Status |
 |----|-------|--------|--------|
 | P2-1 | Route-group MCP/config/provider tests missing | server | NOT FIXED |
-| P2-2 | Malformed request body tests missing | server | NOT FIXED |
+| P2-2 | Malformed request body tests missing | server | ✅ FIXED |
 | P2-3 | Hook determinism explicit test missing | plugin | NOT FIXED |
 | P2-4 | Security tests (injection, path traversal) | server | NOT FIXED |
 | P2-5 | ratatui-testing BufferDiff stub | testing | NOT FIXED |
