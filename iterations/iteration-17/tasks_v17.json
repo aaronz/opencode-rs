@@ -229,7 +229,7 @@
       "priority": "P2",
       "title": "Implement ratatui-testing CliTester",
       "description": "Implement process spawning with arguments, stdout/stderr capture, exit code capture, and temp directory cleanup. Reference: FR-028",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify process spawning with arguments works correctly",
         "AddUnitTest: verify stdout/stderr capture",

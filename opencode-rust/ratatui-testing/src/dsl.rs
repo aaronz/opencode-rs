@@ -63,8 +63,8 @@ impl TestDsl {
     }
 
     pub fn with_pty(mut self, command: &[&str]) -> Result<Self> {
-        let pty = PtySimulator::new(command)
-            .context("Failed to create PTY simulator for TestDsl")?;
+        let pty =
+            PtySimulator::new(command).context("Failed to create PTY simulator for TestDsl")?;
         self.pty = Some(pty);
         Ok(self)
     }
@@ -145,32 +145,42 @@ impl TestDsl {
     }
 
     pub fn assert_no_diffs(&self, expected: &Buffer) -> Result<()> {
-        let actual = self.last_render.as_ref()
+        let actual = self
+            .last_render
+            .as_ref()
             .context("No buffer has been rendered yet")?;
-        
-        let diff = self.buffer_diff.as_ref()
+
+        let diff = self
+            .buffer_diff
+            .as_ref()
             .context("BufferDiff not configured. Use with_buffer_diff()")?;
-        
+
         let result = diff.diff(expected, actual)?;
-        
+
         if result.total_diffs > 0 {
             anyhow::bail!("Buffer differences found:\n{}", result);
         }
-        
+
         Ok(())
     }
 
-    pub fn assert_buffer_matches(&self, expected: &Buffer, options: crate::diff::IgnoreOptions) -> Result<()> {
-        let actual = self.last_render.as_ref()
+    pub fn assert_buffer_matches(
+        &self,
+        expected: &Buffer,
+        options: crate::diff::IgnoreOptions,
+    ) -> Result<()> {
+        let actual = self
+            .last_render
+            .as_ref()
             .context("No buffer has been rendered yet")?;
-        
+
         let diff = BufferDiff::with_options(options);
         let result = diff.diff(expected, actual)?;
-        
+
         if result.total_diffs > 0 {
             anyhow::bail!("Buffer differences found:\n{}", result);
         }
-        
+
         Ok(())
     }
 
@@ -178,7 +188,9 @@ impl TestDsl {
     where
         S: serde::Serialize,
     {
-        let tester = self.state_tester.as_mut()
+        let tester = self
+            .state_tester
+            .as_mut()
             .context("StateTester not configured. Use with_state_tester()")?;
         tester.capture_state(state, name)?;
         Ok(())
@@ -188,31 +200,40 @@ impl TestDsl {
     where
         S: serde::Serialize,
     {
-        let tester = self.state_tester.as_ref()
+        let tester = self
+            .state_tester
+            .as_ref()
             .context("StateTester not configured. Use with_state_tester()")?;
         tester.assert_state(state)
     }
 
     pub fn write_to_pty(&mut self, input: &str) -> Result<()> {
-        let pty = self.pty.as_mut()
+        let pty = self
+            .pty
+            .as_mut()
             .context("PTY not configured. Use with_pty()")?;
         pty.write_input(input)
     }
 
     pub fn read_from_pty(&mut self, timeout: Duration) -> Result<String> {
-        let pty = self.pty.as_mut()
+        let pty = self
+            .pty
+            .as_mut()
             .context("PTY not configured. Use with_pty()")?;
         pty.read_output(timeout)
     }
 
     pub fn resize_pty(&mut self, cols: u16, rows: u16) -> Result<()> {
-        let pty = self.pty.as_mut()
+        let pty = self
+            .pty
+            .as_mut()
             .context("PTY not configured. Use with_pty()")?;
         pty.resize(cols, rows)
     }
 
     pub fn is_pty_child_running(&self) -> bool {
-        self.pty.as_ref()
+        self.pty
+            .as_ref()
             .map(|pty| pty.is_child_running())
             .unwrap_or(false)
     }
@@ -225,7 +246,7 @@ impl TestDsl {
         let triggered_clone = triggered.clone();
 
         let (tx, mut rx) = mpsc::channel(1);
-        
+
         std::thread::spawn(move || {
             while !triggered_clone.load(Ordering::SeqCst) {
                 if predicate() {
@@ -265,13 +286,13 @@ impl TestDsl {
         let triggered_clone = triggered.clone();
 
         let (tx, mut rx) = mpsc::channel(1);
-        
+
         std::thread::spawn(move || {
             let rt = tokio::runtime::Builder::new_current_thread()
                 .enable_time()
                 .build()
                 .unwrap();
-            
+
             rt.block_on(async {
                 while !triggered_clone.load(Ordering::SeqCst) {
                     if predicate().await {
@@ -305,7 +326,7 @@ impl TestDsl {
 
     pub fn wait_with_predicates(mut self, timeout: Duration) -> Result<Self> {
         let predicates = std::mem::take(&mut self.predicates);
-        
+
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_time()
             .build()
@@ -313,19 +334,21 @@ impl TestDsl {
 
         let start = std::time::Instant::now();
         let check_interval = Duration::from_millis(50);
-        
+
         rt.block_on(async {
             loop {
                 let elapsed = start.elapsed();
                 if elapsed >= timeout {
-                    let failed: Vec<String> = predicates.iter()
+                    let failed: Vec<String> = predicates
+                        .iter()
                         .filter(|p| !p.check())
                         .map(|p| p.description())
                         .collect();
-                    
+
                     anyhow::bail!(
                         "Wait predicates timed out after {:?}. Failed predicates: {:?}",
-                        timeout, failed
+                        timeout,
+                        failed
                     );
                 }
 
@@ -422,7 +445,7 @@ impl TestDsl {
     pub fn buffer_content_at(&self, x: u16, y: u16) -> Option<String> {
         self.last_render.as_ref().and_then(|buf| {
             let width = buf.area.width as usize;
-            
+
             if x < buf.area.width && y < buf.area.height {
                 let idx = (y as usize) * width + (x as usize);
                 buf.content.get(idx).map(|cell| cell.symbol().to_string())
@@ -438,13 +461,15 @@ impl TestDsl {
                 let width = buf.area.width as usize;
                 let start = (y as usize) * width;
                 let end = start + width;
-                
-                Some(buf.content[start..end.min(buf.content.len())]
-                    .iter()
-                    .map(|cell| cell.symbol().to_string())
-                    .collect::<String>()
-                    .trim_end()
-                    .to_string())
+
+                Some(
+                    buf.content[start..end.min(buf.content.len())]
+                        .iter()
+                        .map(|cell| cell.symbol().to_string())
+                        .collect::<String>()
+                        .trim_end()
+                        .to_string(),
+                )
             } else {
                 None
             }
@@ -454,7 +479,7 @@ impl TestDsl {
     pub fn buffer_lines(&self) -> Option<Vec<String>> {
         self.last_render.as_ref().map(|buf| {
             let width = buf.area.width as usize;
-            
+
             buf.content
                 .chunks(width)
                 .map(|chunk| {
@@ -487,12 +512,16 @@ impl TestDsl {
     where
         Self: Sized,
     {
-        let buffer = self.last_render.as_ref()
+        let buffer = self
+            .last_render
+            .as_ref()
             .context("No buffer has been rendered yet")?;
-        
-        let tester = self.state_tester.as_mut()
+
+        let tester = self
+            .state_tester
+            .as_mut()
             .context("StateTester not configured. Use with_state_tester()")?;
-        
+
         let lines = buffer
             .content
             .chunks(buffer.area.width as usize)
@@ -505,7 +534,7 @@ impl TestDsl {
                     .to_string()
             })
             .collect::<Vec<_>>();
-        
+
         tester.capture_state(&lines, Some(name))?;
         Ok(())
     }
@@ -514,12 +543,16 @@ impl TestDsl {
     where
         Self: Sized,
     {
-        let buffer = self.last_render.as_ref()
+        let buffer = self
+            .last_render
+            .as_ref()
             .context("No buffer has been rendered yet")?;
-        
-        let tester = self.state_tester.as_ref()
+
+        let tester = self
+            .state_tester
+            .as_ref()
             .context("StateTester not configured. Use with_state_tester()")?;
-        
+
         let lines = buffer
             .content
             .chunks(buffer.area.width as usize)
@@ -532,7 +565,7 @@ impl TestDsl {
                     .to_string()
             })
             .collect::<Vec<_>>();
-        
+
         tester.assert_state_named(&lines, name)
     }
 }
@@ -565,9 +598,7 @@ impl WaitPredicate {
     {
         Self {
             description: description.into(),
-            check_fn: Box::new(move || {
-                check_fn(None)
-            }),
+            check_fn: Box::new(move || check_fn(None)),
         }
     }
 
@@ -591,8 +622,8 @@ impl Debug for WaitPredicate {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ratatui::widgets::Paragraph;
     use ratatui::text::Text;
+    use ratatui::widgets::Paragraph;
 
     fn create_test_dsl() -> TestDsl {
         TestDsl::new().with_size(20, 5).init_terminal()
@@ -602,11 +633,14 @@ mod tests {
     fn test_widget_rendering_to_buffer() {
         let dsl = create_test_dsl();
         let widget = Paragraph::new(Text::from("Hello, World!"));
-        
+
         let result = dsl.render(widget);
-        
-        assert!(result.last_render.is_some(), "Widget should be rendered to buffer");
-        
+
+        assert!(
+            result.last_render.is_some(),
+            "Widget should be rendered to buffer"
+        );
+
         let buffer = result.last_render.unwrap();
         assert_eq!(buffer.area.width, 20);
         assert_eq!(buffer.area.height, 5);
@@ -614,13 +648,11 @@ mod tests {
 
     #[test]
     fn test_widget_rendering_with_different_sizes() {
-        let dsl = TestDsl::new()
-            .with_size(40, 10)
-            .init_terminal();
+        let dsl = TestDsl::new().with_size(40, 10).init_terminal();
         let widget = Paragraph::new(Text::from("Test"));
-        
+
         let result = dsl.render(widget);
-        
+
         let buffer = result.last_render.unwrap();
         assert_eq!(buffer.area.width, 40);
         assert_eq!(buffer.area.height, 10);
@@ -631,10 +663,11 @@ mod tests {
         let dsl = TestDsl::new()
             .with_size(80, 24)
             .init_terminal()
-            .with_pty(&["echo", "test"]).expect("PTY creation failed")
+            .with_pty(&["echo", "test"])
+            .expect("PTY creation failed")
             .with_buffer_diff()
             .with_state_tester();
-        
+
         assert!(dsl.pty.is_some(), "PTY should be composed");
         assert!(dsl.buffer_diff.is_some(), "BufferDiff should be composed");
         assert!(dsl.state_tester.is_some(), "StateTester should be composed");
@@ -648,7 +681,7 @@ mod tests {
             .with_buffer_diff()
             .with_state_tester()
             .render(Paragraph::new(Text::from("Test content")));
-        
+
         assert!(result.last_render.is_some());
         assert!(result.buffer_diff.is_some());
         assert!(result.state_tester.is_some());
@@ -659,13 +692,9 @@ mod tests {
         let result = TestDsl::new()
             .with_size(80, 24)
             .init_terminal()
-            .then(|dsl| {
-                dsl.render(Paragraph::new(Text::from("First")))
-            })
-            .then(|dsl| {
-                dsl.render(Paragraph::new(Text::from("Second")))
-            });
-        
+            .then(|dsl| dsl.render(Paragraph::new(Text::from("First"))))
+            .then(|dsl| dsl.render(Paragraph::new(Text::from("Second"))));
+
         assert!(result.last_render.is_some());
     }
 
@@ -674,11 +703,9 @@ mod tests {
         let result = TestDsl::new()
             .with_size(80, 24)
             .init_terminal()
-            .then_result(|dsl| {
-                Ok(dsl.render(Paragraph::new(Text::from("Test"))))
-            })
+            .then_result(|dsl| Ok(dsl.render(Paragraph::new(Text::from("Test")))))
             .expect("then_result should succeed");
-        
+
         assert!(result.last_render.is_some());
     }
 
@@ -689,7 +716,7 @@ mod tests {
             .init_terminal()
             .wait_for(Duration::from_secs(1), || true)
             .expect("Wait should succeed immediately");
-        
+
         assert!(dsl.last_render.is_none());
     }
 
@@ -699,7 +726,7 @@ mod tests {
             .with_size(80, 24)
             .init_terminal()
             .wait_for(Duration::from_millis(100), || false);
-        
+
         assert!(result.is_err(), "Wait should timeout");
         let err_msg = format!("{}", result.unwrap_err());
         assert!(err_msg.contains("timed out"));
@@ -708,43 +735,42 @@ mod tests {
     #[test]
     fn test_wait_with_predicates() {
         use std::sync::atomic::{AtomicBool, Ordering};
-        
+
         let triggered = Arc::new(AtomicBool::new(false));
         let triggered_clone = triggered.clone();
-        
+
         std::thread::spawn(move || {
             std::thread::sleep(Duration::from_millis(50));
             triggered_clone.store(true, Ordering::SeqCst);
         });
-        
-        let predicate = WaitPredicate::new("test predicate", move || {
-            triggered.load(Ordering::SeqCst)
-        });
-        
+
+        let predicate =
+            WaitPredicate::new("test predicate", move || triggered.load(Ordering::SeqCst));
+
         let dsl = TestDsl::new()
             .with_size(80, 24)
             .init_terminal()
             .add_predicate(predicate)
             .wait_with_predicates(Duration::from_secs(1))
             .expect("Wait should succeed");
-        
+
         assert!(dsl.last_render.is_none());
     }
 
     #[test]
     fn test_poll_until_success() {
         use std::sync::atomic::{AtomicU32, Ordering};
-        
+
         let counter = Arc::new(AtomicU32::new(0));
         let counter_clone = counter.clone();
-        
+
         std::thread::spawn(move || {
             for _ in 0..3 {
                 counter_clone.fetch_add(1, Ordering::SeqCst);
                 std::thread::sleep(Duration::from_millis(20));
             }
         });
-        
+
         let dsl = TestDsl::new()
             .with_size(80, 24)
             .init_terminal()
@@ -752,7 +778,7 @@ mod tests {
                 counter.load(Ordering::SeqCst) >= 3
             })
             .expect("Poll should succeed");
-        
+
         assert!(dsl.last_render.is_none());
     }
 
@@ -762,7 +788,7 @@ mod tests {
             .with_size(80, 24)
             .init_terminal()
             .poll_until(Duration::from_millis(50), || false);
-        
+
         assert!(result.is_err(), "Poll should timeout");
     }
 
@@ -772,7 +798,7 @@ mod tests {
             .with_size(10, 3)
             .init_terminal()
             .render(Paragraph::new(Text::from("Hello")));
-        
+
         let lines = dsl.buffer_lines().unwrap();
         assert!(!lines.is_empty());
         assert_eq!(lines[0].trim(), "Hello");
@@ -784,7 +810,7 @@ mod tests {
             .with_size(10, 3)
             .init_terminal()
             .render(Paragraph::new(Text::from("Line1\nLine2\nLine3")));
-        
+
         assert_eq!(dsl.buffer_line_at(0).unwrap().trim(), "Line1");
         assert_eq!(dsl.buffer_line_at(1).unwrap().trim(), "Line2");
         assert_eq!(dsl.buffer_line_at(2).unwrap().trim(), "Line3");
@@ -796,7 +822,7 @@ mod tests {
             .with_size(10, 3)
             .init_terminal()
             .render(Paragraph::new(Text::from("Hello")));
-        
+
         let content = dsl.buffer_content_at(0, 0);
         assert!(content.is_some());
         assert_eq!(content.unwrap(), "H");
@@ -809,15 +835,15 @@ mod tests {
             .init_terminal()
             .with_buffer_diff()
             .render(Paragraph::new(Text::from("Test")));
-        
+
         let dsl2 = TestDsl::new()
             .with_size(10, 3)
             .init_terminal()
             .with_buffer_diff()
             .render(Paragraph::new(Text::from("Test")));
-        
+
         let buffer1 = dsl1.last_render.unwrap();
-        
+
         let result = dsl2.assert_no_diffs(&buffer1);
         assert!(result.is_ok(), "Identical buffers should have no diffs");
     }
@@ -829,15 +855,15 @@ mod tests {
             .init_terminal()
             .with_buffer_diff()
             .render(Paragraph::new(Text::from("Test1")));
-        
+
         let dsl2 = TestDsl::new()
             .with_size(10, 3)
             .init_terminal()
             .with_buffer_diff()
             .render(Paragraph::new(Text::from("Test2")));
-        
+
         let buffer1 = dsl1.last_render.unwrap();
-        
+
         let result = dsl2.assert_no_diffs(&buffer1);
         assert!(result.is_err(), "Different buffers should have diffs");
     }
@@ -848,21 +874,30 @@ mod tests {
             .with_size(80, 24)
             .init_terminal()
             .with_state_tester();
-        
+
         #[derive(Debug, serde::Serialize, PartialEq)]
         struct TestState {
             value: String,
             count: u32,
         }
-        
+
         let state = TestState {
             value: "test".to_string(),
             count: 42,
         };
-        
-        dsl.capture_state(&state, Some("initial")).expect("Capture should succeed");
-        let result = dsl.state_tester.as_ref().unwrap().assert_state_named(&state, "initial");
-        assert!(result.is_ok(), "Same state should pass assertion: {:?}", result);
+
+        dsl.capture_state(&state, Some("initial"))
+            .expect("Capture should succeed");
+        let result = dsl
+            .state_tester
+            .as_ref()
+            .unwrap()
+            .assert_state_named(&state, "initial");
+        assert!(
+            result.is_ok(),
+            "Same state should pass assertion: {:?}",
+            result
+        );
     }
 
     #[test]
@@ -870,11 +905,13 @@ mod tests {
         let mut dsl = TestDsl::new()
             .with_size(80, 24)
             .init_terminal()
-            .with_pty(&["cat"]).expect("PTY creation failed");
-        
+            .with_pty(&["cat"])
+            .expect("PTY creation failed");
+
         assert!(dsl.is_pty_child_running(), "PTY child should be running");
-        
-        dsl.write_to_pty("test input\n").expect("Write should succeed");
+
+        dsl.write_to_pty("test input\n")
+            .expect("Write should succeed");
     }
 
     #[test]
@@ -882,8 +919,9 @@ mod tests {
         let mut dsl = TestDsl::new()
             .with_size(80, 24)
             .init_terminal()
-            .with_pty(&["cat"]).expect("PTY creation failed");
-        
+            .with_pty(&["cat"])
+            .expect("PTY creation failed");
+
         let result = dsl.resize_pty(120, 40);
         assert!(result.is_ok(), "Resize should succeed");
     }
@@ -895,20 +933,28 @@ mod tests {
             .init_terminal()
             .with_state_tester()
             .render(Paragraph::new(Text::from("Snapshot test")));
-        
+
         let lines1 = dsl1.buffer_lines().unwrap();
-        
+
         let mut dsl2 = TestDsl::new()
             .with_size(80, 24)
             .init_terminal()
             .with_state_tester()
             .render(Paragraph::new(Text::from("Snapshot test")));
-        
+
         dsl2.capture_state(&lines1, Some("snap1")).unwrap();
-        
+
         let lines2 = dsl2.buffer_lines().unwrap();
-        let result = dsl2.state_tester.as_ref().unwrap().assert_state_named(&lines2, "snap1");
-        assert!(result.is_ok(), "Snapshot comparison should succeed: {:?}", result);
+        let result = dsl2
+            .state_tester
+            .as_ref()
+            .unwrap()
+            .assert_state_named(&lines2, "snap1");
+        assert!(
+            result.is_ok(),
+            "Snapshot comparison should succeed: {:?}",
+            result
+        );
     }
 
     #[test]
@@ -917,19 +963,17 @@ mod tests {
         struct RenderState {
             message: String,
         }
-        
+
         let state = RenderState {
             message: "Dynamic content".to_string(),
         };
-        
-        let dsl = TestDsl::new()
-            .with_size(80, 24)
-            .init_terminal();
-        
+
+        let dsl = TestDsl::new().with_size(80, 24).init_terminal();
+
         let msg = state.message.clone();
         let widget = Paragraph::new(Text::from(msg));
         let dsl = dsl.render(widget);
-        
+
         assert!(dsl.last_render.is_some());
         let lines = dsl.buffer_lines().unwrap();
         assert!(lines.iter().any(|l| l.contains("Dynamic content")));
@@ -949,7 +993,7 @@ mod tests {
             .add_predicate(WaitPredicate::new("pred1", || true))
             .add_predicate(WaitPredicate::new("pred2", || true))
             .add_predicate(WaitPredicate::new("pred3", || true));
-        
+
         assert_eq!(dsl.predicates.len(), 3);
     }
 
@@ -959,10 +1003,10 @@ mod tests {
             .with_size(80, 24)
             .init_terminal()
             .render(Paragraph::new(Text::from("Test")));
-        
+
         let terminal = dsl.get_terminal_mut();
         assert!(terminal.is_some());
-        
+
         let terminal = dsl.get_terminal();
         assert!(terminal.is_some());
     }
@@ -972,11 +1016,12 @@ mod tests {
         let mut dsl = TestDsl::new()
             .with_size(80, 24)
             .init_terminal()
-            .with_pty(&["cat"]).expect("PTY creation failed");
-        
+            .with_pty(&["cat"])
+            .expect("PTY creation failed");
+
         let pty = dsl.get_pty_mut();
         assert!(pty.is_some());
-        
+
         let pty = dsl.get_pty();
         assert!(pty.is_some());
     }

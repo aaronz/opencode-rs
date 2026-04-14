@@ -244,12 +244,12 @@ cargo test -p ratatui-testing
 **Module:** ratatui-testing  
 
 **Steps:**
-1. [ ] Read current stub in `ratatui-testing/src/cli.rs`
-2. [ ] Implement process spawning with arguments
-3. [ ] Implement stdout/stderr capture
-4. [ ] Implement exit code capture
-5. [ ] Implement temp directory cleanup
-6. [ ] Add tests
+1. [x] Read current stub in `ratatui-testing/src/cli.rs`
+2. [x] Implement process spawning with arguments
+3. [x] Implement stdout/stderr capture
+4. [x] Implement exit code capture
+5. [x] Implement temp directory cleanup
+6. [x] Add tests
 
 **Verification:**
 ```bash

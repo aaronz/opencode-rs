@@ -5,7 +5,7 @@ mod dsl;
 mod pty;
 mod state;
 
-pub use cli::CliTester;
+pub use cli::{CliOutput, CliTester};
 pub use dialog_tester::{assert_render_result, DialogRenderTester};
 pub use diff::{BufferDiff, CellDiff, DiffResult, IgnoreOptions};
 pub use dsl::{TestDsl, WaitPredicate};
