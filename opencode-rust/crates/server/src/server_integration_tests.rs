@@ -1428,4 +1428,153 @@ mod security_tests {
             "Success should reset failure count"
         );
     }
+
+    #[actix_web::test]
+    async fn web_auth_api_key_authentication_success() {
+        use actix_web::web;
+
+        let state = create_test_state_with_api_key(Some("valid-api-key".to_string()));
+        let req = TestRequest::default()
+            .app_data(web::Data::new(state))
+            .insert_header((
+                actix_web::http::header::HeaderName::from_static("x-api-key"),
+                "valid-api-key",
+            ))
+            .to_srv_request();
+        let authorized = crate::middleware::is_api_key_authorized(&req);
+        assert!(
+            authorized,
+            "Request should be allowed with valid API key"
+        );
+    }
+
+    #[actix_web::test]
+    async fn web_auth_api_key_authentication_failure_wrong_key() {
+        use actix_web::web;
+
+        let state = create_test_state_with_api_key(Some("correct-api-key".to_string()));
+        let req = TestRequest::default()
+            .app_data(web::Data::new(state))
+            .insert_header((
+                actix_web::http::header::HeaderName::from_static("x-api-key"),
+                "wrong-api-key",
+            ))
+            .to_srv_request();
+        let authorized = crate::middleware::is_api_key_authorized(&req);
+        assert!(
+            !authorized,
+            "Request should be rejected with wrong API key"
+        );
+    }
+
+    #[actix_web::test]
+    async fn web_auth_api_key_authentication_failure_missing_header() {
+        use actix_web::web;
+
+        let state = create_test_state_with_api_key(Some("configured-key".to_string()));
+        let req = TestRequest::default()
+            .app_data(web::Data::new(state))
+            .to_srv_request();
+        let authorized = crate::middleware::is_api_key_authorized(&req);
+        assert!(
+            !authorized,
+            "Request should be rejected when API key is configured but header is missing"
+        );
+    }
+
+    #[actix_web::test]
+    async fn web_auth_no_api_key_configured_allows_request() {
+        use actix_web::web;
+
+        let state = create_test_state_with_api_key(None);
+        let req = TestRequest::default()
+            .app_data(web::Data::new(state))
+            .to_srv_request();
+        let authorized = crate::middleware::is_api_key_authorized(&req);
+        assert!(
+            authorized,
+            "Request should be allowed when no API key is configured"
+        );
+    }
+
+    #[actix_web::test]
+    async fn web_auth_empty_api_key_allows_request() {
+        use actix_web::web;
+
+        let state = create_test_state_with_api_key(Some("".to_string()));
+        let req = TestRequest::default()
+            .app_data(web::Data::new(state))
+            .to_srv_request();
+        let authorized = crate::middleware::is_api_key_authorized(&req);
+        assert!(
+            authorized,
+            "Request should be allowed when API key is empty string"
+        );
+    }
+
+    #[actix_web::test]
+    async fn web_auth_session_endpoint_requires_authentication() {
+        use actix_web::web;
+
+        let state = create_test_state_with_api_key(Some("secure-key".to_string()));
+        let req = TestRequest::default()
+            .app_data(web::Data::new(state))
+            .uri("/api/sessions")
+            .to_srv_request();
+        let authorized = crate::middleware::is_api_key_authorized(&req);
+        assert!(
+            !authorized,
+            "Session endpoint should require authentication"
+        );
+    }
+
+    #[actix_web::test]
+    async fn web_auth_health_endpoint_no_auth_required() {
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::health_check().await.respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            actix_web::http::StatusCode::OK,
+            "Health endpoint should not require authentication"
+        );
+    }
+
+    #[actix_web::test]
+    async fn web_auth_config_endpoint_requires_authentication() {
+        use actix_web::web;
+
+        let state = create_test_state_with_api_key(Some("config-key".to_string()));
+        let req = TestRequest::default()
+            .app_data(web::Data::new(state))
+            .uri("/api/config")
+            .to_srv_request();
+        let authorized = crate::middleware::is_api_key_authorized(&req);
+        assert!(
+            !authorized,
+            "Config endpoint should require authentication"
+        );
+    }
+
+    #[actix_web::test]
+    async fn web_auth_multiple_api_keys_all_valid() {
+        use actix_web::web;
+
+        let keys = vec!["key1", "key2", "key3"];
+        for key in keys {
+            let state = create_test_state_with_api_key(Some(key.to_string()));
+            let req = TestRequest::default()
+                .app_data(web::Data::new(state))
+                .insert_header((
+                    actix_web::http::header::HeaderName::from_static("x-api-key"),
+                    key,
+                ))
+                .to_srv_request();
+            let authorized = crate::middleware::is_api_key_authorized(&req);
+            assert!(
+                authorized,
+                "Request should be allowed with API key: {}",
+                key
+            );
+        }
+    }
 }

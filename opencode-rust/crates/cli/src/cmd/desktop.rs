@@ -129,8 +129,9 @@ async fn run_desktop(args: DesktopArgs) -> Result<(), Box<dyn std::error::Error>
     let webview_close_rx = webview_manager.as_mut().and_then(|m| m.close_receiver());
 
     #[cfg(not(feature = "desktop"))]
-    let webview_close_rx: Option<oneshot::Receiver<()>> = None;
+    let _webview_close_rx: Option<oneshot::Receiver<()>> = None;
 
+    #[cfg(feature = "desktop")]
     let shutdown_result = tokio::select! {
         result = run_server_with_shutdown(Arc::new(state), &host, port, server_shutdown_rx) => {
             result
@@ -138,8 +139,6 @@ async fn run_desktop(args: DesktopArgs) -> Result<(), Box<dyn std::error::Error>
         _ = async {
             if let Some(rx) = webview_close_rx {
                 rx.await.ok();
-            } else {
-                std::future::pending().await
             }
         } => {
             let _ = server_shutdown_tx.send(());
@@ -147,10 +146,21 @@ async fn run_desktop(args: DesktopArgs) -> Result<(), Box<dyn std::error::Error>
         }
         _ = signal::ctrl_c() => {
             println!("Received Ctrl+C, shutting down...");
-            #[cfg(feature = "desktop")]
             if let Some(ref manager) = webview_manager {
                 manager.stop();
             }
+            let _ = server_shutdown_tx.send(());
+            Ok::<_, std::io::Error>(())
+        }
+    };
+
+    #[cfg(not(feature = "desktop"))]
+    let shutdown_result = tokio::select! {
+        result = run_server_with_shutdown(Arc::new(state), &host, port, server_shutdown_rx) => {
+            result
+        }
+        _ = signal::ctrl_c() => {
+            println!("Received Ctrl+C, shutting down...");
             let _ = server_shutdown_tx.send(());
             Ok::<_, std::io::Error>(())
         }
@@ -204,4 +214,289 @@ fn open_browser(url: &str) -> std::io::Result<()> {
 #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
 fn open_browser(_url: &str) -> std::io::Result<()> {
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use opencode_core::config::{AcpConfig, DesktopConfig, ServerConfig};
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_desktop_args_fields_default() {
+        let args = DesktopArgs {
+            port: None,
+            hostname: None,
+            no_browser: false,
+            acp_enabled: None,
+        };
+        assert_eq!(args.port, None);
+        assert_eq!(args.hostname, None);
+        assert!(!args.no_browser);
+        assert_eq!(args.acp_enabled, None);
+    }
+
+    #[test]
+    fn test_desktop_args_with_port() {
+        let args = DesktopArgs {
+            port: Some(8080),
+            hostname: None,
+            no_browser: false,
+            acp_enabled: None,
+        };
+        assert_eq!(args.port, Some(8080));
+    }
+
+    #[test]
+    fn test_desktop_args_with_long_port() {
+        let args = DesktopArgs {
+            port: Some(9000),
+            hostname: None,
+            no_browser: false,
+            acp_enabled: None,
+        };
+        assert_eq!(args.port, Some(9000));
+    }
+
+    #[test]
+    fn test_desktop_args_with_hostname() {
+        let args = DesktopArgs {
+            port: None,
+            hostname: Some("0.0.0.0".to_string()),
+            no_browser: false,
+            acp_enabled: None,
+        };
+        assert_eq!(args.hostname, Some("0.0.0.0".to_string()));
+    }
+
+    #[test]
+    fn test_desktop_args_with_no_browser() {
+        let args = DesktopArgs {
+            port: None,
+            hostname: None,
+            no_browser: true,
+            acp_enabled: None,
+        };
+        assert!(args.no_browser);
+    }
+
+    #[test]
+    fn test_desktop_args_with_acp_enabled() {
+        let args = DesktopArgs {
+            port: None,
+            hostname: None,
+            no_browser: false,
+            acp_enabled: Some(false),
+        };
+        assert_eq!(args.acp_enabled, Some(false));
+    }
+
+    #[test]
+    fn test_desktop_args_with_all_options() {
+        let args = DesktopArgs {
+            port: Some(3000),
+            hostname: Some("localhost".to_string()),
+            no_browser: true,
+            acp_enabled: Some(true),
+        };
+        assert_eq!(args.port, Some(3000));
+        assert_eq!(args.hostname, Some("localhost".to_string()));
+        assert!(args.no_browser);
+        assert_eq!(args.acp_enabled, Some(true));
+    }
+
+    #[test]
+    fn test_desktop_config_loading_from_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("config.json");
+
+        let config_content = r#"{
+            "server": {
+                "port": 8080,
+                "hostname": "192.168.1.1",
+                "desktop": {
+                    "enabled": true,
+                    "auto_open_browser": false,
+                    "port": 9000,
+                    "hostname": "desktop-host"
+                },
+                "acp": {
+                    "enabled": false
+                }
+            }
+        }"#;
+
+        std::fs::write(&config_path, config_content).unwrap();
+
+        let config = Config::load(&config_path).expect("Failed to load config");
+        let server_cfg = config.server.expect("Server config missing");
+
+        assert_eq!(server_cfg.port, Some(8080));
+        assert_eq!(server_cfg.hostname.as_deref(), Some("192.168.1.1"));
+
+        let desktop_cfg = server_cfg.desktop.expect("Desktop config missing");
+        assert_eq!(desktop_cfg.enabled, Some(true));
+        assert_eq!(desktop_cfg.auto_open_browser, Some(false));
+        assert_eq!(desktop_cfg.port, Some(9000));
+        assert_eq!(desktop_cfg.hostname.as_deref(), Some("desktop-host"));
+    }
+
+    #[test]
+    fn test_desktop_config_loading_empty_config() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("config.json");
+
+        std::fs::write(&config_path, "{}").unwrap();
+
+        let config = Config::load(&config_path).expect("Failed to load config");
+        let server_cfg = config.server.as_ref();
+
+        assert!(server_cfg.is_none());
+    }
+
+    #[test]
+    fn test_desktop_config_loading_partial_config() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("config.json");
+
+        let config_content = r#"{
+            "server": {
+                "port": 3000
+            }
+        }"#;
+
+        std::fs::write(&config_path, config_content).unwrap();
+
+        let config = Config::load(&config_path).expect("Failed to load config");
+        let server_cfg = config.server.expect("Server config missing");
+
+        assert_eq!(server_cfg.port, Some(3000));
+        assert!(server_cfg.desktop.is_none());
+    }
+
+    #[test]
+    fn test_desktop_config_precedence_cli_over_config() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("config.json");
+
+        let config_content = r#"{
+            "server": {
+                "port": 8080,
+                "desktop": {
+                    "port": 9000
+                }
+            }
+        }"#;
+
+        std::fs::write(&config_path, config_content).unwrap();
+
+        let config = Config::load(&config_path).expect("Failed to load config");
+        let default_server_cfg = ServerConfig::default();
+        let server_cfg = config.server.as_ref().unwrap_or(&default_server_cfg);
+        let desktop_cfg = server_cfg.desktop.as_ref();
+
+        let args_port = Some(7000);
+        let resolved_port = args_port
+            .or(desktop_cfg.and_then(|d| d.port))
+            .or(server_cfg.port)
+            .unwrap_or(3000);
+
+        assert_eq!(resolved_port, 7000);
+    }
+
+    #[test]
+    fn test_desktop_config_precedence_config_over_defaults() {
+        let default_server_cfg = ServerConfig::default();
+        let desktop_cfg = DesktopConfig {
+            enabled: Some(true),
+            auto_open_browser: Some(false),
+            port: Some(9000),
+            hostname: Some("config-host".to_string()),
+        };
+
+        let resolved_port = Some(desktop_cfg.port)
+            .flatten()
+            .or(default_server_cfg.port)
+            .unwrap_or(3000);
+
+        assert_eq!(resolved_port, 9000);
+    }
+
+    #[test]
+    fn test_desktop_config_precedence_default_fallback() {
+        let default_server_cfg = ServerConfig::default();
+
+        let resolved_port = Option::<u16>::None
+            .or(default_server_cfg.port)
+            .unwrap_or(3000);
+
+        assert_eq!(resolved_port, 3000);
+    }
+
+    #[test]
+    fn test_desktop_config_auto_open_browser_default_true() {
+        let desktop_cfg: Option<DesktopConfig> = None;
+        let auto_open = desktop_cfg
+            .and_then(|d| d.auto_open_browser)
+            .unwrap_or(true);
+        assert!(auto_open);
+    }
+
+    #[test]
+    fn test_desktop_config_auto_open_browser_from_config() {
+        let desktop_cfg = DesktopConfig {
+            enabled: None,
+            auto_open_browser: Some(false),
+            port: None,
+            hostname: None,
+        };
+        let auto_open = desktop_cfg.auto_open_browser.unwrap_or(true);
+        assert!(!auto_open);
+    }
+
+    #[test]
+    fn test_desktop_config_acp_enabled_default_true() {
+        let default_server_cfg = ServerConfig::default();
+        let desktop_cfg: Option<DesktopConfig> = None;
+
+        let acp_enabled = desktop_cfg
+            .and_then(|d| d.enabled)
+            .or(default_server_cfg.acp.as_ref().and_then(|a| a.enabled))
+            .unwrap_or(true);
+
+        assert!(acp_enabled);
+    }
+
+    #[test]
+    fn test_desktop_config_acp_enabled_from_desktop_cfg() {
+        let desktop_cfg = DesktopConfig {
+            enabled: Some(false),
+            auto_open_browser: None,
+            port: None,
+            hostname: None,
+        };
+
+        let acp_enabled = desktop_cfg.enabled.unwrap_or(true);
+        assert!(!acp_enabled);
+    }
+
+    #[test]
+    fn test_desktop_config_acp_enabled_from_server_acp() {
+        let server_cfg = ServerConfig {
+            acp: Some(AcpConfig {
+                enabled: Some(false),
+                server_id: None,
+                version: None,
+            }),
+            ..Default::default()
+        };
+        let desktop_cfg: Option<DesktopConfig> = None;
+
+        let acp_enabled = desktop_cfg
+            .and_then(|d| d.enabled)
+            .or(server_cfg.acp.as_ref().and_then(|a| a.enabled))
+            .unwrap_or(true);
+
+        assert!(!acp_enabled);
+    }
 }

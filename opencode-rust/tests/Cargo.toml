@@ -15,6 +15,7 @@ opencode-server.workspace = true
 opencode-storage.workspace = true
 opencode-mcp.workspace = true
 opencode-lsp.workspace = true
+opencode-plugin.workspace = true
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -25,6 +26,7 @@ async-trait.workspace = true
 futures-util.workspace = true
 reqwest.workspace = true
 chrono.workspace = true
+indexmap.workspace = true
 
 [dev-dependencies]
 assert_cmd = "2"

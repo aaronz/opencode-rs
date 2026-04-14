@@ -1,0 +1,116 @@
+{
+  "tasks": [
+    {
+      "id": "P1.1",
+      "priority": "P1",
+      "title": "Fix desktop_web_different_ports Test Port Conflict",
+      "description": "Test uses hardcoded port 3000 causing conflicts with other processes. Replace hardcoded port 3000 with dynamic port allocation using TcpListener::bind(\"127.0.0.1:0\") to get available port.",
+      "status": "in_progress",
+      "test_criteria": [
+        "AddRegressionTest: ensure test passes when port 3000 is already in use by another process",
+        "AddUnitTest: verify dynamic port allocation returns a valid TCP port",
+        "AddIntegrationTest: verify desktop_web_different_ports test runs successfully in parallel with other tests"
+      ],
+      "test_commands": [
+        "cargo test -p cli desktop_web_different_ports",
+        "cargo test -p cli -- --test-threads=4",
+        "cargo clippy -p cli -- -D warnings"
+      ],
+      "impl_notes": "Use std::net::TcpListener::bind(\"127.0.0.1:0\") to dynamically allocate an available port. Store the assigned port in a variable and use it throughout the test instead of hardcoded 3000.",
+      "dependencies": []
+    },
+    {
+      "id": "P1.2",
+      "priority": "P1",
+      "title": "Begin Phase 6 Release Qualification",
+      "description": "Begin Phase 6 release qualification scope: end-to-end integration tests, performance benchmarking, security audit, observability validation, and documentation review. Deliverables include Phase 6 test plan document, E2E test infrastructure, benchmark results, security audit report, and observability validation report.",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify all Phase 6 scopes are documented in test plan",
+        "AddIntegrationTest: verify E2E test infrastructure is operational",
+        "AddRegressionTest: ensure full test suite passes without regressions",
+        "RunTestSuite: execute cargo test --all-features --all to validate no regressions"
+      ],
+      "test_commands": [
+        "cargo test --all-features --all",
+        "cargo test --all-features --all -- --test-threads=4",
+        "cargo clippy --all -- -D warnings",
+        "cargo build --release --all-features"
+      ],
+      "impl_notes": "Phase 6 scope encompasses: 1) E2E integration tests 2) Performance benchmarking 3) Security audit 4) Observability validation 5) Documentation review. Create a Phase 6 test plan document outlining each deliverable.",
+      "dependencies": []
+    },
+    {
+      "id": "P1.3",
+      "title": "Fix Bedrock Test Environment Pollution",
+      "description": "AWS_BEARER_TOKEN_BEDROCK and AWS_ACCESS_KEY_ID env vars from other tests pollute this test when run with --all-features. Use temp_env pattern to isolate environment variables, or run test in separate process, or clear relevant env vars before test execution.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: ensure test passes when run with --all-features flag",
+        "AddErrorHandlingTest: verify credential resolution works correctly with isolated environment",
+        "AddIntegrationTest: verify test_bedrock_credential_resolution_bearer_token_priority passes in isolation"
+      ],
+      "test_commands": [
+        "cargo test --all-features -p opencode-llm test_bedrock_credential_resolution_bearer_token_priority",
+        "cargo test --all-features -p opencode-llm -- --test-threads=1",
+        "cargo clippy -p opencode-llm -- -D warnings"
+      ],
+      "impl_notes": "Use temp_env crate or similar pattern to set/unset environment variables within the test. Clear AWS_BEARER_TOKEN_BEDROCK and AWS_ACCESS_KEY_ID before test and restore after.",
+      "dependencies": []
+    },
+    {
+      "id": "P2.1",
+      "priority": "P2",
+      "title": "Fix Trailing Whitespace in storage/src/service.rs",
+      "description": "5 lines with trailing whitespace in storage/src/service.rs:317, 340, 363, 386, 391. Run cargo fmt --all to fix formatting issues.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: ensure cargo fmt --all -- --check passes after formatting",
+        "RunTestSuite: verify no formatting regressions in storage module"
+      ],
+      "test_commands": [
+        "cargo fmt --all -- --check",
+        "cargo fmt --all",
+        "cargo clippy -p opencode-storage -- -D warnings"
+      ],
+      "impl_notes": "Run cargo fmt --all to automatically fix trailing whitespace. Verify with cargo fmt --all -- --check.",
+      "dependencies": []
+    },
+    {
+      "id": "P2.2",
+      "priority": "P2",
+      "title": "Deprecated mode Field Cleanup",
+      "description": "Legacy mode field marked for removal in v4.0. Schedule removal for v4.0 release.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: ensure no references to mode field break after removal",
+        "AddUnitTest: verify config parsing works without mode field"
+      ],
+      "test_commands": [
+        "cargo build --release -p opencode-config",
+        "cargo clippy -p opencode-config -- -D warnings",
+        "cargo test -p opencode-config"
+      ],
+      "impl_notes": "This is a deferred cleanup task for v4.0. Document the deprecation and schedule removal in v4.0 release notes.",
+      "dependencies": []
+    },
+    {
+      "id": "P2.3",
+      "priority": "P2",
+      "title": "Deprecated tools Field Cleanup",
+      "description": "Legacy tools field marked for removal after migration. Schedule removal after migration complete.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: ensure no references to tools field break after removal",
+        "AddUnitTest: verify tool registry works without legacy tools field"
+      ],
+      "test_commands": [
+        "cargo build --release -p opencode-config",
+        "cargo clippy -p opencode-config -- -D warnings",
+        "cargo test -p opencode-config"
+      ],
+      "impl_notes": "This is a deferred cleanup task. Document the deprecation and schedule removal after migration is complete.",
+      "dependencies": []
+    }
+  ]
+}

@@ -1,0 +1,766 @@
+{
+  "tasks": [
+    {
+      "id": "FR-121",
+      "priority": "P0",
+      "title": "PtySimulator creates PTY master/slave pair",
+      "description": "Add fields: master: Option<Box<dyn MasterPty>>, child: Option<Box<dyn Child>>, writer, reader. Implement new(command: &[&str]) -> Result<Self> creating PtyPair and spawning child.",
+      "status": "in_progress",
+      "test_criteria": [
+        "AddUnitTest: verify PtySimulator::new creates a valid PTY pair",
+        "AddUnitTest: verify child process is spawned and running",
+        "AddUnitTest: verify writer and reader are properly initialized",
+        "AddErrorHandlingTest: verify error when command is invalid"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test pty_tests pty_simulator_new",
+        "cargo test -p ratatui-testing --test pty_tests",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Use portable-pty crate for PtyPair creation. Store boxed trait objects for MasterPty and Child to allow dynamic dispatch.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-122",
+      "priority": "P0",
+      "title": "PtySimulator writes strings to PTY slave",
+      "description": "Implement write_input(&mut self, input: &str) -> Result<()> to write strings to PTY slave.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify write_input writes string to PTY slave",
+        "AddUnitTest: verify data is readable from PTY master after write",
+        "AddErrorHandlingTest: verify error handling for write failures"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test pty_tests pty_write_input",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Use the writer field to write to the PTY slave. Ensure proper error handling for IO errors.",
+      "dependencies": [
+        "FR-121"
+      ]
+    },
+    {
+      "id": "FR-123",
+      "priority": "P0",
+      "title": "PtySimulator reads output from PTY master with timeout",
+      "description": "Change signature to read_output(&mut self, timeout: Duration) -> Result<String>. Implement timeout-based reading from PTY master.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify read_output returns data written to PTY slave",
+        "AddUnitTest: verify timeout returns empty string when no data",
+        "AddErrorHandlingTest: verify timeout handling works correctly"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test pty_tests pty_read_output",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Use select! or similar mechanism to implement timeout. Return Result<String> with actual output.",
+      "dependencies": [
+        "FR-121",
+        "FR-122"
+      ]
+    },
+    {
+      "id": "FR-124",
+      "priority": "P0",
+      "title": "PtySimulator resizes PTY window (cols/rows)",
+      "description": "Implement resize(&mut self, cols: u16, rows: u16) -> Result<()> to resize PTY window.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify resize changes PTY dimensions",
+        "AddUnitTest: verify resize with valid dimensions succeeds",
+        "AddErrorHandlingTest: verify error handling for invalid dimensions"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test pty_tests pty_resize",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Use MasterPty::resize on the master side to set cols and rows.",
+      "dependencies": [
+        "FR-121"
+      ]
+    },
+    {
+      "id": "FR-125",
+      "priority": "P0",
+      "title": "PtySimulator injects KeyEvent via crossterm",
+      "description": "Implement inject_key_event(&mut self, event: KeyEvent) -> Result<()>. Use crossterm::execute! for event injection.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify KeyEvent injection writes to PTY",
+        "AddUnitTest: verify injected key events are readable",
+        "AddErrorHandlingTest: verify error handling for injection failures"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test pty_tests pty_inject_key",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Use crossterm::execute! to write KeyEvent to the PTY writer. Import KeyEvent from crossterm::event.",
+      "dependencies": [
+        "FR-121",
+        "FR-122"
+      ]
+    },
+    {
+      "id": "FR-126",
+      "priority": "P0",
+      "title": "PtySimulator injects MouseEvent via crossterm",
+      "description": "Implement inject_mouse_event(&mut self, event: MouseEvent) -> Result<()>. Use crossterm::execute! for event injection.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify MouseEvent injection writes to PTY",
+        "AddUnitTest: verify injected mouse events are readable",
+        "AddErrorHandlingTest: verify error handling for injection failures"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test pty_tests pty_inject_mouse",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Use crossterm::execute! to write MouseEvent to the PTY writer. Import MouseEvent from crossterm::event.",
+      "dependencies": [
+        "FR-121",
+        "FR-122"
+      ]
+    },
+    {
+      "id": "FR-127",
+      "priority": "P0",
+      "title": "BufferDiff compares two Buffers cell-by-cell",
+      "description": "Implement diff(&self, expected: &str, actual: &str) -> DiffResult. Parse strings to Buffer and compare cell-by-cell.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify identical buffers return passed=true",
+        "AddUnitTest: verify different buffers return passed=false with differences",
+        "AddErrorHandlingTest: verify handling of invalid buffer strings"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test buffer_diff_tests buffer_diff_compare",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Parse strings into ratatui Buffer structure. Compare each Cell's symbol, fg, bg, and modifier.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-128",
+      "priority": "P0",
+      "title": "BufferDiff reports exact x,y of differences",
+      "description": "Define CellDiff { x: u16, y: u16, expected: Cell, actual: Cell }. Populate differences vector with exact coordinates.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify CellDiff contains correct x,y coordinates",
+        "AddUnitTest: verify CellDiff captures expected and actual Cell",
+        "AddUnitTest: verify all differences are captured in order"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test buffer_diff_tests buffer_diff_coordinates",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Iterate through buffer area and record position and cell details for each difference.",
+      "dependencies": [
+        "FR-127"
+      ]
+    },
+    {
+      "id": "FR-129",
+      "priority": "P0",
+      "title": "BufferDiff supports ignoring foreground color",
+      "description": "Add ignore_fg: bool field to BufferDiff. Implement ignore_fg(mut self, ignore: bool) -> Self builder method.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify ignore_fg=true ignores foreground differences",
+        "AddUnitTest: verify ignore_fg=false detects foreground differences",
+        "AddUnitTest: verify builder method returns self for chaining"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test buffer_diff_tests buffer_diff_ignore_fg",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Add builder pattern method. When comparing cells, skip foreground color comparison if ignore_fg is true.",
+      "dependencies": [
+        "FR-127"
+      ]
+    },
+    {
+      "id": "FR-130",
+      "priority": "P0",
+      "title": "BufferDiff supports ignoring background color",
+      "description": "Add ignore_bg: bool field to BufferDiff. Implement ignore_bg(mut self, ignore: bool) -> Self builder method.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify ignore_bg=true ignores background differences",
+        "AddUnitTest: verify ignore_bg=false detects background differences",
+        "AddUnitTest: verify builder method returns self for chaining"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test buffer_diff_tests buffer_diff_ignore_bg",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Add builder pattern method. When comparing cells, skip background color comparison if ignore_bg is true.",
+      "dependencies": [
+        "FR-127"
+      ]
+    },
+    {
+      "id": "FR-131",
+      "priority": "P0",
+      "title": "BufferDiff supports ignoring attributes",
+      "description": "Add ignore_attributes: bool field to BufferDiff. Implement ignore_attributes(mut self, ignore: bool) -> Self builder method.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify ignore_attributes=true ignores modifier differences",
+        "AddUnitTest: verify ignore_attributes=false detects modifier differences",
+        "AddUnitTest: verify builder method returns self for chaining"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test buffer_diff_tests buffer_diff_ignore_attrs",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Add builder pattern method. When comparing cells, skip modifier comparison if ignore_attributes is true.",
+      "dependencies": [
+        "FR-127"
+      ]
+    },
+    {
+      "id": "FR-132",
+      "priority": "P0",
+      "title": "BufferDiff provides human-readable diff output",
+      "description": "Define DiffResult { passed: bool, expected: Buffer, actual: Buffer, differences: Vec<CellDiff> }. Implement Display trait for DiffResult.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify DiffResult::Display shows passed status",
+        "AddUnitTest: verify diff output includes expected vs actual at each position",
+        "AddUnitTest: verify output format is human-readable with coordinates"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test buffer_diff_tests buffer_diff_display",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Implement fmt method on Display trait. Format should show line-by-line diff with symbols and highlight differences.",
+      "dependencies": [
+        "FR-127",
+        "FR-128"
+      ]
+    },
+    {
+      "id": "FR-133",
+      "priority": "P0",
+      "title": "StateTester captures serializable state to JSON",
+      "description": "Add snapshot: Option<Value> and captured: Vec<Value> fields. Implement capture<S>(&mut self, state: &S) -> Result<()> where S: Serialize.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify capture serializes struct to JSON",
+        "AddUnitTest: verify captured state is stored in captured Vec",
+        "AddUnitTest: verify capture updates snapshot field"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test state_tests state_capture",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Use serde_json::to_value for serialization. Store in both snapshot and captured vector.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-134",
+      "priority": "P0",
+      "title": "StateTester compares current state to captured snapshot",
+      "description": "Implement assert_state<S>(&self, state: &S) -> Result<()> comparing current state to snapshot.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify assert_state passes when state matches snapshot",
+        "AddUnitTest: verify assert_state fails when state differs from snapshot",
+        "AddErrorHandlingTest: verify error when no snapshot exists"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test state_tests state_assert",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Serialize current state and compare with snapshot using JSON equality.",
+      "dependencies": [
+        "FR-133"
+      ]
+    },
+    {
+      "id": "FR-135",
+      "priority": "P0",
+      "title": "StateTester reports mismatches with JSON diff",
+      "description": "Implement assert_state_matches(&self, expected: &Value) -> Result<()> to compare against arbitrary Value.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify assert_state_matches passes when values equal",
+        "AddUnitTest: verify assert_state_matches fails with diff output",
+        "AddUnitTest: verify diff output shows exact field differences"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test state_tests state_matches",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Compare expected with snapshot. Provide detailed diff output on mismatch.",
+      "dependencies": [
+        "FR-133",
+        "FR-134"
+      ]
+    },
+    {
+      "id": "FR-136",
+      "priority": "P0",
+      "title": "TestDsl renders widget to Buffer",
+      "description": "Implement render(&self, widget: &impl Widget) -> Result<Buffer> to render ratatui widget to Buffer.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify render produces a valid Buffer",
+        "AddUnitTest: verify render output matches expected buffer content",
+        "AddErrorHandlingTest: verify error handling for render failures"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test dsl_tests dsl_render",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Use ratatui's Frame and Buffer to render widgets. Return the buffer after rendering.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-137",
+      "priority": "P0",
+      "title": "TestDsl composes PTY, BufferDiff, StateTester",
+      "description": "Add fields: pty: Option<PtySimulator>, buffer_diff: BufferDiff, state_tester: StateTester. Implement with_pty(mut self, cmd: &[&str]) -> Result<Self> and pty_mut(&mut self) -> Option<&mut PtySimulator>.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify new() creates empty components",
+        "AddUnitTest: verify with_pty creates PtySimulator",
+        "AddUnitTest: verify pty_mut returns mutable reference",
+        "AddIntegrationTest: verify PTY and BufferDiff can be used together"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test dsl_tests dsl_compose",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Store all three components. with_pty should create and store PtySimulator. pty_mut provides mutable access.",
+      "dependencies": [
+        "FR-121",
+        "FR-127",
+        "FR-133"
+      ]
+    },
+    {
+      "id": "FR-138",
+      "priority": "P0",
+      "title": "TestDsl provides fluent API with wait-for predicate",
+      "description": "Implement assert_buffer_eq, send_keys, wait_for, capture_state, assert_state with fluent API returning &mut Self.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify assert_buffer_eq compares buffers correctly",
+        "AddUnitTest: verify send_keys chains and returns mutable self",
+        "AddUnitTest: verify wait_for respects timeout and predicate",
+        "AddUnitTest: verify capture_state and assert_state work together",
+        "AddIntegrationTest: verify fluent API chaining works end-to-end"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test dsl_tests dsl_fluent",
+        "cargo test -p ratatui-testing --test dsl_tests",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "All methods should return &mut Self for chaining. wait_for should use Duration and predicate closure.",
+      "dependencies": [
+        "FR-122",
+        "FR-123",
+        "FR-133",
+        "FR-134",
+        "FR-136"
+      ]
+    },
+    {
+      "id": "FR-139",
+      "priority": "P0",
+      "title": "CliTester spawns process, captures stdout/stderr, returns exit code",
+      "description": "Define CliOutput { pub exit_code: i32, pub stdout: String, pub stderr: String }. Implement run(&self, args: &[&str]) -> Result<CliOutput> using std::process::Command.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify run executes command and returns exit code",
+        "AddUnitTest: verify stdout is captured correctly",
+        "AddUnitTest: verify stderr is captured correctly",
+        "AddErrorHandlingTest: verify error handling for failed commands"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test cli_tests cli_run",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Use std::process::Command for spawning. Use .output() to capture stdout/stderr.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-140",
+      "priority": "P0",
+      "title": "CliTester cleans up temp directories",
+      "description": "Add temp_dir: Option<tempfile::TempDir> field. Implement with_temp_dir(mut self) -> Result<Self> for temp directory management.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify with_temp_dir creates temporary directory",
+        "AddUnitTest: verify temp_dir is dropped and cleaned up after use",
+        "AddIntegrationTest: verify CliTester works with temp directory"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test cli_tests cli_temp_dir",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Store tempfile::TempDir. TempDir automatically cleans up when dropped.",
+      "dependencies": [
+        "FR-139"
+      ]
+    },
+    {
+      "id": "FR-INTEGRATION-001",
+      "priority": "P0",
+      "title": "Create tests/pty_tests.rs - PTY functionality tests",
+      "description": "Create integration tests for PTY functionality: Test PTY creation with command, write_input and read_output, resize, inject_key_event, inject_mouse_event.",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify PTY creation with valid command",
+        "AddIntegrationTest: verify write_input and read_output round-trip",
+        "AddIntegrationTest: verify resize changes PTY window size",
+        "AddIntegrationTest: verify inject_key_event sends key to PTY",
+        "AddIntegrationTest: verify inject_mouse_event sends mouse to PTY"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test pty_tests",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Create comprehensive test file covering all PTY operations.",
+      "dependencies": [
+        "FR-121",
+        "FR-122",
+        "FR-123",
+        "FR-124",
+        "FR-125",
+        "FR-126"
+      ]
+    },
+    {
+      "id": "FR-INTEGRATION-002",
+      "priority": "P0",
+      "title": "Create tests/buffer_diff_tests.rs - Buffer comparison tests",
+      "description": "Create integration tests for BufferDiff: Test cell-by-cell comparison, ignore_fg option, ignore_bg option, ignore_attributes option, diff output formatting.",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify cell-by-cell comparison detects all differences",
+        "AddIntegrationTest: verify ignore_fg option works correctly",
+        "AddIntegrationTest: verify ignore_bg option works correctly",
+        "AddIntegrationTest: verify ignore_attributes option works correctly",
+        "AddIntegrationTest: verify diff output formatting is human-readable"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test buffer_diff_tests",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Create comprehensive test file covering all BufferDiff features.",
+      "dependencies": [
+        "FR-127",
+        "FR-128",
+        "FR-129",
+        "FR-130",
+        "FR-131",
+        "FR-132"
+      ]
+    },
+    {
+      "id": "FR-INTEGRATION-003",
+      "priority": "P0",
+      "title": "Create tests/state_tests.rs - State testing tests",
+      "description": "Create integration tests for StateTester: Test capture serializable state, assert_state with matching state, assert_state with mismatched state (should fail), assert_state_matches.",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify capture serializes various state types",
+        "AddIntegrationTest: verify assert_state passes with matching state",
+        "AddIntegrationTest: verify assert_state fails with mismatched state",
+        "AddIntegrationTest: verify assert_state_matches compares values correctly"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test state_tests",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Create comprehensive test file covering all StateTester features.",
+      "dependencies": [
+        "FR-133",
+        "FR-134",
+        "FR-135"
+      ]
+    },
+    {
+      "id": "FR-INTEGRATION-004",
+      "priority": "P0",
+      "title": "Create tests/dsl_tests.rs - Fluent API tests",
+      "description": "Create integration tests for TestDsl fluent API: Test new() creates empty components, with_pty() creates PTY, pty_mut() returns mutable reference, render() with simple widget, send_keys() chains correctly, wait_for() with predicate, capture_state() and assert_state().",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify new() creates empty TestDsl",
+        "AddIntegrationTest: verify with_pty() creates PTY simulator",
+        "AddIntegrationTest: verify pty_mut() returns mutable reference",
+        "AddIntegrationTest: verify render() renders widget to buffer",
+        "AddIntegrationTest: verify send_keys() chains correctly",
+        "AddIntegrationTest: verify wait_for() respects timeout and predicate",
+        "AddIntegrationTest: verify capture_state() and assert_state() work together"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test dsl_tests",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Create comprehensive test file covering all fluent API methods.",
+      "dependencies": [
+        "FR-136",
+        "FR-137",
+        "FR-138"
+      ]
+    },
+    {
+      "id": "FR-INTEGRATION-005",
+      "priority": "P0",
+      "title": "Create tests/cli_tests.rs - CLI testing tests",
+      "description": "Create integration tests for CliTester: Test run() with simple command, stdout capture, stderr capture, exit code reporting, with_temp_dir() cleanup.",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify run() executes simple command",
+        "AddIntegrationTest: verify stdout is captured correctly",
+        "AddIntegrationTest: verify stderr is captured correctly",
+        "AddIntegrationTest: verify exit code is reported correctly",
+        "AddIntegrationTest: verify with_temp_dir() creates and cleans up temp dir"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test cli_tests",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Create comprehensive test file covering all CliTester features.",
+      "dependencies": [
+        "FR-139",
+        "FR-140"
+      ]
+    },
+    {
+      "id": "FR-INTEGRATION-006",
+      "priority": "P0",
+      "title": "Create tests/integration_tests.rs - Full workflow tests",
+      "description": "Create end-to-end integration tests: End-to-end TUI test scenario, PTY + BufferDiff composition, State capture across multiple operations.",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify end-to-end TUI workflow",
+        "AddIntegrationTest: verify PTY and BufferDiff compose correctly",
+        "AddIntegrationTest: verify state capture across multiple operations",
+        "RunTestSuite: execute all tests to ensure no regressions"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test integration_tests",
+        "cargo test -p ratatui-testing",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Create comprehensive end-to-end tests combining all components.",
+      "dependencies": [
+        "FR-INTEGRATION-001",
+        "FR-INTEGRATION-002",
+        "FR-INTEGRATION-003",
+        "FR-INTEGRATION-004",
+        "FR-INTEGRATION-005"
+      ]
+    },
+    {
+      "id": "FR-P1-001",
+      "priority": "P1",
+      "title": "Begin end-to-end integration testing",
+      "description": "Begin end-to-end integration testing for Phase 6 Release Qualification.",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify full application workflow",
+        "RunTestSuite: execute all integration tests"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing",
+        "cargo test --workspace",
+        "cargo clippy --workspace -- -D warnings"
+      ],
+      "impl_notes": "Run full test suite to verify all components work together.",
+      "dependencies": [
+        "FR-INTEGRATION-006"
+      ]
+    },
+    {
+      "id": "FR-P1-002",
+      "priority": "P1",
+      "title": "Set up performance benchmarking suite",
+      "description": "Set up performance benchmarking suite for Phase 6 Release Qualification.",
+      "status": "todo",
+      "test_criteria": [
+        "AddBenchmarkTest: verify benchmark suite runs successfully",
+        "AddBenchmarkTest: verify performance metrics are captured"
+      ],
+      "test_commands": [
+        "cargo bench --workspace 2>/dev/null || echo 'No benches defined'",
+        "cargo test --workspace"
+      ],
+      "impl_notes": "Create or update benchmarks in opencode-benches directory.",
+      "dependencies": [
+        "FR-P1-001"
+      ]
+    },
+    {
+      "id": "FR-P1-003",
+      "priority": "P1",
+      "title": "Prepare security audit checklist",
+      "description": "Prepare security audit checklist for Phase 6 Release Qualification.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify security checklist items are documented",
+        "AddRegressionTest: verify no known security vulnerabilities"
+      ],
+      "test_commands": [
+        "cargo audit 2>/dev/null || echo 'No audit configured'",
+        "cargo test --workspace"
+      ],
+      "impl_notes": "Document security considerations. Run cargo-audit if available.",
+      "dependencies": [
+        "FR-P1-001"
+      ]
+    },
+    {
+      "id": "FR-P1-004",
+      "priority": "P1",
+      "title": "Validate observability (logging, metrics, tracing)",
+      "description": "Validate observability features including logging, metrics, and tracing for Phase 6 Release Qualification.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify logging works correctly",
+        "AddRegressionTest: verify metrics are captured",
+        "AddRegressionTest: verify tracing works correctly"
+      ],
+      "test_commands": [
+        "cargo test --workspace",
+        "cargo clippy --workspace -- -D warnings"
+      ],
+      "impl_notes": "Verify all observability components are properly integrated.",
+      "dependencies": [
+        "FR-P1-001"
+      ]
+    },
+    {
+      "id": "FR-P1-005",
+      "priority": "P1",
+      "title": "Fix test_bedrock_credential_resolution_bearer_token_priority",
+      "description": "Fix test_bedrock_credential_resolution_bearer_token_priority in opencode-rust/crates/llm/. Use temp_env::var() for environment variable isolation or run test in separate process.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify test passes with env var isolation",
+        "RunTestSuite: ensure test no longer fails"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm -- test_bedrock_credential_resolution_bearer_token_priority",
+        "cargo test -p opencode-llm",
+        "cargo clippy -p opencode-llm -- -D warnings"
+      ],
+      "impl_notes": "Use temp_env::var() for proper environment variable isolation during test.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-P2-001",
+      "priority": "P2",
+      "title": "Clean up TestHarness dead code",
+      "description": "Clean up TestHarness dead code in opencode-rust/crates/cli/tests/common.rs. Remove unused helper methods.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify dead code removal does not break tests",
+        "RunTestSuite: ensure tests still pass after cleanup"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Identify and remove unused helper methods. Verify tests still pass.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-P2-002",
+      "priority": "P2",
+      "title": "Run cargo clippy --fix --allow-dirty across all crates",
+      "description": "Run cargo clippy --fix --allow-dirty across all crates and address any warnings introduced.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify clippy fixes do not break functionality",
+        "AddRegressionTest: verify no clippy warnings remain",
+        "RunTestSuite: ensure tests pass after fixes"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings",
+        "cargo test --workspace"
+      ],
+      "impl_notes": "Run clippy fix and verify changes. Review and commit any auto-fixed issues.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-VERIFY-001",
+      "priority": "P0",
+      "title": "Verify ratatui-testing build",
+      "description": "Run cargo build -p ratatui-testing to verify the package builds successfully.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify cargo build -p ratatui-testing succeeds",
+        "AddRegressionTest: verify no compilation errors"
+      ],
+      "test_commands": [
+        "cargo build -p ratatui-testing",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Ensure all source files compile without errors.",
+      "dependencies": [
+        "FR-121",
+        "FR-127",
+        "FR-133",
+        "FR-136",
+        "FR-137",
+        "FR-139"
+      ]
+    },
+    {
+      "id": "FR-VERIFY-002",
+      "priority": "P0",
+      "title": "Verify ratatui-testing tests",
+      "description": "Run cargo test -p ratatui-testing to verify all tests pass.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify all ratatui-testing tests pass",
+        "RunTestSuite: ensure no test regressions"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing",
+        "cargo test -p ratatui-testing -- --nocapture"
+      ],
+      "impl_notes": "Run full test suite for ratatui-testing package.",
+      "dependencies": [
+        "FR-INTEGRATION-001",
+        "FR-INTEGRATION-002",
+        "FR-INTEGRATION-003",
+        "FR-INTEGRATION-004",
+        "FR-INTEGRATION-005",
+        "FR-INTEGRATION-006"
+      ]
+    },
+    {
+      "id": "FR-VERIFY-003",
+      "priority": "P0",
+      "title": "Verify ratatui-testing clippy",
+      "description": "Run cargo clippy -p ratatui-testing to verify code quality.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify no clippy warnings",
+        "AddRegressionTest: verify code follows best practices"
+      ],
+      "test_commands": [
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Ensure code passes all clippy lints.",
+      "dependencies": [
+        "FR-121",
+        "FR-127",
+        "FR-133",
+        "FR-136",
+        "FR-137",
+        "FR-139"
+      ]
+    }
+  ]
+}

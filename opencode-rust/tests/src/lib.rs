@@ -19,3 +19,9 @@ pub mod session_lifecycle_tests;
 pub mod mcp_protocol_tests;
 #[cfg(test)]
 pub mod session_storage_tests;
+#[cfg(test)]
+pub mod lsp_diagnostics_tests;
+#[cfg(test)]
+pub mod plugin_hook_tests;
+#[cfg(test)]
+pub mod phase6_regression_tests;

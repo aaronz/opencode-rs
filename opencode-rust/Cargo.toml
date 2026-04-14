@@ -81,6 +81,7 @@ opencode-storage = { path = "crates/storage" }
 opencode-server = { path = "crates/server" }
 opencode-mcp = { path = "crates/mcp" }
 opencode-permission = { path = "crates/permission" }
+opencode-plugin = { path = "crates/plugin" }
 opencode-sdk = { path = "crates/sdk" }
 opencode-git = { path = "crates/git" }
 

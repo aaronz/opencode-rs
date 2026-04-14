@@ -5,7 +5,7 @@
       "priority": "P1",
       "title": "Fix Config Crate Empty Re-export",
       "description": "Move config parsing logic from crates/core/src/config.rs to dedicated crates/config/ crate. Currently crates/config/src/lib.rs is an empty re-export that violates PRD 19 crate ownership architecture. Must maintain all existing functionality including JSON/JSONC parsing, variable expansion, and precedence order.",
-      "status": "done",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify config precedence CLI overrides env works",
         "AddUnitTest: verify config precedence env overrides file works",

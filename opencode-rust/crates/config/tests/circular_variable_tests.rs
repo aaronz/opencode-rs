@@ -1,4 +1,4 @@
-use opencode_core::config::Config;
+use opencode_config::Config;
 
 #[test]
 fn test_variable_expansion_circular_reference() {

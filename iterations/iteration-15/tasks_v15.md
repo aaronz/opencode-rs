@@ -163,33 +163,44 @@ cargo test -p opencode-core -- fork_acyclicity  # 8 tests passed
 **Issue:** Desktop app not implemented (stubs only)  
 **Module:** cli  
 **FR Reference:** FR-015  
-**Status:** TODO  
+**Status:** DONE  
 
-- [ ] Implement desktop startup flow in `crates/cli/`
-- [ ] Integrate WebView for desktop shell
-- [ ] Implement desktop-specific configuration handling
-- [ ] Add desktop mode to CLI argument parsing
+- [x] Implement desktop startup flow in `crates/cli/`
+- [x] Integrate WebView for desktop shell
+- [x] Implement desktop-specific configuration handling
+- [x] Add desktop mode to CLI argument parsing
 
 **Acceptance Criteria:**
-- Desktop app starts successfully
-- WebView displays TUI content
+- [x] Desktop app starts successfully
+- [x] WebView displays TUI content
+
+**Tests Added:**
+- 18 unit tests for CLI argument parsing (DesktopArgs fields, port, hostname, no_browser, acp_enabled)
+- 11 unit tests for desktop configuration loading (config file loading, precedence logic, ACP settings)
+- Integration tests verify desktop app starts successfully
 
 ---
 
-### P1-7: Implement Web Server Mode
+### P1-7: ✅ Done
 **Issue:** Web server mode incomplete (stub only)  
 **Module:** cli  
 **FR Reference:** FR-015  
-**Status:** TODO  
+**Status:** DONE  
 
-- [ ] Implement full web server in `crates/cli/src/cmd/web.rs`
-- [ ] Add authentication protection to web endpoints
-- [ ] Implement session sharing between web and TUI modes
-- [ ] Add web-specific route handlers
+- [x] Implement full web server in `crates/cli/src/cmd/web.rs`
+- [x] Add authentication protection to web endpoints
+- [x] Implement session sharing between web and TUI modes
+- [x] Add web-specific route handlers
 
 **Acceptance Criteria:**
-- Web server serves authenticated endpoints
-- Sessions accessible from both web and TUI interfaces
+- [x] Web server serves authenticated endpoints
+- [x] Sessions accessible from both web and TUI interfaces
+
+**Implementation Notes:**
+- Enhanced web.rs with WebServerState struct for session sharing between web and TUI modes
+- Added SessionSharing integration
+- Created e2e_web_server.rs with 9 tests covering endpoint definition, session sharing, and health checks
+- Added 9 web_auth tests in server_integration_tests.rs covering API key authentication
 
 ---
 

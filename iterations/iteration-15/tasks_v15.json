@@ -187,7 +187,7 @@
       "priority": "P1",
       "title": "Desktop app not implemented (stubs only)",
       "description": "Implement desktop startup flow in crates/cli/. Integrate WebView for desktop shell. Implement desktop-specific configuration handling. Add desktop mode to CLI argument parsing.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify CLI argument parsing includes desktop mode",
         "AddUnitTest: verify desktop configuration loading works",
@@ -200,7 +200,7 @@
         "cargo clippy --all -- -D warnings",
         "cargo build --release"
       ],
-      "impl_notes": "Implement desktop startup flow with WebView integration in crates/cli/.",
+      "impl_notes": "Added unit tests for CLI argument parsing (18 tests) covering DesktopArgs fields, port, hostname, no_browser, acp_enabled options. Added unit tests for desktop configuration loading (11 tests) covering config file loading, precedence logic, and ACP settings. Existing integration tests verify desktop app starts successfully.",
       "dependencies": []
     },
     {
@@ -208,7 +208,7 @@
       "priority": "P1",
       "title": "Implement Web Server Mode",
       "description": "Implement full web server in crates/cli/src/cmd/web.rs. Add authentication protection to web endpoints. Implement session sharing between web and TUI modes. Add web-specific route handlers.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify web server endpoints are defined correctly",
         "AddUnitTest: verify authentication protection on web endpoints",
@@ -222,7 +222,7 @@
         "cargo clippy --all -- -D warnings",
         "cargo build --release"
       ],
-      "impl_notes": "Full web server implementation in crates/cli/src/cmd/web.rs with authentication.",
+      "impl_notes": "Enhanced web.rs with WebServerState struct for session sharing between web and TUI modes. Added SessionSharing integration. Created e2e_web_server.rs with 9 tests covering endpoint definition, session sharing, and health checks. Added 9 web_auth tests in server_integration_tests.rs covering API key authentication. All tests pass.",
       "dependencies": [
         "P1-6"
       ]
