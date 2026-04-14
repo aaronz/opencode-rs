@@ -621,7 +621,7 @@
       "priority": "P2",
       "title": "Deprecated keybinds field",
       "description": "Technical debt Low: Deprecated keybinds field already moved to tui.json.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify keybinds field in tui.json works correctly"
       ],
@@ -630,7 +630,7 @@
         "cargo clippy --all -- -D warnings",
         "cargo build --release"
       ],
-      "impl_notes": "Already moved to tui.json.",
+      "impl_notes": "Added regression tests in crates/tui/tests/keybinds_config_tests.rs with 9 tests covering keybinds field in tui.json.",
       "dependencies": []
     }
   ]

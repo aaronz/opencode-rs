@@ -415,13 +415,13 @@ cargo build --release                          # Passed
 **Severity:** Medium  
 **Action:** Remove after migration period - Added migration logic and tests for deprecated tools field.
 
-### TD-009: Deprecated theme field
+### TD-009: ✅ Done
 **Severity:** Low  
 **Action:** Already moved to tui.json
 
-### TD-010: Deprecated keybinds field
+### TD-010: ✅ Done
 **Severity:** Low  
-**Action:** Already moved to tui.json
+**Action:** Added regression tests in crates/tui/tests/keybinds_config_tests.rs with 9 tests covering keybinds field in tui.json.
 
 ---
 
