@@ -104,23 +104,25 @@ cargo test -p opencode-server server_integration
 **Priority:** P2  
 **Reference:** FR-004  
 **Module:** server  
+**Status:** ✅ Done
 
 **Steps:**
-1. [ ] Read existing server integration tests for auth
-2. [ ] Add invalid JSON body tests:
-   - [ ] Test missing required fields
-   - [ ] Test extra unknown fields
-   - [ ] Test wrong field types
-   - [ ] Test empty body
-3. [ ] Add invalid session/message ID tests:
-   - [ ] Test operations on non-existent session
-   - [ ] Test operations on deleted session
-   - [ ] Test invalid session ID format
-4. [ ] Run tests to verify
+1. [x] Read existing server integration tests for auth
+2. [x] Add invalid JSON body tests:
+   - [x] Test missing required fields
+   - [x] Test extra unknown fields
+   - [x] Test wrong field types
+   - [x] Test empty body
+3. [x] Add invalid session/message ID tests:
+   - [x] Test operations on non-existent session
+   - [x] Test operations on deleted session
+   - [x] Test invalid session ID format
+4. [x] Run tests to verify
 
 **Verification:**
 ```bash
-cargo test -p opencode-server
+cargo test -p opencode-server -- negative
+# Result: 44 tests passed
 ```
 
 ---

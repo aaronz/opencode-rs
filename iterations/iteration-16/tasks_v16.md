@@ -124,7 +124,7 @@
 
 ## P2 Tasks (Medium Priority)
 
-### P2-NEW-1: ✅ DONE - Complete Route-Group Tests
+### P2-NEW-1: ✅ Done
 **Issue:** No explicit MCP/config/provider route group tests  
 **Module:** server  
 **FR Reference:** FR-004  

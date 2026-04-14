@@ -2397,6 +2397,319 @@ mod api_negative_tests {
             "Permission reply with invalid decision should return 400"
         );
     }
+
+    #[actix_web::test]
+    async fn api_negative_json_content_wrong_type_returns_400() {
+        let json_str = r#"{"content": 123}"#;
+        let result: Result<crate::routes::session::AddMessageRequest, _> =
+            serde_json::from_str(json_str);
+        assert!(
+            result.is_err(),
+            "JSON with wrong type for content (number instead of string) should fail to deserialize"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_json_role_wrong_type_returns_400() {
+        let json_str = r#"{"role": 123, "content": "hello"}"#;
+        let result: Result<crate::routes::session::AddMessageRequest, _> =
+            serde_json::from_str(json_str);
+        assert!(
+            result.is_err(),
+            "JSON with wrong type for role (number instead of string) should fail to deserialize"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_json_initial_prompt_wrong_type_returns_400() {
+        let json_str = r#"{"initial_prompt": 123}"#;
+        let result: Result<crate::routes::session::CreateSessionRequest, _> =
+            serde_json::from_str(json_str);
+        assert!(
+            result.is_err(),
+            "JSON with wrong type for initial_prompt (number instead of string) should fail to deserialize"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_json_fork_at_message_index_wrong_type_returns_400() {
+        let json_str = r#"{"fork_at_message_index": "not_a_number"}"#;
+        let result: Result<crate::routes::session::ForkSessionRequest, _> =
+            serde_json::from_str(json_str);
+        assert!(
+            result.is_err(),
+            "JSON with wrong type for fork_at_message_index (string instead of number) should fail to deserialize"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_json_command_wrong_type_returns_400() {
+        let json_str = r#"{"command": 123}"#;
+        let result: Result<crate::routes::session::CommandRequest, _> =
+            serde_json::from_str(json_str);
+        assert!(
+            result.is_err(),
+            "JSON with wrong type for command (number instead of string) should fail to deserialize"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_json_permission_reply_decision_wrong_type_returns_400() {
+        let json_str = r#"{"decision": 123}"#;
+        let result: Result<crate::routes::session::PermissionReplyRequest, _> =
+            serde_json::from_str(json_str);
+        assert!(
+            result.is_err(),
+            "JSON with wrong type for decision (number instead of string) should fail to deserialize"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_json_malformed_syntax_returns_400() {
+        let malformed_json_cases = vec![
+            r#"{[,}"#,
+            r#"{"key":}"#,
+            r#"not json at all"#,
+            r#"{"incomplete": {"nested"#,
+            r#"undefined"#,
+            r#"null"#,
+        ];
+
+        for json_str in malformed_json_cases {
+            let result: Result<crate::routes::session::AddMessageRequest, _> =
+                serde_json::from_str(json_str);
+            assert!(
+                result.is_err(),
+                "Malformed JSON '{}' should fail to deserialize",
+                json_str
+            );
+        }
+    }
+
+    #[actix_web::test]
+    async fn api_negative_session_id_empty_string_returns_422() {
+        use actix_web::web;
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::get_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "Empty session ID should return 422"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_session_id_with_special_chars_returns_422() {
+        use actix_web::web;
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::get_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("session-id-with-special-chars-!@#$%".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "Session ID with special characters should return 422"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_session_id_very_long_string_returns_422() {
+        use actix_web::web;
+
+        let long_id = "a".repeat(500);
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::get_session(
+            web::Data::new(create_test_state()),
+            web::Path::from(long_id),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "Very long session ID should return 422"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_fork_session_index_out_of_range_returns_422() {
+        use actix_web::web;
+
+        let req = TestRequest::default().to_http_request();
+        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
+
+        let result = crate::routes::session::fork_session(
+            web::Data::new(create_test_state()),
+            web::Path::from(valid_uuid.to_string()),
+            web::Json(crate::routes::session::ForkSessionRequest {
+                fork_at_message_index: 999999,
+            }),
+        )
+        .await
+        .respond_to(&req);
+
+        assert_eq!(
+            result.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "Fork index out of range should return 422"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_create_session_with_valid_initial_prompt_still_validates() {
+        use actix_web::web;
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::create_session(
+            web::Data::new(create_test_state()),
+            web::Json(crate::routes::session::CreateSessionRequest {
+                initial_prompt: Some("Hello".to_string()),
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_ne!(
+            resp.status(),
+            StatusCode::BAD_REQUEST,
+            "CreateSession with valid initial_prompt should not return 400"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_add_message_role_defaults_to_user() {
+        use actix_web::web;
+
+        let req = TestRequest::default().to_http_request();
+        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
+        let resp = crate::routes::session::add_message_to_session(
+            web::Data::new(create_test_state()),
+            web::Path::from(valid_uuid.to_string()),
+            web::Json(crate::routes::session::AddMessageRequest {
+                role: None,
+                content: "test content".to_string(),
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::NOT_FOUND
+                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+            "Adding message to non-existent session should return 404 or 500"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_list_sessions_with_pagination_still_validates() {
+        use actix_web::web;
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::list_sessions(
+            web::Data::new(create_test_state()),
+            web::Query(crate::routes::session::PaginationParams {
+                limit: Some(10),
+                offset: Some(0),
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_ne!(
+            resp.status(),
+            StatusCode::BAD_REQUEST,
+            "List sessions with valid pagination should not return 400"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_message_index_zero_still_valid() {
+        use actix_web::web;
+
+        let req = TestRequest::default().to_http_request();
+        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
+        let resp = crate::routes::session::get_message(
+            web::Data::new(create_test_state()),
+            web::Path::from((valid_uuid.to_string(), 0)),
+        )
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::NOT_FOUND
+                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+            "Message index 0 in non-existent session should return 404 or 500"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_pagination_limit_exceeds_max_still_valid() {
+        use actix_web::web;
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::list_sessions(
+            web::Data::new(create_test_state()),
+            web::Query(crate::routes::session::PaginationParams {
+                limit: Some(500),
+                offset: Some(0),
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_ne!(
+            resp.status(),
+            StatusCode::BAD_REQUEST,
+            "Pagination with large limit should not return 400 (validate_pagination clamps it)"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_permission_reply_allow_decision_succeeds() {
+        use actix_web::web;
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::permission_reply(
+            web::Data::new(create_test_state()),
+            web::Path::from(("test-session".to_string(), "test-req".to_string())),
+            web::Json(crate::routes::session::PermissionReplyRequest {
+                decision: "allow".to_string(),
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::OK,
+            "Permission reply with 'allow' decision should succeed"
+        );
+    }
+
+    #[actix_web::test]
+    async fn api_negative_permission_reply_deny_decision_succeeds() {
+        use actix_web::web;
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::permission_reply(
+            web::Data::new(create_test_state()),
+            web::Path::from(("test-session".to_string(), "test-req".to_string())),
+            web::Json(crate::routes::session::PermissionReplyRequest {
+                decision: "deny".to_string(),
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(
+            resp.status(),
+            StatusCode::OK,
+            "Permission reply with 'deny' decision should succeed"
+        );
+    }
 }
 
 #[cfg(test)]

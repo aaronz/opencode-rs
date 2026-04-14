@@ -115,7 +115,7 @@
       "priority": "P2",
       "title": "Add Malformed Request Body Tests",
       "description": "Add tests for malformed request bodies including invalid JSON, missing required fields, extra unknown fields, wrong field types, empty body, and invalid session/message IDs. Reference: FR-004",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddErrorHandlingTest: verify missing required fields returns 400 Bad Request",
         "AddErrorHandlingTest: verify extra unknown fields are handled gracefully",
@@ -128,7 +128,7 @@
       "test_commands": [
         "cargo test -p opencode-server"
       ],
-      "impl_notes": "Module: server. Test auth and session handling with malformed requests",
+      "impl_notes": "Module: server. Added 18 new negative tests covering invalid JSON types, wrong field types, malformed syntax, invalid session IDs, and regression tests. All 44 negative tests pass.",
       "dependencies": []
     },
     {

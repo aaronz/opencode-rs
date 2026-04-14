@@ -150,7 +150,7 @@
       "priority": "P2",
       "title": "Malformed Request Body Tests",
       "description": "Add invalid JSON body tests, missing required field tests, wrong type field tests, and invalid session/message ID tests to ensure API validates malformed requests correctly",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddErrorHandlingTest: verify API rejects invalid JSON body with 400 status",
         "AddErrorHandlingTest: verify API rejects requests with missing required fields",
