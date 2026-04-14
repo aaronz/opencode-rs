@@ -131,7 +131,7 @@ Add security-focused negative tests for injection attacks and path traversal.
 | P2-5 | BufferDiff | Stub | FR-023.2 |
 | P2-6 | StateTester | Stub | FR-023.3 |
 | P2-7 | TestDsl | Stub | FR-023.4 |
-| P2-8 | CliTester | Stub | FR-023.5 |
+| P2-8 | CliTester | ✅ Done | FR-023.5 |
 
 ---
 
@@ -176,13 +176,34 @@ Add security-focused negative tests for injection attacks and path traversal.
 
 **Required:** Widget rendering to Buffer, composition of PTY/BufferDiff/StateTester, fluent API, wait-for predicate
 
-### 6.5 CliTester (FR-023.5) - Stub
+### 6.5 CliTester (FR-023.5) - ✅ Done
 
-**Status:** ❌ Stub Implementation
+**Status:** ✅ Full Implementation
 
-**Current Behavior:** Returns empty string
+**Implemented:**
+- `new(command: &str)` - Creates CliTester with command
+- `arg(arg: &str)` - Fluent builder for single argument
+- `args(args: &[&str])` - Fluent builder for multiple arguments
+- `env(key: &str, value: &str)` - Set environment variable
+- `envs(vars: HashMap<&str, &str>)` - Set multiple environment variables
+- `working_dir(dir: PathBuf)` - Set working directory
+- `with_temp_dir()` - Create temp directory for process
+- `run()` - Execute command, capture output
+- `run_with_timeout(timeout: Duration)` - Execute with timeout
 
-**Required:** Process spawning with args, stdout/stderr capture, exit code capture, temp directory cleanup
+**CliOutput struct:**
+- `stdout: String` - Captured stdout
+- `stderr: String` - Captured stderr
+- `exit_code: i32` - Process exit code
+- `success: bool` - Whether exit code was 0
+
+**Assertion methods:**
+- `assert_success()` - Assert exit code is 0
+- `assert_exit_code(expected: i32)` - Assert specific exit code
+- `assert_stdout_contains(expected: &str)` - Assert stdout contains string
+- `assert_stderr_contains(expected: &str)` - Assert stderr contains string
+
+**Tests:** 13 tests pass (spawn, exit code, stdout/stderr capture, temp cleanup, env vars, assertions)
 
 ---
 

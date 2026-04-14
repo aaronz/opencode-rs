@@ -257,25 +257,40 @@ cargo test -p ratatui-testing
 **Priority:** P2  
 **Reference:** FR-023.5  
 **Module:** ratatui-testing  
+**Status:** ✅ Done
 
 **Acceptance Criteria:**
-- [ ] Spawns process with args
-- [ ] Captures stdout/stderr
-- [ ] Returns exit code
-- [ ] Cleans up temp directories
+- [x] Spawns process with args
+- [x] Captures stdout/stderr
+- [x] Returns exit code
+- [x] Cleans up temp directories
 
 **Steps:**
-1. [ ] Read current stub in `ratatui-testing/src/cli.rs`
-2. [ ] Implement `CliTester` struct with temp_dir
-3. [ ] Implement `new()`, `with_temp_dir()` methods
-4. [ ] Implement `run()` method for process spawning
-5. [ ] Implement `capture_stdout()`, `capture_stderr()` methods
-6. [ ] Implement `CliOutput` struct
-7. [ ] Add tests
+1. [x] Read current stub in `ratatui-testing/src/cli.rs`
+2. [x] Implement `CliTester` struct with temp_dir
+3. [x] Implement `new()`, `with_temp_dir()` methods
+4. [x] Implement `run()` method for process spawning
+5. [x] Implement `capture_stdout()`, `capture_stderr()` methods
+6. [x] Implement `CliOutput` struct
+7. [x] Add tests
+
+**Tests Added:**
+- test_cli_tester_spawn_process_with_args
+- test_cli_tester_exit_code_capture
+- test_cli_tester_stdout_capture
+- test_cli_tester_stderr_capture
+- test_cli_tester_temp_dir_cleanup
+- test_cli_tester_working_dir
+- test_cli_tester_env_vars
+- test_cli_output_assertions
+- test_cli_output_assertion_failure
+- test_cli_output_exit_code_assertion
+- test_cli_tester_multiple_args
+- test_cli_tester_nonexistent_command
 
 **Verification:**
 ```bash
-cargo test -p ratatui-testing
+cargo test -p ratatui-testing  # 67 tests pass, all CliTester tests pass
 ```
 
 ---

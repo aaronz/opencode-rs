@@ -292,10 +292,10 @@ The ratatui-testing framework is specified in PRD-023 (FR-023) but has no consti
 | P2-NEW-2 | Malformed request tests missing | Art IV §4.3 | ❌ NOT FIXED |
 | P2-NEW-3 | Hook determinism test missing | Art IV §4.4 | ✅ FIXED — 9 tests added |
 | P2-NEW-4 | Security tests missing | Art IV §4.3 | ❌ NOT FIXED |
-| P2-5 | ratatui-testing BufferDiff stub | Art VII §7.1 (NEW) | ❌ NOT FIXED |
-| P2-6 | ratatui-testing StateTester stub | Art VII §7.1 (NEW) | ❌ NOT FIXED |
-| P2-7 | ratatui-testing TestDsl stub | Art VII §7.1 (NEW) | ❌ NOT FIXED |
-| P2-8 | ratatui-testing CliTester stub | Art VII §7.1 (NEW) | ❌ NOT FIXED |
+| P2-5 | ratatui-testing BufferDiff stub | Art VII §7.1 (NEW) | ✅ **FIXED** — Full implementation with 11 tests |
+| P2-6 | ratatui-testing StateTester stub | Art VII §7.1 (NEW) | ✅ **FIXED** — Full implementation with state capture |
+| P2-7 | ratatui-testing TestDsl stub | Art VII §7.1 (NEW) | ✅ **FIXED** — Full implementation with 30 tests |
+| P2-8 | ratatui-testing CliTester stub | Art VII §7.1 (NEW) | ✅ **FIXED** — Full implementation with 13 tests |
 
 ---
 

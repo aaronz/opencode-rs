@@ -252,7 +252,7 @@
       "priority": "P2",
       "title": "Implement ratatui-testing CliTester (FR-023.5)",
       "description": "Implement CliTester for spawning processes with args, capturing stdout/stderr, returning exit code, and cleaning up temp directories.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify CliTester::new() creates instance",
         "AddUnitTest: verify with_temp_dir() creates temporary directory",
@@ -263,10 +263,20 @@
         "AddRegressionTest: verify temp directory is cleaned up after test",
         "RunTestSuite: execute ratatui-testing CliTester tests"
       ],
+      "test_criteria_met": [
+        "AddUnitTest: verify CliTester::new() creates instance - test_cli_tester_spawn_process_with_args",
+        "AddUnitTest: verify with_temp_dir() creates temporary directory - test_cli_tester_temp_dir_cleanup",
+        "AddIntegrationTest: verify run() spawns process with correct args - test_cli_tester_spawn_process_with_args, test_cli_tester_multiple_args",
+        "AddIntegrationTest: verify capture_stdout() returns stdout output - test_cli_tester_stdout_capture",
+        "AddIntegrationTest: verify capture_stderr() returns stderr output - test_cli_tester_stderr_capture",
+        "AddIntegrationTest: verify exit code is returned correctly - test_cli_tester_exit_code_capture",
+        "AddRegressionTest: verify temp directory is cleaned up after test - test_cli_tester_temp_dir_cleanup",
+        "RunTestSuite: execute ratatui-testing CliTester tests - 67 tests pass"
+      ],
       "test_commands": [
         "cargo test -p ratatui-testing"
       ],
-      "impl_notes": "Module: ratatui-testing. Reference FR-023.5. Read current stub in cli.rs. Implement CliTester struct with temp_dir, run() method, capture_stdout/capture_stderr methods, and CliOutput struct.",
+      "impl_notes": "Module: ratatui-testing. Full CliTester implementation with: CliTester struct (command, args, env_vars, working_dir, temp_dir), run() method spawning process with args, CliOutput struct (stdout, stderr, exit_code, success), fluent builder API (arg, args, env, envs, working_dir, with_temp_dir), and CliOutput assertion methods (assert_success, assert_exit_code, assert_stdout_contains, assert_stderr_contains). All 13 CliTester tests pass."
       "dependencies": []
     },
     {

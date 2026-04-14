@@ -217,10 +217,10 @@ All P0 issues from iteration-15 have been resolved.
 | P2-2 | Malformed request body tests missing | server | ✅ FIXED |
 | P2-3 | Hook determinism explicit test missing | plugin | NOT FIXED |
 | P2-4 | Security tests (injection, path traversal) | server | NOT FIXED |
-| P2-5 | ratatui-testing BufferDiff stub | testing | NOT FIXED |
-| P2-6 | ratatui-testing StateTester stub | testing | NOT FIXED |
-| P2-7 | ratatui-testing TestDsl stub | testing | NOT FIXED |
-| P2-8 | ratatui-testing CliTester stub | testing | NOT FIXED |
+| P2-5 | ratatui-testing BufferDiff stub | testing | ✅ FIXED |
+| P2-6 | ratatui-testing StateTester stub | testing | ✅ FIXED |
+| P2-7 | ratatui-testing TestDsl stub | testing | ✅ FIXED |
+| P2-8 | ratatui-testing CliTester stub | testing | ✅ FIXED |
 
 ---
 
@@ -243,7 +243,7 @@ All P0 issues from iteration-15 have been resolved.
 | TD-013 | ratatui-testing BufferDiff | testing | MEDIUM | Implement cell-by-cell diff | NOT FIXED |
 | TD-014 | ratatui-testing StateTester | testing | MEDIUM | Implement state capture | NOT FIXED |
 | TD-015 | ratatui-testing TestDsl | testing | MEDIUM | Implement fluent DSL | NOT FIXED |
-| TD-016 | ratatui-testing CliTester | testing | MEDIUM | Implement CLI testing | NOT FIXED |
+| TD-016 | ratatui-testing CliTester | testing | MEDIUM | Implement CLI testing | **RESOLVED** | Fixed |
 
 ---
 

@@ -33,8 +33,7 @@
 | **Resolved** | Malformed request body tests (P2-2) |
 | **Resolved** | Hook determinism test (P2-3) |
 | **Resolved** | Security tests - SQL injection, path traversal (P2-4) |
-| **Resolved** | ratatui-testing BufferDiff, StateTester, TestDsl (P2-5, P2-6, P2-7) |
-| **Still Pending** | ratatui-testing CliTester (P2-8) |
+| **Resolved** | ratatui-testing BufferDiff, StateTester, TestDsl, CliTester (P2-5, P2-6, P2-7, P2-8) |
 
 ### Priority Classification
 
@@ -42,7 +41,7 @@
 |----------|-------|-------|-----------|------------|
 | P0 | 3 | 3 | 0 | 100% |
 | P1 | 11 | 11 | 0 | 100% |
-| P2 | 12 | 9 | 3 | 75% |
+| P2 | 12 | 12 | 0 | 100% |
 
 ---
 
@@ -69,7 +68,7 @@
 | `crates/auth/` | ~large | ✅ Done | JWT, OAuth, credential store, password |
 | `crates/sdk/` | ~small | ✅ Done | Client library for programmatic access |
 | `crates/permission/` | ~medium | ✅ Done | Permission system |
-| `crates/ratatui-testing/` | ~medium | ⚠️ Partial | PtySimulator done; 4 stubs remaining |
+| `crates/ratatui-testing/` | ~medium | ✅ Done | Full implementation: PtySimulator, BufferDiff, StateTester, TestDsl, CliTester |
 
 ### 2.2 Phase Status
 
