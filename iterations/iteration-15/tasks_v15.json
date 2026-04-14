@@ -232,7 +232,7 @@
       "priority": "P1",
       "title": "ACP transport not implemented (event structs exist)",
       "description": "Implement ACP handshake mechanism. Implement ACP transport layer for editor communication. Add connection management for ACP clients. Integrate with server for ACP endpoint handling.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify ACP handshake mechanism completes successfully",
         "AddUnitTest: verify ACP transport layer sends/receives messages",
