@@ -84,7 +84,7 @@
       "priority": "P1",
       "title": "Remove Duplicate directory_scanner.rs",
       "description": "Delete crates/core/src/config/directory_scanner.rs (832 lines), update crates/core/src/lib.rs to use opencode_config::DirectoryScanner, verify no remaining references to deleted file, run full build to ensure no breakage",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify deleted file is no longer imported anywhere",
         "AddRegressionTest: verify DirectoryScanner functionality still works via opencode_config",
