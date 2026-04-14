@@ -2384,6 +2384,7 @@ mod api_negative_tests {
             acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
                 crate::routes::acp_ws::AcpClientRegistry::new(),
             )),
+            temp_db_dir: Some(Box::new(temp_dir)),
         }
     }
 
@@ -2411,6 +2412,7 @@ mod api_negative_tests {
             acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
                 crate::routes::acp_ws::AcpClientRegistry::new(),
             )),
+            temp_db_dir: Some(Box::new(temp_dir)),
         }
     }
 
@@ -3430,32 +3432,6 @@ mod security_path_traversal_tests {
     use actix_web::test::TestRequest;
     use actix_web::web;
     use actix_web::Responder;
-
-    fn create_test_state() -> crate::ServerState {
-        let temp_dir = tempfile::tempdir().unwrap();
-        let db_path = temp_dir.path().join("test.db");
-        crate::ServerState {
-            storage: std::sync::Arc::new(opencode_storage::StorageService::new(
-                opencode_storage::database::StoragePool::new(&db_path).unwrap(),
-            )),
-            models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
-            config: std::sync::Arc::new(std::sync::RwLock::new(opencode_core::Config::default())),
-            event_bus: opencode_core::bus::SharedEventBus::default(),
-            reconnection_store: crate::streaming::ReconnectionStore::default(),
-            connection_monitor: std::sync::Arc::new(
-                crate::streaming::conn_state::ConnectionMonitor::new(),
-            ),
-            share_server: std::sync::Arc::new(std::sync::RwLock::new(
-                crate::routes::share::ShareServer::with_default_config(),
-            )),
-            acp_enabled: true,
-            acp_stream: opencode_control_plane::AcpEventStream::new().into(),
-            acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
-                crate::routes::acp_ws::AcpClientRegistry::new(),
-            )),
-            temp_db_dir: Some(Box::new(temp_dir)),
-        }
-    }
 
     #[test]
     fn security_path_traversal_double_dot_slash_rejected() {

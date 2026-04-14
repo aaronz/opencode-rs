@@ -153,7 +153,7 @@
       "priority": "P2",
       "title": "Add Security Tests",
       "description": "Add SQL injection and path traversal security tests. Reference: FR-004",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddErrorHandlingTest: verify SQL injection in session IDs is prevented",
         "AddErrorHandlingTest: verify SQL injection in message content is prevented",
@@ -163,7 +163,7 @@
       "test_commands": [
         "cargo test -p opencode-server"
       ],
-      "impl_notes": "Module: server. Test SQL injection in session IDs and message content, path traversal in file operations",
+      "impl_notes": "Module: server. Tests already exist: 11 SQL injection tests (security_injection_tests) and 14 path traversal tests (security_path_traversal_tests). Fixed compilation error: missing temp_db_dir field in api_negative_tests module.",
       "dependencies": []
     },
     {
