@@ -154,7 +154,7 @@
 
 ---
 
-### P2-NEW-2: Malformed Request Body Tests
+### P2-NEW-2: ✅ Done
 **Issue:** No tests for invalid JSON, missing fields, wrong types  
 **Module:** server  
 **FR Reference:** FR-004  
