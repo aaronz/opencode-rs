@@ -1,0 +1,541 @@
+{
+  "tasks": [
+    {
+      "id": "P0-1",
+      "priority": "P0",
+      "title": "Custom tool discovery scans TOOL.md instead of .ts/.js",
+      "description": "Modify DirectoryScanner::scan_tools() in crates/config/src/directory_scanner.rs:226-229 to change file extension filter from TOOL.md to .ts, .js, .mts, .cts and parse JavaScript/TypeScript tool definitions",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify DirectoryScanner::scan_tools() accepts .ts/.js/.mts/.cts extensions",
+        "AddIntegrationTest: verify tool definitions in TypeScript/JavaScript files are correctly parsed",
+        "AddRegressionTest: ensure existing TOOL.md scanning still works for legacy files"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-config -- scan_tools",
+        "cargo build -p opencode-config",
+        "cargo clippy -p opencode-config -- -D warnings"
+      ],
+      "impl_notes": "DirectoryScanner::scan_tools() at crates/config/src/directory_scanner.rs:226-229",
+      "dependencies": []
+    },
+    {
+      "id": "P0-2",
+      "priority": "P0",
+      "title": "Discovered tools recorded in config but NOT registered with ToolRegistry",
+      "description": "Create registration flow in crates/tools/src/discovery.rs:230-248 with register_custom_tools() that registers with ToolRegistry so discovered custom tools appear in tool listing and are executable through standard tool pipeline",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify register_custom_tools() adds tools to ToolRegistry",
+        "AddIntegrationTest: verify discovered custom tools appear in tool listing",
+        "AddRegressionTest: ensure existing tool registration flow is not broken"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools -- custom_tool",
+        "cargo build -p opencode-tools",
+        "cargo clippy -p opencode-tools -- -D warnings"
+      ],
+      "impl_notes": "register_custom_tools() at crates/tools/src/discovery.rs:230-248",
+      "dependencies": []
+    },
+    {
+      "id": "P0-3",
+      "priority": "P0",
+      "title": "PluginToolAdapter exists but no mechanism to register plugin tools",
+      "description": "Implement plugin tool registration with register_tool() at crates/plugin/src/lib.rs:268, export_as_tools() at lib.rs:576, and register_tools_in_registry() at lib.rs:821",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify register_tool() adds plugin tool to registry",
+        "AddIntegrationTest: verify export_as_tools() exports all plugin tools",
+        "AddRegressionTest: ensure plugin loading flow remains intact",
+        "RunTestSuite: execute all 7 tests at plugin/src/lib.rs:2305-2565"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin -- tool_registration",
+        "cargo build -p opencode-plugin",
+        "cargo clippy -p opencode-plugin -- -D warnings"
+      ],
+      "impl_notes": "register_tool() at crates/plugin/src/lib.rs:268, export_as_tools() at lib.rs:576, register_tools_in_registry() at lib.rs:821",
+      "dependencies": []
+    },
+    {
+      "id": "P1-NEW-1",
+      "priority": "P1",
+      "title": "ACP E2E Connection Test",
+      "description": "Create integration test that starts server with ACP enabled, creates AcpTransportClient instance, establishes TCP/WebSocket connection, completes ACP handshake, sends/receives test message, and verifies full message exchange works end-to-end",
+      "status": "in_progress",
+      "test_criteria": [
+        "AddIntegrationTest: verify ACP server starts successfully with ACP enabled",
+        "AddIntegrationTest: verify AcpTransportClient establishes TCP/WebSocket connection",
+        "AddIntegrationTest: verify ACP handshake completes without errors",
+        "AddIntegrationTest: verify send/receive message exchange works end-to-end",
+        "AddErrorHandlingTest: test connection failure scenarios and timeout handling"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests -- acp_e2e",
+        "cargo build -p opencode-integration-tests",
+        "cargo clippy -p opencode-integration-tests -- -D warnings"
+      ],
+      "impl_notes": "ACP transport exists at control-plane/src/transport.rs (847 lines). Test needs to be created in tests/src/",
+      "dependencies": []
+    },
+    {
+      "id": "P1-NEW-2",
+      "priority": "P1",
+      "title": "Remove Duplicate directory_scanner.rs",
+      "description": "Delete crates/core/src/config/directory_scanner.rs (832 lines), update crates/core/src/lib.rs to use opencode_config::DirectoryScanner, verify no remaining references to deleted file, run full build to ensure no breakage",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify deleted file is no longer imported anywhere",
+        "AddRegressionTest: verify DirectoryScanner functionality still works via opencode_config",
+        "RunTestSuite: execute cargo build --all-features to ensure no breakage",
+        "AddUnitTest: verify core module still compiles after refactor"
+      ],
+      "test_commands": [
+        "cargo build --all-features",
+        "cargo test -p opencode-core",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Duplicate at crates/core/src/config/directory_scanner.rs. Must update imports in crates/core/src/lib.rs",
+      "dependencies": []
+    },
+    {
+      "id": "P1-NEW-3",
+      "priority": "P1",
+      "title": "Audit Two ToolRegistry Implementations",
+      "description": "Trace all usages of core::ToolRegistry in agent runtime, verify opencode_tools::ToolRegistry features (caching, async) available, either consolidate to single registry OR document intentional separation, add documentation explaining the relationship",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify core::ToolRegistry usages are documented",
+        "AddUnitTest: verify opencode_tools::ToolRegistry caching/async features work",
+        "AddRegressionTest: ensure tool execution works with both implementations",
+        "AddErrorHandlingTest: test edge cases where registries may conflict"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-agent -- tool_registry",
+        "cargo build -p opencode-agent",
+        "cargo clippy -p opencode-agent -- -D warnings"
+      ],
+      "impl_notes": "Two ToolRegistry structs exist with different designs. Must audit and document relationship",
+      "dependencies": [
+        "P1-NEW-2"
+      ]
+    },
+    {
+      "id": "P2-NEW-1",
+      "priority": "P2",
+      "title": "Complete Route-Group Tests",
+      "description": "Add MCP route group tests (GET /api/mcp/servers, GET /api/mcp/tools, POST /api/mcp/connect), config route group tests (GET /api/config, PUT /api/config), and provider route group tests (GET /api/providers, GET /api/models)",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify GET /api/mcp/servers returns server list",
+        "AddIntegrationTest: verify GET /api/mcp/tools returns available tools",
+        "AddIntegrationTest: verify POST /api/mcp/connect establishes MCP connection",
+        "AddIntegrationTest: verify GET /api/config returns configuration",
+        "AddIntegrationTest: verify PUT /api/config updates configuration",
+        "AddIntegrationTest: verify GET /api/providers returns provider list",
+        "AddIntegrationTest: verify GET /api/models returns model list",
+        "AddErrorHandlingTest: test invalid route group requests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- route_group",
+        "cargo build -p opencode-server",
+        "cargo clippy -p opencode-server -- -D warnings"
+      ],
+      "impl_notes": "Session/permission route tests already done. MCP/config/provider tests need to be added",
+      "dependencies": []
+    },
+    {
+      "id": "P2-NEW-2",
+      "priority": "P2",
+      "title": "Malformed Request Body Tests",
+      "description": "Add invalid JSON body tests, missing required field tests, wrong type field tests, and invalid session/message ID tests to ensure API validates malformed requests correctly",
+      "status": "todo",
+      "test_criteria": [
+        "AddErrorHandlingTest: verify API rejects invalid JSON body with 400 status",
+        "AddErrorHandlingTest: verify API rejects requests with missing required fields",
+        "AddErrorHandlingTest: verify API rejects requests with wrong field types",
+        "AddErrorHandlingTest: verify API rejects invalid session/message IDs",
+        "AddRegressionTest: ensure valid requests still work after validation changes"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- negative",
+        "cargo build -p opencode-server",
+        "cargo clippy -p opencode-server -- -D warnings"
+      ],
+      "impl_notes": "Auth tests done. Malformed request tests need to be added",
+      "dependencies": []
+    },
+    {
+      "id": "P2-NEW-3",
+      "priority": "P2",
+      "title": "Hook Determinism Explicit Test",
+      "description": "Register multiple plugins with different priorities, call sorted_plugin_names() 100 times, verify consistent ordering across all iterations, add stress test for edge cases",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify sorted_plugin_names() returns consistent order across 100 iterations",
+        "AddIntegrationTest: verify plugins with different priorities are sorted correctly",
+        "AddStressTest: test edge cases with many plugins and varying priorities",
+        "AddErrorHandlingTest: test behavior when priorities are equal or missing"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin -- hook_determinism",
+        "cargo build -p opencode-plugin",
+        "cargo clippy -p opencode-plugin -- -D warnings"
+      ],
+      "impl_notes": "sorted_plugin_names() at crates/plugin/src/lib.rs:602-621 already implemented but needs explicit test",
+      "dependencies": []
+    },
+    {
+      "id": "P2-NEW-4",
+      "priority": "P2",
+      "title": "Security Tests",
+      "description": "Add SQL injection tests on all database endpoints, path traversal tests on file operations, request smuggling tests, and verify proper sanitization to identify and document security vulnerabilities",
+      "status": "todo",
+      "test_criteria": [
+        "AddErrorHandlingTest: verify database endpoints reject SQL injection attempts",
+        "AddErrorHandlingTest: verify file operations reject path traversal sequences",
+        "AddErrorHandlingTest: verify API rejects request smuggling patterns",
+        "AddRegressionTest: ensure sanitization does not break valid requests",
+        "AddSecurityTest: document all identified vulnerabilities"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- security",
+        "cargo build -p opencode-server",
+        "cargo clippy -p opencode-server -- -D warnings"
+      ],
+      "impl_notes": "Security tests need to cover injection, path traversal, and request smuggling",
+      "dependencies": [
+        "P2-NEW-2"
+      ]
+    },
+    {
+      "id": "P1-1",
+      "priority": "P1",
+      "title": "Hook Execution Determinism - sorted_plugin_names()",
+      "description": "Implement priority sorting for plugin execution order with sorted_plugin_names() at crates/plugin/src/lib.rs:602-621",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify sorted_plugin_names() returns deterministically ordered list",
+        "AddIntegrationTest: verify plugins execute in correct priority order",
+        "RunTestSuite: execute all plugin tests to ensure determinism"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin -- sorted_plugin_names",
+        "cargo build -p opencode-plugin",
+        "cargo clippy -p opencode-plugin -- -D warnings"
+      ],
+      "impl_notes": "sorted_plugin_names() at crates/plugin/src/lib.rs:602-621",
+      "dependencies": []
+    },
+    {
+      "id": "P1-2",
+      "priority": "P1",
+      "title": "Plugin Config Ownership - validate_runtime_loadable and validate_tui_loadable",
+      "description": "Implement validate_runtime_loadable() at plugin/src/config.rs:317-322 and validate_tui_loadable() at plugin/src/config.rs:328 for plugin configuration validation",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify validate_runtime_loadable() correctly validates plugin config",
+        "AddUnitTest: verify validate_tui_loadable() correctly validates TUI plugin config",
+        "AddErrorHandlingTest: test invalid configurations are rejected"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin -- validate_loadable",
+        "cargo build -p opencode-plugin",
+        "cargo clippy -p opencode-plugin -- -D warnings"
+      ],
+      "impl_notes": "validate_runtime_loadable() at plugin/src/config.rs:317-322, validate_tui_loadable() at config.rs:328",
+      "dependencies": []
+    },
+    {
+      "id": "P1-3",
+      "priority": "P1",
+      "title": "Primary Agent Invariant Tests",
+      "description": "Implement 7 tests at agent/src/runtime.rs:1554-1747 and agent/tests/agent_integration.rs:91-147 to verify primary agent invariant properties",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify 7 invariant tests pass at agent/src/runtime.rs:1554-1747",
+        "AddIntegrationTest: verify agent_integration.rs:91-147 tests pass",
+        "AddRegressionTest: ensure primary agent selection works correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-agent -- primary_agent",
+        "cargo test -p opencode-agent -- agent_integration",
+        "cargo build -p opencode-agent",
+        "cargo clippy -p opencode-agent -- -D warnings"
+      ],
+      "impl_notes": "7 tests at agent/src/runtime.rs:1554-1747 and agent/tests/agent_integration.rs:91-147",
+      "dependencies": []
+    },
+    {
+      "id": "P1-4",
+      "priority": "P1",
+      "title": "Ownership Tree Acyclicity Tests",
+      "description": "Implement tests in crates/core/ to verify ownership tree remains acyclic",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify ownership tree has no cycles",
+        "AddErrorHandlingTest: test that circular ownership is detected and rejected",
+        "RunTestSuite: execute all ownership tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core -- ownership",
+        "cargo build -p opencode-core",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Tests in crates/core/",
+      "dependencies": []
+    },
+    {
+      "id": "P1-5",
+      "priority": "P1",
+      "title": "Session Lifecycle Integration Tests",
+      "description": "Implement session lifecycle tests in tests/src/session_lifecycle_tests.rs (533 lines) and storage/tests/session_lifecycle_tests.rs (421 lines)",
+      "status": "done",
+      "test_criteria": [
+        "AddIntegrationTest: verify session creation lifecycle works",
+        "AddIntegrationTest: verify session update lifecycle works",
+        "AddIntegrationTest: verify session deletion lifecycle works",
+        "RunTestSuite: execute all session lifecycle tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests -- session_lifecycle",
+        "cargo test -p opencode-storage -- session_lifecycle",
+        "cargo build --all-features",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "tests/src/session_lifecycle_tests.rs (533 lines), storage/tests/session_lifecycle_tests.rs (421 lines)",
+      "dependencies": []
+    },
+    {
+      "id": "P1-6",
+      "priority": "P1",
+      "title": "Desktop App Implementation",
+      "description": "Implement desktop application mode with cli/src/cmd/desktop.rs (502 lines) and webview.rs (122 lines)",
+      "status": "done",
+      "test_criteria": [
+        "AddIntegrationTest: verify desktop mode starts successfully",
+        "AddIntegrationTest: verify TUI and server work together in desktop mode",
+        "RunTestSuite: execute desktop-related tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- desktop",
+        "cargo build -p opencode-cli",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "cli/src/cmd/desktop.rs (502 lines), webview.rs (122 lines)",
+      "dependencies": []
+    },
+    {
+      "id": "P1-7",
+      "priority": "P1",
+      "title": "Web Server Mode Implementation",
+      "description": "Implement web server mode with cli/src/cmd/web.rs (235 lines)",
+      "status": "done",
+      "test_criteria": [
+        "AddIntegrationTest: verify web mode starts and serves correctly",
+        "AddIntegrationTest: verify web endpoints are accessible",
+        "RunTestSuite: execute web-related tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- web",
+        "cargo build -p opencode-cli",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "cli/src/cmd/web.rs (235 lines)",
+      "dependencies": []
+    },
+    {
+      "id": "P1-8",
+      "priority": "P1",
+      "title": "ACP Transport Implementation",
+      "description": "Implement ACP transport at control-plane/src/transport.rs (847 lines). E2E test still missing - see P1-NEW-1",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify ACP transport layer compiles",
+        "AddIntegrationTest: verify transport can establish connections",
+        "RunTestSuite: execute ACP transport tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-control-plane -- transport",
+        "cargo build -p opencode-control-plane",
+        "cargo clippy -p opencode-control-plane -- -D warnings"
+      ],
+      "impl_notes": "Transport exists at control-plane/src/transport.rs (847 lines). E2E test P1-NEW-1 still pending",
+      "dependencies": []
+    },
+    {
+      "id": "P1-9",
+      "priority": "P1",
+      "title": "Config Crate Refactor",
+      "description": "Refactor crates/config/src/lib.rs to have 1600+ lines with improved structure and exports",
+      "status": "done",
+      "test_criteria": [
+        "AddRegressionTest: verify all config functionality still works after refactor",
+        "RunTestSuite: execute all config tests",
+        "cargo build -p opencode-config"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-config",
+        "cargo build -p opencode-config",
+        "cargo clippy -p opencode-config -- -D warnings"
+      ],
+      "impl_notes": "crates/config/src/lib.rs now has 1600+ lines",
+      "dependencies": []
+    },
+    {
+      "id": "P2-1",
+      "priority": "P2",
+      "title": "TUI Slash Command Tests",
+      "description": "Implement TUI slash command tests in tui/tests/slash_command_tests.rs (287 lines)",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify slash commands are parsed correctly",
+        "AddIntegrationTest: verify slash commands execute correctly",
+        "RunTestSuite: execute all slash command tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui -- slash_command",
+        "cargo build -p opencode-tui",
+        "cargo clippy -p opencode-tui -- -D warnings"
+      ],
+      "impl_notes": "tui/tests/slash_command_tests.rs (287 lines)",
+      "dependencies": []
+    },
+    {
+      "id": "P2-2",
+      "priority": "P2",
+      "title": "TUI Input Model Tests",
+      "description": "Implement TUI input model tests in tui/tests/input_model_tests.rs (371 lines)",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify input model handles all input types",
+        "AddIntegrationTest: verify input model integrates with TUI correctly",
+        "RunTestSuite: execute all input model tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui -- input_model",
+        "cargo build -p opencode-tui",
+        "cargo clippy -p opencode-tui -- -D warnings"
+      ],
+      "impl_notes": "tui/tests/input_model_tests.rs (371 lines)",
+      "dependencies": []
+    },
+    {
+      "id": "P2-3",
+      "priority": "P2",
+      "title": "TUI Sidebar Tests",
+      "description": "Implement TUI sidebar tests in tui/tests/sidebar_tests.rs (741 lines)",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify sidebar renders correctly",
+        "AddIntegrationTest: verify sidebar interactions work correctly",
+        "RunTestSuite: execute all sidebar tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui -- sidebar",
+        "cargo build -p opencode-tui",
+        "cargo clippy -p opencode-tui -- -D warnings"
+      ],
+      "impl_notes": "tui/tests/sidebar_tests.rs (741 lines)",
+      "dependencies": []
+    },
+    {
+      "id": "P2-4",
+      "priority": "P2",
+      "title": "Per-Agent Model Override Test",
+      "description": "Implement 16 tests at agent/tests/agent_integration.rs:169-316 for per-agent model override functionality",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify 16 tests at agent_integration.rs:169-316 pass",
+        "AddIntegrationTest: verify per-agent model override works",
+        "RunTestSuite: execute all agent integration tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-agent -- agent_integration",
+        "cargo build -p opencode-agent",
+        "cargo clippy -p opencode-agent -- -D warnings"
+      ],
+      "impl_notes": "16 tests at agent/tests/agent_integration.rs:169-316",
+      "dependencies": []
+    },
+    {
+      "id": "P2-5",
+      "priority": "P2",
+      "title": "Route-Group Tests - Partial",
+      "description": "Session/permission route tests done. MCP/config/provider tests missing - see P2-NEW-1",
+      "status": "done",
+      "test_criteria": [
+        "AddIntegrationTest: verify session route group tests pass",
+        "AddIntegrationTest: verify permission route group tests pass",
+        "RunTestSuite: execute all route group tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- route_group",
+        "cargo build -p opencode-server",
+        "cargo clippy -p opencode-server -- -D warnings"
+      ],
+      "impl_notes": "Session/permission tests done. MCP/config/provider tests need P2-NEW-1",
+      "dependencies": []
+    },
+    {
+      "id": "P2-6",
+      "priority": "P2",
+      "title": "API Negative Tests - Partial",
+      "description": "Auth tests done. Malformed request tests missing - see P2-NEW-2",
+      "status": "done",
+      "test_criteria": [
+        "AddErrorHandlingTest: verify auth negative tests pass",
+        "AddIntegrationTest: verify auth validation works correctly",
+        "RunTestSuite: execute all auth tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- auth_negative",
+        "cargo build -p opencode-server",
+        "cargo clippy -p opencode-server -- -D warnings"
+      ],
+      "impl_notes": "Auth tests done. Malformed request tests need P2-NEW-2",
+      "dependencies": []
+    },
+    {
+      "id": "P2-7",
+      "priority": "P2",
+      "title": "Hidden vs Visible Agent Tests",
+      "description": "Implement hidden vs visible agent tests in agent/tests/agent_integration.rs:91-147 and agent/src/runtime.rs:1554-1747",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify hidden agents are not exposed to users",
+        "AddIntegrationTest: verify visible agents work correctly",
+        "AddIntegrationTest: verify agent visibility toggle works",
+        "RunTestSuite: execute all agent visibility tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-agent -- agent_visibility",
+        "cargo test -p opencode-agent -- agent_integration",
+        "cargo build -p opencode-agent",
+        "cargo clippy -p opencode-agent -- -D warnings"
+      ],
+      "impl_notes": "agent/tests/agent_integration.rs:91-147, agent/src/runtime.rs:1554-1747",
+      "dependencies": []
+    },
+    {
+      "id": "P2-8",
+      "priority": "P2",
+      "title": "Theme Auto-Sync Tests",
+      "description": "Implement theme auto-sync tests in tui/tests/plugin_theme_tests.rs (447 lines)",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify theme auto-sync works correctly",
+        "AddIntegrationTest: verify plugin theme integration works",
+        "RunTestSuite: execute all theme tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui -- plugin_theme",
+        "cargo build -p opencode-tui",
+        "cargo clippy -p opencode-tui -- -D warnings"
+      ],
+      "impl_notes": "tui/tests/plugin_theme_tests.rs (447 lines)",
+      "dependencies": []
+    }
+  ]
+}
