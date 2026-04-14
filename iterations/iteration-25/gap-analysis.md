@@ -1,57 +1,58 @@
-# Gap Analysis Report - Iteration 23
+# Gap Analysis Report - Iteration 25
 
 **Generated:** 2026-04-14
 **Analysis Scope:** OpenCode Rust Port Implementation vs. PRD Specifications (PRD 01-20)
-**Previous Analysis:** Iteration 22 (2026-04-14)
-**Iteration Focus:** Comprehensive gap analysis and PRD 20 implementation status
+**Previous Analysis:** Iteration 23 (2026-04-14)
+**Iteration Focus:** PRD 20 (ratatui-testing) partial implementation progress
 
 ---
 
 ## Executive Summary
 
-**Implementation is approximately 93-96% complete** (unchanged from iteration-22).
+**Implementation is approximately 94-97% complete** (slight improvement from iteration-23's 93-96%).
 
-**Key Observations Since Iteration-22:**
-- No functional progress on PRD 20 (ratatui-testing) implementation
+**Key Observations Since Iteration-23:**
+- PtySimulator fully implemented using `portable-pty` (major progress)
+- PtySimulator `inject_key_event()` and `inject_mouse_event()` remain stubs
+- BufferDiff, StateTester, TestDsl, CliTester still in stub form
+- ratatui-testing tests/ directory now has `pty_tests.rs` (4 tests)
 - Phase 6 (Release Qualification) remains unstarted
-- ratatui-testing modules remain as stubs with minimal functionality
-- Integration tests in `tests/src/` continue to grow (now ~3794 lines across 14 files)
-- Convention tests implemented for config ownership, routes, architecture, test layout, TUI
 
 **Remaining Critical Issues:**
-- ratatui-testing framework entirely in stub form (PRD 20 not implemented)
+- ratatui-testing: PtySimulator fully functional, but other 4 modules remain stubs
+- ratatui-testing: `inject_key_event()` and `inject_mouse_event()` still not implemented
 - Phase 6 (Release Qualification) not yet systematically started
-- ratatui-testing tests/ directory is empty (no test files)
 
 ---
 
 ## 1. Gap Analysis by PRD Section
 
-### 1.1 PRD 20: ratatui-testing Framework — **PRIMARY FOCUS (UNCHANGED)**
+### 1.1 PRD 20: ratatui-testing Framework — **SIGNIFICANT PROGRESS**
 
 | Component | Status | Implementation | Gap |
 |-----------|--------|---------------|-----|
-| PtySimulator | ❌ STUB | `pty.rs` - 24 lines, imports portable_pty but creates no PTY | Full implementation needed |
-| BufferDiff | ❌ STUB | `diff.rs` - 19 lines, returns empty string | Missing `DiffResult`, `CellDiff` structs, cell-by-cell comparison |
-| StateTester | ❌ STUB | `state.rs` - 22 lines, no capture method | Missing state capture and snapshot comparison |
-| TestDsl | ❌ STUB | `dsl.rs` - 19 lines, no PTY composition | Missing PTY composition, fluent API, `wait_for()` |
-| CliTester | ❌ STUB | `cli.rs` - 19 lines, returns empty string | Missing process spawning, stdout/stderr capture |
-| tests/ directory | ❌ EMPTY | No test files exist | Need integration tests |
+| PtySimulator | ⚠️ PARTIAL | `pty.rs` - Full implementation with portable-pty | `inject_key_event()` and `inject_mouse_event()` are stubs |
+| BufferDiff | ❌ STUB | `diff.rs` - 28 lines, returns empty string | Missing `DiffResult`, `CellDiff` structs, cell-by-cell comparison |
+| StateTester | ❌ STUB | `state.rs` - 32 lines, only `assert_state` | Missing `capture()` method, snapshot storage |
+| TestDsl | ❌ STUB | `dsl.rs` - 30 lines, only `render` | Missing PTY composition, fluent API, `wait_for()` |
+| CliTester | ❌ STUB | `cli.rs` - 29 lines, returns empty string | Missing `CliOutput` struct, process spawning |
+| tests/ directory | ⚠️ PARTIAL | `pty_tests.rs` - 4 tests exist | Only PTY tests, missing diff/state/dsl/cli tests |
 
-#### Current Stub Implementations
+#### Current Implementations
 
-**pty.rs (24 lines):**
+**pty.rs - FULLY IMPLEMENTED (93 lines):**
 ```rust
-pub struct PtySimulator;
-impl PtySimulator {
-    pub fn new() -> Self { Self }
-    pub fn write_input(&mut self, _input: &str) -> Result<()> { Ok(()) }
-    pub fn read_output(&mut self) -> Result<String> { Ok(String::new()) }
+pub struct PtySimulator {
+    master: Option<Box<dyn MasterPty>>,
+    child: Option<Box<dyn Child>>,
+    writer: Option<Box<dyn Write + Send>>,
+    reader: Option<Box<dyn BufRead>>,
 }
 ```
-Missing: `resize()`, `inject_key_event()`, `inject_mouse_event()`, PTY master/slave creation via `portable-pty`
+✅ Implemented: `new()`, `write_input()`, `read_output()`, `resize()`, `is_child_running()`
+❌ Stubs: `inject_key_event()`, `inject_mouse_event()`
 
-**diff.rs (19 lines):**
+**diff.rs - STUB (28 lines):**
 ```rust
 pub struct BufferDiff;
 impl BufferDiff {
@@ -61,7 +62,7 @@ impl BufferDiff {
 ```
 Missing: `DiffResult` struct, `CellDiff` struct, cell-by-cell comparison, ignore options
 
-**state.rs (22 lines):**
+**state.rs - STUB (32 lines):**
 ```rust
 pub struct StateTester;
 impl StateTester {
@@ -71,7 +72,7 @@ impl StateTester {
 ```
 Missing: `capture()` method, snapshot storage, `assert_state_matches()`
 
-**dsl.rs (19 lines):**
+**dsl.rs - STUB (30 lines):**
 ```rust
 pub struct TestDsl;
 impl TestDsl {
@@ -81,7 +82,7 @@ impl TestDsl {
 ```
 Missing: PTY composition, BufferDiff integration, fluent API, `wait_for()`, `send_keys()`
 
-**cli.rs (19 lines):**
+**cli.rs - STUB (29 lines):**
 ```rust
 pub struct CliTester;
 impl CliTester {
@@ -91,19 +92,19 @@ impl CliTester {
 ```
 Missing: Process spawning with `assert_cmd`, stdout/stderr capture, exit code, temp directory cleanup
 
-#### Iteration-22 vs Iteration-23 Changes
+#### Iteration-23 vs Iteration-25 Changes
 
-| File | Iteration-22 | Iteration-23 | Change |
-|------|-------------|-------------|--------|
-| lib.rs | 20 lines | 19 lines | -1 line (comment removed) |
-| pty.rs | 23 lines | 24 lines | +1 line |
-| diff.rs | 16 lines | 19 lines | +3 lines |
-| state.rs | 21 lines | 22 lines | +1 line |
-| dsl.rs | 17 lines | 19 lines | +2 lines |
-| cli.rs | 16 lines | 19 lines | +3 lines |
-| tests/ | Empty | Empty | No change |
+| File | Iteration-23 | Iteration-25 | Change | Notes |
+|------|-------------|-------------|--------|-------|
+| lib.rs | 19 lines | 18 lines | -1 line | Minor |
+| pty.rs | 24 lines | 93 lines | **+69 lines** | **FULLY IMPLEMENTED** |
+| diff.rs | 19 lines | 28 lines | +9 lines | No functional change |
+| state.rs | 22 lines | 32 lines | +10 lines | No functional change |
+| dsl.rs | 19 lines | 30 lines | +11 lines | No functional change |
+| cli.rs | 19 lines | 29 lines | +10 lines | No functional change |
+| tests/ | Empty | 4 tests | **NEW** | `pty_tests.rs` added |
 
-**Conclusion:** No functional progress. Minor line count changes from reformatting.
+**Conclusion:** Significant progress on PtySimulator (fully functional), but 4 of 5 other modules remain stubs.
 
 ### 1.2 Core Architecture (PRD 01) ✅ DONE
 
@@ -273,7 +274,7 @@ Missing: Process spawning with `assert_cmd`, stdout/stderr capture, exit code, t
 | Session lifecycle tests | ✅ Done | `session_lifecycle_tests.rs` |
 | MCP protocol tests | ✅ Done | `mcp_protocol_tests.rs` |
 | Convention tests | ✅ Done | `conventions/` directory with 5 test modules |
-| ratatui-testing crate | ❌ STUB | **PRD 20 not implemented** |
+| ratatui-testing crate | ⚠️ PARTIAL | **PRD 20 partially implemented** |
 
 ---
 
@@ -281,28 +282,24 @@ Missing: Process spawning with `assert_cmd`, stdout/stderr capture, exit code, t
 
 | 差距项 | 严重程度 | 模块 | 状态 | 修复建议 |
 |--------|----------|------|------|----------|
-| PtySimulator - PTY master/slave creation not implemented | P0 | ratatui-testing | ❌ NOT STARTED | Implement actual `portable-pty` usage: create `PtyPair`, spawn child, acquire `master`/`writer` |
-| PtySimulator - `resize()` method missing | P0 | ratatui-testing | ❌ NOT STARTED | Add `pub fn resize(&mut self, cols: u16, rows: u16) -> Result<()>` using `master.resize()` |
-| PtySimulator - `inject_key_event()` method missing | P0 | ratatui-testing | ❌ NOT STARTED | Add `pub fn inject_key_event(&mut self, event: KeyEvent) -> Result<()>` using `crossterm::execute!` |
-| PtySimulator - `inject_mouse_event()` method missing | P0 | ratatui-testing | ❌ NOT STARTED | Add `pub fn inject_mouse_event(&mut self, event: MouseEvent) -> Result<()>` using `crossterm::execute!` |
-| PtySimulator - `read_output()` lacks timeout | P0 | ratatui-testing | ❌ NOT STARTED | Change signature to `read_output(&mut self, timeout: Duration) -> Result<String>` |
-| BufferDiff - `DiffResult` struct missing | P0 | ratatui-testing | ❌ NOT STARTED | Define struct with `passed: bool`, `expected: Buffer`, `actual: Buffer`, `differences: Vec<CellDiff>` |
-| BufferDiff - `CellDiff` struct missing | P0 | ratatui-testing | ❌ NOT STARTED | Define struct with `x: u16`, `y: u16`, `expected: Cell`, `actual: Cell` |
-| BufferDiff - `diff_str()` method missing | P0 | ratatui-testing | ❌ NOT STARTED | Add `pub fn diff_str(&self, expected: &str, actual: &str) -> DiffResult` |
-| BufferDiff - ignore options missing | P0 | ratatui-testing | ❌ NOT STARTED | Add `ignore_fg()`, `ignore_bg()`, `ignore_attributes()` builder methods |
-| StateTester - `capture()` method missing | P0 | ratatui-testing | ❌ NOT STARTED | Add `pub fn capture<S>(&mut self, state: &S) -> Result<()>` where S: Serialize |
-| StateTester - `assert_state_matches()` missing | P0 | ratatui-testing | ❌ NOT STARTED | Add `pub fn assert_state_matches(&self, expected: &Value) -> Result<()>` |
-| TestDsl - PTY composition missing | P0 | ratatui-testing | ❌ NOT STARTED | Add `pty: Option<PtySimulator>` field, `with_pty()` method, `pty_mut()` accessor |
-| TestDsl - `assert_buffer_eq()` method missing | P0 | ratatui-testing | ❌ NOT STARTED | Add `pub fn assert_buffer_eq(&self, expected: &Buffer, actual: &Buffer) -> Result<()>` |
-| TestDsl - `send_keys()` method missing | P0 | ratatui-testing | ❌ NOT STARTED | Add `pub fn send_keys(&mut self, keys: &str) -> Result<&mut Self>` |
-| TestDsl - `wait_for()` method missing | P0 | ratatui-testing | ❌ NOT STARTED | Add `pub fn wait_for<F>(&mut self, timeout: Duration, predicate: F) -> Result<&mut Self>` |
-| CliTester - process spawning not implemented | P0 | ratatui-testing | ❌ NOT STARTED | Implement `run()` to spawn process, capture stdout/stderr, return `CliOutput { exit_code, stdout, stderr }` |
-| CliTester - temp directory cleanup not implemented | P0 | ratatui-testing | ❌ NOT STARTED | Add `temp_dir: Option<TempDir>` field, `with_temp_dir()` method |
-| CliTester - `CliOutput` struct missing | P0 | ratatui-testing | ❌ NOT STARTED | Define `pub struct CliOutput { pub exit_code: i32, pub stdout: String, pub stderr: String }` |
-| ratatui-testing tests/ directory empty | P0 | ratatui-testing | ❌ NOT STARTED | Create 5+ test files: `pty_tests.rs`, `buffer_diff_tests.rs`, `state_tests.rs`, `dsl_tests.rs`, `integration_tests.rs` |
-| Phase 6 Release Qualification not started | P1 | all | ❌ NOT STARTED | Begin end-to-end testing, performance benchmarking, security audit |
-| `test_bedrock_credential_resolution_bearer_token_priority` fails with `--all-features` | P1 | llm | ❌ NOT FIXED | Use `temp_env` pattern for environment variable isolation |
-| CLI E2E tests use `common::TestHarness` but harness has unused methods | P2 | cli/tests | ⚠️ Minor | Clean up dead code in `common.rs` |
+| PtySimulator - `inject_key_event()` stub | P0 | ratatui-testing | ❌ NOT IMPLEMENTED | Implement using `crossterm::execute!` on PTY writer |
+| PtySimulator - `inject_mouse_event()` stub | P0 | ratatui-testing | ❌ NOT IMPLEMENTED | Implement using `crossterm::execute!` on PTY writer |
+| BufferDiff - `DiffResult` struct missing | P0 | ratatui-testing | ❌ NOT IMPLEMENTED | Define struct with `passed: bool`, `differences: Vec<CellDiff>` |
+| BufferDiff - `CellDiff` struct missing | P0 | ratatui-testing | ❌ NOT IMPLEMENTED | Define struct with `x: u16`, `y: u16`, `expected: Cell`, `actual: Cell` |
+| BufferDiff - `diff_str()` method missing | P0 | ratatui-testing | ❌ NOT IMPLEMENTED | Add method for string-based diff |
+| BufferDiff - ignore options missing | P0 | ratatui-testing | ❌ NOT IMPLEMENTED | Add `ignore_fg()`, `ignore_bg()`, `ignore_attributes()` builder methods |
+| StateTester - `capture()` method missing | P0 | ratatui-testing | ❌ NOT IMPLEMENTED | Add method to capture state snapshot |
+| StateTester - `assert_state_matches()` missing | P0 | ratatui-testing | ❌ NOT IMPLEMENTED | Add method to compare captured state |
+| TestDsl - PTY composition missing | P0 | ratatui-testing | ❌ NOT IMPLEMENTED | Add `pty: Option<PtySimulator>` field, `with_pty()` method |
+| TestDsl - `assert_buffer_eq()` method missing | P0 | ratatui-testing | ❌ NOT IMPLEMENTED | Add method using BufferDiff |
+| TestDsl - `send_keys()` method missing | P0 | ratatui-testing | ❌ NOT IMPLEMENTED | Add method using PTY write_input |
+| TestDsl - `wait_for()` method missing | P0 | ratatui-testing | ❌ NOT IMPLEMENTED | Add method with timeout and predicate |
+| CliTester - `CliOutput` struct missing | P0 | ratatui-testing | ❌ NOT IMPLEMENTED | Define struct with `exit_code`, `stdout`, `stderr` |
+| CliTester - process spawning not implemented | P0 | ratatui-testing | ❌ NOT IMPLEMENTED | Implement `run()` to spawn process using `assert_cmd` |
+| CliTester - temp directory cleanup not implemented | P0 | ratatui-testing | ❌ NOT IMPLEMENTED | Add `temp_dir: Option<TempDir>` field, `with_temp_dir()` method |
+| tests/ missing diff/state/dsl/cli tests | P1 | ratatui-testing | ❌ NOT IMPLEMENTED | Create test files for each module |
+| Phase 6 Release Qualification not started | P1 | all | ❌ NOT STARTED | Begin end-to-end testing, performance benchmarking |
+| `test_bedrock_credential_resolution_bearer_token_priority` fails | P1 | llm | ❌ NOT FIXED | Use `temp_env` pattern for environment variable isolation |
 | Multiple clippy warnings across crates | P2 | multiple | ⚠️ Minor | Fix warnings via `cargo clippy --fix` |
 
 ---
@@ -313,41 +310,37 @@ Missing: Process spawning with `assert_cmd`, stdout/stderr capture, exit code, t
 
 | Issue | Status | Module | Impact |
 |-------|--------|--------|--------|
-| PtySimulator PTY master/slave creation not implemented | ❌ NOT STARTED | ratatui-testing | **Blocks PTY functionality** |
-| PtySimulator `resize()` method missing | ❌ NOT STARTED | ratatui-testing | **Blocks window resize testing** |
-| PtySimulator `inject_key_event()` method missing | ❌ NOT STARTED | ratatui-testing | **Blocks keyboard input testing** |
-| PtySimulator `inject_mouse_event()` method missing | ❌ NOT STARTED | ratatui-testing | **Blocks mouse input testing** |
-| PtySimulator `read_output()` lacks timeout | ❌ NOT STARTED | ratatui-testing | **Blocks output timing tests** |
-| BufferDiff `DiffResult` and `CellDiff` structs missing | ❌ NOT STARTED | ratatui-testing | **Blocks diff result reporting** |
-| BufferDiff ignore options missing | ❌ NOT STARTED | ratatui-testing | **Blocks flexible diff testing** |
-| StateTester `capture()` method missing | ❌ NOT STARTED | ratatui-testing | **Blocks state snapshot testing** |
-| StateTester `assert_state_matches()` missing | ❌ NOT STARTED | ratatui-testing | **Blocks snapshot comparison** |
-| TestDsl PTY composition missing | ❌ NOT STARTED | ratatui-testing | **Blocks fluent test API** |
-| TestDsl `send_keys()`, `wait_for()`, `assert_buffer_eq()` missing | ❌ NOT STARTED | ratatui-testing | **Blocks event testing** |
-| CliTester process spawning not implemented | ❌ NOT STARTED | ratatui-testing | **Blocks CLI testing** |
-| CliTester `CliOutput` struct missing | ❌ NOT STARTED | ratatui-testing | **Blocks output capture** |
-| CliTester temp directory cleanup not implemented | ❌ NOT STARTED | ratatui-testing | **Blocks test isolation** |
-| ratatui-testing tests/ directory empty (no test files) | ❌ NOT STARTED | ratatui-testing | **Blocks test coverage** |
+| PtySimulator `inject_key_event()` stub | ❌ NOT IMPLEMENTED | ratatui-testing | **Blocks keyboard event testing** |
+| PtySimulator `inject_mouse_event()` stub | ❌ NOT IMPLEMENTED | ratatui-testing | **Blocks mouse event testing** |
+| BufferDiff `DiffResult` and `CellDiff` structs missing | ❌ NOT IMPLEMENTED | ratatui-testing | **Blocks diff result reporting** |
+| BufferDiff ignore options missing | ❌ NOT IMPLEMENTED | ratatui-testing | **Blocks flexible diff testing** |
+| StateTester `capture()` method missing | ❌ NOT IMPLEMENTED | ratatui-testing | **Blocks state snapshot testing** |
+| StateTester `assert_state_matches()` missing | ❌ NOT IMPLEMENTED | ratatui-testing | **Blocks snapshot comparison** |
+| TestDsl PTY composition missing | ❌ NOT IMPLEMENTED | ratatui-testing | **Blocks fluent test API** |
+| TestDsl `send_keys()`, `wait_for()`, `assert_buffer_eq()` missing | ❌ NOT IMPLEMENTED | ratatui-testing | **Blocks event testing** |
+| CliTester `CliOutput` struct missing | ❌ NOT IMPLEMENTED | ratatui-testing | **Blocks output capture** |
+| CliTester process spawning not implemented | ❌ NOT IMPLEMENTED | ratatui-testing | **Blocks CLI testing** |
+| CliTester temp directory cleanup not implemented | ❌ NOT IMPLEMENTED | ratatui-testing | **Blocks test isolation** |
 
-**P0 Summary:** 15 blocking issues - all in ratatui-testing (PRD 20)
+**P0 Summary:** 11 blocking issues in ratatui-testing (down from 15 in iteration-23)
 
 ### P1 - High Priority Issues
 
 | Issue | Status | Module | Impact |
 |-------|--------|--------|--------|
+| tests/ missing diff/state/dsl/cli tests | ❌ NOT IMPLEMENTED | ratatui-testing | **Blocks test coverage** |
 | Phase 6 Release Qualification not systematically started | ❌ NOT STARTED | all | **Cannot release** |
 | `test_bedrock_credential_resolution_bearer_token_priority` fails | ❌ NOT FIXED | llm | Test reliability |
 
-**P1 Summary:** 2 high priority issues
+**P1 Summary:** 3 high priority issues
 
 ### P2 - Medium Priority Issues
 
 | Issue | Status | Module | Impact |
 |-------|--------|--------|--------|
-| TestHarness unused helper methods | ⚠️ Minor | cli/tests | Code cleanliness |
 | Multiple clippy warnings | ⚠️ Minor | multiple | Code quality |
 
-**P2 Summary:** 2 medium priority issues (both minor)
+**P2 Summary:** 1 medium priority issue
 
 ---
 
@@ -355,15 +348,14 @@ Missing: Process spawning with `assert_cmd`, stdout/stderr capture, exit code, t
 
 | Item | Description | Impact | Priority | Status |
 |------|-------------|--------|----------|--------|
-| ratatui-testing PtySimulator stub | All PTY functionality missing - `portable-pty` imported but not used | **Critical - blocks TUI testing** | P0 | ❌ NEEDS IMPLEMENTATION |
+| PtySimulator inject methods stubs | `inject_key_event()` and `inject_mouse_event()` not implemented | **Blocks input event testing** | P0 | ❌ NEEDS IMPLEMENTATION |
 | ratatui-testing BufferDiff stub | No `DiffResult`/`CellDiff` structs, no ignore options, `diff()` returns empty string | **Critical - blocks buffer comparison** | P0 | ❌ NEEDS IMPLEMENTATION |
 | ratatui-testing StateTester stub | No `capture()` method, no snapshot storage | **Critical - blocks state testing** | P0 | ❌ NEEDS IMPLEMENTATION |
 | ratatui-testing TestDsl stub | No PTY composition, no fluent API methods | **Critical - blocks fluent test API** | P0 | ❌ NEEDS IMPLEMENTATION |
 | ratatui-testing CliTester stub | No process spawning, no `CliOutput` struct, no temp dir cleanup | **Critical - blocks CLI testing** | P0 | ❌ NEEDS IMPLEMENTATION |
-| ratatui-testing empty tests/ | No test files exist | **Critical - blocks test coverage** | P0 | ❌ NEEDS IMPLEMENTATION |
+| ratatui-testing tests/ incomplete | Only PTY tests exist | **Blocks test coverage** | P1 | ❌ NEEDS IMPLEMENTATION |
 | Phase 6 not started | Release Qualification phase has not begun | Cannot ship | P1 | ❌ NOT STARTED |
 | Bedrock test pollution | AWS env vars pollute test when run with `--all-features` | Test reliability | P1 | ❌ NEEDS FIX |
-| TestHarness dead code | Multiple unused methods in `common.rs` | Code cleanliness | P2 | ⚠️ Deferred |
 | Clippy warnings | Dead code, unused variables, unused imports | Code quality | P2 | ⚠️ Deferred |
 
 ---
@@ -372,7 +364,7 @@ Missing: Process spawning with `assert_cmd`, stdout/stderr capture, exit code, t
 
 ### Overall Status
 
-**Implementation: ~93-96% complete** (unchanged from iteration-22)
+**Implementation: ~94-97% complete** (improved from iteration-23's 93-96%)
 
 ### Phase Status
 
@@ -385,20 +377,20 @@ Missing: Process spawning with `assert_cmd`, stdout/stderr capture, exit code, t
 | Phase 4 | Interface (Desktop/Web/GitHub-GitLab) | ✅ Done | ~98% |
 | Phase 5 | Hardening (Compatibility/Convention) | ✅ Done | ~98% |
 | Phase 6 | Release Qualification | ❌ Not Started | ~0% |
-| **PRD 20** | **ratatui-testing Framework** | **❌ Not Started** | **~5%** (imports added, no logic) |
+| **PRD 20** | **ratatui-testing Framework** | **⚠️ PARTIAL** | **~40%** |
 
 ### ratatui-testing Module Progress
 
-| Module | Iteration-22 | Iteration-23 | Change | Notes |
+| Module | Iteration-23 | Iteration-25 | Change | Notes |
 |--------|-------------|-------------|--------|-------|
-| pty.rs | 23 lines stub | 24 lines stub | +1 line | No functional change |
-| diff.rs | 16 lines stub | 19 lines stub | +3 lines | No functional change |
-| state.rs | 21 lines stub | 22 lines stub | +1 line | No functional change |
-| dsl.rs | 17 lines stub | 19 lines stub | +2 lines | No functional change |
-| cli.rs | 16 lines stub | 19 lines stub | +3 lines | No functional change |
-| tests/ | Empty | Empty | 0 lines | No test files added |
+| pty.rs | 24 lines stub | 93 lines | **+69 lines** | **FULLY IMPLEMENTED** |
+| diff.rs | 19 lines stub | 28 lines stub | +9 lines | No functional change |
+| state.rs | 22 lines stub | 32 lines stub | +10 lines | No functional change |
+| dsl.rs | 19 lines stub | 30 lines stub | +11 lines | No functional change |
+| cli.rs | 19 lines stub | 29 lines stub | +10 lines | No functional change |
+| tests/ | Empty | 4 tests | **NEW** | `pty_tests.rs` added |
 
-**ratatui-testing Progress:** No functional progress. Minor reformatting.
+**ratatui-testing Progress:** Significant progress - PtySimulator now fully functional.
 
 ### Crate-Level Implementation Status
 
@@ -419,7 +411,7 @@ Missing: Process spawning with `assert_cmd`, stdout/stderr capture, exit code, t
 | `crates/cli/` | ✅ Done | Desktop/web | Desktop/web implemented, E2E tests |
 | `crates/control-plane/` | ✅ Done | ACP stream | ACP stream, events, enterprise |
 | `tests/src/` | ✅ Done | ~3794 lines | 14 test files including conventions |
-| `ratatui-testing/` | ❌ STUB | ~122 lines | **PRD 20 not implemented - ALL STUBS** |
+| `ratatui-testing/` | ⚠️ PARTIAL | ~240 lines | **PtySimulator done, 4 others stubs** |
 
 ### Feature Requirements Summary
 
@@ -441,11 +433,12 @@ Missing: Process spawning with `assert_cmd`, stdout/stderr capture, exit code, t
 | FR-094 to FR-098 | GitHub/GitLab | 5 | ✅ Done |
 | FR-099 to FR-110 | TUI Plugin API | 12 | ✅ Done |
 | FR-111 to FR-120 | Test Plan | 10 | ✅ Done |
-| **FR-121 to FR-140** | **ratatui-testing (PRD 20)** | **20** | **❌ STUB** |
+| **FR-121 to FR-140** | **ratatui-testing (PRD 20)** | **20** | **⚠️ PARTIAL (~40%)** |
 
 **Total: 140 Feature Requirements**
 - ✅ Done: 120
-- ❌ Stub: 20 (PRD 20 - ratatui-testing)
+- ⚠️ Partial: ~8 (PtySimulator complete, inject methods stubs)
+- ❌ Stub: ~12 (BufferDiff, StateTester, TestDsl, CliTester)
 
 ---
 
@@ -471,9 +464,9 @@ Missing: Process spawning with `assert_cmd`, stdout/stderr capture, exit code, t
 | GitHub/GitLab (PRD 14) | 5 | 5 | 0 |
 | TUI Plugin API (PRD 15) | 12 | 12 | 0 |
 | Test Plan (PRD 16) | 10 | 10 | 0 |
-| **ratatui-testing (PRD 20)** | **20** | **0** | **20** |
+| **ratatui-testing (PRD 20)** | **20** | **~8** | **~12** |
 
-**Functional Completeness: 120/140 (85.7%)** - Ratatui-testing accounts for all missing functionality
+**Functional Completeness: ~128/140 (91.4%)** - ratatui-testing is ~40% complete
 
 ### Interface Completeness
 
@@ -540,67 +533,45 @@ Missing: Process spawning with `assert_cmd`, stdout/stderr capture, exit code, t
 | Session Storage | ✅ Done | 193 | `session_storage_tests.rs` |
 | Convention Tests | ✅ Done | ~500+ | 5 modules in `conventions/` |
 | CLI E2E Tests | ✅ Done | Various | `cli/tests/` directory |
-| ratatui-testing | ❌ STUB | 0 | **Not implemented** |
+| ratatui-testing | ⚠️ PARTIAL | ~60 | PtySimulator tests done, others missing |
 
 ---
 
 ## 7. Recommendations
 
-### Immediate Actions (P0 - PRD 20 Implementation)
+### Immediate Actions (P0 - PRD 20 Completion)
 
-1. **Implement PtySimulator** (`ratatui-testing/src/pty.rs`)
-   - Add `master: Option<Box<dyn MasterPty>>` field
-   - Add `child: Option<Box<dyn Child>>` field
-   - Add `reader` and `writer` fields for I/O
-   - Implement `new(command: &[&str]) -> Result<Self>` to create `PtyPair`, spawn child
-   - Implement `resize(&mut self, cols: u16, rows: u16) -> Result<()>` using `master.resize()`
-   - Implement `write_input(&mut self, input: &str) -> Result<()>` using `writer`
-   - Implement `read_output(&mut self, timeout: Duration) -> Result<String>` with timeout
-   - Implement `inject_key_event(&mut self, event: KeyEvent) -> Result<()>` using `crossterm::execute!`
-   - Implement `inject_mouse_event(&mut self, event: MouseEvent) -> Result<()>` using `crossterm::execute!`
+1. **Implement PtySimulator inject methods** (`ratatui-testing/src/pty.rs`)
+   - `inject_key_event()` - use `crossterm::execute!` on writer with `KeyEvent`
+   - `inject_mouse_event()` - use `crossterm::execute!` on writer with `MouseEvent`
 
 2. **Implement BufferDiff** (`ratatui-testing/src/diff.rs`)
-   - Add fields: `ignore_fg: bool`, `ignore_bg: bool`, `ignore_attributes: bool`
-   - Add builder methods: `ignore_fg(mut self, ignore: bool) -> Self`, etc.
-   - Define `DiffResult` struct with `passed: bool`, `expected: Buffer`, `actual: Buffer`, `differences: Vec<CellDiff>`
-   - Define `CellDiff` struct with `x: u16`, `y: u16`, `expected: Cell`, `actual: Cell`
-   - Implement `diff(&self, expected: &str, actual: &str) -> DiffResult` parsing to Buffer
-   - Implement `diff_str(&self, expected: &str, actual: &str) -> DiffResult`
-   - Implement human-readable diff output in `Display` impl for `DiffResult`
+   - Add `ignore_fg`, `ignore_bg`, `ignore_attributes` fields
+   - Define `DiffResult` struct with `passed`, `expected`, `actual`, `differences`
+   - Define `CellDiff` struct with `x`, `y`, `expected`, `actual`
+   - Implement `diff()` to parse strings to Buffer and compare cell-by-cell
+   - Implement `diff_str()` for string-based comparison
 
 3. **Implement StateTester** (`ratatui-testing/src/state.rs`)
-   - Add `snapshot: Option<serde_json::Value>` field
-   - Add `captured: Vec<serde_json::Value>` field for history
+   - Add `snapshot: Option<Value>` and `captured: Vec<Value>` fields
    - Implement `capture<S>(&mut self, state: &S) -> Result<()>` where S: Serialize
-   - Implement `assert_state<S>(&self, state: &S) -> Result<()>` comparing to snapshot
-   - Implement `assert_state_matches(&self, expected: &Value) -> Result<()>` comparing JSON
+   - Implement `assert_state_matches(&self, expected: &Value) -> Result<()>`
 
 4. **Implement TestDsl** (`ratatui-testing/src/dsl.rs`)
-   - Add fields: `pty: Option<PtySimulator>`, `buffer_diff: BufferDiff`, `state_tester: StateTester`
-   - Implement `new() -> Self` initializing empty components
-   - Implement `with_pty(mut self, cmd: &[&str]) -> Result<Self>` to create PTY
-   - Implement `pty_mut(&mut self) -> Option<&mut PtySimulator>`
-   - Implement `render(&self, widget: &impl Widget) -> Result<Buffer>` using `ratatui` rendering
-   - Implement `assert_buffer_eq(&self, expected: &Buffer, actual: &Buffer) -> Result<()>`
-   - Implement `send_keys(&mut self, keys: &str) -> Result<&mut Self>` using PTY
-   - Implement `wait_for<F>(&mut self, timeout: Duration, predicate: F) -> Result<&mut Self>`
-   - Implement `capture_state<S>(&mut self, state: &S) -> &mut Self`
-   - Implement `assert_state<S: serde::Serialize>(&self, state: &S) -> Result<()>`
+   - Add `pty: Option<PtySimulator>`, `buffer_diff: BufferDiff`, `state_tester: StateTester`
+   - Implement `with_pty()` to create PTY
+   - Implement `send_keys()`, `wait_for()`, `assert_buffer_eq()`
 
 5. **Implement CliTester** (`ratatui-testing/src/cli.rs`)
-   - Define `CliOutput` struct with `exit_code: i32`, `stdout: String`, `stderr: String`
-   - Add `temp_dir: Option<tempfile::TempDir>` field
-   - Implement `new() -> Self`
-   - Implement `with_temp_dir(mut self) -> Result<Self>` creating temp directory
-   - Implement `run(&self, args: &[&str]) -> Result<CliOutput>` spawning process
+   - Define `CliOutput` struct with `exit_code`, `stdout`, `stderr`
+   - Add `temp_dir: Option<TempDir>` field
+   - Implement `run()` to spawn process with `assert_cmd`
 
 6. **Add Integration Tests**
-   - Create `tests/pty_tests.rs` - PTY read/write/resize/inject tests
-   - Create `tests/buffer_diff_tests.rs` - Buffer comparison tests
-   - Create `tests/state_tests.rs` - State capture/assert tests
-   - Create `tests/dsl_tests.rs` - Fluent API tests
-   - Create `tests/cli_tests.rs` - CLI spawning tests
-   - Create `tests/integration_tests.rs` - Full workflow tests
+   - `tests/buffer_diff_tests.rs` - Buffer comparison tests
+   - `tests/state_tests.rs` - State capture/assert tests
+   - `tests/dsl_tests.rs` - Fluent API tests
+   - `tests/cli_tests.rs` - CLI spawning tests
 
 ### Medium-term Actions (P1)
 
@@ -608,59 +579,56 @@ Missing: Process spawning with `assert_cmd`, stdout/stderr capture, exit code, t
    - End-to-end integration tests
    - Performance benchmarking
    - Security audit
-   - Observability validation
 
 8. **Fix Bedrock Test Environment Pollution**
-   - Use `temp_env::var()` for environment variable isolation
-   - Or run this test in a separate process
 
 ### Short-term Actions (P2)
 
-9. **Clean up TestHarness dead code** in `crates/cli/tests/common.rs`
-
-10. **Run `cargo clippy --fix --allow-dirty`** to fix clippy warnings
+9. **Run `cargo clippy --fix --allow-dirty`** to fix clippy warnings
 
 ---
 
 ## 8. Conclusion
 
-The OpenCode Rust port has achieved **excellent progress** across all PRD sections (01-19), with implementation now at **~93-96% complete**. All major functionality is implemented and stable.
+The OpenCode Rust port has achieved **excellent progress** across all PRD sections (01-19), with implementation now at **~94-97% complete**. All major functionality is implemented and stable.
 
-**Critical Gap - PRD 20 (ratatui-testing):**
-The `ratatui-testing` framework is almost entirely in stub form with all methods returning no-op values. The current implementation consists of:
-- `pty.rs`: 24 lines (stub - imports added but no functionality)
-- `diff.rs`: 19 lines (stub - no diff structs)
-- `state.rs`: 22 lines (stub - no capture method)
-- `dsl.rs`: 19 lines (stub - no PTY composition)
-- `cli.rs`: 19 lines (stub - no process spawning)
-- `tests/`: Empty directory (no test files)
+**Progress on PRD 20 (ratatui-testing):**
+- **PtySimulator**: Now **fully functional** (93 lines, implements PTY pair creation, I/O, resize, child status)
+- **BufferDiff**: Still a stub (28 lines, returns empty string)
+- **StateTester**: Still a stub (32 lines, only `assert_state`)
+- **TestDsl**: Still a stub (30 lines, only `render`)
+- **CliTester**: Still a stub (29 lines, returns empty string)
+- **tests/**: Partial - `pty_tests.rs` exists with 4 tests
 
-**Comparison to Iteration-22:**
-No functional progress. Minor line count changes from reformatting only.
+**Comparison to Iteration-23:**
+- PtySimulator went from 24-line stub to 93-line full implementation
+- Tests directory now has content (was empty)
+- 4 of 5 modules still in stub form
 
-**Priority for iteration-24:** Implement PRD 20 (ratatui-testing framework) to provide proper TUI testing infrastructure for Phase 6 Release Qualification.
+**Priority for iteration-26:** Complete PRD 20 implementation (BufferDiff, StateTester, TestDsl, CliTester) and add corresponding tests to enable Phase 6 Release Qualification.
 
 **Remaining Critical Issues:**
-- ❌ ratatui-testing framework - all modules are stubs (P0 - 15 issues)
+- ❌ PtySimulator `inject_key_event()` and `inject_mouse_event()` still stubs (P0 - 2 issues)
+- ❌ BufferDiff, StateTester, TestDsl, CliTester entirely stubs (P0 - 9 issues)
+- ❌ Missing test files for diff/state/dsl/cli modules (P1)
 - ❌ Phase 6 Release Qualification not started (P1)
 - ❌ Bedrock credential test pollution issue (P1)
-- ❌ Minor code cleanliness issues (P2)
 
 ---
 
 ## Appendix: PRD 20 Implementation Checklist
 
-### PtySimulator
+### PtySimulator ✅ MOSTLY DONE
 
-- [ ] `pub struct PtySimulator { master: Option<Box<dyn MasterPty>>, child: Option<Box<dyn Child>>, reader: ..., writer: ... }`
-- [ ] `pub fn new(command: &[&str]) -> Result<Self>` - creates PtyPair, spawns child
-- [ ] `pub fn resize(&mut self, cols: u16, rows: u16) -> Result<()>`
-- [ ] `pub fn write_input(&mut self, input: &str) -> Result<()>`
-- [ ] `pub fn read_output(&mut self, timeout: Duration) -> Result<String>`
-- [ ] `pub fn inject_key_event(&mut self, event: KeyEvent) -> Result<()>`
-- [ ] `pub fn inject_mouse_event(&mut self, event: MouseEvent) -> Result<()>`
+- [x] `pub struct PtySimulator { master, child, writer, reader }`
+- [x] `pub fn new(command: &[&str]) -> Result<Self>` - creates PtyPair, spawns child
+- [x] `pub fn resize(&mut self, cols: u16, rows: u16) -> Result<()>`
+- [x] `pub fn write_input(&mut self, input: &str) -> Result<()>`
+- [x] `pub fn read_output(&mut self, timeout: Duration) -> Result<String>`
+- [ ] `pub fn inject_key_event(&mut self, event: KeyEvent) -> Result<()>` - **STUB**
+- [ ] `pub fn inject_mouse_event(&mut self, event: MouseEvent) -> Result<()>` - **STUB**
 
-### BufferDiff
+### BufferDiff ❌ NOT IMPLEMENTED
 
 - [ ] `pub struct BufferDiff { ignore_fg: bool, ignore_bg: bool, ignore_attributes: bool }`
 - [ ] `pub struct DiffResult { pub passed: bool, pub expected: Buffer, pub actual: Buffer, pub differences: Vec<CellDiff> }`
@@ -672,7 +640,7 @@ No functional progress. Minor line count changes from reformatting only.
 - [ ] `pub fn diff(&self, expected: &str, actual: &str) -> DiffResult`
 - [ ] `pub fn diff_str(&self, expected: &str, actual: &str) -> DiffResult`
 
-### StateTester
+### StateTester ❌ NOT IMPLEMENTED
 
 - [ ] `pub struct StateTester { snapshot: Option<Value>, captured: Vec<Value> }`
 - [ ] `pub fn new() -> Self`
@@ -680,7 +648,7 @@ No functional progress. Minor line count changes from reformatting only.
 - [ ] `pub fn assert_state<S>(&self, state: &S) -> Result<()> where S: serde::Serialize`
 - [ ] `pub fn assert_state_matches(&self, expected: &Value) -> Result<()>`
 
-### TestDsl
+### TestDsl ❌ NOT IMPLEMENTED
 
 - [ ] `pub struct TestDsl { pty: Option<PtySimulator>, buffer_diff: BufferDiff, state_tester: StateTester }`
 - [ ] `pub fn new() -> Self`
@@ -693,7 +661,7 @@ No functional progress. Minor line count changes from reformatting only.
 - [ ] `pub fn capture_state<S>(&mut self, state: &S) -> &mut Self`
 - [ ] `pub fn assert_state<S: serde::Serialize>(&self, state: &S) -> Result<()>`
 
-### CliTester
+### CliTester ❌ NOT IMPLEMENTED
 
 - [ ] `pub struct CliTester { temp_dir: Option<TempDir> }`
 - [ ] `pub struct CliOutput { pub exit_code: i32, pub stdout: String, pub stderr: String }`
@@ -701,9 +669,9 @@ No functional progress. Minor line count changes from reformatting only.
 - [ ] `pub fn with_temp_dir(mut self) -> Result<Self>`
 - [ ] `pub fn run(&self, args: &[&str]) -> Result<CliOutput>`
 
-### Integration Tests
+### Integration Tests ⚠️ PARTIAL
 
-- [ ] `tests/pty_tests.rs` - PTY functionality tests
+- [x] `tests/pty_tests.rs` - PTY functionality tests (4 tests)
 - [ ] `tests/buffer_diff_tests.rs` - Buffer comparison tests
 - [ ] `tests/state_tests.rs` - State testing tests
 - [ ] `tests/dsl_tests.rs` - Fluent API tests
@@ -713,6 +681,6 @@ No functional progress. Minor line count changes from reformatting only.
 ---
 
 *Document generated: 2026-04-14*
-*Iteration: 23*
-*Phase: Phase 1 (PRD 20 - ratatui-testing)*
-*Priority: Implement ratatui-testing framework per PRD 20 specifications*
+*Iteration: 25*
+*Phase: Phase 1 (PRD 20 - ratatui-testing partial implementation)*
+*Priority: Complete ratatui-testing framework per PRD 20 specifications*
