@@ -205,7 +205,7 @@
       "priority": "P2",
       "title": "Implement ratatui-testing StateTester (FR-023.3)",
       "description": "Implement StateTester for capturing serializable state to JSON, comparing current state to captured snapshot, and reporting mismatches with JSON diff.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify capture() method serializes state to JSON",
         "AddUnitTest: verify assert_state() compares current to snapshot",
