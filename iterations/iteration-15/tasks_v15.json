@@ -585,18 +585,18 @@
       "priority": "P2",
       "title": "Deprecated tools field",
       "description": "Technical debt Medium: Deprecated tools field to be removed after migration period.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify tools field still works during deprecation period",
         "AddUnitTest: verify warning emitted when tools field used",
         "AddMigrationTest: verify migration from tools to new structure works"
       ],
       "test_commands": [
-        "cargo test -p opencode-core -- deprecated_tools",
+        "cargo test -p opencode-config -- deprecated_tools",
         "cargo clippy --all -- -D warnings",
         "cargo build --release"
       ],
-      "impl_notes": "Remove after migration period.",
+      "impl_notes": "Remove after migration period. Implementation: check_and_migrate_deprecated_fields() in crates/config/src/lib.rs handles migration from deprecated 'tools' field to 'permission' structure.",
       "dependencies": []
     },
     {

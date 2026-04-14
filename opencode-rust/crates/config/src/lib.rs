@@ -1050,7 +1050,7 @@ impl Config {
                 || path.extension().and_then(|s| s.to_str()) == Some("jsonc")
                 || path.extension().and_then(|s| s.to_str()) == Some("json5")
             {
-                Self::parse_json_content(&content)?
+                Config::parse_json_content(&content)?
             } else {
                 let config: Config = toml::from_str(&content).map_err(|e| ConfigError::Config(format!(
                     "Failed to parse TOML config {}: {}. Check your config file for syntax errors (e.g., missing quotes, invalid arrays).",
@@ -1081,13 +1081,13 @@ impl Config {
         };
 
         let mut value = value;
-        Self::check_deprecated_fields(&value);
+        Self::check_and_migrate_deprecated_fields(&mut value);
         Self::expand_variables(&mut value).map_err(|e| ConfigError::Config(e.to_string()))?;
         serde_json::from_value(value).map_err(|e| ConfigError::Config(e.to_string()))
     }
 
-    fn check_deprecated_fields(value: &serde_json::Value) {
-        if let Some(obj) = value.as_object() {
+    fn check_and_migrate_deprecated_fields(value: &mut serde_json::Value) {
+        if let Some(obj) = value.as_object_mut() {
             let deprecated_fields = [
                 ("mode", "Use 'agent[].permission' instead. Will be removed in v4.0."),
                 ("tools", "Use 'permission' field instead. Will be removed in v4.0."),
@@ -1119,6 +1119,54 @@ impl Config {
                         }
                     }
                 }
+            }
+
+            Self::migrate_deprecated_tools_field(obj);
+        }
+    }
+
+    fn migrate_deprecated_tools_field(obj: &mut serde_json::Map<String, serde_json::Value>) {
+        if let Some(tools_value) = obj.remove("tools") {
+            if let Some(tools_array) = tools_value.as_array() {
+                let mut permission_obj = serde_json::Map::new();
+
+                for tool_name in tools_array {
+                    if let Some(name) = tool_name.as_str() {
+                        let permission_value = match name {
+                            "read" | "edit" | "glob" | "grep" | "list" | "bash" | "task"
+                            | "lsp" | "skill" | "external_directory" => {
+                                serde_json::json!({"action": "allow"})
+                            }
+                            _ => {
+                                serde_json::json!({"action": "allow"})
+                            }
+                        };
+                        permission_obj.insert(name.to_string(), permission_value);
+                    }
+                }
+
+                if !permission_obj.is_empty() {
+                    if let Some(existing_permission) = obj.get("permission") {
+                        if let Some(existing_obj) = existing_permission.as_object() {
+                            let mut merged = existing_obj.clone();
+                            for (k, v) in permission_obj {
+                                merged.entry(k).or_insert(v);
+                            }
+                            obj.insert("permission".to_string(), serde_json::Value::Object(merged));
+                        }
+                    } else {
+                        obj.insert(
+                            "permission".to_string(),
+                            serde_json::Value::Object(permission_obj),
+                        );
+                    }
+                }
+
+                tracing::warn!(
+                    "Deprecated 'tools' field has been migrated to 'permission'. \
+                    Please update your config to use the new 'permission' structure. \
+                    See https://docs.opencode.ai/config/migration for migration guide."
+                );
             }
         }
     }
@@ -3199,6 +3247,164 @@ mod tests {
         assert!(
             output.contains("agent.build.mode"),
             "Warning about deprecated 'agent.<name>.mode' field should have been emitted, but got: {}",
+            output
+        );
+    }
+
+    #[test]
+    fn test_deprecated_tools_field_still_parses() {
+        let json_content = r#"{
+            "model": "test-model",
+            "tools": ["read", "write", "bash"]
+        }"#;
+        let result = Config::parse_json_content(json_content);
+        assert!(result.is_ok(), "Deprecated 'tools' field should not cause parse error");
+        let config = result.unwrap();
+        assert_eq!(config.model, Some("test-model".to_string()));
+    }
+
+    #[test]
+    fn test_deprecated_tools_field_migrates_to_permission() {
+        let json_content = r#"{
+            "model": "test-model",
+            "tools": ["read", "write", "bash"]
+        }"#;
+        let result = Config::parse_json_content(json_content);
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        assert!(
+            config.permission.is_some(),
+            "permission field should be created from migration"
+        );
+    }
+
+    #[test]
+    fn test_deprecated_tools_field_migration_content() {
+        let json_content = r#"{
+            "tools": ["read", "bash"]
+        }"#;
+        let result = Config::parse_json_content(json_content);
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        let permission = config.permission.expect("permission should exist after migration");
+        assert!(
+            permission.read.is_some(),
+            "read permission should be set"
+        );
+        assert!(
+            permission.bash.is_some(),
+            "bash permission should be set"
+        );
+    }
+
+    #[test]
+    fn test_deprecated_tools_merges_with_existing_permission() {
+        let json_content = r#"{
+            "permission": {
+                "read": {"action": "deny"}
+            },
+            "tools": ["write", "bash"]
+        }"#;
+        let result = Config::parse_json_content(json_content);
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        let permission = config.permission.expect("permission should exist");
+        assert!(permission.read.is_some(), "read permission should exist");
+        assert!(
+            permission.bash.is_some(),
+            "bash permission should exist from migration"
+        );
+    }
+
+    #[test]
+    fn test_deprecated_tools_empty_array() {
+        let json_content = r#"{
+            "tools": []
+        }"#;
+        let result = Config::parse_json_content(json_content);
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        assert!(
+            config.permission.is_none(),
+            "permission should not be created for empty tools array"
+        );
+    }
+
+    #[test]
+    fn test_deprecated_tools_preserves_other_fields() {
+        let json_content = r#"{
+            "model": "gpt-4",
+            "temperature": 0.7,
+            "tools": ["read"],
+            "provider": {
+                "openai": {}
+            }
+        }"#;
+        let result = Config::parse_json_content(json_content);
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        assert_eq!(config.model, Some("gpt-4".to_string()));
+        assert_eq!(config.temperature, Some(0.7));
+        assert!(config.provider.is_some());
+        assert!(config.permission.is_some());
+    }
+
+    #[test]
+    fn test_deprecated_tools_emits_warning() {
+        use tracing::Level;
+
+        let json_content = r#"{
+            "tools": ["read", "write"]
+        }"#;
+
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let path = temp_file.path().to_path_buf();
+
+        let subscriber = tracing_subscriber::fmt()
+            .with_max_level(Level::WARN)
+            .with_writer(std::fs::File::create(&path).unwrap())
+            .with_ansi(false)
+            .finish();
+
+        tracing::subscriber::with_default(subscriber, || {
+            let result = Config::parse_json_content(json_content);
+            assert!(result.is_ok());
+        });
+
+        let output = std::fs::read_to_string(&path).unwrap();
+        assert!(
+            output.contains("Deprecated config field 'tools'"),
+            "Warning about deprecated 'tools' field should have been emitted, but got: {}",
+            output
+        );
+    }
+
+    #[test]
+    fn test_deprecated_tools_migration_emits_warning() {
+        use tracing::Level;
+
+        let json_content = r#"{
+            "tools": ["read", "bash"]
+        }"#;
+
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let path = temp_file.path().to_path_buf();
+
+        let subscriber = tracing_subscriber::fmt()
+            .with_max_level(Level::WARN)
+            .with_writer(std::fs::File::create(&path).unwrap())
+            .with_ansi(false)
+            .finish();
+
+        tracing::subscriber::with_default(subscriber, || {
+            let result = Config::parse_json_content(json_content);
+            assert!(result.is_ok());
+        });
+
+        let output = std::fs::read_to_string(&path).unwrap();
+        assert!(
+            output.contains("migrated to 'permission'"),
+            "Warning about migration should have been emitted, but got: {}",
             output
         );
     }

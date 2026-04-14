@@ -411,9 +411,9 @@ cargo build --release                          # Passed
 **Severity:** Medium  
 **Action:** Remove in v4.0 - Added regression tests and unit tests for deprecated mode field warning.
 
-### TD-008: Deprecated tools field
+### TD-008: ✅ Done
 **Severity:** Medium  
-**Action:** Remove after migration period
+**Action:** Remove after migration period - Added migration logic and tests for deprecated tools field.
 
 ### TD-009: Deprecated theme field
 **Severity:** Low  
