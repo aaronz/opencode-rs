@@ -3644,7 +3644,8 @@ mod error_handling_tests {
 
     #[actix_web::test]
     async fn test_extra_unknown_fields_accepted_in_add_message() {
-        let json_str = r#"{"role": "user", "content": "hello", "unknown_field": "value", "extra": 123}"#;
+        let json_str =
+            r#"{"role": "user", "content": "hello", "unknown_field": "value", "extra": 123}"#;
         let result: Result<crate::routes::session::AddMessageRequest, _> =
             serde_json::from_str(json_str);
         assert!(
@@ -3746,10 +3747,7 @@ mod error_handling_tests {
         let req = TestRequest::default().to_http_request();
         let result: Result<crate::routes::session::AddMessageRequest, _> =
             serde_json::from_str(r#""#);
-        assert!(
-            result.is_err(),
-            "Empty body should fail to deserialize"
-        );
+        assert!(result.is_err(), "Empty body should fail to deserialize");
     }
 
     #[actix_web::test]
@@ -3775,7 +3773,8 @@ mod error_handling_tests {
         .await
         .respond_to(&req);
         assert!(
-            resp.status() == StatusCode::NOT_FOUND || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+            resp.status() == StatusCode::NOT_FOUND
+                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
             "Operation on non-existent session should return 404 or 500"
         );
     }
@@ -3792,7 +3791,8 @@ mod error_handling_tests {
         .await
         .respond_to(&req);
         assert!(
-            resp.status() == StatusCode::NOT_FOUND || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+            resp.status() == StatusCode::NOT_FOUND
+                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
             "Delete non-existent session should return 404 or 500"
         );
     }
@@ -3813,7 +3813,8 @@ mod error_handling_tests {
         .await
         .respond_to(&req);
         assert!(
-            resp.status() == StatusCode::NOT_FOUND || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+            resp.status() == StatusCode::NOT_FOUND
+                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
             "Add message to non-existent session should return 404 or 500"
         );
     }
@@ -3834,7 +3835,8 @@ mod error_handling_tests {
         .await
         .respond_to(&req);
         assert!(
-            resp.status() == StatusCode::NOT_FOUND || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+            resp.status() == StatusCode::NOT_FOUND
+                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
             "List messages from non-existent session should return 404 or 500"
         );
     }
@@ -3854,7 +3856,9 @@ mod error_handling_tests {
         .await
         .respond_to(&req);
         assert!(
-            resp.status() == StatusCode::NOT_FOUND || resp.status() == StatusCode::INTERNAL_SERVER_ERROR || resp.status() == StatusCode::BAD_REQUEST,
+            resp.status() == StatusCode::NOT_FOUND
+                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR
+                || resp.status() == StatusCode::BAD_REQUEST,
             "Fork non-existent session should return 404, 400, or 500"
         );
     }
@@ -3880,7 +3884,8 @@ mod error_handling_tests {
         .await
         .respond_to(&req2);
         assert!(
-            get_resp.status() == StatusCode::NOT_FOUND || get_resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+            get_resp.status() == StatusCode::NOT_FOUND
+                || get_resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
             "After deletion, session should not be found (404 or 500)"
         );
     }
@@ -3896,7 +3901,8 @@ mod error_handling_tests {
         .await
         .respond_to(&req);
         assert!(
-            resp.status() == StatusCode::BAD_REQUEST || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
+            resp.status() == StatusCode::BAD_REQUEST
+                || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
             "Invalid session ID format should return 400 or 422"
         );
     }
@@ -3912,7 +3918,8 @@ mod error_handling_tests {
         .await
         .respond_to(&req);
         assert!(
-            resp.status() == StatusCode::BAD_REQUEST || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
+            resp.status() == StatusCode::BAD_REQUEST
+                || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
             "Empty session ID should return 400 or 422"
         );
     }
@@ -3928,7 +3935,8 @@ mod error_handling_tests {
         .await
         .respond_to(&req);
         assert!(
-            resp.status() == StatusCode::BAD_REQUEST || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
+            resp.status() == StatusCode::BAD_REQUEST
+                || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
             "Session ID with special characters should return 400 or 422"
         );
     }
@@ -3944,7 +3952,8 @@ mod error_handling_tests {
         .await
         .respond_to(&req);
         assert!(
-            resp.status() == StatusCode::BAD_REQUEST || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
+            resp.status() == StatusCode::BAD_REQUEST
+                || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
             "Delete with invalid session ID should return 400 or 422"
         );
     }
@@ -3964,7 +3973,8 @@ mod error_handling_tests {
         .await
         .respond_to(&req);
         assert!(
-            resp.status() == StatusCode::BAD_REQUEST || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
+            resp.status() == StatusCode::BAD_REQUEST
+                || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
             "Add message with invalid session ID should return 400 or 422"
         );
     }
@@ -3994,10 +4004,7 @@ mod error_handling_tests {
     async fn test_null_json_returns_error() {
         let result: Result<crate::routes::session::AddMessageRequest, _> =
             serde_json::from_str("null");
-        assert!(
-            result.is_err(),
-            "null JSON should fail to deserialize"
-        );
+        assert!(result.is_err(), "null JSON should fail to deserialize");
     }
 
     #[actix_web::test]
@@ -4038,7 +4045,8 @@ mod error_handling_tests {
         .await
         .respond_to(&req);
         assert!(
-            resp.status() == StatusCode::BAD_REQUEST || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
+            resp.status() == StatusCode::BAD_REQUEST
+                || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
             "Empty command should return 400 or 422"
         );
     }
@@ -4060,7 +4068,8 @@ mod error_handling_tests {
         .await
         .respond_to(&req);
         assert!(
-            resp.status() == StatusCode::BAD_REQUEST || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
+            resp.status() == StatusCode::BAD_REQUEST
+                || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
             "Whitespace-only command should return 400 or 422"
         );
     }
@@ -4141,7 +4150,8 @@ mod error_handling_tests {
         .await
         .respond_to(&req);
         assert!(
-            resp.status() == StatusCode::NOT_FOUND || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+            resp.status() == StatusCode::NOT_FOUND
+                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
             "Message index out of range should return 404 or 500"
         );
     }
@@ -4161,7 +4171,10 @@ mod error_handling_tests {
         .await
         .respond_to(&req);
         assert!(
-            resp.status() == StatusCode::NOT_FOUND || resp.status() == StatusCode::INTERNAL_SERVER_ERROR || resp.status() == StatusCode::UNPROCESSABLE_ENTITY || resp.status() == StatusCode::BAD_REQUEST,
+            resp.status() == StatusCode::NOT_FOUND
+                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR
+                || resp.status() == StatusCode::UNPROCESSABLE_ENTITY
+                || resp.status() == StatusCode::BAD_REQUEST,
             "Fork with invalid index on non-existent session should return error status"
         );
     }
@@ -4372,7 +4385,8 @@ mod error_handling_tests {
             .respond_to(&req);
 
             assert!(
-                resp.status() == StatusCode::NOT_FOUND || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
+                resp.status() == StatusCode::NOT_FOUND
+                    || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
                 "Path traversal in export session id '{}' should return error, got {}",
                 id,
                 resp.status()
