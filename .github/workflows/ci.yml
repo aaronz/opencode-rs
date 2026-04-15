@@ -34,7 +34,7 @@ jobs:
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
           
       - name: Build
-        run: cargo build --release --all
-      
+        run: cd opencode-rust && cargo build --release --all
+
       - name: Run tests
-        run: cargo test --all
+        run: cd opencode-rust && cargo test --all

@@ -1,3 +1,4 @@
+use crate::sealed;
 use crate::{Tool, ToolResult};
 use async_trait::async_trait;
 use opencode_core::OpenCodeError;
@@ -16,6 +17,8 @@ struct TodoItem {
     status: Option<String>,
     priority: Option<String>,
 }
+
+impl sealed::Sealed for TodowriteTool {}
 
 #[async_trait]
 impl Tool for TodowriteTool {

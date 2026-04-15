@@ -195,8 +195,18 @@ fn run_login(
         println!("Warning: Token already exists for server '{}'. Use 'mcp auth logout' first to replace.", server);
     }
 
-    let device_code_url = format!("{}/oauth/device/code", server_url.as_ref().unwrap());
-    let token_url = format!("{}/oauth/token", server_url.as_ref().unwrap());
+    let device_code_url = format!(
+        "{}/oauth/device/code",
+        server_url
+            .as_ref()
+            .expect("server_url should be available for remote OAuth")
+    );
+    let token_url = format!(
+        "{}/oauth/token",
+        server_url
+            .as_ref()
+            .expect("server_url should be available for remote OAuth")
+    );
 
     let oauth_flow = opencode_auth::oauth::OAuthFlow::new();
 

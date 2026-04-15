@@ -1,9 +1,10 @@
 use serde_json::Value;
 
-pub struct SchemaValidator;
+pub(crate) struct SchemaValidator;
 
+#[allow(dead_code)]
 impl SchemaValidator {
-    pub fn validate_required(args: &Value, required_fields: &[&str]) -> Result<(), String> {
+    pub(crate) fn validate_required(args: &Value, required_fields: &[&str]) -> Result<(), String> {
         let mut missing = Vec::new();
         for field in required_fields {
             match args.get(field) {
@@ -18,7 +19,7 @@ impl SchemaValidator {
         Ok(())
     }
 
-    pub fn validate_string<'a>(args: &'a Value, field: &str) -> Result<&'a str, String> {
+    pub(crate) fn validate_string<'a>(args: &'a Value, field: &str) -> Result<&'a str, String> {
         match args.get(field) {
             Some(Value::String(s)) => Ok(s.as_str()),
             Some(v) => Err(format!("Field '{}' must be a string, got {}", field, v)),
@@ -26,7 +27,10 @@ impl SchemaValidator {
         }
     }
 
-    pub fn validate_array<'a>(args: &'a Value, field: &str) -> Result<&'a Vec<Value>, String> {
+    pub(crate) fn validate_array<'a>(
+        args: &'a Value,
+        field: &str,
+    ) -> Result<&'a Vec<Value>, String> {
         match args.get(field) {
             Some(Value::Array(a)) => Ok(a),
             Some(v) => Err(format!("Field '{}' must be an array, got {}", field, v)),
@@ -34,7 +38,7 @@ impl SchemaValidator {
         }
     }
 
-    pub fn validate_object<'a>(
+    pub(crate) fn validate_object<'a>(
         args: &'a Value,
         field: &str,
     ) -> Result<&'a serde_json::Map<String, Value>, String> {
@@ -45,7 +49,7 @@ impl SchemaValidator {
         }
     }
 
-    pub fn validate_bool(args: &Value, field: &str) -> Result<bool, String> {
+    pub(crate) fn validate_bool(args: &Value, field: &str) -> Result<bool, String> {
         match args.get(field) {
             Some(Value::Bool(b)) => Ok(*b),
             Some(v) => Err(format!("Field '{}' must be a boolean, got {}", field, v)),
@@ -53,7 +57,7 @@ impl SchemaValidator {
         }
     }
 
-    pub fn validate_number(args: &Value, field: &str) -> Result<f64, String> {
+    pub(crate) fn validate_number(args: &Value, field: &str) -> Result<f64, String> {
         match args.get(field) {
             Some(Value::Number(n)) => n
                 .as_f64()
@@ -63,7 +67,7 @@ impl SchemaValidator {
         }
     }
 
-    pub fn validate_optional_string<'a>(
+    pub(crate) fn validate_optional_string<'a>(
         args: &'a Value,
         field: &str,
     ) -> Result<Option<&'a str>, String> {
@@ -77,7 +81,10 @@ impl SchemaValidator {
         }
     }
 
-    pub fn validate_optional_number(args: &Value, field: &str) -> Result<Option<f64>, String> {
+    pub(crate) fn validate_optional_number(
+        args: &Value,
+        field: &str,
+    ) -> Result<Option<f64>, String> {
         match args.get(field) {
             Some(Value::Number(n)) => {
                 Ok(Some(n.as_f64().ok_or_else(|| {
@@ -92,7 +99,7 @@ impl SchemaValidator {
         }
     }
 
-    pub fn validate_schema(args: &Value, schema: &ToolSchema) -> Result<(), String> {
+    pub(crate) fn validate_schema(args: &Value, schema: &ToolSchema) -> Result<(), String> {
         let mut errors: Vec<String> = Vec::new();
 
         for field in &schema.required {
@@ -126,6 +133,7 @@ impl SchemaValidator {
     }
 }
 
+#[allow(dead_code)]
 fn json_type_name(val: &Value) -> &'static str {
     match val {
         Value::Null => "null",

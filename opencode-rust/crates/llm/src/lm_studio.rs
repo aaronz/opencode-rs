@@ -3,6 +3,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
 use crate::provider::{ChatMessage, ChatResponse, Provider, StreamingCallback};
+use crate::provider::sealed;
 use opencode_core::OpenCodeError;
 
 pub struct LmStudioProvider {
@@ -78,6 +79,8 @@ impl LmStudioProvider {
         format!("{}/v1/models", self.base_url)
     }
 }
+
+impl sealed::Sealed for LmStudioProvider {}
 
 #[async_trait]
 impl Provider for LmStudioProvider {
@@ -187,7 +190,7 @@ impl Provider for LmStudioProvider {
                     for line in text.lines() {
                         let line = line.trim();
                         if line.starts_with("data: ") {
-                            let data = line.strip_prefix("data: ").unwrap();
+                            let data = line.strip_prefix("data: ").unwrap_or("");
                             if data == "[DONE]" {
                                 return Ok(());
                             }

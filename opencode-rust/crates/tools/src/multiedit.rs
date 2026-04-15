@@ -1,3 +1,4 @@
+use crate::sealed;
 use crate::{Tool, ToolResult};
 use async_trait::async_trait;
 use opencode_core::OpenCodeError;
@@ -17,6 +18,8 @@ pub struct MultiEditArgs {
 }
 
 pub struct MultiEditTool;
+
+impl sealed::Sealed for MultiEditTool {}
 
 #[async_trait]
 impl Tool for MultiEditTool {
@@ -76,7 +79,9 @@ impl Tool for MultiEditTool {
                 }
             }
 
-            let content = file_contents.get(&edit.path).unwrap();
+            let content = file_contents
+                .get(&edit.path)
+                .expect("internal state error: file was not loaded");
             if !content.contains(&edit.old_string) {
                 validation_errors.push(format!(
                     "old_string not found in {}: {:?}",
@@ -101,14 +106,20 @@ impl Tool for MultiEditTool {
         // Phase 2: Apply all edits in memory (order matters for same-file edits)
         let mut updated_contents = file_contents.clone();
         for edit in &edits {
-            let content = updated_contents.get_mut(&edit.path).unwrap();
+            let content = updated_contents
+                .get_mut(&edit.path)
+                .expect("internal state error: file was not loaded");
             *content = content.replacen(&edit.old_string, &edit.new_string, 1);
         }
 
         // Phase 3: Write all files — on any failure, restore backups
         let mut written_files: Vec<String> = Vec::new();
         for (path, new_content) in &updated_contents {
-            if *new_content != *file_contents.get(path).unwrap() {
+            if *new_content
+                != *file_contents
+                    .get(path)
+                    .expect("internal state error: original content missing")
+            {
                 if let Err(e) = std::fs::write(path, new_content) {
                     // Rollback already-written files
                     for written_path in &written_files {

@@ -39,7 +39,10 @@ pub fn run(args: McpArgs) {
             "action": action_str,
             "servers": []
         });
-        println!("{}", serde_json::to_string_pretty(&result).unwrap());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&result).expect("failed to serialize JSON output")
+        );
         return;
     }
 

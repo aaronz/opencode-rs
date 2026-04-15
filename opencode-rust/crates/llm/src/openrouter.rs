@@ -1,4 +1,5 @@
 use crate::provider::{Model, Provider, ProviderConfig, StreamingCallback};
+use crate::provider::sealed;
 use opencode_core::OpenCodeError;
 
 pub struct OpenRouterProvider {
@@ -10,6 +11,8 @@ impl OpenRouterProvider {
         Self { config }
     }
 }
+
+impl sealed::Sealed for OpenRouterProvider {}
 
 #[async_trait::async_trait]
 impl Provider for OpenRouterProvider {

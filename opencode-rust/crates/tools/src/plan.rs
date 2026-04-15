@@ -1,5 +1,6 @@
 #![allow(clippy::redundant_closure, clippy::unwrap_or_default)]
 
+use crate::sealed;
 use crate::{Tool, ToolResult};
 use async_trait::async_trait;
 use opencode_core::Instance;
@@ -13,6 +14,8 @@ pub struct PlanTool;
 struct PlanArgs {
     content: Option<String>,
 }
+
+impl sealed::Sealed for PlanTool {}
 
 #[async_trait]
 impl Tool for PlanTool {

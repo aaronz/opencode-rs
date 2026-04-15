@@ -1,4 +1,4 @@
-use crate::routes::error::json_error;
+use crate::routes::error::{internal_error, json_error};
 use crate::ServerState;
 use actix_web::{http::StatusCode, web, HttpResponse, Responder};
 use opencode_llm::{AuthStrategy, Credential, ProviderAuthConfig};
@@ -80,12 +80,18 @@ fn provider_exists(state: &ServerState, provider_id: &str) -> bool {
 }
 
 fn is_provider_enabled(provider_id: &str) -> bool {
-    let disabled = disabled_providers().lock().unwrap();
+    let disabled = match disabled_providers().lock() {
+        Ok(guard) => guard,
+        Err(_) => return false,
+    };
     if disabled.contains(provider_id) {
         return false;
     }
     drop(disabled);
-    let enabled = enabled_providers().lock().unwrap();
+    let enabled = match enabled_providers().lock() {
+        Ok(guard) => guard,
+        Err(_) => return false,
+    };
     if enabled.is_empty() {
         return true;
     }
@@ -241,7 +247,12 @@ pub async fn save_provider_credentials(
         credential.metadata = metadata.clone();
     }
 
-    let mut store = credential_store().lock().expect("credential lock poisoned");
+    let mut store = match credential_store().lock() {
+        Ok(guard) => guard,
+        Err(_) => {
+            return internal_error("Credential store lock poisoned");
+        }
+    };
     store.insert(provider_id.clone(), credential);
 
     HttpResponse::Created().json(serde_json::json!({
@@ -263,7 +274,12 @@ pub async fn test_provider_credentials(
         );
     }
 
-    let store = credential_store().lock().expect("credential lock poisoned");
+    let store = match credential_store().lock() {
+        Ok(guard) => guard,
+        Err(_) => {
+            return internal_error("Credential store lock poisoned");
+        }
+    };
     let Some(credential) = store.get(&provider_id) else {
         return json_error(
             StatusCode::NOT_FOUND,
@@ -300,7 +316,12 @@ pub async fn delete_provider_credentials(
         );
     }
 
-    let mut store = credential_store().lock().expect("credential lock poisoned");
+    let mut store = match credential_store().lock() {
+        Ok(guard) => guard,
+        Err(_) => {
+            return internal_error("Credential store lock poisoned");
+        }
+    };
     if store.remove(&provider_id).is_some() {
         HttpResponse::NoContent().finish()
     } else {
@@ -343,14 +364,34 @@ pub async fn set_provider_enabled(
     }
 
     if body.enabled {
-        let mut enabled = enabled_providers().lock().unwrap();
+        let mut enabled = match enabled_providers().lock() {
+            Ok(guard) => guard,
+            Err(_) => {
+                return internal_error("Enabled providers lock poisoned");
+            }
+        };
         enabled.insert(provider_id.clone());
-        let mut disabled = disabled_providers().lock().unwrap();
+        let mut disabled = match disabled_providers().lock() {
+            Ok(guard) => guard,
+            Err(_) => {
+                return internal_error("Disabled providers lock poisoned");
+            }
+        };
         disabled.remove(&provider_id);
     } else {
-        let mut disabled = disabled_providers().lock().unwrap();
+        let mut disabled = match disabled_providers().lock() {
+            Ok(guard) => guard,
+            Err(_) => {
+                return internal_error("Disabled providers lock poisoned");
+            }
+        };
         disabled.insert(provider_id.clone());
-        let mut enabled = enabled_providers().lock().unwrap();
+        let mut enabled = match enabled_providers().lock() {
+            Ok(guard) => guard,
+            Err(_) => {
+                return internal_error("Enabled providers lock poisoned");
+            }
+        };
         enabled.remove(&provider_id);
     }
 

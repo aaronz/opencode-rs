@@ -1,5 +1,6 @@
 #![allow(clippy::redundant_closure)]
 
+use crate::sealed;
 use crate::{Tool, ToolResult};
 use async_trait::async_trait;
 use opencode_core::OpenCodeError;
@@ -13,6 +14,8 @@ struct WriteArgs {
     path: String,
     content: String,
 }
+
+impl sealed::Sealed for WriteTool {}
 
 #[async_trait]
 impl Tool for WriteTool {

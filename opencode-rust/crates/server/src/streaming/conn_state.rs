@@ -88,6 +88,7 @@ pub struct ConnectionMonitor {
     stats: Arc<RwLock<ConnectionStats>>,
 }
 
+#[allow(dead_code)]
 impl Default for ConnectionMonitor {
     fn default() -> Self {
         let (event_tx, _) = broadcast::channel(1024);
@@ -99,6 +100,7 @@ impl Default for ConnectionMonitor {
     }
 }
 
+#[allow(dead_code)]
 impl ConnectionMonitor {
     /// Create a new connection monitor
     pub fn new() -> Self {
@@ -106,12 +108,12 @@ impl ConnectionMonitor {
     }
 
     /// Subscribe to connection events
-    pub fn subscribe(&self) -> broadcast::Receiver<ConnectionEvent> {
+    pub(crate) fn subscribe(&self) -> broadcast::Receiver<ConnectionEvent> {
         self.event_tx.subscribe()
     }
 
     /// Register a new connection
-    pub async fn register_connection(
+    pub(crate) async fn register_connection(
         &self,
         connection_id: String,
         connection_type: ConnectionType,
@@ -154,7 +156,7 @@ impl ConnectionMonitor {
     }
 
     /// Unregister a connection
-    pub async fn unregister_connection(&self, connection_id: &str, reason: &str) {
+    pub(crate) async fn unregister_connection(&self, connection_id: &str, reason: &str) {
         let removed = {
             let mut connections = self.connections.write().await;
             connections.remove(connection_id)
@@ -182,7 +184,7 @@ impl ConnectionMonitor {
     }
 
     /// Record a successful heartbeat
-    pub async fn heartbeat_success(&self, connection_id: &str) {
+    pub(crate) async fn heartbeat_success(&self, connection_id: &str) {
         let now = chrono::Utc::now().timestamp();
         let mut should_notify = false;
         let mut failure_count = 0u32;
@@ -212,7 +214,7 @@ impl ConnectionMonitor {
     }
 
     /// Record a heartbeat failure
-    pub async fn heartbeat_failure(&self, connection_id: &str) {
+    pub(crate) async fn heartbeat_failure(&self, connection_id: &str) {
         let mut connections = self.connections.write().await;
         if let Some(info) = connections.get_mut(connection_id) {
             info.heartbeat_failures += 1;
@@ -225,7 +227,7 @@ impl ConnectionMonitor {
     }
 
     /// Record a reconnection attempt
-    pub async fn reconnection_attempt(&self, connection_id: &str, attempt: u32) {
+    pub(crate) async fn reconnection_attempt(&self, connection_id: &str, attempt: u32) {
         let mut connections = self.connections.write().await;
         if let Some(info) = connections.get_mut(connection_id) {
             info.reconnection_attempts = attempt;
@@ -239,7 +241,7 @@ impl ConnectionMonitor {
     }
 
     /// Mark a connection as failed
-    pub async fn connection_failed(&self, connection_id: &str, error: &str) {
+    pub(crate) async fn connection_failed(&self, connection_id: &str, error: &str) {
         let mut connections = self.connections.write().await;
         if let Some(info) = connections.get_mut(connection_id) {
             info.status = ConnectionStatus::Failed;
@@ -252,7 +254,7 @@ impl ConnectionMonitor {
     }
 
     /// Update connection status
-    pub async fn update_status(&self, connection_id: &str, status: ConnectionStatus) {
+    pub(crate) async fn update_status(&self, connection_id: &str, status: ConnectionStatus) {
         let mut connections = self.connections.write().await;
         if let Some(info) = connections.get_mut(connection_id) {
             info.status = status;
@@ -260,7 +262,7 @@ impl ConnectionMonitor {
     }
 
     /// Update bytes sent/received
-    pub async fn update_bytes(&self, connection_id: &str, sent: u64, received: u64) {
+    pub(crate) async fn update_bytes(&self, connection_id: &str, sent: u64, received: u64) {
         let mut connections = self.connections.write().await;
         if let Some(info) = connections.get_mut(connection_id) {
             info.bytes_sent += sent;
@@ -269,13 +271,13 @@ impl ConnectionMonitor {
     }
 
     /// Get connection info
-    pub async fn get_connection(&self, connection_id: &str) -> Option<ConnectionInfo> {
+    pub(crate) async fn get_connection(&self, connection_id: &str) -> Option<ConnectionInfo> {
         let connections = self.connections.read().await;
         connections.get(connection_id).cloned()
     }
 
     /// Get all connections for a session
-    pub async fn get_session_connections(&self, session_id: &str) -> Vec<ConnectionInfo> {
+    pub(crate) async fn get_session_connections(&self, session_id: &str) -> Vec<ConnectionInfo> {
         let connections = self.connections.read().await;
         connections
             .values()
@@ -285,13 +287,13 @@ impl ConnectionMonitor {
     }
 
     /// Get connection statistics
-    pub async fn get_stats(&self) -> ConnectionStats {
+    pub(crate) async fn get_stats(&self) -> ConnectionStats {
         let stats = self.stats.read().await;
         stats.clone()
     }
 
     /// Get all active connections
-    pub async fn get_active_connections(&self) -> Vec<ConnectionInfo> {
+    pub(crate) async fn get_active_connections(&self) -> Vec<ConnectionInfo> {
         let connections = self.connections.read().await;
         connections
             .values()
@@ -304,7 +306,7 @@ impl ConnectionMonitor {
     }
 
     /// Check if a connection is healthy (recent heartbeat)
-    pub async fn is_connection_healthy(
+    pub(crate) async fn is_connection_healthy(
         &self,
         connection_id: &str,
         max_heartbeat_age: Duration,
@@ -324,7 +326,10 @@ impl ConnectionMonitor {
     }
 
     /// Cleanup stale connections
-    pub async fn cleanup_stale_connections(&self, max_heartbeat_age: Duration) -> Vec<String> {
+    pub(crate) async fn cleanup_stale_connections(
+        &self,
+        max_heartbeat_age: Duration,
+    ) -> Vec<String> {
         let mut connections = self.connections.write().await;
         let now = chrono::Utc::now();
         let max_age =

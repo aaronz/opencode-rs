@@ -9,7 +9,8 @@ use opencode_server::routes::acp_ws::SharedAcpClientRegistry;
 use opencode_server::routes::share::ShareServer;
 use opencode_server::streaming::{conn_state::ConnectionMonitor, ReconnectionStore};
 use opencode_server::{run_server_with_shutdown, ServerState};
-use opencode_storage::StorageService;
+use opencode_storage::{SqliteProjectRepository, SqliteSessionRepository, StorageService};
+use opencode_tools::build_default_registry;
 use std::sync::Arc;
 use std::sync::RwLock;
 use tokio::signal;
@@ -80,9 +81,10 @@ async fn run_desktop(args: DesktopArgs) -> Result<(), Box<dyn std::error::Error>
     std::fs::create_dir_all(data_dir)?;
     let db_path = data_dir.join("opencode.db");
 
-    let storage = Arc::new(StorageService::new(
-        opencode_storage::database::StoragePool::new(&db_path)?,
-    ));
+    let pool = opencode_storage::database::StoragePool::new(&db_path)?;
+    let session_repo = Arc::new(SqliteSessionRepository::new(pool.clone()));
+    let project_repo = Arc::new(SqliteProjectRepository::new(pool.clone()));
+    let storage = Arc::new(StorageService::new(session_repo, project_repo, pool));
 
     let models = Arc::new(ModelRegistry::new());
     let config = Arc::new(RwLock::new(config));
@@ -90,6 +92,7 @@ async fn run_desktop(args: DesktopArgs) -> Result<(), Box<dyn std::error::Error>
     let reconnection_store = ReconnectionStore::default();
     let connection_monitor = Arc::new(ConnectionMonitor::new());
     let share_server = Arc::new(RwLock::new(ShareServer::with_default_config()));
+    let tool_registry = Arc::new(build_default_registry(None).await);
 
     let state = ServerState {
         storage,
@@ -102,7 +105,7 @@ async fn run_desktop(args: DesktopArgs) -> Result<(), Box<dyn std::error::Error>
         acp_enabled,
         acp_stream: SharedAcpStream::default(),
         acp_client_registry: SharedAcpClientRegistry::default(),
-        temp_db_dir: None,
+        tool_registry,
     };
 
     #[cfg(feature = "desktop")]

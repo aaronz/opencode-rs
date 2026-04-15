@@ -6,6 +6,7 @@
     clippy::double_ended_iterator_last
 )]
 
+use crate::sealed;
 use crate::{Tool, ToolResult};
 use async_trait::async_trait;
 use opencode_core::OpenCodeError;
@@ -142,6 +143,8 @@ async fn run_eslint_diagnostics(file: &str) -> Result<Vec<DiagnosticResult>, Ope
 
     Ok(diagnostics)
 }
+
+impl sealed::Sealed for LspTool {}
 
 #[async_trait]
 impl Tool for LspTool {

@@ -8,6 +8,8 @@ use std::sync::RwLock;
 use tokio::sync::mpsc;
 use tracing::info;
 
+use opencode_storage::{SqliteProjectRepository, SqliteSessionRepository, StorageService};
+
 use crate::ServerState;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -49,8 +51,9 @@ pub struct AcpState {
     pub enabled: bool,
 }
 
+#[allow(dead_code)]
 impl AcpState {
-    pub fn new(enabled: bool) -> Self {
+    pub(crate) fn new(enabled: bool) -> Self {
         Self {
             protocol: Arc::new(RwLock::new(AcpProtocol::new("server", "1.0"))),
             enabled,
@@ -69,10 +72,11 @@ mod tests {
     fn create_test_server_state() -> ServerState {
         let temp_dir = tempfile::tempdir().unwrap();
         let db_path = temp_dir.path().join("test.db");
+        let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
+        let session_repo = Arc::new(SqliteSessionRepository::new(pool.clone()));
+        let project_repo = Arc::new(SqliteProjectRepository::new(pool.clone()));
         ServerState {
-            storage: std::sync::Arc::new(opencode_storage::StorageService::new(
-                opencode_storage::database::StoragePool::new(&db_path).unwrap(),
-            )),
+            storage: Arc::new(StorageService::new(session_repo, project_repo, pool)),
             models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
             config: std::sync::Arc::new(std::sync::RwLock::new(opencode_core::Config::default())),
             event_bus: opencode_core::bus::SharedEventBus::default(),
@@ -88,7 +92,7 @@ mod tests {
             acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
                 AcpClientRegistry::new(),
             )),
-            temp_db_dir: Some(Box::new(temp_dir)),
+            tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
         }
     }
 
@@ -96,10 +100,11 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let db_path = temp_dir.path().join("test.db");
         let mut config = opencode_core::Config::default();
+        let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
+        let session_repo = Arc::new(SqliteSessionRepository::new(pool.clone()));
+        let project_repo = Arc::new(SqliteProjectRepository::new(pool.clone()));
         ServerState {
-            storage: std::sync::Arc::new(opencode_storage::StorageService::new(
-                opencode_storage::database::StoragePool::new(&db_path).unwrap(),
-            )),
+            storage: Arc::new(StorageService::new(session_repo, project_repo, pool)),
             models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
             config: std::sync::Arc::new(std::sync::RwLock::new(config)),
             event_bus: opencode_core::bus::SharedEventBus::default(),
@@ -115,7 +120,7 @@ mod tests {
             acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
                 AcpClientRegistry::new(),
             )),
-            temp_db_dir: Some(Box::new(temp_dir)),
+            tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
         }
     }
 

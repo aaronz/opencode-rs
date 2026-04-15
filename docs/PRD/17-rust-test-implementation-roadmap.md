@@ -39,9 +39,10 @@ This ordering reduces rework and ensures subsystem tests are built on stable aut
 
 - **Authority-first testing**: implement tests for `01`, `06`, and `07` before subsystem-heavy suites
 - **Crate-local where possible**: unit tests should live near implementation crates
-- **Integration at workspace boundary**: cross-crate workflows belong in integration test packages
+- **Inline unit tests vs. integration tests**: Use `#[cfg(test)] mod tests { ... }` inside `src/*.rs` files for module-internal invariants and private function tests. Use `tests/*.rs` files (via `[[test]]` Cargo targets) for public API and cross-module integration tests. Use the workspace `tests/` directory for cross-crate workflow tests.
 - **Deterministic fixtures**: prefer `TempProject`, `MockServer`, and `MockLLMProvider` over ad hoc setup
 - **TUI tests use `ratatui-testing`**: avoid manual terminal simulation if the shared library can cover it
+- **Async tests use `#[tokio::test]`**: all async tests MUST use `#[tokio::test]` (not `#[test]` with `block_on`). Ensure test futures satisfy `Send` bounds when testing concurrent behavior.
 - **Compatibility is explicit**: only build compatibility tests for behaviors intentionally preserved
 - **Convention tests are structural**: use them to enforce ownership, layering, naming, and test-placement rules continuously
 
@@ -93,6 +94,7 @@ Establish the shared testing infrastructure required by later phases.
 - Add server test harness helpers for authenticated and unauthenticated API requests
 - Add plugin/MCP fake runtime harnesses if not already present
 - Integrate `ratatui-testing` into TUI-focused test workflows
+- Consider adding property-based tests for serialization invariants using `proptest`
 
 ### Deliverables
 
@@ -105,7 +107,9 @@ Establish the shared testing infrastructure required by later phases.
 
 - New tests can create a temp project/session with one helper path
 - API tests can boot a test server in-process
-- TUI tests can render and assert at least one simple screen transition
+- TUI tests can render and assert at least one simple screen transition using `ratatui-testing`
+- All async tests use `#[tokio::test]` (no `block_on` in `#[test]` functions)
+- Doc tests pass (`cargo test --doc`)
 
 ---
 
@@ -136,6 +140,7 @@ Lock down the most important invariants before subsystem behavior expands.
 - ordering invariants for messages and parts
 - fork lineage tests
 - snapshot/revert model tests
+- **negative tests**: unauthorized operations, invalid state transitions, malformed input handling
 
 #### Configuration
 - precedence merge tests
@@ -143,6 +148,7 @@ Lock down the most important invariants before subsystem behavior expands.
 - env/file expansion tests
 - `tools` → `permission` normalization tests
 - config ownership boundary tests (`opencode.json` vs `tui.json`)
+- **negative tests**: invalid config shapes, unknown fields, permission parsing failures
 
 #### Server API
 - route-group presence tests
@@ -150,6 +156,7 @@ Lock down the most important invariants before subsystem behavior expands.
 - request validation tests
 - session/message API lifecycle tests
 - compatibility adapter tests only if legacy routes are implemented
+- **negative tests**: unauthorized access attempts, malformed requests, missing required fields
 
 ### Exit Criteria
 
@@ -392,25 +399,42 @@ Establish the final release gates required for shipping.
 
 ## Recommended Test Suite Layout
 
+### Test Type Conventions
+
+| Test Type | Location | Cargo Target | When to Use |
+|-----------|----------|-------------|-------------|
+| Unit tests | `src/*.rs` | Default `cargo test` | Module invariants, private function behavior |
+| Integration tests | `tests/*.rs` | `[[test]]` targets | Public API, cross-module contracts |
+| Doc tests | `src/**/*.rs` (comments) | `cargo test --doc` | Code examples in documentation |
+| Cross-crate tests | `tests/src/` | Custom test binary | Multi-crate workflows |
+
 ```text
 opencode-rust/
   crates/
     core/
       src/
-      tests/
+        lib.rs           # unit tests via #[cfg(test)] mod tests
+        tests/           # integration tests (optional, per-crate)
     agent/
+      src/
       tests/
     tools/
+      src/
       tests/
     storage/
+      src/
       tests/
     server/
+      src/
       tests/
     mcp/
+      src/
       tests/
     lsp/
+      src/
       tests/
     tui/
+      src/
       tests/
   tests/
     src/
@@ -434,7 +458,8 @@ ratatui-testing/
 ### Stage 1 — Fast PR Gate
 
 - `cargo fmt --all -- --check`
-- `cargo clippy --all -- -D warnings`
+- `cargo clippy --all-targets --all-features -- -D warnings`
+- `cargo test --all-features --doc` (unit tests + doc tests)
 - crate-local unit tests for touched crates
 
 ### Stage 2 — Required Integration Gate

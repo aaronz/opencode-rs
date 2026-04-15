@@ -129,7 +129,7 @@ fn base64_encode(data: &[u8]) -> String {
     use std::fmt::Write;
     let mut encoded = String::new();
     let encoder = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, data);
-    write!(&mut encoded, "{}", encoder).unwrap();
+    let _ = write!(&mut encoded, "{}", encoder);
     encoded
 }
 

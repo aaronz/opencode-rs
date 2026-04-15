@@ -1,4 +1,5 @@
 use crate::provider::{Model, Provider, ProviderConfig, StreamingCallback};
+use crate::provider::sealed;
 use opencode_core::OpenCodeError;
 
 pub struct DeepInfraProvider {
@@ -10,6 +11,8 @@ impl DeepInfraProvider {
         Self { config }
     }
 }
+
+impl sealed::Sealed for DeepInfraProvider {}
 
 #[async_trait::async_trait]
 impl Provider for DeepInfraProvider {

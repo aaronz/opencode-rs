@@ -3,7 +3,6 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/scripts/constitution.sh"
 source "$SCRIPT_DIR/scripts/task-json.sh"
 source "$SCRIPT_DIR/scripts/opencode-wrapper.sh"
 source "$SCRIPT_DIR/scripts/phases.sh"
@@ -51,10 +50,11 @@ parse_args() {
     MODEL="${MODEL:-minimax-cn/MiniMax-M2.7}"
 }
 
+WORKSPACE_DIR="$(cd "$(dirname "$0")" && pwd)"
+
 parse_args "$@"
 
 # Logging setup
-WORKSPACE_DIR="$(cd "$(dirname "$0")" && pwd)"
 SESSION_LOG_DIR="$WORKSPACE_DIR/sessions"
 
 mkdir -p "$SESSION_LOG_DIR"
@@ -88,17 +88,6 @@ log "SpecKit 迭代开发 v3.0 (重构版)"
 log "=============================================="
 log "工作目录: $WORKSPACE_DIR"
 log "日志文件: $LOG_FILE"
-CONSTITUTION_PATH="${CONSTITUTION_PATH:-$WORKSPACE_DIR/iterations/.specify/memory/constitution.md}"
-
-if [ ! -f "$CONSTITUTION_PATH" ]; then
-    CONSTITUTION_PATH="$WORKSPACE_DIR/iterations/iteration-1/constitution.md"
-fi
-
-if [ ! -f "$CONSTITUTION_PATH" ]; then
-    log "⚠️  Constitution文件不存在，将使用默认值"
-    CONSTITUTION_PATH=""
-fi
-
 if [ -n "$PRD_INPUT" ]; then
     if [ -d "$PRD_INPUT" ]; then
         mapfile -t prd_files < <(find "$PRD_INPUT" -maxdepth 1 -name "*.md" | sort)
@@ -144,39 +133,37 @@ if [ -z "$LOG_FILE" ]; then
     LOG_FILE="$SESSION_LOG_DIR/iteration-${NEXT_ITERATION}_$(date +%Y%m%d_%H%M%S).log"
 fi
 
-CONSTITUTION=$(load_constitution)
-
 log "迭代目录: $OUTPUTS_DIR"
 log "模型: $MODEL"
 log "最大外循环轮次: $MAX_IMPLEMENTATION_ROUNDS"
-log "Constitution: $(get_constitution_summary)"
 log ""
 
 log "[1/6] 执行PRD差距分析..."
 save_checkpoint "$NEXT_ITERATION" "phase1"
-run_phase_gap_analysis "$PRD_PATH" "$OUTPUTS_DIR" "$CONSTITUTION"
+run_phase_gap_analysis "$PRD_PATH" "$OUTPUTS_DIR"
 
-log ""
-log "[2/6] Constitution 检查..."
-save_checkpoint "$NEXT_ITERATION" "phase2"
-run_phase_constitution "$CONSTITUTION_PATH" "$OUTPUTS_DIR/gap-analysis.md" "$OUTPUTS_DIR"
+# Constitution phase skipped by user request
+# log ""
+# log "[2/6] Constitution 检查..."
+# save_checkpoint "$NEXT_ITERATION" "phase2"
+# run_phase_constitution "$CONSTITUTION_PATH" "$OUTPUTS_DIR/gap-analysis.md" "$OUTPUTS_DIR"
 
 log ""
 log "[3/6] 更新Spec..."
 save_checkpoint "$NEXT_ITERATION" "phase3"
-run_phase_spec "$PRD_PATH" "$OUTPUTS_DIR/gap-analysis.md" "$CONSTITUTION" "$OUTPUTS_DIR" "$NEXT_ITERATION"
+run_phase_spec "$PRD_PATH" "$OUTPUTS_DIR/gap-analysis.md" "$OUTPUTS_DIR" "$NEXT_ITERATION"
 
 log ""
 log "[4/6] 更新Plan和Tasks..."
 save_checkpoint "$NEXT_ITERATION" "phase4"
-run_phase_plan "$OUTPUTS_DIR/spec_v${NEXT_ITERATION}.md" "$CONSTITUTION" "$OUTPUTS_DIR/gap-analysis.md" "$OUTPUTS_DIR" "$NEXT_ITERATION"
+run_phase_plan "$OUTPUTS_DIR/spec_v${NEXT_ITERATION}.md" "$OUTPUTS_DIR/gap-analysis.md" "$OUTPUTS_DIR" "$NEXT_ITERATION"
 
 TASKS_JSON="$OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.json"
 
 log ""
 log "[5/6] Per-Task 实现循环..."
 save_checkpoint "$NEXT_ITERATION" "phase5"
-run_phase_implementation "$TASKS_JSON" "$OUTPUTS_DIR/spec_v${NEXT_ITERATION}.md" "$OUTPUTS_DIR" "$CONSTITUTION" "$MAX_IMPLEMENTATION_ROUNDS"
+run_phase_implementation "$TASKS_JSON" "$OUTPUTS_DIR/spec_v${NEXT_ITERATION}.md" "$OUTPUTS_DIR" "$MAX_IMPLEMENTATION_ROUNDS"
 
 log ""
 log "[6/6] 验证报告..."

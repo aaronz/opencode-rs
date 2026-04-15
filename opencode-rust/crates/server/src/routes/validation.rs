@@ -9,32 +9,33 @@ pub struct ValidationErrors {
     pub details: Vec<FieldError>,
 }
 
+#[allow(dead_code)]
 impl ValidationErrors {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             details: Vec::new(),
         }
     }
 
-    pub fn add(&mut self, error: FieldError) {
+    pub(crate) fn add(&mut self, error: FieldError) {
         self.details.push(error);
     }
 
-    pub fn add_if(&mut self, condition: bool, error: FieldError) {
+    pub(crate) fn add_if(&mut self, condition: bool, error: FieldError) {
         if condition {
             self.add(error);
         }
     }
 
-    pub fn has_errors(&self) -> bool {
+    pub(crate) fn has_errors(&self) -> bool {
         !self.details.is_empty()
     }
 
-    pub fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         self.details.len()
     }
 
-    pub fn to_response(&self) -> HttpResponse {
+    pub(crate) fn to_response(&self) -> HttpResponse {
         if self.details.is_empty() {
             return ErrorResponse::validation_error("Request validation failed")
                 .to_response(actix_web::http::StatusCode::BAD_REQUEST);
@@ -59,32 +60,37 @@ impl ValidationErrors {
     }
 }
 
+#[allow(dead_code)]
 impl Default for ValidationErrors {
     fn default() -> Self {
         Self::new()
     }
 }
 
+#[allow(dead_code)]
 impl std::fmt::Display for ValidationErrors {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Validation error: {} errors", self.details.len())
     }
 }
 
+#[allow(dead_code)]
 impl ResponseError for ValidationErrors {
     fn error_response(&self) -> HttpResponse {
         self.to_response()
     }
 }
 
+#[allow(dead_code)]
 pub struct StringValidator<'a> {
     field: &'a str,
     value: &'a str,
     errors: &'a mut ValidationErrors,
 }
 
+#[allow(dead_code)]
 impl<'a> StringValidator<'a> {
-    pub fn new(field: &'a str, value: &'a str, errors: &'a mut ValidationErrors) -> Self {
+    pub(crate) fn new(field: &'a str, value: &'a str, errors: &'a mut ValidationErrors) -> Self {
         Self {
             field,
             value,
@@ -92,7 +98,7 @@ impl<'a> StringValidator<'a> {
         }
     }
 
-    pub fn not_empty(self) -> Self {
+    pub(crate) fn not_empty(self) -> Self {
         self.errors.add_if(
             self.value.trim().is_empty(),
             FieldError::with_code(self.field, "cannot be empty"),
@@ -100,7 +106,7 @@ impl<'a> StringValidator<'a> {
         self
     }
 
-    pub fn min_length(self, min: usize) -> Self {
+    pub(crate) fn min_length(self, min: usize) -> Self {
         self.errors.add_if(
             self.value.len() < min,
             FieldError::too_short(self.field, min),
@@ -108,7 +114,7 @@ impl<'a> StringValidator<'a> {
         self
     }
 
-    pub fn max_length(self, max: usize) -> Self {
+    pub(crate) fn max_length(self, max: usize) -> Self {
         self.errors.add_if(
             self.value.len() > max,
             FieldError::too_long(self.field, max),
@@ -116,7 +122,7 @@ impl<'a> StringValidator<'a> {
         self
     }
 
-    pub fn matches(self, pattern: &str, description: &str) -> Self {
+    pub(crate) fn matches(self, pattern: &str, description: &str) -> Self {
         let regex = regex_lite::Regex::new(pattern).ok();
         if let Some(re) = regex {
             self.errors.add_if(
@@ -127,7 +133,7 @@ impl<'a> StringValidator<'a> {
         self
     }
 
-    pub fn valid_uuid(self) -> Self {
+    pub(crate) fn valid_uuid(self) -> Self {
         self.errors.add_if(
             uuid::Uuid::parse_str(self.value).is_err(),
             FieldError::format(self.field, "valid UUID"),
@@ -135,7 +141,7 @@ impl<'a> StringValidator<'a> {
         self
     }
 
-    pub fn valid_url(self) -> Self {
+    pub(crate) fn valid_url(self) -> Self {
         self.errors.add_if(
             url::Url::parse(self.value).is_err(),
             FieldError::format(self.field, "valid URL"),
@@ -144,14 +150,20 @@ impl<'a> StringValidator<'a> {
     }
 }
 
+#[allow(dead_code)]
 pub struct OptionalStringValidator<'a> {
     field: &'a str,
     value: Option<&'a str>,
     errors: &'a mut ValidationErrors,
 }
 
+#[allow(dead_code)]
 impl<'a> OptionalStringValidator<'a> {
-    pub fn new(field: &'a str, value: Option<&'a str>, errors: &'a mut ValidationErrors) -> Self {
+    pub(crate) fn new(
+        field: &'a str,
+        value: Option<&'a str>,
+        errors: &'a mut ValidationErrors,
+    ) -> Self {
         Self {
             field,
             value,
@@ -159,7 +171,7 @@ impl<'a> OptionalStringValidator<'a> {
         }
     }
 
-    pub fn if_present_matches(self, pattern: &str, description: &str) -> Self {
+    pub(crate) fn if_present_matches(self, pattern: &str, description: &str) -> Self {
         if let Some(v) = self.value {
             let regex = regex_lite::Regex::new(pattern).ok();
             if let Some(re) = regex {
@@ -170,7 +182,7 @@ impl<'a> OptionalStringValidator<'a> {
         self
     }
 
-    pub fn if_present_valid_uuid(self) -> Self {
+    pub(crate) fn if_present_valid_uuid(self) -> Self {
         if let Some(v) = self.value {
             self.errors.add_if(
                 uuid::Uuid::parse_str(v).is_err(),
@@ -180,7 +192,7 @@ impl<'a> OptionalStringValidator<'a> {
         self
     }
 
-    pub fn if_present_valid_url(self) -> Self {
+    pub(crate) fn if_present_valid_url(self) -> Self {
         if let Some(v) = self.value {
             self.errors.add_if(
                 url::Url::parse(v).is_err(),
@@ -198,7 +210,7 @@ pub struct NumberValidator<T> {
 }
 
 impl<T> NumberValidator<T> {
-    pub fn new(field: String, value: T, errors: &mut ValidationErrors) -> Self {
+    pub(crate) fn new(field: String, value: T, errors: &mut ValidationErrors) -> Self {
         Self {
             field,
             value,
@@ -207,8 +219,21 @@ impl<T> NumberValidator<T> {
     }
 }
 
+#[allow(dead_code)]
 impl NumberValidator<usize> {
-    pub fn min(self, min: usize) -> Self {
+    /// # Safety
+    ///
+    /// `self.errors` must be a valid, non-null pointer derived from a live
+    /// `&mut ValidationErrors` reference. The caller guarantees that
+    /// `ValidationErrors` outlives this `NumberValidator` and that no other
+    /// code holds a mutable reference to it for the lifetime of this validator.
+    /// This is trivially satisfied when `NumberValidator::new` is called with
+    /// `&mut errors` and the validator is dropped before `errors` is used again.
+    pub(crate) fn min(self, min: usize) -> Self {
+        // SAFETY: The raw pointer was created from a valid `&mut ValidationErrors`
+        // in `NumberValidator::new`. The caller guarantees the referent lives long
+        // enough and no aliasing mutable references exist. The dereference produces
+        // a `&mut ValidationErrors` matching the original lifetime.
         unsafe {
             (&mut *self.errors).add_if(
                 self.value < min,
@@ -218,7 +243,16 @@ impl NumberValidator<usize> {
         self
     }
 
-    pub fn max(self, max: usize) -> Self {
+    /// # Safety
+    ///
+    /// `self.errors` must be a valid, non-null pointer derived from a live
+    /// `&mut ValidationErrors` reference. The caller guarantees that
+    /// `ValidationErrors` outlives this `NumberValidator` and that no other
+    /// code holds a mutable reference to it for the lifetime of this validator.
+    pub(crate) fn max(self, max: usize) -> Self {
+        // SAFETY: Same invariants as `min` — the raw pointer was created from a
+        // valid `&mut ValidationErrors` in `NumberValidator::new`. The caller
+        // guarantees the referent is alive and not aliased for this validator's lifetime.
         unsafe {
             (&mut *self.errors).add_if(
                 self.value > max,
@@ -228,7 +262,7 @@ impl NumberValidator<usize> {
         self
     }
 
-    pub fn range(self, min: usize, max: usize) -> Self {
+    pub(crate) fn range(self, min: usize, max: usize) -> Self {
         self.min(min).max(max)
     }
 }
@@ -237,26 +271,27 @@ pub struct RequestValidator {
     errors: ValidationErrors,
 }
 
+#[allow(dead_code)]
 impl RequestValidator {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             errors: ValidationErrors::new(),
         }
     }
 
-    pub fn errors(&self) -> &ValidationErrors {
+    pub(crate) fn errors(&self) -> &ValidationErrors {
         &self.errors
     }
 
-    pub fn errors_mut(&mut self) -> &mut ValidationErrors {
+    pub(crate) fn errors_mut(&mut self) -> &mut ValidationErrors {
         &mut self.errors
     }
 
-    pub fn is_valid(&self) -> bool {
+    pub(crate) fn is_valid(&self) -> bool {
         !self.errors.has_errors()
     }
 
-    pub fn validate_required_string(&mut self, field: &str, value: Option<&str>) {
+    pub(crate) fn validate_required_string(&mut self, field: &str, value: Option<&str>) {
         let Some(v) = value else {
             self.errors.add(FieldError::required(field));
             return;
@@ -266,7 +301,7 @@ impl RequestValidator {
             .max_length(10000);
     }
 
-    pub fn validate_optional_string(
+    pub(crate) fn validate_optional_string(
         &mut self,
         field: &str,
         value: Option<&str>,
@@ -277,7 +312,7 @@ impl RequestValidator {
         }
     }
 
-    pub fn validate_required_uuid(&mut self, field: &str, value: Option<&str>) {
+    pub(crate) fn validate_required_uuid(&mut self, field: &str, value: Option<&str>) {
         let Some(v) = value else {
             self.errors.add(FieldError::required(field));
             return;
@@ -285,7 +320,7 @@ impl RequestValidator {
         StringValidator::new(field, v, &mut self.errors).valid_uuid();
     }
 
-    pub fn validate_required_number(
+    pub(crate) fn validate_required_number(
         &mut self,
         field: &str,
         value: Option<usize>,
@@ -299,7 +334,7 @@ impl RequestValidator {
         NumberValidator::new(field.to_string(), v, &mut self.errors).range(min, max);
     }
 
-    pub fn validate_optional_number(
+    pub(crate) fn validate_optional_number(
         &mut self,
         field: &str,
         value: Option<usize>,
@@ -311,14 +346,14 @@ impl RequestValidator {
         }
     }
 
-    pub fn validate_enum(&mut self, field: &str, value: &str, allowed_values: &[&str]) {
+    pub(crate) fn validate_enum(&mut self, field: &str, value: &str, allowed_values: &[&str]) {
         if !allowed_values.iter().any(|v| *v == value) {
             self.errors
                 .add(FieldError::invalid_enum(field, allowed_values));
         }
     }
 
-    pub fn validate(self) -> Result<(), ValidationErrors> {
+    pub(crate) fn validate(self) -> Result<(), ValidationErrors> {
         if self.errors.has_errors() {
             Err(self.errors)
         } else {
@@ -327,23 +362,25 @@ impl RequestValidator {
     }
 }
 
+#[allow(dead_code)]
 impl Default for RequestValidator {
     fn default() -> Self {
         Self::new()
     }
 }
 
-pub fn validate_session_id(id: &str) -> Result<uuid::Uuid, ValidationErrors> {
+pub(crate) fn validate_session_id(id: &str) -> Result<uuid::Uuid, ValidationErrors> {
     let mut errors = ValidationErrors::new();
     StringValidator::new("session_id", id, &mut errors).valid_uuid();
     if errors.has_errors() {
         Err(errors)
     } else {
-        Ok(uuid::Uuid::parse_str(id).unwrap())
+        Ok(uuid::Uuid::parse_str(id).expect("validated UUID should parse correctly"))
     }
 }
 
-pub fn validate_message_index(index: usize, max: usize) -> Result<(), ValidationErrors> {
+#[allow(dead_code)]
+pub(crate) fn validate_message_index(index: usize, max: usize) -> Result<(), ValidationErrors> {
     let mut errors = ValidationErrors::new();
     NumberValidator::new("message_index".to_string(), index, &mut errors)
         .range(0, max.saturating_sub(1));
@@ -354,13 +391,14 @@ pub fn validate_message_index(index: usize, max: usize) -> Result<(), Validation
     }
 }
 
-pub fn validate_pagination(limit: Option<usize>, offset: Option<usize>) -> (usize, usize) {
+pub(crate) fn validate_pagination(limit: Option<usize>, offset: Option<usize>) -> (usize, usize) {
     let limit = limit.unwrap_or(20);
     let offset = offset.unwrap_or(0);
     (limit.min(200), offset.min(10000))
 }
 
-pub fn validate_command(
+#[allow(dead_code)]
+pub(crate) fn validate_command(
     command: &str,
     args: Option<&Vec<String>>,
     workdir: Option<&str>,

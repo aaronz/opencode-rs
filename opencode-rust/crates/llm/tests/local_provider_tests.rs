@@ -180,3 +180,154 @@ fn test_provider_spec_local_inference_serialization() {
         _ => panic!("Expected LocalInference variant"),
     }
 }
+
+#[test]
+fn test_create_provider_fallback_for_unknown_type() {
+    let manager = ProviderManager::new();
+    let spec = ProviderSpec::OpenAI {
+        api_key: "test-key".to_string(),
+        model: "gpt-4o".to_string(),
+        base_url: None,
+    };
+
+    let result = manager.create_provider(&spec);
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_create_provider_fallback_for_custom_provider() {
+    let manager = ProviderManager::new();
+
+    let spec = ProviderSpec::Mistral {
+        api_key: "mistral-key".to_string(),
+        model: "mistral-large".to_string(),
+    };
+
+    let result = manager.create_provider_fallback(&spec);
+    assert!(result.is_ok());
+    let provider = result.unwrap();
+    assert_eq!(provider.provider_name(), "mistral");
+}
+
+#[test]
+fn test_dynamic_factory_supports_always_returns_true() {
+    use opencode_llm::provider_abstraction::DynamicProviderFactory;
+
+    let factory = DynamicProviderFactory::new();
+    let spec = ProviderSpec::OpenAI {
+        api_key: "test".to_string(),
+        model: "gpt-4".to_string(),
+        base_url: None,
+    };
+    assert!(factory.supports(&spec));
+}
+
+#[test]
+fn test_populate_from_catalog_adds_models() {
+    use opencode_llm::catalog::{
+        CatalogSource, CostInfo, LimitInfo, ModelCapabilities, ModelDescriptor, ModelStatus,
+        ProviderCatalog, ProviderDescriptor,
+    };
+    use opencode_llm::models::ModelRegistry;
+    use std::collections::BTreeMap;
+
+    let mut providers = BTreeMap::new();
+    providers.insert(
+        "minimax".to_string(),
+        ProviderDescriptor {
+            id: "minimax".to_string(),
+            display_name: "MiniMax".to_string(),
+            api_base_url: Some("https://api.minimax.chat/v1".to_string()),
+            docs_url: None,
+            env_vars: vec![],
+            npm_package: None,
+            models: BTreeMap::from([(
+                "MiniMax-M2.7".to_string(),
+                ModelDescriptor {
+                    id: "MiniMax-M2.7".to_string(),
+                    display_name: "MiniMax M2.7".to_string(),
+                    family: Some("MiniMax".to_string()),
+                    provider_id: "minimax".to_string(),
+                    capabilities: ModelCapabilities {
+                        attachment: false,
+                        reasoning: true,
+                        tool_call: false,
+                        temperature: true,
+                        structured_output: false,
+                        interleaved: false,
+                        open_weights: false,
+                        input_modalities: vec!["text".to_string()],
+                        output_modalities: vec!["text".to_string()],
+                    },
+                    cost: CostInfo {
+                        input: 0.0,
+                        output: 0.0,
+                        cache_read: 0.0,
+                        cache_write: 0.0,
+                    },
+                    limits: LimitInfo {
+                        context: 1000000,
+                        input: None,
+                        output: 8192,
+                    },
+                    status: ModelStatus::Active,
+                },
+            )]),
+            source: CatalogSource::ModelsDev,
+        },
+    );
+
+    let catalog = ProviderCatalog {
+        providers,
+        fetched_at: chrono::Utc::now(),
+        source: CatalogSource::ModelsDev,
+    };
+
+    let mut registry = ModelRegistry::new();
+    let initial_count = registry.list().len();
+
+    registry.populate_from_catalog(&catalog);
+
+    let models = registry.list();
+    assert!(models.len() > initial_count);
+    assert!(registry.get("MiniMax-M2.7").is_some());
+    let minimax_model = registry.get("MiniMax-M2.7").unwrap();
+    assert_eq!(minimax_model.provider, "minimax");
+    assert!(minimax_model.supports_streaming);
+}
+
+#[test]
+fn test_populate_from_catalog_preserves_existing_models() {
+    use opencode_llm::catalog::{CatalogSource, ProviderCatalog, ProviderDescriptor};
+    use opencode_llm::models::ModelRegistry;
+    use std::collections::BTreeMap;
+
+    let mut registry = ModelRegistry::new();
+    let original_gpt4o = registry.get("gpt-4o");
+    assert!(original_gpt4o.is_some());
+
+    let mut providers = BTreeMap::new();
+    providers.insert(
+        "newprovider".to_string(),
+        ProviderDescriptor {
+            id: "newprovider".to_string(),
+            display_name: "New Provider".to_string(),
+            api_base_url: None,
+            docs_url: None,
+            env_vars: vec![],
+            npm_package: None,
+            models: BTreeMap::new(),
+            source: CatalogSource::ModelsDev,
+        },
+    );
+
+    let catalog = ProviderCatalog {
+        providers,
+        fetched_at: chrono::Utc::now(),
+        source: CatalogSource::ModelsDev,
+    };
+
+    registry.populate_from_catalog(&catalog);
+
+    assert!(registry.get("gpt-4o").is_some());
+}

@@ -29,78 +29,55 @@ use std::path::Path;
 /// List of sensitive file name patterns (basename only).
 static SENSITIVE_NAMES: Lazy<Vec<Regex>> = Lazy::new(|| {
     vec![
-        // .env files (all .env variants)
-        Regex::new(r"(?:^|[/\\])\.env(?:\.\w+)?$").unwrap(),
-        // PEM certificates and keys
-        Regex::new(r"\.pem$").unwrap(),
-        Regex::new(r"\.key$").unwrap(),
-        // Credentials files
-        Regex::new(r"^credentials\.json$").unwrap(),
-        Regex::new(r"^credentials\.yaml$").unwrap(),
-        Regex::new(r"^credentials\.yml$").unwrap(),
-        // Secret files
-        Regex::new(r"(?:^|[/\\])\.secrets$").unwrap(),
-        Regex::new(r"^secrets\.\w+$").unwrap(),
-        Regex::new(r"^secret\.\w+$").unwrap(),
-        Regex::new(r"(?:^|[/\\])\.secret$").unwrap(),
-        // API key files
-        Regex::new(r"^api_key$").unwrap(),
-        Regex::new(r"^apikey$").unwrap(),
-        // Token files
-        Regex::new(r"^token$").unwrap(),
-        Regex::new(r"^oauth\b").unwrap(),
-        // Private key files
-        Regex::new(r"^id_rsa$").unwrap(),
-        Regex::new(r"^id_ed25519$").unwrap(),
-        Regex::new(r"^id_ecdsa$").unwrap(),
-        // .git-credentials (contains auth info)
-        Regex::new(r"^\.git-credentials$").unwrap(),
-        Regex::new(r"^\.gitconfig$").unwrap(),
-        // S3 config files
-        Regex::new(r"^s3cfg$").unwrap(),
-        Regex::new(r"^\.s3cfg$").unwrap(),
-        // Database credentials
-        Regex::new(r"^database\.json$").unwrap(),
-        Regex::new(r"^\.db_credentials$").unwrap(),
-        // Docker config
-        Regex::new(r"^\.dockerconfigjson$").unwrap(),
-        // Azure credentials
-        Regex::new(r"^azure\.json$").unwrap(),
-        // Google cloud credentials
-        Regex::new(r"application_credentials\.json$").unwrap(),
+        Regex::new(r"(?:^|[/\\])\.env(?:\.\w+)?$").expect("valid .env pattern regex"),
+        Regex::new(r"\.pem$").expect("valid .pem extension regex"),
+        Regex::new(r"\.key$").expect("valid .key extension regex"),
+        Regex::new(r"^credentials\.json$").expect("valid credentials.json pattern"),
+        Regex::new(r"^credentials\.yaml$").expect("valid credentials.yaml pattern"),
+        Regex::new(r"^credentials\.yml$").expect("valid credentials.yml pattern"),
+        Regex::new(r"(?:^|[/\\])\.secrets$").expect("valid .secrets pattern regex"),
+        Regex::new(r"^secrets\.\w+$").expect("valid secrets.* pattern"),
+        Regex::new(r"^secret\.\w+$").expect("valid secret.* pattern"),
+        Regex::new(r"(?:^|[/\\])\.secret$").expect("valid .secret pattern regex"),
+        Regex::new(r"^api_key$").expect("valid api_key pattern"),
+        Regex::new(r"^apikey$").expect("valid apikey pattern"),
+        Regex::new(r"^token$").expect("valid token pattern"),
+        Regex::new(r"^oauth\b").expect("valid oauth pattern"),
+        Regex::new(r"^id_rsa$").expect("valid id_rsa pattern"),
+        Regex::new(r"^id_ed25519$").expect("valid id_ed25519 pattern"),
+        Regex::new(r"^id_ecdsa$").expect("valid id_ecdsa pattern"),
+        Regex::new(r"^\.git-credentials$").expect("valid .git-credentials pattern"),
+        Regex::new(r"^\.gitconfig$").expect("valid .gitconfig pattern"),
+        Regex::new(r"^s3cfg$").expect("valid s3cfg pattern"),
+        Regex::new(r"^\.s3cfg$").expect("valid .s3cfg pattern"),
+        Regex::new(r"^database\.json$").expect("valid database.json pattern"),
+        Regex::new(r"^\.db_credentials$").expect("valid .db_credentials pattern"),
+        Regex::new(r"^\.dockerconfigjson$").expect("valid .dockerconfigjson pattern"),
+        Regex::new(r"^azure\.json$").expect("valid azure.json pattern"),
+        Regex::new(r"application_credentials\.json$")
+            .expect("valid application_credentials.json pattern"),
     ]
 });
 
 /// List of sensitive path patterns (full path patterns).
 static SENSITIVE_PATHS: Lazy<Vec<Regex>> = Lazy::new(|| {
     vec![
-        // AWS credentials
-        Regex::new(r"\.aws/credentials$").unwrap(),
-        Regex::new(r"\.aws/config$").unwrap(),
-        // GCP credentials
-        Regex::new(r"gcloud/application_credentials\.json$").unwrap(),
-        Regex::new(r"gcloud/configurations/config_\w+$").unwrap(),
-        // Azure credentials
-        Regex::new(r"\.azure/azureProfile\.json$").unwrap(),
-        Regex::new(r"\.azure/accessTokens\.json$").unwrap(),
-        // GitHub tokens
-        Regex::new(r"\.config/ghHosts$").unwrap(),
-        // Kubernetes secrets
-        Regex::new(r"kubernetes/secrets\.yaml$").unwrap(),
-        // SSH config with sensitive data
-        Regex::new(r"ssh/config$").unwrap(),
-        // Maven settings with passwords
-        Regex::new(r"\.m2/settings\.xml$").unwrap(),
-        // npmrc with auth tokens
-        Regex::new(r"\.npmrc$").unwrap(),
-        // pip cache with credentials
-        Regex::new(r"\.pip/pip\.conf$").unwrap(),
-        // Netrc (FTP/HTTP credentials)
-        Regex::new(r"^\.netrc$").unwrap(),
-        // Shell history containing secrets
-        Regex::new(r"\.bash_history$").unwrap(),
-        Regex::new(r"\.zsh_history$").unwrap(),
-        Regex::new(r"\.history$").unwrap(),
+        Regex::new(r"\.aws/credentials$").expect("valid .aws/credentials pattern"),
+        Regex::new(r"\.aws/config$").expect("valid .aws/config pattern"),
+        Regex::new(r"gcloud/application_credentials\.json$").expect("valid gcloud pattern"),
+        Regex::new(r"gcloud/configurations/config_\w+$").expect("valid gcloud config pattern"),
+        Regex::new(r"\.azure/azureProfile\.json$").expect("valid azure profile pattern"),
+        Regex::new(r"\.azure/accessTokens\.json$").expect("valid azure tokens pattern"),
+        Regex::new(r"\.config/ghHosts$").expect("valid ghHosts pattern"),
+        Regex::new(r"kubernetes/secrets\.yaml$").expect("valid k8s secrets pattern"),
+        Regex::new(r"ssh/config$").expect("valid ssh config pattern"),
+        Regex::new(r"\.m2/settings\.xml$").expect("valid maven settings pattern"),
+        Regex::new(r"\.npmrc$").expect("valid npmrc pattern"),
+        Regex::new(r"\.pip/pip\.conf$").expect("valid pip config pattern"),
+        Regex::new(r"^\.netrc$").expect("valid netrc pattern"),
+        Regex::new(r"\.bash_history$").expect("valid bash_history pattern"),
+        Regex::new(r"\.zsh_history$").expect("valid zsh_history pattern"),
+        Regex::new(r"\.history$").expect("valid .history pattern"),
     ]
 });
 

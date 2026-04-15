@@ -1,3 +1,4 @@
+use crate::dialogs::sealed;
 use crate::dialogs::{Dialog, DialogAction};
 use crate::theme::Theme;
 use crossterm::event::{KeyCode, KeyEvent};
@@ -63,6 +64,8 @@ impl DirectorySelectionDialog {
         entries
     }
 }
+
+impl sealed::Sealed for DirectorySelectionDialog {}
 
 impl Dialog for DirectorySelectionDialog {
     fn draw(&self, f: &mut Frame, area: Rect) {

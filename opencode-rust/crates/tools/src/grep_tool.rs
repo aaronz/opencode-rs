@@ -1,3 +1,4 @@
+use crate::sealed;
 use crate::{Tool, ToolResult};
 use async_trait::async_trait;
 use opencode_core::OpenCodeError;
@@ -15,6 +16,8 @@ struct GrepArgs {
     file_type: Option<String>,
     count: Option<bool>,
 }
+
+impl sealed::Sealed for GrepTool {}
 
 #[async_trait]
 impl Tool for GrepTool {

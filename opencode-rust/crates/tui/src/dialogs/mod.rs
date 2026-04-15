@@ -26,15 +26,19 @@ pub use dialog_select::DialogSelect;
 pub use diff_review::{DiffAction, DiffReviewOverlay, DiffState};
 pub use directory_selection::DirectorySelectionDialog;
 pub use file_selection::FileSelectionDialog;
-pub use model_selection::ModelSelectionDialog;
-pub use provider_management::ProviderManagementDialog;
+pub use model_selection::{ModelInfo, ModelSelectionDialog};
+pub use provider_management::{ProviderInfo, ProviderManagementDialog, ProviderStatus};
 pub use release_notes::ReleaseNotesDialog;
 pub use settings::SettingsDialog;
 pub use slash_command::SlashCommandOverlay;
 
 use ratatui::Frame;
 
-pub trait Dialog {
+pub(crate) mod sealed {
+    pub trait Sealed {}
+}
+
+pub trait Dialog: sealed::Sealed {
     fn draw(&self, f: &mut Frame, area: ratatui::layout::Rect);
     fn handle_input(&mut self, key: crossterm::event::KeyEvent) -> DialogAction;
     fn is_modal(&self) -> bool {

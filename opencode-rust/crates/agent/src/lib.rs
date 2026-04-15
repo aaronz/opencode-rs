@@ -1,4 +1,5 @@
 pub mod agent;
+pub(crate) use agent::sealed;
 pub mod build_agent;
 pub mod debug_agent;
 pub mod delegation;

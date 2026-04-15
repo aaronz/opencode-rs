@@ -70,7 +70,10 @@ impl Key {
                     }
                 }
                 c if c.len() == 1 => {
-                    let mut ch = part.chars().next().unwrap();
+                    let mut ch = part
+                        .chars()
+                        .next()
+                        .expect("single-char key binding is guaranteed non-empty");
                     if modifiers.contains(KeyModifiers::SHIFT) {
                         ch = ch.to_ascii_uppercase();
                     }

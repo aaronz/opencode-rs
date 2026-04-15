@@ -59,7 +59,9 @@ pub fn run(args: BashArgs) {
         }
     }
 
-    let output = child.wait_with_output().unwrap();
+    let output = child
+        .wait_with_output()
+        .expect("failed to wait for child process output");
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
     let exit_code = output.status.code().unwrap_or(1);
@@ -72,7 +74,7 @@ pub fn run(args: BashArgs) {
                 "stderr": stderr,
                 "exit_code": exit_code,
             }))
-            .unwrap()
+            .expect("failed to serialize JSON output")
         );
         if exit_code != 0 {
             std::process::exit(exit_code);

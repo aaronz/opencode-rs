@@ -1,3 +1,4 @@
+use crate::sealed;
 use crate::tool::{Tool, ToolContext, ToolResult};
 use async_trait::async_trait;
 use opencode_core::{session::Session, OpenCodeError};
@@ -5,6 +6,8 @@ use opencode_permission::{check_tool_permission_default, ApprovalResult};
 use uuid::Uuid;
 
 pub struct SessionLoadTool;
+
+impl sealed::Sealed for SessionLoadTool {}
 
 #[async_trait]
 impl Tool for SessionLoadTool {
@@ -55,6 +58,8 @@ impl Tool for SessionLoadTool {
 }
 
 pub struct SessionSaveTool;
+
+impl sealed::Sealed for SessionSaveTool {}
 
 #[async_trait]
 impl Tool for SessionSaveTool {

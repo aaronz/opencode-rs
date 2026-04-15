@@ -164,7 +164,7 @@ fn run_async<T>(future: impl Future<Output = T>) -> T {
         handle.block_on(future)
     } else {
         tokio::runtime::Runtime::new()
-            .expect("failed to create tokio runtime for MCP tool adapter")
+            .unwrap_or_else(|_| panic!("failed to create tokio runtime for MCP tool adapter"))
             .block_on(future)
     }
 }

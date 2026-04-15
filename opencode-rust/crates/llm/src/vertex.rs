@@ -1,4 +1,5 @@
 use crate::provider::{Model, Provider, ProviderConfig, StreamingCallback};
+use crate::provider::sealed;
 use opencode_core::OpenCodeError;
 
 pub struct VertexProvider {
@@ -28,6 +29,8 @@ impl VertexProvider {
         Some(Self::new(config, project_id, location))
     }
 }
+
+impl sealed::Sealed for VertexProvider {}
 
 #[async_trait::async_trait]
 impl Provider for VertexProvider {

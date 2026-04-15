@@ -1,3 +1,4 @@
+use crate::dialogs::sealed;
 use crate::dialogs::{Dialog, DialogAction};
 use crate::theme::Theme;
 use crossterm::event::{KeyCode, KeyEvent};
@@ -116,6 +117,8 @@ impl SettingsDialog {
         f.render_widget(paragraph, area);
     }
 }
+
+impl sealed::Sealed for SettingsDialog {}
 
 impl Dialog for SettingsDialog {
     fn draw(&self, f: &mut Frame, area: Rect) {

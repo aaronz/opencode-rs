@@ -19,6 +19,7 @@ use opencode_core::config::ServerConfig;
 use opencode_core::Config;
 use opencode_llm::ModelRegistry;
 use opencode_storage::StorageService;
+use opencode_tools::ToolRegistry;
 use routes::acp_ws::SharedAcpClientRegistry;
 use routes::share::ShareServer;
 use std::sync::Arc;
@@ -53,6 +54,7 @@ pub struct ServerState {
     pub acp_enabled: bool,
     pub acp_stream: SharedAcpStream,
     pub acp_client_registry: SharedAcpClientRegistry,
+    pub tool_registry: Arc<ToolRegistry>,
 }
 
 pub async fn run_server(state: Arc<ServerState>, host: &str, port: u16) -> std::io::Result<()> {
@@ -61,7 +63,7 @@ pub async fn run_server(state: Arc<ServerState>, host: &str, port: u16) -> std::
     let server_cfg = state
         .config
         .read()
-        .expect("server config lock poisoned")
+        .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "server config lock poisoned"))?
         .server
         .clone()
         .unwrap_or_default();
@@ -139,7 +141,7 @@ pub async fn run_server_with_shutdown(
     let server_cfg = state
         .config
         .read()
-        .expect("server config lock poisoned")
+        .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "server config lock poisoned"))?
         .server
         .clone()
         .unwrap_or_default();

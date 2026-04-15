@@ -1,8 +1,11 @@
+use crate::sealed;
 use crate::{Tool, ToolResult};
 use async_trait::async_trait;
 use opencode_core::OpenCodeError;
 
 pub struct PlanExitTool;
+
+impl sealed::Sealed for PlanExitTool {}
 
 #[async_trait]
 impl Tool for PlanExitTool {

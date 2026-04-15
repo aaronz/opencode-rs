@@ -1,3 +1,4 @@
+use crate::sealed;
 use crate::{Tool, ToolResult};
 use async_trait::async_trait;
 use opencode_core::OpenCodeError;
@@ -12,6 +13,8 @@ struct GlobArgs {
     pattern: String,
     path: Option<String>,
 }
+
+impl sealed::Sealed for GlobTool {}
 
 #[async_trait]
 impl Tool for GlobTool {

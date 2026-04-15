@@ -1,3 +1,4 @@
+use crate::sealed;
 use crate::{Tool, ToolResult};
 use async_trait::async_trait;
 use opencode_core::OpenCodeError;
@@ -20,6 +21,8 @@ fn default_format() -> Option<String> {
 const MAX_RESPONSE_SIZE: usize = 5 * 1024 * 1024;
 const DEFAULT_TIMEOUT: u64 = 30_000;
 const MAX_TIMEOUT: u64 = 120_000;
+
+impl sealed::Sealed for WebfetchTool {}
 
 #[async_trait]
 impl Tool for WebfetchTool {

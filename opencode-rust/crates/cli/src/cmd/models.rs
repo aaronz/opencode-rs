@@ -74,8 +74,9 @@ fn load_hidden_models() -> BTreeSet<String> {
 fn save_hidden_models(hidden_models: &BTreeSet<String>) {
     let path = hidden_models_path();
     let payload = hidden_models.iter().cloned().collect::<Vec<_>>();
-    let serialized = serde_json::to_string_pretty(&payload).unwrap();
-    std::fs::write(path, serialized).unwrap();
+    let serialized =
+        serde_json::to_string_pretty(&payload).expect("failed to serialize hidden models");
+    std::fs::write(&path, serialized).expect("failed to write hidden models file");
 }
 
 fn load_config() -> Config {
@@ -130,7 +131,7 @@ pub fn run(args: ModelsArgs) {
                         serde_json::to_string_pretty(&json!({
                             "active_model": model_id,
                         }))
-                        .unwrap()
+                        .expect("failed to serialize JSON output")
                     );
                 } else {
                     println!("Switched model to {}", model_id);
@@ -174,7 +175,7 @@ pub fn run(args: ModelsArgs) {
                         "action": "list",
                         "models": models,
                     }))
-                    .unwrap()
+                    .expect("failed to serialize JSON output")
                 );
             } else if let Some(vis) = args.visibility {
                 println!("Models with visibility: {}", vis);

@@ -20,9 +20,12 @@ run_phase_gap_analysis() {
 - 必须直接在当前 session 中完成所有分析工作
 - 只使用 Read、Write、Edit、Grep、LSP 等直接工具
 
+## PRD
+$(cat $prd_path)
+
 ## 任务
 1. 读取当前实现目录结构（src/目录、iterations/src/目录等）
-2. 读取PRD.md识别核心功能需求
+2. 基于上述PRD识别核心功能需求
 3. 对比实现与PRD的差距
 
 ## 分析维度
@@ -93,9 +96,8 @@ $(cat $gap_analysis)
 run_phase_spec() {
     local prd_path="$1"
     local gap_analysis="$2"
-    local constitution="$3"
-    local output_dir="$4"
-    local iteration="$5"
+    local output_dir="$3"
+    local iteration="$4"
 
     local spec_file="$output_dir/spec_v${iteration}.md"
 
@@ -118,9 +120,6 @@ $(cat $prd_path)
 ## 差距分析
 $(cat $gap_analysis)
 
-## Constitution
-$(cat $constitution 2>/dev/null || echo "使用默认Constitution")
-
 ## 任务
 1. 基于差距分析，更新spec.md
 2. 确保新功能有对应的规格定义
@@ -134,10 +133,9 @@ $(cat $constitution 2>/dev/null || echo "使用默认Constitution")
 
 run_phase_plan() {
     local spec_file="$1"
-    local constitution="$2"
-    local gap_analysis="$3"
-    local output_dir="$4"
-    local iteration="$5"
+    local gap_analysis="$2"
+    local output_dir="$3"
+    local iteration="$4"
 
     local plan_file="$output_dir/plan_v${iteration}.md"
     local tasks_file="$output_dir/tasks_v${iteration}.md"
@@ -158,9 +156,6 @@ run_phase_plan() {
 
 ## Spec
 $(cat $spec_file)
-
-## Constitution
-$(cat $constitution 2>/dev/null || echo "")
 
 ## 差距分析
 $(cat $gap_analysis)
@@ -186,8 +181,7 @@ run_phase_implementation() {
     local tasks_json="$1"
     local spec_file="$2"
     local output_dir="$3"
-    local constitution="$4"
-    local max_rounds="$5"
+    local max_rounds="$4"
 
     TASK_FILE="$output_dir/tasks_v${NEXT_ITERATION}.md"
     TASKS_JSON="$tasks_json"
@@ -235,14 +229,7 @@ run_phase_implementation() {
                 break
             fi
 
-            implement_task "$next_task" "$TASKS_JSON" "$spec_file" "$constitution"
-            impl_result=$?
-
-            if [ $impl_result -ne 0 ]; then
-                echo ""
-                echo "⚠️  任务 $next_task 失败，标记为blocked并继续下一个任务..."
-                update_task_status "$TASKS_JSON" "$next_task" "blocked"
-            fi
+            implement_task "$next_task" "$TASKS_JSON" "$spec_file"
 
             remaining_p0_p1=$(check_remaining_p0_p1 "$TASKS_JSON")
             if [ "$remaining_p0_p1" -eq 0 ]; then
@@ -315,7 +302,6 @@ implement_task() {
     local task_id="$1"
     local task_json="$2"
     local spec_file="$3"
-    local constitution="$4"
 
     echo ""
     echo "----------------------------------------------"
@@ -345,9 +331,6 @@ $(echo "$task_details" | python3 -c "import sys,json; d=json.load(sys.stdin); pr
 ## Spec
 $(cat $spec_file)
 
-## Constitution
-$(cat $constitution 2>/dev/null || echo "使用默认Constitution")
-
 ## 实现目录
 ./iterations/src/
 
@@ -374,17 +357,15 @@ $(cat $constitution 2>/dev/null || echo "使用默认Constitution")
 
     local test_passed=true
     local test_output=""
-    local fix_attempt=0
-    local max_fix_attempts=2
     local task_details_obj=$(echo "$task_details" | python3 -c "import sys,json; print(json.dumps(json.load(sys.stdin)))" 2>/dev/null)
     if [ -n "$task_details_obj" ]; then
         local test_commands=$(echo "$task_details_obj" | python3 -c "import sys,json; cmds=json.load(sys.stdin).get('test_commands', ['cargo build']); print('\n'.join(cmds) if cmds else 'cargo build')" 2>/dev/null || echo "cargo build")
         echo "运行测试命令..."
         while IFS= read -r cmd; do
             echo "执行: $cmd"
-            test_output=$(cd opencode-rust && eval "$cmd" 2>&1) && test_passed=true || test_passed=false
-            if [ "$test_passed" = false ]; then
+            if ! (cd opencode-rust && eval "$cmd" 2>&1); then
                 echo "⚠️  测试有问题，请检查"
+                test_passed=false
                 break
             fi
         done <<< "$test_commands"
@@ -393,15 +374,9 @@ $(cat $constitution 2>/dev/null || echo "使用默认Constitution")
         fi
     fi
 
-    while [ "$test_passed" = false ] && [ $fix_attempt -lt $max_fix_attempts ]; do
-        fix_attempt=$((fix_attempt + 1))
+    if [ "$test_passed" = false ]; then
         echo ""
-        echo "❌ 测试失败，重新生成修复方案... (尝试 $fix_attempt/$max_fix_attempts)"
-
-        if echo "$test_output" | grep -q "test.*does not exist\|0 tests\|no tests to run\|filtered out"; then
-            echo "⚠️  检测到测试不存在（任务可能是新实现），跳过修复循环"
-            break
-        fi
+        echo "❌ 测试失败，重新生成修复方案..."
 
         local fix_prompt="任务 $task_id 测试失败，需要修复。
 
@@ -441,19 +416,9 @@ $(echo "$task_details" | python3 -c "import sys,json; d=json.load(sys.stdin); pr
         test_output=$(cd opencode-rust && eval "$test_commands" 2>&1) && test_passed=true || test_passed=false
 
         if [ "$test_passed" = false ]; then
-            echo "⚠️  再次测试失败"
+            echo "⚠️  再次测试失败，需要手动检查"
             echo "失败输出:"
-            echo "$test_output" | head -30
-        fi
-    done
-
-    if [ "$test_passed" = false ]; then
-        if echo "$test_output" | grep -q "test.*does not exist\|0 tests\|no tests to run\|filtered out"; then
-            echo "⚠️  检测到测试不存在，任务状态保持 in_progress，需手动检查"
-            update_task_status "$task_json" "$task_id" "in_progress"
-            return 1
-        else
-            echo "⚠️  达到最大修复尝试次数，需要手动检查"
+            echo "$test_output"
             update_task_status "$task_json" "$task_id" "in_progress"
             return 1
         fi

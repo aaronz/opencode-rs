@@ -116,7 +116,10 @@ pub fn run(args: ProvidersArgs) {
                 "provider": provider_id,
                 "method": if args.browser { "browser" } else { "api_key" },
             });
-            println!("{}", serde_json::to_string_pretty(&result).unwrap());
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&result).expect("failed to serialize JSON output")
+            );
             return;
         }
 
@@ -195,7 +198,10 @@ pub fn run(args: ProvidersArgs) {
             "action": "list",
             "providers": providers,
         });
-        println!("{}", serde_json::to_string_pretty(&result).unwrap());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&result).expect("failed to serialize JSON output")
+        );
         return;
     }
 

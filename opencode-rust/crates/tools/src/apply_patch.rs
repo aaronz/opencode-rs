@@ -1,3 +1,4 @@
+use crate::sealed;
 use crate::{Tool, ToolResult};
 use async_trait::async_trait;
 use opencode_core::OpenCodeError;
@@ -32,6 +33,8 @@ struct UpdateChunk {
     old_lines: Vec<String>,
     new_lines: Vec<String>,
 }
+
+impl sealed::Sealed for ApplyPatchTool {}
 
 #[async_trait]
 impl Tool for ApplyPatchTool {

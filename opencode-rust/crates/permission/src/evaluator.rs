@@ -75,7 +75,9 @@ impl PermissionEvaluator {
         let regex = self
             .regex_cache
             .entry(regex_pattern.clone())
-            .or_insert_with(|| Regex::new(&regex_pattern).expect("Invalid permission pattern"));
+            .or_insert_with(|| {
+                Regex::new(&regex_pattern).expect("permission pattern regex is valid")
+            });
 
         regex.is_match(required)
     }

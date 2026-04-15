@@ -1,3 +1,4 @@
+use crate::dialogs::sealed;
 use crate::dialogs::{Dialog, DialogAction};
 use crate::theme::Theme;
 use crossterm::event::{KeyCode, KeyEvent};
@@ -41,6 +42,8 @@ impl DialogSelect {
         self.selected_index
     }
 }
+
+impl sealed::Sealed for DialogSelect {}
 
 impl Dialog for DialogSelect {
     fn draw(&self, f: &mut Frame, area: Rect) {

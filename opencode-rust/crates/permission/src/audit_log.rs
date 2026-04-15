@@ -60,7 +60,10 @@ impl AuditLog {
     }
 
     fn init_schema(&self) -> Result<(), rusqlite::Error> {
-        let conn = self.conn.lock().expect("audit log mutex poisoned");
+        let conn = self
+            .conn
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         conn.execute_batch(
             "
             CREATE TABLE IF NOT EXISTS permission_audit_log (
@@ -81,7 +84,10 @@ impl AuditLog {
     }
 
     pub fn record_decision(&self, entry: AuditEntry) -> Result<(), rusqlite::Error> {
-        let conn = self.conn.lock().expect("audit log mutex poisoned");
+        let conn = self
+            .conn
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         conn.execute(
             "INSERT INTO permission_audit_log (timestamp, tool_name, decision, session_id, user_response)
              VALUES (?1, ?2, ?3, ?4, ?5)",
@@ -101,7 +107,10 @@ impl AuditLog {
         start: DateTime<Utc>,
         end: DateTime<Utc>,
     ) -> Result<Vec<AuditEntry>, rusqlite::Error> {
-        let conn = self.conn.lock().expect("audit log mutex poisoned");
+        let conn = self
+            .conn
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let mut stmt = conn.prepare(
             "SELECT timestamp, tool_name, decision, session_id, user_response
              FROM permission_audit_log
@@ -114,7 +123,10 @@ impl AuditLog {
     }
 
     pub fn query_by_tool_name(&self, tool: &str) -> Result<Vec<AuditEntry>, rusqlite::Error> {
-        let conn = self.conn.lock().expect("audit log mutex poisoned");
+        let conn = self
+            .conn
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let mut stmt = conn.prepare(
             "SELECT timestamp, tool_name, decision, session_id, user_response
              FROM permission_audit_log
@@ -127,7 +139,10 @@ impl AuditLog {
     }
 
     pub fn get_recent_entries(&self, limit: usize) -> Result<Vec<AuditEntry>, rusqlite::Error> {
-        let conn = self.conn.lock().expect("audit log mutex poisoned");
+        let conn = self
+            .conn
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let mut stmt = conn.prepare(
             "SELECT timestamp, tool_name, decision, session_id, user_response
              FROM permission_audit_log
@@ -141,7 +156,10 @@ impl AuditLog {
 
     pub fn cleanup_older_than(&self, days: u32) -> Result<usize, rusqlite::Error> {
         let cutoff = Utc::now() - Duration::days(days as i64);
-        let conn = self.conn.lock().expect("audit log mutex poisoned");
+        let conn = self
+            .conn
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let count = conn.execute(
             "DELETE FROM permission_audit_log WHERE timestamp < ?1",
             params![cutoff.to_rfc3339()],

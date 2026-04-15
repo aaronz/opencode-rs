@@ -35,7 +35,10 @@ pub fn run(args: ListArgs) {
             "action": "list",
             "sessions": sessions,
         });
-        println!("{}", serde_json::to_string_pretty(&result).unwrap());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&result).expect("failed to serialize JSON output")
+        );
         return;
     }
 

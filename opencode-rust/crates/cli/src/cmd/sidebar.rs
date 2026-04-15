@@ -37,7 +37,10 @@ pub fn run(args: SidebarArgs) {
                     serde_json::json!({"id": "sidebar-session-1", "name": "Sidebar Session 1"}),
                     serde_json::json!({"id": "sidebar-session-2", "name": "Sidebar Session 2"}),
                 ];
-                println!("{}", serde_json::to_string(&sessions).unwrap());
+                println!(
+                    "{}",
+                    serde_json::to_string(&sessions).expect("failed to serialize JSON output")
+                );
             } else {
                 println!("Sidebar sessions:");
                 println!("  sidebar-session-1 - Sidebar Session 1");
@@ -47,7 +50,10 @@ pub fn run(args: SidebarArgs) {
         Some(SidebarAction::Recent { limit, json }) => {
             if json {
                 let recent = vec![serde_json::json!({"id": "session-1", "name": "Recent Session"})];
-                println!("{}", serde_json::to_string(&recent).unwrap());
+                println!(
+                    "{}",
+                    serde_json::to_string(&recent).expect("failed to serialize JSON output")
+                );
             } else {
                 println!("Recent sessions (limit: {:?}):", limit);
                 println!("  session-1 - Recent Session");

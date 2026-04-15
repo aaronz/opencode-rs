@@ -1,3 +1,4 @@
+use crate::sealed;
 use crate::{Tool, ToolResult};
 use async_trait::async_trait;
 use opencode_core::OpenCodeError;
@@ -33,6 +34,8 @@ impl Default for BashTool {
         Self::new()
     }
 }
+
+impl sealed::Sealed for BashTool {}
 
 #[async_trait]
 impl Tool for BashTool {

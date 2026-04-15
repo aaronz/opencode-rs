@@ -2,6 +2,10 @@ use async_trait::async_trait;
 use opencode_core::{Message, OpenCodeError};
 use serde::{Deserialize, Serialize};
 
+pub(crate) mod sealed {
+    pub trait Sealed {}
+}
+
 pub type StreamingCallback = Box<dyn FnMut(String) + Send>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -127,7 +131,7 @@ pub struct StreamChunk {
 }
 
 #[async_trait]
-pub trait Provider: Send + Sync {
+pub trait Provider: Send + Sync + sealed::Sealed {
     async fn complete(&self, prompt: &str, context: Option<&str>) -> Result<String, OpenCodeError>;
     async fn complete_streaming(
         &self,
@@ -158,7 +162,7 @@ pub trait Provider: Send + Sync {
     }
 }
 
-pub trait SimpleProvider: Send + Sync {
+pub trait SimpleProvider: Send + Sync + sealed::Sealed {
     fn get_models(&self) -> Vec<Model>;
     fn provider_name(&self) -> &str;
 }
@@ -198,6 +202,7 @@ mod tests {
     #[test]
     fn test_simple_provider_trait() {
         struct TestProvider;
+        impl provider::sealed::Sealed for TestProvider {}
         impl SimpleProvider for TestProvider {
             fn get_models(&self) -> Vec<Model> {
                 vec![Model::new("test-model", "Test Model")]

@@ -1,3 +1,4 @@
+use crate::sealed;
 use crate::{Tool, ToolContext, ToolResult};
 use async_trait::async_trait;
 use opencode_core::{Message, OpenCodeError, Session};
@@ -14,6 +15,8 @@ struct TaskArgs {
     task_id: Option<String>,
     _command: Option<String>,
 }
+
+impl sealed::Sealed for TaskTool {}
 
 #[async_trait]
 impl Tool for TaskTool {

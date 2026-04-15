@@ -1,5 +1,6 @@
 use crate::OpenCodeError;
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 use std::path::{Path, PathBuf};
 use std::sync::RwLock;
 use walkdir::WalkDir;
@@ -79,6 +80,7 @@ const BUILTIN_SKILLS: &[(&str, &str)] = &[
     ("devops/SKILL.md", include_str!("../skills/devops/SKILL.md")),
 ];
 
+#[allow(dead_code)]
 impl SkillManager {
     pub fn new() -> Self {
         let global_path = dirs::config_dir().map(|p| p.join("opencode").join("skills"));
@@ -125,26 +127,26 @@ impl SkillManager {
         false
     }
 
-    pub fn with_compat_paths(mut self, paths: Vec<PathBuf>) -> Self {
+    pub(crate) fn with_compat_paths(mut self, paths: Vec<PathBuf>) -> Self {
         self.compat_skills_paths = paths;
         self
     }
 
-    pub fn with_project_path(mut self, project_path: PathBuf) -> Self {
+    pub(crate) fn with_project_path(mut self, project_path: PathBuf) -> Self {
         self.project_skills_path = Some(project_path.join(".opencode").join("skills"));
         self
     }
 
-    pub fn with_builtin_skills_path(mut self, path: PathBuf) -> Self {
+    pub(crate) fn with_builtin_skills_path(mut self, path: PathBuf) -> Self {
         self.builtin_skills_path = Some(path);
         self
     }
 
-    pub fn set_builtin_skills_path(&mut self, path: PathBuf) {
+    pub(crate) fn set_builtin_skills_path(&mut self, path: PathBuf) {
         self.builtin_skills_path = Some(path);
     }
 
-    pub fn set_project_path(&mut self, project_path: PathBuf) {
+    pub(crate) fn set_project_path(&mut self, project_path: PathBuf) {
         self.project_skills_path = Some(project_path.join(".opencode").join("skills"));
     }
 
@@ -207,7 +209,7 @@ impl SkillManager {
         Some((meta, body))
     }
 
-    pub fn discover_in_dir(&self, dir: &Path) -> Result<Vec<Skill>, OpenCodeError> {
+    pub(crate) fn discover_in_dir(&self, dir: &Path) -> Result<Vec<Skill>, OpenCodeError> {
         let mut found = Vec::new();
         if !dir.exists() {
             return Ok(found);
@@ -284,7 +286,7 @@ impl SkillManager {
         Ok(found)
     }
 
-    pub fn discover(&self) -> Result<(), OpenCodeError> {
+    pub(crate) fn discover(&self) -> Result<(), OpenCodeError> {
         let mut skills = self.load_builtin_skills();
 
         if let Some(ref project_path) = self.project_skills_path {
@@ -309,7 +311,7 @@ impl SkillManager {
         Ok(())
     }
 
-    pub fn load_builtin_skills(&self) -> Vec<Skill> {
+    pub(crate) fn load_builtin_skills(&self) -> Vec<Skill> {
         if let Some(ref builtin_path) = self.builtin_skills_path {
             if builtin_path.exists() {
                 tracing::debug!(
@@ -345,7 +347,7 @@ impl SkillManager {
             .collect()
     }
 
-    pub fn match_skill(&self, input: &str) -> Result<Vec<SkillMatch>, OpenCodeError> {
+    pub(crate) fn match_skill(&self, input: &str) -> Result<Vec<SkillMatch>, OpenCodeError> {
         self.ensure_discovered()?;
 
         let read = self
@@ -379,11 +381,16 @@ impl SkillManager {
             }
         }
 
-        matches.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap());
+        matches.sort_by(|a, b| {
+            b.confidence
+                .partial_cmp(&a.confidence)
+                .ok_or_else(|| OpenCodeError::InternalError("confidence comparison failed".into()))
+                .unwrap_or(Ordering::Equal)
+        });
         Ok(matches)
     }
 
-    pub fn match_by_skill_name(&self, name: &str) -> Option<Skill> {
+    pub(crate) fn match_by_skill_name(&self, name: &str) -> Option<Skill> {
         self.ensure_discovered().ok()?;
         let read = self.skills.read().ok()?;
         read.iter()
@@ -400,7 +407,7 @@ impl SkillManager {
         Ok(read.clone())
     }
 
-    pub fn get(&self, name: &str) -> Option<Skill> {
+    pub(crate) fn get(&self, name: &str) -> Option<Skill> {
         self.ensure_discovered().ok()?;
         let read = self.skills.read().ok()?;
         read.iter().find(|s| s.name == name).cloned()
@@ -410,7 +417,7 @@ impl SkillManager {
         self.get(name)
     }
 
-    pub fn list_skills(&self) -> Result<Vec<Skill>, OpenCodeError> {
+    pub(crate) fn list_skills(&self) -> Result<Vec<Skill>, OpenCodeError> {
         self.list()
     }
 
@@ -421,11 +428,11 @@ impl SkillManager {
         )
     }
 
-    pub fn all(&self) -> Result<Vec<Skill>, OpenCodeError> {
+    pub(crate) fn all(&self) -> Result<Vec<Skill>, OpenCodeError> {
         self.list()
     }
 
-    pub fn reload(&self) -> Result<(), OpenCodeError> {
+    pub(crate) fn reload(&self) -> Result<(), OpenCodeError> {
         {
             let mut discovered = self
                 .discovered

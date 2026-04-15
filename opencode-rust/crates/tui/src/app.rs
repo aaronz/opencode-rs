@@ -6,6 +6,7 @@ use crate::components::{
 use crate::config::{Config, DiffStyle, UserConfig};
 use crate::dialogs::home_view::{HomeAction, HomeView, HomeViewSection};
 use crate::dialogs::*;
+use crate::dialogs::{ProviderInfo, ProviderStatus};
 use crate::file_ref_handler::FileRefHandler;
 use crate::input::{EditorLauncher, InputBox, InputParser, InputProcessor, InputToken};
 use crate::layout::LayoutManager;
@@ -29,7 +30,7 @@ use opencode_core::{
 };
 use opencode_llm::{
     BrowserAuthModelInfo, OpenAiBrowserAuthService, OpenAiBrowserAuthStore, OpenAiBrowserSession,
-    OpenAiProvider, Provider, ProviderConfig,
+    OpenAiProvider, Provider, ProviderCatalogFetcher, ProviderConfig,
 };
 use opencode_lsp::client::LspClient;
 use opencode_lsp::types::{Diagnostic, Location};
@@ -531,6 +532,7 @@ pub struct App {
     mcp_manager: &'static McpManager,
     pub lsp_client: Option<LspClient>,
     pub lsp_diagnostics: Vec<Diagnostic>,
+    pub catalog_fetcher: ProviderCatalogFetcher,
 }
 
 impl App {
@@ -712,6 +714,13 @@ impl App {
             mcp_manager: McpManager::global(),
             lsp_client: None,
             lsp_diagnostics: Vec::new(),
+            catalog_fetcher: {
+                let cache_dir = dirs::config_dir()
+                    .unwrap_or_else(|| std::path::PathBuf::from("."))
+                    .join("opencode-rs/cache");
+                std::fs::create_dir_all(&cache_dir).ok();
+                ProviderCatalogFetcher::new(cache_dir.join("models_dev_catalog.json"))
+            },
         }
     }
 
@@ -837,10 +846,8 @@ impl App {
         store.save(&session).map_err(|e| e.to_string())?;
 
         self.provider = "openai".to_string();
-        unsafe {
-            std::env::set_var("OPENAI_MODEL", &model_id);
-            std::env::set_var("OPENCODE_MODEL", &model_id);
-        }
+        std::env::set_var("OPENAI_MODEL", &model_id);
+        std::env::set_var("OPENCODE_MODEL", &model_id);
         self.llm_provider = Some(std::sync::Arc::new(OpenAiProvider::new_browser_auth(
             session, model_id, store,
         )));
@@ -1288,10 +1295,10 @@ impl App {
         let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
         execute!(
             io::stdout(),
-            TermClear(ClearType::All),
             cursor::SetCursorStyle::BlinkingBlock,
             cursor::Show
         )?;
+        execute!(io::stdout(), TermClear(ClearType::All))?;
 
         loop {
             terminal.draw(|f| self.draw(f))?;
@@ -1594,9 +1601,11 @@ impl App {
                         self.command_palette_input.clear();
                     }
                     KeyCode::Enter => {
+                        let mode_before = self.mode.clone();
                         if let Some(cmd_name) = self.slash_command_dialog.get_selected_command() {
                             self.execute_slash_command(&cmd_name);
-                        } else {
+                        }
+                        if self.mode == mode_before {
                             self.mode = AppMode::Chat;
                         }
                         self.command_palette_input.clear();
@@ -2034,7 +2043,7 @@ impl App {
                         self.add_message(
                             format!(
                                 "Session shared: {}\nUse /unshare to remove.",
-                                self.share_url.as_ref().unwrap()
+                                self.share_url.as_ref().expect("share_url set above")
                             ),
                             false,
                         );
@@ -2957,7 +2966,10 @@ OpenCode Agent Configuration
                                         file_contexts.push(format!(
                                             "\n[Error reading {}: {}]\n",
                                             result.path,
-                                            result.error.as_ref().unwrap()
+                                            result
+                                                .error
+                                                .as_ref()
+                                                .expect("error is Some in else branch")
                                         ));
                                     }
                                 }
@@ -3005,7 +3017,11 @@ OpenCode Agent Configuration
 
                                 let (tx, rx) = mpsc::channel();
                                 self.llm_rx = Some(rx);
-                                let provider_clone = self.llm_provider.as_ref().unwrap().clone();
+                                let provider_clone = self
+                                    .llm_provider
+                                    .as_ref()
+                                    .expect("llm_provider is Some per is_some check")
+                                    .clone();
                                 let auto_enabled = self.skill_resolver.match_and_enable(&input);
                                 for skill in auto_enabled {
                                     self.skills_panel.set_enabled(&skill.name, true);
@@ -3023,7 +3039,8 @@ OpenCode Agent Configuration
                                 };
 
                                 std::thread::spawn(move || {
-                                    let rt = tokio::runtime::Runtime::new().unwrap();
+                                    let rt = tokio::runtime::Runtime::new()
+                                        .expect("failed to create Tokio runtime");
                                     rt.block_on(async {
                                         let tx_callback = tx.clone();
                                         let callback = move |chunk: String| {
@@ -3653,7 +3670,11 @@ OpenCode Agent Configuration
                                 if session_name.is_some() {
                                     self.session_manager.select(idx);
                                     self.add_message(
-                                        format!("Loaded session: {}", session_name.unwrap()),
+                                        format!(
+                                            "Loaded session: {}",
+                                            session_name
+                                                .expect("session_name is Some per is_some check")
+                                        ),
                                         false,
                                     );
                                     self.mode = AppMode::Chat;
@@ -4295,6 +4316,9 @@ OpenCode Agent Configuration
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
+                if matches!(key.code, KeyCode::Enter | KeyCode::Esc) {
+                    self.load_model_catalog();
+                }
                 let action = self.model_selection_dialog.handle_input(key);
                 match action {
                     DialogAction::Close => self.mode = AppMode::Chat,
@@ -4309,12 +4333,35 @@ OpenCode Agent Configuration
         Ok(())
     }
 
+    fn load_model_catalog(&mut self) {
+        use crate::dialogs::ModelInfo;
+        if let Some(catalog) = self.catalog_fetcher.get_blocking() {
+            let models: Vec<ModelInfo> = catalog
+                .providers
+                .values()
+                .flat_map(|p| {
+                    p.models.values().map(|m| ModelInfo {
+                        id: m.id.clone(),
+                        name: m.display_name.clone(),
+                        provider: p.display_name.clone(),
+                        is_paid: m.cost.input > 0.0 || m.cost.output > 0.0,
+                        is_available: true,
+                    })
+                })
+                .collect();
+            self.model_selection_dialog.set_models(models);
+        }
+    }
+
     fn handle_provider_management_dialog(
         &mut self,
         _terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
+                if matches!(key.code, KeyCode::Enter | KeyCode::Esc) {
+                    self.load_provider_catalog();
+                }
                 let action = self.provider_management_dialog.handle_input(key);
                 match action {
                     DialogAction::Close => self.mode = AppMode::Chat,
@@ -4326,6 +4373,23 @@ OpenCode Agent Configuration
             }
         }
         Ok(())
+    }
+
+    fn load_provider_catalog(&mut self) {
+        use opencode_llm::ProviderDescriptor;
+        if let Some(catalog) = self.catalog_fetcher.get_blocking() {
+            let providers: Vec<ProviderInfo> = catalog
+                .providers
+                .values()
+                .map(|p: &ProviderDescriptor| ProviderInfo {
+                    id: p.id.clone(),
+                    name: p.display_name.clone(),
+                    status: ProviderStatus::Connected,
+                    api_key_set: false,
+                })
+                .collect();
+            self.provider_management_dialog.set_providers(providers);
+        }
     }
 
     fn handle_connect_provider_dialog(

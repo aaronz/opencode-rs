@@ -101,6 +101,7 @@ pub enum AcpWsOutgoing {
     },
 }
 
+#[allow(dead_code)]
 impl AcpWsOutgoing {
     fn session_id(&self) -> Option<&str> {
         match self {
@@ -129,6 +130,7 @@ pub struct AcpClientRegistry {
     clients: HashMap<String, AcpClientConnection>,
 }
 
+#[allow(dead_code)]
 impl AcpClientRegistry {
     pub fn new() -> Self {
         Self {
@@ -136,43 +138,44 @@ impl AcpClientRegistry {
         }
     }
 
-    pub fn register(&mut self, connection_id: String, client: AcpClientConnection) {
+    pub(crate) fn register(&mut self, connection_id: String, client: AcpClientConnection) {
         self.clients.insert(connection_id, client);
     }
 
-    pub fn unregister(&mut self, connection_id: &str) -> Option<AcpClientConnection> {
+    pub(crate) fn unregister(&mut self, connection_id: &str) -> Option<AcpClientConnection> {
         self.clients.remove(connection_id)
     }
 
-    pub fn get(&self, connection_id: &str) -> Option<&AcpClientConnection> {
+    pub(crate) fn get(&self, connection_id: &str) -> Option<&AcpClientConnection> {
         self.clients.get(connection_id)
     }
 
-    pub fn get_by_session(&self, session_id: &str) -> Vec<&AcpClientConnection> {
+    pub(crate) fn get_by_session(&self, session_id: &str) -> Vec<&AcpClientConnection> {
         self.clients
             .values()
             .filter(|c| c.session_id == session_id)
             .collect()
     }
 
-    pub fn get_by_client(&self, client_id: &str) -> Vec<&AcpClientConnection> {
+    pub(crate) fn get_by_client(&self, client_id: &str) -> Vec<&AcpClientConnection> {
         self.clients
             .values()
             .filter(|c| c.client_id == client_id)
             .collect()
     }
 
-    pub fn update_heartbeat(&mut self, connection_id: &str) {
+    pub(crate) fn update_heartbeat(&mut self, connection_id: &str) {
         if let Some(client) = self.clients.get_mut(connection_id) {
             client.last_heartbeat = Some(chrono::Utc::now().timestamp());
         }
     }
 
-    pub fn active_clients(&self) -> usize {
+    pub(crate) fn active_clients(&self) -> usize {
         self.clients.len()
     }
 }
 
+#[allow(dead_code)]
 impl Default for AcpClientRegistry {
     fn default() -> Self {
         Self::new()

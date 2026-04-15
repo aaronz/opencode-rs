@@ -5,6 +5,10 @@ use opencode_llm::Provider;
 use opencode_tools::ToolRegistry;
 use serde::{Deserialize, Serialize};
 
+pub(crate) mod sealed {
+    pub trait Sealed {}
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum AgentType {
@@ -50,7 +54,7 @@ pub struct AgentResponse {
 }
 
 #[async_trait]
-pub trait Agent: Send + Sync {
+pub trait Agent: Send + Sync + sealed::Sealed {
     fn agent_type(&self) -> AgentType;
     fn name(&self) -> &str;
     fn description(&self) -> &str;

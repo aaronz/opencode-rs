@@ -1,5 +1,6 @@
 #![allow(clippy::redundant_closure)]
 
+use crate::sealed;
 use crate::{Tool, ToolResult};
 use async_trait::async_trait;
 use opencode_core::OpenCodeError;
@@ -33,6 +34,8 @@ impl Default for ReadTool {
         Self::new()
     }
 }
+
+impl sealed::Sealed for ReadTool {}
 
 #[async_trait]
 impl Tool for ReadTool {

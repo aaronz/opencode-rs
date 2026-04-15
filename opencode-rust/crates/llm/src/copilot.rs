@@ -1,4 +1,5 @@
 use crate::provider::{Model, Provider, ProviderConfig, StreamingCallback};
+use crate::provider::sealed;
 use opencode_core::OpenCodeError;
 
 pub struct CopilotProvider {
@@ -15,6 +16,8 @@ impl CopilotProvider {
             || std::env::var("OPENCODE_COPILOT_TOKEN").is_ok()
     }
 }
+
+impl sealed::Sealed for CopilotProvider {}
 
 #[async_trait::async_trait]
 impl Provider for CopilotProvider {

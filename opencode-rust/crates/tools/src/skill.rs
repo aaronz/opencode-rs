@@ -1,3 +1,4 @@
+use crate::sealed;
 use crate::{Tool, ToolResult};
 use async_trait::async_trait;
 use opencode_core::{OpenCodeError, SkillManager};
@@ -19,6 +20,8 @@ struct SkillArgs {
     skill_name: String,
     parameters: Option<serde_json::Value>,
 }
+
+impl sealed::Sealed for SkillTool {}
 
 #[async_trait]
 impl Tool for SkillTool {

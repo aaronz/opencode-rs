@@ -1,0 +1,1650 @@
+{
+  "tasks": [
+    {
+      "id": "P0-024-01",
+      "priority": "P0",
+      "title": "Create execute types.rs",
+      "description": "Create server/src/routes/execute/types.rs with ExecuteRequest, ExecuteEvent enums for the session execute API",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify ExecuteRequest enum can be deserialized from JSON",
+        "AddUnitTest: verify ExecuteEvent enum variants are correctly structured",
+        "AddRegressionTest: ensure types module compiles without errors"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-server --lib",
+        "cargo test -p opencode-server --lib"
+      ],
+      "impl_notes": "Use serde for JSON serialization/deserialization. Follow existing patterns in routes/ folder.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-024-02",
+      "priority": "P0",
+      "title": "Create SSE stream.rs",
+      "description": "Create server/src/routes/execute/stream.rs for SSE (Server-Sent Events) event formatting and streaming",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify SSE event formatting produces valid event-stream format",
+        "AddUnitTest: verify stream can handle multiple events sequentially",
+        "AddRegressionTest: ensure streaming implementation works with actix-web"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-server --lib",
+        "cargo test -p opencode-server --lib"
+      ],
+      "impl_notes": "Follow actix-web SSE patterns. Use futures::StreamExt for async streaming.",
+      "dependencies": [
+        "P0-024-01"
+      ]
+    },
+    {
+      "id": "P0-024-03",
+      "priority": "P0",
+      "title": "Create execute integration.rs",
+      "description": "Create server/src/routes/execute/integration.rs bridging ToolRegistry to AgentExecutor for actual tool execution",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify ToolRegistry is accessible from integration module",
+        "AddUnitTest: verify AgentExecutor can be instantiated with correct dependencies",
+        "AddIntegrationTest: verify tool execution flow from request to response"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-server --lib",
+        "cargo test -p opencode-server --lib"
+      ],
+      "impl_notes": "Bridge between HTTP layer and agent/tool layer. Handle async execution properly.",
+      "dependencies": [
+        "P0-024-01",
+        "P0-024-02"
+      ]
+    },
+    {
+      "id": "P0-024-04",
+      "priority": "P0",
+      "title": "Create execute mod.rs route handler",
+      "description": "Create server/src/routes/execute/mod.rs route handler module exposing execute endpoint",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify route handler returns correct HTTP status codes",
+        "AddUnitTest: verify request parsing works correctly",
+        "AddRegressionTest: ensure route module integrates with actix-web router"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-server --lib",
+        "cargo test -p opencode-server --lib"
+      ],
+      "impl_notes": "Use actix-web HttpResponse. Follow existing route handler patterns.",
+      "dependencies": [
+        "P0-024-03"
+      ]
+    },
+    {
+      "id": "P0-024-05",
+      "priority": "P0",
+      "title": "Create execute.rs re-export",
+      "description": "Create server/src/routes/execute.rs re-export module for execute routes",
+      "status": "done",
+      "test_criteria": [
+        "AddRegressionTest: ensure re-export compiles correctly",
+        "AddUnitTest: verify module structure is accessible"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-server --lib",
+        "cargo test -p opencode-server --lib"
+      ],
+      "impl_notes": "Simple re-export pattern following existing route structure.",
+      "dependencies": [
+        "P0-024-04"
+      ]
+    },
+    {
+      "id": "P0-024-06",
+      "priority": "P0",
+      "title": "Update routes/mod.rs with execute routes",
+      "description": "Update server/src/routes/mod.rs to include execute routes in the router",
+      "status": "done",
+      "test_criteria": [
+        "AddRegressionTest: verify routes/mod.rs compiles with execute module",
+        "AddIntegrationTest: ensure execute route is registered in main router"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-server --lib",
+        "cargo test -p opencode-server --lib"
+      ],
+      "impl_notes": "Follow existing route registration pattern in routes/mod.rs.",
+      "dependencies": [
+        "P0-024-05"
+      ]
+    },
+    {
+      "id": "P0-024-07",
+      "priority": "P0",
+      "title": "Mount /api/sessions/{id}/execute route",
+      "description": "Update server/src/lib.rs to mount /api/sessions/{id}/execute route",
+      "status": "done",
+      "test_criteria": [
+        "AddIntegrationTest: verify route is accessible at correct path",
+        "AddRegressionTest: ensure lib.rs compiles with new route mount"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-server",
+        "cargo test -p opencode-server --lib"
+      ],
+      "impl_notes": "Use actix-web scope pattern for nested routes. Route mounted via routes/mod.rs: cfg.service(web::scope(\"/sessions/{id}\").configure(execute::init));",
+      "dependencies": [
+        "P0-024-06"
+      ]
+    },
+    {
+      "id": "P0-024-08",
+      "priority": "P0",
+      "title": "Add ToolRegistry discovery integration",
+      "description": "Add ToolRegistry discovery integration in execute endpoint to find and execute available tools",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify ToolRegistry can be discovered/accessed in execute endpoint",
+        "AddIntegrationTest: verify tools are discovered and callable"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-server",
+        "cargo test -p opencode-server -- execute"
+      ],
+      "impl_notes": "Inject ToolRegistry through application state or direct import.",
+      "dependencies": [
+        "P0-024-03"
+      ]
+    },
+    {
+      "id": "P0-024-09",
+      "priority": "P0",
+      "title": "Add AgentExecutor lifecycle management",
+      "description": "Add AgentExecutor lifecycle management in execute endpoint for agent creation, execution, and cleanup",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify AgentExecutor can be created with required dependencies",
+        "AddIntegrationTest: verify agent executes tools and returns results"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-server",
+        "cargo test -p opencode-server -- execute"
+      ],
+      "impl_notes": "Manage executor lifecycle - create per request or use pool.",
+      "dependencies": [
+        "P0-024-03"
+      ]
+    },
+    {
+      "id": "P0-024-10",
+      "priority": "P0",
+      "title": "Add session state persistence",
+      "description": "Add session state persistence after execution using SessionStore",
+      "status": "in_progress",
+      "test_criteria": [
+        "AddIntegrationTest: verify session state is persisted after tool execution",
+        "AddErrorHandlingTest: verify graceful handling when persistence fails"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- session_persistence"
+      ],
+      "impl_notes": "Call SessionStore after successful execution. Handle errors gracefully.",
+      "dependencies": [
+        "P0-024-03"
+      ]
+    },
+    {
+      "id": "P0-024-11",
+      "priority": "P0",
+      "title": "Add request validation",
+      "description": "Add request validation (session exists, auth) in execute endpoint",
+      "status": "todo",
+      "test_criteria": [
+        "AddErrorHandlingTest: verify 404 returned when session does not exist",
+        "AddErrorHandlingTest: verify 401 returned for unauthenticated requests",
+        "AddUnitTest: verify validation logic is correct"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- validation"
+      ],
+      "impl_notes": "Use existing auth middleware. Check session existence before execution.",
+      "dependencies": [
+        "P0-024-04"
+      ]
+    },
+    {
+      "id": "P0-024-12",
+      "priority": "P0",
+      "title": "Add streaming response with SSE formatting",
+      "description": "Add streaming response with SSE formatting for real-time execution events",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify SSE events stream correctly to client",
+        "AddErrorHandlingTest: verify connection interruption is handled gracefully"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- streaming"
+      ],
+      "impl_notes": "Use futures::StreamExt and actix-web's streaming response.",
+      "dependencies": [
+        "P0-024-02"
+      ]
+    },
+    {
+      "id": "P0-024-13",
+      "priority": "P0",
+      "title": "Create agent_execute_api_tests.rs",
+      "description": "Create integration test file tests/src/agent_execute_api_tests.rs for execute API",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify test file compiles and runs",
+        "AddRegressionTest: ensure test infrastructure is properly set up"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests --test agent_execute_api_tests -- --list-tests",
+        "cargo build -p opencode-integration-tests"
+      ],
+      "impl_notes": "Follow existing integration test patterns in tests/src/.",
+      "dependencies": [
+        "P0-024-07"
+      ]
+    },
+    {
+      "id": "P0-024-14",
+      "priority": "P0",
+      "title": "Add test: valid session execute returns 200",
+      "description": "Add integration test: valid session execute returns 200 status code",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify valid session execute returns HTTP 200",
+        "AddRegressionTest: ensure test covers happy path scenario"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests agent_execute_api_tests::test_valid_session_execute_returns_200"
+      ],
+      "impl_notes": "Use TestApp or MockServer for testing. Verify response body contains execution result.",
+      "dependencies": [
+        "P0-024-13"
+      ]
+    },
+    {
+      "id": "P0-024-15",
+      "priority": "P0",
+      "title": "Add test: invalid session returns 404",
+      "description": "Add integration test: invalid session ID returns 404 status code",
+      "status": "todo",
+      "test_criteria": [
+        "AddErrorHandlingTest: verify invalid session ID returns HTTP 404",
+        "AddRegressionTest: ensure validation works correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests agent_execute_api_tests::test_invalid_session_returns_404"
+      ],
+      "impl_notes": "Test with non-existent session UUID.",
+      "dependencies": [
+        "P0-024-14"
+      ]
+    },
+    {
+      "id": "P0-024-16",
+      "priority": "P0",
+      "title": "Add test: unauthenticated returns 401",
+      "description": "Add integration test: unauthenticated request returns 401 status code",
+      "status": "todo",
+      "test_criteria": [
+        "AddErrorHandlingTest: verify unauthenticated request returns HTTP 401",
+        "AddRegressionTest: ensure auth middleware works correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests agent_execute_api_tests::test_unauthenticated_returns_401"
+      ],
+      "impl_notes": "Make request without auth token.",
+      "dependencies": [
+        "P0-024-15"
+      ]
+    },
+    {
+      "id": "P0-024-17",
+      "priority": "P0",
+      "title": "Add test: tool execution results in response",
+      "description": "Add integration test: tool execution results are returned in response",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify tool execution result appears in response",
+        "AddRegressionTest: ensure tool execution flow works end-to-end"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests agent_execute_api_tests::test_tool_execution_results_in_response"
+      ],
+      "impl_notes": "Send execute request with tool call and verify response contains tool result.",
+      "dependencies": [
+        "P0-024-16"
+      ]
+    },
+    {
+      "id": "P0-024-18",
+      "priority": "P0",
+      "title": "Verify build passes",
+      "description": "Verify build passes: cargo build -p opencode-server",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: verify cargo build -p opencode-server succeeds without errors"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-server"
+      ],
+      "impl_notes": "This is a verification task - no implementation needed.",
+      "dependencies": [
+        "P0-024-17"
+      ]
+    },
+    {
+      "id": "P0-024-19",
+      "priority": "P0",
+      "title": "Verify agent_execute tests pass",
+      "description": "Verify tests pass: cargo test -p opencode-integration-tests agent_execute",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: verify all agent_execute integration tests pass"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests agent_execute"
+      ],
+      "impl_notes": "This is a verification task - no implementation needed.",
+      "dependencies": [
+        "P0-024-18"
+      ]
+    },
+    {
+      "id": "P0-025-01",
+      "priority": "P0",
+      "title": "Create AgentEvent enum in agent crate",
+      "description": "Create crates/agent/src/events.rs with AgentEvent enum for WebSocket streaming",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify AgentEvent enum can serialize to JSON",
+        "AddUnitTest: verify all event variants are properly defined",
+        "AddRegressionTest: ensure events module compiles in agent crate"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-agent --lib",
+        "cargo test -p opencode-agent --lib"
+      ],
+      "impl_notes": "Include variants for: tool_call, tool_result, thinking, error, etc.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-025-02",
+      "priority": "P0",
+      "title": "Implement AgentEventEmitter trait",
+      "description": "Implement AgentEventEmitter trait for AgentExecutor to emit events during execution",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify AgentEventEmitter trait is implemented",
+        "AddIntegrationTest: verify events are emitted during agent execution"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-agent --lib",
+        "cargo test -p opencode-agent -- event_emitter"
+      ],
+      "impl_notes": "Use tokio sync channels for event broadcasting.",
+      "dependencies": [
+        "P0-025-01"
+      ]
+    },
+    {
+      "id": "P0-025-03",
+      "priority": "P0",
+      "title": "Create session_hub.rs for event broadcast",
+      "description": "Create server/src/routes/ws/session_hub.rs for WebSocket event broadcast per session",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify SessionHub can store multiple client connections",
+        "AddUnitTest: verify broadcast sends to all connected clients",
+        "AddRegressionTest: ensure session hub compiles correctly"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-server --lib",
+        "cargo test -p opencode-server -- session_hub"
+      ],
+      "impl_notes": "Use Arc<RwLock<HashMap>> for client tracking. Use broadcast channel for events.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-025-04",
+      "priority": "P0",
+      "title": "Update ws.rs for session routing",
+      "description": "Update server/src/routes/ws.rs to handle session-specific WebSocket routing",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify WebSocket connects to correct session path",
+        "AddRegressionTest: ensure ws.rs compiles with session routing"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-server --lib",
+        "cargo test -p opencode-server -- ws"
+      ],
+      "impl_notes": "Extract session_id from WebSocket path. Register with SessionHub.",
+      "dependencies": [
+        "P0-025-03"
+      ]
+    },
+    {
+      "id": "P0-025-05",
+      "priority": "P0",
+      "title": "Integrate execute with session hub",
+      "description": "Integrate execute endpoint with session hub for event emission during tool execution",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify execute endpoint emits events to session hub",
+        "AddRegressionTest: ensure events reach connected WebSocket clients"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- execute_hub"
+      ],
+      "impl_notes": "Connect AgentEventEmitter to SessionHub broadcast.",
+      "dependencies": [
+        "P0-025-03",
+        "P0-024-03"
+      ]
+    },
+    {
+      "id": "P0-025-06",
+      "priority": "P0",
+      "title": "Add WebSocket connection lifecycle",
+      "description": "Add WebSocket connection lifecycle management in ws.rs",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify connection setup and teardown work correctly",
+        "AddErrorHandlingTest: verify connection errors are handled gracefully"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- ws_lifecycle"
+      ],
+      "impl_notes": "Handle connect/disconnect events. Clean up SessionHub registration.",
+      "dependencies": [
+        "P0-025-04"
+      ]
+    },
+    {
+      "id": "P0-025-07",
+      "priority": "P0",
+      "title": "Add multiple client support per session",
+      "description": "Add multiple client support per session using Arc<RwLock> in session hub",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify multiple clients can connect to same session",
+        "AddIntegrationTest: verify all clients receive same events"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- multiple_clients"
+      ],
+      "impl_notes": "Use Arc<RwLock<Vec<BrowserWsSender>>> for client list.",
+      "dependencies": [
+        "P0-025-03"
+      ]
+    },
+    {
+      "id": "P0-025-08",
+      "priority": "P0",
+      "title": "Add client disconnect handling",
+      "description": "Add client disconnect graceful handling in ws.rs",
+      "status": "todo",
+      "test_criteria": [
+        "AddErrorHandlingTest: verify disconnect removes client from hub",
+        "AddRegressionTest: ensure remaining clients still receive events"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- disconnect"
+      ],
+      "impl_notes": "Remove client from SessionHub on disconnect. Handle last client gracefully.",
+      "dependencies": [
+        "P0-025-06"
+      ]
+    },
+    {
+      "id": "P0-025-09",
+      "priority": "P0",
+      "title": "Create ws_streaming_tests.rs",
+      "description": "Create test file tests/src/ws_streaming_tests.rs for WebSocket streaming tests",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify test file compiles and infrastructure works"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests --test ws_streaming_tests -- --list-tests"
+      ],
+      "impl_notes": "Follow existing integration test patterns.",
+      "dependencies": [
+        "P0-025-05"
+      ]
+    },
+    {
+      "id": "P0-025-10",
+      "priority": "P0",
+      "title": "Add test: WebSocket connects successfully",
+      "description": "Add integration test: WebSocket connects successfully to session endpoint",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify WebSocket connection establishes successfully"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests ws_streaming_tests::test_ws_connects_successfully"
+      ],
+      "impl_notes": "Use tokio-tungstenite or similar for WebSocket testing.",
+      "dependencies": [
+        "P0-025-09"
+      ]
+    },
+    {
+      "id": "P0-025-11",
+      "priority": "P0",
+      "title": "Add test: tool call events stream in real-time",
+      "description": "Add integration test: tool call events stream in real-time via WebSocket",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify tool call events appear in WebSocket stream"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests ws_streaming_tests::test_tool_events_stream_realtime"
+      ],
+      "impl_notes": "Trigger tool execution and verify events arrive via WebSocket.",
+      "dependencies": [
+        "P0-025-10"
+      ]
+    },
+    {
+      "id": "P0-025-12",
+      "priority": "P0",
+      "title": "Add test: multiple clients receive same events",
+      "description": "Add integration test: multiple clients connected to same session receive identical events",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify two clients receive same events"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests ws_streaming_tests::test_multiple_clients_receive_same_events"
+      ],
+      "impl_notes": "Connect two WebSocket clients to same session, verify event parity.",
+      "dependencies": [
+        "P0-025-11"
+      ]
+    },
+    {
+      "id": "P0-025-13",
+      "priority": "P0",
+      "title": "Add test: client disconnect doesn't crash server",
+      "description": "Add integration test: client disconnect is handled gracefully without server crash",
+      "status": "todo",
+      "test_criteria": [
+        "AddErrorHandlingTest: verify server handles client disconnect without crashing"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests ws_streaming_tests::test_client_disconnect_no_crash"
+      ],
+      "impl_notes": "Abruptly disconnect client and verify server continues operating.",
+      "dependencies": [
+        "P0-025-12"
+      ]
+    },
+    {
+      "id": "P0-025-14",
+      "priority": "P0",
+      "title": "Verify WebSocket build passes",
+      "description": "Verify build: cargo build -p opencode-server",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: verify cargo build -p opencode-server succeeds"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-server"
+      ],
+      "impl_notes": "Verification task - no implementation needed.",
+      "dependencies": [
+        "P0-025-13"
+      ]
+    },
+    {
+      "id": "P0-025-15",
+      "priority": "P0",
+      "title": "Verify WebSocket tests pass",
+      "description": "Verify tests pass: cargo test -p opencode-integration-tests ws",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: verify all ws streaming tests pass"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests ws"
+      ],
+      "impl_notes": "Verification task - no implementation needed.",
+      "dependencies": [
+        "P0-025-14"
+      ]
+    },
+    {
+      "id": "P1-026-01",
+      "priority": "P1",
+      "title": "Create status.rs route",
+      "description": "Create server/src/routes/status.rs for server status endpoint",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: ensure status.rs compiles correctly"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-server --lib"
+      ],
+      "impl_notes": "Create new file following route module pattern.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-026-02",
+      "priority": "P1",
+      "title": "Define StatusResponse struct",
+      "description": "Define StatusResponse struct with all required status fields",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify StatusResponse serializes to JSON correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- status_response"
+      ],
+      "impl_notes": "Include: version, uptime_seconds, active_sessions, total_sessions, provider_status, plugin_status.",
+      "dependencies": [
+        "P1-026-01"
+      ]
+    },
+    {
+      "id": "P1-026-03",
+      "priority": "P1",
+      "title": "Collect version info",
+      "description": "Collect version info (version string, rustc version) for status endpoint",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify version info is collected correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- version_info"
+      ],
+      "impl_notes": "Use env! macro for version. Use built_time for uptime tracking.",
+      "dependencies": [
+        "P1-026-02"
+      ]
+    },
+    {
+      "id": "P1-026-04",
+      "priority": "P1",
+      "title": "Collect uptime_seconds",
+      "description": "Collect uptime_seconds since server start for status endpoint",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify uptime is calculated correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- uptime"
+      ],
+      "impl_notes": "Store start_time in AppState. Calculate elapsed on each status request.",
+      "dependencies": [
+        "P1-026-03"
+      ]
+    },
+    {
+      "id": "P1-026-05",
+      "priority": "P1",
+      "title": "Collect session counts",
+      "description": "Collect active/total session counts from SessionStore storage",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify session counts are retrieved from storage"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- session_counts"
+      ],
+      "impl_notes": "Query SessionStore for active and total session counts.",
+      "dependencies": [
+        "P1-026-04"
+      ]
+    },
+    {
+      "id": "P1-026-06",
+      "priority": "P1",
+      "title": "Collect provider status from LLM registry",
+      "description": "Collect provider status from LLM registry for status endpoint",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify LLM provider status is included in response"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- provider_status"
+      ],
+      "impl_notes": "Access LLM registry through app state or direct import.",
+      "dependencies": [
+        "P1-026-05"
+      ]
+    },
+    {
+      "id": "P1-026-07",
+      "priority": "P1",
+      "title": "Collect plugin status",
+      "description": "Collect plugin status from plugin system for status endpoint",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify plugin status is included in response"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- plugin_status"
+      ],
+      "impl_notes": "Access plugin manager through app state or direct import.",
+      "dependencies": [
+        "P1-026-06"
+      ]
+    },
+    {
+      "id": "P1-026-08",
+      "priority": "P1",
+      "title": "Add no-auth route to App",
+      "description": "Add no-auth status route to App in lib.rs",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify /api/status accessible without authentication"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-server",
+        "cargo test -p opencode-server -- status_no_auth"
+      ],
+      "impl_notes": "Add route to lib.rs with no auth middleware. Use /api/status path.",
+      "dependencies": [
+        "P1-026-07"
+      ]
+    },
+    {
+      "id": "P1-026-09",
+      "priority": "P1",
+      "title": "Create status_endpoint_tests.rs",
+      "description": "Create test file tests/src/status_endpoint_tests.rs",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify test file compiles and runs"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests --test status_endpoint_tests -- --list-tests"
+      ],
+      "impl_notes": "Follow existing integration test patterns.",
+      "dependencies": [
+        "P1-026-08"
+      ]
+    },
+    {
+      "id": "P1-026-10",
+      "priority": "P1",
+      "title": "Add test: GET /api/status returns 200",
+      "description": "Add integration test: GET /api/status returns HTTP 200",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify status endpoint returns 200 OK"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests status_endpoint_tests::test_status_returns_200"
+      ],
+      "impl_notes": "Send GET request to /api/status and verify 200 response.",
+      "dependencies": [
+        "P1-026-09"
+      ]
+    },
+    {
+      "id": "P1-026-11",
+      "priority": "P1",
+      "title": "Add test: response contains all fields",
+      "description": "Add integration test: response contains all required status fields",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify all expected fields present in response JSON"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests status_endpoint_tests::test_response_contains_all_fields"
+      ],
+      "impl_notes": "Deserialize response and assert all fields are present and non-null.",
+      "dependencies": [
+        "P1-026-10"
+      ]
+    },
+    {
+      "id": "P1-026-12",
+      "priority": "P1",
+      "title": "Add test: endpoint accessible without auth",
+      "description": "Add integration test: status endpoint accessible without authentication",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify status endpoint works without auth token"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests status_endpoint_tests::test_accessible_without_auth"
+      ],
+      "impl_notes": "Request without Authorization header. Verify 200 response.",
+      "dependencies": [
+        "P1-026-11"
+      ]
+    },
+    {
+      "id": "P1-026-13",
+      "priority": "P1",
+      "title": "Verify status build and tests pass",
+      "description": "Verify build and tests pass for status endpoint",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: verify cargo build -p opencode-server succeeds",
+        "RunTestSuite: verify cargo test -p opencode-integration-tests status passes"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-server",
+        "cargo test -p opencode-integration-tests status"
+      ],
+      "impl_notes": "Verification task - no implementation needed.",
+      "dependencies": [
+        "P1-026-12"
+      ]
+    },
+    {
+      "id": "P1-027-01",
+      "priority": "P1",
+      "title": "Modify run_prompt function",
+      "description": "Modify server/src/routes/run.rs run_prompt function for streaming support",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: ensure existing run_prompt functionality still works"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-server --lib",
+        "cargo test -p opencode-server -- run_prompt"
+      ],
+      "impl_notes": "Preserve existing non-streaming behavior while adding streaming option.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-027-02",
+      "priority": "P1",
+      "title": "Add stream parameter to run_prompt",
+      "description": "Add stream parameter to run_prompt function signature",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify stream parameter is accepted"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- stream_param"
+      ],
+      "impl_notes": "Add optional stream: bool parameter or Stream response type.",
+      "dependencies": [
+        "P1-027-01"
+      ]
+    },
+    {
+      "id": "P1-027-03",
+      "priority": "P1",
+      "title": "Implement token-by-token SSE streaming",
+      "description": "Implement token-by-token SSE streaming in run_prompt",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify SSE stream contains token events"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- sse_streaming"
+      ],
+      "impl_notes": "Stream each token as SSE event: data: {token}\\n\\n",
+      "dependencies": [
+        "P1-027-02"
+      ]
+    },
+    {
+      "id": "P1-027-04",
+      "priority": "P1",
+      "title": "Add Accept header detection",
+      "description": "Add Accept: text/event-stream header detection for SSE",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify header detection works correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- header_detection"
+      ],
+      "impl_notes": "Check request.headers().get(\"Accept\") for text/event-stream.",
+      "dependencies": [
+        "P1-027-03"
+      ]
+    },
+    {
+      "id": "P1-027-05",
+      "priority": "P1",
+      "title": "Handle connection interruption",
+      "description": "Handle connection interruption gracefully in streaming",
+      "status": "todo",
+      "test_criteria": [
+        "AddErrorHandlingTest: verify graceful handling when client disconnects"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- connection_interruption"
+      ],
+      "impl_notes": "Handle tokio::task::join error or channel closed gracefully.",
+      "dependencies": [
+        "P1-027-04"
+      ]
+    },
+    {
+      "id": "P1-027-06",
+      "priority": "P1",
+      "title": "Create streaming_response_tests.rs",
+      "description": "Create test file tests/src/streaming_response_tests.rs",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify test file compiles and runs"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests --test streaming_response_tests -- --list-tests"
+      ],
+      "impl_notes": "Follow existing integration test patterns.",
+      "dependencies": [
+        "P1-027-05"
+      ]
+    },
+    {
+      "id": "P1-027-07",
+      "priority": "P1",
+      "title": "Add test: SSE streaming with curl equivalent",
+      "description": "Add integration test: SSE streaming works with text/event-stream Accept header",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify SSE streaming with Accept header"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests streaming_response_tests::test_sse_streaming"
+      ],
+      "impl_notes": "Send request with Accept: text/event-stream and verify stream response.",
+      "dependencies": [
+        "P1-027-06"
+      ]
+    },
+    {
+      "id": "P1-027-08",
+      "priority": "P1",
+      "title": "Add test: tokens arrive progressively",
+      "description": "Add integration test: tokens arrive progressively over time (not all at once)",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify tokens arrive in chunks over time"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests streaming_response_tests::test_tokens_arrive_progressively"
+      ],
+      "impl_notes": "Assert timestamps show tokens arriving at different times.",
+      "dependencies": [
+        "P1-027-07"
+      ]
+    },
+    {
+      "id": "P1-027-09",
+      "priority": "P1",
+      "title": "Add test: connection close terminates cleanly",
+      "description": "Add integration test: connection close terminates stream cleanly",
+      "status": "todo",
+      "test_criteria": [
+        "AddErrorHandlingTest: verify server handles connection close gracefully"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests streaming_response_tests::test_connection_close_terminates_cleanly"
+      ],
+      "impl_notes": "Close connection mid-stream and verify no server error.",
+      "dependencies": [
+        "P1-027-08"
+      ]
+    },
+    {
+      "id": "P1-027-10",
+      "priority": "P1",
+      "title": "Verify streaming build and tests pass",
+      "description": "Verify build and tests pass for streaming response",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: verify cargo build -p opencode-server succeeds",
+        "RunTestSuite: verify cargo test -p opencode-integration-tests streaming passes"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-server",
+        "cargo test -p opencode-integration-tests streaming"
+      ],
+      "impl_notes": "Verification task - no implementation needed.",
+      "dependencies": [
+        "P1-027-09"
+      ]
+    },
+    {
+      "id": "P1-028-01",
+      "priority": "P1",
+      "title": "Review permission.rs handler",
+      "description": "Review current server/src/routes/permission.rs handler implementation",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: ensure current permission handler works"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- permission"
+      ],
+      "impl_notes": "Understand current implementation before making changes.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-028-02",
+      "priority": "P1",
+      "title": "Connect permission_reply to PermissionManager",
+      "description": "Connect permission_reply endpoint to PermissionManager for decision processing",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify permission_reply calls PermissionManager"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- permission_manager"
+      ],
+      "impl_notes": "Inject PermissionManager into permission route handler.",
+      "dependencies": [
+        "P1-028-01"
+      ]
+    },
+    {
+      "id": "P1-028-03",
+      "priority": "P1",
+      "title": "Update ApprovalQueue on decision",
+      "description": "Update ApprovalQueue on permission decision (approve/deny)",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify ApprovalQueue is updated after decision"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- approval_queue"
+      ],
+      "impl_notes": "Call ApprovalQueue::approve() or remove on deny.",
+      "dependencies": [
+        "P1-028-02"
+      ]
+    },
+    {
+      "id": "P1-028-04",
+      "priority": "P1",
+      "title": "Trigger re-evaluation of pending requests",
+      "description": "Trigger re-evaluation of pending requests after decision",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify pending requests are re-evaluated after decision"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- reevaluation"
+      ],
+      "impl_notes": "Wake waiting tasks via channel or condition variable.",
+      "dependencies": [
+        "P1-028-03"
+      ]
+    },
+    {
+      "id": "P1-028-05",
+      "priority": "P1",
+      "title": "Add audit logging for decisions",
+      "description": "Add audit logging for permission decisions",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify decisions are logged to audit trail"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server -- audit_logging"
+      ],
+      "impl_notes": "Log to file or structured log with decision details.",
+      "dependencies": [
+        "P1-028-04"
+      ]
+    },
+    {
+      "id": "P1-028-06",
+      "priority": "P1",
+      "title": "Create permission_integration_tests.rs",
+      "description": "Create test file tests/src/permission_integration_tests.rs",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify test file compiles and runs"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests --test permission_integration_tests -- --list-tests"
+      ],
+      "impl_notes": "Follow existing integration test patterns.",
+      "dependencies": [
+        "P1-028-05"
+      ]
+    },
+    {
+      "id": "P1-028-07",
+      "priority": "P1",
+      "title": "Add test: approval triggers tool execution",
+      "description": "Add integration test: permission approval triggers tool execution",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify tool executes after permission approval"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests permission_integration_tests::test_approval_triggers_execution"
+      ],
+      "impl_notes": "Send approval and verify tool result is returned.",
+      "dependencies": [
+        "P1-028-06"
+      ]
+    },
+    {
+      "id": "P1-028-08",
+      "priority": "P1",
+      "title": "Add test: denial returns PermissionDenied",
+      "description": "Add integration test: permission denial returns PermissionDenied error",
+      "status": "todo",
+      "test_criteria": [
+        "AddErrorHandlingTest: verify denial returns appropriate error"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests permission_integration_tests::test_denial_returns_error"
+      ],
+      "impl_notes": "Send denial and verify error response.",
+      "dependencies": [
+        "P1-028-07"
+      ]
+    },
+    {
+      "id": "P1-028-09",
+      "priority": "P1",
+      "title": "Add test: decision logged to audit trail",
+      "description": "Add integration test: permission decision is logged to audit trail",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify decision appears in audit log"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests permission_integration_tests::test_decision_logged"
+      ],
+      "impl_notes": "Verify log contains decision entry with timestamp.",
+      "dependencies": [
+        "P1-028-08"
+      ]
+    },
+    {
+      "id": "P1-028-10",
+      "priority": "P1",
+      "title": "Verify permission build and tests pass",
+      "description": "Verify build and tests pass for permission integration",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: verify cargo build -p opencode-server succeeds",
+        "RunTestSuite: verify cargo test -p opencode-integration-tests permission passes"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-server",
+        "cargo test -p opencode-integration-tests permission"
+      ],
+      "impl_notes": "Verification task - no implementation needed.",
+      "dependencies": [
+        "P1-028-09"
+      ]
+    },
+    {
+      "id": "P2-023-01",
+      "priority": "P2",
+      "title": "Review PtySimulator implementation",
+      "description": "Review current ratatui-testing/src/pty.rs PtySimulator implementation",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: ensure current PtySimulator compiles and basic functionality works"
+      ],
+      "test_commands": [
+        "cargo build -p ratatui-testing --lib",
+        "cargo test -p ratatui-testing -- pty"
+      ],
+      "impl_notes": "Understand current state before completing implementation.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-023-02",
+      "priority": "P2",
+      "title": "Complete PtySimulator event injection",
+      "description": "Complete PtySimulator event injection (KeyEvent, MouseEvent) in ratatui-testing/src/pty.rs",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify KeyEvent injection works",
+        "AddUnitTest: verify MouseEvent injection works",
+        "AddIntegrationTest: verify injected events reach terminal"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing -- pty_event_injection"
+      ],
+      "impl_notes": "Implement write_to_pty to send events to pseudoterminal.",
+      "dependencies": [
+        "P2-023-01"
+      ]
+    },
+    {
+      "id": "P2-023-03",
+      "priority": "P2",
+      "title": "Implement BufferDiff cell comparison",
+      "description": "Implement BufferDiff cell-by-cell comparison in ratatui-testing/src/diff.rs",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify BufferDiff detects single cell differences",
+        "AddUnitTest: verify BufferDiff calculates correct diff statistics"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing -- buffer_diff"
+      ],
+      "impl_notes": "Compare cell content, attribute, and styling.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-023-04",
+      "priority": "P2",
+      "title": "Implement StateTester state capture",
+      "description": "Implement StateTester state capture in ratatui-testing/src/state.rs",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify StateTester captures terminal state",
+        "AddUnitTest: verify state serialization works"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing -- state_tester"
+      ],
+      "impl_notes": "Capture Buffer content and cursor position.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-023-05",
+      "priority": "P2",
+      "title": "Implement TestDsl fluent API",
+      "description": "Implement TestDsl fluent API in ratatui-testing/src/dsl.rs",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify fluent API chains correctly",
+        "AddIntegrationTest: verify DSL can drive complete test scenario"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing -- dsl"
+      ],
+      "impl_notes": "Build on PtySimulator, BufferDiff, StateTester.",
+      "dependencies": [
+        "P2-023-02",
+        "P2-023-03",
+        "P2-023-04"
+      ]
+    },
+    {
+      "id": "P2-023-06",
+      "priority": "P2",
+      "title": "Implement CliTester process management",
+      "description": "Implement CliTester process management in ratatui-testing/src/cli.rs",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify CliTester spawns process correctly",
+        "AddUnitTest: verify CliTester captures stdout/stderr"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing -- cli_tester"
+      ],
+      "impl_notes": "Use tokio::process for async process management.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-023-07",
+      "priority": "P2",
+      "title": "Add tests for ratatui-testing components",
+      "description": "Add tests for each ratatui-testing component",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: verify all ratatui-testing tests pass"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing"
+      ],
+      "impl_notes": "Add tests for PtySimulator, BufferDiff, StateTester, TestDsl, CliTester.",
+      "dependencies": [
+        "P2-023-06"
+      ]
+    },
+    {
+      "id": "P2-023-08",
+      "priority": "P2",
+      "title": "Verify ratatui-testing build",
+      "description": "Verify build: cargo build -p ratatui-testing",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: verify cargo build -p ratatui-testing succeeds"
+      ],
+      "test_commands": [
+        "cargo build -p ratatui-testing"
+      ],
+      "impl_notes": "Verification task - no implementation needed.",
+      "dependencies": [
+        "P2-023-07"
+      ]
+    },
+    {
+      "id": "P2-023-09",
+      "priority": "P2",
+      "title": "Verify ratatui-testing tests pass",
+      "description": "Verify tests: cargo test -p ratatui-testing",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: verify cargo test -p ratatui-testing succeeds"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing"
+      ],
+      "impl_notes": "Verification task - no implementation needed.",
+      "dependencies": [
+        "P2-023-08"
+      ]
+    },
+    {
+      "id": "P2-029-01",
+      "priority": "P2",
+      "title": "Add deterministic hook test",
+      "description": "Add deterministic hook test in crates/plugin/src/lib.rs for hook ordering",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: ensure hook test compiles"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin --test hook_determinism -- --list-tests"
+      ],
+      "impl_notes": "Add test module with hook ordering test.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-029-02",
+      "priority": "P2",
+      "title": "Test 100 iterations for consistent ordering",
+      "description": "Test 100 iterations for consistent hook ordering",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify hook ordering is consistent across 100 iterations"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin hook_determinism"
+      ],
+      "impl_notes": "Loop 100 times, assert same ordering each time.",
+      "dependencies": [
+        "P2-029-01"
+      ]
+    },
+    {
+      "id": "P2-029-03",
+      "priority": "P2",
+      "title": "Document expected ordering behavior",
+      "description": "Document expected ordering behavior in test doc comment",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: ensure documentation is present in test"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin hook_determinism"
+      ],
+      "impl_notes": "Add doc comment explaining expected ordering.",
+      "dependencies": [
+        "P2-029-02"
+      ]
+    },
+    {
+      "id": "P2-029-04",
+      "priority": "P2",
+      "title": "Verify hook determinism test passes",
+      "description": "Verify test passes: cargo test -p opencode-plugin hook_determinism",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: verify hook determinism test passes"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin hook_determinism"
+      ],
+      "impl_notes": "Verification task - no implementation needed.",
+      "dependencies": [
+        "P2-029-03"
+      ]
+    },
+    {
+      "id": "P2-030-01",
+      "priority": "P2",
+      "title": "Create security_tests.rs",
+      "description": "Create tests/src/security_tests.rs for security test suite",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: ensure security test file compiles"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests --test security_tests -- --list-tests"
+      ],
+      "impl_notes": "Create new test file following existing patterns.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-030-02",
+      "priority": "P2",
+      "title": "Add SQL injection tests for sessions",
+      "description": "Add SQL injection tests for session operations in security_tests.rs",
+      "status": "todo",
+      "test_criteria": [
+        "AddErrorHandlingTest: verify SQL injection attempts are sanitized"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests security_tests::test_sql_injection_sessions"
+      ],
+      "impl_notes": "Test with '; DROP TABLE sessions; -- and similar payloads.",
+      "dependencies": [
+        "P2-030-01"
+      ]
+    },
+    {
+      "id": "P2-030-03",
+      "priority": "P2",
+      "title": "Add SQL injection tests for messages",
+      "description": "Add SQL injection tests for message operations in security_tests.rs",
+      "status": "todo",
+      "test_criteria": [
+        "AddErrorHandlingTest: verify SQL injection attempts are sanitized"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests security_tests::test_sql_injection_messages"
+      ],
+      "impl_notes": "Test message query endpoints with SQL injection payloads.",
+      "dependencies": [
+        "P2-030-02"
+      ]
+    },
+    {
+      "id": "P2-030-04",
+      "priority": "P2",
+      "title": "Add path traversal tests for file ops",
+      "description": "Add path traversal tests for file operations in security_tests.rs",
+      "status": "todo",
+      "test_criteria": [
+        "AddErrorHandlingTest: verify path traversal attempts are blocked"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests security_tests::test_path_traversal"
+      ],
+      "impl_notes": "Test with ../../../etc/passwd and similar payloads.",
+      "dependencies": [
+        "P2-030-03"
+      ]
+    },
+    {
+      "id": "P2-030-05",
+      "priority": "P2",
+      "title": "Add request validation tests",
+      "description": "Add request validation tests for all endpoints in security_tests.rs",
+      "status": "todo",
+      "test_criteria": [
+        "AddErrorHandlingTest: verify invalid requests are rejected"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests security_tests::test_request_validation"
+      ],
+      "impl_notes": "Test malformed JSON, missing required fields, invalid types.",
+      "dependencies": [
+        "P2-030-04"
+      ]
+    },
+    {
+      "id": "P2-030-06",
+      "priority": "P2",
+      "title": "Verify security tests pass",
+      "description": "Verify all security tests pass",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: verify all security tests pass"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests security_tests"
+      ],
+      "impl_notes": "Verification task - no implementation needed.",
+      "dependencies": [
+        "P2-030-05"
+      ]
+    },
+    {
+      "id": "VR-01",
+      "priority": "P0",
+      "title": "Run full test suite",
+      "description": "Run full test suite: cargo test --all-features",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: verify all tests pass with --all-features"
+      ],
+      "test_commands": [
+        "cargo test --all-features"
+      ],
+      "impl_notes": "Verification task - no implementation needed. Run after all tasks complete.",
+      "dependencies": [
+        "P0-024-19",
+        "P0-025-15",
+        "P1-026-13",
+        "P1-027-10",
+        "P1-028-10",
+        "P2-023-09",
+        "P2-029-04",
+        "P2-030-06"
+      ]
+    },
+    {
+      "id": "VR-02",
+      "priority": "P0",
+      "title": "Run clippy",
+      "description": "Run clippy: cargo clippy --all-targets --all-features -- -D warnings",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: verify clippy passes with no warnings"
+      ],
+      "test_commands": [
+        "cargo clippy --all-targets --all-features -- -D warnings"
+      ],
+      "impl_notes": "Verification task - no implementation needed.",
+      "dependencies": [
+        "VR-01"
+      ]
+    },
+    {
+      "id": "VR-03",
+      "priority": "P0",
+      "title": "Run formatting check",
+      "description": "Run formatting: cargo fmt --all -- --check",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: verify formatting passes"
+      ],
+      "test_commands": [
+        "cargo fmt --all -- --check"
+      ],
+      "impl_notes": "Verification task - no implementation needed.",
+      "dependencies": [
+        "VR-02"
+      ]
+    },
+    {
+      "id": "VR-04",
+      "priority": "P0",
+      "title": "Run doc tests",
+      "description": "Run doc tests: cargo test --doc",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: verify doc tests pass"
+      ],
+      "test_commands": [
+        "cargo test --doc"
+      ],
+      "impl_notes": "Verification task - no implementation needed.",
+      "dependencies": [
+        "VR-03"
+      ]
+    },
+    {
+      "id": "VR-05",
+      "priority": "P0",
+      "title": "Run benchmarks",
+      "description": "Run benchmarks: cargo bench --all",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: verify benchmarks run successfully"
+      ],
+      "test_commands": [
+        "cargo bench --all"
+      ],
+      "impl_notes": "Verification task - no implementation needed.",
+      "dependencies": [
+        "VR-04"
+      ]
+    },
+    {
+      "id": "VR-06",
+      "priority": "P0",
+      "title": "Memory profiling",
+      "description": "Memory profiling of the application",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify memory usage is within acceptable bounds"
+      ],
+      "test_commands": [
+        "cargo build --release && valgrind --tool=massif ./target/release/opencode"
+      ],
+      "impl_notes": "Use valgrind massif or similar for memory profiling.",
+      "dependencies": [
+        "VR-05"
+      ]
+    },
+    {
+      "id": "VR-07",
+      "priority": "P0",
+      "title": "Security audit",
+      "description": "Security audit of the application",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify security audit completes"
+      ],
+      "test_commands": [
+        "cargo audit"
+      ],
+      "impl_notes": "Run cargo audit for dependency vulnerabilities.",
+      "dependencies": [
+        "VR-06"
+      ]
+    },
+    {
+      "id": "VR-08",
+      "priority": "P0",
+      "title": "Documentation completeness check",
+      "description": "Documentation completeness check",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify all public APIs are documented"
+      ],
+      "test_commands": [
+        "cargo doc --all-features --no-deps && cargo doc --document-private-items"
+      ],
+      "impl_notes": "Ensure all public items have doc comments.",
+      "dependencies": [
+        "VR-07"
+      ]
+    }
+  ]
+}

@@ -224,7 +224,10 @@ impl WasmRuntime {
 
         if let Some(mem) = instance.get_memory(&mut store, "memory") {
             let state: &mut WasmInstanceState = store.data_mut();
-            *state.memory.lock().unwrap() = Some(mem);
+            *state
+                .memory
+                .lock()
+                .unwrap_or_else(|poison| poison.into_inner()) = Some(mem);
         }
 
         Ok(WasmInstance { store, instance })

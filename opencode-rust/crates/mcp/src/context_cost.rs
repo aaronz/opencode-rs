@@ -321,12 +321,18 @@ impl SharedContextCostTracker {
     }
 
     pub fn with_limits(self, limits: CostLimits) -> Self {
-        self.inner.lock().unwrap().update_limits(limits);
+        self.inner
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .update_limits(limits);
         self
     }
 
     pub fn with_model(self, model: &str) -> Self {
-        let tracker = self.inner.lock().unwrap();
+        let tracker = self
+            .inner
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
         let limits = tracker.limits;
         let tool_call_count = tracker.tool_call_count;
         let records = tracker.records.clone();
@@ -342,7 +348,10 @@ impl SharedContextCostTracker {
         new_tracker.last_warning_at = last_warning_at;
 
         drop(tracker);
-        *self.inner.lock().unwrap() = new_tracker;
+        *self
+            .inner
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner()) = new_tracker;
         self
     }
 
@@ -355,7 +364,7 @@ impl SharedContextCostTracker {
     ) -> CostRecord {
         self.inner
             .lock()
-            .unwrap()
+            .unwrap_or_else(|poison| poison.into_inner())
             .record_tool_call(tool_name, server_name, input_text, output_text)
     }
 
@@ -366,57 +375,82 @@ impl SharedContextCostTracker {
         input_tokens: usize,
         output_tokens: usize,
     ) -> CostRecord {
-        self.inner.lock().unwrap().record_tool_call_with_tokens(
-            tool_name,
-            server_name,
-            input_tokens,
-            output_tokens,
-        )
+        self.inner
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .record_tool_call_with_tokens(tool_name, server_name, input_tokens, output_tokens)
     }
 
     pub fn should_warn(&self) -> bool {
-        self.inner.lock().unwrap().should_warn()
+        self.inner
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .should_warn()
     }
 
     pub fn get_warning_message(&self) -> Option<String> {
-        self.inner.lock().unwrap().get_warning_message()
+        self.inner
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .get_warning_message()
     }
 
     pub fn record_warning_shown(&self) {
-        self.inner.lock().unwrap().record_warning_shown();
+        self.inner
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .record_warning_shown();
     }
 
     pub fn stats(&self) -> ContextCostStats {
-        self.inner.lock().unwrap().stats()
+        self.inner
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .stats()
     }
 
     pub fn total_tokens(&self) -> usize {
-        self.inner.lock().unwrap().total_tokens()
+        self.inner
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .total_tokens()
     }
 
     pub fn remaining_tokens(&self) -> usize {
-        self.inner.lock().unwrap().remaining_tokens()
+        self.inner
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .remaining_tokens()
     }
 
     pub fn would_exceed_limit(&self, additional_tokens: usize) -> bool {
         self.inner
             .lock()
-            .unwrap()
+            .unwrap_or_else(|poison| poison.into_inner())
             .would_exceed_limit(additional_tokens)
     }
 
     pub fn clear(&self) {
-        self.inner.lock().unwrap().clear();
+        self.inner
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .clear();
     }
 
     pub fn estimate_tokens(&self, text: &str) -> usize {
-        self.inner.lock().unwrap().estimate_tokens(text)
+        self.inner
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .estimate_tokens(text)
     }
 }
 
 impl std::fmt::Debug for SharedContextCostTracker {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let tracker = self.inner.lock().unwrap();
+        let tracker = self
+            .inner
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
         f.debug_struct("SharedContextCostTracker")
             .field("total_tokens", &tracker.get_total_tokens())
             .field("tool_call_count", &tracker.tool_call_count)

@@ -37,6 +37,8 @@ pub fn run(args: QuickArgs) {
                 .expect("Failed to create session");
             crate::cmd::session::save_session_records(&[]);
             println!("Quick session created: {} ({})", name, session.id);
+            crate::cmd::session::save_session_records(&[]);
+            println!("Quick session created: {} ({})", name, session.id);
         }
         Some(QuickAction::SwitchModel { model }) => {
             let path = Config::config_path();

@@ -45,7 +45,10 @@ pub fn run(args: ShortcutsArgs) {
                     serde_json::json!({"command": "session.list", "shortcut": "Ctrl+L"}),
                     serde_json::json!({"command": "models.list", "shortcut": "Ctrl+M"}),
                 ];
-                println!("{}", serde_json::to_string(&shortcuts).unwrap());
+                println!(
+                    "{}",
+                    serde_json::to_string(&shortcuts).expect("failed to serialize JSON output")
+                );
             } else {
                 println!("Keyboard Shortcuts:");
                 println!("  Ctrl+Shift+P - Open command palette");

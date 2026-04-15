@@ -177,6 +177,15 @@ impl PrimaryAgentTracker {
         }
     }
 
+    /// Create a tracker with an active primary agent.
+    /// This is the idiomatic constructor when the agent is known to be active.
+    pub fn new_active(agent_type: AgentType) -> Self {
+        Self {
+            state: PrimaryAgentState::Running,
+            agent_type: Some(agent_type),
+        }
+    }
+
     /// Activate a new primary agent. Returns error if one is already running.
     pub fn activate(&mut self, agent_type: AgentType) -> Result<(), RuntimeError> {
         match &self.state {
@@ -186,11 +195,11 @@ impl PrimaryAgentTracker {
                 Ok(())
             }
             PrimaryAgentState::Running => Err(RuntimeError::MultiplePrimaryAgents {
-                current: self.agent_type.unwrap(),
+                current: self.agent_type.ok_or(RuntimeError::NoActivePrimaryAgent)?,
                 attempted: agent_type,
             }),
             PrimaryAgentState::Transitioning => Err(RuntimeError::AgentTransitionInProgress {
-                current: self.agent_type.unwrap(),
+                current: self.agent_type.ok_or(RuntimeError::NoActivePrimaryAgent)?,
             }),
         }
     }
@@ -201,12 +210,12 @@ impl PrimaryAgentTracker {
         match &self.state {
             PrimaryAgentState::Inactive => Err(RuntimeError::NoActivePrimaryAgent),
             PrimaryAgentState::Running => {
-                let current = self.agent_type.unwrap();
+                let current = self.agent_type.ok_or(RuntimeError::NoActivePrimaryAgent)?;
                 self.state = PrimaryAgentState::Transitioning;
                 Ok(current)
             }
             PrimaryAgentState::Transitioning => Err(RuntimeError::AgentTransitionInProgress {
-                current: self.agent_type.unwrap(),
+                current: self.agent_type.ok_or(RuntimeError::NoActivePrimaryAgent)?,
             }),
         }
     }
@@ -222,13 +231,13 @@ impl PrimaryAgentTracker {
         match &self.state {
             PrimaryAgentState::Inactive => Err(RuntimeError::NoActivePrimaryAgent),
             PrimaryAgentState::Running => {
-                let current = self.agent_type.unwrap();
+                let current = self.agent_type.ok_or(RuntimeError::NoActivePrimaryAgent)?;
                 self.state = PrimaryAgentState::Inactive;
                 self.agent_type = None;
                 Ok(current)
             }
             PrimaryAgentState::Transitioning => Err(RuntimeError::AgentTransitionInProgress {
-                current: self.agent_type.unwrap(),
+                current: self.agent_type.ok_or(RuntimeError::NoActivePrimaryAgent)?,
             }),
         }
     }
@@ -258,26 +267,18 @@ pub struct AgentRuntime {
 
 impl AgentRuntime {
     pub fn new(session: Session, agent_type: AgentType) -> Self {
-        let mut tracker = PrimaryAgentTracker::new();
-        tracker
-            .activate(agent_type)
-            .expect("Failed to activate initial agent - this indicates a programming error");
         Self {
             session: Arc::new(RwLock::new(session)),
             config: RuntimeConfig::default(),
-            primary_tracker: tracker,
+            primary_tracker: PrimaryAgentTracker::new_active(agent_type),
         }
     }
 
     pub fn with_config(session: Session, agent_type: AgentType, config: RuntimeConfig) -> Self {
-        let mut tracker = PrimaryAgentTracker::new();
-        tracker
-            .activate(agent_type)
-            .expect("Failed to activate initial agent - this indicates a programming error");
         Self {
             session: Arc::new(RwLock::new(session)),
             config,
-            primary_tracker: tracker,
+            primary_tracker: PrimaryAgentTracker::new_active(agent_type),
         }
     }
 
@@ -973,6 +974,8 @@ mod tests {
             self
         }
     }
+
+    impl sealed::Sealed for MockSubagent {}
 
     #[async_trait::async_trait]
     impl Agent for MockSubagent {

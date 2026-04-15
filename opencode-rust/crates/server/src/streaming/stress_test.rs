@@ -16,6 +16,7 @@ pub struct StressTestConfig {
     pub reconnection_attempts: usize,
 }
 
+#[allow(dead_code)]
 impl Default for StressTestConfig {
     fn default() -> Self {
         Self {
@@ -43,15 +44,16 @@ pub struct StressTestResult {
     pub throughput_msg_per_sec: f64,
 }
 
+#[allow(dead_code)]
 impl StressTestResult {
-    pub fn success_rate(&self) -> f64 {
+    pub(crate) fn success_rate(&self) -> f64 {
         if self.total_connections == 0 {
             return 0.0;
         }
         (self.successful_connections as f64 / self.total_connections as f64) * 100.0
     }
 
-    pub fn meets_stability_threshold(&self, threshold_percent: f64) -> bool {
+    pub(crate) fn meets_stability_threshold(&self, threshold_percent: f64) -> bool {
         self.success_rate() >= threshold_percent
     }
 }
@@ -61,20 +63,21 @@ pub struct ConnectionStressTester {
     monitor: Arc<ConnectionMonitor>,
 }
 
+#[allow(dead_code)]
 impl ConnectionStressTester {
-    pub fn new(config: StressTestConfig) -> Self {
+    pub(crate) fn new(config: StressTestConfig) -> Self {
         Self {
             config,
             monitor: Arc::new(ConnectionMonitor::new()),
         }
     }
 
-    pub fn with_monitor(mut self, monitor: Arc<ConnectionMonitor>) -> Self {
+    pub(crate) fn with_monitor(mut self, monitor: Arc<ConnectionMonitor>) -> Self {
         self.monitor = monitor;
         self
     }
 
-    pub async fn run_sse_stress_test(&self) -> StressTestResult {
+    pub(crate) async fn run_sse_stress_test(&self) -> StressTestResult {
         let start = std::time::Instant::now();
         let reconnection_store = Arc::new(ReconnectionStore::default());
 
@@ -185,7 +188,7 @@ impl ConnectionStressTester {
         }
     }
 
-    pub async fn run_ws_stress_test(&self) -> StressTestResult {
+    pub(crate) async fn run_ws_stress_test(&self) -> StressTestResult {
         let start = std::time::Instant::now();
         let reconnection_store = Arc::new(ReconnectionStore::default());
 
@@ -300,7 +303,7 @@ impl ConnectionStressTester {
         }
     }
 
-    pub async fn run_reconnection_test(&self) -> StressTestResult {
+    pub(crate) async fn run_reconnection_test(&self) -> StressTestResult {
         let start = std::time::Instant::now();
 
         let successful = Arc::new(AtomicUsize::new(0));
@@ -366,7 +369,7 @@ impl ConnectionStressTester {
         }
     }
 
-    pub async fn get_final_stats(&self) -> ConnectionStats {
+    pub(crate) async fn get_final_stats(&self) -> ConnectionStats {
         self.monitor.get_stats().await
     }
 }

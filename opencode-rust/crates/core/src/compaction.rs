@@ -343,12 +343,13 @@ pub struct Compactor {
     config: CompactionConfig,
 }
 
+#[allow(dead_code)]
 impl Compactor {
     pub fn new(config: CompactionConfig) -> Self {
         Self { config }
     }
 
-    pub fn needs_compaction(&self, messages: &[Message]) -> bool {
+    pub(crate) fn needs_compaction(&self, messages: &[Message]) -> bool {
         let total: usize = messages
             .iter()
             .map(|m| self.estimate_tokens(&m.content))
@@ -452,11 +453,11 @@ impl Compactor {
         result
     }
 
-    pub fn estimate_tokens(&self, text: &str) -> usize {
+    pub(crate) fn estimate_tokens(&self, text: &str) -> usize {
         text.len().div_ceil(4)
     }
 
-    pub fn validate_reserved(reserved: u32) -> Result<(), CompactionError> {
+    pub(crate) fn validate_reserved(reserved: u32) -> Result<(), CompactionError> {
         if reserved == 0 {
             return Err(CompactionError::InvalidReserved(reserved));
         }
@@ -472,7 +473,7 @@ impl Compactor {
         Ok(())
     }
 
-    pub fn prune_old_tool_outputs(messages: &mut [Message], keep_recent: usize) {
+    pub(crate) fn prune_old_tool_outputs(messages: &mut [Message], keep_recent: usize) {
         let keep_recent = if keep_recent == 0 {
             DEFAULT_KEEP_RECENT_TOOL_OUTPUTS
         } else {
@@ -497,7 +498,7 @@ impl Compactor {
         }
     }
 
-    pub fn generate_summary_prompt(messages: &[Message]) -> String {
+    pub(crate) fn generate_summary_prompt(messages: &[Message]) -> String {
         let mut lines = vec![
             "Summarize the following conversation for context compression.".to_string(),
             "Keep decisions, constraints, unresolved issues, and next steps.".to_string(),
@@ -517,7 +518,7 @@ impl Compactor {
         lines.join("\n")
     }
 
-    pub fn auto_compact_if_needed(
+    pub(crate) fn auto_compact_if_needed(
         session: &mut crate::session::Session,
         config: &crate::config::CompactionConfig,
         model_max_context: usize,

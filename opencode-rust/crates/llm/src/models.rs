@@ -385,6 +385,31 @@ impl ModelRegistry {
     pub fn max_input_tokens(&self, model: &str) -> u32 {
         self.get(model).map(|m| m.max_input_tokens).unwrap_or(4096)
     }
+
+    pub fn populate_from_catalog(&mut self, catalog: &crate::catalog::ProviderCatalog) {
+        for provider in catalog.providers.values() {
+            for model in provider.models.values() {
+                let model_key = model.id.clone();
+                self.models.entry(model_key).or_insert_with(|| ModelInfo {
+                    name: model.id.clone(),
+                    provider: provider.id.clone(),
+                    max_tokens: model.limits.output.max(1),
+                    max_input_tokens: model.limits.context,
+                    supports_functions: model.capabilities.tool_call,
+                    supports_vision: model
+                        .capabilities
+                        .input_modalities
+                        .contains(&"image".to_string())
+                        || model
+                            .capabilities
+                            .input_modalities
+                            .contains(&"vision".to_string()),
+                    supports_streaming: true,
+                    cost_per_1k_tokens: model.cost.input + model.cost.output,
+                });
+            }
+        }
+    }
 }
 
 impl Default for ModelRegistry {

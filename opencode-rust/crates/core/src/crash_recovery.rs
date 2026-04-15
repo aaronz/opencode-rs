@@ -115,17 +115,26 @@ impl CrashRecovery {
     }
 
     pub fn set_active_session(&self, session: Session) {
-        let mut guard = self.active_session.lock().unwrap();
+        let mut guard = self
+            .active_session
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         *guard = Some(ActiveSession { session });
     }
 
     pub fn get_active_session(&self) -> Option<Session> {
-        let guard = self.active_session.lock().unwrap();
+        let guard = self
+            .active_session
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         guard.as_ref().map(|a| a.session.clone())
     }
 
     pub fn clear_active_session(&self) {
-        let mut guard = self.active_session.lock().unwrap();
+        let mut guard = self
+            .active_session
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         *guard = None;
     }
 
@@ -134,7 +143,10 @@ impl CrashRecovery {
         panic_message: Option<String>,
         stack_trace: Option<String>,
     ) -> Result<PathBuf, CrashRecoveryError> {
-        let guard = self.active_session.lock().unwrap();
+        let guard = self
+            .active_session
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let active = guard.as_ref().ok_or(CrashRecoveryError::NoActiveSession)?;
 
         let messages_summary = active.capture_messages_summary(20);
@@ -199,7 +211,12 @@ impl CrashRecovery {
             }
         }
 
-        dumps.sort_by_key(|p| p.file_name().unwrap().to_str().unwrap().to_string());
+        dumps.sort_by_key(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("invalid_filename")
+                .to_string()
+        });
         dumps.reverse();
         dumps
     }
@@ -319,6 +336,7 @@ pub struct PanicHandler {
     previous_hook: Option<Box<dyn Fn(&PanicHookInfo<'_>) + Send + Sync>>,
 }
 
+#[allow(dead_code)]
 impl PanicHandler {
     pub fn new() -> Self {
         Self {

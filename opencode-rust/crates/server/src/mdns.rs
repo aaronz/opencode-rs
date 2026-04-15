@@ -12,7 +12,7 @@ pub struct MdnsService {
 }
 
 impl MdnsService {
-    pub fn start(config: &ServerConfig) -> Result<Self, std::io::Error> {
+    pub(crate) fn start(config: &ServerConfig) -> Result<Self, std::io::Error> {
         let port = config.port.unwrap_or(4096);
         let host = config
             .hostname
@@ -59,7 +59,7 @@ impl MdnsService {
         Ok(Self { daemon, fullname })
     }
 
-    pub fn stop(self) {
+    pub(crate) fn stop(self) {
         let _ = self.daemon.unregister(&self.fullname);
         let _ = self.daemon.shutdown();
     }

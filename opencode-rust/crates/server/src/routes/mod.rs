@@ -4,6 +4,7 @@ pub mod acp;
 pub mod acp_ws;
 pub mod config;
 pub mod error;
+pub mod execute;
 pub mod export;
 pub mod mcp;
 pub mod model;
@@ -23,6 +24,7 @@ pub fn config_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(web::scope("/providers").configure(provider::init));
     cfg.service(web::scope("/models").configure(model::init));
     cfg.service(web::scope("/sessions").configure(session::init));
+    cfg.service(web::scope("/sessions/{id}").configure(execute::init));
     cfg.service(web::scope("/share").configure(share::init));
     cfg.service(web::scope("/run").configure(run::init));
     cfg.service(web::scope("/permissions").configure(permission::init));

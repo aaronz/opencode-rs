@@ -1,4 +1,5 @@
 use crate::command::CommandRegistry;
+use crate::dialogs::sealed;
 use crate::dialogs::{Dialog, DialogAction};
 use crate::theme::Theme;
 use crossterm::event::{KeyCode, KeyEvent};
@@ -45,6 +46,8 @@ impl SlashCommandOverlay {
         &self.filtered_commands
     }
 }
+
+impl sealed::Sealed for SlashCommandOverlay {}
 
 impl Dialog for SlashCommandOverlay {
     fn draw(&self, f: &mut Frame, area: Rect) {

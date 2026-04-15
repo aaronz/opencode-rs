@@ -1,3 +1,4 @@
+use crate::sealed;
 use crate::{Tool, ToolRegistry, ToolResult};
 use async_trait::async_trait;
 use opencode_core::OpenCodeError;
@@ -25,6 +26,8 @@ struct ToolInvocation {
     tool_name: String,
     input: serde_json::Value,
 }
+
+impl sealed::Sealed for BatchTool {}
 
 #[async_trait]
 impl Tool for BatchTool {

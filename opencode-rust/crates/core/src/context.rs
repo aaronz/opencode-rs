@@ -75,8 +75,9 @@ pub struct LayerBudgets {
     pub l4_compressed: usize,
 }
 
+#[allow(dead_code)]
 impl LayerBudgets {
-    pub fn new(max_tokens: usize) -> Self {
+    pub(crate) fn new(max_tokens: usize) -> Self {
         let total = max_tokens;
         Self {
             l0_explicit: (total as f64 * 0.15) as usize,
@@ -87,7 +88,7 @@ impl LayerBudgets {
         }
     }
 
-    pub fn budget_for(&self, layer: ContextLayer) -> usize {
+    pub(crate) fn budget_for(&self, layer: ContextLayer) -> usize {
         match layer {
             ContextLayer::L0ExplicitInput => self.l0_explicit,
             ContextLayer::L1SessionContext => self.l1_session,
@@ -97,7 +98,7 @@ impl LayerBudgets {
         }
     }
 
-    pub fn total(&self) -> usize {
+    pub(crate) fn total(&self) -> usize {
         self.l0_explicit
             + self.l1_session
             + self.l2_project
@@ -106,8 +107,9 @@ impl LayerBudgets {
     }
 }
 
+#[allow(dead_code)]
 impl ContextBudget {
-    pub fn from_usage(
+    pub(crate) fn from_usage(
         max_tokens: usize,
         total_tokens: usize,
         layer_breakdown: Vec<(ContextLayer, usize)>,
@@ -122,7 +124,7 @@ impl ContextBudget {
         )
     }
 
-    pub fn from_usage_with_thresholds(
+    pub(crate) fn from_usage_with_thresholds(
         max_tokens: usize,
         total_tokens: usize,
         layer_breakdown: Vec<(ContextLayer, usize)>,
@@ -148,7 +150,7 @@ impl ContextBudget {
         }
     }
 
-    pub fn usage_level(&self) -> ContextUsageLevel {
+    pub(crate) fn usage_level(&self) -> ContextUsageLevel {
         if self.usage_pct >= self.continuation_threshold {
             ContextUsageLevel::ForceNewSession(self.usage_pct)
         } else if self.usage_pct >= self.compact_threshold {
@@ -183,8 +185,9 @@ pub struct ContextBuilder {
     compressed_memory: Vec<String>,
 }
 
+#[allow(dead_code)]
 impl ContextBuilder {
-    pub fn new(token_budget: TokenBudget) -> Self {
+    pub(crate) fn new(token_budget: TokenBudget) -> Self {
         Self {
             token_budget,
             token_counter: TokenCounter::new(),
@@ -198,7 +201,7 @@ impl ContextBuilder {
         }
     }
 
-    pub fn with_model_name(mut self, model_name: Option<&str>) -> Self {
+    pub(crate) fn with_model_name(mut self, model_name: Option<&str>) -> Self {
         if let Some(model) = model_name.map(str::trim).filter(|name| !name.is_empty()) {
             self.token_budget = TokenBudget::from_model(model);
             self.token_counter = TokenCounter::for_model(model);
@@ -206,7 +209,7 @@ impl ContextBuilder {
         self
     }
 
-    pub fn collect_file_context(
+    pub(crate) fn collect_file_context(
         mut self,
         opened_files: &[PathBuf],
         referenced_messages: &[Message],
@@ -230,7 +233,7 @@ impl ContextBuilder {
         self
     }
 
-    pub fn collect_tool_context(mut self, registry: &ToolRegistry) -> Self {
+    pub(crate) fn collect_tool_context(mut self, registry: &ToolRegistry) -> Self {
         self.tool_context = registry
             .get_all()
             .iter()
@@ -239,7 +242,7 @@ impl ContextBuilder {
         self
     }
 
-    pub fn collect_session_context(mut self, messages: &[Message]) -> Self {
+    pub(crate) fn collect_session_context(mut self, messages: &[Message]) -> Self {
         self.prompt_messages = messages.to_vec();
         self.session_context = messages
             .iter()
@@ -254,22 +257,22 @@ impl ContextBuilder {
         self
     }
 
-    pub fn add_explicit_input(mut self, input: impl Into<String>) -> Self {
+    pub(crate) fn add_explicit_input(mut self, input: impl Into<String>) -> Self {
         self.explicit_input.push(input.into());
         self
     }
 
-    pub fn add_structured_context(mut self, context: impl Into<String>) -> Self {
+    pub(crate) fn add_structured_context(mut self, context: impl Into<String>) -> Self {
         self.structured_context.push(context.into());
         self
     }
 
-    pub fn add_compressed_memory(mut self, memory: impl Into<String>) -> Self {
+    pub(crate) fn add_compressed_memory(mut self, memory: impl Into<String>) -> Self {
         self.compressed_memory.push(memory.into());
         self
     }
 
-    pub fn build(mut self) -> Context {
+    pub(crate) fn build(mut self) -> Context {
         let max_tokens = self.token_budget.main_context_tokens();
 
         let mut layer_breakdown = Vec::new();

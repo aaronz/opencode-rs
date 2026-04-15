@@ -1,4 +1,4 @@
-use crate::routes::error::json_error;
+use crate::routes::error::{internal_error, json_error};
 use crate::ServerState;
 use actix_web::{http::StatusCode, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
@@ -283,7 +283,12 @@ pub async fn create_short_link(
     state: web::Data<ServerState>,
     req: web::Json<CreateShortLinkRequest>,
 ) -> impl Responder {
-    let share_server = state.share_server.read().unwrap();
+    let share_server = match state.share_server.read() {
+        Ok(guard) => guard,
+        Err(_) => {
+            return internal_error("Share server lock poisoned");
+        }
+    };
 
     match state.storage.load_session(&req.session_id).await {
         Ok(Some(_session)) => {
@@ -333,7 +338,12 @@ pub async fn get_short_link_info(
     path: web::Path<String>,
 ) -> impl Responder {
     let short_code = path.into_inner();
-    let share_server = state.share_server.read().unwrap();
+    let share_server = match state.share_server.read() {
+        Ok(guard) => guard,
+        Err(_) => {
+            return internal_error("Share server lock poisoned");
+        }
+    };
 
     match share_server.get_short_link(&short_code).await {
         Some(link) => {
@@ -370,7 +380,12 @@ pub async fn access_shared_session(
     query: web::Query<AccessQueryParams>,
 ) -> impl Responder {
     let short_code = path.into_inner();
-    let share_server = state.share_server.read().unwrap();
+    let share_server = match state.share_server.read() {
+        Ok(guard) => guard,
+        Err(_) => {
+            return internal_error("Share server lock poisoned");
+        }
+    };
 
     let link = match share_server.get_short_link(&short_code).await {
         Some(l) => l,
@@ -451,7 +466,12 @@ pub async fn delete_short_link(
     query: web::Query<DeleteQueryParams>,
 ) -> impl Responder {
     let short_code = path.into_inner();
-    let share_server = state.share_server.read().unwrap();
+    let share_server = match state.share_server.read() {
+        Ok(guard) => guard,
+        Err(_) => {
+            return internal_error("Share server lock poisoned");
+        }
+    };
 
     if !share_server
         .validate_access(&short_code, Some(&query.token))
@@ -486,7 +506,12 @@ pub async fn refresh_short_link(
     req: web::Json<RefreshRequest>,
 ) -> impl Responder {
     let short_code = path.into_inner();
-    let share_server = state.share_server.read().unwrap();
+    let share_server = match state.share_server.read() {
+        Ok(guard) => guard,
+        Err(_) => {
+            return internal_error("Share server lock poisoned");
+        }
+    };
 
     if !share_server
         .validate_access(&short_code, Some(&req.access_token))
@@ -537,7 +562,12 @@ pub struct RefreshRequest {
 }
 
 pub async fn list_short_links(state: web::Data<ServerState>) -> impl Responder {
-    let share_server = state.share_server.read().unwrap();
+    let share_server = match state.share_server.read() {
+        Ok(guard) => guard,
+        Err(_) => {
+            return internal_error("Share server lock poisoned");
+        }
+    };
     let links = share_server.links.read().await;
 
     let items: Vec<ShortLinkInfo> = links
@@ -561,7 +591,12 @@ pub async fn list_short_links(state: web::Data<ServerState>) -> impl Responder {
 }
 
 pub async fn cleanup_expired_links(state: web::Data<ServerState>) -> impl Responder {
-    let share_server = state.share_server.read().unwrap();
+    let share_server = match state.share_server.read() {
+        Ok(guard) => guard,
+        Err(_) => {
+            return internal_error("Share server lock poisoned");
+        }
+    };
     let cleaned = share_server.cleanup_expired().await;
 
     HttpResponse::Ok().json(serde_json::json!({

@@ -2,6 +2,8 @@
 mod tests {
     use actix_web::{web, App, HttpServer};
     use futures_util::{SinkExt, StreamExt};
+    use opencode_tools::ToolRegistry;
+    use std::sync::Arc;
     use std::time::Duration;
     use tokio::time::timeout;
     use tokio_tungstenite::tungstenite::Message;
@@ -9,16 +11,19 @@ mod tests {
     fn create_test_server_state() -> opencode_server::ServerState {
         let temp_dir = tempfile::tempdir().unwrap();
         let db_path = temp_dir.path().join("test.db");
-        let temp_db_dir: Option<Box<dyn std::any::Any + Send + Sync>> = Some(Box::new(temp_dir));
+        let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
+        let session_repo = Arc::new(opencode_storage::SqliteSessionRepository::new(pool.clone()));
+        let project_repo = Arc::new(opencode_storage::SqliteProjectRepository::new(pool.clone()));
         opencode_server::ServerState {
-            storage: std::sync::Arc::new(opencode_storage::StorageService::new(
-                opencode_storage::database::StoragePool::new(&db_path).unwrap(),
+            storage: Arc::new(opencode_storage::StorageService::new(
+                session_repo,
+                project_repo,
+                pool,
             )),
             models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
             config: std::sync::Arc::new(std::sync::RwLock::new(opencode_core::Config::default())),
             event_bus: opencode_core::bus::SharedEventBus::default(),
             reconnection_store: opencode_server::streaming::ReconnectionStore::default(),
-            temp_db_dir,
             connection_monitor: std::sync::Arc::new(
                 opencode_server::streaming::conn_state::ConnectionMonitor::new(),
             ),
@@ -30,6 +35,7 @@ mod tests {
             acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
                 opencode_server::routes::acp_ws::AcpClientRegistry::new(),
             )),
+            tool_registry: std::sync::Arc::new(ToolRegistry::new()),
         }
     }
 

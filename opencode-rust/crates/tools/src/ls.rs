@@ -1,5 +1,6 @@
 #![allow(clippy::redundant_closure)]
 
+use crate::sealed;
 use crate::{Tool, ToolResult};
 use async_trait::async_trait;
 use opencode_core::OpenCodeError;
@@ -14,6 +15,8 @@ struct LsArgs {
     path: Option<String>,
     pattern: Option<String>,
 }
+
+impl sealed::Sealed for LsTool {}
 
 #[async_trait]
 impl Tool for LsTool {

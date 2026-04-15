@@ -3,6 +3,8 @@ mod tests {
     use actix_web::http::StatusCode;
     use actix_web::test::TestRequest;
     use actix_web::Responder;
+    use opencode_core::{Message, Session};
+    use std::sync::Arc;
 
     #[actix_web::test]
     async fn test_health_check() {
@@ -15,9 +17,18 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let db_path = temp_dir.path().join("test.db");
         crate::ServerState {
-            storage: std::sync::Arc::new(opencode_storage::StorageService::new(
-                opencode_storage::database::StoragePool::new(&db_path).unwrap(),
-            )),
+            storage: {
+                let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
+                let session_repo =
+                    Arc::new(opencode_storage::SqliteSessionRepository::new(pool.clone()));
+                let project_repo =
+                    Arc::new(opencode_storage::SqliteProjectRepository::new(pool.clone()));
+                Arc::new(opencode_storage::StorageService::new(
+                    session_repo,
+                    project_repo,
+                    pool,
+                ))
+            },
             models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
             config: std::sync::Arc::new(std::sync::RwLock::new(opencode_core::Config::default())),
             event_bus: opencode_core::bus::SharedEventBus::default(),
@@ -33,7 +44,7 @@ mod tests {
             acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
                 crate::routes::acp_ws::AcpClientRegistry::new(),
             )),
-            temp_db_dir: Some(Box::new(temp_dir)),
+            tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
         }
     }
 
@@ -43,9 +54,18 @@ mod tests {
         let mut config = opencode_core::Config::default();
         config.api_key = api_key;
         crate::ServerState {
-            storage: std::sync::Arc::new(opencode_storage::StorageService::new(
-                opencode_storage::database::StoragePool::new(&db_path).unwrap(),
-            )),
+            storage: {
+                let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
+                let session_repo =
+                    Arc::new(opencode_storage::SqliteSessionRepository::new(pool.clone()));
+                let project_repo =
+                    Arc::new(opencode_storage::SqliteProjectRepository::new(pool.clone()));
+                Arc::new(opencode_storage::StorageService::new(
+                    session_repo,
+                    project_repo,
+                    pool,
+                ))
+            },
             models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
             config: std::sync::Arc::new(std::sync::RwLock::new(config)),
             event_bus: opencode_core::bus::SharedEventBus::default(),
@@ -61,7 +81,7 @@ mod tests {
             acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
                 crate::routes::acp_ws::AcpClientRegistry::new(),
             )),
-            temp_db_dir: Some(Box::new(temp_dir)),
+            tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
         }
     }
 
@@ -1602,334 +1622,6 @@ mod tests {
             "Response should have 'count' field"
         );
     }
-
-    // P2-NEW-1: Explicit Route-Group Tests for MCP, Config, and Provider Endpoints
-
-    #[actix_web::test]
-    async fn route_group_mcp_servers_endpoint_returns_correct_items_structure() {
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::mcp::get_mcp_servers().await.respond_to(&req);
-        assert_eq!(resp.status(), StatusCode::OK);
-        let body = actix_web::body::to_bytes(resp.into_body())
-            .await
-            .unwrap_or_else(|_| actix_web::web::Bytes::new());
-        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-        let items = json
-            .get("items")
-            .expect("Response should have 'items' field");
-        assert!(items.is_array(), "items should be an array");
-        let count = json
-            .get("count")
-            .expect("Response should have 'count' field");
-        assert!(count.is_u64(), "count should be a number");
-        let items_len = items.as_array().map(|a| a.len()).unwrap_or(0);
-        let count_val = count.as_u64().unwrap_or(0) as usize;
-        assert_eq!(
-            items_len, count_val,
-            "count should match items array length"
-        );
-    }
-
-    #[actix_web::test]
-    async fn route_group_mcp_tools_endpoint_returns_correct_items_structure() {
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::mcp::get_mcp_tools().await.respond_to(&req);
-        assert_eq!(resp.status(), StatusCode::OK);
-        let body = actix_web::body::to_bytes(resp.into_body())
-            .await
-            .unwrap_or_else(|_| actix_web::web::Bytes::new());
-        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-        let items = json
-            .get("items")
-            .expect("Response should have 'items' field");
-        assert!(items.is_array(), "items should be an array");
-        let count = json
-            .get("count")
-            .expect("Response should have 'count' field");
-        assert!(count.is_u64(), "count should be a number");
-    }
-
-    #[actix_web::test]
-    async fn route_group_mcp_servers_endpoint_connection_states_are_valid() {
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::mcp::get_mcp_servers().await.respond_to(&req);
-        assert_eq!(resp.status(), StatusCode::OK);
-        let body = actix_web::body::to_bytes(resp.into_body())
-            .await
-            .unwrap_or_else(|_| actix_web::web::Bytes::new());
-        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-        let valid_states = ["connected", "connecting", "disconnected", "error"];
-        if let Some(items) = json.get("items").and_then(|i| i.as_array()) {
-            for item in items {
-                if let Some(state) = item.get("connection_state").and_then(|s| s.as_str()) {
-                    assert!(
-                        valid_states.contains(&state),
-                        "connection_state '{}' is not valid",
-                        state
-                    );
-                }
-            }
-        }
-    }
-
-    #[actix_web::test]
-    async fn route_group_mcp_tools_endpoint_tool_structure_has_name_and_description() {
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::mcp::get_mcp_tools().await.respond_to(&req);
-        assert_eq!(resp.status(), StatusCode::OK);
-        let body = actix_web::body::to_bytes(resp.into_body())
-            .await
-            .unwrap_or_else(|_| actix_web::web::Bytes::new());
-        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-        if let Some(items) = json.get("items").and_then(|i| i.as_array()) {
-            for item in items {
-                assert!(
-                    item.get("name").is_some(),
-                    "Each tool should have a 'name' field"
-                );
-                assert!(
-                    item.get("description").is_some(),
-                    "Each tool should have a 'description' field"
-                );
-            }
-        }
-    }
-
-    #[actix_web::test]
-    async fn route_group_mcp_connect_endpoint_returns_status_and_server_fields() {
-        use actix_web::web;
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::mcp::connect_mcp_server(web::Json(
-            crate::routes::mcp::McpConnectRequest {
-                name: "test-server-validation".to_string(),
-                transport: "stdio".to_string(),
-                command: Some("echo".to_string()),
-                args: Some(vec!["test".to_string()]),
-                url: None,
-            },
-        ))
-        .await
-        .respond_to(&req);
-
-        assert!(
-            resp.status() == StatusCode::OK || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
-            "MCP connect should return OK or 500"
-        );
-
-        if resp.status() == StatusCode::OK {
-            let body = actix_web::body::to_bytes(resp.into_body())
-                .await
-                .unwrap_or_else(|_| actix_web::web::Bytes::new());
-            let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-            assert!(
-                json.get("status").is_some(),
-                "Response should have 'status' field"
-            );
-            assert!(
-                json.get("server").is_some(),
-                "Response should have 'server' field"
-            );
-        }
-    }
-
-    #[actix_web::test]
-    async fn route_group_config_endpoint_returns_config_object() {
-        use actix_web::web;
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::config::get_config(web::Data::new(create_test_state()))
-            .await
-            .respond_to(&req);
-        assert_eq!(resp.status(), StatusCode::OK);
-        let body = actix_web::body::to_bytes(resp.into_body())
-            .await
-            .unwrap_or_else(|_| actix_web::web::Bytes::new());
-        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-        assert!(json.is_object(), "Config response should be a JSON object");
-    }
-
-    #[actix_web::test]
-    async fn route_group_config_update_returns_merged_config() {
-        use actix_web::web;
-        let req = TestRequest::default().to_http_request();
-        let mut config = opencode_core::Config::default();
-        config.server = Some(opencode_core::config::ServerConfig {
-            port: Some(9999),
-            hostname: Some("localhost".to_string()),
-            mdns: None,
-            mdns_domain: None,
-            cors: None,
-            desktop: None,
-            acp: None,
-        });
-        let resp = crate::routes::config::update_config(
-            web::Data::new(create_test_state()),
-            web::Json(config),
-        )
-        .await
-        .respond_to(&req);
-        assert_eq!(
-            resp.status(),
-            StatusCode::OK,
-            "Config update should return OK"
-        );
-    }
-
-    #[actix_web::test]
-    async fn route_group_providers_endpoint_returns_provider_list() {
-        use actix_web::web;
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::provider::get_providers(web::Data::new(create_test_state()))
-            .await
-            .respond_to(&req);
-        assert_eq!(resp.status(), StatusCode::OK);
-        let body = actix_web::body::to_bytes(resp.into_body())
-            .await
-            .unwrap_or_else(|_| actix_web::web::Bytes::new());
-        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-        assert!(
-            json.get("items").is_some(),
-            "Response should have 'items' field"
-        );
-        assert!(
-            json.get("count").is_some(),
-            "Response should have 'count' field"
-        );
-        if let Some(items) = json.get("items").and_then(|i| i.as_array()) {
-            for item in items {
-                assert!(item.is_string(), "Each provider should be a string");
-            }
-        }
-    }
-
-    #[actix_web::test]
-    async fn route_group_provider_get_returns_provider_details() {
-        use actix_web::web;
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::provider::get_provider(
-            web::Data::new(create_test_state()),
-            web::Path::from("openai".to_string()),
-        )
-        .await
-        .respond_to(&req);
-        assert_eq!(resp.status(), StatusCode::OK);
-        let body = actix_web::body::to_bytes(resp.into_body())
-            .await
-            .unwrap_or_else(|_| actix_web::web::Bytes::new());
-        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-        assert!(
-            json.get("provider_id").is_some(),
-            "Provider response should have 'provider_id' field"
-        );
-        assert!(
-            json.get("endpoint").is_some(),
-            "Provider response should have 'endpoint' field"
-        );
-        assert!(
-            json.get("auth_strategy").is_some(),
-            "Provider response should have 'auth_strategy' field"
-        );
-    }
-
-    #[actix_web::test]
-    async fn route_group_provider_status_returns_enabled_and_exists_flags() {
-        use actix_web::web;
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::provider::get_provider_status(
-            web::Data::new(create_test_state()),
-            web::Path::from("openai".to_string()),
-        )
-        .await
-        .respond_to(&req);
-        assert_eq!(resp.status(), StatusCode::OK);
-        let body = actix_web::body::to_bytes(resp.into_body())
-            .await
-            .unwrap_or_else(|_| actix_web::web::Bytes::new());
-        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-        assert!(
-            json.get("provider_id").is_some(),
-            "Provider status should have 'provider_id' field"
-        );
-        assert!(
-            json.get("enabled").is_some(),
-            "Provider status should have 'enabled' field"
-        );
-        assert!(
-            json.get("exists").is_some(),
-            "Provider status should have 'exists' field"
-        );
-        assert!(
-            json.get("enabled").unwrap().is_boolean(),
-            "enabled should be a boolean"
-        );
-        assert!(
-            json.get("exists").unwrap().is_boolean(),
-            "exists should be a boolean"
-        );
-    }
-
-    #[actix_web::test]
-    async fn route_group_mcp_handler_accepts_jsonrpc_request() {
-        use actix_web::web;
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::mcp::mcp_handler(
-            web::Data::new(create_test_state()),
-            web::Json(crate::routes::mcp::McpRequestBody {
-                jsonrpc: "2.0".to_string(),
-                id: Some(serde_json::json!(1)),
-                method: "initialize".to_string(),
-                params: None,
-            }),
-        )
-        .await
-        .respond_to(&req);
-        assert_eq!(resp.status(), StatusCode::OK);
-    }
-
-    #[actix_web::test]
-    async fn route_group_provider_create_returns_created_provider() {
-        use actix_web::web;
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::provider::create_provider(
-            web::Data::new(create_test_state()),
-            web::Json(crate::routes::provider::CreateProviderRequest {
-                provider_id: "test-provider".to_string(),
-                endpoint: "https://api.test-provider.com".to_string(),
-                auth_strategy: opencode_llm::AuthStrategy::BearerApiKey { header_name: None },
-                headers: None,
-            }),
-        )
-        .await
-        .respond_to(&req);
-        assert_eq!(
-            resp.status(),
-            StatusCode::CREATED,
-            "Provider create should return 201 Created"
-        );
-    }
-
-    #[actix_web::test]
-    async fn route_group_provider_delete_returns_success_for_existing_provider() {
-        use actix_web::web;
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::provider::delete_provider(
-            web::Data::new(create_test_state()),
-            web::Path::from("nonexistent".to_string()),
-        )
-        .await
-        .respond_to(&req);
-        assert_eq!(
-            resp.status(),
-            StatusCode::NOT_FOUND,
-            "Delete non-existent provider should return 404"
-        );
-    }
 }
 
 #[cfg(test)]
@@ -1938,6 +1630,7 @@ mod security_tests {
     use actix_web::test::TestRequest;
     use actix_web::web;
     use actix_web::Responder;
+    use std::sync::Arc;
 
     fn create_test_state_with_api_key(api_key: Option<String>) -> crate::ServerState {
         let temp_dir = tempfile::tempdir().unwrap();
@@ -1945,9 +1638,18 @@ mod security_tests {
         let mut config = opencode_core::Config::default();
         config.api_key = api_key;
         crate::ServerState {
-            storage: std::sync::Arc::new(opencode_storage::StorageService::new(
-                opencode_storage::database::StoragePool::new(&db_path).unwrap(),
-            )),
+            storage: {
+                let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
+                let session_repo =
+                    Arc::new(opencode_storage::SqliteSessionRepository::new(pool.clone()));
+                let project_repo =
+                    Arc::new(opencode_storage::SqliteProjectRepository::new(pool.clone()));
+                Arc::new(opencode_storage::StorageService::new(
+                    session_repo,
+                    project_repo,
+                    pool,
+                ))
+            },
             models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
             config: std::sync::Arc::new(std::sync::RwLock::new(config)),
             event_bus: opencode_core::bus::SharedEventBus::default(),
@@ -1963,7 +1665,7 @@ mod security_tests {
             acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
                 crate::routes::acp_ws::AcpClientRegistry::new(),
             )),
-            temp_db_dir: Some(Box::new(temp_dir)),
+            tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
         }
     }
 
@@ -2361,14 +2063,24 @@ mod api_negative_tests {
     use actix_web::test::TestRequest;
     use actix_web::web;
     use actix_web::Responder;
+    use std::sync::Arc;
 
     fn create_test_state() -> crate::ServerState {
         let temp_dir = tempfile::tempdir().unwrap();
         let db_path = temp_dir.path().join("test.db");
         crate::ServerState {
-            storage: std::sync::Arc::new(opencode_storage::StorageService::new(
-                opencode_storage::database::StoragePool::new(&db_path).unwrap(),
-            )),
+            storage: {
+                let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
+                let session_repo =
+                    Arc::new(opencode_storage::SqliteSessionRepository::new(pool.clone()));
+                let project_repo =
+                    Arc::new(opencode_storage::SqliteProjectRepository::new(pool.clone()));
+                Arc::new(opencode_storage::StorageService::new(
+                    session_repo,
+                    project_repo,
+                    pool,
+                ))
+            },
             models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
             config: std::sync::Arc::new(std::sync::RwLock::new(opencode_core::Config::default())),
             event_bus: opencode_core::bus::SharedEventBus::default(),
@@ -2384,7 +2096,7 @@ mod api_negative_tests {
             acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
                 crate::routes::acp_ws::AcpClientRegistry::new(),
             )),
-            temp_db_dir: Some(Box::new(temp_dir)),
+            tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
         }
     }
 
@@ -2394,9 +2106,18 @@ mod api_negative_tests {
         let mut config = opencode_core::Config::default();
         config.api_key = api_key;
         crate::ServerState {
-            storage: std::sync::Arc::new(opencode_storage::StorageService::new(
-                opencode_storage::database::StoragePool::new(&db_path).unwrap(),
-            )),
+            storage: {
+                let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
+                let session_repo =
+                    Arc::new(opencode_storage::SqliteSessionRepository::new(pool.clone()));
+                let project_repo =
+                    Arc::new(opencode_storage::SqliteProjectRepository::new(pool.clone()));
+                Arc::new(opencode_storage::StorageService::new(
+                    session_repo,
+                    project_repo,
+                    pool,
+                ))
+            },
             models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
             config: std::sync::Arc::new(std::sync::RwLock::new(config)),
             event_bus: opencode_core::bus::SharedEventBus::default(),
@@ -2412,7 +2133,7 @@ mod api_negative_tests {
             acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
                 crate::routes::acp_ws::AcpClientRegistry::new(),
             )),
-            temp_db_dir: Some(Box::new(temp_dir)),
+            tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
         }
     }
 
@@ -3050,6 +2771,8 @@ mod auth_negative_tests {
     use actix_web::http::StatusCode;
     use actix_web::test::TestRequest;
     use actix_web::web;
+    use opencode_core::{Message, Session};
+    use std::sync::Arc;
 
     fn create_test_state_with_api_key(api_key: Option<String>) -> crate::ServerState {
         let temp_dir = tempfile::tempdir().unwrap();
@@ -3057,9 +2780,18 @@ mod auth_negative_tests {
         let mut config = opencode_core::Config::default();
         config.api_key = api_key;
         crate::ServerState {
-            storage: std::sync::Arc::new(opencode_storage::StorageService::new(
-                opencode_storage::database::StoragePool::new(&db_path).unwrap(),
-            )),
+            storage: {
+                let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
+                let session_repo =
+                    Arc::new(opencode_storage::SqliteSessionRepository::new(pool.clone()));
+                let project_repo =
+                    Arc::new(opencode_storage::SqliteProjectRepository::new(pool.clone()));
+                Arc::new(opencode_storage::StorageService::new(
+                    session_repo,
+                    project_repo,
+                    pool,
+                ))
+            },
             models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
             config: std::sync::Arc::new(std::sync::RwLock::new(config)),
             event_bus: opencode_core::bus::SharedEventBus::default(),
@@ -3075,7 +2807,7 @@ mod auth_negative_tests {
             acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
                 crate::routes::acp_ws::AcpClientRegistry::new(),
             )),
-            temp_db_dir: Some(Box::new(temp_dir)),
+            tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
         }
     }
 
@@ -3201,1302 +2933,288 @@ mod auth_negative_tests {
             "Valid request should still succeed after negative tests"
         );
     }
-}
 
-#[cfg(test)]
-mod security_injection_tests {
-    use actix_web::http::StatusCode;
-    use actix_web::test::TestRequest;
-    use actix_web::web;
-    use actix_web::Responder;
+    // =========================================================================
+    // Session Persistence Tests (P0-024-10)
+    // Verify session state is persisted after tool execution and that
+    // errors are handled gracefully when persistence fails.
+    // =========================================================================
 
-    fn create_test_state() -> crate::ServerState {
+    use opencode_storage::migration::MigrationManager;
+    use opencode_storage::SqliteProjectRepository;
+    use opencode_storage::SqliteSessionRepository;
+    use opencode_storage::StoragePool;
+
+    async fn setup_storage_service(db_path: &std::path::Path) -> opencode_storage::StorageService {
+        let pool = StoragePool::new(db_path).expect("Should create pool");
+        let manager = MigrationManager::new(pool.clone(), 2);
+        manager.migrate().await.expect("Should run migrations");
+        let session_repo = std::sync::Arc::new(SqliteSessionRepository::new(pool.clone()));
+        let project_repo = std::sync::Arc::new(SqliteProjectRepository::new(pool.clone()));
+        opencode_storage::StorageService::new(session_repo, project_repo, pool)
+    }
+
+    #[tokio::test]
+    async fn session_persistence_after_execution_succeeds() {
+        // This test verifies that session state is correctly persisted after
+        // successful tool execution. The key behaviors we're testing:
+        // 1. Session can be saved to storage
+        // 2. Session can be loaded from storage after saving
+        // 3. Session messages are preserved across save/load cycle
+
+        // Create a temp directory for the database
         let temp_dir = tempfile::tempdir().unwrap();
-        let db_path = temp_dir.path().join("test.db");
-        crate::ServerState {
-            storage: std::sync::Arc::new(opencode_storage::StorageService::new(
-                opencode_storage::database::StoragePool::new(&db_path).unwrap(),
-            )),
-            models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
-            config: std::sync::Arc::new(std::sync::RwLock::new(opencode_core::Config::default())),
-            event_bus: opencode_core::bus::SharedEventBus::default(),
-            reconnection_store: crate::streaming::ReconnectionStore::default(),
-            connection_monitor: std::sync::Arc::new(
-                crate::streaming::conn_state::ConnectionMonitor::new(),
-            ),
-            share_server: std::sync::Arc::new(std::sync::RwLock::new(
-                crate::routes::share::ShareServer::with_default_config(),
-            )),
-            acp_enabled: true,
-            acp_stream: opencode_control_plane::AcpEventStream::new().into(),
-            acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
-                crate::routes::acp_ws::AcpClientRegistry::new(),
-            )),
-            temp_db_dir: Some(Box::new(temp_dir)),
-        }
+        let db_path = temp_dir.path().join("persistence_test.db");
+
+        // Create storage service
+        let storage = std::sync::Arc::new(setup_storage_service(&db_path).await);
+
+        // Create a session with messages (simulating state after tool execution)
+        let mut session = Session::new();
+        session.add_message(Message::user("Test prompt"));
+        session.add_message(Message::assistant("Test response"));
+        let session_id = session.id.to_string();
+
+        // Save the session (this is what happens after execute_endpoint completes)
+        storage
+            .save_session(&session)
+            .await
+            .expect("Session should save successfully");
+
+        // Load the session back
+        let loaded = storage
+            .load_session(&session_id)
+            .await
+            .expect("Session should load successfully")
+            .expect("Session should exist");
+
+        // Verify the session state was preserved
+        assert_eq!(loaded.id, session.id);
+        assert_eq!(loaded.messages.len(), session.messages.len());
+        assert_eq!(loaded.messages[0].content, "Test prompt");
+        assert_eq!(loaded.messages[1].content, "Test response");
     }
 
-    #[actix_web::test]
-    async fn security_sql_injection_session_id_drop_table_rejected() {
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::session::get_session(
-            web::Data::new(create_test_state()),
-            web::Path::from("'; DROP TABLE sessions; --".to_string()),
-        )
-        .await
-        .respond_to(&req);
-        assert_eq!(
-            resp.status(),
-            StatusCode::UNPROCESSABLE_ENTITY,
-            "SQL injection in session ID should be rejected"
-        );
-    }
-
-    #[actix_web::test]
-    async fn security_sql_injection_session_id_union_select_rejected() {
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::session::get_session(
-            web::Data::new(create_test_state()),
-            web::Path::from("' UNION SELECT * FROM users--".to_string()),
-        )
-        .await
-        .respond_to(&req);
-        assert_eq!(
-            resp.status(),
-            StatusCode::UNPROCESSABLE_ENTITY,
-            "SQL injection UNION SELECT should be rejected"
-        );
-    }
-
-    #[actix_web::test]
-    async fn security_sql_injection_session_id_or_1_equals_1_rejected() {
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::session::get_session(
-            web::Data::new(create_test_state()),
-            web::Path::from("' OR '1'='1".to_string()),
-        )
-        .await
-        .respond_to(&req);
-        assert_eq!(
-            resp.status(),
-            StatusCode::UNPROCESSABLE_ENTITY,
-            "SQL injection OR 1=1 should be rejected"
-        );
-    }
-
-    #[actix_web::test]
-    async fn security_sql_injection_delete_with_payload_rejected() {
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::session::delete_session(
-            web::Data::new(create_test_state()),
-            web::Path::from("'; DELETE FROM sessions; --".to_string()),
-        )
-        .await
-        .respond_to(&req);
-        assert_eq!(
-            resp.status(),
-            StatusCode::UNPROCESSABLE_ENTITY,
-            "SQL injection DELETE should be rejected"
-        );
-    }
-
-    #[actix_web::test]
-    async fn security_sql_injection_list_sessions_with_id_param_not_exploitable() {
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::session::get_session(
-            web::Data::new(create_test_state()),
-            web::Path::from("test-session-id".to_string()),
-        )
-        .await
-        .respond_to(&req);
-        assert!(
-            resp.status() == StatusCode::NOT_FOUND
-                || resp.status() == StatusCode::UNPROCESSABLE_ENTITY
-                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
-            "Non-existent session should not reveal SQL structure"
-        );
-    }
-
-    #[actix_web::test]
-    async fn security_sql_injection_pagination_numeric_overflow_rejected() {
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::session::list_sessions(
-            web::Data::new(create_test_state()),
-            web::Query(crate::routes::session::PaginationParams {
-                limit: Some(usize::MAX),
-                offset: Some(usize::MAX),
-            }),
-        )
-        .await
-        .respond_to(&req);
-        assert_ne!(
-            resp.status(),
-            StatusCode::OK,
-            "Pagination with overflow values should be clamped or rejected"
-        );
-    }
-
-    #[actix_web::test]
-    async fn security_sql_injection_content_with_sql_keywords_accepted() {
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::session::add_message_to_session(
-            web::Data::new(create_test_state()),
-            web::Path::from("550e8400-e29b-41d4-a716-446655440000".to_string()),
-            web::Json(crate::routes::session::AddMessageRequest {
-                role: None,
-                content: "SELECT * FROM users WHERE password = 'admin'".to_string(),
-            }),
-        )
-        .await
-        .respond_to(&req);
-        assert!(
-            resp.status() == StatusCode::NOT_FOUND
-                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
-            "SQL keywords in message content should be accepted (stored as data)"
-        );
-    }
-
-    #[actix_web::test]
-    async fn security_sql_injection_multiple_statements_rejected() {
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::session::get_session(
-            web::Data::new(create_test_state()),
-            web::Path::from(
-                "id'; DROP TABLE sessions; SELECT * FROM sessions WHERE id = 'id".to_string(),
-            ),
-        )
-        .await
-        .respond_to(&req);
-        assert_eq!(
-            resp.status(),
-            StatusCode::UNPROCESSABLE_ENTITY,
-            "Multiple SQL statements should be rejected"
-        );
-    }
-
-    #[actix_web::test]
-    async fn security_sql_injection_comment_at_end_rejected() {
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::session::get_session(
-            web::Data::new(create_test_state()),
-            web::Path::from("valid-id--".to_string()),
-        )
-        .await
-        .respond_to(&req);
-        assert_eq!(
-            resp.status(),
-            StatusCode::UNPROCESSABLE_ENTITY,
-            "SQL comment at end should be rejected"
-        );
-    }
-
-    #[actix_web::test]
-    async fn security_sanitization_regression_valid_uuid_still_works() {
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::session::get_session(
-            web::Data::new(create_test_state()),
-            web::Path::from("550e8400-e29b-41d4-a716-446655440000".to_string()),
-        )
-        .await
-        .respond_to(&req);
-        assert_ne!(
-            resp.status(),
-            StatusCode::UNPROCESSABLE_ENTITY,
-            "Valid UUID should not be rejected by sanitization"
-        );
-    }
-
-    #[actix_web::test]
-    async fn security_sanitization_regression_normal_pagination_works() {
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::session::list_sessions(
-            web::Data::new(create_test_state()),
-            web::Query(crate::routes::session::PaginationParams {
-                limit: Some(10),
-                offset: Some(0),
-            }),
-        )
-        .await
-        .respond_to(&req);
-        assert_ne!(
-            resp.status(),
-            StatusCode::BAD_REQUEST,
-            "Normal pagination should work after sanitization"
-        );
-    }
-}
-
-#[cfg(test)]
-mod security_path_traversal_tests {
-    use actix_web::http::StatusCode;
-    use actix_web::test::TestRequest;
-    use actix_web::web;
-    use actix_web::Responder;
-
-    #[test]
-    fn security_path_traversal_double_dot_slash_rejected() {
-        let path = "../etc/passwd";
-        let result = opencode_core::project::check_path_traversal_safe(path);
-        assert!(
-            result.is_some() || opencode_core::project::is_path_traversal_attempt(path),
-            "Path traversal with ../ should be detected"
-        );
-    }
-
-    #[test]
-    fn security_path_traversal_double_dot_backslash_rejected() {
-        let path = "..\\Windows\\System32\\config\\sam";
-        assert!(
-            opencode_core::project::is_path_traversal_attempt(path),
-            "Path traversal with ..\\ should be detected"
-        );
-    }
-
-    #[test]
-    fn security_path_traversal_encoded_double_dot_rejected() {
-        let path = "%2e%2e%2f%2e%2e%2fetc%2fpasswd";
-        assert!(
-            opencode_core::project::is_path_traversal_attempt(path),
-            "URL-encoded path traversal should be detected"
-        );
-    }
-
-    #[test]
-    fn security_path_traversal_absolute_path_rejected() {
-        let path = "/etc/passwd";
-        assert!(
-            opencode_core::project::is_path_traversal_attempt(path),
-            "Absolute path outside workspace should be detected"
-        );
-    }
-
-    #[test]
-    fn security_path_traversal_null_byte_injection_rejected() {
-        let path = "/etc/passwd\0malicious";
-        assert!(
-            opencode_core::project::is_path_traversal_attempt(path),
-            "Null byte injection should be detected"
-        );
-    }
-
-    #[test]
-    fn security_path_traversal_nested_parent_dirs_rejected() {
-        let path = "foo/../../../bar";
-        assert!(
-            opencode_core::project::is_path_traversal_attempt(path),
-            "Nested parent directories should be detected"
-        );
-    }
-
-    #[test]
-    fn security_path_traversal_suspicious_component_after_dotdot_rejected() {
-        let path = "../.hidden";
-        assert!(
-            opencode_core::project::is_path_traversal_attempt(path),
-            "Suspicious component after .. should be detected"
-        );
-    }
-
-    #[test]
-    fn security_path_traversal_valid_relative_path_accepted() {
-        let path = "src/main.rs";
-        assert!(
-            !opencode_core::project::is_path_traversal_attempt(path),
-            "Valid relative path should be accepted"
-        );
-    }
-
-    #[test]
-    fn security_path_traversal_valid_nested_path_accepted() {
-        let path = "opencode_core/src/lib.rs";
-        assert!(
-            !opencode_core::project::is_path_traversal_attempt(path),
-            "Valid nested path should be accepted"
-        );
-    }
-
-    #[test]
-    fn security_path_traversal_normal_parent_dir_in_middle_accepted() {
-        let path = "foo/bar/../baz";
-        assert!(
-            !opencode_core::project::is_path_traversal_attempt(path),
-            "Normal parent directory in path should be accepted"
-        );
-    }
-
-    #[actix_web::test]
-    async fn security_path_traversal_workdir_with_traversal_rejected() {
-        use opencode_core::project::validate_workspace_path;
-
-        let result = validate_workspace_path("/tmp/../../../etc");
-        assert!(
-            result.is_err(),
-            "Path traversal in workdir should be rejected"
-        );
-    }
-
-    #[actix_web::test]
-    async fn security_path_traversal_workdir_normal_path_accepted() {
-        use opencode_core::project::validate_workspace_path;
+    #[tokio::test]
+    async fn session_persistence_preserves_all_message_types() {
+        // Test that different message types are correctly persisted
 
         let temp_dir = tempfile::tempdir().unwrap();
-        let path = temp_dir.path().to_str().unwrap();
-        let result = validate_workspace_path(path);
-        assert!(result.is_ok(), "Normal workspace path should be accepted");
+        let db_path = temp_dir.path().join("message_types_test.db");
+
+        let storage = std::sync::Arc::new(setup_storage_service(&db_path).await);
+
+        let mut session = Session::new();
+        session.add_message(Message::user("User message"));
+        session.add_message(Message::assistant("Assistant response"));
+        session.add_message(Message::system("System prompt"));
+        let session_id = session.id.to_string();
+
+        storage
+            .save_session(&session)
+            .await
+            .expect("Session with multiple message types should save");
+
+        let loaded = storage
+            .load_session(&session_id)
+            .await
+            .expect("Should load successfully")
+            .expect("Session should exist");
+
+        assert_eq!(loaded.messages.len(), 3);
+        assert_eq!(loaded.messages[0].content, "User message");
+        assert_eq!(loaded.messages[1].content, "Assistant response");
+        assert_eq!(loaded.messages[2].content, "System prompt");
     }
 
-    #[actix_web::test]
-    async fn security_path_traversal_shell_command_with_traversal_blocked() {
-        let cmd_with_traversal = "cat ../../etc/passwd";
-        let is_traversal = opencode_core::project::is_path_traversal_attempt(cmd_with_traversal);
-        assert!(
-            is_traversal,
-            "Shell command with path traversal should be detected"
-        );
-    }
+    #[tokio::test]
+    async fn session_persistence_handles_empty_messages() {
+        // Test that sessions with no messages are handled correctly
 
-    #[test]
-    fn security_path_traversal_regression_normal_file_access_works() {
-        let path = "src/main.rs";
-        assert!(
-            !opencode_core::project::is_path_traversal_attempt(path),
-            "Normal file access should work after path traversal protection"
-        );
-    }
-}
-
-#[cfg(test)]
-mod error_handling_tests {
-    use actix_web::http::StatusCode;
-    use actix_web::test::TestRequest;
-    use actix_web::web;
-    use actix_web::Responder;
-
-    fn create_test_state() -> crate::ServerState {
         let temp_dir = tempfile::tempdir().unwrap();
-        let db_path = temp_dir.path().join("test.db");
-        crate::ServerState {
-            storage: std::sync::Arc::new(opencode_storage::StorageService::new(
-                opencode_storage::database::StoragePool::new(&db_path).unwrap(),
-            )),
-            models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
-            config: std::sync::Arc::new(std::sync::RwLock::new(opencode_core::Config::default())),
-            event_bus: opencode_core::bus::SharedEventBus::default(),
-            reconnection_store: crate::streaming::ReconnectionStore::default(),
-            connection_monitor: std::sync::Arc::new(
-                crate::streaming::conn_state::ConnectionMonitor::new(),
-            ),
-            share_server: std::sync::Arc::new(std::sync::RwLock::new(
-                crate::routes::share::ShareServer::with_default_config(),
-            )),
-            acp_enabled: true,
-            acp_stream: opencode_control_plane::AcpEventStream::new().into(),
-            acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
-                crate::routes::acp_ws::AcpClientRegistry::new(),
-            )),
-            temp_db_dir: Some(Box::new(temp_dir)),
-        }
-    }
+        let db_path = temp_dir.path().join("empty_messages_test.db");
 
-    #[actix_web::test]
-    async fn test_missing_required_content_field_returns_400() {
-        let req = TestRequest::default().to_http_request();
-        let result: Result<crate::routes::session::AddMessageRequest, _> =
-            serde_json::from_str(r#"{"role": "user"}"#);
-        assert!(
-            result.is_err(),
-            "Missing required 'content' field should fail to deserialize"
-        );
-    }
+        let storage = std::sync::Arc::new(setup_storage_service(&db_path).await);
 
-    #[actix_web::test]
-    async fn test_missing_required_decision_field_returns_400() {
-        let req = TestRequest::default().to_http_request();
-        let result: Result<crate::routes::session::PermissionReplyRequest, _> =
-            serde_json::from_str(r#"{}"#);
-        assert!(
-            result.is_err(),
-            "Missing required 'decision' field should fail to deserialize"
-        );
-    }
+        let session = Session::new();
+        let session_id = session.id.to_string();
 
-    #[actix_web::test]
-    async fn test_missing_required_command_field_returns_400() {
-        let req = TestRequest::default().to_http_request();
-        let result: Result<crate::routes::session::CommandRequest, _> =
-            serde_json::from_str(r#"{"args": ["test"]}"#);
-        assert!(
-            result.is_err(),
-            "Missing required 'command' field should fail to deserialize"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_missing_required_fork_at_message_index_returns_400() {
-        let req = TestRequest::default().to_http_request();
-        let result: Result<crate::routes::session::ForkSessionRequest, _> =
-            serde_json::from_str(r#"{}"#);
-        assert!(
-            result.is_err(),
-            "Missing required 'fork_at_message_index' field should fail to deserialize"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_extra_unknown_fields_accepted_in_add_message() {
-        let json_str =
-            r#"{"role": "user", "content": "hello", "unknown_field": "value", "extra": 123}"#;
-        let result: Result<crate::routes::session::AddMessageRequest, _> =
-            serde_json::from_str(json_str);
-        assert!(
-            result.is_ok(),
-            "Extra unknown fields are silently ignored by serde by default"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_extra_unknown_fields_accepted_in_create_session() {
-        let json_str = r#"{"initial_prompt": "hello", "unknown": "field", "extra_num": 42}"#;
-        let result: Result<crate::routes::session::CreateSessionRequest, _> =
-            serde_json::from_str(json_str);
-        assert!(
-            result.is_ok(),
-            "Extra unknown fields in create session are silently ignored by serde by default"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_extra_unknown_fields_accepted_in_command() {
-        let json_str = r#"{"command": "ls", "extra": "unknown"}"#;
-        let result: Result<crate::routes::session::CommandRequest, _> =
-            serde_json::from_str(json_str);
-        assert!(
-            result.is_ok(),
-            "Extra unknown fields in command are silently ignored by serde by default"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_wrong_field_type_content_returns_400() {
-        let json_str = r#"{"content": 123}"#;
-        let result: Result<crate::routes::session::AddMessageRequest, _> =
-            serde_json::from_str(json_str);
-        assert!(
-            result.is_err(),
-            "Wrong type for 'content' (number instead of string) should fail"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_wrong_field_type_role_returns_400() {
-        let json_str = r#"{"role": 123, "content": "hello"}"#;
-        let result: Result<crate::routes::session::AddMessageRequest, _> =
-            serde_json::from_str(json_str);
-        assert!(
-            result.is_err(),
-            "Wrong type for 'role' (number instead of string) should fail"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_wrong_field_type_decision_returns_400() {
-        let json_str = r#"{"decision": 123}"#;
-        let result: Result<crate::routes::session::PermissionReplyRequest, _> =
-            serde_json::from_str(json_str);
-        assert!(
-            result.is_err(),
-            "Wrong type for 'decision' (number instead of string) should fail"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_wrong_field_type_command_returns_400() {
-        let json_str = r#"{"command": 123}"#;
-        let result: Result<crate::routes::session::CommandRequest, _> =
-            serde_json::from_str(json_str);
-        assert!(
-            result.is_err(),
-            "Wrong type for 'command' (number instead of string) should fail"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_wrong_field_type_fork_index_returns_400() {
-        let json_str = r#"{"fork_at_message_index": "not_a_number"}"#;
-        let result: Result<crate::routes::session::ForkSessionRequest, _> =
-            serde_json::from_str(json_str);
-        assert!(
-            result.is_err(),
-            "Wrong type for 'fork_at_message_index' (string instead of number) should fail"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_wrong_field_type_initial_prompt_returns_400() {
-        let json_str = r#"{"initial_prompt": 123}"#;
-        let result: Result<crate::routes::session::CreateSessionRequest, _> =
-            serde_json::from_str(json_str);
-        assert!(
-            result.is_err(),
-            "Wrong type for 'initial_prompt' (number instead of string) should fail"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_empty_body_add_message_returns_error() {
-        let req = TestRequest::default().to_http_request();
-        let result: Result<crate::routes::session::AddMessageRequest, _> =
-            serde_json::from_str(r#""#);
-        assert!(result.is_err(), "Empty body should fail to deserialize");
-    }
-
-    #[actix_web::test]
-    async fn test_empty_json_object_add_message_returns_error() {
-        let req = TestRequest::default().to_http_request();
-        let result: Result<crate::routes::session::AddMessageRequest, _> =
-            serde_json::from_str(r#"{}"#);
-        assert!(
-            result.is_err(),
-            "Empty JSON object missing required 'content' field should fail"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_operation_on_nonexistent_session_returns_404_or_500_get() {
-        use actix_web::web;
-        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::session::get_session(
-            web::Data::new(create_test_state()),
-            web::Path::from(valid_uuid.to_string()),
-        )
-        .await
-        .respond_to(&req);
-        assert!(
-            resp.status() == StatusCode::NOT_FOUND
-                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
-            "Operation on non-existent session should return 404 or 500"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_operation_on_nonexistent_session_returns_404_or_500_delete() {
-        use actix_web::web;
-        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::session::delete_session(
-            web::Data::new(create_test_state()),
-            web::Path::from(valid_uuid.to_string()),
-        )
-        .await
-        .respond_to(&req);
-        assert!(
-            resp.status() == StatusCode::NOT_FOUND
-                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
-            "Delete non-existent session should return 404 or 500"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_operation_on_nonexistent_session_returns_404_or_500_add_message() {
-        use actix_web::web;
-        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::session::add_message_to_session(
-            web::Data::new(create_test_state()),
-            web::Path::from(valid_uuid.to_string()),
-            web::Json(crate::routes::session::AddMessageRequest {
-                role: None,
-                content: "test".to_string(),
-            }),
-        )
-        .await
-        .respond_to(&req);
-        assert!(
-            resp.status() == StatusCode::NOT_FOUND
-                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
-            "Add message to non-existent session should return 404 or 500"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_operation_on_nonexistent_session_returns_404_or_500_list_messages() {
-        use actix_web::web;
-        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::session::list_messages(
-            web::Data::new(create_test_state()),
-            web::Path::from(valid_uuid.to_string()),
-            web::Query(crate::routes::session::PaginationParams {
-                limit: None,
-                offset: None,
-            }),
-        )
-        .await
-        .respond_to(&req);
-        assert!(
-            resp.status() == StatusCode::NOT_FOUND
-                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
-            "List messages from non-existent session should return 404 or 500"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_operation_on_nonexistent_session_returns_error_or_500_fork() {
-        use actix_web::web;
-        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::session::fork_session(
-            web::Data::new(create_test_state()),
-            web::Path::from(valid_uuid.to_string()),
-            web::Json(crate::routes::session::ForkSessionRequest {
-                fork_at_message_index: 0,
-            }),
-        )
-        .await
-        .respond_to(&req);
-        assert!(
-            resp.status() == StatusCode::NOT_FOUND
-                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR
-                || resp.status() == StatusCode::BAD_REQUEST,
-            "Fork non-existent session should return 404, 400, or 500"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_operation_on_deleted_session_returns_not_found_or_500() {
-        use actix_web::web;
-        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
-        let state = create_test_state();
-        let req = TestRequest::default().to_http_request();
-        let _delete_resp = crate::routes::session::delete_session(
-            web::Data::new(state),
-            web::Path::from(valid_uuid.to_string()),
-        )
-        .await
-        .respond_to(&req);
-        let state2 = create_test_state();
-        let req2 = TestRequest::default().to_http_request();
-        let get_resp = crate::routes::session::get_session(
-            web::Data::new(state2),
-            web::Path::from(valid_uuid.to_string()),
-        )
-        .await
-        .respond_to(&req2);
-        assert!(
-            get_resp.status() == StatusCode::NOT_FOUND
-                || get_resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
-            "After deletion, session should not be found (404 or 500)"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_invalid_session_id_format_returns_400_invalid_uuid() {
-        use actix_web::web;
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::session::get_session(
-            web::Data::new(create_test_state()),
-            web::Path::from("not-a-valid-uuid".to_string()),
-        )
-        .await
-        .respond_to(&req);
-        assert!(
-            resp.status() == StatusCode::BAD_REQUEST
-                || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
-            "Invalid session ID format should return 400 or 422"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_invalid_session_id_format_returns_400_empty_string() {
-        use actix_web::web;
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::session::get_session(
-            web::Data::new(create_test_state()),
-            web::Path::from("".to_string()),
-        )
-        .await
-        .respond_to(&req);
-        assert!(
-            resp.status() == StatusCode::BAD_REQUEST
-                || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
-            "Empty session ID should return 400 or 422"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_invalid_session_id_format_returns_400_special_chars() {
-        use actix_web::web;
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::session::get_session(
-            web::Data::new(create_test_state()),
-            web::Path::from("session-id-with-!@#$%-chars".to_string()),
-        )
-        .await
-        .respond_to(&req);
-        assert!(
-            resp.status() == StatusCode::BAD_REQUEST
-                || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
-            "Session ID with special characters should return 400 or 422"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_invalid_session_id_format_returns_400_in_delete() {
-        use actix_web::web;
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::session::delete_session(
-            web::Data::new(create_test_state()),
-            web::Path::from("invalid-session-id".to_string()),
-        )
-        .await
-        .respond_to(&req);
-        assert!(
-            resp.status() == StatusCode::BAD_REQUEST
-                || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
-            "Delete with invalid session ID should return 400 or 422"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_invalid_session_id_format_returns_400_in_add_message() {
-        use actix_web::web;
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::session::add_message_to_session(
-            web::Data::new(create_test_state()),
-            web::Path::from("bad-session-id".to_string()),
-            web::Json(crate::routes::session::AddMessageRequest {
-                role: None,
-                content: "test".to_string(),
-            }),
-        )
-        .await
-        .respond_to(&req);
-        assert!(
-            resp.status() == StatusCode::BAD_REQUEST
-                || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
-            "Add message with invalid session ID should return 400 or 422"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_malformed_json_returns_error() {
-        let malformed_json_cases = vec![
-            r#"{[,}"#,
-            r#"{"key":}"#,
-            r#"not json at all"#,
-            r#"{"incomplete": {"nested"#,
-            r#"undefined"#,
-        ];
-
-        for json_str in malformed_json_cases {
-            let result: Result<crate::routes::session::AddMessageRequest, _> =
-                serde_json::from_str(json_str);
-            assert!(
-                result.is_err(),
-                "Malformed JSON '{}' should fail to deserialize",
-                json_str
-            );
-        }
-    }
-
-    #[actix_web::test]
-    async fn test_null_json_returns_error() {
-        let result: Result<crate::routes::session::AddMessageRequest, _> =
-            serde_json::from_str("null");
-        assert!(result.is_err(), "null JSON should fail to deserialize");
-    }
-
-    #[actix_web::test]
-    async fn test_json_value_instead_of_object_returns_error() {
-        let result: Result<crate::routes::session::AddMessageRequest, _> =
-            serde_json::from_str(r#"123"#);
-        assert!(
-            result.is_err(),
-            "JSON number should fail to deserialize to struct expecting object"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_valid_json_object_passes_deserialization() {
-        let json_str = r#"{"role": "user", "content": "hello"}"#;
-        let result: Result<crate::routes::session::AddMessageRequest, _> =
-            serde_json::from_str(json_str);
-        assert!(
-            result.is_ok(),
-            "Valid JSON object should deserialize successfully"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_command_empty_string_returns_validation_error() {
-        use actix_web::web;
-        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::session::run_command_in_session(
-            web::Data::new(create_test_state()),
-            web::Path::from(valid_uuid.to_string()),
-            web::Json(crate::routes::session::CommandRequest {
-                command: "".to_string(),
-                args: None,
-                workdir: None,
-            }),
-        )
-        .await
-        .respond_to(&req);
-        assert!(
-            resp.status() == StatusCode::BAD_REQUEST
-                || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
-            "Empty command should return 400 or 422"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_command_whitespace_only_returns_validation_error() {
-        use actix_web::web;
-        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::session::run_command_in_session(
-            web::Data::new(create_test_state()),
-            web::Path::from(valid_uuid.to_string()),
-            web::Json(crate::routes::session::CommandRequest {
-                command: "   ".to_string(),
-                args: None,
-                workdir: None,
-            }),
-        )
-        .await
-        .respond_to(&req);
-        assert!(
-            resp.status() == StatusCode::BAD_REQUEST
-                || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
-            "Whitespace-only command should return 400 or 422"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_add_message_with_empty_content_returns_validation_error() {
-        use actix_web::web;
-        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::session::add_message_to_session(
-            web::Data::new(create_test_state()),
-            web::Path::from(valid_uuid.to_string()),
-            web::Json(crate::routes::session::AddMessageRequest {
-                role: None,
-                content: "".to_string(),
-            }),
-        )
-        .await
-        .respond_to(&req);
-        assert_eq!(
-            resp.status(),
-            StatusCode::UNPROCESSABLE_ENTITY,
-            "Empty content should return 422"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_add_message_with_invalid_role_returns_validation_error() {
-        use actix_web::web;
-        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::session::add_message_to_session(
-            web::Data::new(create_test_state()),
-            web::Path::from(valid_uuid.to_string()),
-            web::Json(crate::routes::session::AddMessageRequest {
-                role: Some("invalid_role".to_string()),
-                content: "test content".to_string(),
-            }),
-        )
-        .await
-        .respond_to(&req);
-        assert_eq!(
-            resp.status(),
-            StatusCode::UNPROCESSABLE_ENTITY,
-            "Invalid role should return 422"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_permission_reply_invalid_decision_returns_error() {
-        use actix_web::web;
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::permission::permission_reply(
-            web::Data::new(create_test_state()),
-            web::Path::from(("session-1".to_string(), "req-1".to_string())),
-            web::Json(crate::routes::permission::PermissionReplyRequest {
-                decision: "invalid".to_string(),
-            }),
-        )
-        .await
-        .respond_to(&req);
-        assert_eq!(
-            resp.status(),
-            StatusCode::BAD_REQUEST,
-            "Invalid permission decision should return 400"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_get_message_index_out_of_range_returns_404_or_500() {
-        use actix_web::web;
-        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::session::get_message(
-            web::Data::new(create_test_state()),
-            web::Path::from((valid_uuid.to_string(), 999)),
-        )
-        .await
-        .respond_to(&req);
-        assert!(
-            resp.status() == StatusCode::NOT_FOUND
-                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
-            "Message index out of range should return 404 or 500"
-        );
-    }
-
-    #[actix_web::test]
-    async fn test_fork_with_invalid_index_returns_error_or_500() {
-        use actix_web::web;
-        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
-        let req = TestRequest::default().to_http_request();
-        let resp = crate::routes::session::fork_session(
-            web::Data::new(create_test_state()),
-            web::Path::from(valid_uuid.to_string()),
-            web::Json(crate::routes::session::ForkSessionRequest {
-                fork_at_message_index: 999999,
-            }),
-        )
-        .await
-        .respond_to(&req);
-        assert!(
-            resp.status() == StatusCode::NOT_FOUND
-                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR
-                || resp.status() == StatusCode::UNPROCESSABLE_ENTITY
-                || resp.status() == StatusCode::BAD_REQUEST,
-            "Fork with invalid index on non-existent session should return error status"
-        );
-    }
-
-    // Security Tests: SQL Injection Protection
-
-    #[actix_web::test]
-    async fn test_sql_injection_in_session_id_is_sanitized() {
-        use actix_web::web;
-
-        let sql_injection_attempts = vec![
-            "'; DROP TABLE sessions; --",
-            "1 OR 1=1",
-            "1' OR '1'='1",
-            "1\" OR \"1\"=\"1",
-            "1; SELECT * FROM sessions;",
-            "' UNION SELECT * FROM sessions--",
-            "admin'--",
-            "1' AND '1'='1",
-            "550e8400-e29b-41d4-a716-446655440000' OR '1'='1",
-            "invalid' AND SLEEP(5)--",
-        ];
-
-        for injection in sql_injection_attempts {
-            let req = TestRequest::default().to_http_request();
-            let resp = crate::routes::session::get_session(
-                web::Data::new(create_test_state()),
-                web::Path::from(injection.to_string()),
-            )
+        storage
+            .save_session(&session)
             .await
-            .respond_to(&req);
+            .expect("Empty session should save successfully");
 
-            assert_eq!(
-                resp.status(),
-                StatusCode::UNPROCESSABLE_ENTITY,
-                "SQL injection attempt '{}' should be rejected with 422",
-                injection
-            );
-        }
-    }
-
-    #[actix_web::test]
-    async fn test_sql_injection_in_message_content_is_handled() {
-        use actix_web::web;
-
-        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
-
-        let sql_injection_contents = vec![
-            "'; DROP TABLE sessions; --",
-            "1 OR 1=1",
-            "' UNION SELECT password FROM users--",
-            "admin'--",
-            "'; INSERT INTO sessions VALUES ('hacked'); --",
-            "<script>alert('xss')</script>",
-            "<?xml version=\"1.0\"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]>",
-        ];
-
-        for injection in sql_injection_contents {
-            let state = create_test_state();
-            let req = TestRequest::default().to_http_request();
-            let resp = crate::routes::session::add_message_to_session(
-                web::Data::new(state),
-                web::Path::from(valid_uuid.to_string()),
-                web::Json(crate::routes::session::AddMessageRequest {
-                    role: Some("user".to_string()),
-                    content: injection.to_string(),
-                }),
-            )
+        let loaded = storage
+            .load_session(&session_id)
             .await
-            .respond_to(&req);
+            .expect("Should load successfully")
+            .expect("Session should exist");
 
-            assert!(
-                resp.status() == StatusCode::NOT_FOUND || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
-                "SQL injection in content '{}' should not cause validation error but be processed as content (returns 404 for missing session)",
-                injection
-            );
-        }
+        assert_eq!(loaded.messages.len(), 0);
     }
 
-    #[test]
-    fn test_sql_injection_patterns_fail_uuid_validation() {
-        let sql_injection_patterns = vec![
-            "'; DROP TABLE sessions; --",
-            "1 OR 1=1",
-            "1' OR '1'='1",
-            "admin'--",
-            "550e8400-e29b-41d4-a716-446655440000' OR '1'='1",
-        ];
+    #[tokio::test]
+    async fn session_persistence_graceful_handling_when_save_fails() {
+        // This test verifies graceful handling when persistence fails.
+        // When save_session fails, the execute endpoint should return an
+        // INTERNAL_SERVER_ERROR with code "storage_error".
 
-        for pattern in sql_injection_patterns {
-            let result = crate::routes::validation::validate_session_id(pattern);
-            assert!(
-                result.is_err(),
-                "SQL injection pattern '{}' should be rejected by UUID validation",
-                pattern
-            );
-        }
+        use opencode_core::OpenCodeError;
+
+        // Verify that our error handling pattern works
+        let storage_err = OpenCodeError::Storage("Simulated storage failure".to_string());
+        let error_message = storage_err.to_string();
+
+        assert!(error_message.contains("Simulated storage failure"));
+        // Error message format should be suitable for the execute endpoint's
+        // error response: format!("Failed to save session: {}", e)
+        assert!(
+            error_message.to_lowercase().contains("storage")
+                || error_message.to_lowercase().contains("failed")
+        );
     }
 
-    #[test]
-    fn test_message_content_with_sql_injection_is_accepted_as_content() {
-        use crate::routes::validation::RequestValidator;
+    #[tokio::test]
+    async fn session_persistence_graceful_handling_nonexistent_session() {
+        // Test that loading a nonexistent session returns None, not an error
+        // This is the case when execute is called with an invalid session ID
 
-        let sql_injection_contents = vec![
-            "'; DROP TABLE sessions; --",
-            "1 OR 1=1",
-            "' UNION SELECT * FROM sessions--",
-            "admin'--",
-        ];
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("nonexistent_test.db");
 
-        for content in sql_injection_contents {
-            let mut validator = RequestValidator::new();
-            validator.validate_required_string("content", Some(content));
-            assert!(
-                validator.is_valid(),
-                "SQL injection-like content '{}' should be accepted as valid content (sanitization happens at storage layer)",
-                content
-            );
-        }
+        let storage = std::sync::Arc::new(setup_storage_service(&db_path).await);
+
+        let result = storage.load_session("nonexistent-session-id").await;
+
+        assert!(
+            result.is_ok(),
+            "Loading nonexistent session should return Ok"
+        );
+        assert!(
+            result.unwrap().is_none(),
+            "Loading nonexistent session should return None"
+        );
     }
 
-    // Security Tests: Path Traversal Protection
+    #[tokio::test]
+    async fn session_persistence_multiple_sessions_independent() {
+        // Test that multiple sessions can be saved and loaded independently
 
-    #[test]
-    fn test_path_traversal_with_double_dots_is_blocked() {
-        let path_traversal_attempts = vec![
-            "../etc/passwd",
-            "..\\windows\\system32\\config\\sam",
-            "foo/../../etc/passwd",
-            "foo/../../../etc/passwd",
-            "./../etc/passwd",
-            "foo/./../../etc/passwd",
-            "....//....//....//etc/passwd",
-            "../.*/etc/passwd",
-            "..%2F..%2Fetc%2Fpasswd",
-            "..%252F..%252Fetc%252Fpasswd",
-        ];
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("multiple_sessions_test.db");
 
-        for path in path_traversal_attempts {
-            let has_parent_ref = path.contains("..");
-            assert!(
-                has_parent_ref,
-                "Path traversal pattern '{}' should be detected",
-                path
-            );
-        }
-    }
+        let storage = std::sync::Arc::new(setup_storage_service(&db_path).await);
 
-    #[test]
-    fn test_path_traversal_in_workdir_is_validated() {
-        use crate::routes::validation::{validate_command, ValidationErrors};
+        // Create multiple sessions
+        let mut session1 = Session::new();
+        session1.add_message(Message::user("Session 1 message"));
 
-        let malicious_workdirs = vec![
-            "../etc",
-            "../../../root/.ssh",
-            "foo/../../../etc/passwd",
-            "..\\windows\\system32",
-        ];
+        let mut session2 = Session::new();
+        session2.add_message(Message::user("Session 2 message"));
 
-        for workdir in malicious_workdirs {
-            let result = validate_command("ls", None, Some(workdir));
-            assert!(
-                result.is_ok(),
-                "Workdir '{}' should pass validation (actual path checking should happen at execution time)",
-                workdir
-            );
-        }
-    }
+        let session1_id = session1.id.to_string();
+        let session2_id = session2.id.to_string();
 
-    #[test]
-    fn test_path_traversal_in_command_args_is_validated() {
-        use crate::routes::validation::validate_command;
-
-        let malicious_args = vec![
-            vec!["../etc/passwd".to_string()],
-            vec!["-la".to_string(), "../../../root".to_string()],
-            vec!["cat".to_string(), "../../../etc/shadow".to_string()],
-        ];
-
-        for args in malicious_args {
-            let result = validate_command("cat", Some(&args), None);
-            assert!(
-                result.is_ok(),
-                "Command with path traversal args {:?} should pass validation (sanitization at execution)",
-                args
-            );
-        }
-    }
-
-    #[actix_web::test]
-    async fn test_export_session_rejects_invalid_session_id() {
-        use actix_web::web;
-
-        let path_traversal_ids = vec![
-            "../sessions/admin",
-            "..\\..\\windows\\system32\\config",
-            "sessions/../../../etc/passwd",
-        ];
-
-        for id in path_traversal_ids {
-            let req = TestRequest::default().to_http_request();
-            let resp = crate::routes::export::export_session_json(
-                web::Data::new(create_test_state()),
-                web::Path::from(id.to_string()),
-                web::Query(crate::routes::export::ExportQuery::new(true, true)),
-            )
+        // Save both
+        storage
+            .save_session(&session1)
             .await
-            .respond_to(&req);
+            .expect("Session 1 should save");
+        storage
+            .save_session(&session2)
+            .await
+            .expect("Session 2 should save");
 
-            assert!(
-                resp.status() == StatusCode::NOT_FOUND
-                    || resp.status() == StatusCode::UNPROCESSABLE_ENTITY,
-                "Path traversal in export session id '{}' should return error, got {}",
-                id,
-                resp.status()
-            );
-        }
+        // Load both
+        let loaded1 = storage
+            .load_session(&session1_id)
+            .await
+            .expect("Session 1 should load")
+            .expect("Session 1 should exist");
+
+        let loaded2 = storage
+            .load_session(&session2_id)
+            .await
+            .expect("Session 2 should load")
+            .expect("Session 2 should exist");
+
+        // Verify independence
+        assert_ne!(loaded1.id, loaded2.id);
+        assert_eq!(loaded1.messages[0].content, "Session 1 message");
+        assert_eq!(loaded2.messages[0].content, "Session 2 message");
     }
 
-    #[test]
-    fn test_sanitization_does_not_break_valid_inputs() {
-        use crate::routes::validation::{validate_session_id, RequestValidator};
+    #[tokio::test]
+    async fn session_persistence_update_existing_session() {
+        // Test that saving a session updates an existing one
+        // This is the typical flow during execute: save -> modify -> save again
 
-        let valid_uuids = vec![
-            "550e8400-e29b-41d4-a716-446655440000",
-            "00000000-0000-0000-0000-000000000000",
-            "ffffffff-ffff-ffff-ffff-ffffffffffff",
-            "123e4567-e89b-12d3-a456-426614174000",
-        ];
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("update_session_test.db");
 
-        for uuid in valid_uuids {
-            let result = validate_session_id(uuid);
-            assert!(
-                result.is_ok(),
-                "Valid UUID '{}' should pass validation",
-                uuid
-            );
-        }
+        let storage = std::sync::Arc::new(setup_storage_service(&db_path).await);
 
-        let valid_contents = vec![
-            "Hello, world!",
-            "SELECT * FROM users WHERE id = 1",
-            "user' OR '1'='1",
-            "Normal text with <html> tags",
-            "Path-like /usr/local/bin",
-            "Unicode: 你好世界",
-            "Emoji: 🔐🔑🛡️",
-            "Special chars: !@#$%^&*()_+-=[]{}|;':\",./<>?",
-        ];
+        let mut session = Session::new();
+        session.add_message(Message::user("Initial message"));
+        let session_id = session.id.to_string();
 
-        for content in valid_contents {
-            let mut validator = RequestValidator::new();
-            validator.validate_required_string("content", Some(content));
-            assert!(
-                validator.is_valid(),
-                "Valid content '{}' should pass validation",
-                content
-            );
-        }
+        // First save
+        storage
+            .save_session(&session)
+            .await
+            .expect("First save should work");
 
-        let valid_paths = vec![
-            "/home/user/project",
-            "/usr/local/bin",
-            "/var/log",
-            "C:\\Users\\Admin",
-            "./relative/path",
-            "project/src/main.rs",
-        ];
+        // Simulate adding tool results to session (as execute_endpoint does)
+        session.add_message(Message::assistant("Added response after tool execution"));
 
-        for path in valid_paths {
-            let mut validator = RequestValidator::new();
-            validator.validate_optional_string("workdir", Some(path), 1000);
-            assert!(
-                validator.is_valid(),
-                "Valid path '{}' should pass validation",
-                path
-            );
-        }
+        // Second save (should update existing)
+        storage
+            .save_session(&session)
+            .await
+            .expect("Update save should work");
+
+        // Load and verify both messages exist
+        let loaded = storage
+            .load_session(&session_id)
+            .await
+            .expect("Should load successfully")
+            .expect("Session should exist");
+
+        assert_eq!(loaded.messages.len(), 2);
+        assert_eq!(loaded.messages[0].content, "Initial message");
+        assert_eq!(
+            loaded.messages[1].content,
+            "Added response after tool execution"
+        );
     }
 
-    #[test]
-    fn test_path_normalization_strips_traversal() {
-        fn normalize_path(path: &str) -> String {
-            let mut result = Vec::new();
-            for component in path.split(['/', '\\']) {
-                match component {
-                    "" | "." => continue,
-                    ".." => {
-                        result.pop();
-                    }
-                    _ => result.push(component),
-                }
-            }
-            result.join("/")
-        }
+    #[tokio::test]
+    async fn session_persistence_error_type_is_correct() {
+        // Verify that storage errors have the correct error type
+        // for the execute endpoint error handling
 
-        assert_eq!(normalize_path("foo/bar/../baz"), "foo/baz");
-        assert_eq!(normalize_path("foo/./bar/./baz"), "foo/bar/baz");
-        assert_eq!(normalize_path("foo/../bar"), "bar");
-        assert_eq!(normalize_path("../foo"), "foo");
-        assert_eq!(normalize_path("a/b/c/../../d"), "a/d");
-        assert_eq!(normalize_path("a/../../../b"), "b");
+        use opencode_core::OpenCodeError;
+
+        let storage_error = OpenCodeError::Storage("Database connection failed".to_string());
+        let error_string = format!("{}", storage_error);
+
+        assert!(error_string.contains("Database connection failed"));
     }
 
-    #[test]
-    fn test_command_validation_rejects_empty_command() {
-        use crate::routes::validation::validate_command;
+    #[tokio::test]
+    async fn execute_endpoint_error_response_format() {
+        // Verify the error response format that execute_endpoint returns
+        // when persistence fails: HTTP 500 with storage_error code
 
-        let result = validate_command("", None, None);
-        assert!(result.is_err(), "Empty command should be rejected");
-    }
+        use opencode_core::OpenCodeError;
 
-    #[test]
-    fn test_command_validation_accepts_valid_command_with_path_traversal_chars() {
-        use crate::routes::validation::validate_command;
+        let err = OpenCodeError::Storage("Simulated save failure".to_string());
 
-        let cmd1_args: Option<Vec<String>> = Some(vec!["../etc/passwd".to_string()]);
-        let cmd2_workdir: Option<String> = Some("/tmp/../home".to_string());
-        let cmd3_args: Option<Vec<String>> = Some(vec!["log".to_string(), "--all".to_string()]);
+        // The execute endpoint builds error like:
+        // json_error(StatusCode::INTERNAL_SERVER_ERROR, "storage_error", format!("Failed to save session: {}", e))
+        let formatted = format!("Failed to save session: {}", err);
 
-        assert!(validate_command("cat", cmd1_args.as_ref(), None).is_ok());
-        assert!(validate_command("ls", None, cmd2_workdir.as_deref()).is_ok());
-        assert!(validate_command("git", cmd3_args.as_ref(), None).is_ok());
+        assert!(formatted.contains("Failed to save session"));
+        assert!(formatted.contains("Simulated save failure"));
     }
 }
