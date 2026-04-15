@@ -2,7 +2,6 @@
   "$schema": "https://opencode.ai/config.json",
   "model": "minimax-cn/MiniMax-M2.7",
   "small_model": "minimax-cn/MiniMax-M2.7",
-  "default_agent": "build",
   "instructions": [
     "AGENTS.md",
     "CONTRIBUTING.md",

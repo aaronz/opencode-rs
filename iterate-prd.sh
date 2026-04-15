@@ -156,10 +156,11 @@ log "[1/6] 执行PRD差距分析..."
 save_checkpoint "$NEXT_ITERATION" "phase1"
 run_phase_gap_analysis "$PRD_PATH" "$OUTPUTS_DIR" "$CONSTITUTION"
 
-log ""
-log "[2/6] Constitution 检查..."
-save_checkpoint "$NEXT_ITERATION" "phase2"
-run_phase_constitution "$CONSTITUTION_PATH" "$OUTPUTS_DIR/gap-analysis.md" "$OUTPUTS_DIR"
+# Constitution phase skipped by user request
+# log ""
+# log "[2/6] Constitution 检查..."
+# save_checkpoint "$NEXT_ITERATION" "phase2"
+# run_phase_constitution "$CONSTITUTION_PATH" "$OUTPUTS_DIR/gap-analysis.md" "$OUTPUTS_DIR"
 
 log ""
 log "[3/6] 更新Spec..."

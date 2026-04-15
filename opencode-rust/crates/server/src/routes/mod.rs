@@ -4,6 +4,7 @@ pub mod acp;
 pub mod acp_ws;
 pub mod config;
 pub mod error;
+pub mod execute;
 pub mod export;
 pub mod mcp;
 pub mod model;
