@@ -179,7 +179,7 @@
       "priority": "P0",
       "title": "Add session state persistence",
       "description": "Add session state persistence after execution using SessionStore",
-      "status": "done",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify session state is persisted after tool execution",
         "AddErrorHandlingTest: verify graceful handling when persistence fails"
