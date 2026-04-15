@@ -143,6 +143,8 @@ fn test_phase6_regression_plugin_manager_lifecycle() {
 
     struct SimplePlugin;
 
+    impl opencode_plugin::sealed::SealedPlugin for SimplePlugin {}
+
     impl Plugin for SimplePlugin {
         fn name(&self) -> &str {
             "simple-plugin"

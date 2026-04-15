@@ -8,6 +8,8 @@ use opencode_tools::ToolRegistry;
 
 struct MockProvider;
 
+impl opencode_llm::provider::sealed::Sealed for MockProvider {}
+
 impl MockProvider {
     fn new() -> Self {
         Self
@@ -74,6 +76,8 @@ impl MockVisibleAgent {
         }
     }
 }
+
+impl opencode_agent::agent::sealed::Sealed for MockVisibleAgent {}
 
 #[async_trait::async_trait]
 impl Agent for MockVisibleAgent {

@@ -8,6 +8,8 @@ use uuid::Uuid;
 
 struct MockProvider;
 
+impl opencode_llm::provider::sealed::Sealed for MockProvider {}
+
 #[async_trait::async_trait]
 impl Provider for MockProvider {
     async fn complete(
@@ -88,6 +90,8 @@ impl MockSubagent {
         self
     }
 }
+
+impl opencode_agent::agent::sealed::Sealed for MockSubagent {}
 
 #[async_trait::async_trait]
 impl Agent for MockSubagent {

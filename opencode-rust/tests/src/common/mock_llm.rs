@@ -82,6 +82,8 @@ impl Default for MockLLMProvider {
     }
 }
 
+impl opencode_llm::provider::sealed::Sealed for MockLLMProvider {}
+
 #[async_trait]
 impl Provider for MockLLMProvider {
     async fn complete(

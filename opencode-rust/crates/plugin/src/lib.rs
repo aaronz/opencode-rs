@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-mod sealed {
+pub mod sealed {
     pub trait SealedToolProvider {}
     pub trait SealedPlugin {}
 }
@@ -852,6 +852,8 @@ mod tests {
         fail_shutdown: bool,
     }
 
+    impl sealed::SealedPlugin for TestPlugin {}
+
     impl Plugin for TestPlugin {
         fn name(&self) -> &str {
             "test-plugin"
@@ -936,6 +938,8 @@ mod tests {
         }
     }
 
+    impl sealed::SealedPlugin for TestPluginWithTools {}
+
     impl Plugin for TestPluginWithTools {
         fn name(&self) -> &str {
             &self.name
@@ -1019,6 +1023,8 @@ mod tests {
             }
         }
     }
+
+    impl sealed::SealedPlugin for TestPluginWithoutTools {}
 
     impl Plugin for TestPluginWithoutTools {
         fn name(&self) -> &str {
@@ -1295,6 +1301,8 @@ mod tests {
         let mut manager = PluginManager::new();
 
         struct BlockingPlugin;
+        impl sealed::SealedPlugin for BlockingPlugin {}
+
         impl Plugin for BlockingPlugin {
             fn name(&self) -> &str {
                 "blocking-plugin"
@@ -1638,6 +1646,8 @@ mod tests {
             }
         }
 
+        impl sealed::SealedPlugin for OrderedPlugin {}
+
         impl Plugin for OrderedPlugin {
             fn name(&self) -> &str {
                 &self.name
@@ -1736,6 +1746,8 @@ mod tests {
                     }
                 }
             }
+
+            impl sealed::SealedPlugin for OrderedPlugin {}
 
             impl Plugin for OrderedPlugin {
                 fn name(&self) -> &str {
@@ -1838,6 +1850,8 @@ mod tests {
                 }
             }
         }
+
+        impl sealed::SealedPlugin for OrderedToolPlugin {}
 
         impl Plugin for OrderedToolPlugin {
             fn name(&self) -> &str {
@@ -1948,6 +1962,8 @@ mod tests {
             }
         }
 
+        impl sealed::SealedPlugin for OrderedMessagePlugin {}
+
         impl Plugin for OrderedMessagePlugin {
             fn name(&self) -> &str {
                 &self.name
@@ -2050,6 +2066,8 @@ mod tests {
                 }
             }
         }
+
+        impl sealed::SealedPlugin for OrderedSessionPlugin {}
 
         impl Plugin for OrderedSessionPlugin {
             fn name(&self) -> &str {
@@ -2171,6 +2189,8 @@ mod tests {
                 }
             }
         }
+
+        impl sealed::SealedPlugin for ConsistentPlugin {}
 
         impl Plugin for ConsistentPlugin {
             fn name(&self) -> &str {
@@ -2554,6 +2574,7 @@ mod tests {
     #[test]
     fn test_plugin_trait_default_register_tool() {
         struct DefaultRegisterPlugin;
+        impl sealed::SealedPlugin for DefaultRegisterPlugin {}
 
         impl Plugin for DefaultRegisterPlugin {
             fn name(&self) -> &str {
@@ -3255,6 +3276,8 @@ mod tests {
             }
         }
 
+        impl sealed::SealedPlugin for PriorityPlugin {}
+
         impl Plugin for PriorityPlugin {
             fn name(&self) -> &str {
                 &self.name
@@ -3407,6 +3430,8 @@ mod tests {
                     }
                 }
             }
+
+            impl sealed::SealedPlugin for DeterministicPlugin {}
 
             impl Plugin for DeterministicPlugin {
                 fn name(&self) -> &str {
@@ -3739,6 +3764,8 @@ mod tests {
                 }
             }
         }
+
+        impl sealed::SealedPlugin for PriorityTestPlugin {}
 
         impl Plugin for PriorityTestPlugin {
             fn name(&self) -> &str {

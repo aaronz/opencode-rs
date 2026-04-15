@@ -197,7 +197,7 @@
       "priority": "P0",
       "title": "Add request validation",
       "description": "Add request validation (session exists, auth) in execute endpoint",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddErrorHandlingTest: verify 404 returned when session does not exist",
         "AddErrorHandlingTest: verify 401 returned for unauthenticated requests",

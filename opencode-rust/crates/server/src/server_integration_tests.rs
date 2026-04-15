@@ -33,6 +33,7 @@ mod tests {
             config: std::sync::Arc::new(std::sync::RwLock::new(opencode_core::Config::default())),
             event_bus: opencode_core::bus::SharedEventBus::default(),
             reconnection_store: crate::streaming::ReconnectionStore::default(),
+            temp_db_dir: None,
             connection_monitor: std::sync::Arc::new(
                 crate::streaming::conn_state::ConnectionMonitor::new(),
             ),
@@ -70,6 +71,7 @@ mod tests {
             config: std::sync::Arc::new(std::sync::RwLock::new(config)),
             event_bus: opencode_core::bus::SharedEventBus::default(),
             reconnection_store: crate::streaming::ReconnectionStore::default(),
+            temp_db_dir: None,
             connection_monitor: std::sync::Arc::new(
                 crate::streaming::conn_state::ConnectionMonitor::new(),
             ),
@@ -1654,6 +1656,7 @@ mod security_tests {
             config: std::sync::Arc::new(std::sync::RwLock::new(config)),
             event_bus: opencode_core::bus::SharedEventBus::default(),
             reconnection_store: crate::streaming::ReconnectionStore::default(),
+            temp_db_dir: None,
             connection_monitor: std::sync::Arc::new(
                 crate::streaming::conn_state::ConnectionMonitor::new(),
             ),
@@ -2085,6 +2088,7 @@ mod api_negative_tests {
             config: std::sync::Arc::new(std::sync::RwLock::new(opencode_core::Config::default())),
             event_bus: opencode_core::bus::SharedEventBus::default(),
             reconnection_store: crate::streaming::ReconnectionStore::default(),
+            temp_db_dir: None,
             connection_monitor: std::sync::Arc::new(
                 crate::streaming::conn_state::ConnectionMonitor::new(),
             ),
@@ -2122,6 +2126,7 @@ mod api_negative_tests {
             config: std::sync::Arc::new(std::sync::RwLock::new(config)),
             event_bus: opencode_core::bus::SharedEventBus::default(),
             reconnection_store: crate::streaming::ReconnectionStore::default(),
+            temp_db_dir: None,
             connection_monitor: std::sync::Arc::new(
                 crate::streaming::conn_state::ConnectionMonitor::new(),
             ),
@@ -2796,6 +2801,7 @@ mod auth_negative_tests {
             config: std::sync::Arc::new(std::sync::RwLock::new(config)),
             event_bus: opencode_core::bus::SharedEventBus::default(),
             reconnection_store: crate::streaming::ReconnectionStore::default(),
+            temp_db_dir: None,
             connection_monitor: std::sync::Arc::new(
                 crate::streaming::conn_state::ConnectionMonitor::new(),
             ),

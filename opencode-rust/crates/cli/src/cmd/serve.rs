@@ -75,6 +75,7 @@ async fn run_serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
         config,
         event_bus,
         reconnection_store,
+        temp_db_dir: None,
         connection_monitor,
         share_server,
         acp_enabled: true,

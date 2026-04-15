@@ -100,6 +100,7 @@ async fn run_desktop(args: DesktopArgs) -> Result<(), Box<dyn std::error::Error>
         config: config.clone(),
         event_bus: event_bus.clone(),
         reconnection_store,
+        temp_db_dir: None,
         connection_monitor,
         share_server,
         acp_enabled,

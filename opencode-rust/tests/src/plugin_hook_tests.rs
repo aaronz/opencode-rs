@@ -34,6 +34,8 @@ impl TestPlugin {
     }
 }
 
+impl opencode_plugin::sealed::SealedPlugin for TestPlugin {}
+
 impl Plugin for TestPlugin {
     fn name(&self) -> &str {
         &self.name
@@ -278,6 +280,8 @@ fn test_plugin_tool_registration_capability() {
 
     struct ToolProviderPlugin;
 
+    impl opencode_plugin::sealed::SealedPlugin for ToolProviderPlugin {}
+
     impl Plugin for ToolProviderPlugin {
         fn name(&self) -> &str {
             "tool-provider"
@@ -395,6 +399,8 @@ fn test_plugin_hook_execution_deterministic_order() {
         name: String,
         order: Arc<Mutex<Vec<String>>>,
     }
+
+    impl opencode_plugin::sealed::SealedPlugin for OrderTrackingPlugin {}
 
     impl Plugin for OrderTrackingPlugin {
         fn name(&self) -> &str {

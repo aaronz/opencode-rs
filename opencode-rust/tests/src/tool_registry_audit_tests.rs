@@ -149,6 +149,7 @@ async fn test_tool_registry_disabled_tool() {
 async fn test_tool_registry_collision_resolution_builtin_overrides_custom() {
     #[derive(Clone)]
     struct CustomTool;
+    impl opencode_tools::sealed::Sealed for CustomTool {}
     #[async_trait::async_trait]
     impl Tool for CustomTool {
         fn name(&self) -> &str {
@@ -440,6 +441,8 @@ mod opencode_tools_caching_tests {
         call_count: std::sync::Arc<std::sync::Mutex<u32>>,
     }
 
+    impl opencode_tools::sealed::Sealed for SafeCachingTestTool {}
+
     impl SafeCachingTestTool {
         fn new() -> Self {
             Self {
@@ -585,6 +588,7 @@ mod opencode_tools_caching_tests {
     async fn test_caching_invalidation_all() {
         #[derive(Clone)]
         struct AnotherSafeTool;
+        impl opencode_tools::sealed::Sealed for AnotherSafeTool {}
         #[async_trait::async_trait]
         impl Tool for AnotherSafeTool {
             fn name(&self) -> &str {
@@ -652,6 +656,7 @@ mod opencode_tools_caching_tests {
 
         #[derive(Clone)]
         struct ParallelTestTool;
+        impl opencode_tools::sealed::Sealed for ParallelTestTool {}
         #[async_trait::async_trait]
         impl Tool for ParallelTestTool {
             fn name(&self) -> &str {
@@ -816,6 +821,7 @@ mod error_handling_tests {
     async fn test_safe_tool_failure_not_cached() {
         #[derive(Clone)]
         struct SafeFailingTool;
+        impl opencode_tools::sealed::Sealed for SafeFailingTool {}
         #[async_trait::async_trait]
         impl Tool for SafeFailingTool {
             fn name(&self) -> &str {
@@ -866,6 +872,7 @@ mod collision_and_priority_tests {
     async fn test_collision_resolution_plugin_overrides_custom_global() {
         #[derive(Clone)]
         struct GlobalTool;
+        impl opencode_tools::sealed::Sealed for GlobalTool {}
         #[async_trait::async_trait]
         impl Tool for GlobalTool {
             fn name(&self) -> &str {
@@ -888,6 +895,7 @@ mod collision_and_priority_tests {
 
         #[derive(Clone)]
         struct PluginTool;
+        impl opencode_tools::sealed::Sealed for PluginTool {}
         #[async_trait::async_trait]
         impl Tool for PluginTool {
             fn name(&self) -> &str {
@@ -928,6 +936,7 @@ mod collision_and_priority_tests {
     async fn test_collision_resolution_custom_project_overrides_custom_global() {
         #[derive(Clone)]
         struct GlobalTool;
+        impl opencode_tools::sealed::Sealed for GlobalTool {}
         #[async_trait::async_trait]
         impl Tool for GlobalTool {
             fn name(&self) -> &str {
@@ -950,6 +959,7 @@ mod collision_and_priority_tests {
 
         #[derive(Clone)]
         struct ProjectTool;
+        impl opencode_tools::sealed::Sealed for ProjectTool {}
         #[async_trait::async_trait]
         impl Tool for ProjectTool {
             fn name(&self) -> &str {
@@ -990,6 +1000,7 @@ mod collision_and_priority_tests {
     async fn test_builtin_cannot_be_overridden() {
         #[derive(Clone)]
         struct BuiltinTool;
+        impl opencode_tools::sealed::Sealed for BuiltinTool {}
         #[async_trait::async_trait]
         impl Tool for BuiltinTool {
             fn name(&self) -> &str {
@@ -1012,6 +1023,7 @@ mod collision_and_priority_tests {
 
         #[derive(Clone)]
         struct CustomTool;
+        impl opencode_tools::sealed::Sealed for CustomTool {}
         #[async_trait::async_trait]
         impl Tool for CustomTool {
             fn name(&self) -> &str {

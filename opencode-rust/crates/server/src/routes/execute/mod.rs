@@ -8,16 +8,50 @@ pub mod stream;
 pub mod types;
 
 use actix_web::http::StatusCode;
-use actix_web::{web, HttpResponse, Responder};
+use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use uuid::Uuid;
 
-use crate::routes::error::{json_error, validation_error};
+use crate::routes::error::{json_error, unauthorized_error, validation_error};
 use crate::routes::validation::{validate_session_id, RequestValidator};
 use crate::ServerState;
 
 use integration::{execute_agent_loop, system_prompt_for_mode, ExecutionContext};
 use stream::{execute_event_stream, format_sse_event};
 use types::{ExecuteEvent, ExecuteMode, ExecuteRequest};
+
+fn check_auth(req: &HttpRequest, state: &ServerState) -> Result<(), HttpResponse> {
+    let config_guard = match state.config.read() {
+        Ok(cfg) => cfg,
+        Err(_) => {
+            return Err(json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "config_lock_error",
+                "Failed to access server config",
+            ));
+        }
+    };
+
+    let Some(expected_key) = config_guard.api_key.as_ref() else {
+        return Ok(());
+    };
+
+    if expected_key.is_empty() {
+        return Ok(());
+    }
+
+    let authorized = req
+        .headers()
+        .get("x-api-key")
+        .and_then(|v| v.to_str().ok())
+        .map(|provided| provided == expected_key)
+        .unwrap_or(false);
+
+    if authorized {
+        Ok(())
+    } else {
+        Err(unauthorized_error("Invalid or missing API key"))
+    }
+}
 
 /// Execute session endpoint handler.
 /// POST /api/sessions/{id}/execute
@@ -26,23 +60,26 @@ use types::{ExecuteEvent, ExecuteMode, ExecuteRequest};
 /// Returns SSE stream of execution events.
 pub async fn execute_session(
     state: web::Data<ServerState>,
+    req: HttpRequest,
     id: web::Path<String>,
-    req: web::Json<ExecuteRequest>,
+    body: web::Json<ExecuteRequest>,
 ) -> impl Responder {
-    // Validate session ID format
-    if let Err(errors) = validate_session_id(&id) {
+    if let Err(resp) = check_auth(&req, &state) {
+        return resp;
+    }
+
+    let session_id = id.as_str();
+
+    if let Err(errors) = validate_session_id(session_id) {
         return errors.to_response();
     }
 
-    // Validate request
     let mut validator = RequestValidator::new();
-    validator.validate_required_string("prompt", Some(&req.prompt));
+    validator.validate_required_string("prompt", Some(&body.prompt));
     if let Err(errors) = validator.validate() {
         return errors.to_response();
     }
 
-    // Load session from storage
-    let session_id = id.as_str();
     let mut session = match state.storage.load_session(session_id).await {
         Ok(Some(s)) => s,
         Ok(None) => {
@@ -85,7 +122,7 @@ pub async fn execute_session(
     };
 
     // Get agent type from mode
-    let agent_type = match req.mode.unwrap_or(ExecuteMode::General) {
+    let agent_type = match body.mode.unwrap_or(ExecuteMode::General) {
         ExecuteMode::Build => opencode_agent::AgentType::Build,
         ExecuteMode::Plan => opencode_agent::AgentType::Plan,
         ExecuteMode::General => opencode_agent::AgentType::General,
@@ -102,7 +139,7 @@ pub async fn execute_session(
     let agent = ctx.create_agent();
 
     // Add user message to session
-    session.add_message(opencode_core::Message::user(&req.prompt));
+    session.add_message(opencode_core::Message::user(&body.prompt));
 
     // Execute the agent loop
     let events: Vec<ExecuteEvent> = match execute_agent_loop(
@@ -372,5 +409,74 @@ mod tests {
     fn test_validation_error() {
         let resp = validation_error("Validation failed");
         assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    #[test]
+    fn test_unauthorized_error() {
+        let resp = unauthorized_error("Invalid or missing API key");
+        assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[test]
+    fn test_execute_request_validation_rejects_empty_prompt() {
+        let mut validator = RequestValidator::new();
+        validator.validate_required_string("prompt", Some(""));
+        assert!(!validator.is_valid());
+        assert!(validator.errors().len() == 1);
+    }
+
+    #[test]
+    fn test_execute_request_validation_rejects_whitespace_prompt() {
+        let mut validator = RequestValidator::new();
+        validator.validate_required_string("prompt", Some("   \t\n  "));
+        assert!(!validator.is_valid());
+        assert!(validator.errors().len() == 1);
+    }
+
+    #[test]
+    fn test_execute_request_validation_accepts_valid_prompt() {
+        let mut validator = RequestValidator::new();
+        validator.validate_required_string("prompt", Some("Hello, world!"));
+        assert!(validator.is_valid());
+    }
+
+    #[test]
+    fn test_execute_request_validation_rejects_missing_prompt() {
+        let mut validator = RequestValidator::new();
+        validator.validate_required_string("prompt", None);
+        assert!(!validator.is_valid());
+        assert!(validator.errors().len() == 1);
+    }
+
+    #[test]
+    fn test_execute_request_validation_rejects_too_long_prompt() {
+        let mut validator = RequestValidator::new();
+        let long_prompt = "a".repeat(10001);
+        validator.validate_required_string("prompt", Some(&long_prompt));
+        assert!(!validator.is_valid());
+    }
+
+    #[test]
+    fn test_execute_session_id_validation_rejects_invalid_uuid() {
+        let result = validate_session_id("not-a-uuid");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_execute_session_id_validation_accepts_valid_uuid() {
+        let result = validate_session_id("550e8400-e29b-41d4-a716-446655440000");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_execute_session_id_validation_rejects_empty_string() {
+        let result = validate_session_id("");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_execute_session_id_validation_rejects_short_string() {
+        let result = validate_session_id("123");
+        assert!(result.is_err());
     }
 }

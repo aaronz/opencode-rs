@@ -211,6 +211,11 @@ pub(crate) fn validation_error(message: impl Into<String>) -> HttpResponse {
         .json(ErrorResponse::validation_error(message))
 }
 
+pub(crate) fn unauthorized_error(message: impl Into<String>) -> HttpResponse {
+    HttpResponse::build(actix_web::http::StatusCode::UNAUTHORIZED)
+        .json(ErrorResponse::unauthorized(message))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

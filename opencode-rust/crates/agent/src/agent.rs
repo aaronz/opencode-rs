@@ -5,7 +5,7 @@ use opencode_llm::Provider;
 use opencode_tools::ToolRegistry;
 use serde::{Deserialize, Serialize};
 
-pub(crate) mod sealed {
+pub mod sealed {
     pub trait Sealed {}
 }
 

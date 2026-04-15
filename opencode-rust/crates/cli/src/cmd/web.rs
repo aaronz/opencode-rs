@@ -83,6 +83,7 @@ impl WebServerState {
             config: self.config.clone(),
             event_bus: self.event_bus.clone(),
             reconnection_store: self.reconnection_store.clone(),
+            temp_db_dir: None,
             connection_monitor: self.connection_monitor.clone(),
             share_server: self.share_server.clone(),
             acp_enabled: self.acp_enabled,

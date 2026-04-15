@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use opencode_core::{Message, OpenCodeError};
 use serde::{Deserialize, Serialize};
 
-pub(crate) mod sealed {
+pub mod sealed {
     pub trait Sealed {}
 }
 
@@ -202,7 +202,7 @@ mod tests {
     #[test]
     fn test_simple_provider_trait() {
         struct TestProvider;
-        impl provider::sealed::Sealed for TestProvider {}
+        impl sealed::Sealed for TestProvider {}
         impl SimpleProvider for TestProvider {
             fn get_models(&self) -> Vec<Model> {
                 vec![Model::new("test-model", "Test Model")]
