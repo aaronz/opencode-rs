@@ -10,7 +10,7 @@ use opencode_tools::{ToolContext, ToolRegistry};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-use crate::{Agent, AgentResponse, AgentType};
+use crate::{agent::sealed, Agent, AgentResponse, AgentType};
 
 /// Result from a subagent execution, containing the response
 /// and metadata about the subagent run.
@@ -1782,6 +1782,8 @@ mod tests {
             Self
         }
     }
+
+    impl opencode_llm::provider::sealed::Sealed for MockProvider {}
 
     #[async_trait::async_trait]
     impl Provider for MockProvider {

@@ -504,6 +504,7 @@ export default echoTool;
 
         #[derive(Clone)]
         struct ExistingTool;
+        impl crate::sealed::Sealed for ExistingTool {}
         #[async_trait]
         impl Tool for ExistingTool {
             fn name(&self) -> &str {
