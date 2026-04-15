@@ -88,6 +88,7 @@ mod tests {
             acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
                 AcpClientRegistry::new(),
             )),
+            tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
         }
     }
 
@@ -114,6 +115,7 @@ mod tests {
             acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
                 AcpClientRegistry::new(),
             )),
+            tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
         }
     }
 

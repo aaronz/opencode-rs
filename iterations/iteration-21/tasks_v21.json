@@ -141,7 +141,7 @@
       "priority": "P0",
       "title": "Add ToolRegistry discovery integration",
       "description": "Add ToolRegistry discovery integration in execute endpoint to find and execute available tools",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify ToolRegistry can be discovered/accessed in execute endpoint",
         "AddIntegrationTest: verify tools are discovered and callable"

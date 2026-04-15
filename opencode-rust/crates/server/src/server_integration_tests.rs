@@ -33,6 +33,7 @@ mod tests {
             acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
                 crate::routes::acp_ws::AcpClientRegistry::new(),
             )),
+            tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
         }
     }
 
@@ -60,6 +61,7 @@ mod tests {
             acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
                 crate::routes::acp_ws::AcpClientRegistry::new(),
             )),
+            tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
         }
     }
 
@@ -1633,6 +1635,7 @@ mod security_tests {
             acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
                 crate::routes::acp_ws::AcpClientRegistry::new(),
             )),
+            tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
         }
     }
 
@@ -2053,6 +2056,7 @@ mod api_negative_tests {
             acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
                 crate::routes::acp_ws::AcpClientRegistry::new(),
             )),
+            tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
         }
     }
 
@@ -2080,6 +2084,7 @@ mod api_negative_tests {
             acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
                 crate::routes::acp_ws::AcpClientRegistry::new(),
             )),
+            tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
         }
     }
 
@@ -2742,6 +2747,7 @@ mod auth_negative_tests {
             acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
                 crate::routes::acp_ws::AcpClientRegistry::new(),
             )),
+            tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
         }
     }
 

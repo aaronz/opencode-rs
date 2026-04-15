@@ -50,10 +50,11 @@ parse_args() {
     MODEL="${MODEL:-minimax-cn/MiniMax-M2.7}"
 }
 
+WORKSPACE_DIR="$(cd "$(dirname "$0")" && pwd)"
+
 parse_args "$@"
 
 # Logging setup
-WORKSPACE_DIR="$(cd "$(dirname "$0")" && pwd)"
 SESSION_LOG_DIR="$WORKSPACE_DIR/sessions"
 
 mkdir -p "$SESSION_LOG_DIR"

@@ -96,9 +96,8 @@ $(cat $gap_analysis)
 run_phase_spec() {
     local prd_path="$1"
     local gap_analysis="$2"
-    local constitution="$3"
-    local output_dir="$4"
-    local iteration="$5"
+    local output_dir="$3"
+    local iteration="$4"
 
     local spec_file="$output_dir/spec_v${iteration}.md"
 
@@ -121,9 +120,6 @@ $(cat $prd_path)
 ## 差距分析
 $(cat $gap_analysis)
 
-## Constitution
-$(cat $constitution 2>/dev/null || echo "使用默认Constitution")
-
 ## 任务
 1. 基于差距分析，更新spec.md
 2. 确保新功能有对应的规格定义
@@ -137,10 +133,9 @@ $(cat $constitution 2>/dev/null || echo "使用默认Constitution")
 
 run_phase_plan() {
     local spec_file="$1"
-    local constitution="$2"
-    local gap_analysis="$3"
-    local output_dir="$4"
-    local iteration="$5"
+    local gap_analysis="$2"
+    local output_dir="$3"
+    local iteration="$4"
 
     local plan_file="$output_dir/plan_v${iteration}.md"
     local tasks_file="$output_dir/tasks_v${iteration}.md"
@@ -161,9 +156,6 @@ run_phase_plan() {
 
 ## Spec
 $(cat $spec_file)
-
-## Constitution
-$(cat $constitution 2>/dev/null || echo "")
 
 ## 差距分析
 $(cat $gap_analysis)
@@ -189,8 +181,7 @@ run_phase_implementation() {
     local tasks_json="$1"
     local spec_file="$2"
     local output_dir="$3"
-    local constitution="$4"
-    local max_rounds="$5"
+    local max_rounds="$4"
 
     TASK_FILE="$output_dir/tasks_v${NEXT_ITERATION}.md"
     TASKS_JSON="$tasks_json"
@@ -238,7 +229,7 @@ run_phase_implementation() {
                 break
             fi
 
-            implement_task "$next_task" "$TASKS_JSON" "$spec_file" "$constitution"
+            implement_task "$next_task" "$TASKS_JSON" "$spec_file"
 
             remaining_p0_p1=$(check_remaining_p0_p1 "$TASKS_JSON")
             if [ "$remaining_p0_p1" -eq 0 ]; then
@@ -311,7 +302,6 @@ implement_task() {
     local task_id="$1"
     local task_json="$2"
     local spec_file="$3"
-    local constitution="$4"
 
     echo ""
     echo "----------------------------------------------"
@@ -340,9 +330,6 @@ $(echo "$task_details" | python3 -c "import sys,json; d=json.load(sys.stdin); pr
 
 ## Spec
 $(cat $spec_file)
-
-## Constitution
-$(cat $constitution 2>/dev/null || echo "使用默认Constitution")
 
 ## 实现目录
 ./iterations/src/

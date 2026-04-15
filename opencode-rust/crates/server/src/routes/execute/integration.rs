@@ -574,4 +574,220 @@ mod tests {
         session.add_message(Message::user("Tool 'read' result:\nfile content here"));
         assert_eq!(session.messages.len(), 3);
     }
+
+    #[tokio::test]
+    async fn test_tool_registry_discovery_in_execute_context() {
+        let registry = Arc::new(opencode_tools::ToolRegistry::new());
+
+        let tools = registry.list_filtered(None).await;
+        assert!(
+            tools.is_empty(),
+            "New registry should be empty before tool registration"
+        );
+
+        let has_tool = registry.get("nonexistent").await;
+        assert!(
+            has_tool.is_none(),
+            "Nonexistent tool should not be found"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_tool_registry_discovery_with_builtin_tools() {
+        use opencode_tools::Tool;
+
+        let registry = Arc::new(opencode_tools::ToolRegistry::new());
+
+        #[derive(Clone)]
+        struct DiscoverableTool;
+
+        #[async_trait::async_trait]
+        impl Tool for DiscoverableTool {
+            fn name(&self) -> &str {
+                "discoverable_tool"
+            }
+
+            fn description(&self) -> &str {
+                "A tool for testing discovery"
+            }
+
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+
+            async fn execute(
+                &self,
+                args: serde_json::Value,
+                _ctx: Option<opencode_tools::ToolContext>,
+            ) -> Result<opencode_tools::ToolResult, OpenCodeError> {
+                let input = args
+                    .get("value")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("default");
+                Ok(opencode_tools::ToolResult::ok(format!("discovered: {}", input)))
+            }
+        }
+
+        registry.register(DiscoverableTool).await;
+
+        let discovered = registry.get("discoverable_tool").await;
+        assert!(
+            discovered.is_some(),
+            "Registered tool should be discoverable"
+        );
+
+        let tool_list = registry.list_filtered(None).await;
+        let tool_names: Vec<&str> = tool_list.iter().map(|(n, _, _)| n.as_str()).collect();
+        assert!(
+            tool_names.contains(&"discoverable_tool"),
+            "Tool should appear in registry listing"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_tool_registry_execution_accessible_in_execute_endpoint() {
+        use opencode_tools::Tool;
+
+        let registry = Arc::new(opencode_tools::ToolRegistry::new());
+
+        #[derive(Clone)]
+        struct ExecutableTestTool;
+
+        #[async_trait::async_trait]
+        impl Tool for ExecutableTestTool {
+            fn name(&self) -> &str {
+                "executable_tool"
+            }
+
+            fn description(&self) -> &str {
+                "A tool that can be executed"
+            }
+
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+
+            async fn execute(
+                &self,
+                args: serde_json::Value,
+                _ctx: Option<opencode_tools::ToolContext>,
+            ) -> Result<opencode_tools::ToolResult, OpenCodeError> {
+                let msg = args
+                    .get("message")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("executed");
+                Ok(opencode_tools::ToolResult::ok(format!("tool executed: {}", msg)))
+            }
+        }
+
+        registry.register(ExecutableTestTool).await;
+
+        let ctx = ExecutionContext::new(
+            registry.clone(),
+            Arc::new(MockProvider),
+            AgentType::Build,
+        );
+
+        assert_eq!(
+            ctx.agent_type,
+            AgentType::Build,
+            "Execution context should be properly configured"
+        );
+
+        let result = ctx
+            .tool_registry
+            .execute(
+                "executable_tool",
+                serde_json::json!({"message": "test"}),
+                None,
+            )
+            .await;
+
+        assert!(result.is_ok(), "Tool should be executable through registry");
+        let result = result.unwrap();
+        assert!(
+            result.success,
+            "Tool execution should succeed"
+        );
+        assert!(
+            result.content.contains("tool executed: test"),
+            "Tool should produce expected output"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_tool_discovery_integration_multiple_tools() {
+        use opencode_tools::Tool;
+
+        let registry = Arc::new(opencode_tools::ToolRegistry::new());
+
+        #[derive(Clone)]
+        struct ToolA;
+        #[async_trait::async_trait]
+        impl Tool for ToolA {
+            fn name(&self) -> &str { "tool_a" }
+            fn description(&self) -> &str { "First tool" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<opencode_tools::ToolContext>) -> Result<opencode_tools::ToolResult, OpenCodeError> {
+                Ok(opencode_tools::ToolResult::ok("a"))
+            }
+        }
+
+        #[derive(Clone)]
+        struct ToolB;
+        #[async_trait::async_trait]
+        impl Tool for ToolB {
+            fn name(&self) -> &str { "tool_b" }
+            fn description(&self) -> &str { "Second tool" }
+            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
+            async fn execute(&self, _: serde_json::Value, _: Option<opencode_tools::ToolContext>) -> Result<opencode_tools::ToolResult, OpenCodeError> {
+                Ok(opencode_tools::ToolResult::ok("b"))
+            }
+        }
+
+        registry.register(ToolA).await;
+        registry.register(ToolB).await;
+
+        let tools = registry.list_filtered(None).await;
+        let tool_names: Vec<&str> = tools.iter().map(|(n, _, _)| n.as_str()).collect();
+
+        assert!(
+            tool_names.contains(&"tool_a"),
+            "First tool should be discoverable"
+        );
+        assert!(
+            tool_names.contains(&"tool_b"),
+            "Second tool should be discoverable"
+        );
+
+        let result_a = registry.execute("tool_a", serde_json::json!({}), None).await;
+        let result_b = registry.execute("tool_b", serde_json::json!({}), None).await;
+
+        assert!(result_a.is_ok(), "First tool should be executable");
+        assert!(result_b.is_ok(), "Second tool should be executable");
+    }
+
+    #[tokio::test]
+    async fn test_tool_registry_from_application_state() {
+        let registry = Arc::new(opencode_tools::ToolRegistry::new());
+
+        let ctx = ExecutionContext::new(
+            registry.clone(),
+            Arc::new(MockProvider),
+            AgentType::General,
+        );
+
+        let has_tool = ctx.tool_registry.get("read").await;
+        assert_eq!(
+            has_tool.is_some(),
+            false,
+            "Empty registry should not have read tool"
+        );
+
+        let tool_list = ctx.tool_registry.list_filtered(None).await;
+        assert!(
+            tool_list.is_empty(),
+            "Empty registry should have no tools"
+        );
+    }
 }

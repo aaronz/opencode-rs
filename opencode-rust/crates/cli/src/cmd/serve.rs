@@ -10,6 +10,7 @@ use opencode_server::routes::share::ShareServer;
 use opencode_server::streaming::{conn_state::ConnectionMonitor, ReconnectionStore};
 use opencode_server::{run_server, ServerState};
 use opencode_storage::StorageService;
+use opencode_tools::build_default_registry;
 use std::sync::Arc;
 use std::sync::RwLock;
 
@@ -65,6 +66,7 @@ async fn run_serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
     let reconnection_store = ReconnectionStore::default();
     let connection_monitor = Arc::new(ConnectionMonitor::new());
     let share_server = Arc::new(RwLock::new(ShareServer::with_default_config()));
+    let tool_registry = Arc::new(build_default_registry(None).await);
 
     let state = ServerState {
         storage,
@@ -77,6 +79,7 @@ async fn run_serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
         acp_enabled: true,
         acp_stream: SharedAcpStream::default(),
         acp_client_registry: SharedAcpClientRegistry::default(),
+        tool_registry,
     };
 
     run_server(Arc::new(state), &host, port).await?;

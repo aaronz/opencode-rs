@@ -91,10 +91,9 @@ pub async fn execute_session(
         ExecuteMode::General => opencode_agent::AgentType::General,
     };
 
-    // Create execution context
-    let tool_registry = opencode_tools::ToolRegistry::new();
+    // Create execution context - use tool_registry from application state
     let ctx = ExecutionContext::new(
-        std::sync::Arc::new(tool_registry),
+        state.tool_registry.clone(),
         std::sync::Arc::from(provider),
         agent_type,
     );
