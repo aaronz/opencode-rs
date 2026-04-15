@@ -986,4 +986,109 @@ mod integration_tests {
 
         server_handle.abort();
     }
+
+    #[tokio::test]
+    async fn test_unauthenticated_returns_401() {
+        use std::sync::Arc;
+        use std::time::Duration;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
+
+        let migration_manager = MigrationManager::new(pool.clone(), 2);
+        migration_manager
+            .migrate()
+            .await
+            .expect("Failed to run migrations");
+
+        let session_repo = Arc::new(opencode_storage::SqliteSessionRepository::new(pool.clone()));
+        let project_repo = Arc::new(opencode_storage::SqliteProjectRepository::new(pool.clone()));
+
+        let mut config = opencode_core::Config::default();
+        config.api_key = Some("test-secret-api-key".to_string());
+
+        let state = opencode_server::ServerState {
+            storage: Arc::new(opencode_storage::StorageService::new(
+                session_repo,
+                project_repo,
+                pool,
+            )),
+            models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
+            config: std::sync::Arc::new(std::sync::RwLock::new(config)),
+            event_bus: opencode_core::bus::SharedEventBus::default(),
+            reconnection_store: opencode_server::streaming::ReconnectionStore::default(),
+            temp_db_dir: None,
+            connection_monitor: std::sync::Arc::new(
+                opencode_server::streaming::conn_state::ConnectionMonitor::new(),
+            ),
+            share_server: std::sync::Arc::new(std::sync::RwLock::new(
+                opencode_server::routes::share::ShareServer::with_default_config(),
+            )),
+            acp_enabled: false,
+            acp_stream: opencode_control_plane::AcpEventStream::new().into(),
+            acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
+                opencode_server::routes::acp_ws::AcpClientRegistry::new(),
+            )),
+            tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
+        };
+
+        let state_data = web::Data::new(state);
+        let temp_dir = Arc::new(temp_dir);
+
+        let bind_addr = "127.0.0.1:0";
+        let std_listener = std::net::TcpListener::bind(bind_addr).unwrap();
+        let actual_port = std_listener.local_addr().unwrap().port();
+        let server_url = format!("http://127.0.0.1:{}", actual_port);
+
+        let temp_dir_clone = temp_dir.clone();
+        let handle = tokio::spawn(async move {
+            HttpServer::new(move || {
+                App::new()
+                    .app_data(state_data.clone())
+                    .service(
+                        web::scope("/api/sessions")
+                            .configure(opencode_server::routes::session::init),
+                    )
+                    .service(
+                        web::scope("/api/sessions/{id}")
+                            .configure(opencode_server::routes::execute::init),
+                    )
+            })
+            .listen(std_listener)
+            .unwrap()
+            .run()
+            .await
+            .unwrap();
+            drop(temp_dir_clone);
+        });
+
+        tokio::time::sleep(Duration::from_millis(500)).await;
+
+        let client = reqwest::Client::new();
+        let fake_session_id = "550e8400-e29b-41d4-a716-446655440000";
+
+        let resp = client
+            .post(format!(
+                "{}/api/sessions/{}/execute",
+                server_url, fake_session_id
+            ))
+            .json(&serde_json::json!({
+                "prompt": "Test prompt"
+            }))
+            .send()
+            .await
+            .expect("Failed to call execute endpoint");
+
+        let status = resp.status().as_u16();
+        let body_text = resp.text().await.unwrap_or_default();
+        eprintln!("DEBUG: status={}, body={:?}", status, body_text);
+
+        handle.abort();
+
+        assert_eq!(
+            status, 401,
+            "Unauthenticated request should return 401 Unauthorized"
+        );
+    }
 }

@@ -289,7 +289,7 @@
       "priority": "P0",
       "title": "Add test: unauthenticated returns 401",
       "description": "Add integration test: unauthenticated request returns 401 status code",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddErrorHandlingTest: verify unauthenticated request returns HTTP 401",
         "AddRegressionTest: ensure auth middleware works correctly"
