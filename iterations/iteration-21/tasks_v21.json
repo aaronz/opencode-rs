@@ -452,7 +452,7 @@
       "priority": "P0",
       "title": "Add WebSocket connection lifecycle",
       "description": "Add WebSocket connection lifecycle management in ws.rs",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify connection setup and teardown work correctly",
         "AddErrorHandlingTest: verify connection errors are handled gracefully"
@@ -470,7 +470,7 @@
       "priority": "P0",
       "title": "Add multiple client support per session",
       "description": "Add multiple client support per session using Arc<RwLock> in session hub",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify multiple clients can connect to same session",
         "AddIntegrationTest: verify all clients receive same events"
@@ -478,7 +478,7 @@
       "test_commands": [
         "cargo test -p opencode-server -- multiple_clients"
       ],
-      "impl_notes": "Use Arc<RwLock<Vec<BrowserWsSender>>> for client list.",
+      "impl_notes": "IMPLEMENTED. SessionHub uses Arc<RwLock<HashMap<String, SessionClients>>> with SessionClients containing HashMap<String, broadcast::Sender<StreamMessage>>. Tests pass: test_ws_lifecycle_multiple_clients_setup_teardown and test_execute_events_broadcast_to_multiple_clients both verify multiple clients can connect and receive same events.",
       "dependencies": [
         "P0-025-03"
       ]

@@ -531,6 +531,7 @@ async fn start_test_server(
             opencode_server::routes::acp_ws::AcpClientRegistry::new(),
         )),
         tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
+        session_hub: std::sync::Arc::new(opencode_server::routes::ws::SessionHub::new(256)),
     };
 
     let state_data = web::Data::new(state);
@@ -1033,6 +1034,7 @@ mod integration_tests {
                 opencode_server::routes::acp_ws::AcpClientRegistry::new(),
             )),
             tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
+            session_hub: std::sync::Arc::new(opencode_server::routes::ws::SessionHub::new(256)),
         };
 
         let state_data = web::Data::new(state);

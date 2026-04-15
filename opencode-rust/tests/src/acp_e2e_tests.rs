@@ -37,6 +37,7 @@ mod tests {
                 opencode_server::routes::acp_ws::AcpClientRegistry::new(),
             )),
             tool_registry: std::sync::Arc::new(ToolRegistry::new()),
+            session_hub: std::sync::Arc::new(opencode_server::routes::ws::SessionHub::new(256)),
         }
     }
 
