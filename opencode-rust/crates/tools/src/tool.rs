@@ -4,6 +4,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::PathBuf;
 
+pub(crate) mod sealed {
+    pub trait Sealed {}
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolResult {
     pub success: bool,
@@ -66,7 +70,7 @@ impl ToolContext {
 }
 
 #[async_trait]
-pub trait Tool: Send + Sync {
+pub trait Tool: Send + Sync + sealed::Sealed {
     fn name(&self) -> &str;
     fn description(&self) -> &str;
     fn clone_tool(&self) -> Box<dyn Tool>;

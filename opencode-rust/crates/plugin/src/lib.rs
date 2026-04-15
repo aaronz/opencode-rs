@@ -16,6 +16,11 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+mod sealed {
+    pub trait SealedToolProvider {}
+    pub trait SealedPlugin {}
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum PluginError {
     #[error("plugin already registered: {0}")]
@@ -116,7 +121,7 @@ pub struct PluginToolDefinition {
 }
 
 #[async_trait]
-pub trait ToolProvider: Send + Sync {
+pub trait ToolProvider: Send + Sync + sealed::SealedToolProvider {
     async fn get_tools(&self) -> Vec<PluginToolDefinition>;
 }
 
@@ -220,7 +225,7 @@ impl PluginPermissions {
     }
 }
 
-pub trait Plugin: Send + Sync {
+pub trait Plugin: Send + Sync + sealed::SealedPlugin {
     fn name(&self) -> &str;
     fn version(&self) -> &str;
     fn init(&mut self) -> Result<(), PluginError>;
@@ -647,6 +652,10 @@ impl PluginManager {
             }
 
             let plugin_name = entry.config.name.clone();
+            // SAFETY: `load_plugin` requires a valid plugin library compiled with the same
+            // ABI version. The entry.config.name was validated during discovery, and the
+            // library_path was verified to exist. Malformed plugins will return PluginError
+            // rather than causing UB. See PluginLoader::load_plugin SAFETY docs for details.
             let plugin = unsafe { self.loader.load_plugin(&entry.library_path)? };
             self.register_with_config(plugin, entry.config)?;
             self.plugin_paths

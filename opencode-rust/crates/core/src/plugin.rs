@@ -2,6 +2,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::process::{Child as StdChild, Command as StdCommand, Stdio};
 
+pub(crate) mod sealed {
+    pub trait Sealed {}
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum PluginCapability {
     ListenEvents,
@@ -21,12 +25,13 @@ pub struct PluginPermissions {
     pub network_allowed: bool,
 }
 
+#[allow(dead_code)]
 impl PluginPermissions {
-    pub fn can(&self, capability: &PluginCapability) -> bool {
+    pub(crate) fn can(&self, capability: &PluginCapability) -> bool {
         self.capabilities.contains(capability)
     }
 
-    pub fn can_listen_event(&self, event: &str) -> bool {
+    pub(crate) fn can_listen_event(&self, event: &str) -> bool {
         self.allowed_events.contains(&event.to_string())
             || self.allowed_events.contains(&"*".to_string())
     }
@@ -41,7 +46,7 @@ pub struct PluginConfig {
     pub permissions: PluginPermissions,
 }
 
-pub trait Plugin: Send + Sync {
+pub trait Plugin: Send + Sync + sealed::Sealed {
     fn name(&self) -> &str;
     fn version(&self) -> &str;
     fn initialize(&mut self, config: &PluginConfig) -> Result<(), crate::OpenCodeError>;
@@ -64,8 +69,9 @@ pub struct SidecarConfig {
     pub cwd: Option<String>,
 }
 
+#[allow(dead_code)]
 impl SidecarConfig {
-    pub fn new(command: impl Into<String>) -> Self {
+    pub(crate) fn new(command: impl Into<String>) -> Self {
         Self {
             command: command.into(),
             args: Vec::new(),
@@ -74,17 +80,17 @@ impl SidecarConfig {
         }
     }
 
-    pub fn args(mut self, args: Vec<String>) -> Self {
+    pub(crate) fn args(mut self, args: Vec<String>) -> Self {
         self.args = args;
         self
     }
 
-    pub fn env(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+    pub(crate) fn env(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.env.insert(key.into(), value.into());
         self
     }
 
-    pub fn cwd(mut self, path: impl Into<String>) -> Self {
+    pub(crate) fn cwd(mut self, path: impl Into<String>) -> Self {
         self.cwd = Some(path.into());
         self
     }
@@ -98,6 +104,7 @@ pub struct PluginManager {
     sidecar_processes: HashMap<String, StdChild>,
 }
 
+#[allow(dead_code)]
 impl PluginManager {
     pub fn new() -> Self {
         Self {
@@ -109,7 +116,7 @@ impl PluginManager {
         }
     }
 
-    pub fn register(
+    pub(crate) fn register(
         &mut self,
         plugin: Box<dyn Plugin>,
         config: PluginConfig,
@@ -130,29 +137,29 @@ impl PluginManager {
         Ok(())
     }
 
-    pub fn get(&self, name: &str) -> Option<&dyn Plugin> {
+    pub(crate) fn get(&self, name: &str) -> Option<&dyn Plugin> {
         self.plugins.get(name).map(|p| p.as_ref())
     }
 
-    pub fn get_config(&self, name: &str) -> Option<&PluginConfig> {
+    pub(crate) fn get_config(&self, name: &str) -> Option<&PluginConfig> {
         self.configs.get(name)
     }
 
-    pub fn get_permissions(&self, name: &str) -> Option<&PluginPermissions> {
+    pub(crate) fn get_permissions(&self, name: &str) -> Option<&PluginPermissions> {
         self.configs.get(name).map(|c| &c.permissions)
     }
 
-    pub fn can_plugin(&self, name: &str, capability: &PluginCapability) -> bool {
+    pub(crate) fn can_plugin(&self, name: &str, capability: &PluginCapability) -> bool {
         self.get_permissions(name)
             .map(|p| p.can(capability))
             .unwrap_or(false)
     }
 
-    pub fn get_event_handlers(&self, event: &str) -> Vec<String> {
+    pub(crate) fn get_event_handlers(&self, event: &str) -> Vec<String> {
         self.event_handlers.get(event).cloned().unwrap_or_default()
     }
 
-    pub fn execute(
+    pub(crate) fn execute(
         &self,
         plugin_name: &str,
         action: &str,
@@ -164,11 +171,11 @@ impl PluginManager {
         plugin.execute(action, params)
     }
 
-    pub fn list(&self) -> Vec<&str> {
+    pub(crate) fn list(&self) -> Vec<&str> {
         self.plugins.keys().map(|k| k.as_str()).collect()
     }
 
-    pub fn unregister(&mut self, name: &str) -> Option<PluginConfig> {
+    pub(crate) fn unregister(&mut self, name: &str) -> Option<PluginConfig> {
         self.plugins.remove(name);
         self.event_handlers.retain(|_, handlers| {
             handlers.retain(|h| h != name);
@@ -177,7 +184,7 @@ impl PluginManager {
         self.configs.remove(name)
     }
 
-    pub fn collect_plugin_tools(&self) -> Vec<(String, crate::tool::ToolDefinition)> {
+    pub(crate) fn collect_plugin_tools(&self) -> Vec<(String, crate::tool::ToolDefinition)> {
         let mut tools = Vec::new();
         for (name, config) in &self.configs {
             if config.permissions.can(&PluginCapability::AddTools) && self.is_enabled(name) {
@@ -192,7 +199,7 @@ impl PluginManager {
         tools
     }
 
-    pub fn enable(&mut self, name: &str) -> Result<(), String> {
+    pub(crate) fn enable(&mut self, name: &str) -> Result<(), String> {
         if !self.plugins.contains_key(name) {
             return Err(format!("Plugin '{}' not found", name));
         }
@@ -203,7 +210,7 @@ impl PluginManager {
         Ok(())
     }
 
-    pub fn disable(&mut self, name: &str) -> Result<(), String> {
+    pub(crate) fn disable(&mut self, name: &str) -> Result<(), String> {
         if !self.plugins.contains_key(name) {
             return Err(format!("Plugin '{}' not found", name));
         }
@@ -214,15 +221,15 @@ impl PluginManager {
         Ok(())
     }
 
-    pub fn is_enabled(&self, name: &str) -> bool {
+    pub(crate) fn is_enabled(&self, name: &str) -> bool {
         self.enabled_plugins.contains(name)
     }
 
-    pub fn enabled_plugins(&self) -> Vec<&str> {
+    pub(crate) fn enabled_plugins(&self) -> Vec<&str> {
         self.enabled_plugins.iter().map(|s| s.as_str()).collect()
     }
 
-    pub fn start_sidecar(
+    pub(crate) fn start_sidecar(
         &mut self,
         plugin_name: &str,
         config: SidecarConfig,
@@ -253,7 +260,7 @@ impl PluginManager {
         Ok(())
     }
 
-    pub fn stop_sidecar(&mut self, plugin_name: &str) -> Result<(), String> {
+    pub(crate) fn stop_sidecar(&mut self, plugin_name: &str) -> Result<(), String> {
         match self.sidecar_processes.remove(plugin_name) {
             Some(mut child) => {
                 child
@@ -265,11 +272,11 @@ impl PluginManager {
         }
     }
 
-    pub fn is_sidecar_running(&self, plugin_name: &str) -> bool {
+    pub(crate) fn is_sidecar_running(&self, plugin_name: &str) -> bool {
         self.sidecar_processes.contains_key(plugin_name)
     }
 
-    pub fn list_sidecars(&self) -> Vec<&str> {
+    pub(crate) fn list_sidecars(&self) -> Vec<&str> {
         self.sidecar_processes.keys().map(|s| s.as_str()).collect()
     }
 }

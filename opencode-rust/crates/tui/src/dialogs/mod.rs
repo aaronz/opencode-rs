@@ -34,7 +34,11 @@ pub use slash_command::SlashCommandOverlay;
 
 use ratatui::Frame;
 
-pub trait Dialog {
+pub(crate) mod sealed {
+    pub trait Sealed {}
+}
+
+pub trait Dialog: sealed::Sealed {
     fn draw(&self, f: &mut Frame, area: ratatui::layout::Rect);
     fn handle_input(&mut self, key: crossterm::event::KeyEvent) -> DialogAction;
     fn is_modal(&self) -> bool {
