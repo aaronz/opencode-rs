@@ -488,7 +488,7 @@
       "priority": "P0",
       "title": "Add client disconnect handling",
       "description": "Add client disconnect graceful handling in ws.rs",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddErrorHandlingTest: verify disconnect removes client from hub",
         "AddRegressionTest: ensure remaining clients still receive events"
@@ -506,7 +506,7 @@
       "priority": "P0",
       "title": "Create ws_streaming_tests.rs",
       "description": "Create test file tests/src/ws_streaming_tests.rs for WebSocket streaming tests",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify test file compiles and infrastructure works"
       ],
@@ -523,7 +523,7 @@
       "priority": "P0",
       "title": "Add test: WebSocket connects successfully",
       "description": "Add integration test: WebSocket connects successfully to session endpoint",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify WebSocket connection establishes successfully"
       ],

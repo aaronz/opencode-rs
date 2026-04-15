@@ -1,6 +1,11 @@
+use actix_web::{web, App, HttpServer};
+use futures_util::{SinkExt, StreamExt};
 use opencode_server::routes::ws::SessionHub;
 use opencode_server::streaming::{ReconnectionStore, StreamMessage};
 use serde_json::json;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio_tungstenite::tungstenite::Message as WsMessage;
 
 #[test]
 fn test_stream_message_serialization() {
@@ -559,4 +564,108 @@ fn test_reconnection_store_empty_for_unknown_session() {
     let validated = store.validate_token("unknown-session", &token);
     assert!(validated.is_some());
     assert_eq!(validated.unwrap(), 0);
+}
+
+fn create_ws_test_server_state() -> opencode_server::ServerState {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let db_path = temp_dir.path().join("test.db");
+    let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
+    let session_repo = Arc::new(opencode_storage::SqliteSessionRepository::new(pool.clone()));
+    let project_repo = Arc::new(opencode_storage::SqliteProjectRepository::new(pool.clone()));
+    opencode_server::ServerState {
+        storage: Arc::new(opencode_storage::StorageService::new(
+            session_repo,
+            project_repo,
+            pool,
+        )),
+        models: Arc::new(opencode_llm::ModelRegistry::new()),
+        config: Arc::new(std::sync::RwLock::new(opencode_core::Config::default())),
+        event_bus: opencode_core::bus::SharedEventBus::default(),
+        reconnection_store: opencode_server::streaming::ReconnectionStore::default(),
+        temp_db_dir: None,
+        connection_monitor: Arc::new(
+            opencode_server::streaming::conn_state::ConnectionMonitor::new(),
+        ),
+        share_server: Arc::new(std::sync::RwLock::new(
+            opencode_server::routes::share::ShareServer::with_default_config(),
+        )),
+        acp_enabled: false,
+        acp_stream: opencode_control_plane::AcpEventStream::new().into(),
+        acp_client_registry: Arc::new(tokio::sync::RwLock::new(
+            opencode_server::routes::acp_ws::AcpClientRegistry::new(),
+        )),
+        tool_registry: Arc::new(opencode_tools::ToolRegistry::new()),
+        session_hub: Arc::new(SessionHub::new(256)),
+    }
+}
+
+async fn start_ws_test_server(port: u16) -> (String, tokio::task::JoinHandle<()>) {
+    let state = create_ws_test_server_state();
+    let state_data = web::Data::new(state);
+
+    let bind_addr = format!("127.0.0.1:{}", port);
+    let std_listener = std::net::TcpListener::bind(&bind_addr).unwrap();
+    let actual_port = std_listener.local_addr().unwrap().port();
+    let ws_url = format!("ws://127.0.0.1:{}/ws/test-session", actual_port);
+
+    let handle = tokio::spawn(async move {
+        HttpServer::new(move || {
+            App::new()
+                .app_data(state_data.clone())
+                .service(web::scope("/ws").configure(opencode_server::routes::ws::init))
+        })
+        .listen(std_listener)
+        .unwrap()
+        .run()
+        .await
+        .unwrap();
+    });
+
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    (ws_url, handle)
+}
+
+#[tokio::test]
+async fn test_ws_connects_successfully() {
+    let (ws_url, server_handle) = start_ws_test_server(0).await;
+
+    let ws_url_with_session = ws_url.replace("/test-session", "?session_id=test-session");
+
+    let (mut ws, _) = tokio_tungstenite::connect_async(&ws_url_with_session)
+        .await
+        .expect("Should connect to WebSocket endpoint");
+
+    let msg = ws.next().await;
+    assert!(msg.is_some(), "Should receive a message after connection");
+
+    let ws_msg = msg.unwrap().expect("Message should not be error");
+    let text = ws_msg.into_text().expect("Should be text message");
+
+    let parsed: serde_json::Value = serde_json::from_str(&text).expect("Should parse as JSON");
+
+    assert_eq!(
+        parsed.get("type").and_then(|v| v.as_str()),
+        Some("connected"),
+        "First message should be Connected type"
+    );
+
+    assert_eq!(
+        parsed.get("session_id").and_then(|v| v.as_str()),
+        Some("test-session"),
+        "Session ID should be test-session"
+    );
+
+    ws_close(&mut ws).await;
+    server_handle.abort();
+}
+
+async fn ws_close(
+    ws: &mut tokio_tungstenite::WebSocketStream<
+        tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+    >,
+) {
+    let close_msg = WsMessage::Close(None);
+    let _ = ws.send(close_msg).await;
+    let _ = ws.next().await;
 }
