@@ -414,7 +414,7 @@
       "priority": "P0",
       "title": "Update ws.rs for session routing",
       "description": "Update server/src/routes/ws.rs to handle session-specific WebSocket routing",
-      "status": "todo",
+      "status": "completed",
       "test_criteria": [
         "AddIntegrationTest: verify WebSocket connects to correct session path",
         "AddRegressionTest: ensure ws.rs compiles with session routing"
@@ -423,7 +423,7 @@
         "cargo build -p opencode-server --lib",
         "cargo test -p opencode-server -- ws"
       ],
-      "impl_notes": "Extract session_id from WebSocket path. Register with SessionHub.",
+      "impl_notes": "Added PathParams struct to extract session_id from path. Updated ws_index to accept web::Query<PathParams>. Routes now support both /api/ws/{session_id} and /api/ws?session_id=xxx. Added SessionHub registration on connect and unregistration on disconnect. Integrated hub_receiver into the event loop to receive broadcast messages. Updated ServerState in lib.rs to include session_hub field. Fixed all test files to include session_hub.",
       "dependencies": [
         "P0-025-03"
       ]

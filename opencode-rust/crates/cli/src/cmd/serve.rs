@@ -82,6 +82,7 @@ async fn run_serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
         acp_stream: SharedAcpStream::default(),
         acp_client_registry: SharedAcpClientRegistry::default(),
         tool_registry,
+        session_hub: Arc::new(opencode_server::routes::ws::SessionHub::new(256)),
     };
 
     run_server(Arc::new(state), &host, port).await?;

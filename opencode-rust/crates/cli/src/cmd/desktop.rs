@@ -107,6 +107,7 @@ async fn run_desktop(args: DesktopArgs) -> Result<(), Box<dyn std::error::Error>
         acp_stream: SharedAcpStream::default(),
         acp_client_registry: SharedAcpClientRegistry::default(),
         tool_registry,
+        session_hub: Arc::new(opencode_server::routes::ws::SessionHub::new(256)),
     };
 
     #[cfg(feature = "desktop")]

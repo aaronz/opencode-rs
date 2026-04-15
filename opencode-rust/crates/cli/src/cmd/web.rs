@@ -49,6 +49,7 @@ pub struct WebServerState {
     pub acp_stream: SharedAcpStream,
     pub acp_client_registry: SharedAcpClientRegistry,
     pub tool_registry: Arc<opencode_tools::ToolRegistry>,
+    pub session_hub: Arc<opencode_server::routes::ws::SessionHub>,
 }
 
 impl WebServerState {
@@ -73,6 +74,7 @@ impl WebServerState {
             acp_stream: SharedAcpStream::default(),
             acp_client_registry: SharedAcpClientRegistry::default(),
             tool_registry: Arc::new(build_default_registry(None).await),
+            session_hub: Arc::new(opencode_server::routes::ws::SessionHub::new(256)),
         }
     }
 
@@ -90,6 +92,7 @@ impl WebServerState {
             acp_stream: self.acp_stream.clone(),
             acp_client_registry: self.acp_client_registry.clone(),
             tool_registry: self.tool_registry.clone(),
+            session_hub: self.session_hub.clone(),
         }
     }
 }

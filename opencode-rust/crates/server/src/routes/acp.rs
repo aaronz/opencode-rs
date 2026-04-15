@@ -94,6 +94,7 @@ mod tests {
                 AcpClientRegistry::new(),
             )),
             tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
+            session_hub: std::sync::Arc::new(crate::routes::ws::SessionHub::new(256)),
         }
     }
 
@@ -123,6 +124,7 @@ mod tests {
                 AcpClientRegistry::new(),
             )),
             tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
+            session_hub: std::sync::Arc::new(crate::routes::ws::SessionHub::new(256)),
         }
     }
 

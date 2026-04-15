@@ -19,6 +19,11 @@ use crate::streaming::{ReplayEntry, StreamMessage};
 use crate::ServerState;
 
 #[derive(Debug, Deserialize)]
+pub struct PathParams {
+    pub session_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum WsClientMessage {
     Run {
@@ -42,11 +47,13 @@ pub async fn ws_index(
     state: web::Data<ServerState>,
     req: HttpRequest,
     stream: web::Payload,
+    path_params: web::Query<PathParams>,
 ) -> Result<HttpResponse, Error> {
     let query = parse_query(req.query_string());
-    let handshake_session_id = query
-        .get("session_id")
-        .cloned()
+    let handshake_session_id = path_params
+        .session_id
+        .clone()
+        .or_else(|| query.get("session_id").cloned())
         .unwrap_or_else(|| "default".to_string());
     let incoming_token = query.get("token").cloned();
     let connection_id = format!("ws-{}-{}", handshake_session_id, uuid::Uuid::new_v4());
@@ -107,7 +114,15 @@ pub async fn ws_index(
 
     let state = state.into_inner();
     let conn_monitor = Arc::clone(&state.connection_monitor);
+    let session_hub = Arc::clone(&state.session_hub);
     let conn_id = connection_id.clone();
+    let hub_session_id = handshake_session_id.clone();
+    let hub_conn_id = connection_id.clone();
+
+    let mut hub_receiver = session_hub
+        .register_client(&handshake_session_id, &connection_id)
+        .await;
+
     actix_rt::spawn(async move {
         let (tx, mut rx) = mpsc::channel::<StreamMessage>(128);
         let mut last_heartbeat = Instant::now();
@@ -141,16 +156,31 @@ pub async fn ws_index(
         let mut bus_rx = state.event_bus.subscribe();
         actix_rt::spawn(async move {
             loop {
-                match bus_rx.recv().await {
-                    Ok(event) => {
-                        if let Some(message) = event_to_stream_message(event, &session_filter) {
-                            if tx_bus.send(message).await.is_err() {
-                                break;
+                tokio::select! {
+                    event = bus_rx.recv() => {
+                        match event {
+                            Ok(evt) => {
+                                if let Some(message) = event_to_stream_message(evt, &session_filter) {
+                                    if tx_bus.send(message).await.is_err() {
+                                        break;
+                                    }
+                                }
                             }
+                            Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                            Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
                         }
                     }
-                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
-                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                    hub_msg = hub_receiver.recv() => {
+                        match hub_msg {
+                            Ok(msg) => {
+                                if tx_bus.send(msg).await.is_err() {
+                                    break;
+                                }
+                            }
+                            Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                            Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                        }
+                    }
                 }
             }
         });
@@ -211,6 +241,7 @@ pub async fn ws_index(
                         Message::Close(reason) => {
                             info!("WS closed: {:?}", reason);
                             conn_monitor.unregister_connection(&conn_id_for_task, "client_close").await;
+                            session_hub.unregister_client(&hub_session_id, &hub_conn_id).await;
                             let _ = session.close(reason).await;
                             break;
                         }
@@ -361,6 +392,7 @@ fn event_to_stream_message(event: InternalEvent, session_id: &str) -> Option<Str
 }
 
 pub fn init(cfg: &mut web::ServiceConfig) {
+    cfg.route("/{session_id}", web::get().to(ws_index));
     cfg.route("", web::get().to(ws_index));
 }
 

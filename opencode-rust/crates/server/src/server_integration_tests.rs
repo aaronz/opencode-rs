@@ -46,6 +46,7 @@ mod tests {
                 crate::routes::acp_ws::AcpClientRegistry::new(),
             )),
             tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
+            session_hub: std::sync::Arc::new(crate::routes::ws::SessionHub::new(256)),
         }
     }
 
@@ -84,6 +85,7 @@ mod tests {
                 crate::routes::acp_ws::AcpClientRegistry::new(),
             )),
             tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
+            session_hub: std::sync::Arc::new(crate::routes::ws::SessionHub::new(256)),
         }
     }
 
@@ -1669,6 +1671,7 @@ mod security_tests {
                 crate::routes::acp_ws::AcpClientRegistry::new(),
             )),
             tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
+            session_hub: std::sync::Arc::new(crate::routes::ws::SessionHub::new(256)),
         }
     }
 
@@ -2101,6 +2104,7 @@ mod api_negative_tests {
                 crate::routes::acp_ws::AcpClientRegistry::new(),
             )),
             tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
+            session_hub: std::sync::Arc::new(crate::routes::ws::SessionHub::new(256)),
         }
     }
 
@@ -2139,6 +2143,7 @@ mod api_negative_tests {
                 crate::routes::acp_ws::AcpClientRegistry::new(),
             )),
             tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
+            session_hub: std::sync::Arc::new(crate::routes::ws::SessionHub::new(256)),
         }
     }
 
@@ -2814,6 +2819,7 @@ mod auth_negative_tests {
                 crate::routes::acp_ws::AcpClientRegistry::new(),
             )),
             tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
+            session_hub: std::sync::Arc::new(crate::routes::ws::SessionHub::new(256)),
         }
     }
 
