@@ -18,7 +18,7 @@
 | P0-024-04 | Create `server/src/routes/execute/mod.rs` route handler module | ✅ Done | | execute/mod.rs | P0-024-03 |
 | P0-024-05 | Create `server/src/routes/execute.rs` re-export | ✅ Done | | execute.rs | P0-024-04 |
 | P0-024-06 | Update `server/src/routes/mod.rs` to include execute routes | TODO | | routes/mod.rs | P0-024-05 |
-| P0-024-07 | Update `server/src/lib.rs` to mount `/api/sessions/{id}/execute` route | TODO | | lib.rs | P0-024-06 |
+| P0-024-07 | Update `server/src/lib.rs` to mount `/api/sessions/{id}/execute` route | ✅ Done | | routes/mod.rs | P0-024-06 |
 | P0-024-08 | Add `ToolRegistry` discovery integration in execute endpoint | TODO | | execute/integration.rs | tools::ToolRegistry |
 | P0-024-09 | Add `AgentExecutor` lifecycle management in execute endpoint | TODO | | execute/integration.rs | agent::AgentExecutor |
 | P0-024-10 | Add session state persistence after execution | TODO | | execute/integration.rs | storage::SessionStore |

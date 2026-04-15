@@ -122,7 +122,7 @@
       "priority": "P0",
       "title": "Mount /api/sessions/{id}/execute route",
       "description": "Update server/src/lib.rs to mount /api/sessions/{id}/execute route",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify route is accessible at correct path",
         "AddRegressionTest: ensure lib.rs compiles with new route mount"
@@ -131,7 +131,7 @@
         "cargo build -p opencode-server",
         "cargo test -p opencode-server --lib"
       ],
-      "impl_notes": "Use actix-web scope pattern for nested routes.",
+      "impl_notes": "Use actix-web scope pattern for nested routes. Route mounted via routes/mod.rs: cfg.service(web::scope(\"/sessions/{id}\").configure(execute::init));",
       "dependencies": [
         "P0-024-06"
       ]
