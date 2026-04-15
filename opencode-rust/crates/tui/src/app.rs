@@ -19,7 +19,9 @@ use crossterm::{
     cursor,
     event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, LeaveAlternateScreen},
+    terminal::{
+        disable_raw_mode, enable_raw_mode, Clear as TermClear, ClearType, LeaveAlternateScreen,
+    },
 };
 use opencode_auth::CredentialStore;
 use opencode_core::{
@@ -1296,6 +1298,7 @@ impl App {
             cursor::SetCursorStyle::BlinkingBlock,
             cursor::Show
         )?;
+        execute!(io::stdout(), TermClear(ClearType::All))?;
 
         loop {
             terminal.draw(|f| self.draw(f))?;
@@ -1598,10 +1601,13 @@ impl App {
                         self.command_palette_input.clear();
                     }
                     KeyCode::Enter => {
+                        let mode_before = self.mode.clone();
                         if let Some(cmd_name) = self.slash_command_dialog.get_selected_command() {
                             self.execute_slash_command(&cmd_name);
                         }
-                        self.mode = AppMode::Chat;
+                        if self.mode == mode_before {
+                            self.mode = AppMode::Chat;
+                        }
                         self.command_palette_input.clear();
                     }
                     KeyCode::Char(c) => {
