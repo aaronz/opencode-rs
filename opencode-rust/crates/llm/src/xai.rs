@@ -1,5 +1,5 @@
-use crate::provider::{Model, Provider, ProviderConfig, StreamingCallback};
 use crate::provider::sealed;
+use crate::provider::{Model, Provider, ProviderConfig, StreamingCallback};
 use opencode_core::OpenCodeError;
 
 pub struct XaiProvider {

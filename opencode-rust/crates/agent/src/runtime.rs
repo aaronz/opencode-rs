@@ -10,7 +10,7 @@ use opencode_tools::{ToolContext, ToolRegistry};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-use crate::{agent::sealed, Agent, AgentResponse, AgentType};
+use crate::{Agent, AgentResponse, AgentType};
 
 /// Result from a subagent execution, containing the response
 /// and metadata about the subagent run.
@@ -481,6 +481,7 @@ impl AgentRuntime {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::sealed;
     use opencode_core::OpenCodeError;
 
     #[test]

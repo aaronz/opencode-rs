@@ -472,6 +472,7 @@ mod tests {
     #[derive(Clone)]
     struct TestTool;
     impl crate::sealed::Sealed for TestTool {}
+    #[async_trait]
     impl Tool for TestTool {
         fn name(&self) -> &str {
             "test_tool"
@@ -549,6 +550,7 @@ mod tests {
     #[derive(Clone)]
     struct TestToolWithArgs;
     impl crate::sealed::Sealed for TestToolWithArgs {}
+    #[async_trait]
     impl Tool for TestToolWithArgs {
         fn name(&self) -> &str {
             "test_tool_with_args"
@@ -589,6 +591,7 @@ mod tests {
         #[derive(Clone)]
         struct ToolA;
         impl crate::sealed::Sealed for ToolA {}
+        #[async_trait]
         impl Tool for ToolA {
             fn name(&self) -> &str {
                 "tool_a"
@@ -611,6 +614,7 @@ mod tests {
         #[derive(Clone)]
         struct ToolB;
         impl crate::sealed::Sealed for ToolB {}
+        #[async_trait]
         impl Tool for ToolB {
             fn name(&self) -> &str {
                 "tool_b"
@@ -727,6 +731,7 @@ mod tests {
         #[derive(Clone)]
         struct CustomTool;
         impl crate::sealed::Sealed for CustomTool {}
+        #[async_trait]
         impl Tool for CustomTool {
             fn name(&self) -> &str {
                 "collision_tool"
@@ -749,6 +754,7 @@ mod tests {
         #[derive(Clone)]
         struct BuiltinTool;
         impl crate::sealed::Sealed for BuiltinTool {}
+        #[async_trait]
         impl Tool for BuiltinTool {
             fn name(&self) -> &str {
                 "collision_tool"
@@ -789,6 +795,7 @@ mod tests {
         #[derive(Clone)]
         struct GlobalTool;
         impl crate::sealed::Sealed for GlobalTool {}
+        #[async_trait]
         impl Tool for GlobalTool {
             fn name(&self) -> &str {
                 "collision_tool"
@@ -811,6 +818,7 @@ mod tests {
         #[derive(Clone)]
         struct PluginTool;
         impl crate::sealed::Sealed for PluginTool {}
+        #[async_trait]
         impl Tool for PluginTool {
             fn name(&self) -> &str {
                 "collision_tool"
@@ -851,6 +859,7 @@ mod tests {
         #[derive(Clone)]
         struct ProjectTool;
         impl crate::sealed::Sealed for ProjectTool {}
+        #[async_trait]
         impl Tool for ProjectTool {
             fn name(&self) -> &str {
                 "collision_tool"
@@ -873,6 +882,7 @@ mod tests {
         #[derive(Clone)]
         struct PluginTool;
         impl crate::sealed::Sealed for PluginTool {}
+        #[async_trait]
         impl Tool for PluginTool {
             fn name(&self) -> &str {
                 "collision_tool"
@@ -913,6 +923,7 @@ mod tests {
         #[derive(Clone)]
         struct GlobalTool;
         impl crate::sealed::Sealed for GlobalTool {}
+        #[async_trait]
         impl Tool for GlobalTool {
             fn name(&self) -> &str {
                 "collision_tool"
@@ -935,6 +946,7 @@ mod tests {
         #[derive(Clone)]
         struct ProjectTool;
         impl crate::sealed::Sealed for ProjectTool {}
+        #[async_trait]
         impl Tool for ProjectTool {
             fn name(&self) -> &str {
                 "collision_tool"
@@ -975,6 +987,7 @@ mod tests {
         #[derive(Clone)]
         struct FirstTool;
         impl crate::sealed::Sealed for FirstTool {}
+        #[async_trait]
         impl Tool for FirstTool {
             fn name(&self) -> &str {
                 "collision_tool"
@@ -997,6 +1010,7 @@ mod tests {
         #[derive(Clone)]
         struct SecondTool;
         impl crate::sealed::Sealed for SecondTool {}
+        #[async_trait]
         impl Tool for SecondTool {
             fn name(&self) -> &str {
                 "collision_tool"
@@ -1037,6 +1051,7 @@ mod tests {
         #[derive(Clone)]
         struct ToolA;
         impl crate::sealed::Sealed for ToolA {}
+        #[async_trait]
         impl Tool for ToolA {
             fn name(&self) -> &str {
                 "test_tool"
@@ -1059,6 +1074,7 @@ mod tests {
         #[derive(Clone)]
         struct ToolB;
         impl crate::sealed::Sealed for ToolB {}
+        #[async_trait]
         impl Tool for ToolB {
             fn name(&self) -> &str {
                 "test_tool"
@@ -1113,6 +1129,7 @@ mod tests {
         #[derive(Clone)]
         struct BuiltinTool;
         impl crate::sealed::Sealed for BuiltinTool {}
+        #[async_trait]
         impl Tool for BuiltinTool {
             fn name(&self) -> &str {
                 "my_tool"
@@ -1135,6 +1152,7 @@ mod tests {
         #[derive(Clone)]
         struct CustomTool;
         impl crate::sealed::Sealed for CustomTool {}
+        #[async_trait]
         impl Tool for CustomTool {
             fn name(&self) -> &str {
                 "my_tool"
@@ -1211,6 +1229,7 @@ mod tests {
     impl crate::sealed::Sealed for SafeTestTool {}
 
     #[async_trait]
+    #[async_trait]
     impl Tool for SafeTestTool {
         fn name(&self) -> &str {
             "safe_test_tool"
@@ -1262,6 +1281,7 @@ mod tests {
 
     impl crate::sealed::Sealed for UnsafeTestTool {}
 
+    #[async_trait]
     #[async_trait]
     impl Tool for UnsafeTestTool {
         fn name(&self) -> &str {
@@ -1387,6 +1407,7 @@ mod tests {
         #[derive(Clone)]
         struct AnotherSafeTool;
         impl crate::sealed::Sealed for AnotherSafeTool {}
+        #[async_trait]
         impl Tool for AnotherSafeTool {
             fn name(&self) -> &str {
                 "another_safe_tool"
@@ -1444,6 +1465,7 @@ mod tests {
         #[derive(Clone)]
         struct SafeFailingTool;
         impl crate::sealed::Sealed for SafeFailingTool {}
+        #[async_trait]
         impl Tool for SafeFailingTool {
             fn name(&self) -> &str {
                 "safe_failing_tool"
@@ -1495,6 +1517,7 @@ mod tests {
         #[derive(Clone)]
         struct TtlTestTool;
         impl crate::sealed::Sealed for TtlTestTool {}
+        #[async_trait]
         impl Tool for TtlTestTool {
             fn name(&self) -> &str {
                 "ttl_test_tool"
@@ -1549,6 +1572,7 @@ mod tests {
         #[derive(Clone)]
         struct FileDepTestTool;
         impl crate::sealed::Sealed for FileDepTestTool {}
+        #[async_trait]
         impl Tool for FileDepTestTool {
             fn name(&self) -> &str {
                 "file_dep_test_tool"
@@ -1619,6 +1643,7 @@ mod tests {
         #[derive(Clone)]
         struct MultiFileDepTool;
         impl crate::sealed::Sealed for MultiFileDepTool {}
+        #[async_trait]
         impl Tool for MultiFileDepTool {
             fn name(&self) -> &str {
                 "multi_file_dep_tool"
@@ -1700,6 +1725,7 @@ mod tests {
         #[derive(Clone)]
         struct ToolAlpha;
         impl crate::sealed::Sealed for ToolAlpha {}
+        #[async_trait]
         impl Tool for ToolAlpha {
             fn name(&self) -> &str {
                 "alpha"
@@ -1722,6 +1748,7 @@ mod tests {
         #[derive(Clone)]
         struct ToolBeta;
         impl crate::sealed::Sealed for ToolBeta {}
+        #[async_trait]
         impl Tool for ToolBeta {
             fn name(&self) -> &str {
                 "beta"
@@ -1801,6 +1828,7 @@ mod tests {
         #[derive(Clone)]
         struct ParallelTool;
         impl crate::sealed::Sealed for ParallelTool {}
+        #[async_trait]
         impl Tool for ParallelTool {
             fn name(&self) -> &str {
                 "parallel_tool"
@@ -1855,6 +1883,7 @@ mod tests {
         #[derive(Clone)]
         struct ListToolA;
         impl crate::sealed::Sealed for ListToolA {}
+        #[async_trait]
         impl Tool for ListToolA {
             fn name(&self) -> &str {
                 "list_tool_a"
@@ -1877,6 +1906,7 @@ mod tests {
         #[derive(Clone)]
         struct ListToolB;
         impl crate::sealed::Sealed for ListToolB {}
+        #[async_trait]
         impl Tool for ListToolB {
             fn name(&self) -> &str {
                 "list_tool_b"
@@ -1913,6 +1943,7 @@ mod tests {
         #[derive(Clone)]
         struct BatchTool1;
         impl crate::sealed::Sealed for BatchTool1 {}
+        #[async_trait]
         impl Tool for BatchTool1 {
             fn name(&self) -> &str {
                 "batch_tool_1"
@@ -1935,6 +1966,7 @@ mod tests {
         #[derive(Clone)]
         struct BatchTool2;
         impl crate::sealed::Sealed for BatchTool2 {}
+        #[async_trait]
         impl Tool for BatchTool2 {
             fn name(&self) -> &str {
                 "batch_tool_2"
@@ -1972,6 +2004,7 @@ mod tests {
         #[derive(Clone)]
         struct PluginBatchTool;
         impl crate::sealed::Sealed for PluginBatchTool {}
+        #[async_trait]
         impl Tool for PluginBatchTool {
             fn name(&self) -> &str {
                 "plugin_batch_tool"
@@ -2004,6 +2037,7 @@ mod tests {
         #[derive(Clone)]
         struct CacheTestTool;
         impl crate::sealed::Sealed for CacheTestTool {}
+        #[async_trait]
         impl Tool for CacheTestTool {
             fn name(&self) -> &str {
                 "cache_test_tool"
@@ -2073,6 +2107,7 @@ mod tests {
         #[derive(Clone)]
         struct ContextTool;
         impl crate::sealed::Sealed for ContextTool {}
+        #[async_trait]
         impl Tool for ContextTool {
             fn name(&self) -> &str {
                 "context_tool"
@@ -2124,6 +2159,7 @@ mod tests {
         #[derive(Clone)]
         struct FailingTool;
         impl crate::sealed::Sealed for FailingTool {}
+        #[async_trait]
         impl Tool for FailingTool {
             fn name(&self) -> &str {
                 "failing_tool"
@@ -2171,6 +2207,7 @@ mod tests {
         #[derive(Clone)]
         struct DisabledTestTool;
         impl crate::sealed::Sealed for DisabledTestTool {}
+        #[async_trait]
         impl Tool for DisabledTestTool {
             fn name(&self) -> &str {
                 "disabled_test_tool"
@@ -2215,6 +2252,7 @@ mod tests {
         #[derive(Clone)]
         struct ComplexArgsTool;
         impl crate::sealed::Sealed for ComplexArgsTool {}
+        #[async_trait]
         impl Tool for ComplexArgsTool {
             fn name(&self) -> &str {
                 "complex_args_tool"
@@ -2276,6 +2314,7 @@ mod tests {
         #[derive(Clone)]
         struct CloneTestTool;
         impl crate::sealed::Sealed for CloneTestTool {}
+        #[async_trait]
         impl Tool for CloneTestTool {
             fn name(&self) -> &str {
                 "clone_test_tool"

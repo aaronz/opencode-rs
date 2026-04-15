@@ -6,6 +6,8 @@ pub mod acp_e2e_tests;
 #[cfg(test)]
 pub mod acp_transport_tests;
 #[cfg(test)]
+pub mod agent_execute_api_tests;
+#[cfg(test)]
 pub mod agent_llm_tests;
 #[cfg(test)]
 pub mod agent_switch_tests;

@@ -196,6 +196,7 @@ mod tests {
     #[test]
     fn model_selection_dialog_confirms_selected_model() {
         let mut dialog = ModelSelectionDialog::new(Theme::default());
+        dialog.models = vec![make_model("gpt-4o", "GPT-4o", "OpenAI")];
 
         let action = dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
         assert_eq!(action, DialogAction::Confirm("gpt-4o".into()));

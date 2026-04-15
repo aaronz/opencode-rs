@@ -234,7 +234,7 @@
       "priority": "P0",
       "title": "Create agent_execute_api_tests.rs",
       "description": "Create integration test file tests/src/agent_execute_api_tests.rs for execute API",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify test file compiles and runs",
         "AddRegressionTest: ensure test infrastructure is properly set up"
@@ -253,13 +253,13 @@
       "priority": "P0",
       "title": "Add test: valid session execute returns 200",
       "description": "Add integration test: valid session execute returns 200 status code",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify valid session execute returns HTTP 200",
         "AddRegressionTest: ensure test covers happy path scenario"
       ],
       "test_commands": [
-        "cargo test -p opencode-integration-tests agent_execute_api_tests::test_valid_session_execute_returns_200"
+        "cargo test -p opencode-integration-tests agent_execute_api_tests::integration_tests::test_valid_session_execute_returns_200"
       ],
       "impl_notes": "Use TestApp or MockServer for testing. Verify response body contains execution result.",
       "dependencies": [

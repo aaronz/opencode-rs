@@ -25,7 +25,7 @@
 | P0-024-11 | Add request validation (session exists, auth) | TODO | | execute/mod.rs | auth middleware |
 | P0-024-12 | Add streaming response with SSE formatting | TODO | | execute/stream.rs | P0-024-02 |
 | P0-024-13 | Create integration test file `tests/src/agent_execute_api_tests.rs` | TODO | | NEW | P0-024-07 |
-| P0-024-14 | Add test: valid session execute returns 200 | TODO | | tests/src/agent_execute_api_tests.rs | P0-024-13 |
+| P0-024-14 | Add test: valid session execute returns 200 | ✅ Done | | tests/src/agent_execute_api_tests.rs | P0-024-13 |
 | P0-024-15 | Add test: invalid session returns 404 | TODO | | tests/src/agent_execute_api_tests.rs | P0-024-14 |
 | P0-024-16 | Add test: unauthenticated returns 401 | TODO | | tests/src/agent_execute_api_tests.rs | P0-024-15 |
 | P0-024-17 | Add test: tool execution results in response | TODO | | tests/src/agent_execute_api_tests.rs | P0-024-16 |

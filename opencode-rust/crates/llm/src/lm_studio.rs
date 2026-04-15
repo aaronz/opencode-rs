@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-use crate::provider::{ChatMessage, ChatResponse, Provider, StreamingCallback};
 use crate::provider::sealed;
+use crate::provider::{ChatMessage, ChatResponse, Provider, StreamingCallback};
 use opencode_core::OpenCodeError;
 
 pub struct LmStudioProvider {

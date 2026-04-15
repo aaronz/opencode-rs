@@ -20,13 +20,37 @@ impl ConnectProviderDialog {
     pub fn new(theme: Theme) -> Self {
         Self {
             selected_index: 0,
-            providers: vec![
-                ("openai".to_string(), "OpenAI".to_string()),
-                ("anthropic".to_string(), "Anthropic".to_string()),
-                ("ollama".to_string(), "Ollama".to_string()),
-            ],
+            providers: Self::all_providers(),
             theme,
         }
+    }
+
+    pub fn set_providers(&mut self, providers: Vec<(String, String)>) {
+        self.providers = providers;
+        self.selected_index = 0;
+    }
+
+    fn all_providers() -> Vec<(String, String)> {
+        vec![
+            ("openai".to_string(), "OpenAI".to_string()),
+            ("anthropic".to_string(), "Anthropic".to_string()),
+            ("google".to_string(), "Google".to_string()),
+            ("ollama".to_string(), "Ollama".to_string()),
+            ("lmstudio".to_string(), "LM Studio".to_string()),
+            ("azure".to_string(), "Azure".to_string()),
+            ("openrouter".to_string(), "OpenRouter".to_string()),
+            ("mistral".to_string(), "Mistral".to_string()),
+            ("groq".to_string(), "Groq".to_string()),
+            ("deepinfra".to_string(), "DeepInfra".to_string()),
+            ("cerebras".to_string(), "Cerebras".to_string()),
+            ("cohere".to_string(), "Cohere".to_string()),
+            ("togetherai".to_string(), "Together AI".to_string()),
+            ("perplexity".to_string(), "Perplexity".to_string()),
+            ("xai".to_string(), "xAI".to_string()),
+            ("huggingface".to_string(), "Hugging Face".to_string()),
+            ("copilot".to_string(), "GitHub Copilot".to_string()),
+            ("ai21".to_string(), "AI21".to_string()),
+        ]
     }
 }
 
@@ -71,18 +95,30 @@ impl Dialog for ConnectProviderDialog {
         match key.code {
             KeyCode::Esc => DialogAction::Close,
             KeyCode::Up => {
-                if self.selected_index == 0 {
-                    self.selected_index = self.providers.len().saturating_sub(1);
+                if self.providers.is_empty() {
+                    DialogAction::Close
                 } else {
-                    self.selected_index -= 1;
+                    if self.selected_index == 0 {
+                        self.selected_index = self.providers.len().saturating_sub(1);
+                    } else {
+                        self.selected_index -= 1;
+                    }
+                    DialogAction::None
+                }
+            }
+            KeyCode::Down => {
+                if !self.providers.is_empty() {
+                    self.selected_index = (self.selected_index + 1) % self.providers.len();
                 }
                 DialogAction::None
             }
-            KeyCode::Down => {
-                self.selected_index = (self.selected_index + 1) % self.providers.len();
-                DialogAction::None
+            KeyCode::Enter => {
+                if self.providers.is_empty() {
+                    DialogAction::Close
+                } else {
+                    DialogAction::Confirm(self.providers[self.selected_index].0.clone())
+                }
             }
-            KeyCode::Enter => DialogAction::Confirm(self.providers[self.selected_index].0.clone()),
             _ => DialogAction::None,
         }
     }
@@ -98,5 +134,25 @@ mod tests {
         let mut dialog = ConnectProviderDialog::new(Theme::default());
         let action = dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
         assert_eq!(action, DialogAction::Confirm("openai".into()));
+    }
+
+    #[test]
+    fn connect_provider_dialog_navigation() {
+        let mut dialog = ConnectProviderDialog::new(Theme::default());
+        assert_eq!(dialog.providers.len(), 18);
+
+        dialog.handle_input(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+        assert_eq!(dialog.selected_index, 1);
+
+        dialog.handle_input(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
+        assert_eq!(dialog.selected_index, 0);
+    }
+
+    #[test]
+    fn connect_provider_dialog_empty_list_closes() {
+        let mut dialog = ConnectProviderDialog::new(Theme::default());
+        dialog.set_providers(vec![]);
+        let action = dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert_eq!(action, DialogAction::Close);
     }
 }

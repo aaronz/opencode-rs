@@ -2,9 +2,9 @@ use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
+use crate::provider::sealed;
 use crate::provider::{Provider, StreamingCallback};
 use crate::provider_abstraction::AnthropicThinkingConfig;
-use crate::provider::sealed;
 use opencode_core::OpenCodeError;
 
 pub struct AnthropicProvider {
