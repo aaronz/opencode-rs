@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use opencode_core::OpenCodeError;
 
 use crate::auth::{AuthStrategy, ProviderAuthConfig};
+use crate::provider::sealed;
 use crate::provider::Provider;
 
 /// Unified provider adapter that uses AuthStrategy for authentication
@@ -48,6 +49,8 @@ impl OpenAICompatibleAdapter {
         self
     }
 }
+
+impl sealed::Sealed for OpenAICompatibleAdapter {}
 
 #[async_trait]
 impl Provider for OpenAICompatibleAdapter {
@@ -122,6 +125,8 @@ impl AnthropicAdapter {
     }
 }
 
+impl sealed::Sealed for AnthropicAdapter {}
+
 #[async_trait]
 impl Provider for AnthropicAdapter {
     async fn complete(
@@ -189,6 +194,8 @@ impl LocalEndpointAdapter {
         }
     }
 }
+
+impl sealed::Sealed for LocalEndpointAdapter {}
 
 #[async_trait]
 impl Provider for LocalEndpointAdapter {

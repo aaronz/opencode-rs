@@ -3,6 +3,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
 use crate::provider::{Provider, StreamingCallback};
+use crate::provider::sealed;
 use opencode_core::OpenCodeError;
 
 pub struct AzureProvider {
@@ -53,6 +54,8 @@ impl AzureProvider {
         )
     }
 }
+
+impl sealed::Sealed for AzureProvider {}
 
 #[async_trait]
 impl Provider for AzureProvider {

@@ -1,4 +1,5 @@
 use crate::provider::{Model, Provider, ProviderConfig, StreamingCallback};
+use crate::provider::sealed;
 use opencode_core::OpenCodeError;
 
 pub struct CerebrasProvider {
@@ -10,6 +11,8 @@ impl CerebrasProvider {
         Self { config }
     }
 }
+
+impl sealed::Sealed for CerebrasProvider {}
 
 #[async_trait::async_trait]
 impl Provider for CerebrasProvider {

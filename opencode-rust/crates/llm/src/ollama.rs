@@ -3,6 +3,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
 use crate::provider::{ChatMessage, ChatResponse, Provider, StreamingCallback};
+use crate::provider::sealed;
 use opencode_core::OpenCodeError;
 
 pub struct OllamaProvider {
@@ -70,6 +71,8 @@ impl OllamaProvider {
         format!("{}/api/chat", self.base_url)
     }
 }
+
+impl sealed::Sealed for OllamaProvider {}
 
 #[async_trait]
 impl Provider for OllamaProvider {

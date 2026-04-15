@@ -1,4 +1,5 @@
 use crate::provider::{Model, Provider, ProviderConfig, StreamingCallback};
+use crate::provider::sealed;
 use opencode_core::OpenCodeError;
 use reqwest::Client;
 use serde_json::Value;
@@ -25,7 +26,10 @@ impl SapAiCoreServiceKey {
 
         Some(Self {
             client_id: key.get("clientid").and_then(|v| v.as_str())?.to_string(),
-            client_secret: key.get("clientsecret").and_then(|v| v.as_str())?.to_string(),
+            client_secret: key
+                .get("clientsecret")
+                .and_then(|v| v.as_str())?
+                .to_string(),
             url: key.get("url").and_then(|v| v.as_str())?.to_string(),
             resource_group: key
                 .get("service_group")
@@ -76,18 +80,21 @@ impl SapAiCoreProvider {
             )));
         }
 
-        let token_response: Value = response
-            .json()
-            .await
-            .map_err(|e| OpenCodeError::Llm(format!("Failed to parse SAP AI Core token response: {}", e)))?;
+        let token_response: Value = response.json().await.map_err(|e| {
+            OpenCodeError::Llm(format!("Failed to parse SAP AI Core token response: {}", e))
+        })?;
 
         token_response
             .get("access_token")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string())
-            .ok_or_else(|| OpenCodeError::Llm("SAP AI Core token response missing access_token".to_string()))
+            .ok_or_else(|| {
+                OpenCodeError::Llm("SAP AI Core token response missing access_token".to_string())
+            })
     }
 }
+
+impl sealed::Sealed for SapAiCoreProvider {}
 
 #[async_trait::async_trait]
 impl Provider for SapAiCoreProvider {
@@ -95,8 +102,7 @@ impl Provider for SapAiCoreProvider {
         let token = self.get_access_token().await?;
         let api_url = format!(
             "{}/inference/deployments/{}/completions",
-            self.service_key.url,
-            self.config.model
+            self.service_key.url, self.config.model
         );
 
         let input = if let Some(ctx) = context {
@@ -110,7 +116,13 @@ impl Provider for SapAiCoreProvider {
             .post(&api_url)
             .header("Authorization", format!("Bearer {}", token))
             .header("Content-Type", "application/json")
-            .header("AI-Resource-Group", self.service_key.resource_group.as_deref().unwrap_or("default"));
+            .header(
+                "AI-Resource-Group",
+                self.service_key
+                    .resource_group
+                    .as_deref()
+                    .unwrap_or("default"),
+            );
 
         if let Some(rg) = &self.service_key.resource_group {
             request = request.header("AI-Resource-Group", rg);
@@ -137,10 +149,9 @@ impl Provider for SapAiCoreProvider {
             )));
         }
 
-        let payload: Value = response
-            .json()
-            .await
-            .map_err(|e| OpenCodeError::Llm(format!("Failed to parse SAP AI Core response: {}", e)))?;
+        let payload: Value = response.json().await.map_err(|e| {
+            OpenCodeError::Llm(format!("Failed to parse SAP AI Core response: {}", e))
+        })?;
 
         payload
             .get("choices")
@@ -158,7 +169,9 @@ impl Provider for SapAiCoreProvider {
         _prompt: &str,
         mut _callback: StreamingCallback,
     ) -> Result<(), OpenCodeError> {
-        Err(OpenCodeError::Llm("SAP AI Core streaming not yet supported".to_string()))
+        Err(OpenCodeError::Llm(
+            "SAP AI Core streaming not yet supported".to_string(),
+        ))
     }
 
     fn get_models(&self) -> Vec<Model> {
@@ -195,7 +208,8 @@ impl CloudflareProvider {
         let account_id = env::var("CLOUDFLARE_ACCOUNT_ID").ok()?;
         let gateway_id = env::var("CLOUDFLARE_AI_GATEWAY_ID").ok();
         let config = ProviderConfig {
-            model: env::var("CLOUDFLARE_MODEL").unwrap_or_else(|_| "@cf/meta/llama-3.1-8b-instruct".to_string()),
+            model: env::var("CLOUDFLARE_MODEL")
+                .unwrap_or_else(|_| "@cf/meta/llama-3.1-8b-instruct".to_string()),
             api_key: env::var("CLOUDFLARE_API_TOKEN").unwrap_or_default(),
             temperature: 0.7,
         };
@@ -216,6 +230,8 @@ impl CloudflareProvider {
         }
     }
 }
+
+impl sealed::Sealed for CloudflareProvider {}
 
 #[async_trait::async_trait]
 impl Provider for CloudflareProvider {
@@ -250,10 +266,9 @@ impl Provider for CloudflareProvider {
             )));
         }
 
-        let payload: Value = response
-            .json()
-            .await
-            .map_err(|e| OpenCodeError::Llm(format!("Failed to parse Cloudflare response: {}", e)))?;
+        let payload: Value = response.json().await.map_err(|e| {
+            OpenCodeError::Llm(format!("Failed to parse Cloudflare response: {}", e))
+        })?;
 
         payload
             .get("result")
@@ -274,7 +289,9 @@ impl Provider for CloudflareProvider {
         _prompt: &str,
         mut _callback: StreamingCallback,
     ) -> Result<(), OpenCodeError> {
-        Err(OpenCodeError::Llm("Cloudflare streaming not yet supported".to_string()))
+        Err(OpenCodeError::Llm(
+            "Cloudflare streaming not yet supported".to_string(),
+        ))
     }
 
     fn get_models(&self) -> Vec<Model> {

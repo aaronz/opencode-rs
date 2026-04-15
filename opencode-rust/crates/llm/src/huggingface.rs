@@ -1,3 +1,4 @@
+use crate::provider::sealed;
 use async_trait::async_trait;
 use futures_util::StreamExt;
 use reqwest::Client;
@@ -82,6 +83,8 @@ impl HuggingFaceProvider {
             })
     }
 }
+
+impl sealed::Sealed for HuggingFaceProvider {}
 
 #[async_trait]
 impl Provider for HuggingFaceProvider {

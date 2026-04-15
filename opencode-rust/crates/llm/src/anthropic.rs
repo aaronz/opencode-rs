@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::provider::{Provider, StreamingCallback};
 use crate::provider_abstraction::AnthropicThinkingConfig;
+use crate::provider::sealed;
 use opencode_core::OpenCodeError;
 
 pub struct AnthropicProvider {
@@ -73,6 +74,8 @@ impl AnthropicProvider {
         self
     }
 }
+
+impl sealed::Sealed for AnthropicProvider {}
 
 #[async_trait]
 impl Provider for AnthropicProvider {

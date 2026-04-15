@@ -1,4 +1,5 @@
 use crate::provider::{Model, Provider, ProviderConfig, StreamingCallback};
+use crate::provider::sealed;
 use opencode_core::OpenCodeError;
 
 pub struct TogetherAiProvider {
@@ -10,6 +11,8 @@ impl TogetherAiProvider {
         Self { config }
     }
 }
+
+impl sealed::Sealed for TogetherAiProvider {}
 
 #[async_trait::async_trait]
 impl Provider for TogetherAiProvider {

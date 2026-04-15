@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
+use crate::provider::sealed;
 use crate::provider::{Provider, StreamingCallback};
 use opencode_core::OpenCodeError;
 
@@ -71,6 +72,8 @@ impl GoogleProvider {
         self
     }
 }
+
+impl sealed::Sealed for GoogleProvider {}
 
 #[async_trait]
 impl Provider for GoogleProvider {

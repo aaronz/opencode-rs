@@ -1,4 +1,5 @@
 use crate::provider::{Model, Provider, ProviderConfig, StreamingCallback};
+use crate::provider::sealed;
 use opencode_core::OpenCodeError;
 use std::env;
 
@@ -85,6 +86,8 @@ enum BedrockCredentials {
         session_name: String,
     },
 }
+
+impl sealed::Sealed for BedrockProvider {}
 
 #[async_trait::async_trait]
 impl Provider for BedrockProvider {

@@ -1,3 +1,4 @@
+use crate::provider::sealed;
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -349,6 +350,8 @@ impl OpenAiProvider {
         })
     }
 }
+
+impl sealed::Sealed for OpenAiProvider {}
 
 #[async_trait]
 impl Provider for OpenAiProvider {

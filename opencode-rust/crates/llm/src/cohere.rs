@@ -1,4 +1,5 @@
 use crate::provider::{Model, Provider, ProviderConfig, StreamingCallback};
+use crate::provider::sealed;
 use opencode_core::OpenCodeError;
 
 pub struct CohereProvider {
@@ -10,6 +11,8 @@ impl CohereProvider {
         Self { config }
     }
 }
+
+impl sealed::Sealed for CohereProvider {}
 
 #[async_trait::async_trait]
 impl Provider for CohereProvider {
