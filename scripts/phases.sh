@@ -20,9 +20,12 @@ run_phase_gap_analysis() {
 - 必须直接在当前 session 中完成所有分析工作
 - 只使用 Read、Write、Edit、Grep、LSP 等直接工具
 
+## PRD
+$(cat $prd_path)
+
 ## 任务
 1. 读取当前实现目录结构（src/目录、iterations/src/目录等）
-2. 读取PRD.md识别核心功能需求
+2. 基于上述PRD识别核心功能需求
 3. 对比实现与PRD的差距
 
 ## 分析维度

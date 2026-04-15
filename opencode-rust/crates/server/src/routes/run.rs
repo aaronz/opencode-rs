@@ -64,7 +64,7 @@ fn ollama_base_url(config: &opencode_core::Config) -> Option<String> {
         .or_else(|| std::env::var("OLLAMA_BASE_URL").ok())
 }
 
-fn build_provider(
+pub fn build_provider(
     provider_id: &str,
     model: &str,
     config: &opencode_core::Config,
