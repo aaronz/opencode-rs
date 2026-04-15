@@ -11,6 +11,8 @@ opencode-storage = { path = "../storage" }
 opencode-llm = { path = "../llm" }
 opencode-mcp = { path = "../mcp" }
 opencode-control-plane = { path = "../control-plane" }
+opencode-tools = { path = "../tools" }
+opencode-agent = { path = "../agent" }
 actix-web = { workspace = true }
 actix-cors = { workspace = true }
 actix-web-lab = { workspace = true }
@@ -34,3 +36,4 @@ utoipa-actix-web = "0.1"
 
 [dev-dependencies]
 tempfile = "3"
+async-trait = "0.1"
