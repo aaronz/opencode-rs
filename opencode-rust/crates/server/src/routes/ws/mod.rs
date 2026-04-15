@@ -578,4 +578,127 @@ mod ws_lifecycle_tests {
             _ => panic!("expected SessionUpdate variant"),
         }
     }
+
+    #[tokio::test]
+    async fn test_disconnect_removes_client_from_hub() {
+        let hub = SessionHub::new(256);
+
+        let session_id = "disconnect-test-session";
+        let client_id = "disconnect-test-client";
+
+        let _receiver = hub.register_client(session_id, client_id).await;
+
+        assert_eq!(hub.get_session_client_count(session_id).await, 1);
+        assert_eq!(hub.total_client_count().await, 1);
+        assert_eq!(hub.session_count().await, 1);
+
+        hub.unregister_client(session_id, client_id).await;
+
+        assert_eq!(hub.get_session_client_count(session_id).await, 0);
+        assert_eq!(hub.total_client_count().await, 0);
+        assert_eq!(hub.session_count().await, 0);
+    }
+
+    #[tokio::test]
+    async fn test_disconnect_remaining_clients_still_receive_events() {
+        let hub = SessionHub::new(256);
+
+        let session_id = "disconnect-regression-session";
+
+        let mut receiver1 = hub.register_client(session_id, "client-1").await;
+        let mut receiver2 = hub.register_client(session_id, "client-2").await;
+        let mut receiver3 = hub.register_client(session_id, "client-3").await;
+
+        assert_eq!(hub.get_session_client_count(session_id).await, 3);
+
+        hub.unregister_client(session_id, "client-1").await;
+        assert_eq!(hub.get_session_client_count(session_id).await, 2);
+
+        let broadcast_msg = StreamMessage::Message {
+            session_id: session_id.to_string(),
+            content: "Event after disconnect".to_string(),
+            role: "assistant".to_string(),
+        };
+        hub.broadcast(session_id, broadcast_msg).await;
+
+        let msg2 = receiver2
+            .recv()
+            .await
+            .expect("client-2 should still receive events after client-1 disconnect");
+        let msg3 = receiver3
+            .recv()
+            .await
+            .expect("client-3 should still receive events after client-1 disconnect");
+
+        match (&msg2, &msg3) {
+            (
+                StreamMessage::Message { content: c2, .. },
+                StreamMessage::Message { content: c3, .. },
+            ) => {
+                assert_eq!(c2, "Event after disconnect");
+                assert_eq!(c3, "Event after disconnect");
+            }
+            _ => panic!("expected Message variant"),
+        }
+
+        let err1 = receiver1.try_recv();
+        assert!(
+            err1.is_err(),
+            "disconnected client-1 should not receive events"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_disconnect_last_client_session_removed() {
+        let hub = SessionHub::new(256);
+
+        let session_id = "last-client-disconnect";
+
+        let receiver = hub.register_client(session_id, "only-client").await;
+        assert_eq!(hub.session_count().await, 1);
+        assert_eq!(hub.get_session_client_count(session_id).await, 1);
+
+        drop(receiver);
+        hub.unregister_client(session_id, "only-client").await;
+
+        assert_eq!(hub.session_count().await, 0);
+        assert_eq!(hub.get_session_client_count(session_id).await, 0);
+    }
+
+    #[tokio::test]
+    async fn test_disconnect_multiple_sessions_independent() {
+        let hub = SessionHub::new(256);
+
+        let _r1 = hub.register_client("sess-A", "client-A1").await;
+        let mut r2 = hub.register_client("sess-A", "client-A2").await;
+        let mut r3 = hub.register_client("sess-B", "client-B1").await;
+
+        hub.unregister_client("sess-A", "client-A1").await;
+
+        let msg = StreamMessage::SessionUpdate {
+            session_id: "sess-A".to_string(),
+            status: "after_disconnect".to_string(),
+        };
+        hub.broadcast("sess-A", msg.clone()).await;
+        hub.broadcast("sess-B", msg.clone()).await;
+
+        let msg_a2 = r2.recv().await.expect("sess-A client should receive");
+        match msg_a2 {
+            StreamMessage::SessionUpdate { status, .. } => {
+                assert_eq!(status, "after_disconnect");
+            }
+            _ => panic!("expected SessionUpdate"),
+        }
+
+        let msg_b1 = r3.recv().await.expect("sess-B client should receive");
+        match msg_b1 {
+            StreamMessage::SessionUpdate { status, .. } => {
+                assert_eq!(status, "after_disconnect");
+            }
+            _ => panic!("expected SessionUpdate"),
+        }
+
+        let err = r2.try_recv();
+        assert!(err.is_err(), "disconnected client-A1 should not receive");
+    }
 }

@@ -488,7 +488,7 @@
       "priority": "P0",
       "title": "Add client disconnect handling",
       "description": "Add client disconnect graceful handling in ws.rs",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddErrorHandlingTest: verify disconnect removes client from hub",
         "AddRegressionTest: ensure remaining clients still receive events"
