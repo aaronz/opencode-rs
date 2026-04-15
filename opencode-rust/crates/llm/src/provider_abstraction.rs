@@ -540,24 +540,39 @@ impl ProviderManager {
 
     pub fn create_provider(&self, spec: &ProviderSpec) -> Result<DynProvider, LlmError> {
         let config = ProviderConfig::from_spec(spec.clone());
-        let factory = self
-            .factories
-            .get(config.spec.provider_type())
-            .ok_or_else(|| {
-                LlmError::Provider(format!(
+        let provider_type = config.spec.provider_type();
+
+        let factory = match self.factories.get(provider_type) {
+            Some(f) => f,
+            None => {
+                return Err(LlmError::Provider(format!(
                     "Unknown provider type: {}",
-                    config.spec.provider_type()
-                ))
-            })?;
+                    provider_type
+                )))
+            }
+        };
 
         if !factory.supports(&config.spec) {
             return Err(LlmError::Provider(format!(
                 "Factory '{}' does not support this configuration",
-                config.spec.provider_type()
+                provider_type
             )));
         }
 
         factory.create(&config)
+    }
+
+    pub fn create_provider_fallback(&self, spec: &ProviderSpec) -> Result<DynProvider, LlmError> {
+        let config = ProviderConfig::from_spec(spec.clone());
+        let provider_type = config.spec.provider_type();
+
+        if let Some(factory) = self.factories.get(provider_type) {
+            if factory.supports(spec) {
+                return factory.create(&config);
+            }
+        }
+
+        DynamicProviderFactory::new().create(&config)
     }
 
     pub fn create_provider_by_identity(
@@ -791,6 +806,72 @@ impl ProviderFactory for LocalInferenceProviderFactory {
 
     fn supports(&self, spec: &ProviderSpec) -> bool {
         matches!(spec, ProviderSpec::LocalInference { .. })
+    }
+}
+
+pub struct DynamicProviderFactory;
+
+impl DynamicProviderFactory {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for DynamicProviderFactory {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ProviderFactory for DynamicProviderFactory {
+    fn name(&self) -> &str {
+        "dynamic"
+    }
+
+    fn create(&self, config: &ProviderConfig) -> Result<DynProvider, LlmError> {
+        let provider_type = config.spec.provider_type();
+        let model = config.spec.model().to_string();
+
+        let base_url = match &config.spec {
+            ProviderSpec::OpenAI { base_url, .. } => base_url
+                .clone()
+                .unwrap_or_else(|| "https://api.openai.com/v1".to_string()),
+            ProviderSpec::Anthropic { base_url, .. } => base_url
+                .clone()
+                .unwrap_or_else(|| "https://api.anthropic.com".to_string()),
+            ProviderSpec::Google { .. } => "https://api.google.com".to_string(),
+            ProviderSpec::Ollama { base_url, .. } => base_url
+                .clone()
+                .unwrap_or_else(|| "http://localhost:11434".to_string()),
+            ProviderSpec::LmStudio { base_url, .. } => base_url
+                .clone()
+                .unwrap_or_else(|| "http://localhost:1234".to_string()),
+            ProviderSpec::LocalInference { base_url, .. } => base_url.clone(),
+            ProviderSpec::Azure { endpoint, .. } => endpoint.clone(),
+            ProviderSpec::OpenRouter { base_url, .. } => base_url
+                .clone()
+                .unwrap_or_else(|| "https://openrouter.ai/api/v1".to_string()),
+            ProviderSpec::Mistral { .. } => "https://api.mistral.ai".to_string(),
+            ProviderSpec::Groq { .. } => "https://api.groq.com".to_string(),
+        };
+
+        let adapter = crate::provider_adapter::OpenAICompatibleAdapter::new(
+            crate::auth::ProviderAuthConfig::new(
+                provider_type.to_string(),
+                format!("{}/chat/completions", base_url.trim_end_matches('/')),
+                crate::auth::AuthStrategy::BearerApiKey { header_name: None },
+            ),
+            model.clone(),
+        );
+
+        let mut identity = ProviderIdentity::new(provider_type, Some(&model));
+        identity.reasoning_budget = config.reasoning_budget;
+        identity.variant = config.variant.clone();
+        Ok(DynProvider::with_identity(adapter, identity))
+    }
+
+    fn supports(&self, _spec: &ProviderSpec) -> bool {
+        true
     }
 }
 
