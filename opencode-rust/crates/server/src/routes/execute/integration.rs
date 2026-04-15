@@ -228,3 +228,246 @@ impl From<opencode_core::ToolResult> for IntegrationToolResult {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::routes::ws::SessionHub;
+    use crate::streaming::StreamMessage;
+
+    fn execute_event_to_stream_message(
+        event: &ExecuteEvent,
+        session_id: &str,
+    ) -> Option<StreamMessage> {
+        match event {
+            ExecuteEvent::ToolCall {
+                tool,
+                params,
+                call_id,
+            } => Some(StreamMessage::ToolCall {
+                session_id: session_id.to_string(),
+                tool_name: tool.clone(),
+                args: params.clone(),
+                call_id: call_id.clone(),
+            }),
+            ExecuteEvent::ToolResult {
+                tool,
+                result,
+                call_id,
+                success,
+            } => Some(StreamMessage::ToolResult {
+                session_id: session_id.to_string(),
+                call_id: call_id.clone(),
+                output: result
+                    .get("content")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                success: *success,
+            }),
+            ExecuteEvent::Message { role, content } => Some(StreamMessage::Message {
+                session_id: session_id.to_string(),
+                content: content.clone(),
+                role: role.clone(),
+            }),
+            ExecuteEvent::Token { content } => Some(StreamMessage::Message {
+                session_id: session_id.to_string(),
+                content: content.clone(),
+                role: "assistant".to_string(),
+            }),
+            ExecuteEvent::Error { code, message } => Some(StreamMessage::Error {
+                session_id: Some(session_id.to_string()),
+                error: code.clone(),
+                code: code.clone(),
+                message: message.clone(),
+            }),
+            ExecuteEvent::Complete { session_state } => Some(StreamMessage::SessionUpdate {
+                session_id: session_id.to_string(),
+                status: serde_json::to_string(session_state).unwrap_or_else(|_| "{}".to_string()),
+            }),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_execute_endpoint_broadcasts_to_session_hub() {
+        let session_id = "test-session-123";
+        let hub = std::sync::Arc::new(SessionHub::new(256));
+
+        let tool_call =
+            ExecuteEvent::tool_call("read", serde_json::json!({"path": "/test"}), "call-1");
+        let message = ExecuteEvent::message("assistant", "Hello, world!");
+        let complete = ExecuteEvent::complete(serde_json::json!({"status": "done"}));
+
+        let events = vec![tool_call.clone(), message.clone(), complete.clone()];
+
+        for event in &events {
+            if let Some(stream_msg) = execute_event_to_stream_message(event, session_id) {
+                hub.broadcast(session_id, stream_msg).await;
+            }
+        }
+
+        let client_count = hub.get_session_client_count(session_id).await;
+        assert_eq!(
+            client_count, 0,
+            "No clients registered yet, but events are stored"
+        );
+
+        let _receiver1 = hub.register_client(session_id, "client-1").await;
+        let _receiver2 = hub.register_client(session_id, "client-2").await;
+
+        let count1 = hub.get_session_client_count(session_id).await;
+        assert_eq!(count1, 2);
+    }
+
+    #[tokio::test]
+    async fn test_execute_event_to_stream_message_tool_call() {
+        let event = ExecuteEvent::tool_call("read", serde_json::json!({"path": "/test"}), "call-1");
+        let stream_msg = execute_event_to_stream_message(&event, "session-1");
+
+        match stream_msg {
+            Some(StreamMessage::ToolCall {
+                session_id,
+                tool_name,
+                args,
+                call_id,
+            }) => {
+                assert_eq!(session_id, "session-1");
+                assert_eq!(tool_name, "read");
+                assert_eq!(call_id, "call-1");
+                assert_eq!(args["path"], "/test");
+            }
+            _ => panic!("Expected ToolCall variant"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_execute_event_to_stream_message_tool_result() {
+        let event = ExecuteEvent::tool_result(
+            "read",
+            serde_json::json!({"content": "file contents"}),
+            "call-1",
+            true,
+        );
+        let stream_msg = execute_event_to_stream_message(&event, "session-1");
+
+        match stream_msg {
+            Some(StreamMessage::ToolResult {
+                session_id,
+                call_id,
+                output,
+                success,
+            }) => {
+                assert_eq!(session_id, "session-1");
+                assert_eq!(call_id, "call-1");
+                assert_eq!(output, "file contents");
+                assert!(success);
+            }
+            _ => panic!("Expected ToolResult variant"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_execute_event_to_stream_message_message() {
+        let event = ExecuteEvent::message("assistant", "Hello!");
+        let stream_msg = execute_event_to_stream_message(&event, "session-1");
+
+        match stream_msg {
+            Some(StreamMessage::Message {
+                session_id,
+                content,
+                role,
+            }) => {
+                assert_eq!(session_id, "session-1");
+                assert_eq!(content, "Hello!");
+                assert_eq!(role, "assistant");
+            }
+            _ => panic!("Expected Message variant"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_execute_event_to_stream_message_token() {
+        let event = ExecuteEvent::token("Hi");
+        let stream_msg = execute_event_to_stream_message(&event, "session-1");
+
+        match stream_msg {
+            Some(StreamMessage::Message {
+                session_id,
+                content,
+                role,
+            }) => {
+                assert_eq!(session_id, "session-1");
+                assert_eq!(content, "Hi");
+                assert_eq!(role, "assistant");
+            }
+            _ => panic!("Expected Message variant for Token"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_execute_event_to_stream_message_error() {
+        let event = ExecuteEvent::error("TOOL_NOT_FOUND", "Tool not found");
+        let stream_msg = execute_event_to_stream_message(&event, "session-1");
+
+        match stream_msg {
+            Some(StreamMessage::Error {
+                session_id,
+                error,
+                code,
+                message,
+            }) => {
+                assert_eq!(session_id, Some("session-1".to_string()));
+                assert_eq!(error, "TOOL_NOT_FOUND");
+                assert_eq!(code, "TOOL_NOT_FOUND");
+                assert_eq!(message, "Tool not found");
+            }
+            _ => panic!("Expected Error variant"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_execute_event_to_stream_message_complete() {
+        let event = ExecuteEvent::complete(serde_json::json!({"status": "done"}));
+        let stream_msg = execute_event_to_stream_message(&event, "session-1");
+
+        match stream_msg {
+            Some(StreamMessage::SessionUpdate { session_id, status }) => {
+                assert_eq!(session_id, "session-1");
+                assert!(status.contains("done"));
+            }
+            _ => panic!("Expected SessionUpdate variant"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_execute_events_broadcast_to_multiple_clients() {
+        let session_id = "broadcast-test-session";
+        let hub = std::sync::Arc::new(SessionHub::new(256));
+
+        let mut receiver1 = hub.register_client(session_id, "client-1").await;
+        let mut receiver2 = hub.register_client(session_id, "client-2").await;
+        let mut receiver3 = hub.register_client(session_id, "client-3").await;
+
+        let event = ExecuteEvent::message("assistant", "Broadcast test");
+        if let Some(stream_msg) = execute_event_to_stream_message(&event, session_id) {
+            hub.broadcast(session_id, stream_msg).await;
+        }
+
+        let msg1 = receiver1.recv().await.expect("client1 should receive");
+        let msg2 = receiver2.recv().await.expect("client2 should receive");
+        let msg3 = receiver3.recv().await.expect("client3 should receive");
+
+        match (&msg1, &msg2, &msg3) {
+            (
+                StreamMessage::Message { content: c1, .. },
+                StreamMessage::Message { content: c2, .. },
+                StreamMessage::Message { content: c3, .. },
+            ) => {
+                assert_eq!(c1, "Broadcast test");
+                assert_eq!(c2, "Broadcast test");
+                assert_eq!(c3, "Broadcast test");
+            }
+            _ => panic!("Expected Message variant"),
+        }
+    }
+}

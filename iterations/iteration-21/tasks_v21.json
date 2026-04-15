@@ -414,7 +414,7 @@
       "priority": "P0",
       "title": "Update ws.rs for session routing",
       "description": "Update server/src/routes/ws.rs to handle session-specific WebSocket routing",
-      "status": "completed",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify WebSocket connects to correct session path",
         "AddRegressionTest: ensure ws.rs compiles with session routing"
@@ -433,7 +433,7 @@
       "priority": "P0",
       "title": "Integrate execute with session hub",
       "description": "Integrate execute endpoint with session hub for event emission during tool execution",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify execute endpoint emits events to session hub",
         "AddRegressionTest: ensure events reach connected WebSocket clients"

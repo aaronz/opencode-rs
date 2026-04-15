@@ -13,11 +13,65 @@ use uuid::Uuid;
 
 use crate::routes::error::{json_error, unauthorized_error, validation_error};
 use crate::routes::validation::{validate_session_id, RequestValidator};
+use crate::streaming::StreamMessage;
 use crate::ServerState;
 
 use integration::{execute_agent_loop, system_prompt_for_mode, ExecutionContext};
 use stream::{execute_event_stream, format_sse_event};
 use types::{ExecuteEvent, ExecuteMode, ExecuteRequest};
+
+fn execute_event_to_stream_message(
+    event: &ExecuteEvent,
+    session_id: &str,
+) -> Option<StreamMessage> {
+    match event {
+        ExecuteEvent::ToolCall {
+            tool,
+            params,
+            call_id,
+        } => Some(StreamMessage::ToolCall {
+            session_id: session_id.to_string(),
+            tool_name: tool.clone(),
+            args: params.clone(),
+            call_id: call_id.clone(),
+        }),
+        ExecuteEvent::ToolResult {
+            tool,
+            result,
+            call_id,
+            success,
+        } => Some(StreamMessage::ToolResult {
+            session_id: session_id.to_string(),
+            call_id: call_id.clone(),
+            output: result
+                .get("content")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            success: *success,
+        }),
+        ExecuteEvent::Message { role, content } => Some(StreamMessage::Message {
+            session_id: session_id.to_string(),
+            content: content.clone(),
+            role: role.clone(),
+        }),
+        ExecuteEvent::Token { content } => Some(StreamMessage::Message {
+            session_id: session_id.to_string(),
+            content: content.clone(),
+            role: "assistant".to_string(),
+        }),
+        ExecuteEvent::Error { code, message } => Some(StreamMessage::Error {
+            session_id: Some(session_id.to_string()),
+            error: code.clone(),
+            code: code.clone(),
+            message: message.clone(),
+        }),
+        ExecuteEvent::Complete { session_state } => Some(StreamMessage::SessionUpdate {
+            session_id: session_id.to_string(),
+            status: serde_json::to_string(session_state).unwrap_or_else(|_| "{}".to_string()),
+        }),
+    }
+}
 
 fn check_auth(req: &HttpRequest, state: &ServerState) -> Result<(), HttpResponse> {
     let config_guard = match state.config.read() {
@@ -167,6 +221,14 @@ pub async fn execute_session(
             vec![ExecuteEvent::error("EXECUTION_ERROR", e.to_string())]
         }
     };
+
+    // Broadcast events to session hub for WebSocket clients
+    let session_hub = state.session_hub.clone();
+    for event in &events {
+        if let Some(stream_msg) = execute_event_to_stream_message(event, session_id) {
+            session_hub.broadcast(session_id, stream_msg).await;
+        }
+    }
 
     // Save session after execution
     if let Err(e) = state.storage.save_session(&session).await {
