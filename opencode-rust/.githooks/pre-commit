@@ -1,0 +1,9 @@
+#!/bin/sh
+# Pre-commit hook: checks formatting before allowing commits
+# Install: git config core.hooksPath .githooks
+
+set -e
+
+echo "Checking formatting..."
+cargo fmt --all -- --check
+echo "Formatting OK"
