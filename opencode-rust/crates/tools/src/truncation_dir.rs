@@ -31,6 +31,8 @@ fn count_recursive(path: &Path) -> usize {
     count
 }
 
+impl sealed::Sealed for TruncationDirTool {}
+
 #[async_trait]
 impl Tool for TruncationDirTool {
     fn name(&self) -> &str {

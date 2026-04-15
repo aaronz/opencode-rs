@@ -13,6 +13,8 @@ struct InvalidArgs {
     error: String,
 }
 
+impl sealed::Sealed for InvalidTool {}
+
 #[async_trait]
 impl Tool for InvalidTool {
     fn name(&self) -> &str {

@@ -19,6 +19,8 @@ pub struct MultiEditArgs {
 
 pub struct MultiEditTool;
 
+impl sealed::Sealed for MultiEditTool {}
+
 #[async_trait]
 impl Tool for MultiEditTool {
     fn name(&self) -> &str {

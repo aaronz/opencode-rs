@@ -16,6 +16,8 @@ struct LsArgs {
     pattern: Option<String>,
 }
 
+impl sealed::Sealed for LsTool {}
+
 #[async_trait]
 impl Tool for LsTool {
     fn name(&self) -> &str {

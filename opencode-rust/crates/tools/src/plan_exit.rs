@@ -5,6 +5,8 @@ use opencode_core::OpenCodeError;
 
 pub struct PlanExitTool;
 
+impl sealed::Sealed for PlanExitTool {}
+
 #[async_trait]
 impl Tool for PlanExitTool {
     fn name(&self) -> &str {

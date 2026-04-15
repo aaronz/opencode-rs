@@ -35,6 +35,8 @@ impl Default for ReadTool {
     }
 }
 
+impl sealed::Sealed for ReadTool {}
+
 #[async_trait]
 impl Tool for ReadTool {
     fn name(&self) -> &str {

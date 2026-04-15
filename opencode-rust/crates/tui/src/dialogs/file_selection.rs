@@ -1,3 +1,4 @@
+use crate::dialogs::sealed;
 use crate::dialogs::{Dialog, DialogAction};
 use crate::theme::Theme;
 use crossterm::event::{KeyCode, KeyEvent};
@@ -127,6 +128,8 @@ impl FileSelectionDialog {
             .collect()
     }
 }
+
+impl sealed::Sealed for FileSelectionDialog {}
 
 impl Dialog for FileSelectionDialog {
     fn draw(&self, f: &mut Frame, area: Rect) {

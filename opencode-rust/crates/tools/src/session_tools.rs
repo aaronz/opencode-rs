@@ -7,6 +7,8 @@ use uuid::Uuid;
 
 pub struct SessionLoadTool;
 
+impl sealed::Sealed for SessionLoadTool {}
+
 #[async_trait]
 impl Tool for SessionLoadTool {
     fn name(&self) -> &str {
@@ -56,6 +58,8 @@ impl Tool for SessionLoadTool {
 }
 
 pub struct SessionSaveTool;
+
+impl sealed::Sealed for SessionSaveTool {}
 
 #[async_trait]
 impl Tool for SessionSaveTool {

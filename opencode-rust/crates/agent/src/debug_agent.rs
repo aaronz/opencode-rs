@@ -1,3 +1,4 @@
+use crate::sealed;
 use crate::{messages_to_llm_format, Agent, AgentResponse, AgentType};
 use async_trait::async_trait;
 use opencode_core::{Message, OpenCodeError, Session, TokenBudget};
@@ -53,6 +54,8 @@ impl Default for DebugAgent {
         Self::new()
     }
 }
+
+impl sealed::Sealed for DebugAgent {}
 
 #[async_trait]
 impl Agent for DebugAgent {

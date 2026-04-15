@@ -34,6 +34,8 @@ struct UpdateChunk {
     new_lines: Vec<String>,
 }
 
+impl sealed::Sealed for ApplyPatchTool {}
+
 #[async_trait]
 impl Tool for ApplyPatchTool {
     fn name(&self) -> &str {

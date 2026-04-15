@@ -15,6 +15,8 @@ struct PlanArgs {
     content: Option<String>,
 }
 
+impl sealed::Sealed for PlanTool {}
+
 #[async_trait]
 impl Tool for PlanTool {
     fn name(&self) -> &str {

@@ -1,3 +1,4 @@
+use crate::dialogs::sealed;
 use crate::dialogs::{Dialog, DialogAction};
 use crate::theme::Theme;
 use crossterm::event::KeyEvent;
@@ -40,6 +41,8 @@ impl ReleaseNotesDialog {
         }
     }
 }
+
+impl sealed::Sealed for ReleaseNotesDialog {}
 
 impl Dialog for ReleaseNotesDialog {
     fn draw(&self, f: &mut Frame, area: Rect) {

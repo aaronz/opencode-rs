@@ -25,6 +25,8 @@ struct EditArgs {
     replace_all: Option<bool>,
 }
 
+impl sealed::Sealed for EditTool {}
+
 #[async_trait]
 impl Tool for EditTool {
     fn name(&self) -> &str {

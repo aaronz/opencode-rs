@@ -16,6 +16,8 @@ struct TaskArgs {
     _command: Option<String>,
 }
 
+impl sealed::Sealed for TaskTool {}
+
 #[async_trait]
 impl Tool for TaskTool {
     fn name(&self) -> &str {

@@ -17,6 +17,8 @@ struct ReadArgs {
     limit: Option<usize>,
 }
 
+impl sealed::Sealed for FileReadTool {}
+
 #[async_trait]
 impl Tool for FileReadTool {
     fn name(&self) -> &str {
@@ -84,6 +86,8 @@ struct WriteArgs {
     content: String,
 }
 
+impl sealed::Sealed for FileWriteTool {}
+
 #[async_trait]
 impl Tool for FileWriteTool {
     fn name(&self) -> &str {
@@ -125,6 +129,8 @@ struct GlobArgs {
     pattern: String,
     root: Option<String>,
 }
+
+impl sealed::Sealed for GlobTool {}
 
 #[async_trait]
 impl Tool for GlobTool {
@@ -191,6 +197,8 @@ pub struct StatTool;
 struct StatArgs {
     path: String,
 }
+
+impl sealed::Sealed for StatTool {}
 
 #[async_trait]
 impl Tool for StatTool {
@@ -277,6 +285,8 @@ struct MoveArgs {
     destination: String,
 }
 
+impl sealed::Sealed for FileMoveTool {}
+
 #[async_trait]
 impl Tool for FileMoveTool {
     fn name(&self) -> &str {
@@ -337,6 +347,8 @@ struct DeleteArgs {
     #[serde(default)]
     recursive: bool,
 }
+
+impl sealed::Sealed for FileDeleteTool {}
 
 #[async_trait]
 impl Tool for FileDeleteTool {

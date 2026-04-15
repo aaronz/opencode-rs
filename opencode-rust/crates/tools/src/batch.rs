@@ -27,6 +27,8 @@ struct ToolInvocation {
     input: serde_json::Value,
 }
 
+impl sealed::Sealed for BatchTool {}
+
 #[async_trait]
 impl Tool for BatchTool {
     fn name(&self) -> &str {

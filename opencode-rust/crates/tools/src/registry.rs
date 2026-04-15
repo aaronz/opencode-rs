@@ -1,4 +1,3 @@
-use crate::sealed;
 use crate::{Tool, ToolContext, ToolResult};
 use opencode_core::OpenCodeError;
 use sha2::{Digest, Sha256};

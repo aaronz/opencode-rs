@@ -1,3 +1,4 @@
+use crate::dialogs::sealed;
 use crate::dialogs::{Dialog, DialogAction};
 use crate::theme::Theme;
 use crossterm::event::{KeyCode, KeyEvent};
@@ -25,6 +26,8 @@ impl ConnectModelDialog {
         }
     }
 }
+
+impl sealed::Sealed for ConnectModelDialog {}
 
 impl Dialog for ConnectModelDialog {
     fn draw(&self, f: &mut Frame, area: Rect) {

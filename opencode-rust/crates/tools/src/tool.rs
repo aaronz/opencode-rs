@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-pub(crate) mod sealed {
+pub mod sealed {
     pub trait Sealed {}
 }
 

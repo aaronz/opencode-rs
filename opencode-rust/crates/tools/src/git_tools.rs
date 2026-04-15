@@ -7,6 +7,8 @@ use std::process::Command;
 
 pub struct GitStatusTool;
 
+impl sealed::Sealed for GitStatusTool {}
+
 #[async_trait]
 impl Tool for GitStatusTool {
     fn name(&self) -> &str {
@@ -42,6 +44,8 @@ impl Tool for GitStatusTool {
 }
 
 pub struct GitDiffTool;
+
+impl sealed::Sealed for GitDiffTool {}
 
 #[async_trait]
 impl Tool for GitDiffTool {
@@ -90,6 +94,8 @@ struct GitLogArgs {
 fn default_limit() -> Option<usize> {
     Some(10)
 }
+
+impl sealed::Sealed for GitLogTool {}
 
 #[async_trait]
 impl Tool for GitLogTool {
@@ -151,6 +157,8 @@ struct GitShowArgs {
     #[serde(default)]
     file: Option<String>,
 }
+
+impl sealed::Sealed for GitShowTool {}
 
 #[async_trait]
 impl Tool for GitShowTool {

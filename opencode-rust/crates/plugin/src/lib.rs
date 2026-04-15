@@ -175,6 +175,8 @@ impl PluginToolAdapter {
     }
 }
 
+impl opencode_tools::sealed::Sealed for PluginToolAdapter {}
+
 impl Clone for PluginToolAdapter {
     fn clone(&self) -> Self {
         Self {

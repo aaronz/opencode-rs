@@ -12,6 +12,8 @@ struct QuestionArgs {
     _options: Option<Vec<String>>,
 }
 
+impl sealed::Sealed for QuestionTool {}
+
 #[async_trait]
 impl Tool for QuestionTool {
     fn name(&self) -> &str {

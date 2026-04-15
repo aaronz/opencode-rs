@@ -1,3 +1,4 @@
+use crate::sealed;
 use crate::{messages_to_llm_format, Agent, AgentResponse, AgentType};
 use async_trait::async_trait;
 use opencode_core::{Message, OpenCodeError, Session, TokenBudget};
@@ -62,6 +63,8 @@ impl Default for GeneralAgent {
         Self::new()
     }
 }
+
+impl sealed::Sealed for GeneralAgent {}
 
 #[async_trait]
 impl Agent for GeneralAgent {

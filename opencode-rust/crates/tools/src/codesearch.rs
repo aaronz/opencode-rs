@@ -13,6 +13,8 @@ pub struct SearchArgs {
 
 pub struct CodeSearchTool;
 
+impl sealed::Sealed for CodeSearchTool {}
+
 #[async_trait]
 impl Tool for CodeSearchTool {
     fn name(&self) -> &str {

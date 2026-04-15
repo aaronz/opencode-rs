@@ -18,6 +18,8 @@ struct TodoItem {
     priority: Option<String>,
 }
 
+impl sealed::Sealed for TodowriteTool {}
+
 #[async_trait]
 impl Tool for TodowriteTool {
     fn name(&self) -> &str {

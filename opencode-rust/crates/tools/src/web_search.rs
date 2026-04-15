@@ -27,6 +27,8 @@ fn default_context_chars() -> Option<usize> {
     Some(10000)
 }
 
+impl sealed::Sealed for WebSearchTool {}
+
 #[async_trait]
 impl Tool for WebSearchTool {
     fn name(&self) -> &str {

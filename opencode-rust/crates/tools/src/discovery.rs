@@ -175,6 +175,8 @@ impl CustomTool {
     }
 }
 
+impl sealed::Sealed for CustomTool {}
+
 #[async_trait]
 impl Tool for CustomTool {
     fn name(&self) -> &str {

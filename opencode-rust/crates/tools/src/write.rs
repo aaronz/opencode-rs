@@ -15,6 +15,8 @@ struct WriteArgs {
     content: String,
 }
 
+impl sealed::Sealed for WriteTool {}
+
 #[async_trait]
 impl Tool for WriteTool {
     fn name(&self) -> &str {

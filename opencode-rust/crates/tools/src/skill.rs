@@ -21,6 +21,8 @@ struct SkillArgs {
     parameters: Option<serde_json::Value>,
 }
 
+impl sealed::Sealed for SkillTool {}
+
 #[async_trait]
 impl Tool for SkillTool {
     fn name(&self) -> &str {

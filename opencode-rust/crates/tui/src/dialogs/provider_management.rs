@@ -1,3 +1,4 @@
+use crate::dialogs::sealed;
 use crate::dialogs::{Dialog, DialogAction};
 use crate::theme::Theme;
 use crossterm::event::{KeyCode, KeyEvent};
@@ -63,6 +64,8 @@ impl ProviderManagementDialog {
         }
     }
 }
+
+impl sealed::Sealed for ProviderManagementDialog {}
 
 impl Dialog for ProviderManagementDialog {
     fn draw(&self, f: &mut Frame, area: Rect) {

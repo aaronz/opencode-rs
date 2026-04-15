@@ -35,6 +35,8 @@ impl Default for BashTool {
     }
 }
 
+impl sealed::Sealed for BashTool {}
+
 #[async_trait]
 impl Tool for BashTool {
     fn name(&self) -> &str {

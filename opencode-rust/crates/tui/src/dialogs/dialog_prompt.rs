@@ -1,3 +1,4 @@
+use crate::dialogs::sealed;
 use crate::dialogs::{Dialog, DialogAction};
 use crate::theme::Theme;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -57,6 +58,8 @@ impl DialogPrompt {
         self.input.is_empty()
     }
 }
+
+impl sealed::Sealed for DialogPrompt {}
 
 impl Dialog for DialogPrompt {
     fn draw(&self, f: &mut Frame, area: Rect) {

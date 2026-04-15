@@ -14,6 +14,8 @@ struct GlobArgs {
     path: Option<String>,
 }
 
+impl sealed::Sealed for GlobTool {}
+
 #[async_trait]
 impl Tool for GlobTool {
     fn name(&self) -> &str {

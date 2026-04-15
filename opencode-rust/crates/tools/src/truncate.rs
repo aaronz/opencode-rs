@@ -31,6 +31,8 @@ impl Default for TruncateTool {
     }
 }
 
+impl sealed::Sealed for TruncateTool {}
+
 #[async_trait]
 impl Tool for TruncateTool {
     fn name(&self) -> &str {

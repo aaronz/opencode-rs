@@ -144,6 +144,8 @@ async fn run_eslint_diagnostics(file: &str) -> Result<Vec<DiagnosticResult>, Ope
     Ok(diagnostics)
 }
 
+impl sealed::Sealed for LspTool {}
+
 #[async_trait]
 impl Tool for LspTool {
     fn name(&self) -> &str {

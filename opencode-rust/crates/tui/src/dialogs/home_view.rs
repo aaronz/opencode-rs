@@ -1,3 +1,4 @@
+use crate::dialogs::sealed;
 use crate::dialogs::{Dialog, DialogAction};
 use crate::session::{Session, SessionManager};
 use crate::theme::Theme;
@@ -169,6 +170,8 @@ impl HomeView {
         self.selected_session_index = Some(new_idx);
     }
 }
+
+impl sealed::Sealed for HomeView {}
 
 impl Dialog for HomeView {
     fn draw(&self, f: &mut Frame, area: Rect) {

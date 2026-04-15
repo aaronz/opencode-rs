@@ -1,3 +1,4 @@
+use crate::sealed;
 use crate::{messages_to_llm_format, Agent, AgentResponse, AgentType};
 use async_trait::async_trait;
 use opencode_core::{Message, OpenCodeError, Session, TokenBudget};
@@ -37,6 +38,8 @@ impl Default for CompactionAgent {
         Self::new()
     }
 }
+
+impl sealed::Sealed for CompactionAgent {}
 
 #[async_trait]
 impl Agent for CompactionAgent {
@@ -134,6 +137,8 @@ impl Default for TitleAgent {
     }
 }
 
+impl sealed::Sealed for TitleAgent {}
+
 #[async_trait]
 impl Agent for TitleAgent {
     fn agent_type(&self) -> AgentType {
@@ -226,6 +231,8 @@ impl Default for SummaryAgent {
         Self::new()
     }
 }
+
+impl sealed::Sealed for SummaryAgent {}
 
 #[async_trait]
 impl Agent for SummaryAgent {
