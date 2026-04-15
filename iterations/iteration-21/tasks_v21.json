@@ -197,7 +197,7 @@
       "priority": "P0",
       "title": "Add request validation",
       "description": "Add request validation (session exists, auth) in execute endpoint",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddErrorHandlingTest: verify 404 returned when session does not exist",
         "AddErrorHandlingTest: verify 401 returned for unauthenticated requests",
@@ -216,7 +216,7 @@
       "priority": "P0",
       "title": "Add streaming response with SSE formatting",
       "description": "Add streaming response with SSE formatting for real-time execution events",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify SSE events stream correctly to client",
         "AddErrorHandlingTest: verify connection interruption is handled gracefully"

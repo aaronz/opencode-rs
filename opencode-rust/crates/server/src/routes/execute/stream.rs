@@ -587,4 +587,272 @@ mod tests {
         assert_eq!(req.mode, Some(ExecuteMode::Build));
         assert_eq!(req.stream, Some(false));
     }
+
+    // ============== Integration Tests ==============
+    // AddIntegrationTest: verify SSE events stream correctly to client
+
+    #[tokio::test]
+    async fn test_sse_events_stream_correctly_to_client() {
+        use futures::StreamExt;
+
+        let events = vec![
+            ExecuteEvent::message("user", "Hello"),
+            ExecuteEvent::message("assistant", "Hi there!"),
+            ExecuteEvent::tool_call("read", serde_json::json!({"path": "/test"}), "call-1"),
+            ExecuteEvent::tool_result(
+                "read",
+                serde_json::json!({"content": "test"}),
+                "call-1",
+                true,
+            ),
+            ExecuteEvent::complete(serde_json::json!({"status": "done"})),
+        ];
+
+        let stream = execute_event_stream(events);
+        let mut stream = Box::pin(stream);
+
+        let mut collected_events = Vec::new();
+        while let Some(item) = stream.next().await {
+            let bytes = item.expect("should be Ok");
+            let sse_str = String::from_utf8_lossy(&bytes);
+            collected_events.push(sse_str.to_string());
+        }
+
+        assert_eq!(collected_events.len(), 5);
+
+        for (idx, event) in collected_events.iter().enumerate() {
+            assert!(
+                is_valid_sse_format(event),
+                "Event {} has invalid SSE format: {}",
+                idx,
+                event
+            );
+        }
+
+        assert!(collected_events[0].contains("event: message"));
+        assert!(collected_events[0].contains("Hello"));
+        assert!(collected_events[1].contains("Hi there!"));
+        assert!(collected_events[2].contains("event: tool_call"));
+        assert!(collected_events[2].contains("read"));
+        assert!(collected_events[3].contains("event: tool_result"));
+        assert!(collected_events[4].contains("event: complete"));
+    }
+
+    #[tokio::test]
+    async fn test_sse_stream_with_ids_for_client_reconnection() {
+        use futures::StreamExt;
+
+        let events = vec![
+            ExecuteEvent::token("H"),
+            ExecuteEvent::token("e"),
+            ExecuteEvent::token("l"),
+            ExecuteEvent::token("l"),
+            ExecuteEvent::token("o"),
+        ];
+
+        let stream = execute_event_stream_with_ids(futures::stream::iter(events));
+        let mut stream = Box::pin(stream);
+
+        let mut last_id = 0u64;
+        while let Some(item) = stream.next().await {
+            let bytes = item.expect("should be Ok");
+            let sse_str = String::from_utf8_lossy(&bytes);
+
+            assert!(
+                is_valid_sse_format(&sse_str),
+                "SSE format invalid: {}",
+                sse_str
+            );
+
+            if let Some(id_start) = sse_str.find("id: ") {
+                let id_str = &sse_str[id_start + 4..];
+                if let Some(id_end) = id_str.find('\n') {
+                    let id: u64 = id_str[..id_end].parse().expect("id should be numeric");
+                    assert!(
+                        id > last_id,
+                        "IDs should be sequential: last={}, current={}",
+                        last_id,
+                        id
+                    );
+                    last_id = id;
+                }
+            }
+        }
+
+        assert_eq!(last_id, 5, "Should have received 5 events with IDs 1-5");
+    }
+
+    #[tokio::test]
+    async fn test_sse_stream_multiple_token_events_stream_correctly() {
+        use futures::StreamExt;
+
+        let events = vec![
+            ExecuteEvent::token("This "),
+            ExecuteEvent::token("is "),
+            ExecuteEvent::token("a "),
+            ExecuteEvent::token("test "),
+            ExecuteEvent::token("response."),
+        ];
+
+        let stream = execute_event_stream(events);
+        let mut stream = Box::pin(stream);
+
+        let mut full_text = String::new();
+        while let Some(item) = stream.next().await {
+            let bytes = item.expect("should be Ok");
+            let sse_str = String::from_utf8_lossy(&bytes);
+
+            if let Some(data_start) = sse_str.find("data: ") {
+                let data_line = &sse_str[data_start + 6..];
+                if let Some(data_end) = data_line.find("\n\n") {
+                    let json_str = &data_line[..data_end];
+                    if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(json_str) {
+                        if let Some(content) = parsed.get("content").and_then(|v| v.as_str()) {
+                            full_text.push_str(content);
+                        }
+                    }
+                }
+            }
+        }
+
+        assert_eq!(full_text, "This is a test response.");
+    }
+
+    // ============== Error Handling Tests ==============
+    // AddErrorHandlingTest: verify connection interruption is handled gracefully
+
+    #[tokio::test]
+    async fn test_stream_dropped_mid_connection_handled_gracefully() {
+        use futures::StreamExt;
+
+        let events: Vec<ExecuteEvent> = (0..100)
+            .map(|i| ExecuteEvent::token(format!("token-{}", i)))
+            .collect();
+
+        let stream = execute_event_stream(events);
+        let mut stream = Box::pin(stream);
+
+        let mut count = 0;
+        for _ in 0..10 {
+            if let Some(item) = stream.next().await {
+                let _ = item.expect("should be Ok");
+                count += 1;
+            } else {
+                break;
+            }
+        }
+
+        assert_eq!(count, 10, "Should have consumed 10 events before dropping");
+
+        drop(stream);
+    }
+
+    #[tokio::test]
+    async fn test_stream_connection_interruption_no_panic() {
+        use futures::StreamExt;
+
+        let events: Vec<ExecuteEvent> = (0..50)
+            .map(|i| ExecuteEvent::message("assistant", format!("message-{}", i)))
+            .collect();
+
+        let stream = execute_event_stream(events);
+        let mut stream = Box::pin(stream);
+
+        for _ in 0..25 {
+            let item = stream.next().await;
+            if item.is_none() {
+                break;
+            }
+            let _ = item.unwrap();
+        }
+
+        drop(stream);
+    }
+
+    #[tokio::test]
+    async fn test_stream_error_event_handled_correctly() {
+        use futures::StreamExt;
+
+        let events = vec![
+            ExecuteEvent::message("user", "Test"),
+            ExecuteEvent::error("CONNECTION_ERROR", "Connection to service failed"),
+            ExecuteEvent::message("assistant", "I encountered an error"),
+        ];
+
+        let stream = execute_event_stream(events);
+        let mut stream = Box::pin(stream);
+
+        let mut has_error = false;
+        while let Some(item) = stream.next().await {
+            let bytes = item.expect("should be Ok");
+            let sse_str = String::from_utf8_lossy(&bytes);
+
+            if sse_str.contains("event: error") {
+                has_error = true;
+                assert!(sse_str.contains("CONNECTION_ERROR"));
+                assert!(sse_str.contains("Connection to service failed"));
+            }
+        }
+
+        assert!(has_error, "Error event should be streamed");
+    }
+
+    #[tokio::test]
+    async fn test_stream_complete_event_signals_end() {
+        use futures::StreamExt;
+
+        let events = vec![
+            ExecuteEvent::message("user", "Hello"),
+            ExecuteEvent::message("assistant", "Hi!"),
+            ExecuteEvent::complete(serde_json::json!({"session_id": "test-123"})),
+        ];
+
+        let stream = execute_event_stream(events);
+        let mut stream = Box::pin(stream);
+
+        let mut event_types = Vec::new();
+        while let Some(item) = stream.next().await {
+            let bytes = item.expect("should be Ok");
+            let sse_str = String::from_utf8_lossy(&bytes);
+
+            if sse_str.contains("event: message") {
+                event_types.push("message");
+            } else if sse_str.contains("event: complete") {
+                event_types.push("complete");
+            }
+        }
+
+        assert_eq!(event_types, vec!["message", "message", "complete"]);
+    }
+
+    #[tokio::test]
+    async fn test_stream_empty_events_produces_empty_stream() {
+        let events: Vec<ExecuteEvent> = vec![];
+        let stream = execute_event_stream(events);
+        let collected: Vec<_> = stream.collect().await;
+        assert!(collected.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_stream_large_payload_handled() {
+        use futures::StreamExt;
+
+        let large_content = "x".repeat(10000);
+        let events = vec![
+            ExecuteEvent::message("user", "Test with large content"),
+            ExecuteEvent::message("assistant", &large_content),
+        ];
+
+        let stream = execute_event_stream(events);
+        let mut stream = Box::pin(stream);
+
+        let mut count = 0;
+        while let Some(item) = stream.next().await {
+            let bytes = item.expect("should be Ok");
+            assert!(!bytes.is_empty());
+            count += 1;
+        }
+
+        assert_eq!(count, 2);
+    }
 }
