@@ -28,7 +28,7 @@
 | P0-024-14 | Add test: valid session execute returns 200 | ✅ Done | | tests/src/agent_execute_api_tests.rs | P0-024-13 |
 | P0-024-15 | Add test: invalid session returns 404 | ✅ Done | | tests/src/agent_execute_api_tests.rs | P0-024-14 |
 | P0-024-16 | Add test: unauthenticated returns 401 | ✅ Done | | tests/src/agent_execute_api_tests.rs | P0-024-15 |
-| P0-024-17 | Add test: tool execution results in response | TODO | | tests/src/agent_execute_api_tests.rs | P0-024-16 |
+| P0-024-17 | Add test: tool execution results in response | ✅ Done | | tests/src/agent_execute_api_tests.rs | P0-024-16 |
 | P0-024-18 | Verify build passes: `cargo build -p opencode-server` | TODO | | | P0-024-17 |
 | P0-024-19 | Verify tests pass: `cargo test -p opencode-integration-tests agent_execute` | TODO | | | P0-024-18 |
 

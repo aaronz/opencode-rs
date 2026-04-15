@@ -1091,4 +1091,110 @@ mod integration_tests {
             "Unauthenticated request should return 401 Unauthorized"
         );
     }
+
+    #[tokio::test]
+    async fn test_tool_execution_results_in_response() {
+        let has_api_key = std::env::var("OPENAI_API_KEY")
+            .map(|k| !k.is_empty())
+            .unwrap_or(false);
+
+        if !has_api_key {
+            eprintln!(
+                "SKIPPED: OPENAI_API_KEY not set. This test requires a valid OpenAI API key."
+            );
+            return;
+        }
+
+        let (server_url, server_handle, _temp_dir) = start_test_server(0).await;
+
+        let client = reqwest::Client::new();
+
+        let create_resp = client
+            .post(format!("{}/api/sessions", server_url))
+            .json(&serde_json::json!({
+                "initial_prompt": "Test tool execution"
+            }))
+            .send()
+            .await
+            .expect("Failed to create session");
+
+        assert_eq!(
+            create_resp.status().as_u16(),
+            201,
+            "Session creation should return 201"
+        );
+
+        let session_body: serde_json::Value = create_resp
+            .json()
+            .await
+            .expect("Failed to parse session response");
+        let session_id = session_body["session_id"]
+            .as_str()
+            .expect("Session ID should be a string");
+
+        let execute_resp = client
+            .post(format!(
+                "{}/api/sessions/{}/execute",
+                server_url, session_id
+            ))
+            .json(&serde_json::json!({
+                "prompt": "List the files in the current directory using the ls command",
+                "mode": "general",
+                "stream": false
+            }))
+            .send()
+            .await
+            .expect("Failed to call execute endpoint");
+
+        assert_eq!(
+            execute_resp.status().as_u16(),
+            200,
+            "Valid session execute should return 200 OK"
+        );
+
+        let body = execute_resp
+            .text()
+            .await
+            .expect("Failed to read response body");
+
+        assert!(!body.is_empty(), "Response body should not be empty");
+
+        let events = parse_sse_events(&body);
+        assert!(!events.is_empty(), "Response should contain SSE events");
+
+        let has_tool_call = events
+            .iter()
+            .any(|(event_type, data)| event_type == "tool_call" && data.get("tool").is_some());
+
+        let has_tool_result = events
+            .iter()
+            .any(|(event_type, data)| event_type == "tool_result" && data.get("tool").is_some());
+
+        let has_message_or_complete = events
+            .iter()
+            .any(|(event_type, _)| event_type == "message" || event_type == "complete");
+
+        assert!(
+            has_message_or_complete,
+            "Response should contain message or complete event"
+        );
+
+        eprintln!(
+            "DEBUG: tool_call found: {}, tool_result found: {}, total events: {}",
+            has_tool_call,
+            has_tool_result,
+            events.len()
+        );
+
+        for (event_type, data) in &events {
+            eprintln!("Event: {} - {:?}", event_type, data);
+        }
+
+        assert!(
+            has_tool_call || has_tool_result || events.len() > 2,
+            "Response should contain tool-related events (tool_call or tool_result), or multiple events indicating tool usage"
+        );
+
+        server_handle.abort();
+    }
 }

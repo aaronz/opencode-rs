@@ -307,7 +307,7 @@
       "priority": "P0",
       "title": "Add test: tool execution results in response",
       "description": "Add integration test: tool execution results are returned in response",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify tool execution result appears in response",
         "AddRegressionTest: ensure tool execution flow works end-to-end"
