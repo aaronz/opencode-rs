@@ -102,7 +102,7 @@ pub async fn execute_session(
     let agent = ctx.create_agent();
 
     // Add user message to session
-    opencode_core::Message::user(&req.prompt);
+    session.add_message(opencode_core::Message::user(&req.prompt));
 
     // Execute the agent loop
     let events: Vec<ExecuteEvent> = match execute_agent_loop(

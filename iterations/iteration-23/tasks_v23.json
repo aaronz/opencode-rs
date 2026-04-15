@@ -1,0 +1,2058 @@
+{
+  "tasks": [
+    {
+      "id": "P0-001",
+      "priority": "P0",
+      "title": "unwrap()/expect() Elimination - Root Task",
+      "description": "Eliminate all unwrap()/expect() calls across the codebase and replace with proper error handling using thiserror enums. This is a prerequisite for repository pattern and other P1 tasks. Target: zero unwrap/expect in production code.",
+      "status": "in_progress",
+      "test_criteria": [
+        "RunRegressionTest: grep -rn 'unwrap()|expect(' crates/*/src/*.rs | grep -v '#\\[cfg(test)]' returns 0 occurrences",
+        "RunTestSuite: cargo test passes with no test failures",
+        "AddErrorHandlingTest: verify all error paths are properly handled with Result/Option matching"
+      ],
+      "test_commands": [
+        "grep -rn 'unwrap()|expect(' crates/*/src/*.rs | grep -v '#\\[cfg(test)]' | wc -l",
+        "cargo test --all",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Create error enums using thiserror. Categorize unwrap calls: ParseError, OptionUnwrap, LockError, IOError, InvalidState. Work file by file starting with highest count.",
+      "dependencies": []
+    },
+    {
+      "id": "P0-001.1",
+      "priority": "P0",
+      "title": "Audit unwrap()/expect() in crates/core/src/skill.rs (135 occurrences)",
+      "description": "Audit all unwrap()/expect() in skill.rs. Categorize by error type. Create SkillError enum with thiserror. Replace all 135 occurrences with proper error handling.",
+      "status": "todo",
+      "test_criteria": [
+        "AddErrorHandlingTest: verify SkillError enum covers all unwrap categories (ParseError, OptionUnwrap, LockError, IOError, InvalidState)",
+        "RunTestSuite: cargo test -p opencode-core --lib passes",
+        "RunRegressionTest: grep -c 'unwrap\\|expect' crates/core/src/skill.rs returns 0"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib",
+        "grep -c 'unwrap\\|expect' crates/core/src/skill.rs"
+      ],
+      "impl_notes": "Create error enum in crates/core/src/error.rs. Pattern: #[derive(Debug, thiserror::Error)] pub enum SkillError { #[error(...)] ... }. Replace each unwrap with ? operator or match.",
+      "dependencies": [
+        "P0-001"
+      ]
+    },
+    {
+      "id": "P0-001.2",
+      "priority": "P0",
+      "title": "Audit unwrap()/expect() in crates/core/src/session.rs (86 occurrences)",
+      "description": "Audit all unwrap()/expect() in session.rs. Create SessionError enum with thiserror. Replace all 86 occurrences with proper error handling.",
+      "status": "todo",
+      "test_criteria": [
+        "AddErrorHandlingTest: verify SessionError enum covers all unwrap categories",
+        "RunTestSuite: cargo test -p opencode-core --lib passes",
+        "RunRegressionTest: grep -c 'unwrap\\|expect' crates/core/src/session.rs returns 0"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib",
+        "grep -c 'unwrap\\|expect' crates/core/src/session.rs"
+      ],
+      "impl_notes": "Use existing error crate patterns. Focus on LockError for tokio sync primitives, IOError for file operations, ParseError for deserialization.",
+      "dependencies": [
+        "P0-001"
+      ]
+    },
+    {
+      "id": "P0-001.3",
+      "priority": "P0",
+      "title": "Audit unwrap()/expect() in crates/core/src/project.rs (79 occurrences)",
+      "description": "Audit all unwrap()/expect() in project.rs. Create ProjectError enum with thiserror. Replace all 79 occurrences with proper error handling.",
+      "status": "todo",
+      "test_criteria": [
+        "AddErrorHandlingTest: verify ProjectError enum covers all unwrap categories",
+        "RunTestSuite: cargo test -p opencode-core --lib passes",
+        "RunRegressionTest: grep -c 'unwrap\\|expect' crates/core/src/project.rs returns 0"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib",
+        "grep -c 'unwrap\\|expect' crates/core/src/project.rs"
+      ],
+      "impl_notes": "Project error handling typically involves configuration parsing, path operations, and state management.",
+      "dependencies": [
+        "P0-001"
+      ]
+    },
+    {
+      "id": "P0-001.4",
+      "priority": "P0",
+      "title": "Audit remaining unwrap()/expect() in crates/core/ (336 occurrences across 33 files)",
+      "description": "Audit remaining unwrap()/expect() in core crate. Prioritize files with >20 occurrences. Create appropriate error types as needed.",
+      "status": "todo",
+      "test_criteria": [
+        "RunRegressionTest: total unwrap/expect count in crates/core/ drops to 0",
+        "AddUnitTest: verify each new error type has corresponding test coverage"
+      ],
+      "test_commands": [
+        "grep -rn 'unwrap()|expect(' crates/core/src/*.rs | grep -v '#\\[cfg(test)]' | wc -l",
+        "cargo test -p opencode-core --lib"
+      ],
+      "impl_notes": "Files with >20 occurrences should get dedicated error types. Others can use existing error types or anyhow::Error.",
+      "dependencies": [
+        "P0-001.1",
+        "P0-001.2",
+        "P0-001.3"
+      ]
+    },
+    {
+      "id": "P0-001.5",
+      "priority": "P0",
+      "title": "Audit unwrap()/expect() in crates/tools/src/lsp_tool.rs (74 occurrences)",
+      "description": "Audit all unwrap()/expect() in lsp_tool.rs. Create ToolError enum with thiserror. Replace all 74 occurrences with proper error handling.",
+      "status": "todo",
+      "test_criteria": [
+        "AddErrorHandlingTest: verify ToolError enum covers LSP-specific errors (ParseError, ConnectionError, InvalidRequest)",
+        "RunTestSuite: cargo test -p opencode-tools --lib passes",
+        "RunRegressionTest: grep -c 'unwrap\\|expect' crates/tools/src/lsp_tool.rs returns 0"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools --lib",
+        "grep -c 'unwrap\\|expect' crates/tools/src/lsp_tool.rs"
+      ],
+      "impl_notes": "LSP tool errors often involve JSON-RPC communication, process management, and document synchronization.",
+      "dependencies": [
+        "P0-001"
+      ]
+    },
+    {
+      "id": "P0-001.6",
+      "priority": "P0",
+      "title": "Audit unwrap()/expect() in crates/tools/src/registry.rs (54 occurrences)",
+      "description": "Audit all unwrap()/expect() in registry.rs. Replace all 54 occurrences with proper error handling using ToolError.",
+      "status": "todo",
+      "test_criteria": [
+        "RunRegressionTest: grep -c 'unwrap\\|expect' crates/tools/src/registry.rs returns 0",
+        "AddUnitTest: verify tool registration errors are properly propagated"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools --lib",
+        "grep -c 'unwrap\\|expect' crates/tools/src/registry.rs"
+      ],
+      "impl_notes": "Registry errors typically involve tool lookup, parameter validation, and execution state management.",
+      "dependencies": [
+        "P0-001.5"
+      ]
+    },
+    {
+      "id": "P0-001.7",
+      "priority": "P0",
+      "title": "Audit remaining unwrap()/expect() in crates/tools/ (164 occurrences across 12 files)",
+      "description": "Audit remaining unwrap()/expect() in tools crate. Prioritize files with >10 occurrences. Replace with proper error handling.",
+      "status": "todo",
+      "test_criteria": [
+        "RunRegressionTest: total unwrap/expect count in crates/tools/ drops to 0",
+        "RunTestSuite: cargo test -p opencode-tools passes"
+      ],
+      "test_commands": [
+        "grep -rn 'unwrap()|expect(' crates/tools/src/*.rs | grep -v '#\\[cfg(test)]' | wc -l",
+        "cargo test -p opencode-tools"
+      ],
+      "impl_notes": "Use ToolError for consistency across tools crate.",
+      "dependencies": [
+        "P0-001.5",
+        "P0-001.6"
+      ]
+    },
+    {
+      "id": "P0-001.8",
+      "priority": "P0",
+      "title": "Audit unwrap()/expect() in crates/agent/src/runtime.rs (71 occurrences)",
+      "description": "Audit all unwrap()/expect() in runtime.rs. Use anyhow::Error for this application crate. Replace all 71 occurrences with proper error handling.",
+      "status": "todo",
+      "test_criteria": [
+        "RunRegressionTest: grep -c 'unwrap\\|expect' crates/agent/src/runtime.rs returns 0",
+        "AddErrorHandlingTest: verify agent execution errors are properly caught and reported"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-agent --lib",
+        "grep -c 'unwrap\\|expect' crates/agent/src/runtime.rs"
+      ],
+      "impl_notes": "Agent runtime errors often involve LLM provider communication, tool execution orchestration, and state machine transitions.",
+      "dependencies": [
+        "P0-001"
+      ]
+    },
+    {
+      "id": "P0-001.9",
+      "priority": "P0",
+      "title": "Audit remaining unwrap()/expect() in crates/agent/ (3 occurrences)",
+      "description": "Audit remaining unwrap()/expect() in agent crate. Only 3 occurrences across remaining files.",
+      "status": "todo",
+      "test_criteria": [
+        "RunRegressionTest: total unwrap/expect count in crates/agent/ drops to 0",
+        "RunTestSuite: cargo test -p opencode-agent passes"
+      ],
+      "test_commands": [
+        "grep -rn 'unwrap()|expect(' crates/agent/src/*.rs | grep -v '#\\[cfg(test)]' | wc -l",
+        "cargo test -p opencode-agent"
+      ],
+      "impl_notes": "Should be minimal work - only 3 occurrences.",
+      "dependencies": [
+        "P0-001.8"
+      ]
+    },
+    {
+      "id": "P0-001.10",
+      "priority": "P0",
+      "title": "Audit unwrap()/expect() in crates/server/ (135 occurrences across 18 files)",
+      "description": "Audit all unwrap()/expect() in server crate. Use anyhow::Error for this application crate. Replace all 135 occurrences with proper error handling.",
+      "status": "todo",
+      "test_criteria": [
+        "RunRegressionTest: total unwrap/expect count in crates/server/ drops to 0",
+        "AddIntegrationTest: verify HTTP error responses are properly formatted"
+      ],
+      "test_commands": [
+        "grep -rn 'unwrap()|expect(' crates/server/src/*.rs | grep -v '#\\[cfg(test)]' | wc -l",
+        "cargo test -p opencode-server"
+      ],
+      "impl_notes": "Server errors involve HTTP request handling, WebSocket connections, and async task management.",
+      "dependencies": [
+        "P0-001"
+      ]
+    },
+    {
+      "id": "P0-001.11",
+      "priority": "P0",
+      "title": "Verify zero unwrap()/expect() in production code",
+      "description": "Final verification that all unwrap()/expect() have been eliminated from production code. Run comprehensive grep check.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: grep -rn 'unwrap()|expect(' crates/*/src/*.rs | grep -v '#\\[cfg(test)]' returns 0 lines",
+        "RunTestSuite: cargo test --all passes",
+        "AddRegressionTest: cargo clippy --all -- -D warnings passes"
+      ],
+      "test_commands": [
+        "grep -rn 'unwrap()|expect(' crates/*/src/*.rs | grep -v '#\\[cfg(test)]' | wc -l",
+        "cargo test --all",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "This is the gate task - must return 0 unwrap/expect before proceeding to P1 tasks.",
+      "dependencies": [
+        "P0-001.1",
+        "P0-001.2",
+        "P0-001.3",
+        "P0-001.4",
+        "P0-001.5",
+        "P0-001.6",
+        "P0-001.7",
+        "P0-001.8",
+        "P0-001.9",
+        "P0-001.10"
+      ]
+    },
+    {
+      "id": "P1-001",
+      "priority": "P1",
+      "title": "Repository Pattern Implementation - Root Task",
+      "description": "Implement repository pattern with traits for Session and Project entities. Provides abstraction over storage backends and enables dependency injection for testability.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: grep -r 'pub trait.*Repository' crates/storage/src/ returns SessionRepository and ProjectRepository traits",
+        "RunTestSuite: cargo test -p opencode-storage passes"
+      ],
+      "test_commands": [
+        "grep -r 'pub trait.*Repository' crates/storage/src/",
+        "cargo test -p opencode-storage"
+      ],
+      "impl_notes": "Depends on P0-001 completion for error types. Can begin design work earlier but implementation blocked by P0.",
+      "dependencies": [
+        "P0-001.11"
+      ]
+    },
+    {
+      "id": "P1-001.1",
+      "priority": "P1",
+      "title": "Define SessionRepository trait in crates/storage/src/repository.rs",
+      "description": "Define async trait SessionRepository with methods: find_by_id, find_all, save, delete, list_by_project. Use #[async_trait] macro.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify trait has all 5 methods defined",
+        "AddIntegrationTest: verify trait can be implemented by multiple backends"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-storage",
+        "cargo test -p opencode-storage --lib"
+      ],
+      "impl_notes": "Trait signature: #[async_trait] pub trait SessionRepository: Send + Sync { async fn find_by_id(&self, id: &str) -> Result<Option<Session>, StorageError>; ... }",
+      "dependencies": [
+        "P1-001.3"
+      ]
+    },
+    {
+      "id": "P1-001.2",
+      "priority": "P1",
+      "title": "Define ProjectRepository trait in crates/storage/src/repository.rs",
+      "description": "Define async trait ProjectRepository with methods: find_by_id, find_all, save, delete. Use #[async_trait] macro.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify trait has all 4 methods defined",
+        "AddIntegrationTest: verify trait can be implemented by multiple backends"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-storage",
+        "cargo test -p opencode-storage --lib"
+      ],
+      "impl_notes": "Similar pattern to SessionRepository but for Project entity.",
+      "dependencies": [
+        "P1-001.3"
+      ]
+    },
+    {
+      "id": "P1-001.3",
+      "priority": "P1",
+      "title": "Define StorageError enum in crates/storage/src/error.rs",
+      "description": "Define StorageError enum with thiserror: Database(sqlx::Error), NotFound(String), Serialization(String).",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify StorageError can be converted from sqlx::Error",
+        "AddErrorHandlingTest: verify all error variants implement std::error::Error"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-storage",
+        "cargo test -p opencode-storage --lib"
+      ],
+      "impl_notes": "Pattern: #[derive(Debug, thiserror::Error)] pub enum StorageError { #[error(\"database error: {0}\")] Database(#[from] sqlx::Error), #[error(\"not found: {0}\")] NotFound(String), #[error(\"serialization error: {0}\")] Serialization(String) }",
+      "dependencies": [
+        "P0-001.11"
+      ]
+    },
+    {
+      "id": "P1-001.4",
+      "priority": "P1",
+      "title": "Implement SqliteSessionRepository in crates/storage/src/sqlite_repository.rs",
+      "description": "Implement SessionRepository for SQLite backend. Use sqlx for async database operations.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify all 5 methods work correctly",
+        "AddIntegrationTest: verify session CRUD operations with real SQLite database"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-storage sqlite_session",
+        "cargo build -p opencode-storage"
+      ],
+      "impl_notes": "SqliteSessionRepository should wrap sqlx::SqlitePool and implement trait methods using SQL queries.",
+      "dependencies": [
+        "P1-001.1",
+        "P1-001.3"
+      ]
+    },
+    {
+      "id": "P1-001.5",
+      "priority": "P1",
+      "title": "Implement SqliteProjectRepository in crates/storage/src/sqlite_repository.rs",
+      "description": "Implement ProjectRepository for SQLite backend. Use sqlx for async database operations.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify all 4 methods work correctly",
+        "AddIntegrationTest: verify project CRUD operations with real SQLite database"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-storage sqlite_project",
+        "cargo build -p opencode-storage"
+      ],
+      "impl_notes": "Similar pattern to SqliteSessionRepository but for Project entity.",
+      "dependencies": [
+        "P1-001.2",
+        "P1-001.3"
+      ]
+    },
+    {
+      "id": "P1-001.6",
+      "priority": "P1",
+      "title": "Implement InMemorySessionRepository for tests",
+      "description": "Implement SessionRepository using in-memory HashMap for testing. Located in crates/storage/src/memory_repository.rs.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify in-memory implementation matches trait contract",
+        "AddRegressionTest: existing storage tests still pass"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-storage memory_session",
+        "cargo test -p opencode-storage"
+      ],
+      "impl_notes": "InMemory implementations are for test isolation - should not persist data between test runs.",
+      "dependencies": [
+        "P1-001.1"
+      ]
+    },
+    {
+      "id": "P1-001.7",
+      "priority": "P1",
+      "title": "Implement InMemoryProjectRepository for tests",
+      "description": "Implement ProjectRepository using in-memory HashMap for testing. Located in crates/storage/src/memory_repository.rs.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify in-memory implementation matches trait contract",
+        "AddRegressionTest: existing storage tests still pass"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-storage memory_project",
+        "cargo test -p opencode-storage"
+      ],
+      "impl_notes": "Follow same pattern as InMemorySessionRepository.",
+      "dependencies": [
+        "P1-001.2"
+      ]
+    },
+    {
+      "id": "P1-001.8",
+      "priority": "P1",
+      "title": "Refactor StorageService to use repository traits via dependency injection",
+      "description": "Refactor StorageService to accept SessionRepository and ProjectRepository traits via constructor injection. Enables swapping implementations.",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify StorageService works with both SQLite and InMemory implementations",
+        "RunRegressionTest: existing tests pass with new architecture"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-storage service",
+        "cargo build -p opencode-storage"
+      ],
+      "impl_notes": "StorageService should hold Arc<dyn SessionRepository> and Arc<dyn ProjectRepository> instead of concrete types.",
+      "dependencies": [
+        "P1-001.4",
+        "P1-001.5",
+        "P1-001.6",
+        "P1-001.7"
+      ]
+    },
+    {
+      "id": "P1-001.9",
+      "priority": "P1",
+      "title": "Verify repository traits are properly defined",
+      "description": "Final verification that repository pattern is correctly implemented.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: grep -r 'pub trait.*Repository' crates/storage/src/ returns expected traits",
+        "RunTestSuite: cargo test -p opencode-storage passes",
+        "AddIntegrationTest: full storage integration test passes"
+      ],
+      "test_commands": [
+        "grep -r 'pub trait.*Repository' crates/storage/src/",
+        "cargo test -p opencode-storage --all"
+      ],
+      "impl_notes": "Gate task for P1-001 completion.",
+      "dependencies": [
+        "P1-001.8"
+      ]
+    },
+    {
+      "id": "P1-002",
+      "priority": "P1",
+      "title": "Visibility Audit and Control - Root Task",
+      "description": "Audit and reduce public API surface. Change pub fn to pub(crate) where only internal crate usage. Target: reduce pub fn in core from 501 to <50.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify internal refactoring does not break public API",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "rg '^    pub fn' crates/core/src/ | wc -l",
+        "cargo test --all"
+      ],
+      "impl_notes": "Independent of P0 - can run in parallel. Use cargo doc --document-private-items to identify leaked internals.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-002.1",
+      "priority": "P1",
+      "title": "Audit crates/core/src/lib.rs re-exports (140+ re-exports)",
+      "description": "Audit lib.rs re-exports. Identify items that should be pub(crate) or not exported at all. Reduce from 140+ to minimal public API.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: cargo doc still generates expected public docs",
+        "RunRegressionTest: dependent crates still compile"
+      ],
+      "test_commands": [
+        "cargo doc -p opencode-core --no-deps 2>&1 | grep -c 'warning:'",
+        "cargo build -p opencode-core"
+      ],
+      "impl_notes": "Keep only truly public API. Move internal re-exports to pub(crate) or remove.",
+      "dependencies": [
+        "P1-002"
+      ]
+    },
+    {
+      "id": "P1-002.2",
+      "priority": "P1",
+      "title": "Audit crates/core/src/skill.rs visibility (135 pub fn)",
+      "description": "Audit skill.rs pub fns. Change to pub(crate) where only internal crate usage. Keep pub only for public API.",
+      "status": "todo",
+      "test_criteria": [
+        "RunRegressionTest: grep count of pub fn in skill.rs reduced significantly",
+        "RunTestSuite: cargo test -p opencode-core passes"
+      ],
+      "test_commands": [
+        "rg '^    pub fn' crates/core/src/skill.rs | wc -l",
+        "cargo test -p opencode-core --lib"
+      ],
+      "impl_notes": "Most skill.rs functions are internal helpers - should be pub(crate).",
+      "dependencies": [
+        "P1-002"
+      ]
+    },
+    {
+      "id": "P1-002.3",
+      "priority": "P1",
+      "title": "Audit crates/core/src/session.rs visibility (86 pub fn)",
+      "description": "Audit session.rs pub fns. Change to pub(crate) where only internal crate usage.",
+      "status": "todo",
+      "test_criteria": [
+        "RunRegressionTest: grep count of pub fn in session.rs reduced significantly",
+        "RunTestSuite: cargo test -p opencode-core passes"
+      ],
+      "test_commands": [
+        "rg '^    pub fn' crates/core/src/session.rs | wc -l",
+        "cargo test -p opencode-core --lib"
+      ],
+      "impl_notes": "Session management functions primarily used internally.",
+      "dependencies": [
+        "P1-002"
+      ]
+    },
+    {
+      "id": "P1-002.4",
+      "priority": "P1",
+      "title": "Audit crates/core/src/project.rs visibility (79 pub fn)",
+      "description": "Audit project.rs pub fns. Change to pub(crate) where only internal crate usage.",
+      "status": "todo",
+      "test_criteria": [
+        "RunRegressionTest: grep count of pub fn in project.rs reduced significantly",
+        "RunTestSuite: cargo test -p opencode-core passes"
+      ],
+      "test_commands": [
+        "rg '^    pub fn' crates/core/src/project.rs | wc -l",
+        "cargo test -p opencode-core --lib"
+      ],
+      "impl_notes": "Project management functions primarily used internally.",
+      "dependencies": [
+        "P1-002"
+      ]
+    },
+    {
+      "id": "P1-002.5",
+      "priority": "P1",
+      "title": "Audit remaining core files visibility",
+      "description": "Audit remaining core files for excessive pub fn visibility.",
+      "status": "todo",
+      "test_criteria": [
+        "RunRegressionTest: total pub fn count in core significantly reduced",
+        "RunTestSuite: cargo test -p opencode-core passes"
+      ],
+      "test_commands": [
+        "rg '^    pub fn' crates/core/src/ | wc -l",
+        "cargo test -p opencode-core"
+      ],
+      "impl_notes": "Target is <50 pub fn total in core crate.",
+      "dependencies": [
+        "P1-002.1",
+        "P1-002.2",
+        "P1-002.3",
+        "P1-002.4"
+      ]
+    },
+    {
+      "id": "P1-002.6",
+      "priority": "P1",
+      "title": "Audit crates/tools/ visibility (~150 pub fn)",
+      "description": "Audit tools crate pub fns. Change to pub(crate) where only internal usage.",
+      "status": "todo",
+      "test_criteria": [
+        "RunRegressionTest: pub fn count in tools significantly reduced",
+        "RunTestSuite: cargo test -p opencode-tools passes"
+      ],
+      "test_commands": [
+        "rg '^    pub fn' crates/tools/src/ | wc -l",
+        "cargo test -p opencode-tools"
+      ],
+      "impl_notes": "Tools are internal implementation details - most functions should be pub(crate).",
+      "dependencies": [
+        "P1-002"
+      ]
+    },
+    {
+      "id": "P1-002.7",
+      "priority": "P1",
+      "title": "Audit crates/server/ visibility (~80 pub fn)",
+      "description": "Audit server crate pub fns. Change to pub(crate) where only internal usage.",
+      "status": "todo",
+      "test_criteria": [
+        "RunRegressionTest: pub fn count in server significantly reduced",
+        "RunTestSuite: cargo test -p opencode-server passes"
+      ],
+      "test_commands": [
+        "rg '^    pub fn' crates/server/src/ | wc -l",
+        "cargo test -p opencode-server"
+      ],
+      "impl_notes": "Server internals should be pub(crate). Only route handlers and config need to be pub.",
+      "dependencies": [
+        "P1-002"
+      ]
+    },
+    {
+      "id": "P1-002.8",
+      "priority": "P1",
+      "title": "Verify visibility with cargo doc warnings",
+      "description": "Run cargo doc --document-private-items to identify any remaining public items that should be private.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: cargo doc --document-private-items -p opencode-core shows minimal warnings",
+        "RunTestSuite: full test suite passes"
+      ],
+      "test_commands": [
+        "cargo doc --document-private-items -p opencode-core 2>&1 | grep 'warning: public item' | wc -l",
+        "cargo test --all"
+      ],
+      "impl_notes": "Document-private-items exposes items that are pub but not re-exported in lib.rs.",
+      "dependencies": [
+        "P1-002.5",
+        "P1-002.6",
+        "P1-002.7"
+      ]
+    },
+    {
+      "id": "P1-002.9",
+      "priority": "P1",
+      "title": "Final visibility audit verification",
+      "description": "Final verification: target pub fn in core from 501 to <50.",
+      "status": "todo",
+      "test_criteria": [
+        "RunRegressionTest: rg '^    pub fn' crates/core/src/ returns <50 lines",
+        "AddRegressionTest: all dependent crates still compile and tests pass"
+      ],
+      "test_commands": [
+        "rg '^    pub fn' crates/core/src/ | wc -l",
+        "cargo build --all",
+        "cargo test --all"
+      ],
+      "impl_notes": "Gate task for P1-002 completion. If count is >50, continue refining.",
+      "dependencies": [
+        "P1-002.8"
+      ]
+    },
+    {
+      "id": "P1-003",
+      "priority": "P1",
+      "title": "Service Layer Refinement - Root Task",
+      "description": "Refactor service layer to use repository traits via dependency injection. Improve testability and loose coupling.",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: services work with both real and mock repositories",
+        "RunTestSuite: all service tests pass"
+      ],
+      "test_commands": [
+        "cargo test --all",
+        "cargo build --all"
+      ],
+      "impl_notes": "Depends on P1-001 repository traits. Can design ahead but implementation needs P1-001.",
+      "dependencies": [
+        "P1-001.9"
+      ]
+    },
+    {
+      "id": "P1-003.1",
+      "priority": "P1",
+      "title": "Refactor StorageService to use repository traits",
+      "description": "Refactor StorageService to accept SessionRepository and ProjectRepository via dependency injection.",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: StorageService works with injected repositories",
+        "AddUnitTest: StorageService can be instantiated with mock repositories"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-storage storage_service",
+        "cargo build -p opencode-storage"
+      ],
+      "impl_notes": "Use Arc<dyn SessionRepository> pattern for trait objects.",
+      "dependencies": [
+        "P1-001.8"
+      ]
+    },
+    {
+      "id": "P1-003.2",
+      "priority": "P1",
+      "title": "Review MdnsService for dependency injection needs",
+      "description": "Review MdnsService for dependency injection. Refactor if needed for testability.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: MdnsService can be instantiated with mock dependencies",
+        "RunRegressionTest: MdnsService functionality unchanged"
+      ],
+      "test_commands": [
+        "cargo test mdns",
+        "cargo build"
+      ],
+      "impl_notes": "If MdnsService has no dependencies, document this. If it does, refactor to use trait injection.",
+      "dependencies": [
+        "P1-003"
+      ]
+    },
+    {
+      "id": "P1-003.3",
+      "priority": "P1",
+      "title": "Review SAP Service for dependency injection needs",
+      "description": "Review SAP (Service Authorization Protocol) Service for dependency injection. Refactor if needed.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: SAP Service can be instantiated with mock dependencies",
+        "RunRegressionTest: SAP Service functionality unchanged"
+      ],
+      "test_commands": [
+        "cargo test sap",
+        "cargo build"
+      ],
+      "impl_notes": "Similar review pattern as MdnsService.",
+      "dependencies": [
+        "P1-003"
+      ]
+    },
+    {
+      "id": "P1-003.4",
+      "priority": "P1",
+      "title": "Review Auth Service for dependency injection needs",
+      "description": "Review Auth Service for dependency injection. Refactor if needed for testability.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: Auth Service can be instantiated with mock dependencies",
+        "RunRegressionTest: Auth Service functionality unchanged"
+      ],
+      "test_commands": [
+        "cargo test auth",
+        "cargo build"
+      ],
+      "impl_notes": "Auth service likely has database/token dependencies - prime candidate for DI.",
+      "dependencies": [
+        "P1-003"
+      ]
+    },
+    {
+      "id": "P1-003.5",
+      "priority": "P1",
+      "title": "Verify service layer compiles and tests pass",
+      "description": "Final verification that service layer refactoring is complete and all tests pass.",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: cargo test --all passes",
+        "AddIntegrationTest: all services work together correctly"
+      ],
+      "test_commands": [
+        "cargo test --all",
+        "cargo build --release"
+      ],
+      "impl_notes": "Gate task for P1-003 completion.",
+      "dependencies": [
+        "P1-003.1",
+        "P1-003.2",
+        "P1-003.3",
+        "P1-003.4"
+      ]
+    },
+    {
+      "id": "P1-004",
+      "priority": "P1",
+      "title": "Naming Conventions Audit - Root Task",
+      "description": "Fix naming convention violations: functions with capital first letter, variables shadowing types, constants not in SCREAMING_SNAKE_CASE.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: clippy naming lints pass",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings 2>&1 | grep -i 'naming\\|snake\\|pascal'",
+        "cargo test --all"
+      ],
+      "impl_notes": "Independent task - can run in parallel with other P1 tasks.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-004.1",
+      "priority": "P1",
+      "title": "Run naming conventions check with clippy",
+      "description": "Run clippy to identify all naming convention violations. Capture output for remediation.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: clippy warnings captured and filed",
+        "RunTestSuite: existing tests still pass"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings 2>&1 | tee clippy-naming-issues.txt",
+        "cargo test --all"
+      ],
+      "impl_notes": "Save output for tracking all naming issues to fix.",
+      "dependencies": [
+        "P1-004"
+      ]
+    },
+    {
+      "id": "P1-004.2",
+      "priority": "P1",
+      "title": "Fix functions with capital first letter",
+      "description": "Fix all functions named with capital first letter (e.g., GetSession -> get_session).",
+      "status": "todo",
+      "test_criteria": [
+        "RunRegressionTest: rg 'fn [A-Z]' --type rust returns empty",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "rg 'fn [A-Z]' --type rust | wc -l",
+        "cargo test --all"
+      ],
+      "impl_notes": "Use automated refactoring where possible. lsp_rename is safe for function renames.",
+      "dependencies": [
+        "P1-004.1"
+      ]
+    },
+    {
+      "id": "P1-004.3",
+      "priority": "P1",
+      "title": "Fix variables shadowing types",
+      "description": "Fix variables that shadow type names (e.g., let Session = ... -> let session = ...).",
+      "status": "todo",
+      "test_criteria": [
+        "AddErrorHandlingTest: no type shadowing in variable declarations",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings 2>&1 | grep -i shadow",
+        "cargo test --all"
+      ],
+      "impl_notes": "Type shadowing makes code confusing and can cause subtle bugs.",
+      "dependencies": [
+        "P1-004.1"
+      ]
+    },
+    {
+      "id": "P1-004.4",
+      "priority": "P1",
+      "title": "Fix constants not in SCREAMING_SNAKE_CASE",
+      "description": "Fix constants not following SCREAMING_SNAKE_CASE naming convention.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: clippy::upper_case_acronyms warnings resolved",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings 2>&1 | grep -i 'SCREAMING\\|upper_case'",
+        "cargo test --all"
+      ],
+      "impl_notes": "Constants should be named like MAX_BUFFER_SIZE not MaxBufferSize.",
+      "dependencies": [
+        "P1-004.1"
+      ]
+    },
+    {
+      "id": "P1-004.5",
+      "priority": "P1",
+      "title": "Verify no capital-first functions remain",
+      "description": "Verify rg 'fn [A-Z]' --type rust returns empty. This is the gate for naming fixes.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: rg 'fn [A-Z]' --type rust returns 0 matches",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "rg 'fn [A-Z]' --type rust | wc -l",
+        "cargo test --all"
+      ],
+      "impl_notes": "Gate task - must return 0 before naming is considered complete.",
+      "dependencies": [
+        "P1-004.2",
+        "P1-004.3",
+        "P1-004.4"
+      ]
+    },
+    {
+      "id": "P1-004.6",
+      "priority": "P1",
+      "title": "Add naming lints to CI gate",
+      "description": "Add clippy naming lints to CI gate to prevent future regressions.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: CI pipeline runs clippy with naming rules",
+        "RunRegressionTest: verify CI config updated"
+      ],
+      "test_commands": [
+        "grep -l 'clippy' .github/workflows/*.yml || echo 'No CI found'",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Update CI config to include clippy gate with naming lints.",
+      "dependencies": [
+        "P1-004.5"
+      ]
+    },
+    {
+      "id": "P1-005",
+      "priority": "P1",
+      "title": "Hooks Configuration - Root Task",
+      "description": "Configure cargo fmt and cargo clippy as post-tool hooks for Rust files.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: hooks are active and running on commit",
+        "RunTestSuite: cargo fmt and clippy pass"
+      ],
+      "test_commands": [
+        "cargo fmt --all -- --check",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Independent task - can complete in 1 day.",
+      "dependencies": []
+    },
+    {
+      "id": "P1-005.1",
+      "priority": "P1",
+      "title": "Configure cargo fmt post-tool hook for .rs files",
+      "description": "Configure cargo fmt to run automatically after rust-tool changes.",
+      "status": "todo",
+      "test_criteria": [
+        "RunRegressionTest: cargo fmt passes on all files",
+        "AddRegressionTest: hook is configured in rust-tool or .git/hooks"
+      ],
+      "test_commands": [
+        "cargo fmt --all -- --check",
+        "ls -la .git/hooks/ 2>/dev/null | head -5"
+      ],
+      "impl_notes": "Use rustfmt.toml or rust-tool configuration for hook setup.",
+      "dependencies": [
+        "P1-005"
+      ]
+    },
+    {
+      "id": "P1-005.2",
+      "priority": "P1",
+      "title": "Configure cargo clippy post-tool hook for .rs files",
+      "description": "Configure cargo clippy to run automatically after rust-tool changes.",
+      "status": "todo",
+      "test_criteria": [
+        "RunRegressionTest: cargo clippy passes on all files",
+        "AddRegressionTest: hook is configured"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings",
+        "ls -la .git/hooks/ 2>/dev/null | head -5"
+      ],
+      "impl_notes": "Clippy hook catches style issues before commit.",
+      "dependencies": [
+        "P1-005"
+      ]
+    },
+    {
+      "id": "P1-005.3",
+      "priority": "P1",
+      "title": "Verify cargo fmt hook is active",
+      "description": "Verify cargo fmt --all -- --check passes. Confirm hook is working.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: cargo fmt --all -- --check returns 0",
+        "RunTestSuite: cargo test passes"
+      ],
+      "test_commands": [
+        "cargo fmt --all -- --check",
+        "cargo test --all"
+      ],
+      "impl_notes": "If check fails, formatting issues exist. Run cargo fmt to auto-fix.",
+      "dependencies": [
+        "P1-005.1"
+      ]
+    },
+    {
+      "id": "P1-005.4",
+      "priority": "P1",
+      "title": "Verify cargo clippy hook is active",
+      "description": "Verify cargo clippy --all -- -D warnings passes. Confirm hook is working.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: cargo clippy --all -- -D warnings returns 0",
+        "RunTestSuite: cargo test passes"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings",
+        "cargo test --all"
+      ],
+      "impl_notes": "Gate task - must pass clippy for P1-005 completion.",
+      "dependencies": [
+        "P1-005.2"
+      ]
+    },
+    {
+      "id": "P2-001",
+      "priority": "P2",
+      "title": "String vs &str Optimization - Root Task",
+      "description": "Optimize String vs &str usage. Fix clippy::ptr_arg warnings. Use &str where borrowing suffices.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: clippy::ptr_arg warnings resolved",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -W clippy::ptr_arg 2>&1 | grep -c 'warning:'",
+        "cargo test --all"
+      ],
+      "impl_notes": "Can run in parallel after P0. Independent of P1.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-001.1",
+      "priority": "P2",
+      "title": "Run clippy::ptr_arg check",
+      "description": "Run clippy with clippy::ptr_arg warnings enabled. Capture all instances.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: all ptr_arg warnings captured",
+        "RunTestSuite: existing tests pass"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -W clippy::ptr_arg 2>&1 | tee ptr_arg_issues.txt",
+        "cargo test --all"
+      ],
+      "impl_notes": "Save output for remediation tracking.",
+      "dependencies": [
+        "P2-001"
+      ]
+    },
+    {
+      "id": "P2-001.2",
+      "priority": "P2",
+      "title": "Fix String parameters where &str would suffice",
+      "description": "Fix all functions taking String when &str would work. Change signatures and call sites.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: ptr_arg warning count significantly reduced",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -W clippy::ptr_arg 2>&1 | grep -c 'warning:'",
+        "cargo test --all"
+      ],
+      "impl_notes": "Most common fix: change String parameter to &str. Update implementations accordingly.",
+      "dependencies": [
+        "P2-001.1"
+      ]
+    },
+    {
+      "id": "P2-001.3",
+      "priority": "P2",
+      "title": "Use impl Into<String> for constructors that need ownership",
+      "description": "For constructors that genuinely need to own data, use impl Into<String> for flexible API.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: constructors accept both String and &str via Into",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -W clippy::ptr_arg",
+        "cargo test --all"
+      ],
+      "impl_notes": "Pattern: fn new(id: impl Into<String>) -> Self { Self { id: id.into() } }",
+      "dependencies": [
+        "P2-001.2"
+      ]
+    },
+    {
+      "id": "P2-001.4",
+      "priority": "P2",
+      "title": "Verify all clippy::ptr_arg warnings resolved",
+      "description": "Final verification that all ptr_arg warnings are resolved.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: cargo clippy --all -- -W clippy::ptr_arg returns 0 warnings",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -W clippy::ptr_arg 2>&1 | grep -c 'warning:'",
+        "cargo test --all"
+      ],
+      "impl_notes": "Gate task for P2-001 completion.",
+      "dependencies": [
+        "P2-001.3"
+      ]
+    },
+    {
+      "id": "P2-002",
+      "priority": "P2",
+      "title": "Newtype Wrappers for Type Safety - Root Task",
+      "description": "Create newtype wrappers for IDs (SessionId, ProjectId, UserId, MessageId, ToolId, SkillId) for compile-time type safety.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: newtypes provide compile-time type checking",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "rg 'struct.*Id\\(' crates/core/src/types.rs | wc -l",
+        "cargo test --all"
+      ],
+      "impl_notes": "Can run in parallel after P0. Independent of P1.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-002.1",
+      "priority": "P2",
+      "title": "Create SessionId newtype in crates/core/src/types.rs",
+      "description": "Create SessionId newtype wrapper: #[derive(Debug, Clone, PartialEq, Eq, Hash)] pub struct SessionId(String);",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: SessionId can be created from String and &str",
+        "AddErrorHandlingTest: SessionId provides type-safe separation from raw String"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-core",
+        "cargo test -p opencode-core --lib"
+      ],
+      "impl_notes": "Pattern: #[derive(Debug, Clone, PartialEq, Eq, Hash)] pub struct SessionId(String); impl SessionId { pub fn new(s: impl Into<String>) -> Self { Self(s.into()) } pub fn as_str(&self) -> &str { &self.0 } }",
+      "dependencies": [
+        "P2-002"
+      ]
+    },
+    {
+      "id": "P2-002.2",
+      "priority": "P2",
+      "title": "Create ProjectId newtype in crates/core/src/types.rs",
+      "description": "Create ProjectId newtype wrapper similar to SessionId.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: ProjectId can be created from String and &str",
+        "AddRegressionTest: type compiles correctly"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-core",
+        "cargo test -p opencode-core --lib"
+      ],
+      "impl_notes": "Follow same pattern as SessionId.",
+      "dependencies": [
+        "P2-002"
+      ]
+    },
+    {
+      "id": "P2-002.3",
+      "priority": "P2",
+      "title": "Create UserId newtype in crates/core/src/types.rs",
+      "description": "Create UserId newtype wrapper similar to SessionId.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: UserId can be created from String and &str",
+        "AddRegressionTest: type compiles correctly"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-core",
+        "cargo test -p opencode-core --lib"
+      ],
+      "impl_notes": "Follow same pattern as SessionId.",
+      "dependencies": [
+        "P2-002"
+      ]
+    },
+    {
+      "id": "P2-002.4",
+      "priority": "P2",
+      "title": "Create MessageId newtype in crates/core/src/types.rs",
+      "description": "Create MessageId newtype wrapper similar to SessionId.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: MessageId can be created from String and &str",
+        "AddRegressionTest: type compiles correctly"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-core",
+        "cargo test -p opencode-core --lib"
+      ],
+      "impl_notes": "Follow same pattern as SessionId.",
+      "dependencies": [
+        "P2-002"
+      ]
+    },
+    {
+      "id": "P2-002.5",
+      "priority": "P2",
+      "title": "Create ToolId newtype in crates/core/src/types.rs",
+      "description": "Create ToolId newtype wrapper similar to SessionId.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: ToolId can be created from String and &str",
+        "AddRegressionTest: type compiles correctly"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-core",
+        "cargo test -p opencode-core --lib"
+      ],
+      "impl_notes": "Follow same pattern as SessionId.",
+      "dependencies": [
+        "P2-002"
+      ]
+    },
+    {
+      "id": "P2-002.6",
+      "priority": "P2",
+      "title": "Create SkillId newtype in crates/core/src/types.rs",
+      "description": "Create SkillId newtype wrapper similar to SessionId.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: SkillId can be created from String and &str",
+        "AddRegressionTest: type compiles correctly"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-core",
+        "cargo test -p opencode-core --lib"
+      ],
+      "impl_notes": "Follow same pattern as SessionId.",
+      "dependencies": [
+        "P2-002"
+      ]
+    },
+    {
+      "id": "P2-002.7",
+      "priority": "P2",
+      "title": "Replace String IDs with newtypes throughout codebase",
+      "description": "Replace all String-based ID usages with appropriate newtype wrappers across all crates.",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: newtypes work across all crate boundaries",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "cargo build --all",
+        "cargo test --all"
+      ],
+      "impl_notes": "This is a large refactoring - may touch many files. Use lsp_rename for safety.",
+      "dependencies": [
+        "P2-002.1",
+        "P2-002.2",
+        "P2-002.3",
+        "P2-002.4",
+        "P2-002.5",
+        "P2-002.6"
+      ]
+    },
+    {
+      "id": "P2-002.8",
+      "priority": "P2",
+      "title": "Verify newtypes are properly defined",
+      "description": "Verify rg 'struct.*Id\\(' crates/ returns 6+ matches for all newtypes.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: rg 'struct.*Id\\(' crates/ returns >= 6 matches",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "rg 'struct.*Id\\(' crates/ | wc -l",
+        "cargo test --all"
+      ],
+      "impl_notes": "Gate task - must find all 6 newtypes.",
+      "dependencies": [
+        "P2-002.7"
+      ]
+    },
+    {
+      "id": "P2-003",
+      "priority": "P2",
+      "title": "Test Coverage Target - Root Task",
+      "description": "Improve test coverage to 80%+ using cargo-llvm-cov. Focus on core modules.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: cargo llvm-cov --fail-under-lines 80 passes",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "cargo llvm-cov --fail-under-lines 80 --all",
+        "cargo test --all"
+      ],
+      "impl_notes": "Can run in parallel after P0. Install cargo-llvm-cov first.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-003.1",
+      "priority": "P2",
+      "title": "Install cargo-llvm-cov coverage tool",
+      "description": "Install cargo-llvm-cov for coverage reporting.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: cargo llvm-cov --version succeeds"
+      ],
+      "test_commands": [
+        "cargo install cargo-llvm-cov || echo 'Already installed'",
+        "cargo llvm-cov --version"
+      ],
+      "impl_notes": "One-time setup task.",
+      "dependencies": [
+        "P2-003"
+      ]
+    },
+    {
+      "id": "P2-003.2",
+      "priority": "P2",
+      "title": "Measure baseline coverage",
+      "description": "Measure current test coverage baseline with cargo llvm-cov.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: baseline coverage percentage captured"
+      ],
+      "test_commands": [
+        "cargo llvm-cov --fail-under-lines 0 --all --lcov --output-path lcov.info",
+        "cargo llvm-cov --fail-under-lines 0 --all --text 2>&1 | tail -20"
+      ],
+      "impl_notes": "Save baseline for comparison. This shows current coverage gap.",
+      "dependencies": [
+        "P2-003.1"
+      ]
+    },
+    {
+      "id": "P2-003.3",
+      "priority": "P2",
+      "title": "Identify low-coverage files in crates/core/",
+      "description": "Use llvm-cov report to identify files with <80% coverage in core crate.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: list of low-coverage files documented"
+      ],
+      "test_commands": [
+        "cargo llvm-cov --fail-under-lines 0 -p opencode-core --text 2>&1 | grep -E '\\.rs.*\\|' | sort -t'|' -k2 -n | head -20"
+      ],
+      "impl_notes": "Focus P2-003.4-6 on the worst offenders first.",
+      "dependencies": [
+        "P2-003.2"
+      ]
+    },
+    {
+      "id": "P2-003.4",
+      "priority": "P2",
+      "title": "Add tests for crates/core/src/skill.rs (target 80%+)",
+      "description": "Add comprehensive tests for skill.rs to reach 80%+ line coverage.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: skill parsing, validation, and error handling covered",
+        "RunTestSuite: cargo test -p opencode-core skill passes",
+        "AddRegressionTest: coverage for skill.rs reaches 80%+"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib skill",
+        "cargo llvm-cov -p opencode-core --text 2>&1 | grep skill.rs"
+      ],
+      "impl_notes": "Focus on edge cases: invalid skill format, missing fields, parsing errors.",
+      "dependencies": [
+        "P2-003.3"
+      ]
+    },
+    {
+      "id": "P2-003.5",
+      "priority": "P2",
+      "title": "Add tests for crates/core/src/session.rs (target 80%+)",
+      "description": "Add comprehensive tests for session.rs to reach 80%+ line coverage.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: session creation, updates, queries covered",
+        "RunTestSuite: cargo test -p opencode-core session passes",
+        "AddRegressionTest: coverage for session.rs reaches 80%+"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib session",
+        "cargo llvm-cov -p opencode-core --text 2>&1 | grep session.rs"
+      ],
+      "impl_notes": "Focus on concurrent session access, timeout handling, persistence.",
+      "dependencies": [
+        "P2-003.3"
+      ]
+    },
+    {
+      "id": "P2-003.6",
+      "priority": "P2",
+      "title": "Add tests for crates/core/src/project.rs (target 80%+)",
+      "description": "Add comprehensive tests for project.rs to reach 80%+ line coverage.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: project creation, configuration, cleanup covered",
+        "RunTestSuite: cargo test -p opencode-core project passes",
+        "AddRegressionTest: coverage for project.rs reaches 80%+"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib project",
+        "cargo llvm-cov -p opencode-core --text 2>&1 | grep project.rs"
+      ],
+      "impl_notes": "Focus on project lifecycle, config loading, path resolution.",
+      "dependencies": [
+        "P2-003.3"
+      ]
+    },
+    {
+      "id": "P2-003.7",
+      "priority": "P2",
+      "title": "Identify low-coverage files in crates/tools/",
+      "description": "Use llvm-cov report to identify files with <80% coverage in tools crate.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: list of low-coverage files in tools documented"
+      ],
+      "test_commands": [
+        "cargo llvm-cov -p opencode-tools --text 2>&1 | grep -E '\\.rs.*\\|' | sort -t'|' -k2 -n | head -20"
+      ],
+      "impl_notes": "Focus P2-003.8-9 on worst offenders.",
+      "dependencies": [
+        "P2-003.2"
+      ]
+    },
+    {
+      "id": "P2-003.8",
+      "priority": "P2",
+      "title": "Add tests for crates/tools/src/lsp_tool.rs (target 80%+)",
+      "description": "Add comprehensive tests for lsp_tool.rs to reach 80%+ line coverage.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: LSP tool initialization, document sync, completion covered",
+        "RunTestSuite: cargo test -p opencode-tools lsp passes",
+        "AddRegressionTest: coverage for lsp_tool.rs reaches 80%+"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools --lib lsp",
+        "cargo llvm-cov -p opencode-tools --text 2>&1 | grep lsp_tool.rs"
+      ],
+      "impl_notes": "Mock LSP server responses for deterministic testing.",
+      "dependencies": [
+        "P2-003.7"
+      ]
+    },
+    {
+      "id": "P2-003.9",
+      "priority": "P2",
+      "title": "Add tests for crates/tools/src/registry.rs (target 80%+)",
+      "description": "Add comprehensive tests for registry.rs to reach 80%+ line coverage.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: tool registration, lookup, execution covered",
+        "RunTestSuite: cargo test -p opencode-tools registry passes",
+        "AddRegressionTest: coverage for registry.rs reaches 80%+"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools --lib registry",
+        "cargo llvm-cov -p opencode-tools --text 2>&1 | grep registry.rs"
+      ],
+      "impl_notes": "Focus on error cases: missing tools, invalid parameters.",
+      "dependencies": [
+        "P2-003.7"
+      ]
+    },
+    {
+      "id": "P2-003.10",
+      "priority": "P2",
+      "title": "Identify low-coverage files in crates/agent/",
+      "description": "Use llvm-cov report to identify files with <80% coverage in agent crate.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: list of low-coverage files in agent documented"
+      ],
+      "test_commands": [
+        "cargo llvm-cov -p opencode-agent --text 2>&1 | grep -E '\\.rs.*\\|' | sort -t'|' -k2 -n | head -20"
+      ],
+      "impl_notes": "Focus P2-003.11 on runtime.rs as highest priority.",
+      "dependencies": [
+        "P2-003.2"
+      ]
+    },
+    {
+      "id": "P2-003.11",
+      "priority": "P2",
+      "title": "Add tests for crates/agent/src/runtime.rs (target 80%+)",
+      "description": "Add comprehensive tests for runtime.rs to reach 80%+ line coverage.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: agent execution, tool calling, response handling covered",
+        "RunTestSuite: cargo test -p opencode-agent runtime passes",
+        "AddRegressionTest: coverage for runtime.rs reaches 80%+"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-agent --lib runtime",
+        "cargo llvm-cov -p opencode-agent --text 2>&1 | grep runtime.rs"
+      ],
+      "impl_notes": "Mock LLM provider for deterministic agent behavior testing.",
+      "dependencies": [
+        "P2-003.10"
+      ]
+    },
+    {
+      "id": "P2-003.12",
+      "priority": "P2",
+      "title": "Set CI gate for 80% coverage",
+      "description": "Add cargo llvm-cov --fail-under-lines 80 to CI pipeline.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: CI pipeline includes coverage gate",
+        "RunRegressionTest: coverage gate passes on main branch"
+      ],
+      "test_commands": [
+        "cargo llvm-cov --fail-under-lines 80 --all",
+        "grep -l 'llvm-cov' .github/workflows/*.yml || echo 'No CI found'"
+      ],
+      "impl_notes": "Update CI config to include coverage gate.",
+      "dependencies": [
+        "P2-003.4",
+        "P2-003.5",
+        "P2-003.6",
+        "P2-003.8",
+        "P2-003.9",
+        "P2-003.11"
+      ]
+    },
+    {
+      "id": "P2-004",
+      "priority": "P2",
+      "title": "Unsafe Code Safety Documentation - Root Task",
+      "description": "Audit unsafe blocks and add SAFETY comments per Rust safety guidelines.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: all unsafe blocks have SAFETY comments",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "grep -rn 'unsafe' crates/ | grep -v 'SAFETY' | wc -l",
+        "cargo test --all"
+      ],
+      "impl_notes": "Can run in parallel after P0. Independent of P1.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-004.1",
+      "priority": "P2",
+      "title": "Audit crates/tui/src/app.rs unsafe blocks (3 blocks)",
+      "description": "Audit 3 unsafe blocks in app.rs. Add // SAFETY: comment to each explaining invariants.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: all 3 unsafe blocks in app.rs have SAFETY comments",
+        "RunTestSuite: cargo test -p opencode-tui passes"
+      ],
+      "test_commands": [
+        "grep -n 'unsafe' crates/tui/src/app.rs | grep -v 'SAFETY'",
+        "cargo test -p opencode-tui --lib"
+      ],
+      "impl_notes": "Each SAFETY comment must explain: (1) what invariants are guaranteed, (2) why this is safe, (3) any requirements on callers.",
+      "dependencies": [
+        "P2-004"
+      ]
+    },
+    {
+      "id": "P2-004.2",
+      "priority": "P2",
+      "title": "Audit crates/server/src/routes/validation.rs unsafe blocks (2 blocks)",
+      "description": "Audit 2 unsafe blocks in validation.rs. Add // SAFETY: comment to each.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: all 2 unsafe blocks in validation.rs have SAFETY comments",
+        "RunTestSuite: cargo test -p opencode-server passes"
+      ],
+      "test_commands": [
+        "grep -n 'unsafe' crates/server/src/routes/validation.rs | grep -v 'SAFETY'",
+        "cargo test -p opencode-server --lib"
+      ],
+      "impl_notes": "Server-side unsafe usually involves FFI or low-level parsing.",
+      "dependencies": [
+        "P2-004"
+      ]
+    },
+    {
+      "id": "P2-004.3",
+      "priority": "P2",
+      "title": "Audit crates/plugin/src/lib.rs unsafe block (1 block)",
+      "description": "Audit 1 unsafe block in plugin/lib.rs. Add // SAFETY: comment.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: the 1 unsafe block in plugin/lib.rs has SAFETY comment",
+        "RunTestSuite: cargo test -p opencode-plugin passes"
+      ],
+      "test_commands": [
+        "grep -n 'unsafe' crates/plugin/src/lib.rs | grep -v 'SAFETY'",
+        "cargo test -p opencode-plugin --lib"
+      ],
+      "impl_notes": "Plugin unsafe likely involves dynamic symbol resolution.",
+      "dependencies": [
+        "P2-004"
+      ]
+    },
+    {
+      "id": "P2-004.4",
+      "priority": "P2",
+      "title": "Verify all unsafe blocks have SAFETY comments",
+      "description": "Final verification: grep -rn 'unsafe' crates/ | grep -v 'SAFETY' returns empty.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: grep -rn 'unsafe' crates/ | grep -v 'SAFETY' returns 0",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "grep -rn 'unsafe' crates/ | grep -v 'SAFETY' | wc -l",
+        "cargo test --all"
+      ],
+      "impl_notes": "Gate task - must return 0 for P2-004 completion.",
+      "dependencies": [
+        "P2-004.1",
+        "P2-004.2",
+        "P2-004.3"
+      ]
+    },
+    {
+      "id": "P2-005",
+      "priority": "P2",
+      "title": "Builder Pattern Audit - Root Task",
+      "description": "Audit existing builders and implement new ones where needed for structs with many optional parameters.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: builders follow required pattern with build() method",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "rg 'struct.*Builder' --type rust | wc -l",
+        "cargo test --all"
+      ],
+      "impl_notes": "Can run in parallel after P0. Independent of P1.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-005.1",
+      "priority": "P2",
+      "title": "Audit existing builders",
+      "description": "Audit existing builders in codebase: rg 'struct.*Builder' --type rust.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: list of existing builders documented"
+      ],
+      "test_commands": [
+        "rg 'struct.*Builder' --type rust",
+        "cargo build --all"
+      ],
+      "impl_notes": "Document which builders exist and their status.",
+      "dependencies": [
+        "P2-005"
+      ]
+    },
+    {
+      "id": "P2-005.2",
+      "priority": "P2",
+      "title": "Identify structs that need builder pattern",
+      "description": "Identify structs with >5 optional parameters that should use builder pattern.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: list of structs needing builders documented"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -W clippy::option_option 2>&1 | grep -E 'struct|warning' | head -30",
+        "cargo build --all"
+      ],
+      "impl_notes": "Look for structs with many Option fields or constructor with many parameters.",
+      "dependencies": [
+        "P2-005.1"
+      ]
+    },
+    {
+      "id": "P2-005.3",
+      "priority": "P2",
+      "title": "Implement ServerConfigBuilder if not exists",
+      "description": "Implement ServerConfigBuilder for server configuration if not already present.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: ServerConfigBuilder builds correctly",
+        "AddRegressionTest: existing ServerConfig construction still works"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-server",
+        "cargo test -p opencode-server builder"
+      ],
+      "impl_notes": "Pattern: pub struct ServerConfigBuilder { host: Option<String>, port: Option<u16>, ... } impl ServerConfigBuilder { pub fn new() -> Self { Self { ... } } pub fn host(mut self, h: impl Into<String>) -> Self { self.host = Some(h.into()); self } ... pub fn build(self) -> Result<ServerConfig, ConfigError> { ... } }",
+      "dependencies": [
+        "P2-005.2"
+      ]
+    },
+    {
+      "id": "P2-005.4",
+      "priority": "P2",
+      "title": "Implement ClientConfigBuilder if not exists",
+      "description": "Implement ClientConfigBuilder for client configuration if not already present.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: ClientConfigBuilder builds correctly",
+        "AddRegressionTest: existing ClientConfig construction still works"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-server",
+        "cargo test -p opencode-server builder"
+      ],
+      "impl_notes": "Similar pattern to ServerConfigBuilder.",
+      "dependencies": [
+        "P2-005.2"
+      ]
+    },
+    {
+      "id": "P2-005.5",
+      "priority": "P2",
+      "title": "Verify builders follow required pattern",
+      "description": "Verify all builders have: new(), builder methods returning Self, build() returning Result.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: all builders have proper structure",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "rg 'struct.*Builder' --type rust | wc -l",
+        "cargo test --all"
+      ],
+      "impl_notes": "Gate task for P2-005 completion.",
+      "dependencies": [
+        "P2-005.3",
+        "P2-005.4"
+      ]
+    },
+    {
+      "id": "P2-006",
+      "priority": "P2",
+      "title": "Sealed Traits for Extensibility Control - Root Task",
+      "description": "Seal public traits to prevent external implementation. Use private::Sealed pattern.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: sealed traits cannot be implemented externally",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "grep -rn 'pub trait' crates/*/src/ | grep -v 'Sealed' | wc -l",
+        "cargo test --all"
+      ],
+      "impl_notes": "Can run in parallel after P0. Independent of P1.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-006.1",
+      "priority": "P2",
+      "title": "Audit public traits",
+      "description": "Audit all public traits: grep -rn 'pub trait' crates/*/src/ | grep -v 'Sealed'.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: list of public traits documented"
+      ],
+      "test_commands": [
+        "grep -rn 'pub trait' crates/*/src/ | grep -v 'Sealed'",
+        "cargo build --all"
+      ],
+      "impl_notes": "Document which traits are public and should remain public.",
+      "dependencies": [
+        "P2-006"
+      ]
+    },
+    {
+      "id": "P2-006.2",
+      "priority": "P2",
+      "title": "Identify traits that should be sealed",
+      "description": "Identify traits that are pub but should be sealed to prevent external implementors.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: list of traits to seal documented with rationale"
+      ],
+      "test_commands": [
+        "cargo build --all",
+        "cargo test --all"
+      ],
+      "impl_notes": "Traits that form a closed set of implementations should be sealed.",
+      "dependencies": [
+        "P2-006.1"
+      ]
+    },
+    {
+      "id": "P2-006.3",
+      "priority": "P2",
+      "title": "Seal Tool trait if found public",
+      "description": "Seal the Tool trait if it's public. Use private::Sealed pattern.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: Tool trait is sealed and cannot be externally implemented",
+        "RunTestSuite: cargo test -p opencode-tools passes"
+      ],
+      "test_commands": [
+        "grep -A5 'pub trait Tool' crates/tools/src/*.rs | head -10",
+        "cargo test -p opencode-tools --lib"
+      ],
+      "impl_notes": "Pattern: mod private { pub trait Sealed {} } pub trait Tool: private::Sealed { ... }",
+      "dependencies": [
+        "P2-006.2"
+      ]
+    },
+    {
+      "id": "P2-006.4",
+      "priority": "P2",
+      "title": "Seal Agent trait if found public",
+      "description": "Seal the Agent trait if it's public. Use private::Sealed pattern.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: Agent trait is sealed and cannot be externally implemented",
+        "RunTestSuite: cargo test -p opencode-agent passes"
+      ],
+      "test_commands": [
+        "grep -A5 'pub trait Agent' crates/agent/src/*.rs | head -10",
+        "cargo test -p opencode-agent --lib"
+      ],
+      "impl_notes": "Pattern: mod private { pub trait Sealed {} } pub trait Agent: private::Sealed { ... }",
+      "dependencies": [
+        "P2-006.2"
+      ]
+    },
+    {
+      "id": "P2-006.5",
+      "priority": "P2",
+      "title": "Seal StorageBackend trait if found public",
+      "description": "Seal the StorageBackend trait if it's public. Use private::Sealed pattern.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: StorageBackend trait is sealed and cannot be externally implemented",
+        "RunTestSuite: cargo test -p opencode-storage passes"
+      ],
+      "test_commands": [
+        "grep -A5 'pub trait StorageBackend' crates/storage/src/*.rs | head -10",
+        "cargo test -p opencode-storage --lib"
+      ],
+      "impl_notes": "Pattern: mod private { pub trait Sealed {} } pub trait StorageBackend: private::Sealed { ... }",
+      "dependencies": [
+        "P2-006.2"
+      ]
+    },
+    {
+      "id": "P2-006.6",
+      "priority": "P2",
+      "title": "Implement sealed trait pattern",
+      "description": "Implement required private::Sealed pattern for identified traits.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: sealed traits have private::Sealed module",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "grep -rn 'mod private' crates/",
+        "cargo test --all"
+      ],
+      "impl_notes": "Pattern: mod private { pub trait Sealed {} } pub trait Format: private::Sealed { ... }",
+      "dependencies": [
+        "P2-006.3",
+        "P2-006.4",
+        "P2-006.5"
+      ]
+    },
+    {
+      "id": "P2-006.7",
+      "priority": "P2",
+      "title": "Verify sealed traits pattern is implemented",
+      "description": "Verify grep -rn 'pub trait' crates/*/src/ shows sealed markers.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: all sealed traits show private::Sealed in definition",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "grep -rn 'Sealed' crates/*/src/ | grep -v '//' | head -20",
+        "cargo test --all"
+      ],
+      "impl_notes": "Gate task for P2-006 completion.",
+      "dependencies": [
+        "P2-006.6"
+      ]
+    },
+    {
+      "id": "VERIFY-001",
+      "priority": "P0",
+      "title": "VERIFY-001: Zero unwrap/expect in production code",
+      "description": "Verification gate: grep -r 'unwrap()|expect(' crates/*/src/*.rs returns 0. This is a release blocker.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: grep -r 'unwrap()|expect(' crates/*/src/*.rs | grep -v '#\\[cfg(test)]' returns 0 lines",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "grep -rn 'unwrap()|expect(' crates/*/src/*.rs | grep -v '#\\[cfg(test)]' | wc -l",
+        "cargo test --all"
+      ],
+      "impl_notes": "MUST return 0 before release. Part of P0 completion gate.",
+      "dependencies": [
+        "P0-001.11"
+      ]
+    },
+    {
+      "id": "VERIFY-002",
+      "priority": "P0",
+      "title": "VERIFY-002: Clippy passes with -D warnings",
+      "description": "Verification gate: cargo clippy --all -- -D warnings exits 0. This is a release blocker.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: cargo clippy --all -- -D warnings returns exit code 0",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings",
+        "cargo test --all"
+      ],
+      "impl_notes": "MUST pass before release.",
+      "dependencies": [
+        "P1-004.5",
+        "P1-005.4"
+      ]
+    },
+    {
+      "id": "VERIFY-003",
+      "priority": "P0",
+      "title": "VERIFY-003: cargo fmt passes",
+      "description": "Verification gate: cargo fmt --all passes. This is a release blocker.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: cargo fmt --all -- --check returns 0",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "cargo fmt --all -- --check",
+        "cargo test --all"
+      ],
+      "impl_notes": "MUST pass before release.",
+      "dependencies": [
+        "P1-005.3"
+      ]
+    },
+    {
+      "id": "VERIFY-004",
+      "priority": "P0",
+      "title": "VERIFY-004: All tests pass",
+      "description": "Verification gate: cargo test passes. This is a release blocker.",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: cargo test --all returns exit code 0",
+        "AddIntegrationTest: full integration test suite passes"
+      ],
+      "test_commands": [
+        "cargo test --all",
+        "cargo test --all -- --nocapture 2>&1 | tail -50"
+      ],
+      "impl_notes": "MUST pass before release.",
+      "dependencies": []
+    },
+    {
+      "id": "VERIFY-005",
+      "priority": "P1",
+      "title": "VERIFY-005: Repository traits defined",
+      "description": "Verification gate: grep 'pub trait.*Repository' crates/ shows traits defined.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: grep 'pub trait.*Repository' crates/storage/src/ returns SessionRepository and ProjectRepository",
+        "RunTestSuite: cargo test -p opencode-storage passes"
+      ],
+      "test_commands": [
+        "grep 'pub trait.*Repository' crates/storage/src/",
+        "cargo test -p opencode-storage"
+      ],
+      "impl_notes": "Part of P1-001 completion gate.",
+      "dependencies": [
+        "P1-001.9"
+      ]
+    },
+    {
+      "id": "VERIFY-006",
+      "priority": "P0",
+      "title": "VERIFY-006: No SQL injection vulnerabilities",
+      "description": "Verification gate: rg 'format!.*SELECT' --type rust returns empty (SQL injection check). This is a security gate.",
+      "status": "todo",
+      "test_criteria": [
+        "AddErrorHandlingTest: no string formatting for SQL queries detected",
+        "AddSecurityTest: use of parameterized queries verified"
+      ],
+      "test_commands": [
+        "rg 'format!.*SELECT' --type rust | wc -l",
+        "cargo test --all"
+      ],
+      "impl_notes": "SQL injection is a critical security issue - must be 0.",
+      "dependencies": []
+    },
+    {
+      "id": "VERIFY-007",
+      "priority": "P0",
+      "title": "VERIFY-007: No hardcoded secrets",
+      "description": "Verification gate: rg 'sk-[a-zA-Z0-9]{20,}' --type rust returns empty (secrets check). This is a security gate.",
+      "status": "todo",
+      "test_criteria": [
+        "AddSecurityTest: no Slack tokens or similar secrets in source code",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "rg 'sk-[a-zA-Z0-9]{20,}' --type rust | wc -l",
+        "cargo test --all"
+      ],
+      "impl_notes": "Security gate - hardcoded secrets must be 0.",
+      "dependencies": []
+    },
+    {
+      "id": "VERIFY-008",
+      "priority": "P1",
+      "title": "VERIFY-008: 80% test coverage gate",
+      "description": "Verification gate: cargo llvm-cov --fail-under-lines 80 passes. This is a quality gate.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: cargo llvm-cov --fail-under-lines 80 --all returns exit code 0",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "cargo llvm-cov --fail-under-lines 80 --all",
+        "cargo test --all"
+      ],
+      "impl_notes": "Quality gate - should pass after P2-003 work.",
+      "dependencies": [
+        "P2-003.12"
+      ]
+    },
+    {
+      "id": "VERIFY-009",
+      "priority": "P2",
+      "title": "VERIFY-009: All unsafe blocks have SAFETY comments",
+      "description": "Verification gate: grep -rn 'unsafe' crates/ | grep -v 'SAFETY' returns empty.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: grep -rn 'unsafe' crates/ | grep -v 'SAFETY' | wc -l returns 0",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "grep -rn 'unsafe' crates/ | grep -v 'SAFETY' | wc -l",
+        "cargo test --all"
+      ],
+      "impl_notes": "Part of P2-004 completion gate.",
+      "dependencies": [
+        "P2-004.4"
+      ]
+    },
+    {
+      "id": "VERIFY-010",
+      "priority": "P1",
+      "title": "VERIFY-010: Pub fn count in core < 50",
+      "description": "Verification gate: rg '^    pub fn' crates/core/src/ returns <50. This is a visibility gate.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: rg '^    pub fn' crates/core/src/ | wc -l returns < 50",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "rg '^    pub fn' crates/core/src/ | wc -l",
+        "cargo test --all"
+      ],
+      "impl_notes": "Part of P1-002 completion gate.",
+      "dependencies": [
+        "P1-002.9"
+      ]
+    },
+    {
+      "id": "VERIFY-011",
+      "priority": "P1",
+      "title": "VERIFY-011: Naming conventions pass",
+      "description": "Verification gate: cargo clippy -- -D warnings 2>&1 | grep -i naming returns empty. This is a quality gate.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: cargo clippy --all -- -D warnings 2>&1 | grep -i naming | wc -l returns 0",
+        "RunTestSuite: cargo test --all passes"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings 2>&1 | grep -i naming | wc -l",
+        "cargo test --all"
+      ],
+      "impl_notes": "Part of P1-004 completion gate.",
+      "dependencies": [
+        "P1-004.6"
+      ]
+    }
+  ]
+}
