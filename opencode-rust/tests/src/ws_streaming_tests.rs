@@ -669,3 +669,155 @@ async fn ws_close(
     let _ = ws.send(close_msg).await;
     let _ = ws.next().await;
 }
+
+#[tokio::test]
+async fn test_tool_events_stream_realtime() {
+    use opencode_core::bus::InternalEvent;
+
+    let (ws_url, server_handle, state_data) = start_ws_test_server_with_state(0).await;
+
+    let ws_url_with_session = ws_url.replace("/test-session", "?session_id=test-tool-session");
+
+    let (mut ws, _) = tokio_tungstenite::connect_async(&ws_url_with_session)
+        .await
+        .expect("Should connect to WebSocket endpoint");
+
+    let connected_msg = ws.next().await;
+    assert!(connected_msg.is_some(), "Should receive connected message");
+    let connected_text = connected_msg
+        .unwrap()
+        .expect("Message should not be error")
+        .into_text()
+        .expect("Should be text message");
+    let connected_parsed: serde_json::Value =
+        serde_json::from_str(&connected_text).expect("Should parse as JSON");
+    assert_eq!(
+        connected_parsed.get("type").and_then(|v| v.as_str()),
+        Some("connected"),
+        "First message should be Connected type"
+    );
+
+    let event_bus = &state_data.event_bus;
+    event_bus.publish(InternalEvent::ToolCallStarted {
+        session_id: "test-tool-session".to_string(),
+        tool_name: "read".to_string(),
+        call_id: "call-test-123".to_string(),
+    });
+
+    let tool_call_msg = ws.next().await;
+    assert!(
+        tool_call_msg.is_some(),
+        "Should receive tool call event via WebSocket"
+    );
+
+    let tool_call_text = tool_call_msg
+        .unwrap()
+        .expect("Message should not be error")
+        .into_text()
+        .expect("Should be text message");
+
+    let tool_call_parsed: serde_json::Value =
+        serde_json::from_str(&tool_call_text).expect("Should parse as JSON");
+
+    assert_eq!(
+        tool_call_parsed.get("type").and_then(|v| v.as_str()),
+        Some("tool_call"),
+        "Should receive tool_call type"
+    );
+    assert_eq!(
+        tool_call_parsed.get("session_id").and_then(|v| v.as_str()),
+        Some("test-tool-session"),
+        "Session ID should match"
+    );
+    assert_eq!(
+        tool_call_parsed.get("tool_name").and_then(|v| v.as_str()),
+        Some("read"),
+        "Tool name should be 'read'"
+    );
+    assert_eq!(
+        tool_call_parsed.get("call_id").and_then(|v| v.as_str()),
+        Some("call-test-123"),
+        "Call ID should match"
+    );
+
+    event_bus.publish(InternalEvent::ToolCallEnded {
+        session_id: "test-tool-session".to_string(),
+        call_id: "call-test-123".to_string(),
+        success: true,
+    });
+
+    let tool_result_msg = ws.next().await;
+    assert!(
+        tool_result_msg.is_some(),
+        "Should receive tool result event via WebSocket"
+    );
+
+    let tool_result_text = tool_result_msg
+        .unwrap()
+        .expect("Message should not be error")
+        .into_text()
+        .expect("Should be text message");
+
+    let tool_result_parsed: serde_json::Value =
+        serde_json::from_str(&tool_result_text).expect("Should parse as JSON");
+
+    assert_eq!(
+        tool_result_parsed.get("type").and_then(|v| v.as_str()),
+        Some("tool_result"),
+        "Should receive tool_result type"
+    );
+    assert_eq!(
+        tool_result_parsed
+            .get("session_id")
+            .and_then(|v| v.as_str()),
+        Some("test-tool-session"),
+        "Session ID should match"
+    );
+    assert_eq!(
+        tool_result_parsed.get("call_id").and_then(|v| v.as_str()),
+        Some("call-test-123"),
+        "Call ID should match"
+    );
+    assert_eq!(
+        tool_result_parsed.get("success").and_then(|v| v.as_bool()),
+        Some(true),
+        "Success should be true"
+    );
+
+    ws_close(&mut ws).await;
+    server_handle.abort();
+}
+
+async fn start_ws_test_server_with_state(
+    port: u16,
+) -> (
+    String,
+    tokio::task::JoinHandle<()>,
+    web::Data<opencode_server::ServerState>,
+) {
+    let state = create_ws_test_server_state();
+    let state_data = web::Data::new(state);
+
+    let bind_addr = format!("127.0.0.1:{}", port);
+    let std_listener = std::net::TcpListener::bind(&bind_addr).unwrap();
+    let actual_port = std_listener.local_addr().unwrap().port();
+    let ws_url = format!("ws://127.0.0.1:{}/ws/test-session", actual_port);
+
+    let state_for_server = state_data.clone();
+    let handle = tokio::spawn(async move {
+        HttpServer::new(move || {
+            App::new()
+                .app_data(state_for_server.clone())
+                .service(web::scope("/ws").configure(opencode_server::routes::ws::init))
+        })
+        .listen(std_listener)
+        .unwrap()
+        .run()
+        .await
+        .unwrap();
+    });
+
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    (ws_url, handle, state_data)
+}

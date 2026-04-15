@@ -46,7 +46,7 @@
 | P0-025-08 | Add client disconnect graceful handling | TODO | | routes/ws.rs | P0-025-06 |
 | P0-025-09 | Create test file `tests/src/ws_streaming_tests.rs` | ✅ Done | | NEW | P0-025-05 |
 | P0-025-10 | Add test: WebSocket connects successfully | ✅ Done | | tests/src/ws_streaming_tests.rs | P0-025-09 |
-| P0-025-11 | Add test: tool call events stream in real-time | TODO | | tests/src/ws_streaming_tests.rs | P0-025-10 |
+| P0-025-11 | Add test: tool call events stream in real-time | ✅ Done | | tests/src/ws_streaming_tests.rs | P0-025-10 |
 | P0-025-12 | Add test: multiple clients receive same events | TODO | | tests/src/ws_streaming_tests.rs | P0-025-11 |
 | P0-025-13 | Add test: client disconnect doesn't crash server | TODO | | tests/src/ws_streaming_tests.rs | P0-025-12 |
 | P0-025-14 | Verify build: `cargo build -p opencode-server` | TODO | | | P0-025-13 |

@@ -540,7 +540,7 @@
       "priority": "P0",
       "title": "Add test: tool call events stream in real-time",
       "description": "Add integration test: tool call events stream in real-time via WebSocket",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify tool call events appear in WebSocket stream"
       ],
