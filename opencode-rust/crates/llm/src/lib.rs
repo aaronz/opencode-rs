@@ -5,6 +5,7 @@ pub mod auth_layered;
 pub mod azure;
 pub mod bedrock;
 pub mod budget;
+pub mod catalog;
 pub mod cerebras;
 pub mod cohere;
 pub mod copilot;
@@ -41,6 +42,10 @@ pub use auth::{
 pub use budget::{
     BudgetExceededError, BudgetLimit, BudgetTracker, ConversationBudgetState, RequestBudgetState,
     VariantCost,
+};
+pub use catalog::{
+    merge_catalogs, CatalogSource, FetchError, ModelDescriptor, ModelStatus, ProviderCatalog,
+    ProviderCatalogFetcher, ProviderDescriptor,
 };
 pub use error::{with_retry, LlmError, RetryConfig};
 pub use huggingface::HuggingFaceProvider;
