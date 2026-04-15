@@ -84,7 +84,7 @@
       "priority": "P0",
       "title": "Create execute.rs re-export",
       "description": "Create server/src/routes/execute.rs re-export module for execute routes",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: ensure re-export compiles correctly",
         "AddUnitTest: verify module structure is accessible"
