@@ -271,7 +271,7 @@
       "priority": "P0",
       "title": "Add test: invalid session returns 404",
       "description": "Add integration test: invalid session ID returns 404 status code",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddErrorHandlingTest: verify invalid session ID returns HTTP 404",
         "AddRegressionTest: ensure validation works correctly"

@@ -1,5 +1,9 @@
+use actix_web::{web, App, HttpServer};
 use opencode_core::{Message, Session};
+use opencode_storage::migration::MigrationManager;
 use serde_json::json;
+use std::sync::Arc;
+use std::time::Duration;
 
 #[test]
 fn test_execute_request_parsing_minimal() {
@@ -451,6 +455,138 @@ fn test_execute_request_camel_case_keys() {
     assert_eq!(req.prompt, "test");
 }
 
+#[tokio::test]
+async fn test_invalid_session_returns_404() {
+    let (server_url, server_handle, _temp_dir) = start_test_server(0).await;
+
+    let client = reqwest::Client::new();
+
+    let fake_session_id = "550e8400-e29b-41d4-a716-446655440000";
+
+    let resp = client
+        .post(format!(
+            "{}/api/sessions/{}/execute",
+            server_url, fake_session_id
+        ))
+        .json(&serde_json::json!({
+            "prompt": "Test prompt"
+        }))
+        .send()
+        .await
+        .expect("Failed to call execute endpoint");
+
+    assert_eq!(
+        resp.status().as_u16(),
+        404,
+        "Execute on non-existent session should return 404"
+    );
+
+    server_handle.abort();
+}
+
+async fn start_test_server(
+    port: u16,
+) -> (String, tokio::task::JoinHandle<()>, Arc<tempfile::TempDir>) {
+    let temp_dir = Arc::new(tempfile::tempdir().unwrap());
+    let temp_dir_clone = temp_dir.clone();
+    let db_path = temp_dir.path().join("test.db");
+    let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
+
+    let migration_manager = MigrationManager::new(pool.clone(), 2);
+    migration_manager
+        .migrate()
+        .await
+        .expect("Failed to run migrations");
+
+    let session_repo = Arc::new(opencode_storage::SqliteSessionRepository::new(pool.clone()));
+    let project_repo = Arc::new(opencode_storage::SqliteProjectRepository::new(pool.clone()));
+
+    let mut config = opencode_core::Config::default();
+    if let Ok(api_key) = std::env::var("OPENAI_API_KEY") {
+        if !api_key.is_empty() {
+            config.api_key = Some(api_key);
+        }
+    }
+
+    let state = opencode_server::ServerState {
+        storage: Arc::new(opencode_storage::StorageService::new(
+            session_repo,
+            project_repo,
+            pool,
+        )),
+        models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
+        config: std::sync::Arc::new(std::sync::RwLock::new(config)),
+        event_bus: opencode_core::bus::SharedEventBus::default(),
+        reconnection_store: opencode_server::streaming::ReconnectionStore::default(),
+        temp_db_dir: None,
+        connection_monitor: std::sync::Arc::new(
+            opencode_server::streaming::conn_state::ConnectionMonitor::new(),
+        ),
+        share_server: std::sync::Arc::new(std::sync::RwLock::new(
+            opencode_server::routes::share::ShareServer::with_default_config(),
+        )),
+        acp_enabled: false,
+        acp_stream: opencode_control_plane::AcpEventStream::new().into(),
+        acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
+            opencode_server::routes::acp_ws::AcpClientRegistry::new(),
+        )),
+        tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
+    };
+
+    let state_data = web::Data::new(state);
+
+    let bind_addr = format!("127.0.0.1:{}", port);
+    let std_listener = std::net::TcpListener::bind(&bind_addr).unwrap();
+    let actual_port = std_listener.local_addr().unwrap().port();
+    let server_url = format!("http://127.0.0.1:{}", actual_port);
+
+    let handle = tokio::spawn(async move {
+        HttpServer::new(move || {
+            App::new()
+                .app_data(state_data.clone())
+                .service(
+                    web::scope("/api/sessions").configure(opencode_server::routes::session::init),
+                )
+                .service(
+                    web::scope("/api/sessions/{id}")
+                        .configure(opencode_server::routes::execute::init),
+                )
+        })
+        .listen(std_listener)
+        .unwrap()
+        .run()
+        .await
+        .unwrap();
+        drop(temp_dir_clone);
+    });
+
+    tokio::time::sleep(Duration::from_millis(200)).await;
+
+    (server_url, handle, temp_dir)
+}
+
+fn parse_sse_events(body: &str) -> Vec<(String, serde_json::Value)> {
+    let mut events = Vec::new();
+    let mut current_event_type = String::new();
+    let mut current_data = String::new();
+
+    for line in body.lines() {
+        if line.starts_with("event: ") {
+            current_event_type = line.trim_start_matches("event: ").to_string();
+        } else if line.starts_with("data: ") {
+            current_data = line.trim_start_matches("data: ").to_string();
+        } else if line.is_empty() && !current_event_type.is_empty() {
+            if let Ok(json) = serde_json::from_str(&current_data) {
+                events.push((current_event_type.clone(), json));
+            }
+            current_event_type.clear();
+            current_data.clear();
+        }
+    }
+
+    events
+}
+
 #[test]
 fn test_execute_event_json_format_compatible() {
     use opencode_server::routes::execute::types::ExecuteEvent;
@@ -548,114 +684,6 @@ fn test_execute_request_without_stream_field_defaults_to_true() {
 #[cfg(test)]
 mod integration_tests {
     use super::*;
-    use actix_web::{web, App, HttpServer};
-    use opencode_storage::migration::MigrationManager;
-    use std::sync::Arc;
-    use std::time::Duration;
-
-    async fn start_test_server(
-        port: u16,
-    ) -> (String, tokio::task::JoinHandle<()>, Arc<tempfile::TempDir>) {
-        let temp_dir = Arc::new(tempfile::tempdir().unwrap());
-        let temp_dir_clone = temp_dir.clone();
-        let db_path = temp_dir.path().join("test.db");
-        let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
-
-        let migration_manager = MigrationManager::new(pool.clone(), 2);
-        migration_manager
-            .migrate()
-            .await
-            .expect("Failed to run migrations");
-
-        let session_repo = Arc::new(opencode_storage::SqliteSessionRepository::new(pool.clone()));
-        let project_repo = Arc::new(opencode_storage::SqliteProjectRepository::new(pool.clone()));
-
-        let mut config = opencode_core::Config::default();
-        if let Ok(api_key) = std::env::var("OPENAI_API_KEY") {
-            if !api_key.is_empty() {
-                config.api_key = Some(api_key);
-            }
-        }
-
-        let state = opencode_server::ServerState {
-            storage: Arc::new(opencode_storage::StorageService::new(
-                session_repo,
-                project_repo,
-                pool,
-            )),
-            models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
-            config: std::sync::Arc::new(std::sync::RwLock::new(config)),
-            event_bus: opencode_core::bus::SharedEventBus::default(),
-            reconnection_store: opencode_server::streaming::ReconnectionStore::default(),
-            temp_db_dir: None,
-            connection_monitor: std::sync::Arc::new(
-                opencode_server::streaming::conn_state::ConnectionMonitor::new(),
-            ),
-            share_server: std::sync::Arc::new(std::sync::RwLock::new(
-                opencode_server::routes::share::ShareServer::with_default_config(),
-            )),
-            acp_enabled: false,
-            acp_stream: opencode_control_plane::AcpEventStream::new().into(),
-            acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
-                opencode_server::routes::acp_ws::AcpClientRegistry::new(),
-            )),
-            tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
-        };
-
-        let state_data = web::Data::new(state);
-
-        let bind_addr = format!("127.0.0.1:{}", port);
-        let std_listener = std::net::TcpListener::bind(&bind_addr).unwrap();
-        let actual_port = std_listener.local_addr().unwrap().port();
-        let server_url = format!("http://127.0.0.1:{}", actual_port);
-
-        let handle = tokio::spawn(async move {
-            HttpServer::new(move || {
-                App::new()
-                    .app_data(state_data.clone())
-                    .service(
-                        web::scope("/api/sessions")
-                            .configure(opencode_server::routes::session::init),
-                    )
-                    .service(
-                        web::scope("/api/sessions/{id}")
-                            .configure(opencode_server::routes::execute::init),
-                    )
-            })
-            .listen(std_listener)
-            .unwrap()
-            .run()
-            .await
-            .unwrap();
-            drop(temp_dir_clone);
-        });
-
-        tokio::time::sleep(Duration::from_millis(200)).await;
-
-        (server_url, handle, temp_dir)
-    }
-
-    fn parse_sse_events(body: &str) -> Vec<(String, serde_json::Value)> {
-        let mut events = Vec::new();
-        let mut current_event_type = String::new();
-        let mut current_data = String::new();
-
-        for line in body.lines() {
-            if line.starts_with("event: ") {
-                current_event_type = line.trim_start_matches("event: ").to_string();
-            } else if line.starts_with("data: ") {
-                current_data = line.trim_start_matches("data: ").to_string();
-            } else if line.is_empty() && !current_event_type.is_empty() {
-                if let Ok(json) = serde_json::from_str(&current_data) {
-                    events.push((current_event_type.clone(), json));
-                }
-                current_event_type.clear();
-                current_data.clear();
-            }
-        }
-
-        events
-    }
 
     #[tokio::test]
     async fn test_valid_session_execute_returns_200() {
