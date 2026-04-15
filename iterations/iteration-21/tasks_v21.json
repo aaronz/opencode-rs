@@ -325,7 +325,7 @@
       "priority": "P0",
       "title": "Verify build passes",
       "description": "Verify build passes: cargo build -p opencode-server",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: verify cargo build -p opencode-server succeeds without errors"
       ],
