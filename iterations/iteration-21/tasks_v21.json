@@ -342,7 +342,7 @@
       "priority": "P0",
       "title": "Verify agent_execute tests pass",
       "description": "Verify tests pass: cargo test -p opencode-integration-tests agent_execute",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: verify all agent_execute integration tests pass"
       ],
@@ -359,7 +359,7 @@
       "priority": "P0",
       "title": "Create AgentEvent enum in agent crate",
       "description": "Create crates/agent/src/events.rs with AgentEvent enum for WebSocket streaming",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify AgentEvent enum can serialize to JSON",
         "AddUnitTest: verify all event variants are properly defined",

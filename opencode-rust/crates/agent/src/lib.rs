@@ -3,6 +3,7 @@ pub(crate) use agent::sealed;
 pub mod build_agent;
 pub mod debug_agent;
 pub mod delegation;
+pub mod events;
 pub mod explore_agent;
 pub mod general_agent;
 pub mod plan_agent;
@@ -19,6 +20,7 @@ pub use delegation::{
     DelegationError, DelegationStatusSummary, Task, TaskDelegate, TaskId, TaskProgress, TaskResult,
     TaskStatus,
 };
+pub use events::AgentEvent;
 pub use explore_agent::ExploreAgent;
 pub use general_agent::GeneralAgent;
 pub use plan_agent::PlanAgent;
