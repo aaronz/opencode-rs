@@ -363,3 +363,7 @@ fn event_to_stream_message(event: InternalEvent, session_id: &str) -> Option<Str
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.route("", web::get().to(ws_index));
 }
+
+pub mod session_hub;
+
+pub use session_hub::{ClientInfo, SessionClients, SessionHub};

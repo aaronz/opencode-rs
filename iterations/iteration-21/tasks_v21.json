@@ -396,7 +396,7 @@
       "priority": "P0",
       "title": "Create session_hub.rs for event broadcast",
       "description": "Create server/src/routes/ws/session_hub.rs for WebSocket event broadcast per session",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify SessionHub can store multiple client connections",
         "AddUnitTest: verify broadcast sends to all connected clients",

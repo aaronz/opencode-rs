@@ -38,7 +38,7 @@
 |----|------|--------|-------|-------|--------------|
 | P0-025-01 | Create `crates/agent/src/events.rs` with AgentEvent enum | ✅ Done | | NEW (agent crate) | None |
 | P0-025-02 | Implement `AgentEventEmitter` trait for AgentExecutor | ✅ Done | | agent/src/events.rs | P0-025-01 |
-| P0-025-03 | Create `server/src/routes/ws/session_hub.rs` for event broadcast | TODO | | NEW | None |
+| P0-025-03 | Create `server/src/routes/ws/session_hub.rs` for event broadcast | ✅ Done | | NEW | None |
 | P0-025-04 | Update `server/src/routes/ws.rs` to handle session-specific routing | TODO | | routes/ws.rs | P0-025-03 |
 | P0-025-05 | Integrate execute endpoint with session hub for event emission | TODO | | execute/integration.rs | P0-025-03, P0-024-03 |
 | P0-025-06 | Add WebSocket connection lifecycle management | TODO | | routes/ws.rs | P0-025-04 |
