@@ -20,7 +20,7 @@ pub use delegation::{
     DelegationError, DelegationStatusSummary, Task, TaskDelegate, TaskId, TaskProgress, TaskResult,
     TaskStatus,
 };
-pub use events::AgentEvent;
+pub use events::{AgentEvent, AgentEventEmitter, BroadcastEventEmitter};
 pub use explore_agent::ExploreAgent;
 pub use general_agent::GeneralAgent;
 pub use plan_agent::PlanAgent;

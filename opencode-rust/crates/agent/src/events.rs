@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tokio::sync::broadcast;
+
+pub const DEFAULT_EVENT_CHANNEL_CAPACITY: usize = 1024;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")]
@@ -64,6 +67,178 @@ impl AgentEvent {
         Self::Complete {
             summary: summary.into(),
         }
+    }
+}
+
+pub trait AgentEventEmitter: Send + Sync {
+    fn emit(&self, event: AgentEvent);
+    fn subscribe(&self) -> broadcast::Receiver<AgentEvent>;
+}
+
+#[derive(Debug, Clone)]
+pub struct BroadcastEventEmitter {
+    sender: broadcast::Sender<AgentEvent>,
+}
+
+impl BroadcastEventEmitter {
+    pub fn new(capacity: usize) -> Self {
+        let (sender, _) = broadcast::channel(capacity);
+        Self { sender }
+    }
+
+    pub fn with_default_capacity() -> Self {
+        Self::new(DEFAULT_EVENT_CHANNEL_CAPACITY)
+    }
+}
+
+impl Default for BroadcastEventEmitter {
+    fn default() -> Self {
+        Self::with_default_capacity()
+    }
+}
+
+impl AgentEventEmitter for BroadcastEventEmitter {
+    fn emit(&self, event: AgentEvent) {
+        let _ = self.sender.send(event);
+    }
+
+    fn subscribe(&self) -> broadcast::Receiver<AgentEvent> {
+        self.sender.subscribe()
+    }
+}
+
+#[cfg(test)]
+mod emitter_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_broadcast_event_emitter_creation() {
+        let emitter = BroadcastEventEmitter::new(100);
+        let event = AgentEvent::tool_call("read", json!({"path": "/tmp"}));
+        emitter.emit(event);
+    }
+
+    #[tokio::test]
+    async fn test_broadcast_event_emitter_subscribe() {
+        let emitter = BroadcastEventEmitter::new(100);
+        let mut receiver = emitter.subscribe();
+        drop(emitter);
+        assert!(receiver.recv().await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_broadcast_event_emitter_emit_and_receive() {
+        let emitter = BroadcastEventEmitter::new(100);
+        let mut receiver = emitter.subscribe();
+
+        let event = AgentEvent::tool_call("read", json!({"path": "/tmp/test"}));
+        emitter.emit(event.clone());
+
+        let received = receiver.recv().await.unwrap();
+        match received {
+            AgentEvent::ToolCall { tool, params } => {
+                assert_eq!(tool, "read");
+                assert_eq!(params["path"], "/tmp/test");
+            }
+            _ => panic!("Expected ToolCall variant"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_broadcast_event_emitter_multiple_subscribers() {
+        let emitter = BroadcastEventEmitter::new(100);
+        let mut receiver1 = emitter.subscribe();
+        let mut receiver2 = emitter.subscribe();
+
+        let event = AgentEvent::message("assistant", "Hello!");
+        emitter.emit(event.clone());
+
+        let received1 = receiver1.recv().await.unwrap();
+        let received2 = receiver2.recv().await.unwrap();
+
+        match (&received1, &received2) {
+            (
+                AgentEvent::Message {
+                    role: r1,
+                    content: c1,
+                },
+                AgentEvent::Message {
+                    role: r2,
+                    content: c2,
+                },
+            ) => {
+                assert_eq!(r1, "assistant");
+                assert_eq!(c1, "Hello!");
+                assert_eq!(r2, "assistant");
+                assert_eq!(c2, "Hello!");
+            }
+            _ => panic!("Expected Message variant"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_broadcast_event_emitter_all_event_types() {
+        let emitter = BroadcastEventEmitter::new(100);
+        let mut receiver = emitter.subscribe();
+
+        let events = vec![
+            AgentEvent::tool_call("read", json!({"path": "/tmp"})),
+            AgentEvent::tool_result("read", json!({"content": "hello"})),
+            AgentEvent::thinking(" 分析中..."),
+            AgentEvent::token("Hello"),
+            AgentEvent::message("assistant", "Hi there"),
+            AgentEvent::error("Something went wrong"),
+            AgentEvent::complete("Done"),
+        ];
+
+        for event in events {
+            emitter.emit(event.clone());
+        }
+
+        let mut count = 0;
+        while let Ok(received) = receiver.recv().await {
+            count += 1;
+            if count == 7 {
+                break;
+            }
+        }
+        assert_eq!(count, 7);
+    }
+
+    #[tokio::test]
+    async fn test_broadcast_event_emitter_receiver_lag() {
+        let emitter = BroadcastEventEmitter::with_default_capacity();
+        let mut receiver = emitter.subscribe();
+
+        emitter.emit(AgentEvent::thinking("first"));
+        emitter.emit(AgentEvent::thinking("second"));
+        emitter.emit(AgentEvent::thinking("third"));
+
+        let first = receiver.recv().await.unwrap();
+        let second = receiver.recv().await.unwrap();
+        let third = receiver.recv().await.unwrap();
+
+        match (&first, &second, &third) {
+            (
+                AgentEvent::Thinking { content: c1 },
+                AgentEvent::Thinking { content: c2 },
+                AgentEvent::Thinking { content: c3 },
+            ) => {
+                assert_eq!(c1, "first");
+                assert_eq!(c2, "second");
+                assert_eq!(c3, "third");
+            }
+            _ => panic!("Expected Thinking variants"),
+        }
+    }
+
+    #[test]
+    fn test_broadcast_event_emitter_cloneable() {
+        let emitter = BroadcastEventEmitter::new(100);
+        let emitter_clone = emitter.clone();
+        let _receiver = emitter_clone.subscribe();
+        drop(emitter);
     }
 }
 

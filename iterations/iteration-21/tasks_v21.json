@@ -377,7 +377,7 @@
       "priority": "P0",
       "title": "Implement AgentEventEmitter trait",
       "description": "Implement AgentEventEmitter trait for AgentExecutor to emit events during execution",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify AgentEventEmitter trait is implemented",
         "AddIntegrationTest: verify events are emitted during agent execution"
