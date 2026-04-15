@@ -26,43 +26,22 @@ pub struct ModelSelectionDialog {
 
 impl ModelSelectionDialog {
     pub fn new(theme: Theme) -> Self {
-        let models = vec![
-            ModelInfo {
-                id: "gpt-4o".to_string(),
-                name: "GPT-4o".to_string(),
-                provider: "OpenAI".to_string(),
-                is_paid: true,
-                is_available: true,
-            },
-            ModelInfo {
-                id: "gpt-4o-mini".to_string(),
-                name: "GPT-4o Mini".to_string(),
-                provider: "OpenAI".to_string(),
-                is_paid: true,
-                is_available: true,
-            },
-            ModelInfo {
-                id: "claude-3-5-sonnet".to_string(),
-                name: "Claude 3.5 Sonnet".to_string(),
-                provider: "Anthropic".to_string(),
-                is_paid: true,
-                is_available: true,
-            },
-            ModelInfo {
-                id: "llama3.1".to_string(),
-                name: "Llama 3.1".to_string(),
-                provider: "Ollama".to_string(),
-                is_paid: false,
-                is_available: false,
-            },
-        ];
-
         Self {
-            models,
+            models: Vec::new(),
             selected_index: 0,
             filter: String::new(),
             theme,
         }
+    }
+
+    pub fn set_models(&mut self, models: Vec<ModelInfo>) {
+        self.models = models;
+        self.selected_index = 0;
+        self.filter.clear();
+    }
+
+    pub fn models(&self) -> &[ModelInfo] {
+        &self.models
     }
 
     fn filtered_models(&self) -> Vec<&ModelInfo> {

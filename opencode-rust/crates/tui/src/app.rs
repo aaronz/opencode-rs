@@ -6,6 +6,7 @@ use crate::components::{
 use crate::config::{Config, DiffStyle, UserConfig};
 use crate::dialogs::home_view::{HomeAction, HomeView, HomeViewSection};
 use crate::dialogs::*;
+use crate::dialogs::{ProviderInfo, ProviderStatus};
 use crate::file_ref_handler::FileRefHandler;
 use crate::input::{EditorLauncher, InputBox, InputParser, InputProcessor, InputToken};
 use crate::layout::LayoutManager;
@@ -27,7 +28,7 @@ use opencode_core::{
 };
 use opencode_llm::{
     BrowserAuthModelInfo, OpenAiBrowserAuthService, OpenAiBrowserAuthStore, OpenAiBrowserSession,
-    OpenAiProvider, Provider, ProviderConfig,
+    OpenAiProvider, Provider, ProviderCatalogFetcher, ProviderConfig,
 };
 use opencode_lsp::client::LspClient;
 use opencode_lsp::types::{Diagnostic, Location};
@@ -529,6 +530,7 @@ pub struct App {
     mcp_manager: &'static McpManager,
     pub lsp_client: Option<LspClient>,
     pub lsp_diagnostics: Vec<Diagnostic>,
+    pub catalog_fetcher: ProviderCatalogFetcher,
 }
 
 impl App {
@@ -710,6 +712,13 @@ impl App {
             mcp_manager: McpManager::global(),
             lsp_client: None,
             lsp_diagnostics: Vec::new(),
+            catalog_fetcher: {
+                let cache_dir = dirs::config_dir()
+                    .unwrap_or_else(|| std::path::PathBuf::from("."))
+                    .join("opencode-rs/cache");
+                std::fs::create_dir_all(&cache_dir).ok();
+                ProviderCatalogFetcher::new(cache_dir.join("models_dev_catalog.json"))
+            },
         }
     }
 
@@ -4291,6 +4300,9 @@ OpenCode Agent Configuration
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
+                if matches!(key.code, KeyCode::Enter | KeyCode::Esc) {
+                    self.load_model_catalog();
+                }
                 let action = self.model_selection_dialog.handle_input(key);
                 match action {
                     DialogAction::Close => self.mode = AppMode::Chat,
@@ -4305,12 +4317,35 @@ OpenCode Agent Configuration
         Ok(())
     }
 
+    fn load_model_catalog(&mut self) {
+        use crate::dialogs::ModelInfo;
+        if let Some(catalog) = self.catalog_fetcher.get_blocking() {
+            let models: Vec<ModelInfo> = catalog
+                .providers
+                .values()
+                .flat_map(|p| {
+                    p.models.values().map(|m| ModelInfo {
+                        id: m.id.clone(),
+                        name: m.display_name.clone(),
+                        provider: p.display_name.clone(),
+                        is_paid: m.cost.input > 0.0 || m.cost.output > 0.0,
+                        is_available: true,
+                    })
+                })
+                .collect();
+            self.model_selection_dialog.set_models(models);
+        }
+    }
+
     fn handle_provider_management_dialog(
         &mut self,
         _terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
+                if matches!(key.code, KeyCode::Enter | KeyCode::Esc) {
+                    self.load_provider_catalog();
+                }
                 let action = self.provider_management_dialog.handle_input(key);
                 match action {
                     DialogAction::Close => self.mode = AppMode::Chat,
@@ -4322,6 +4357,23 @@ OpenCode Agent Configuration
             }
         }
         Ok(())
+    }
+
+    fn load_provider_catalog(&mut self) {
+        use opencode_llm::ProviderDescriptor;
+        if let Some(catalog) = self.catalog_fetcher.get_blocking() {
+            let providers: Vec<ProviderInfo> = catalog
+                .providers
+                .values()
+                .map(|p: &ProviderDescriptor| ProviderInfo {
+                    id: p.id.clone(),
+                    name: p.display_name.clone(),
+                    status: ProviderStatus::Connected,
+                    api_key_set: false,
+                })
+                .collect();
+            self.provider_management_dialog.set_providers(providers);
+        }
     }
 
     fn handle_connect_provider_dialog(

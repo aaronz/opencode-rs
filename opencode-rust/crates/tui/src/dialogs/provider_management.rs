@@ -31,32 +31,20 @@ pub struct ProviderManagementDialog {
 
 impl ProviderManagementDialog {
     pub fn new(theme: Theme) -> Self {
-        let providers = vec![
-            ProviderInfo {
-                id: "openai".to_string(),
-                name: "OpenAI".to_string(),
-                status: ProviderStatus::Connected,
-                api_key_set: true,
-            },
-            ProviderInfo {
-                id: "anthropic".to_string(),
-                name: "Anthropic".to_string(),
-                status: ProviderStatus::Connected,
-                api_key_set: true,
-            },
-            ProviderInfo {
-                id: "ollama".to_string(),
-                name: "Ollama".to_string(),
-                status: ProviderStatus::Disconnected,
-                api_key_set: false,
-            },
-        ];
-
         Self {
-            providers,
+            providers: Vec::new(),
             selected_index: 0,
             theme,
         }
+    }
+
+    pub fn set_providers(&mut self, providers: Vec<ProviderInfo>) {
+        self.providers = providers;
+        self.selected_index = 0;
+    }
+
+    pub fn providers(&self) -> &[ProviderInfo] {
+        &self.providers
     }
 
     fn status_color(&self, status: ProviderStatus) -> Color {
