@@ -31,13 +31,12 @@ fn check_auth(req: &HttpRequest, state: &ServerState) -> Result<(), HttpResponse
         }
     };
 
-    let Some(expected_key) = config_guard.api_key.as_ref() else {
-        return Ok(());
+    let expected_key = match config_guard.api_key.as_ref() {
+        Some(key) if !key.is_empty() => key,
+        _ => {
+            return Err(unauthorized_error("Server has no API key configured"));
+        }
     };
-
-    if expected_key.is_empty() {
-        return Ok(());
-    }
 
     let authorized = req
         .headers()

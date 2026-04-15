@@ -342,7 +342,7 @@
       "priority": "P0",
       "title": "Verify agent_execute tests pass",
       "description": "Verify tests pass: cargo test -p opencode-integration-tests agent_execute",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "RunTestSuite: verify all agent_execute integration tests pass"
       ],
