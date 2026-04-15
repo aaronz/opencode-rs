@@ -18,8 +18,9 @@ pub struct ExecutionContext {
     pub max_tool_results_per_iteration: usize,
 }
 
+#[allow(dead_code)]
 impl ExecutionContext {
-    pub fn new(
+    pub(crate) fn new(
         tool_registry: Arc<ToolRegistry>,
         provider: Arc<dyn Provider + Send + Sync>,
         agent_type: AgentType,
@@ -33,17 +34,17 @@ impl ExecutionContext {
         }
     }
 
-    pub fn with_max_iterations(mut self, max: usize) -> Self {
+    pub(crate) fn with_max_iterations(mut self, max: usize) -> Self {
         self.max_iterations = max;
         self
     }
 
-    pub fn with_max_tool_results_per_iteration(mut self, max: usize) -> Self {
+    pub(crate) fn with_max_tool_results_per_iteration(mut self, max: usize) -> Self {
         self.max_tool_results_per_iteration = max;
         self
     }
 
-    pub fn create_agent(&self) -> Box<dyn Agent> {
+    pub(crate) fn create_agent(&self) -> Box<dyn Agent> {
         match self.agent_type {
             AgentType::Build => Box::new(BuildAgent::new()),
             AgentType::Plan => Box::new(PlanAgent::new()),
@@ -79,6 +80,7 @@ pub enum ExecutionEvent {
     },
 }
 
+#[allow(dead_code)]
 impl From<ExecutionEvent> for ExecuteEvent {
     fn from(event: ExecutionEvent) -> Self {
         match event {
@@ -103,16 +105,16 @@ impl From<ExecutionEvent> for ExecuteEvent {
             ),
             ExecutionEvent::Message { role, content } => ExecuteEvent::message(role, content),
             ExecutionEvent::Error { code, message } => ExecuteEvent::error(code, message),
-            ExecutionEvent::Complete { session_id, .. } => ExecuteEvent::complete(
-                serde_json::json!({
+            ExecutionEvent::Complete { session_id, .. } => {
+                ExecuteEvent::complete(serde_json::json!({
                     "session_id": session_id.to_string(),
-                }),
-            ),
+                }))
+            }
         }
     }
 }
 
-pub async fn execute_agent_loop(
+pub(crate) async fn execute_agent_loop(
     session: &mut Session,
     agent: &dyn Agent,
     provider: &dyn Provider,
@@ -175,6 +177,7 @@ pub async fn execute_agent_loop(
     Ok(final_response)
 }
 
+#[allow(dead_code)]
 impl From<ExecuteMode> for AgentType {
     fn from(mode: ExecuteMode) -> Self {
         match mode {
@@ -185,7 +188,8 @@ impl From<ExecuteMode> for AgentType {
     }
 }
 
-pub fn system_prompt_for_mode(mode: ExecuteMode) -> &'static str {
+#[allow(dead_code)]
+pub(crate) fn system_prompt_for_mode(mode: ExecuteMode) -> &'static str {
     mode.system_prompt()
 }
 
@@ -197,9 +201,13 @@ pub struct IntegrationToolResult {
     pub error: Option<String>,
 }
 
+#[allow(dead_code)]
 impl IntegrationToolResult {
     /// Create from opencode_tools::ToolResult with a known tool name
-    pub fn from_tools_result(tool_name: impl Into<String>, result: opencode_tools::ToolResult) -> Self {
+    pub(crate) fn from_tools_result(
+        tool_name: impl Into<String>,
+        result: opencode_tools::ToolResult,
+    ) -> Self {
         Self {
             tool_name: tool_name.into(),
             success: result.success,
@@ -209,6 +217,7 @@ impl IntegrationToolResult {
     }
 }
 
+#[allow(dead_code)]
 impl From<opencode_core::ToolResult> for IntegrationToolResult {
     fn from(result: opencode_core::ToolResult) -> Self {
         Self {
@@ -223,8 +232,8 @@ impl From<opencode_core::ToolResult> for IntegrationToolResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use opencode_core::ToolResult;
     use async_trait::async_trait;
+    use opencode_core::ToolResult;
 
     struct MockProvider;
 
@@ -406,7 +415,10 @@ mod tests {
         assert_eq!(integration_result.tool_name, "write");
         assert!(!integration_result.success);
         assert!(integration_result.content.is_none());
-        assert_eq!(integration_result.error, Some("Permission denied".to_string()));
+        assert_eq!(
+            integration_result.error,
+            Some("Permission denied".to_string())
+        );
     }
 
     #[tokio::test]
@@ -451,7 +463,10 @@ mod tests {
                     .get("input")
                     .and_then(|v| v.as_str())
                     .unwrap_or("default");
-                Ok(opencode_tools::ToolResult::ok(format!("received: {}", input)))
+                Ok(opencode_tools::ToolResult::ok(format!(
+                    "received: {}",
+                    input
+                )))
             }
         }
 
@@ -505,7 +520,11 @@ mod tests {
         };
         let execute_event: ExecuteEvent = exec_event.into();
         match execute_event {
-            ExecuteEvent::ToolCall { tool, params: _, call_id } => {
+            ExecuteEvent::ToolCall {
+                tool,
+                params: _,
+                call_id,
+            } => {
                 assert_eq!(tool, "read");
                 assert_eq!(call_id, "call-1");
             }
@@ -586,10 +605,7 @@ mod tests {
         );
 
         let has_tool = registry.get("nonexistent").await;
-        assert!(
-            has_tool.is_none(),
-            "Nonexistent tool should not be found"
-        );
+        assert!(has_tool.is_none(), "Nonexistent tool should not be found");
     }
 
     #[tokio::test]
@@ -624,7 +640,10 @@ mod tests {
                     .get("value")
                     .and_then(|v| v.as_str())
                     .unwrap_or("default");
-                Ok(opencode_tools::ToolResult::ok(format!("discovered: {}", input)))
+                Ok(opencode_tools::ToolResult::ok(format!(
+                    "discovered: {}",
+                    input
+                )))
             }
         }
 
@@ -676,17 +695,16 @@ mod tests {
                     .get("message")
                     .and_then(|v| v.as_str())
                     .unwrap_or("executed");
-                Ok(opencode_tools::ToolResult::ok(format!("tool executed: {}", msg)))
+                Ok(opencode_tools::ToolResult::ok(format!(
+                    "tool executed: {}",
+                    msg
+                )))
             }
         }
 
         registry.register(ExecutableTestTool).await;
 
-        let ctx = ExecutionContext::new(
-            registry.clone(),
-            Arc::new(MockProvider),
-            AgentType::Build,
-        );
+        let ctx = ExecutionContext::new(registry.clone(), Arc::new(MockProvider), AgentType::Build);
 
         assert_eq!(
             ctx.agent_type,
@@ -705,10 +723,7 @@ mod tests {
 
         assert!(result.is_ok(), "Tool should be executable through registry");
         let result = result.unwrap();
-        assert!(
-            result.success,
-            "Tool execution should succeed"
-        );
+        assert!(result.success, "Tool execution should succeed");
         assert!(
             result.content.contains("tool executed: test"),
             "Tool should produce expected output"
@@ -725,10 +740,20 @@ mod tests {
         struct ToolA;
         #[async_trait::async_trait]
         impl Tool for ToolA {
-            fn name(&self) -> &str { "tool_a" }
-            fn description(&self) -> &str { "First tool" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<opencode_tools::ToolContext>) -> Result<opencode_tools::ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "tool_a"
+            }
+            fn description(&self) -> &str {
+                "First tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<opencode_tools::ToolContext>,
+            ) -> Result<opencode_tools::ToolResult, OpenCodeError> {
                 Ok(opencode_tools::ToolResult::ok("a"))
             }
         }
@@ -737,10 +762,20 @@ mod tests {
         struct ToolB;
         #[async_trait::async_trait]
         impl Tool for ToolB {
-            fn name(&self) -> &str { "tool_b" }
-            fn description(&self) -> &str { "Second tool" }
-            fn clone_tool(&self) -> Box<dyn Tool> { Box::new(self.clone()) }
-            async fn execute(&self, _: serde_json::Value, _: Option<opencode_tools::ToolContext>) -> Result<opencode_tools::ToolResult, OpenCodeError> {
+            fn name(&self) -> &str {
+                "tool_b"
+            }
+            fn description(&self) -> &str {
+                "Second tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<opencode_tools::ToolContext>,
+            ) -> Result<opencode_tools::ToolResult, OpenCodeError> {
                 Ok(opencode_tools::ToolResult::ok("b"))
             }
         }
@@ -760,8 +795,12 @@ mod tests {
             "Second tool should be discoverable"
         );
 
-        let result_a = registry.execute("tool_a", serde_json::json!({}), None).await;
-        let result_b = registry.execute("tool_b", serde_json::json!({}), None).await;
+        let result_a = registry
+            .execute("tool_a", serde_json::json!({}), None)
+            .await;
+        let result_b = registry
+            .execute("tool_b", serde_json::json!({}), None)
+            .await;
 
         assert!(result_a.is_ok(), "First tool should be executable");
         assert!(result_b.is_ok(), "Second tool should be executable");
@@ -771,11 +810,8 @@ mod tests {
     async fn test_tool_registry_from_application_state() {
         let registry = Arc::new(opencode_tools::ToolRegistry::new());
 
-        let ctx = ExecutionContext::new(
-            registry.clone(),
-            Arc::new(MockProvider),
-            AgentType::General,
-        );
+        let ctx =
+            ExecutionContext::new(registry.clone(), Arc::new(MockProvider), AgentType::General);
 
         let has_tool = ctx.tool_registry.get("read").await;
         assert_eq!(
@@ -785,9 +821,6 @@ mod tests {
         );
 
         let tool_list = ctx.tool_registry.list_filtered(None).await;
-        assert!(
-            tool_list.is_empty(),
-            "Empty registry should have no tools"
-        );
+        assert!(tool_list.is_empty(), "Empty registry should have no tools");
     }
 }
