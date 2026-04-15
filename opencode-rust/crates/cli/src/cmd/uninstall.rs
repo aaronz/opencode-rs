@@ -33,7 +33,10 @@ pub fn run(args: UninstallArgs) {
                 "config_dir": config_dir,
                 "status": "dry_run"
             });
-            println!("{}", serde_json::to_string_pretty(&result).unwrap());
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&result).expect("failed to serialize JSON output")
+            );
             return;
         }
         println!("[DRY RUN] Uninstalling opencode-rs");
@@ -51,7 +54,10 @@ pub fn run(args: UninstallArgs) {
             "config_dir": config_dir,
             "status": if args.force { "executed" } else { "dry_run" }
         });
-        println!("{}", serde_json::to_string_pretty(&result).unwrap());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&result).expect("failed to serialize JSON output")
+        );
 
         if args.force {
             if data_dir.exists() {

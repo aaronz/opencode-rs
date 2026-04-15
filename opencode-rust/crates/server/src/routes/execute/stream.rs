@@ -22,9 +22,10 @@ pub struct SseFormattedEvent {
     pub data: String,
 }
 
+#[allow(dead_code)]
 impl SseFormattedEvent {
     /// Creates a new SSE formatted event.
-    pub fn new(event_type: &'static str, data: String, id: Option<u64>) -> Self {
+    pub(crate) fn new(event_type: &'static str, data: String, id: Option<u64>) -> Self {
         Self {
             id,
             event_type,
@@ -46,7 +47,7 @@ impl SseFormattedEvent {
     /// event: <event_type>\n
     /// data: <payload>\n\n
     /// ```
-    pub fn to_sse_string(&self) -> String {
+    pub(crate) fn to_sse_string(&self) -> String {
         let mut output = String::new();
 
         if let Some(id) = self.id {
@@ -92,7 +93,7 @@ fn serialize_event<T: Serialize>(event: &T) -> String {
 ///
 /// # Returns
 /// A formatted SSE string ready for transmission.
-pub fn format_sse_event(event: &ExecuteEvent, id: Option<u64>) -> String {
+pub(crate) fn format_sse_event(event: &ExecuteEvent, id: Option<u64>) -> String {
     let event_type = event_type_name(event);
     let data = serialize_event(event);
 
@@ -111,7 +112,8 @@ pub fn format_sse_event(event: &ExecuteEvent, id: Option<u64>) -> String {
 /// Formats an ExecuteEvent into an SseFormattedEvent struct.
 ///
 /// This is useful when you need to inspect the components before serialization.
-pub fn format_sse_event_struct(event: &ExecuteEvent, id: Option<u64>) -> SseFormattedEvent {
+#[allow(dead_code)]
+pub(crate) fn format_sse_event_struct(event: &ExecuteEvent, id: Option<u64>) -> SseFormattedEvent {
     let event_type = event_type_name(event);
     let data = serialize_event(event);
 
@@ -122,9 +124,9 @@ pub fn format_sse_event_struct(event: &ExecuteEvent, id: Option<u64>) -> SseForm
 ///
 /// Returns a `Box<str>` for each event formatted as SSE.
 /// This is useful for integration with actix-web's `HttpResponse::streaming()`.
-pub fn execute_event_stream(
+pub(crate) fn execute_event_stream(
     events: impl IntoIterator<Item = ExecuteEvent>,
-) -> Pin<Box<dyn Stream<Item = std::result::Result<web::Bytes, actix_web::Error>> + Send> > {
+) -> Pin<Box<dyn Stream<Item = std::result::Result<web::Bytes, actix_web::Error>> + Send>> {
     use futures::stream::{self, StreamExt};
 
     // Collect into Vec to ensure Send - required for the stream to be Send
@@ -140,9 +142,10 @@ pub fn execute_event_stream(
 /// Creates a streaming response from a stream of ExecuteEvents.
 ///
 /// This version accepts a `Stream` of `ExecuteEvent` for lazy/eager evaluation.
-pub fn execute_event_stream_from_stream<S>(
+#[allow(dead_code)]
+pub(crate) fn execute_event_stream_from_stream<S>(
     stream: S,
-) -> Pin<Box<dyn Stream<Item = std::result::Result<web::Bytes, actix_web::Error>> + Send> >
+) -> Pin<Box<dyn Stream<Item = std::result::Result<web::Bytes, actix_web::Error>> + Send>>
 where
     S: Stream<Item = ExecuteEvent> + Send + 'static,
 {
@@ -159,9 +162,10 @@ where
 /// Creates an SSE stream with event IDs from a stream of ExecuteEvents.
 ///
 /// Each event is assigned a sequential ID starting from 1.
-pub fn execute_event_stream_with_ids<S>(
+#[allow(dead_code)]
+pub(crate) fn execute_event_stream_with_ids<S>(
     stream: S,
-) -> Pin<Box<dyn Stream<Item = std::result::Result<web::Bytes, actix_web::Error>> + Send> >
+) -> Pin<Box<dyn Stream<Item = std::result::Result<web::Bytes, actix_web::Error>> + Send>>
 where
     S: Stream<Item = ExecuteEvent> + Send + 'static,
 {
@@ -181,12 +185,11 @@ where
 /// Returns true if the string follows the SSE specification:
 /// - Each line is formatted as "field: value\n"
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use futures::StreamExt;
     use crate::routes::execute::types::{ExecuteEvent, ExecuteMode, ExecuteRequest};
+    use futures::StreamExt;
 
     /// Validates SSE format. Only used in tests.
     fn is_valid_sse_format(sse_string: &str) -> bool {
@@ -327,7 +330,10 @@ mod tests {
         );
         let sse = event.to_sse_string();
 
-        assert_eq!(sse, "id: 42\nevent: tool_call\ndata: {\"event\":\"tool_call\",\"tool\":\"read\"}\n\n");
+        assert_eq!(
+            sse,
+            "id: 42\nevent: tool_call\ndata: {\"event\":\"tool_call\",\"tool\":\"read\"}\n\n"
+        );
     }
 
     #[test]
@@ -339,16 +345,15 @@ mod tests {
         );
         let sse = event.to_sse_string();
 
-        assert_eq!(sse, "event: message\ndata: {\"event\":\"message\",\"content\":\"hi\"}\n\n");
+        assert_eq!(
+            sse,
+            "event: message\ndata: {\"event\":\"message\",\"content\":\"hi\"}\n\n"
+        );
     }
 
     #[test]
     fn test_sse_formatted_event_clone() {
-        let event1 = SseFormattedEvent::new(
-            "test",
-            "test data".to_string(),
-            Some(1),
-        );
+        let event1 = SseFormattedEvent::new("test", "test data".to_string(), Some(1));
         let event2 = event1.clone();
 
         assert_eq!(event1.id, event2.id);
@@ -362,7 +367,9 @@ mod tests {
     fn test_is_valid_sse_format_valid() {
         // Valid SSE format
         assert!(is_valid_sse_format("data: hello\n\n"));
-        assert!(is_valid_sse_format("id: 1\nevent: message\ndata: hello\n\n"));
+        assert!(is_valid_sse_format(
+            "id: 1\nevent: message\ndata: hello\n\n"
+        ));
         assert!(is_valid_sse_format(
             "id: 1\nevent: tool_call\ndata: {\"tool\":\"read\"}\n\n"
         ));
@@ -576,8 +583,7 @@ mod tests {
         assert_eq!(req.stream, Some(true));
 
         let json_with_mode = r#"{"prompt": "Test", "mode": "build", "stream": false}"#;
-        let req: ExecuteRequest =
-            serde_json::from_str(json_with_mode).expect("should deserialize");
+        let req: ExecuteRequest = serde_json::from_str(json_with_mode).expect("should deserialize");
         assert_eq!(req.mode, Some(ExecuteMode::Build));
         assert_eq!(req.stream, Some(false));
     }

@@ -8,8 +8,9 @@ pub struct FieldError {
     pub code: u16,
 }
 
+#[allow(dead_code)]
 impl FieldError {
-    pub fn new(field: impl Into<String>, message: impl Into<String>, code: u16) -> Self {
+    pub(crate) fn new(field: impl Into<String>, message: impl Into<String>, code: u16) -> Self {
         Self {
             field: field.into(),
             message: message.into(),
@@ -17,7 +18,7 @@ impl FieldError {
         }
     }
 
-    pub fn with_code(field: impl Into<String>, message: impl Into<String>) -> Self {
+    pub(crate) fn with_code(field: impl Into<String>, message: impl Into<String>) -> Self {
         Self {
             field: field.into(),
             message: message.into(),
@@ -25,12 +26,12 @@ impl FieldError {
         }
     }
 
-    pub fn required(field: impl Into<String>) -> Self {
+    pub(crate) fn required(field: impl Into<String>) -> Self {
         let f = field.into();
         Self::new(f.clone(), format!("Field '{}' is required", f), 7002)
     }
 
-    pub fn format(field: impl Into<String>, expected: impl Into<String>) -> Self {
+    pub(crate) fn format(field: impl Into<String>, expected: impl Into<String>) -> Self {
         let f = field.into();
         Self::new(
             f.clone(),
@@ -43,7 +44,11 @@ impl FieldError {
         )
     }
 
-    pub fn out_of_range(field: impl Into<String>, min: Option<usize>, max: Option<usize>) -> Self {
+    pub(crate) fn out_of_range(
+        field: impl Into<String>,
+        min: Option<usize>,
+        max: Option<usize>,
+    ) -> Self {
         let f = field.into();
         let message = match (min, max) {
             (Some(min), Some(max)) => format!("Field '{}' must be between {} and {}", f, min, max),
@@ -54,7 +59,7 @@ impl FieldError {
         Self::new(f, message, 7001)
     }
 
-    pub fn too_long(field: impl Into<String>, max_length: usize) -> Self {
+    pub(crate) fn too_long(field: impl Into<String>, max_length: usize) -> Self {
         let f = field.into();
         Self::new(
             f.clone(),
@@ -66,7 +71,7 @@ impl FieldError {
         )
     }
 
-    pub fn too_short(field: impl Into<String>, min_length: usize) -> Self {
+    pub(crate) fn too_short(field: impl Into<String>, min_length: usize) -> Self {
         let f = field.into();
         Self::new(
             f.clone(),
@@ -75,7 +80,7 @@ impl FieldError {
         )
     }
 
-    pub fn invalid_enum(field: impl Into<String>, valid_values: &[&str]) -> Self {
+    pub(crate) fn invalid_enum(field: impl Into<String>, valid_values: &[&str]) -> Self {
         let f = field.into();
         Self::new(
             f.clone(),
@@ -98,8 +103,9 @@ pub struct ErrorResponse {
     pub details: Vec<FieldError>,
 }
 
+#[allow(dead_code)]
 impl ErrorResponse {
-    pub fn new(error: impl Into<String>, message: impl Into<String>, code: u16) -> Self {
+    pub(crate) fn new(error: impl Into<String>, message: impl Into<String>, code: u16) -> Self {
         Self {
             error: error.into(),
             message: message.into(),
@@ -108,24 +114,24 @@ impl ErrorResponse {
         }
     }
 
-    pub fn with_details(mut self, details: impl Into<Vec<FieldError>>) -> Self {
+    pub(crate) fn with_details(mut self, details: impl Into<Vec<FieldError>>) -> Self {
         self.details = details.into();
         self
     }
 
-    pub fn authentication_error(message: impl Into<String>) -> Self {
+    pub(crate) fn authentication_error(message: impl Into<String>) -> Self {
         Self::new("authentication_error", message, 1001)
     }
 
-    pub fn authorization_error(message: impl Into<String>) -> Self {
+    pub(crate) fn authorization_error(message: impl Into<String>) -> Self {
         Self::new("authorization_error", message, 2001)
     }
 
-    pub fn not_found_error(resource: &str, id: &str) -> Self {
+    pub(crate) fn not_found_error(resource: &str, id: &str) -> Self {
         Self::new("not_found", format!("{} not found: {}", resource, id), 4040)
     }
 
-    pub fn session_not_found(id: &str) -> Self {
+    pub(crate) fn session_not_found(id: &str) -> Self {
         Self::new(
             "session_not_found",
             format!("Session not found: {}", id),
@@ -133,44 +139,44 @@ impl ErrorResponse {
         )
     }
 
-    pub fn validation_error(message: impl Into<String>) -> Self {
+    pub(crate) fn validation_error(message: impl Into<String>) -> Self {
         Self::new("validation_error", message, 7001)
     }
 
-    pub fn invalid_request(message: impl Into<String>) -> Self {
+    pub(crate) fn invalid_request(message: impl Into<String>) -> Self {
         Self::new("invalid_request", message, 4001)
     }
 
-    pub fn config_error(message: impl Into<String>) -> Self {
+    pub(crate) fn config_error(message: impl Into<String>) -> Self {
         Self::new("config_error", message, 6001)
     }
 
-    pub fn storage_error(message: impl Into<String>) -> Self {
+    pub(crate) fn storage_error(message: impl Into<String>) -> Self {
         Self::new("storage_error", message, 5002)
     }
 
-    pub fn internal_error(message: impl Into<String>) -> Self {
+    pub(crate) fn internal_error(message: impl Into<String>) -> Self {
         Self::new("internal_error", message, 9001)
     }
 
-    pub fn bad_request(error_type: &str, message: impl Into<String>) -> Self {
+    pub(crate) fn bad_request(error_type: &str, message: impl Into<String>) -> Self {
         Self::new(error_type, message, 4001)
     }
 
-    pub fn unauthorized(message: impl Into<String>) -> Self {
+    pub(crate) fn unauthorized(message: impl Into<String>) -> Self {
         Self::new("unauthorized", message, 1001)
     }
 
-    pub fn forbidden(message: impl Into<String>) -> Self {
+    pub(crate) fn forbidden(message: impl Into<String>) -> Self {
         Self::new("forbidden", message, 2001)
     }
 
-    pub fn to_response(self, status: actix_web::http::StatusCode) -> HttpResponse {
+    pub(crate) fn to_response(&self, status: actix_web::http::StatusCode) -> HttpResponse {
         HttpResponse::build(status).json(self)
     }
 }
 
-pub fn json_error(
+pub(crate) fn json_error(
     status: actix_web::http::StatusCode,
     error: &str,
     message: impl Into<String>,
@@ -178,7 +184,7 @@ pub fn json_error(
     HttpResponse::build(status).json(ErrorResponse::new(error, message, status.as_u16()))
 }
 
-pub fn bad_request(message: impl Into<String>) -> HttpResponse {
+pub(crate) fn bad_request(message: impl Into<String>) -> HttpResponse {
     HttpResponse::build(actix_web::http::StatusCode::BAD_REQUEST).json(ErrorResponse::new(
         "bad_request",
         message,
@@ -186,7 +192,7 @@ pub fn bad_request(message: impl Into<String>) -> HttpResponse {
     ))
 }
 
-pub fn not_found(message: impl Into<String>) -> HttpResponse {
+pub(crate) fn not_found(message: impl Into<String>) -> HttpResponse {
     HttpResponse::build(actix_web::http::StatusCode::NOT_FOUND).json(ErrorResponse::new(
         "not_found",
         message,
@@ -194,12 +200,13 @@ pub fn not_found(message: impl Into<String>) -> HttpResponse {
     ))
 }
 
-pub fn internal_error(message: impl Into<String>) -> HttpResponse {
+pub(crate) fn internal_error(message: impl Into<String>) -> HttpResponse {
     HttpResponse::build(actix_web::http::StatusCode::INTERNAL_SERVER_ERROR)
         .json(ErrorResponse::internal_error(message))
 }
 
-pub fn validation_error(message: impl Into<String>) -> HttpResponse {
+#[allow(dead_code)]
+pub(crate) fn validation_error(message: impl Into<String>) -> HttpResponse {
     HttpResponse::build(actix_web::http::StatusCode::UNPROCESSABLE_ENTITY)
         .json(ErrorResponse::validation_error(message))
 }

@@ -1,3 +1,4 @@
+use crate::sealed;
 use crate::{Tool, ToolResult};
 use async_trait::async_trait;
 use opencode_core::OpenCodeError;
@@ -64,7 +65,7 @@ impl Tool for WebSearchTool {
             )));
         }
 
-        let api_key = api_key.unwrap();
+        let api_key = api_key.expect("api_key was validated above");
 
         let request_body = serde_json::json!({
             "jsonrpc": "2.0",

@@ -66,7 +66,11 @@ fn save_queue(queue: &[serde_json::Value]) {
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
-    std::fs::write(path, serde_json::to_string_pretty(queue).unwrap()).unwrap();
+    std::fs::write(
+        path,
+        serde_json::to_string_pretty(queue).expect("failed to serialize queue"),
+    )
+    .expect("failed to write queue file");
 }
 
 pub fn run(args: PromptArgs) {
@@ -97,7 +101,10 @@ pub fn run(args: PromptArgs) {
         };
 
         if args.json {
-            println!("{}", serde_json::to_string(&history).unwrap());
+            println!(
+                "{}",
+                serde_json::to_string(&history).expect("failed to serialize JSON output")
+            );
         } else {
             println!("Prompt history:");
             for entry in history {
@@ -142,7 +149,8 @@ pub fn run(args: PromptArgs) {
         if args.json {
             println!(
                 "{}",
-                serde_json::to_string(&serde_json::json!({"pending": pending})).unwrap()
+                serde_json::to_string(&serde_json::json!({"pending": pending}))
+                    .expect("failed to serialize JSON output")
             );
         } else {
             println!("Pending prompts: {}", pending);

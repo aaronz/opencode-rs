@@ -34,7 +34,7 @@ impl<W: Write> NdjsonSerializer<W> {
     fn timestamp() -> u64 {
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .expect("system time is before UNIX epoch")
             .as_millis() as u64
     }
 

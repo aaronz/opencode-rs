@@ -35,7 +35,6 @@ pub enum AcpAction {
 
 pub fn run(args: AcpArgs) {
     let runtime = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
-
     runtime.block_on(async {
         if let Err(e) = run_acp(args).await {
             eprintln!("ACP error: {}", e);
@@ -83,7 +82,10 @@ async fn run_acp(args: AcpArgs) -> Result<(), Box<dyn std::error::Error>> {
                         "acp_enabled": false
                     })
                 });
-                println!("{}", serde_json::to_string_pretty(&status).unwrap());
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&status).expect("failed to serialize JSON output")
+                );
                 return Ok(());
             }
             None => json!({
@@ -91,7 +93,10 @@ async fn run_acp(args: AcpArgs) -> Result<(), Box<dyn std::error::Error>> {
                 "status": "ready"
             }),
         };
-        println!("{}", serde_json::to_string_pretty(&result).unwrap());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&result).expect("failed to serialize JSON output")
+        );
         return Ok(());
     }
 
@@ -156,7 +161,8 @@ async fn run_acp(args: AcpArgs) -> Result<(), Box<dyn std::error::Error>> {
                     if let Ok(response) = resp.json::<serde_json::Value>().await {
                         println!(
                             "  Response: {}",
-                            serde_json::to_string_pretty(&response).unwrap()
+                            serde_json::to_string_pretty(&response)
+                                .expect("failed to serialize JSON output")
                         );
                         if response["accepted"] == true {
                             println!("  Status: Handshake successful!");

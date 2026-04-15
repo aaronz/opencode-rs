@@ -1,3 +1,4 @@
+use crate::sealed;
 use crate::tool::{Tool, ToolContext, ToolResult};
 use async_trait::async_trait;
 use opencode_core::{session::Session, OpenCodeError};

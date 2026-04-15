@@ -6,6 +6,7 @@
     clippy::double_ended_iterator_last
 )]
 
+use crate::sealed;
 use crate::{Tool, ToolResult};
 use async_trait::async_trait;
 use opencode_core::OpenCodeError;
@@ -208,12 +209,12 @@ impl Tool for LspTool {
                 if file.is_empty() {
                     return Err(OpenCodeError::Tool("file_path is required for documentSymbol".to_string()));
                 }
-                
+
                 let grep_output = Command::new("grep")
                     .args(["-n", "^\\s*\\(pub\\s\\+\\)\\?\\(fn\\|struct\\|enum\\|trait\\|impl\\|type\\)", file])
                     .output()
                     .await;
-                
+
                 match grep_output {
                     Ok(out) => {
                         let result = String::from_utf8_lossy(&out.stdout);
@@ -230,12 +231,12 @@ impl Tool for LspTool {
                 if symbol.is_empty() {
                     return Err(OpenCodeError::Tool("symbol is required for workspaceSymbol".to_string()));
                 }
-                
+
                 let grep_output = Command::new("grep")
                     .args(["-rn", "--include=*.rs", &format!("\\<{}\\>", symbol), "."])
                     .output()
                     .await;
-                
+
                 match grep_output {
                     Ok(out) => {
                         let result = String::from_utf8_lossy(&out.stdout);
@@ -252,7 +253,7 @@ impl Tool for LspTool {
                 if file.is_empty() {
                     return Err(OpenCodeError::Tool("file_path is required for goToImplementation".to_string()));
                 }
-                
+
                 Ok(ToolResult::ok(format!("Go to implementation at {}:{}:{}", file, line, character))
                     .with_title(format!("Go to Implementation {}", file)))
             }
@@ -260,7 +261,7 @@ impl Tool for LspTool {
                 if file.is_empty() {
                     return Err(OpenCodeError::Tool("file_path is required for diagnostics".to_string()));
                 }
-                
+
                 let diagnostics = if file.ends_with(".rs") {
                     run_cargo_diagnostics(file).await
                 } else if file.ends_with(".js") || file.ends_with(".ts") || file.ends_with(".jsx") || file.ends_with(".tsx") {
@@ -268,7 +269,7 @@ impl Tool for LspTool {
                 } else {
                     Ok(Vec::new())
                 };
-                
+
                 match diagnostics {
                     Ok(diags) if !diags.is_empty() => {
                         let result = serde_json::to_string_pretty(&diags)

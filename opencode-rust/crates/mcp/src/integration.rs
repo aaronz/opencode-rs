@@ -23,7 +23,7 @@ fn run_async<T>(future: impl Future<Output = T>) -> T {
         tokio::task::block_in_place(|| handle.block_on(future))
     } else {
         tokio::runtime::Runtime::new()
-            .expect("failed to create tokio runtime for mcp tool registration")
+            .unwrap_or_else(|_| panic!("failed to create tokio runtime for mcp tool registration"))
             .block_on(future)
     }
 }

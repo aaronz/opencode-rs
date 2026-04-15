@@ -29,7 +29,10 @@ pub fn run(args: AccountArgs) {
             "logged_in": false,
             "status": "not_implemented"
         });
-        println!("{}", serde_json::to_string_pretty(&result).unwrap());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&result).expect("failed to serialize JSON output")
+        );
         return;
     }
 

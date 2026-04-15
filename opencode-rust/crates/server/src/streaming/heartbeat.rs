@@ -13,16 +13,17 @@ pub struct HeartbeatManager {
     interval: Duration,
 }
 
+#[allow(dead_code)]
 impl HeartbeatManager {
-    pub fn new(interval: Duration) -> Self {
+    pub(crate) fn new(interval: Duration) -> Self {
         Self { interval }
     }
 
-    pub fn interval(&self) -> Duration {
+    pub(crate) fn interval(&self) -> Duration {
         self.interval
     }
 
-    pub fn spawn(&self, tx: mpsc::Sender<StreamMessage>) -> JoinHandle<()> {
+    pub(crate) fn spawn(&self, tx: mpsc::Sender<StreamMessage>) -> JoinHandle<()> {
         let interval = self.interval;
         tokio::spawn(async move {
             let mut ticker = tokio::time::interval(interval);
@@ -39,6 +40,7 @@ impl HeartbeatManager {
     }
 }
 
+#[allow(dead_code)]
 impl Default for HeartbeatManager {
     fn default() -> Self {
         Self {

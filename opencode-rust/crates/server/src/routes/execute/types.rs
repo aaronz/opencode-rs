@@ -36,9 +36,10 @@ pub enum ExecuteMode {
     General,
 }
 
+#[allow(dead_code)]
 impl ExecuteMode {
     /// Returns the system prompt for this mode.
-    pub fn system_prompt(self) -> &'static str {
+    pub(crate) fn system_prompt(self) -> &'static str {
         match self {
             ExecuteMode::Build => {
                 "You are OpenCode's BUILD agent. Implement user requests with concise, actionable output."
@@ -86,9 +87,10 @@ pub enum ExecuteEvent {
     Complete { session_state: serde_json::Value },
 }
 
+#[allow(dead_code)]
 impl ExecuteEvent {
     /// Creates a tool_call event.
-    pub fn tool_call(
+    pub(crate) fn tool_call(
         tool: impl Into<String>,
         params: serde_json::Value,
         call_id: impl Into<String>,
@@ -101,7 +103,7 @@ impl ExecuteEvent {
     }
 
     /// Creates a tool_result event.
-    pub fn tool_result(
+    pub(crate) fn tool_result(
         tool: impl Into<String>,
         result: serde_json::Value,
         call_id: impl Into<String>,
@@ -116,7 +118,7 @@ impl ExecuteEvent {
     }
 
     /// Creates a message event.
-    pub fn message(role: impl Into<String>, content: impl Into<String>) -> Self {
+    pub(crate) fn message(role: impl Into<String>, content: impl Into<String>) -> Self {
         Self::Message {
             role: role.into(),
             content: content.into(),
@@ -124,14 +126,14 @@ impl ExecuteEvent {
     }
 
     /// Creates a token event.
-    pub fn token(content: impl Into<String>) -> Self {
+    pub(crate) fn token(content: impl Into<String>) -> Self {
         Self::Token {
             content: content.into(),
         }
     }
 
     /// Creates an error event.
-    pub fn error(code: impl Into<String>, message: impl Into<String>) -> Self {
+    pub(crate) fn error(code: impl Into<String>, message: impl Into<String>) -> Self {
         Self::Error {
             code: code.into(),
             message: message.into(),
@@ -139,7 +141,7 @@ impl ExecuteEvent {
     }
 
     /// Creates a complete event.
-    pub fn complete(session_state: serde_json::Value) -> Self {
+    pub(crate) fn complete(session_state: serde_json::Value) -> Self {
         Self::Complete { session_state }
     }
 }

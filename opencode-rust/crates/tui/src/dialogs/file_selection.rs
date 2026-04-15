@@ -305,16 +305,14 @@ impl Dialog for FileSelectionDialog {
                             }
                         }
                     }
+                } else if let Some(idx) = self
+                    .selected_indices
+                    .iter()
+                    .position(|&i| i == self.selected_index)
+                {
+                    self.selected_indices.remove(idx);
                 } else {
-                    if let Some(idx) = self
-                        .selected_indices
-                        .iter()
-                        .position(|&i| i == self.selected_index)
-                    {
-                        self.selected_indices.remove(idx);
-                    } else {
-                        self.selected_indices.push(self.selected_index);
-                    }
+                    self.selected_indices.push(self.selected_index);
                 }
                 DialogAction::None
             }

@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use uuid::Uuid;
 
-use crate::routes::error::{bad_request, not_found};
+use crate::routes::error::{bad_request, internal_error, not_found};
 use crate::ServerState;
 
 use std::sync::OnceLock;
@@ -65,7 +65,12 @@ pub struct OidcCallbackResponse {
 
 pub async fn get_sso_config(_state: web::Data<ServerState>) -> impl Responder {
     let manager = get_sso_manager();
-    let manager = manager.lock().unwrap();
+    let manager = match manager.lock() {
+        Ok(guard) => guard,
+        Err(_) => {
+            return internal_error("SSO manager lock poisoned");
+        }
+    };
 
     match manager.get_config() {
         Some(config) => HttpResponse::Ok().json(SsoConfigResponse {
@@ -108,7 +113,12 @@ pub async fn update_sso_config(
     };
 
     let manager = get_sso_manager();
-    let mut manager = manager.lock().unwrap();
+    let mut manager = match manager.lock() {
+        Ok(guard) => guard,
+        Err(_) => {
+            return internal_error("SSO manager lock poisoned");
+        }
+    };
     manager.set_config(config);
 
     HttpResponse::Ok().json(serde_json::json!({
@@ -119,7 +129,12 @@ pub async fn update_sso_config(
 
 pub async fn oidc_authorize(_state: web::Data<ServerState>) -> impl Responder {
     let manager = get_sso_manager();
-    let manager = manager.lock().unwrap();
+    let manager = match manager.lock() {
+        Ok(guard) => guard,
+        Err(_) => {
+            return internal_error("SSO manager lock poisoned");
+        }
+    };
 
     let config = match manager.get_config() {
         Some(c) if c.enabled => c.clone(),
@@ -143,7 +158,12 @@ pub async fn oidc_authorize(_state: web::Data<ServerState>) -> impl Responder {
     };
 
     let states = get_oidc_states();
-    let mut states = states.lock().unwrap();
+    let mut states = match states.lock() {
+        Ok(guard) => guard,
+        Err(_) => {
+            return internal_error("OIDC states lock poisoned");
+        }
+    };
     states.insert(state.clone(), oidc_state);
 
     let auth_url = format!(
@@ -163,7 +183,12 @@ pub async fn oidc_callback(
     body: web::Json<OidcCallbackRequest>,
 ) -> impl Responder {
     let states = get_oidc_states();
-    let mut states = states.lock().unwrap();
+    let mut states = match states.lock() {
+        Ok(guard) => guard,
+        Err(_) => {
+            return internal_error("OIDC states lock poisoned");
+        }
+    };
 
     let oidc_state = match states.remove(&body.state) {
         Some(s) => s,

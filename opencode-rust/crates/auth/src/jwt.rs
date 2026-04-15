@@ -13,7 +13,7 @@ pub struct Claims {
 pub fn create_token(user_id: &str, secret: &str) -> Result<String, OpenCodeError> {
     let expiration = Utc::now()
         .checked_add_signed(Duration::hours(24))
-        .expect("valid timestamp")
+        .unwrap_or_else(|| panic!("invalid timestamp calculation"))
         .timestamp();
 
     let claims = Claims {

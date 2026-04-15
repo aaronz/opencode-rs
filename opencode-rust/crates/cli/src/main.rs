@@ -344,7 +344,7 @@ fn run_tui(args: TuiArgs) {
                         serde_json::to_string_pretty(&json!({
                             "dialog": "model-selection",
                         }))
-                        .unwrap()
+                        .expect("failed to serialize JSON output")
                     );
                 } else {
                     println!("model-selection");
@@ -359,7 +359,7 @@ fn run_tui(args: TuiArgs) {
                             "dialog": "model-selection",
                             "status": "closed",
                         }))
-                        .unwrap()
+                        .expect("failed to serialize JSON output")
                     );
                 } else {
                     println!("closed model-selection");
@@ -396,7 +396,7 @@ fn run_tui(args: TuiArgs) {
                             "active_model": model_id,
                             "status": "confirmed",
                         }))
-                        .unwrap()
+                        .expect("failed to serialize JSON output")
                     );
                 } else {
                     println!("confirmed model switch to {}", model_id);
@@ -415,7 +415,7 @@ fn run_tui(args: TuiArgs) {
                             "active_model": active_model,
                             "status": "cancelled",
                         }))
-                        .unwrap()
+                        .expect("failed to serialize JSON output")
                     );
                 } else {
                     println!("cancelled model switch");

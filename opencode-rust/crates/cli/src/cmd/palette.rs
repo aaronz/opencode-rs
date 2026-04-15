@@ -46,7 +46,10 @@ pub fn run(args: PaletteArgs) {
                     serde_json::json!({"name": "models list", "description": "List available models"}),
                     serde_json::json!({"name": "project create", "description": "Create a new project"}),
                 ];
-                println!("{}", serde_json::to_string(&commands).unwrap());
+                println!(
+                    "{}",
+                    serde_json::to_string(&commands).expect("failed to serialize JSON output")
+                );
             } else {
                 println!("Searching for: {:?}", query);
                 println!("Available commands:");
@@ -64,7 +67,10 @@ pub fn run(args: PaletteArgs) {
                     serde_json::json!({"name": "session list", "timestamp": "2024-01-01T00:00:00Z"}),
                     serde_json::json!({"name": "models list", "timestamp": "2024-01-01T00:00:00Z"}),
                 ];
-                println!("{}", serde_json::to_string(&recent).unwrap());
+                println!(
+                    "{}",
+                    serde_json::to_string(&recent).expect("failed to serialize JSON output")
+                );
             } else {
                 println!("Recent commands:");
                 println!("  session list");

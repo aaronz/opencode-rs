@@ -10,7 +10,8 @@ use opencode_server::routes::acp_ws::SharedAcpClientRegistry;
 use opencode_server::routes::share::ShareServer;
 use opencode_server::streaming::{conn_state::ConnectionMonitor, ReconnectionStore};
 use opencode_server::{run_server, ServerState};
-use opencode_storage::StorageService;
+use opencode_storage::{SqliteProjectRepository, SqliteSessionRepository, StorageService};
+use opencode_tools::build_default_registry;
 use std::sync::Arc;
 use std::sync::RwLock;
 
@@ -47,10 +48,11 @@ pub struct WebServerState {
     pub acp_enabled: bool,
     pub acp_stream: SharedAcpStream,
     pub acp_client_registry: SharedAcpClientRegistry,
+    pub tool_registry: Arc<opencode_tools::ToolRegistry>,
 }
 
 impl WebServerState {
-    pub fn new(
+    pub async fn new(
         storage: Arc<StorageService>,
         session_sharing: Arc<SessionSharing>,
         models: Arc<ModelRegistry>,
@@ -70,6 +72,7 @@ impl WebServerState {
             acp_enabled: true,
             acp_stream: SharedAcpStream::default(),
             acp_client_registry: SharedAcpClientRegistry::default(),
+            tool_registry: Arc::new(build_default_registry(None).await),
         }
     }
 
@@ -85,6 +88,7 @@ impl WebServerState {
             acp_enabled: self.acp_enabled,
             acp_stream: self.acp_stream.clone(),
             acp_client_registry: self.acp_client_registry.clone(),
+            tool_registry: self.tool_registry.clone(),
         }
     }
 }
@@ -112,9 +116,10 @@ async fn run_web(args: WebArgs) -> Result<(), Box<dyn std::error::Error>> {
     std::fs::create_dir_all(data_dir)?;
     let db_path = data_dir.join("opencode.db");
 
-    let storage = Arc::new(StorageService::new(
-        opencode_storage::database::StoragePool::new(&db_path)?,
-    ));
+    let pool = opencode_storage::database::StoragePool::new(&db_path)?;
+    let session_repo = Arc::new(SqliteSessionRepository::new(pool.clone()));
+    let project_repo = Arc::new(SqliteProjectRepository::new(pool.clone()));
+    let storage = Arc::new(StorageService::new(session_repo, project_repo, pool));
 
     let session_sharing = Arc::new(SessionSharing::with_default_path());
     let models = Arc::new(ModelRegistry::new());
@@ -122,14 +127,17 @@ async fn run_web(args: WebArgs) -> Result<(), Box<dyn std::error::Error>> {
     let event_bus = SharedEventBus::default();
     let share_server = Arc::new(RwLock::new(ShareServer::with_default_config()));
 
-    let web_state = Arc::new(WebServerState::new(
-        storage,
-        session_sharing,
-        models,
-        config,
-        event_bus,
-        share_server,
-    ));
+    let web_state = Arc::new(
+        WebServerState::new(
+            storage,
+            session_sharing,
+            models,
+            config,
+            event_bus,
+            share_server,
+        )
+        .await,
+    );
 
     let server_state = web_state.clone().into_server_state();
     run_server(Arc::new(server_state), &host, port).await?;
@@ -180,14 +188,15 @@ mod tests {
         assert_eq!(args.hostname, Some("localhost".to_string()));
     }
 
-    #[test]
-    fn test_web_server_state_creation() {
+    #[tokio::test]
+    async fn test_web_server_state_creation() {
         let temp_dir = TempDir::new().unwrap();
         let db_path = temp_dir.path().join("test.db");
 
-        let storage = Arc::new(StorageService::new(
-            opencode_storage::database::StoragePool::new(&db_path).unwrap(),
-        ));
+        let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
+        let session_repo = Arc::new(SqliteSessionRepository::new(pool.clone()));
+        let project_repo = Arc::new(SqliteProjectRepository::new(pool.clone()));
+        let storage = Arc::new(StorageService::new(session_repo, project_repo, pool));
         let session_sharing = Arc::new(SessionSharing::with_default_path());
         let models = Arc::new(ModelRegistry::new());
         let config = Arc::new(RwLock::new(Config::default()));
@@ -201,33 +210,38 @@ mod tests {
             config,
             event_bus,
             share_server,
-        );
+        )
+        .await;
 
         assert!(web_state.acp_enabled);
     }
 
-    #[test]
-    fn test_web_server_state_into_server_state() {
+    #[tokio::test]
+    async fn test_web_server_state_into_server_state() {
         let temp_dir = TempDir::new().unwrap();
         let db_path = temp_dir.path().join("test.db");
 
-        let storage = Arc::new(StorageService::new(
-            opencode_storage::database::StoragePool::new(&db_path).unwrap(),
-        ));
+        let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
+        let session_repo = Arc::new(SqliteSessionRepository::new(pool.clone()));
+        let project_repo = Arc::new(SqliteProjectRepository::new(pool.clone()));
+        let storage = Arc::new(StorageService::new(session_repo, project_repo, pool));
         let session_sharing = Arc::new(SessionSharing::with_default_path());
         let models = Arc::new(ModelRegistry::new());
         let config = Arc::new(RwLock::new(Config::default()));
         let event_bus = SharedEventBus::default();
         let share_server = Arc::new(RwLock::new(ShareServer::with_default_config()));
 
-        let web_state = Arc::new(WebServerState::new(
-            storage,
-            session_sharing,
-            models,
-            config,
-            event_bus,
-            share_server,
-        ));
+        let web_state = Arc::new(
+            WebServerState::new(
+                storage,
+                session_sharing,
+                models,
+                config,
+                event_bus,
+                share_server,
+            )
+            .await,
+        );
 
         let server_state = web_state.clone().into_server_state();
         assert_eq!(server_state.acp_enabled, true);

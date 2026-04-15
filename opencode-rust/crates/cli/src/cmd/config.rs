@@ -79,7 +79,10 @@ pub fn run(args: ConfigArgs) {
                 "model": config.model,
             })
         };
-        println!("{}", serde_json::to_string_pretty(&result).unwrap());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&result).expect("failed to serialize JSON output")
+        );
         return;
     }
 

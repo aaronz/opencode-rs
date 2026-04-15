@@ -132,6 +132,7 @@ impl Default for Session {
     }
 }
 
+#[allow(dead_code)]
 impl Session {
     pub fn new() -> Self {
         let now = Utc::now();
@@ -384,7 +385,7 @@ impl Session {
         self.updated_at = Utc::now();
     }
 
-    pub fn latest_summary_metadata(&self) -> Option<SessionSummaryMetadata> {
+    pub(crate) fn latest_summary_metadata(&self) -> Option<SessionSummaryMetadata> {
         self.tool_invocations
             .iter()
             .rev()
@@ -410,7 +411,10 @@ impl Session {
             .unwrap_or(false)
     }
 
-    pub fn set_state(&mut self, new_state: SessionState) -> Result<(), StateTransitionError> {
+    pub(crate) fn set_state(
+        &mut self,
+        new_state: SessionState,
+    ) -> Result<(), StateTransitionError> {
         if !is_valid_transition(self.state, new_state) {
             return Err(StateTransitionError {
                 from: self.state,
@@ -484,7 +488,9 @@ impl Session {
 
     pub fn save(&self, path: &PathBuf) -> Result<(), crate::OpenCodeError> {
         let json = serde_json::to_string_pretty(self)?;
-        std::fs::create_dir_all(path.parent().unwrap())?;
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
         std::fs::write(path, json)?;
         Ok(())
     }
@@ -494,7 +500,7 @@ impl Session {
         serde_json::from_str(&content).map_err(|e| crate::OpenCodeError::Session(e.to_string()))
     }
 
-    pub fn sessions_dir() -> PathBuf {
+    pub(crate) fn sessions_dir() -> PathBuf {
         if let Ok(data_dir) = std::env::var("OPENCODE_DATA_DIR") {
             let path = PathBuf::from(data_dir).join("sessions");
             let _ = std::fs::create_dir_all(&path);
@@ -514,7 +520,7 @@ impl Session {
         Self::load(&path)
     }
 
-    pub fn delete(id: &Uuid) -> Result<(), crate::OpenCodeError> {
+    pub(crate) fn delete(id: &Uuid) -> Result<(), crate::OpenCodeError> {
         let path = Self::session_path(id);
         if path.exists() {
             std::fs::remove_file(path)?;
@@ -592,7 +598,7 @@ impl Session {
         result
     }
 
-    pub fn needs_compaction(&self, max_tokens: usize) -> bool {
+    pub(crate) fn needs_compaction(&self, max_tokens: usize) -> bool {
         let config = CompactionConfig {
             max_tokens,
             ..Default::default()
@@ -616,7 +622,7 @@ impl Session {
         CompactionStatus::check(&budget, used)
     }
 
-    pub fn auto_compact_if_needed(&mut self) -> CompactionResult {
+    pub(crate) fn auto_compact_if_needed(&mut self) -> CompactionResult {
         let status = self.get_compaction_status();
         match status.trigger {
             CompactionTrigger::AutoCompact | CompactionTrigger::ForceContinuation => {

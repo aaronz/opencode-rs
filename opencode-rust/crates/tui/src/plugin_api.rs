@@ -127,7 +127,7 @@ impl PluginRouteRegistry {
         let name = route.name().to_string();
         let full_name = format!("{}:{}", plugin_id, name);
 
-        let mut routes = self.routes.write().unwrap();
+        let mut routes = self.routes.write().unwrap_or_else(|p| p.into_inner());
         if routes.contains_key(&full_name) {
             return Err(PluginRouteError::RouteAlreadyRegistered(full_name));
         }
@@ -139,7 +139,7 @@ impl PluginRouteRegistry {
 
         routes.insert(full_name.clone(), registered);
 
-        let mut handlers = self.handlers.write().unwrap();
+        let mut handlers = self.handlers.write().unwrap_or_else(|p| p.into_inner());
         handlers.insert(full_name, Box::new(route));
 
         Ok(())
@@ -148,7 +148,7 @@ impl PluginRouteRegistry {
     pub fn unregister_plugin_routes(&self, plugin_id: &str) {
         let prefix = format!("{}:", plugin_id);
 
-        let mut routes = self.routes.write().unwrap();
+        let mut routes = self.routes.write().unwrap_or_else(|p| p.into_inner());
         let keys_to_remove: Vec<String> = routes
             .keys()
             .filter(|k| k.starts_with(&prefix))
@@ -159,7 +159,7 @@ impl PluginRouteRegistry {
             routes.remove(&key);
         }
 
-        let mut handlers = self.handlers.write().unwrap();
+        let mut handlers = self.handlers.write().unwrap_or_else(|p| p.into_inner());
         let handler_keys_to_remove: Vec<String> = handlers
             .keys()
             .filter(|k| k.starts_with(&prefix))
@@ -173,11 +173,20 @@ impl PluginRouteRegistry {
 
     pub fn get_route(&self, plugin_id: &str, name: &str) -> Option<RegisteredRoute> {
         let full_name = format!("{}:{}", plugin_id, name);
-        self.routes.read().unwrap().get(&full_name).cloned()
+        self.routes
+            .read()
+            .unwrap_or_else(|p| p.into_inner())
+            .get(&full_name)
+            .cloned()
     }
 
     pub fn list_routes(&self) -> Vec<RegisteredRoute> {
-        self.routes.read().unwrap().values().cloned().collect()
+        self.routes
+            .read()
+            .unwrap_or_else(|p| p.into_inner())
+            .values()
+            .cloned()
+            .collect()
     }
 
     pub fn execute(
@@ -187,7 +196,7 @@ impl PluginRouteRegistry {
         ctx: &RouteContext,
     ) -> Result<RouteResult, PluginRouteError> {
         let full_name = format!("{}:{}", plugin_id, name);
-        let handlers = self.handlers.read().unwrap();
+        let handlers = self.handlers.read().unwrap_or_else(|p| p.into_inner());
         let handler = handlers
             .get(&full_name)
             .ok_or_else(|| PluginRouteError::RouteNotFound(full_name.clone()))?;
@@ -196,8 +205,14 @@ impl PluginRouteRegistry {
     }
 
     pub fn clear(&self) {
-        self.routes.write().unwrap().clear();
-        self.handlers.write().unwrap().clear();
+        self.routes
+            .write()
+            .unwrap_or_else(|p| p.into_inner())
+            .clear();
+        self.handlers
+            .write()
+            .unwrap_or_else(|p| p.into_inner())
+            .clear();
     }
 }
 
@@ -277,7 +292,7 @@ impl PluginCommandRegistry {
         let name = command.name().to_string();
         let full_name = format!("{}:{}", plugin_id, name);
 
-        let mut commands = self.commands.write().unwrap();
+        let mut commands = self.commands.write().unwrap_or_else(|p| p.into_inner());
         if commands.contains_key(&full_name) {
             return Err(PluginCommandError::CommandAlreadyRegistered(full_name));
         }
@@ -291,7 +306,7 @@ impl PluginCommandRegistry {
 
         commands.insert(full_name.clone(), registered);
 
-        let mut executors = self.executors.write().unwrap();
+        let mut executors = self.executors.write().unwrap_or_else(|p| p.into_inner());
         executors.insert(full_name, Box::new(command));
 
         Ok(())
@@ -300,7 +315,7 @@ impl PluginCommandRegistry {
     pub fn unregister_plugin_commands(&self, plugin_id: &str) {
         let prefix = format!("{}:", plugin_id);
 
-        let mut commands = self.commands.write().unwrap();
+        let mut commands = self.commands.write().unwrap_or_else(|p| p.into_inner());
         let keys_to_remove: Vec<String> = commands
             .keys()
             .filter(|k| k.starts_with(&prefix))
@@ -311,7 +326,7 @@ impl PluginCommandRegistry {
             commands.remove(&key);
         }
 
-        let mut executors = self.executors.write().unwrap();
+        let mut executors = self.executors.write().unwrap_or_else(|p| p.into_inner());
         let exec_keys_to_remove: Vec<String> = executors
             .keys()
             .filter(|k| k.starts_with(&prefix))
@@ -325,11 +340,15 @@ impl PluginCommandRegistry {
 
     pub fn get_command(&self, plugin_id: &str, name: &str) -> Option<RegisteredCommand> {
         let full_name = format!("{}:{}", plugin_id, name);
-        self.commands.read().unwrap().get(&full_name).cloned()
+        self.commands
+            .read()
+            .unwrap_or_else(|p| p.into_inner())
+            .get(&full_name)
+            .cloned()
     }
 
     pub fn get_by_name(&self, name: &str) -> Option<RegisteredCommand> {
-        let commands = self.commands.read().unwrap();
+        let commands = self.commands.read().unwrap_or_else(|p| p.into_inner());
         commands
             .values()
             .find(|c| c.name == name || c.aliases.contains(&name.to_string()))
@@ -337,7 +356,12 @@ impl PluginCommandRegistry {
     }
 
     pub fn list_commands(&self) -> Vec<RegisteredCommand> {
-        self.commands.read().unwrap().values().cloned().collect()
+        self.commands
+            .read()
+            .unwrap_or_else(|p| p.into_inner())
+            .values()
+            .cloned()
+            .collect()
     }
 
     pub fn execute(
@@ -347,7 +371,7 @@ impl PluginCommandRegistry {
         ctx: &CommandContext,
     ) -> Result<CommandResult, PluginCommandError> {
         let full_name = format!("{}:{}", plugin_id, name);
-        let executors = self.executors.read().unwrap();
+        let executors = self.executors.read().unwrap_or_else(|p| p.into_inner());
         let executor = executors
             .get(&full_name)
             .ok_or_else(|| PluginCommandError::CommandNotFound(full_name.clone()))?;
@@ -368,8 +392,14 @@ impl PluginCommandRegistry {
     }
 
     pub fn clear(&self) {
-        self.commands.write().unwrap().clear();
-        self.executors.write().unwrap().clear();
+        self.commands
+            .write()
+            .unwrap_or_else(|p| p.into_inner())
+            .clear();
+        self.executors
+            .write()
+            .unwrap_or_else(|p| p.into_inner())
+            .clear();
     }
 }
 
@@ -519,7 +549,7 @@ impl PluginThemeRegistry {
         let name = theme.name.clone();
         let full_name = format!("{}:{}", plugin_id, &name);
 
-        let mut themes = self.themes.write().unwrap();
+        let mut themes = self.themes.write().unwrap_or_else(|p| p.into_inner());
         if themes.contains_key(&full_name) {
             return Err(PluginThemeError::ThemeAlreadyRegistered(full_name));
         }
@@ -531,7 +561,7 @@ impl PluginThemeRegistry {
 
         themes.insert(full_name.clone(), registered);
 
-        let mut theme_defs = self.theme_defs.write().unwrap();
+        let mut theme_defs = self.theme_defs.write().unwrap_or_else(|p| p.into_inner());
         theme_defs.insert(full_name, theme);
 
         Ok(())
@@ -540,7 +570,7 @@ impl PluginThemeRegistry {
     pub fn unregister_plugin_themes(&self, plugin_id: &str) {
         let prefix = format!("{}:", plugin_id);
 
-        let mut themes = self.themes.write().unwrap();
+        let mut themes = self.themes.write().unwrap_or_else(|p| p.into_inner());
         let keys_to_remove: Vec<String> = themes
             .keys()
             .filter(|k| k.starts_with(&prefix))
@@ -551,7 +581,7 @@ impl PluginThemeRegistry {
             themes.remove(&key);
         }
 
-        let mut theme_defs = self.theme_defs.write().unwrap();
+        let mut theme_defs = self.theme_defs.write().unwrap_or_else(|p| p.into_inner());
         let def_keys_to_remove: Vec<String> = theme_defs
             .keys()
             .filter(|k| k.starts_with(&prefix))
@@ -565,17 +595,26 @@ impl PluginThemeRegistry {
 
     pub fn get_theme(&self, plugin_id: &str, name: &str) -> Option<PluginTheme> {
         let full_name = format!("{}:{}", plugin_id, name);
-        self.theme_defs.read().unwrap().get(&full_name).cloned()
+        self.theme_defs
+            .read()
+            .unwrap_or_else(|p| p.into_inner())
+            .get(&full_name)
+            .cloned()
     }
 
     pub fn list_themes(&self) -> Vec<RegisteredTheme> {
-        self.themes.read().unwrap().values().cloned().collect()
+        self.themes
+            .read()
+            .unwrap_or_else(|p| p.into_inner())
+            .values()
+            .cloned()
+            .collect()
     }
 
     pub fn list_themes_for_plugin(&self, plugin_id: &str) -> Vec<RegisteredTheme> {
         self.themes
             .read()
-            .unwrap()
+            .unwrap_or_else(|p| p.into_inner())
             .values()
             .filter(|t| t.plugin_id == plugin_id)
             .cloned()
@@ -583,12 +622,23 @@ impl PluginThemeRegistry {
     }
 
     pub fn get_all_themes(&self) -> Vec<PluginTheme> {
-        self.theme_defs.read().unwrap().values().cloned().collect()
+        self.theme_defs
+            .read()
+            .unwrap_or_else(|p| p.into_inner())
+            .values()
+            .cloned()
+            .collect()
     }
 
     pub fn clear(&self) {
-        self.themes.write().unwrap().clear();
-        self.theme_defs.write().unwrap().clear();
+        self.themes
+            .write()
+            .unwrap_or_else(|p| p.into_inner())
+            .clear();
+        self.theme_defs
+            .write()
+            .unwrap_or_else(|p| p.into_inner())
+            .clear();
     }
 }
 
@@ -670,14 +720,14 @@ impl PluginEventRegistry {
 
         self.events
             .write()
-            .unwrap()
+            .unwrap_or_else(|p| p.into_inner())
             .entry(event_name.clone())
             .or_insert_with(Vec::new)
             .push(registered);
 
         self.handlers
             .write()
-            .unwrap()
+            .unwrap_or_else(|p| p.into_inner())
             .entry(event_name)
             .or_insert_with(Vec::new)
             .push(Box::new(event));
@@ -686,8 +736,8 @@ impl PluginEventRegistry {
     }
 
     pub fn unsubscribe_plugin(&self, plugin_id: &str) {
-        let mut events = self.events.write().unwrap();
-        let mut handlers = self.handlers.write().unwrap();
+        let mut events = self.events.write().unwrap_or_else(|p| p.into_inner());
+        let mut handlers = self.handlers.write().unwrap_or_else(|p| p.into_inner());
 
         let event_names: Vec<String> = events.keys().cloned().collect();
 
@@ -721,12 +771,12 @@ impl PluginEventRegistry {
     }
 
     pub fn list_subscriptions(&self) -> Vec<RegisteredEvent> {
-        let events = self.events.read().unwrap();
+        let events = self.events.read().unwrap_or_else(|p| p.into_inner());
         events.values().flatten().cloned().collect()
     }
 
     pub fn list_subscriptions_for_plugin(&self, plugin_id: &str) -> Vec<RegisteredEvent> {
-        let events = self.events.read().unwrap();
+        let events = self.events.read().unwrap_or_else(|p| p.into_inner());
         events
             .values()
             .flatten()
@@ -736,7 +786,7 @@ impl PluginEventRegistry {
     }
 
     pub fn emit(&self, data: &PluginEventData) -> Vec<Result<(), PluginEventError>> {
-        let handlers = self.handlers.read().unwrap();
+        let handlers = self.handlers.read().unwrap_or_else(|p| p.into_inner());
         let event_name = &data.event_name;
 
         let Some(event_handlers) = handlers.get(event_name) else {
@@ -750,8 +800,14 @@ impl PluginEventRegistry {
     }
 
     pub fn clear(&self) {
-        self.events.write().unwrap().clear();
-        self.handlers.write().unwrap().clear();
+        self.events
+            .write()
+            .unwrap_or_else(|p| p.into_inner())
+            .clear();
+        self.handlers
+            .write()
+            .unwrap_or_else(|p| p.into_inner())
+            .clear();
     }
 }
 
@@ -811,7 +867,7 @@ impl PluginDisposeRegistry {
         plugin_id: &str,
         disposer: D,
     ) -> Result<(), PluginDisposeError> {
-        let mut disposers = self.disposers.write().unwrap();
+        let mut disposers = self.disposers.write().unwrap_or_else(|p| p.into_inner());
         disposers.insert(plugin_id.to_string(), Arc::new(disposer));
         Ok(())
     }
@@ -819,7 +875,7 @@ impl PluginDisposeRegistry {
     pub fn dispose_plugin(&self, plugin_id: &str) -> Result<(), PluginDisposeError> {
         let plugin_id_owned = plugin_id.to_string();
         let disposer = {
-            let disposers = self.disposers.read().unwrap();
+            let disposers = self.disposers.read().unwrap_or_else(|p| p.into_inner());
             disposers.get(plugin_id).cloned()
         };
 
@@ -835,17 +891,20 @@ impl PluginDisposeRegistry {
     }
 
     pub fn unregister_disposer(&self, plugin_id: &str) {
-        let mut disposers = self.disposers.write().unwrap();
+        let mut disposers = self.disposers.write().unwrap_or_else(|p| p.into_inner());
         disposers.remove(plugin_id);
     }
 
     pub fn has_disposer(&self, plugin_id: &str) -> bool {
-        let disposers = self.disposers.read().unwrap();
+        let disposers = self.disposers.read().unwrap_or_else(|p| p.into_inner());
         disposers.contains_key(plugin_id)
     }
 
     pub fn clear(&self) {
-        self.disposers.write().unwrap().clear();
+        self.disposers
+            .write()
+            .unwrap_or_else(|p| p.into_inner())
+            .clear();
     }
 }
 
@@ -898,7 +957,7 @@ impl PluginStateRegistry {
 
         std::fs::write(&file_path, json).map_err(|e| PluginStateError::IoError(e.to_string()))?;
 
-        let mut states = self.states.write().unwrap();
+        let mut states = self.states.write().unwrap_or_else(|p| p.into_inner());
         states.insert(plugin_id.to_string(), state);
 
         Ok(())
@@ -909,7 +968,7 @@ impl PluginStateRegistry {
         plugin_id: &str,
     ) -> Result<Option<serde_json::Value>, PluginStateError> {
         {
-            let states = self.states.read().unwrap();
+            let states = self.states.read().unwrap_or_else(|p| p.into_inner());
             if let Some(state) = states.get(plugin_id) {
                 return Ok(Some(state.clone()));
             }
@@ -926,7 +985,7 @@ impl PluginStateRegistry {
         let state: serde_json::Value = serde_json::from_str(&content)
             .map_err(|e| PluginStateError::InvalidData(e.to_string()))?;
 
-        let mut states = self.states.write().unwrap();
+        let mut states = self.states.write().unwrap_or_else(|p| p.into_inner());
         states.insert(plugin_id.to_string(), state.clone());
 
         Ok(Some(state))
@@ -939,19 +998,19 @@ impl PluginStateRegistry {
                 .map_err(|e| PluginStateError::IoError(e.to_string()))?;
         }
 
-        let mut states = self.states.write().unwrap();
+        let mut states = self.states.write().unwrap_or_else(|p| p.into_inner());
         states.remove(plugin_id);
 
         Ok(())
     }
 
     pub fn get_state_keys(&self) -> Vec<String> {
-        let states = self.states.read().unwrap();
+        let states = self.states.read().unwrap_or_else(|p| p.into_inner());
         states.keys().cloned().collect()
     }
 
     pub fn has_state(&self, plugin_id: &str) -> bool {
-        let states = self.states.read().unwrap();
+        let states = self.states.read().unwrap_or_else(|p| p.into_inner());
         if states.contains_key(plugin_id) {
             return true;
         }
@@ -960,7 +1019,7 @@ impl PluginStateRegistry {
     }
 
     pub fn clear_all_states(&self) -> Result<(), PluginStateError> {
-        let mut states = self.states.write().unwrap();
+        let mut states = self.states.write().unwrap_or_else(|p| p.into_inner());
         states.clear();
 
         if self.state_dir.exists() {
@@ -1118,12 +1177,18 @@ impl PluginDialogRegistry {
         let (result_tx, result_rx) = std::sync::mpsc::channel();
 
         {
-            let mut pending = self.pending_dialogs.write().unwrap();
+            let mut pending = self
+                .pending_dialogs
+                .write()
+                .unwrap_or_else(|p| p.into_inner());
             pending.push(request.clone());
         }
 
         {
-            let mut active = self.active_dialogs.write().unwrap();
+            let mut active = self
+                .active_dialogs
+                .write()
+                .unwrap_or_else(|p| p.into_inner());
             active.insert(plugin_id.clone(), ActiveDialog { request, result_tx });
         }
 
@@ -1133,15 +1198,25 @@ impl PluginDialogRegistry {
     }
 
     pub fn get_pending_dialogs(&self) -> Vec<DialogRequest> {
-        self.pending_dialogs.read().unwrap().clone()
+        self.pending_dialogs
+            .read()
+            .unwrap_or_else(|p| p.into_inner())
+            .clone()
     }
 
     pub fn get_active_dialog(&self, plugin_id: &str) -> Option<ActiveDialog> {
-        self.active_dialogs.read().unwrap().get(plugin_id).cloned()
+        self.active_dialogs
+            .read()
+            .unwrap_or_else(|p| p.into_inner())
+            .get(plugin_id)
+            .cloned()
     }
 
     pub fn has_active_dialog(&self, plugin_id: &str) -> bool {
-        self.active_dialogs.read().unwrap().contains_key(plugin_id)
+        self.active_dialogs
+            .read()
+            .unwrap_or_else(|p| p.into_inner())
+            .contains_key(plugin_id)
     }
 
     pub fn complete_dialog(
@@ -1150,14 +1225,20 @@ impl PluginDialogRegistry {
         result: DialogResult,
     ) -> Result<(), PluginDialogError> {
         let active_dialog = {
-            let mut active = self.active_dialogs.write().unwrap();
+            let mut active = self
+                .active_dialogs
+                .write()
+                .unwrap_or_else(|p| p.into_inner());
             active
                 .remove(plugin_id)
                 .ok_or_else(|| PluginDialogError::NoActiveDialog(plugin_id.to_string()))?
         };
 
         {
-            let mut pending = self.pending_dialogs.write().unwrap();
+            let mut pending = self
+                .pending_dialogs
+                .write()
+                .unwrap_or_else(|p| p.into_inner());
             pending.retain(|r| r.plugin_id != plugin_id);
         }
 
@@ -1174,12 +1255,18 @@ impl PluginDialogRegistry {
     }
 
     pub fn clear_pending(&self) {
-        let mut pending = self.pending_dialogs.write().unwrap();
+        let mut pending = self
+            .pending_dialogs
+            .write()
+            .unwrap_or_else(|p| p.into_inner());
         pending.clear();
     }
 
     pub fn clear_active(&self) {
-        let mut active = self.active_dialogs.write().unwrap();
+        let mut active = self
+            .active_dialogs
+            .write()
+            .unwrap_or_else(|p| p.into_inner());
         for (_, dialog) in active.drain() {
             let _ = dialog.result_tx.send(DialogResult::Cancelled);
         }
@@ -1416,7 +1503,7 @@ impl PluginSlotRegistry {
         let id = slot.id().to_string();
         let full_id = format!("{}:{}", plugin_id, &id);
 
-        let mut slots = self.slots.write().unwrap();
+        let mut slots = self.slots.write().unwrap_or_else(|p| p.into_inner());
         if slots.contains_key(&full_id) {
             return Err(PluginSlotError::SlotAlreadyRegistered(full_id));
         }
@@ -1430,7 +1517,7 @@ impl PluginSlotRegistry {
 
         slots.insert(full_id.clone(), registered);
 
-        let mut renderers = self.renderers.write().unwrap();
+        let mut renderers = self.renderers.write().unwrap_or_else(|p| p.into_inner());
         renderers.insert(full_id, Box::new(slot));
 
         Ok(())
@@ -1439,12 +1526,12 @@ impl PluginSlotRegistry {
     pub fn unregister_slot(&self, plugin_id: &str, slot_id: &str) -> Result<(), PluginSlotError> {
         let full_id = format!("{}:{}", plugin_id, slot_id);
 
-        let mut slots = self.slots.write().unwrap();
+        let mut slots = self.slots.write().unwrap_or_else(|p| p.into_inner());
         slots
             .remove(&full_id)
             .ok_or_else(|| PluginSlotError::SlotNotFound(full_id.clone()))?;
 
-        let mut renderers = self.renderers.write().unwrap();
+        let mut renderers = self.renderers.write().unwrap_or_else(|p| p.into_inner());
         renderers
             .remove(&full_id)
             .ok_or_else(|| PluginSlotError::SlotNotFound(full_id))?;
@@ -1455,7 +1542,7 @@ impl PluginSlotRegistry {
     pub fn unregister_plugin_slots(&self, plugin_id: &str) {
         let prefix = format!("{}:", plugin_id);
 
-        let mut slots = self.slots.write().unwrap();
+        let mut slots = self.slots.write().unwrap_or_else(|p| p.into_inner());
         let keys_to_remove: Vec<String> = slots
             .keys()
             .filter(|k| k.starts_with(&prefix))
@@ -1466,7 +1553,7 @@ impl PluginSlotRegistry {
             slots.remove(&key);
         }
 
-        let mut renderers = self.renderers.write().unwrap();
+        let mut renderers = self.renderers.write().unwrap_or_else(|p| p.into_inner());
         let renderer_keys_to_remove: Vec<String> = renderers
             .keys()
             .filter(|k| k.starts_with(&prefix))
@@ -1480,17 +1567,26 @@ impl PluginSlotRegistry {
 
     pub fn get_slot(&self, plugin_id: &str, slot_id: &str) -> Option<RegisteredSlot> {
         let full_id = format!("{}:{}", plugin_id, slot_id);
-        self.slots.read().unwrap().get(&full_id).cloned()
+        self.slots
+            .read()
+            .unwrap_or_else(|p| p.into_inner())
+            .get(&full_id)
+            .cloned()
     }
 
     pub fn list_slots(&self) -> Vec<RegisteredSlot> {
-        self.slots.read().unwrap().values().cloned().collect()
+        self.slots
+            .read()
+            .unwrap_or_else(|p| p.into_inner())
+            .values()
+            .cloned()
+            .collect()
     }
 
     pub fn list_slots_for_plugin(&self, plugin_id: &str) -> Vec<RegisteredSlot> {
         self.slots
             .read()
-            .unwrap()
+            .unwrap_or_else(|p| p.into_inner())
             .values()
             .filter(|s| s.plugin_id == plugin_id)
             .cloned()
@@ -1500,7 +1596,7 @@ impl PluginSlotRegistry {
     pub fn list_slots_by_name(&self, slot_name: &str) -> Vec<RegisteredSlot> {
         self.slots
             .read()
-            .unwrap()
+            .unwrap_or_else(|p| p.into_inner())
             .values()
             .filter(|s| s.slot_name == slot_name)
             .cloned()
@@ -1514,7 +1610,7 @@ impl PluginSlotRegistry {
         ctx: &SlotContext,
     ) -> Result<SlotRenderResult, PluginSlotError> {
         let full_id = format!("{}:{}", plugin_id, slot_id);
-        let renderers = self.renderers.read().unwrap();
+        let renderers = self.renderers.read().unwrap_or_else(|p| p.into_inner());
         let renderer = renderers
             .get(&full_id)
             .ok_or_else(|| PluginSlotError::SlotNotFound(full_id.clone()))?;
@@ -1530,7 +1626,7 @@ impl PluginSlotRegistry {
         let id = slot.id().to_string();
         let full_id = format!("{}:{}", plugin_id, &id);
 
-        let mut slots = self.slots.write().unwrap();
+        let mut slots = self.slots.write().unwrap_or_else(|p| p.into_inner());
         if !slots.contains_key(&full_id) {
             return Err(PluginSlotError::SlotNotFound(full_id.clone()));
         }
@@ -1544,15 +1640,21 @@ impl PluginSlotRegistry {
 
         slots.insert(full_id.clone(), registered);
 
-        let mut renderers = self.renderers.write().unwrap();
+        let mut renderers = self.renderers.write().unwrap_or_else(|p| p.into_inner());
         renderers.insert(full_id, Box::new(slot));
 
         Ok(())
     }
 
     pub fn clear(&self) {
-        self.slots.write().unwrap().clear();
-        self.renderers.write().unwrap().clear();
+        self.slots
+            .write()
+            .unwrap_or_else(|p| p.into_inner())
+            .clear();
+        self.renderers
+            .write()
+            .unwrap_or_else(|p| p.into_inner())
+            .clear();
     }
 }
 

@@ -78,7 +78,7 @@ fn sync_workspace_sessions_from_sharing(sessions: &[Session]) {
                 .unwrap_or_else(|| "Untitled".to_string()),
         })
         .collect();
-    *WORKSPACE_SESSIONS.lock().unwrap() = infos.clone();
+    *WORKSPACE_SESSIONS.lock().unwrap_or_else(|p| p.into_inner()) = infos.clone();
     save_workspace_sessions(&infos);
 }
 
@@ -90,7 +90,7 @@ fn sync_workspace_sessions_from_infos(infos: &[SessionInfo]) {
             name: info.preview.chars().take(30).collect(),
         })
         .collect();
-    *WORKSPACE_SESSIONS.lock().unwrap() = workspace_infos.clone();
+    *WORKSPACE_SESSIONS.lock().unwrap_or_else(|p| p.into_inner()) = workspace_infos.clone();
     save_workspace_sessions(&workspace_infos);
 }
 
@@ -128,7 +128,7 @@ fn create_session(name: Option<String>, json: bool) {
                 "name": name,
                 "created_at": session.created_at.to_rfc3339(),
             }))
-            .unwrap()
+            .expect("failed to serialize JSON output")
         );
     } else {
         println!("Session ID: {}", session.id);
@@ -149,7 +149,8 @@ fn show_session(session_id: &str, json: bool) {
     match sharing.get_session(&id) {
         Ok(session) => {
             if json {
-                let output = serde_json::to_string_pretty(&session).unwrap();
+                let output = serde_json::to_string_pretty(&session)
+                    .expect("failed to serialize JSON output");
                 println!("{}", output);
             } else {
                 println!("Session: {}", session.id);
@@ -334,7 +335,8 @@ fn export_session(session_id: &str) {
 
     match sharing.get_session(&id) {
         Ok(session) => {
-            let output = serde_json::to_string_pretty(&session).unwrap();
+            let output =
+                serde_json::to_string_pretty(&session).expect("failed to serialize JSON output");
             println!("{}", output);
         }
         Err(e) => {
@@ -351,7 +353,7 @@ fn export_all_sessions() {
         "sessions": sessions,
         "count": sessions.len(),
     });
-    let output = serde_json::to_string_pretty(&export).unwrap();
+    let output = serde_json::to_string_pretty(&export).expect("failed to serialize JSON output");
     println!("{}", output);
 }
 
@@ -360,7 +362,8 @@ fn list_sessions(json: bool) {
     let sessions = sharing.list_sessions().unwrap_or_default();
 
     if json {
-        let output = serde_json::to_string_pretty(&sessions).unwrap();
+        let output =
+            serde_json::to_string_pretty(&sessions).expect("failed to serialize JSON output");
         println!("{}", output);
     } else {
         if sessions.is_empty() {

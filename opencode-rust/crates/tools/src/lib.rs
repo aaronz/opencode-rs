@@ -43,6 +43,6 @@ pub use discovery::{
 };
 pub use multiedit::MultiEditTool;
 pub use registry::{ToolRegistry, ToolSource};
-pub use schema_validation::{SchemaValidator, ToolSchema};
-pub use tool::{Tool, ToolContext, ToolResult};
+pub use schema_validation::ToolSchema;
+pub use tool::{sealed, Tool, ToolContext, ToolResult};
 pub use truncation_dir::TruncationDirTool;

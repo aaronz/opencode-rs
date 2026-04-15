@@ -24,27 +24,42 @@ impl EnvManager {
 
     /// Get an environment variable
     pub fn get(&self, key: &str) -> Option<String> {
-        self.env.read().unwrap().get(key).cloned()
+        self.env
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .get(key)
+            .cloned()
     }
 
     /// Get all environment variables
     pub fn all(&self) -> HashMap<String, String> {
-        self.env.read().unwrap().clone()
+        self.env
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone()
     }
 
     /// Set an environment variable
     pub fn set(&self, key: String, value: String) {
-        self.env.write().unwrap().insert(key, value);
+        self.env
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .insert(key, value);
     }
 
     /// Remove an environment variable
     pub fn remove(&self, key: &str) {
-        self.env.write().unwrap().remove(key);
+        self.env
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .remove(key);
     }
 
     /// Get a reference to the environment (for reading multiple values)
     pub fn env(&self) -> std::sync::RwLockReadGuard<'_, HashMap<String, String>> {
-        self.env.read().unwrap()
+        self.env
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 }
 

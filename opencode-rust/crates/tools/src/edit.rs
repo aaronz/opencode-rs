@@ -4,6 +4,7 @@
     clippy::let_underscore_future
 )]
 
+use crate::sealed;
 use crate::{Tool, ToolResult};
 use async_trait::async_trait;
 use opencode_core::OpenCodeError;
@@ -153,7 +154,7 @@ fn replace(
                 continue;
             }
 
-            let idx = index.unwrap();
+            let idx = index.expect("index was validated above");
             let (start, end) = content.split_at(idx);
             return Ok(format!("{}{}{}", start, new_string, &end[search.len()..]));
         }

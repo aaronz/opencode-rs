@@ -18,7 +18,8 @@ pub struct CommandDefinition {
 }
 
 impl CommandDefinition {
-    pub fn from_markdown(content: &str, file_path: &Path) -> Option<Self> {
+    #[allow(dead_code)]
+    pub(crate) fn from_markdown(content: &str, file_path: &Path) -> Option<Self> {
         if !content.starts_with("---") {
             return None;
         }
@@ -182,12 +183,14 @@ impl CommandContext {
         }
     }
 
-    pub fn with_variables(mut self, vars: CommandVariables) -> Self {
+    #[allow(dead_code)]
+    pub(crate) fn with_variables(mut self, vars: CommandVariables) -> Self {
         self.variables = vars;
         self
     }
 
-    pub fn with_runtime(
+    #[allow(dead_code)]
+    pub(crate) fn with_runtime(
         mut self,
         session: Option<&Session>,
         config: Option<&Config>,
@@ -236,8 +239,9 @@ pub struct CommandRegistry {
     commands_dir: Option<PathBuf>,
 }
 
+#[allow(dead_code)]
 impl CommandRegistry {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             commands: HashMap::new(),
             definitions: HashMap::new(),
@@ -245,16 +249,16 @@ impl CommandRegistry {
         }
     }
 
-    pub fn with_commands_dir(mut self, dir: PathBuf) -> Self {
+    pub(crate) fn with_commands_dir(mut self, dir: PathBuf) -> Self {
         self.commands_dir = Some(dir);
         self
     }
 
-    pub fn set_commands_dir(&mut self, dir: PathBuf) {
+    pub(crate) fn set_commands_dir(&mut self, dir: PathBuf) {
         self.commands_dir = Some(dir);
     }
 
-    pub fn register_builtin_commands(&mut self) {
+    pub(crate) fn register_builtin_commands(&mut self) {
         self.register(Box::new(HelpCommand));
         self.register(Box::new(TestCommand));
         self.register(Box::new(DebugCommand));
@@ -265,7 +269,7 @@ impl CommandRegistry {
         self.register(Box::new(CompactCommand));
     }
 
-    pub fn discover(&mut self) -> Result<(), crate::OpenCodeError> {
+    pub(crate) fn discover(&mut self) -> Result<(), crate::OpenCodeError> {
         let Some(commands_dir) = &self.commands_dir else {
             return Ok(());
         };
@@ -303,24 +307,24 @@ impl CommandRegistry {
         Ok(())
     }
 
-    pub fn register(&mut self, command: Box<dyn Command>) {
+    pub(crate) fn register(&mut self, command: Box<dyn Command>) {
         let name = command.name().to_string();
         self.commands.insert(name, command);
     }
 
-    pub fn get(&self, name: &str) -> Option<&dyn Command> {
+    pub(crate) fn get(&self, name: &str) -> Option<&dyn Command> {
         self.commands.get(name).map(|c| c.as_ref())
     }
 
-    pub fn get_definition(&self, name: &str) -> Option<&CommandDefinition> {
+    pub(crate) fn get_definition(&self, name: &str) -> Option<&CommandDefinition> {
         self.definitions.get(name)
     }
 
-    pub fn expand_template(&self, name: &str, vars: &CommandVariables) -> Option<String> {
+    pub(crate) fn expand_template(&self, name: &str, vars: &CommandVariables) -> Option<String> {
         self.definitions.get(name).map(|def| def.expand(vars))
     }
 
-    pub fn list(&self) -> Vec<(&str, &str)> {
+    pub(crate) fn list(&self) -> Vec<(&str, &str)> {
         let mut list: Vec<(&str, &str)> = self
             .commands
             .iter()
@@ -335,7 +339,7 @@ impl CommandRegistry {
         list
     }
 
-    pub fn list_with_usage(&self) -> Vec<CommandInfo> {
+    pub(crate) fn list_with_usage(&self) -> Vec<CommandInfo> {
         let mut list: Vec<CommandInfo> = self
             .commands
             .iter()
@@ -358,14 +362,14 @@ impl CommandRegistry {
         list
     }
 
-    pub fn list_commands(&self) -> Vec<String> {
+    pub(crate) fn list_commands(&self) -> Vec<String> {
         let mut names: Vec<String> = self.commands.keys().cloned().collect();
         names.extend(self.definitions.keys().cloned());
         names.sort();
         names
     }
 
-    pub fn set_runtime_context(
+    pub(crate) fn set_runtime_context(
         &self,
         mut ctx: CommandContext,
         session: Option<&Session>,
@@ -452,6 +456,7 @@ pub fn substitute_command_variables(
 
 struct HelpCommand;
 
+#[allow(dead_code)]
 fn format_help_table(commands: &[CommandInfo]) -> String {
     if commands.is_empty() {
         return "No commands registered.".to_string();
@@ -478,6 +483,7 @@ fn format_help_table(commands: &[CommandInfo]) -> String {
     lines.join("\n")
 }
 
+#[allow(dead_code)]
 fn format_models(config: &Config) -> String {
     let Some(providers) = &config.provider else {
         return "No providers configured.".to_string();
@@ -548,6 +554,7 @@ fn format_models(config: &Config) -> String {
     lines.join("\n")
 }
 
+#[allow(dead_code)]
 fn format_agents(config: &Config) -> String {
     let Some(agent_map) = &config.agent else {
         return "No agents configured.".to_string();
@@ -593,6 +600,7 @@ fn format_agents(config: &Config) -> String {
 }
 
 #[async_trait]
+#[allow(dead_code)]
 impl Command for HelpCommand {
     fn name(&self) -> &str {
         "help"
@@ -648,6 +656,7 @@ impl Command for HelpCommand {
 struct TestCommand;
 
 #[async_trait]
+#[allow(dead_code)]
 impl Command for TestCommand {
     fn name(&self) -> &str {
         "test"
@@ -677,6 +686,7 @@ impl Command for TestCommand {
 struct DebugCommand;
 
 #[async_trait]
+#[allow(dead_code)]
 impl Command for DebugCommand {
     fn name(&self) -> &str {
         "debug"
@@ -699,6 +709,7 @@ impl Command for DebugCommand {
 struct ClearCommand;
 
 #[async_trait]
+#[allow(dead_code)]
 impl Command for ClearCommand {
     fn name(&self) -> &str {
         "clear"
@@ -728,6 +739,7 @@ impl Command for ClearCommand {
 struct ModelsCommand;
 
 #[async_trait]
+#[allow(dead_code)]
 impl Command for ModelsCommand {
     fn name(&self) -> &str {
         "models"
@@ -753,6 +765,7 @@ impl Command for ModelsCommand {
 struct AgentsCommand;
 
 #[async_trait]
+#[allow(dead_code)]
 impl Command for AgentsCommand {
     fn name(&self) -> &str {
         "agents"
@@ -778,6 +791,7 @@ impl Command for AgentsCommand {
 struct ShareCommand;
 
 #[async_trait]
+#[allow(dead_code)]
 impl Command for ShareCommand {
     fn name(&self) -> &str {
         "share"
@@ -804,6 +818,7 @@ impl Command for ShareCommand {
 struct CompactCommand;
 
 #[async_trait]
+#[allow(dead_code)]
 impl Command for CompactCommand {
     fn name(&self) -> &str {
         "compact"

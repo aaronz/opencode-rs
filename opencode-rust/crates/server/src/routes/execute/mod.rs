@@ -270,9 +270,14 @@ mod tests {
     #[test]
     fn test_execute_event_creation() {
         // Test creating various event types
-        let tool_call = ExecuteEvent::tool_call("read", serde_json::json!({"path": "/test"}), "call-1");
+        let tool_call =
+            ExecuteEvent::tool_call("read", serde_json::json!({"path": "/test"}), "call-1");
         match tool_call {
-            ExecuteEvent::ToolCall { tool, params, call_id } => {
+            ExecuteEvent::ToolCall {
+                tool,
+                params,
+                call_id,
+            } => {
                 assert_eq!(tool, "read");
                 assert_eq!(call_id, "call-1");
             }

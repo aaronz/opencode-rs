@@ -59,7 +59,11 @@ pub fn run(args: RunArgs) {
                     "prompt": prompt,
                     "response": "This is a placeholder response. Use TUI mode for actual LLM interaction."
                 });
-                println!("{}", serde_json::to_string_pretty(&response).unwrap());
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&response)
+                        .expect("failed to serialize JSON output")
+                );
             }
             _ => {
                 println!("Mode: non-interactive");

@@ -160,7 +160,7 @@ impl ReconnectionStore {
     }
 
     pub fn record_message(&self, session_id: &str, message: StreamMessage) -> u64 {
-        let mut guard = self.inner.lock().expect("reconnection store lock poisoned");
+        let mut guard = self.inner.lock().unwrap_or_else(|p| p.into_inner());
         let replay = guard.entry(session_id.to_string()).or_default();
         replay.next_sequence = replay.next_sequence.saturating_add(1);
         let sequence = replay.next_sequence;
@@ -172,7 +172,7 @@ impl ReconnectionStore {
     }
 
     pub fn replay_from(&self, session_id: &str, sequence: u64) -> Vec<ReplayEntry> {
-        let guard = self.inner.lock().expect("reconnection store lock poisoned");
+        let guard = self.inner.lock().unwrap_or_else(|p| p.into_inner());
         guard
             .get(session_id)
             .map(|replay| {
@@ -188,7 +188,7 @@ impl ReconnectionStore {
 
     pub fn generate_token(&self, session_id: &str, last_sequence: Option<u64>) -> String {
         let token = Uuid::new_v4().to_string();
-        let mut guard = self.inner.lock().expect("reconnection store lock poisoned");
+        let mut guard = self.inner.lock().unwrap_or_else(|p| p.into_inner());
         let replay = guard.entry(session_id.to_string()).or_default();
         let sequence = last_sequence.unwrap_or(replay.next_sequence);
         replay.tokens.insert(token.clone(), sequence);
@@ -196,7 +196,7 @@ impl ReconnectionStore {
     }
 
     pub fn validate_token(&self, session_id: &str, token: &str) -> Option<u64> {
-        let guard = self.inner.lock().expect("reconnection store lock poisoned");
+        let guard = self.inner.lock().unwrap_or_else(|p| p.into_inner());
         guard
             .get(session_id)
             .and_then(|replay| replay.tokens.get(token).copied())

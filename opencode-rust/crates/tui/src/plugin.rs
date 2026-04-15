@@ -60,11 +60,17 @@ impl TuiPluginManager {
     }
 
     pub fn set_master_enabled(&self, enabled: bool) {
-        *self.master_enabled.write().unwrap() = enabled;
+        *self
+            .master_enabled
+            .write()
+            .unwrap_or_else(|p| p.into_inner()) = enabled;
     }
 
     pub fn is_master_enabled(&self) -> bool {
-        *self.master_enabled.read().unwrap()
+        *self
+            .master_enabled
+            .read()
+            .unwrap_or_else(|p| p.into_inner())
     }
 
     pub fn register_plugin(
@@ -74,7 +80,7 @@ impl TuiPluginManager {
         spec: String,
         enabled: bool,
     ) -> Result<(), TuiPluginError> {
-        let mut plugins = self.plugins.write().unwrap();
+        let mut plugins = self.plugins.write().unwrap_or_else(|p| p.into_inner());
         if plugins.contains_key(&id) {
             return Err(TuiPluginError::DuplicatePlugin(id));
         }
@@ -93,7 +99,7 @@ impl TuiPluginManager {
     }
 
     pub fn unregister_plugin(&self, id: &str) -> Result<(), TuiPluginError> {
-        let mut plugins = self.plugins.write().unwrap();
+        let mut plugins = self.plugins.write().unwrap_or_else(|p| p.into_inner());
         if let Some(entry) = plugins.get(id) {
             if entry.active {
                 return Err(TuiPluginError::PluginActive(id.to_string()));
@@ -110,7 +116,7 @@ impl TuiPluginManager {
             return Err(TuiPluginError::MasterSwitchDisabled);
         }
 
-        let mut plugins = self.plugins.write().unwrap();
+        let mut plugins = self.plugins.write().unwrap_or_else(|p| p.into_inner());
         let entry = plugins
             .get_mut(id)
             .ok_or_else(|| TuiPluginError::NotFound(id.to_string()))?;
@@ -132,7 +138,7 @@ impl TuiPluginManager {
     pub fn deactivate(&self, id: &str) -> Result<(), TuiPluginError> {
         let plugin_id = id.to_string();
         let should_dispose = {
-            let mut plugins = self.plugins.write().unwrap();
+            let mut plugins = self.plugins.write().unwrap_or_else(|p| p.into_inner());
             let entry = plugins
                 .get_mut(&plugin_id)
                 .ok_or_else(|| TuiPluginError::NotFound(plugin_id.clone()))?;
@@ -157,17 +163,26 @@ impl TuiPluginManager {
     }
 
     pub fn get_plugin(&self, id: &str) -> Option<TuiPluginEntry> {
-        self.plugins.read().unwrap().get(id).cloned()
+        self.plugins
+            .read()
+            .unwrap_or_else(|p| p.into_inner())
+            .get(id)
+            .cloned()
     }
 
     pub fn list_plugins(&self) -> Vec<TuiPluginEntry> {
-        self.plugins.read().unwrap().values().cloned().collect()
+        self.plugins
+            .read()
+            .unwrap_or_else(|p| p.into_inner())
+            .values()
+            .cloned()
+            .collect()
     }
 
     pub fn set_plugin_enabled(&self, id: &str, enabled: bool) -> Result<(), TuiPluginError> {
         let plugin_id = id.to_string();
         let should_dispose = {
-            let mut plugins = self.plugins.write().unwrap();
+            let mut plugins = self.plugins.write().unwrap_or_else(|p| p.into_inner());
             let entry = plugins
                 .get_mut(&plugin_id)
                 .ok_or_else(|| TuiPluginError::NotFound(plugin_id.clone()))?;
@@ -196,7 +211,7 @@ impl TuiPluginManager {
     pub fn is_plugin_active(&self, id: &str) -> bool {
         self.plugins
             .read()
-            .unwrap()
+            .unwrap_or_else(|p| p.into_inner())
             .get(id)
             .map(|e| e.active)
             .unwrap_or(false)
@@ -215,7 +230,12 @@ impl TuiPluginManager {
         plugin_id: &str,
         command: C,
     ) -> Result<(), PluginCommandError> {
-        if !self.plugins.read().unwrap().contains_key(plugin_id) {
+        if !self
+            .plugins
+            .read()
+            .unwrap_or_else(|p| p.into_inner())
+            .contains_key(plugin_id)
+        {
             return Err(PluginCommandError::PluginNotFound(plugin_id.to_string()));
         }
         self.command_registry.register_command(plugin_id, command)
@@ -243,7 +263,12 @@ impl TuiPluginManager {
         plugin_id: &str,
         route: R,
     ) -> Result<(), PluginRouteError> {
-        if !self.plugins.read().unwrap().contains_key(plugin_id) {
+        if !self
+            .plugins
+            .read()
+            .unwrap_or_else(|p| p.into_inner())
+            .contains_key(plugin_id)
+        {
             return Err(PluginRouteError::PluginNotFound(plugin_id.to_string()));
         }
         self.route_registry.register_route(plugin_id, route)
@@ -280,7 +305,12 @@ impl TuiPluginManager {
         plugin_id: &str,
         theme: PluginTheme,
     ) -> Result<(), PluginThemeError> {
-        if !self.plugins.read().unwrap().contains_key(plugin_id) {
+        if !self
+            .plugins
+            .read()
+            .unwrap_or_else(|p| p.into_inner())
+            .contains_key(plugin_id)
+        {
             return Err(PluginThemeError::PluginNotFound(plugin_id.to_string()));
         }
         self.theme_registry.register_theme(plugin_id, theme)
@@ -315,7 +345,12 @@ impl TuiPluginManager {
         plugin_id: &str,
         event: E,
     ) -> Result<(), PluginEventError> {
-        if !self.plugins.read().unwrap().contains_key(plugin_id) {
+        if !self
+            .plugins
+            .read()
+            .unwrap_or_else(|p| p.into_inner())
+            .contains_key(plugin_id)
+        {
             return Err(PluginEventError::PluginNotFound(plugin_id.to_string()));
         }
         self.event_registry.subscribe(plugin_id, event)
@@ -346,7 +381,12 @@ impl TuiPluginManager {
         plugin_id: &str,
         state: serde_json::Value,
     ) -> Result<(), PluginStateError> {
-        if !self.plugins.read().unwrap().contains_key(plugin_id) {
+        if !self
+            .plugins
+            .read()
+            .unwrap_or_else(|p| p.into_inner())
+            .contains_key(plugin_id)
+        {
             return Err(PluginStateError::PluginNotFound(plugin_id.to_string()));
         }
         self.state_registry.save_state(plugin_id, state)
@@ -356,14 +396,24 @@ impl TuiPluginManager {
         &self,
         plugin_id: &str,
     ) -> Result<Option<serde_json::Value>, PluginStateError> {
-        if !self.plugins.read().unwrap().contains_key(plugin_id) {
+        if !self
+            .plugins
+            .read()
+            .unwrap_or_else(|p| p.into_inner())
+            .contains_key(plugin_id)
+        {
             return Err(PluginStateError::PluginNotFound(plugin_id.to_string()));
         }
         self.state_registry.load_state(plugin_id)
     }
 
     pub fn delete_plugin_state(&self, plugin_id: &str) -> Result<(), PluginStateError> {
-        if !self.plugins.read().unwrap().contains_key(plugin_id) {
+        if !self
+            .plugins
+            .read()
+            .unwrap_or_else(|p| p.into_inner())
+            .contains_key(plugin_id)
+        {
             return Err(PluginStateError::PluginNotFound(plugin_id.to_string()));
         }
         self.state_registry.delete_state(plugin_id)
@@ -378,7 +428,12 @@ impl TuiPluginManager {
         plugin_id: &str,
         disposer: D,
     ) -> Result<(), PluginDisposeError> {
-        if !self.plugins.read().unwrap().contains_key(plugin_id) {
+        if !self
+            .plugins
+            .read()
+            .unwrap_or_else(|p| p.into_inner())
+            .contains_key(plugin_id)
+        {
             return Err(PluginDisposeError::PluginNotFound(plugin_id.to_string()));
         }
         self.dispose_registry.register_disposer(plugin_id, disposer)
@@ -432,7 +487,12 @@ impl TuiPluginManager {
         plugin_id: &str,
         slot: S,
     ) -> Result<(), PluginSlotError> {
-        if !self.plugins.read().unwrap().contains_key(plugin_id) {
+        if !self
+            .plugins
+            .read()
+            .unwrap_or_else(|p| p.into_inner())
+            .contains_key(plugin_id)
+        {
             return Err(PluginSlotError::PluginNotFound(plugin_id.to_string()));
         }
         self.slot_registry.register_slot(plugin_id, slot)
@@ -476,7 +536,12 @@ impl TuiPluginManager {
         plugin_id: &str,
         slot: S,
     ) -> Result<(), PluginSlotError> {
-        if !self.plugins.read().unwrap().contains_key(plugin_id) {
+        if !self
+            .plugins
+            .read()
+            .unwrap_or_else(|p| p.into_inner())
+            .contains_key(plugin_id)
+        {
             return Err(PluginSlotError::PluginNotFound(plugin_id.to_string()));
         }
         self.slot_registry.update_slot(plugin_id, slot)
@@ -484,7 +549,7 @@ impl TuiPluginManager {
 
     pub fn clear(&self) {
         let active_plugin_ids: Vec<String> = {
-            let plugins = self.plugins.read().unwrap();
+            let plugins = self.plugins.read().unwrap_or_else(|p| p.into_inner());
             plugins
                 .values()
                 .filter(|p| p.active)
@@ -502,7 +567,10 @@ impl TuiPluginManager {
             }
         }
 
-        self.plugins.write().unwrap().clear();
+        self.plugins
+            .write()
+            .unwrap_or_else(|p| p.into_inner())
+            .clear();
         self.command_registry.clear();
         self.route_registry.clear();
         self.theme_registry.clear();

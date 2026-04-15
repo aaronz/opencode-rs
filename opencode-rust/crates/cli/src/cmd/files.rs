@@ -39,7 +39,10 @@ pub fn run(args: FilesArgs) {
                     serde_json::json!({"path": "src/main.rs", "type": "file"}),
                     serde_json::json!({"path": "src/lib.rs", "type": "file"}),
                 ];
-                println!("{}", serde_json::to_string(&files).unwrap());
+                println!(
+                    "{}",
+                    serde_json::to_string(&files).expect("failed to serialize JSON output")
+                );
             } else {
                 println!("Files:");
                 if let Some(ext) = ext {
@@ -64,7 +67,10 @@ pub fn run(args: FilesArgs) {
                     serde_json::json!({"path": "src/main.rs", "line": 1, "content": "fn main() {}"}),
                     serde_json::json!({"path": "src/lib.rs", "line": 5, "content": "pub fn lib() {}"}),
                 ];
-                println!("{}", serde_json::to_string(&results).unwrap());
+                println!(
+                    "{}",
+                    serde_json::to_string(&results).expect("failed to serialize JSON output")
+                );
             } else {
                 println!("Searching for: {}", pattern);
                 println!("  src/main.rs:1: fn main() {{}}");

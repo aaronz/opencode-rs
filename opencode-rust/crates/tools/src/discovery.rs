@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use walkdir::WalkDir;
 
+use crate::sealed;
 use crate::{Tool, ToolContext, ToolResult};
 use opencode_core::OpenCodeError;
 
@@ -36,7 +37,8 @@ pub struct ToolDiscovery {
 }
 
 impl ToolDiscovery {
-    pub fn new(project_root: Option<PathBuf>) -> Self {
+    #[allow(dead_code)]
+    pub(crate) fn new(project_root: Option<PathBuf>) -> Self {
         let project_tools_path = project_root
             .map(|p| p.join(PROJECT_TOOLS_DIR))
             .filter(|p| p.exists());
@@ -51,14 +53,15 @@ impl ToolDiscovery {
         }
     }
 
-    pub fn discover_tools(&self) -> Vec<DiscoveredTool> {
+    #[allow(dead_code)]
+    pub(crate) fn discover_tools(&self) -> Vec<DiscoveredTool> {
         self.discover_tools_with_source()
             .into_iter()
             .map(|(tool, _)| tool)
             .collect()
     }
 
-    pub fn discover_tools_with_source(&self) -> Vec<(DiscoveredTool, DiscoveredToolSource)> {
+    pub(crate) fn discover_tools_with_source(&self) -> Vec<(DiscoveredTool, DiscoveredToolSource)> {
         let mut tools = Vec::new();
 
         if let Some(ref path) = self.project_tools_path {
@@ -158,14 +161,16 @@ pub struct CustomTool {
 }
 
 impl CustomTool {
-    pub fn from_discovered(discovered: DiscoveredTool) -> Self {
+    #[allow(dead_code)]
+    pub(crate) fn from_discovered(discovered: DiscoveredTool) -> Self {
         Self {
             definition: discovered.definition,
             file_path: discovered.file_path,
         }
     }
 
-    pub fn definition(&self) -> &ToolDefinition {
+    #[allow(dead_code)]
+    pub(crate) fn definition(&self) -> &ToolDefinition {
         &self.definition
     }
 }

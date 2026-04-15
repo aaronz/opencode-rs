@@ -248,7 +248,7 @@ impl ProviderCatalogFetcher {
 
     fn is_cache_valid(&self, catalog: &ProviderCatalog) -> bool {
         let age = Utc::now().signed_duration_since(catalog.fetched_at);
-        age < chrono::Duration::from_std(CACHE_TTL).unwrap()
+        age < chrono::Duration::from_std(CACHE_TTL).unwrap_or_default()
     }
 
     async fn read_file_cache(&self) -> Result<ProviderCatalog, std::io::Error> {

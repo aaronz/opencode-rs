@@ -844,10 +844,8 @@ impl App {
         store.save(&session).map_err(|e| e.to_string())?;
 
         self.provider = "openai".to_string();
-        unsafe {
-            std::env::set_var("OPENAI_MODEL", &model_id);
-            std::env::set_var("OPENCODE_MODEL", &model_id);
-        }
+        std::env::set_var("OPENAI_MODEL", &model_id);
+        std::env::set_var("OPENCODE_MODEL", &model_id);
         self.llm_provider = Some(std::sync::Arc::new(OpenAiProvider::new_browser_auth(
             session, model_id, store,
         )));
@@ -2039,7 +2037,7 @@ impl App {
                         self.add_message(
                             format!(
                                 "Session shared: {}\nUse /unshare to remove.",
-                                self.share_url.as_ref().unwrap()
+                                self.share_url.as_ref().expect("share_url set above")
                             ),
                             false,
                         );
@@ -2962,7 +2960,10 @@ OpenCode Agent Configuration
                                         file_contexts.push(format!(
                                             "\n[Error reading {}: {}]\n",
                                             result.path,
-                                            result.error.as_ref().unwrap()
+                                            result
+                                                .error
+                                                .as_ref()
+                                                .expect("error is Some in else branch")
                                         ));
                                     }
                                 }
@@ -3010,7 +3011,11 @@ OpenCode Agent Configuration
 
                                 let (tx, rx) = mpsc::channel();
                                 self.llm_rx = Some(rx);
-                                let provider_clone = self.llm_provider.as_ref().unwrap().clone();
+                                let provider_clone = self
+                                    .llm_provider
+                                    .as_ref()
+                                    .expect("llm_provider is Some per is_some check")
+                                    .clone();
                                 let auto_enabled = self.skill_resolver.match_and_enable(&input);
                                 for skill in auto_enabled {
                                     self.skills_panel.set_enabled(&skill.name, true);
@@ -3028,7 +3033,8 @@ OpenCode Agent Configuration
                                 };
 
                                 std::thread::spawn(move || {
-                                    let rt = tokio::runtime::Runtime::new().unwrap();
+                                    let rt = tokio::runtime::Runtime::new()
+                                        .expect("failed to create Tokio runtime");
                                     rt.block_on(async {
                                         let tx_callback = tx.clone();
                                         let callback = move |chunk: String| {
@@ -3658,7 +3664,11 @@ OpenCode Agent Configuration
                                 if session_name.is_some() {
                                     self.session_manager.select(idx);
                                     self.add_message(
-                                        format!("Loaded session: {}", session_name.unwrap()),
+                                        format!(
+                                            "Loaded session: {}",
+                                            session_name
+                                                .expect("session_name is Some per is_some check")
+                                        ),
                                         false,
                                     );
                                     self.mode = AppMode::Chat;

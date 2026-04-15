@@ -35,7 +35,7 @@ pub fn run(args: TerminalArgs) {
             }
 
             let mut iter = command.iter();
-            let program = iter.next().unwrap();
+            let program = iter.next().expect("command iterator should not be empty");
             let output = std::process::Command::new(program).args(iter).output();
             match output {
                 Ok(output) => {
@@ -57,7 +57,8 @@ pub fn run(args: TerminalArgs) {
             if json {
                 println!(
                     "{}",
-                    serde_json::to_string(&serde_json::json!({"tabs": []})).unwrap()
+                    serde_json::to_string(&serde_json::json!({"tabs": []}))
+                        .expect("failed to serialize JSON output")
                 );
             } else {
                 println!("Terminal tabs: 0");

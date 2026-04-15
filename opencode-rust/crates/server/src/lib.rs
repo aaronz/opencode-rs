@@ -62,7 +62,7 @@ pub async fn run_server(state: Arc<ServerState>, host: &str, port: u16) -> std::
     let server_cfg = state
         .config
         .read()
-        .expect("server config lock poisoned")
+        .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "server config lock poisoned"))?
         .server
         .clone()
         .unwrap_or_default();
@@ -140,7 +140,7 @@ pub async fn run_server_with_shutdown(
     let server_cfg = state
         .config
         .read()
-        .expect("server config lock poisoned")
+        .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "server config lock poisoned"))?
         .server
         .clone()
         .unwrap_or_default();

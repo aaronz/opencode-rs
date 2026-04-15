@@ -1,3 +1,4 @@
+use crate::sealed;
 use crate::{Tool, ToolContext, ToolResult};
 use opencode_core::OpenCodeError;
 use sha2::{Digest, Sha256};
@@ -75,7 +76,7 @@ pub enum ToolSource {
 }
 
 impl ToolSource {
-    pub fn as_str(&self) -> &'static str {
+    pub(crate) fn as_str(&self) -> &'static str {
         match self {
             ToolSource::CustomGlobal => "custom_global",
             ToolSource::CustomProject => "custom_project",
@@ -126,7 +127,8 @@ pub enum ProviderId {
 }
 
 impl ProviderId {
-    pub fn from_string(s: &str) -> Self {
+    #[allow(dead_code)]
+    pub(crate) fn from_string(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "openai" => ProviderId::OpenAI,
             "anthropic" => ProviderId::Anthropic,
@@ -137,7 +139,7 @@ impl ProviderId {
         }
     }
 
-    pub fn is_opencode(&self) -> bool {
+    pub(crate) fn is_opencode(&self) -> bool {
         matches!(self, ProviderId::OpenCode)
     }
 }
@@ -150,7 +152,7 @@ pub struct ModelInfo {
 
 impl ModelInfo {
     /// Check if model should use apply_patch tool (GPT models except GPT-4 and OSS)
-    pub fn use_apply_patch(&self) -> bool {
+    pub(crate) fn use_apply_patch(&self) -> bool {
         let model_id = self.model_id.to_lowercase();
         model_id.starts_with("gpt-") && !model_id.contains("gpt-4") && !model_id.contains("oss")
     }

@@ -14,16 +14,18 @@ pub struct ProjectInfo {
     pub worktree_root: Option<PathBuf>,
 }
 
+#[allow(dead_code)]
 pub struct ProjectManager {
     current: Option<ProjectInfo>,
 }
 
+#[allow(dead_code)]
 impl ProjectManager {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self { current: None }
     }
 
-    pub fn detect(root: PathBuf) -> Option<ProjectInfo> {
+    pub(crate) fn detect(root: PathBuf) -> Option<ProjectInfo> {
         if root.is_relative() {
             return None;
         }
@@ -145,22 +147,22 @@ impl ProjectManager {
         None
     }
 
-    pub fn set_current(&mut self, info: ProjectInfo) {
+    pub(crate) fn set_current(&mut self, info: ProjectInfo) {
         self.current = Some(info);
     }
 
-    pub fn current(&self) -> Option<&ProjectInfo> {
+    pub(crate) fn current(&self) -> Option<&ProjectInfo> {
         self.current.as_ref()
     }
 
-    pub fn is_rust(&self) -> bool {
+    pub(crate) fn is_rust(&self) -> bool {
         self.current
             .as_ref()
             .map(|p| p.language == "rust")
             .unwrap_or(false)
     }
 
-    pub fn is_typescript(&self) -> bool {
+    pub(crate) fn is_typescript(&self) -> bool {
         self.current
             .as_ref()
             .map(|p| p.language == "javascript")
@@ -259,8 +261,9 @@ pub enum WorkspaceValidationError {
     PathNotAbsolute(String),
 }
 
+#[allow(dead_code)]
 impl WorkspaceValidationError {
-    pub fn code(&self) -> u16 {
+    pub(crate) fn code(&self) -> u16 {
         match self {
             Self::PathNotFound(_) => 7011,
             Self::PathNotAccessible(_) => 7012,

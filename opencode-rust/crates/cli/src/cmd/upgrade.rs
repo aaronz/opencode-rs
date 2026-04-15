@@ -30,7 +30,10 @@ pub fn run(args: UpgradeArgs) {
                 "dry_run": true,
                 "status": "not_implemented"
             });
-            println!("{}", serde_json::to_string_pretty(&result).unwrap());
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&result).expect("failed to serialize JSON output")
+            );
             return;
         }
         println!("[DRY RUN] opencode-rs upgrade");
@@ -53,7 +56,10 @@ pub fn run(args: UpgradeArgs) {
             "force": args.force,
             "status": "not_implemented"
         });
-        println!("{}", serde_json::to_string_pretty(&result).unwrap());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&result).expect("failed to serialize JSON output")
+        );
         return;
     }
 

@@ -36,8 +36,9 @@ pub fn save_workspace_sessions(sessions: &[SessionInfo]) {
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
-    let serialized = serde_json::to_string_pretty(sessions).unwrap();
-    std::fs::write(path, serialized).unwrap();
+    let serialized =
+        serde_json::to_string_pretty(sessions).expect("failed to serialize workspace sessions");
+    std::fs::write(&path, serialized).expect("failed to write workspace sessions file");
 }
 
 #[derive(Args, Debug)]
@@ -76,7 +77,10 @@ pub fn run(args: WorkspaceArgs) {
                     .iter()
                     .map(|s| serde_json::json!({"id": s.id, "name": s.name}))
                     .collect();
-                println!("{}", serde_json::to_string(&output).unwrap());
+                println!(
+                    "{}",
+                    serde_json::to_string(&output).expect("failed to serialize JSON output")
+                );
             } else {
                 println!("Sessions:");
                 for s in sessions.iter() {
@@ -94,7 +98,10 @@ pub fn run(args: WorkspaceArgs) {
                     "sessions": sessions.len(),
                     "active": true
                 });
-                println!("{}", serde_json::to_string(&status).unwrap());
+                println!(
+                    "{}",
+                    serde_json::to_string(&status).expect("failed to serialize JSON output")
+                );
             } else {
                 println!("Workspace Status:");
                 println!(
@@ -111,7 +118,10 @@ pub fn run(args: WorkspaceArgs) {
                     "cwd": std::env::current_dir().map(|p| p.to_string_lossy().to_string()).unwrap_or_default(),
                     "files": []
                 });
-                println!("{}", serde_json::to_string(&context).unwrap());
+                println!(
+                    "{}",
+                    serde_json::to_string(&context).expect("failed to serialize JSON output")
+                );
             } else {
                 println!("Workspace Context:");
                 println!(

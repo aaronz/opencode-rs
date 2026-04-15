@@ -47,8 +47,9 @@ fn save_project_state(state: &ProjectState) {
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
-    let serialized = serde_json::to_string_pretty(state).unwrap();
-    std::fs::write(path, serialized).unwrap();
+    let serialized =
+        serde_json::to_string_pretty(state).expect("failed to serialize project state");
+    std::fs::write(&path, serialized).expect("failed to write project state file");
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -145,7 +146,7 @@ pub fn run(args: ProjectArgs) {
             if state.current_project.is_none() {
                 state.current_project = Some(name.clone());
             }
-            *PROJECT_STATE.lock().unwrap() = state.clone();
+            *PROJECT_STATE.lock().unwrap_or_else(|p| p.into_inner()) = state.clone();
             save_project_state(&state);
             println!("Created project: {}", name);
         }
@@ -166,7 +167,7 @@ pub fn run(args: ProjectArgs) {
             if state.current_project.as_ref() == Some(&from) {
                 state.current_project = Some(to.clone());
             }
-            *PROJECT_STATE.lock().unwrap() = state.clone();
+            *PROJECT_STATE.lock().unwrap_or_else(|p| p.into_inner()) = state.clone();
             save_project_state(&state);
             println!("Renamed project: {} -> {}", from, to);
         }
@@ -189,7 +190,7 @@ pub fn run(args: ProjectArgs) {
             if let Some(model) = model {
                 project.model = Some(model);
             }
-            *PROJECT_STATE.lock().unwrap() = state.clone();
+            *PROJECT_STATE.lock().unwrap_or_else(|p| p.into_inner()) = state.clone();
             save_project_state(&state);
             println!("Updated project: {}", name);
         }
@@ -203,7 +204,10 @@ pub fn run(args: ProjectArgs) {
                 }
             };
             if json {
-                println!("{}", serde_json::to_string(project).unwrap());
+                println!(
+                    "{}",
+                    serde_json::to_string(project).expect("failed to serialize JSON output")
+                );
             } else {
                 println!("Project: {}", project.name);
                 println!("Path: {}", project.path);
@@ -230,7 +234,10 @@ pub fn run(args: ProjectArgs) {
                         })
                     })
                     .collect();
-                println!("{}", serde_json::to_string(&projects).unwrap());
+                println!(
+                    "{}",
+                    serde_json::to_string(&projects).expect("failed to serialize JSON output")
+                );
             } else {
                 println!("Projects:");
                 for project in state.projects.values() {
@@ -245,7 +252,7 @@ pub fn run(args: ProjectArgs) {
                 if state.current_project.as_ref() == Some(&name) {
                     state.current_project = None;
                 }
-                *PROJECT_STATE.lock().unwrap() = state.clone();
+                *PROJECT_STATE.lock().unwrap_or_else(|p| p.into_inner()) = state.clone();
                 save_project_state(&state);
                 println!("Deleted project: {}", name);
             } else {
@@ -257,7 +264,7 @@ pub fn run(args: ProjectArgs) {
             let mut state = load_project_state();
             if state.projects.contains_key(&name) {
                 state.current_project = Some(name.clone());
-                *PROJECT_STATE.lock().unwrap() = state.clone();
+                *PROJECT_STATE.lock().unwrap_or_else(|p| p.into_inner()) = state.clone();
                 save_project_state(&state);
                 println!("Switched to project: {}", name);
             } else {

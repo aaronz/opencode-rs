@@ -122,11 +122,10 @@ impl AgentExecutor {
             result.error.clone().unwrap_or_default()
         });
         record.completed_at = Some(Utc::now());
-        record.latency_ms = Some(
-            (record.completed_at.unwrap() - record.started_at)
-                .num_milliseconds()
-                .max(0) as u64,
-        );
+        let latency = record
+            .completed_at
+            .map(|t| (t - record.started_at).num_milliseconds().max(0) as u64);
+        record.latency_ms = latency;
 
         tracing::info!(
             tool = %record.tool_name,
