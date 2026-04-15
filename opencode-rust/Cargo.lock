@@ -4286,6 +4286,7 @@ dependencies = [
  "opencode-plugin",
  "opencode-server",
  "opencode-storage",
+ "opencode-tools",
  "opencode-tui",
  "reqwest",
  "serde",

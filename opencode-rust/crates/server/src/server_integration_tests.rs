@@ -4,6 +4,7 @@ mod tests {
     use actix_web::test::TestRequest;
     use actix_web::Responder;
     use opencode_core::{Message, Session};
+    use std::sync::Arc;
 
     #[actix_web::test]
     async fn test_health_check() {
@@ -16,9 +17,18 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let db_path = temp_dir.path().join("test.db");
         crate::ServerState {
-            storage: std::sync::Arc::new(opencode_storage::StorageService::new(
-                opencode_storage::database::StoragePool::new(&db_path).unwrap(),
-            )),
+            storage: {
+                let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
+                let session_repo =
+                    Arc::new(opencode_storage::SqliteSessionRepository::new(pool.clone()));
+                let project_repo =
+                    Arc::new(opencode_storage::SqliteProjectRepository::new(pool.clone()));
+                Arc::new(opencode_storage::StorageService::new(
+                    session_repo,
+                    project_repo,
+                    pool,
+                ))
+            },
             models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
             config: std::sync::Arc::new(std::sync::RwLock::new(opencode_core::Config::default())),
             event_bus: opencode_core::bus::SharedEventBus::default(),
@@ -44,9 +54,18 @@ mod tests {
         let mut config = opencode_core::Config::default();
         config.api_key = api_key;
         crate::ServerState {
-            storage: std::sync::Arc::new(opencode_storage::StorageService::new(
-                opencode_storage::database::StoragePool::new(&db_path).unwrap(),
-            )),
+            storage: {
+                let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
+                let session_repo =
+                    Arc::new(opencode_storage::SqliteSessionRepository::new(pool.clone()));
+                let project_repo =
+                    Arc::new(opencode_storage::SqliteProjectRepository::new(pool.clone()));
+                Arc::new(opencode_storage::StorageService::new(
+                    session_repo,
+                    project_repo,
+                    pool,
+                ))
+            },
             models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
             config: std::sync::Arc::new(std::sync::RwLock::new(config)),
             event_bus: opencode_core::bus::SharedEventBus::default(),
@@ -1611,6 +1630,7 @@ mod security_tests {
     use actix_web::test::TestRequest;
     use actix_web::web;
     use actix_web::Responder;
+    use std::sync::Arc;
 
     fn create_test_state_with_api_key(api_key: Option<String>) -> crate::ServerState {
         let temp_dir = tempfile::tempdir().unwrap();
@@ -1618,9 +1638,18 @@ mod security_tests {
         let mut config = opencode_core::Config::default();
         config.api_key = api_key;
         crate::ServerState {
-            storage: std::sync::Arc::new(opencode_storage::StorageService::new(
-                opencode_storage::database::StoragePool::new(&db_path).unwrap(),
-            )),
+            storage: {
+                let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
+                let session_repo =
+                    Arc::new(opencode_storage::SqliteSessionRepository::new(pool.clone()));
+                let project_repo =
+                    Arc::new(opencode_storage::SqliteProjectRepository::new(pool.clone()));
+                Arc::new(opencode_storage::StorageService::new(
+                    session_repo,
+                    project_repo,
+                    pool,
+                ))
+            },
             models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
             config: std::sync::Arc::new(std::sync::RwLock::new(config)),
             event_bus: opencode_core::bus::SharedEventBus::default(),
@@ -2034,14 +2063,24 @@ mod api_negative_tests {
     use actix_web::test::TestRequest;
     use actix_web::web;
     use actix_web::Responder;
+    use std::sync::Arc;
 
     fn create_test_state() -> crate::ServerState {
         let temp_dir = tempfile::tempdir().unwrap();
         let db_path = temp_dir.path().join("test.db");
         crate::ServerState {
-            storage: std::sync::Arc::new(opencode_storage::StorageService::new(
-                opencode_storage::database::StoragePool::new(&db_path).unwrap(),
-            )),
+            storage: {
+                let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
+                let session_repo =
+                    Arc::new(opencode_storage::SqliteSessionRepository::new(pool.clone()));
+                let project_repo =
+                    Arc::new(opencode_storage::SqliteProjectRepository::new(pool.clone()));
+                Arc::new(opencode_storage::StorageService::new(
+                    session_repo,
+                    project_repo,
+                    pool,
+                ))
+            },
             models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
             config: std::sync::Arc::new(std::sync::RwLock::new(opencode_core::Config::default())),
             event_bus: opencode_core::bus::SharedEventBus::default(),
@@ -2067,9 +2106,18 @@ mod api_negative_tests {
         let mut config = opencode_core::Config::default();
         config.api_key = api_key;
         crate::ServerState {
-            storage: std::sync::Arc::new(opencode_storage::StorageService::new(
-                opencode_storage::database::StoragePool::new(&db_path).unwrap(),
-            )),
+            storage: {
+                let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
+                let session_repo =
+                    Arc::new(opencode_storage::SqliteSessionRepository::new(pool.clone()));
+                let project_repo =
+                    Arc::new(opencode_storage::SqliteProjectRepository::new(pool.clone()));
+                Arc::new(opencode_storage::StorageService::new(
+                    session_repo,
+                    project_repo,
+                    pool,
+                ))
+            },
             models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
             config: std::sync::Arc::new(std::sync::RwLock::new(config)),
             event_bus: opencode_core::bus::SharedEventBus::default(),
@@ -2724,6 +2772,7 @@ mod auth_negative_tests {
     use actix_web::test::TestRequest;
     use actix_web::web;
     use opencode_core::{Message, Session};
+    use std::sync::Arc;
 
     fn create_test_state_with_api_key(api_key: Option<String>) -> crate::ServerState {
         let temp_dir = tempfile::tempdir().unwrap();
@@ -2731,9 +2780,18 @@ mod auth_negative_tests {
         let mut config = opencode_core::Config::default();
         config.api_key = api_key;
         crate::ServerState {
-            storage: std::sync::Arc::new(opencode_storage::StorageService::new(
-                opencode_storage::database::StoragePool::new(&db_path).unwrap(),
-            )),
+            storage: {
+                let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
+                let session_repo =
+                    Arc::new(opencode_storage::SqliteSessionRepository::new(pool.clone()));
+                let project_repo =
+                    Arc::new(opencode_storage::SqliteProjectRepository::new(pool.clone()));
+                Arc::new(opencode_storage::StorageService::new(
+                    session_repo,
+                    project_repo,
+                    pool,
+                ))
+            },
             models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
             config: std::sync::Arc::new(std::sync::RwLock::new(config)),
             event_bus: opencode_core::bus::SharedEventBus::default(),
@@ -2883,15 +2941,17 @@ mod auth_negative_tests {
     // =========================================================================
 
     use opencode_storage::migration::MigrationManager;
+    use opencode_storage::SqliteProjectRepository;
+    use opencode_storage::SqliteSessionRepository;
     use opencode_storage::StoragePool;
 
-    async fn setup_storage_service(
-        db_path: &std::path::Path,
-    ) -> opencode_storage::StorageService {
+    async fn setup_storage_service(db_path: &std::path::Path) -> opencode_storage::StorageService {
         let pool = StoragePool::new(db_path).expect("Should create pool");
         let manager = MigrationManager::new(pool.clone(), 2);
         manager.migrate().await.expect("Should run migrations");
-        opencode_storage::StorageService::new(pool)
+        let session_repo = std::sync::Arc::new(SqliteSessionRepository::new(pool.clone()));
+        let project_repo = std::sync::Arc::new(SqliteProjectRepository::new(pool.clone()));
+        opencode_storage::StorageService::new(session_repo, project_repo, pool)
     }
 
     #[tokio::test]
@@ -3008,8 +3068,10 @@ mod auth_negative_tests {
         assert!(error_message.contains("Simulated storage failure"));
         // Error message format should be suitable for the execute endpoint's
         // error response: format!("Failed to save session: {}", e)
-        assert!(error_message.to_lowercase().contains("storage") ||
-                error_message.to_lowercase().contains("failed"));
+        assert!(
+            error_message.to_lowercase().contains("storage")
+                || error_message.to_lowercase().contains("failed")
+        );
     }
 
     #[tokio::test]
@@ -3024,7 +3086,10 @@ mod auth_negative_tests {
 
         let result = storage.load_session("nonexistent-session-id").await;
 
-        assert!(result.is_ok(), "Loading nonexistent session should return Ok");
+        assert!(
+            result.is_ok(),
+            "Loading nonexistent session should return Ok"
+        );
         assert!(
             result.unwrap().is_none(),
             "Loading nonexistent session should return None"
@@ -3051,8 +3116,14 @@ mod auth_negative_tests {
         let session2_id = session2.id.to_string();
 
         // Save both
-        storage.save_session(&session1).await.expect("Session 1 should save");
-        storage.save_session(&session2).await.expect("Session 2 should save");
+        storage
+            .save_session(&session1)
+            .await
+            .expect("Session 1 should save");
+        storage
+            .save_session(&session2)
+            .await
+            .expect("Session 2 should save");
 
         // Load both
         let loaded1 = storage
@@ -3088,13 +3159,19 @@ mod auth_negative_tests {
         let session_id = session.id.to_string();
 
         // First save
-        storage.save_session(&session).await.expect("First save should work");
+        storage
+            .save_session(&session)
+            .await
+            .expect("First save should work");
 
         // Simulate adding tool results to session (as execute_endpoint does)
         session.add_message(Message::assistant("Added response after tool execution"));
 
         // Second save (should update existing)
-        storage.save_session(&session).await.expect("Update save should work");
+        storage
+            .save_session(&session)
+            .await
+            .expect("Update save should work");
 
         // Load and verify both messages exist
         let loaded = storage
@@ -3105,7 +3182,10 @@ mod auth_negative_tests {
 
         assert_eq!(loaded.messages.len(), 2);
         assert_eq!(loaded.messages[0].content, "Initial message");
-        assert_eq!(loaded.messages[1].content, "Added response after tool execution");
+        assert_eq!(
+            loaded.messages[1].content,
+            "Added response after tool execution"
+        );
     }
 
     #[tokio::test]
