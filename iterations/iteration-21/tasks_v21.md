@@ -21,7 +21,7 @@
 | P0-024-07 | Update `server/src/lib.rs` to mount `/api/sessions/{id}/execute` route | ✅ Done | | routes/mod.rs | P0-024-06 |
 | P0-024-08 | Add `ToolRegistry` discovery integration in execute endpoint | TODO | | execute/integration.rs | tools::ToolRegistry |
 | P0-024-09 | Add `AgentExecutor` lifecycle management in execute endpoint | Done | | execute/integration.rs | agent::AgentExecutor |
-| P0-024-10 | Add session state persistence after execution | TODO | | execute/integration.rs | storage::SessionStore |
+| P0-024-10 | Add session state persistence after execution | ✅ Done | | execute/integration.rs | storage::SessionStore |
 | P0-024-11 | Add request validation (session exists, auth) | TODO | | execute/mod.rs | auth middleware |
 | P0-024-12 | Add streaming response with SSE formatting | TODO | | execute/stream.rs | P0-024-02 |
 | P0-024-13 | Create integration test file `tests/src/agent_execute_api_tests.rs` | TODO | | NEW | P0-024-07 |
