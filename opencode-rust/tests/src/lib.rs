@@ -34,3 +34,6 @@ pub mod session_lifecycle_tests;
 pub mod session_storage_tests;
 #[cfg(test)]
 pub mod tool_registry_audit_tests;
+
+#[cfg(test)]
+pub mod ws_streaming_tests;
