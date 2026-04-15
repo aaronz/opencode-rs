@@ -433,7 +433,7 @@
       "priority": "P0",
       "title": "Integrate execute with session hub",
       "description": "Integrate execute endpoint with session hub for event emission during tool execution",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify execute endpoint emits events to session hub",
         "AddRegressionTest: ensure events reach connected WebSocket clients"
@@ -452,7 +452,7 @@
       "priority": "P0",
       "title": "Add WebSocket connection lifecycle",
       "description": "Add WebSocket connection lifecycle management in ws.rs",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify connection setup and teardown work correctly",
         "AddErrorHandlingTest: verify connection errors are handled gracefully"

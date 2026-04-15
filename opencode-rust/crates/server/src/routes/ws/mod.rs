@@ -191,6 +191,9 @@ pub async fn ws_index(
                 conn_monitor
                     .unregister_connection(&conn_id_for_task, "heartbeat_timeout")
                     .await;
+                session_hub
+                    .unregister_client(&hub_session_id, &hub_conn_id)
+                    .await;
                 let _ = session.close(None).await;
                 break;
             }
@@ -204,6 +207,7 @@ pub async fn ws_index(
                     if let Ok(json) = serde_json::to_string(&outgoing) {
                         if session.text(json).await.is_err() {
                             conn_monitor.unregister_connection(&conn_id_for_task, "send_error").await;
+                            session_hub.unregister_client(&hub_session_id, &hub_conn_id).await;
                             break;
                         }
                     } else {
@@ -224,6 +228,7 @@ pub async fn ws_index(
                             conn_monitor.heartbeat_success(&conn_id_for_task).await;
                             if session.pong(&bytes).await.is_err() {
                                 conn_monitor.unregister_connection(&conn_id_for_task, "pong_error").await;
+                                session_hub.unregister_client(&hub_session_id, &hub_conn_id).await;
                                 break;
                             }
                             last_heartbeat = Instant::now();
@@ -255,11 +260,16 @@ pub async fn ws_index(
                         }
                         _ => {
                             conn_monitor.unregister_connection(&conn_id_for_task, "unknown_message").await;
+                            session_hub.unregister_client(&hub_session_id, &hub_conn_id).await;
                             break;
                         }
                     }
                 }
-                else => break,
+                else => {
+                    conn_monitor.unregister_connection(&conn_id_for_task, "channel_closed").await;
+                    session_hub.unregister_client(&hub_session_id, &hub_conn_id).await;
+                    break;
+                },
             }
         }
     });
@@ -399,3 +409,173 @@ pub fn init(cfg: &mut web::ServiceConfig) {
 pub mod session_hub;
 
 pub use session_hub::{ClientInfo, SessionClients, SessionHub};
+
+#[cfg(test)]
+mod ws_lifecycle_tests {
+    use super::session_hub::SessionHub;
+    use crate::streaming::StreamMessage;
+
+    #[tokio::test]
+    async fn test_ws_lifecycle_connection_setup_and_teardown() {
+        let hub = SessionHub::new(256);
+
+        let session_id = "test-session-lifecycle";
+        let client_id = "test-client-lifecycle";
+
+        assert_eq!(hub.get_session_client_count(session_id).await, 0);
+        assert_eq!(hub.session_count().await, 0);
+        assert_eq!(hub.total_client_count().await, 0);
+
+        let _receiver = hub.register_client(session_id, client_id).await;
+
+        assert_eq!(hub.get_session_client_count(session_id).await, 1);
+        assert_eq!(hub.session_count().await, 1);
+        assert_eq!(hub.total_client_count().await, 1);
+
+        hub.unregister_client(session_id, client_id).await;
+
+        assert_eq!(hub.get_session_client_count(session_id).await, 0);
+        assert_eq!(hub.session_count().await, 0);
+        assert_eq!(hub.total_client_count().await, 0);
+    }
+
+    #[tokio::test]
+    async fn test_ws_lifecycle_multiple_clients_setup_teardown() {
+        let hub = SessionHub::new(256);
+
+        let session_id = "test-session-multi";
+
+        let _receiver1 = hub.register_client(session_id, "client-1").await;
+        let _receiver2 = hub.register_client(session_id, "client-2").await;
+        let _receiver3 = hub.register_client(session_id, "client-3").await;
+
+        assert_eq!(hub.get_session_client_count(session_id).await, 3);
+        assert_eq!(hub.total_client_count().await, 3);
+
+        hub.unregister_client(session_id, "client-1").await;
+        assert_eq!(hub.get_session_client_count(session_id).await, 2);
+        assert_eq!(hub.total_client_count().await, 2);
+
+        hub.unregister_client(session_id, "client-2").await;
+        assert_eq!(hub.get_session_client_count(session_id).await, 1);
+        assert_eq!(hub.total_client_count().await, 1);
+
+        hub.unregister_client(session_id, "client-3").await;
+        assert_eq!(hub.get_session_client_count(session_id).await, 0);
+        assert_eq!(hub.session_count().await, 0);
+        assert_eq!(hub.total_client_count().await, 0);
+    }
+
+    #[tokio::test]
+    async fn test_ws_lifecycle_broadcast_after_cleanup() {
+        let hub = SessionHub::new(256);
+
+        let session_id = "broadcast-cleanup-test";
+
+        let mut receiver1 = hub.register_client(session_id, "client-1").await;
+        let mut receiver2 = hub.register_client(session_id, "client-2").await;
+
+        hub.unregister_client(session_id, "client-1").await;
+
+        let message = StreamMessage::Message {
+            session_id: session_id.to_string(),
+            content: "Hello remaining client!".to_string(),
+            role: "assistant".to_string(),
+        };
+
+        hub.broadcast(session_id, message).await;
+
+        let msg2 = receiver2
+            .recv()
+            .await
+            .expect("client-2 should receive message");
+        match msg2 {
+            StreamMessage::Message { content, .. } => {
+                assert_eq!(content, "Hello remaining client!");
+            }
+            _ => panic!("expected Message variant"),
+        }
+
+        let err = receiver1.try_recv();
+        assert!(err.is_err(), "client-1 should not receive after unregister");
+    }
+
+    #[tokio::test]
+    async fn test_ws_lifecycle_error_graceful_handling() {
+        let hub = SessionHub::new(256);
+
+        let session_id = "error-handling-session";
+        let client_id = "error-client";
+
+        let _receiver = hub.register_client(session_id, client_id).await;
+
+        assert_eq!(hub.get_session_client_count(session_id).await, 1);
+
+        hub.unregister_client(session_id, client_id).await;
+
+        assert_eq!(hub.get_session_client_count(session_id).await, 0);
+        assert_eq!(hub.session_count().await, 0);
+
+        hub.unregister_client(session_id, client_id).await;
+
+        assert_eq!(hub.get_session_client_count(session_id).await, 0);
+        assert_eq!(hub.session_count().await, 0);
+    }
+
+    #[tokio::test]
+    async fn test_ws_lifecycle_multiple_sessions_independent() {
+        let hub = SessionHub::new(256);
+
+        let _r1 = hub.register_client("session-a", "client-1").await;
+        let _r2 = hub.register_client("session-b", "client-2").await;
+        let _r3 = hub.register_client("session-a", "client-3").await;
+
+        assert_eq!(hub.session_count().await, 2);
+        assert_eq!(hub.get_session_client_count("session-a").await, 2);
+        assert_eq!(hub.get_session_client_count("session-b").await, 1);
+        assert_eq!(hub.total_client_count().await, 3);
+
+        hub.unregister_client("session-a", "client-1").await;
+        assert_eq!(hub.session_count().await, 2);
+        assert_eq!(hub.get_session_client_count("session-a").await, 1);
+        assert_eq!(hub.get_session_client_count("session-b").await, 1);
+
+        hub.unregister_client("session-b", "client-2").await;
+        assert_eq!(hub.session_count().await, 1);
+        assert_eq!(hub.get_session_client_count("session-b").await, 0);
+        assert_eq!(hub.get_session_client_count("session-a").await, 1);
+    }
+
+    #[tokio::test]
+    async fn test_ws_lifecycle_broadcast_all() {
+        let hub = SessionHub::new(256);
+
+        let mut r1 = hub.register_client("session-1", "client-1").await;
+        let mut r2 = hub.register_client("session-2", "client-2").await;
+        let mut r3 = hub.register_client("session-3", "client-3").await;
+
+        let message = StreamMessage::SessionUpdate {
+            session_id: "all".to_string(),
+            status: "broadcast_all".to_string(),
+        };
+
+        hub.broadcast_all(message).await;
+
+        let msg1 = r1.recv().await.expect("client-1 should receive broadcast");
+        let msg2 = r2.recv().await.expect("client-2 should receive broadcast");
+        let msg3 = r3.recv().await.expect("client-3 should receive broadcast");
+
+        match (&msg1, &msg2, &msg3) {
+            (
+                StreamMessage::SessionUpdate { status: s1, .. },
+                StreamMessage::SessionUpdate { status: s2, .. },
+                StreamMessage::SessionUpdate { status: s3, .. },
+            ) => {
+                assert_eq!(s1, "broadcast_all");
+                assert_eq!(s2, "broadcast_all");
+                assert_eq!(s3, "broadcast_all");
+            }
+            _ => panic!("expected SessionUpdate variant"),
+        }
+    }
+}
