@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 
 use anyhow::{bail, Context, Result};
 use tempfile::TempDir;
+use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::process::Command;
 
 #[derive(Debug)]
 pub struct CliTester {
@@ -60,11 +62,12 @@ impl CliTester {
         Ok((self.working_dir(path.clone()), path))
     }
 
-    pub fn run(&self) -> Result<CliOutput> {
+    pub async fn run(&self) -> Result<CliOutput> {
         self.run_with_timeout(std::time::Duration::from_secs(30))
+            .await
     }
 
-    pub fn run_with_timeout(&self, _timeout: std::time::Duration) -> Result<CliOutput> {
+    pub async fn run_with_timeout(&self, timeout: std::time::Duration) -> Result<CliOutput> {
         let mut cmd = Command::new(&self.command);
         cmd.args(&self.args);
 
@@ -88,8 +91,9 @@ impl CliTester {
             )
         })?;
 
-        let output = child
-            .wait_with_output()
+        let output = tokio::time::timeout(timeout, child.wait_with_output())
+            .await
+            .with_context(|| "Process timed out")?
             .with_context(|| "Failed to wait for process")?;
 
         Ok(CliOutput {
@@ -99,11 +103,76 @@ impl CliTester {
             success: output.status.success(),
         })
     }
+
+    pub async fn spawn(&self) -> Result<ChildProcess> {
+        let mut cmd = Command::new(&self.command);
+        cmd.args(&self.args);
+
+        for (key, value) in &self.env_vars {
+            cmd.env(key, value);
+        }
+
+        if let Some(ref dir) = self.working_dir {
+            cmd.current_dir(dir);
+        } else if let Some(ref temp_dir) = self.temp_dir {
+            cmd.current_dir(temp_dir.path());
+        }
+
+        cmd.stdout(Stdio::piped());
+        cmd.stderr(Stdio::piped());
+
+        let child = cmd.spawn().with_context(|| {
+            format!(
+                "Failed to spawn process '{}' with args {:?}",
+                self.command, self.args
+            )
+        })?;
+
+        Ok(ChildProcess { inner: child })
+    }
 }
 
 impl Default for CliTester {
     fn default() -> Self {
         Self::new("")
+    }
+}
+
+#[derive(Debug)]
+pub struct ChildProcess {
+    inner: tokio::process::Child,
+}
+
+impl ChildProcess {
+    pub async fn wait(mut self) -> Result<CliOutput> {
+        let status = self.inner.wait().await?;
+        let exit_code = status.code().unwrap_or(-1);
+        let success = status.success();
+
+        let mut stdout_buf = String::new();
+        let mut stderr_buf = String::new();
+
+        if let Some(ref mut stdout) = self.inner.stdout.take() {
+            let mut reader = BufReader::new(stdout);
+            reader.read_line(&mut stdout_buf).await.ok();
+        }
+
+        if let Some(ref mut stderr) = self.inner.stderr.take() {
+            let mut reader = BufReader::new(stderr);
+            reader.read_line(&mut stderr_buf).await.ok();
+        }
+
+        Ok(CliOutput {
+            stdout: stdout_buf,
+            stderr: stderr_buf,
+            exit_code,
+            success,
+        })
+    }
+
+    pub async fn kill(&mut self) -> Result<()> {
+        self.inner.kill().await?;
+        Ok(())
     }
 }
 
@@ -170,30 +239,30 @@ impl CliOutput {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_cli_tester_spawn_process_with_args() {
+    #[tokio::test]
+    async fn test_cli_tester_spawn_process_with_args() {
         let tester = CliTester::new("echo").arg("hello").arg("world");
-        let result = tester.run();
+        let result = tester.run().await;
         assert!(result.is_ok(), "Process should spawn successfully");
         let output = result.unwrap();
         assert!(output.stdout.contains("hello"), "Should contain 'hello'");
         assert!(output.stdout.contains("world"), "Should contain 'world'");
     }
 
-    #[test]
-    fn test_cli_tester_exit_code_capture() {
+    #[tokio::test]
+    async fn test_cli_tester_exit_code_capture() {
         let tester = CliTester::new("sh").arg("-c").arg("exit 42");
-        let result = tester.run();
+        let result = tester.run().await;
         assert!(result.is_ok(), "Process should spawn successfully");
         let output = result.unwrap();
         assert_eq!(output.exit_code, 42, "Should capture exit code 42");
         assert!(!output.success, "Should not be successful");
     }
 
-    #[test]
-    fn test_cli_tester_stdout_capture() {
+    #[tokio::test]
+    async fn test_cli_tester_stdout_capture() {
         let tester = CliTester::new("printf").arg("test output");
-        let result = tester.run();
+        let result = tester.run().await;
         assert!(result.is_ok(), "Process should spawn successfully");
         let output = result.unwrap();
         assert!(
@@ -202,17 +271,17 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_cli_tester_stderr_capture() {
+    #[tokio::test]
+    async fn test_cli_tester_stderr_capture() {
         let tester = CliTester::new("sh").arg("-c").arg("echo error >&2");
-        let result = tester.run();
+        let result = tester.run().await;
         assert!(result.is_ok(), "Process should spawn successfully");
         let output = result.unwrap();
         assert!(output.stderr.contains("error"), "Should capture stderr");
     }
 
-    #[test]
-    fn test_cli_tester_temp_dir_cleanup() {
+    #[tokio::test]
+    async fn test_cli_tester_temp_dir_cleanup() {
         let (tester, path) = CliTester::new("echo")
             .arg("temp_dir_test")
             .with_temp_dir()
@@ -227,10 +296,10 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_cli_tester_working_dir() {
+    #[tokio::test]
+    async fn test_cli_tester_working_dir() {
         let tester = CliTester::new("pwd").working_dir(PathBuf::from("/tmp"));
-        let result = tester.run();
+        let result = tester.run().await;
         assert!(result.is_ok(), "Process should spawn successfully");
         let output = result.unwrap();
         assert!(
@@ -239,13 +308,13 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_cli_tester_env_vars() {
+    #[tokio::test]
+    async fn test_cli_tester_env_vars() {
         let tester = CliTester::new("sh")
             .arg("-c")
             .arg("echo $TEST_VAR")
             .env("TEST_VAR", "test_value");
-        let result = tester.run();
+        let result = tester.run().await;
         assert!(result.is_ok(), "Process should spawn successfully");
         let output = result.unwrap();
         assert!(
@@ -254,20 +323,20 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_cli_output_assertions() {
+    #[tokio::test]
+    async fn test_cli_output_assertions() {
         let tester = CliTester::new("echo").arg("success");
-        let output = tester.run().unwrap();
+        let output = tester.run().await.unwrap();
         output.assert_success().expect("Should assert success");
         output
             .assert_stdout_contains("success")
             .expect("Should contain 'success'");
     }
 
-    #[test]
-    fn test_cli_output_assertion_failure() {
+    #[tokio::test]
+    async fn test_cli_output_assertion_failure() {
         let tester = CliTester::new("sh").arg("-c").arg("exit 1");
-        let output = tester.run().unwrap();
+        let output = tester.run().await.unwrap();
         let result = output.assert_success();
         assert!(
             result.is_err(),
@@ -275,26 +344,53 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_cli_output_exit_code_assertion() {
+    #[tokio::test]
+    async fn test_cli_output_exit_code_assertion() {
         let tester = CliTester::new("true");
-        let output = tester.run().unwrap();
+        let output = tester.run().await.unwrap();
         output
             .assert_exit_code(0)
             .expect("Should assert exit code 0");
     }
 
-    #[test]
-    fn test_cli_tester_multiple_args() {
+    #[tokio::test]
+    async fn test_cli_tester_multiple_args() {
         let tester = CliTester::new("printf").args(&["arg1", "arg2", "arg3"]);
-        let result = tester.run();
+        let result = tester.run().await;
         assert!(result.is_ok(), "Process should spawn with multiple args");
     }
 
-    #[test]
-    fn test_cli_tester_nonexistent_command() {
+    #[tokio::test]
+    async fn test_cli_tester_nonexistent_command() {
         let tester = CliTester::new("nonexistent_command_xyz_12345");
-        let result = tester.run();
+        let result = tester.run().await;
         assert!(result.is_err(), "Should fail with nonexistent command");
+    }
+
+    #[tokio::test]
+    async fn test_cli_tester_spawn_and_wait() {
+        let tester = CliTester::new("echo").arg("spawned_process");
+        let child = tester.spawn().await.expect("Should spawn process");
+        let output = child.wait().await.expect("Should wait for process");
+        assert!(
+            output.stdout.contains("spawned_process"),
+            "Should capture output"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_cli_tester_captures_stdout_stderr() {
+        let tester = CliTester::new("sh")
+            .arg("-c")
+            .arg("echo stdout_content && echo stderr_content >&2");
+        let output = tester.run().await.expect("Should run successfully");
+        assert!(
+            output.stdout.contains("stdout_content"),
+            "Should capture stdout"
+        );
+        assert!(
+            output.stderr.contains("stderr_content"),
+            "Should capture stderr"
+        );
     }
 }

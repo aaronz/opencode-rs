@@ -121,7 +121,7 @@ impl PtySimulator {
         }
     }
 
-    fn encode_key_event(event: KeyEvent) -> String {
+    fn encode_key_event(event: KeyEvent) -> Option<String> {
         let codepoint = match event.code {
             KeyCode::Char(c) => c as u32,
             KeyCode::Enter => 13,
@@ -151,13 +151,13 @@ impl PtySimulator {
                 10 => 57385,
                 11 => 57386,
                 12 => 57387,
-                _ => return String::new(),
+                _ => return None,
             },
-            _ => return String::new(),
+            _ => return None,
         };
 
         let modifiers = encode_key_modifiers(event.modifiers);
-        format!("\x1B[{};{}u", codepoint, modifiers)
+        Some(format!("\x1B[{};{}u", codepoint, modifiers))
     }
 
     fn encode_mouse_event(event: MouseEvent) -> String {
@@ -175,10 +175,8 @@ impl PtySimulator {
     }
 
     pub fn inject_key_event(&mut self, event: KeyEvent) -> Result<()> {
-        let sequence = Self::encode_key_event(event);
-        if sequence.is_empty() {
-            return anyhow::bail!("Unsupported key event");
-        }
+        let sequence = Self::encode_key_event(event)
+            .ok_or_else(|| anyhow::anyhow!("Unsupported key event"))?;
         match &mut self.writer {
             Some(writer) => {
                 writer.write_all(sequence.as_bytes())?;

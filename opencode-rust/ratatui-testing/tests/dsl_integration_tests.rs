@@ -116,7 +116,9 @@ fn test_dsl_state_capture_and_assertion_flow() {
         items: vec!["item1".to_string(), "item2".to_string()],
         count: 2,
     };
-    dsl.assert_state(&same_state)
+    dsl.get_state_tester()
+        .expect("StateTester should exist")
+        .assert_state_named(&same_state, "initial")
         .expect("Same state should pass assertion");
 }
 
@@ -212,7 +214,6 @@ fn test_dsl_snapshot_and_compare_workflow() {
     dsl.snapshot_state("test_snapshot")
         .expect("Snapshot should be captured");
 
-    let lines = dsl.buffer_lines().expect("Should get buffer lines");
     let result = dsl.compare_to_snapshot("test_snapshot");
     assert!(
         result.is_ok(),
@@ -309,14 +310,14 @@ fn test_dsl_compose_all_components() {
         });
 }
 
-#[test]
-fn test_cli_tester_integration() {
+#[tokio::test]
+async fn test_cli_tester_integration() {
     let tester = CliTester::new("echo")
         .arg("DSL")
         .arg("Integration")
         .arg("Test");
 
-    let output = tester.run().expect("CLI should execute successfully");
+    let output = tester.run().await.expect("CLI should execute successfully");
 
     output.assert_success().expect("Echo should succeed");
     output
@@ -330,16 +331,16 @@ fn test_cli_tester_integration() {
         .expect("Should contain 'Test'");
 }
 
-#[test]
-fn test_dsl_and_cli_combined_workflow() {
-    let mut dsl = TestDsl::new()
+#[tokio::test]
+async fn test_dsl_and_cli_combined_workflow() {
+    let dsl = TestDsl::new()
         .with_size(80, 24)
         .init_terminal()
         .with_state_tester()
         .render(Paragraph::new(Text::from("Before CLI")));
 
     let cli = CliTester::new("echo").arg("CLI executed");
-    let cli_output = cli.run().expect("CLI should run successfully");
+    let cli_output = cli.run().await.expect("CLI should run successfully");
 
     assert!(
         cli_output.stdout.contains("CLI executed"),
@@ -449,7 +450,6 @@ fn test_dsl_wait_for_immediate_success() {
 
 #[test]
 fn test_dsl_wait_for_async_example() {
-    use std::future;
     use std::time::Duration;
 
     let dsl = TestDsl::new()

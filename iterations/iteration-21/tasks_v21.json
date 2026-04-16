@@ -1223,7 +1223,7 @@
       "priority": "P2",
       "title": "Implement BufferDiff cell comparison",
       "description": "Implement BufferDiff cell-by-cell comparison in ratatui-testing/src/diff.rs",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify BufferDiff detects single cell differences",
         "AddUnitTest: verify BufferDiff calculates correct diff statistics"
@@ -1275,7 +1275,7 @@
       "priority": "P2",
       "title": "Implement CliTester process management",
       "description": "Implement CliTester process management in ratatui-testing/src/cli.rs",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify CliTester spawns process correctly",
         "AddUnitTest: verify CliTester captures stdout/stderr"
