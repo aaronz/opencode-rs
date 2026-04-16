@@ -68,7 +68,7 @@
 | P1-026-06 | Collect provider status from LLM registry | TODO | | status.rs | llm |
 | P1-026-07 | Collect plugin status from plugin system | TODO | | status.rs | plugin |
 | P1-026-08 | Add no-auth route to App | ✅ Done | | lib.rs | P1-026-01 |
-| P1-026-09 | Create test file `tests/src/status_endpoint_tests.rs` | TODO | | NEW | P1-026-08 |
+| P1-026-09 | Create test file `tests/src/status_endpoint_tests.rs` | ✅ Done | | NEW | P1-026-08 |
 | P1-026-10 | Add test: GET /api/status returns 200 | ✅ Done | | status_endpoint_tests.rs | P1-026-09 |
 | P1-026-11 | Add test: response contains all required fields | ✅ Done | | status_endpoint_tests.rs | P1-026-10 |
 | P1-026-12 | Add test: endpoint accessible without auth | ✅ Done | | status_endpoint_tests.rs | P1-026-11 |
