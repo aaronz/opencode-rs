@@ -514,7 +514,7 @@
       "priority": "P2",
       "title": "Add rstest for parameterized tests",
       "description": "Add rstest dependency and use parameterized tests where appropriate for cleaner test code.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify parameterized tests work correctly",
         "AddRegressionTest: ensure existing tests still pass"
