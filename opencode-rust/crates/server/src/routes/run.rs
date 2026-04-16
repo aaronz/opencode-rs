@@ -1,15 +1,17 @@
 use crate::routes::error::json_error;
+use crate::routes::execute::integration::{execute_agent_loop, ExecutionContext};
+use crate::routes::execute::stream::execute_event_stream;
+use crate::routes::execute::types::ExecuteEvent;
 use crate::routes::validation::RequestValidator;
-use crate::streaming::StreamMessage;
 use crate::ServerState;
 use actix_web::http::StatusCode;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
-use futures::stream::{self, Stream};
-use opencode_core::{Message, Session};
-use opencode_llm::{AnthropicProvider, ChatMessage, OllamaProvider, OpenAiProvider, Provider};
+use futures::stream::Stream;
+use opencode_agent::{Agent, AgentType};
+use opencode_core::{Message, OpenCodeError, Session};
+use opencode_llm::{AnthropicProvider, OllamaProvider, OpenAiProvider, Provider};
 use serde::Deserialize;
-use tokio::sync::mpsc;
-use tokio::task::JoinHandle;
+use std::sync::Arc;
 
 #[derive(Deserialize)]
 pub struct RunRequest {
@@ -18,18 +20,6 @@ pub struct RunRequest {
     pub agent: Option<String>,
     #[serde(default)]
     pub stream: bool,
-}
-
-fn agent_system_prompt(agent: &str) -> &'static str {
-    match agent.to_ascii_lowercase().as_str() {
-        "build" => "You are OpenCode's BUILD agent. Implement user requests with concise, actionable output.",
-        "plan" => "You are OpenCode's PLAN agent. Produce an explicit and practical execution plan.",
-        "explore" => "You are OpenCode's EXPLORE agent. Investigate and summarize findings with evidence.",
-        "review" => "You are OpenCode's REVIEW agent. Analyze quality, risks, and actionable improvements.",
-        "refactor" => "You are OpenCode's REFACTOR agent. Improve structure while preserving behavior.",
-        "debug" => "You are OpenCode's DEBUG agent. Diagnose root causes and propose precise fixes.",
-        _ => "You are OpenCode's GENERAL agent. Respond helpfully and clearly.",
-    }
 }
 
 fn resolve_model_and_provider(
@@ -104,19 +94,31 @@ fn accepts_sse(req: &HttpRequest) -> bool {
     false
 }
 
-async fn run_prompt_streaming(
+fn agent_type_from_string(agent_str: &str) -> AgentType {
+    match agent_str.to_ascii_lowercase().as_str() {
+        "build" => AgentType::Build,
+        "plan" => AgentType::Plan,
+        "explore" => AgentType::Explore,
+        "review" => AgentType::Review,
+        "refactor" => AgentType::Refactor,
+        "debug" => AgentType::Debug,
+        _ => AgentType::General,
+    }
+}
+
+async fn run_prompt_with_agent_execution(
     state: web::Data<ServerState>,
     req: web::Json<RunRequest>,
     session_id: String,
-) -> HttpResponse {
+) -> Result<Vec<ExecuteEvent>, HttpResponse> {
     let config = match state.config.read() {
         Ok(cfg) => cfg.clone(),
         Err(_) => {
-            return json_error(
+            return Err(json_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "config_lock_error",
                 "Failed to access server config",
-            );
+            ));
         }
     };
 
@@ -130,58 +132,97 @@ async fn run_prompt_streaming(
     let provider = match build_provider(&provider_id, &model_name, &config) {
         Ok(provider) => provider,
         Err(message) => {
-            return json_error(StatusCode::BAD_REQUEST, "provider_init_error", message);
+            return Err(json_error(
+                StatusCode::BAD_REQUEST,
+                "provider_init_error",
+                message,
+            ));
         }
     };
 
     let selected_agent = req.agent.clone().unwrap_or_else(|| "general".to_string());
-    let prompt = format!(
-        "{}\n\nUser: {}",
-        agent_system_prompt(&selected_agent),
-        req.prompt
-    );
+    let agent_type = agent_type_from_string(&selected_agent);
 
-    let (tx, rx) = mpsc::channel::<Result<web::Bytes, std::convert::Infallible>>(128);
+    let ctx = ExecutionContext::new(state.tool_registry.clone(), Arc::from(provider), agent_type);
 
-    let tx_for_callback = tx.clone();
-    let tx_for_error = tx.clone();
+    let agent = ctx.create_agent();
 
-    let _join_handle: JoinHandle<()> = actix_rt::spawn(async move {
-        let result = provider
-            .complete_streaming(
-                &prompt,
-                Box::new(move |chunk| {
-                    let sse_data = format!("data: {}\n\n", chunk);
-                    let _ = tx_for_callback.try_send(Ok(web::Bytes::from(sse_data)));
-                }),
-            )
-            .await;
-
-        if let Err(e) = result {
-            let error_data = format!(
-                "data: {{\"error\":\"streaming_error\",\"message\":\"{}\"}}\n\n",
-                e
-            );
-            let _ = tx_for_error.try_send(Ok(web::Bytes::from(error_data)));
+    let mut session = match state.storage.load_session(&session_id).await {
+        Ok(Some(s)) => s,
+        Ok(None) => {
+            return Err(json_error(
+                StatusCode::NOT_FOUND,
+                "session_not_found",
+                format!("Session not found: {}", session_id),
+            ));
         }
+        Err(e) => {
+            return Err(json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "storage_error",
+                e.to_string(),
+            ));
+        }
+    };
 
-        let done_data = "data: [DONE]\n\n";
-        let _ = tx_for_error.try_send(Ok(web::Bytes::from(done_data)));
-    });
+    let mut events = Vec::new();
 
-    let stream = stream::unfold(rx, |mut rx| async move {
-        rx.recv()
-            .await
-            .map(|Ok(bytes)| (Ok::<_, std::convert::Infallible>(bytes), rx))
-    });
+    match execute_agent_loop(
+        &mut session,
+        agent.as_ref(),
+        ctx.provider.as_ref(),
+        ctx.tool_registry.as_ref(),
+        ctx.max_iterations,
+        ctx.max_tool_results_per_iteration,
+    )
+    .await
+    {
+        Ok(response) => {
+            events.push(ExecuteEvent::message("assistant", &response.content));
+            events.push(ExecuteEvent::complete(serde_json::json!({
+                "session_id": session.id.to_string(),
+                "message_count": session.messages.len(),
+            })));
+        }
+        Err(OpenCodeError::InternalError(msg)) => {
+            events.push(ExecuteEvent::error("INTERNAL_ERROR", msg));
+        }
+        Err(e) => {
+            events.push(ExecuteEvent::error("EXECUTION_ERROR", e.to_string()));
+        }
+    }
 
-    HttpResponse::Ok()
-        .content_type("text/event-stream")
-        .insert_header(("Cache-Control", "no-cache"))
-        .insert_header(("Connection", "keep-alive"))
-        .insert_header(("Access-Control-Allow-Origin", "*"))
-        .insert_header(("X-Accel-Buffering", "no"))
-        .streaming(Box::pin(stream))
+    if let Err(e) = state.storage.save_session(&session).await {
+        return Err(json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "storage_error",
+            format!("Failed to save session: {}", e),
+        ));
+    }
+
+    Ok(events)
+}
+
+async fn run_prompt_streaming(
+    state: web::Data<ServerState>,
+    req: web::Json<RunRequest>,
+    session_id: String,
+) -> HttpResponse {
+    let events_result = run_prompt_with_agent_execution(state, req, session_id).await;
+
+    match events_result {
+        Ok(events) => {
+            let stream = execute_event_stream(events);
+            HttpResponse::Ok()
+                .content_type("text/event-stream")
+                .insert_header(("Cache-Control", "no-cache"))
+                .insert_header(("Connection", "keep-alive"))
+                .insert_header(("Access-Control-Allow-Origin", "*"))
+                .insert_header(("X-Accel-Buffering", "no"))
+                .streaming(stream)
+        }
+        Err(resp) => resp,
+    }
 }
 
 pub async fn run_prompt(
@@ -221,71 +262,21 @@ pub async fn run_prompt(
         return run_prompt_streaming(state, body, session.id.to_string()).await;
     }
 
-    let config = match state.config.read() {
-        Ok(cfg) => cfg.clone(),
-        Err(_) => {
-            return json_error(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "config_lock_error",
-                "Failed to access server config",
-            );
+    let events_result = run_prompt_with_agent_execution(state, body, session.id.to_string()).await;
+
+    match events_result {
+        Ok(events) => {
+            let stream = execute_event_stream(events);
+            HttpResponse::Ok()
+                .content_type("text/event-stream")
+                .insert_header(("Cache-Control", "no-cache"))
+                .insert_header(("Connection", "keep-alive"))
+                .insert_header(("Access-Control-Allow-Origin", "*"))
+                .insert_header(("X-Accel-Buffering", "no"))
+                .streaming(stream)
         }
-    };
-
-    let selected_model = body
-        .model
-        .clone()
-        .or_else(|| config.model.clone())
-        .unwrap_or_else(|| "gpt-4o".to_string());
-    let (provider_id, model_name) =
-        resolve_model_and_provider(&state, Some(selected_model.clone()));
-    let provider = match build_provider(&provider_id, &model_name, &config) {
-        Ok(provider) => provider,
-        Err(message) => {
-            return json_error(StatusCode::BAD_REQUEST, "provider_init_error", message);
-        }
-    };
-
-    let selected_agent = body.agent.clone().unwrap_or_else(|| "general".to_string());
-    let messages = vec![
-        ChatMessage {
-            role: "system".to_string(),
-            content: agent_system_prompt(&selected_agent).to_string(),
-        },
-        ChatMessage {
-            role: "user".to_string(),
-            content: body.prompt.clone(),
-        },
-    ];
-
-    let response = match provider.chat(&messages).await {
-        Ok(response) => response,
-        Err(e) => {
-            return json_error(
-                StatusCode::BAD_GATEWAY,
-                "agent_execution_error",
-                e.to_string(),
-            );
-        }
-    };
-
-    session.add_message(Message::assistant(response.content.clone()));
-    if let Err(e) = state.storage.save_session(&session).await {
-        return json_error(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "storage_error",
-            e.to_string(),
-        );
+        Err(resp) => resp,
     }
-
-    HttpResponse::Ok().json(serde_json::json!({
-        "session_id": session.id.to_string(),
-        "status": "completed",
-        "agent": selected_agent,
-        "provider": provider_id,
-        "model": selected_model,
-        "response": response.content,
-    }))
 }
 
 pub fn init(cfg: &mut web::ServiceConfig) {
@@ -337,18 +328,6 @@ mod tests {
     }
 
     #[test]
-    fn test_agent_system_prompt() {
-        assert!(agent_system_prompt("build").contains("BUILD"));
-        assert!(agent_system_prompt("plan").contains("PLAN"));
-        assert!(agent_system_prompt("explore").contains("EXPLORE"));
-        assert!(agent_system_prompt("review").contains("REVIEW"));
-        assert!(agent_system_prompt("refactor").contains("REFACTOR"));
-        assert!(agent_system_prompt("debug").contains("DEBUG"));
-        assert!(agent_system_prompt("general").contains("GENERAL"));
-        assert!(agent_system_prompt("unknown").contains("GENERAL"));
-    }
-
-    #[test]
     fn test_header_detection_accepts_sse_with_text_event_stream() {
         let req = actix_web::test::TestRequest::default()
             .insert_header(("Accept", "text/event-stream"))
@@ -384,5 +363,19 @@ mod tests {
             .insert_header(("Accept", "text/html"))
             .to_http_request();
         assert!(!accepts_sse(&req));
+    }
+
+    #[test]
+    fn test_agent_type_from_string() {
+        assert_eq!(agent_type_from_string("build"), AgentType::Build);
+        assert_eq!(agent_type_from_string("BUILD"), AgentType::Build);
+        assert_eq!(agent_type_from_string("plan"), AgentType::Plan);
+        assert_eq!(agent_type_from_string("PLAN"), AgentType::Plan);
+        assert_eq!(agent_type_from_string("explore"), AgentType::Explore);
+        assert_eq!(agent_type_from_string("review"), AgentType::Review);
+        assert_eq!(agent_type_from_string("refactor"), AgentType::Refactor);
+        assert_eq!(agent_type_from_string("debug"), AgentType::Debug);
+        assert_eq!(agent_type_from_string("general"), AgentType::General);
+        assert_eq!(agent_type_from_string("unknown"), AgentType::General);
     }
 }

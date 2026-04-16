@@ -29,7 +29,7 @@
       "priority": "P0",
       "title": "Refactor Run Endpoint to Use AgentExecutor",
       "description": "Refactor run_prompt in run.rs to integrate with AgentExecutor and ToolRegistry for full tool-aware execution. Enable streaming response with SSE for progressive token output and propagate tool errors properly to response.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify POST /api/run executes tools via AgentExecutor",
         "AddUnitTest: verify tool results appear in response body via run endpoint",
