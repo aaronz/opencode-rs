@@ -686,7 +686,7 @@ fn sanitize_content(content: &str) -> String {
     }
 
     // Strip lines that look like credential assignments
-    result
+    result = result
         .lines()
         .map(|line| {
             let lower = line.to_lowercase();
@@ -703,7 +703,37 @@ fn sanitize_content(content: &str) -> String {
             }
         })
         .collect::<Vec<_>>()
-        .join("\n")
+        .join("\n");
+
+    // Strip SQL injection patterns
+    let sql_patterns = [
+        r"(?i)\bDROP\s+TABLE\b",
+        r"(?i)\bDROP\s+DATABASE\b",
+        r"(?i)\bDELETE\s+FROM\b",
+        r"(?i)\bINSERT\s+INTO\b",
+        r"(?i)\bUNION\s+SELECT\b",
+        r"(?i)\bALTER\s+TABLE\b",
+        r"(?i)\bTRUNCATE\b",
+        r"--+",
+        r";\s*$",
+        r"'\s*OR\s+'1'\s*=\s*'1",
+    ];
+
+    for pattern in &sql_patterns {
+        if let Ok(re) = regex::Regex::new(pattern) {
+            result = re.replace_all(&result, "[SQL_REDACTED]").to_string();
+        }
+    }
+
+    // Escape HTML entities for XSS prevention
+    result = result
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#x27;");
+
+    result
 }
 
 #[cfg(test)]

@@ -9,6 +9,22 @@ use std::path::{Path, PathBuf};
 
 pub struct WriteTool;
 
+fn normalize_path(path: &Path) -> PathBuf {
+    let mut result = PathBuf::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::ParentDir => {
+                result.pop();
+            }
+            std::path::Component::RootDir => {
+                result = PathBuf::from("/");
+            }
+            _ => result.push(component),
+        }
+    }
+    result
+}
+
 fn is_path_within_worktree(path: &Path, worktree: &Path) -> bool {
     let Ok(target_canonical) = path.canonicalize() else {
         return false;
@@ -66,19 +82,18 @@ impl Tool for WriteTool {
         let worktree =
             explicit_worktree.unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
 
-        if !is_path_within_worktree(&path, &worktree) {
-            let parent = path.parent();
-            let is_tmp_parent = parent
-                .map(|p| p.starts_with("/tmp") || p.starts_with("/private/tmp"))
-                .unwrap_or(false);
+        let final_path: PathBuf = if path.is_absolute() {
+            path.clone()
+        } else {
+            worktree.join(&path)
+        };
 
-            let canonical_parent = parent.and_then(|p| p.canonicalize().ok());
-            let canonical_is_tmp = canonical_parent
-                .as_ref()
-                .map(|p| p.starts_with("/tmp") || p.starts_with("/private/tmp"))
-                .unwrap_or(false);
+        let final_path_str = final_path.to_string_lossy();
+        let is_tmp_path =
+            final_path_str.contains("/tmp/") || final_path_str.contains("/private/tmp/");
 
-            if has_explicit_worktree || is_tmp_parent || canonical_is_tmp {
+        if !is_path_within_worktree(&final_path, &worktree) {
+            if has_explicit_worktree || path.is_absolute() || is_tmp_path {
                 return Ok(ToolResult::err(format!(
                     "Access to path outside worktree denied: {}",
                     args.path
@@ -86,11 +101,11 @@ impl Tool for WriteTool {
             }
         }
 
-        if let Some(parent) = path.parent() {
+        if let Some(parent) = final_path.parent() {
             std::fs::create_dir_all(parent).map_err(|e| OpenCodeError::Io(e))?;
         }
 
-        std::fs::write(&path, &args.content).map_err(|e| OpenCodeError::Io(e))?;
+        std::fs::write(&final_path, &args.content).map_err(|e| OpenCodeError::Io(e))?;
 
         Ok(ToolResult::ok(format!("Written to {}", args.path)))
     }

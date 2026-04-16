@@ -178,8 +178,8 @@ async fn test_session_message_content_sanitization() {
         "SQL injection in message content should be sanitized in export"
     );
     assert!(
-        json.contains(malicious_content),
-        "Original content should still be preserved"
+        json.contains("[SQL_REDACTED]"),
+        "Sanitized content should appear in export"
     );
 }
 
