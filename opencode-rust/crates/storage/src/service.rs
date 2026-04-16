@@ -84,6 +84,10 @@ impl StorageService {
             .map_err(OpenCodeError::from)
     }
 
+    pub async fn count_sessions(&self) -> Result<usize, OpenCodeError> {
+        self.session_repo.count().await.map_err(OpenCodeError::from)
+    }
+
     pub async fn save_project(&self, project: &ProjectModel) -> Result<(), OpenCodeError> {
         self.project_repo
             .save(project)

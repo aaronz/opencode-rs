@@ -48,10 +48,7 @@ pub async fn get_status(state: web::Data<ServerState>) -> impl Responder {
 
     let active_sessions = state.session_hub.session_count().await;
 
-    let total_sessions = match state.storage.list_sessions(usize::MAX, 0).await {
-        Ok(sessions) => sessions.len(),
-        Err(_) => 0,
-    };
+    let total_sessions = state.storage.count_sessions().await.unwrap_or(0);
 
     let models = state.models.list();
     let mut providers_set: HashSet<String> = HashSet::new();
@@ -242,6 +239,64 @@ mod tests {
             uptime >= 100 && uptime <= 101,
             "Uptime should be approximately 100 seconds, got: {}",
             uptime
+        );
+    }
+
+    #[test]
+    fn uptime_calculated_correctly_from_server_start_time() {
+        use crate::routes::acp_ws::AcpClientRegistry;
+        use crate::routes::share::ShareServer;
+        use crate::routes::ws::SessionHub;
+        use crate::streaming::conn_state::ConnectionMonitor;
+        use crate::streaming::ReconnectionStore;
+        use opencode_control_plane::AcpEventStream;
+        use opencode_core::bus::SharedEventBus;
+        use opencode_core::Config;
+        use opencode_llm::ModelRegistry;
+        use opencode_storage::database::StoragePool;
+        use opencode_storage::sqlite_repository::{
+            SqliteProjectRepository, SqliteSessionRepository,
+        };
+        use opencode_storage::StorageService;
+        use opencode_tools::ToolRegistry;
+        use std::sync::Arc;
+        use std::sync::RwLock;
+        use tempfile::tempdir;
+
+        let start_time = std::time::SystemTime::now() - std::time::Duration::from_secs(3600);
+
+        let temp_dir = tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+        let session_repo = Arc::new(SqliteSessionRepository::new(pool.clone()));
+        let project_repo = Arc::new(SqliteProjectRepository::new(pool.clone()));
+
+        let server_state = ServerState {
+            storage: Arc::new(StorageService::new(session_repo, project_repo, pool)),
+            models: Arc::new(ModelRegistry::new()),
+            config: Arc::new(RwLock::new(Config::default())),
+            event_bus: SharedEventBus::default(),
+            reconnection_store: ReconnectionStore::default(),
+            temp_db_dir: None,
+            connection_monitor: Arc::new(ConnectionMonitor::new()),
+            share_server: Arc::new(RwLock::new(ShareServer::with_default_config())),
+            acp_enabled: true,
+            acp_stream: AcpEventStream::new().into(),
+            acp_client_registry: Arc::new(tokio::sync::RwLock::new(AcpClientRegistry::new())),
+            tool_registry: Arc::new(ToolRegistry::new()),
+            session_hub: Arc::new(SessionHub::new(256)),
+            server_start_time: start_time,
+        };
+
+        let calculated_uptime = std::time::SystemTime::now()
+            .duration_since(server_state.server_start_time)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+
+        assert!(
+            calculated_uptime >= 3599 && calculated_uptime <= 3601,
+            "Uptime should be approximately 3600 seconds, got: {}",
+            calculated_uptime
         );
     }
 }

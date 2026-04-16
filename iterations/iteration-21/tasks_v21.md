@@ -64,7 +64,7 @@
 | P1-026-02 | Define `StatusResponse` struct with all fields | ✅ Done | | status.rs | None |
 | P1-026-03 | Collect version info | ✅ Done | | status.rs | None |
 | P1-026-04 | Collect uptime_seconds | ✅ Done | | status.rs | None |
-| P1-026-05 | Collect active/total session counts | TODO | | status.rs | storage |
+| P1-026-05 | Collect active/total session counts | ✅ Done | | status.rs | storage |
 | P1-026-06 | Collect provider status from LLM registry | TODO | | status.rs | llm |
 | P1-026-07 | Collect plugin status from plugin system | TODO | | status.rs | plugin |
 | P1-026-08 | Add no-auth route to App | TODO | | lib.rs | P1-026-01 |

@@ -3235,4 +3235,147 @@ mod auth_negative_tests {
         assert!(formatted.contains("Failed to save session"));
         assert!(formatted.contains("Simulated save failure"));
     }
+
+    #[tokio::test]
+    async fn session_counts_retrieved_from_storage() {
+        use opencode_core::Message;
+        use opencode_storage::migration::MigrationManager;
+        use opencode_storage::SqliteProjectRepository;
+        use opencode_storage::SqliteSessionRepository;
+        use opencode_storage::StoragePool;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("session_counts_test.db");
+
+        let pool = StoragePool::new(&db_path).expect("Should create pool");
+        let manager = MigrationManager::new(pool.clone(), 2);
+        manager.migrate().await.expect("Should run migrations");
+        let session_repo = Arc::new(SqliteSessionRepository::new(pool.clone()));
+        let project_repo = Arc::new(SqliteProjectRepository::new(pool.clone()));
+        let storage = Arc::new(opencode_storage::StorageService::new(
+            session_repo,
+            project_repo,
+            pool,
+        ));
+
+        let initial_count = storage
+            .count_sessions()
+            .await
+            .expect("count_sessions should work");
+        assert_eq!(initial_count, 0, "Initial session count should be 0");
+
+        let mut session1 = Session::new();
+        session1.add_message(Message::user("Session 1 message"));
+        storage
+            .save_session(&session1)
+            .await
+            .expect("Should save session 1");
+
+        let count_after_one = storage
+            .count_sessions()
+            .await
+            .expect("count_sessions should work");
+        assert_eq!(
+            count_after_one, 1,
+            "Session count should be 1 after saving one session"
+        );
+
+        let mut session2 = Session::new();
+        session2.add_message(Message::user("Session 2 message"));
+        storage
+            .save_session(&session2)
+            .await
+            .expect("Should save session 2");
+
+        let count_after_two = storage
+            .count_sessions()
+            .await
+            .expect("count_sessions should work");
+        assert_eq!(
+            count_after_two, 2,
+            "Session count should be 2 after saving two sessions"
+        );
+
+        storage
+            .delete_session(&session1.id.to_string())
+            .await
+            .expect("Should delete session 1");
+
+        let count_after_delete = storage
+            .count_sessions()
+            .await
+            .expect("count_sessions should work");
+        assert_eq!(
+            count_after_delete, 1,
+            "Session count should be 1 after deleting one session"
+        );
+    }
+
+    #[actix_web::test]
+    async fn status_endpoint_returns_session_counts_from_storage() {
+        use actix_web::web;
+        use actix_web::Responder;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("status_session_counts_test.db");
+
+        let storage = {
+            let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
+            let manager = opencode_storage::migration::MigrationManager::new(pool.clone(), 2);
+            manager.migrate().await.expect("Should run migrations");
+            let session_repo =
+                Arc::new(opencode_storage::SqliteSessionRepository::new(pool.clone()));
+            let project_repo =
+                Arc::new(opencode_storage::SqliteProjectRepository::new(pool.clone()));
+            Arc::new(opencode_storage::StorageService::new(
+                session_repo,
+                project_repo,
+                pool,
+            ))
+        };
+
+        let state = crate::ServerState {
+            storage,
+            models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
+            config: std::sync::Arc::new(std::sync::RwLock::new(opencode_core::Config::default())),
+            event_bus: opencode_core::bus::SharedEventBus::default(),
+            reconnection_store: crate::streaming::ReconnectionStore::default(),
+            temp_db_dir: None,
+            connection_monitor: std::sync::Arc::new(
+                crate::streaming::conn_state::ConnectionMonitor::new(),
+            ),
+            share_server: std::sync::Arc::new(std::sync::RwLock::new(
+                crate::routes::share::ShareServer::with_default_config(),
+            )),
+            acp_enabled: false,
+            acp_stream: opencode_control_plane::AcpEventStream::new().into(),
+            acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
+                crate::routes::acp_ws::AcpClientRegistry::new(),
+            )),
+            tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
+            session_hub: std::sync::Arc::new(crate::routes::ws::SessionHub::new(256)),
+            server_start_time: std::time::SystemTime::now(),
+        };
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::status::get_status(web::Data::new(state))
+            .await
+            .respond_to(&req);
+
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let body = actix_web::body::to_bytes(resp.into_body())
+            .await
+            .unwrap_or_else(|_| actix_web::web::Bytes::new());
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        assert_eq!(
+            json["total_sessions"], 0,
+            "total_sessions should be 0 initially"
+        );
+        assert_eq!(
+            json["active_sessions"], 0,
+            "active_sessions should be 0 initially"
+        );
+    }
 }

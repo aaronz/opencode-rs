@@ -691,7 +691,7 @@
       "priority": "P1",
       "title": "Collect session counts",
       "description": "Collect active/total session counts from SessionStore storage",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify session counts are retrieved from storage"
       ],
