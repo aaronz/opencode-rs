@@ -71,8 +71,8 @@
 | P1-026-09 | Create test file `tests/src/status_endpoint_tests.rs` | TODO | | NEW | P1-026-08 |
 | P1-026-10 | Add test: GET /api/status returns 200 | ✅ Done | | status_endpoint_tests.rs | P1-026-09 |
 | P1-026-11 | Add test: response contains all required fields | ✅ Done | | status_endpoint_tests.rs | P1-026-10 |
-| P1-026-12 | Add test: endpoint accessible without auth | TODO | | status_endpoint_tests.rs | P1-026-11 |
-| P1-026-13 | Verify build and tests pass | TODO | | | P1-026-12 |
+| P1-026-12 | Add test: endpoint accessible without auth | ✅ Done | | status_endpoint_tests.rs | P1-026-11 |
+| P1-026-13 | Verify build and tests pass | ✅ Done | | | P1-026-12 |
 
 ### FR-027: Streaming Response Support
 

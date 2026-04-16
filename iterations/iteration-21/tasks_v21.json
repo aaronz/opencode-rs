@@ -811,7 +811,7 @@
       "priority": "P1",
       "title": "Add test: endpoint accessible without auth",
       "description": "Add integration test: status endpoint accessible without authentication",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify status endpoint works without auth token"
       ],
@@ -828,7 +828,7 @@
       "priority": "P1",
       "title": "Verify status build and tests pass",
       "description": "Verify build and tests pass for status endpoint",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "RunTestSuite: verify cargo build -p opencode-server succeeds",
         "RunTestSuite: verify cargo test -p opencode-integration-tests status passes"
