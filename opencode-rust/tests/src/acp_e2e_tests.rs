@@ -45,6 +45,7 @@ mod tests {
             approval_queue: std::sync::Arc::new(std::sync::RwLock::new(
                 opencode_permission::ApprovalQueue::default(),
             )),
+            audit_log: None,
         }
     }
 

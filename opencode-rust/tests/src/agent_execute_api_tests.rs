@@ -539,6 +539,7 @@ async fn start_test_server(
         approval_queue: std::sync::Arc::new(std::sync::RwLock::new(
             opencode_permission::ApprovalQueue::default(),
         )),
+        audit_log: None,
     };
 
     let state_data = web::Data::new(state);
@@ -1049,6 +1050,7 @@ mod integration_tests {
             approval_queue: std::sync::Arc::new(std::sync::RwLock::new(
                 opencode_permission::ApprovalQueue::default(),
             )),
+            audit_log: None,
         };
 
         let state_data = web::Data::new(state);

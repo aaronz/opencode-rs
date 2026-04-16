@@ -53,6 +53,7 @@ pub struct WebServerState {
     pub tool_registry: Arc<opencode_tools::ToolRegistry>,
     pub session_hub: Arc<opencode_server::routes::ws::SessionHub>,
     pub permission_manager: Arc<RwLock<PermissionManager>>,
+    #[allow(dead_code)]
     pub approval_queue: Arc<RwLock<ApprovalQueue>>,
 }
 
@@ -102,6 +103,7 @@ impl WebServerState {
             server_start_time: std::time::SystemTime::now(),
             permission_manager: self.permission_manager.clone(),
             approval_queue: Arc::new(RwLock::new(ApprovalQueue::default())),
+            audit_log: None,
         }
     }
 }

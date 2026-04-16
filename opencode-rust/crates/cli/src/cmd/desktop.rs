@@ -114,6 +114,7 @@ async fn run_desktop(args: DesktopArgs) -> Result<(), Box<dyn std::error::Error>
         server_start_time: std::time::SystemTime::now(),
         permission_manager,
         approval_queue: Arc::new(RwLock::new(ApprovalQueue::default())),
+        audit_log: None,
     };
 
     #[cfg(feature = "desktop")]

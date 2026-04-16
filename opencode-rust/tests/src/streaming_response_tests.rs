@@ -395,6 +395,7 @@ fn create_streaming_test_server_state() -> opencode_server::ServerState {
         approval_queue: Arc::new(std::sync::RwLock::new(
             opencode_permission::ApprovalQueue::default(),
         )),
+        audit_log: None,
     }
 }
 

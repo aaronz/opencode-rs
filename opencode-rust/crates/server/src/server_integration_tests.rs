@@ -2097,53 +2097,6 @@ mod security_tests {
     // AddIntegrationTest: verify decisions are logged to audit trail
     // =========================================================================
 
-    fn create_test_state_with_audit_log() -> crate::ServerState {
-        let temp_dir = tempfile::tempdir().unwrap();
-        let db_path = temp_dir.path().join("test.db");
-        let audit_path = temp_dir.path().join("audit.db");
-        let audit_log = Arc::new(
-            opencode_permission::AuditLog::new(audit_path).expect("Failed to create audit log"),
-        );
-        crate::ServerState {
-            storage: {
-                let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
-                let session_repo =
-                    Arc::new(opencode_storage::SqliteSessionRepository::new(pool.clone()));
-                let project_repo =
-                    Arc::new(opencode_storage::SqliteProjectRepository::new(pool.clone()));
-                Arc::new(opencode_storage::StorageService::new(
-                    session_repo,
-                    project_repo,
-                    pool,
-                ))
-            },
-            models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
-            config: std::sync::Arc::new(std::sync::RwLock::new(opencode_core::Config::default())),
-            event_bus: opencode_core::bus::SharedEventBus::default(),
-            reconnection_store: crate::streaming::ReconnectionStore::default(),
-            temp_db_dir: None,
-            connection_monitor: std::sync::Arc::new(
-                crate::streaming::conn_state::ConnectionMonitor::new(),
-            ),
-            share_server: std::sync::Arc::new(std::sync::RwLock::new(
-                crate::routes::share::ShareServer::with_default_config(),
-            )),
-            acp_enabled: true,
-            acp_stream: opencode_control_plane::AcpEventStream::new().into(),
-            acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
-                crate::routes::acp_ws::AcpClientRegistry::new(),
-            )),
-            tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
-            session_hub: std::sync::Arc::new(crate::routes::ws::SessionHub::new(256)),
-            server_start_time: std::time::SystemTime::now(),
-            permission_manager: std::sync::Arc::new(std::sync::RwLock::new(
-                PermissionManager::default(),
-            )),
-            approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::default())),
-            audit_log: Some(audit_log),
-        }
-    }
-
     fn create_test_state_with_audit_log_and_keep_alive(
         temp_dir: tempfile::TempDir,
     ) -> (crate::ServerState, tempfile::TempDir) {

@@ -89,6 +89,7 @@ async fn run_serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
         server_start_time: std::time::SystemTime::now(),
         permission_manager,
         approval_queue: Arc::new(RwLock::new(ApprovalQueue::default())),
+        audit_log: None,
     };
 
     run_server(Arc::new(state), &host, port).await?;
