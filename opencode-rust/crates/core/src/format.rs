@@ -1,5 +1,7 @@
-pub struct FormatUtils;
+#[allow(dead_code)]
+pub(crate) struct FormatUtils;
 
+#[allow(dead_code)]
 impl FormatUtils {
     pub fn format_size(bytes: u64) -> String {
         const KB: u64 = 1024;

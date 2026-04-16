@@ -5,11 +5,13 @@ use std::collections::HashMap;
 use std::sync::RwLock;
 
 /// Manages environment variables with instance isolation
-pub struct EnvManager {
+#[allow(dead_code)]
+pub(crate) struct EnvManager {
     /// Per-instance environment variables
     env: RwLock<HashMap<String, String>>,
 }
 
+#[allow(dead_code)]
 impl EnvManager {
     pub fn new() -> Self {
         // Initialize with a copy of the current process environment

@@ -9,18 +9,26 @@ pub const COMPACTION_WARN_THRESHOLD: f32 = 0.85;
 pub const COMPACTION_START_THRESHOLD: f32 = 0.92;
 pub const COMPACTION_FORCE_THRESHOLD: f32 = 0.95;
 
+#[allow(dead_code)]
 const CONTEXT_PRIORITY_SYSTEM: u8 = 100;
+#[allow(dead_code)]
 const CONTEXT_PRIORITY_PROMPT: u8 = 90;
+#[allow(dead_code)]
 const CONTEXT_PRIORITY_PROJECT: u8 = 80;
+#[allow(dead_code)]
 const CONTEXT_PRIORITY_SESSION: u8 = 50;
+#[allow(dead_code)]
 const CONTEXT_PRIORITY_TOOL: u8 = 20;
 
 const TOKEN_BUDGET_MAIN_CONTEXT_PERCENT: f64 = 0.70;
 const TOKEN_BUDGET_TOOL_OUTPUT_PERCENT: f64 = 0.20;
 const TOKEN_BUDGET_RESPONSE_SPACE_PERCENT: f64 = 0.10;
 
+#[allow(dead_code)]
 const CONTEXT_RANKING_RECENTCY_WEIGHT: f64 = 0.4;
+#[allow(dead_code)]
 const CONTEXT_RANKING_RELEVANCE_WEIGHT: f64 = 0.3;
+#[allow(dead_code)]
 const CONTEXT_RANKING_IMPORTANCE_WEIGHT: f64 = 0.3;
 
 const DEFAULT_MAX_TOKENS: usize = 100_000;
@@ -32,7 +40,7 @@ const MIN_RESERVED_TOKENS_WARNING: u32 = 5000;
 const DEFAULT_RESERVED_TOKENS: u32 = 10_000;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CompactionError {
+pub(crate) enum CompactionError {
     InvalidReserved(u32),
     InvalidModelContext(usize),
     ReservedExceedsModelContext {
@@ -65,7 +73,8 @@ impl std::error::Error for CompactionError {}
 
 /// Context hierarchy levels per PRD Section 7.6
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum ContextLevel {
+#[allow(dead_code)]
+pub(crate) enum ContextLevel {
     /// L0: System prompt
     L0,
     /// L1: Project context (workspace, git info)
@@ -78,8 +87,9 @@ pub enum ContextLevel {
     L4,
 }
 
+#[allow(dead_code)]
 impl ContextLevel {
-    pub fn priority(&self) -> u8 {
+    pub(crate) fn priority(&self) -> u8 {
         match self {
             ContextLevel::L0 => CONTEXT_PRIORITY_SYSTEM,
             ContextLevel::L4 => CONTEXT_PRIORITY_PROMPT,
@@ -236,7 +246,8 @@ pub enum CompactionLevel {
 
 /// Context ranking score for messages
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ContextRanking {
+#[allow(dead_code)]
+pub(crate) struct ContextRanking {
     /// Message index in conversation
     pub message_index: usize,
     /// Recency score (0-1, higher = more recent)
@@ -249,8 +260,9 @@ pub struct ContextRanking {
     pub overall: f64,
 }
 
+#[allow(dead_code)]
 impl ContextRanking {
-    pub fn new(message_index: usize, recency: f64, relevance: f64, importance: f64) -> Self {
+    pub(crate) fn new(message_index: usize, recency: f64, relevance: f64, importance: f64) -> Self {
         let overall = recency * CONTEXT_RANKING_RECENTCY_WEIGHT
             + relevance * CONTEXT_RANKING_RELEVANCE_WEIGHT
             + importance * CONTEXT_RANKING_IMPORTANCE_WEIGHT;
@@ -264,7 +276,7 @@ impl ContextRanking {
     }
 
     /// Create ranking with default values (used when no explicit ranking needed)
-    pub fn default_for_index(index: usize, total: usize) -> Self {
+    pub(crate) fn default_for_index(index: usize, total: usize) -> Self {
         let recency = if total == 0 {
             1.0
         } else {

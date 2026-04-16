@@ -43,8 +43,8 @@
 
 | Task ID | Description | File | Estimated | Status |
 |---------|-------------|------|-----------|--------|
-| T-012 | Audit pub visibility in core | `crates/core/src/` | 4 hours | Not Started |
-| T-013 | Reduce pub to pub(crate) in core | `crates/core/src/` | 8 hours | Not Started |
+| T-012 | Audit pub visibility in core | `crates/core/src/` | 4 hours | ✅ Done |
+| T-013 | Reduce pub to pub(crate) in core | `crates/core/src/` | 8 hours | ✅ Done |
 | T-014 | Audit pub visibility in tools | `crates/tools/src/` | 2 hours | Not Started |
 | T-015 | Reduce pub to pub(crate) in tools | `crates/tools/src/` | 4 hours | Not Started |
 | T-016 | Audit pub visibility in agent | `crates/agent/src/` | 4 hours | Not Started |

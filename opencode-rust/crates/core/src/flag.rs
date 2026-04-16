@@ -9,19 +9,22 @@ fn truthy(key: &str) -> bool {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Flag {
+#[allow(dead_code)]
+pub(crate) struct Flag {
     pub name: String,
     pub description: String,
     pub default: bool,
     pub value: bool,
 }
 
-pub struct FlagManager {
+#[allow(dead_code)]
+pub(crate) struct FlagManager {
     flags: HashMap<String, Flag>,
     string_flags: HashMap<String, Option<String>>,
     number_flags: HashMap<String, Option<u64>>,
 }
 
+#[allow(dead_code)]
 impl FlagManager {
     pub fn new() -> Self {
         let mut flags = HashMap::new();

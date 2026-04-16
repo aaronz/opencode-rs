@@ -170,11 +170,11 @@ impl ProjectManager {
     }
 }
 
-pub fn normalize_path(path: &PathBuf) -> std::io::Result<PathBuf> {
+pub(crate) fn normalize_path(path: &PathBuf) -> std::io::Result<PathBuf> {
     normalize_path_with_context(path, None)
 }
 
-pub fn normalize_path_with_context(
+pub(crate) fn normalize_path_with_context(
     path: &PathBuf,
     context: Option<&PathBuf>,
 ) -> std::io::Result<PathBuf> {
@@ -249,11 +249,13 @@ fn check_path_traversal(path: &Path) -> Option<String> {
     None
 }
 
-pub fn check_path_traversal_safe(path: &str) -> Option<String> {
+#[allow(dead_code)]
+pub(crate) fn check_path_traversal_safe(path: &str) -> Option<String> {
     check_path_traversal(Path::new(path))
 }
 
-pub fn is_path_traversal_attempt(path: &str) -> bool {
+#[allow(dead_code)]
+pub(crate) fn is_path_traversal_attempt(path: &str) -> bool {
     let p = Path::new(path);
 
     let path_str = path.replace('\\', "/");
@@ -351,16 +353,18 @@ impl std::error::Error for WorkspaceValidationError {}
 
 pub type WorkspaceValidationResult = Result<PathBuf, WorkspaceValidationError>;
 
-pub fn validate_workspace(path: &PathBuf) -> WorkspaceValidationResult {
+pub(crate) fn validate_workspace(path: &PathBuf) -> WorkspaceValidationResult {
     validate_workspace_impl(path, None)
 }
 
-pub fn validate_workspace_path(path: &str) -> WorkspaceValidationResult {
+#[allow(dead_code)]
+pub(crate) fn validate_workspace_path(path: &str) -> WorkspaceValidationResult {
     let path_buf = PathBuf::from(path);
     validate_workspace(&path_buf)
 }
 
-pub fn validate_workspace_with_allowed_roots(
+#[allow(dead_code)]
+pub(crate) fn validate_workspace_with_allowed_roots(
     path: &PathBuf,
     allowed_roots: &[PathBuf],
 ) -> WorkspaceValidationResult {

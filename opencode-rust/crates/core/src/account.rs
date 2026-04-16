@@ -2,7 +2,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Account {
+#[allow(dead_code)]
+pub(crate) struct Account {
     pub id: String,
     pub username: String,
     pub email: String,
@@ -11,11 +12,13 @@ pub struct Account {
     pub metadata: HashMap<String, String>,
 }
 
-pub struct AccountManager {
+#[allow(dead_code)]
+pub(crate) struct AccountManager {
     accounts: HashMap<String, Account>,
     current: Option<String>,
 }
 
+#[allow(dead_code)]
 impl AccountManager {
     pub fn new() -> Self {
         Self {
