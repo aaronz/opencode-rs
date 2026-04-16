@@ -98,7 +98,7 @@
       "priority": "P1",
       "title": "Add StateTester::compare_state() method",
       "description": "Add convenience method to directly compare serializable state. Serialize state to Value, then compare to default snapshot.",
-      "status": "done",
+      "status": "manual_check",
       "test_criteria": [
         "AddUnitTest: verify compare_state() accepts serializable state type",
         "AddUnitTest: verify compare_state() returns StateDiff result",
@@ -118,7 +118,7 @@
       "priority": "P1",
       "title": "Fix diff_str() to use IgnoreOptions",
       "description": "Fix gap FR-DIFF-GAP-001. Review diff_str() implementation and ensure IgnoreOptions are applied when comparing strings.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify diff_str() applies IgnoreOptions when comparing",
         "AddUnitTest: verify diff_str() with IgnoreOptions ignores specified differences",
@@ -137,7 +137,7 @@
       "priority": "P2",
       "title": "Export ChildProcess from lib.rs",
       "description": "Export ChildProcess type publicly from lib.rs. Add pub use cli::ChildProcess;",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify ChildProcess is publicly accessible from crate root",
         "BuildVerification: cargo build -p ratatui-testing succeeds"
