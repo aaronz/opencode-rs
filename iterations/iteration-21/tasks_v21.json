@@ -1118,7 +1118,7 @@
       "priority": "P1",
       "title": "Add test: approval triggers tool execution",
       "description": "Add integration test: permission approval triggers tool execution",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify tool executes after permission approval"
       ],

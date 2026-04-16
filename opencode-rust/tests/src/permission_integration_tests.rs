@@ -262,6 +262,61 @@ async fn test_agent_permission_scope_intersect() {
     );
 }
 
+#[actix_web::test]
+async fn test_approval_triggers_execution() {
+    let state = create_test_state();
+    let approval_queue = state.approval_queue.clone();
+    let permission_manager = state.permission_manager.clone();
+
+    let session_id = Uuid::new_v4();
+    let pending = PendingApproval::new(
+        session_id,
+        "write".to_string(),
+        serde_json::json!({"path": "/test.txt"}),
+    );
+    let approval_id = pending.id;
+
+    {
+        let mut aq = approval_queue.write().unwrap();
+        aq.request_approval(pending);
+    }
+
+    let mut receiver = {
+        let aq_guard = approval_queue.read().unwrap();
+        aq_guard
+            .subscribe()
+            .expect("ApprovalQueue should have notification channel")
+    };
+
+    let resp = permission_reply_handler(
+        web::Data::new(state.clone()),
+        web::Path::from((
+            session_id.to_string(),
+            format!("file_write_{}", approval_id),
+        )),
+        web::Json(PermissionReplyRequest {
+            decision: "allow".to_string(),
+        }),
+    )
+    .await;
+    assert_eq!(resp.status(), actix_web::http::StatusCode::OK);
+
+    let decision = receiver.recv().await.unwrap();
+    match decision {
+        opencode_permission::ApprovalDecision::Approved(cmd) => {
+            assert_eq!(cmd.tool_name, "write");
+            assert_eq!(cmd.session_id, session_id);
+        }
+        _ => panic!("Expected Approved decision"),
+    }
+
+    let pm = permission_manager.read().unwrap();
+    assert!(
+        pm.check(&Permission::FileWrite, "/test.txt"),
+        "FileWrite permission should be granted after approval"
+    );
+}
+
 async fn permission_reply_handler(
     state: web::Data<ServerState>,
     path: web::Path<(String, String)>,
