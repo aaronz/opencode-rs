@@ -13,25 +13,25 @@ const PROJECT_TOOLS_DIR: &str = ".opencode/tools";
 const GLOBAL_TOOLS_DIR: &str = "opencode/tools";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ToolDefinition {
+pub(crate) struct ToolDefinition {
     pub name: String,
     pub description: String,
     pub parameters: serde_json::Value,
 }
 
 #[derive(Debug, Clone)]
-pub struct DiscoveredTool {
+pub(crate) struct DiscoveredTool {
     pub definition: ToolDefinition,
     pub file_path: PathBuf,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DiscoveredToolSource {
+pub(crate) enum DiscoveredToolSource {
     Project,
     Global,
 }
 
-pub struct ToolDiscovery {
+pub(crate) struct ToolDiscovery {
     project_tools_path: Option<PathBuf>,
     global_tools_path: Option<PathBuf>,
 }
@@ -155,7 +155,7 @@ impl ToolDiscovery {
     }
 }
 
-pub struct CustomTool {
+pub(crate) struct CustomTool {
     definition: ToolDefinition,
     file_path: PathBuf,
 }

@@ -254,7 +254,7 @@
       "priority": "P1",
       "title": "Reduce pub to pub(crate) in tools",
       "description": "Reduce excessive pub visibility to pub(crate) in crates/tools/src/ where items are only used internally.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: verify internal APIs still work within crate",
         "RunTestSuite: ensure no compilation errors"
