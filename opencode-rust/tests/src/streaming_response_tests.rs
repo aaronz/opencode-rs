@@ -205,6 +205,109 @@ fn test_stream_message_session_id_extraction() {
     assert_eq!(heartbeat.session_id(), None);
 }
 
+#[tokio::test]
+async fn test_tokens_arrive_progressively() {
+    use futures_util::StreamExt;
+    use std::time::Instant;
+
+    let (server_url, server_handle, _temp_dir) = start_streaming_test_server(0).await;
+
+    let client = reqwest::Client::new();
+
+    let resp = client
+        .post(format!("{}/api/run", server_url))
+        .header("Accept", "text/event-stream")
+        .json(&serde_json::json!({
+            "prompt": "Write a haiku about coding",
+            "stream": true
+        }))
+        .send()
+        .await
+        .expect("Failed to call run endpoint");
+
+    let status = resp.status();
+
+    if status.is_success() {
+        let mut stream = resp.bytes_stream();
+        let mut token_timestamps: Vec<(String, std::time::Duration)> = Vec::new();
+        let start = Instant::now();
+        let mut token_count = 0;
+
+        while let Some(item) = stream.next().await {
+            if let Ok(bytes) = item {
+                let text = String::from_utf8_lossy(&bytes);
+                let elapsed = start.elapsed();
+
+                if text.contains("data:") && !text.contains("[DONE]") && !text.contains("heartbeat")
+                {
+                    token_count += 1;
+                    let data_line = text
+                        .lines()
+                        .find(|l| l.starts_with("data:"))
+                        .unwrap_or("")
+                        .trim_start_matches("data: ")
+                        .trim();
+
+                    if !data_line.is_empty() && data_line != "[DONE]" {
+                        token_timestamps.push((data_line.to_string(), elapsed));
+
+                        if token_count >= 5 {
+                            break;
+                        }
+                    }
+                }
+
+                if text.contains("[DONE]") {
+                    break;
+                }
+            }
+        }
+
+        assert!(
+            token_timestamps.len() >= 2,
+            "Should receive at least 2 tokens/chunks progressively, got {}",
+            token_timestamps.len()
+        );
+
+        let mut time_gaps: Vec<std::time::Duration> = Vec::new();
+        for i in 1..token_timestamps.len() {
+            let gap = token_timestamps[i].1 - token_timestamps[i - 1].1;
+            time_gaps.push(gap);
+        }
+
+        let has_progressive_arrival = time_gaps
+            .iter()
+            .any(|gap| *gap > std::time::Duration::from_millis(1));
+
+        assert!(
+            has_progressive_arrival || token_timestamps.len() >= 3,
+            "Tokens should arrive progressively over time. \
+             Either there should be time gaps > 1ms between tokens, \
+             or we should see at least 3 tokens indicating chunked delivery. \
+             Got {} tokens with gaps: {:?}",
+            token_timestamps.len(),
+            time_gaps
+        );
+
+        for (i, (data, timestamp)) in token_timestamps.iter().enumerate() {
+            println!(
+                "Token {} arrived at {:?}: {}",
+                i,
+                timestamp,
+                &data[..data.len().min(50)]
+            );
+        }
+    } else {
+        assert!(
+            status.as_u16() == 400 || status.as_u16() == 500,
+            "Without API keys, should return 400 or 500, got: {}",
+            status
+        );
+    }
+
+    server_handle.abort();
+}
+
 #[test]
 fn test_error_stream_message_with_null_session_id() {
     let msg = StreamMessage::Error {

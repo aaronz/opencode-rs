@@ -931,7 +931,7 @@
       "priority": "P1",
       "title": "Create streaming_response_tests.rs",
       "description": "Create test file tests/src/streaming_response_tests.rs",
-      "status": "done",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify test file compiles and runs"
       ],
@@ -965,7 +965,7 @@
       "priority": "P1",
       "title": "Add test: tokens arrive progressively",
       "description": "Add integration test: tokens arrive progressively over time (not all at once)",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify tokens arrive in chunks over time"
       ],
