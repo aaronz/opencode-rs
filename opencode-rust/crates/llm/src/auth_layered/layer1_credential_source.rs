@@ -426,6 +426,7 @@ mod tests {
 
     #[test]
     fn test_aws_credential_chain_resolves_for_bedrock() {
+        std::env::remove_var("AWS_PROFILE");
         std::env::set_var("AWS_ACCESS_KEY_ID", "test-key");
         std::env::set_var("AWS_SECRET_ACCESS_KEY", "test-secret");
 
@@ -446,5 +447,250 @@ mod tests {
         let resolver = CompositeCredentialResolver::new();
         let cred = resolver.resolve("openai", &CredentialSource::AwsCredentialChain);
         assert!(cred.is_none());
+    }
+
+    #[test]
+    fn test_oauth_store_resolves_credentials() {
+        let mut store = HashMap::new();
+        store.insert("openai".to_string(), "oauth-token-123".to_string());
+        let resolver = CompositeCredentialResolver::new().with_oauth_store(store);
+
+        let cred = resolver.resolve("openai", &CredentialSource::OAuthStore);
+        assert!(cred.is_some());
+        assert_eq!(cred.unwrap().value, "oauth-token-123");
+    }
+
+    #[test]
+    fn test_oauth_store_returns_none_when_empty() {
+        let resolver = CompositeCredentialResolver::new();
+        let cred = resolver.resolve("openai", &CredentialSource::OAuthStore);
+        assert!(cred.is_none());
+    }
+
+    #[test]
+    fn test_dotenv_resolves_from_env_var() {
+        std::env::set_var("OPENAI_API_KEY", "env-api-key-123");
+
+        let resolver = CompositeCredentialResolver::new();
+        let cred = resolver.resolve("openai", &CredentialSource::EnvVar);
+
+        assert!(cred.is_some());
+        assert_eq!(cred.unwrap().value, "env-api-key-123");
+
+        std::env::remove_var("OPENAI_API_KEY");
+    }
+
+    #[test]
+    fn test_system_keychain_returns_none() {
+        let resolver = CompositeCredentialResolver::new();
+        let cred = resolver.resolve("openai", &CredentialSource::SystemKeychain);
+        assert!(cred.is_none());
+    }
+
+    #[test]
+    fn test_gcp_credential_chain_resolves_for_vertex() {
+        std::env::set_var("GCP_PROJECT", "test-project");
+        std::env::set_var("GOOGLE_APPLICATION_CREDENTIALS", "/path/to/creds.json");
+
+        let resolver = CompositeCredentialResolver::new();
+        let cred = resolver.resolve("vertex", &CredentialSource::GcpServiceAccount);
+
+        assert!(cred.is_some());
+        let c = cred.unwrap();
+        assert_eq!(c.source, CredentialSource::GcpServiceAccount);
+        assert_eq!(c.metadata.get("type"), Some(&"service_account".to_string()));
+
+        std::env::remove_var("GCP_PROJECT");
+        std::env::remove_var("GOOGLE_APPLICATION_CREDENTIALS");
+    }
+
+    #[test]
+    fn test_gcp_credential_chain_skips_non_gcp_providers() {
+        let resolver = CompositeCredentialResolver::new();
+        let cred = resolver.resolve("openai", &CredentialSource::GcpServiceAccount);
+        assert!(cred.is_none());
+    }
+
+    #[test]
+    fn test_azure_credential_chain_resolves_for_azure() {
+        std::env::set_var("AZURE_CLIENT_ID", "client-123");
+        std::env::set_var("AZURE_CLIENT_SECRET", "secret-456");
+
+        let resolver = CompositeCredentialResolver::new();
+        let cred = resolver.resolve("azure", &CredentialSource::AzureIdentity);
+
+        assert!(cred.is_some());
+        let c = cred.unwrap();
+        assert_eq!(c.source, CredentialSource::AzureIdentity);
+        assert_eq!(
+            c.metadata.get("type"),
+            Some(&"managed_identity".to_string())
+        );
+
+        std::env::remove_var("AZURE_CLIENT_ID");
+        std::env::remove_var("AZURE_CLIENT_SECRET");
+    }
+
+    #[test]
+    fn test_azure_credential_chain_skips_non_azure_providers() {
+        let resolver = CompositeCredentialResolver::new();
+        let cred = resolver.resolve("openai", &CredentialSource::AzureIdentity);
+        assert!(cred.is_none());
+    }
+
+    #[test]
+    fn test_azure_credential_chain_with_managed_identity() {
+        std::env::set_var("AZURE_USE_MANAGED_IDENTITY", "true");
+
+        let resolver = CompositeCredentialResolver::new();
+        let cred = resolver.resolve("azure", &CredentialSource::AzureIdentity);
+
+        assert!(cred.is_some());
+        let c = cred.unwrap();
+        assert_eq!(
+            c.metadata.get("type"),
+            Some(&"managed_identity".to_string())
+        );
+
+        std::env::remove_var("AZURE_USE_MANAGED_IDENTITY");
+    }
+
+    #[test]
+    fn test_file_ref_loads_from_auth_file() {
+        let temp_dir = std::env::temp_dir().join("opencode_auth_test2");
+        fs::create_dir_all(&temp_dir).unwrap();
+        let auth_file = temp_dir.join("auth.json");
+        fs::write(&auth_file, r#"{"openai": {"key": "file-ref-key"}}"#).unwrap();
+
+        let resolver = CompositeCredentialResolver::new().with_auth_file(auth_file);
+
+        let cred = resolver.resolve("openai", &CredentialSource::FileRef);
+        assert!(cred.is_some());
+        assert_eq!(cred.unwrap().value, "file-ref-key");
+
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn test_auth_file_returns_none_when_no_file() {
+        let resolver = CompositeCredentialResolver::new();
+        let cred = resolver.resolve("openai", &CredentialSource::AuthFile);
+        assert!(cred.is_none());
+    }
+
+    #[test]
+    fn test_dotenv_returns_none_when_not_found() {
+        std::env::remove_var("NONEXISTENT_API_KEY");
+
+        let resolver = CompositeCredentialResolver::new();
+        let cred = resolver.resolve("nonexistent", &CredentialSource::EnvVar);
+        assert!(cred.is_none());
+    }
+
+    #[test]
+    fn test_resolved_credential_metadata() {
+        std::env::set_var("AWS_ACCESS_KEY_ID", "test-key");
+        std::env::set_var("AWS_SECRET_ACCESS_KEY", "test-secret");
+        std::env::set_var("AWS_DEFAULT_REGION", "us-west-2");
+
+        let resolver = CompositeCredentialResolver::new();
+        let cred = resolver.resolve("bedrock", &CredentialSource::AwsCredentialChain);
+
+        assert!(cred.is_some());
+        let c = cred.unwrap();
+        assert_eq!(c.provider, "bedrock");
+        assert_eq!(c.metadata.get("region"), Some(&"us-west-2".to_string()));
+
+        std::env::remove_var("AWS_ACCESS_KEY_ID");
+        std::env::remove_var("AWS_SECRET_ACCESS_KEY");
+        std::env::remove_var("AWS_DEFAULT_REGION");
+    }
+
+    #[test]
+    fn test_credential_source_priority_all_variants() {
+        let priorities: Vec<u8> = vec![
+            CredentialSource::OAuthStore.priority(),
+            CredentialSource::AwsCredentialChain.priority(),
+            CredentialSource::GcpServiceAccount.priority(),
+            CredentialSource::AzureIdentity.priority(),
+            CredentialSource::SystemKeychain.priority(),
+            CredentialSource::AuthFile.priority(),
+            CredentialSource::DotEnv.priority(),
+            CredentialSource::EnvVar.priority(),
+            CredentialSource::ConfigInline.priority(),
+            CredentialSource::FileRef.priority(),
+        ];
+
+        for i in 0..priorities.len() - 1 {
+            assert!(
+                priorities[i] >= priorities[i + 1],
+                "Priorities should be in non-increasing order"
+            );
+        }
+    }
+
+    #[test]
+    fn test_composite_resolver_with_multiple_sources() {
+        let mut inline = HashMap::new();
+        inline.insert("test".to_string(), "inline".to_string());
+        let oauth_store: HashMap<String, String> = HashMap::new();
+
+        let resolver = CompositeCredentialResolver::new()
+            .with_inline(inline)
+            .with_oauth_store(oauth_store);
+
+        let cred = resolver.resolve("test", &CredentialSource::ConfigInline);
+        assert!(cred.is_some());
+        assert_eq!(cred.unwrap().value, "inline");
+    }
+
+    #[test]
+    fn test_aws_web_identity_token_resolves() {
+        std::env::remove_var("AWS_ACCESS_KEY_ID");
+        std::env::remove_var("AWS_SECRET_ACCESS_KEY");
+        std::env::remove_var("AWS_PROFILE");
+        std::env::set_var("AWS_WEB_IDENTITY_TOKEN_FILE", "/path/to/token");
+        std::env::set_var("AWS_ROLE_ARN", "arn:aws:iam::123:role/MyRole");
+
+        let resolver = CompositeCredentialResolver::new();
+        let cred = resolver.resolve("bedrock", &CredentialSource::AwsCredentialChain);
+
+        assert!(cred.is_some());
+        let c = cred.unwrap();
+        assert_eq!(c.metadata.get("type"), Some(&"oidc".to_string()));
+
+        std::env::remove_var("AWS_WEB_IDENTITY_TOKEN_FILE");
+        std::env::remove_var("AWS_ROLE_ARN");
+    }
+
+    #[test]
+    fn test_aws_profile_resolves() {
+        std::env::remove_var("AWS_ACCESS_KEY_ID");
+        std::env::remove_var("AWS_SECRET_ACCESS_KEY");
+        std::env::remove_var("AWS_WEB_IDENTITY_TOKEN_FILE");
+        std::env::remove_var("AWS_ROLE_ARN");
+        std::env::remove_var("AWS_PROFILE");
+        std::env::set_var("AWS_PROFILE", "my-profile");
+
+        let resolver = CompositeCredentialResolver::new();
+        let cred = resolver.resolve("bedrock", &CredentialSource::AwsCredentialChain);
+
+        assert!(cred.is_some());
+        let c = cred.unwrap();
+        assert_eq!(c.metadata.get("type"), Some(&"profile".to_string()));
+
+        std::env::remove_var("AWS_PROFILE");
+    }
+
+    #[test]
+    fn test_gcp_service_account_json_env() {
+        std::env::set_var("GCP_SERVICE_ACCOUNT_JSON", "{}");
+
+        let resolver = CompositeCredentialResolver::new();
+        let cred = resolver.resolve("gcp", &CredentialSource::GcpServiceAccount);
+
+        assert!(cred.is_some());
+
+        std::env::remove_var("GCP_SERVICE_ACCOUNT_JSON");
     }
 }

@@ -368,7 +368,7 @@
       "priority": "P1",
       "title": "Increase llm crate coverage to 80%",
       "description": "Increase test coverage for crates/llm to 80% (delta +25% from current). Focus on provider implementations and response parsing.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: increase line coverage to 80%",
         "RunTestSuite: cargo llvm-cov for coverage report"
@@ -385,7 +385,7 @@
       "priority": "P1",
       "title": "Add cargo-llvm-cov CI gate",
       "description": "Add cargo-llvm-cov to CI pipeline with 80% line coverage threshold as a gate for PRs.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify CI fails when coverage drops below 80%",
         "AddRegressionTest: ensure coverage report is generated on success"
