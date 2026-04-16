@@ -32,7 +32,7 @@ pub struct StatusResponse {
 }
 
 #[tokio::test]
-async fn test_status_returns_200() {
+async fn test_response_contains_all_fields() {
     let (server_url, server_handle, _temp_dir) = start_test_server(0).await;
 
     let client = reqwest::Client::new();
@@ -112,6 +112,37 @@ async fn test_status_returns_200() {
             "plugin.status should be non-null and non-empty"
         );
     }
+
+    server_handle.abort();
+}
+
+#[tokio::test]
+async fn test_accessible_without_auth() {
+    let (server_url, server_handle, _temp_dir) = start_test_server(0).await;
+
+    let client = reqwest::Client::new();
+
+    let resp = client
+        .get(format!("{}/api/status", server_url))
+        .send()
+        .await
+        .expect("Failed to call status endpoint");
+
+    assert_eq!(
+        resp.status().as_u16(),
+        200,
+        "GET /api/status without Authorization header should return 200 OK"
+    );
+
+    let status_response: StatusResponse = resp
+        .json()
+        .await
+        .expect("Failed to parse status response as StatusResponse");
+
+    assert_eq!(
+        status_response.status, "running",
+        "Server status should be 'running'"
+    );
 
     server_handle.abort();
 }

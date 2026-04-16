@@ -811,7 +811,7 @@
       "priority": "P1",
       "title": "Add test: endpoint accessible without auth",
       "description": "Add integration test: status endpoint accessible without authentication",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify status endpoint works without auth token"
       ],
