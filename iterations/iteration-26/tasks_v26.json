@@ -25,7 +25,7 @@
       "priority": "P1",
       "title": "Make Snapshot Directory Configurable",
       "description": "SNAPSHOT_DIR is hardcoded to 'snapshots' and is not configurable. Need to allow configuration via environment variable RATATUI_TESTING_SNAPSHOT_DIR while defaulting to 'snapshots'.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify RATATUI_TESTING_SNAPSHOT_DIR env var is read when set",
         "AddUnitTest: verify default 'snapshots' is used when env var not set",

@@ -3,10 +3,12 @@ use ratatui::buffer::{Buffer, Cell};
 use ratatui::layout::Rect;
 use ratatui::style::Modifier;
 use serde::{Deserialize, Serialize};
+use std::env;
 use std::fs;
 use std::path::PathBuf;
 
-const SNAPSHOT_DIR: &str = "snapshots";
+const DEFAULT_SNAPSHOT_DIR: &str = "snapshots";
+const SNAPSHOT_DIR_ENV_VAR: &str = "RATATUI_TESTING_SNAPSHOT_DIR";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct SerializedCell {
@@ -80,7 +82,9 @@ impl SerializedBuffer {
 }
 
 fn get_snapshot_dir() -> Result<PathBuf> {
-    let dir = PathBuf::from(SNAPSHOT_DIR);
+    let dir_name =
+        env::var(SNAPSHOT_DIR_ENV_VAR).unwrap_or_else(|_| DEFAULT_SNAPSHOT_DIR.to_string());
+    let dir = PathBuf::from(dir_name);
     if !dir.exists() {
         fs::create_dir_all(&dir).context("Failed to create snapshot directory")?;
     }
@@ -179,5 +183,29 @@ mod tests {
         assert_eq!(loaded.content[0].symbol(), "H");
 
         std::fs::remove_file(get_snapshot_path(name).unwrap()).ok();
+    }
+
+    #[test]
+    fn test_default_snapshot_dir() {
+        env::remove_var(SNAPSHOT_DIR_ENV_VAR);
+        let dir = get_snapshot_dir().unwrap();
+        assert_eq!(
+            dir.file_name().unwrap().to_str().unwrap(),
+            DEFAULT_SNAPSHOT_DIR
+        );
+    }
+
+    #[test]
+    fn test_custom_snapshot_dir_from_env() {
+        let custom_dir = "custom_test_snapshots";
+        env::set_var(SNAPSHOT_DIR_ENV_VAR, custom_dir);
+        let dir = get_snapshot_dir().unwrap();
+        assert_eq!(dir.file_name().unwrap().to_str().unwrap(), custom_dir);
+        env::remove_var(SNAPSHOT_DIR_ENV_VAR);
+        let default_dir = get_snapshot_dir().unwrap();
+        assert_eq!(
+            default_dir.file_name().unwrap().to_str().unwrap(),
+            DEFAULT_SNAPSHOT_DIR
+        );
     }
 }
