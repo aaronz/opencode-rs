@@ -37,6 +37,7 @@ regex-lite = "0.1"
 url = "2"
 utoipa = "5"
 utoipa-actix-web = "0.1"
+thiserror = "2.0"
 
 [dev-dependencies]
 tempfile = "3"

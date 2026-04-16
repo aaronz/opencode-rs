@@ -40,7 +40,7 @@
       "priority": "P0",
       "title": "Audit all production .unwrap() calls",
       "description": "Audit all production `.unwrap()` calls across all crates. Create a comprehensive list and fix each one.",
-      "status": "done",
+      "status": "manual_check",
       "test_criteria": [
         "AddRegressionTest: grep for remaining .unwrap() in production code paths",
         "RunTestSuite: execute all tests to ensure no panics occur"
@@ -61,7 +61,7 @@
       "priority": "P0",
       "title": "Convert String errors to thiserror enums",
       "description": "Convert String-based error messages to structured thiserror enums in crates/server/src/routes/*.rs for better error handling and type safety.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify each error variant maps to correct HTTP status code",
         "AddIntegrationTest: verify error responses are properly serialized to JSON",
