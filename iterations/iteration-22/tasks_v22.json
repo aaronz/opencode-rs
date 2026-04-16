@@ -102,7 +102,7 @@
       "priority": "P1",
       "title": "Connect Permission Reply to Permission System",
       "description": "Connect permission_reply handler to actual permission system to process user approval/denial decisions. Connect to PermissionManager, update ApprovalQueue with user decisions, trigger re-evaluation of pending requests after approval, log decisions to audit trail.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify user approval triggers tool execution",
         "AddUnitTest: verify user denial returns PermissionDenied error",
@@ -124,7 +124,7 @@
       "priority": "P1",
       "title": "Implement SSE Streaming Response",
       "description": "Implement chunked/streaming response for run and execute endpoints. Detect Accept: text/event-stream header, stream LLM tokens as they arrive using SSE format, include proper SSE formatting (data: {...}\\n\\n), handle connection interruption gracefully.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: curl -H 'Accept: text/event-stream' -d '{\"prompt\":\"hi\"}' /api/run streams tokens",
         "AddUnitTest: verify each token arrives as separate SSE event with data: prefix",
@@ -149,7 +149,7 @@
       "priority": "P2",
       "title": "Complete SDK Documentation",
       "description": "Complete SDK documentation for publishing to crates.io. Add cargo doc comments to all public items, create working examples for all public APIs, prepare README with installation instructions.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: cargo doc generates complete documentation without warnings",
         "AddUnitTest: verify all public items have doc comments via doc coverage check",

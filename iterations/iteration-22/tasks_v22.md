@@ -193,7 +193,7 @@ Connect `permission_reply` handler to actual permission system to process user a
 
 **FR-ID:** FR-036
 **Priority:** P1
-**Status:** Not Started
+**Status:** ✅ Done
 
 **Description:**
 Implement chunked/streaming response for run and execute endpoints.
@@ -274,8 +274,8 @@ Document IDE extension support for LSP integration.
 | 3. Server Status Endpoint | FR-033 | P1 | ✅ Done |
 | 4. WebSocket Agent Streaming | FR-034 | P1 | ✅ Done |
 | 5. Permission Reply Integration | FR-035 | P1 | Partial |
-| 6. SSE Streaming Response | FR-036 | P1 | Not Started |
-| 7. SDK Documentation | FR-037 | P2 | Incomplete |
+| 6. SSE Streaming Response | FR-036 | P1 | ✅ Done |
+| 7. SDK Documentation | FR-037 | P2 | ✅ Done |
 | 8. LSP Integration Documentation | FR-038 | P2 | Incomplete |
 
 ---
