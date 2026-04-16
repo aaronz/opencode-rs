@@ -47,6 +47,7 @@ mod tests {
             )),
             tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
             session_hub: std::sync::Arc::new(crate::routes::ws::SessionHub::new(256)),
+            server_start_time: std::time::SystemTime::now(),
         }
     }
 
@@ -86,6 +87,7 @@ mod tests {
             )),
             tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
             session_hub: std::sync::Arc::new(crate::routes::ws::SessionHub::new(256)),
+            server_start_time: std::time::SystemTime::now(),
         }
     }
 
@@ -1672,6 +1674,7 @@ mod security_tests {
             )),
             tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
             session_hub: std::sync::Arc::new(crate::routes::ws::SessionHub::new(256)),
+            server_start_time: std::time::SystemTime::now(),
         }
     }
 
@@ -2105,6 +2108,7 @@ mod api_negative_tests {
             )),
             tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
             session_hub: std::sync::Arc::new(crate::routes::ws::SessionHub::new(256)),
+            server_start_time: std::time::SystemTime::now(),
         }
     }
 
@@ -2144,6 +2148,7 @@ mod api_negative_tests {
             )),
             tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
             session_hub: std::sync::Arc::new(crate::routes::ws::SessionHub::new(256)),
+            server_start_time: std::time::SystemTime::now(),
         }
     }
 
@@ -2820,6 +2825,7 @@ mod auth_negative_tests {
             )),
             tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
             session_hub: std::sync::Arc::new(crate::routes::ws::SessionHub::new(256)),
+            server_start_time: std::time::SystemTime::now(),
         }
     }
 

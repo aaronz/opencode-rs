@@ -57,6 +57,7 @@ pub struct ServerState {
     pub acp_client_registry: SharedAcpClientRegistry,
     pub tool_registry: Arc<ToolRegistry>,
     pub session_hub: Arc<SessionHub>,
+    pub server_start_time: std::time::SystemTime,
 }
 
 pub async fn run_server(state: Arc<ServerState>, host: &str, port: u16) -> std::io::Result<()> {

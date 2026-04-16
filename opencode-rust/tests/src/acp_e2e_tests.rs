@@ -38,6 +38,7 @@ mod tests {
             )),
             tool_registry: std::sync::Arc::new(ToolRegistry::new()),
             session_hub: std::sync::Arc::new(opencode_server::routes::ws::SessionHub::new(256)),
+            server_start_time: std::time::SystemTime::now(),
         }
     }
 

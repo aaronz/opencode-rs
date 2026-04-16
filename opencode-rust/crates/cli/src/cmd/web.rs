@@ -93,6 +93,7 @@ impl WebServerState {
             acp_client_registry: self.acp_client_registry.clone(),
             tool_registry: self.tool_registry.clone(),
             session_hub: self.session_hub.clone(),
+            server_start_time: std::time::SystemTime::now(),
         }
     }
 }

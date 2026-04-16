@@ -61,8 +61,8 @@
 | ID | Task | Status | Owner | Files | Dependencies |
 |----|------|--------|-------|-------|--------------|
 | P1-026-01 | Create `server/src/routes/status.rs` | TODO | | NEW | None |
-| P1-026-02 | Define `StatusResponse` struct with all fields | TODO | | status.rs | None |
-| P1-026-03 | Collect version info | TODO | | status.rs | None |
+| P1-026-02 | Define `StatusResponse` struct with all fields | ✅ Done | | status.rs | None |
+| P1-026-03 | Collect version info | ✅ Done | | status.rs | None |
 | P1-026-04 | Collect uptime_seconds | TODO | | status.rs | None |
 | P1-026-05 | Collect active/total session counts | TODO | | status.rs | storage |
 | P1-026-06 | Collect provider status from LLM registry | TODO | | status.rs | llm |

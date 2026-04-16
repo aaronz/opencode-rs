@@ -640,7 +640,7 @@
       "priority": "P1",
       "title": "Define StatusResponse struct",
       "description": "Define StatusResponse struct with all required status fields",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify StatusResponse serializes to JSON correctly"
       ],
@@ -657,7 +657,7 @@
       "priority": "P1",
       "title": "Collect version info",
       "description": "Collect version info (version string, rustc version) for status endpoint",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify version info is collected correctly"
       ],

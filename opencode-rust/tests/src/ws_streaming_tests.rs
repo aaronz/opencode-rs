@@ -596,6 +596,7 @@ fn create_ws_test_server_state() -> opencode_server::ServerState {
         )),
         tool_registry: Arc::new(opencode_tools::ToolRegistry::new()),
         session_hub: Arc::new(SessionHub::new(256)),
+        server_start_time: std::time::SystemTime::now(),
     }
 }
 

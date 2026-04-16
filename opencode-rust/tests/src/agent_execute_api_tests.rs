@@ -532,6 +532,7 @@ async fn start_test_server(
         )),
         tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
         session_hub: std::sync::Arc::new(opencode_server::routes::ws::SessionHub::new(256)),
+        server_start_time: std::time::SystemTime::now(),
     };
 
     let state_data = web::Data::new(state);
@@ -1035,6 +1036,7 @@ mod integration_tests {
             )),
             tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
             session_hub: std::sync::Arc::new(opencode_server::routes::ws::SessionHub::new(256)),
+            server_start_time: std::time::SystemTime::now(),
         };
 
         let state_data = web::Data::new(state);

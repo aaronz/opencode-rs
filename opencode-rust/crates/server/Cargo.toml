@@ -5,6 +5,9 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 
+[build-dependencies]
+built = { version = "0.5", default-features = false, features = ["chrono", "semver"] }
+
 [dependencies]
 opencode-core = { path = "../core" }
 opencode-storage = { path = "../storage" }

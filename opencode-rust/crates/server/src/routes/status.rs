@@ -4,6 +4,10 @@ use actix_web::{http::StatusCode, web, HttpResponse, Responder};
 use serde::Serialize;
 use std::collections::HashSet;
 
+pub mod built_info {
+    include!(concat!(env!("OUT_DIR"), "/built.rs"));
+}
+
 #[derive(Debug, Serialize)]
 pub struct ProviderStatus {
     pub name: String,
@@ -21,6 +25,8 @@ pub struct PluginStatus {
 #[derive(Debug, Serialize)]
 pub struct StatusResponse {
     pub version: String,
+    pub rustc_version: String,
+    pub build_timestamp: String,
     pub status: String,
     pub uptime_seconds: u64,
     pub active_sessions: usize,
@@ -31,8 +37,14 @@ pub struct StatusResponse {
 
 pub async fn get_status(state: web::Data<ServerState>) -> impl Responder {
     let version = env!("CARGO_PKG_VERSION").to_string();
+    let rustc_version = built_info::RUSTC_VERSION.to_string();
+    let build_timestamp = built_info::BUILT_TIME_UTC.to_string();
     let status = "running".to_string();
-    let uptime_seconds: u64 = 0;
+
+    let uptime_seconds = std::time::SystemTime::now()
+        .duration_since(state.server_start_time)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
 
     let active_sessions = state.session_hub.session_count().await;
 
@@ -66,6 +78,8 @@ pub async fn get_status(state: web::Data<ServerState>) -> impl Responder {
 
     HttpResponse::Ok().json(StatusResponse {
         version,
+        rustc_version,
+        build_timestamp,
         status,
         uptime_seconds,
         active_sessions,
@@ -85,4 +99,149 @@ pub async fn get_status_simple() -> impl Responder {
 
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.route("", web::get().to(get_status));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_version_info() {
+        let version = env!("CARGO_PKG_VERSION");
+        assert!(!version.is_empty(), "CARGO_PKG_VERSION should not be empty");
+
+        let rustc_version = built_info::RUSTC_VERSION;
+        assert!(
+            rustc_version.contains("rustc"),
+            "RUSTC_VERSION should contain 'rustc', got: {}",
+            rustc_version
+        );
+
+        let build_timestamp = built_info::BUILT_TIME_UTC;
+        assert!(
+            !build_timestamp.is_empty(),
+            "Build timestamp should not be empty"
+        );
+    }
+
+    #[test]
+    fn status_response_serializes_to_json_correctly() {
+        let response = StatusResponse {
+            version: "1.0.0".to_string(),
+            rustc_version: "rustc 1.75.0".to_string(),
+            build_timestamp: "2024-01-15T12:00:00Z".to_string(),
+            status: "running".to_string(),
+            uptime_seconds: 3600,
+            active_sessions: 5,
+            total_sessions: 142,
+            providers: vec![
+                ProviderStatus {
+                    name: "openai".to_string(),
+                    status: "ready".to_string(),
+                    model: "gpt-4".to_string(),
+                },
+                ProviderStatus {
+                    name: "anthropic".to_string(),
+                    status: "ready".to_string(),
+                    model: "claude-3-opus".to_string(),
+                },
+            ],
+            plugins: vec![PluginStatus {
+                name: "example-plugin".to_string(),
+                version: "1.0.0".to_string(),
+                status: "loaded".to_string(),
+            }],
+        };
+
+        let json = serde_json::to_string(&response).expect("Failed to serialize StatusResponse");
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("Failed to parse JSON");
+
+        assert_eq!(parsed["version"], "1.0.0");
+        assert_eq!(parsed["rustc_version"], "rustc 1.75.0");
+        assert_eq!(parsed["build_timestamp"], "2024-01-15T12:00:00Z");
+        assert_eq!(parsed["status"], "running");
+        assert_eq!(parsed["uptime_seconds"], 3600);
+        assert_eq!(parsed["active_sessions"], 5);
+        assert_eq!(parsed["total_sessions"], 142);
+
+        assert_eq!(parsed["providers"].as_array().unwrap().len(), 2);
+        assert_eq!(parsed["providers"][0]["name"], "openai");
+        assert_eq!(parsed["providers"][0]["status"], "ready");
+        assert_eq!(parsed["providers"][0]["model"], "gpt-4");
+        assert_eq!(parsed["providers"][1]["name"], "anthropic");
+        assert_eq!(parsed["providers"][1]["status"], "ready");
+        assert_eq!(parsed["providers"][1]["model"], "claude-3-opus");
+
+        assert_eq!(parsed["plugins"].as_array().unwrap().len(), 1);
+        assert_eq!(parsed["plugins"][0]["name"], "example-plugin");
+        assert_eq!(parsed["plugins"][0]["version"], "1.0.0");
+        assert_eq!(parsed["plugins"][0]["status"], "loaded");
+    }
+
+    #[test]
+    fn status_response_with_empty_providers_and_plugins() {
+        let response = StatusResponse {
+            version: "1.0.0".to_string(),
+            rustc_version: "rustc 1.75.0".to_string(),
+            build_timestamp: "2024-01-15T12:00:00Z".to_string(),
+            status: "running".to_string(),
+            uptime_seconds: 0,
+            active_sessions: 0,
+            total_sessions: 0,
+            providers: vec![],
+            plugins: vec![],
+        };
+
+        let json = serde_json::to_string(&response).expect("Failed to serialize StatusResponse");
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("Failed to parse JSON");
+
+        assert_eq!(parsed["version"], "1.0.0");
+        assert_eq!(parsed["providers"].as_array().unwrap().len(), 0);
+        assert_eq!(parsed["plugins"].as_array().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn provider_status_serialization() {
+        let provider = ProviderStatus {
+            name: "test".to_string(),
+            status: "ready".to_string(),
+            model: "model-x".to_string(),
+        };
+
+        let json = serde_json::to_string(&provider).expect("Should serialize");
+        assert!(json.contains("\"name\":\"test\""));
+        assert!(json.contains("\"status\":\"ready\""));
+        assert!(json.contains("\"model\":\"model-x\""));
+    }
+
+    #[test]
+    fn plugin_status_serialization() {
+        let plugin = PluginStatus {
+            name: "test-plugin".to_string(),
+            version: "1.0.0".to_string(),
+            status: "loaded".to_string(),
+        };
+
+        let json = serde_json::to_string(&plugin).expect("Should serialize");
+        assert!(json.contains("\"name\":\"test-plugin\""));
+        assert!(json.contains("\"version\":\"1.0.0\""));
+        assert!(json.contains("\"status\":\"loaded\""));
+    }
+
+    #[test]
+    fn uptime_calculation_logic() {
+        let start_time = std::time::SystemTime::now() - std::time::Duration::from_secs(100);
+        let now = std::time::SystemTime::now();
+
+        let uptime = now
+            .duration_since(start_time)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+
+        assert!(
+            uptime >= 100 && uptime <= 101,
+            "Uptime should be approximately 100 seconds, got: {}",
+            uptime
+        );
+    }
 }
