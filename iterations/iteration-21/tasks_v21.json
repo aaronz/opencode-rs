@@ -931,7 +931,7 @@
       "priority": "P1",
       "title": "Create streaming_response_tests.rs",
       "description": "Create test file tests/src/streaming_response_tests.rs",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify test file compiles and runs"
       ],
