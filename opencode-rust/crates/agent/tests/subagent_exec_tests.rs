@@ -1,5 +1,4 @@
-use opencode_agent::agent::{Agent, AgentResponse, AgentType};
-use opencode_agent::runtime::{AgentRuntime, RuntimeConfig};
+use opencode_agent::{Agent, AgentResponse, AgentRuntime, AgentType, RuntimeConfig, Sealed};
 use opencode_core::{Message, OpenCodeError, Session};
 use opencode_llm::Provider;
 use opencode_permission::AgentPermissionScope;
@@ -91,7 +90,7 @@ impl MockSubagent {
     }
 }
 
-impl opencode_agent::agent::sealed::Sealed for MockSubagent {}
+impl Sealed for MockSubagent {}
 
 #[async_trait::async_trait]
 impl Agent for MockSubagent {
@@ -313,7 +312,7 @@ async fn test_subagent_exec_error_propagation_error_type_is_correct() {
         .unwrap_err();
 
     match result {
-        opencode_agent::runtime::RuntimeError::ToolExecutionFailed { tool, reason } => {
+        opencode_agent::RuntimeError::ToolExecutionFailed { tool, reason } => {
             assert_eq!(tool, "subagent");
             assert!(reason.contains("specific error"));
         }

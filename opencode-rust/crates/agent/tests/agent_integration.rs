@@ -1,12 +1,7 @@
-use opencode_agent::agent::{Agent, AgentType};
-use opencode_agent::build_agent::BuildAgent;
-use opencode_agent::debug_agent::DebugAgent;
-use opencode_agent::explore_agent::ExploreAgent;
-use opencode_agent::general_agent::GeneralAgent;
-use opencode_agent::plan_agent::PlanAgent;
-use opencode_agent::refactor_agent::RefactorAgent;
-use opencode_agent::review_agent::ReviewAgent;
-use opencode_agent::system_agents::{CompactionAgent, SummaryAgent, TitleAgent};
+use opencode_agent::{
+    Agent, AgentType, BuildAgent, CompactionAgent, DebugAgent, ExploreAgent, GeneralAgent,
+    PlanAgent, RefactorAgent, ReviewAgent, SummaryAgent, TitleAgent,
+};
 
 #[test]
 fn test_plan_agent_is_read_only() {

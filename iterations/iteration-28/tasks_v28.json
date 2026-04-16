@@ -237,7 +237,7 @@
       "priority": "P1",
       "title": "Audit pub visibility in tools",
       "description": "Audit all pub visibility modifiers in crates/tools/src/ to identify over-exposed APIs.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: verify all tools tests pass",
         "AddRegressionTest: ensure no functionality breaks"
@@ -274,7 +274,7 @@
       "priority": "P1",
       "title": "Audit pub visibility in agent",
       "description": "Audit all pub visibility modifiers in crates/agent/src/ to identify over-exposed APIs.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "RunTestSuite: verify all agent tests pass",
         "AddRegressionTest: ensure no functionality breaks"
