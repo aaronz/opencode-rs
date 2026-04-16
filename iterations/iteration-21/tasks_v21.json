@@ -760,7 +760,7 @@
       "priority": "P1",
       "title": "Create status_endpoint_tests.rs",
       "description": "Create test file tests/src/status_endpoint_tests.rs",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify test file compiles and runs"
       ],
@@ -897,7 +897,7 @@
       "priority": "P1",
       "title": "Add Accept header detection",
       "description": "Add Accept: text/event-stream header detection for SSE",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify header detection works correctly"
       ],

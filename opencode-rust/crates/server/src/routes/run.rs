@@ -144,50 +144,28 @@ async fn run_prompt_streaming(
 
     let tx_for_callback = tx.clone();
     let tx_for_error = tx.clone();
-    let session_id_for_callback = session_id.clone();
-    let session_id_for_error = session_id.clone();
-    let session_id_for_completion = session_id.clone();
 
     actix_rt::spawn(async move {
         let result = provider
             .complete_streaming(
                 &prompt,
                 Box::new(move |chunk| {
-                    let msg = StreamMessage::Message {
-                        session_id: session_id_for_callback.clone(),
-                        content: chunk,
-                        role: "assistant".to_string(),
-                    };
-                    if let Ok(json) = serde_json::to_string(&msg) {
-                        let sse_data = format!("data: {}\n\n", json);
-                        let _ = tx_for_callback.try_send(Ok(web::Bytes::from(sse_data)));
-                    }
+                    let sse_data = format!("data: {}\n\n", chunk);
+                    let _ = tx_for_callback.try_send(Ok(web::Bytes::from(sse_data)));
                 }),
             )
             .await;
 
         if let Err(e) = result {
-            let msg = StreamMessage::Error {
-                session_id: Some(session_id_for_error.clone()),
-                error: "streaming_error".to_string(),
-                code: "STREAMING_ERROR".to_string(),
-                message: e.to_string(),
-            };
-            if let Ok(json) = serde_json::to_string(&msg) {
-                let sse_data = format!("data: {}\n\n", json);
-                let _ = tx_for_error.try_send(Ok(web::Bytes::from(sse_data)));
-            }
+            let error_data = format!(
+                "data: {{\"error\":\"streaming_error\",\"message\":\"{}\"}}\n\n",
+                e
+            );
+            let _ = tx_for_error.try_send(Ok(web::Bytes::from(error_data)));
         }
 
-        let completion_msg = StreamMessage::Message {
-            session_id: session_id_for_completion,
-            content: "[DONE]".to_string(),
-            role: "assistant".to_string(),
-        };
-        if let Ok(json) = serde_json::to_string(&completion_msg) {
-            let sse_data = format!("data: {}\n\n", json);
-            let _ = tx_for_error.try_send(Ok(web::Bytes::from(sse_data)));
-        }
+        let done_data = "data: [DONE]\n\n";
+        let _ = tx_for_error.try_send(Ok(web::Bytes::from(done_data)));
     });
 
     let stream = stream::unfold(rx, |mut rx| async move {
@@ -367,5 +345,43 @@ mod tests {
         assert!(agent_system_prompt("debug").contains("DEBUG"));
         assert!(agent_system_prompt("general").contains("GENERAL"));
         assert!(agent_system_prompt("unknown").contains("GENERAL"));
+    }
+
+    #[test]
+    fn test_header_detection_accepts_sse_with_text_event_stream() {
+        let req = actix_web::test::TestRequest::default()
+            .insert_header(("Accept", "text/event-stream"))
+            .to_http_request();
+        assert!(accepts_sse(&req));
+    }
+
+    #[test]
+    fn test_header_detection_rejects_non_sse_accept_header() {
+        let req = actix_web::test::TestRequest::default()
+            .insert_header(("Accept", "application/json"))
+            .to_http_request();
+        assert!(!accepts_sse(&req));
+    }
+
+    #[test]
+    fn test_header_detection_no_accept_header_returns_false() {
+        let req = actix_web::test::TestRequest::default().to_http_request();
+        assert!(!accepts_sse(&req));
+    }
+
+    #[test]
+    fn test_header_detection_accepts_sse_in_multi_value_accept() {
+        let req = actix_web::test::TestRequest::default()
+            .insert_header(("Accept", "application/json, text/event-stream"))
+            .to_http_request();
+        assert!(accepts_sse(&req));
+    }
+
+    #[test]
+    fn test_header_detection_rejects_partial_match() {
+        let req = actix_web::test::TestRequest::default()
+            .insert_header(("Accept", "text/html"))
+            .to_http_request();
+        assert!(!accepts_sse(&req));
     }
 }
