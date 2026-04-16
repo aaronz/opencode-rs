@@ -36,7 +36,7 @@
 //!
 //! The two registries serve different purposes and are **not directly compatible**:
 //!
-//! ```ignore
+//! ```text
 //! MCP Server → MCP Registry → bridge_to_tool_registry() → opencode_core::ToolRegistry
 //!                                                              ↓
 //!                                                      (used by TUI, MCP)

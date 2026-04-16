@@ -165,7 +165,7 @@ impl DirectoryScanner {
     }
 
     /// Scan plugins from .opencode/plugins/ directory
-    /// Each plugin is a .wasm file named <name>.wasm
+    /// Each plugin is a .wasm file named `name`.wasm
     pub fn scan_plugins(&self, base_path: &Path) -> Vec<PluginInfo> {
         let plugins_dir = base_path.join("plugins");
         if !plugins_dir.exists() {
@@ -300,7 +300,7 @@ impl DirectoryScanner {
     }
 
     /// Scan themes from .opencode/themes/ directory
-    /// Each theme is a .json file named <name>.json
+    /// Each theme is a .json file named `name`.json
     pub fn scan_themes(&self, base_path: &Path) -> Vec<ThemeInfo> {
         let themes_dir = base_path.join("themes");
         if !themes_dir.exists() {

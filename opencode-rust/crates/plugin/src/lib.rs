@@ -578,7 +578,7 @@ impl PluginManager {
         result.map_err(PluginError::ToolRegistration)
     }
 
-    /// Export all plugin tools as Box<dyn opencode_tools::Tool> for integration
+    /// Export all plugin tools as `Box<dyn opencode_tools::Tool>` for integration
     /// with the opencode_tools::ToolRegistry.
     pub async fn export_as_tools(&self) -> Vec<Box<dyn opencode_tools::Tool>> {
         let tools = self.plugin_tools.read().await;
