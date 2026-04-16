@@ -245,7 +245,7 @@ Complete SDK documentation for publishing to crates.io.
 
 **FR-ID:** FR-038
 **Priority:** P2
-**Status:** Incomplete
+**Status:** ✅ Done
 
 **Description:**
 Document IDE extension support for LSP integration.
@@ -276,7 +276,7 @@ Document IDE extension support for LSP integration.
 | 5. Permission Reply Integration | FR-035 | P1 | Partial |
 | 6. SSE Streaming Response | FR-036 | P1 | ✅ Done |
 | 7. SDK Documentation | FR-037 | P2 | ✅ Done |
-| 8. LSP Integration Documentation | FR-038 | P2 | Incomplete |
+| 8. LSP Integration Documentation | FR-038 | P2 | ✅ Done |
 
 ---
 

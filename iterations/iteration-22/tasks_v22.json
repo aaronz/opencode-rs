@@ -169,7 +169,7 @@
       "priority": "P2",
       "title": "Document LSP Integration",
       "description": "Document IDE extension support for LSP integration. Document VSCode LSP client setup, document Neovim LSP setup, list supported LSP features.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify VSCode LSP setup documentation exists and is complete",
         "AddRegressionTest: verify Neovim LSP setup documentation exists and is complete",
