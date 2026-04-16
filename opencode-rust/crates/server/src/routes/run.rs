@@ -1,17 +1,22 @@
 use crate::routes::error::json_error;
 use crate::routes::validation::RequestValidator;
+use crate::streaming::StreamMessage;
 use crate::ServerState;
 use actix_web::http::StatusCode;
-use actix_web::{web, HttpResponse, Responder};
+use actix_web::{web, HttpRequest, HttpResponse, Responder};
+use futures::stream::{self, Stream};
 use opencode_core::{Message, Session};
 use opencode_llm::{AnthropicProvider, ChatMessage, OllamaProvider, OpenAiProvider, Provider};
 use serde::Deserialize;
+use tokio::sync::mpsc;
 
 #[derive(Deserialize)]
 pub struct RunRequest {
     pub prompt: String,
     pub model: Option<String>,
     pub agent: Option<String>,
+    #[serde(default)]
+    pub stream: bool,
 }
 
 fn agent_system_prompt(agent: &str) -> &'static str {
@@ -89,38 +94,20 @@ pub fn build_provider(
     }
 }
 
-pub async fn run_prompt(
+fn accepts_sse(req: &HttpRequest) -> bool {
+    if let Some(accept) = req.headers().get("Accept") {
+        if let Ok(accept_str) = accept.to_str() {
+            return accept_str.contains("text/event-stream");
+        }
+    }
+    false
+}
+
+async fn run_prompt_streaming(
     state: web::Data<ServerState>,
     req: web::Json<RunRequest>,
-) -> impl Responder {
-    let mut validator = RequestValidator::new();
-    validator.validate_required_string("prompt", Some(&req.prompt));
-    if let Some(ref agent) = req.agent {
-        validator.validate_enum(
-            "agent",
-            agent,
-            &[
-                "build", "plan", "explore", "review", "refactor", "debug", "general",
-            ],
-        );
-    }
-    if let Some(ref model) = req.model {
-        validator.validate_optional_string("model", Some(model), 100);
-    }
-    if let Err(errors) = validator.validate() {
-        return errors.to_response();
-    }
-
-    let mut session = Session::new();
-    session.add_message(Message::user(&req.prompt));
-    if let Err(e) = state.storage.save_session(&session).await {
-        return json_error(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "storage_error",
-            e.to_string(),
-        );
-    }
-
+    session_id: String,
+) -> HttpResponse {
     let config = match state.config.read() {
         Ok(cfg) => cfg.clone(),
         Err(_) => {
@@ -147,6 +134,140 @@ pub async fn run_prompt(
     };
 
     let selected_agent = req.agent.clone().unwrap_or_else(|| "general".to_string());
+    let prompt = format!(
+        "{}\n\nUser: {}",
+        agent_system_prompt(&selected_agent),
+        req.prompt
+    );
+
+    let (tx, rx) = mpsc::channel::<Result<web::Bytes, std::convert::Infallible>>(128);
+
+    let tx_for_callback = tx.clone();
+    let tx_for_error = tx.clone();
+    let session_id_for_callback = session_id.clone();
+    let session_id_for_error = session_id.clone();
+    let session_id_for_completion = session_id.clone();
+
+    actix_rt::spawn(async move {
+        let result = provider
+            .complete_streaming(
+                &prompt,
+                Box::new(move |chunk| {
+                    let msg = StreamMessage::Message {
+                        session_id: session_id_for_callback.clone(),
+                        content: chunk,
+                        role: "assistant".to_string(),
+                    };
+                    if let Ok(json) = serde_json::to_string(&msg) {
+                        let sse_data = format!("data: {}\n\n", json);
+                        let _ = tx_for_callback.try_send(Ok(web::Bytes::from(sse_data)));
+                    }
+                }),
+            )
+            .await;
+
+        if let Err(e) = result {
+            let msg = StreamMessage::Error {
+                session_id: Some(session_id_for_error.clone()),
+                error: "streaming_error".to_string(),
+                code: "STREAMING_ERROR".to_string(),
+                message: e.to_string(),
+            };
+            if let Ok(json) = serde_json::to_string(&msg) {
+                let sse_data = format!("data: {}\n\n", json);
+                let _ = tx_for_error.try_send(Ok(web::Bytes::from(sse_data)));
+            }
+        }
+
+        let completion_msg = StreamMessage::Message {
+            session_id: session_id_for_completion,
+            content: "[DONE]".to_string(),
+            role: "assistant".to_string(),
+        };
+        if let Ok(json) = serde_json::to_string(&completion_msg) {
+            let sse_data = format!("data: {}\n\n", json);
+            let _ = tx_for_error.try_send(Ok(web::Bytes::from(sse_data)));
+        }
+    });
+
+    let stream = stream::unfold(rx, |mut rx| async move {
+        rx.recv()
+            .await
+            .map(|Ok(bytes)| (Ok::<_, std::convert::Infallible>(bytes), rx))
+    });
+
+    HttpResponse::Ok()
+        .content_type("text/event-stream")
+        .insert_header(("Cache-Control", "no-cache"))
+        .insert_header(("Connection", "keep-alive"))
+        .insert_header(("Access-Control-Allow-Origin", "*"))
+        .insert_header(("X-Accel-Buffering", "no"))
+        .streaming(Box::pin(stream))
+}
+
+pub async fn run_prompt(
+    state: web::Data<ServerState>,
+    req: HttpRequest,
+    body: web::Json<RunRequest>,
+) -> impl Responder {
+    let mut validator = RequestValidator::new();
+    validator.validate_required_string("prompt", Some(&body.prompt));
+    if let Some(ref agent) = body.agent {
+        validator.validate_enum(
+            "agent",
+            agent,
+            &[
+                "build", "plan", "explore", "review", "refactor", "debug", "general",
+            ],
+        );
+    }
+    if let Some(ref model) = body.model {
+        validator.validate_optional_string("model", Some(model), 100);
+    }
+    if let Err(errors) = validator.validate() {
+        return errors.to_response();
+    }
+
+    let mut session = Session::new();
+    session.add_message(Message::user(&body.prompt));
+    if let Err(e) = state.storage.save_session(&session).await {
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "storage_error",
+            e.to_string(),
+        );
+    }
+
+    if body.stream || accepts_sse(&req) {
+        return run_prompt_streaming(state, body, session.id.to_string()).await;
+    }
+
+    let config = match state.config.read() {
+        Ok(cfg) => cfg.clone(),
+        Err(_) => {
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "config_lock_error",
+                "Failed to access server config",
+            );
+        }
+    };
+
+    let selected_model = body
+        .model
+        .clone()
+        .or_else(|| config.model.clone())
+        .unwrap_or_else(|| "gpt-4o".to_string());
+    let (provider_id, model_name) =
+        resolve_model_and_provider(&state, Some(selected_model.clone()));
+    let provider = match build_provider(&provider_id, &model_name, &config) {
+        Ok(provider) => provider,
+        Err(message) => {
+            return json_error(StatusCode::BAD_REQUEST, "provider_init_error", message);
+        }
+    };
+
+    let selected_agent = body.agent.clone().unwrap_or_else(|| "general".to_string());
     let messages = vec![
         ChatMessage {
             role: "system".to_string(),
@@ -154,7 +275,7 @@ pub async fn run_prompt(
         },
         ChatMessage {
             role: "user".to_string(),
-            content: req.prompt.clone(),
+            content: body.prompt.clone(),
         },
     ];
 
@@ -190,4 +311,46 @@ pub async fn run_prompt(
 
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.route("", web::post().to(run_prompt));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_run_request_deserialize_basic() {
+        let json = r#"{"prompt": "hello", "model": "gpt-4", "agent": "build"}"#;
+        let req: RunRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.prompt, "hello");
+        assert_eq!(req.model, Some("gpt-4".to_string()));
+        assert_eq!(req.agent, Some("build".to_string()));
+        assert!(!req.stream);
+    }
+
+    #[test]
+    fn test_run_request_deserialize_with_stream() {
+        let json = r#"{"prompt": "hello", "stream": true}"#;
+        let req: RunRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.prompt, "hello");
+        assert!(req.stream);
+    }
+
+    #[test]
+    fn test_run_request_deserialize_stream_defaults_to_false() {
+        let json = r#"{"prompt": "hello"}"#;
+        let req: RunRequest = serde_json::from_str(json).unwrap();
+        assert!(!req.stream);
+    }
+
+    #[test]
+    fn test_agent_system_prompt() {
+        assert!(agent_system_prompt("build").contains("BUILD"));
+        assert!(agent_system_prompt("plan").contains("PLAN"));
+        assert!(agent_system_prompt("explore").contains("EXPLORE"));
+        assert!(agent_system_prompt("review").contains("REVIEW"));
+        assert!(agent_system_prompt("refactor").contains("REFACTOR"));
+        assert!(agent_system_prompt("debug").contains("DEBUG"));
+        assert!(agent_system_prompt("general").contains("GENERAL"));
+        assert!(agent_system_prompt("unknown").contains("GENERAL"));
+    }
 }
