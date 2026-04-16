@@ -401,4 +401,122 @@ mod tests {
         let result = diff.diff(&buf1, &buf2).unwrap();
         assert_eq!(result.total_diffs, 0);
     }
+
+    #[test]
+    fn test_buffer_diff_detects_single_cell_differences() {
+        let diff = BufferDiff::new();
+        let mut buf1 = create_buffer_with_content(3, 2, &["abc", "def"]);
+        let mut buf2 = create_buffer_with_content(3, 2, &["abc", "def"]);
+
+        buf2.content[3].set_symbol("x");
+
+        let result = diff.diff(&buf1, &buf2).unwrap();
+        assert_eq!(
+            result.total_diffs, 1,
+            "Should detect exactly one cell difference"
+        );
+
+        let cell_diff = &result.differences[0];
+        assert_eq!(cell_diff.x, 0, "x position should be 0");
+        assert_eq!(cell_diff.y, 1, "y position should be 1");
+        assert_eq!(
+            cell_diff.expected_symbol, "d",
+            "Expected symbol should be 'd'"
+        );
+        assert_eq!(cell_diff.actual_symbol, "x", "Actual symbol should be 'x'");
+    }
+
+    #[test]
+    fn test_buffer_diff_calculates_correct_diff_statistics() {
+        let diff = BufferDiff::new();
+        let buf1 = create_buffer_with_content(4, 3, &["abcd", "efgh", "ijkl"]);
+        let buf2 = create_buffer_with_content(4, 3, &["axcd", "efyh", "ijkl"]);
+
+        let result = diff.diff(&buf1, &buf2).unwrap();
+
+        assert_eq!(
+            result.total_diffs, 2,
+            "Should calculate exactly 2 differences"
+        );
+
+        assert_eq!(
+            result.differences.len(),
+            2,
+            "differences vec should have 2 entries"
+        );
+
+        let diff1 = &result.differences[0];
+        assert_eq!(diff1.x, 1);
+        assert_eq!(diff1.y, 0);
+        assert_eq!(diff1.expected_symbol, "b");
+        assert_eq!(diff1.actual_symbol, "x");
+
+        let diff2 = &result.differences[1];
+        assert_eq!(diff2.x, 1);
+        assert_eq!(diff2.y, 1);
+        assert_eq!(diff2.expected_symbol, "g");
+        assert_eq!(diff2.actual_symbol, "y");
+    }
+
+    #[test]
+    fn test_buffer_diff_single_cell_foreground_difference() {
+        let diff = BufferDiff::new();
+        let mut buf1 = create_buffer_with_content(1, 1, &["a"]);
+        let mut buf2 = create_buffer_with_content(1, 1, &["a"]);
+
+        buf1.content[0].fg = Color::Red;
+        buf2.content[0].fg = Color::Blue;
+
+        let result = diff.diff(&buf1, &buf2).unwrap();
+        assert_eq!(
+            result.total_diffs, 1,
+            "Should detect single cell foreground difference"
+        );
+
+        let cell_diff = &result.differences[0];
+        assert_eq!(cell_diff.expected_foreground, Some(Color::Red));
+        assert_eq!(cell_diff.actual_foreground, Some(Color::Blue));
+        assert_eq!(cell_diff.expected_symbol, "a");
+        assert_eq!(cell_diff.actual_symbol, "a");
+    }
+
+    #[test]
+    fn test_buffer_diff_single_cell_background_difference() {
+        let diff = BufferDiff::new();
+        let mut buf1 = create_buffer_with_content(1, 1, &["a"]);
+        let mut buf2 = create_buffer_with_content(1, 1, &["a"]);
+
+        buf1.content[0].bg = Color::Black;
+        buf2.content[0].bg = Color::White;
+
+        let result = diff.diff(&buf1, &buf2).unwrap();
+        assert_eq!(
+            result.total_diffs, 1,
+            "Should detect single cell background difference"
+        );
+
+        let cell_diff = &result.differences[0];
+        assert_eq!(cell_diff.expected_background, Some(Color::Black));
+        assert_eq!(cell_diff.actual_background, Some(Color::White));
+    }
+
+    #[test]
+    fn test_buffer_diff_single_cell_modifier_difference() {
+        let diff = BufferDiff::new();
+        let mut buf1 = create_buffer_with_content(1, 1, &["a"]);
+        let mut buf2 = create_buffer_with_content(1, 1, &["a"]);
+
+        buf1.content[0].modifier = Modifier::BOLD;
+        buf2.content[0].modifier = Modifier::ITALIC;
+
+        let result = diff.diff(&buf1, &buf2).unwrap();
+        assert_eq!(
+            result.total_diffs, 1,
+            "Should detect single cell modifier difference"
+        );
+
+        let cell_diff = &result.differences[0];
+        assert_eq!(cell_diff.expected_modifier, Some(Modifier::BOLD));
+        assert_eq!(cell_diff.actual_modifier, Some(Modifier::ITALIC));
+    }
 }

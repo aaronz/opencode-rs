@@ -1,3 +1,4 @@
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui_testing::PtySimulator;
 
 #[test]
@@ -58,4 +59,116 @@ fn test_pty_simulator_error_when_command_is_invalid() {
         result.is_err(),
         "PtySimulator::new should fail with invalid command"
     );
+}
+
+#[test]
+fn test_key_event_injection_works() {
+    let result = PtySimulator::new(&["cat"]);
+    assert!(result.is_ok(), "PtySimulator::new should succeed");
+
+    let mut pty = result.unwrap();
+
+    let key_event = KeyEvent::new(KeyCode::Char('h'), KeyModifiers::NONE);
+    let inject_result = pty.inject_key_event(key_event);
+    assert!(inject_result.is_ok(), "KeyEvent injection should succeed");
+
+    drop(pty);
+}
+
+#[test]
+fn test_key_event_injection_with_modifiers() {
+    let result = PtySimulator::new(&["cat"]);
+    assert!(result.is_ok(), "PtySimulator::new should succeed");
+
+    let mut pty = result.unwrap();
+
+    let ctrl_c = KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL);
+    let inject_result = pty.inject_key_event(ctrl_c);
+    assert!(
+        inject_result.is_ok(),
+        "Ctrl+C KeyEvent injection should succeed"
+    );
+
+    drop(pty);
+}
+
+#[test]
+fn test_mouse_event_injection_works() {
+    let result = PtySimulator::new(&["cat"]);
+    assert!(result.is_ok(), "PtySimulator::new should succeed");
+
+    let mut pty = result.unwrap();
+
+    let mouse_event = MouseEvent::new(
+        MouseEventKind::Down(MouseButton::Left),
+        10,
+        5,
+        KeyModifiers::NONE,
+    );
+    let inject_result = pty.inject_mouse_event(mouse_event);
+    assert!(inject_result.is_ok(), "MouseEvent injection should succeed");
+
+    drop(pty);
+}
+
+#[test]
+fn test_mouse_event_injection_scroll() {
+    let result = PtySimulator::new(&["cat"]);
+    assert!(result.is_ok(), "PtySimulator::new should succeed");
+
+    let mut pty = result.unwrap();
+
+    let scroll_event = MouseEvent::new(MouseEventKind::ScrollDown, 15, 20, KeyModifiers::NONE);
+    let inject_result = pty.inject_mouse_event(scroll_event);
+    assert!(
+        inject_result.is_ok(),
+        "Scroll mouse event injection should succeed"
+    );
+
+    drop(pty);
+}
+
+#[test]
+fn test_key_event_injection_reaches_terminal() {
+    let result = PtySimulator::new(&["cat"]);
+    assert!(result.is_ok(), "PtySimulator::new should succeed");
+
+    let mut pty = result.unwrap();
+
+    let key_event = KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE);
+    let inject_result = pty.inject_key_event(key_event);
+    assert!(inject_result.is_ok(), "KeyEvent injection should succeed");
+
+    std::thread::sleep(std::time::Duration::from_millis(50));
+
+    let output = pty.read_output(std::time::Duration::from_millis(100));
+    assert!(output.is_ok(), "Reading output should succeed");
+    let output_str = output.unwrap();
+    assert!(
+        output_str.contains('x'),
+        "Injected character 'x' should reach the terminal, got: {:?}",
+        output_str
+    );
+
+    drop(pty);
+}
+
+#[test]
+fn test_multiple_key_events_injection() {
+    let result = PtySimulator::new(&["cat"]);
+    assert!(result.is_ok(), "PtySimulator::new should succeed");
+
+    let mut pty = result.unwrap();
+
+    for ch in ['a', 'b', 'c'] {
+        let key_event = KeyEvent::new(KeyCode::Char(ch), KeyModifiers::NONE);
+        let inject_result = pty.inject_key_event(key_event);
+        assert!(
+            inject_result.is_ok(),
+            "KeyEvent injection for '{}' should succeed",
+            ch
+        );
+    }
+
+    drop(pty);
 }

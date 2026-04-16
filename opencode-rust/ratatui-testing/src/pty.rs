@@ -99,12 +99,28 @@ impl PtySimulator {
         }
     }
 
-    pub fn inject_key_event(&mut self, _event: crossterm::event::KeyEvent) -> Result<()> {
-        Ok(())
+    pub fn inject_key_event(&mut self, event: crossterm::event::KeyEvent) -> Result<()> {
+        let sequence = format!("{}", event);
+        match &mut self.writer {
+            Some(writer) => {
+                writer.write_all(sequence.as_bytes())?;
+                writer.flush()?;
+                Ok(())
+            }
+            None => anyhow::bail!("PTY writer not available"),
+        }
     }
 
-    pub fn inject_mouse_event(&mut self, _event: crossterm::event::MouseEvent) -> Result<()> {
-        Ok(())
+    pub fn inject_mouse_event(&mut self, event: crossterm::event::MouseEvent) -> Result<()> {
+        let sequence = format!("{}", event);
+        match &mut self.writer {
+            Some(writer) => {
+                writer.write_all(sequence.as_bytes())?;
+                writer.flush()?;
+                Ok(())
+            }
+            None => anyhow::bail!("PTY writer not available"),
+        }
     }
 
     pub fn is_child_running(&self) -> bool {
