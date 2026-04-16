@@ -674,7 +674,7 @@
       "priority": "P1",
       "title": "Collect uptime_seconds",
       "description": "Collect uptime_seconds since server start for status endpoint",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify uptime is calculated correctly"
       ],
