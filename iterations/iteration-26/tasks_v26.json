@@ -1,0 +1,135 @@
+{
+  "tasks": [
+    {
+      "id": "FR-DIFF-GAP-001",
+      "priority": "P1",
+      "title": "Fix diff_str() IgnoreOptions Bug",
+      "description": "The diff_str() method parses strings to Buffers but does not apply IgnoreOptions configured on the builder. String comparison ignores builder options. Must apply ignore_foreground, ignore_background, and ignore_attributes when set on the builder.",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify diff_str() applies ignore_foreground when set",
+        "AddUnitTest: verify diff_str() applies ignore_background when set",
+        "AddUnitTest: verify diff_str() applies ignore_attributes when set",
+        "AddRegressionTest: ensure existing diff_str() behavior is preserved for default case"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing diff_str",
+        "cargo test -p ratatui-testing --test diff_tests",
+        "cargo clippy -p ratatui-testing --all-targets -- -D warnings"
+      ],
+      "impl_notes": "Modify diff_str() in src/diff.rs to pass IgnoreOptions to the comparison logic. The method currently parses strings to Buffers but ignores the builder's ignore_* settings.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-SNAP-GAP-001",
+      "priority": "P1",
+      "title": "Make Snapshot Directory Configurable",
+      "description": "SNAPSHOT_DIR is hardcoded to 'snapshots' and is not configurable. Need to allow configuration via environment variable RATATUI_TESTING_SNAPSHOT_DIR while defaulting to 'snapshots'.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify RATATUI_TESTING_SNAPSHOT_DIR env var is read when set",
+        "AddUnitTest: verify default 'snapshots' is used when env var not set",
+        "AddIntegrationTest: verify load_snapshot() and save_snapshot() work with custom directory"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing snapshot",
+        "cargo test -p ratatui-testing --test snapshot_tests",
+        "cargo clippy -p ratatui-testing --all-targets -- -D warnings"
+      ],
+      "impl_notes": "In src/snapshot.rs, replace hardcoded SNAPSHOT_DIR with a function that checks the environment variable first, falling back to default 'snapshots'. Use std::env::var_or.",
+      "dependencies": []
+    },
+    {
+      "id": "DEP-001",
+      "priority": "P1",
+      "title": "Make crossterm a Required Dependency",
+      "description": "crossterm is marked optional = true in Cargo.toml but is required for PTY event injection functionality. Remove from optional features and ensure it remains as a required dependency with version 0.28.",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: cargo build -p ratatui-testing --all-features succeeds",
+        "RunTestSuite: cargo test -p ratatui-testing succeeds without changes",
+        "AddRegressionTest: ensure all crossterm-dependent tests pass"
+      ],
+      "test_commands": [
+        "cargo build -p ratatui-testing --all-features",
+        "cargo test -p ratatui-testing --all-features",
+        "cargo clippy -p ratatui-testing --all-targets -- -D warnings"
+      ],
+      "impl_notes": "In Cargo.toml, move crossterm from optional = true dependencies to required dependencies with version = \"0.28\". Update documentation to reflect this is a required dependency.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-PTY-GAP-001",
+      "priority": "P2",
+      "title": "Document Windows PTY Limitation",
+      "description": "Windows PTY implementation is a stub that returns errors. Add clear doc comments explaining the limitation, include helpful error message pointing to documentation, and PRD reference.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify #[cfg(windows)] implementation returns descriptive error",
+        "AddRegressionTest: ensure Unix PTY implementation is unaffected"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing pty",
+        "cargo clippy -p ratatui-testing --all-targets -- -D warnings",
+        "cargo doc -p ratatui-testing --no-deps"
+      ],
+      "impl_notes": "Add doc comment to #[cfg(windows)] block in src/pty.rs explaining Windows PTY is not supported, returns NotSupported error, and references PRD documentation.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-DIALOG-GAP-001",
+      "priority": "P2",
+      "title": "Complete DialogRenderTester Tests",
+      "description": "DialogRenderTester tests are incomplete. Missing tests for assert_render_result() and assert_empty_state() helper functions. Per FR-DIALOG-007 and FR-DIALOG-008, tests should verify border and content presence.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify assert_render_result() helper function works correctly",
+        "AddUnitTest: verify assert_empty_state() helper function works correctly",
+        "AddIntegrationTest: verify border presence check in rendered dialog",
+        "AddIntegrationTest: verify content presence check in rendered dialog"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing dialog",
+        "cargo test -p ratatui-testing --test dialog_tests",
+        "cargo clippy -p ratatui-testing --all-targets -- -D warnings"
+      ],
+      "impl_notes": "In tests/dialog_tests.rs, add tests for assert_render_result() and assert_empty_state(). Use TestBackend to verify rendered output contains expected borders and content.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-LIB-GAP-001",
+      "priority": "P2",
+      "title": "Export ChildProcess in lib.rs",
+      "description": "ChildProcess should be exported in lib.rs so users can access it. This task has been resolved.",
+      "status": "done",
+      "test_criteria": [
+        "RunTestSuite: verify ChildProcess is publicly accessible from the crate"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --lib",
+        "cargo clippy -p ratatui-testing --all-targets -- -D warnings"
+      ],
+      "impl_notes": "RESOLVED: ChildProcess is now exported in lib.rs. No further work needed.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-CLI-GAP-001",
+      "priority": "P2",
+      "title": "Fix with_temp_dir and capture_stdout/capture_stderr",
+      "description": "with_temp_dir() should return (Self, PathBuf) tuple and capture_stdout()/capture_stderr() methods should be implemented. This task has been resolved.",
+      "status": "done",
+      "test_criteria": [
+        "RunTestSuite: verify with_temp_dir() returns correct tuple type",
+        "RunTestSuite: verify capture_stdout() captures output correctly",
+        "RunTestSuite: verify capture_stderr() captures output correctly"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing cli",
+        "cargo test -p ratatui-testing --test cli_tests",
+        "cargo clippy -p ratatui-testing --all-targets -- -D warnings"
+      ],
+      "impl_notes": "RESOLVED: with_temp_dir() returns (Self, PathBuf) tuple as per implementation. capture_stdout() and capture_stderr() methods are now implemented. No further work needed.",
+      "dependencies": []
+    }
+  ]
+}

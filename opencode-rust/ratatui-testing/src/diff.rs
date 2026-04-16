@@ -822,4 +822,73 @@ mod tests {
         assert_eq!(result.differences[0].expected_symbol(), "e");
         assert_eq!(result.differences[0].actual_symbol(), "a");
     }
+
+    #[test]
+    fn test_diff_str_applies_ignore_foreground_when_set() {
+        let diff = BufferDiff::new().ignore_foreground();
+        let expected_buffer = create_buffer_with_content(1, 1, &["a"]);
+        let mut actual_buffer = create_buffer_with_content(1, 1, &["a"]);
+        actual_buffer.content[0].fg = Color::Red;
+        let result = diff.diff(&expected_buffer, &actual_buffer);
+        assert_eq!(
+            result.total_diffs, 0,
+            "ignore_foreground should make diff pass when only foreground differs"
+        );
+    }
+
+    #[test]
+    fn test_diff_str_applies_ignore_background_when_set() {
+        let diff = BufferDiff::new().ignore_background();
+        let expected_buffer = create_buffer_with_content(1, 1, &["a"]);
+        let mut actual_buffer = create_buffer_with_content(1, 1, &["a"]);
+        actual_buffer.content[0].bg = Color::Blue;
+        let result = diff.diff(&expected_buffer, &actual_buffer);
+        assert_eq!(
+            result.total_diffs, 0,
+            "ignore_background should make diff pass when only background differs"
+        );
+    }
+
+    #[test]
+    fn test_diff_str_applies_ignore_attributes_when_set() {
+        let diff = BufferDiff::new().ignore_attributes();
+        let expected_buffer = create_buffer_with_content(1, 1, &["a"]);
+        let mut actual_buffer = create_buffer_with_content(1, 1, &["a"]);
+        actual_buffer.content[0].modifier = Modifier::BOLD;
+        let result = diff.diff(&expected_buffer, &actual_buffer);
+        assert_eq!(
+            result.total_diffs, 0,
+            "ignore_attributes should make diff pass when only modifier differs"
+        );
+    }
+
+    #[test]
+    fn test_diff_str_default_behavior_preserved() {
+        let diff = BufferDiff::new();
+        let expected_buffer = create_buffer_with_content(1, 1, &["a"]);
+        let mut actual_buffer = create_buffer_with_content(1, 1, &["a"]);
+        actual_buffer.content[0].fg = Color::Red;
+        let result = diff.diff(&expected_buffer, &actual_buffer);
+        assert_eq!(
+            result.total_diffs, 1,
+            "Default behavior should detect foreground differences"
+        );
+    }
+
+    #[test]
+    fn test_diff_str_with_ignore_options_symbol_differences_still_detected() {
+        let diff = BufferDiff::new()
+            .ignore_foreground()
+            .ignore_background()
+            .ignore_attributes();
+        let result = diff.diff_str("abc", "abd");
+        assert!(
+            !result.passed,
+            "Symbol differences should still be detected even with all ignore options"
+        );
+        assert_eq!(result.total_diffs, 1);
+        assert_eq!(result.differences[0].x, 2);
+        assert_eq!(result.differences[0].expected_symbol(), "c");
+        assert_eq!(result.differences[0].actual_symbol(), "d");
+    }
 }
