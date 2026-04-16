@@ -22,7 +22,7 @@
 | Task ID | Description | File | Estimated | Status |
 |---------|-------------|------|-----------|--------|
 | T-004 | Convert String errors to thiserror enums | `crates/server/src/routes/*.rs` | 8 hours | ✅ Done |
-| T-005 | Add SAFETY comments to unsafe blocks | `crates/server/src/routes/validation.rs:237,256` | 30 min | Not Started |
+| T-005 | Add SAFETY comments to unsafe blocks | `crates/server/src/routes/validation.rs:237,256` | 30 min | ✅ Done |
 
 ### Integration Test Fixes
 
