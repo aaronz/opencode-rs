@@ -241,36 +241,145 @@ impl PtySimulator {
     }
 }
 
+/// Windows PTY implementation stub.
+///
+/// This module provides a stub implementation of PtySimulator for Windows platforms.
+/// All operations return errors indicating that PTY functionality is not supported.
+///
+/// ## Windows PTY Limitation
+///
+/// Windows PTY support is not implemented in this testing framework. The Windows API
+/// for PTY operations (ConPTY) has different semantics and behavior compared to Unix
+/// pseudo-terminals, making cross-platform testing challenging.
+///
+/// ## Error Handling
+///
+/// All methods in this implementation return `anyhow::Error` with messages prefixed
+/// by `PTY not supported on Windows:` followed by a specific reason. These errors
+/// help developers understand why their tests fail on Windows and provide guidance
+/// on workarounds.
+///
+/// ## PRD Reference
+///
+/// See [FR-PTY-GAP-001] in the ratatui-testing specification for details on this
+/// known limitation. The PRD documents this as a best-effort limitation - Unix PTY
+/// testing is fully supported while Windows PTY testing returns descriptive errors.
+///
+/// ## Workarounds for Windows Testing
+///
+/// - Run PTY-dependent tests only on Unix CI runners
+/// - Use conditional compilation with `#[cfg(unix)]` for PTY tests
+/// - Mock PTY interactions when testing cross-platform code
+///
+/// ## Documentation
+///
+/// For more information on Windows PTY limitations, see:
+/// - [Windows ConPTY Documentation](https://docs.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences)
+/// - [ratatui-testing Issue Tracker](https://github.com/anomalyco/ratatui-testing/issues)
+///
+/// [FR-PTY-GAP-001]: ./ratatui-testing/SPEC.md#FR-PTY-GAP-001
 #[cfg(windows)]
 impl PtySimulator {
+    /// Creates a new PTY simulator on Windows.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Err` with message "PTY not supported on Windows: PtySimulator requires
+    /// Unix-like environment for full functionality. See ratatui-testing documentation
+    /// for Windows limitations and workarounds."
     pub fn new() -> Result<Self> {
-        anyhow::bail!("PTY not supported on Windows")
+        anyhow::bail!(
+            "PTY not supported on Windows: PtySimulator requires Unix-like \
+            environment for full functionality. See \
+            https://github.com/anomalyco/ratatui-testing/blob/main/docs/windows-pty.md \
+            for details on Windows limitations and workarounds."
+        )
     }
 
+    /// Creates a new PTY simulator with a custom command on Windows.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Err` with message indicating Windows PTY is not supported.
     pub fn new_with_command(_command: &[&str]) -> Result<Self> {
-        anyhow::bail!("PTY not supported on Windows")
+        anyhow::bail!(
+            "PTY not supported on Windows: PtySimulator::new_with_command requires \
+            Unix-like environment. See \
+            https://github.com/anomalyco/ratatui-testing/blob/main/docs/windows-pty.md \
+            for details on Windows limitations and workarounds."
+        )
     }
 
+    /// Writes input to the PTY on Windows.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Err` indicating Windows PTY is not supported.
     pub fn write_input(&mut self, _input: &str) -> Result<()> {
-        anyhow::bail!("PTY not supported on Windows")
+        anyhow::bail!(
+            "PTY not supported on Windows: write_input requires Unix-like environment. \
+            See https://github.com/anomalyco/ratatui-testing/blob/main/docs/windows-pty.md \
+            for details on Windows limitations and workarounds."
+        )
     }
 
+    /// Reads output from the PTY on Windows.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Err` indicating Windows PTY is not supported.
     pub fn read_output(&mut self, _timeout: Duration) -> Result<String> {
-        anyhow::bail!("PTY not supported on Windows")
+        anyhow::bail!(
+            "PTY not supported on Windows: read_output requires Unix-like environment. \
+            See https://github.com/anomalyco/ratatui-testing/blob/main/docs/windows-pty.md \
+            for details on Windows limitations and workarounds."
+        )
     }
 
+    /// Resizes the PTY window on Windows.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Err` indicating Windows PTY is not supported.
     pub fn resize(&mut self, _cols: u16, _rows: u16) -> Result<()> {
-        anyhow::bail!("PTY not supported on Windows")
+        anyhow::bail!(
+            "PTY not supported on Windows: resize requires Unix-like environment. \
+            See https://github.com/anomalyco/ratatui-testing/blob/main/docs/windows-pty.md \
+            for details on Windows limitations and workarounds."
+        )
     }
 
+    /// Injects a key event into the PTY on Windows.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Err` indicating Windows PTY is not supported.
     pub fn inject_key_event(&mut self, _event: crossterm::event::KeyEvent) -> Result<()> {
-        anyhow::bail!("PTY not supported on Windows")
+        anyhow::bail!(
+            "PTY not supported on Windows: inject_key_event requires Unix-like environment. \
+            See https://github.com/anomalyco/ratatui-testing/blob/main/docs/windows-pty.md \
+            for details on Windows limitations and workarounds."
+        )
     }
 
+    /// Injects a mouse event into the PTY on Windows.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Err` indicating Windows PTY is not supported.
     pub fn inject_mouse_event(&mut self, _event: crossterm::event::MouseEvent) -> Result<()> {
-        anyhow::bail!("PTY not supported on Windows")
+        anyhow::bail!(
+            "PTY not supported on Windows: inject_mouse_event requires Unix-like environment. \
+            See https://github.com/anomalyco/ratatui-testing/blob/main/docs/windows-pty.md \
+            for details on Windows limitations and workarounds."
+        )
     }
 
+    /// Checks if the child process is running on Windows.
+    ///
+    /// # Returns
+    ///
+    /// Always returns `false` on Windows since no PTY is created.
     pub fn is_child_running(&self) -> bool {
         false
     }

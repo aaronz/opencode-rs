@@ -63,7 +63,7 @@
       "priority": "P2",
       "title": "Document Windows PTY Limitation",
       "description": "Windows PTY implementation is a stub that returns errors. Add clear doc comments explaining the limitation, include helpful error message pointing to documentation, and PRD reference.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify #[cfg(windows)] implementation returns descriptive error",
         "AddRegressionTest: ensure Unix PTY implementation is unaffected"
