@@ -23,17 +23,17 @@
       "priority": "P0",
       "title": "Fix test_tool_registry_execute_write_tool",
       "description": "Fix failing test in tests/src/tool_registry_audit_tests.rs. Tool execution returns failure instead of expected success. Debug the write tool execution path.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify write tool executes successfully and creates expected content",
         "AddUnitTest: ensure tool registry can find and execute the write tool",
-        "RunTestSuite: cargo test -p opencode-tools --test tool_registry_audit_tests test_tool_registry_execute_write_tool"
+        "RunTestSuite: cargo test -p opencode-integration-tests tool_registry_audit_tests::test_tool_registry_execute_write_tool"
       ],
       "test_commands": [
-        "cargo test -p opencode-tools --test tool_registry_audit_tests test_tool_registry_execute_write_tool",
-        "cargo test -p opencode-tools -- tool_registry_audit_tests"
+        "cargo test -p opencode-integration-tests tool_registry_audit_tests::test_tool_registry_execute_write_tool",
+        "cargo test -p opencode-integration-tests -- tool_registry_audit_tests"
       ],
-      "impl_notes": "Check write tool implementation in crates/tools/src/write.rs for path validation or execution issues",
+      "impl_notes": "Check write tool implementation in crates/tools/src/write.rs for path validation or execution issues. Test was already fixed in prior commit 950c778.",
       "dependencies": []
     },
     {
