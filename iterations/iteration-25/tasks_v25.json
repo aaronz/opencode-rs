@@ -196,7 +196,7 @@
       "priority": "P2",
       "title": "Add Windows platform detection for PTY",
       "description": "Add Windows detection and clear error message. Add #[cfg(windows)] check in PtySimulator::new() returning 'PTY not supported on Windows'. Use #[cfg(unix)] for Unix-specific code.",
-      "status": "done",
+      "status": "manual_check",
       "test_criteria": [
         "AddUnitTest: verify #[cfg(windows)] build uses error message for unsupported platform",
         "AddUnitTest: verify #[cfg(unix)] build works normally on Unix platforms",
