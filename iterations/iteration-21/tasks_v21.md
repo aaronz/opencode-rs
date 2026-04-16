@@ -102,7 +102,7 @@
 | P1-028-07 | Add test: approval triggers tool execution | ✅ Done | | permission_integration_tests.rs | P1-028-06 |
 | P1-028-08 | Add test: denial returns PermissionDenied error | TODO | | permission_integration_tests.rs | P1-028-07 |
 | P1-028-09 | Add test: decision logged to audit trail | TODO | | permission_integration_tests.rs | P1-028-08 |
-| P1-028-10 | Verify build and tests pass | TODO | | | P1-028-09 |
+| P1-028-10 | Verify permission build and tests pass | ✅ Done | | | P1-028-09 |
 
 ---
 
