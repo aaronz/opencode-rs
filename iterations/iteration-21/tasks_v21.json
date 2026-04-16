@@ -1308,7 +1308,7 @@
       "priority": "P2",
       "title": "Verify ratatui-testing build",
       "description": "Verify build: cargo build -p ratatui-testing",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: verify cargo build -p ratatui-testing succeeds"
       ],
@@ -1342,7 +1342,7 @@
       "priority": "P2",
       "title": "Add deterministic hook test",
       "description": "Add deterministic hook test in crates/plugin/src/lib.rs for hook ordering",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: ensure hook test compiles"
       ],
