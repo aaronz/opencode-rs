@@ -708,7 +708,7 @@
       "priority": "P1",
       "title": "Collect provider status from LLM registry",
       "description": "Collect provider status from LLM registry for status endpoint",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify LLM provider status is included in response"
       ],
