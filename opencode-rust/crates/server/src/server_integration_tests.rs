@@ -3339,9 +3339,14 @@ mod auth_negative_tests {
     use actix_web::http::StatusCode;
     use actix_web::test::TestRequest;
     use actix_web::web;
+    use actix_web::Responder;
     use opencode_core::{Message, PermissionManager, Session};
     use opencode_permission::{ApprovalQueue, PermissionScope};
     use std::sync::Arc;
+
+    fn create_test_state() -> crate::ServerState {
+        create_test_state_with_api_key(None)
+    }
 
     fn create_test_state_with_api_key(api_key: Option<String>) -> crate::ServerState {
         let temp_dir = tempfile::tempdir().unwrap();

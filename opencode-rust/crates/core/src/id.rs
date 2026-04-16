@@ -1,4 +1,3 @@
-use std::num::NonZeroU64;
 use std::str::FromStr;
 
 use thiserror::Error;
@@ -81,7 +80,6 @@ define_id_newtype!(ProjectId, "project:");
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::compare::Ordering;
 
     #[test]
     fn test_new_uuid() {
@@ -124,7 +122,7 @@ mod tests {
         let id = SessionId::new();
         let display = id.to_string();
         assert!(display.starts_with("session:"));
-        assert_eq!(display.len(), 7 + 36);
+        assert_eq!(display.len(), 8 + 36);
     }
 
     #[test]
@@ -189,36 +187,32 @@ mod tests {
     }
 
     #[test]
-    fn test_invalid_session_id_parse() {
+    fn test_newtype_invalid_session_id_parse() {
         let result: Result<SessionId, _> = "not-a-valid-uuid".parse();
         assert!(result.is_err());
     }
 
     #[test]
-    fn test_invalid_user_id_parse() {
+    fn test_newtype_invalid_user_id_parse() {
         let result: Result<UserId, _> = "invalid".parse();
         assert!(result.is_err());
     }
 
     #[test]
-    fn test_invalid_project_id_parse() {
+    fn test_newtype_invalid_project_id_parse() {
         let result: Result<ProjectId, _> = "12345".parse();
         assert!(result.is_err());
     }
 
     #[test]
-    fn test_session_id_type_confusion() {
-        let session_id = SessionId::new();
-        let user_id = UserId::new();
-        let project_id = ProjectId::new();
-
-        assert_ne!(session_id, user_id);
-        assert_ne!(session_id, project_id);
-        assert_ne!(user_id, project_id);
+    fn test_same_session_ids_equal() {
+        let sid1 = SessionId::new();
+        let sid2 = sid1;
+        assert_eq!(sid1, sid2);
     }
 
     #[test]
-    fn test_session_id_type_confusion_different() {
+    fn test_different_session_ids_not_equal() {
         let sid1 = SessionId::new();
         let sid2 = SessionId::new();
         assert_ne!(sid1, sid2);
@@ -237,6 +231,39 @@ mod tests {
         takes_session_id(sid);
         takes_user_id(uid);
         takes_project_id(pid);
+    }
+
+    #[test]
+    fn test_newtypes_prevent_cross_type_parsing() {
+        let session_id = SessionId::new();
+        let session_id_str = session_id.to_string();
+
+        let user_id_result: Result<UserId, _> = session_id_str.parse();
+        assert!(
+            user_id_result.is_err(),
+            "Should not be able to parse SessionId string as UserId"
+        );
+
+        let project_id_result: Result<ProjectId, _> = session_id_str.parse();
+        assert!(
+            project_id_result.is_err(),
+            "Should not be able to parse SessionId string as ProjectId"
+        );
+
+        let user_id = UserId::new();
+        let user_id_str = user_id.to_string();
+
+        let session_id_result: Result<SessionId, _> = user_id_str.parse();
+        assert!(
+            session_id_result.is_err(),
+            "Should not be able to parse UserId string as SessionId"
+        );
+
+        let project_id_result: Result<ProjectId, _> = user_id_str.parse();
+        assert!(
+            project_id_result.is_err(),
+            "Should not be able to parse UserId string as ProjectId"
+        );
     }
 
     #[test]
@@ -308,6 +335,7 @@ mod tests {
 
     #[test]
     fn test_id_parse_error_display() {
+        use std::num::NonZeroU64;
         let err = IdParseError::InvalidInt("not a number".parse::<NonZeroU64>().unwrap_err());
         assert!(err.to_string().contains("Invalid integer format"));
     }

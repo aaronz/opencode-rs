@@ -348,7 +348,7 @@
       "priority": "P1",
       "title": "Increase server crate coverage to 80%",
       "description": "Increase test coverage for crates/server to 80% (delta +40% from current). Focus on route handlers and middleware.",
-      "status": "in_progress",
+      "status": "manual_check",
       "test_criteria": [
         "AddUnitTest: increase line coverage to 80%",
         "RunTestSuite: cargo llvm-cov for coverage report"
@@ -480,7 +480,7 @@
       "priority": "P2",
       "title": "Add newtypes: SessionId, UserId, ProjectId",
       "description": "Add newtype wrappers for SessionId, UserId, ProjectId to prevent type confusion and improve type safety.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify newtypes prevent type confusion",
         "AddErrorHandlingTest: test invalid ID parsing returns error"
