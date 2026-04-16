@@ -1308,7 +1308,7 @@
       "priority": "P2",
       "title": "Verify ratatui-testing build",
       "description": "Verify build: cargo build -p ratatui-testing",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "RunTestSuite: verify cargo build -p ratatui-testing succeeds"
       ],
