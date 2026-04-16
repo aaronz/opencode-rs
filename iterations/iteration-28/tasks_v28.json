@@ -1,0 +1,615 @@
+{
+  "tasks": [
+    {
+      "id": "T-001",
+      "priority": "P0",
+      "title": "Fix unwrap() on Option - index lookup",
+      "description": "Fix `unwrap()` on Option in index lookup at crates/tools/src/edit.rs line 159. Replace with proper error handling using `ok()`, `expect()` with context, or `?` operator.",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify index lookup returns Err instead of panicking on invalid index",
+        "AddRegressionTest: ensure existing edit functionality still works with valid indices",
+        "AddErrorHandlingTest: test out-of-bounds index scenarios"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools --lib -- edit",
+        "cargo clippy -p opencode-tools -- -D warnings"
+      ],
+      "impl_notes": "Use `get()` method instead of index access with unwrap, or convert to Result type",
+      "dependencies": []
+    },
+    {
+      "id": "T-002",
+      "priority": "P0",
+      "title": "Fix unwrap() on Option - API key",
+      "description": "Fix `unwrap()` on Option for API key retrieval at crates/tools/src/web_search.rs line 70. API keys may not be set.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify web search handles missing API key gracefully",
+        "AddErrorHandlingTest: test missing API key returns proper error"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools --lib -- web_search",
+        "cargo clippy -p opencode-tools -- -D warnings"
+      ],
+      "impl_notes": "Return a typed error (WebSearchError::ApiKeyMissing) instead of panicking",
+      "dependencies": []
+    },
+    {
+      "id": "T-003",
+      "priority": "P0",
+      "title": "Audit all production .unwrap() calls",
+      "description": "Audit all production `.unwrap()` calls across all crates. Create a comprehensive list and fix each one.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: grep for remaining .unwrap() in production code paths",
+        "RunTestSuite: execute all tests to ensure no panics occur"
+      ],
+      "test_commands": [
+        "cargo test --all",
+        "cargo clippy --all -- -D warnings",
+        "rg '\\.unwrap\\(\\)' --type rust crates/"
+      ],
+      "impl_notes": "Systematic audit - categorize each unwrap as acceptable (test code) or needs fixing (production)",
+      "dependencies": [
+        "T-001",
+        "T-002"
+      ]
+    },
+    {
+      "id": "T-004",
+      "priority": "P0",
+      "title": "Convert String errors to thiserror enums",
+      "description": "Convert String-based error messages to structured thiserror enums in crates/server/src/routes/*.rs for better error handling and type safety.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify each error variant maps to correct HTTP status code",
+        "AddIntegrationTest: verify error responses are properly serialized to JSON",
+        "RunTestSuite: execute route tests to ensure no regression"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server --lib",
+        "cargo clippy -p opencode-server -- -D warnings"
+      ],
+      "impl_notes": "Define error enum with #[error(\"...\")] derive, map to HTTP status codes in route handlers",
+      "dependencies": []
+    },
+    {
+      "id": "T-005",
+      "priority": "P0",
+      "title": "Add SAFETY comments to unsafe blocks",
+      "description": "Add SAFETY comments to unsafe blocks in crates/server/src/routes/validation.rs at lines 237 and 256.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify unsafe blocks still function correctly",
+        "RunTestSuite: execute validation tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server --test validation",
+        "cargo clippy -p opencode-server -- -D warnings"
+      ],
+      "impl_notes": "Document invariants that must be maintained, justify why unsafe is necessary",
+      "dependencies": []
+    },
+    {
+      "id": "T-006",
+      "priority": "P0",
+      "title": "Fix tool registry read tool test",
+      "description": "Fix failing tool registry read tool test in tests/src/agent_tool_tests.rs",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify read tool correctly reads file contents",
+        "RunTestSuite: execute agent_tool_tests to confirm fix"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests --test agent_tool_tests -- read",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Check test setup - may need mock file system or temp file",
+      "dependencies": []
+    },
+    {
+      "id": "T-007",
+      "priority": "P0",
+      "title": "Fix tool registry write tool test",
+      "description": "Fix failing tool registry write tool test in tests/src/agent_tool_tests.rs",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify write tool correctly writes content to file",
+        "RunTestSuite: execute agent_tool_tests to confirm fix"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests --test agent_tool_tests -- write",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Check test setup - may need mock file system or temp directory",
+      "dependencies": []
+    },
+    {
+      "id": "T-008",
+      "priority": "P0",
+      "title": "Fix path normalization traversal test",
+      "description": "Fix failing path normalization traversal test in tests/src/security_tests.rs",
+      "status": "todo",
+      "test_criteria": [
+        "AddSecurityTest: verify path traversal attacks are blocked",
+        "AddRegressionTest: ensure legitimate paths still work after fix"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests --test security_tests -- path_normalization",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Test should verify /etc/passwd style paths are rejected",
+      "dependencies": []
+    },
+    {
+      "id": "T-009",
+      "priority": "P0",
+      "title": "Fix message content sanitization test",
+      "description": "Fix failing message content sanitization test in tests/src/security_tests.rs",
+      "status": "todo",
+      "test_criteria": [
+        "AddSecurityTest: verify HTML/script tags are stripped from messages",
+        "AddErrorHandlingTest: test various XSS payloads are sanitized"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests --test security_tests -- sanitization",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Verify sanitization function handles edge cases",
+      "dependencies": []
+    },
+    {
+      "id": "T-010",
+      "priority": "P0",
+      "title": "Fix XSS prevention test",
+      "description": "Fix failing XSS prevention test in tests/src/security_tests.rs",
+      "status": "todo",
+      "test_criteria": [
+        "AddSecurityTest: verify XSS payloads are neutralized",
+        "AddIntegrationTest: test XSS prevention in message rendering pipeline"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests --test security_tests -- xss",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Ensure HTML escaping is applied at output boundaries",
+      "dependencies": [
+        "T-009"
+      ]
+    },
+    {
+      "id": "T-011",
+      "priority": "P0",
+      "title": "Fix write tool path validation test",
+      "description": "Fix failing write tool path validation test in tests/src/tool_registry_audit_tests.rs",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify write tool validates paths correctly",
+        "AddSecurityTest: ensure paths outside allowed directories are rejected"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests --test tool_registry_audit_tests -- write_path",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Path validation should reject absolute paths and ../ traversal",
+      "dependencies": []
+    },
+    {
+      "id": "T-012",
+      "priority": "P1",
+      "title": "Audit pub visibility in core",
+      "description": "Audit all pub visibility modifiers in crates/core/src/ to identify over-exposed APIs.",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: verify all tests pass after audit",
+        "AddRegressionTest: ensure no functionality breaks from visibility changes"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Document each pub item and categorize as necessary or excessive",
+      "dependencies": []
+    },
+    {
+      "id": "T-013",
+      "priority": "P1",
+      "title": "Reduce pub to pub(crate) in core",
+      "description": "Reduce excessive pub visibility to pub(crate) in crates/core/src/ where items are only used internally.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify internal APIs still work within crate",
+        "RunTestSuite: ensure no compilation errors from visibility reduction"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core",
+        "cargo clippy -p opencode-core -- -D warnings",
+        "cargo build -p opencode-core"
+      ],
+      "impl_notes": "Only change items confirmed to have no external usage",
+      "dependencies": [
+        "T-012"
+      ]
+    },
+    {
+      "id": "T-014",
+      "priority": "P1",
+      "title": "Audit pub visibility in tools",
+      "description": "Audit all pub visibility modifiers in crates/tools/src/ to identify over-exposed APIs.",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: verify all tools tests pass",
+        "AddRegressionTest: ensure no functionality breaks"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools",
+        "cargo clippy -p opencode-tools -- -D warnings"
+      ],
+      "impl_notes": "Document each pub item and categorize",
+      "dependencies": []
+    },
+    {
+      "id": "T-015",
+      "priority": "P1",
+      "title": "Reduce pub to pub(crate) in tools",
+      "description": "Reduce excessive pub visibility to pub(crate) in crates/tools/src/ where items are only used internally.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify internal APIs still work within crate",
+        "RunTestSuite: ensure no compilation errors"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools",
+        "cargo clippy -p opencode-tools -- -D warnings",
+        "cargo build -p opencode-tools"
+      ],
+      "impl_notes": "Focus on tool implementations not exposed to external consumers",
+      "dependencies": [
+        "T-014"
+      ]
+    },
+    {
+      "id": "T-016",
+      "priority": "P1",
+      "title": "Audit pub visibility in agent",
+      "description": "Audit all pub visibility modifiers in crates/agent/src/ to identify over-exposed APIs.",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: verify all agent tests pass",
+        "AddRegressionTest: ensure no functionality breaks"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-agent",
+        "cargo clippy -p opencode-agent -- -D warnings"
+      ],
+      "impl_notes": "Document each pub item and categorize",
+      "dependencies": []
+    },
+    {
+      "id": "T-017",
+      "priority": "P1",
+      "title": "Increase core crate coverage to 80%",
+      "description": "Increase test coverage for crates/core to 80% (delta +20% from current). Focus on error handling and session management paths.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: increase line coverage to 80%",
+        "RunTestSuite: cargo llvm-cov --html for coverage report"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core",
+        "cargo llvm-cov --package opencode-core --fail-under-lines 80"
+      ],
+      "impl_notes": "Identify uncovered lines with cargo llvm-cov, add tests for error paths",
+      "dependencies": [
+        "T-003"
+      ]
+    },
+    {
+      "id": "T-018",
+      "priority": "P1",
+      "title": "Increase tools crate coverage to 80%",
+      "description": "Increase test coverage for crates/tools to 80% (delta +30% from current). Focus on tool execution and parameter validation.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: increase line coverage to 80%",
+        "RunTestSuite: cargo llvm-cov for coverage report"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools",
+        "cargo llvm-cov --package opencode-tools --fail-under-lines 80"
+      ],
+      "impl_notes": "Test edge cases in each tool implementation",
+      "dependencies": [
+        "T-006",
+        "T-007",
+        "T-011"
+      ]
+    },
+    {
+      "id": "T-019",
+      "priority": "P1",
+      "title": "Increase agent crate coverage to 80%",
+      "description": "Increase test coverage for crates/agent to 80% (delta +35% from current). Focus on agent loop and tool orchestration.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: increase line coverage to 80%",
+        "RunTestSuite: cargo llvm-cov for coverage report"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-agent",
+        "cargo llvm-cov --package opencode-agent --fail-under-lines 80"
+      ],
+      "impl_notes": "Mock LLM provider for deterministic agent testing",
+      "dependencies": []
+    },
+    {
+      "id": "T-020",
+      "priority": "P1",
+      "title": "Increase server crate coverage to 80%",
+      "description": "Increase test coverage for crates/server to 80% (delta +40% from current). Focus on route handlers and middleware.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: increase line coverage to 80%",
+        "RunTestSuite: cargo llvm-cov for coverage report"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server",
+        "cargo llvm-cov --package opencode-server --fail-under-lines 80"
+      ],
+      "impl_notes": "Add integration tests for each route endpoint",
+      "dependencies": [
+        "T-004",
+        "T-005"
+      ]
+    },
+    {
+      "id": "T-021",
+      "priority": "P1",
+      "title": "Increase llm crate coverage to 80%",
+      "description": "Increase test coverage for crates/llm to 80% (delta +25% from current). Focus on provider implementations and response parsing.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: increase line coverage to 80%",
+        "RunTestSuite: cargo llvm-cov for coverage report"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm",
+        "cargo llvm-cov --package opencode-llm --fail-under-lines 80"
+      ],
+      "impl_notes": "Mock HTTP responses for provider testing",
+      "dependencies": []
+    },
+    {
+      "id": "T-022",
+      "priority": "P1",
+      "title": "Add cargo-llvm-cov CI gate",
+      "description": "Add cargo-llvm-cov to CI pipeline with 80% line coverage threshold as a gate for PRs.",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify CI fails when coverage drops below 80%",
+        "AddRegressionTest: ensure coverage report is generated on success"
+      ],
+      "test_commands": [
+        "cargo llvm-cov --all --fail-under-lines 80",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Add to .github/workflows/ci.yml or similar CI config",
+      "dependencies": [
+        "T-017",
+        "T-018",
+        "T-019",
+        "T-020",
+        "T-021"
+      ]
+    },
+    {
+      "id": "T-023",
+      "priority": "P1",
+      "title": "Migrate legacy error variants to typed errors",
+      "description": "Migrate legacy String-based error variants to typed errors with proper error enums across the codebase.",
+      "status": "in_progress",
+      "test_criteria": [
+        "AddUnitTest: verify error conversion maintains error messages",
+        "RunTestSuite: ensure no errors are lost in conversion"
+      ],
+      "test_commands": [
+        "cargo test --all",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Partial progress - identify remaining String errors and convert",
+      "dependencies": [
+        "T-004"
+      ]
+    },
+    {
+      "id": "T-024",
+      "priority": "P2",
+      "title": "Add mockall dependency for trait mocking",
+      "description": "Add mockall dependency to enable mocking of traits in tests for better unit test isolation.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify mockall generates mocks correctly",
+        "RunTestSuite: ensure tests compile with mockall"
+      ],
+      "test_commands": [
+        "cargo test --all --features mockall",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Add to Cargo.toml dependencies with mockall feature",
+      "dependencies": []
+    },
+    {
+      "id": "T-025",
+      "priority": "P2",
+      "title": "Add service layer to server routes",
+      "description": "Add service layer abstraction between route handlers and business logic in server routes.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify service layer correctly delegates to handlers",
+        "AddIntegrationTest: ensure routes work through service layer"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server",
+        "cargo clippy -p opencode-server -- -D warnings"
+      ],
+      "impl_notes": "Extract business logic from route handlers into dedicated service modules",
+      "dependencies": [
+        "T-004"
+      ]
+    },
+    {
+      "id": "T-026",
+      "priority": "P2",
+      "title": "Expand builder pattern to server routes",
+      "description": "Expand builder pattern usage to server routes for cleaner request/response construction.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify builder constructs valid requests/responses",
+        "AddRegressionTest: ensure existing routes still work"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server",
+        "cargo clippy -p opencode-server -- -D warnings"
+      ],
+      "impl_notes": "Identify routes that would benefit from builders",
+      "dependencies": []
+    },
+    {
+      "id": "T-027",
+      "priority": "P2",
+      "title": "Add newtypes: SessionId, UserId, ProjectId",
+      "description": "Add newtype wrappers for SessionId, UserId, ProjectId to prevent type confusion and improve type safety.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify newtypes prevent type confusion",
+        "AddErrorHandlingTest: test invalid ID parsing returns error"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core -- newtype",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Use struct with Display/Debug/FromStr implementations",
+      "dependencies": []
+    },
+    {
+      "id": "T-028",
+      "priority": "P2",
+      "title": "Audit enum matching for exhaustiveness",
+      "description": "Audit enum matching across the codebase to ensure exhaustive matching with proper wildcard handling.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: add #[deny(non_exhaustive)] where appropriate",
+        "RunTestSuite: ensure compilation with exhaustive warnings"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings",
+        "cargo build --all"
+      ],
+      "impl_notes": "Use #[deny(non_exhaustive)] to catch missing matches in future",
+      "dependencies": []
+    },
+    {
+      "id": "T-029",
+      "priority": "P2",
+      "title": "Add rstest for parameterized tests",
+      "description": "Add rstest dependency and use parameterized tests where appropriate for cleaner test code.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify parameterized tests work correctly",
+        "AddRegressionTest: ensure existing tests still pass"
+      ],
+      "test_commands": [
+        "cargo test --all --features rstest",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Add rstest to Cargo.toml, refactor existing parameterized tests",
+      "dependencies": []
+    },
+    {
+      "id": "T-030",
+      "priority": "P2",
+      "title": "Seal additional traits",
+      "description": "Seal additional traits that should not have external implementations to maintain API boundaries.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify sealed traits cannot be implemented externally",
+        "RunTestSuite: ensure code compiles"
+      ],
+      "test_commands": [
+        "cargo test --all",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Add sealed trait pattern to appropriate traits",
+      "dependencies": []
+    },
+    {
+      "id": "T-031",
+      "priority": "P2",
+      "title": "Extend repository pattern to all data access",
+      "description": "Extend repository pattern to all data access layers for consistent data access abstraction.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify repository implementations",
+        "AddIntegrationTest: ensure data access works through repository"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-storage",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Create repository traits for each data entity",
+      "dependencies": []
+    },
+    {
+      "id": "T-032",
+      "priority": "P2",
+      "title": "Audit let mut usage in session.rs",
+      "description": "Audit unnecessary let mut usage in crates/core/src/session.rs and refactor to immutable patterns where possible.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify session functionality unchanged",
+        "RunTestSuite: ensure no regressions"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core -- session",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Use mutation through methods returning new values if possible",
+      "dependencies": []
+    },
+    {
+      "id": "T-033",
+      "priority": "P2",
+      "title": "Add SAFETY comments to unsafe blocks",
+      "description": "Add SAFETY comments to unsafe blocks in crates/plugin/src/lib.rs at line 661.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify plugin unsafe blocks still function",
+        "RunTestSuite: execute plugin tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin",
+        "cargo clippy -p opencode-plugin -- -D warnings"
+      ],
+      "impl_notes": "Document invariants and justification for unsafe",
+      "dependencies": []
+    },
+    {
+      "id": "T-034",
+      "priority": "P2",
+      "title": "Add SAFETY comments to unsafe blocks",
+      "description": "Add SAFETY comments to unsafe blocks in crates/tui/src/app.rs at lines 4677 and 4690.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify TUI app functionality unchanged",
+        "RunTestSuite: execute TUI tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui",
+        "cargo clippy -p opencode-tui -- -D warnings"
+      ],
+      "impl_notes": "Document invariants and justification for unsafe",
+      "dependencies": []
+    }
+  ]
+}

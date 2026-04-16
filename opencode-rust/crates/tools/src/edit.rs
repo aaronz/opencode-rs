@@ -156,7 +156,7 @@ fn replace(
                 continue;
             }
 
-            let idx = index.unwrap();
+            let idx = index.expect("index was validated as Some at line 145");
             let (start, end) = content.split_at(idx);
             return Ok(format!("{}{}{}", start, new_string, &end[search.len()..]));
         }
@@ -555,5 +555,134 @@ impl Iterator for ReplaceWhitespace<'_> {
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         (self.0.len(), Some(self.0.len()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_replace_simple_valid_edit() {
+        let content = "Hello World";
+        let result = replace(content, "World", "Rust", false);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "Hello Rust");
+    }
+
+    #[test]
+    fn test_replace_with_no_match_returns_err() {
+        let content = "Hello World";
+        let result = replace(content, "NotFound", "Rust", false);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.contains("Could not find oldString"));
+    }
+
+    #[test]
+    fn test_replace_multiple_matches_returns_err_without_replace_all() {
+        let content = "foo bar foo baz";
+        let result = replace(content, "foo", "qux", false);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.contains("Found multiple matches"));
+    }
+
+    #[test]
+    fn test_replace_multiple_matches_with_replace_all() {
+        let content = "foo bar foo baz";
+        let result = replace(content, "foo", "qux", true);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "qux bar qux baz");
+    }
+
+    #[test]
+    fn test_replace_unique_match_works() {
+        let content = "foo bar baz";
+        let result = replace(content, "foo", "qux", false);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "qux bar baz");
+    }
+
+    #[test]
+    fn test_replace_empty_content_with_nonexistent_string() {
+        let content = "hello world";
+        let result = replace(content, "xyz", "replacement", false);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_replace_does_not_panic_on_any_input() {
+        let test_cases = vec![
+            ("hello", "test"),
+            ("hello world", "hello"),
+            ("hello world", "world"),
+            ("line1\nline2\nline3", "line2"),
+            ("abc", "abc"),
+        ];
+
+        for (content, old) in test_cases {
+            let result = std::panic::catch_unwind(|| replace(content, old, "new", false));
+            assert!(
+                result.is_ok(),
+                "replace should not panic for content='{}', old='{}'",
+                content,
+                old
+            );
+            let result = result.unwrap();
+            if old.is_empty() || !content.contains(old) {
+                assert!(
+                    result.is_err(),
+                    "Expected error for content='{}', old='{}'",
+                    content,
+                    old
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_replace_no_panic_with_various_whitespace() {
+        let content = "fn foo() {\n    let x = 1;\n}";
+        let result = replace(content, "    let", "        let", false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_replace_out_of_bounds_index_scenarios() {
+        let content = "abc";
+        let result = replace(content, "abc", "xyz", false);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "xyz");
+    }
+
+    #[test]
+    fn test_replace_unique_single_char_match() {
+        let content = "abc def ghi";
+        let result = replace(content, "d", "D", false);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "abc Def ghi");
+    }
+
+    #[test]
+    fn test_replace_returns_err_for_multiple_matches() {
+        let content = "aaa";
+        let result = replace(content, "a", "b", false);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_replace_unique_match_at_different_positions() {
+        let content = "prefix test suffix";
+        let result = replace(content, "test", "result", false);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "prefix result suffix");
+    }
+
+    #[test]
+    fn test_replace_no_panic_with_multiline_content() {
+        let content = "line1\nline2\nline3\nline4\nline5";
+        let result = replace(content, "line3", "LINE3", false);
+        assert!(result.is_ok());
     }
 }
