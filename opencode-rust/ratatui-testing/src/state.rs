@@ -35,7 +35,7 @@ impl TerminalState {
                     }
                 }
             }
-            if line.is_empty() && found_non_space == false {
+            if line.is_empty() && !found_non_space {
                 line.push(' ');
             }
             content.push(line);

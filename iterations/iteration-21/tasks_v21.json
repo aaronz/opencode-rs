@@ -1440,7 +1440,7 @@
       "priority": "P2",
       "title": "Add SQL injection tests for messages",
       "description": "Add SQL injection tests for message operations in security_tests.rs",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddErrorHandlingTest: verify SQL injection attempts are sanitized"
       ],
@@ -1457,7 +1457,7 @@
       "priority": "P2",
       "title": "Add path traversal tests for file ops",
       "description": "Add path traversal tests for file operations in security_tests.rs",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddErrorHandlingTest: verify path traversal attempts are blocked"
       ],
@@ -1474,7 +1474,7 @@
       "priority": "P2",
       "title": "Add request validation tests",
       "description": "Add request validation tests for all endpoints in security_tests.rs",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddErrorHandlingTest: verify invalid requests are rejected"
       ],

@@ -537,21 +537,30 @@ async fn test_sql_injection_sessions() {
     );
 }
 
-
 #[tokio::test]
 async fn test_sql_injection_messages() {
     let (pool, _temp_dir) = create_test_pool().await;
     let session_repo = Arc::new(SqliteSessionRepository::new(pool.clone()));
 
     let mut session = Session::new();
-    session.add_message(opencode_core::message::Message::user("Test message 1".to_string()));
-    session.add_message(opencode_core::message::Message::assistant("Test message 2".to_string()));
-    session_repo.save(&session).await.expect("Session should save");
+    session.add_message(opencode_core::message::Message::user(
+        "Test message 1".to_string(),
+    ));
+    session.add_message(opencode_core::message::Message::assistant(
+        "Test message 2".to_string(),
+    ));
+    session_repo
+        .save(&session)
+        .await
+        .expect("Session should save");
 
     let legitimate_id = session.id.to_string();
     let result = session_repo.find_by_id(&legitimate_id).await;
     assert!(result.is_ok(), "Legitimate session lookup should succeed");
-    assert!(result.as_ref().unwrap().is_some(), "Legitimate session should be found");
+    assert!(
+        result.as_ref().unwrap().is_some(),
+        "Legitimate session should be found"
+    );
 
     let sql_injection_payloads = vec![
         "'; DROP TABLE sessions; --",
@@ -567,13 +576,22 @@ async fn test_sql_injection_messages() {
     for payload in sql_injection_payloads {
         let result = session_repo.find_by_id(payload).await;
         assert!(result.is_ok(), "SQL injection {} should not crash", payload);
-        assert!(result.as_ref().unwrap().is_none(), "SQL injection {} should return None", payload);
+        assert!(
+            result.as_ref().unwrap().is_none(),
+            "SQL injection {} should return None",
+            payload
+        );
     }
 
     let count_after = session_repo.count().await.expect("Count should work");
-    assert_eq!(count_after, 1, "After SQL injection attempts, exactly 1 session should remain");
+    assert_eq!(
+        count_after, 1,
+        "After SQL injection attempts, exactly 1 session should remain"
+    );
 
     let legitimate_result = session_repo.find_by_id(&legitimate_id).await;
-    assert!(legitimate_result.is_ok() && legitimate_result.unwrap().is_some(),
-        "The legitimate session should still be accessible");
+    assert!(
+        legitimate_result.is_ok() && legitimate_result.unwrap().is_some(),
+        "The legitimate session should still be accessible"
+    );
 }
