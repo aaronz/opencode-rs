@@ -147,7 +147,7 @@
       "priority": "P2",
       "title": "Create tests/state_tests.rs",
       "description": "StateTester specific tests. Snapshot capture/compare tests. Approximately 200 lines.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify file created at tests/state_tests.rs",
         "AddUnitTest: verify StateTester specific tests",
@@ -166,7 +166,7 @@
       "priority": "P2",
       "title": "Create tests/integration_tests.rs",
       "description": "Cross-module integration tests. TestDsl composition tests. End-to-end workflow tests. Approximately 300 lines.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify file created at tests/integration_tests.rs",
         "AddIntegrationTest: verify cross-module integration tests",
