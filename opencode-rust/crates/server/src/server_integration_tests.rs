@@ -135,7 +135,7 @@ mod tests {
         .await
         .respond_to(&req);
 
-        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(resp.status(), StatusCode::FORBIDDEN);
     }
 
     #[actix_web::test]
@@ -224,7 +224,7 @@ mod tests {
         .await
         .respond_to(&req);
 
-        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(resp.status(), StatusCode::FORBIDDEN);
 
         {
             let pm = permission_manager.write().unwrap();
@@ -1039,7 +1039,7 @@ mod tests {
         .await
         .respond_to(&req);
 
-        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(resp.status(), StatusCode::FORBIDDEN);
     }
 
     #[actix_web::test]
@@ -1376,7 +1376,7 @@ mod tests {
         )
         .await
         .respond_to(&req);
-        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(resp.status(), StatusCode::FORBIDDEN);
     }
 
     #[actix_web::test]
@@ -2073,7 +2073,7 @@ mod security_tests {
         .await
         .respond_to(&req);
 
-        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(resp.status(), StatusCode::FORBIDDEN);
     }
 
     #[actix_web::test]
@@ -2204,7 +2204,7 @@ mod security_tests {
         .await
         .respond_to(&req);
 
-        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(resp.status(), StatusCode::FORBIDDEN);
 
         let entries = audit_log
             .as_ref()

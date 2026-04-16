@@ -1,12 +1,15 @@
 use actix_web::{test::TestRequest, web};
+use chrono::Utc;
 use opencode_core::permission::Permission;
 use opencode_permission::{
-    AgentPermissionScope, ApprovalQueue, ApprovalResult, PendingApproval, PermissionScope,
+    AgentPermissionScope, ApprovalQueue, ApprovalResult, AuditDecision, AuditEntry, AuditLog,
+    PendingApproval, PermissionScope,
 };
 use opencode_server::ServerState;
 use opencode_storage::SqliteProjectRepository;
 use opencode_storage::SqliteSessionRepository;
 use std::sync::Arc;
+use tempfile::TempDir;
 use uuid::Uuid;
 
 #[derive(serde::Deserialize)]
@@ -410,4 +413,91 @@ async fn permission_reply_handler(
             "decision": decision
         })),
     }
+}
+
+fn create_test_state_with_audit_log(temp_dir: TempDir) -> (ServerState, TempDir, Arc<AuditLog>) {
+    let db_path = temp_dir.path().join("test.db");
+    let audit_path = temp_dir.path().join("audit.db");
+    let audit_log = Arc::new(AuditLog::new(audit_path).expect("Failed to create audit log"));
+
+    let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
+    let session_repo = Arc::new(SqliteSessionRepository::new(pool.clone()));
+    let project_repo = Arc::new(SqliteProjectRepository::new(pool.clone()));
+
+    let state = opencode_server::ServerState {
+        storage: Arc::new(opencode_storage::StorageService::new(
+            session_repo,
+            project_repo,
+            pool,
+        )),
+        models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
+        config: std::sync::Arc::new(std::sync::RwLock::new(opencode_core::Config::default())),
+        event_bus: opencode_core::bus::SharedEventBus::default(),
+        reconnection_store: opencode_server::streaming::ReconnectionStore::default(),
+        temp_db_dir: None,
+        connection_monitor: std::sync::Arc::new(
+            opencode_server::streaming::conn_state::ConnectionMonitor::new(),
+        ),
+        share_server: std::sync::Arc::new(std::sync::RwLock::new(
+            opencode_server::routes::share::ShareServer::with_default_config(),
+        )),
+        acp_enabled: false,
+        acp_stream: opencode_control_plane::AcpEventStream::new().into(),
+        acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
+            opencode_server::routes::acp_ws::AcpClientRegistry::new(),
+        )),
+        tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
+        session_hub: std::sync::Arc::new(opencode_server::routes::ws::SessionHub::new(256)),
+        server_start_time: std::time::SystemTime::now(),
+        permission_manager: std::sync::Arc::new(std::sync::RwLock::new(
+            opencode_core::PermissionManager::default(),
+        )),
+        approval_queue: std::sync::Arc::new(std::sync::RwLock::new(
+            opencode_permission::ApprovalQueue::default(),
+        )),
+        audit_log: Some(audit_log.clone()),
+    };
+    (state, temp_dir, audit_log)
+}
+
+#[actix_web::test]
+async fn test_decision_logged() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let (state, _temp_dir, audit_log) = create_test_state_with_audit_log(temp_dir);
+
+    let session_id = "test-session-audit";
+    let req_id = Uuid::new_v4().to_string();
+
+    let resp = permission_reply_handler(
+        web::Data::new(state),
+        web::Path::from((session_id.to_string(), req_id.clone())),
+        web::Json(PermissionReplyRequest {
+            decision: "allow".to_string(),
+        }),
+    )
+    .await;
+
+    assert_eq!(resp.status(), actix_web::http::StatusCode::OK);
+
+    let entries = audit_log
+        .get_recent_entries(10)
+        .expect("Should be able to query audit log");
+
+    let has_session_entry = entries.iter().any(|e| e.session_id == session_id);
+    assert!(
+        has_session_entry,
+        "Audit log should contain entry for session {}, but got: {:?}",
+        session_id, entries
+    );
+
+    let now = Utc::now();
+    let recent_entry = entries
+        .iter()
+        .find(|e| e.session_id == session_id && e.decision == AuditDecision::Allow)
+        .expect("Should find allow decision for session");
+
+    assert!(
+        (now - recent_entry.timestamp).num_seconds() < 5,
+        "Timestamp should be recent"
+    );
 }
