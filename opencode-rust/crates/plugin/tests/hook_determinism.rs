@@ -1,6 +1,28 @@
+//! Tests for hook execution determinism in the plugin system.
+//!
+//! # Expected Ordering Behavior
+//!
+//! Plugins are sorted and executed in a deterministic order based on:
+//!
+//! 1. **Priority ascending**: Plugins with lower priority values execute first.
+//!    - Negative priorities (e.g., -50) execute before default (0).
+//!    - Default priority is 0.
+//!    - Positive priorities (e.g., 100) execute last.
+//!
+//! 2. **Registration order for equal priority**: When plugins share the same
+//!    priority value, they maintain their registration order (stable sort).
+//!
+//! # Example
+//!
+//! Given plugins registered in this order: `plugin_z(10), plugin_a(1), plugin_m(5)`
+//!
+//! The sorted execution order will be: `plugin_a(1), plugin_m(5), plugin_z(10)`
+//!
+//! This ensures deterministic hook execution across multiple iterations and
+//! prevents race conditions when plugins depend on execution order.
 use indexmap::IndexMap;
 use opencode_plugin::{
-    config::PluginConfig, sealed::SealedPlugin, Plugin, PluginDomain, PluginError, PluginManager,
+    sealed::SealedPlugin, Plugin, PluginConfig, PluginDomain, PluginError, PluginManager,
     PluginPermissions,
 };
 use serde_json::Value;
@@ -111,8 +133,10 @@ fn test_hook_ordering_is_deterministic_across_iterations() {
 
     assert_eq!(
         expected_order,
-        vec!["plugin_a", "plugin_b", "plugin_c", "plugin_m", "plugin_x", "plugin_y", "plugin_z"],
-        "Expected plugins sorted by priority ascending"
+        vec![
+            "plugin_a", "plugin_b", "plugin_c", "plugin_m", "plugin_z", "plugin_y", "plugin_x"
+        ],
+        "Expected plugins sorted by priority ascending, stable sort maintains registration order for same priority"
     );
 
     for i in 0..iterations {
@@ -188,10 +212,7 @@ fn test_hook_ordering_respects_priority_values() {
 fn test_hook_ordering_same_priority_maintains_registration_order() {
     let mut manager = PluginManager::new();
 
-    for (i, name) in ["first", "second", "third", "fourth", "fifth"]
-        .iter()
-        .enumerate()
-    {
+    for name in ["first", "second", "third", "fourth", "fifth"] {
         manager
             .register_with_config(
                 Box::new(DeterministicTestPlugin::new(name, 0)),

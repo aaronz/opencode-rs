@@ -1374,7 +1374,7 @@
       "priority": "P2",
       "title": "Document expected ordering behavior",
       "description": "Document expected ordering behavior in test doc comment",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: ensure documentation is present in test"
       ],

@@ -591,7 +591,7 @@ impl PluginManager {
             .collect()
     }
 
-    fn register_with_config(
+    pub fn register_with_config(
         &mut self,
         plugin: Box<dyn Plugin>,
         config: PluginConfig,
@@ -610,7 +610,7 @@ impl PluginManager {
     /// Plugins with lower priority values execute first.
     /// This ensures deterministic hook execution order based on explicit priority configuration.
     /// Default priority is 0. Plugins with the same priority execute in registration order.
-    pub(crate) fn sorted_plugin_names(&self) -> Vec<String> {
+    pub fn sorted_plugin_names(&self) -> Vec<String> {
         let mut names_with_priority: Vec<(String, i32)> = self
             .plugins
             .keys()
