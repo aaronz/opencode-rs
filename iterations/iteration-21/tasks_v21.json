@@ -1325,7 +1325,7 @@
       "priority": "P2",
       "title": "Verify ratatui-testing tests pass",
       "description": "Verify tests: cargo test -p ratatui-testing",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: verify cargo test -p ratatui-testing succeeds"
       ],

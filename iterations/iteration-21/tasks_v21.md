@@ -119,8 +119,8 @@
 | P2-023-05 | Implement TestDsl fluent API | TODO | | ratatui-testing/src/dsl.rs | P2-023-02, P2-023-03, P2-023-04 |
 | P2-023-06 | Implement CliTester process management | ✅ Done | | ratatui-testing/src/cli.rs | None |
 | P2-023-07 | Add tests for each component | TODO | | ratatui-testing/tests/ | P2-023-06 |
-| P2-023-08 | Verify build: `cargo build -p ratatui-testing` | TODO | | | P2-023-07 |
-| P2-023-09 | Verify tests: `cargo test -p ratatui-testing` | TODO | | | P2-023-08 |
+| P2-023-08 | Verify build: `cargo build -p ratatui-testing` | ✅ Done | | | P2-023-07 |
+| P2-023-09 | Verify tests: `cargo test -p ratatui-testing` | ✅ Done | | | P2-023-08 |
 
 ### FR-029: Hook Determinism Test
 
