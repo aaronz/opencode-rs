@@ -3980,5 +3980,30 @@ mod tests {
                 );
             }
         }
+
+        #[test]
+        fn hook_determinism() {
+            let mut manager = PluginManager::new();
+
+            register_priority_plugin(&mut manager, "plugin-a", 10);
+            register_priority_plugin(&mut manager, "plugin-b", 20);
+            register_priority_plugin(&mut manager, "plugin-c", 30);
+
+            let first_call = manager.sorted_plugin_names();
+            assert_eq!(
+                first_call,
+                vec!["plugin-a", "plugin-b", "plugin-c"],
+                "First call should return plugins in ascending priority order"
+            );
+
+            for i in 0..100 {
+                let result = manager.sorted_plugin_names();
+                assert_eq!(
+                    result, first_call,
+                    "Iteration {}: sorted_plugin_names() should return consistent ordering",
+                    i
+                );
+            }
+        }
     }
 }

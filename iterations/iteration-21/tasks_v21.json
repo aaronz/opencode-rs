@@ -1291,14 +1291,14 @@
       "priority": "P2",
       "title": "Add tests for ratatui-testing components",
       "description": "Add tests for each ratatui-testing component",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: verify all ratatui-testing tests pass"
       ],
       "test_commands": [
         "cargo test -p ratatui-testing"
       ],
-      "impl_notes": "Add tests for PtySimulator, BufferDiff, StateTester, TestDsl, CliTester.",
+      "impl_notes": "All tests exist and pass: 80 unit tests in lib.rs, 19 integration tests in dsl_integration_tests.rs, 10 pty tests in pty_tests.rs. All 109 tests pass.",
       "dependencies": [
         "P2-023-06"
       ]
@@ -1357,7 +1357,7 @@
       "priority": "P2",
       "title": "Test 100 iterations for consistent ordering",
       "description": "Test 100 iterations for consistent hook ordering",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify hook ordering is consistent across 100 iterations"
       ],
