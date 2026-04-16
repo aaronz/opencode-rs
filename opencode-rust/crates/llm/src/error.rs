@@ -49,6 +49,18 @@ pub struct RetryConfig {
     pub backoff_multiplier: f64,
 }
 
+#[derive(Error, Debug, Clone)]
+pub enum RetryConfigError {
+    #[error("max_retries must be greater than 0, got {0}")]
+    InvalidMaxRetries(u32),
+    #[error("initial_delay_ms must be greater than 0, got {0}")]
+    InvalidInitialDelay(u64),
+    #[error("max_delay_ms must be greater than or equal to initial_delay_ms: {0} < {1}")]
+    InvalidMaxDelay(u64, u64),
+    #[error("backoff_multiplier must be greater than 1.0, got {0}")]
+    InvalidBackoffMultiplier(f64),
+}
+
 impl Default for RetryConfig {
     fn default() -> Self {
         Self {
@@ -57,6 +69,29 @@ impl Default for RetryConfig {
             max_delay_ms: 30000,
             backoff_multiplier: 2.0,
         }
+    }
+}
+
+impl RetryConfig {
+    pub fn validate(&self) -> Result<(), RetryConfigError> {
+        if self.max_retries == 0 {
+            return Err(RetryConfigError::InvalidMaxRetries(self.max_retries));
+        }
+        if self.initial_delay_ms == 0 {
+            return Err(RetryConfigError::InvalidInitialDelay(self.initial_delay_ms));
+        }
+        if self.max_delay_ms < self.initial_delay_ms {
+            return Err(RetryConfigError::InvalidMaxDelay(
+                self.max_delay_ms,
+                self.initial_delay_ms,
+            ));
+        }
+        if self.backoff_multiplier <= 1.0 {
+            return Err(RetryConfigError::InvalidBackoffMultiplier(
+                self.backoff_multiplier,
+            ));
+        }
+        Ok(())
     }
 }
 
@@ -108,6 +143,113 @@ mod tests {
     fn test_llm_error_implements_std_error() {
         fn assert_implements_error<T: std::error::Error>() {}
         assert_implements_error::<LlmError>();
+    }
+
+    #[test]
+    fn test_retry_config_error_implements_std_error() {
+        fn assert_implements_error<T: std::error::Error>() {}
+        assert_implements_error::<RetryConfigError>();
+    }
+
+    #[test]
+    fn test_retry_config_error_is_send_sync() {
+        fn assert_send_sync<T: Send + Sync>() {}
+        assert_send_sync::<RetryConfigError>();
+    }
+
+    #[test]
+    fn test_invalid_max_retries_display() {
+        let err = RetryConfigError::InvalidMaxRetries(0);
+        let msg = err.to_string();
+        assert!(msg.contains("max_retries"));
+        assert!(msg.contains("0"));
+    }
+
+    #[test]
+    fn test_invalid_initial_delay_display() {
+        let err = RetryConfigError::InvalidInitialDelay(0);
+        let msg = err.to_string();
+        assert!(msg.contains("initial_delay_ms"));
+        assert!(msg.contains("0"));
+    }
+
+    #[test]
+    fn test_invalid_max_delay_display() {
+        let err = RetryConfigError::InvalidMaxDelay(100, 500);
+        let msg = err.to_string();
+        assert!(msg.contains("max_delay_ms"));
+        assert!(msg.contains("100"));
+        assert!(msg.contains("500"));
+    }
+
+    #[test]
+    fn test_invalid_backoff_multiplier_display() {
+        let err = RetryConfigError::InvalidBackoffMultiplier(1.0);
+        let msg = err.to_string();
+        assert!(msg.contains("backoff_multiplier"));
+        assert!(msg.contains("1"));
+    }
+
+    #[test]
+    fn test_retry_config_validate_success() {
+        let config = RetryConfig::default();
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_retry_config_validate_invalid_max_retries() {
+        let config = RetryConfig {
+            max_retries: 0,
+            ..Default::default()
+        };
+        assert!(matches!(
+            config.validate().unwrap_err(),
+            RetryConfigError::InvalidMaxRetries(0)
+        ));
+    }
+
+    #[test]
+    fn test_retry_config_validate_invalid_initial_delay() {
+        let config = RetryConfig {
+            initial_delay_ms: 0,
+            ..Default::default()
+        };
+        assert!(matches!(
+            config.validate().unwrap_err(),
+            RetryConfigError::InvalidInitialDelay(0)
+        ));
+    }
+
+    #[test]
+    fn test_retry_config_validate_invalid_max_delay() {
+        let config = RetryConfig {
+            max_delay_ms: 100,
+            initial_delay_ms: 500,
+            ..Default::default()
+        };
+        assert!(matches!(
+            config.validate().unwrap_err(),
+            RetryConfigError::InvalidMaxDelay(100, 500)
+        ));
+    }
+
+    #[test]
+    fn test_retry_config_validate_invalid_backoff_multiplier() {
+        let config = RetryConfig {
+            backoff_multiplier: 1.0,
+            ..Default::default()
+        };
+        assert!(matches!(
+            config.validate().unwrap_err(),
+            RetryConfigError::InvalidBackoffMultiplier(1.0)
+        ));
+    }
+
+    #[test]
+    fn test_retry_config_error_clone() {
+        let err = RetryConfigError::InvalidMaxRetries(5);
+        let cloned = err.clone();
+        assert_eq!(err.to_string(), cloned.to_string());
     }
 
     #[test]

@@ -184,7 +184,7 @@
       "priority": "P1",
       "title": "Convert RetryConfig errors to thiserror",
       "description": "Convert RetryConfig error types in crates/llm/src/error.rs to use thiserror derive macro.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify RetryConfig errors implement std::error::Error",
         "AddErrorHandlingTest: test retry configuration error scenarios",

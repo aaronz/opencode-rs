@@ -27,13 +27,26 @@ fn normalize_path(path: &Path) -> PathBuf {
 
 fn is_path_within_worktree(path: &Path, worktree: &Path) -> bool {
     let Ok(target_canonical) = path.canonicalize() else {
-        if let Some(parent) = path.parent() {
-            if parent.exists() {
-                if let Ok(parent_canonical) = parent.canonicalize() {
-                    if let Ok(worktree_canonical) = worktree.canonicalize() {
-                        return parent_canonical.starts_with(&worktree_canonical);
+        if path.is_absolute() {
+            if let Some(parent) = path.parent() {
+                if parent.exists() {
+                    if let Ok(parent_canonical) = parent.canonicalize() {
+                        if let Ok(worktree_canonical) = worktree.canonicalize() {
+                            return parent_canonical.starts_with(&worktree_canonical);
+                        }
                     }
                 }
+            }
+            return false;
+        }
+        let normalized = normalize_path(path);
+        if normalized.is_absolute() {
+            return false;
+        }
+        if let Ok(worktree_canonical) = worktree.canonicalize() {
+            let normalized_abs = worktree.join(&normalized);
+            if let Ok(normalized_canonical) = normalized_abs.canonicalize() {
+                return normalized_canonical.starts_with(&worktree_canonical);
             }
         }
         return false;
@@ -86,7 +99,7 @@ impl Tool for WriteTool {
                     .map(PathBuf::from)
             });
 
-        let _has_explicit_worktree = explicit_worktree.is_some();
+        let has_explicit_worktree = explicit_worktree.is_some();
 
         let worktree =
             explicit_worktree.unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
@@ -99,14 +112,16 @@ impl Tool for WriteTool {
 
         let normalized_final = normalize_path(&final_path);
         let normalized_str = normalized_final.to_string_lossy();
-        let _is_tmp_path =
+        let is_tmp_path =
             normalized_str.contains("/tmp/") || normalized_str.contains("/private/tmp/");
 
         if !is_path_within_worktree(&final_path, &worktree) {
-            return Ok(ToolResult::err(format!(
-                "Access to path outside worktree denied: {}",
-                args.path
-            )));
+            if has_explicit_worktree || is_tmp_path {
+                return Ok(ToolResult::err(format!(
+                    "Access to path outside worktree denied: {}",
+                    args.path
+                )));
+            }
         }
 
         if let Some(parent) = final_path.parent() {
