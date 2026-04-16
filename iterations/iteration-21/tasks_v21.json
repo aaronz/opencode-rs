@@ -608,14 +608,14 @@
       "priority": "P0",
       "title": "Verify WebSocket tests pass",
       "description": "Verify tests pass: cargo test -p opencode-integration-tests ws",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: verify all ws streaming tests pass"
       ],
       "test_commands": [
         "cargo test -p opencode-integration-tests ws"
       ],
-      "impl_notes": "Verification task - no implementation needed.",
+      "impl_notes": "Verification task - no implementation needed. Tests pass: 39 passed; 0 failed.",
       "dependencies": [
         "P0-025-14"
       ]
@@ -625,7 +625,7 @@
       "priority": "P1",
       "title": "Create status.rs route",
       "description": "Create server/src/routes/status.rs for server status endpoint",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: ensure status.rs compiles correctly"
       ],

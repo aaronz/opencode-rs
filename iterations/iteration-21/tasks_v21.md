@@ -50,7 +50,7 @@
 | P0-025-12 | Add test: multiple clients receive same events | ✅ Done | | tests/src/ws_streaming_tests.rs | P0-025-11 |
 | P0-025-13 | Add test: client disconnect doesn't crash server | TODO | | tests/src/ws_streaming_tests.rs | P0-025-12 |
 | P0-025-14 | Verify build: `cargo build -p opencode-server` | ✅ Done | | | P0-025-13 |
-| P0-025-15 | Verify tests pass: `cargo test -p opencode-integration-tests ws` | TODO | | | P0-025-14 |
+| P0-025-15 | Verify tests pass: `cargo test -p opencode-integration-tests ws` | ✅ Done | | | P0-025-14 |
 
 ---
 
