@@ -41,3 +41,5 @@ utoipa-actix-web = "0.1"
 [dev-dependencies]
 tempfile = "3"
 async-trait = "0.1"
+tokio-tungstenite = "0.24"
+futures-util = "0.3"
