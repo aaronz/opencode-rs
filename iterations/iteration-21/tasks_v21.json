@@ -1188,7 +1188,7 @@
       "priority": "P2",
       "title": "Review PtySimulator implementation",
       "description": "Review current ratatui-testing/src/pty.rs PtySimulator implementation",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: ensure current PtySimulator compiles and basic functionality works"
       ],

@@ -2245,7 +2245,11 @@ mod security_tests {
             .await
             .respond_to(&req);
 
-            assert_eq!(resp.status(), StatusCode::OK);
+            if decision == "allow" {
+                assert_eq!(resp.status(), StatusCode::OK);
+            } else {
+                assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+            }
         }
 
         let entries = audit_log
@@ -3211,8 +3215,8 @@ mod api_negative_tests {
         .respond_to(&req);
         assert_eq!(
             resp.status(),
-            StatusCode::OK,
-            "Permission reply with 'deny' decision should succeed"
+            StatusCode::FORBIDDEN,
+            "Permission reply with 'deny' decision should return FORBIDDEN"
         );
     }
 }

@@ -2,8 +2,8 @@ use actix_web::{test::TestRequest, web};
 use chrono::Utc;
 use opencode_core::permission::Permission;
 use opencode_permission::{
-    AgentPermissionScope, ApprovalQueue, ApprovalResult, AuditDecision, AuditEntry, AuditLog,
-    PendingApproval, PermissionScope,
+    AgentPermissionScope, ApprovalQueue, ApprovalResult, AuditDecision, AuditLog, PendingApproval,
+    PermissionScope,
 };
 use opencode_server::ServerState;
 use opencode_storage::SqliteProjectRepository;
@@ -31,6 +31,29 @@ fn req_id_to_permission(req_id: &str) -> Permission {
         Permission::NetworkAccess
     } else {
         Permission::FileRead
+    }
+}
+
+fn derive_tool_name_from_req_id(req_id: &str) -> String {
+    let lower = req_id.to_lowercase();
+    if lower.contains("file_read") || lower.contains("read") {
+        "read".to_string()
+    } else if lower.contains("file_write") || lower.contains("write") {
+        "write".to_string()
+    } else if lower.contains("file_delete") || lower.contains("delete") {
+        "delete".to_string()
+    } else if lower.contains("bash") || lower.contains("execute") {
+        "bash".to_string()
+    } else if lower.contains("network") || lower.contains("external") {
+        "network".to_string()
+    } else if lower.contains("grep") {
+        "grep".to_string()
+    } else if lower.contains("glob") {
+        "glob".to_string()
+    } else if lower.contains("edit") {
+        "edit".to_string()
+    } else {
+        req_id.to_string()
     }
 }
 
@@ -388,6 +411,22 @@ async fn permission_reply_handler(
                 _ => {}
             }
         }
+    }
+
+    if let Some(ref audit_log) = state.audit_log {
+        let audit_decision = match decision.as_str() {
+            "allow" => AuditDecision::Allow,
+            "deny" => AuditDecision::Deny,
+            _ => AuditDecision::Ask,
+        };
+        let tool_name = derive_tool_name_from_req_id(&req_id);
+        if let Err(_e) = audit_log.record_decision(AuditEntry {
+            timestamp: Utc::now(),
+            tool_name,
+            decision: audit_decision,
+            session_id: session_id.clone(),
+            user_response: Some(decision.clone()),
+        }) {}
     }
 
     match decision.as_str() {
