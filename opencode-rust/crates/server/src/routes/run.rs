@@ -343,6 +343,21 @@ mod tests {
     }
 
     #[test]
+    fn test_stream_param_is_accepted() {
+        let json = r#"{"prompt": "hello", "stream": true}"#;
+        let req: RunRequest = serde_json::from_str(json).unwrap();
+        assert!(req.stream);
+        assert_eq!(req.prompt, "hello");
+    }
+
+    #[test]
+    fn test_stream_param_defaults_to_false() {
+        let json = r#"{"prompt": "hello"}"#;
+        let req: RunRequest = serde_json::from_str(json).unwrap();
+        assert!(!req.stream);
+    }
+
+    #[test]
     fn test_agent_system_prompt() {
         assert!(agent_system_prompt("build").contains("BUILD"));
         assert!(agent_system_prompt("plan").contains("PLAN"));

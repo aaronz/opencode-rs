@@ -863,7 +863,7 @@
       "priority": "P1",
       "title": "Add stream parameter to run_prompt",
       "description": "Add stream parameter to run_prompt function signature",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify stream parameter is accepted"
       ],
@@ -880,7 +880,7 @@
       "priority": "P1",
       "title": "Implement token-by-token SSE streaming",
       "description": "Implement token-by-token SSE streaming in run_prompt",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify SSE stream contains token events"
       ],
