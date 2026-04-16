@@ -704,20 +704,13 @@ async fn test_tool_events_stream_realtime() {
         call_id: "call-test-123".to_string(),
     });
 
-    let tool_call_msg = ws.next().await;
+    let tool_call_parsed = recv_next_non_heartbeat(&mut ws).await;
     assert!(
-        tool_call_msg.is_some(),
+        tool_call_parsed.is_some(),
         "Should receive tool call event via WebSocket"
     );
 
-    let tool_call_text = tool_call_msg
-        .unwrap()
-        .expect("Message should not be error")
-        .into_text()
-        .expect("Should be text message");
-
-    let tool_call_parsed: serde_json::Value =
-        serde_json::from_str(&tool_call_text).expect("Should parse as JSON");
+    let tool_call_parsed = tool_call_parsed.unwrap();
 
     assert_eq!(
         tool_call_parsed.get("type").and_then(|v| v.as_str()),
@@ -746,20 +739,13 @@ async fn test_tool_events_stream_realtime() {
         success: true,
     });
 
-    let tool_result_msg = ws.next().await;
+    let tool_result_parsed = recv_next_non_heartbeat(&mut ws).await;
     assert!(
-        tool_result_msg.is_some(),
+        tool_result_parsed.is_some(),
         "Should receive tool result event via WebSocket"
     );
 
-    let tool_result_text = tool_result_msg
-        .unwrap()
-        .expect("Message should not be error")
-        .into_text()
-        .expect("Should be text message");
-
-    let tool_result_parsed: serde_json::Value =
-        serde_json::from_str(&tool_result_text).expect("Should parse as JSON");
+    let tool_result_parsed = tool_result_parsed.unwrap();
 
     assert_eq!(
         tool_result_parsed.get("type").and_then(|v| v.as_str()),
@@ -859,33 +845,20 @@ async fn test_multiple_clients_receive_same_events() {
         call_id: "call-multi-123".to_string(),
     });
 
-    let tool_call_msg1 = ws1.next().await;
-    let tool_call_msg2 = ws2.next().await;
+    let tool_call_parsed1 = recv_next_non_heartbeat(&mut ws1).await;
+    let tool_call_parsed2 = recv_next_non_heartbeat(&mut ws2).await;
 
     assert!(
-        tool_call_msg1.is_some(),
+        tool_call_parsed1.is_some(),
         "First client should receive tool call event"
     );
     assert!(
-        tool_call_msg2.is_some(),
+        tool_call_parsed2.is_some(),
         "Second client should receive tool call event"
     );
 
-    let tool_call_text1 = tool_call_msg1
-        .unwrap()
-        .expect("Message should not be error")
-        .into_text()
-        .expect("Should be text message");
-    let tool_call_text2 = tool_call_msg2
-        .unwrap()
-        .expect("Message should not be error")
-        .into_text()
-        .expect("Should be text message");
-
-    let tool_call_parsed1: serde_json::Value =
-        serde_json::from_str(&tool_call_text1).expect("Should parse as JSON");
-    let tool_call_parsed2: serde_json::Value =
-        serde_json::from_str(&tool_call_text2).expect("Should parse as JSON");
+    let tool_call_parsed1 = tool_call_parsed1.unwrap();
+    let tool_call_parsed2 = tool_call_parsed2.unwrap();
 
     assert_eq!(
         tool_call_parsed1.get("type").and_then(|v| v.as_str()),
@@ -934,33 +907,20 @@ async fn test_multiple_clients_receive_same_events() {
         success: true,
     });
 
-    let tool_result_msg1 = ws1.next().await;
-    let tool_result_msg2 = ws2.next().await;
+    let tool_result_parsed1 = recv_next_non_heartbeat(&mut ws1).await;
+    let tool_result_parsed2 = recv_next_non_heartbeat(&mut ws2).await;
 
     assert!(
-        tool_result_msg1.is_some(),
+        tool_result_parsed1.is_some(),
         "First client should receive tool result event"
     );
     assert!(
-        tool_result_msg2.is_some(),
+        tool_result_parsed2.is_some(),
         "Second client should receive tool result event"
     );
 
-    let tool_result_text1 = tool_result_msg1
-        .unwrap()
-        .expect("Message should not be error")
-        .into_text()
-        .expect("Should be text message");
-    let tool_result_text2 = tool_result_msg2
-        .unwrap()
-        .expect("Message should not be error")
-        .into_text()
-        .expect("Should be text message");
-
-    let tool_result_parsed1: serde_json::Value =
-        serde_json::from_str(&tool_result_text1).expect("Should parse as JSON");
-    let tool_result_parsed2: serde_json::Value =
-        serde_json::from_str(&tool_result_text2).expect("Should parse as JSON");
+    let tool_result_parsed1 = tool_result_parsed1.unwrap();
+    let tool_result_parsed2 = tool_result_parsed2.unwrap();
 
     assert_eq!(
         tool_result_parsed1.get("type").and_then(|v| v.as_str()),
@@ -988,33 +948,20 @@ async fn test_multiple_clients_receive_same_events() {
         status: "processing".to_string(),
     });
 
-    let status_msg1 = ws1.next().await;
-    let status_msg2 = ws2.next().await;
+    let status_parsed1 = recv_next_non_heartbeat(&mut ws1).await;
+    let status_parsed2 = recv_next_non_heartbeat(&mut ws2).await;
 
     assert!(
-        status_msg1.is_some(),
+        status_parsed1.is_some(),
         "First client should receive status update"
     );
     assert!(
-        status_msg2.is_some(),
+        status_parsed2.is_some(),
         "Second client should receive status update"
     );
 
-    let status_text1 = status_msg1
-        .unwrap()
-        .expect("Message should not be error")
-        .into_text()
-        .expect("Should be text message");
-    let status_text2 = status_msg2
-        .unwrap()
-        .expect("Message should not be error")
-        .into_text()
-        .expect("Should be text message");
-
-    let status_parsed1: serde_json::Value =
-        serde_json::from_str(&status_text1).expect("Should parse as JSON");
-    let status_parsed2: serde_json::Value =
-        serde_json::from_str(&status_text2).expect("Should parse as JSON");
+    let status_parsed1 = status_parsed1.unwrap();
+    let status_parsed2 = status_parsed2.unwrap();
 
     assert_eq!(
         status_parsed1.get("type").and_then(|v| v.as_str()),
@@ -1040,6 +987,24 @@ async fn test_multiple_clients_receive_same_events() {
     let _ = ws_close(&mut ws1).await;
     let _ = ws_close(&mut ws2).await;
     server_handle.abort();
+}
+
+async fn recv_next_non_heartbeat(
+    ws: &mut tokio_tungstenite::WebSocketStream<
+        tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+    >,
+) -> Option<serde_json::Value> {
+    while let Some(msg) = ws.next().await {
+        if let Ok(text) = msg.unwrap().into_text() {
+            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&text) {
+                if parsed.get("type").and_then(|v| v.as_str()) == Some("heartbeat") {
+                    continue;
+                }
+                return Some(parsed);
+            }
+        }
+    }
+    None
 }
 
 async fn start_ws_test_server_with_state(

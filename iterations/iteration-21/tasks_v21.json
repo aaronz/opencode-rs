@@ -557,7 +557,7 @@
       "priority": "P0",
       "title": "Add test: multiple clients receive same events",
       "description": "Add integration test: multiple clients connected to same session receive identical events",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify two clients receive same events"
       ],
@@ -608,7 +608,7 @@
       "priority": "P0",
       "title": "Verify WebSocket tests pass",
       "description": "Verify tests pass: cargo test -p opencode-integration-tests ws",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "RunTestSuite: verify all ws streaming tests pass"
       ],
