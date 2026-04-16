@@ -130,7 +130,7 @@
       "priority": "P0",
       "title": "Fix path normalization traversal test",
       "description": "Fix failing path normalization traversal test in tests/src/security_tests.rs",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddSecurityTest: verify path traversal attacks are blocked",
         "AddRegressionTest: ensure legitimate paths still work after fix"

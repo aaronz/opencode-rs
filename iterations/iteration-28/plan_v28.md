@@ -39,7 +39,7 @@ let idx = index.ok_or_else(|| MyError::InvalidIndex("index not found".into()))?;
 |----|--------|------|--------|
 | P0-006 | Fix `test_tool_registry_execute_read_tool` | `tests/src/` | Failing |
 | P0-007 | Fix `test_tool_registry_execute_write_tool` | `tests/src/` | Failing |
-| P0-008 | Fix `test_path_normalization_prevents_traversal` | `tests/src/` | Failing |
+| P0-008 | Fix `test_path_normalization_prevents_traversal` | `tests/src/` | ✅ Done |
 | P0-009 | Fix `test_session_message_content_sanitization` | `tests/src/` | Failing |
 | P0-010 | Fix `test_session_message_xss_prevention` | `tests/src/` | Failing |
 | P0-011 | Fix `test_write_tool_path_validation` | `tests/src/` | Failing |
