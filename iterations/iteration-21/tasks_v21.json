@@ -1033,7 +1033,7 @@
       "priority": "P1",
       "title": "Connect permission_reply to PermissionManager",
       "description": "Connect permission_reply endpoint to PermissionManager for decision processing",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify permission_reply calls PermissionManager"
       ],
@@ -1050,7 +1050,7 @@
       "priority": "P1",
       "title": "Update ApprovalQueue on decision",
       "description": "Update ApprovalQueue on permission decision (approve/deny)",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify ApprovalQueue is updated after decision"
       ],
