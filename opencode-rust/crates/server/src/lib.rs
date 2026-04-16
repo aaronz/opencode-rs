@@ -100,6 +100,7 @@ pub async fn run_server(state: Arc<ServerState>, host: &str, port: u16) -> std::
                 web::get().to(routes::web_ui::serve_static),
             )
             .route("/health", web::get().to(health_check))
+            .route("/api/status", web::get().to(routes::status::get_status))
             .service(
                 web::scope("/api")
                     .wrap_fn(|req, srv| {
@@ -178,6 +179,7 @@ pub async fn run_server_with_shutdown(
                 web::get().to(routes::web_ui::serve_static),
             )
             .route("/health", web::get().to(health_check))
+            .route("/api/status", web::get().to(routes::status::get_status))
             .service(
                 web::scope("/api")
                     .wrap_fn(|req, srv| {

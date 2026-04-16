@@ -1628,6 +1628,102 @@ mod tests {
             "Response should have 'count' field"
         );
     }
+
+    #[actix_web::test]
+    async fn route_group_status_includes_provider_status() {
+        use actix_web::web;
+        let state = create_test_state();
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::status::get_status(web::Data::new(state))
+            .await
+            .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = actix_web::body::to_bytes(resp.into_body())
+            .await
+            .unwrap_or_else(|_| actix_web::web::Bytes::new());
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert!(
+            json.get("providers").is_some(),
+            "Status response should have 'providers' field"
+        );
+        let providers = json.get("providers").unwrap().as_array().unwrap();
+        assert!(
+            !providers.is_empty(),
+            "Status response should include at least one provider"
+        );
+        for provider in providers {
+            assert!(
+                provider.get("name").is_some(),
+                "Provider should have 'name' field"
+            );
+            assert!(
+                provider.get("status").is_some(),
+                "Provider should have 'status' field"
+            );
+            assert!(
+                provider.get("model").is_some(),
+                "Provider should have 'model' field"
+            );
+        }
+        assert!(
+            json.get("version").is_some(),
+            "Status response should have 'version' field"
+        );
+        assert!(
+            json.get("status").is_some(),
+            "Status response should have 'status' field"
+        );
+        assert!(
+            json.get("uptime_seconds").is_some(),
+            "Status response should have 'uptime_seconds' field"
+        );
+        assert!(
+            json.get("active_sessions").is_some(),
+            "Status response should have 'active_sessions' field"
+        );
+        assert!(
+            json.get("total_sessions").is_some(),
+            "Status response should have 'total_sessions' field"
+        );
+    }
+
+    #[actix_web::test]
+    async fn route_group_status_provider_count_matches_model_registry() {
+        use actix_web::web;
+        let state = create_test_state();
+        let models_clone = state.models.clone();
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::status::get_status(web::Data::new(state))
+            .await
+            .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = actix_web::body::to_bytes(resp.into_body())
+            .await
+            .unwrap_or_else(|_| actix_web::web::Bytes::new());
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let status_providers = json.get("providers").unwrap().as_array().unwrap();
+        let model_registry_providers: std::collections::HashSet<String> = models_clone
+            .list()
+            .iter()
+            .map(|m| m.provider.clone())
+            .collect();
+        let status_provider_names: std::collections::HashSet<String> = status_providers
+            .iter()
+            .map(|p| p.get("name").unwrap().as_str().unwrap().to_string())
+            .collect();
+        assert_eq!(
+            model_registry_providers.len(),
+            status_provider_names.len(),
+            "Number of providers in status response should match unique providers in model registry"
+        );
+        for provider_name in status_provider_names {
+            assert!(
+                model_registry_providers.contains(&provider_name),
+                "Provider '{}' in status should exist in model registry",
+                provider_name
+            );
+        }
+    }
 }
 
 #[cfg(test)]
@@ -3376,6 +3472,78 @@ mod auth_negative_tests {
         assert_eq!(
             json["active_sessions"], 0,
             "active_sessions should be 0 initially"
+        );
+    }
+
+    #[actix_web::test]
+    async fn status_no_auth_endpoint_accessible_without_authentication() {
+        use actix_web::web;
+        use actix_web::Responder;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("status_no_auth_test.db");
+
+        let storage = {
+            let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
+            let manager = opencode_storage::migration::MigrationManager::new(pool.clone(), 2);
+            manager.migrate().await.expect("Should run migrations");
+            let session_repo =
+                Arc::new(opencode_storage::SqliteSessionRepository::new(pool.clone()));
+            let project_repo =
+                Arc::new(opencode_storage::SqliteProjectRepository::new(pool.clone()));
+            Arc::new(opencode_storage::StorageService::new(
+                session_repo,
+                project_repo,
+                pool,
+            ))
+        };
+
+        let state = crate::ServerState {
+            storage,
+            models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
+            config: std::sync::Arc::new(std::sync::RwLock::new(opencode_core::Config::default())),
+            event_bus: opencode_core::bus::SharedEventBus::default(),
+            reconnection_store: crate::streaming::ReconnectionStore::default(),
+            temp_db_dir: None,
+            connection_monitor: std::sync::Arc::new(
+                crate::streaming::conn_state::ConnectionMonitor::new(),
+            ),
+            share_server: std::sync::Arc::new(std::sync::RwLock::new(
+                crate::routes::share::ShareServer::with_default_config(),
+            )),
+            acp_enabled: false,
+            acp_stream: opencode_control_plane::AcpEventStream::new().into(),
+            acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
+                crate::routes::acp_ws::AcpClientRegistry::new(),
+            )),
+            tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
+            session_hub: std::sync::Arc::new(crate::routes::ws::SessionHub::new(256)),
+            server_start_time: std::time::SystemTime::now(),
+        };
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::status::get_status(web::Data::new(state))
+            .await
+            .respond_to(&req);
+
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let body = actix_web::body::to_bytes(resp.into_body())
+            .await
+            .unwrap_or_else(|_| actix_web::web::Bytes::new());
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        assert!(
+            json.get("version").is_some(),
+            "Status response should have 'version' field"
+        );
+        assert!(
+            json.get("status").is_some(),
+            "Status response should have 'status' field"
+        );
+        assert!(
+            json.get("uptime_seconds").is_some(),
+            "Status response should have 'uptime_seconds' field"
         );
     }
 }
