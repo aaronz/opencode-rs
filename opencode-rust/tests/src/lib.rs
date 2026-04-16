@@ -5,6 +5,9 @@ pub mod conventions;
 pub mod event_emitter_tests;
 
 #[cfg(test)]
+pub mod status_endpoint_tests;
+
+#[cfg(test)]
 pub mod acp_e2e_tests;
 #[cfg(test)]
 pub mod acp_transport_tests;
