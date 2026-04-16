@@ -63,7 +63,13 @@ impl CliTester {
     pub fn with_temp_dir(self) -> Result<(Self, PathBuf)> {
         let temp_dir = TempDir::new().context("Failed to create temp directory")?;
         let path = temp_dir.path().to_path_buf();
-        Ok((self.working_dir(path.clone()), path))
+        Ok((
+            Self {
+                temp_dir: Some(temp_dir),
+                ..self
+            },
+            path,
+        ))
     }
 
     pub fn capture_stdout(mut self) -> Self {
@@ -453,6 +459,64 @@ mod tests {
         assert!(
             output.stdout.contains("chain_test"),
             "Should capture stdout after fluent chain"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_with_temp_dir_stores_temp_dir() {
+        let (tester, path) = CliTester::new("echo")
+            .with_temp_dir()
+            .expect("Temp dir should be created");
+        assert!(
+            tester.temp_dir.is_some(),
+            "temp_dir field should be stored when with_temp_dir() called"
+        );
+        assert_eq!(
+            tester.temp_dir.as_ref().unwrap().path(),
+            path,
+            "temp_dir path should match returned path"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_run_uses_temp_dir_when_no_explicit_working_dir() {
+        let (tester, path) = CliTester::new("pwd")
+            .with_temp_dir()
+            .expect("Temp dir should be created");
+        let output = tester.run().await.expect("Should run successfully");
+        let pwd_output = PathBuf::from(output.stdout.trim());
+        assert_eq!(
+            pwd_output.canonicalize().unwrap(),
+            path.canonicalize().unwrap(),
+            "run() should use temp_dir.path() when no explicit working_dir set"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_spawn_uses_temp_dir_when_no_explicit_working_dir() {
+        let (tester, path) = CliTester::new("pwd")
+            .with_temp_dir()
+            .expect("Temp dir should be created");
+        let child = tester.spawn().await.expect("Should spawn successfully");
+        let output = child.wait().await.expect("Should wait for process");
+        let pwd_output = PathBuf::from(output.stdout.trim());
+        assert_eq!(
+            pwd_output.canonicalize().unwrap(),
+            path.canonicalize().unwrap(),
+            "spawn() should use temp_dir.path() when no explicit working_dir set"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_explicit_working_dir_overrides_temp_dir() {
+        let temp_result = CliTester::new("pwd")
+            .with_temp_dir()
+            .expect("Temp dir should be created");
+        let tester = temp_result.0.working_dir(PathBuf::from("/tmp"));
+        let output = tester.run().await.expect("Should run successfully");
+        assert!(
+            output.stdout.contains("/tmp"),
+            "explicit working_dir should override temp_dir path"
         );
     }
 }
