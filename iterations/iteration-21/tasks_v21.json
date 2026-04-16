@@ -1408,7 +1408,7 @@
       "priority": "P2",
       "title": "Create security_tests.rs",
       "description": "Create tests/src/security_tests.rs for security test suite",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: ensure security test file compiles"
       ],
@@ -1508,7 +1508,7 @@
       "priority": "P0",
       "title": "Run full test suite",
       "description": "Run full test suite: cargo test --all-features",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "RunTestSuite: verify all tests pass with --all-features"
       ],

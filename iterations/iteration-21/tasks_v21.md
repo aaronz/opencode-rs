@@ -135,7 +135,7 @@
 
 | ID | Task | Status | Owner | Files | Dependencies |
 |----|------|--------|-------|-------|--------------|
-| P2-030-01 | Create `tests/src/security_tests.rs` | TODO | | NEW | None |
+| P2-030-01 | Create `tests/src/security_tests.rs` | ✅ Done | | NEW | None |
 | P2-030-02 | Add SQL injection tests for session operations | TODO | | security_tests.rs | P2-030-01 |
 | P2-030-03 | Add SQL injection tests for message operations | TODO | | security_tests.rs | P2-030-02 |
 | P2-030-04 | Add path traversal tests for file operations | TODO | | security_tests.rs | P2-030-03 |
