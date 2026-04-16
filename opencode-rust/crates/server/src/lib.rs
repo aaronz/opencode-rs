@@ -18,7 +18,7 @@ use opencode_core::bus::SharedEventBus;
 use opencode_core::config::ServerConfig;
 use opencode_core::Config;
 use opencode_llm::ModelRegistry;
-use opencode_permission::{ApprovalQueue, PermissionScope};
+use opencode_permission::{ApprovalQueue, AuditLog, PermissionScope};
 use opencode_storage::StorageService;
 use opencode_tools::ToolRegistry;
 use routes::acp_ws::SharedAcpClientRegistry;
@@ -50,7 +50,7 @@ pub struct ServerState {
     pub config: Arc<RwLock<Config>>,
     pub event_bus: SharedEventBus,
     pub reconnection_store: ReconnectionStore,
-    pub temp_db_dir: Option<Box<dyn std::any::Any + Send + Sync>>,
+    pub temp_db_dir: Option<std::path::PathBuf>,
     pub connection_monitor: Arc<ConnectionMonitor>,
     pub share_server: Arc<RwLock<ShareServer>>,
     pub acp_enabled: bool,
@@ -61,6 +61,31 @@ pub struct ServerState {
     pub server_start_time: std::time::SystemTime,
     pub permission_manager: Arc<RwLock<opencode_core::permission::PermissionManager>>,
     pub approval_queue: Arc<RwLock<ApprovalQueue>>,
+    pub audit_log: Option<Arc<AuditLog>>,
+}
+
+impl Clone for ServerState {
+    fn clone(&self) -> Self {
+        ServerState {
+            storage: self.storage.clone(),
+            models: self.models.clone(),
+            config: self.config.clone(),
+            event_bus: self.event_bus.clone(),
+            reconnection_store: self.reconnection_store.clone(),
+            temp_db_dir: self.temp_db_dir.clone(),
+            connection_monitor: self.connection_monitor.clone(),
+            share_server: self.share_server.clone(),
+            acp_enabled: self.acp_enabled,
+            acp_stream: self.acp_stream.clone(),
+            acp_client_registry: self.acp_client_registry.clone(),
+            tool_registry: self.tool_registry.clone(),
+            session_hub: self.session_hub.clone(),
+            server_start_time: self.server_start_time,
+            permission_manager: self.permission_manager.clone(),
+            approval_queue: self.approval_queue.clone(),
+            audit_log: self.audit_log.clone(),
+        }
+    }
 }
 
 pub async fn run_server(state: Arc<ServerState>, host: &str, port: u16) -> std::io::Result<()> {

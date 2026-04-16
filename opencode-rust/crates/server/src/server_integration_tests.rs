@@ -53,6 +53,7 @@ mod tests {
                 PermissionManager::default(),
             )),
             approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::default())),
+            audit_log: None,
         }
     }
 
@@ -97,6 +98,7 @@ mod tests {
                 PermissionManager::default(),
             )),
             approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::default())),
+            audit_log: None,
         }
     }
 
@@ -171,7 +173,7 @@ mod tests {
 
         let req = TestRequest::default().to_http_request();
         let resp = crate::routes::session::permission_reply(
-            web::Data::new(state),
+            web::Data::new(state.clone()),
             web::Path::from(("test-session".to_string(), "file_write_req".to_string())),
             web::Json(crate::routes::session::PermissionReplyRequest {
                 decision: "allow".to_string(),
@@ -213,7 +215,7 @@ mod tests {
 
         let req = TestRequest::default().to_http_request();
         let resp = crate::routes::session::permission_reply(
-            web::Data::new(state),
+            web::Data::new(state.clone()),
             web::Path::from(("test-session".to_string(), "bash_req".to_string())),
             web::Json(crate::routes::session::PermissionReplyRequest {
                 decision: "deny".to_string(),
@@ -260,7 +262,7 @@ mod tests {
 
         let req = TestRequest::default().to_http_request();
         let resp = crate::routes::session::permission_reply(
-            web::Data::new(state),
+            web::Data::new(state.clone()),
             web::Path::from((uuid::Uuid::new_v4().to_string(), approval_id.to_string())),
             web::Json(crate::routes::session::PermissionReplyRequest {
                 decision: "allow".to_string(),
@@ -1321,7 +1323,7 @@ mod tests {
         let state = create_test_state();
         let req = TestRequest::default().to_http_request();
         let resp = crate::routes::session::list_sessions(
-            web::Data::new(state),
+            web::Data::new(state.clone()),
             web::Query(crate::routes::session::PaginationParams {
                 limit: None,
                 offset: None,
@@ -1919,6 +1921,7 @@ mod security_tests {
             approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::new(
                 PermissionScope::Full,
             ))),
+            audit_log: None,
         }
     }
 
@@ -2087,6 +2090,228 @@ mod security_tests {
         .respond_to(&req);
 
         assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    // =========================================================================
+    // Audit Logging Tests (P1-028-05)
+    // AddIntegrationTest: verify decisions are logged to audit trail
+    // =========================================================================
+
+    fn create_test_state_with_audit_log() -> crate::ServerState {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let audit_path = temp_dir.path().join("audit.db");
+        let audit_log = Arc::new(
+            opencode_permission::AuditLog::new(audit_path).expect("Failed to create audit log"),
+        );
+        crate::ServerState {
+            storage: {
+                let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
+                let session_repo =
+                    Arc::new(opencode_storage::SqliteSessionRepository::new(pool.clone()));
+                let project_repo =
+                    Arc::new(opencode_storage::SqliteProjectRepository::new(pool.clone()));
+                Arc::new(opencode_storage::StorageService::new(
+                    session_repo,
+                    project_repo,
+                    pool,
+                ))
+            },
+            models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
+            config: std::sync::Arc::new(std::sync::RwLock::new(opencode_core::Config::default())),
+            event_bus: opencode_core::bus::SharedEventBus::default(),
+            reconnection_store: crate::streaming::ReconnectionStore::default(),
+            temp_db_dir: None,
+            connection_monitor: std::sync::Arc::new(
+                crate::streaming::conn_state::ConnectionMonitor::new(),
+            ),
+            share_server: std::sync::Arc::new(std::sync::RwLock::new(
+                crate::routes::share::ShareServer::with_default_config(),
+            )),
+            acp_enabled: true,
+            acp_stream: opencode_control_plane::AcpEventStream::new().into(),
+            acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
+                crate::routes::acp_ws::AcpClientRegistry::new(),
+            )),
+            tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
+            session_hub: std::sync::Arc::new(crate::routes::ws::SessionHub::new(256)),
+            server_start_time: std::time::SystemTime::now(),
+            permission_manager: std::sync::Arc::new(std::sync::RwLock::new(
+                PermissionManager::default(),
+            )),
+            approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::default())),
+            audit_log: Some(audit_log),
+        }
+    }
+
+    fn create_test_state_with_audit_log_and_keep_alive(
+        temp_dir: tempfile::TempDir,
+    ) -> (crate::ServerState, tempfile::TempDir) {
+        let db_path = temp_dir.path().join("test.db");
+        let audit_path = temp_dir.path().join("audit.db");
+        let audit_log = Arc::new(
+            opencode_permission::AuditLog::new(audit_path).expect("Failed to create audit log"),
+        );
+        let state = crate::ServerState {
+            storage: {
+                let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
+                let session_repo =
+                    Arc::new(opencode_storage::SqliteSessionRepository::new(pool.clone()));
+                let project_repo =
+                    Arc::new(opencode_storage::SqliteProjectRepository::new(pool.clone()));
+                Arc::new(opencode_storage::StorageService::new(
+                    session_repo,
+                    project_repo,
+                    pool,
+                ))
+            },
+            models: std::sync::Arc::new(opencode_llm::ModelRegistry::new()),
+            config: std::sync::Arc::new(std::sync::RwLock::new(opencode_core::Config::default())),
+            event_bus: opencode_core::bus::SharedEventBus::default(),
+            reconnection_store: crate::streaming::ReconnectionStore::default(),
+            temp_db_dir: None,
+            connection_monitor: std::sync::Arc::new(
+                crate::streaming::conn_state::ConnectionMonitor::new(),
+            ),
+            share_server: std::sync::Arc::new(std::sync::RwLock::new(
+                crate::routes::share::ShareServer::with_default_config(),
+            )),
+            acp_enabled: true,
+            acp_stream: opencode_control_plane::AcpEventStream::new().into(),
+            acp_client_registry: std::sync::Arc::new(tokio::sync::RwLock::new(
+                crate::routes::acp_ws::AcpClientRegistry::new(),
+            )),
+            tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
+            session_hub: std::sync::Arc::new(crate::routes::ws::SessionHub::new(256)),
+            server_start_time: std::time::SystemTime::now(),
+            permission_manager: std::sync::Arc::new(std::sync::RwLock::new(
+                PermissionManager::default(),
+            )),
+            approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::default())),
+            audit_log: Some(audit_log),
+        };
+        (state, temp_dir)
+    }
+
+    #[actix_web::test]
+    async fn audit_logging_permission_allow_decision_is_recorded() {
+        use actix_web::web;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let (state, _temp_dir) = create_test_state_with_audit_log_and_keep_alive(temp_dir);
+        let audit_log = state.audit_log.clone();
+        let session_id = "test-session-audit";
+        let req_id = "file_write_test";
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::permission_reply(
+            web::Data::new(state.clone()),
+            web::Path::from((session_id.to_string(), req_id.to_string())),
+            web::Json(crate::routes::session::PermissionReplyRequest {
+                decision: "allow".to_string(),
+            }),
+        )
+        .await
+        .respond_to(&req);
+
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let entries = audit_log
+            .as_ref()
+            .expect("audit_log should be Some")
+            .get_recent_entries(10)
+            .expect("Should be able to query audit log");
+
+        assert!(
+            entries.iter().any(|e| e.session_id == session_id
+                && e.decision == opencode_permission::AuditDecision::Allow),
+            "Audit log should contain allow decision for session {}",
+            session_id
+        );
+    }
+
+    #[actix_web::test]
+    async fn audit_logging_permission_deny_decision_is_recorded() {
+        use actix_web::web;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let (state, _temp_dir) = create_test_state_with_audit_log_and_keep_alive(temp_dir);
+        let audit_log = state.audit_log.clone();
+        let session_id = "test-session-deny";
+        let req_id = "bash_execute_test";
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::permission_reply(
+            web::Data::new(state.clone()),
+            web::Path::from((session_id.to_string(), req_id.to_string())),
+            web::Json(crate::routes::session::PermissionReplyRequest {
+                decision: "deny".to_string(),
+            }),
+        )
+        .await
+        .respond_to(&req);
+
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let entries = audit_log
+            .as_ref()
+            .expect("audit_log should be Some")
+            .get_recent_entries(10)
+            .expect("Should be able to query audit log");
+
+        assert!(
+            entries.iter().any(|e| e.session_id == session_id
+                && e.decision == opencode_permission::AuditDecision::Deny),
+            "Audit log should contain deny decision for session {}",
+            session_id
+        );
+    }
+
+    #[actix_web::test]
+    async fn audit_logging_multiple_decisions_are_recorded() {
+        use actix_web::web;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let (state, _temp_dir) = create_test_state_with_audit_log_and_keep_alive(temp_dir);
+        let audit_log = state.audit_log.clone();
+        let session_id = "test-session-multi";
+
+        let req = TestRequest::default().to_http_request();
+
+        for i in 0..3 {
+            let req_id = format!("req_{}", i);
+            let decision = if i % 2 == 0 { "allow" } else { "deny" };
+
+            let resp = crate::routes::session::permission_reply(
+                web::Data::new(state.clone()),
+                web::Path::from((session_id.to_string(), req_id.clone())),
+                web::Json(crate::routes::session::PermissionReplyRequest {
+                    decision: decision.to_string(),
+                }),
+            )
+            .await
+            .respond_to(&req);
+
+            assert_eq!(resp.status(), StatusCode::OK);
+        }
+
+        let entries = audit_log
+            .as_ref()
+            .expect("audit_log should be Some")
+            .get_recent_entries(10)
+            .expect("Should be able to query audit log");
+
+        let session_entries: Vec<_> = entries
+            .iter()
+            .filter(|e| e.session_id == session_id)
+            .collect();
+
+        assert_eq!(
+            session_entries.len(),
+            3,
+            "Should have 3 audit entries for session {}",
+            session_id
+        );
     }
 
     #[test]
@@ -2359,6 +2584,7 @@ mod api_negative_tests {
                 PermissionManager::default(),
             )),
             approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::default())),
+            audit_log: None,
         }
     }
 
@@ -2405,6 +2631,7 @@ mod api_negative_tests {
             approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::new(
                 PermissionScope::Full,
             ))),
+            audit_log: None,
         }
     }
 
@@ -3089,6 +3316,7 @@ mod auth_negative_tests {
             approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::new(
                 PermissionScope::Full,
             ))),
+            audit_log: None,
         }
     }
 
@@ -3622,6 +3850,7 @@ mod auth_negative_tests {
                 PermissionManager::default(),
             )),
             approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::default())),
+            audit_log: None,
         };
 
         let req = TestRequest::default().to_http_request();
@@ -3694,6 +3923,7 @@ mod auth_negative_tests {
                 PermissionManager::default(),
             )),
             approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::default())),
+            audit_log: None,
         };
 
         let req = TestRequest::default().to_http_request();

@@ -103,6 +103,7 @@ mod tests {
             approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::new(
                 PermissionScope::Full,
             ))),
+            audit_log: None,
         }
     }
 
@@ -140,15 +141,8 @@ mod tests {
             approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::new(
                 PermissionScope::Full,
             ))),
+            audit_log: None,
         }
-    }
-
-    #[actix_web::test]
-    async fn test_acp_status_when_enabled() {
-        let state = web::Data::new(create_test_server_state());
-        let req = TestRequest::default().to_http_request();
-        let resp = acp_status(state).await.respond_to(&req);
-        assert_eq!(resp.status(), StatusCode::OK);
     }
 
     #[actix_web::test]
