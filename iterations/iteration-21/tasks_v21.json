@@ -1408,7 +1408,7 @@
       "priority": "P2",
       "title": "Create security_tests.rs",
       "description": "Create tests/src/security_tests.rs for security test suite",
-      "status": "done",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: ensure security test file compiles"
       ],
@@ -1474,7 +1474,7 @@
       "priority": "P2",
       "title": "Add request validation tests",
       "description": "Add request validation tests for all endpoints in security_tests.rs",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddErrorHandlingTest: verify invalid requests are rejected"
       ],
