@@ -1084,7 +1084,7 @@
       "priority": "P1",
       "title": "Add audit logging for decisions",
       "description": "Add audit logging for permission decisions",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify decisions are logged to audit trail"
       ],
@@ -1118,7 +1118,7 @@
       "priority": "P1",
       "title": "Add test: approval triggers tool execution",
       "description": "Add integration test: permission approval triggers tool execution",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify tool executes after permission approval"
       ],
@@ -1135,7 +1135,7 @@
       "priority": "P1",
       "title": "Add test: denial returns PermissionDenied",
       "description": "Add integration test: permission denial returns PermissionDenied error",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddErrorHandlingTest: verify denial returns appropriate error"
       ],

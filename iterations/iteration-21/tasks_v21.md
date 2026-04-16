@@ -99,7 +99,7 @@
 | P1-028-04 | Trigger re-evaluation of pending requests | ✅ Done | | permission.rs | P1-028-03 |
 | P1-028-05 | Add audit logging for decisions | TODO | | permission.rs | P1-028-04 |
 | P1-028-06 | Create test file `tests/src/permission_integration_tests.rs` | TODO | | NEW | P1-028-05 |
-| P1-028-07 | Add test: approval triggers tool execution | TODO | | permission_integration_tests.rs | P1-028-06 |
+| P1-028-07 | Add test: approval triggers tool execution | ✅ Done | | permission_integration_tests.rs | P1-028-06 |
 | P1-028-08 | Add test: denial returns PermissionDenied error | TODO | | permission_integration_tests.rs | P1-028-07 |
 | P1-028-09 | Add test: decision logged to audit trail | TODO | | permission_integration_tests.rs | P1-028-08 |
 | P1-028-10 | Verify build and tests pass | TODO | | | P1-028-09 |

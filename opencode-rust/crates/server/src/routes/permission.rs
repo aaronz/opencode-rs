@@ -1,4 +1,4 @@
-use crate::routes::error::bad_request;
+use crate::routes::error::{bad_request, permission_denied_error};
 use crate::ServerState;
 use actix_web::{web, HttpResponse, Responder};
 use opencode_core::permission::Permission;
@@ -95,12 +95,24 @@ pub async fn permission_reply(
         }
     }
 
-    HttpResponse::Ok().json(serde_json::json!({
-        "status": "ok",
-        "session_id": session_id,
-        "request_id": req_id,
-        "decision": decision
-    }))
+    match decision.as_str() {
+        "allow" => HttpResponse::Ok().json(serde_json::json!({
+            "status": "ok",
+            "session_id": session_id,
+            "request_id": req_id,
+            "decision": decision
+        })),
+        "deny" => permission_denied_error(format!(
+            "Permission denied for session={}, request={}",
+            session_id, req_id
+        )),
+        _ => HttpResponse::Ok().json(serde_json::json!({
+            "status": "ok",
+            "session_id": session_id,
+            "request_id": req_id,
+            "decision": decision
+        })),
+    }
 }
 
 pub fn init(cfg: &mut web::ServiceConfig) {

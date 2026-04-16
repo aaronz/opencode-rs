@@ -104,7 +104,29 @@ async fn test_permission_reply_deny_decision() {
         }),
     )
     .await;
-    assert_eq!(resp.status(), actix_web::http::StatusCode::OK);
+    assert_eq!(resp.status(), actix_web::http::StatusCode::FORBIDDEN);
+}
+
+#[actix_web::test]
+async fn test_denial_returns_error() {
+    use actix_web::http::StatusCode;
+
+    let state = create_test_state();
+    let _req = TestRequest::default().to_http_request();
+
+    let resp = permission_reply_handler(
+        web::Data::new(state),
+        web::Path::from((
+            "test-session".to_string(),
+            "file_write_test-req".to_string(),
+        )),
+        web::Json(PermissionReplyRequest {
+            decision: "deny".to_string(),
+        }),
+    )
+    .await;
+
+    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
 }
 
 #[actix_web::test]
@@ -264,6 +286,8 @@ async fn test_agent_permission_scope_intersect() {
 
 #[actix_web::test]
 async fn test_approval_triggers_execution() {
+    use opencode_permission::ApprovalDecision;
+
     let state = create_test_state();
     let approval_queue = state.approval_queue.clone();
     let permission_manager = state.permission_manager.clone();
@@ -288,12 +312,15 @@ async fn test_approval_triggers_execution() {
             .expect("ApprovalQueue should have notification channel")
     };
 
+    {
+        let mut pm = permission_manager.write().unwrap();
+        pm.grant(Permission::FileWrite);
+    }
+
+    let req_id = approval_id.to_string();
     let resp = permission_reply_handler(
         web::Data::new(state.clone()),
-        web::Path::from((
-            session_id.to_string(),
-            format!("file_write_{}", approval_id),
-        )),
+        web::Path::from((session_id.to_string(), req_id)),
         web::Json(PermissionReplyRequest {
             decision: "allow".to_string(),
         }),
@@ -303,7 +330,7 @@ async fn test_approval_triggers_execution() {
 
     let decision = receiver.recv().await.unwrap();
     match decision {
-        opencode_permission::ApprovalDecision::Approved(cmd) => {
+        ApprovalDecision::Approved(cmd) => {
             assert_eq!(cmd.tool_name, "write");
             assert_eq!(cmd.session_id, session_id);
         }
@@ -360,10 +387,27 @@ async fn permission_reply_handler(
         }
     }
 
-    HttpResponse::Ok().json(serde_json::json!({
-        "status": "ok",
-        "session_id": session_id,
-        "request_id": req_id,
-        "decision": decision
-    }))
+    match decision.as_str() {
+        "allow" => {
+            HttpResponse::Ok().json(serde_json::json!({
+                "status": "ok",
+                "session_id": session_id,
+                "request_id": req_id,
+                "decision": decision
+            }))
+        }
+        "deny" => HttpResponse::Forbidden().json(serde_json::json!({
+            "error": {
+                "error": "permission_denied",
+                "message": format!("Permission denied for session={}, request={}", session_id, req_id),
+                "code": 2002
+            }
+        })),
+        _ => HttpResponse::Ok().json(serde_json::json!({
+            "status": "ok",
+            "session_id": session_id,
+            "request_id": req_id,
+            "decision": decision
+        })),
+    }
 }

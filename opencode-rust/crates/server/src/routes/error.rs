@@ -171,6 +171,10 @@ impl ErrorResponse {
         Self::new("forbidden", message, 2001)
     }
 
+    pub(crate) fn permission_denied(message: impl Into<String>) -> Self {
+        Self::new("permission_denied", message, 2002)
+    }
+
     pub(crate) fn to_response(&self, status: actix_web::http::StatusCode) -> HttpResponse {
         HttpResponse::build(status).json(self)
     }
@@ -214,6 +218,12 @@ pub(crate) fn validation_error(message: impl Into<String>) -> HttpResponse {
 pub(crate) fn unauthorized_error(message: impl Into<String>) -> HttpResponse {
     HttpResponse::build(actix_web::http::StatusCode::UNAUTHORIZED)
         .json(ErrorResponse::unauthorized(message))
+}
+
+#[allow(dead_code)]
+pub(crate) fn permission_denied_error(message: impl Into<String>) -> HttpResponse {
+    HttpResponse::build(actix_web::http::StatusCode::FORBIDDEN)
+        .json(ErrorResponse::permission_denied(message))
 }
 
 #[cfg(test)]
