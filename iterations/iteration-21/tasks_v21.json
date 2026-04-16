@@ -625,7 +625,7 @@
       "priority": "P1",
       "title": "Create status.rs route",
       "description": "Create server/src/routes/status.rs for server status endpoint",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: ensure status.rs compiles correctly"
       ],
@@ -640,7 +640,7 @@
       "priority": "P1",
       "title": "Define StatusResponse struct",
       "description": "Define StatusResponse struct with all required status fields",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify StatusResponse serializes to JSON correctly"
       ],
