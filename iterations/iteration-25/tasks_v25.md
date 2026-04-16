@@ -110,10 +110,10 @@
 - **Files**: `opencode-rust/ratatui-testing/src/dsl.rs`
 - **Description**: Refactor wait_for to optionally use predicates
 - **Implementation**:
-  - [ ] Review wait_for implementation
-  - [ ] Consider integrating predicates field usage
-  - [ ] Document if predicates are intentionally separate
-- **Verification**: `cargo test -p ratatui-testing dsl`
+  - [x] Review wait_for implementation
+  - [x] Consider integrating predicates field usage
+  - [x] Document if predicates are intentionally separate
+- **Verification**: `cargo test -p ratatui-testing dsl` ✅ Done
 
 ### Task 10: Add Windows platform detection for PTY
 - **Priority**: P2
