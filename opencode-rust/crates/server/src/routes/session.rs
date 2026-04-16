@@ -806,6 +806,32 @@ pub async fn permission_reply(
         }
     }
 
+    if let Ok(mut aq) = state.approval_queue.write() {
+        if let Ok(approval_id) = Uuid::parse_str(&req_id) {
+            match decision.as_str() {
+                "allow" => {
+                    if let Some(approved) = aq.approve(approval_id) {
+                        tracing::info!(
+                            "ApprovalQueue updated: approved tool={} for session={}",
+                            approved.tool_name,
+                            session_id
+                        );
+                    }
+                }
+                "deny" => {
+                    if aq.reject(approval_id) {
+                        tracing::info!(
+                            "ApprovalQueue updated: rejected req_id={} for session={}",
+                            req_id,
+                            session_id
+                        );
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
     HttpResponse::Ok().json(serde_json::json!({
         "status": "ok",
         "session_id": session_id,

@@ -6,6 +6,7 @@ use opencode_core::config::ServerConfig;
 use opencode_core::permission::PermissionManager;
 use opencode_core::Config;
 use opencode_llm::ModelRegistry;
+use opencode_permission::ApprovalQueue;
 use opencode_server::routes::acp_ws::SharedAcpClientRegistry;
 use opencode_server::routes::share::ShareServer;
 use opencode_server::streaming::{conn_state::ConnectionMonitor, ReconnectionStore};
@@ -112,6 +113,7 @@ async fn run_desktop(args: DesktopArgs) -> Result<(), Box<dyn std::error::Error>
         session_hub: Arc::new(opencode_server::routes::ws::SessionHub::new(256)),
         server_start_time: std::time::SystemTime::now(),
         permission_manager,
+        approval_queue: Arc::new(RwLock::new(ApprovalQueue::default())),
     };
 
     #[cfg(feature = "desktop")]

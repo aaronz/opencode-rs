@@ -1,6 +1,7 @@
 use crate::audit_log::{AuditDecision, AuditEntry, AuditLog};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use tokio::sync::broadcast;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -73,6 +74,12 @@ fn is_safe_tool(tool_name: &str) -> bool {
     is_read_tool(tool_name) || matches!(tool_name, "todowrite" | "bash")
 }
 
+#[derive(Debug, Clone)]
+pub enum ApprovalDecision {
+    Approved(ApprovedCommand),
+    Rejected(Uuid),
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApprovalQueue {
     pub scope: PermissionScope,
@@ -82,6 +89,8 @@ pub struct ApprovalQueue {
     pending: Vec<PendingApproval>,
     #[serde(skip)]
     history: Vec<ApprovedCommand>,
+    #[serde(skip)]
+    notification_tx: Option<broadcast::Sender<ApprovalDecision>>,
 }
 
 impl Default for ApprovalQueue {
@@ -92,11 +101,13 @@ impl Default for ApprovalQueue {
 
 impl ApprovalQueue {
     pub fn new(scope: PermissionScope) -> Self {
+        let (notification_tx, _) = broadcast::channel(1024);
         Self {
             scope,
             audit_log: None,
             pending: Vec::new(),
             history: Vec::new(),
+            notification_tx: Some(notification_tx),
         }
     }
 
@@ -160,6 +171,9 @@ impl ApprovalQueue {
                 approved_at: Utc::now(),
             };
             self.history.push(approved.clone());
+            if let Some(ref tx) = self.notification_tx {
+                let _ = tx.send(ApprovalDecision::Approved(approved.clone()));
+            }
             Some(approved)
         } else {
             None
@@ -169,6 +183,9 @@ impl ApprovalQueue {
     pub fn reject(&mut self, approval_id: Uuid) -> bool {
         if let Some(pos) = self.pending.iter().position(|p| p.id == approval_id) {
             self.pending.remove(pos);
+            if let Some(ref tx) = self.notification_tx {
+                let _ = tx.send(ApprovalDecision::Rejected(approval_id));
+            }
             true
         } else {
             false
@@ -191,6 +208,10 @@ impl ApprovalQueue {
 
     pub fn set_scope(&mut self, scope: PermissionScope) {
         self.scope = scope;
+    }
+
+    pub fn subscribe(&self) -> Option<broadcast::Receiver<ApprovalDecision>> {
+        self.notification_tx.as_ref().map(|tx| tx.subscribe())
     }
 }
 
@@ -253,5 +274,79 @@ mod tests {
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].tool_name, "write");
         assert_eq!(entries[0].decision, crate::audit_log::AuditDecision::Ask);
+    }
+
+    #[tokio::test]
+    async fn test_approve_notifies_subscribers() {
+        let mut queue = ApprovalQueue::new(PermissionScope::ReadOnly);
+        let pending = PendingApproval::new(
+            Uuid::new_v4(),
+            "write".to_string(),
+            serde_json::json!({"path": "/test.txt"}),
+        );
+        let approval_id = pending.id;
+        queue.request_approval(pending);
+
+        let mut receiver = queue
+            .subscribe()
+            .expect("ApprovalQueue should have notification channel");
+        let approved = queue.approve(approval_id);
+        assert!(approved.is_some());
+
+        let decision = receiver.recv().await.unwrap();
+        match decision {
+            ApprovalDecision::Approved(cmd) => {
+                assert_eq!(cmd.tool_name, "write");
+            }
+            _ => panic!("Expected Approved decision"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_reject_notifies_subscribers() {
+        let mut queue = ApprovalQueue::new(PermissionScope::ReadOnly);
+        let pending = PendingApproval::new(
+            Uuid::new_v4(),
+            "write".to_string(),
+            serde_json::json!({"path": "/test.txt"}),
+        );
+        let approval_id = pending.id;
+        queue.request_approval(pending);
+
+        let mut receiver = queue
+            .subscribe()
+            .expect("ApprovalQueue should have notification channel");
+        let rejected = queue.reject(approval_id);
+        assert!(rejected);
+
+        let decision = receiver.recv().await.unwrap();
+        match decision {
+            ApprovalDecision::Rejected(id) => {
+                assert_eq!(id, approval_id);
+            }
+            _ => panic!("Expected Rejected decision"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_reevaluate_after_decision() {
+        let mut queue = ApprovalQueue::new(PermissionScope::ReadOnly);
+        let pending = PendingApproval::new(
+            Uuid::new_v4(),
+            "write".to_string(),
+            serde_json::json!({"path": "/test.txt"}),
+        );
+        let approval_id = pending.id;
+        queue.request_approval(pending);
+
+        let mut receiver = queue
+            .subscribe()
+            .expect("ApprovalQueue should have notification channel");
+
+        let approved = queue.approve(approval_id);
+        assert!(approved.is_some());
+
+        let decision = receiver.recv().await;
+        assert!(decision.is_ok());
     }
 }

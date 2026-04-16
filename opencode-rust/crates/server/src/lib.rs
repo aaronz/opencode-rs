@@ -18,6 +18,7 @@ use opencode_core::bus::SharedEventBus;
 use opencode_core::config::ServerConfig;
 use opencode_core::Config;
 use opencode_llm::ModelRegistry;
+use opencode_permission::{ApprovalQueue, PermissionScope};
 use opencode_storage::StorageService;
 use opencode_tools::ToolRegistry;
 use routes::acp_ws::SharedAcpClientRegistry;
@@ -59,6 +60,7 @@ pub struct ServerState {
     pub session_hub: Arc<SessionHub>,
     pub server_start_time: std::time::SystemTime,
     pub permission_manager: Arc<RwLock<opencode_core::permission::PermissionManager>>,
+    pub approval_queue: Arc<RwLock<ApprovalQueue>>,
 }
 
 pub async fn run_server(state: Arc<ServerState>, host: &str, port: u16) -> std::io::Result<()> {

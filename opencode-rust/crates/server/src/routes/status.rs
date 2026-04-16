@@ -1,6 +1,7 @@
 use crate::routes::error::json_error;
 use crate::ServerState;
 use actix_web::{http::StatusCode, web, HttpResponse, Responder};
+use opencode_permission::{ApprovalQueue, PermissionScope};
 use serde::Serialize;
 use std::collections::HashSet;
 
@@ -287,6 +288,7 @@ mod tests {
             session_hub: Arc::new(SessionHub::new(256)),
             server_start_time: start_time,
             permission_manager: Arc::new(RwLock::new(opencode_core::PermissionManager::default())),
+            approval_queue: Arc::new(RwLock::new(ApprovalQueue::new(PermissionScope::Full))),
         };
 
         let calculated_uptime = std::time::SystemTime::now()

@@ -4,6 +4,7 @@ mod tests {
     use actix_web::test::TestRequest;
     use actix_web::Responder;
     use opencode_core::{Message, PermissionManager, Session};
+    use opencode_permission::{ApprovalQueue, PermissionScope};
     use std::sync::Arc;
 
     #[actix_web::test]
@@ -51,6 +52,7 @@ mod tests {
             permission_manager: std::sync::Arc::new(std::sync::RwLock::new(
                 PermissionManager::default(),
             )),
+            approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::default())),
         }
     }
 
@@ -94,6 +96,7 @@ mod tests {
             permission_manager: std::sync::Arc::new(std::sync::RwLock::new(
                 PermissionManager::default(),
             )),
+            approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::default())),
         }
     }
 
@@ -227,6 +230,58 @@ mod tests {
                 !pm.check(&opencode_core::permission::Permission::BashExecute, "/test"),
                 "BashExecute should be denied after revoke"
             );
+        }
+    }
+
+    #[actix_web::test]
+    async fn test_permission_reevaluation_after_decision() {
+        use actix_web::web;
+        use opencode_permission::ApprovalDecision;
+
+        let state = create_test_state();
+        let approval_queue = state.approval_queue.clone();
+
+        let mut aq = approval_queue.write().unwrap();
+        let pending = opencode_permission::PendingApproval::new(
+            uuid::Uuid::new_v4(),
+            "write".to_string(),
+            serde_json::json!({"path": "/test.txt"}),
+        );
+        let approval_id = pending.id;
+        aq.request_approval(pending);
+        drop(aq);
+
+        let mut receiver = {
+            let aq_guard = approval_queue.read().unwrap();
+            aq_guard
+                .subscribe()
+                .expect("ApprovalQueue should have notification channel")
+        };
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::permission_reply(
+            web::Data::new(state),
+            web::Path::from((uuid::Uuid::new_v4().to_string(), approval_id.to_string())),
+            web::Json(crate::routes::session::PermissionReplyRequest {
+                decision: "allow".to_string(),
+            }),
+        )
+        .await
+        .respond_to(&req);
+
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let recv_future = receiver.recv();
+        let decision = tokio::time::timeout(std::time::Duration::from_secs(1), recv_future)
+            .await
+            .unwrap()
+            .unwrap();
+
+        match decision {
+            ApprovalDecision::Approved(cmd) => {
+                assert_eq!(cmd.tool_name, "write");
+            }
+            _ => panic!("Expected Approved decision"),
         }
     }
 
@@ -1818,6 +1873,7 @@ mod security_tests {
     use actix_web::web;
     use actix_web::Responder;
     use opencode_core::PermissionManager;
+    use opencode_permission::{ApprovalQueue, PermissionScope};
     use std::sync::Arc;
 
     fn create_test_state_with_api_key(api_key: Option<String>) -> crate::ServerState {
@@ -1860,6 +1916,9 @@ mod security_tests {
             permission_manager: std::sync::Arc::new(std::sync::RwLock::new(
                 PermissionManager::default(),
             )),
+            approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::new(
+                PermissionScope::Full,
+            ))),
         }
     }
 
@@ -2258,6 +2317,7 @@ mod api_negative_tests {
     use actix_web::web;
     use actix_web::Responder;
     use opencode_core::PermissionManager;
+    use opencode_permission::{ApprovalQueue, PermissionScope};
     use std::sync::Arc;
 
     fn create_test_state() -> crate::ServerState {
@@ -2298,6 +2358,7 @@ mod api_negative_tests {
             permission_manager: std::sync::Arc::new(std::sync::RwLock::new(
                 PermissionManager::default(),
             )),
+            approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::default())),
         }
     }
 
@@ -2341,6 +2402,9 @@ mod api_negative_tests {
             permission_manager: std::sync::Arc::new(std::sync::RwLock::new(
                 PermissionManager::default(),
             )),
+            approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::new(
+                PermissionScope::Full,
+            ))),
         }
     }
 
@@ -2979,6 +3043,7 @@ mod auth_negative_tests {
     use actix_web::test::TestRequest;
     use actix_web::web;
     use opencode_core::{Message, PermissionManager, Session};
+    use opencode_permission::{ApprovalQueue, PermissionScope};
     use std::sync::Arc;
 
     fn create_test_state_with_api_key(api_key: Option<String>) -> crate::ServerState {
@@ -3021,6 +3086,9 @@ mod auth_negative_tests {
             permission_manager: std::sync::Arc::new(std::sync::RwLock::new(
                 PermissionManager::default(),
             )),
+            approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::new(
+                PermissionScope::Full,
+            ))),
         }
     }
 
@@ -3553,6 +3621,7 @@ mod auth_negative_tests {
             permission_manager: std::sync::Arc::new(std::sync::RwLock::new(
                 PermissionManager::default(),
             )),
+            approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::default())),
         };
 
         let req = TestRequest::default().to_http_request();
@@ -3624,6 +3693,7 @@ mod auth_negative_tests {
             permission_manager: std::sync::Arc::new(std::sync::RwLock::new(
                 PermissionManager::default(),
             )),
+            approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::default())),
         };
 
         let req = TestRequest::default().to_http_request();

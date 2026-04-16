@@ -536,6 +536,9 @@ async fn start_test_server(
         permission_manager: std::sync::Arc::new(std::sync::RwLock::new(
             opencode_core::PermissionManager::default(),
         )),
+        approval_queue: std::sync::Arc::new(std::sync::RwLock::new(
+            opencode_permission::ApprovalQueue::default(),
+        )),
     };
 
     let state_data = web::Data::new(state);
@@ -1042,6 +1045,9 @@ mod integration_tests {
             server_start_time: std::time::SystemTime::now(),
             permission_manager: std::sync::Arc::new(std::sync::RwLock::new(
                 opencode_core::PermissionManager::default(),
+            )),
+            approval_queue: std::sync::Arc::new(std::sync::RwLock::new(
+                opencode_permission::ApprovalQueue::default(),
             )),
         };
 

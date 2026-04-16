@@ -7,6 +7,7 @@ use opencode_core::permission::PermissionManager;
 use opencode_core::session_sharing::SessionSharing;
 use opencode_core::Config;
 use opencode_llm::ModelRegistry;
+use opencode_permission::ApprovalQueue;
 use opencode_server::routes::acp_ws::SharedAcpClientRegistry;
 use opencode_server::routes::share::ShareServer;
 use opencode_server::streaming::{conn_state::ConnectionMonitor, ReconnectionStore};
@@ -52,6 +53,7 @@ pub struct WebServerState {
     pub tool_registry: Arc<opencode_tools::ToolRegistry>,
     pub session_hub: Arc<opencode_server::routes::ws::SessionHub>,
     pub permission_manager: Arc<RwLock<PermissionManager>>,
+    pub approval_queue: Arc<RwLock<ApprovalQueue>>,
 }
 
 impl WebServerState {
@@ -78,6 +80,7 @@ impl WebServerState {
             tool_registry: Arc::new(build_default_registry(None).await),
             session_hub: Arc::new(opencode_server::routes::ws::SessionHub::new(256)),
             permission_manager: Arc::new(RwLock::new(PermissionManager::default())),
+            approval_queue: Arc::new(RwLock::new(ApprovalQueue::default())),
         }
     }
 
@@ -98,6 +101,7 @@ impl WebServerState {
             session_hub: self.session_hub.clone(),
             server_start_time: std::time::SystemTime::now(),
             permission_manager: self.permission_manager.clone(),
+            approval_queue: Arc::new(RwLock::new(ApprovalQueue::default())),
         }
     }
 }

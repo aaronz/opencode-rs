@@ -2,6 +2,7 @@ use actix_web::{web, Error, HttpRequest, HttpResponse, Responder};
 use futures::stream::{self, Stream};
 use opencode_control_plane::{AcpAgentEvent, SharedAcpStream};
 use opencode_core::acp::{AcpHandshakeAck, AcpHandshakeRequest, AcpProtocol};
+use opencode_permission::{ApprovalQueue, PermissionScope};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -99,6 +100,9 @@ mod tests {
             permission_manager: std::sync::Arc::new(std::sync::RwLock::new(
                 opencode_core::PermissionManager::default(),
             )),
+            approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::new(
+                PermissionScope::Full,
+            ))),
         }
     }
 
@@ -133,6 +137,9 @@ mod tests {
             permission_manager: std::sync::Arc::new(std::sync::RwLock::new(
                 opencode_core::PermissionManager::default(),
             )),
+            approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::new(
+                PermissionScope::Full,
+            ))),
         }
     }
 

@@ -4306,6 +4306,7 @@ dependencies = [
  "opencode-git",
  "opencode-llm",
  "opencode-mcp",
+ "opencode-permission",
  "opencode-plugin",
  "opencode-server",
  "opencode-storage",
@@ -4438,6 +4439,7 @@ dependencies = [
  "opencode-llm",
  "opencode-lsp",
  "opencode-mcp",
+ "opencode-permission",
  "opencode-plugin",
  "opencode-server",
  "opencode-storage",
@@ -4525,6 +4527,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "tokio",
  "uuid",
 ]
 
@@ -4592,6 +4595,7 @@ dependencies = [
  "opencode-core",
  "opencode-llm",
  "opencode-mcp",
+ "opencode-permission",
  "opencode-storage",
  "opencode-tools",
  "rand 0.8.5",

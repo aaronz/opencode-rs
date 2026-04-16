@@ -17,6 +17,7 @@ opencode-mcp.workspace = true
 opencode-lsp.workspace = true
 opencode-plugin.workspace = true
 opencode-control-plane.workspace = true
+opencode-permission.workspace = true
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true

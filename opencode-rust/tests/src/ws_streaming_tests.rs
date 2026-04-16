@@ -600,6 +600,9 @@ fn create_ws_test_server_state() -> opencode_server::ServerState {
         permission_manager: Arc::new(std::sync::RwLock::new(
             opencode_core::PermissionManager::default(),
         )),
+        approval_queue: Arc::new(std::sync::RwLock::new(
+            opencode_permission::ApprovalQueue::default(),
+        )),
     }
 }
 

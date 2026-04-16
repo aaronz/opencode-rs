@@ -2,6 +2,7 @@ use crate::routes::error::bad_request;
 use crate::ServerState;
 use actix_web::{web, HttpResponse, Responder};
 use opencode_core::permission::Permission;
+use uuid::Uuid;
 
 #[derive(serde::Deserialize)]
 pub struct PermissionReplyRequest {
@@ -65,6 +66,32 @@ pub async fn permission_reply(
                 );
             }
             _ => {}
+        }
+    }
+
+    if let Ok(mut aq) = state.approval_queue.write() {
+        if let Ok(approval_id) = Uuid::parse_str(&req_id) {
+            match decision.as_str() {
+                "allow" => {
+                    if let Some(approved) = aq.approve(approval_id) {
+                        tracing::info!(
+                            "ApprovalQueue updated: approved tool={} for session={}",
+                            approved.tool_name,
+                            session_id
+                        );
+                    }
+                }
+                "deny" => {
+                    if aq.reject(approval_id) {
+                        tracing::info!(
+                            "ApprovalQueue updated: rejected req_id={} for session={}",
+                            req_id,
+                            session_id
+                        );
+                    }
+                }
+                _ => {}
+            }
         }
     }
 

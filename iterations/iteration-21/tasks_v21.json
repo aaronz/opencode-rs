@@ -1050,7 +1050,7 @@
       "priority": "P1",
       "title": "Update ApprovalQueue on decision",
       "description": "Update ApprovalQueue on permission decision (approve/deny)",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify ApprovalQueue is updated after decision"
       ],
@@ -1067,7 +1067,7 @@
       "priority": "P1",
       "title": "Trigger re-evaluation of pending requests",
       "description": "Trigger re-evaluation of pending requests after decision",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify pending requests are re-evaluated after decision"
       ],
