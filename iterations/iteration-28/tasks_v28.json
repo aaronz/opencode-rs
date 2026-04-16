@@ -23,7 +23,7 @@
       "priority": "P0",
       "title": "Fix unwrap() on Option - API key",
       "description": "Fix `unwrap()` on Option for API key retrieval at crates/tools/src/web_search.rs line 70. API keys may not be set.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify web search handles missing API key gracefully",
         "AddErrorHandlingTest: test missing API key returns proper error"

@@ -3,6 +3,19 @@ use crate::{Tool, ToolResult};
 use async_trait::async_trait;
 use opencode_core::OpenCodeError;
 use serde::Deserialize;
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum WebSearchError {
+    #[error("API key is missing. Set EXA_API_KEY or OPENCODE_EXA_API_KEY environment variable.")]
+    ApiKeyMissing,
+}
+
+impl From<WebSearchError> for OpenCodeError {
+    fn from(err: WebSearchError) -> Self {
+        OpenCodeError::Tool(err.to_string())
+    }
+}
 
 pub struct WebSearchTool;
 
@@ -58,16 +71,8 @@ impl Tool for WebSearchTool {
 
         let api_key = std::env::var("EXA_API_KEY")
             .or_else(|_| std::env::var("OPENCODE_EXA_API_KEY"))
-            .ok();
-
-        if api_key.is_none() {
-            return Ok(ToolResult::ok(format!(
-                "Web search for '{}':\n\nTo enable web search, set EXA_API_KEY environment variable.\nFor now, please manually navigate to search engines.",
-                args.query
-            )));
-        }
-
-        let api_key = api_key.unwrap();
+            .ok()
+            .ok_or(WebSearchError::ApiKeyMissing)?;
 
         let request_body = serde_json::json!({
             "jsonrpc": "2.0",
@@ -132,5 +137,45 @@ impl Tool for WebSearchTool {
             "No search results found for '{}'. Please try a different query.",
             args.query
         )))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn remove_api_keys() {
+        std::env::remove_var("EXA_API_KEY");
+        std::env::remove_var("OPENCODE_EXA_API_KEY");
+    }
+
+    #[tokio::test]
+    async fn test_web_search_missing_api_key_returns_error() {
+        remove_api_keys();
+        let tool = WebSearchTool;
+        let args = serde_json::json!({"query": "test query"});
+
+        let result = tool.execute(args, None).await;
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("API key is missing"));
+    }
+
+    #[tokio::test]
+    async fn test_web_search_missing_api_key_error_type() {
+        remove_api_keys();
+        let tool = WebSearchTool;
+        let args = serde_json::json!({"query": "test query"});
+
+        let result = tool.execute(args, None).await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            OpenCodeError::Tool(msg) => {
+                assert!(msg.contains("API key is missing"));
+            }
+            _ => panic!("Expected OpenCodeError::Tool"),
+        }
     }
 }
