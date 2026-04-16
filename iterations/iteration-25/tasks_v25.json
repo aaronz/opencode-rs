@@ -137,7 +137,7 @@
       "priority": "P2",
       "title": "Export ChildProcess from lib.rs",
       "description": "Export ChildProcess type publicly from lib.rs. Add pub use cli::ChildProcess;",
-      "status": "done",
+      "status": "manual_check",
       "test_criteria": [
         "AddRegressionTest: verify ChildProcess is publicly accessible from crate root",
         "BuildVerification: cargo build -p ratatui-testing succeeds"
@@ -154,7 +154,7 @@
       "priority": "P2",
       "title": "Enhance DialogRenderTester",
       "description": "Add more dialog verification methods: has_title(buffer, title) and has_specific_content(buffer, content). Review existing methods for completeness.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify has_title() correctly identifies dialog title",
         "AddUnitTest: verify has_title() returns false for non-matching title",

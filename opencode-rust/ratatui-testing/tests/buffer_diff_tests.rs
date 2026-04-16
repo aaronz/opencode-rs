@@ -450,3 +450,64 @@ fn test_diff_str_single_char_diff() {
     assert_eq!(cell_diff.expected_symbol(), "a");
     assert_eq!(cell_diff.actual_symbol(), "b");
 }
+
+#[test]
+fn test_diff_str_applies_ignore_options() {
+    let diff = BufferDiff::new().ignore_foreground();
+    let result = diff.diff_str("hello", "hello");
+    assert!(
+        result.passed,
+        "diff_str with ignore_foreground should pass when symbols are identical"
+    );
+    assert_eq!(result.total_diffs, 0);
+}
+
+#[test]
+fn test_diff_str_with_ignore_options_ignores_foreground_differences() {
+    let diff = BufferDiff::new().ignore_foreground();
+    let result = diff.diff_str("test", "test");
+    assert!(result.passed);
+    assert_eq!(result.total_diffs, 0);
+}
+
+#[test]
+fn test_diff_str_without_ignore_options_compares_exactly() {
+    let diff = BufferDiff::new();
+    let result = diff.diff_str("hello", "hallo");
+    assert!(
+        !result.passed,
+        "diff_str without IgnoreOptions should detect symbol differences"
+    );
+    assert_eq!(result.total_diffs, 1);
+    let cell_diff = &result.differences[0];
+    assert_eq!(cell_diff.x, 1);
+    assert_eq!(cell_diff.expected_symbol(), "e");
+    assert_eq!(cell_diff.actual_symbol(), "a");
+}
+
+#[test]
+fn test_diff_str_ignore_background_compares_symbols_only() {
+    let diff = BufferDiff::new().ignore_background();
+    let result = diff.diff_str("abc", "abc");
+    assert!(result.passed);
+    assert_eq!(result.total_diffs, 0);
+}
+
+#[test]
+fn test_diff_str_ignore_attributes_compares_symbols_only() {
+    let diff = BufferDiff::new().ignore_attributes();
+    let result = diff.diff_str("abc", "abc");
+    assert!(result.passed);
+    assert_eq!(result.total_diffs, 0);
+}
+
+#[test]
+fn test_diff_str_with_multiple_ignore_options() {
+    let diff = BufferDiff::new()
+        .ignore_foreground()
+        .ignore_background()
+        .ignore_attributes();
+    let result = diff.diff_str("hello world", "hello world");
+    assert!(result.passed);
+    assert_eq!(result.total_diffs, 0);
+}

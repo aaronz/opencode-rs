@@ -34,6 +34,42 @@ impl DialogRenderTester {
             .filter(|line| line.iter().any(|cell| cell.symbol() != " "))
             .count()
     }
+
+    pub fn has_title(buffer: &ratatui::buffer::Buffer, title: &str) -> bool {
+        let width = buffer.area.width as usize;
+        let first_line = &buffer.content[..width.min(buffer.content.len())];
+        let line_text: String = first_line
+            .iter()
+            .map(|cell| cell.symbol())
+            .collect::<String>()
+            .trim()
+            .to_string();
+        line_text.contains(title)
+    }
+
+    pub fn has_specific_content(buffer: &ratatui::buffer::Buffer, content: &str) -> bool {
+        let width = buffer.area.width as usize;
+        let height = buffer.area.height as usize;
+        let buffer_width = width.min(buffer.content.len());
+
+        for y in 0..height {
+            let start = y * width;
+            let end = (start + buffer_width).min(buffer.content.len());
+            if start >= buffer.content.len() {
+                break;
+            }
+            let line_text: String = buffer.content[start..end]
+                .iter()
+                .map(|cell| cell.symbol())
+                .collect::<String>()
+                .trim()
+                .to_string();
+            if line_text.contains(content) {
+                return true;
+            }
+        }
+        false
+    }
 }
 
 impl Default for DialogRenderTester {

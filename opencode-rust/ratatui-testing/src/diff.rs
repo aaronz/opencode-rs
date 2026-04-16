@@ -792,4 +792,34 @@ mod tests {
         assert_eq!(cell_diff.y, 2, "Difference should be on line 3 (y=2)");
         assert_eq!(cell_diff.x, 4, "Difference should be at char 4");
     }
+
+    #[test]
+    fn test_diff_str_with_ignore_options_passes_identical_strings() {
+        let diff = BufferDiff::new().ignore_foreground();
+        let result = diff.diff_str("hello", "hello");
+        assert!(result.passed);
+        assert_eq!(result.total_diffs, 0);
+    }
+
+    #[test]
+    fn test_diff_str_with_ignore_options_ignores_styling_differences() {
+        let diff = BufferDiff::new()
+            .ignore_foreground()
+            .ignore_background()
+            .ignore_attributes();
+        let result = diff.diff_str("test", "test");
+        assert!(result.passed);
+        assert_eq!(result.total_diffs, 0);
+    }
+
+    #[test]
+    fn test_diff_str_without_ignore_options_detects_differences() {
+        let diff = BufferDiff::new();
+        let result = diff.diff_str("hello", "hallo");
+        assert!(!result.passed);
+        assert_eq!(result.total_diffs, 1);
+        assert_eq!(result.differences[0].x, 1);
+        assert_eq!(result.differences[0].expected_symbol(), "e");
+        assert_eq!(result.differences[0].actual_symbol(), "a");
+    }
 }
