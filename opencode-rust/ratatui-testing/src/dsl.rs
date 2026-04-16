@@ -184,6 +184,21 @@ impl TestDsl {
         Ok(())
     }
 
+    pub fn assert_buffer_eq(&self, expected: &Buffer, actual: &Buffer) -> Result<()> {
+        let diff = self
+            .buffer_diff
+            .as_ref()
+            .context("BufferDiff not configured. Use with_buffer_diff()")?;
+
+        let result = diff.diff(expected, actual);
+
+        if !result.passed {
+            anyhow::bail!("Buffer differences found:\n{}", result);
+        }
+
+        Ok(())
+    }
+
     pub fn capture_state<S>(&mut self, state: &S, name: Option<&str>) -> Result<()>
     where
         S: serde::Serialize,
@@ -1024,5 +1039,100 @@ mod tests {
 
         let pty = dsl.get_pty();
         assert!(pty.is_some());
+    }
+
+    #[test]
+    fn test_assert_buffer_eq_accepts_two_buffer_parameters() {
+        let dsl = TestDsl::new()
+            .with_size(10, 3)
+            .init_terminal()
+            .with_buffer_diff();
+
+        let buf1 = ratatui::buffer::Buffer::empty(ratatui::layout::Rect::new(0, 0, 10, 3));
+        let buf2 = ratatui::buffer::Buffer::empty(ratatui::layout::Rect::new(0, 0, 10, 3));
+
+        let result = dsl.assert_buffer_eq(&buf1, &buf2);
+        assert!(
+            result.is_ok(),
+            "assert_buffer_eq should accept two Buffer parameters"
+        );
+    }
+
+    #[test]
+    fn test_assert_buffer_eq_returns_ok_when_identical() {
+        let dsl = TestDsl::new()
+            .with_size(10, 3)
+            .init_terminal()
+            .with_buffer_diff()
+            .render(Paragraph::new(Text::from("Identical content")));
+
+        let buffer1 = dsl.capture_buffer().unwrap();
+
+        let dsl2 = TestDsl::new()
+            .with_size(10, 3)
+            .init_terminal()
+            .with_buffer_diff()
+            .render(Paragraph::new(Text::from("Identical content")));
+
+        let buffer2 = dsl2.capture_buffer().unwrap();
+
+        let result = dsl.with_buffer_diff().assert_buffer_eq(&buffer1, &buffer2);
+        assert!(
+            result.is_ok(),
+            "assert_buffer_eq should return Ok for identical buffers"
+        );
+    }
+
+    #[test]
+    fn test_assert_buffer_eq_returns_error_with_diff_details() {
+        let dsl1 = TestDsl::new()
+            .with_size(10, 3)
+            .init_terminal()
+            .with_buffer_diff()
+            .render(Paragraph::new(Text::from("Content A")));
+
+        let buffer1 = dsl1.capture_buffer().unwrap();
+
+        let dsl2 = TestDsl::new()
+            .with_size(10, 3)
+            .init_terminal()
+            .with_buffer_diff()
+            .render(Paragraph::new(Text::from("Content B")));
+
+        let buffer2 = dsl2.capture_buffer().unwrap();
+
+        let result = dsl2.with_buffer_diff().assert_buffer_eq(&buffer1, &buffer2);
+        assert!(
+            result.is_err(),
+            "assert_buffer_eq should return error for different buffers"
+        );
+
+        let err_msg = format!("{}", result.unwrap_err());
+        assert!(
+            err_msg.contains("Buffer differences found") || err_msg.contains("difference"),
+            "Error message should contain diff info: {}",
+            err_msg
+        );
+    }
+
+    #[test]
+    fn test_assert_buffer_eq_fluent_chaining() {
+        use ratatui::buffer::Buffer;
+        use ratatui::layout::Rect;
+
+        let buf1 = Buffer::empty(Rect::new(0, 0, 10, 3));
+        let buf2 = Buffer::empty(Rect::new(0, 0, 10, 3));
+
+        let result = TestDsl::new()
+            .with_size(10, 3)
+            .init_terminal()
+            .with_buffer_diff()
+            .render(Paragraph::new(Text::from("Test")))
+            .then(|dsl| {
+                dsl.assert_buffer_eq(&buf1, &buf2).unwrap();
+                dsl
+            });
+
+        assert!(result.last_render.is_some());
     }
 }

@@ -50,7 +50,7 @@
 
 ### Task 1.3: Add assert_buffer_eq to TestDsl
 **FR:** FR-104  
-**Status:** TODO  
+**Status:** ✅ Done  
 **Priority:** P1  
 **Effort:** Low
 
@@ -60,10 +60,10 @@
 - Return detailed error with diff info on failure
 
 **Acceptance Criteria:**
-- [ ] Method accepts two Buffer parameters
-- [ ] Returns `Ok(())` when buffers are identical
-- [ ] Returns error with diff details when different
-- [ ] Existing tests still pass
+- [x] Method accepts two Buffer parameters
+- [x] Returns `Ok(())` when buffers are identical
+- [x] Returns error with diff details when different
+- [x] Existing tests still pass
 
 ---
 

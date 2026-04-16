@@ -44,7 +44,7 @@
       "priority": "P1",
       "title": "Add assert_buffer_eq to TestDsl",
       "description": "Add `assert_buffer_eq(&self, expected: &Buffer, actual: &Buffer) -> Result<()>`. Use internal BufferDiff for comparison. Return detailed error with diff info on failure.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify assert_buffer_eq accepts two Buffer parameters",
         "AddUnitTest: verify assert_buffer_eq returns Ok(()) when buffers are identical",

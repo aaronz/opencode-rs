@@ -97,7 +97,7 @@ ratatui-testing/
 | FR-101 | BufferDiff API Alignment - DiffResult | P1 | Not Compliant |
 | FR-102 | BufferDiff API Alignment - CellDiff | P1 | Not Compliant |
 | FR-103 | BufferDiff diff_str Method | P2 | Not Implemented |
-| FR-104 | TestDsl assert_buffer_eq Method | P1 | Not Implemented |
+| FR-104 | TestDsl assert_buffer_eq Method | P1 | Implemented |
 | FR-105 | TestDsl send_keys Method | P2 | Not Implemented |
 | FR-106 | PtySimulator new() Signature Alignment | P2 | Not Compliant |
 | FR-107 | Missing Test Files | P2 | Not Complete |
@@ -223,7 +223,7 @@ Has `diff_to_string(&self, expected: &Buffer, actual: &Buffer) -> Result<String>
 ### FR-104: TestDsl assert_buffer_eq Method
 
 **Priority:** P1 (High)
-**Status:** Not Implemented
+**Status:** Implemented
 
 #### PRD Specification
 
@@ -243,10 +243,10 @@ Has `assert_no_diffs(&self, expected: &Buffer)` and `assert_buffer_matches(&self
 
 #### Acceptance Criteria
 
-- [ ] Method accepts two Buffer parameters
-- [ ] Returns `Ok(())` when buffers are identical
-- [ ] Returns error with diff details when different
-- [ ] Fluent API chainable
+- [x] Method accepts two Buffer parameters
+- [x] Returns `Ok(())` when buffers are identical
+- [x] Returns error with diff details when different
+- [x] Fluent API chainable
 
 ---
 
