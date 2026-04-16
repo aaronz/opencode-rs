@@ -463,7 +463,7 @@
       "priority": "P2",
       "title": "Expand builder pattern to server routes",
       "description": "Expand builder pattern usage to server routes for cleaner request/response construction.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify builder constructs valid requests/responses",
         "AddRegressionTest: ensure existing routes still work"
@@ -497,7 +497,7 @@
       "priority": "P2",
       "title": "Audit enum matching for exhaustiveness",
       "description": "Audit enum matching across the codebase to ensure exhaustive matching with proper wildcard handling.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: add #[deny(non_exhaustive)] where appropriate",
         "RunTestSuite: ensure compilation with exhaustive warnings"
