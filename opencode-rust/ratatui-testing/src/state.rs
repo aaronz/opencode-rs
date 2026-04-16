@@ -1,8 +1,63 @@
 use anyhow::{Context, Result};
+use ratatui::buffer::Buffer;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fmt;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TerminalState {
+    pub width: u16,
+    pub height: u16,
+    pub content: Vec<String>,
+    pub cursor_x: Option<u16>,
+    pub cursor_y: Option<u16>,
+}
+
+impl TerminalState {
+    pub fn from_buffer(buffer: &Buffer, cursor_x: Option<u16>, cursor_y: Option<u16>) -> Self {
+        let area = buffer.area;
+        let width = area.width as usize;
+        let mut content = Vec::with_capacity(area.height as usize);
+
+        for y in 0..area.height as usize {
+            let mut line = String::with_capacity(width);
+            let mut found_non_space = false;
+            for x in (0..area.width as usize).rev() {
+                let idx = y * width + x;
+                if idx < buffer.content.len() {
+                    let symbol = buffer.content[idx].symbol();
+                    if !symbol.is_empty() && symbol != " " {
+                        found_non_space = true;
+                    }
+                    if found_non_space {
+                        line.insert(0, symbol.chars().next().unwrap_or(' '));
+                    }
+                }
+            }
+            if line.is_empty() && found_non_space == false {
+                line.push(' ');
+            }
+            content.push(line);
+        }
+
+        Self {
+            width: area.width,
+            height: area.height,
+            content,
+            cursor_x,
+            cursor_y,
+        }
+    }
+
+    pub fn content_as_lines(&self) -> &[String] {
+        &self.content
+    }
+
+    pub fn cursor_position(&self) -> Option<(u16, u16)> {
+        self.cursor_x.zip(self.cursor_y)
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StateSnapshot {
@@ -100,6 +155,27 @@ impl StateTester {
 
         let snapshot = StateSnapshot {
             json: json.clone(),
+            path: vec![name.to_string()],
+        };
+
+        self.snapshots.insert(name.to_string(), snapshot.clone());
+        Ok(snapshot)
+    }
+
+    pub fn capture_terminal_state(
+        &mut self,
+        buffer: &Buffer,
+        cursor_x: Option<u16>,
+        cursor_y: Option<u16>,
+        name: Option<&str>,
+    ) -> Result<StateSnapshot> {
+        let terminal_state = TerminalState::from_buffer(buffer, cursor_x, cursor_y);
+        let name = name.unwrap_or(&self.default_path);
+        let json = serde_json::to_value(&terminal_state)
+            .context("Failed to serialize terminal state to JSON")?;
+
+        let snapshot = StateSnapshot {
+            json,
             path: vec![name.to_string()],
         };
 
@@ -591,5 +667,126 @@ mod tests {
 
         let result = tester.assert_state_matches(&expected, &actual);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_capture_terminal_state() {
+        use ratatui::layout::Rect;
+        let mut tester = StateTester::new();
+        let area = Rect::new(0, 0, 10, 2);
+        let mut buffer = Buffer::empty(area);
+
+        for (y, line) in ["Hello", "World"].iter().enumerate() {
+            for (x, c) in line.chars().enumerate() {
+                let idx = y * 10 + x;
+                buffer.content[idx].set_symbol(c.to_string().as_str());
+            }
+        }
+
+        let snapshot = tester
+            .capture_terminal_state(&buffer, Some(5), Some(1), Some("term"))
+            .unwrap();
+
+        let json = &snapshot.json;
+        assert_eq!(json["width"], 10);
+        assert_eq!(json["height"], 2);
+        assert_eq!(json["content"], serde_json::json!(["Hello", "World"]));
+        assert_eq!(json["cursor_x"], 5);
+        assert_eq!(json["cursor_y"], 1);
+    }
+
+    #[test]
+    fn test_terminal_state_serialization() {
+        use ratatui::layout::Rect;
+        let area = Rect::new(0, 0, 5, 1);
+        let buffer = Buffer::empty(area);
+
+        let state = TerminalState::from_buffer(&buffer, Some(2), Some(0));
+
+        let serialized = serde_json::to_string(&state).unwrap();
+        let deserialized: TerminalState = serde_json::from_str(&serialized).unwrap();
+
+        assert_eq!(deserialized.width, 5);
+        assert_eq!(deserialized.height, 1);
+        assert_eq!(deserialized.cursor_x, Some(2));
+        assert_eq!(deserialized.cursor_y, Some(0));
+    }
+
+    #[test]
+    fn test_terminal_state_content_as_lines() {
+        use ratatui::layout::Rect;
+        let area = Rect::new(0, 0, 3, 2);
+        let mut buffer = Buffer::empty(area);
+
+        buffer.content[0].set_symbol("a");
+        buffer.content[1].set_symbol("b");
+        buffer.content[2].set_symbol("c");
+        buffer.content[3].set_symbol("d");
+        buffer.content[4].set_symbol("e");
+        buffer.content[5].set_symbol("f");
+
+        let state = TerminalState::from_buffer(&buffer, None, None);
+        let lines = state.content_as_lines();
+
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0], "abc");
+        assert_eq!(lines[1], "def");
+    }
+
+    #[test]
+    fn test_terminal_state_cursor_position() {
+        use ratatui::layout::Rect;
+        let buffer = Buffer::empty(Rect::new(0, 0, 10, 10));
+
+        let state_with_cursor = TerminalState::from_buffer(&buffer, Some(3), Some(7));
+        assert_eq!(state_with_cursor.cursor_position(), Some((3, 7)));
+
+        let state_without_cursor = TerminalState::from_buffer(&buffer, None, None);
+        assert_eq!(state_without_cursor.cursor_position(), None);
+    }
+
+    #[test]
+    fn test_capture_terminal_state_empty_buffer() {
+        use ratatui::layout::Rect;
+        let mut tester = StateTester::new();
+        let area = Rect::new(0, 0, 80, 24);
+        let buffer = Buffer::empty(area);
+
+        let snapshot = tester
+            .capture_terminal_state(&buffer, Some(0), Some(0), Some("empty"))
+            .unwrap();
+
+        assert_eq!(snapshot.json["width"], 80);
+        assert_eq!(snapshot.json["height"], 24);
+        assert_eq!(snapshot.json["content"].as_array().unwrap().len(), 24);
+    }
+
+    #[test]
+    fn test_terminal_state_roundtrip() {
+        use ratatui::layout::Rect;
+        let mut tester = StateTester::new();
+        let area = Rect::new(0, 0, 20, 5);
+        let mut buffer = Buffer::empty(area);
+
+        for (y, line) in ["First", "Second", "Third", "", "Fifth"].iter().enumerate() {
+            for (x, c) in line.chars().enumerate() {
+                let idx = y * 20 + x;
+                buffer.content[idx].set_symbol(c.to_string().as_str());
+            }
+        }
+
+        tester
+            .capture_terminal_state(&buffer, Some(10), Some(2), Some("roundtrip"))
+            .unwrap();
+
+        let snapshot = tester.get_snapshot("roundtrip").unwrap();
+        let deserialized: TerminalState = serde_json::from_value(snapshot.json.clone()).unwrap();
+
+        assert_eq!(deserialized.width, 20);
+        assert_eq!(deserialized.height, 5);
+        assert_eq!(deserialized.content[0], "First");
+        assert_eq!(deserialized.content[1], "Second");
+        assert_eq!(deserialized.content[4], "Fifth");
+        assert_eq!(deserialized.cursor_position(), Some((10, 2)));
     }
 }

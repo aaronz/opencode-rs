@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
 use std::cell::RefCell;
 use std::fmt::Debug;
@@ -99,8 +100,64 @@ impl PtySimulator {
         }
     }
 
-    pub fn inject_key_event(&mut self, event: crossterm::event::KeyEvent) -> Result<()> {
-        let sequence = format!("{}", event);
+    fn encode_key_event(event: KeyEvent) -> String {
+        let codepoint = match event.code {
+            KeyCode::Char(c) => c as u32,
+            KeyCode::Enter => 13,
+            KeyCode::Tab => 9,
+            KeyCode::Backspace => 127,
+            KeyCode::Esc => 27,
+            KeyCode::Left => 57399,
+            KeyCode::Right => 57400,
+            KeyCode::Up => 57401,
+            KeyCode::Down => 57402,
+            KeyCode::Home => 57398,
+            KeyCode::End => 57403,
+            KeyCode::PageUp => 57404,
+            KeyCode::PageDown => 57405,
+            KeyCode::Insert => 57406,
+            KeyCode::Delete => 57407,
+            KeyCode::F(n) => match n {
+                1 => 57376,
+                2 => 57377,
+                3 => 57378,
+                4 => 57379,
+                5 => 57380,
+                6 => 57381,
+                7 => 57382,
+                8 => 57383,
+                9 => 57384,
+                10 => 57385,
+                11 => 57386,
+                12 => 57387,
+                _ => return String::new(),
+            },
+            _ => return String::new(),
+        };
+
+        let modifiers = encode_key_modifiers(event.modifiers);
+        format!("\x1B[{};{}u", codepoint, modifiers)
+    }
+
+    fn encode_mouse_event(event: MouseEvent) -> String {
+        let (btn, release) = encode_mouse_button(event.kind);
+        let modifiers = encode_mouse_modifiers(event.modifiers);
+        let cb = btn | modifiers;
+        let cx = event.column + 1;
+        let cy = event.row + 1;
+
+        if release {
+            format!("\x1B[<{};{};{}m", cb, cx, cy)
+        } else {
+            format!("\x1B[<{};{};{}M", cb, cx, cy)
+        }
+    }
+
+    pub fn inject_key_event(&mut self, event: KeyEvent) -> Result<()> {
+        let sequence = Self::encode_key_event(event);
+        if sequence.is_empty() {
+            return anyhow::bail!("Unsupported key event");
+        }
         match &mut self.writer {
             Some(writer) => {
                 writer.write_all(sequence.as_bytes())?;
@@ -111,8 +168,8 @@ impl PtySimulator {
         }
     }
 
-    pub fn inject_mouse_event(&mut self, event: crossterm::event::MouseEvent) -> Result<()> {
-        let sequence = format!("{}", event);
+    pub fn inject_mouse_event(&mut self, event: MouseEvent) -> Result<()> {
+        let sequence = Self::encode_mouse_event(event);
         match &mut self.writer {
             Some(writer) => {
                 writer.write_all(sequence.as_bytes())?;
@@ -129,6 +186,66 @@ impl PtySimulator {
             None => false,
         }
     }
+}
+
+fn encode_key_modifiers(modifiers: KeyModifiers) -> u8 {
+    let mut m = 0u8;
+    if modifiers.contains(KeyModifiers::SHIFT) {
+        m |= 1;
+    }
+    if modifiers.contains(KeyModifiers::CONTROL) {
+        m |= 2;
+    }
+    if modifiers.contains(KeyModifiers::ALT) {
+        m |= 4;
+    }
+    if modifiers.contains(KeyModifiers::SUPER) {
+        m |= 8;
+    }
+    if modifiers.contains(KeyModifiers::HYPER) {
+        m |= 16;
+    }
+    if modifiers.contains(KeyModifiers::META) {
+        m |= 32;
+    }
+    if m == 0 {
+        0
+    } else {
+        m
+    }
+}
+
+fn encode_mouse_button(kind: MouseEventKind) -> (u8, bool) {
+    match kind {
+        MouseEventKind::Down(MouseButton::Left) => (0, false),
+        MouseEventKind::Down(MouseButton::Middle) => (1, false),
+        MouseEventKind::Down(MouseButton::Right) => (2, false),
+        MouseEventKind::Up(MouseButton::Left) => (0, true),
+        MouseEventKind::Up(MouseButton::Middle) => (1, true),
+        MouseEventKind::Up(MouseButton::Right) => (2, true),
+        MouseEventKind::Drag(MouseButton::Left) => (32, false),
+        MouseEventKind::Drag(MouseButton::Middle) => (33, false),
+        MouseEventKind::Drag(MouseButton::Right) => (34, false),
+        MouseEventKind::Moved => (35, false),
+        MouseEventKind::ScrollDown => (64, false),
+        MouseEventKind::ScrollUp => (65, false),
+        MouseEventKind::ScrollLeft => (66, false),
+        MouseEventKind::ScrollRight => (67, false),
+    }
+}
+
+fn encode_mouse_modifiers(modifiers: KeyModifiers) -> u8 {
+    let mut m = 0u8;
+    if modifiers.contains(KeyModifiers::SHIFT) {
+        m |= 4;
+    }
+    if modifiers.contains(KeyModifiers::CONTROL) {
+        m |= 16;
+    }
+    if modifiers.contains(KeyModifiers::ALT) {
+        m |= 8;
+    }
+    m
 }
 
 impl Default for PtySimulator {

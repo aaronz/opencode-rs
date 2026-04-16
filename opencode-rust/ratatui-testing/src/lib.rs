@@ -10,7 +10,7 @@ pub use dialog_tester::{assert_render_result, DialogRenderTester};
 pub use diff::{BufferDiff, CellDiff, DiffResult, IgnoreOptions};
 pub use dsl::{TestDsl, WaitPredicate};
 pub use pty::PtySimulator;
-pub use state::{DiffType, StateDiff, StateDiffEntry, StateSnapshot, StateTester};
+pub use state::{DiffType, StateDiff, StateDiffEntry, StateSnapshot, StateTester, TerminalState};
 
 #[cfg(test)]
 mod tests {

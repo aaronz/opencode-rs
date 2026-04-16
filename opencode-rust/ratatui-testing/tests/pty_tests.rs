@@ -99,12 +99,12 @@ fn test_mouse_event_injection_works() {
 
     let mut pty = result.unwrap();
 
-    let mouse_event = MouseEvent::new(
-        MouseEventKind::Down(MouseButton::Left),
-        10,
-        5,
-        KeyModifiers::NONE,
-    );
+    let mouse_event = MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 10,
+        row: 5,
+        modifiers: KeyModifiers::NONE,
+    };
     let inject_result = pty.inject_mouse_event(mouse_event);
     assert!(inject_result.is_ok(), "MouseEvent injection should succeed");
 
@@ -118,7 +118,12 @@ fn test_mouse_event_injection_scroll() {
 
     let mut pty = result.unwrap();
 
-    let scroll_event = MouseEvent::new(MouseEventKind::ScrollDown, 15, 20, KeyModifiers::NONE);
+    let scroll_event = MouseEvent {
+        kind: MouseEventKind::ScrollDown,
+        column: 15,
+        row: 20,
+        modifiers: KeyModifiers::NONE,
+    };
     let inject_result = pty.inject_mouse_event(scroll_event);
     assert!(
         inject_result.is_ok(),
