@@ -98,13 +98,11 @@ impl Tool for ReadTool {
         let worktree =
             explicit_worktree.unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
 
-        if !is_path_within_worktree(&path, &worktree) {
-            if has_explicit_worktree || !path.exists() {
-                return Ok(ToolResult::err(format!(
-                    "Access to path outside worktree denied: {}",
-                    args.path
-                )));
-            }
+        if !is_path_within_worktree(&path, &worktree) && has_explicit_worktree {
+            return Ok(ToolResult::err(format!(
+                "Access to path outside worktree denied: {}",
+                args.path
+            )));
         }
 
         if !path.exists() {

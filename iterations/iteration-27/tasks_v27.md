@@ -11,7 +11,7 @@
 |----|------|--------|-------|-------|
 | P0-01 | Fix `test_tool_registry_execute_read_tool` | ✅ Done | `tests/src/tool_registry_audit_tests.rs` | Tool execution returns failure |
 | P0-02 | Fix `test_tool_registry_execute_write_tool` | ✅ Done | `tests/src/tool_registry_audit_tests.rs` | Tool execution returns failure |
-| P0-03 | Fix `test_path_normalization_prevents_traversal` | TODO | `tests/src/security_tests.rs` | Path validation broken |
+| P0-03 | Fix `test_path_normalization_prevents_traversal` | ✅ Done | `tests/src/security_tests.rs` | Path validation broken |
 | P0-04 | Fix `test_session_message_content_sanitization` | TODO | `tests/src/security_tests.rs` | XSS/injection prevention broken |
 | P0-05 | Fix `test_session_message_xss_prevention` | TODO | `tests/src/security_tests.rs` | XSS prevention broken |
 | P0-06 | Fix `test_write_tool_path_validation` | TODO | `tests/src/security_tests.rs` | Path validation broken |
