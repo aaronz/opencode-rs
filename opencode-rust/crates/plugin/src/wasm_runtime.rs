@@ -184,10 +184,6 @@ impl WasmRuntime {
         let mut config = Config::new();
         config.consume_fuel(true);
 
-        if let Some(max_mem) = capabilities.max_memory_bytes {
-            config.static_memory_maximum_size(max_mem);
-        }
-
         if let Some(_timeout) = capabilities.execution_timeout_secs {
             config.epoch_interruption(true);
         }

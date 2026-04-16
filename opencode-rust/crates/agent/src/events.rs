@@ -197,7 +197,7 @@ mod emitter_tests {
         }
 
         let mut count = 0;
-        while let Ok(received) = receiver.recv().await {
+        while let Ok(_received) = receiver.recv().await {
             count += 1;
             if count == 7 {
                 break;

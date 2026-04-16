@@ -11,8 +11,8 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 libloading = "0.8"
-wasmtime = "25"
-wasmtime-wasi = "25"
+wasmtime = "36"
+wasmtime-wasi = "36"
 tokio = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }

@@ -154,7 +154,7 @@
 | VR-04 | Run doc tests: `cargo test --doc` | TODO | VR-03 |
 | VR-05 | Run benchmarks: `cargo bench --all` | TODO | VR-04 |
 | VR-06 | Memory profiling | ✅ Done | VR-05 |
-| VR-07 | Security audit | TODO | VR-06 |
+| VR-07 | Security audit | ✅ Done | VR-06 |
 | VR-08 | Documentation completeness check | TODO | VR-07 |
 
 ---

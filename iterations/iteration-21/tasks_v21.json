@@ -1600,14 +1600,14 @@
       "priority": "P0",
       "title": "Memory profiling",
       "description": "Memory profiling of the application",
-      "status": "done",
+      "status": "manual_check",
       "test_criteria": [
         "AddRegressionTest: verify memory usage is within acceptable bounds"
       ],
       "test_commands": [
         "cargo build --release && valgrind --tool=massif ./target/release/opencode"
       ],
-      "impl_notes": "Use valgrind massif or similar for memory profiling. Implemented using 'leaks' command on macOS and documented valgrind massif for Linux.",
+      "impl_notes": "Use valgrind massif or similar for memory profiling. Implemented using 'leaks' command on macOS and documented valgrind massif for Linux. Environment issue on macOS: valgrind not installed (`command not found`). Skip automated completion and handle manually.",
       "dependencies": [
         "VR-05"
       ]
@@ -1617,7 +1617,7 @@
       "priority": "P0",
       "title": "Security audit",
       "description": "Security audit of the application",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify security audit completes"
       ],

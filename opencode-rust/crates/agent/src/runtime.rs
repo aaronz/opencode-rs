@@ -1779,6 +1779,7 @@ mod tests {
     struct MockProvider;
 
     impl MockProvider {
+        #[allow(dead_code)]
         fn new() -> Self {
             Self
         }

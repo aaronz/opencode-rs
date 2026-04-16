@@ -77,7 +77,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Tool executed successfully!");
             println!("  Success: {}", result.is_success());
             if result.is_success() {
-                let result_str = result.result.as_ref().map(|s| s.as_str()).unwrap_or("");
+                let result_str = result.result.as_deref().unwrap_or("");
                 println!("  Result: {}", &result_str[..result_str.len().min(200)]);
             }
         }

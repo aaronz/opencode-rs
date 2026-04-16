@@ -36,8 +36,6 @@ fn test_input_widget_narrow_terminal() {
             f.render_widget(block, area);
         })
         .unwrap();
-
-    assert!(true, "Narrow terminal render completed without panic");
 }
 
 #[test]
@@ -70,8 +68,6 @@ fn test_multiple_widgets_layout() {
             f.render_widget(status_block, status_area);
         })
         .unwrap();
-
-    assert!(true, "Multiple widgets layout rendered successfully");
 }
 
 fn areas_overlap(a: &Rect, b: &Rect) -> bool {
