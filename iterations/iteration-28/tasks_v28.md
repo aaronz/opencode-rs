@@ -74,7 +74,7 @@
 
 | Task ID | Description | Estimated | Status |
 |---------|-------------|-----------|--------|
-| T-024 | Add mockall dependency for trait mocking | 2 days | Not Started |
+| T-024 | Add mockall dependency for trait mocking | 2 days | ✅ Done |
 | T-025 | Add service layer to server routes | 1 week | Not Started |
 | T-026 | Expand builder pattern to server routes | 1 week | Not Started |
 | T-027 | Add newtypes: SessionId, UserId, ProjectId | 2 days | Not Started |

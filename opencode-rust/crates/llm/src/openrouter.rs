@@ -137,3 +137,40 @@ impl Provider for OpenRouterProvider {
         "openrouter"
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_openrouter_provider_new() {
+        let config = ProviderConfig {
+            model: "openai/gpt-4o".to_string(),
+            api_key: "test-key".to_string(),
+            temperature: 0.7,
+        };
+        let provider = OpenRouterProvider::new(config);
+        assert_eq!(provider.provider_name(), "openrouter");
+    }
+
+    #[test]
+    fn test_openrouter_provider_get_models() {
+        let config = ProviderConfig::default();
+        let provider = OpenRouterProvider::new(config);
+        let models = provider.get_models();
+        assert!(!models.is_empty());
+        assert!(models.iter().any(|m| m.id == "openai/gpt-4o"));
+    }
+
+    #[tokio::test]
+    async fn test_openrouter_complete_returns_error_without_api_key() {
+        let config = ProviderConfig {
+            model: "openai/gpt-4o".to_string(),
+            api_key: "invalid-key".to_string(),
+            temperature: 0.7,
+        };
+        let provider = OpenRouterProvider::new(config);
+        let result = provider.complete("test prompt", None).await;
+        assert!(result.is_err());
+    }
+}

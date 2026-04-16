@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use opencode_config::ProviderConfig;
 use tempfile::TempDir;
 use tokio::fs;
 
@@ -254,4 +255,191 @@ fn test_merge_empty_enabled_list_means_disable_all() {
     let merged = merge_catalogs(catalog, &BTreeMap::new(), Some(&[]), &[]);
 
     assert_eq!(merged.providers.len(), 0);
+}
+
+#[test]
+fn test_merge_config_overrides_provider_name() {
+    let catalog = create_test_catalog();
+
+    let mut config_providers = BTreeMap::new();
+    config_providers.insert(
+        "openai".to_string(),
+        ProviderConfig {
+            id: Some("openai".to_string()),
+            name: Some("OpenAI Custom".to_string()),
+            options: None,
+            models: None,
+            ..Default::default()
+        },
+    );
+
+    let merged = merge_catalogs(catalog, &config_providers, None, &[]);
+
+    let openai = merged.providers.get("openai").unwrap();
+    assert_eq!(openai.display_name, "OpenAI Custom");
+}
+
+#[test]
+fn test_merge_config_overrides_base_url() {
+    let catalog = create_test_catalog();
+
+    let mut config_providers = BTreeMap::new();
+    config_providers.insert(
+        "openai".to_string(),
+        ProviderConfig {
+            id: Some("openai".to_string()),
+            name: None,
+            options: Some(opencode_config::ProviderOptions {
+                base_url: Some("https://custom.openai.com/v1".to_string()),
+                ..Default::default()
+            }),
+            models: None,
+            ..Default::default()
+        },
+    );
+
+    let merged = merge_catalogs(catalog, &config_providers, None, &[]);
+
+    let openai = merged.providers.get("openai").unwrap();
+    assert_eq!(
+        openai.api_base_url.as_ref().unwrap(),
+        "https://custom.openai.com/v1"
+    );
+}
+
+#[test]
+fn test_merge_config_overrides_model_visibility() {
+    let catalog = create_test_catalog();
+
+    let mut config_providers = BTreeMap::new();
+    config_providers.insert(
+        "openai".to_string(),
+        ProviderConfig {
+            id: Some("openai".to_string()),
+            name: None,
+            models: Some(std::collections::HashMap::from([(
+                "gpt-4o".to_string(),
+                opencode_config::ModelConfig {
+                    visible: Some(false),
+                    ..Default::default()
+                },
+            )])),
+            ..Default::default()
+        },
+    );
+
+    let merged = merge_catalogs(catalog, &config_providers, None, &[]);
+
+    let openai = merged.providers.get("openai").unwrap();
+    assert!(!openai.models.contains_key("gpt-4o"));
+}
+
+#[test]
+fn test_merge_config_creates_synthetic_provider() {
+    let catalog = create_test_catalog();
+
+    let mut config_providers = BTreeMap::new();
+    config_providers.insert(
+        "custom".to_string(),
+        ProviderConfig {
+            id: Some("custom".to_string()),
+            name: Some("Custom Provider".to_string()),
+            options: Some(opencode_config::ProviderOptions {
+                base_url: Some("https://custom.api.com/v1".to_string()),
+                ..Default::default()
+            }),
+            models: None,
+            ..Default::default()
+        },
+    );
+
+    let merged = merge_catalogs(catalog, &config_providers, None, &[]);
+
+    let custom = merged.providers.get("custom").unwrap();
+    assert_eq!(custom.display_name, "Custom Provider");
+    assert!(custom
+        .api_base_url
+        .as_ref()
+        .unwrap()
+        .contains("custom.api.com"));
+}
+
+#[test]
+fn test_merge_enabled_filter_takes_precedence() {
+    let catalog = create_test_catalog();
+
+    let merged = merge_catalogs(
+        catalog,
+        &BTreeMap::new(),
+        Some(&["openai".to_string()]),
+        &["minimax".to_string()],
+    );
+
+    assert!(merged.providers.contains_key("openai"));
+    assert!(!merged.providers.contains_key("minimax"));
+}
+
+#[test]
+fn test_merge_with_both_enabled_and_disabled() {
+    let catalog = create_test_catalog();
+
+    let merged = merge_catalogs(
+        catalog,
+        &BTreeMap::new(),
+        Some(&["openai".to_string(), "minimax".to_string()]),
+        &["minimax".to_string()],
+    );
+
+    assert!(!merged.providers.contains_key("minimax"));
+}
+
+#[test]
+fn test_catalog_merger_build() {
+    use opencode_llm::catalog::merge::CatalogMerger;
+
+    let catalog = create_test_catalog();
+    let merger = CatalogMerger::new(catalog);
+    let built = merger.build();
+
+    assert!(built.providers.contains_key("openai"));
+}
+
+#[test]
+fn test_catalog_merger_with_local_providers() {
+    use opencode_llm::catalog::merge::CatalogMerger;
+
+    let catalog = create_test_catalog();
+    let merger = CatalogMerger::new(catalog).with_local_providers();
+    let built = merger.build();
+
+    assert!(built.providers.contains_key("ollama"));
+    assert!(built.providers.contains_key("lmstudio"));
+}
+
+#[test]
+fn test_catalog_merger_does_not_override_existing_local_providers() {
+    use opencode_llm::catalog::merge::CatalogMerger;
+
+    let mut catalog = create_test_catalog();
+    catalog.providers.insert(
+        "ollama".to_string(),
+        ProviderDescriptor {
+            id: "ollama".to_string(),
+            display_name: "Custom Ollama".to_string(),
+            api_base_url: Some("http://custom:11434".to_string()),
+            docs_url: None,
+            env_vars: vec![],
+            npm_package: None,
+            models: BTreeMap::new(),
+            source: CatalogSource::Config,
+        },
+    );
+
+    let merger = CatalogMerger::new(catalog).with_local_providers();
+    let built = merger.build();
+
+    assert_eq!(
+        built.providers.get("ollama").unwrap().display_name,
+        "Custom Ollama"
+    );
 }

@@ -317,3 +317,169 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.route("", web::get().to(sse_index));
     cfg.route("/{session_id}/message", web::post().to(sse_send_message));
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sse_query_deserialization_default_session() {
+        let json = r#"{}"#;
+        let query: SseQuery = serde_json::from_str(json).unwrap();
+        assert!(query.session_id.is_none());
+        assert!(query.reconnect_token.is_none());
+    }
+
+    #[test]
+    fn test_sse_query_deserialization_with_session_id() {
+        let json = r#"{"session_id": "my-session-123"}"#;
+        let query: SseQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(query.session_id, Some("my-session-123".to_string()));
+    }
+
+    #[test]
+    fn test_sse_query_deserialization_with_reconnect_token() {
+        let json = r#"{"session_id": "sess", "reconnect_token": "token-abc"}"#;
+        let query: SseQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(query.session_id, Some("sess".to_string()));
+        assert_eq!(query.reconnect_token, Some("token-abc".to_string()));
+    }
+
+    #[test]
+    fn test_sse_message_request_deserialization() {
+        let json = r#"{"message": "Hello world", "model": "gpt-4"}"#;
+        let req: SseMessageRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.message, "Hello world");
+        assert_eq!(req.model, Some("gpt-4".to_string()));
+    }
+
+    #[test]
+    fn test_sse_message_request_minimal() {
+        let json = r#"{"message": "Just a message"}"#;
+        let req: SseMessageRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.message, "Just a message");
+        assert!(req.model.is_none());
+    }
+
+    #[test]
+    fn test_message_event_type_message() {
+        let msg = StreamMessage::Message {
+            session_id: "test".to_string(),
+            content: "hello".to_string(),
+            role: "user".to_string(),
+        };
+        assert_eq!(message_event_type(&msg), "message");
+    }
+
+    #[test]
+    fn test_message_event_type_session_update() {
+        let msg = StreamMessage::SessionUpdate {
+            session_id: "test".to_string(),
+            status: "running".to_string(),
+        };
+        assert_eq!(message_event_type(&msg), "session_update");
+    }
+
+    #[test]
+    fn test_message_event_type_connected() {
+        let msg = StreamMessage::Connected {
+            session_id: Some("test".to_string()),
+        };
+        assert_eq!(message_event_type(&msg), "connected");
+    }
+
+    #[test]
+    fn test_sse_message_request_unicode() {
+        let json = r#"{"message": "Hello 世界 🌍"}"#;
+        let req: SseMessageRequest = serde_json::from_str(json).unwrap();
+        assert!(req.message.contains("世界"));
+    }
+
+    #[test]
+    fn test_sse_query_preserves_special_characters() {
+        let json = r#"{"session_id": "sess/with/slashes", "reconnect_token": "token+with+plus"}"#;
+        let query: SseQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(query.session_id.unwrap(), "sess/with/slashes");
+        assert_eq!(query.reconnect_token.unwrap(), "token+with+plus");
+    }
+
+    #[test]
+    fn test_event_to_stream_message_filters_by_session() {
+        let event = InternalEvent::SessionStarted("other-session".to_string());
+        let result = event_to_stream_message(event, "my-session");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_event_to_stream_message_passes_through_when_session_matches() {
+        let event = InternalEvent::SessionStarted("my-session".to_string());
+        let result = event_to_stream_message(event, "my-session");
+        assert!(result.is_some());
+        match result.unwrap() {
+            StreamMessage::SessionUpdate { session_id, status } => {
+                assert_eq!(session_id, "my-session");
+                assert_eq!(status, "started");
+            }
+            _ => panic!("Expected SessionUpdate"),
+        }
+    }
+
+    #[test]
+    fn test_event_to_stream_message_handles_message_added() {
+        let event = InternalEvent::MessageAdded {
+            session_id: "my-session".to_string(),
+            message_id: "msg-123".to_string(),
+        };
+        let result = event_to_stream_message(event, "my-session");
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_event_to_stream_message_with_no_session_id_in_event() {
+        let event = InternalEvent::Error {
+            source: "test".to_string(),
+            message: "error occurred".to_string(),
+        };
+        let result = event_to_stream_message(event, "any-session");
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_message_event_type_tool_call() {
+        let msg = StreamMessage::ToolCall {
+            session_id: "test".to_string(),
+            tool_name: "read".to_string(),
+            args: serde_json::json!({}),
+            call_id: "call-1".to_string(),
+        };
+        assert_eq!(message_event_type(&msg), "tool_call");
+    }
+
+    #[test]
+    fn test_message_event_type_tool_result() {
+        let msg = StreamMessage::ToolResult {
+            session_id: "test".to_string(),
+            call_id: "call-1".to_string(),
+            output: "result".to_string(),
+            success: true,
+        };
+        assert_eq!(message_event_type(&msg), "tool_result");
+    }
+
+    #[test]
+    fn test_message_event_type_heartbeat() {
+        let msg = StreamMessage::Heartbeat { timestamp: 123 };
+        assert_eq!(message_event_type(&msg), "heartbeat");
+    }
+
+    #[test]
+    fn test_message_event_type_error() {
+        let msg = StreamMessage::Error {
+            session_id: Some("test".to_string()),
+            error: "ERR".to_string(),
+            code: "ERR".to_string(),
+            message: "error".to_string(),
+        };
+        assert_eq!(message_event_type(&msg), "error");
+    }
+}

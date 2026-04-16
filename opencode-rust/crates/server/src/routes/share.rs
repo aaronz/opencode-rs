@@ -906,16 +906,28 @@ mod tests {
         let link1 = server
             .create_short_link("session-keep".to_string(), Some(24 * 30), None)
             .await;
-        let link2 = server
-            .create_short_link("session-expired".to_string(), Some(0), None)
-            .await;
 
-        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+        let link2 = ShortShareLink {
+            short_code: "expired".to_string(),
+            access_token: "token-expired".to_string(),
+            session_id: "session-expired".to_string(),
+            share_mode: ShareMode::Manual,
+            created_at: Utc::now(),
+            expires_at: Some(Utc::now() - chrono::Duration::hours(1)),
+            view_count: 0,
+            max_views: None,
+            allowed_operations: vec![ShareOperation::Read],
+        };
+        {
+            let mut links = server.links.write().await;
+            links.insert(link2.short_code.clone(), link2.clone());
+        }
 
         let cleaned = server.cleanup_expired().await;
         assert_eq!(cleaned, 1);
 
         assert!(server.get_short_link(&link1.short_code).await.is_some());
+        assert!(server.get_short_link(&link2.short_code).await.is_none());
     }
 
     #[test]

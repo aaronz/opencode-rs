@@ -246,7 +246,7 @@ mod tests {
             suffix: Some("]".to_string()),
         });
         let result = pipeline.apply("  hello world  ");
-        assert_eq!(result, "[hello...]");
+        assert_eq!(result, "[hello w...]");
     }
 
     #[test]

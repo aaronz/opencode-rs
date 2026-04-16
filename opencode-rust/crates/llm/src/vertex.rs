@@ -171,3 +171,52 @@ impl Provider for VertexProvider {
         "vertex"
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_vertex_provider_new() {
+        let config = ProviderConfig {
+            model: "gemini-1.5-pro".to_string(),
+            api_key: "test-key".to_string(),
+            temperature: 0.7,
+        };
+        let provider = VertexProvider::new(
+            config,
+            "test-project".to_string(),
+            "us-central1".to_string(),
+        );
+        assert_eq!(provider.provider_name(), "vertex");
+    }
+
+    #[test]
+    fn test_vertex_provider_get_models() {
+        let config = ProviderConfig::default();
+        let provider = VertexProvider::new(
+            config,
+            "test-project".to_string(),
+            "us-central1".to_string(),
+        );
+        let models = provider.get_models();
+        assert!(!models.is_empty());
+        assert!(models.iter().any(|m| m.id == "gemini-1.5-pro"));
+    }
+
+    #[tokio::test]
+    async fn test_vertex_complete_returns_error_without_valid_credentials() {
+        let config = ProviderConfig {
+            model: "gemini-1.5-pro".to_string(),
+            api_key: "invalid-key".to_string(),
+            temperature: 0.7,
+        };
+        let provider = VertexProvider::new(
+            config,
+            "test-project".to_string(),
+            "us-central1".to_string(),
+        );
+        let result = provider.complete("test prompt", None).await;
+        assert!(result.is_err());
+    }
+}

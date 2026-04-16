@@ -156,3 +156,65 @@ impl Provider for AzureProvider {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_azure_provider_new() {
+        let provider = AzureProvider::new(
+            "test-key".to_string(),
+            "https://test.openai.azure.com".to_string(),
+            "gpt-4o".to_string(),
+        );
+        assert_eq!(provider.provider_name(), "unknown");
+    }
+
+    #[test]
+    fn test_azure_build_url() {
+        let provider = AzureProvider::new(
+            "test-key".to_string(),
+            "https://test.openai.azure.com/".to_string(),
+            "gpt-4o".to_string(),
+        );
+        let url = provider.build_url();
+        assert!(url.contains("gpt-4o"));
+        assert!(url.contains("api-version"));
+    }
+
+    #[test]
+    fn test_azure_build_chat_stream_url() {
+        let provider = AzureProvider::new(
+            "test-key".to_string(),
+            "https://test.openai.azure.com".to_string(),
+            "gpt-4o".to_string(),
+        );
+        let url = provider.build_chat_stream_url();
+        assert!(url.contains("chat"));
+        assert!(url.contains("gpt-4o"));
+    }
+
+    #[test]
+    fn test_azure_endpoint_trims_trailing_slash() {
+        let provider = AzureProvider::new(
+            "test-key".to_string(),
+            "https://test.openai.azure.com///".to_string(),
+            "gpt-4o".to_string(),
+        );
+        let url = provider.build_url();
+        assert!(url.starts_with("https://test.openai.azure.com"));
+        assert!(!url.contains("//openai"));
+    }
+
+    #[tokio::test]
+    async fn test_azure_complete_returns_error_without_valid_endpoint() {
+        let provider = AzureProvider::new(
+            "test-key".to_string(),
+            "https://invalid.azure.com".to_string(),
+            "gpt-4o".to_string(),
+        );
+        let result = provider.complete("test prompt", None).await;
+        assert!(result.is_err());
+    }
+}

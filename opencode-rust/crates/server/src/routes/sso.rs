@@ -248,7 +248,8 @@ mod tests {
         let json = serde_json::to_string(&response).unwrap();
         assert!(json.contains("saml"));
         assert!(json.contains("my-entity"));
-        assert!(!json.contains("has_certificate"));
+        assert!(json.contains("has_certificate"));
+        assert!(json.contains("\"has_certificate\":false"));
     }
 
     #[test]

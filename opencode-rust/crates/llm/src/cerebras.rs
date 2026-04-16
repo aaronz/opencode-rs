@@ -130,3 +130,40 @@ impl Provider for CerebrasProvider {
         "cerebras"
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cerebras_provider_new() {
+        let config = ProviderConfig {
+            model: "llama-3.3-70b".to_string(),
+            api_key: "test-key".to_string(),
+            temperature: 0.7,
+        };
+        let provider = CerebrasProvider::new(config);
+        assert_eq!(provider.provider_name(), "cerebras");
+    }
+
+    #[test]
+    fn test_cerebras_provider_get_models() {
+        let config = ProviderConfig::default();
+        let provider = CerebrasProvider::new(config);
+        let models = provider.get_models();
+        assert!(!models.is_empty());
+        assert!(models.iter().any(|m| m.id == "llama-3.3-70b"));
+    }
+
+    #[tokio::test]
+    async fn test_cerebras_complete_returns_error_without_api_key() {
+        let config = ProviderConfig {
+            model: "llama-3.3-70b".to_string(),
+            api_key: "invalid-key".to_string(),
+            temperature: 0.7,
+        };
+        let provider = CerebrasProvider::new(config);
+        let result = provider.complete("test prompt", None).await;
+        assert!(result.is_err());
+    }
+}

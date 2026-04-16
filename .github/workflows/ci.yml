@@ -38,3 +38,12 @@ jobs:
 
       - name: Run tests
         run: cd opencode-rust && cargo test --all
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Run coverage
+        run: cd opencode-rust && cargo llvm-cov --all --fail-under-lines 80
+
+      - name: Run clippy
+        run: cd opencode-rust && cargo clippy --all -- -D warnings

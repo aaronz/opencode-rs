@@ -831,4 +831,163 @@ mod tests {
             _ => panic!("Expected ToolCall"),
         }
     }
+
+    #[test]
+    fn test_acp_ws_message_tool_call_deserialization() {
+        let json = r#"{
+            "type": "tool_call",
+            "session_id": "sess-1",
+            "tool_name": "read_file",
+            "args": {"path": "/tmp/test"},
+            "call_id": "call-123"
+        }"#;
+        let msg: AcpWsMessage = serde_json::from_str(json).expect("Should deserialize");
+        match msg {
+            AcpWsMessage::ToolCall {
+                session_id,
+                tool_name,
+                call_id,
+                ..
+            } => {
+                assert_eq!(session_id, "sess-1");
+                assert_eq!(tool_name, "read_file");
+                assert_eq!(call_id, "call-123");
+            }
+            _ => panic!("Expected ToolCall"),
+        }
+    }
+
+    #[test]
+    fn test_acp_ws_message_tool_result_serialization() {
+        let msg = AcpWsMessage::ToolResult {
+            session_id: "sess-1".to_string(),
+            call_id: "call-123".to_string(),
+            output: "file contents".to_string(),
+            success: true,
+        };
+        let json = serde_json::to_string(&msg).expect("Should serialize");
+        assert!(json.contains("\"type\":\"tool_result\""));
+        assert!(json.contains("\"success\":true"));
+    }
+
+    #[test]
+    fn test_acp_ws_message_status_serialization() {
+        let msg = AcpWsMessage::Status {
+            status: "ready".to_string(),
+        };
+        let json = serde_json::to_string(&msg).expect("Should serialize");
+        assert!(json.contains("\"type\":\"status\""));
+        assert!(json.contains("\"status\":\"ready\""));
+    }
+
+    #[test]
+    fn test_acp_ws_message_ping_serialization() {
+        let msg = AcpWsMessage::Ping;
+        let json = serde_json::to_string(&msg).expect("Should serialize");
+        assert!(json.contains("\"type\":\"ping\""));
+    }
+
+    #[test]
+    fn test_acp_ws_message_pong_serialization() {
+        let msg = AcpWsMessage::Pong;
+        let json = serde_json::to_string(&msg).expect("Should serialize");
+        assert!(json.contains("\"type\":\"pong\""));
+    }
+
+    #[test]
+    fn test_acp_ws_message_close_serialization() {
+        let msg = AcpWsMessage::Close;
+        let json = serde_json::to_string(&msg).expect("Should serialize");
+        assert!(json.contains("\"type\":\"close\""));
+    }
+
+    #[test]
+    fn test_acp_ws_outgoing_error_serialization() {
+        let msg = AcpWsOutgoing::Error {
+            code: "ERR_001".to_string(),
+            message: "Something went wrong".to_string(),
+        };
+        let json = serde_json::to_string(&msg).expect("Should serialize");
+        assert!(json.contains("\"type\":\"error\""));
+        assert!(json.contains("\"code\":\"ERR_001\""));
+    }
+
+    #[test]
+    fn test_acp_ws_outgoing_heartbeat_serialization() {
+        let msg = AcpWsOutgoing::Heartbeat {
+            timestamp: 1234567890,
+        };
+        let json = serde_json::to_string(&msg).expect("Should serialize");
+        assert!(json.contains("\"type\":\"heartbeat\""));
+        assert!(json.contains("\"timestamp\":1234567890"));
+    }
+
+    #[test]
+    fn test_acp_ws_outgoing_connected_serialization() {
+        let msg = AcpWsOutgoing::Connected {
+            session_id: Some("sess-1".to_string()),
+        };
+        let json = serde_json::to_string(&msg).expect("Should serialize");
+        assert!(json.contains("\"type\":\"connected\""));
+        assert!(json.contains("\"session_id\":\"sess-1\""));
+    }
+
+    #[test]
+    fn test_acp_ws_outgoing_tool_result_serialization() {
+        let msg = AcpWsOutgoing::ToolResult {
+            session_id: "sess-1".to_string(),
+            call_id: "call-123".to_string(),
+            output: "result".to_string(),
+            success: false,
+        };
+        let json = serde_json::to_string(&msg).expect("Should serialize");
+        assert!(json.contains("\"type\":\"tool_result\""));
+        assert!(json.contains("\"success\":false"));
+    }
+
+    #[test]
+    fn test_acp_ws_message_handshake_ack_serialization() {
+        let msg = AcpWsMessage::HandshakeAck {
+            session_id: "sess-new".to_string(),
+            confirmed: true,
+        };
+        let json = serde_json::to_string(&msg).expect("Should serialize");
+        assert!(json.contains("\"type\":\"handshake_ack\""));
+        assert!(json.contains("\"confirmed\":true"));
+    }
+
+    #[test]
+    fn test_acp_client_registry_get_nonexistent() {
+        let registry = AcpClientRegistry::new();
+        assert!(registry.get("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_acp_client_registry_get_by_session_none() {
+        let registry = AcpClientRegistry::new();
+        let clients = registry.get_by_session("nonexistent");
+        assert!(clients.is_empty());
+    }
+
+    #[test]
+    fn test_acp_client_registry_unregister_nonexistent() {
+        let mut registry = AcpClientRegistry::new();
+        let removed = registry.unregister("nonexistent");
+        assert!(removed.is_none());
+    }
+
+    #[test]
+    fn test_acp_ws_message_deserialization_all_variants() {
+        let ping_json = r#"{"type": "ping"}"#;
+        let msg: AcpWsMessage = serde_json::from_str(ping_json).expect("Should deserialize ping");
+        assert!(matches!(msg, AcpWsMessage::Ping));
+
+        let pong_json = r#"{"type": "pong"}"#;
+        let msg: AcpWsMessage = serde_json::from_str(pong_json).expect("Should deserialize pong");
+        assert!(matches!(msg, AcpWsMessage::Pong));
+
+        let close_json = r#"{"type": "close"}"#;
+        let msg: AcpWsMessage = serde_json::from_str(close_json).expect("Should deserialize close");
+        assert!(matches!(msg, AcpWsMessage::Close));
+    }
 }

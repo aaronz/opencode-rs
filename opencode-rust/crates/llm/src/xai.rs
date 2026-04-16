@@ -131,3 +131,40 @@ impl Provider for XaiProvider {
         "xai"
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_xai_provider_new() {
+        let config = ProviderConfig {
+            model: "grok-2-1212".to_string(),
+            api_key: "test-key".to_string(),
+            temperature: 0.7,
+        };
+        let provider = XaiProvider::new(config);
+        assert_eq!(provider.provider_name(), "xai");
+    }
+
+    #[test]
+    fn test_xai_provider_get_models() {
+        let config = ProviderConfig::default();
+        let provider = XaiProvider::new(config);
+        let models = provider.get_models();
+        assert!(!models.is_empty());
+        assert!(models.iter().any(|m| m.id == "grok-2-1212"));
+    }
+
+    #[tokio::test]
+    async fn test_xai_complete_returns_error_without_api_key() {
+        let config = ProviderConfig {
+            model: "grok-2-1212".to_string(),
+            api_key: "invalid-key".to_string(),
+            temperature: 0.7,
+        };
+        let provider = XaiProvider::new(config);
+        let result: Result<String, _> = provider.complete("test prompt", None).await;
+        assert!(result.is_err());
+    }
+}

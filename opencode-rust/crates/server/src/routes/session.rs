@@ -981,4 +981,203 @@ mod tests {
         let result = to_session_uuid("not-a-uuid");
         assert!(result.is_err());
     }
+
+    #[test]
+    fn to_session_uuid_accepts_valid_uuid() {
+        let result = to_session_uuid("550e8400-e29b-41d4-a716-446655440000");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn to_session_uuid_rejects_empty() {
+        let result = to_session_uuid("");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn to_session_uuid_rejects_too_short() {
+        let result = to_session_uuid("abc");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn pagination_params_deserialization() {
+        let json = r#"{"limit": 10, "offset": 5}"#;
+        let req: PaginationParams = serde_json::from_str(json).unwrap();
+        assert_eq!(req.limit, Some(10));
+        assert_eq!(req.offset, Some(5));
+    }
+
+    #[test]
+    fn pagination_params_defaults() {
+        let json = r#"{}"#;
+        let req: PaginationParams = serde_json::from_str(json).unwrap();
+        assert!(req.limit.is_none());
+        assert!(req.offset.is_none());
+    }
+
+    #[test]
+    fn create_session_request_deserialization() {
+        let json = r#"{"initial_prompt": "Hello world"}"#;
+        let req: CreateSessionRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.initial_prompt, Some("Hello world".to_string()));
+    }
+
+    #[test]
+    fn create_session_request_minimal() {
+        let json = r#"{}"#;
+        let req: CreateSessionRequest = serde_json::from_str(json).unwrap();
+        assert!(req.initial_prompt.is_none());
+    }
+
+    #[test]
+    fn add_message_request_deserialization() {
+        let json = r#"{
+            "content": "Hello AI",
+            "role": "user"
+        }"#;
+        let req: AddMessageRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.content, "Hello AI");
+        assert_eq!(req.role, Some("user".to_string()));
+    }
+
+    #[test]
+    fn add_message_request_defaults() {
+        let json = r#"{"content": "Hello"}"#;
+        let req: AddMessageRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.content, "Hello");
+        assert!(req.role.is_none());
+    }
+
+    #[test]
+    fn fork_session_request_deserialization() {
+        let json = r#"{"fork_at_message_index": 5}"#;
+        let req: ForkSessionRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.fork_at_message_index, 5);
+    }
+
+    #[test]
+    fn command_request_deserialization() {
+        let json = r#"{
+            "command": "ls",
+            "args": ["-la"],
+            "workdir": "/home/user"
+        }"#;
+        let req: CommandRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.command, "ls");
+        assert_eq!(req.args, Some(vec!["-la".to_string()]));
+        assert_eq!(req.workdir, Some("/home/user".to_string()));
+    }
+
+    #[test]
+    fn command_request_minimal() {
+        let json = r#"{"command": "pwd"}"#;
+        let req: CommandRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.command, "pwd");
+        assert!(req.args.is_none());
+        assert!(req.workdir.is_none());
+    }
+
+    #[test]
+    fn permission_reply_request_deserialization() {
+        let json = r#"{
+            "decision": "allow"
+        }"#;
+        let req: PermissionReplyRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.decision, "allow");
+    }
+
+    #[test]
+    fn permission_reply_request_case_insensitive() {
+        let json1 = r#"{"decision": "ALLOW"}"#;
+        let json2 = r#"{"decision": "allow"}"#;
+
+        let req1: PermissionReplyRequest = serde_json::from_str(json1).unwrap();
+        let req2: PermissionReplyRequest = serde_json::from_str(json2).unwrap();
+
+        assert_eq!(req1.decision.to_lowercase(), req2.decision);
+    }
+
+    #[test]
+    fn share_request_deserialization() {
+        let json = r#"{
+            "mode": "manual"
+        }"#;
+        let req: ShareRequest = serde_json::from_str(json).unwrap();
+        assert!(req.mode.is_some());
+    }
+
+    #[test]
+    fn share_request_minimal() {
+        let json = r#"{}"#;
+        let req: ShareRequest = serde_json::from_str(json).unwrap();
+        assert!(req.mode.is_none());
+        assert!(req.expires_at.is_none());
+    }
+
+    #[test]
+    fn revert_request_deserialization() {
+        let json = r#"{"sequence_number": 5}"#;
+        let req: RevertRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.sequence_number, 5);
+    }
+
+    #[test]
+    fn parse_role_all_variants() {
+        assert_eq!(parse_role(Some("user".to_string())), Role::User);
+        assert_eq!(parse_role(Some("assistant".to_string())), Role::Assistant);
+        assert_eq!(parse_role(Some("system".to_string())), Role::System);
+    }
+
+    #[test]
+    fn parse_role_unknown_defaults_to_user() {
+        assert_eq!(parse_role(Some("unknown".to_string())), Role::User);
+        assert_eq!(parse_role(Some("UPPERCASE".to_string())), Role::User);
+    }
+
+    #[test]
+    fn to_session_uuid_valid_various_formats() {
+        let valid_uuids = vec![
+            "550e8400-e29b-41d4-a716-446655440000",
+            "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+            "00000000-0000-0000-0000-000000000000",
+        ];
+
+        for uuid in valid_uuids {
+            let result = to_session_uuid(uuid);
+            assert!(result.is_ok(), "UUID {} should be valid", uuid);
+        }
+    }
+
+    #[test]
+    fn to_session_uuid_invalid_formats() {
+        let invalid_ids = vec![
+            "not-a-uuid",
+            "550e8400-e29b-41d4-a716",
+            "gibberish",
+            "123",
+            "",
+        ];
+
+        for id in invalid_ids {
+            let result = to_session_uuid(id);
+            assert!(result.is_err(), "ID {} should be invalid", id);
+        }
+    }
+
+    #[test]
+    fn pagination_params_zero_values() {
+        let json = r#"{"limit": 0, "offset": 0}"#;
+        let req: PaginationParams = serde_json::from_str(json).unwrap();
+        assert_eq!(req.limit, Some(0));
+        assert_eq!(req.offset, Some(0));
+    }
+
+    #[test]
+    fn command_request_with_multiple_args() {
+        let json = r#"{"command": "git", "args": ["commit", "-m", "message"]}"#;
+        let req: CommandRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.command, "git");
+        assert_eq!(req.args.unwrap(), vec!["commit", "-m", "message"]);
+    }
 }

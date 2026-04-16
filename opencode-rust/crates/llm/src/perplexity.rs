@@ -137,3 +137,42 @@ impl Provider for PerplexityProvider {
         "perplexity"
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_perplexity_provider_new() {
+        let config = ProviderConfig {
+            model: "llama-3.1-sonar-large-128k-online".to_string(),
+            api_key: "test-key".to_string(),
+            temperature: 0.7,
+        };
+        let provider = PerplexityProvider::new(config);
+        assert_eq!(provider.provider_name(), "perplexity");
+    }
+
+    #[test]
+    fn test_perplexity_provider_get_models() {
+        let config = ProviderConfig::default();
+        let provider = PerplexityProvider::new(config);
+        let models = provider.get_models();
+        assert!(!models.is_empty());
+        assert!(models
+            .iter()
+            .any(|m| m.id == "llama-3.1-sonar-large-128k-online"));
+    }
+
+    #[tokio::test]
+    async fn test_perplexity_complete_returns_error_without_api_key() {
+        let config = ProviderConfig {
+            model: "llama-3.1-sonar-large-128k-online".to_string(),
+            api_key: "invalid-key".to_string(),
+            temperature: 0.7,
+        };
+        let provider = PerplexityProvider::new(config);
+        let result = provider.complete("test prompt", None).await;
+        assert!(result.is_err());
+    }
+}

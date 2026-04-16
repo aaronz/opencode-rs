@@ -378,4 +378,130 @@ mod tests {
         assert_eq!(agent_type_from_string("general"), AgentType::General);
         assert_eq!(agent_type_from_string("unknown"), AgentType::General);
     }
+
+    #[test]
+    fn test_run_request_deserialization_all_fields() {
+        let json = r#"{
+            "prompt": "Hello AI",
+            "model": "claude-3-opus",
+            "agent": "plan",
+            "stream": true
+        }"#;
+
+        let req: RunRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.prompt, "Hello AI");
+        assert_eq!(req.model, Some("claude-3-opus".to_string()));
+        assert_eq!(req.agent, Some("plan".to_string()));
+        assert!(req.stream);
+    }
+
+    #[test]
+    fn test_run_request_deserialization_prompt_only() {
+        let json = r#"{"prompt": "Just a prompt"}"#;
+        let req: RunRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.prompt, "Just a prompt");
+        assert!(req.model.is_none());
+        assert!(req.agent.is_none());
+        assert!(!req.stream);
+    }
+
+    #[test]
+    fn test_run_request_deserialization_stream_true() {
+        let json = r#"{"prompt": "test", "stream": true}"#;
+        let req: RunRequest = serde_json::from_str(json).unwrap();
+        assert!(req.stream);
+    }
+
+    #[test]
+    fn test_run_request_deserialization_stream_false_explicit() {
+        let json = r#"{"prompt": "test", "stream": false}"#;
+        let req: RunRequest = serde_json::from_str(json).unwrap();
+        assert!(!req.stream);
+    }
+
+    #[test]
+    fn test_api_key_for_provider_openai_from_env() {
+        std::env::set_var("OPENAI_API_KEY", "test-openai-key");
+        let config = opencode_core::Config::default();
+        let key = api_key_for_provider(&config, "openai");
+        assert_eq!(key, Some("test-openai-key".to_string()));
+        std::env::remove_var("OPENAI_API_KEY");
+    }
+
+    #[test]
+    fn test_api_key_for_provider_anthropic_from_env() {
+        std::env::set_var("ANTHROPIC_API_KEY", "test-anthropic-key");
+        let config = opencode_core::Config::default();
+        let key = api_key_for_provider(&config, "anthropic");
+        assert_eq!(key, Some("test-anthropic-key".to_string()));
+        std::env::remove_var("ANTHROPIC_API_KEY");
+    }
+
+    #[test]
+    fn test_api_key_for_provider_unknown() {
+        let config = opencode_core::Config::default();
+        let key = api_key_for_provider(&config, "unknown-provider");
+        assert!(key.is_none());
+    }
+
+    #[test]
+    fn test_ollama_base_url_from_env() {
+        std::env::set_var("OLLAMA_BASE_URL", "http://localhost:11434");
+        let config = opencode_core::Config::default();
+        let url = ollama_base_url(&config);
+        assert_eq!(url, Some("http://localhost:11434".to_string()));
+        std::env::remove_var("OLLAMA_BASE_URL");
+    }
+
+    #[test]
+    fn test_ollama_base_url_not_set() {
+        std::env::remove_var("OLLAMA_BASE_URL");
+        let config = opencode_core::Config::default();
+        let url = ollama_base_url(&config);
+        assert!(url.is_none());
+    }
+
+    #[test]
+    fn test_accepts_sse_with_text_event_stream_header() {
+        let req = actix_web::test::TestRequest::default()
+            .insert_header(("Accept", "text/event-stream"))
+            .to_http_request();
+        assert!(accepts_sse(&req));
+    }
+
+    #[test]
+    fn test_accepts_sse_case_insensitive() {
+        let req = actix_web::test::TestRequest::default()
+            .insert_header(("Accept", "text/event-stream"))
+            .to_http_request();
+        assert!(accepts_sse(&req));
+    }
+
+    #[test]
+    fn test_accepts_sse_with_additional_params() {
+        let req = actix_web::test::TestRequest::default()
+            .insert_header(("Accept", "text/event-stream; charset=utf-8"))
+            .to_http_request();
+        assert!(accepts_sse(&req));
+    }
+
+    #[test]
+    fn test_accepts_sse_not_present() {
+        let req = actix_web::test::TestRequest::default()
+            .insert_header(("Accept", "*/*"))
+            .to_http_request();
+        assert!(!accepts_sse(&req));
+    }
+
+    #[test]
+    fn test_agent_type_all_cases() {
+        assert_eq!(agent_type_from_string("BUILD"), AgentType::Build);
+        assert_eq!(agent_type_from_string("Plan"), AgentType::Plan);
+        assert_eq!(agent_type_from_string("EXPLORE"), AgentType::Explore);
+        assert_eq!(agent_type_from_string("Review"), AgentType::Review);
+        assert_eq!(agent_type_from_string("REFACTOR"), AgentType::Refactor);
+        assert_eq!(agent_type_from_string("Debug"), AgentType::Debug);
+        assert_eq!(agent_type_from_string("General"), AgentType::General);
+        assert_eq!(agent_type_from_string(""), AgentType::General);
+    }
 }

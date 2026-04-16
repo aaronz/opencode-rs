@@ -132,3 +132,42 @@ impl Provider for DeepInfraProvider {
         "deepinfra"
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_deepinfra_provider_new() {
+        let config = ProviderConfig {
+            model: "meta-llama/Llama-3.1-70B-Instruct".to_string(),
+            api_key: "test-key".to_string(),
+            temperature: 0.7,
+        };
+        let provider = DeepInfraProvider::new(config);
+        assert_eq!(provider.provider_name(), "deepinfra");
+    }
+
+    #[test]
+    fn test_deepinfra_provider_get_models() {
+        let config = ProviderConfig::default();
+        let provider = DeepInfraProvider::new(config);
+        let models = provider.get_models();
+        assert!(!models.is_empty());
+        assert!(models
+            .iter()
+            .any(|m| m.id == "meta-llama/Llama-3.1-70B-Instruct"));
+    }
+
+    #[tokio::test]
+    async fn test_deepinfra_complete_returns_error_without_api_key() {
+        let config = ProviderConfig {
+            model: "meta-llama/Llama-3.1-70B-Instruct".to_string(),
+            api_key: "invalid-key".to_string(),
+            temperature: 0.7,
+        };
+        let provider = DeepInfraProvider::new(config);
+        let result = provider.complete("test prompt", None).await;
+        assert!(result.is_err());
+    }
+}

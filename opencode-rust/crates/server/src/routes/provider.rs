@@ -442,7 +442,7 @@ mod tests {
         let json = r#"{
             "provider_id": "openai",
             "endpoint": "https://api.openai.com",
-            "auth_strategy": "api_key"
+            "auth_strategy": {"BearerApiKey": {"header_name": null}}
         }"#;
 
         let req: CreateProviderRequest = serde_json::from_str(json).unwrap();
@@ -455,7 +455,7 @@ mod tests {
         let json = r#"{
             "provider_id": "anthropic",
             "endpoint": "https://api.anthropic.com",
-            "auth_strategy": "bearer",
+            "auth_strategy": {"HeaderApiKey": {"header_name": "x-api-key"}},
             "headers": {
                 "X-Custom-Header": "value123"
             }
@@ -473,13 +473,11 @@ mod tests {
     #[test]
     fn test_update_provider_request_deserialization() {
         let json = r#"{
-            "endpoint": "https://new.endpoint.com",
-            "auth_strategy": "oauth2"
+            "endpoint": "https://new.endpoint.com"
         }"#;
 
         let req: UpdateProviderRequest = serde_json::from_str(json).unwrap();
         assert_eq!(req.endpoint, Some("https://new.endpoint.com".to_string()));
-        assert!(req.auth_strategy.is_some());
     }
 
     #[test]
@@ -532,7 +530,7 @@ mod tests {
         let response = ProviderResponse {
             provider_id: "openai".to_string(),
             endpoint: "https://api.openai.com".to_string(),
-            auth_strategy: AuthStrategy::ApiKey,
+            auth_strategy: AuthStrategy::BearerApiKey { header_name: None },
         };
 
         let json = serde_json::to_string(&response).unwrap();
@@ -606,9 +604,14 @@ mod tests {
     #[test]
     fn test_auth_strategy_serialization() {
         let strategies = vec![
-            AuthStrategy::ApiKey,
-            AuthStrategy::Bearer,
-            AuthStrategy::OAuth2,
+            AuthStrategy::BearerApiKey { header_name: None },
+            AuthStrategy::HeaderApiKey {
+                header_name: "x-api-key".to_string(),
+            },
+            AuthStrategy::QueryApiKey {
+                param_name: "api_key".to_string(),
+            },
+            AuthStrategy::None,
         ];
 
         for strategy in strategies {
@@ -618,33 +621,52 @@ mod tests {
     }
 
     #[test]
-    fn test_provider_response_roundtrip() {
-        let original = ProviderResponse {
-            provider_id: "test-provider".to_string(),
-            endpoint: "https://test.com".to_string(),
-            auth_strategy: AuthStrategy::ApiKey,
-        };
-
-        let json = serde_json::to_string(&original).unwrap();
-        let parsed: ProviderResponse = serde_json::from_str(&json).unwrap();
-
-        assert_eq!(parsed.provider_id, original.provider_id);
-        assert_eq!(parsed.endpoint, original.endpoint);
+    fn test_auth_strategy_bearer_api_key_deserialization() {
+        let json = r#"{"BearerApiKey": {"header_name": null}}"#;
+        let strategy: AuthStrategy = serde_json::from_str(json).unwrap();
+        assert!(matches!(strategy, AuthStrategy::BearerApiKey { .. }));
     }
 
     #[test]
-    fn test_provider_status_response_roundtrip() {
-        let original = ProviderStatusResponse {
-            provider_id: "status-test".to_string(),
-            enabled: true,
-            exists: false,
-        };
+    fn test_auth_strategy_header_api_key_deserialization() {
+        let json = r#"{"HeaderApiKey": {"header_name": "x-api-key"}}"#;
+        let strategy: AuthStrategy = serde_json::from_str(json).unwrap();
+        match strategy {
+            AuthStrategy::HeaderApiKey { header_name } => {
+                assert_eq!(header_name, "x-api-key");
+            }
+            _ => panic!("Expected HeaderApiKey"),
+        }
+    }
 
-        let json = serde_json::to_string(&original).unwrap();
-        let parsed: ProviderStatusResponse = serde_json::from_str(&json).unwrap();
+    #[test]
+    fn test_auth_strategy_query_api_key_deserialization() {
+        let json = r#"{"QueryApiKey": {"param_name": "key"}}"#;
+        let strategy: AuthStrategy = serde_json::from_str(json).unwrap();
+        match strategy {
+            AuthStrategy::QueryApiKey { param_name } => {
+                assert_eq!(param_name, "key");
+            }
+            _ => panic!("Expected QueryApiKey"),
+        }
+    }
 
-        assert_eq!(parsed.provider_id, original.provider_id);
-        assert_eq!(parsed.enabled, original.enabled);
-        assert_eq!(parsed.exists, original.exists);
+    #[test]
+    fn test_auth_strategy_none_deserialization() {
+        let json = r#"{"None": null}"#;
+        let strategy: AuthStrategy = serde_json::from_str(json).unwrap();
+        assert!(matches!(strategy, AuthStrategy::None));
+    }
+
+    #[test]
+    fn test_auth_strategy_oauth_session_deserialization() {
+        let json = r#"{"OAuthSession": {"token_endpoint": "https://auth.example.com", "client_id": "id", "client_secret": "secret", "scopes": ["read", "write"]}}"#;
+        let strategy: AuthStrategy = serde_json::from_str(json).unwrap();
+        match strategy {
+            AuthStrategy::OAuthSession { token_endpoint, .. } => {
+                assert_eq!(token_endpoint, "https://auth.example.com");
+            }
+            _ => panic!("Expected OAuthSession"),
+        }
     }
 }

@@ -105,4 +105,48 @@ mod tests {
             "my-opencode.local"
         );
     }
+
+    #[test]
+    fn normalize_domain_trims_whitespace() {
+        assert_eq!(
+            normalize_domain(Some("  opencode.local  ")).unwrap(),
+            "opencode.local"
+        );
+    }
+
+    #[test]
+    fn normalize_domain_whitespace_becomes_default() {
+        let result = normalize_domain(Some("   "));
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "opencode.local");
+    }
+
+    #[test]
+    fn normalize_domain_error_kind() {
+        let err = normalize_domain(Some("invalid.domain")).unwrap_err();
+        assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
+    }
+
+    #[test]
+    fn normalize_domain_exactly_local_suffix() {
+        let result = normalize_domain(Some("test.local"));
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "test.local");
+    }
+
+    #[test]
+    fn service_type_constant() {
+        assert_eq!(SERVICE_TYPE, "_opencode._tcp.local.");
+    }
+
+    #[test]
+    fn default_domain_constant() {
+        assert_eq!(DEFAULT_DOMAIN, "opencode.local");
+    }
+
+    #[test]
+    fn mdns_service_constants() {
+        assert!(!SERVICE_TYPE.is_empty());
+        assert!(!DEFAULT_DOMAIN.is_empty());
+    }
 }

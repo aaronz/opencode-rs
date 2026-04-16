@@ -162,4 +162,140 @@ mod tests {
         let json = serde_json::to_string(&response).unwrap();
         assert!(json.contains("test-123"));
     }
+
+    #[test]
+    fn test_export_response_all_fields() {
+        let response = ExportResponse {
+            session_id: "session-abc".to_string(),
+            format: "markdown".to_string(),
+            content: "# Session Export\n\nContent here".to_string(),
+            content_type: "text/markdown".to_string(),
+        };
+
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains("session-abc"));
+        assert!(json.contains("markdown"));
+        assert!(json.contains("text/markdown"));
+    }
+
+    #[test]
+    fn test_export_response_json_format() {
+        let response = ExportResponse {
+            session_id: "json-session".to_string(),
+            format: "json".to_string(),
+            content: r#"{"messages": []}"#.to_string(),
+            content_type: "application/json".to_string(),
+        };
+
+        let json = serde_json::to_string(&response).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(parsed["session_id"], "json-session");
+        assert_eq!(parsed["format"], "json");
+        assert_eq!(parsed["content_type"], "application/json");
+    }
+
+    #[test]
+    fn test_export_response_markdown_content() {
+        let response = ExportResponse {
+            session_id: "md-session".to_string(),
+            format: "markdown".to_string(),
+            content: "# Title\n\nSome content".to_string(),
+            content_type: "text/markdown".to_string(),
+        };
+
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains("md-session"));
+        assert!(json.contains("markdown"));
+    }
+
+    #[test]
+    fn test_export_query_defaults() {
+        let query = ExportQuery::new(true, true);
+        assert!(query.include_metadata);
+        assert!(query.sanitize_sensitive);
+    }
+
+    #[test]
+    fn test_export_query_with_metadata_disabled() {
+        let query = ExportQuery::new(false, true);
+        assert!(!query.include_metadata);
+        assert!(query.sanitize_sensitive);
+    }
+
+    #[test]
+    fn test_export_query_with_sanitize_disabled() {
+        let query = ExportQuery::new(true, false);
+        assert!(query.include_metadata);
+        assert!(!query.sanitize_sensitive);
+    }
+
+    #[test]
+    fn test_export_query_both_disabled() {
+        let query = ExportQuery::new(false, false);
+        assert!(!query.include_metadata);
+        assert!(!query.sanitize_sensitive);
+    }
+
+    #[test]
+    fn test_export_query_deserialization_with_defaults() {
+        let json = r#"{}"#;
+        let query: ExportQuery = serde_json::from_str(json).unwrap();
+        assert!(query.include_metadata);
+        assert!(query.sanitize_sensitive);
+    }
+
+    #[test]
+    fn test_export_query_deserialization_explicit() {
+        let json = r#"{"include_metadata": false, "sanitize_sensitive": false}"#;
+        let query: ExportQuery = serde_json::from_str(json).unwrap();
+        assert!(!query.include_metadata);
+        assert!(!query.sanitize_sensitive);
+    }
+
+    #[test]
+    fn test_export_query_deserialization_partial() {
+        let json = r#"{"include_metadata": false}"#;
+        let query: ExportQuery = serde_json::from_str(json).unwrap();
+        assert!(!query.include_metadata);
+        assert!(query.sanitize_sensitive);
+    }
+
+    #[test]
+    fn test_default_include_metadata() {
+        assert!(default_include_metadata());
+    }
+
+    #[test]
+    fn test_default_sanitize() {
+        assert!(default_sanitize());
+    }
+
+    #[test]
+    fn test_export_response_patch_bundle_format() {
+        let response = ExportResponse {
+            session_id: "patch-session".to_string(),
+            format: "patch_bundle".to_string(),
+            content: "diff --git a/file.txt b/file.txt".to_string(),
+            content_type: "text/plain".to_string(),
+        };
+
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains("patch-session"));
+        assert!(json.contains("patch_bundle"));
+    }
+
+    #[test]
+    fn test_export_response_unicode_content() {
+        let response = ExportResponse {
+            session_id: "unicode-session".to_string(),
+            format: "json".to_string(),
+            content: "Hello 世界 🌍".to_string(),
+            content_type: "application/json".to_string(),
+        };
+
+        let json = serde_json::to_string(&response).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert!(parsed["content"].as_str().unwrap().contains("世界"));
+    }
 }

@@ -275,6 +275,221 @@ mod tests {
 
         assert!(store.validate_token("session-a", "missing-token").is_none());
     }
+
+    #[test]
+    fn stream_message_tool_call_serialization() {
+        let msg = StreamMessage::ToolCall {
+            session_id: "sess-1".to_string(),
+            tool_name: "read_file".to_string(),
+            args: serde_json::json!({"path": "/tmp/test"}),
+            call_id: "call-123".to_string(),
+        };
+
+        let serialized = serde_json::to_string(&msg).expect("serialize should work");
+        assert!(serialized.contains("\"type\":\"tool_call\""));
+        assert!(serialized.contains("\"tool_name\":\"read_file\""));
+
+        let deserialized: StreamMessage =
+            serde_json::from_str(&serialized).expect("deserialize should work");
+        match deserialized {
+            StreamMessage::ToolCall {
+                session_id,
+                tool_name,
+                call_id,
+                ..
+            } => {
+                assert_eq!(session_id, "sess-1");
+                assert_eq!(tool_name, "read_file");
+                assert_eq!(call_id, "call-123");
+            }
+            _ => panic!("unexpected variant"),
+        }
+    }
+
+    #[test]
+    fn stream_message_tool_result_serialization() {
+        let msg = StreamMessage::ToolResult {
+            session_id: "sess-1".to_string(),
+            call_id: "call-123".to_string(),
+            output: "file contents".to_string(),
+            success: true,
+        };
+
+        let serialized = serde_json::to_string(&msg).expect("serialize should work");
+        assert!(serialized.contains("\"type\":\"tool_result\""));
+        assert!(serialized.contains("\"success\":true"));
+
+        let deserialized: StreamMessage =
+            serde_json::from_str(&serialized).expect("deserialize should work");
+        match deserialized {
+            StreamMessage::ToolResult {
+                session_id,
+                success,
+                output,
+                ..
+            } => {
+                assert_eq!(session_id, "sess-1");
+                assert!(success);
+                assert_eq!(output, "file contents");
+            }
+            _ => panic!("unexpected variant"),
+        }
+    }
+
+    #[test]
+    fn stream_message_heartbeat_serialization() {
+        let msg = StreamMessage::Heartbeat {
+            timestamp: 1234567890,
+        };
+
+        let serialized = serde_json::to_string(&msg).expect("serialize should work");
+        assert!(serialized.contains("\"type\":\"heartbeat\""));
+        assert!(serialized.contains("\"timestamp\":1234567890"));
+    }
+
+    #[test]
+    fn stream_message_connected_serialization() {
+        let msg = StreamMessage::Connected {
+            session_id: Some("sess-new".to_string()),
+        };
+
+        let serialized = serde_json::to_string(&msg).expect("serialize should work");
+        assert!(serialized.contains("\"type\":\"connected\""));
+        assert!(serialized.contains("\"session_id\":\"sess-new\""));
+    }
+
+    #[test]
+    fn stream_message_session_update_serialization() {
+        let msg = StreamMessage::SessionUpdate {
+            session_id: "sess-1".to_string(),
+            status: "running".to_string(),
+        };
+
+        let serialized = serde_json::to_string(&msg).expect("serialize should work");
+        assert!(serialized.contains("\"type\":\"session_update\""));
+        assert!(serialized.contains("\"status\":\"running\""));
+    }
+
+    #[test]
+    fn stream_message_session_id_extraction() {
+        let msg = StreamMessage::Message {
+            session_id: "test-sess".to_string(),
+            content: "hello".to_string(),
+            role: "user".to_string(),
+        };
+        assert_eq!(msg.session_id(), Some("test-sess"));
+
+        let msg = StreamMessage::Heartbeat { timestamp: 123 };
+        assert_eq!(msg.session_id(), None);
+
+        let msg = StreamMessage::Connected { session_id: None };
+        assert_eq!(msg.session_id(), None);
+
+        let msg = StreamMessage::Error {
+            session_id: Some("err-sess".to_string()),
+            error: "ERR".to_string(),
+            code: "ERR".to_string(),
+            message: "error".to_string(),
+        };
+        assert_eq!(msg.session_id(), Some("err-sess"));
+    }
+
+    #[test]
+    fn reconnection_store_replay_limit() {
+        let store = ReconnectionStore::new(3);
+
+        for i in 0..5 {
+            store.record_message(
+                "session-limit",
+                StreamMessage::Message {
+                    session_id: "session-limit".to_string(),
+                    content: format!("msg-{}", i),
+                    role: "user".to_string(),
+                },
+            );
+        }
+
+        let entries = store.replay_from("session-limit", 0);
+        assert_eq!(entries.len(), 3);
+        assert_eq!(entries[0].sequence, 3);
+        assert_eq!(entries[2].sequence, 5);
+    }
+
+    #[test]
+    fn reconnection_store_records_and_replays_messages() {
+        let store = ReconnectionStore::new(100);
+
+        store.record_message(
+            "session-replay",
+            StreamMessage::Message {
+                session_id: "session-replay".to_string(),
+                content: "first".to_string(),
+                role: "user".to_string(),
+            },
+        );
+
+        store.record_message(
+            "session-replay",
+            StreamMessage::Message {
+                session_id: "session-replay".to_string(),
+                content: "second".to_string(),
+                role: "assistant".to_string(),
+            },
+        );
+
+        let entries = store.replay_from("session-replay", 0);
+        assert_eq!(entries.len(), 2);
+        match &entries[0].message {
+            StreamMessage::Message { content, .. } => assert_eq!(content, "first"),
+            _ => panic!("expected Message variant"),
+        }
+        match &entries[1].message {
+            StreamMessage::Message { content, .. } => assert_eq!(content, "second"),
+            _ => panic!("expected Message variant"),
+        }
+    }
+
+    #[test]
+    fn reconnection_store_respects_replay_limit() {
+        let store = ReconnectionStore::new(2);
+
+        for i in 0..4 {
+            store.record_message(
+                "session-limit",
+                StreamMessage::SessionUpdate {
+                    session_id: "session-limit".to_string(),
+                    status: format!("status-{}", i),
+                },
+            );
+        }
+
+        let entries = store.replay_from("session-limit", 0);
+        assert_eq!(entries.len(), 2);
+    }
+
+    #[test]
+    fn reconnection_store_token_with_explicit_sequence() {
+        let store = ReconnectionStore::new(16);
+
+        store.record_message(
+            "session-token",
+            StreamMessage::Message {
+                session_id: "session-token".to_string(),
+                content: "test".to_string(),
+                role: "user".to_string(),
+            },
+        );
+
+        let token = store.generate_token("session-token", Some(0));
+        let sequence = store
+            .validate_token("session-token", &token)
+            .expect("token should be valid");
+        assert_eq!(sequence, 0);
+
+        assert!(store
+            .validate_token("nonexistent-session", &token)
+            .is_none());
+    }
 }
 
 pub use conn_state::{

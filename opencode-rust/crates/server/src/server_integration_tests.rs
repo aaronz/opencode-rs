@@ -1409,6 +1409,57 @@ mod tests {
     }
 
     #[actix_web::test]
+    async fn route_group_session_routes_list_messages_not_found_or_error() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::list_messages(
+            web::Data::new(create_test_state()),
+            web::Path::from("550e8400-e29b-41d4-a716-446655440000".to_string()),
+            web::Query(crate::routes::session::PaginationParams {
+                limit: None,
+                offset: None,
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::NOT_FOUND
+                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+            "list_messages should return 404 or 500 for non-existent session"
+        );
+    }
+
+    #[actix_web::test]
+    async fn route_group_session_routes_get_session_diff_not_found_or_error() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::get_session_diff(
+            web::Data::new(create_test_state()),
+            web::Path::from("550e8400-e29b-41d4-a716-446655440000".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::NOT_FOUND
+                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+            "get_session_diff should return 404 or 500 for non-existent session"
+        );
+    }
+
+    #[actix_web::test]
+    async fn route_group_session_routes_get_session_diff_with_invalid_id() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::get_session_diff(
+            web::Data::new(create_test_state()),
+            web::Path::from("not-a-valid-uuid".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    #[actix_web::test]
     async fn route_group_config_routes_get_config_returns_ok() {
         use actix_web::web;
         let req = TestRequest::default().to_http_request();
@@ -1439,6 +1490,68 @@ mod tests {
         .await
         .respond_to(&req);
         assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn route_group_provider_routes_create_provider_returns_created() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::provider::create_provider(
+            web::Data::new(create_test_state()),
+            web::Json(crate::routes::provider::CreateProviderRequest {
+                provider_id: "test-provider".to_string(),
+                endpoint: "https://api.test.com".to_string(),
+                auth_strategy: opencode_llm::AuthStrategy::None,
+                headers: None,
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::CREATED);
+    }
+
+    #[actix_web::test]
+    async fn route_group_provider_routes_update_provider_not_found() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::provider::update_provider(
+            web::Data::new(create_test_state()),
+            web::Path::from("nonexistent-provider".to_string()),
+            web::Json(crate::routes::provider::UpdateProviderRequest {
+                endpoint: Some("https://new-endpoint.com".to_string()),
+                auth_strategy: None,
+                headers: None,
+            }),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[actix_web::test]
+    async fn route_group_provider_routes_delete_provider_not_found() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::provider::delete_provider(
+            web::Data::new(create_test_state()),
+            web::Path::from("nonexistent-provider".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[actix_web::test]
+    async fn route_group_provider_routes_test_provider_not_found() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::provider::test_provider(
+            web::Data::new(create_test_state()),
+            web::Path::from("nonexistent-provider".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     }
 
     #[actix_web::test]

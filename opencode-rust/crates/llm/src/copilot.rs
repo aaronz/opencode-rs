@@ -150,3 +150,42 @@ impl Provider for CopilotProvider {
         "copilot"
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_copilot_provider_new() {
+        let config = ProviderConfig {
+            model: "gpt-4o".to_string(),
+            api_key: "test-key".to_string(),
+            temperature: 0.7,
+        };
+        let provider = CopilotProvider::new(config);
+        assert_eq!(provider.provider_name(), "copilot");
+    }
+
+    #[test]
+    fn test_copilot_provider_get_models() {
+        let config = ProviderConfig::default();
+        let provider = CopilotProvider::new(config);
+        let models = provider.get_models();
+        assert!(!models.is_empty());
+        assert!(models.iter().any(|m| m.id == "gpt-4o"));
+    }
+
+    #[tokio::test]
+    async fn test_copilot_complete_returns_error_without_token() {
+        let config = ProviderConfig {
+            model: "gpt-4o".to_string(),
+            api_key: "test-key".to_string(),
+            temperature: 0.7,
+        };
+        let provider = CopilotProvider::new(config);
+        let result = provider.complete("test prompt", None).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("No Copilot token found"));
+    }
+}

@@ -132,3 +132,41 @@ impl Provider for MistralProvider {
         "mistral"
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mistral_provider_new() {
+        let config = ProviderConfig {
+            model: "mistral-large-latest".to_string(),
+            api_key: "test-key".to_string(),
+            temperature: 0.7,
+        };
+        let provider = MistralProvider::new(config);
+        assert_eq!(provider.provider_name(), "mistral");
+    }
+
+    #[test]
+    fn test_mistral_provider_get_models() {
+        let config = ProviderConfig::default();
+        let provider = MistralProvider::new(config);
+        let models = provider.get_models();
+        assert!(!models.is_empty());
+        assert!(models.iter().any(|m| m.id == "mistral-large-latest"));
+        assert!(models.iter().any(|m| m.id == "mistral-medium-latest"));
+    }
+
+    #[tokio::test]
+    async fn test_mistral_complete_returns_error_without_api_key() {
+        let config = ProviderConfig {
+            model: "mistral-large-latest".to_string(),
+            api_key: "invalid-key".to_string(),
+            temperature: 0.7,
+        };
+        let provider = MistralProvider::new(config);
+        let result = provider.complete("test prompt", None).await;
+        assert!(result.is_err());
+    }
+}
