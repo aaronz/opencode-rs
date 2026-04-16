@@ -96,7 +96,7 @@
       "priority": "P0",
       "title": "Fix tool registry read tool test",
       "description": "Fix failing tool registry read tool test in tests/src/agent_tool_tests.rs",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify read tool correctly reads file contents",
         "RunTestSuite: execute agent_tool_tests to confirm fix"

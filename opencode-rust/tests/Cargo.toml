@@ -52,6 +52,10 @@ path = "src/permission_integration_tests.rs"
 name = "security_tests"
 path = "src/security_tests.rs"
 
+[[test]]
+name = "agent_tool_tests"
+path = "src/agent_tool_tests.rs"
+
 [dev-dependencies]
 assert_cmd = "2"
 predicates = "3"
