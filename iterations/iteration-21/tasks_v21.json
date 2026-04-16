@@ -1239,7 +1239,7 @@
       "priority": "P2",
       "title": "Implement StateTester state capture",
       "description": "Implement StateTester state capture in ratatui-testing/src/state.rs",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify StateTester captures terminal state",
         "AddUnitTest: verify state serialization works"
@@ -1255,7 +1255,7 @@
       "priority": "P2",
       "title": "Implement TestDsl fluent API",
       "description": "Implement TestDsl fluent API in ratatui-testing/src/dsl.rs",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify fluent API chains correctly",
         "AddIntegrationTest: verify DSL can drive complete test scenario"

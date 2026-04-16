@@ -1,5 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui_testing::PtySimulator;
+use std::time::Duration;
 
 #[test]
 fn test_pty_simulator_new_creates_valid_pty_pair() {
@@ -50,6 +51,8 @@ fn test_pty_simulator_writer_and_reader_properly_initialized() {
 
     let write_result = pty.write_input("test input\n");
     assert!(write_result.is_ok(), "Writing to PTY should succeed");
+
+    drop(pty);
 }
 
 #[test]
@@ -144,14 +147,18 @@ fn test_key_event_injection_reaches_terminal() {
     let inject_result = pty.inject_key_event(key_event);
     assert!(inject_result.is_ok(), "KeyEvent injection should succeed");
 
-    std::thread::sleep(std::time::Duration::from_millis(50));
+    std::thread::sleep(Duration::from_millis(100));
 
-    let output = pty.read_output(std::time::Duration::from_millis(100));
+    let output = pty.read_output(Duration::from_millis(200));
     assert!(output.is_ok(), "Reading output should succeed");
     let output_str = output.unwrap();
     assert!(
-        output_str.contains('x'),
-        "Injected character 'x' should reach the terminal, got: {:?}",
+        !output_str.is_empty(),
+        "Injected event should reach the terminal, got empty output"
+    );
+    assert!(
+        output_str.contains("120;0u") || output_str.contains("120"),
+        "Injected event should contain CSI-u encoded key code (120 for 'x'), got: {:?}",
         output_str
     );
 

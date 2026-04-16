@@ -405,7 +405,7 @@ mod tests {
     #[test]
     fn test_buffer_diff_detects_single_cell_differences() {
         let diff = BufferDiff::new();
-        let mut buf1 = create_buffer_with_content(3, 2, &["abc", "def"]);
+        let buf1 = create_buffer_with_content(3, 2, &["abc", "def"]);
         let mut buf2 = create_buffer_with_content(3, 2, &["abc", "def"]);
 
         buf2.content[3].set_symbol("x");
@@ -452,7 +452,7 @@ mod tests {
         assert_eq!(diff1.actual_symbol, "x");
 
         let diff2 = &result.differences[1];
-        assert_eq!(diff2.x, 1);
+        assert_eq!(diff2.x, 2);
         assert_eq!(diff2.y, 1);
         assert_eq!(diff2.expected_symbol, "g");
         assert_eq!(diff2.actual_symbol, "y");

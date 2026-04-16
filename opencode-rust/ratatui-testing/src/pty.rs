@@ -3,7 +3,8 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent,
 use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
 use std::cell::RefCell;
 use std::fmt::Debug;
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, Read, Write};
+use std::time::Duration;
 
 pub struct PtySimulator {
     pub master: Option<Box<dyn MasterPty>>,
@@ -74,15 +75,35 @@ impl PtySimulator {
         }
     }
 
-    pub fn read_output(&mut self, _timeout: std::time::Duration) -> Result<String> {
-        match &mut self.reader {
-            Some(reader) => {
-                let mut buffer = String::new();
-                let _ = reader.read_line(&mut buffer);
-                Ok(buffer)
-            }
+    pub fn read_output(&mut self, timeout: Duration) -> Result<String> {
+        let reader = match &mut self.reader {
+            Some(reader) => reader,
             None => anyhow::bail!("PTY reader not available"),
+        };
+
+        let start = std::time::Instant::now();
+        let mut buffer = Vec::new();
+        let mut temp_buf = [0u8; 256];
+
+        loop {
+            if start.elapsed() >= timeout {
+                break;
+            }
+            match reader.read(&mut temp_buf) {
+                Ok(0) => break,
+                Ok(n) => {
+                    buffer.extend_from_slice(&temp_buf[..n]);
+                    break;
+                }
+                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    std::thread::sleep(Duration::from_millis(10));
+                    continue;
+                }
+                Err(e) => return Err(anyhow::anyhow!("Read error: {}", e)),
+            }
         }
+
+        Ok(String::from_utf8_lossy(&buffer).to_string())
     }
 
     pub fn resize(&mut self, cols: u16, rows: u16) -> Result<()> {
