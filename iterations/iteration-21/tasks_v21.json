@@ -1188,7 +1188,7 @@
       "priority": "P2",
       "title": "Review PtySimulator implementation",
       "description": "Review current ratatui-testing/src/pty.rs PtySimulator implementation",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: ensure current PtySimulator compiles and basic functionality works"
       ],
@@ -1204,7 +1204,7 @@
       "priority": "P2",
       "title": "Complete PtySimulator event injection",
       "description": "Complete PtySimulator event injection (KeyEvent, MouseEvent) in ratatui-testing/src/pty.rs",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify KeyEvent injection works",
         "AddUnitTest: verify MouseEvent injection works",

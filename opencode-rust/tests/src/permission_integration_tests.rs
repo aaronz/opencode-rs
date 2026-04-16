@@ -2,8 +2,8 @@ use actix_web::{test::TestRequest, web};
 use chrono::Utc;
 use opencode_core::permission::Permission;
 use opencode_permission::{
-    AgentPermissionScope, ApprovalQueue, ApprovalResult, AuditDecision, AuditLog, PendingApproval,
-    PermissionScope,
+    AgentPermissionScope, ApprovalQueue, ApprovalResult, AuditDecision, AuditEntry, AuditLog,
+    PendingApproval, PermissionScope,
 };
 use opencode_server::ServerState;
 use opencode_storage::SqliteProjectRepository;
