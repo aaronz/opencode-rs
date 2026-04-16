@@ -1,4 +1,3 @@
-use anyhow::Result;
 use ratatui::buffer::{Buffer, Cell};
 use ratatui::style::{Color, Modifier};
 use std::fmt;
@@ -42,14 +41,17 @@ pub struct CellDiff {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct DiffResult {
+pub struct DiffResult<'a> {
+    pub passed: bool,
+    pub expected: &'a Buffer,
+    pub actual: &'a Buffer,
     pub differences: Vec<CellDiff>,
     pub total_diffs: usize,
 }
 
-impl fmt::Display for DiffResult {
+impl<'a> fmt::Display for DiffResult<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.differences.is_empty() {
+        if self.passed {
             return write!(f, "Buffers are identical");
         }
 
@@ -120,7 +122,7 @@ impl BufferDiff {
         self
     }
 
-    pub fn diff(&self, expected: &Buffer, actual: &Buffer) -> Result<DiffResult> {
+    pub fn diff<'a>(&self, expected: &'a Buffer, actual: &'a Buffer) -> DiffResult<'a> {
         let mut differences = Vec::new();
 
         let expected_area = expected.area;
@@ -142,10 +144,14 @@ impl BufferDiff {
                 expected_modifier: None,
                 actual_modifier: None,
             });
-            return Ok(DiffResult {
-                total_diffs: differences.len(),
+            let total_diffs = differences.len();
+            return DiffResult {
+                passed: total_diffs == 0,
+                expected,
+                actual,
+                total_diffs,
                 differences,
-            });
+            };
         }
 
         let width = expected_area.width as usize;
@@ -198,10 +204,13 @@ impl BufferDiff {
             }
         }
 
-        Ok(DiffResult {
+        DiffResult {
+            passed: differences.is_empty(),
+            expected,
+            actual,
             total_diffs: differences.len(),
             differences,
-        })
+        }
     }
 
     fn cells_differ(&self, expected: &Cell, actual: &Cell) -> bool {
@@ -224,9 +233,9 @@ impl BufferDiff {
         false
     }
 
-    pub fn diff_to_string(&self, expected: &Buffer, actual: &Buffer) -> Result<String> {
-        let result = self.diff(expected, actual)?;
-        Ok(result.to_string())
+    pub fn diff_to_string(&self, expected: &Buffer, actual: &Buffer) -> String {
+        let result = self.diff(expected, actual);
+        result.to_string()
     }
 }
 
@@ -263,9 +272,64 @@ mod tests {
         let buf1 = create_buffer_with_content(3, 2, &["abc", "def"]);
         let buf2 = create_buffer_with_content(3, 2, &["abc", "def"]);
 
-        let result = diff.diff(&buf1, &buf2).unwrap();
+        let result = diff.diff(&buf1, &buf2);
         assert_eq!(result.total_diffs, 0);
         assert!(result.differences.is_empty());
+        assert!(result.passed);
+    }
+
+    #[test]
+    fn test_diff_result_passed_when_no_diffs() {
+        let diff = BufferDiff::new();
+        let buf1 = create_buffer_with_content(2, 1, &["ab"]);
+        let buf2 = create_buffer_with_content(2, 1, &["ab"]);
+
+        let result = diff.diff(&buf1, &buf2);
+        assert!(
+            result.passed,
+            "DiffResult.passed should be true when total_diffs == 0"
+        );
+        assert_eq!(result.total_diffs, 0);
+    }
+
+    #[test]
+    fn test_diff_result_not_passed_when_diffs_exist() {
+        let diff = BufferDiff::new();
+        let buf1 = create_buffer_with_content(2, 1, &["ab"]);
+        let buf2 = create_buffer_with_content(2, 1, &["xx"]);
+
+        let result = diff.diff(&buf1, &buf2);
+        assert!(
+            !result.passed,
+            "DiffResult.passed should be false when total_diffs > 0"
+        );
+        assert_eq!(result.total_diffs, 2);
+    }
+
+    #[test]
+    fn test_diff_result_expected_reference() {
+        let diff = BufferDiff::new();
+        let buf1 = create_buffer_with_content(2, 1, &["ab"]);
+        let buf2 = create_buffer_with_content(2, 1, &["xx"]);
+
+        let result = diff.diff(&buf1, &buf2);
+        assert!(
+            result.expected as *const _ == &buf1 as *const _,
+            "DiffResult.expected should contain reference to expected Buffer"
+        );
+    }
+
+    #[test]
+    fn test_diff_result_actual_reference() {
+        let diff = BufferDiff::new();
+        let buf1 = create_buffer_with_content(2, 1, &["ab"]);
+        let buf2 = create_buffer_with_content(2, 1, &["xx"]);
+
+        let result = diff.diff(&buf1, &buf2);
+        assert!(
+            result.actual as *const _ == &buf2 as *const _,
+            "DiffResult.actual should contain reference to actual Buffer"
+        );
     }
 
     #[test]
@@ -274,7 +338,7 @@ mod tests {
         let buf1 = create_buffer_with_content(3, 2, &["abc", "def"]);
         let buf2 = create_buffer_with_content(3, 2, &["axc", "def"]);
 
-        let result = diff.diff(&buf1, &buf2).unwrap();
+        let result = diff.diff(&buf1, &buf2);
         assert_eq!(result.total_diffs, 1);
 
         let diff_cell = &result.differences[0];
@@ -290,7 +354,7 @@ mod tests {
         let buf1 = create_buffer_with_content(5, 3, &["hello", "world", "test"]);
         let buf2 = create_buffer_with_content(5, 3, &["hello", "wxrld", "test"]);
 
-        let result = diff.diff(&buf1, &buf2).unwrap();
+        let result = diff.diff(&buf1, &buf2);
         assert_eq!(result.total_diffs, 1);
 
         let diff_cell = &result.differences[0];
@@ -307,7 +371,7 @@ mod tests {
         buf1.content[0].fg = Color::Red;
         buf2.content[0].fg = Color::Blue;
 
-        let result = diff.diff(&buf1, &buf2).unwrap();
+        let result = diff.diff(&buf1, &buf2);
         assert_eq!(result.total_diffs, 0);
     }
 
@@ -320,7 +384,7 @@ mod tests {
         buf1.content[0].bg = Color::Red;
         buf2.content[0].bg = Color::Blue;
 
-        let result = diff.diff(&buf1, &buf2).unwrap();
+        let result = diff.diff(&buf1, &buf2);
         assert_eq!(result.total_diffs, 0);
     }
 
@@ -333,7 +397,7 @@ mod tests {
         buf1.content[0].modifier = Modifier::BOLD;
         buf2.content[0].modifier = Modifier::ITALIC;
 
-        let result = diff.diff(&buf1, &buf2).unwrap();
+        let result = diff.diff(&buf1, &buf2);
         assert_eq!(result.total_diffs, 0);
     }
 
@@ -343,7 +407,7 @@ mod tests {
         let buf1 = create_buffer_with_content(3, 2, &["abc", "def"]);
         let buf2 = create_buffer_with_content(3, 2, &["xbc", "daf"]);
 
-        let result = diff.diff(&buf1, &buf2).unwrap();
+        let result = diff.diff(&buf1, &buf2);
         assert_eq!(result.total_diffs, 2);
 
         assert_eq!(result.differences[0].x, 0);
@@ -358,7 +422,7 @@ mod tests {
         let buf1 = create_buffer_with_content(3, 2, &["abc", "def"]);
         let buf2 = create_buffer_with_content(4, 2, &["abcd", "defg"]);
 
-        let result = diff.diff(&buf1, &buf2).unwrap();
+        let result = diff.diff(&buf1, &buf2);
         assert_eq!(result.total_diffs, 1);
         assert!(result.differences[0].expected_symbol.contains("3x2"));
         assert!(result.differences[0].actual_symbol.contains("4x2"));
@@ -370,7 +434,7 @@ mod tests {
         let buf1 = create_buffer_with_content(2, 1, &["ab"]);
         let buf2 = create_buffer_with_content(2, 1, &["ax"]);
 
-        let output = diff.diff_to_string(&buf1, &buf2).unwrap();
+        let output = diff.diff_to_string(&buf1, &buf2);
         assert!(output.contains("1 difference"));
         assert!(output.contains("Position: (1, 0)"));
     }
@@ -398,7 +462,7 @@ mod tests {
         buf1.content[0].fg = Color::Red;
         buf2.content[0].fg = Color::Blue;
 
-        let result = diff.diff(&buf1, &buf2).unwrap();
+        let result = diff.diff(&buf1, &buf2);
         assert_eq!(result.total_diffs, 0);
     }
 
@@ -410,7 +474,7 @@ mod tests {
 
         buf2.content[3].set_symbol("x");
 
-        let result = diff.diff(&buf1, &buf2).unwrap();
+        let result = diff.diff(&buf1, &buf2);
         assert_eq!(
             result.total_diffs, 1,
             "Should detect exactly one cell difference"
@@ -432,7 +496,7 @@ mod tests {
         let buf1 = create_buffer_with_content(4, 3, &["abcd", "efgh", "ijkl"]);
         let buf2 = create_buffer_with_content(4, 3, &["axcd", "efyh", "ijkl"]);
 
-        let result = diff.diff(&buf1, &buf2).unwrap();
+        let result = diff.diff(&buf1, &buf2);
 
         assert_eq!(
             result.total_diffs, 2,
@@ -467,7 +531,7 @@ mod tests {
         buf1.content[0].fg = Color::Red;
         buf2.content[0].fg = Color::Blue;
 
-        let result = diff.diff(&buf1, &buf2).unwrap();
+        let result = diff.diff(&buf1, &buf2);
         assert_eq!(
             result.total_diffs, 1,
             "Should detect single cell foreground difference"
@@ -489,7 +553,7 @@ mod tests {
         buf1.content[0].bg = Color::Black;
         buf2.content[0].bg = Color::White;
 
-        let result = diff.diff(&buf1, &buf2).unwrap();
+        let result = diff.diff(&buf1, &buf2);
         assert_eq!(
             result.total_diffs, 1,
             "Should detect single cell background difference"
@@ -509,7 +573,7 @@ mod tests {
         buf1.content[0].modifier = Modifier::BOLD;
         buf2.content[0].modifier = Modifier::ITALIC;
 
-        let result = diff.diff(&buf1, &buf2).unwrap();
+        let result = diff.diff(&buf1, &buf2);
         assert_eq!(
             result.total_diffs, 1,
             "Should detect single cell modifier difference"

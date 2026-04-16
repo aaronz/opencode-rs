@@ -155,7 +155,7 @@ impl TestDsl {
             .as_ref()
             .context("BufferDiff not configured. Use with_buffer_diff()")?;
 
-        let result = diff.diff(expected, actual)?;
+        let result = diff.diff(expected, actual);
 
         if result.total_diffs > 0 {
             anyhow::bail!("Buffer differences found:\n{}", result);
@@ -175,7 +175,7 @@ impl TestDsl {
             .context("No buffer has been rendered yet")?;
 
         let diff = BufferDiff::with_options(options);
-        let result = diff.diff(expected, actual)?;
+        let result = diff.diff(expected, actual);
 
         if result.total_diffs > 0 {
             anyhow::bail!("Buffer differences found:\n{}", result);

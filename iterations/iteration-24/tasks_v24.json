@@ -1,0 +1,230 @@
+{
+  "tasks": [
+    {
+      "id": "FR-101",
+      "priority": "P1",
+      "title": "Fix DiffResult struct",
+      "description": "Add `passed: bool` field computed from `total_diffs == 0`. Add `expected: Buffer` field storing expected buffer reference. Add `actual: Buffer` field storing actual buffer reference. Update `diff()` method to populate these fields. Update `Display` impl.",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify DiffResult.passed returns true when total_diffs == 0",
+        "AddUnitTest: verify DiffResult.passed returns false when total_diffs > 0",
+        "AddUnitTest: verify DiffResult.expected contains reference to expected Buffer",
+        "AddUnitTest: verify DiffResult.actual contains reference to actual Buffer",
+        "AddRegressionTest: ensure existing BufferDiff tests still pass"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing buffer_diff",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Add passed field as computed property from total_diffs == 0. Store Buffer references instead of copying data for memory efficiency.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-102",
+      "priority": "P1",
+      "title": "Fix CellDiff struct",
+      "description": "Refactor to use `expected: Cell` and `actual: Cell` instead of individual fields. Keep x and y for position. Maintain backward compatibility via helper methods. Update Display impl for human-readable output.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify CellDiff uses ratatui::buffer::Cell type for expected/actual",
+        "AddUnitTest: verify position (x, y) is still accessible",
+        "AddUnitTest: verify human-readable diff output is maintained in Display impl",
+        "AddRegressionTest: ensure existing CellDiff tests still pass"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing cell_diff",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Use ratatui::buffer::Cell directly. Provide helper methods like symbol() for backward compatibility.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-104",
+      "priority": "P1",
+      "title": "Add assert_buffer_eq to TestDsl",
+      "description": "Add `assert_buffer_eq(&self, expected: &Buffer, actual: &Buffer) -> Result<()>`. Use internal BufferDiff for comparison. Return detailed error with diff info on failure.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify assert_buffer_eq accepts two Buffer parameters",
+        "AddUnitTest: verify assert_buffer_eq returns Ok(()) when buffers are identical",
+        "AddUnitTest: verify assert_buffer_eq returns error with diff details when different",
+        "AddIntegrationTest: verify assert_buffer_eq works with TestDsl fluent chaining"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing assert_buffer",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Use internal BufferDiff for comparison. Return Err with formatted diff output on failure.",
+      "dependencies": [
+        "FR-101"
+      ]
+    },
+    {
+      "id": "FR-103",
+      "priority": "P2",
+      "title": "Implement diff_str method",
+      "description": "Add `diff_str(expected: &str, actual: &str) -> DiffResult`. Parse string input into Buffer format. Return DiffResult directly (not wrapped in Result).",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify diff_str accepts string inputs",
+        "AddUnitTest: verify diff_str returns DiffResult with passed: true for identical content",
+        "AddUnitTest: verify diff_str returns DiffResult with passed: false for different content",
+        "AddUnitTest: verify diff_str parses multi-line strings correctly"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing diff_str",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Parse string into Buffer format. Return DiffResult directly without Result wrapping.",
+      "dependencies": [
+        "FR-101"
+      ]
+    },
+    {
+      "id": "FR-105",
+      "priority": "P2",
+      "title": "Add send_keys method",
+      "description": "Add `send_keys(&mut self, keys: &str) -> Result<&mut Self>`. Parse key sequences (enter, escape, ctrl-x, etc.). Return `&mut Self` for fluent chaining. Internally uses PTY for injection.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify send_keys accepts string keys input",
+        "AddUnitTest: verify send_keys returns &mut Self for fluent chaining",
+        "AddUnitTest: verify send_keys parses common key sequences (enter, escape)",
+        "AddUnitTest: verify send_keys parses ctrl-x style sequences",
+        "AddIntegrationTest: verify keys are injected via PTY correctly"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing send_keys",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Parse key sequences like 'enter', 'escape', 'ctrl-c', 'ctrl-x'. Return mutable reference for method chaining.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-106",
+      "priority": "P2",
+      "title": "PtySimulator new() alignment",
+      "description": "Add `new()` as alias that creates a default PTY. Uses `new(&[\"bash\", \"-c\", \"echo ready\"])` or similar. Or update PRD to reflect actual `new(command: &[&str])` signature.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify PtySimulator::new() works without arguments OR",
+        "AddUnitTest: verify documentation reflects new(command: &[&str]) signature"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing pty",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Add new() with no args that creates default bash -c 'echo ready' PTY for convenience.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-107",
+      "priority": "P2",
+      "title": "Create tests/buffer_diff_tests.rs",
+      "description": "Comprehensive BufferDiff tests. CellDiff tests with Cell type. diff_str tests. Approximately 200 lines.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify file created at tests/buffer_diff_tests.rs",
+        "AddUnitTest: verify BufferDiff comparison tests",
+        "AddUnitTest: verify CellDiff tests with ratatui::buffer::Cell type",
+        "AddUnitTest: verify diff_str tests",
+        "RunTestSuite: execute tests/buffer_diff_tests.rs to ensure all pass"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test buffer_diff_tests",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Create comprehensive test file with ~200 lines covering BufferDiff, CellDiff, and diff_str functionality.",
+      "dependencies": [
+        "FR-101",
+        "FR-102",
+        "FR-103"
+      ]
+    },
+    {
+      "id": "FR-107-state",
+      "priority": "P2",
+      "title": "Create tests/state_tests.rs",
+      "description": "StateTester specific tests. Snapshot capture/compare tests. Approximately 200 lines.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify file created at tests/state_tests.rs",
+        "AddUnitTest: verify StateTester specific tests",
+        "AddUnitTest: verify snapshot capture/compare tests",
+        "RunTestSuite: execute tests/state_tests.rs to ensure all pass"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test state_tests",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Create comprehensive test file with ~200 lines covering StateTester and snapshot functionality.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-107-integration",
+      "priority": "P2",
+      "title": "Create tests/integration_tests.rs",
+      "description": "Cross-module integration tests. TestDsl composition tests. End-to-end workflow tests. Approximately 300 lines.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify file created at tests/integration_tests.rs",
+        "AddIntegrationTest: verify cross-module integration tests",
+        "AddIntegrationTest: verify TestDsl composition tests",
+        "AddIntegrationTest: verify end-to-end workflow tests",
+        "RunTestSuite: execute tests/integration_tests.rs to ensure all pass"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test integration_tests",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Create comprehensive integration test file with ~300 lines covering cross-module integration.",
+      "dependencies": [
+        "FR-104",
+        "FR-105",
+        "FR-106"
+      ]
+    },
+    {
+      "id": "FR-108",
+      "priority": "P2",
+      "title": "Create snapshot.rs module",
+      "description": "Create `src/snapshot.rs` module. Add `load_snapshot(name: &str) -> Result<Buffer>`. Add `save_snapshot(name: &str, buffer: &Buffer) -> Result<()>`. Organized directory structure for snapshots.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify src/snapshot.rs module is created",
+        "AddUnitTest: verify load_snapshot(name: &str) returns Result<Buffer>",
+        "AddUnitTest: verify save_snapshot(name: &str, buffer: &Buffer) returns Result<()>",
+        "AddUnitTest: verify snapshots are stored in organized directory structure",
+        "RunTestSuite: ensure snapshot module tests pass"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing snapshot",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Create snapshot module with load and save functions. Use organized directory structure for snapshot files.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-108-dsl",
+      "priority": "P2",
+      "title": "Integrate snapshot with TestDsl",
+      "description": "Add `save_snapshot()` method to TestDsl. Add `load_snapshot()` method to TestDsl. Support snapshot naming and versioning.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify TestDsl::save_snapshot() method works",
+        "AddUnitTest: verify TestDsl::load_snapshot() method works",
+        "AddIntegrationTest: verify fluent API chaining works with snapshot methods",
+        "RunTestSuite: ensure integration tests pass"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing snapshot_dsl",
+        "cargo clippy -p ratatui-testing -- -D warnings"
+      ],
+      "impl_notes": "Add snapshot methods to TestDsl for fluent API. Support naming and versioning in snapshots.",
+      "dependencies": [
+        "FR-108"
+      ]
+    }
+  ]
+}

@@ -414,20 +414,18 @@ fn test_buffer_diff_direct_comparison() {
     let buf1 = create_buffer(5, 2, &["hello", "world"]);
     let buf2 = create_buffer(5, 2, &["hello", "world"]);
 
-    let result = diff.diff(&buf1, &buf2).expect("Diff should succeed");
+    let result = diff.diff(&buf1, &buf2);
     assert_eq!(
         result.total_diffs, 0,
         "Identical buffers should have no diffs"
     );
 
     let buf3 = create_buffer(5, 2, &["hello", "w0rld"]);
-    let result = diff.diff(&buf1, &buf3).expect("Diff should succeed");
+    let result = diff.diff(&buf1, &buf3);
     assert_eq!(result.total_diffs, 1, "Should detect one diff");
 
     let diff_with_ignore = BufferDiff::new().ignore_foreground().ignore_background();
-    let result = diff_with_ignore
-        .diff(&buf1, &buf3)
-        .expect("Diff should succeed");
+    let result = diff_with_ignore.diff(&buf1, &buf3);
     assert_eq!(
         result.total_diffs, 1,
         "Ignore options should still detect symbol diffs"
