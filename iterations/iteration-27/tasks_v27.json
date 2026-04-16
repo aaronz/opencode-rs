@@ -60,7 +60,7 @@
       "priority": "P0",
       "title": "Fix test_session_message_content_sanitization",
       "description": "Fix failing security test in tests/src/security_tests.rs. XSS/injection prevention is broken for session message content. Fix content sanitization.",
-      "status": "done",
+      "status": "manual_check",
       "test_criteria": [
         "AddRegressionTest: verify session message content is properly sanitized",
         "AddUnitTest: test various injection patterns are sanitized",
@@ -79,7 +79,7 @@
       "priority": "P0",
       "title": "Fix test_session_message_xss_prevention",
       "description": "Fix failing security test in tests/src/security_tests.rs. XSS prevention is broken allowing script injection in session messages.",
-      "status": "todo",
+      "status": "manual_check",
       "test_criteria": [
         "AddRegressionTest: verify XSS prevention blocks script injection",
         "AddUnitTest: test various XSS attack vectors are blocked",
@@ -100,7 +100,7 @@
       "priority": "P0",
       "title": "Fix test_write_tool_path_validation",
       "description": "Fix failing security test in tests/src/security_tests.rs. Path validation for write tool is broken allowing invalid paths.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: verify write tool rejects invalid paths",
         "AddUnitTest: test various invalid path patterns are rejected",
@@ -119,7 +119,7 @@
       "priority": "P0",
       "title": "Fix 4 remaining phase6_regression_tests",
       "description": "Fix 4 remaining regression test failures in phase6. Locate and fix all failing tests in tests/src/ directory.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: verify all phase6 regression tests pass",
         "RunTestSuite: cargo test phase6_regression_tests"
@@ -143,7 +143,7 @@
       "priority": "P0",
       "title": "Verify all tests pass with cargo test --all",
       "description": "After fixing P0-01 through P0-07, verify the complete test suite passes. This is the final verification step.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "RunTestSuite: verify cargo test --all passes without failures",
         "RunTestSuite: verify cargo fmt --all -- --check passes",
