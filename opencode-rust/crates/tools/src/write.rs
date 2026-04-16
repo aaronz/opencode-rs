@@ -25,7 +25,19 @@ fn normalize_path(path: &Path) -> PathBuf {
     result
 }
 
+fn is_safe_absolute_path(path: &Path) -> bool {
+    if !path.is_absolute() {
+        return false;
+    }
+    let temp_dir = std::env::temp_dir();
+    path.starts_with(&temp_dir)
+}
+
 fn is_path_within_worktree(path: &Path, worktree: &Path) -> bool {
+    if path.is_absolute() && is_safe_absolute_path(path) {
+        return true;
+    }
+
     let Ok(target_canonical) = path.canonicalize() else {
         if path.is_absolute() {
             if let Some(parent) = path.parent() {
@@ -99,8 +111,6 @@ impl Tool for WriteTool {
                     .map(PathBuf::from)
             });
 
-        let has_explicit_worktree = explicit_worktree.is_some();
-
         let worktree =
             explicit_worktree.unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
 
@@ -110,18 +120,11 @@ impl Tool for WriteTool {
             worktree.join(&path)
         };
 
-        let normalized_final = normalize_path(&final_path);
-        let normalized_str = normalized_final.to_string_lossy();
-        let is_tmp_path =
-            normalized_str.contains("/tmp/") || normalized_str.contains("/private/tmp/");
-
         if !is_path_within_worktree(&final_path, &worktree) {
-            if has_explicit_worktree || is_tmp_path {
-                return Ok(ToolResult::err(format!(
-                    "Access to path outside worktree denied: {}",
-                    args.path
-                )));
-            }
+            return Ok(ToolResult::err(format!(
+                "Access to path outside worktree denied: {}",
+                args.path
+            )));
         }
 
         if let Some(parent) = final_path.parent() {

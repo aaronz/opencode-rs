@@ -204,7 +204,7 @@
       "priority": "P1",
       "title": "Audit OpenCodeError legacy variants",
       "description": "Audit all variants in OpenCodeError enum in crates/core/src/error.rs and ensure they follow thiserror conventions.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify all OpenCodeError variants have consistent error formatting",
         "RunTestSuite: cargo test -p opencode-core -- error"
@@ -213,7 +213,7 @@
         "cargo test -p opencode-core -- error",
         "cargo clippy -p opencode-core -- -D warnings"
       ],
-      "impl_notes": "Review error.rs for inconsistencies and ensure proper thiserror derive",
+      "impl_notes": "Review error.rs for inconsistencies and ensure proper thiserror derive. Added comprehensive tests: test_all_variants_display_consistency, test_all_variants_have_valid_codes, test_all_variants_have_http_status to verify all 39 error variants.",
       "dependencies": []
     },
     {

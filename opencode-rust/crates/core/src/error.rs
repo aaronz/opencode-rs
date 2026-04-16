@@ -506,4 +506,300 @@ mod tests {
         let err = OpenCodeError::ProviderNotFound("openai".into());
         assert!(err.user_message().contains("openai"));
     }
+
+    #[test]
+    fn test_all_variants_display_consistency() {
+        let variants: Vec<(&str, OpenCodeError)> = vec![
+            (
+                "IO error",
+                OpenCodeError::Io(std::io::Error::new(std::io::ErrorKind::NotFound, "test")),
+            ),
+            (
+                "JSON error",
+                OpenCodeError::Json(
+                    serde_json::from_str::<serde_json::Value>("invalid").unwrap_err(),
+                ),
+            ),
+            (
+                "Sqlite error",
+                OpenCodeError::Sqlite(rusqlite::Error::InvalidQuery),
+            ),
+            ("Network error", OpenCodeError::Network("test".to_string())),
+            ("Parse error", OpenCodeError::Parse("test".to_string())),
+            (
+                "Configuration error",
+                OpenCodeError::Config("test".to_string()),
+            ),
+            ("Session error", OpenCodeError::Session("test".to_string())),
+            ("Tool error", OpenCodeError::Tool("test".to_string())),
+            ("LLM error", OpenCodeError::Llm("test".to_string())),
+            ("TUI error", OpenCodeError::Tui("test".to_string())),
+            (
+                "Provider error",
+                OpenCodeError::Provider("test".to_string()),
+            ),
+            ("Storage error", OpenCodeError::Storage("test".to_string())),
+            (
+                "Token expired",
+                OpenCodeError::TokenExpired { detail: None },
+            ),
+            (
+                "Invalid token",
+                OpenCodeError::InvalidToken { detail: None },
+            ),
+            (
+                "Missing credentials",
+                OpenCodeError::MissingCredentials { detail: None },
+            ),
+            (
+                "Insufficient permissions",
+                OpenCodeError::InsufficientPermissions {
+                    detail: None,
+                    required_role: None,
+                },
+            ),
+            (
+                "Access denied",
+                OpenCodeError::AccessDenied { detail: None },
+            ),
+            (
+                "Provider not found",
+                OpenCodeError::ProviderNotFound("openai".to_string()),
+            ),
+            (
+                "Provider authentication failed",
+                OpenCodeError::ProviderAuthFailed("openai".to_string()),
+            ),
+            (
+                "Provider unavailable",
+                OpenCodeError::ProviderUnavailable("openai".to_string()),
+            ),
+            (
+                "Tool not found",
+                OpenCodeError::ToolNotFound("read".to_string()),
+            ),
+            (
+                "Tool execution timeout",
+                OpenCodeError::ToolTimeout {
+                    tool: "read".to_string(),
+                    timeout_ms: 5000,
+                },
+            ),
+            (
+                "Invalid tool arguments",
+                OpenCodeError::ToolInvalidArgs("test".to_string()),
+            ),
+            (
+                "Session not found",
+                OpenCodeError::SessionNotFound("abc".to_string()),
+            ),
+            (
+                "Session expired",
+                OpenCodeError::SessionExpired("abc".to_string()),
+            ),
+            (
+                "Session corrupted",
+                OpenCodeError::SessionCorrupted("abc".to_string()),
+            ),
+            (
+                "Version mismatch",
+                OpenCodeError::VersionMismatchError("1.0".to_string()),
+            ),
+            (
+                "Config missing",
+                OpenCodeError::ConfigMissing("key".to_string()),
+            ),
+            (
+                "Config invalid",
+                OpenCodeError::ConfigInvalid("key".to_string()),
+            ),
+            (
+                "Config load failed",
+                OpenCodeError::ConfigLoadFailed("key".to_string()),
+            ),
+            (
+                "Invalid parameter",
+                OpenCodeError::ValidationError {
+                    field: "name".to_string(),
+                    message: "required".to_string(),
+                },
+            ),
+            (
+                "Missing required field",
+                OpenCodeError::MissingRequiredField("email".to_string()),
+            ),
+            (
+                "Format mismatch",
+                OpenCodeError::FormatMismatch("json".to_string()),
+            ),
+            (
+                "Workspace path does not exist",
+                OpenCodeError::WorkspacePathNotFound("/path".to_string()),
+            ),
+            (
+                "Workspace path is not accessible",
+                OpenCodeError::WorkspacePathNotAccessible("/path".to_string()),
+            ),
+            (
+                "Workspace path is not a directory",
+                OpenCodeError::WorkspacePathNotDirectory("/path".to_string()),
+            ),
+            (
+                "Workspace path is not readable",
+                OpenCodeError::WorkspacePathNotReadable("/path".to_string()),
+            ),
+            (
+                "Internal error",
+                OpenCodeError::InternalError("test".to_string()),
+            ),
+            (
+                "Service unavailable",
+                OpenCodeError::ServiceUnavailable("test".to_string()),
+            ),
+        ];
+
+        for (expected_prefix, err) in variants {
+            let display = err.to_string();
+            assert!(
+                display.contains(expected_prefix),
+                "Error {:?} display should contain '{}', got: {}",
+                err,
+                expected_prefix,
+                display
+            );
+            assert!(
+                !display.is_empty(),
+                "Error {:?} should not have empty display",
+                err
+            );
+        }
+    }
+
+    #[test]
+    fn test_all_variants_have_valid_codes() {
+        let variants: Vec<OpenCodeError> = vec![
+            OpenCodeError::Io(std::io::Error::new(std::io::ErrorKind::NotFound, "test")),
+            OpenCodeError::Json(serde_json::from_str::<serde_json::Value>("invalid").unwrap_err()),
+            OpenCodeError::Sqlite(rusqlite::Error::InvalidQuery),
+            OpenCodeError::Network("test".to_string()),
+            OpenCodeError::Parse("test".to_string()),
+            OpenCodeError::Config("test".to_string()),
+            OpenCodeError::Session("test".to_string()),
+            OpenCodeError::Tool("test".to_string()),
+            OpenCodeError::Llm("test".to_string()),
+            OpenCodeError::Tui("test".to_string()),
+            OpenCodeError::Provider("test".to_string()),
+            OpenCodeError::Storage("test".to_string()),
+            OpenCodeError::TokenExpired { detail: None },
+            OpenCodeError::InvalidToken { detail: None },
+            OpenCodeError::MissingCredentials { detail: None },
+            OpenCodeError::InsufficientPermissions {
+                detail: None,
+                required_role: None,
+            },
+            OpenCodeError::AccessDenied { detail: None },
+            OpenCodeError::ProviderNotFound("openai".to_string()),
+            OpenCodeError::ProviderAuthFailed("openai".to_string()),
+            OpenCodeError::ProviderUnavailable("openai".to_string()),
+            OpenCodeError::ToolNotFound("read".to_string()),
+            OpenCodeError::ToolTimeout {
+                tool: "read".to_string(),
+                timeout_ms: 5000,
+            },
+            OpenCodeError::ToolInvalidArgs("test".to_string()),
+            OpenCodeError::SessionNotFound("abc".to_string()),
+            OpenCodeError::SessionExpired("abc".to_string()),
+            OpenCodeError::SessionCorrupted("abc".to_string()),
+            OpenCodeError::VersionMismatchError("1.0".to_string()),
+            OpenCodeError::ConfigMissing("key".to_string()),
+            OpenCodeError::ConfigInvalid("key".to_string()),
+            OpenCodeError::ConfigLoadFailed("key".to_string()),
+            OpenCodeError::ValidationError {
+                field: "name".to_string(),
+                message: "required".to_string(),
+            },
+            OpenCodeError::MissingRequiredField("email".to_string()),
+            OpenCodeError::FormatMismatch("json".to_string()),
+            OpenCodeError::WorkspacePathNotFound("/path".to_string()),
+            OpenCodeError::WorkspacePathNotAccessible("/path".to_string()),
+            OpenCodeError::WorkspacePathNotDirectory("/path".to_string()),
+            OpenCodeError::WorkspacePathNotReadable("/path".to_string()),
+            OpenCodeError::InternalError("test".to_string()),
+            OpenCodeError::ServiceUnavailable("test".to_string()),
+        ];
+
+        for err in variants {
+            let code = err.code();
+            assert!(
+                code >= 1000 && code < 10000,
+                "Error code for {:?} should be in 1xxx-9xxx range, got: {}",
+                err,
+                code
+            );
+        }
+    }
+
+    #[test]
+    fn test_all_variants_have_http_status() {
+        let variants: Vec<OpenCodeError> = vec![
+            OpenCodeError::Io(std::io::Error::new(std::io::ErrorKind::NotFound, "test")),
+            OpenCodeError::Json(serde_json::from_str::<serde_json::Value>("invalid").unwrap_err()),
+            OpenCodeError::Sqlite(rusqlite::Error::InvalidQuery),
+            OpenCodeError::Network("test".to_string()),
+            OpenCodeError::Parse("test".to_string()),
+            OpenCodeError::Config("test".to_string()),
+            OpenCodeError::Session("test".to_string()),
+            OpenCodeError::Tool("test".to_string()),
+            OpenCodeError::Llm("test".to_string()),
+            OpenCodeError::Tui("test".to_string()),
+            OpenCodeError::Provider("test".to_string()),
+            OpenCodeError::Storage("test".to_string()),
+            OpenCodeError::TokenExpired { detail: None },
+            OpenCodeError::InvalidToken { detail: None },
+            OpenCodeError::MissingCredentials { detail: None },
+            OpenCodeError::InsufficientPermissions {
+                detail: None,
+                required_role: None,
+            },
+            OpenCodeError::AccessDenied { detail: None },
+            OpenCodeError::ProviderNotFound("openai".to_string()),
+            OpenCodeError::ProviderAuthFailed("openai".to_string()),
+            OpenCodeError::ProviderUnavailable("openai".to_string()),
+            OpenCodeError::ToolNotFound("read".to_string()),
+            OpenCodeError::ToolTimeout {
+                tool: "read".to_string(),
+                timeout_ms: 5000,
+            },
+            OpenCodeError::ToolInvalidArgs("test".to_string()),
+            OpenCodeError::SessionNotFound("abc".to_string()),
+            OpenCodeError::SessionExpired("abc".to_string()),
+            OpenCodeError::SessionCorrupted("abc".to_string()),
+            OpenCodeError::VersionMismatchError("1.0".to_string()),
+            OpenCodeError::ConfigMissing("key".to_string()),
+            OpenCodeError::ConfigInvalid("key".to_string()),
+            OpenCodeError::ConfigLoadFailed("key".to_string()),
+            OpenCodeError::ValidationError {
+                field: "name".to_string(),
+                message: "required".to_string(),
+            },
+            OpenCodeError::MissingRequiredField("email".to_string()),
+            OpenCodeError::FormatMismatch("json".to_string()),
+            OpenCodeError::WorkspacePathNotFound("/path".to_string()),
+            OpenCodeError::WorkspacePathNotAccessible("/path".to_string()),
+            OpenCodeError::WorkspacePathNotDirectory("/path".to_string()),
+            OpenCodeError::WorkspacePathNotReadable("/path".to_string()),
+            OpenCodeError::InternalError("test".to_string()),
+            OpenCodeError::ServiceUnavailable("test".to_string()),
+        ];
+
+        for err in variants {
+            let status = err.http_status();
+            assert!(
+                status >= 400 && status < 600,
+                "HTTP status for {:?} should be in 4xx-5xx range, got: {}",
+                err,
+                status
+            );
+        }
+    }
 }
