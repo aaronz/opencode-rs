@@ -65,7 +65,7 @@
       "priority": "P2",
       "title": "Implement diff_str method",
       "description": "Add `diff_str(expected: &str, actual: &str) -> DiffResult`. Parse string input into Buffer format. Return DiffResult directly (not wrapped in Result).",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify diff_str accepts string inputs",
         "AddUnitTest: verify diff_str returns DiffResult with passed: true for identical content",
