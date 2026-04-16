@@ -65,7 +65,7 @@
       "priority": "P2",
       "title": "Implement diff_str method",
       "description": "Add `diff_str(expected: &str, actual: &str) -> DiffResult`. Parse string input into Buffer format. Return DiffResult directly (not wrapped in Result).",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify diff_str accepts string inputs",
         "AddUnitTest: verify diff_str returns DiffResult with passed: true for identical content",
@@ -86,7 +86,7 @@
       "priority": "P2",
       "title": "Add send_keys method",
       "description": "Add `send_keys(&mut self, keys: &str) -> Result<&mut Self>`. Parse key sequences (enter, escape, ctrl-x, etc.). Return `&mut Self` for fluent chaining. Internally uses PTY for injection.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify send_keys accepts string keys input",
         "AddUnitTest: verify send_keys returns &mut Self for fluent chaining",

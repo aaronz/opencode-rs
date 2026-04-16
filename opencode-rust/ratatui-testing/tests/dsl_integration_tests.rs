@@ -495,3 +495,71 @@ fn test_dsl_buffer_line_trailing_whitespace_handling() {
         "Line should start with 'Hello'"
     );
 }
+
+#[test]
+fn test_send_keys_integration_via_pty() {
+    let mut dsl = TestDsl::new()
+        .with_size(80, 24)
+        .init_terminal()
+        .with_pty(&["cat"])
+        .expect("PTY creation should succeed");
+
+    assert!(dsl.is_pty_child_running(), "PTY child should be running");
+
+    let result = dsl.send_keys("hello");
+    assert!(result.is_ok(), "send_keys should succeed");
+
+    let result = dsl.send_keys("enter");
+    assert!(result.is_ok(), "send_keys with enter should succeed");
+
+    let output = dsl.read_from_pty(std::time::Duration::from_millis(100));
+    assert!(output.is_ok(), "Reading from PTY should succeed");
+}
+
+#[test]
+fn test_send_keys_with_ctrl_sequences_via_pty() {
+    let mut dsl = TestDsl::new()
+        .with_size(80, 24)
+        .init_terminal()
+        .with_pty(&["cat"])
+        .expect("PTY creation should succeed");
+
+    let result = dsl.send_keys("ctrl-c");
+    assert!(result.is_ok(), "send_keys with ctrl-c should succeed");
+
+    let result = dsl.send_keys("ctrl-x");
+    assert!(result.is_ok(), "send_keys with ctrl-x should succeed");
+
+    let result = dsl.send_keys("ctrl-z");
+    assert!(result.is_ok(), "send_keys with ctrl-z should succeed");
+}
+
+#[test]
+fn test_send_keys_fluent_chaining_integration() {
+    let mut dsl = TestDsl::new()
+        .with_size(80, 24)
+        .init_terminal()
+        .with_pty(&["cat"])
+        .expect("PTY creation should succeed");
+
+    let final_dsl = dsl
+        .send_keys("hello")
+        .and_then(|dsl| {
+            let _ = dsl.send_keys("enter")?;
+            Ok(dsl)
+        })
+        .and_then(|dsl| {
+            let _ = dsl.send_keys("escape")?;
+            Ok(dsl)
+        })
+        .and_then(|dsl| {
+            let _ = dsl.send_keys("ctrl-c")?;
+            Ok(dsl)
+        })
+        .unwrap();
+
+    assert!(
+        final_dsl.is_pty_child_running(),
+        "PTY should still be running after send_keys"
+    );
+}

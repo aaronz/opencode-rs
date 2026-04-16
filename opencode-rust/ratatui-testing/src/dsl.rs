@@ -5,6 +5,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::backend::TestBackend;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -228,6 +229,19 @@ impl TestDsl {
             .as_mut()
             .context("PTY not configured. Use with_pty()")?;
         pty.write_input(input)
+    }
+
+    pub fn send_keys(&mut self, keys: &str) -> Result<&mut Self> {
+        let pty = self
+            .pty
+            .as_mut()
+            .context("PTY not configured. Use with_pty()")?;
+
+        let parsed_keys = parse_key_sequence(keys)?;
+        for key_event in parsed_keys {
+            pty.inject_key_event(key_event)?;
+        }
+        Ok(self)
     }
 
     pub fn read_from_pty(&mut self, timeout: Duration) -> Result<String> {
@@ -632,6 +646,103 @@ impl Debug for WaitPredicate {
             .field("description", &self.description)
             .finish()
     }
+}
+
+fn parse_key_sequence(keys: &str) -> Result<Vec<KeyEvent>> {
+    let mut key_events = Vec::new();
+    let mut remaining = keys.trim();
+
+    let special_keys: &[(&str, KeyCode)] = &[
+        ("enter", KeyCode::Enter),
+        ("escape", KeyCode::Esc),
+        ("esc", KeyCode::Esc),
+        ("tab", KeyCode::Tab),
+        ("backspace", KeyCode::Backspace),
+        ("left", KeyCode::Left),
+        ("right", KeyCode::Right),
+        ("up", KeyCode::Up),
+        ("down", KeyCode::Down),
+        ("home", KeyCode::Home),
+        ("end", KeyCode::End),
+        ("pageup", KeyCode::PageUp),
+        ("pagedown", KeyCode::PageDown),
+        ("insert", KeyCode::Insert),
+        ("delete", KeyCode::Delete),
+        ("f1", KeyCode::F(1)),
+        ("f2", KeyCode::F(2)),
+        ("f3", KeyCode::F(3)),
+        ("f4", KeyCode::F(4)),
+        ("f5", KeyCode::F(5)),
+        ("f6", KeyCode::F(6)),
+        ("f7", KeyCode::F(7)),
+        ("f8", KeyCode::F(8)),
+        ("f9", KeyCode::F(9)),
+        ("f10", KeyCode::F(10)),
+        ("f11", KeyCode::F(11)),
+        ("f12", KeyCode::F(12)),
+    ];
+
+    while !remaining.is_empty() {
+        let mut matched = false;
+
+        for (name, code) in special_keys {
+            let prefix_lower = remaining.to_lowercase();
+            if prefix_lower.starts_with(name) {
+                let after_name = &remaining[name.len()..];
+                if after_name.is_empty()
+                    || after_name.starts_with(' ')
+                    || after_name.starts_with('\n')
+                {
+                    remaining = after_name.trim_start_matches(' ').trim_start_matches('\n');
+                    key_events.push(KeyEvent::new(*code, KeyModifiers::NONE));
+                    matched = true;
+                    break;
+                }
+            }
+
+            let ctrl_name = format!("ctrl-{}", name);
+            if prefix_lower.starts_with(&ctrl_name) {
+                let after_ctrl = &remaining[ctrl_name.len()..];
+                if after_ctrl.is_empty()
+                    || after_ctrl.starts_with(' ')
+                    || after_ctrl.starts_with('\n')
+                {
+                    remaining = after_ctrl.trim_start_matches(' ').trim_start_matches('\n');
+                    key_events.push(KeyEvent::new(*code, KeyModifiers::CONTROL));
+                    matched = true;
+                    break;
+                }
+            }
+        }
+
+        if matched {
+            continue;
+        }
+
+        let ch = remaining.chars().next().unwrap();
+        remaining = &remaining[ch.len_utf8()..];
+
+        if ch == '\\' {
+            if !remaining.is_empty() {
+                let next = remaining.chars().next().unwrap();
+                remaining = &remaining[next.len_utf8()..];
+                match next {
+                    'n' => key_events.push(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)),
+                    't' => key_events.push(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE)),
+                    'r' => key_events.push(KeyEvent::new(KeyCode::Char('\r'), KeyModifiers::NONE)),
+                    'e' | 'E' => key_events.push(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE)),
+                    '\\' => key_events.push(KeyEvent::new(KeyCode::Char('\\'), KeyModifiers::NONE)),
+                    _ => {
+                        key_events.push(KeyEvent::new(KeyCode::Char(next), KeyModifiers::NONE));
+                    }
+                }
+            }
+        } else {
+            key_events.push(KeyEvent::new(KeyCode::Char(ch), KeyModifiers::NONE));
+        }
+    }
+
+    Ok(key_events)
 }
 
 #[cfg(test)]
@@ -1134,5 +1245,100 @@ mod tests {
             });
 
         assert!(result.last_render.is_some());
+    }
+
+    #[test]
+    fn test_send_keys_accepts_string_keys_input() {
+        let mut dsl = TestDsl::new()
+            .with_size(80, 24)
+            .init_terminal()
+            .with_pty(&["cat"])
+            .expect("PTY creation failed");
+
+        let result = dsl.send_keys("hello");
+        assert!(result.is_ok(), "send_keys should accept string input");
+    }
+
+    #[test]
+    fn test_send_keys_returns_mut_self_for_fluent_chaining() {
+        let mut dsl = TestDsl::new()
+            .with_size(80, 24)
+            .init_terminal()
+            .with_pty(&["cat"])
+            .expect("PTY creation failed");
+
+        let returned = dsl.send_keys("hello");
+        assert!(returned.is_ok());
+
+        let dsl_ref = returned.unwrap();
+        assert!(!dsl_ref.get_pty().is_none());
+    }
+
+    #[test]
+    fn test_send_keys_parses_common_key_sequences() {
+        let mut dsl = TestDsl::new()
+            .with_size(80, 24)
+            .init_terminal()
+            .with_pty(&["cat"])
+            .expect("PTY creation failed");
+
+        let result1 = dsl.send_keys("enter");
+        assert!(result1.is_ok(), "send_keys should parse 'enter'");
+
+        let result2 = dsl.send_keys("escape");
+        assert!(result2.is_ok(), "send_keys should parse 'escape'");
+
+        let result3 = dsl.send_keys("esc");
+        assert!(result3.is_ok(), "send_keys should parse 'esc'");
+
+        let result4 = dsl.send_keys("tab");
+        assert!(result4.is_ok(), "send_keys should parse 'tab'");
+
+        let result5 = dsl.send_keys("backspace");
+        assert!(result5.is_ok(), "send_keys should parse 'backspace'");
+    }
+
+    #[test]
+    fn test_send_keys_parses_ctrl_x_style_sequences() {
+        let mut dsl = TestDsl::new()
+            .with_size(80, 24)
+            .init_terminal()
+            .with_pty(&["cat"])
+            .expect("PTY creation failed");
+
+        let result1 = dsl.send_keys("ctrl-c");
+        assert!(result1.is_ok(), "send_keys should parse 'ctrl-c'");
+
+        let result2 = dsl.send_keys("ctrl-x");
+        assert!(result2.is_ok(), "send_keys should parse 'ctrl-x'");
+
+        let result3 = dsl.send_keys("ctrl-a");
+        assert!(result3.is_ok(), "send_keys should parse 'ctrl-a'");
+
+        let result4 = dsl.send_keys("ctrl-z");
+        assert!(result4.is_ok(), "send_keys should parse 'ctrl-z'");
+    }
+
+    #[test]
+    fn test_send_keys_fluent_chaining() {
+        let mut dsl = TestDsl::new()
+            .with_size(80, 24)
+            .init_terminal()
+            .with_pty(&["cat"])
+            .expect("PTY creation failed");
+
+        let final_dsl = dsl
+            .send_keys("hello")
+            .and_then(|dsl| {
+                let _ = dsl.send_keys("enter")?;
+                Ok(dsl)
+            })
+            .and_then(|dsl| {
+                let _ = dsl.send_keys("ctrl-c")?;
+                Ok(dsl)
+            })
+            .unwrap();
+
+        assert!(!final_dsl.get_pty().is_none());
     }
 }

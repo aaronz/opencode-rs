@@ -90,7 +90,7 @@
 
 ### Task 2.2: Add send_keys method
 **FR:** FR-105  
-**Status:** TODO  
+**Status:** ✅ Done  
 **Priority:** P2  
 **Effort:** Low
 
@@ -101,11 +101,11 @@
 - Internally uses PTY for injection
 
 **Acceptance Criteria:**
-- [ ] Method accepts string keys input
-- [ ] Returns `&mut Self` for fluent chaining
-- [ ] Keys are injected via PTY
-- [ ] Common key sequences supported (enter, escape, etc.)
-- [ ] Unit tests pass
+- [x] Method accepts string keys input
+- [x] Returns `&mut Self` for fluent chaining
+- [x] Keys are injected via PTY
+- [x] Common key sequences supported (enter, escape, etc.)
+- [x] Unit tests pass
 
 ---
 
