@@ -83,7 +83,7 @@ impl Tool for ReadTool {
 
         let path = PathBuf::from(&args.path);
 
-        let worktree = ctx
+        let explicit_worktree = ctx
             .as_ref()
             .and_then(|c| c.worktree.as_ref())
             .map(PathBuf::from)
@@ -91,14 +91,20 @@ impl Tool for ReadTool {
                 ctx.as_ref()
                     .and_then(|c| c.directory.as_ref())
                     .map(PathBuf::from)
-            })
-            .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+            });
+
+        let has_explicit_worktree = explicit_worktree.is_some();
+
+        let worktree =
+            explicit_worktree.unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
 
         if !is_path_within_worktree(&path, &worktree) {
-            return Ok(ToolResult::err(format!(
-                "Access to path outside worktree denied: {}",
-                args.path
-            )));
+            if has_explicit_worktree || !path.exists() {
+                return Ok(ToolResult::err(format!(
+                    "Access to path outside worktree denied: {}",
+                    args.path
+                )));
+            }
         }
 
         if !path.exists() {

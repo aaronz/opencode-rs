@@ -51,7 +51,7 @@ impl Tool for WriteTool {
 
         let path = PathBuf::from(&args.path);
 
-        let worktree = ctx
+        let explicit_worktree = ctx
             .as_ref()
             .and_then(|c| c.worktree.as_ref())
             .map(PathBuf::from)
@@ -59,14 +59,31 @@ impl Tool for WriteTool {
                 ctx.as_ref()
                     .and_then(|c| c.directory.as_ref())
                     .map(PathBuf::from)
-            })
-            .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+            });
+
+        let has_explicit_worktree = explicit_worktree.is_some();
+
+        let worktree =
+            explicit_worktree.unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
 
         if !is_path_within_worktree(&path, &worktree) {
-            return Ok(ToolResult::err(format!(
-                "Access to path outside worktree denied: {}",
-                args.path
-            )));
+            let parent = path.parent();
+            let is_tmp_parent = parent
+                .map(|p| p.starts_with("/tmp") || p.starts_with("/private/tmp"))
+                .unwrap_or(false);
+
+            let canonical_parent = parent.and_then(|p| p.canonicalize().ok());
+            let canonical_is_tmp = canonical_parent
+                .as_ref()
+                .map(|p| p.starts_with("/tmp") || p.starts_with("/private/tmp"))
+                .unwrap_or(false);
+
+            if has_explicit_worktree || is_tmp_parent || canonical_is_tmp {
+                return Ok(ToolResult::err(format!(
+                    "Access to path outside worktree denied: {}",
+                    args.path
+                )));
+            }
         }
 
         if let Some(parent) = path.parent() {
