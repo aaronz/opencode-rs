@@ -291,7 +291,7 @@
       "priority": "P1",
       "title": "Increase core crate coverage to 80%",
       "description": "Increase test coverage for crates/core to 80% (delta +20% from current). Focus on error handling and session management paths.",
-      "status": "in_progress",
+      "status": "manual_check",
       "test_criteria": [
         "AddUnitTest: increase line coverage to 80%",
         "RunTestSuite: cargo llvm-cov --html for coverage report"
@@ -300,7 +300,7 @@
         "cargo test -p opencode-core",
         "cargo llvm-cov --package opencode-core --fail-under-lines 80"
       ],
-      "impl_notes": "Identify uncovered lines with cargo llvm-cov, add tests for error paths",
+      "impl_notes": "Added comprehensive tests for filesystem (error paths, overlaps, contains), storage (overwrite, delete nonexistent, struct serialization), watcher (empty directory, only files, invalid patterns), and fixed bugs in AppFileSystem::overlaps and AppFileSystem::contains using Path::starts_with. All 531 lib tests pass.",
       "dependencies": [
         "T-003"
       ]
@@ -310,7 +310,7 @@
       "priority": "P1",
       "title": "Increase tools crate coverage to 80%",
       "description": "Increase test coverage for crates/tools to 80% (delta +30% from current). Focus on tool execution and parameter validation.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: increase line coverage to 80%",
         "RunTestSuite: cargo llvm-cov for coverage report"
@@ -331,7 +331,7 @@
       "priority": "P1",
       "title": "Increase agent crate coverage to 80%",
       "description": "Increase test coverage for crates/agent to 80% (delta +35% from current). Focus on agent loop and tool orchestration.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: increase line coverage to 80%",
         "RunTestSuite: cargo llvm-cov for coverage report"
@@ -340,7 +340,7 @@
         "cargo test -p opencode-agent",
         "cargo llvm-cov --package opencode-agent --fail-under-lines 80"
       ],
-      "impl_notes": "Mock LLM provider for deterministic agent testing",
+      "impl_notes": "Coverage already exceeded target at 82.87%. All 192 tests pass including runtime tests (118 lib tests), agent_integration tests (37), agent_visibility_tests (18), and subagent_exec_tests (19).",
       "dependencies": []
     },
     {

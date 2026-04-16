@@ -133,3 +133,143 @@ impl Tool for BashTool {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_bash_tool_name() {
+        let tool = BashTool::new();
+        assert_eq!(tool.name(), "bash");
+    }
+
+    #[tokio::test]
+    async fn test_bash_tool_description() {
+        let tool = BashTool::new();
+        assert!(tool.description().contains("bash"));
+    }
+
+    #[tokio::test]
+    async fn test_bash_tool_clone() {
+        let tool = BashTool::new();
+        let cloned = tool.clone_tool();
+        assert_eq!(cloned.name(), "bash");
+    }
+
+    #[tokio::test]
+    async fn test_bash_simple_command() {
+        let tool = BashTool::new();
+        let args = serde_json::json!({"command": "echo hello"});
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(result.success);
+        assert!(result.content.contains("hello"));
+    }
+
+    #[tokio::test]
+    async fn test_bash_command_with_error() {
+        let tool = BashTool::new();
+        let args = serde_json::json!({"command": "exit 1"});
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(!result.success);
+        assert!(result.error.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_bash_command_with_custom_workdir() {
+        let tool = BashTool::new();
+        let args = serde_json::json!({
+            "command": "pwd",
+            "workdir": "/tmp"
+        });
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(result.success);
+    }
+
+    #[tokio::test]
+    async fn test_bash_command_with_description() {
+        let tool = BashTool::new();
+        let args = serde_json::json!({
+            "command": "echo test",
+            "description": "My test command"
+        });
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(result.success);
+    }
+
+    #[tokio::test]
+    async fn test_bash_command_with_timeout() {
+        let tool = BashTool::new();
+        let args = serde_json::json!({
+            "command": "sleep 1",
+            "timeout": 5000
+        });
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(result.success);
+    }
+
+    #[tokio::test]
+    async fn test_bash_command_timeout() {
+        let tool = BashTool::new();
+        let args = serde_json::json!({
+            "command": "sleep 5",
+            "timeout": 500
+        });
+        let result = tool.execute(args, None).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_bash_stderr_captured() {
+        let tool = BashTool::new();
+        let args = serde_json::json!({"command": "echo error >&2"});
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(result.success);
+        assert!(result.content.contains("error"));
+    }
+
+    #[tokio::test]
+    async fn test_bash_default_timeout() {
+        let tool = BashTool::new();
+        let args = serde_json::json!({"command": "echo test"});
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(result.success);
+    }
+
+    #[tokio::test]
+    async fn test_bash_long_output_truncated() {
+        let tool = BashTool::new();
+        let args = serde_json::json!({
+            "command": "echo start && yes | head -10000 && echo end"
+        });
+        let result = tool.execute(args, None).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_bash_invalid_args() {
+        let tool = BashTool::new();
+        let args = serde_json::json!({"command": 123});
+        let result = tool.execute(args, None).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_bash_command_not_found() {
+        let tool = BashTool::new();
+        let args = serde_json::json!({"command": "nonexistent_command_12345"});
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(!result.success);
+    }
+
+    #[tokio::test]
+    async fn test_bash_metadata_set() {
+        let tool = BashTool::new();
+        let args = serde_json::json!({"command": "echo test"});
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(result.metadata.is_some());
+        let metadata = result.metadata.unwrap();
+        assert!(metadata.get("exitCode").is_some());
+        assert!(metadata.get("time").is_some());
+        assert!(metadata.get("description").is_some());
+    }
+}

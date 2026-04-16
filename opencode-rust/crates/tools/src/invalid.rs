@@ -43,3 +43,47 @@ impl Tool for InvalidTool {
         )))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_invalid_tool_name() {
+        let tool = InvalidTool;
+        assert_eq!(tool.name(), "invalid");
+    }
+
+    #[tokio::test]
+    async fn test_invalid_tool_description() {
+        let tool = InvalidTool;
+        assert_eq!(tool.description(), "Do not use");
+    }
+
+    #[tokio::test]
+    async fn test_invalid_tool_clone() {
+        let tool = InvalidTool;
+        let cloned = tool.clone_tool();
+        assert_eq!(cloned.name(), "invalid");
+    }
+
+    #[tokio::test]
+    async fn test_invalid_tool_execute() {
+        let tool = InvalidTool;
+        let args = serde_json::json!({
+            "tool": "some_tool",
+            "error": "Invalid argument"
+        });
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(result.success);
+        assert!(result.content.contains("Invalid argument"));
+    }
+
+    #[tokio::test]
+    async fn test_invalid_tool_invalid_args() {
+        let tool = InvalidTool;
+        let args = serde_json::json!({"not_error": "test"});
+        let result = tool.execute(args, None).await;
+        assert!(result.is_err());
+    }
+}

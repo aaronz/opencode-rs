@@ -162,3 +162,205 @@ impl Tool for MultiEditTool {
         )))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn test_multiedit_tool_name() {
+        let tool = MultiEditTool;
+        assert_eq!(tool.name(), "multi_edit");
+    }
+
+    #[tokio::test]
+    async fn test_multiedit_tool_description() {
+        let tool = MultiEditTool;
+        assert!(tool.description().contains("multiple edits"));
+    }
+
+    #[tokio::test]
+    async fn test_multiedit_tool_clone() {
+        let tool = MultiEditTool;
+        let cloned = tool.clone_tool();
+        assert_eq!(cloned.name(), "multi_edit");
+    }
+
+    #[tokio::test]
+    async fn test_multiedit_single_edit() {
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("test.txt");
+        std::fs::write(&file_path, "hello world").unwrap();
+
+        let tool = MultiEditTool;
+        let args = serde_json::json!({
+            "edits": [{
+                "path": file_path.to_str().unwrap(),
+                "old_string": "world",
+                "new_string": "rust"
+            }]
+        });
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(result.success);
+        assert_eq!(std::fs::read_to_string(&file_path).unwrap(), "hello rust");
+    }
+
+    #[tokio::test]
+    async fn test_multiedit_empty_edits() {
+        let tool = MultiEditTool;
+        let args = serde_json::json!({"edits": []});
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(!result.success);
+        assert!(result.error.unwrap().contains("No edits provided"));
+    }
+
+    #[tokio::test]
+    async fn test_multiedit_empty_path() {
+        let tool = MultiEditTool;
+        let args = serde_json::json!({
+            "edits": [{
+                "path": "",
+                "old_string": "test",
+                "new_string": "test2"
+            }]
+        });
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(!result.success);
+        assert!(result.error.unwrap().contains("empty path"));
+    }
+
+    #[tokio::test]
+    async fn test_multiedit_old_string_not_found() {
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("test.txt");
+        std::fs::write(&file_path, "hello world").unwrap();
+
+        let tool = MultiEditTool;
+        let args = serde_json::json!({
+            "edits": [{
+                "path": file_path.to_str().unwrap(),
+                "old_string": "goodbye",
+                "new_string": "rust"
+            }]
+        });
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(!result.success);
+        assert!(result.error.unwrap().contains("old_string not found"));
+    }
+
+    #[tokio::test]
+    async fn test_multiedit_file_not_found() {
+        let dir = tempdir().unwrap();
+
+        let tool = MultiEditTool;
+        let args = serde_json::json!({
+            "edits": [{
+                "path": dir.path().join("nonexistent.txt").to_str().unwrap(),
+                "old_string": "test",
+                "new_string": "test2"
+            }]
+        });
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(!result.success);
+        assert!(result.error.unwrap().contains("Cannot read"));
+    }
+
+    #[tokio::test]
+    async fn test_multiedit_direct_array_format() {
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("test.txt");
+        std::fs::write(&file_path, "hello world").unwrap();
+
+        let tool = MultiEditTool;
+        let args = serde_json::json!([{
+            "path": file_path.to_str().unwrap(),
+            "old_string": "world",
+            "new_string": "rust"
+        }]);
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(result.success);
+    }
+
+    #[tokio::test]
+    async fn test_multiedit_invalid_args() {
+        let tool = MultiEditTool;
+        let args = serde_json::json!({"edits": "not_an_array"});
+        let result = tool.execute(args, None).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_multiedit_multiple_edits_same_file() {
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("test.txt");
+        std::fs::write(&file_path, "hello world").unwrap();
+
+        let tool = MultiEditTool;
+        let args = serde_json::json!({
+            "edits": [
+                {
+                    "path": file_path.to_str().unwrap(),
+                    "old_string": "hello",
+                    "new_string": "hi"
+                },
+                {
+                    "path": file_path.to_str().unwrap(),
+                    "old_string": "world",
+                    "new_string": "rust"
+                }
+            ]
+        });
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(result.success);
+        assert_eq!(std::fs::read_to_string(&file_path).unwrap(), "hi rust");
+    }
+
+    #[tokio::test]
+    async fn test_multiedit_multiple_files() {
+        let dir = tempdir().unwrap();
+        let file1 = dir.path().join("a.txt");
+        let file2 = dir.path().join("b.txt");
+        std::fs::write(&file1, "hello").unwrap();
+        std::fs::write(&file2, "world").unwrap();
+
+        let tool = MultiEditTool;
+        let args = serde_json::json!({
+            "edits": [
+                {
+                    "path": file1.to_str().unwrap(),
+                    "old_string": "hello",
+                    "new_string": "hi"
+                },
+                {
+                    "path": file2.to_str().unwrap(),
+                    "old_string": "world",
+                    "new_string": "rust"
+                }
+            ]
+        });
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(result.success);
+        assert_eq!(std::fs::read_to_string(&file1).unwrap(), "hi");
+        assert_eq!(std::fs::read_to_string(&file2).unwrap(), "rust");
+    }
+
+    #[tokio::test]
+    async fn test_multiedit_creates_backup_on_failure() {
+        let dir = tempdir().unwrap();
+        let file1 = dir.path().join("a.txt");
+        std::fs::write(&file1, "hello").unwrap();
+
+        let tool = MultiEditTool;
+        let args = serde_json::json!({
+            "edits": [{
+                "path": file1.to_str().unwrap(),
+                "old_string": "hello",
+                "new_string": "hi"
+            }]
+        });
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(result.success);
+        assert_eq!(std::fs::read_to_string(&file1).unwrap(), "hi");
+    }
+}

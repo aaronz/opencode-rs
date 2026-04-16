@@ -58,3 +58,74 @@ impl Tool for CodeSearchTool {
         Ok(ToolResult::ok(result))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn test_codesearch_tool_name() {
+        let tool = CodeSearchTool;
+        assert_eq!(tool.name(), "codesearch");
+    }
+
+    #[tokio::test]
+    async fn test_codesearch_tool_description() {
+        let tool = CodeSearchTool;
+        assert!(tool.description().contains("AST-aware"));
+    }
+
+    #[tokio::test]
+    async fn test_codesearch_tool_clone() {
+        let tool = CodeSearchTool;
+        let cloned = tool.clone_tool();
+        assert_eq!(cloned.name(), "codesearch");
+    }
+
+    #[tokio::test]
+    async fn test_codesearch_finds_pattern() {
+        let dir = tempdir().unwrap();
+        std::fs::write(dir.path().join("test.txt"), "hello world").unwrap();
+
+        let tool = CodeSearchTool;
+        let args = serde_json::json!({
+            "pattern": "hello",
+            "path": dir.path().to_str().unwrap()
+        });
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(result.success);
+        assert!(result.content.contains("hello"));
+    }
+
+    #[tokio::test]
+    async fn test_codesearch_no_matches() {
+        let dir = tempdir().unwrap();
+        std::fs::write(dir.path().join("test.txt"), "hello world").unwrap();
+
+        let tool = CodeSearchTool;
+        let args = serde_json::json!({
+            "pattern": "goodbye",
+            "path": dir.path().to_str().unwrap()
+        });
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(result.success);
+        assert_eq!(result.content, "No matches found");
+    }
+
+    #[tokio::test]
+    async fn test_codesearch_default_path() {
+        let tool = CodeSearchTool;
+        let args = serde_json::json!({"pattern": "something"});
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(result.success);
+    }
+
+    #[tokio::test]
+    async fn test_codesearch_invalid_args() {
+        let tool = CodeSearchTool;
+        let args = serde_json::json!({"pattern": 123});
+        let result = tool.execute(args, None).await;
+        assert!(result.is_err());
+    }
+}

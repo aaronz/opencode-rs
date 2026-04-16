@@ -189,6 +189,20 @@ mod tests {
     }
 
     #[test]
+    fn ignore_matcher_empty_patterns() {
+        let matcher = IgnoreMatcher::new(None).unwrap();
+        assert!(matcher.should_ignore(Path::new(".git/config")));
+        assert!(matcher.should_ignore(Path::new("node_modules/pkg/index.js")));
+        assert!(!matcher.should_ignore(Path::new("src/main.rs")));
+    }
+
+    #[test]
+    fn ignore_matcher_returns_invalid_pattern_error() {
+        let result = IgnoreMatcher::new(Some(&["[invalid".to_string()]));
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn file_watcher_returns_none_for_missing_path() {
         let config = WatcherConfig { ignore: None };
         let result = FileWatcher::start(Path::new("/definitely/missing/path"), &config);
@@ -222,5 +236,16 @@ mod tests {
             .ignore_matcher
             .patterns()
             .contains(&"src/generated/**".to_string()));
+    }
+
+    #[test]
+    fn file_watcher_with_only_file_no_subdirs() {
+        let temp = tempdir().unwrap();
+        fs::write(temp.path().join("file.txt"), "content").unwrap();
+
+        let config = WatcherConfig { ignore: None };
+        let result = FileWatcher::start(temp.path(), &config);
+
+        assert!(result.is_some());
     }
 }

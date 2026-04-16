@@ -55,7 +55,7 @@
 |---------|-------------|--------|-------|-----------|--------|
 | T-017 | Increase core crate coverage | 80% | +20% | 2 days | ✅ Done |
 | T-018 | Increase tools crate coverage | 80% | +30% | 3 days | Not Started |
-| T-019 | Increase agent crate coverage | 80% | +35% | 3 days | Not Started |
+| T-019 | Increase agent crate coverage | 80% | +35% | 3 days | ✅ Done |
 | T-020 | Increase server crate coverage | 80% | +40% | 3 days | Not Started |
 | T-021 | Increase llm crate coverage | 80% | +25% | 2 days | Not Started |
 | T-022 | Add cargo-llvm-cov CI gate | 80% threshold | - | 4 hours | Not Started |

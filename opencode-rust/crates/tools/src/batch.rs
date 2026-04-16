@@ -100,3 +100,72 @@ impl Tool for BatchTool {
         Ok(ToolResult::ok(combined))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Tool, ToolRegistry};
+    use std::sync::Arc;
+    use tokio::sync::RwLock;
+
+    #[tokio::test]
+    async fn test_batch_tool_name() {
+        let registry = Arc::new(RwLock::new(ToolRegistry::default()));
+        let tool = BatchTool::new(registry);
+        assert_eq!(tool.name(), "batch");
+    }
+
+    #[tokio::test]
+    async fn test_batch_tool_description() {
+        let registry = Arc::new(RwLock::new(ToolRegistry::default()));
+        let tool = BatchTool::new(registry);
+        assert_eq!(tool.description(), "Execute multiple tools in parallel");
+    }
+
+    #[tokio::test]
+    async fn test_batch_tool_clone() {
+        let registry = Arc::new(RwLock::new(ToolRegistry::default()));
+        let tool = BatchTool::new(registry.clone());
+        let cloned = tool.clone_tool();
+        assert_eq!(cloned.name(), "batch");
+    }
+
+    #[tokio::test]
+    async fn test_batch_empty_invocations() {
+        let registry = Arc::new(RwLock::new(ToolRegistry::default()));
+        let tool = BatchTool::new(registry);
+        let args = serde_json::json!({"invocations": []});
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(result.success);
+        assert_eq!(result.content, "");
+    }
+
+    #[tokio::test]
+    async fn test_batch_nonexistent_tool() {
+        let registry = Arc::new(RwLock::new(ToolRegistry::default()));
+        let tool = BatchTool::new(registry);
+        let args = serde_json::json!({
+            "invocations": [{
+                "tool_name": "nonexistent_tool",
+                "input": {}
+            }]
+        });
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(!result.success, "Expected failure, got success=true");
+        let error_msg = result.error.unwrap_or_default();
+        assert!(
+            error_msg.contains("nonexistent_tool") || error_msg.contains("not found"),
+            "Expected error to contain 'nonexistent_tool' or 'not found', got: {}",
+            error_msg
+        );
+    }
+
+    #[tokio::test]
+    async fn test_batch_invalid_args() {
+        let registry = Arc::new(RwLock::new(ToolRegistry::default()));
+        let tool = BatchTool::new(registry);
+        let args = serde_json::json!({"not_invocations": []});
+        let result = tool.execute(args, None).await;
+        assert!(result.is_err());
+    }
+}

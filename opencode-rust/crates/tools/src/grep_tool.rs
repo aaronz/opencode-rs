@@ -111,3 +111,144 @@ impl Tool for GrepTool {
         Ok(ToolResult::ok(results.join("\n")))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn test_grep_tool_name() {
+        let tool = GrepTool;
+        assert_eq!(tool.name(), "grep");
+    }
+
+    #[tokio::test]
+    async fn test_grep_tool_description() {
+        let tool = GrepTool;
+        assert_eq!(tool.description(), "Search file contents using regex");
+    }
+
+    #[tokio::test]
+    async fn test_grep_tool_clone() {
+        let tool = GrepTool;
+        let cloned = tool.clone_tool();
+        assert_eq!(cloned.name(), "grep");
+    }
+
+    #[tokio::test]
+    async fn test_grep_is_safe() {
+        let tool = GrepTool;
+        assert!(tool.is_safe());
+    }
+
+    #[tokio::test]
+    async fn test_grep_finds_match() {
+        let dir = tempdir().unwrap();
+        std::fs::write(dir.path().join("test.txt"), "line1\nhello world\nline3").unwrap();
+
+        let tool = GrepTool;
+        let args = serde_json::json!({
+            "pattern": "hello",
+            "path": dir.path().to_str().unwrap()
+        });
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(result.success);
+        assert!(result.content.contains("hello"));
+    }
+
+    #[tokio::test]
+    async fn test_grep_no_matches() {
+        let dir = tempdir().unwrap();
+        std::fs::write(dir.path().join("test.txt"), "line1\nhello world\nline3").unwrap();
+
+        let tool = GrepTool;
+        let args = serde_json::json!({
+            "pattern": "goodbye",
+            "path": dir.path().to_str().unwrap()
+        });
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(result.success);
+        assert_eq!(result.content, "No matches found");
+    }
+
+    #[tokio::test]
+    async fn test_grep_with_file_type() {
+        let dir = tempdir().unwrap();
+        std::fs::write(dir.path().join("test.txt"), "hello").unwrap();
+        std::fs::write(dir.path().join("test.md"), "hello").unwrap();
+
+        let tool = GrepTool;
+        let args = serde_json::json!({
+            "pattern": "hello",
+            "path": dir.path().to_str().unwrap(),
+            "file_type": "txt"
+        });
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(result.success);
+        assert!(result.content.contains("test.txt"));
+        assert!(!result.content.contains("test.md"));
+    }
+
+    #[tokio::test]
+    async fn test_grep_count_only() {
+        let dir = tempdir().unwrap();
+        std::fs::write(dir.path().join("test.txt"), "hello\nhello\nhello").unwrap();
+
+        let tool = GrepTool;
+        let args = serde_json::json!({
+            "pattern": "hello",
+            "path": dir.path().to_str().unwrap(),
+            "count": true
+        });
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(result.success);
+        assert!(result.content.contains("3 matches"));
+    }
+
+    #[tokio::test]
+    async fn test_grep_default_path() {
+        let tool = GrepTool;
+        let args = serde_json::json!({"pattern": "test"});
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(result.success);
+    }
+
+    #[tokio::test]
+    async fn test_grep_invalid_regex() {
+        let tool = GrepTool;
+        let args = serde_json::json!({
+            "pattern": "[invalid",
+            "path": "."
+        });
+        let result = tool.execute(args, None).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_grep_get_dependencies() {
+        let tool = GrepTool;
+        let args = serde_json::json!({"path": "/some/path", "pattern": "test"});
+        let deps = tool.get_dependencies(&args);
+        assert!(deps.contains(&std::path::PathBuf::from("/some/path")));
+    }
+
+    #[tokio::test]
+    async fn test_grep_get_dependencies_default() {
+        let tool = GrepTool;
+        let args = serde_json::json!({"pattern": "test"});
+        let deps = tool.get_dependencies(&args);
+        assert!(deps.contains(&std::path::PathBuf::from(".")));
+    }
+
+    #[tokio::test]
+    async fn test_grep_nonexistent_path() {
+        let tool = GrepTool;
+        let args = serde_json::json!({
+            "pattern": "test",
+            "path": "/nonexistent/path"
+        });
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(result.success);
+    }
+}

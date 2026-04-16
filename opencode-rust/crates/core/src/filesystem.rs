@@ -98,32 +98,23 @@ impl AppFileSystem {
         PathBuf::from(p)
     }
 
-    fn relative<'a>(a: &'a str, b: &'a str) -> std::borrow::Cow<'a, str> {
-        let a = Path::new(a);
-        let b = Path::new(b);
-        if let Ok(rel) = a.strip_prefix(b) {
-            std::borrow::Cow::Borrowed(rel.to_str().unwrap_or(""))
-        } else if let Ok(rel) = b.strip_prefix(a) {
-            std::borrow::Cow::Borrowed(rel.to_str().unwrap_or(""))
-        } else {
-            std::borrow::Cow::Owned(a.to_string_lossy().to_string())
-        }
-    }
-
     pub fn overlaps(a: &str, b: &str) -> bool {
-        let rel_a = Self::relative(a, b);
-        let rel_b = Self::relative(b, a);
-        rel_a.is_empty() || !rel_a.starts_with("..") || rel_b.is_empty() || !rel_b.starts_with("..")
+        let a_path = Path::new(a);
+        let b_path = Path::new(b);
+        a_path.starts_with(b_path) || b_path.starts_with(a_path)
     }
 
     pub fn contains(parent: &str, child: &str) -> bool {
-        !Self::relative(parent, child).starts_with("..")
+        let parent_path = Path::new(parent);
+        let child_path = Path::new(child);
+        child_path.starts_with(parent_path) && child_path != parent_path
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     #[test]
     fn test_is_dir() {
@@ -147,5 +138,184 @@ mod tests {
             "Should find Cargo.toml from manifest dir: {}",
             manifest_dir
         );
+    }
+
+    #[test]
+    fn test_read_json_nonexistent_file() {
+        let result = AppFileSystem::read_json("/nonexistent/path/file.json");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("No such file"));
+    }
+
+    #[test]
+    fn test_read_json_invalid_json() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let path = temp_dir.path().join("invalid.json");
+        fs::write(&path, "not valid json {").unwrap();
+
+        let result = AppFileSystem::read_json(path.to_str().unwrap());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_write_json_creates_file() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let path = temp_dir.path().join("output.json");
+        let data = serde_json::json!({"key": "value"});
+
+        let result = AppFileSystem::write_json(path.to_str().unwrap(), &data, None);
+        assert!(result.is_ok());
+
+        let content = fs::read_to_string(path).unwrap();
+        assert!(content.contains("key"));
+        assert!(content.contains("value"));
+    }
+
+    #[test]
+    fn test_write_json_to_readonly_directory() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let readonly_dir = temp_dir.path().join("readonly");
+        fs::create_dir(&readonly_dir).unwrap();
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&readonly_dir).unwrap().permissions();
+            perms.set_mode(0o444);
+            fs::set_permissions(&readonly_dir, perms).unwrap();
+        }
+
+        let path = readonly_dir.join("file.json");
+        let data = serde_json::json!({"key": "value"});
+        let result = AppFileSystem::write_json(path.to_str().unwrap(), &data, None);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_ensure_dir_creates_directory() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let path = temp_dir.path().join("nested/deeply");
+
+        let result = AppFileSystem::ensure_dir(path.to_str().unwrap());
+        assert!(result.is_ok());
+        assert!(path.exists());
+    }
+
+    #[test]
+    fn test_ensure_dir_readonly_parent_fails() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let parent = temp_dir.path().join("readonly");
+        fs::create_dir(&parent).unwrap();
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&parent).unwrap().permissions();
+            perms.set_mode(0o444);
+            fs::set_permissions(&parent, perms).unwrap();
+        }
+
+        let child = parent.join("cannot_create");
+        let result = AppFileSystem::ensure_dir(child.to_str().unwrap());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_write_with_dirs_creates_parent_directories() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let path = temp_dir.path().join("a/b/c/file.txt");
+
+        let result = AppFileSystem::write_with_dirs(path.to_str().unwrap(), "content", None);
+        assert!(result.is_ok());
+        assert!(path.exists());
+        assert_eq!(fs::read_to_string(&path).unwrap(), "content");
+    }
+
+    #[test]
+    fn test_up_finds_multiple_targets() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let subdir = temp_dir.path().join("subdir");
+        fs::create_dir(&subdir).unwrap();
+        fs::write(temp_dir.path().join("target1.txt"), "1").unwrap();
+        fs::write(subdir.join("target2.txt"), "2").unwrap();
+
+        let result = AppFileSystem::up(
+            &["target1.txt".to_string(), "target2.txt".to_string()],
+            subdir.to_str().unwrap(),
+            None,
+        );
+        assert!(!result.is_empty());
+    }
+
+    #[test]
+    fn test_up_stops_at_boundary() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let subdir = temp_dir.path().join("subdir");
+        fs::create_dir(&subdir).unwrap();
+
+        let result = AppFileSystem::up(
+            &["*.txt".to_string()],
+            subdir.to_str().unwrap(),
+            Some(temp_dir.path().to_str().unwrap()),
+        );
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_normalize_path() {
+        let path = AppFileSystem::normalize_path("/foo/bar");
+        assert_eq!(path, PathBuf::from("/foo/bar"));
+    }
+
+    #[test]
+    fn test_overlaps_same() {
+        assert!(AppFileSystem::overlaps("/foo", "/foo"));
+    }
+
+    #[test]
+    fn test_overlaps_parent_child() {
+        assert!(AppFileSystem::overlaps("/foo", "/foo/bar"));
+        assert!(AppFileSystem::overlaps("/foo/bar", "/foo"));
+    }
+
+    #[test]
+    fn test_overlaps_sibling() {
+        assert!(!AppFileSystem::overlaps("/foo", "/bar"));
+    }
+
+    #[test]
+    fn test_contains_direct_child() {
+        assert!(AppFileSystem::contains("/foo", "/foo/bar"));
+        assert!(AppFileSystem::contains("/foo", "/foo/bar/baz"));
+    }
+
+    #[test]
+    fn test_contains_sibling_not_contained() {
+        assert!(!AppFileSystem::contains("/foo", "/bar"));
+        assert!(!AppFileSystem::contains("/foo", "/foo sibling/bar"));
+    }
+
+    #[test]
+    fn test_is_file_nonexistent() {
+        assert!(!AppFileSystem::is_file("/nonexistent/file/path"));
+    }
+
+    #[test]
+    fn test_exists_nonexistent() {
+        assert!(!AppFileSystem::exists("/nonexistent/path"));
+    }
+
+    #[test]
+    fn test_exists_file() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let file_path = temp_dir.path().join("test.txt");
+        fs::write(&file_path, "content").unwrap();
+        assert!(AppFileSystem::exists(file_path.to_str().unwrap()));
+    }
+
+    #[test]
+    fn test_exists_directory() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        assert!(AppFileSystem::exists(temp_dir.path().to_str().unwrap()));
     }
 }

@@ -31,3 +31,44 @@ impl Tool for PlanExitTool {
         ))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_plan_exit_tool_name() {
+        let tool = PlanExitTool;
+        assert_eq!(tool.name(), "plan_exit");
+    }
+
+    #[tokio::test]
+    async fn test_plan_exit_tool_description() {
+        let tool = PlanExitTool;
+        assert!(tool.description().contains("plan agent"));
+    }
+
+    #[tokio::test]
+    async fn test_plan_exit_tool_clone() {
+        let tool = PlanExitTool;
+        let cloned = tool.clone_tool();
+        assert_eq!(cloned.name(), "plan_exit");
+    }
+
+    #[tokio::test]
+    async fn test_plan_exit_execute() {
+        let tool = PlanExitTool;
+        let args = serde_json::json!({});
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(result.success);
+        assert!(result.content.contains("switch to build agent"));
+    }
+
+    #[tokio::test]
+    async fn test_plan_exit_execute_with_args() {
+        let tool = PlanExitTool;
+        let args = serde_json::json!({"some": "args"});
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(result.success);
+    }
+}

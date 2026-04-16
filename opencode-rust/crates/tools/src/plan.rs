@@ -59,3 +59,55 @@ impl Tool for PlanTool {
         )))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn test_plan_tool_name() {
+        let tool = PlanTool;
+        assert_eq!(tool.name(), "plan");
+    }
+
+    #[tokio::test]
+    async fn test_plan_tool_description() {
+        let tool = PlanTool;
+        assert_eq!(
+            tool.description(),
+            "Plan tool - create and manage implementation plans"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_plan_tool_clone() {
+        let tool = PlanTool;
+        let cloned = tool.clone_tool();
+        assert_eq!(cloned.name(), "plan");
+    }
+
+    #[tokio::test]
+    async fn test_plan_with_content() {
+        let tool = PlanTool;
+        let args = serde_json::json!({"content": "# Test Plan\n\nSome content"});
+        let result = tool.execute(args, None).await;
+        assert!(result.is_ok() || result.as_ref().is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_plan_without_content() {
+        let tool = PlanTool;
+        let args = serde_json::json!({});
+        let result = tool.execute(args, None).await;
+        assert!(result.is_ok() || result.as_ref().is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_plan_invalid_args() {
+        let tool = PlanTool;
+        let args = serde_json::json!({"content": 123});
+        let result = tool.execute(args, None).await;
+        assert!(result.is_err());
+    }
+}
