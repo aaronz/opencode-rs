@@ -8,6 +8,9 @@ pub mod event_emitter_tests;
 pub mod status_endpoint_tests;
 
 #[cfg(test)]
+pub mod streaming_response_tests;
+
+#[cfg(test)]
 pub mod acp_e2e_tests;
 #[cfg(test)]
 pub mod acp_transport_tests;

@@ -760,7 +760,7 @@
       "priority": "P1",
       "title": "Create status_endpoint_tests.rs",
       "description": "Create test file tests/src/status_endpoint_tests.rs",
-      "status": "done",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify test file compiles and runs"
       ],
@@ -948,7 +948,7 @@
       "priority": "P1",
       "title": "Add test: SSE streaming with curl equivalent",
       "description": "Add integration test: SSE streaming works with text/event-stream Accept header",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify SSE streaming with Accept header"
       ],

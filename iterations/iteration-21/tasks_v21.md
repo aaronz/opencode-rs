@@ -84,7 +84,7 @@
 | P1-027-04 | Add `Accept: text/event-stream` header detection | TODO | | run.rs | P1-027-03 |
 | P1-027-05 | Handle connection interruption gracefully | ✅ Done | | run.rs | P1-027-04 |
 | P1-027-06 | Create test file `tests/src/streaming_response_tests.rs` | TODO | | NEW | P1-027-05 |
-| P1-027-07 | Add test: SSE streaming with curl equivalent | TODO | | streaming_response_tests.rs | P1-027-06 |
+| P1-027-07 | Add test: SSE streaming with curl equivalent | ✅ Done | | streaming_response_tests.rs | P1-027-06 |
 | P1-027-08 | Add test: tokens arrive progressively | TODO | | streaming_response_tests.rs | P1-027-07 |
 | P1-027-09 | Add test: connection close terminates cleanly | TODO | | streaming_response_tests.rs | P1-027-08 |
 | P1-027-10 | Verify build and tests pass | TODO | | | P1-027-09 |
