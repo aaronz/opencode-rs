@@ -25,7 +25,7 @@
       "priority": "P1",
       "title": "Fix CellDiff struct",
       "description": "Refactor to use `expected: Cell` and `actual: Cell` instead of individual fields. Keep x and y for position. Maintain backward compatibility via helper methods. Update Display impl for human-readable output.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify CellDiff uses ratatui::buffer::Cell type for expected/actual",
         "AddUnitTest: verify position (x, y) is still accessible",

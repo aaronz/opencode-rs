@@ -30,14 +30,58 @@ impl IgnoreOptions {
 pub struct CellDiff {
     pub x: u16,
     pub y: u16,
-    pub expected_symbol: String,
-    pub actual_symbol: String,
-    pub expected_foreground: Option<Color>,
-    pub actual_foreground: Option<Color>,
-    pub expected_background: Option<Color>,
-    pub actual_background: Option<Color>,
-    pub expected_modifier: Option<Modifier>,
-    pub actual_modifier: Option<Modifier>,
+    pub expected: Cell,
+    pub actual: Cell,
+}
+
+impl CellDiff {
+    pub fn expected_symbol(&self) -> &str {
+        self.expected.symbol()
+    }
+
+    pub fn actual_symbol(&self) -> &str {
+        self.actual.symbol()
+    }
+
+    pub fn expected_foreground(&self) -> Color {
+        self.expected.fg
+    }
+
+    pub fn actual_foreground(&self) -> Color {
+        self.actual.fg
+    }
+
+    pub fn expected_background(&self) -> Color {
+        self.expected.bg
+    }
+
+    pub fn actual_background(&self) -> Color {
+        self.actual.bg
+    }
+
+    pub fn expected_modifier(&self) -> Modifier {
+        self.expected.modifier
+    }
+
+    pub fn actual_modifier(&self) -> Modifier {
+        self.actual.modifier
+    }
+
+    pub fn symbol(&self) -> (&str, &str) {
+        (self.expected.symbol(), self.actual.symbol())
+    }
+
+    pub fn foreground(&self) -> (Color, Color) {
+        (self.expected.fg, self.actual.fg)
+    }
+
+    pub fn background(&self) -> (Color, Color) {
+        (self.expected.bg, self.actual.bg)
+    }
+
+    pub fn modifier(&self) -> (Modifier, Modifier) {
+        (self.expected.modifier, self.actual.modifier)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -60,28 +104,31 @@ impl<'a> fmt::Display for DiffResult<'a> {
 
         for diff in &self.differences {
             writeln!(f, "Position: ({}, {})", diff.x, diff.y)?;
-            writeln!(f, "  Expected: {:?}", diff.expected_symbol.escape_debug())?;
-            writeln!(f, "  Actual:   {:?}", diff.actual_symbol.escape_debug())?;
+            writeln!(f, "  Expected: {:?}", diff.expected_symbol().escape_debug())?;
+            writeln!(f, "  Actual:   {:?}", diff.actual_symbol().escape_debug())?;
 
-            if diff.expected_foreground != diff.actual_foreground {
+            if diff.expected_foreground() != diff.actual_foreground() {
                 writeln!(
                     f,
                     "  Foreground: expected={:?}, actual={:?}",
-                    diff.expected_foreground, diff.actual_foreground
+                    diff.expected_foreground(),
+                    diff.actual_foreground()
                 )?;
             }
-            if diff.expected_background != diff.actual_background {
+            if diff.expected_background() != diff.actual_background() {
                 writeln!(
                     f,
                     "  Background: expected={:?}, actual={:?}",
-                    diff.expected_background, diff.actual_background
+                    diff.expected_background(),
+                    diff.actual_background()
                 )?;
             }
-            if diff.expected_modifier != diff.actual_modifier {
+            if diff.expected_modifier() != diff.actual_modifier() {
                 writeln!(
                     f,
                     "  Modifier: expected={:?}, actual={:?}",
-                    diff.expected_modifier, diff.actual_modifier
+                    diff.expected_modifier(),
+                    diff.actual_modifier()
                 )?;
             }
             writeln!(f, "{}", "-".repeat(40))?;
@@ -129,20 +176,21 @@ impl BufferDiff {
         let actual_area = actual.area;
 
         if expected_area != actual_area {
+            let mut expected_cell = Cell::default();
+            expected_cell.set_symbol(&format!(
+                "Buffer size: {}x{}",
+                expected_area.width, expected_area.height
+            ));
+            let mut actual_cell = Cell::default();
+            actual_cell.set_symbol(&format!(
+                "Buffer size: {}x{}",
+                actual_area.width, actual_area.height
+            ));
             differences.push(CellDiff {
                 x: 0,
                 y: 0,
-                expected_symbol: format!(
-                    "Buffer size: {}x{}",
-                    expected_area.width, expected_area.height
-                ),
-                actual_symbol: format!("Buffer size: {}x{}", actual_area.width, actual_area.height),
-                expected_foreground: None,
-                actual_foreground: None,
-                expected_background: None,
-                actual_background: None,
-                expected_modifier: None,
-                actual_modifier: None,
+                expected: expected_cell,
+                actual: actual_cell,
             });
             let total_diffs = differences.len();
             return DiffResult {
@@ -167,38 +215,8 @@ impl BufferDiff {
                     differences.push(CellDiff {
                         x: x as u16,
                         y: y as u16,
-                        expected_symbol: expected_cell.symbol().to_string(),
-                        actual_symbol: actual_cell.symbol().to_string(),
-                        expected_foreground: if self.options.ignore_foreground {
-                            None
-                        } else {
-                            Some(expected_cell.fg)
-                        },
-                        actual_foreground: if self.options.ignore_foreground {
-                            None
-                        } else {
-                            Some(actual_cell.fg)
-                        },
-                        expected_background: if self.options.ignore_background {
-                            None
-                        } else {
-                            Some(expected_cell.bg)
-                        },
-                        actual_background: if self.options.ignore_background {
-                            None
-                        } else {
-                            Some(actual_cell.bg)
-                        },
-                        expected_modifier: if self.options.ignore_attributes {
-                            None
-                        } else {
-                            Some(expected_cell.modifier)
-                        },
-                        actual_modifier: if self.options.ignore_attributes {
-                            None
-                        } else {
-                            Some(actual_cell.modifier)
-                        },
+                        expected: expected_cell.clone(),
+                        actual: actual_cell.clone(),
                     });
                 }
             }
@@ -344,8 +362,8 @@ mod tests {
         let diff_cell = &result.differences[0];
         assert_eq!(diff_cell.x, 1);
         assert_eq!(diff_cell.y, 0);
-        assert_eq!(diff_cell.expected_symbol, "b");
-        assert_eq!(diff_cell.actual_symbol, "x");
+        assert_eq!(diff_cell.expected_symbol(), "b");
+        assert_eq!(diff_cell.actual_symbol(), "x");
     }
 
     #[test]
@@ -424,8 +442,8 @@ mod tests {
 
         let result = diff.diff(&buf1, &buf2);
         assert_eq!(result.total_diffs, 1);
-        assert!(result.differences[0].expected_symbol.contains("3x2"));
-        assert!(result.differences[0].actual_symbol.contains("4x2"));
+        assert!(result.differences[0].expected_symbol().contains("3x2"));
+        assert!(result.differences[0].actual_symbol().contains("4x2"));
     }
 
     #[test]
@@ -484,10 +502,15 @@ mod tests {
         assert_eq!(cell_diff.x, 0, "x position should be 0");
         assert_eq!(cell_diff.y, 1, "y position should be 1");
         assert_eq!(
-            cell_diff.expected_symbol, "d",
+            cell_diff.expected_symbol(),
+            "d",
             "Expected symbol should be 'd'"
         );
-        assert_eq!(cell_diff.actual_symbol, "x", "Actual symbol should be 'x'");
+        assert_eq!(
+            cell_diff.actual_symbol(),
+            "x",
+            "Actual symbol should be 'x'"
+        );
     }
 
     #[test]
@@ -512,14 +535,14 @@ mod tests {
         let diff1 = &result.differences[0];
         assert_eq!(diff1.x, 1);
         assert_eq!(diff1.y, 0);
-        assert_eq!(diff1.expected_symbol, "b");
-        assert_eq!(diff1.actual_symbol, "x");
+        assert_eq!(diff1.expected_symbol(), "b");
+        assert_eq!(diff1.actual_symbol(), "x");
 
         let diff2 = &result.differences[1];
         assert_eq!(diff2.x, 2);
         assert_eq!(diff2.y, 1);
-        assert_eq!(diff2.expected_symbol, "g");
-        assert_eq!(diff2.actual_symbol, "y");
+        assert_eq!(diff2.expected_symbol(), "g");
+        assert_eq!(diff2.actual_symbol(), "y");
     }
 
     #[test]
@@ -538,10 +561,10 @@ mod tests {
         );
 
         let cell_diff = &result.differences[0];
-        assert_eq!(cell_diff.expected_foreground, Some(Color::Red));
-        assert_eq!(cell_diff.actual_foreground, Some(Color::Blue));
-        assert_eq!(cell_diff.expected_symbol, "a");
-        assert_eq!(cell_diff.actual_symbol, "a");
+        assert_eq!(cell_diff.expected_foreground(), Color::Red);
+        assert_eq!(cell_diff.actual_foreground(), Color::Blue);
+        assert_eq!(cell_diff.expected_symbol(), "a");
+        assert_eq!(cell_diff.actual_symbol(), "a");
     }
 
     #[test]
@@ -560,8 +583,8 @@ mod tests {
         );
 
         let cell_diff = &result.differences[0];
-        assert_eq!(cell_diff.expected_background, Some(Color::Black));
-        assert_eq!(cell_diff.actual_background, Some(Color::White));
+        assert_eq!(cell_diff.expected_background(), Color::Black);
+        assert_eq!(cell_diff.actual_background(), Color::White);
     }
 
     #[test]
@@ -580,7 +603,112 @@ mod tests {
         );
 
         let cell_diff = &result.differences[0];
-        assert_eq!(cell_diff.expected_modifier, Some(Modifier::BOLD));
-        assert_eq!(cell_diff.actual_modifier, Some(Modifier::ITALIC));
+        assert_eq!(cell_diff.expected_modifier(), Modifier::BOLD);
+        assert_eq!(cell_diff.actual_modifier(), Modifier::ITALIC);
+    }
+
+    #[test]
+    fn test_cell_diff_uses_ratatui_cell_type() {
+        let diff = BufferDiff::new();
+        let mut buf1 = create_buffer_with_content(1, 1, &["a"]);
+        let mut buf2 = create_buffer_with_content(1, 1, &["b"]);
+
+        buf1.content[0].fg = Color::Red;
+        buf1.content[0].bg = Color::Blue;
+        buf1.content[0].modifier = Modifier::BOLD;
+
+        buf2.content[0].fg = Color::Green;
+        buf2.content[0].bg = Color::Yellow;
+        buf2.content[0].modifier = Modifier::ITALIC;
+
+        let result = diff.diff(&buf1, &buf2);
+        assert_eq!(result.total_diffs, 1);
+
+        let cell_diff = &result.differences[0];
+        assert_eq!(cell_diff.expected.symbol(), "a");
+        assert_eq!(cell_diff.actual.symbol(), "b");
+        assert_eq!(cell_diff.expected.fg, Color::Red);
+        assert_eq!(cell_diff.actual.fg, Color::Green);
+        assert_eq!(cell_diff.expected.bg, Color::Blue);
+        assert_eq!(cell_diff.actual.bg, Color::Yellow);
+        assert_eq!(cell_diff.expected.modifier, Modifier::BOLD);
+        assert_eq!(cell_diff.actual.modifier, Modifier::ITALIC);
+    }
+
+    #[test]
+    fn test_cell_diff_position_accessible() {
+        let diff = BufferDiff::new();
+        let buf1 = create_buffer_with_content(5, 3, &["hello", "world", "test"]);
+        let buf2 = create_buffer_with_content(5, 3, &["hello", "w4rld", "test"]);
+
+        let result = diff.diff(&buf1, &buf2);
+        assert_eq!(result.total_diffs, 1);
+
+        let cell_diff = &result.differences[0];
+        assert_eq!(cell_diff.x, 1, "x position should be accessible");
+        assert_eq!(cell_diff.y, 1, "y position should be accessible");
+    }
+
+    #[test]
+    fn test_cell_diff_human_readable_output() {
+        let diff = BufferDiff::new();
+        let mut buf1 = create_buffer_with_content(2, 1, &["ab"]);
+        let mut buf2 = create_buffer_with_content(2, 1, &["ax"]);
+
+        buf1.content[0].fg = Color::Red;
+        buf2.content[0].fg = Color::Blue;
+
+        let result = diff.diff(&buf1, &buf2);
+        let output = result.to_string();
+
+        assert!(output.contains("BufferDiff"));
+        assert!(output.contains("difference(s) found"));
+        assert!(output.contains("Position: (1, 0)"));
+        assert!(output.contains("Expected:"));
+        assert!(output.contains("Actual:"));
+        assert!(output.contains("'x'"));
+    }
+
+    #[test]
+    fn test_cell_diff_helper_methods() {
+        let diff = BufferDiff::new();
+        let mut buf1 = create_buffer_with_content(1, 1, &["a"]);
+        let mut buf2 = create_buffer_with_content(1, 1, &["b"]);
+
+        buf1.content[0].fg = Color::Red;
+        buf1.content[0].bg = Color::Blue;
+        buf1.content[0].modifier = Modifier::BOLD;
+
+        buf2.content[0].fg = Color::Green;
+        buf2.content[0].bg = Color::Yellow;
+        buf2.content[0].modifier = Modifier::ITALIC;
+
+        let result = diff.diff(&buf1, &buf2);
+        let cell_diff = &result.differences[0];
+
+        assert_eq!(cell_diff.expected_symbol(), "a");
+        assert_eq!(cell_diff.actual_symbol(), "b");
+        assert_eq!(cell_diff.expected_foreground(), Color::Red);
+        assert_eq!(cell_diff.actual_foreground(), Color::Green);
+        assert_eq!(cell_diff.expected_background(), Color::Blue);
+        assert_eq!(cell_diff.actual_background(), Color::Yellow);
+        assert_eq!(cell_diff.expected_modifier(), Modifier::BOLD);
+        assert_eq!(cell_diff.actual_modifier(), Modifier::ITALIC);
+
+        let (exp_sym, act_sym) = cell_diff.symbol();
+        assert_eq!(exp_sym, "a");
+        assert_eq!(act_sym, "b");
+
+        let (exp_fg, act_fg) = cell_diff.foreground();
+        assert_eq!(exp_fg, Color::Red);
+        assert_eq!(act_fg, Color::Green);
+
+        let (exp_bg, act_bg) = cell_diff.background();
+        assert_eq!(exp_bg, Color::Blue);
+        assert_eq!(act_bg, Color::Yellow);
+
+        let (exp_mod, act_mod) = cell_diff.modifier();
+        assert_eq!(exp_mod, Modifier::BOLD);
+        assert_eq!(act_mod, Modifier::ITALIC);
     }
 }
