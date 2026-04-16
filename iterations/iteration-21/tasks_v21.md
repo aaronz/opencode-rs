@@ -113,11 +113,11 @@
 | ID | Task | Status | Owner | Files | Dependencies |
 |----|------|--------|-------|-------|--------------|
 | P2-023-01 | Review current PtySimulator implementation | TODO | | ratatui-testing/src/pty.rs | None |
-| P2-023-02 | Complete PtySimulator event injection (KeyEvent, MouseEvent) | TODO | | ratatui-testing/src/pty.rs | P2-023-01 |
+| P2-023-02 | Complete PtySimulator event injection (KeyEvent, MouseEvent) | ✅ Done | | ratatui-testing/src/pty.rs | P2-023-01 |
 | P2-023-03 | Implement BufferDiff cell-by-cell comparison | TODO | | ratatui-testing/src/diff.rs | None |
 | P2-023-04 | Implement StateTester state capture | TODO | | ratatui-testing/src/state.rs | None |
 | P2-023-05 | Implement TestDsl fluent API | TODO | | ratatui-testing/src/dsl.rs | P2-023-02, P2-023-03, P2-023-04 |
-| P2-023-06 | Implement CliTester process management | TODO | | ratatui-testing/src/cli.rs | None |
+| P2-023-06 | Implement CliTester process management | ✅ Done | | ratatui-testing/src/cli.rs | None |
 | P2-023-07 | Add tests for each component | TODO | | ratatui-testing/tests/ | P2-023-06 |
 | P2-023-08 | Verify build: `cargo build -p ratatui-testing` | TODO | | | P2-023-07 |
 | P2-023-09 | Verify tests: `cargo test -p ratatui-testing` | TODO | | | P2-023-08 |

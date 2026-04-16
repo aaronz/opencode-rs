@@ -1204,7 +1204,7 @@
       "priority": "P2",
       "title": "Complete PtySimulator event injection",
       "description": "Complete PtySimulator event injection (KeyEvent, MouseEvent) in ratatui-testing/src/pty.rs",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify KeyEvent injection works",
         "AddUnitTest: verify MouseEvent injection works",
@@ -1255,7 +1255,7 @@
       "priority": "P2",
       "title": "Implement TestDsl fluent API",
       "description": "Implement TestDsl fluent API in ratatui-testing/src/dsl.rs",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify fluent API chains correctly",
         "AddIntegrationTest: verify DSL can drive complete test scenario"
@@ -1275,7 +1275,7 @@
       "priority": "P2",
       "title": "Implement CliTester process management",
       "description": "Implement CliTester process management in ratatui-testing/src/cli.rs",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify CliTester spawns process correctly",
         "AddUnitTest: verify CliTester captures stdout/stderr"
@@ -1291,7 +1291,7 @@
       "priority": "P2",
       "title": "Add tests for ratatui-testing components",
       "description": "Add tests for each ratatui-testing component",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "RunTestSuite: verify all ratatui-testing tests pass"
       ],
