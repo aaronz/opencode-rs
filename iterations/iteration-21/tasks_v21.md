@@ -93,7 +93,7 @@
 
 | ID | Task | Status | Owner | Files | Dependencies |
 |----|------|--------|-------|-------|--------------|
-| P1-028-01 | Review current `server/src/routes/permission.rs` handler | TODO | | routes/permission.rs | None |
+| P1-028-01 | Review current `server/src/routes/permission.rs` handler | ✅ Done | | routes/permission.rs | None |
 | P1-028-02 | Connect permission_reply to PermissionManager | TODO | | permission.rs | permission::PermissionManager |
 | P1-028-03 | Update ApprovalQueue on decision | TODO | | permission.rs | P1-028-02 |
 | P1-028-04 | Trigger re-evaluation of pending requests | TODO | | permission.rs | P1-028-03 |

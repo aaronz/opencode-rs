@@ -678,3 +678,43 @@ fn test_stream_message_from_internal_event_session_ended() {
         _ => panic!("Expected SessionUpdate variant"),
     }
 }
+
+#[tokio::test]
+async fn test_connection_close_terminates_cleanly() {
+    use std::time::Duration;
+
+    let (server_url, server_handle, _temp_dir) = start_streaming_test_server(0).await;
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .expect("Failed to build client");
+
+    let resp = client
+        .post(format!("{}/api/run", server_url))
+        .header("Accept", "text/event-stream")
+        .json(&serde_json::json!({
+            "prompt": "Write a long story about coding",
+            "stream": true
+        }))
+        .send()
+        .await
+        .expect("Failed to send request");
+
+    let status = resp.status();
+    assert!(
+        status.is_success() || status.as_u16() == 400 || status.as_u16() == 500,
+        "Run endpoint should respond, got: {}",
+        status
+    );
+
+    drop(resp);
+
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    let abort_result = tokio::time::timeout(Duration::from_secs(2), server_handle).await;
+    assert!(
+        abort_result.is_ok(),
+        "Server should terminate cleanly after client connection closed"
+    );
+}

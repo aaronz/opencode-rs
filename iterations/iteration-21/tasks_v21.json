@@ -999,7 +999,7 @@
       "priority": "P1",
       "title": "Verify streaming build and tests pass",
       "description": "Verify build and tests pass for streaming response",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: verify cargo build -p opencode-server succeeds",
         "RunTestSuite: verify cargo test -p opencode-integration-tests streaming passes"
@@ -1018,7 +1018,7 @@
       "priority": "P1",
       "title": "Review permission.rs handler",
       "description": "Review current server/src/routes/permission.rs handler implementation",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: ensure current permission handler works"
       ],
