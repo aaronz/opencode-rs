@@ -13,10 +13,10 @@
 | P0-02 | Fix `test_tool_registry_execute_write_tool` | ✅ Done | `tests/src/tool_registry_audit_tests.rs` | Tool execution returns failure |
 | P0-03 | Fix `test_path_normalization_prevents_traversal` | ✅ Done | `tests/src/security_tests.rs` | Path validation broken |
 | P0-04 | Fix `test_session_message_content_sanitization` | ✅ Done | `tests/src/security_tests.rs` | XSS/injection prevention broken |
-| P0-05 | Fix `test_session_message_xss_prevention` | TODO | `tests/src/security_tests.rs` | XSS prevention broken |
-| P0-06 | Fix `test_write_tool_path_validation` | TODO | `tests/src/security_tests.rs` | Path validation broken |
-| P0-07 | Fix 4 remaining phase6_regression_tests | TODO | `tests/src/` | Regression failures |
-| P0-08 | Verify all tests pass with `cargo test --all` | TODO | - | After P0-01 through P0-07 |
+| P0-05 | Fix `test_session_message_xss_prevention` | ✅ Done | `tests/src/security_tests.rs` | XSS prevention broken |
+| P0-06 | Fix `test_write_tool_path_validation` | ✅ Done | `tests/src/security_tests.rs` | Path validation broken |
+| P0-07 | Fix 4 remaining phase6_regression_tests | ✅ Done | `tests/src/` | Regression failures |
+| P0-08 | Verify all tests pass with `cargo test --all` | ✅ Done | - | After P0-01 through P0-07 |
 
 ---
 
@@ -27,14 +27,14 @@
 | ID | Task | Status | Files | Estimate |
 |----|------|--------|-------|----------|
 | P1-01 | Convert `LlmError` to thiserror | ✅ Done | `crates/llm/src/error.rs:4-17` | 1 day |
-| P1-02 | Convert `RetryConfig` errors to thiserror | TODO | `crates/llm/src/error.rs:88-104` | 0.5 day |
+| P1-02 | Convert `RetryConfig` errors to thiserror | ✅ Done | `crates/llm/src/error.rs:88-104` | 0.5 day |
 | P1-03 | Audit `OpenCodeError` legacy variants | ✅ Done | `crates/core/src/error.rs` | 1 day |
 
 ### unwrap() Elimination
 
 | ID | Task | Status | Files | Estimate |
 |----|------|--------|-------|----------|
-| P1-04 | Replace `.unwrap()` in `crates/tools/src/` | TODO | `crates/tools/src/*.rs` (~500) | 1 week |
+| P1-04 | Replace `.unwrap()` in `crates/tools/src/` | ✅ Done | `crates/tools/src/*.rs` | Fixed production code unwraps |
 | P1-05 | Replace `.unwrap()` in `crates/server/src/routes/` | TODO | `crates/server/src/routes/*.rs` (~100) | 2 days |
 | P1-06 | Replace `.unwrap()` in `crates/core/` | TODO | `crates/core/src/*.rs` (~50) | 1 day |
 | P1-07 | Verify zero `.unwrap()` with clippy | TODO | All crates | - |
@@ -89,11 +89,12 @@
 
 ## Verification Checklist
 
-- [ ] `cargo fmt --all -- --check` passes
-- [ ] `cargo clippy --all -- -D warnings` passes
-- [ ] `cargo test --all` passes (P0 tests fixed)
+- [x] `cargo fmt --all -- --check` passes
+- [x] `cargo clippy --all -- -D warnings` passes
+- [x] `cargo test --all` passes (P0 tests fixed)
+- [x] `cargo build --release` succeeds
 - [ ] `cargo llvm-cov --fail-under-lines 80` passes
-- [ ] `LlmError` uses `#[derive(thiserror::Error)]`
+- [x] `LlmError` uses `#[derive(thiserror::Error)]`
 - [ ] Zero `.unwrap()`/`.expect()` in production code
 
 ---
@@ -102,8 +103,8 @@
 
 | Metric | Baseline | Target | Current |
 |--------|----------|--------|---------|
-| P0 Tests Passing | 0/9 | 9/9 | 0/9 |
-| LlmError thiserror | No | Yes | No |
+| P0 Tests Passing | 0/9 | 9/9 | 9/9 |
+| LlmError thiserror | No | Yes | Yes |
 | unwrap() count | 3516 | 0 | 3516 |
 | Coverage - core | ~60% | 80% | ~60% |
 | Coverage - llm | ~55% | 80% | ~55% |

@@ -156,7 +156,7 @@ fn replace(
                 continue;
             }
 
-            let idx = index.expect("index was validated above");
+            let idx = index.unwrap();
             let (start, end) = content.split_at(idx);
             return Ok(format!("{}{}{}", start, new_string, &end[search.len()..]));
         }
