@@ -190,7 +190,7 @@
       "priority": "P2",
       "title": "Create snapshot.rs module",
       "description": "Create `src/snapshot.rs` module. Add `load_snapshot(name: &str) -> Result<Buffer>`. Add `save_snapshot(name: &str, buffer: &Buffer) -> Result<()>`. Organized directory structure for snapshots.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify src/snapshot.rs module is created",
         "AddUnitTest: verify load_snapshot(name: &str) returns Result<Buffer>",
