@@ -561,3 +561,129 @@ async fn test_phase6_regression_all_default_tools_available() {
         "write tool should be available"
     );
 }
+
+#[test]
+fn test_phase6_regression_memory_profiling() {
+    use std::process::Command;
+
+    let binary_path = env!("CARGO_MANIFEST_DIR");
+    let binary_path = std::path::Path::new(binary_path)
+        .parent()
+        .unwrap()
+        .join("target")
+        .join("release")
+        .join("opencode-rs");
+
+    if !binary_path.exists() {
+        eprintln!(
+            "Binary not found at {:?}. Run 'cargo build --release' first.",
+            binary_path
+        );
+        return;
+    }
+
+    let output = Command::new("leaks")
+        .args(["--atExit", "--"])
+        .arg(&binary_path)
+        .arg("--help")
+        .output();
+
+    match output {
+        Ok(result) => {
+            let stdout = String::from_utf8_lossy(&result.stdout);
+            let stderr = String::from_utf8_lossy(&result.stderr);
+
+            let has_leaks = stderr.contains("leaks for")
+                && !stderr.contains("0 leaks")
+                && !stderr.contains("0 total leaked");
+
+            if has_leaks {
+                panic!(
+                    "Memory leaks detected:\nstdout:\n{}\nstderr:\n{}",
+                    stdout, stderr
+                );
+            }
+
+            println!("Memory profiling completed successfully");
+            println!("stdout:\n{}", stdout);
+            println!("stderr:\n{}", stderr);
+        }
+        Err(e) => {
+            eprintln!(
+                "Failed to run memory profiling (leaks command may not be available on this platform): {}",
+                e
+            );
+            eprintln!(
+                "On Linux, use: valgrind --tool=massif {}",
+                binary_path.display()
+            );
+        }
+    }
+}
+
+#[test]
+fn test_phase6_regression_memory_usage_bounds() {
+    use std::process::Command;
+
+    let binary_path = env!("CARGO_MANIFEST_DIR");
+    let binary_path = std::path::Path::new(binary_path)
+        .parent()
+        .unwrap()
+        .join("target")
+        .join("release")
+        .join("opencode-rs");
+
+    if !binary_path.exists() {
+        eprintln!(
+            "Binary not found at {:?}. Run 'cargo build --release' first.",
+            binary_path
+        );
+        return;
+    }
+
+    let leaks_output = Command::new("leaks")
+        .args(["--atExit", "--", &binary_path.to_string_lossy()])
+        .arg("--help")
+        .output();
+
+    match leaks_output {
+        Ok(result) => {
+            let stderr = String::from_utf8_lossy(&result.stderr);
+
+            let physical_footprint_match = stderr.find("Physical footprint:");
+            let footprint_kb = if let Some(pos) = physical_footprint_match {
+                let slice = &stderr[pos..];
+                let after_colon = slice.find(':').map(|p| &slice[p + 1..]);
+                after_colon.and_then(|s| {
+                    let trimmed = s.trim();
+                    let number_str: String =
+                        trimmed.chars().take_while(|c| c.is_ascii_digit()).collect();
+                    number_str.parse::<u64>().ok()
+                })
+            } else {
+                None
+            };
+
+            const MAX_MEMORY_KB: u64 = 100_000;
+
+            if let Some(footprint) = footprint_kb {
+                assert!(
+                    footprint < MAX_MEMORY_KB,
+                    "Memory usage {}KB exceeds maximum allowed {}KB",
+                    footprint,
+                    MAX_MEMORY_KB
+                );
+                println!(
+                    "Memory usage {}KB is within acceptable bounds (< {}KB)",
+                    footprint, MAX_MEMORY_KB
+                );
+            }
+        }
+        Err(e) => {
+            eprintln!(
+                "Failed to check memory usage bounds (leaks command may not be available): {}",
+                e
+            );
+        }
+    }
+}

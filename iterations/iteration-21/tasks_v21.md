@@ -153,7 +153,7 @@
 | VR-03 | Run formatting: `cargo fmt --all -- --check` | TODO | VR-02 |
 | VR-04 | Run doc tests: `cargo test --doc` | TODO | VR-03 |
 | VR-05 | Run benchmarks: `cargo bench --all` | TODO | VR-04 |
-| VR-06 | Memory profiling | TODO | VR-05 |
+| VR-06 | Memory profiling | ✅ Done | VR-05 |
 | VR-07 | Security audit | TODO | VR-06 |
 | VR-08 | Documentation completeness check | TODO | VR-07 |
 

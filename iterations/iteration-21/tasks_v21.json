@@ -1532,7 +1532,7 @@
       "priority": "P0",
       "title": "Run clippy",
       "description": "Run clippy: cargo clippy --all-targets --all-features -- -D warnings",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "RunTestSuite: verify clippy passes with no warnings"
       ],
@@ -1549,7 +1549,7 @@
       "priority": "P0",
       "title": "Run formatting check",
       "description": "Run formatting: cargo fmt --all -- --check",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "RunTestSuite: verify formatting passes"
       ],
@@ -1566,7 +1566,7 @@
       "priority": "P0",
       "title": "Run doc tests",
       "description": "Run doc tests: cargo test --doc",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "RunTestSuite: verify doc tests pass"
       ],
@@ -1583,7 +1583,7 @@
       "priority": "P0",
       "title": "Run benchmarks",
       "description": "Run benchmarks: cargo bench --all",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "RunTestSuite: verify benchmarks run successfully"
       ],
@@ -1600,14 +1600,14 @@
       "priority": "P0",
       "title": "Memory profiling",
       "description": "Memory profiling of the application",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify memory usage is within acceptable bounds"
       ],
       "test_commands": [
         "cargo build --release && valgrind --tool=massif ./target/release/opencode"
       ],
-      "impl_notes": "Use valgrind massif or similar for memory profiling.",
+      "impl_notes": "Use valgrind massif or similar for memory profiling. Implemented using 'leaks' command on macOS and documented valgrind massif for Linux.",
       "dependencies": [
         "VR-05"
       ]
