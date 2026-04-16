@@ -1391,7 +1391,7 @@
       "priority": "P2",
       "title": "Verify hook determinism test passes",
       "description": "Verify test passes: cargo test -p opencode-plugin hook_determinism",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: verify hook determinism test passes"
       ],
