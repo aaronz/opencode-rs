@@ -69,14 +69,15 @@ cargo test -p ratatui-testing snapshot
 **Gap ID**: DEP-001  
 **Priority**: P1  
 **Module**: `Cargo.toml`
+**Status**: ✅ Done
 
 **Description**: `crossterm` is marked `optional = true` in Cargo.toml but is required for PTY event injection functionality.
 
 **Acceptance Criteria**:
-- [ ] `crossterm` removed from optional features in Cargo.toml
-- [ ] `crossterm` remains as a required dependency with version "0.28"
-- [ ] All tests pass without changes to source code
-- [ ] Documentation updated to reflect crossterm as required
+- [x] `crossterm` removed from optional features in Cargo.toml
+- [x] `crossterm` remains as a required dependency with version "0.28"
+- [x] All tests pass without changes to source code
+- [x] Documentation updated to reflect crossterm as required
 
 **Files to Modify**:
 - `Cargo.toml`
