@@ -333,6 +333,14 @@ impl StateTester {
         self.snapshots.remove(name)
     }
 
+    pub fn compare_state<S>(&self, state: &S) -> Result<StateDiff>
+    where
+        S: Serialize,
+    {
+        let current = serde_json::to_value(state).context("Failed to serialize state to JSON")?;
+        self.compare_by_name(&current, &self.default_path)
+    }
+
     pub fn clear_snapshots(&mut self) {
         self.snapshots.clear();
     }

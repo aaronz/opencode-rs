@@ -542,3 +542,51 @@ fn test_snapshot_capture_and_retrieval_cycle() {
     assert_eq!(deserialized.inner.count, 100);
     assert!(deserialized.enabled);
 }
+
+#[test]
+fn test_compare_state_accepts_serializable_type() {
+    let mut tester = StateTester::new();
+    let state = create_simple_state();
+    tester.capture_state(&state, Some("default")).unwrap();
+
+    let result = tester.compare_state(&state);
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_compare_state_returns_state_diff() {
+    let mut tester = StateTester::new();
+    let state = create_simple_state();
+    tester.capture_state(&state, Some("default")).unwrap();
+
+    let result = tester.compare_state(&state).unwrap();
+    assert!(result.differences.is_empty());
+    assert_eq!(result.total_diffs, 0);
+}
+
+#[test]
+fn test_compare_state_matching_state_returns_empty_diff() {
+    let mut tester = StateTester::new();
+    let state = create_simple_state();
+    tester.capture_state(&state, Some("default")).unwrap();
+
+    let diff = tester.compare_state(&state).unwrap();
+    assert_eq!(diff.total_diffs, 0);
+    assert!(diff.differences.is_empty());
+}
+
+#[test]
+fn test_compare_state_different_state_returns_diff() {
+    let mut tester = StateTester::new();
+    let state1 = create_simple_state();
+    tester.capture_state(&state1, Some("default")).unwrap();
+
+    let state2 = SimpleState {
+        name: "changed".to_string(),
+        count: 99,
+    };
+
+    let diff = tester.compare_state(&state2).unwrap();
+    assert!(diff.total_diffs > 0);
+    assert!(!diff.differences.is_empty());
+}

@@ -78,7 +78,7 @@
       "priority": "P1",
       "title": "Fix CliTester temp_dir field usage",
       "description": "Fix gap FR-CLI-GAP-001 where temp_dir field is never used. When with_temp_dir() is called, store TempDir and use temp_dir.path() as working_dir in run() and spawn() if no explicit working_dir set.",
-      "status": "done",
+      "status": "manual_check",
       "test_criteria": [
         "AddUnitTest: verify temp_dir field is stored when with_temp_dir() called",
         "AddUnitTest: verify run() uses temp_dir.path() when no explicit working_dir set",
@@ -98,7 +98,7 @@
       "priority": "P1",
       "title": "Add StateTester::compare_state() method",
       "description": "Add convenience method to directly compare serializable state. Serialize state to Value, then compare to default snapshot.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify compare_state() accepts serializable state type",
         "AddUnitTest: verify compare_state() returns StateDiff result",
