@@ -87,7 +87,7 @@ The P0 gap (`POST /api/sessions/{id}/execute`) identified in iteration-21 **rema
 | Storage | ✅ Compliant | - | - |
 | Auth/Security | ✅ Compliant | - | - |
 | Permission HTTP Integration | ⚠️ Partial | P1 | FR-035 |
-| WebSocket Streaming | ⚠️ Not Integrated | P1 | FR-034 |
+| WebSocket Streaming | ✅ Integrated | P1 | FR-034 |
 | Server Status Endpoint | ✅ Implemented | P1 | FR-033 |
 | Streaming Response | ❌ Missing | P1 | FR-036 |
 | SDK Documentation | ⚠️ Incomplete | P2 | FR-037 |
@@ -102,7 +102,7 @@ The P0 gap (`POST /api/sessions/{id}/execute`) identified in iteration-21 **rema
 | FR-031 | Session Execute Endpoint | **P0** | Not Implemented | PRD §6.1 |
 | FR-032 | Run Endpoint Tool Integration | **P0** | Not Implemented | PRD §6.1 |
 | FR-033 | Server Status Endpoint | P1 | ✅ Done | PRD §6.1 |
-| FR-034 | WebSocket Agent Streaming | P1 | Not Integrated | PRD §6.1 |
+| FR-034 | WebSocket Agent Streaming | P1 | ✅ Done | PRD §6.1 |
 | FR-035 | Permission Reply Integration | P1 | Partial | PRD §3.4, §6.2 |
 | FR-036 | Streaming Response Support | P1 | Not Implemented | PRD §6.1 |
 | FR-037 | SDK Documentation | P2 | Incomplete | PRD §4.2 |
@@ -657,14 +657,14 @@ DELETE /api/sessions/{id}/share         - Remove share ✅
 POST /api/sessions/{id}/summarize       - Summarize session ✅
 GET  /api/share/{id}                   - Get shared session ✅
 POST /api/run                           - Run prompt (basic LLM only ⚠️) FR-032
-WS   /api/ws                            - WebSocket ✅ (not integrated) FR-034
+WS   /api/ws                            - WebSocket ✅ (integrated) FR-034
 SSE  /api/sse                           - SSE ✅ (not integrated)
 GET  /api/acp/status                    - ACP status ✅
 POST /api/acp/handshake                 - ACP handshake ✅
 POST /api/acp/connect                   - ACP connect ✅
 POST /api/acp/ack                        - ACP acknowledge ✅
 GET  /api/acp/events                    - ACP events stream ✅
-WS   /api/acpws                         - ACP WebSocket ✅ (not integrated) FR-034
+WS   /api/acpws                         - ACP WebSocket ✅ (integrated) FR-034
 ```
 
 ### Required Additions (Iteration-22)
@@ -703,7 +703,7 @@ GET  /api/status                        - Server status ⬅️ FR-033 (P1)
 | P0-1 | Execute endpoint missing | FR-031 | P0 |
 | P0-2 | Run endpoint no tool integration | FR-032 | P0 |
 | P1-1 | /api/status implemented | FR-033 | P1 |
-| P1-2 | WebSocket not integrated | FR-034 | P1 |
+| P1-2 | WebSocket integrated | FR-034 | P1 |
 | P1-3 | Permission reply not connected | FR-035 | P1 |
 | P1-4 | Streaming not implemented | FR-036 | P1 |
 | P2-1 | SDK documentation | FR-037 | P2 |

@@ -129,7 +129,7 @@ Add `GET /api/status` endpoint for server health and status information.
 
 **FR-ID:** FR-034
 **Priority:** P1
-**Status:** Not Started
+**Status:** ✅ Done
 
 **Description:**
 Connect WebSocket endpoints to agent runtime for real-time streaming of agent execution output.
@@ -272,7 +272,7 @@ Document IDE extension support for LSP integration.
 | 1. Session Execute Endpoint Handler | FR-031 | P0 | ✅ Done |
 | 2. Run Endpoint Tool Integration | FR-032 | P0 | Not Started |
 | 3. Server Status Endpoint | FR-033 | P1 | ✅ Done |
-| 4. WebSocket Agent Streaming | FR-034 | P1 | Not Started |
+| 4. WebSocket Agent Streaming | FR-034 | P1 | ✅ Done |
 | 5. Permission Reply Integration | FR-035 | P1 | Partial |
 | 6. SSE Streaming Response | FR-036 | P1 | Not Started |
 | 7. SDK Documentation | FR-037 | P2 | Incomplete |

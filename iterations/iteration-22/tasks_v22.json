@@ -77,7 +77,7 @@
       "priority": "P1",
       "title": "Integrate WebSocket with Agent Runtime",
       "description": "Connect WebSocket endpoints to agent runtime for real-time streaming of agent execution output. Create event emitter in agent runtime, broadcast AgentEvent to connected WebSocket clients, support multiple concurrent connections per session, handle client disconnection gracefully.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify WebSocket receives tool_call events in real-time",
         "AddUnitTest: verify WebSocket receives token-by-token LLM output",
