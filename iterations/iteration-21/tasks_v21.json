@@ -847,7 +847,7 @@
       "priority": "P1",
       "title": "Modify run_prompt function",
       "description": "Modify server/src/routes/run.rs run_prompt function for streaming support",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: ensure existing run_prompt functionality still works"
       ],
@@ -863,7 +863,7 @@
       "priority": "P1",
       "title": "Add stream parameter to run_prompt",
       "description": "Add stream parameter to run_prompt function signature",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify stream parameter is accepted"
       ],
