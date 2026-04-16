@@ -1067,7 +1067,7 @@
       "priority": "P1",
       "title": "Trigger re-evaluation of pending requests",
       "description": "Trigger re-evaluation of pending requests after decision",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify pending requests are re-evaluated after decision"
       ],
@@ -1084,7 +1084,7 @@
       "priority": "P1",
       "title": "Add audit logging for decisions",
       "description": "Add audit logging for permission decisions",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify decisions are logged to audit trail"
       ],
@@ -1101,7 +1101,7 @@
       "priority": "P1",
       "title": "Create permission_integration_tests.rs",
       "description": "Create test file tests/src/permission_integration_tests.rs",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify test file compiles and runs"
       ],
