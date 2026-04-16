@@ -85,12 +85,12 @@ impl FileSelectionDialog {
     fn read_dir(path: &PathBuf) -> Vec<FileEntry> {
         let mut entries = vec![];
 
-        if path.parent().is_some() {
+        if let Some(parent) = path.parent() {
             entries.push(FileEntry {
                 name: "..".to_string(),
                 is_dir: true,
                 is_hidden: false,
-                path: Some(path.parent().unwrap().to_path_buf()),
+                path: Some(parent.to_path_buf()),
             });
         }
 
@@ -272,7 +272,12 @@ impl Dialog for FileSelectionDialog {
                     } else if self.selected_indices.contains(&self.selected_index) {
                         let selected = self.selected_paths();
                         if selected.len() == 1 {
-                            DialogAction::Confirm(selected.into_iter().next().unwrap())
+                            DialogAction::Confirm(
+                                selected
+                                    .into_iter()
+                                    .next()
+                                    .expect("selected.len() == 1 ensures exactly one element"),
+                            )
                         } else if !selected.is_empty() {
                             DialogAction::ConfirmMultiple(selected)
                         } else {

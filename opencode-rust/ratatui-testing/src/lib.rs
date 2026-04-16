@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used)]
+
 mod cli;
 mod dialog_tester;
 mod diff;

@@ -278,7 +278,7 @@ fn fork_session(session_id: &str) {
             println!(
                 "{}",
                 serde_json::to_string(&serde_json::json!({ "new_id": child.id.to_string() }))
-                    .unwrap()
+                    .expect("JSON serialization should not fail for simple object")
             );
         }
         Err(e) => {
@@ -313,7 +313,7 @@ fn share_session(session_id: &str) {
                 serde_json::to_string(&serde_json::json!({
                     "share_url": url,
                 }))
-                .unwrap()
+                .expect("JSON serialization should not fail for simple object")
             );
         }
         Err(e) => {

@@ -15,7 +15,7 @@
 |---------|-------------|------|------|-----------|--------|
 | T-001 | Fix `unwrap()` on Option - index lookup | `crates/tools/src/edit.rs` | 159 | 30 min | ✅ Done |
 | T-002 | Fix `unwrap()` on Option - API key | `crates/tools/src/web_search.rs` | 70 | 30 min | ✅ Done |
-| T-003 | Audit all production `.unwrap()` calls | All crates | - | 4 hours | Not Started |
+| T-003 | Audit all production `.unwrap()` calls | All crates | - | 4 hours | ✅ Done |
 
 ### Server Route Error Refactoring
 

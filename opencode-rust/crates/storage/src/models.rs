@@ -179,7 +179,8 @@ fn redact_sensitive_info(content: &str) -> String {
         "token_",
         "_token",
     ];
-    let fallback_regex = regex::Regex::new(r"api_key").unwrap();
+    let fallback_regex =
+        regex::Regex::new(r"api_key").expect("regex pattern 'api_key' should always be valid");
     let mut result = content.to_string();
     for pattern in sensitive_patterns {
         let regex = regex::Regex::new(&format!(r#"(?i){}"#, pattern))

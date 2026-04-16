@@ -31,7 +31,10 @@ impl sealed::Sealed for InMemorySessionRepository {}
 #[async_trait]
 impl SessionRepository for InMemorySessionRepository {
     async fn find_by_id(&self, id: &str) -> Result<Option<Session>, StorageError> {
-        let sessions = self.sessions.lock().unwrap();
+        let sessions = self
+            .sessions
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
         Ok(sessions.get(id).cloned())
     }
 
@@ -40,7 +43,10 @@ impl SessionRepository for InMemorySessionRepository {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<SessionInfo>, StorageError> {
-        let sessions = self.sessions.lock().unwrap();
+        let sessions = self
+            .sessions
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
         let mut sessions: Vec<_> = sessions.values().cloned().collect();
         sessions.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
         let sessions: Vec<_> = sessions.into_iter().skip(offset).take(limit).collect();
@@ -61,19 +67,28 @@ impl SessionRepository for InMemorySessionRepository {
     }
 
     async fn save(&self, session: &Session) -> Result<(), StorageError> {
-        let mut sessions = self.sessions.lock().unwrap();
+        let mut sessions = self
+            .sessions
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
         sessions.insert(session.id.to_string(), session.clone());
         Ok(())
     }
 
     async fn delete(&self, id: &str) -> Result<(), StorageError> {
-        let mut sessions = self.sessions.lock().unwrap();
+        let mut sessions = self
+            .sessions
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
         sessions.remove(id);
         Ok(())
     }
 
     async fn count(&self) -> Result<usize, StorageError> {
-        let sessions = self.sessions.lock().unwrap();
+        let sessions = self
+            .sessions
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
         Ok(sessions.len())
     }
 }
@@ -101,12 +116,18 @@ impl sealed::Sealed for InMemoryProjectRepository {}
 #[async_trait]
 impl ProjectRepository for InMemoryProjectRepository {
     async fn find_by_id(&self, id: &str) -> Result<Option<ProjectModel>, StorageError> {
-        let projects = self.projects.lock().unwrap();
+        let projects = self
+            .projects
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
         Ok(projects.get(id).cloned())
     }
 
     async fn find_by_path(&self, path: &str) -> Result<Option<ProjectModel>, StorageError> {
-        let projects = self.projects.lock().unwrap();
+        let projects = self
+            .projects
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
         Ok(projects.values().find(|p| p.path == path).cloned())
     }
 
@@ -115,26 +136,38 @@ impl ProjectRepository for InMemoryProjectRepository {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<ProjectModel>, StorageError> {
-        let projects = self.projects.lock().unwrap();
+        let projects = self
+            .projects
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
         let mut projects: Vec<_> = projects.values().cloned().collect();
         projects.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
         Ok(projects.into_iter().skip(offset).take(limit).collect())
     }
 
     async fn save(&self, project: &ProjectModel) -> Result<(), StorageError> {
-        let mut projects = self.projects.lock().unwrap();
+        let mut projects = self
+            .projects
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
         projects.insert(project.id.clone(), project.clone());
         Ok(())
     }
 
     async fn delete(&self, id: &str) -> Result<(), StorageError> {
-        let mut projects = self.projects.lock().unwrap();
+        let mut projects = self
+            .projects
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
         projects.remove(id);
         Ok(())
     }
 
     async fn count(&self) -> Result<usize, StorageError> {
-        let projects = self.projects.lock().unwrap();
+        let projects = self
+            .projects
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
         Ok(projects.len())
     }
 }

@@ -42,7 +42,8 @@ impl SyntaxHighlighter {
             .theme_set
             .themes
             .get(theme_name)
-            .unwrap_or_else(|| self.theme_set.themes.get("base16-ocean.dark").unwrap());
+            .or_else(|| self.theme_set.themes.get("base16-ocean.dark"))
+            .expect("at least the fallback theme 'base16-ocean.dark' should exist");
 
         let mut highlighter = HighlightLines::new(syntax, theme);
         let mut lines: Vec<Line<'static>> = Vec::new();
