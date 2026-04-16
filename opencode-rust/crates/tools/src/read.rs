@@ -98,7 +98,14 @@ impl Tool for ReadTool {
         let worktree =
             explicit_worktree.unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
 
-        if !is_path_within_worktree(&path, &worktree) && has_explicit_worktree {
+        let path_str = path.to_string_lossy();
+        let is_protected_path = path_str.contains("/etc/")
+            || path_str.contains("/tmp/")
+            || path_str.contains("/private/tmp/");
+
+        if !is_path_within_worktree(&path, &worktree)
+            && (has_explicit_worktree || is_protected_path)
+        {
             return Ok(ToolResult::err(format!(
                 "Access to path outside worktree denied: {}",
                 args.path

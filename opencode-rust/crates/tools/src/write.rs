@@ -27,6 +27,15 @@ fn normalize_path(path: &Path) -> PathBuf {
 
 fn is_path_within_worktree(path: &Path, worktree: &Path) -> bool {
     let Ok(target_canonical) = path.canonicalize() else {
+        if let Some(parent) = path.parent() {
+            if parent.exists() {
+                if let Ok(parent_canonical) = parent.canonicalize() {
+                    if let Ok(worktree_canonical) = worktree.canonicalize() {
+                        return parent_canonical.starts_with(&worktree_canonical);
+                    }
+                }
+            }
+        }
         return false;
     };
     let Ok(worktree_canonical) = worktree.canonicalize() else {
@@ -88,12 +97,19 @@ impl Tool for WriteTool {
             worktree.join(&path)
         };
 
-        let final_path_str = final_path.to_string_lossy();
+        let normalized_final = normalize_path(&final_path);
+        let normalized_str = normalized_final.to_string_lossy();
         let is_tmp_path =
-            final_path_str.contains("/tmp/") || final_path_str.contains("/private/tmp/");
+            normalized_str.contains("/tmp/") || normalized_str.contains("/private/tmp/");
 
         if !is_path_within_worktree(&final_path, &worktree) {
-            if has_explicit_worktree || path.is_absolute() || is_tmp_path {
+            if has_explicit_worktree {
+                return Ok(ToolResult::err(format!(
+                    "Access to path outside worktree denied: {}",
+                    args.path
+                )));
+            }
+            if is_tmp_path {
                 return Ok(ToolResult::err(format!(
                     "Access to path outside worktree denied: {}",
                     args.path
