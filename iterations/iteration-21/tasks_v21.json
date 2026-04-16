@@ -708,7 +708,7 @@
       "priority": "P1",
       "title": "Collect provider status from LLM registry",
       "description": "Collect provider status from LLM registry for status endpoint",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify LLM provider status is included in response"
       ],
@@ -725,7 +725,7 @@
       "priority": "P1",
       "title": "Collect plugin status",
       "description": "Collect plugin status from plugin system for status endpoint",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify plugin status is included in response"
       ],
@@ -742,7 +742,7 @@
       "priority": "P1",
       "title": "Add no-auth route to App",
       "description": "Add no-auth status route to App in lib.rs",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify /api/status accessible without authentication"
       ],
