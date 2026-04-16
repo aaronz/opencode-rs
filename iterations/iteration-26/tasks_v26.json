@@ -63,7 +63,7 @@
       "priority": "P2",
       "title": "Document Windows PTY Limitation",
       "description": "Windows PTY implementation is a stub that returns errors. Add clear doc comments explaining the limitation, include helpful error message pointing to documentation, and PRD reference.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify #[cfg(windows)] implementation returns descriptive error",
         "AddRegressionTest: ensure Unix PTY implementation is unaffected"
@@ -81,7 +81,7 @@
       "priority": "P2",
       "title": "Complete DialogRenderTester Tests",
       "description": "DialogRenderTester tests are incomplete. Missing tests for assert_render_result() and assert_empty_state() helper functions. Per FR-DIALOG-007 and FR-DIALOG-008, tests should verify border and content presence.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify assert_render_result() helper function works correctly",
         "AddUnitTest: verify assert_empty_state() helper function works correctly",

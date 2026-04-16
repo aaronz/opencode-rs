@@ -7,7 +7,7 @@ mod snapshot;
 mod state;
 
 pub use cli::{ChildProcess, CliOutput, CliTester};
-pub use dialog_tester::{assert_render_result, DialogRenderTester};
+pub use dialog_tester::{assert_empty_state, assert_render_result, DialogRenderTester};
 pub use diff::{BufferDiff, CellDiff, DiffResult, IgnoreOptions};
 pub use dsl::{TestDsl, WaitPredicate};
 pub use pty::PtySimulator;
