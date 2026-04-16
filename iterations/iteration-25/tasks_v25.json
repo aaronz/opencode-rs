@@ -174,7 +174,7 @@
       "priority": "P2",
       "title": "Fix wait_for to use predicates field",
       "description": "Refactor wait_for to optionally use predicates field. Review implementation and consider integrating predicates field usage. Document if predicates are intentionally separate.",
-      "status": "done",
+      "status": "manual_check",
       "test_criteria": [
         "AddUnitTest: verify wait_for() uses predicates when available",
         "AddUnitTest: verify wait_for() works correctly without predicates",
@@ -196,7 +196,7 @@
       "priority": "P2",
       "title": "Add Windows platform detection for PTY",
       "description": "Add Windows detection and clear error message. Add #[cfg(windows)] check in PtySimulator::new() returning 'PTY not supported on Windows'. Use #[cfg(unix)] for Unix-specific code.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify #[cfg(windows)] build uses error message for unsupported platform",
         "AddUnitTest: verify #[cfg(unix)] build works normally on Unix platforms",

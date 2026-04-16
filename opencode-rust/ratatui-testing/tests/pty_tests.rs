@@ -199,3 +199,165 @@ fn test_multiple_key_events_injection() {
 
     drop(pty);
 }
+
+#[cfg(windows)]
+#[test]
+fn test_pty_simulator_windows_new_returns_error() {
+    let result = PtySimulator::new();
+    assert!(
+        result.is_err(),
+        "PtySimulator::new() should return error on Windows"
+    );
+    let err = result.unwrap_err();
+    assert!(
+        err.to_string().contains("PTY not supported on Windows"),
+        "Error message should contain 'PTY not supported on Windows', got: {}",
+        err
+    );
+}
+
+#[cfg(windows)]
+#[test]
+fn test_pty_simulator_windows_new_with_command_returns_error() {
+    let result = PtySimulator::new_with_command(&["echo", "hello"]);
+    assert!(
+        result.is_err(),
+        "PtySimulator::new_with_command() should return error on Windows"
+    );
+    let err = result.unwrap_err();
+    assert!(
+        err.to_string().contains("PTY not supported on Windows"),
+        "Error message should contain 'PTY not supported on Windows', got: {}",
+        err
+    );
+}
+
+#[cfg(windows)]
+#[test]
+fn test_pty_simulator_windows_write_input_returns_error() {
+    let mut pty = PtySimulator::default();
+    let result = pty.write_input("test");
+    assert!(
+        result.is_err(),
+        "write_input() should return error on Windows"
+    );
+    let err = result.unwrap_err();
+    assert!(
+        err.to_string().contains("PTY not supported on Windows"),
+        "Error message should contain 'PTY not supported on Windows', got: {}",
+        err
+    );
+}
+
+#[cfg(windows)]
+#[test]
+fn test_pty_simulator_windows_read_output_returns_error() {
+    let mut pty = PtySimulator::default();
+    let result = pty.read_output(Duration::from_secs(1));
+    assert!(
+        result.is_err(),
+        "read_output() should return error on Windows"
+    );
+    let err = result.unwrap_err();
+    assert!(
+        err.to_string().contains("PTY not supported on Windows"),
+        "Error message should contain 'PTY not supported on Windows', got: {}",
+        err
+    );
+}
+
+#[cfg(windows)]
+#[test]
+fn test_pty_simulator_windows_resize_returns_error() {
+    let mut pty = PtySimulator::default();
+    let result = pty.resize(80, 24);
+    assert!(result.is_err(), "resize() should return error on Windows");
+    let err = result.unwrap_err();
+    assert!(
+        err.to_string().contains("PTY not supported on Windows"),
+        "Error message should contain 'PTY not supported on Windows', got: {}",
+        err
+    );
+}
+
+#[cfg(windows)]
+#[test]
+fn test_pty_simulator_windows_inject_key_event_returns_error() {
+    let mut pty = PtySimulator::default();
+    let key_event = KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE);
+    let result = pty.inject_key_event(key_event);
+    assert!(
+        result.is_err(),
+        "inject_key_event() should return error on Windows"
+    );
+    let err = result.unwrap_err();
+    assert!(
+        err.to_string().contains("PTY not supported on Windows"),
+        "Error message should contain 'PTY not supported on Windows', got: {}",
+        err
+    );
+}
+
+#[cfg(windows)]
+#[test]
+fn test_pty_simulator_windows_inject_mouse_event_returns_error() {
+    let mut pty = PtySimulator::default();
+    let mouse_event = MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 10,
+        row: 5,
+        modifiers: KeyModifiers::NONE,
+    };
+    let result = pty.inject_mouse_event(mouse_event);
+    assert!(
+        result.is_err(),
+        "inject_mouse_event() should return error on Windows"
+    );
+    let err = result.unwrap_err();
+    assert!(
+        err.to_string().contains("PTY not supported on Windows"),
+        "Error message should contain 'PTY not supported on Windows', got: {}",
+        err
+    );
+}
+
+#[cfg(windows)]
+#[test]
+fn test_pty_simulator_windows_is_child_running_returns_false() {
+    let pty = PtySimulator::default();
+    assert!(
+        !pty.is_child_running(),
+        "is_child_running() should return false on Windows"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn test_pty_simulator_unix_new_works_normally() {
+    let result = PtySimulator::new();
+    assert!(
+        result.is_ok(),
+        "PtySimulator::new() should work on Unix platforms"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn test_pty_simulator_unix_new_with_command_works_normally() {
+    let result = PtySimulator::new_with_command(&["echo", "test"]);
+    assert!(
+        result.is_ok(),
+        "PtySimulator::new_with_command() should work on Unix platforms"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn test_pty_simulator_unix_is_child_running_returns_correct_value() {
+    let pty = PtySimulator::new_with_command(&["sleep", "10"]).unwrap();
+    assert!(
+        pty.is_child_running(),
+        "is_child_running() should return true for running child on Unix"
+    );
+    drop(pty);
+}

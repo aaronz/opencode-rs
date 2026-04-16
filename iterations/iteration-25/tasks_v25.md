@@ -121,10 +121,10 @@
 - **Files**: `opencode-rust/ratatui-testing/src/pty.rs`
 - **Description**: Add Windows detection and clear error message
 - **Implementation**:
-  - [ ] Add `#[cfg(windows)]` check in PtySimulator::new()
-  - [ ] Return clear error on Windows: "PTY not supported on Windows"
-  - [ ] Use `#[cfg(unix)]` for Unix-specific code
-- **Verification**: Build on different platforms
+  - [x] Add `#[cfg(windows)]` check in PtySimulator::new()
+  - [x] Return clear error on Windows: "PTY not supported on Windows"
+  - [x] Use `#[cfg(unix)]` for Unix-specific code
+- **Verification**: Build on different platforms ✅ Done
 
 ## Verification Commands
 
@@ -158,4 +158,4 @@ cargo build --all-features
 | 7. Export ChildProcess | P2 | TODO | - |
 | 8. Enhance DialogRenderTester | P2 | ✅ Done | - |
 | 9. wait_for predicates | P2 | TODO | - |
-| 10. Windows platform detection | P2 | TODO | - |
+| 10. Windows platform detection | P2 | ✅ Done | - |

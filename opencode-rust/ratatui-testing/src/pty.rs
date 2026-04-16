@@ -1,11 +1,19 @@
-use anyhow::{Context, Result};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
-use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
 use std::cell::RefCell;
 use std::fmt::Debug;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::time::Duration;
 
+#[cfg(unix)]
+use anyhow::{Context, Result};
+#[cfg(unix)]
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+#[cfg(unix)]
+use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
+
+#[cfg(windows)]
+use anyhow::Result;
+
+#[cfg(unix)]
 pub struct PtySimulator {
     pub master: Option<Box<dyn MasterPty>>,
     pub child: RefCell<Option<Box<dyn Child>>>,
@@ -13,6 +21,15 @@ pub struct PtySimulator {
     pub reader: Option<Box<dyn BufRead>>,
 }
 
+#[cfg(windows)]
+pub struct PtySimulator {
+    pub master: Option<()>,
+    pub child: RefCell<Option<()>>,
+    pub writer: Option<Box<dyn Write + Send>>,
+    pub reader: Option<Box<dyn BufRead>>,
+}
+
+#[cfg(unix)]
 impl Debug for PtySimulator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PtySimulator")
@@ -24,6 +41,19 @@ impl Debug for PtySimulator {
     }
 }
 
+#[cfg(windows)]
+impl Debug for PtySimulator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PtySimulator")
+            .field("master", &"()")
+            .field("child", &"()")
+            .field("has_writer", &self.writer.is_some())
+            .field("has_reader", &self.reader.is_some())
+            .finish()
+    }
+}
+
+#[cfg(unix)]
 impl PtySimulator {
     pub fn new() -> Result<Self> {
         Self::new_with_command(&["bash", "-c", "echo ready"])
@@ -125,6 +155,38 @@ impl PtySimulator {
         }
     }
 
+    pub fn inject_key_event(&mut self, event: KeyEvent) -> Result<()> {
+        let sequence = Self::encode_key_event(event)
+            .ok_or_else(|| anyhow::anyhow!("Unsupported key event"))?;
+        match &mut self.writer {
+            Some(writer) => {
+                writer.write_all(sequence.as_bytes())?;
+                writer.flush()?;
+                Ok(())
+            }
+            None => anyhow::bail!("PTY writer not available"),
+        }
+    }
+
+    pub fn inject_mouse_event(&mut self, event: MouseEvent) -> Result<()> {
+        let sequence = Self::encode_mouse_event(event);
+        match &mut self.writer {
+            Some(writer) => {
+                writer.write_all(sequence.as_bytes())?;
+                writer.flush()?;
+                Ok(())
+            }
+            None => anyhow::bail!("PTY writer not available"),
+        }
+    }
+
+    pub fn is_child_running(&self) -> bool {
+        match self.child.borrow_mut().as_mut() {
+            Some(child) => child.try_wait().ok().flatten().is_none(),
+            None => false,
+        }
+    }
+
     fn encode_key_event(event: KeyEvent) -> Option<String> {
         let codepoint = match event.code {
             KeyCode::Char(c) => c as u32,
@@ -177,40 +239,44 @@ impl PtySimulator {
             format!("\x1B[<{};{};{}M", cb, cx, cy)
         }
     }
+}
 
-    pub fn inject_key_event(&mut self, event: KeyEvent) -> Result<()> {
-        let sequence = Self::encode_key_event(event)
-            .ok_or_else(|| anyhow::anyhow!("Unsupported key event"))?;
-        match &mut self.writer {
-            Some(writer) => {
-                writer.write_all(sequence.as_bytes())?;
-                writer.flush()?;
-                Ok(())
-            }
-            None => anyhow::bail!("PTY writer not available"),
-        }
+#[cfg(windows)]
+impl PtySimulator {
+    pub fn new() -> Result<Self> {
+        anyhow::bail!("PTY not supported on Windows")
     }
 
-    pub fn inject_mouse_event(&mut self, event: MouseEvent) -> Result<()> {
-        let sequence = Self::encode_mouse_event(event);
-        match &mut self.writer {
-            Some(writer) => {
-                writer.write_all(sequence.as_bytes())?;
-                writer.flush()?;
-                Ok(())
-            }
-            None => anyhow::bail!("PTY writer not available"),
-        }
+    pub fn new_with_command(_command: &[&str]) -> Result<Self> {
+        anyhow::bail!("PTY not supported on Windows")
+    }
+
+    pub fn write_input(&mut self, _input: &str) -> Result<()> {
+        anyhow::bail!("PTY not supported on Windows")
+    }
+
+    pub fn read_output(&mut self, _timeout: Duration) -> Result<String> {
+        anyhow::bail!("PTY not supported on Windows")
+    }
+
+    pub fn resize(&mut self, _cols: u16, _rows: u16) -> Result<()> {
+        anyhow::bail!("PTY not supported on Windows")
+    }
+
+    pub fn inject_key_event(&mut self, _event: crossterm::event::KeyEvent) -> Result<()> {
+        anyhow::bail!("PTY not supported on Windows")
+    }
+
+    pub fn inject_mouse_event(&mut self, _event: crossterm::event::MouseEvent) -> Result<()> {
+        anyhow::bail!("PTY not supported on Windows")
     }
 
     pub fn is_child_running(&self) -> bool {
-        match self.child.borrow_mut().as_mut() {
-            Some(child) => child.try_wait().ok().flatten().is_none(),
-            None => false,
-        }
+        false
     }
 }
 
+#[cfg(unix)]
 fn encode_key_modifiers(modifiers: KeyModifiers) -> u8 {
     let mut m = 0u8;
     if modifiers.contains(KeyModifiers::SHIFT) {
@@ -238,6 +304,7 @@ fn encode_key_modifiers(modifiers: KeyModifiers) -> u8 {
     }
 }
 
+#[cfg(unix)]
 fn encode_mouse_button(kind: MouseEventKind) -> (u8, bool) {
     match kind {
         MouseEventKind::Down(MouseButton::Left) => (0, false),
@@ -257,6 +324,7 @@ fn encode_mouse_button(kind: MouseEventKind) -> (u8, bool) {
     }
 }
 
+#[cfg(unix)]
 fn encode_mouse_modifiers(modifiers: KeyModifiers) -> u8 {
     let mut m = 0u8;
     if modifiers.contains(KeyModifiers::SHIFT) {
@@ -272,6 +340,17 @@ fn encode_mouse_modifiers(modifiers: KeyModifiers) -> u8 {
 }
 
 impl Default for PtySimulator {
+    #[cfg(unix)]
+    fn default() -> Self {
+        Self {
+            master: None,
+            child: RefCell::new(None),
+            writer: None,
+            reader: None,
+        }
+    }
+
+    #[cfg(windows)]
     fn default() -> Self {
         Self {
             master: None,
