@@ -1,0 +1,187 @@
+{
+  "tasks": [
+    {
+      "id": "FR-031",
+      "priority": "P0",
+      "title": "Implement Session Execute Endpoint Handler",
+      "description": "Create POST /api/sessions/{id}/execute endpoint handler with full agent execution and tool access. Create execute.rs with execute_session handler, integrate AgentExecutor for agent lifecycle, integrate ToolRegistry for tool discovery, implement SSE streaming for ExecuteEvent types (tool_call, tool_result, message, complete, error), register route, and add authentication middleware.",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify execute_session handler returns 200 for valid session ID",
+        "AddUnitTest: verify ToolRegistry tools are discovered and executed via execute endpoint",
+        "AddUnitTest: verify tool execution results appear in response body",
+        "AddIntegrationTest: verify invalid session ID returns 404 via execute endpoint",
+        "AddIntegrationTest: verify unauthenticated request returns 401 via execute endpoint",
+        "AddUnitTest: verify SSE streaming works with Accept: text/event-stream header",
+        "AddErrorHandlingTest: test execute endpoint with malformed request body returns 400"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server --test execute_endpoint",
+        "cargo test -p opencode-server -- execute_session",
+        "cargo clippy -p opencode-server -- -D warnings",
+        "cargo build -p opencode-server --release"
+      ],
+      "impl_notes": "Integrate AgentExecutor from crates/agent/src/lib.rs and ToolRegistry from crates/tools/src/lib.rs. Route registration: cfg.route(\"/{id}/execute\", web::post().to(execute_session)). Use existing types from crates/server/src/routes/execute/types.rs.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-032",
+      "priority": "P0",
+      "title": "Refactor Run Endpoint to Use AgentExecutor",
+      "description": "Refactor run_prompt in run.rs to integrate with AgentExecutor and ToolRegistry for full tool-aware execution. Enable streaming response with SSE for progressive token output and propagate tool errors properly to response.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify POST /api/run executes tools via AgentExecutor",
+        "AddUnitTest: verify tool results appear in response body via run endpoint",
+        "AddIntegrationTest: verify streaming works for LLM tokens via SSE",
+        "AddErrorHandlingTest: verify tool errors are properly propagated in response",
+        "AddRegressionTest: ensure existing /api/run behavior is preserved after refactor"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server --test run_endpoint",
+        "cargo test -p opencode-server -- run_prompt",
+        "cargo clippy -p opencode-server -- -D warnings",
+        "cargo build -p opencode-server --release"
+      ],
+      "impl_notes": "Refactor run_prompt to use AgentExecutor instead of basic LLM chat. Integrate ToolRegistry for tool discovery and execution.",
+      "dependencies": [
+        "FR-031"
+      ]
+    },
+    {
+      "id": "FR-033",
+      "priority": "P1",
+      "title": "Implement Server Status Endpoint",
+      "description": "Add GET /api/status endpoint for server health and status information. Create status.rs with status handler, implement response with version, status, uptime_seconds, session stats, provider status array, and plugin list. No authentication required.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify GET /api/status returns 200 with correct JSON structure",
+        "AddUnitTest: verify response contains version, status, uptime_seconds fields",
+        "AddUnitTest: verify response contains active_sessions and total_sessions counts",
+        "AddUnitTest: verify providers array contains name, status, model fields",
+        "AddUnitTest: verify plugins array contains name, version, status fields",
+        "AddIntegrationTest: verify endpoint does not require authentication",
+        "AddRegressionTest: ensure response time is under 100ms"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server --test status_endpoint",
+        "cargo test -p opencode-server -- status_handler",
+        "cargo clippy -p opencode-server -- -D warnings",
+        "cargo build -p opencode-server --release"
+      ],
+      "impl_notes": "Create crates/server/src/routes/status.rs. Route: GET /api/status. Response time requirement: < 100ms.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-034",
+      "priority": "P1",
+      "title": "Integrate WebSocket with Agent Runtime",
+      "description": "Connect WebSocket endpoints to agent runtime for real-time streaming of agent execution output. Create event emitter in agent runtime, broadcast AgentEvent to connected WebSocket clients, support multiple concurrent connections per session, handle client disconnection gracefully.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify WebSocket receives tool_call events in real-time",
+        "AddUnitTest: verify WebSocket receives token-by-token LLM output",
+        "AddIntegrationTest: verify multiple clients can connect to same session",
+        "AddIntegrationTest: verify client disconnection does not crash server",
+        "AddErrorHandlingTest: test WebSocket handles malformed AgentEvent gracefully"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server --test ws_agent_streaming",
+        "cargo test -p opencode-server -- ws",
+        "cargo clippy -p opencode-server -- -D warnings",
+        "cargo build -p opencode-server --release"
+      ],
+      "impl_notes": "Modify crates/server/src/routes/ws.rs and crates/server/src/routes/acpws.rs. AgentEvent types: ToolCall, ToolResult, Token, Message, Error, Complete.",
+      "dependencies": [
+        "FR-031",
+        "FR-032"
+      ]
+    },
+    {
+      "id": "FR-035",
+      "priority": "P1",
+      "title": "Connect Permission Reply to Permission System",
+      "description": "Connect permission_reply handler to actual permission system to process user approval/denial decisions. Connect to PermissionManager, update ApprovalQueue with user decisions, trigger re-evaluation of pending requests after approval, log decisions to audit trail.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify user approval triggers tool execution",
+        "AddUnitTest: verify user denial returns PermissionDenied error",
+        "AddIntegrationTest: verify approval queue is updated with user decision",
+        "AddRegressionTest: ensure pending requests are re-evaluated after approval",
+        "AddErrorHandlingTest: test permission_reply with invalid request returns error"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server --test permission_reply",
+        "cargo test -p opencode-permission -- --nocapture",
+        "cargo clippy -p opencode-server -- -D warnings",
+        "cargo build -p opencode-server --release"
+      ],
+      "impl_notes": "Modify crates/server/src/routes/permission.rs. Handler exists but not connected to PermissionManager.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-036",
+      "priority": "P1",
+      "title": "Implement SSE Streaming Response",
+      "description": "Implement chunked/streaming response for run and execute endpoints. Detect Accept: text/event-stream header, stream LLM tokens as they arrive using SSE format, include proper SSE formatting (data: {...}\\n\\n), handle connection interruption gracefully.",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: curl -H 'Accept: text/event-stream' -d '{\"prompt\":\"hi\"}' /api/run streams tokens",
+        "AddUnitTest: verify each token arrives as separate SSE event with data: prefix",
+        "AddIntegrationTest: verify connection close terminates streaming cleanly",
+        "AddRegressionTest: ensure non-SSE Accept header returns normal JSON response",
+        "AddErrorHandlingTest: test SSE streaming with interrupted connection handles gracefully"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server --test sse_streaming",
+        "cargo test -p opencode-server -- sse",
+        "cargo clippy -p opencode-server -- -D warnings",
+        "cargo build -p opencode-server --release"
+      ],
+      "impl_notes": "Modify crates/server/src/routes/run.rs and crates/server/src/routes/execute.rs. SSE format: data: {...}\\n\\n",
+      "dependencies": [
+        "FR-031",
+        "FR-032"
+      ]
+    },
+    {
+      "id": "FR-037",
+      "priority": "P2",
+      "title": "Complete SDK Documentation",
+      "description": "Complete SDK documentation for publishing to crates.io. Add cargo doc comments to all public items, create working examples for all public APIs, prepare README with installation instructions.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: cargo doc generates complete documentation without warnings",
+        "AddUnitTest: verify all public items have doc comments via doc coverage check",
+        "AddIntegrationTest: verify all examples in docs compile and run"
+      ],
+      "test_commands": [
+        "cargo doc -p opencode-sdk --no-deps",
+        "cargo doc --all-features --no-deps 2>&1 | grep -c warning || true",
+        "cargo clippy -p opencode-sdk -- -D warnings",
+        "cargo build -p opencode-sdk --release"
+      ],
+      "impl_notes": "Modify crates/sdk/src/**/*.rs. Publish to crates.io requires complete documentation.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-038",
+      "priority": "P2",
+      "title": "Document LSP Integration",
+      "description": "Document IDE extension support for LSP integration. Document VSCode LSP client setup, document Neovim LSP setup, list supported LSP features.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify VSCode LSP setup documentation exists and is complete",
+        "AddRegressionTest: verify Neovim LSP setup documentation exists and is complete",
+        "AddUnitTest: verify list of supported LSP features is documented"
+      ],
+      "test_commands": [
+        "cargo doc -p opencode-lsp --no-deps",
+        "cargo clippy -p opencode-lsp -- -D warnings",
+        "cargo build -p opencode-lsp --release"
+      ],
+      "impl_notes": "Create documentation in crates/lsp/. Document VSCode and Neovim setup, list supported LSP features.",
+      "dependencies": []
+    }
+  ]
+}
