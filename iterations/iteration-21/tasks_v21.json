@@ -1491,7 +1491,7 @@
       "priority": "P2",
       "title": "Verify security tests pass",
       "description": "Verify all security tests pass",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "RunTestSuite: verify all security tests pass"
       ],
