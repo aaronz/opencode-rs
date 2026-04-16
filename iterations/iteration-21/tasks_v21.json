@@ -1101,7 +1101,7 @@
       "priority": "P1",
       "title": "Create permission_integration_tests.rs",
       "description": "Create test file tests/src/permission_integration_tests.rs",
-      "status": "done",
+      "status": "manual_check",
       "test_criteria": [
         "AddIntegrationTest: verify test file compiles and runs"
       ],
@@ -1152,7 +1152,7 @@
       "priority": "P1",
       "title": "Add test: decision logged to audit trail",
       "description": "Add integration test: permission decision is logged to audit trail",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify decision appears in audit log"
       ],

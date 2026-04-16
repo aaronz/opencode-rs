@@ -1,4 +1,4 @@
-use crate::routes::error::{bad_request, json_error};
+use crate::routes::error::{bad_request, json_error, permission_denied_error};
 use crate::routes::validation::{validate_pagination, validate_session_id, RequestValidator};
 use crate::ServerState;
 use actix_web::{http::StatusCode, web, HttpResponse, Responder};
@@ -874,12 +874,24 @@ pub async fn permission_reply(
         }
     }
 
-    HttpResponse::Ok().json(serde_json::json!({
-        "status": "ok",
-        "session_id": session_id,
-        "request_id": req_id,
-        "decision": decision
-    }))
+    match decision.as_str() {
+        "allow" => HttpResponse::Ok().json(serde_json::json!({
+            "status": "ok",
+            "session_id": session_id,
+            "request_id": req_id,
+            "decision": decision
+        })),
+        "deny" => permission_denied_error(format!(
+            "Permission denied for session={}, request={}",
+            session_id, req_id
+        )),
+        _ => HttpResponse::Ok().json(serde_json::json!({
+            "status": "ok",
+            "session_id": session_id,
+            "request_id": req_id,
+            "decision": decision
+        })),
+    }
 }
 
 pub async fn summarize_session(
