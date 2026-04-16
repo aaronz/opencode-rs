@@ -117,4 +117,8 @@ pub async fn permission_reply(
 
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.route("", web::get().to(list_permissions));
+    cfg.route(
+        "/reply/{session_id}/{req_id}",
+        web::post().to(permission_reply),
+    );
 }
