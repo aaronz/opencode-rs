@@ -597,6 +597,47 @@ impl TestDsl {
 
         tester.assert_state_named(&lines, name)
     }
+
+    pub fn save_snapshot(&mut self, name: &str) -> Result<&mut Self> {
+        let buffer = self.last_render.as_ref().context(
+            "No buffer has been rendered yet. Render a widget first before saving snapshot.",
+        )?;
+
+        crate::save_snapshot(name, buffer)?;
+        Ok(self)
+    }
+
+    pub fn load_snapshot(&self, name: &str) -> Result<Buffer> {
+        crate::load_snapshot(name)
+    }
+
+    pub fn load_snapshot_and_assert_eq(&self, name: &str) -> Result<()>
+    where
+        Self: Sized,
+    {
+        let actual = self
+            .last_render
+            .as_ref()
+            .context("No buffer has been rendered yet. Render a widget first before comparing.")?;
+
+        let expected = crate::load_snapshot(name)?;
+
+        let diff = self.buffer_diff.as_ref().context(
+            "BufferDiff not configured. Use with_buffer_diff() to enable buffer comparison.",
+        )?;
+
+        let result = diff.diff(&expected, actual);
+
+        if !result.passed {
+            anyhow::bail!(
+                "Loaded snapshot '{}' does not match current buffer:\n{}",
+                name,
+                result
+            );
+        }
+
+        Ok(())
+    }
 }
 
 impl Default for TestDsl {
@@ -1340,5 +1381,252 @@ mod tests {
             .unwrap();
 
         assert!(!final_dsl.get_pty().is_none());
+    }
+
+    #[test]
+    fn test_save_snapshot_method_works() {
+        let mut dsl = TestDsl::new()
+            .with_size(20, 5)
+            .init_terminal()
+            .render(Paragraph::new(Text::from("Snapshot content")));
+
+        let snapshot_name = "test_save_snapshot_dsl";
+        let result = dsl.save_snapshot(snapshot_name);
+
+        assert!(result.is_ok(), "save_snapshot should succeed after render");
+
+        let loaded = crate::load_snapshot(snapshot_name);
+        assert!(loaded.is_ok(), "Snapshot should be loadable after save");
+
+        let loaded_buffer = loaded.unwrap();
+        let original_buffer = dsl.capture_buffer().unwrap();
+        assert_eq!(loaded_buffer.area.width, original_buffer.area.width);
+        assert_eq!(loaded_buffer.area.height, original_buffer.area.height);
+
+        std::fs::remove_file("snapshots/test_save_snapshot_dsl.json").ok();
+    }
+
+    #[test]
+    fn test_save_snapshot_returns_mut_self() {
+        let mut dsl = TestDsl::new()
+            .with_size(20, 5)
+            .init_terminal()
+            .render(Paragraph::new(Text::from("Content")));
+
+        let snapshot_name = "test_return_mut";
+        let result = dsl.save_snapshot(snapshot_name);
+
+        assert!(result.is_ok(), "save_snapshot should return Ok");
+        let dsl_ref = result.unwrap();
+        assert!(dsl_ref.last_render.is_some());
+
+        std::fs::remove_file("snapshots/test_return_mut.json").ok();
+    }
+
+    #[test]
+    fn test_save_snapshot_without_render_fails() {
+        let mut dsl = TestDsl::new().with_size(20, 5).init_terminal();
+
+        let result = dsl.save_snapshot("should_fail");
+
+        assert!(
+            result.is_err(),
+            "save_snapshot should fail when no render has occurred"
+        );
+        let err_msg = format!("{}", result.unwrap_err());
+        assert!(
+            err_msg.contains("No buffer has been rendered yet"),
+            "Error should mention missing render: {}",
+            err_msg
+        );
+    }
+
+    #[test]
+    fn test_load_snapshot_method_works() {
+        use ratatui::buffer::Buffer;
+        use ratatui::layout::Rect;
+
+        let area = Rect::new(0, 0, 20, 5);
+        let mut buffer = Buffer::empty(area);
+        for (i, c) in "Load test content".chars().enumerate() {
+            if i < buffer.content.len() {
+                buffer.content[i].set_symbol(c.to_string().as_str());
+            }
+        }
+
+        let snapshot_name = "test_load_snapshot_dsl";
+        crate::save_snapshot(snapshot_name, &buffer).unwrap();
+
+        let dsl = TestDsl::new()
+            .with_size(20, 5)
+            .init_terminal()
+            .render(Paragraph::new(Text::from("Different content")));
+
+        let result = dsl.load_snapshot(snapshot_name);
+
+        assert!(
+            result.is_ok(),
+            "load_snapshot should successfully load saved snapshot"
+        );
+
+        let loaded = result.unwrap();
+        assert_eq!(loaded.area.width, buffer.area.width);
+        assert_eq!(loaded.area.height, buffer.area.height);
+
+        std::fs::remove_file("snapshots/test_load_snapshot_dsl.json").ok();
+    }
+
+    #[test]
+    fn test_load_snapshot_nonexistent_fails() {
+        let dsl = TestDsl::new().with_size(20, 5).init_terminal();
+
+        let result = dsl.load_snapshot("nonexistent_snapshot_xyz_12345");
+
+        assert!(
+            result.is_err(),
+            "load_snapshot should fail for nonexistent snapshot"
+        );
+    }
+
+    #[test]
+    fn test_load_snapshot_and_assert_eq_passes_with_matching() {
+        let mut dsl = TestDsl::new()
+            .with_size(20, 5)
+            .init_terminal()
+            .with_buffer_diff()
+            .render(Paragraph::new(Text::from("Matching content")));
+
+        let snapshot_name = "test_assert_eq_pass";
+        dsl.save_snapshot(snapshot_name).unwrap();
+
+        let result = dsl.load_snapshot_and_assert_eq(snapshot_name);
+
+        assert!(
+            result.is_ok(),
+            "load_snapshot_and_assert_eq should pass when content matches"
+        );
+
+        std::fs::remove_file("snapshots/test_assert_eq_pass.json").ok();
+    }
+
+    #[test]
+    fn test_load_snapshot_and_assert_eq_fails_with_mismatch() {
+        let mut dsl = TestDsl::new()
+            .with_size(20, 5)
+            .init_terminal()
+            .with_buffer_diff()
+            .render(Paragraph::new(Text::from("Original content")));
+
+        let snapshot_name = "test_assert_eq_fail";
+        dsl.save_snapshot(snapshot_name).unwrap();
+
+        let dsl2 = TestDsl::new()
+            .with_size(20, 5)
+            .init_terminal()
+            .with_buffer_diff()
+            .render(Paragraph::new(Text::from("Different content")));
+
+        let result = dsl2.load_snapshot_and_assert_eq(snapshot_name);
+
+        assert!(
+            result.is_err(),
+            "load_snapshot_and_assert_eq should fail when content differs"
+        );
+
+        std::fs::remove_file("snapshots/test_assert_eq_fail.json").ok();
+    }
+
+    #[test]
+    fn test_snapshot_with_version_name() {
+        let mut dsl = TestDsl::new()
+            .with_size(20, 5)
+            .init_terminal()
+            .render(Paragraph::new(Text::from("Versioned content")));
+
+        let snapshot_name = "test_snapshot@v1";
+        let result = dsl.save_snapshot(snapshot_name);
+
+        assert!(
+            result.is_ok(),
+            "save_snapshot should support versioned names like 'name@v1'"
+        );
+
+        let loaded = crate::load_snapshot(snapshot_name);
+        assert!(
+            loaded.is_ok(),
+            "load_snapshot should work with versioned names"
+        );
+
+        std::fs::remove_file("snapshots/test_snapshot@v1.json").ok();
+    }
+
+    #[test]
+    fn test_snapshot_fluent_api_chaining() {
+        let mut dsl = TestDsl::new()
+            .with_size(20, 5)
+            .init_terminal()
+            .with_buffer_diff()
+            .render(Paragraph::new(Text::from("Chain test")));
+
+        let snapshot_name = "test_fluent_chain";
+
+        let result = dsl.save_snapshot(snapshot_name).and_then(|dsl| {
+            let _ = dsl.load_snapshot_and_assert_eq(snapshot_name)?;
+            Ok(dsl)
+        });
+
+        assert!(
+            result.is_ok(),
+            "Fluent chaining with save_snapshot and load_snapshot_and_assert_eq should work"
+        );
+
+        std::fs::remove_file("snapshots/test_fluent_chain.json").ok();
+    }
+
+    #[test]
+    fn test_snapshot_multiple_versions_chaining() {
+        let mut dsl = TestDsl::new()
+            .with_size(20, 5)
+            .init_terminal()
+            .with_buffer_diff()
+            .render(Paragraph::new(Text::from("Version 1")));
+
+        let v1_name = "multi_version@v1";
+        dsl.save_snapshot(v1_name).unwrap();
+
+        dsl = dsl.render(Paragraph::new(Text::from("Version 2")));
+        let v2_name = "multi_version@v2";
+        dsl.save_snapshot(v2_name).unwrap();
+
+        let v1_loaded = dsl.load_snapshot(v1_name);
+        let v2_loaded = dsl.load_snapshot(v2_name);
+
+        assert!(v1_loaded.is_ok(), "Should load v1 snapshot");
+        assert!(v2_loaded.is_ok(), "Should load v2 snapshot");
+
+        let v1_lines = v1_loaded
+            .unwrap()
+            .content
+            .iter()
+            .map(|c| c.symbol().to_string())
+            .collect::<String>();
+        let v2_lines = v2_loaded
+            .unwrap()
+            .content
+            .iter()
+            .map(|c| c.symbol().to_string())
+            .collect::<String>();
+
+        assert!(
+            v1_lines.contains("Version 1"),
+            "V1 should contain 'Version 1'"
+        );
+        assert!(
+            v2_lines.contains("Version 2"),
+            "V2 should contain 'Version 2'"
+        );
+
+        std::fs::remove_file("snapshots/multi_version@v1.json").ok();
+        std::fs::remove_file("snapshots/multi_version@v2.json").ok();
     }
 }

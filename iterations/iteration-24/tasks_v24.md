@@ -204,7 +204,7 @@
 
 ### Task 2.8: Integrate snapshot with TestDsl
 **FR:** FR-108  
-**Status:** TODO  
+**Status:** ✅ Done  
 **Priority:** P2  
 **Effort:** Medium
 
@@ -214,10 +214,10 @@
 - Support snapshot naming and versioning
 
 **Acceptance Criteria:**
-- [ ] `TestDsl::save_snapshot()` works
-- [ ] `TestDsl::load_snapshot()` works
-- [ ] Fluent API chaining works
-- [ ] Integration tests pass
+- [x] `TestDsl::save_snapshot()` works
+- [x] `TestDsl::load_snapshot()` works
+- [x] Fluent API chaining works
+- [x] Integration tests pass
 
 ---
 

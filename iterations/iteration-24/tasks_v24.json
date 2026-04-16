@@ -190,7 +190,7 @@
       "priority": "P2",
       "title": "Create snapshot.rs module",
       "description": "Create `src/snapshot.rs` module. Add `load_snapshot(name: &str) -> Result<Buffer>`. Add `save_snapshot(name: &str, buffer: &Buffer) -> Result<()>`. Organized directory structure for snapshots.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify src/snapshot.rs module is created",
         "AddUnitTest: verify load_snapshot(name: &str) returns Result<Buffer>",
@@ -210,7 +210,7 @@
       "priority": "P2",
       "title": "Integrate snapshot with TestDsl",
       "description": "Add `save_snapshot()` method to TestDsl. Add `load_snapshot()` method to TestDsl. Support snapshot naming and versioning.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify TestDsl::save_snapshot() method works",
         "AddUnitTest: verify TestDsl::load_snapshot() method works",

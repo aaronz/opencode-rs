@@ -563,3 +563,88 @@ fn test_send_keys_fluent_chaining_integration() {
         "PTY should still be running after send_keys"
     );
 }
+
+#[test]
+fn test_snapshot_fluent_api_chaining_integration() {
+    let mut dsl = TestDsl::new()
+        .with_size(80, 24)
+        .init_terminal()
+        .with_buffer_diff()
+        .render(Paragraph::new(Text::from("Snapshot integration test")));
+
+    let snapshot_name = "integration_snapshot_test";
+
+    let result = dsl
+        .save_snapshot(snapshot_name)
+        .and_then(|dsl| {
+            let _ = dsl.load_snapshot_and_assert_eq(snapshot_name)?;
+            Ok(dsl)
+        })
+        .and_then(|dsl| {
+            let _ = dsl.load_snapshot(snapshot_name)?;
+            Ok(dsl)
+        });
+
+    assert!(
+        result.is_ok(),
+        "Fluent chaining with snapshot methods should work: {:?}",
+        result
+    );
+
+    std::fs::remove_file("snapshots/integration_snapshot_test.json").ok();
+}
+
+#[test]
+fn test_snapshot_versioned_fluent_chaining_integration() {
+    let mut dsl = TestDsl::new()
+        .with_size(80, 24)
+        .init_terminal()
+        .with_buffer_diff()
+        .render(Paragraph::new(Text::from("Version 1 content")));
+
+    dsl.save_snapshot("integration@v1").unwrap();
+
+    dsl = dsl.render(Paragraph::new(Text::from("Version 2 content")));
+    dsl.save_snapshot("integration@v2").unwrap();
+
+    dsl = dsl.render(Paragraph::new(Text::from("Version 3 content")));
+    let result = dsl.save_snapshot("integration@v3").and_then(|dsl| {
+        let v1 = dsl.load_snapshot("integration@v1")?;
+        let v2 = dsl.load_snapshot("integration@v2")?;
+        let v3 = dsl.load_snapshot("integration@v3")?;
+        assert!(v1.area.width == v2.area.width);
+        assert!(v2.area.width == v3.area.width);
+        Ok(dsl)
+    });
+
+    assert!(
+        result.is_ok(),
+        "Versioned snapshot chaining should work: {:?}",
+        result
+    );
+
+    std::fs::remove_file("snapshots/integration@v1.json").ok();
+    std::fs::remove_file("snapshots/integration@v2.json").ok();
+    std::fs::remove_file("snapshots/integration@v3.json").ok();
+}
+
+#[test]
+fn test_snapshot_multiple_save_load_cycle_integration() {
+    let mut dsl = TestDsl::new()
+        .with_size(40, 10)
+        .init_terminal()
+        .with_buffer_diff();
+
+    let base_name = "cycle_snapshot";
+
+    for i in 1..=3 {
+        dsl = dsl.render(Paragraph::new(Text::from(format!("Cycle step {}", i))));
+        let snapshot_name = format!("{}@v{}", base_name, i);
+        dsl.save_snapshot(&snapshot_name).unwrap();
+
+        let loaded = dsl.load_snapshot(&snapshot_name);
+        assert!(loaded.is_ok(), "Should load snapshot v{}", i);
+
+        std::fs::remove_file(format!("snapshots/{}@v{}.json", base_name, i)).ok();
+    }
+}
