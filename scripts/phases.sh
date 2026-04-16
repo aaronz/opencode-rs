@@ -416,11 +416,15 @@ $(echo "$task_details" | python3 -c "import sys,json; d=json.load(sys.stdin); pr
         test_output=$(cd opencode-rust && eval "$test_commands" 2>&1) && test_passed=true || test_passed=false
 
         if [ "$test_passed" = false ]; then
-            echo "⚠️  再次测试失败，需要手动检查"
+            echo "⚠️  再次测试失败，标记为需手动检查，继续处理下一任务"
             echo "失败输出:"
             echo "$test_output"
-            update_task_status "$task_json" "$task_id" "in_progress"
-            return 1
+            update_task_status "$task_json" "$task_id" "manual_check"
+            local task_md_file="${task_json%.json}.md"
+            if [ -f "$task_md_file" ]; then
+                sed -i '' "s/^### $task_id:.*/### $task_id: ⚠️ Manual Check/" "$task_md_file" 2>/dev/null || true
+            fi
+            continue
         fi
     fi
 
