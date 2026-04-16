@@ -982,7 +982,7 @@
       "priority": "P1",
       "title": "Add test: connection close terminates cleanly",
       "description": "Add integration test: connection close terminates stream cleanly",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddErrorHandlingTest: verify server handles connection close gracefully"
       ],
