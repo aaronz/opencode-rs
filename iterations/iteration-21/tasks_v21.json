@@ -999,7 +999,7 @@
       "priority": "P1",
       "title": "Verify streaming build and tests pass",
       "description": "Verify build and tests pass for streaming response",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "RunTestSuite: verify cargo build -p opencode-server succeeds",
         "RunTestSuite: verify cargo test -p opencode-integration-tests streaming passes"
