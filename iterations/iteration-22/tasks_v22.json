@@ -29,7 +29,7 @@
       "priority": "P0",
       "title": "Refactor Run Endpoint to Use AgentExecutor",
       "description": "Refactor run_prompt in run.rs to integrate with AgentExecutor and ToolRegistry for full tool-aware execution. Enable streaming response with SSE for progressive token output and propagate tool errors properly to response.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify POST /api/run executes tools via AgentExecutor",
         "AddUnitTest: verify tool results appear in response body via run endpoint",
@@ -53,7 +53,7 @@
       "priority": "P1",
       "title": "Implement Server Status Endpoint",
       "description": "Add GET /api/status endpoint for server health and status information. Create status.rs with status handler, implement response with version, status, uptime_seconds, session stats, provider status array, and plugin list. No authentication required.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify GET /api/status returns 200 with correct JSON structure",
         "AddUnitTest: verify response contains version, status, uptime_seconds fields",

@@ -88,7 +88,7 @@ The P0 gap (`POST /api/sessions/{id}/execute`) identified in iteration-21 **rema
 | Auth/Security | ✅ Compliant | - | - |
 | Permission HTTP Integration | ⚠️ Partial | P1 | FR-035 |
 | WebSocket Streaming | ⚠️ Not Integrated | P1 | FR-034 |
-| Server Status Endpoint | ❌ Missing | P1 | FR-033 |
+| Server Status Endpoint | ✅ Implemented | P1 | FR-033 |
 | Streaming Response | ❌ Missing | P1 | FR-036 |
 | SDK Documentation | ⚠️ Incomplete | P2 | FR-037 |
 | LSP Integration Docs | ⚠️ Incomplete | P2 | FR-038 |
@@ -101,7 +101,7 @@ The P0 gap (`POST /api/sessions/{id}/execute`) identified in iteration-21 **rema
 |-------|---------|----------|--------|---------------|
 | FR-031 | Session Execute Endpoint | **P0** | Not Implemented | PRD §6.1 |
 | FR-032 | Run Endpoint Tool Integration | **P0** | Not Implemented | PRD §6.1 |
-| FR-033 | Server Status Endpoint | P1 | Not Implemented | PRD §6.1 |
+| FR-033 | Server Status Endpoint | P1 | ✅ Done | PRD §6.1 |
 | FR-034 | WebSocket Agent Streaming | P1 | Not Integrated | PRD §6.1 |
 | FR-035 | Permission Reply Integration | P1 | Partial | PRD §3.4, §6.2 |
 | FR-036 | Streaming Response Support | P1 | Not Implemented | PRD §6.1 |
@@ -634,7 +634,7 @@ Document IDE extension support for LSP integration.
 
 ```
 GET  /health                           - Health check ✅
-GET  /api/status                        - ❌ MISSING (P1) FR-033
+GET  /api/status                        - ✅ Implemented (P1) FR-033
 GET  /api/config                        - Config routes ✅
 GET  /api/providers                     - Provider routes ✅
 GET  /api/models                        - Model routes ✅
@@ -702,7 +702,7 @@ GET  /api/status                        - Server status ⬅️ FR-033 (P1)
 |--------|-------------|-------|----------|
 | P0-1 | Execute endpoint missing | FR-031 | P0 |
 | P0-2 | Run endpoint no tool integration | FR-032 | P0 |
-| P1-1 | Missing /api/status | FR-033 | P1 |
+| P1-1 | /api/status implemented | FR-033 | P1 |
 | P1-2 | WebSocket not integrated | FR-034 | P1 |
 | P1-3 | Permission reply not connected | FR-035 | P1 |
 | P1-4 | Streaming not implemented | FR-036 | P1 |
