@@ -33,7 +33,7 @@
 | T-008 | Fix path normalization traversal test | `tests/src/security_tests.rs` | 1 hour | ✅ Done |
 | T-009 | Fix message content sanitization test | `tests/src/security_tests.rs` | 1 hour | Failing |
 | T-010 | Fix XSS prevention test | `tests/src/security_tests.rs` | 1 hour | ✅ Done |
-| T-011 | Fix write tool path validation test | `tests/src/tool_registry_audit_tests.rs` | 1 hour | Failing |
+| T-011 | Fix write tool path validation test | `tests/src/tool_registry_audit_tests.rs` | 1 hour | ✅ Done |
 
 ---
 

