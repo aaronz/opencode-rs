@@ -540,7 +540,7 @@
       "priority": "P0",
       "title": "Add test: tool call events stream in real-time",
       "description": "Add integration test: tool call events stream in real-time via WebSocket",
-      "status": "done",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify tool call events appear in WebSocket stream"
       ],
@@ -557,7 +557,7 @@
       "priority": "P0",
       "title": "Add test: multiple clients receive same events",
       "description": "Add integration test: multiple clients connected to same session receive identical events",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify two clients receive same events"
       ],
@@ -574,7 +574,7 @@
       "priority": "P0",
       "title": "Add test: client disconnect doesn't crash server",
       "description": "Add integration test: client disconnect is handled gracefully without server crash",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddErrorHandlingTest: verify server handles client disconnect without crashing"
       ],

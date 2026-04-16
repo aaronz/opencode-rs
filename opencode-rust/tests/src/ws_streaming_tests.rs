@@ -788,6 +788,260 @@ async fn test_tool_events_stream_realtime() {
     server_handle.abort();
 }
 
+#[tokio::test]
+async fn test_multiple_clients_receive_same_events() {
+    use opencode_core::bus::InternalEvent;
+
+    let (ws_url, server_handle, state_data) = start_ws_test_server_with_state(0).await;
+
+    let ws_url_with_session =
+        ws_url.replace("/test-session", "?session_id=test-multi-client-session");
+
+    let (mut ws1, _) = tokio_tungstenite::connect_async(&ws_url_with_session)
+        .await
+        .expect("First client should connect to WebSocket endpoint");
+
+    let connected_msg1 = ws1.next().await;
+    assert!(
+        connected_msg1.is_some(),
+        "First client should receive connected message"
+    );
+    let connected_text1 = connected_msg1
+        .unwrap()
+        .expect("Message should not be error")
+        .into_text()
+        .expect("Should be text message");
+    let connected_parsed1: serde_json::Value =
+        serde_json::from_str(&connected_text1).expect("Should parse as JSON");
+    assert_eq!(
+        connected_parsed1.get("type").and_then(|v| v.as_str()),
+        Some("connected"),
+        "First message should be Connected type"
+    );
+    assert_eq!(
+        connected_parsed1.get("session_id").and_then(|v| v.as_str()),
+        Some("test-multi-client-session"),
+        "Session ID should be test-multi-client-session"
+    );
+
+    let (mut ws2, _) = tokio_tungstenite::connect_async(&ws_url_with_session)
+        .await
+        .expect("Second client should connect to WebSocket endpoint");
+
+    let connected_msg2 = ws2.next().await;
+    assert!(
+        connected_msg2.is_some(),
+        "Second client should receive connected message"
+    );
+    let connected_text2 = connected_msg2
+        .unwrap()
+        .expect("Message should not be error")
+        .into_text()
+        .expect("Should be text message");
+    let connected_parsed2: serde_json::Value =
+        serde_json::from_str(&connected_text2).expect("Should parse as JSON");
+    assert_eq!(
+        connected_parsed2.get("type").and_then(|v| v.as_str()),
+        Some("connected"),
+        "Second client first message should be Connected type"
+    );
+    assert_eq!(
+        connected_parsed2.get("session_id").and_then(|v| v.as_str()),
+        Some("test-multi-client-session"),
+        "Session ID should be test-multi-client-session"
+    );
+
+    let event_bus = &state_data.event_bus;
+
+    event_bus.publish(InternalEvent::ToolCallStarted {
+        session_id: "test-multi-client-session".to_string(),
+        tool_name: "read".to_string(),
+        call_id: "call-multi-123".to_string(),
+    });
+
+    let tool_call_msg1 = ws1.next().await;
+    let tool_call_msg2 = ws2.next().await;
+
+    assert!(
+        tool_call_msg1.is_some(),
+        "First client should receive tool call event"
+    );
+    assert!(
+        tool_call_msg2.is_some(),
+        "Second client should receive tool call event"
+    );
+
+    let tool_call_text1 = tool_call_msg1
+        .unwrap()
+        .expect("Message should not be error")
+        .into_text()
+        .expect("Should be text message");
+    let tool_call_text2 = tool_call_msg2
+        .unwrap()
+        .expect("Message should not be error")
+        .into_text()
+        .expect("Should be text message");
+
+    let tool_call_parsed1: serde_json::Value =
+        serde_json::from_str(&tool_call_text1).expect("Should parse as JSON");
+    let tool_call_parsed2: serde_json::Value =
+        serde_json::from_str(&tool_call_text2).expect("Should parse as JSON");
+
+    assert_eq!(
+        tool_call_parsed1.get("type").and_then(|v| v.as_str()),
+        Some("tool_call"),
+        "First client should receive tool_call type"
+    );
+    assert_eq!(
+        tool_call_parsed2.get("type").and_then(|v| v.as_str()),
+        Some("tool_call"),
+        "Second client should receive tool_call type"
+    );
+    assert_eq!(
+        tool_call_parsed1.get("session_id").and_then(|v| v.as_str()),
+        Some("test-multi-client-session"),
+        "First client session ID should match"
+    );
+    assert_eq!(
+        tool_call_parsed2.get("session_id").and_then(|v| v.as_str()),
+        Some("test-multi-client-session"),
+        "Second client session ID should match"
+    );
+    assert_eq!(
+        tool_call_parsed1.get("tool_name").and_then(|v| v.as_str()),
+        Some("read"),
+        "First client tool name should be 'read'"
+    );
+    assert_eq!(
+        tool_call_parsed2.get("tool_name").and_then(|v| v.as_str()),
+        Some("read"),
+        "Second client tool name should be 'read'"
+    );
+    assert_eq!(
+        tool_call_parsed1.get("call_id").and_then(|v| v.as_str()),
+        Some("call-multi-123"),
+        "First client call ID should match"
+    );
+    assert_eq!(
+        tool_call_parsed2.get("call_id").and_then(|v| v.as_str()),
+        Some("call-multi-123"),
+        "Second client call ID should match"
+    );
+
+    event_bus.publish(InternalEvent::ToolCallEnded {
+        session_id: "test-multi-client-session".to_string(),
+        call_id: "call-multi-123".to_string(),
+        success: true,
+    });
+
+    let tool_result_msg1 = ws1.next().await;
+    let tool_result_msg2 = ws2.next().await;
+
+    assert!(
+        tool_result_msg1.is_some(),
+        "First client should receive tool result event"
+    );
+    assert!(
+        tool_result_msg2.is_some(),
+        "Second client should receive tool result event"
+    );
+
+    let tool_result_text1 = tool_result_msg1
+        .unwrap()
+        .expect("Message should not be error")
+        .into_text()
+        .expect("Should be text message");
+    let tool_result_text2 = tool_result_msg2
+        .unwrap()
+        .expect("Message should not be error")
+        .into_text()
+        .expect("Should be text message");
+
+    let tool_result_parsed1: serde_json::Value =
+        serde_json::from_str(&tool_result_text1).expect("Should parse as JSON");
+    let tool_result_parsed2: serde_json::Value =
+        serde_json::from_str(&tool_result_text2).expect("Should parse as JSON");
+
+    assert_eq!(
+        tool_result_parsed1.get("type").and_then(|v| v.as_str()),
+        Some("tool_result"),
+        "First client should receive tool_result type"
+    );
+    assert_eq!(
+        tool_result_parsed2.get("type").and_then(|v| v.as_str()),
+        Some("tool_result"),
+        "Second client should receive tool_result type"
+    );
+    assert_eq!(
+        tool_result_parsed1.get("success").and_then(|v| v.as_bool()),
+        Some(true),
+        "First client success should be true"
+    );
+    assert_eq!(
+        tool_result_parsed2.get("success").and_then(|v| v.as_bool()),
+        Some(true),
+        "Second client success should be true"
+    );
+
+    event_bus.publish(InternalEvent::AgentStatusChanged {
+        session_id: "test-multi-client-session".to_string(),
+        status: "processing".to_string(),
+    });
+
+    let status_msg1 = ws1.next().await;
+    let status_msg2 = ws2.next().await;
+
+    assert!(
+        status_msg1.is_some(),
+        "First client should receive status update"
+    );
+    assert!(
+        status_msg2.is_some(),
+        "Second client should receive status update"
+    );
+
+    let status_text1 = status_msg1
+        .unwrap()
+        .expect("Message should not be error")
+        .into_text()
+        .expect("Should be text message");
+    let status_text2 = status_msg2
+        .unwrap()
+        .expect("Message should not be error")
+        .into_text()
+        .expect("Should be text message");
+
+    let status_parsed1: serde_json::Value =
+        serde_json::from_str(&status_text1).expect("Should parse as JSON");
+    let status_parsed2: serde_json::Value =
+        serde_json::from_str(&status_text2).expect("Should parse as JSON");
+
+    assert_eq!(
+        status_parsed1.get("type").and_then(|v| v.as_str()),
+        Some("session_update"),
+        "First client should receive session_update type"
+    );
+    assert_eq!(
+        status_parsed2.get("type").and_then(|v| v.as_str()),
+        Some("session_update"),
+        "Second client should receive session_update type"
+    );
+    assert_eq!(
+        status_parsed1.get("status").and_then(|v| v.as_str()),
+        Some("processing"),
+        "First client status should be 'processing'"
+    );
+    assert_eq!(
+        status_parsed2.get("status").and_then(|v| v.as_str()),
+        Some("processing"),
+        "Second client status should be 'processing'"
+    );
+
+    let _ = ws_close(&mut ws1).await;
+    let _ = ws_close(&mut ws2).await;
+    server_handle.abort();
+}
+
 async fn start_ws_test_server_with_state(
     port: u16,
 ) -> (
@@ -820,4 +1074,41 @@ async fn start_ws_test_server_with_state(
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     (ws_url, handle, state_data)
+}
+
+#[tokio::test]
+async fn test_client_disconnect_no_crash() {
+    let (ws_url, server_handle) = start_ws_test_server(0).await;
+
+    let ws_url_with_session = ws_url.replace("/test-session", "?session_id=disconnect-crash-test");
+
+    let (mut ws, _) = tokio_tungstenite::connect_async(&ws_url_with_session)
+        .await
+        .expect("Should connect to WebSocket endpoint");
+
+    let msg = ws.next().await;
+    assert!(msg.is_some(), "Should receive a message after connection");
+    drop(ws);
+
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    let (ws_url2, server_handle2) = start_ws_test_server(0).await;
+    let ws_url_with_session2 = ws_url2.replace("/test-session", "?session_id=new-session");
+
+    let result = tokio_tungstenite::connect_async(&ws_url_with_session2).await;
+    assert!(
+        result.is_ok(),
+        "Server should still be operating after client disconnect"
+    );
+
+    let (mut ws2, _) = result.expect("Should reconnect");
+    let msg2 = ws2.next().await;
+    assert!(
+        msg2.is_some(),
+        "Should receive connection message on new client"
+    );
+
+    ws_close(&mut ws2).await;
+    server_handle.abort();
+    server_handle2.abort();
 }
