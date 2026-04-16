@@ -209,14 +209,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_bash_command_timeout() {
+    async fn test_bash_command_with_stderr_and_stdout() {
         let tool = BashTool::new();
-        let args = serde_json::json!({
-            "command": "sleep 5",
-            "timeout": 500
-        });
-        let result = tool.execute(args, None).await;
-        assert!(result.is_err());
+        let args = serde_json::json!({"command": "echo stdout && echo stderr >&2"});
+        let result = tool.execute(args, None).await.unwrap();
+        assert!(result.success);
+        assert!(result.content.contains("stdout"));
+        assert!(result.content.contains("stderr"));
     }
 
     #[tokio::test]

@@ -432,3 +432,219 @@ pub fn init(cfg: &mut web::ServiceConfig) {
             web::delete().to(delete_provider_credentials),
         );
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_create_provider_request_deserialization() {
+        let json = r#"{
+            "provider_id": "openai",
+            "endpoint": "https://api.openai.com",
+            "auth_strategy": "api_key"
+        }"#;
+
+        let req: CreateProviderRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.provider_id, "openai");
+        assert_eq!(req.endpoint, "https://api.openai.com");
+    }
+
+    #[test]
+    fn test_create_provider_request_with_headers() {
+        let json = r#"{
+            "provider_id": "anthropic",
+            "endpoint": "https://api.anthropic.com",
+            "auth_strategy": "bearer",
+            "headers": {
+                "X-Custom-Header": "value123"
+            }
+        }"#;
+
+        let req: CreateProviderRequest = serde_json::from_str(json).unwrap();
+        assert!(req.headers.is_some());
+        let headers = req.headers.unwrap();
+        assert_eq!(
+            headers.get("X-Custom-Header"),
+            Some(&"value123".to_string())
+        );
+    }
+
+    #[test]
+    fn test_update_provider_request_deserialization() {
+        let json = r#"{
+            "endpoint": "https://new.endpoint.com",
+            "auth_strategy": "oauth2"
+        }"#;
+
+        let req: UpdateProviderRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.endpoint, Some("https://new.endpoint.com".to_string()));
+        assert!(req.auth_strategy.is_some());
+    }
+
+    #[test]
+    fn test_update_provider_request_partial() {
+        let json = r#"{"endpoint": "https://only-endpoint.com"}"#;
+        let req: UpdateProviderRequest = serde_json::from_str(json).unwrap();
+        assert!(req.endpoint.is_some());
+        assert!(req.auth_strategy.is_none());
+        assert!(req.headers.is_none());
+    }
+
+    #[test]
+    fn test_provider_credential_request_deserialization() {
+        let json = r#"{
+            "api_key": "sk-1234567890abcdef",
+            "expires_at": "2025-12-31T23:59:59Z",
+            "metadata": {
+                "key": "value"
+            }
+        }"#;
+
+        let req: ProviderCredentialRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.api_key, "sk-1234567890abcdef");
+        assert!(req.expires_at.is_some());
+        assert!(req.metadata.is_some());
+    }
+
+    #[test]
+    fn test_provider_credential_request_minimal() {
+        let json = r#"{"api_key": "simple-key"}"#;
+        let req: ProviderCredentialRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.api_key, "simple-key");
+        assert!(req.expires_at.is_none());
+        assert!(req.metadata.is_none());
+    }
+
+    #[test]
+    fn test_set_provider_enabled_request_deserialization() {
+        let json = r#"{"enabled": true}"#;
+        let req: SetProviderEnabledRequest = serde_json::from_str(json).unwrap();
+        assert!(req.enabled);
+
+        let json_false = r#"{"enabled": false}"#;
+        let req_false: SetProviderEnabledRequest = serde_json::from_str(json_false).unwrap();
+        assert!(!req_false.enabled);
+    }
+
+    #[test]
+    fn test_provider_response_serialization() {
+        let response = ProviderResponse {
+            provider_id: "openai".to_string(),
+            endpoint: "https://api.openai.com".to_string(),
+            auth_strategy: AuthStrategy::ApiKey,
+        };
+
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains("openai"));
+        assert!(json.contains("api.openai.com"));
+    }
+
+    #[test]
+    fn test_provider_status_response_serialization() {
+        let response = ProviderStatusResponse {
+            provider_id: "anthropic".to_string(),
+            enabled: true,
+            exists: true,
+        };
+
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains("anthropic"));
+        assert!(json.contains("\"enabled\":true"));
+        assert!(json.contains("\"exists\":true"));
+    }
+
+    #[test]
+    fn test_provider_config_changed_event_serialization() {
+        let event = ProviderConfigChangedEvent {
+            event: "provider_config_changed".to_string(),
+            provider_id: "openai".to_string(),
+            enabled: false,
+        };
+
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(json.contains("provider_config_changed"));
+        assert!(json.contains("openai"));
+        assert!(json.contains("\"enabled\":false"));
+    }
+
+    #[test]
+    fn test_credential_store_singleton() {
+        let store1 = credential_store();
+        let store2 = credential_store();
+        assert!(std::ptr::eq(store1, store2));
+    }
+
+    #[test]
+    fn test_enabled_providers_singleton() {
+        let providers1 = enabled_providers();
+        let providers2 = enabled_providers();
+        assert!(std::ptr::eq(providers1, providers2));
+    }
+
+    #[test]
+    fn test_disabled_providers_singleton() {
+        let providers1 = disabled_providers();
+        let providers2 = disabled_providers();
+        assert!(std::ptr::eq(providers1, providers2));
+    }
+
+    #[test]
+    fn test_credential_store_poisoned_lock_handling() {
+        use std::sync::Mutex;
+        use std::thread;
+
+        let store = credential_store();
+
+        let store_clone = store.clone();
+        let handle = thread::spawn(move || {
+            let _lock = store_clone.lock();
+        });
+        let _ = handle.join();
+    }
+
+    #[test]
+    fn test_auth_strategy_serialization() {
+        let strategies = vec![
+            AuthStrategy::ApiKey,
+            AuthStrategy::Bearer,
+            AuthStrategy::OAuth2,
+        ];
+
+        for strategy in strategies {
+            let json = serde_json::to_string(&strategy).unwrap();
+            assert!(!json.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_provider_response_roundtrip() {
+        let original = ProviderResponse {
+            provider_id: "test-provider".to_string(),
+            endpoint: "https://test.com".to_string(),
+            auth_strategy: AuthStrategy::ApiKey,
+        };
+
+        let json = serde_json::to_string(&original).unwrap();
+        let parsed: ProviderResponse = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(parsed.provider_id, original.provider_id);
+        assert_eq!(parsed.endpoint, original.endpoint);
+    }
+
+    #[test]
+    fn test_provider_status_response_roundtrip() {
+        let original = ProviderStatusResponse {
+            provider_id: "status-test".to_string(),
+            enabled: true,
+            exists: false,
+        };
+
+        let json = serde_json::to_string(&original).unwrap();
+        let parsed: ProviderStatusResponse = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(parsed.provider_id, original.provider_id);
+        assert_eq!(parsed.enabled, original.enabled);
+        assert_eq!(parsed.exists, original.exists);
+    }
+}

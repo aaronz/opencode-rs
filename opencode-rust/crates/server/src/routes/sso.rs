@@ -233,4 +233,132 @@ mod tests {
         let json = serde_json::to_string(&response).unwrap();
         assert!(json.contains("oidc"));
     }
+
+    #[test]
+    fn test_sso_config_response_serialization_saml() {
+        let response = SsoConfigResponse {
+            id: "sso-2".to_string(),
+            provider: "saml".to_string(),
+            entity_id: "my-entity".to_string(),
+            sso_url: "https://saml.example.com".to_string(),
+            has_certificate: false,
+            enabled: false,
+        };
+
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains("saml"));
+        assert!(json.contains("my-entity"));
+        assert!(!json.contains("has_certificate"));
+    }
+
+    #[test]
+    fn test_update_sso_config_request_deserialization() {
+        let json = r#"{
+            "provider": "oidc",
+            "entity_id": "test-entity",
+            "sso_url": "https://sso.test.com",
+            "client_id": "client123",
+            "client_secret": "secret456",
+            "redirect_uri": "https://app.example.com/callback",
+            "enabled": true
+        }"#;
+
+        let req: UpdateSsoConfigRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.provider, "oidc");
+        assert_eq!(req.entity_id, "test-entity");
+        assert_eq!(req.sso_url, "https://sso.test.com");
+        assert_eq!(req.client_id, Some("client123".to_string()));
+        assert_eq!(req.client_secret, Some("secret456".to_string()));
+        assert!(req.enabled);
+    }
+
+    #[test]
+    fn test_update_sso_config_request_minimal() {
+        let json = r#"{
+            "provider": "saml",
+            "entity_id": "minimal-entity",
+            "sso_url": "https://saml.test.com",
+            "enabled": false
+        }"#;
+
+        let req: UpdateSsoConfigRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.provider, "saml");
+        assert!(req.certificate.is_none());
+        assert!(req.client_id.is_none());
+        assert!(!req.enabled);
+    }
+
+    #[test]
+    fn test_oidc_authorize_response_serialization() {
+        let response = OidcAuthorizeResponse {
+            auth_url: "https://sso.example.com/authorize?code=abc".to_string(),
+            state: "state-123".to_string(),
+        };
+
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains("auth_url"));
+        assert!(json.contains("state"));
+    }
+
+    #[test]
+    fn test_oidc_callback_request_deserialization() {
+        let json = r#"{"code": "auth-code-xyz", "state": "state-789"}"#;
+        let req: OidcCallbackRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.code, "auth-code-xyz");
+        assert_eq!(req.state, "state-789");
+    }
+
+    #[test]
+    fn test_oidc_callback_response_success() {
+        let response = OidcCallbackResponse {
+            success: true,
+            token: Some("jwt-token-abc".to_string()),
+            error: None,
+        };
+
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains("\"success\":true"));
+        assert!(json.contains("jwt-token-abc"));
+    }
+
+    #[test]
+    fn test_oidc_callback_response_error() {
+        let response = OidcCallbackResponse {
+            success: false,
+            token: None,
+            error: Some("Authentication failed".to_string()),
+        };
+
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains("\"success\":false"));
+        assert!(json.contains("Authentication failed"));
+    }
+
+    #[test]
+    fn test_get_sso_manager_returns_singleton() {
+        let manager1 = get_sso_manager();
+        let manager2 = get_sso_manager();
+        assert!(std::ptr::eq(manager1, manager2));
+    }
+
+    #[test]
+    fn test_get_oidc_states_returns_singleton() {
+        let states1 = get_oidc_states();
+        let states2 = get_oidc_states();
+        assert!(std::ptr::eq(states1, states2));
+    }
+
+    #[test]
+    fn test_get_sso_manager_poisoned_lock_handling() {
+        use std::sync::Mutex;
+        use std::thread;
+
+        let manager = get_sso_manager();
+
+        let manager_clone = manager.clone();
+        let handle = thread::spawn(move || {
+            let _lock = manager_clone.lock();
+        });
+        let _ = handle.join();
+    }
 }

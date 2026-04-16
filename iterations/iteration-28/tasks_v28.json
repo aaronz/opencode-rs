@@ -310,7 +310,7 @@
       "priority": "P1",
       "title": "Increase tools crate coverage to 80%",
       "description": "Increase test coverage for crates/tools to 80% (delta +30% from current). Focus on tool execution and parameter validation.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: increase line coverage to 80%",
         "RunTestSuite: cargo llvm-cov for coverage report"
@@ -348,7 +348,7 @@
       "priority": "P1",
       "title": "Increase server crate coverage to 80%",
       "description": "Increase test coverage for crates/server to 80% (delta +40% from current). Focus on route handlers and middleware.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: increase line coverage to 80%",
         "RunTestSuite: cargo llvm-cov for coverage report"
@@ -368,7 +368,7 @@
       "priority": "P1",
       "title": "Increase llm crate coverage to 80%",
       "description": "Increase test coverage for crates/llm to 80% (delta +25% from current). Focus on provider implementations and response parsing.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: increase line coverage to 80%",
         "RunTestSuite: cargo llvm-cov for coverage report"
