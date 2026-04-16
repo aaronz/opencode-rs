@@ -4147,4 +4147,133 @@ mod auth_negative_tests {
         assert_eq!(collected.len(), 6);
         assert!(collected[5].contains("[DONE]"));
     }
+
+    #[actix_web::test]
+    async fn route_group_session_routes_share_session_invalid_id() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::share_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("not-a-valid-uuid".to_string()),
+            None,
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    #[actix_web::test]
+    async fn route_group_session_routes_share_session_not_found() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::share_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("550e8400-e29b-41d4-a716-446655440000".to_string()),
+            None,
+        )
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::NOT_FOUND
+                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+            "share_session should return 404 or 500 for non-existent session"
+        );
+    }
+
+    #[actix_web::test]
+    async fn route_group_session_routes_get_shared_session_not_found() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::get_shared_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("nonexistent-share-id".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::NOT_FOUND
+                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+            "get_shared_session should return 404 or 500 for non-existent share ID"
+        );
+    }
+
+    #[actix_web::test]
+    async fn route_group_session_routes_remove_share_session_invalid_id() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::remove_share_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("not-a-valid-uuid".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    #[actix_web::test]
+    async fn route_group_session_routes_remove_share_session_not_found() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::remove_share_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("550e8400-e29b-41d4-a716-446655440000".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::NOT_FOUND
+                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+            "remove_share_session should return 404 or 500 for non-existent session"
+        );
+    }
+
+    #[actix_web::test]
+    async fn route_group_session_routes_summarize_session_invalid_id() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::summarize_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("not-a-valid-uuid".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    #[actix_web::test]
+    async fn route_group_session_routes_summarize_session_not_found() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::summarize_session(
+            web::Data::new(create_test_state()),
+            web::Path::from("550e8400-e29b-41d4-a716-446655440000".to_string()),
+        )
+        .await
+        .respond_to(&req);
+        assert!(
+            resp.status() == StatusCode::NOT_FOUND
+                || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+            "summarize_session should return 404 or 500 for non-existent session"
+        );
+    }
+
+    #[actix_web::test]
+    async fn route_group_share_routes_list_short_links_returns_ok() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::share::list_short_links(web::Data::new(create_test_state()))
+            .await
+            .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn route_group_share_routes_cleanup_expired_links_returns_ok() {
+        use actix_web::web;
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::share::cleanup_expired_links(web::Data::new(create_test_state()))
+            .await
+            .respond_to(&req);
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
 }
