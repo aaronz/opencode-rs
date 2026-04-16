@@ -123,7 +123,7 @@
       "priority": "P2",
       "title": "Create tests/buffer_diff_tests.rs",
       "description": "Comprehensive BufferDiff tests. CellDiff tests with Cell type. diff_str tests. Approximately 200 lines.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify file created at tests/buffer_diff_tests.rs",
         "AddUnitTest: verify BufferDiff comparison tests",
