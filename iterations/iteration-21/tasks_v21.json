@@ -777,7 +777,7 @@
       "priority": "P1",
       "title": "Add test: GET /api/status returns 200",
       "description": "Add integration test: GET /api/status returns HTTP 200",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify status endpoint returns 200 OK"
       ],
