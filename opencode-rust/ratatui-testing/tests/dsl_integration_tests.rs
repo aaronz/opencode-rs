@@ -8,7 +8,7 @@ fn test_dsl_complete_scenario_with_pty_and_terminal() {
     let mut dsl = TestDsl::new()
         .with_size(80, 24)
         .init_terminal()
-        .with_pty(&["cat"])
+        .with_pty_command(&["cat"])
         .expect("PTY creation should succeed")
         .with_buffer_diff()
         .with_state_tester();
@@ -258,7 +258,7 @@ fn test_dsl_pty_operations_complete_flow() {
     let mut dsl = TestDsl::new()
         .with_size(80, 24)
         .init_terminal()
-        .with_pty(&["cat"])
+        .with_pty_command(&["cat"])
         .expect("PTY creation should succeed");
 
     assert!(
@@ -283,7 +283,7 @@ fn test_dsl_pty_key_injection() {
     let mut dsl = TestDsl::new()
         .with_size(80, 24)
         .init_terminal()
-        .with_pty(&["cat"])
+        .with_pty_command(&["cat"])
         .expect("PTY creation should succeed");
 
     let key_event = KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE);
@@ -299,7 +299,7 @@ fn test_dsl_compose_all_components() {
     let _dsl = TestDsl::new()
         .with_size(80, 24)
         .init_terminal()
-        .with_pty(&["echo", "composed"])
+        .with_pty_command(&["echo", "composed"])
         .expect("PTY should be created")
         .with_buffer_diff()
         .with_state_tester()
@@ -501,7 +501,7 @@ fn test_send_keys_integration_via_pty() {
     let mut dsl = TestDsl::new()
         .with_size(80, 24)
         .init_terminal()
-        .with_pty(&["cat"])
+        .with_pty_command(&["cat"])
         .expect("PTY creation should succeed");
 
     assert!(dsl.is_pty_child_running(), "PTY child should be running");
@@ -521,7 +521,7 @@ fn test_send_keys_with_ctrl_sequences_via_pty() {
     let mut dsl = TestDsl::new()
         .with_size(80, 24)
         .init_terminal()
-        .with_pty(&["cat"])
+        .with_pty_command(&["cat"])
         .expect("PTY creation should succeed");
 
     let result = dsl.send_keys("ctrl-c");
@@ -539,7 +539,7 @@ fn test_send_keys_fluent_chaining_integration() {
     let mut dsl = TestDsl::new()
         .with_size(80, 24)
         .init_terminal()
-        .with_pty(&["cat"])
+        .with_pty_command(&["cat"])
         .expect("PTY creation should succeed");
 
     let final_dsl = dsl
@@ -577,11 +577,11 @@ fn test_snapshot_fluent_api_chaining_integration() {
     let result = dsl
         .save_snapshot(snapshot_name)
         .and_then(|dsl| {
-            let _ = dsl.load_snapshot_and_assert_eq(snapshot_name)?;
+            dsl.load_snapshot_and_assert_eq(snapshot_name)?;
             Ok(dsl)
         })
         .and_then(|dsl| {
-            let _ = dsl.load_snapshot(snapshot_name)?;
+            dsl.load_snapshot(snapshot_name)?;
             Ok(dsl)
         });
 

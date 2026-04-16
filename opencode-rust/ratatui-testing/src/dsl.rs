@@ -63,7 +63,13 @@ impl TestDsl {
         self
     }
 
-    pub fn with_pty(mut self, command: &[&str]) -> Result<Self> {
+    pub fn with_pty(mut self) -> Result<Self> {
+        let pty = PtySimulator::new().context("Failed to create PTY simulator for TestDsl")?;
+        self.pty = Some(pty);
+        Ok(self)
+    }
+
+    pub fn with_pty_command(mut self, command: &[&str]) -> Result<Self> {
         let pty = PtySimulator::new_with_command(command)
             .context("Failed to create PTY simulator for TestDsl")?;
         self.pty = Some(pty);
@@ -830,7 +836,7 @@ mod tests {
         let dsl = TestDsl::new()
             .with_size(80, 24)
             .init_terminal()
-            .with_pty(&["echo", "test"])
+            .with_pty_command(&["echo", "test"])
             .expect("PTY creation failed")
             .with_buffer_diff()
             .with_state_tester();
@@ -1072,7 +1078,7 @@ mod tests {
         let mut dsl = TestDsl::new()
             .with_size(80, 24)
             .init_terminal()
-            .with_pty(&["cat"])
+            .with_pty_command(&["cat"])
             .expect("PTY creation failed");
 
         assert!(dsl.is_pty_child_running(), "PTY child should be running");
@@ -1086,7 +1092,7 @@ mod tests {
         let mut dsl = TestDsl::new()
             .with_size(80, 24)
             .init_terminal()
-            .with_pty(&["cat"])
+            .with_pty_command(&["cat"])
             .expect("PTY creation failed");
 
         let result = dsl.resize_pty(120, 40);
@@ -1183,7 +1189,7 @@ mod tests {
         let mut dsl = TestDsl::new()
             .with_size(80, 24)
             .init_terminal()
-            .with_pty(&["cat"])
+            .with_pty_command(&["cat"])
             .expect("PTY creation failed");
 
         let pty = dsl.get_pty_mut();
@@ -1293,7 +1299,7 @@ mod tests {
         let mut dsl = TestDsl::new()
             .with_size(80, 24)
             .init_terminal()
-            .with_pty(&["cat"])
+            .with_pty_command(&["cat"])
             .expect("PTY creation failed");
 
         let result = dsl.send_keys("hello");
@@ -1305,14 +1311,14 @@ mod tests {
         let mut dsl = TestDsl::new()
             .with_size(80, 24)
             .init_terminal()
-            .with_pty(&["cat"])
+            .with_pty_command(&["cat"])
             .expect("PTY creation failed");
 
         let returned = dsl.send_keys("hello");
         assert!(returned.is_ok());
 
         let dsl_ref = returned.unwrap();
-        assert!(!dsl_ref.get_pty().is_none());
+        assert!(dsl_ref.get_pty().is_some());
     }
 
     #[test]
@@ -1320,7 +1326,7 @@ mod tests {
         let mut dsl = TestDsl::new()
             .with_size(80, 24)
             .init_terminal()
-            .with_pty(&["cat"])
+            .with_pty_command(&["cat"])
             .expect("PTY creation failed");
 
         let result1 = dsl.send_keys("enter");
@@ -1344,7 +1350,7 @@ mod tests {
         let mut dsl = TestDsl::new()
             .with_size(80, 24)
             .init_terminal()
-            .with_pty(&["cat"])
+            .with_pty_command(&["cat"])
             .expect("PTY creation failed");
 
         let result1 = dsl.send_keys("ctrl-c");
@@ -1365,7 +1371,7 @@ mod tests {
         let mut dsl = TestDsl::new()
             .with_size(80, 24)
             .init_terminal()
-            .with_pty(&["cat"])
+            .with_pty_command(&["cat"])
             .expect("PTY creation failed");
 
         let final_dsl = dsl
@@ -1380,7 +1386,7 @@ mod tests {
             })
             .unwrap();
 
-        assert!(!final_dsl.get_pty().is_none());
+        assert!(final_dsl.get_pty().is_some());
     }
 
     #[test]
@@ -1571,7 +1577,7 @@ mod tests {
         let snapshot_name = "test_fluent_chain";
 
         let result = dsl.save_snapshot(snapshot_name).and_then(|dsl| {
-            let _ = dsl.load_snapshot_and_assert_eq(snapshot_name)?;
+            dsl.load_snapshot_and_assert_eq(snapshot_name)?;
             Ok(dsl)
         });
 
@@ -1628,5 +1634,76 @@ mod tests {
 
         std::fs::remove_file("snapshots/multi_version@v1.json").ok();
         std::fs::remove_file("snapshots/multi_version@v2.json").ok();
+    }
+
+    #[test]
+    fn test_with_pty_without_parameters_creates_pty_with_default_command() {
+        let dsl = TestDsl::new()
+            .with_size(80, 24)
+            .init_terminal()
+            .with_pty()
+            .expect("PTY creation with default command should succeed");
+
+        assert!(
+            dsl.pty.is_some(),
+            "PTY should be created with default command"
+        );
+        assert!(
+            dsl.is_pty_child_running(),
+            "PTY child process should be running with default command"
+        );
+    }
+
+    #[test]
+    fn test_with_pty_command_with_explicit_command_still_works() {
+        let dsl = TestDsl::new()
+            .with_size(80, 24)
+            .init_terminal()
+            .with_pty_command(&["echo", "test"])
+            .expect("PTY creation with explicit command should succeed");
+
+        assert!(
+            dsl.pty.is_some(),
+            "PTY should be created with explicit command"
+        );
+        assert!(
+            dsl.is_pty_child_running(),
+            "PTY child process should be running with explicit command"
+        );
+    }
+
+    #[test]
+    fn test_with_pty_fluent_chaining_without_parameters() {
+        let dsl = TestDsl::new()
+            .with_size(80, 24)
+            .init_terminal()
+            .with_pty()
+            .expect("with_pty() should succeed")
+            .with_buffer_diff()
+            .with_state_tester();
+
+        assert!(dsl.pty.is_some());
+        assert!(dsl.buffer_diff.is_some());
+        assert!(dsl.state_tester.is_some());
+    }
+
+    #[test]
+    fn test_with_pty_and_with_pty_command_are_distinct_operations() {
+        let dsl_with_default = TestDsl::new()
+            .with_size(80, 24)
+            .init_terminal()
+            .with_pty()
+            .expect("with_pty() should succeed");
+
+        let dsl_with_explicit = TestDsl::new()
+            .with_size(80, 24)
+            .init_terminal()
+            .with_pty_command(&["cat"])
+            .expect("with_pty_command() should succeed");
+
+        assert!(
+            dsl_with_default.pty.is_some() && dsl_with_explicit.pty.is_some(),
+            "Both methods should create PTY instances"
+        );
     }
 }

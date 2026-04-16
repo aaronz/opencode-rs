@@ -14,6 +14,8 @@ pub struct CliTester {
     env_vars: HashMap<String, String>,
     working_dir: Option<PathBuf>,
     temp_dir: Option<TempDir>,
+    capture_stdout: bool,
+    capture_stderr: bool,
 }
 
 impl CliTester {
@@ -24,6 +26,8 @@ impl CliTester {
             env_vars: HashMap::new(),
             working_dir: None,
             temp_dir: None,
+            capture_stdout: true,
+            capture_stderr: true,
         }
     }
 
@@ -62,6 +66,16 @@ impl CliTester {
         Ok((self.working_dir(path.clone()), path))
     }
 
+    pub fn capture_stdout(mut self) -> Self {
+        self.capture_stdout = true;
+        self
+    }
+
+    pub fn capture_stderr(mut self) -> Self {
+        self.capture_stderr = true;
+        self
+    }
+
     pub async fn run(&self) -> Result<CliOutput> {
         self.run_with_timeout(std::time::Duration::from_secs(30))
             .await
@@ -81,8 +95,17 @@ impl CliTester {
             cmd.current_dir(temp_dir.path());
         }
 
-        cmd.stdout(Stdio::piped());
-        cmd.stderr(Stdio::piped());
+        if self.capture_stdout {
+            cmd.stdout(Stdio::piped());
+        } else {
+            cmd.stdout(Stdio::inherit());
+        }
+
+        if self.capture_stderr {
+            cmd.stderr(Stdio::piped());
+        } else {
+            cmd.stderr(Stdio::inherit());
+        }
 
         let child = cmd.spawn().with_context(|| {
             format!(
@@ -118,8 +141,17 @@ impl CliTester {
             cmd.current_dir(temp_dir.path());
         }
 
-        cmd.stdout(Stdio::piped());
-        cmd.stderr(Stdio::piped());
+        if self.capture_stdout {
+            cmd.stdout(Stdio::piped());
+        } else {
+            cmd.stdout(Stdio::inherit());
+        }
+
+        if self.capture_stderr {
+            cmd.stderr(Stdio::piped());
+        } else {
+            cmd.stderr(Stdio::inherit());
+        }
 
         let child = cmd.spawn().with_context(|| {
             format!(
@@ -391,6 +423,36 @@ mod tests {
         assert!(
             output.stderr.contains("stderr_content"),
             "Should capture stderr"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_capture_stdout_returns_self() {
+        let tester = CliTester::new("echo").capture_stdout();
+        let result = tester.run().await;
+        assert!(result.is_ok(), "capture_stdout should return self and work");
+    }
+
+    #[tokio::test]
+    async fn test_capture_stderr_returns_self() {
+        let tester = CliTester::new("echo").capture_stderr();
+        let result = tester.run().await;
+        assert!(result.is_ok(), "capture_stderr should return self and work");
+    }
+
+    #[tokio::test]
+    async fn test_capture_stdout_stderr_chainable() {
+        let tester = CliTester::new("echo")
+            .arg("chain_test")
+            .capture_stdout()
+            .capture_stderr();
+        let output = tester
+            .run()
+            .await
+            .expect("Should run with chained capture methods");
+        assert!(
+            output.stdout.contains("chain_test"),
+            "Should capture stdout after fluent chain"
         );
     }
 }

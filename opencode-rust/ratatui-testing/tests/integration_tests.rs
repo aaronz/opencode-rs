@@ -117,7 +117,7 @@ fn test_dsl_composition_with_all_components() {
     let mut dsl = TestDsl::new()
         .with_size(80, 24)
         .init_terminal()
-        .with_pty(&["cat"])
+        .with_pty_command(&["cat"])
         .expect("PTY should be created")
         .with_buffer_diff()
         .with_state_tester();
@@ -244,7 +244,7 @@ fn test_pty_key_injection_with_buffer_capture() {
     let mut dsl = TestDsl::new()
         .with_size(80, 24)
         .init_terminal()
-        .with_pty(&["cat"])
+        .with_pty_command(&["cat"])
         .expect("PTY should be created")
         .render(Paragraph::new(Text::from("Initial")));
 
@@ -409,7 +409,7 @@ fn test_e2e_pty_write_read_cycle() {
     let mut dsl = TestDsl::new()
         .with_size(80, 24)
         .init_terminal()
-        .with_pty(&["cat"])
+        .with_pty_command(&["cat"])
         .expect("PTY should be created");
 
     assert!(

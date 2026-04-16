@@ -1,0 +1,214 @@
+{
+  "tasks": [
+    {
+      "id": "FR-001",
+      "priority": "P0",
+      "title": "Create tests/dsl_tests.rs",
+      "description": "Create missing test file for TestDsl module covering all major functionality: construction, with_size(), init_terminal(), with_pty() with command parameter, with_buffer_diff(), with_state_tester(), render(), render_with_state(), fluent API method chaining, capture_buffer(), send_keys(), wait_for(), wait_with_predicates(), poll_until(), buffer_lines(), save_snapshot(), load_snapshot(), load_snapshot_and_assert_eq()",
+      "status": "manual_check",
+      "test_criteria": [
+        "AddUnitTest: verify TestDsl::new() and TestDsl::default() construct valid instances",
+        "AddUnitTest: verify with_size() correctly sets terminal dimensions",
+        "AddUnitTest: verify init_terminal() initializes terminal without error",
+        "AddUnitTest: verify with_pty() with command parameter creates PTY simulator",
+        "AddUnitTest: verify with_buffer_diff() initializes buffer differ",
+        "AddUnitTest: verify with_state_tester() initializes state tester",
+        "AddUnitTest: verify render() renders widget and captures buffer",
+        "AddUnitTest: verify render_with_state() renders with state context",
+        "AddUnitTest: verify fluent API method chaining (then, then_result) works",
+        "AddUnitTest: verify capture_buffer() retrieves correct buffer content",
+        "AddUnitTest: verify send_keys() injects keys to PTY",
+        "AddUnitTest: verify wait_for() handles timeout correctly",
+        "AddUnitTest: verify wait_with_predicates() handles predicate matching",
+        "AddUnitTest: verify poll_until() polls until condition met",
+        "AddUnitTest: verify buffer_lines() extracts correct line content",
+        "AddUnitTest: verify save_snapshot() persists snapshot to disk",
+        "AddUnitTest: verify load_snapshot() loads snapshot from disk",
+        "AddUnitTest: verify load_snapshot_and_assert_eq() compares loaded snapshot",
+        "RunTestSuite: cargo test -p ratatui-testing dsl_tests passes all tests"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing dsl_tests",
+        "cargo clippy --all-targets --all-features -- -D warnings"
+      ],
+      "impl_notes": "Create new test file at opencode-rust/ratatui-testing/tests/dsl_tests.rs. Use ratatui::backend::TestBackend for rendering tests. Follow existing test patterns in the crate.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-002",
+      "priority": "P0",
+      "title": "Add capture_stdout() and capture_stderr() to CliTester",
+      "description": "Add missing fluent methods for stdout/stderr capture configuration in CliTester. These configure output to be captured during run()/spawn().",
+      "status": "manual_check",
+      "test_criteria": [
+        "AddUnitTest: verify capture_stdout() method exists and returns Self",
+        "AddUnitTest: verify capture_stderr() method exists and returns Self",
+        "AddUnitTest: verify methods are chainable in fluent API",
+        "RunTestSuite: cargo test -p ratatui-testing cli passes all tests"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing cli",
+        "cargo clippy --all-targets --all-features -- -D warnings"
+      ],
+      "impl_notes": "Add to opencode-rust/ratatui-testing/src/cli.rs. Methods should configure internal flags that are already used in run() and spawn().",
+      "dependencies": []
+    },
+    {
+      "id": "FR-003",
+      "priority": "P1",
+      "title": "Add no-parameter with_pty() to TestDsl",
+      "description": "Add with_pty() method without command parameter using default command ['bash', '-c', 'echo ready']. Closes gap FR-DSL-GAP-001.",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify with_pty() without parameters creates PTY with default command",
+        "AddUnitTest: verify existing with_pty(command) still works correctly",
+        "RunTestSuite: cargo test -p ratatui-testing dsl passes all tests"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing dsl",
+        "cargo clippy --all-targets --all-features -- -D warnings"
+      ],
+      "impl_notes": "Add to opencode-rust/ratatui-testing/src/dsl.rs. Use PtySimulator::new() which already has default command logic.",
+      "dependencies": [
+        "FR-001"
+      ]
+    },
+    {
+      "id": "FR-004",
+      "priority": "P1",
+      "title": "Fix CliTester temp_dir field usage",
+      "description": "Fix gap FR-CLI-GAP-001 where temp_dir field is never used. When with_temp_dir() is called, store TempDir and use temp_dir.path() as working_dir in run() and spawn() if no explicit working_dir set.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify temp_dir field is stored when with_temp_dir() called",
+        "AddUnitTest: verify run() uses temp_dir.path() when no explicit working_dir set",
+        "AddUnitTest: verify spawn() uses temp_dir.path() when no explicit working_dir set",
+        "AddUnitTest: verify explicit working_dir overrides temp_dir path",
+        "RunTestSuite: cargo test -p ratatui-testing cli passes all tests"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing cli",
+        "cargo clippy --all-targets --all-features -- -D warnings"
+      ],
+      "impl_notes": "Fix in opencode-rust/ratatui-testing/src/cli.rs. temp_dir field should be Option<TempDir> and used when working_dir is None.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-005",
+      "priority": "P1",
+      "title": "Add StateTester::compare_state() method",
+      "description": "Add convenience method to directly compare serializable state. Serialize state to Value, then compare to default snapshot.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify compare_state() accepts serializable state type",
+        "AddUnitTest: verify compare_state() returns StateDiff result",
+        "AddUnitTest: verify compare_state() with matching state returns empty diff",
+        "AddUnitTest: verify compare_state() with different state returns diff",
+        "RunTestSuite: cargo test -p ratatui-testing state passes all tests"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing state",
+        "cargo clippy --all-targets --all-features -- -D warnings"
+      ],
+      "impl_notes": "Add to opencode-rust/ratatui-testing/src/state.rs. Method signature: pub fn compare_state<S>(&self, state: &S) -> Result<StateDiff> where S: Serialize.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-006",
+      "priority": "P1",
+      "title": "Fix diff_str() to use IgnoreOptions",
+      "description": "Fix gap FR-DIFF-GAP-001. Review diff_str() implementation and ensure IgnoreOptions are applied when comparing strings.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify diff_str() applies IgnoreOptions when comparing",
+        "AddUnitTest: verify diff_str() with IgnoreOptions ignores specified differences",
+        "AddUnitTest: verify diff_str() without IgnoreOptions compares exactly",
+        "RunTestSuite: cargo test -p ratatui-testing buffer_diff passes all tests"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing buffer_diff",
+        "cargo clippy --all-targets --all-features -- -D warnings"
+      ],
+      "impl_notes": "Fix in opencode-rust/ratatui-testing/src/diff.rs. Ensure IgnoreOptions are passed through to the underlying diff comparison.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-007",
+      "priority": "P2",
+      "title": "Export ChildProcess from lib.rs",
+      "description": "Export ChildProcess type publicly from lib.rs. Add pub use cli::ChildProcess;",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify ChildProcess is publicly accessible from crate root",
+        "BuildVerification: cargo build -p ratatui-testing succeeds"
+      ],
+      "test_commands": [
+        "cargo build -p ratatui-testing",
+        "cargo clippy --all-targets --all-features -- -D warnings"
+      ],
+      "impl_notes": "Add pub use cli::ChildProcess; to opencode-rust/ratatui-testing/src/lib.rs",
+      "dependencies": []
+    },
+    {
+      "id": "FR-008",
+      "priority": "P2",
+      "title": "Enhance DialogRenderTester",
+      "description": "Add more dialog verification methods: has_title(buffer, title) and has_specific_content(buffer, content). Review existing methods for completeness.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify has_title() correctly identifies dialog title",
+        "AddUnitTest: verify has_title() returns false for non-matching title",
+        "AddUnitTest: verify has_specific_content() finds specific content in buffer",
+        "AddUnitTest: verify has_specific_content() returns false when content missing",
+        "RunTestSuite: cargo test -p ratatui-testing dialog passes all tests"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing dialog",
+        "cargo clippy --all-targets --all-features -- -D warnings"
+      ],
+      "impl_notes": "Add methods to opencode-rust/ratatui-testing/src/dialog_tester.rs",
+      "dependencies": []
+    },
+    {
+      "id": "FR-009",
+      "priority": "P2",
+      "title": "Fix wait_for to use predicates field",
+      "description": "Refactor wait_for to optionally use predicates field. Review implementation and consider integrating predicates field usage. Document if predicates are intentionally separate.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify wait_for() uses predicates when available",
+        "AddUnitTest: verify wait_for() works correctly without predicates",
+        "AddUnitTest: verify wait_for() returns correct result when predicate matches",
+        "AddUnitTest: verify wait_for() handles timeout when predicate never matches",
+        "RunTestSuite: cargo test -p ratatui-testing dsl passes all tests"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing dsl",
+        "cargo clippy --all-targets --all-features -- -D warnings"
+      ],
+      "impl_notes": "Review and potentially refactor in opencode-rust/ratatui-testing/src/dsl.rs. Ensure predicates field is properly utilized.",
+      "dependencies": [
+        "FR-001"
+      ]
+    },
+    {
+      "id": "FR-010",
+      "priority": "P2",
+      "title": "Add Windows platform detection for PTY",
+      "description": "Add Windows detection and clear error message. Add #[cfg(windows)] check in PtySimulator::new() returning 'PTY not supported on Windows'. Use #[cfg(unix)] for Unix-specific code.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify #[cfg(windows)] build uses error message for unsupported platform",
+        "AddUnitTest: verify #[cfg(unix)] build works normally on Unix platforms",
+        "BuildVerification: cargo build --all-features succeeds on Unix",
+        "BuildVerification: cargo build --all-features succeeds on Windows (with expected error at runtime)"
+      ],
+      "test_commands": [
+        "cargo build --all-features",
+        "cargo clippy --all-targets --all-features -- -D warnings"
+      ],
+      "impl_notes": "Add #[cfg(windows)] and #[cfg(unix)] guards in opencode-rust/ratatui-testing/src/pty.rs",
+      "dependencies": []
+    }
+  ]
+}

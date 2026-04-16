@@ -748,7 +748,7 @@ mod tests {
         let expected = "hello";
         let actual = "hello";
         let result = diff.diff_str(expected, actual);
-        assert_eq!(result.passed, true);
+        assert!(result.passed);
     }
 
     #[test]
