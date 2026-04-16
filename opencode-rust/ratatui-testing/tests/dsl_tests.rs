@@ -1023,3 +1023,122 @@ fn test_multiple_waits_in_sequence() {
 
     assert!(dsl.capture_buffer().is_none());
 }
+
+#[test]
+fn test_wait_for_uses_predicates_when_available() {
+    let triggered = Arc::new(AtomicBool::new(false));
+    let triggered_clone = triggered.clone();
+
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(50));
+        triggered_clone.store(true, Ordering::SeqCst);
+    });
+
+    let predicate =
+        WaitPredicate::new("stored predicate", move || triggered.load(Ordering::SeqCst));
+
+    let dsl = TestDsl::new()
+        .with_size(80, 24)
+        .init_terminal()
+        .add_predicate(predicate)
+        .wait_for(Duration::from_secs(1), || false)
+        .expect("Wait should succeed using stored predicates");
+
+    assert!(dsl.capture_buffer().is_none());
+}
+
+#[test]
+fn test_wait_for_works_correctly_without_predicates() {
+    let triggered = Arc::new(AtomicBool::new(false));
+    let triggered_clone = triggered.clone();
+
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(50));
+        triggered_clone.store(true, Ordering::SeqCst);
+    });
+
+    let dsl = TestDsl::new()
+        .with_size(80, 24)
+        .init_terminal()
+        .wait_for(Duration::from_secs(1), move || {
+            triggered.load(Ordering::SeqCst)
+        })
+        .expect("Wait should succeed with function predicate");
+
+    assert!(dsl.capture_buffer().is_none());
+}
+
+#[test]
+fn test_wait_for_returns_correct_result_when_predicate_matches() {
+    let dsl = TestDsl::new()
+        .with_size(80, 24)
+        .init_terminal()
+        .wait_for(Duration::from_secs(1), || true)
+        .expect("Wait should succeed immediately when predicate is true");
+
+    assert!(dsl.capture_buffer().is_none());
+}
+
+#[test]
+fn test_wait_for_handles_timeout_when_predicate_never_matches() {
+    let result = TestDsl::new()
+        .with_size(80, 24)
+        .init_terminal()
+        .wait_for(Duration::from_millis(100), || false);
+
+    assert!(
+        result.is_err(),
+        "Wait should timeout when predicate never matches"
+    );
+    let err_msg = format!("{}", result.unwrap_err());
+    assert!(
+        err_msg.contains("timed out"),
+        "Error should mention timeout"
+    );
+}
+
+#[test]
+fn test_wait_for_with_stored_predicate_timeout() {
+    let predicate = WaitPredicate::new("always false", || false);
+
+    let result = TestDsl::new()
+        .with_size(80, 24)
+        .init_terminal()
+        .add_predicate(predicate)
+        .wait_for(Duration::from_millis(100), || true);
+
+    assert!(
+        result.is_err(),
+        "Wait should timeout when stored predicate never matches"
+    );
+    let err_msg = format!("{}", result.unwrap_err());
+    assert!(
+        err_msg.contains("timed out"),
+        "Error should mention timeout"
+    );
+}
+
+#[test]
+fn test_wait_for_multiple_stored_predicates_all_match() {
+    let counter = Arc::new(AtomicU32::new(0));
+    let counter_clone = counter.clone();
+
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(50));
+        counter_clone.fetch_add(1, Ordering::SeqCst);
+    });
+
+    let predicate1 =
+        WaitPredicate::new("counter >= 1", move || counter.load(Ordering::SeqCst) >= 1);
+    let predicate2 = WaitPredicate::new("always true", || true);
+
+    let dsl = TestDsl::new()
+        .with_size(80, 24)
+        .init_terminal()
+        .add_predicate(predicate1)
+        .add_predicate(predicate2)
+        .wait_for(Duration::from_secs(1), || false)
+        .expect("Wait should succeed when all stored predicates match");
+
+    assert!(dsl.capture_buffer().is_none());
+}

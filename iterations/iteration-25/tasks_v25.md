@@ -99,10 +99,10 @@
 - **Files**: `opencode-rust/ratatui-testing/src/dialog_tester.rs`
 - **Description**: Add more dialog verification methods
 - **Implementation**:
-  - [ ] Add `has_title(buffer, title) -> bool`
-  - [ ] Add `has_specific_content(buffer, content) -> bool`
-  - [ ] Review existing methods for completeness
-- **Verification**: `cargo test -p ratatui-testing dialog`
+  - [x] Add `has_title(buffer, title) -> bool`
+  - [x] Add `has_specific_content(buffer, content) -> bool`
+  - [x] Review existing methods for completeness
+- **Verification**: `cargo test -p ratatui-testing dialog` ✅ Done
 
 ### Task 9: Fix wait_for to use predicates field
 - **Priority**: P2
@@ -156,6 +156,6 @@ cargo build --all-features
 | 5. compare_state() | P1 | TODO | - |
 | 6. diff_str() IgnoreOptions | P1 | TODO | - |
 | 7. Export ChildProcess | P2 | TODO | - |
-| 8. Enhance DialogRenderTester | P2 | TODO | - |
+| 8. Enhance DialogRenderTester | P2 | ✅ Done | - |
 | 9. wait_for predicates | P2 | TODO | - |
 | 10. Windows platform detection | P2 | TODO | - |

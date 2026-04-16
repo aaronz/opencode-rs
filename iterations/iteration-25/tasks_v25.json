@@ -118,7 +118,7 @@
       "priority": "P1",
       "title": "Fix diff_str() to use IgnoreOptions",
       "description": "Fix gap FR-DIFF-GAP-001. Review diff_str() implementation and ensure IgnoreOptions are applied when comparing strings.",
-      "status": "done",
+      "status": "manual_check",
       "test_criteria": [
         "AddUnitTest: verify diff_str() applies IgnoreOptions when comparing",
         "AddUnitTest: verify diff_str() with IgnoreOptions ignores specified differences",
@@ -154,7 +154,7 @@
       "priority": "P2",
       "title": "Enhance DialogRenderTester",
       "description": "Add more dialog verification methods: has_title(buffer, title) and has_specific_content(buffer, content). Review existing methods for completeness.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify has_title() correctly identifies dialog title",
         "AddUnitTest: verify has_title() returns false for non-matching title",
@@ -174,7 +174,7 @@
       "priority": "P2",
       "title": "Fix wait_for to use predicates field",
       "description": "Refactor wait_for to optionally use predicates field. Review implementation and consider integrating predicates field usage. Document if predicates are intentionally separate.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify wait_for() uses predicates when available",
         "AddUnitTest: verify wait_for() works correctly without predicates",

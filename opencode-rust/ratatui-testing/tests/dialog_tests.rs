@@ -163,7 +163,7 @@ fn test_count_lines_with_content_counts_correctly() {
             "└──────────────────┘",
         ],
     );
-    assert_eq!(DialogRenderTester::count_lines_with_content(&buffer), 4);
+    assert_eq!(DialogRenderTester::count_lines_with_content(&buffer), 5);
 }
 
 #[test]

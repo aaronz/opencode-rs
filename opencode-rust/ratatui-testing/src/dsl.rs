@@ -273,41 +273,80 @@ impl TestDsl {
             .unwrap_or(false)
     }
 
-    pub fn wait_for<F>(self, timeout: Duration, predicate: F) -> Result<Self>
+    pub fn wait_for<F>(mut self, timeout: Duration, predicate: F) -> Result<Self>
     where
         F: Fn() -> bool + Send + 'static,
     {
-        let triggered = Arc::new(AtomicBool::new(false));
-        let triggered_clone = triggered.clone();
+        if !self.predicates.is_empty() {
+            let predicates = std::mem::take(&mut self.predicates);
 
-        let (tx, mut rx) = mpsc::channel(1);
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_time()
+                .build()
+                .context("Failed to create tokio runtime for wait_for")?;
 
-        std::thread::spawn(move || {
-            while !triggered_clone.load(Ordering::SeqCst) {
-                if predicate() {
-                    triggered_clone.store(true, Ordering::SeqCst);
-                    let _ = tx.blocking_send(());
-                    break;
+            let start = std::time::Instant::now();
+            let check_interval = Duration::from_millis(50);
+
+            rt.block_on(async {
+                loop {
+                    let elapsed = start.elapsed();
+                    if elapsed >= timeout {
+                        let failed: Vec<String> = predicates
+                            .iter()
+                            .filter(|p| !p.check())
+                            .map(|p| p.description())
+                            .collect();
+
+                        anyhow::bail!(
+                            "Wait predicates timed out after {:?}. Failed predicates: {:?}",
+                            timeout,
+                            failed
+                        );
+                    }
+
+                    let all_passed = predicates.iter().all(|p| p.check());
+                    if all_passed {
+                        break;
+                    }
+
+                    sleep(check_interval).await;
                 }
-                std::thread::sleep(Duration::from_millis(50));
-            }
-        });
+                Ok::<(), anyhow::Error>(())
+            })?;
+        } else {
+            let triggered = Arc::new(AtomicBool::new(false));
+            let triggered_clone = triggered.clone();
 
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_time()
-            .build()
-            .context("Failed to create tokio runtime for wait_for")?;
+            let (tx, mut rx) = mpsc::channel(1);
 
-        rt.block_on(async {
-            tokio::select! {
-                _ = rx.recv() => {
-                    Ok(())
+            std::thread::spawn(move || {
+                while !triggered_clone.load(Ordering::SeqCst) {
+                    if predicate() {
+                        triggered_clone.store(true, Ordering::SeqCst);
+                        let _ = tx.blocking_send(());
+                        break;
+                    }
+                    std::thread::sleep(Duration::from_millis(50));
                 }
-                _ = sleep(timeout) => {
-                    anyhow::bail!("Wait predicate timed out after {:?}", timeout);
+            });
+
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_time()
+                .build()
+                .context("Failed to create tokio runtime for wait_for")?;
+
+            rt.block_on(async {
+                tokio::select! {
+                    _ = rx.recv() => {
+                        Ok(())
+                    }
+                    _ = sleep(timeout) => {
+                        anyhow::bail!("Wait predicate timed out after {:?}", timeout);
+                    }
                 }
-            }
-        })?;
+            })?;
+        }
 
         Ok(self)
     }
