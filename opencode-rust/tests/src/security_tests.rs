@@ -343,6 +343,12 @@ async fn test_write_tool_path_validation() {
                 "Write within project should succeed: {}",
                 path
             );
+        } else {
+            assert!(
+                result.is_err() || !result.as_ref().unwrap().success,
+                "Write outside project should be rejected: {}",
+                path
+            );
         }
     }
 }

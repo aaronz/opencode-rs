@@ -119,7 +119,7 @@
       "priority": "P0",
       "title": "Fix 4 remaining phase6_regression_tests",
       "description": "Fix 4 remaining regression test failures in phase6. Locate and fix all failing tests in tests/src/ directory.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify all phase6 regression tests pass",
         "RunTestSuite: cargo test phase6_regression_tests"
@@ -166,7 +166,7 @@
       "priority": "P1",
       "title": "Convert LlmError to thiserror",
       "description": "Convert LlmError enum in crates/llm/src/error.rs to use thiserror derive macro instead of manual Error implementation.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify LlmError variants implement std::error::Error correctly",
         "AddUnitTest: verify error messages are properly formatted with thiserror",

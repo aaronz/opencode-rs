@@ -26,7 +26,7 @@
 
 | ID | Task | Status | Files | Estimate |
 |----|------|--------|-------|----------|
-| P1-01 | Convert `LlmError` to thiserror | TODO | `crates/llm/src/error.rs:4-17` | 1 day |
+| P1-01 | Convert `LlmError` to thiserror | ✅ Done | `crates/llm/src/error.rs:4-17` | 1 day |
 | P1-02 | Convert `RetryConfig` errors to thiserror | TODO | `crates/llm/src/error.rs:88-104` | 0.5 day |
 | P1-03 | Audit `OpenCodeError` legacy variants | TODO | `crates/core/src/error.rs` | 1 day |
 

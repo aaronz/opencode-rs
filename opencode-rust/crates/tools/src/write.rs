@@ -86,7 +86,7 @@ impl Tool for WriteTool {
                     .map(PathBuf::from)
             });
 
-        let has_explicit_worktree = explicit_worktree.is_some();
+        let _has_explicit_worktree = explicit_worktree.is_some();
 
         let worktree =
             explicit_worktree.unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
@@ -99,22 +99,14 @@ impl Tool for WriteTool {
 
         let normalized_final = normalize_path(&final_path);
         let normalized_str = normalized_final.to_string_lossy();
-        let is_tmp_path =
+        let _is_tmp_path =
             normalized_str.contains("/tmp/") || normalized_str.contains("/private/tmp/");
 
         if !is_path_within_worktree(&final_path, &worktree) {
-            if has_explicit_worktree {
-                return Ok(ToolResult::err(format!(
-                    "Access to path outside worktree denied: {}",
-                    args.path
-                )));
-            }
-            if is_tmp_path {
-                return Ok(ToolResult::err(format!(
-                    "Access to path outside worktree denied: {}",
-                    args.path
-                )));
-            }
+            return Ok(ToolResult::err(format!(
+                "Access to path outside worktree denied: {}",
+                args.path
+            )));
         }
 
         if let Some(parent) = final_path.parent() {
