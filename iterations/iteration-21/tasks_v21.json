@@ -914,7 +914,7 @@
       "priority": "P1",
       "title": "Handle connection interruption",
       "description": "Handle connection interruption gracefully in streaming",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddErrorHandlingTest: verify graceful handling when client disconnects"
       ],

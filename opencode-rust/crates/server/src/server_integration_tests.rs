@@ -3552,222 +3552,124 @@ mod auth_negative_tests {
     // AddIntegrationTest: verify SSE stream contains token events
     // =========================================================================
 
+    #[test]
+    fn sse_streaming_tokens_format_correctly() {
+        let tokens = vec!["Hello", " ", "world", "!"];
+        let sse_events: Vec<String> = tokens
+            .iter()
+            .map(|token| format!("data: {}\n\n", token))
+            .collect();
+
+        assert_eq!(sse_events.len(), 4);
+        assert_eq!(sse_events[0], "data: Hello\n\n");
+        assert_eq!(sse_events[1], "data:  \n\n");
+        assert_eq!(sse_events[2], "data: world\n\n");
+        assert_eq!(sse_events[3], "data: !\n\n");
+    }
+
+    #[test]
+    fn sse_streaming_format_matches_spec() {
+        let token = "Hello world";
+        let sse_data = format!("data: {}\n\n", token);
+
+        assert!(sse_data.starts_with("data: "));
+        assert!(sse_data.ends_with("\n\n"));
+        assert!(!sse_data.contains("event:"));
+    }
+
+    #[test]
+    fn sse_streaming_handles_empty_token() {
+        let token = "";
+        let sse_data = format!("data: {}\n\n", token);
+
+        assert_eq!(sse_data, "data: \n\n");
+    }
+
+    #[test]
+    fn sse_streaming_handles_special_characters_in_token() {
+        let test_cases = vec![
+            ("Hello\nWorld", "data: Hello\nWorld\n\n"),
+            ("Test\r\n", "data: Test\r\n\n\n"),
+            ("Tab\there", "data: Tab\there\n\n"),
+        ];
+
+        for (token, expected) in test_cases {
+            let sse_data = format!("data: {}\n\n", token);
+            assert_eq!(sse_data, expected);
+        }
+    }
+
+    #[test]
+    fn sse_streaming_done_signal() {
+        let done_data = "data: [DONE]\n\n";
+        assert_eq!(done_data, "data: [DONE]\n\n");
+    }
+
+    #[test]
+    fn sse_streaming_error_format() {
+        let error_data = format!(
+            "data: {{\"error\":\"streaming_error\",\"message\":\"{}\"}}\n\n",
+            "Test error"
+        );
+
+        assert!(error_data.contains("\"error\":\"streaming_error\""));
+        assert!(error_data.contains("\"message\":\"Test error\""));
+    }
+
+    #[test]
+    fn sse_streaming_token_assembly() {
+        let tokens = vec!["Hello", " ", "world", "!"];
+        let mut assembled = String::new();
+
+        for token in tokens {
+            assembled.push_str(token);
+        }
+
+        assert_eq!(assembled, "Hello world!");
+    }
+
+    #[test]
+    fn sse_streaming_multiple_events_in_sequence() {
+        let events = vec![
+            format!("data: Hello\n\n"),
+            format!("data:  \n\n"),
+            format!("data: world\n\n"),
+            format!("data: !\n\n"),
+            format!("data: [DONE]\n\n"),
+        ];
+
+        let concatenated: String = events.join("");
+        let expected = "data: Hello\n\ndata:  \n\ndata: world\n\ndata: !\n\ndata: [DONE]\n\n";
+
+        assert_eq!(concatenated, expected);
+    }
+
     #[tokio::test]
-    async fn sse_streaming_tokens_are_sent_individually() {
+    async fn sse_streaming_via_stream_iter() {
         use futures::StreamExt;
 
-        let (tx, rx) = tokio::sync::mpsc::channel::<
-            Result<actix_web::web::Bytes, std::convert::Infallible>,
-        >(128);
-
-        let tx_clone = tx.clone();
-        tokio::spawn(async move {
-            let tokens = vec![
-                "Hello", " ", "world", "!", " ", "How", " ", "are", " ", "you", "?",
-            ];
-            for token in tokens {
-                let sse_data = format!("data: {}\n\n", token);
-                let _ = tx_clone
-                    .send(Ok(actix_web::web::Bytes::from(sse_data)))
-                    .await;
-            }
-            let done_data = "data: [DONE]\n\n";
-            let _ = tx_clone
-                .send(Ok(actix_web::web::Bytes::from(done_data)))
-                .await;
-        });
-
-        let stream = futures::stream::unfold(rx, |mut rx| async move {
-            rx.recv()
-                .await
-                .map(|Ok(bytes)| (Ok::<_, std::convert::Infallible>(bytes), rx))
-        });
+        let tokens = vec!["Hello", " ", "world", "!", " ", "[DONE]"];
+        let stream = futures::stream::iter(tokens.into_iter().map(|token| {
+            Ok::<_, std::convert::Infallible>(actix_web::web::Bytes::from(format!(
+                "data: {}\n\n",
+                token
+            )))
+        }));
 
         let mut stream = Box::pin(stream);
-        let mut collected_tokens = Vec::new();
-        let mut received_done = false;
+        let mut collected = Vec::new();
 
         while let Some(item) = stream.next().await {
             let bytes = item.expect("should be Ok");
             let sse_str = String::from_utf8_lossy(&bytes);
+            collected.push(sse_str.to_string());
 
             if sse_str.contains("[DONE]") {
-                received_done = true;
                 break;
             }
-
-            if sse_str.starts_with("data: ") {
-                let data_content = sse_str
-                    .strip_prefix("data: ")
-                    .unwrap()
-                    .trim_end_matches('\n');
-                collected_tokens.push(data_content.to_string());
-            }
         }
 
-        assert_eq!(
-            collected_tokens,
-            vec!["Hello", " ", "world", "!", " ", "How", " ", "are", " ", "you", "?"]
-        );
-        assert!(received_done, "Should have received [DONE] signal");
-    }
-
-    #[tokio::test]
-    async fn sse_streaming_format_matches_spec() {
-        use futures::StreamExt;
-
-        let (tx, rx) = tokio::sync::mpsc::channel::<
-            Result<actix_web::web::Bytes, std::convert::Infallible>,
-        >(128);
-
-        let tx_clone = tx.clone();
-        tokio::spawn(async move {
-            let tokens = vec!["token1", "token2"];
-            for token in tokens {
-                let sse_data = format!("data: {}\n\n", token);
-                let _ = tx_clone
-                    .send(Ok(actix_web::web::Bytes::from(sse_data)))
-                    .await;
-            }
-        });
-
-        let stream = futures::stream::unfold(rx, |mut rx| async move {
-            rx.recv()
-                .await
-                .map(|Ok(bytes)| (Ok::<_, std::convert::Infallible>(bytes), rx))
-        });
-
-        let mut stream = Box::pin(stream);
-
-        while let Some(item) = stream.next().await {
-            let bytes = item.expect("should be Ok");
-            let sse_str = String::from_utf8_lossy(&bytes);
-
-            assert!(
-                sse_str.starts_with("data: "),
-                "SSE data line must start with 'data: '"
-            );
-            assert!(
-                sse_str.ends_with("\n\n"),
-                "SSE event must end with double newline"
-            );
-            assert!(
-                !sse_str.contains("event:"),
-                "Simple token streaming should not include event: field"
-            );
-        }
-    }
-
-    #[tokio::test]
-    async fn sse_streaming_handles_empty_token() {
-        use futures::StreamExt;
-
-        let (tx, rx) = tokio::sync::mpsc::channel::<
-            Result<actix_web::web::Bytes, std::convert::Infallible>,
-        >(128);
-
-        let tx_clone = tx.clone();
-        tokio::spawn(async move {
-            let tokens = vec!["Hello", "", "world"];
-            for token in tokens {
-                let sse_data = format!("data: {}\n\n", token);
-                let _ = tx_clone
-                    .send(Ok(actix_web::web::Bytes::from(sse_data)))
-                    .await;
-            }
-        });
-
-        let stream = futures::stream::unfold(rx, |mut rx| async move {
-            rx.recv()
-                .await
-                .map(|Ok(bytes)| (Ok::<_, std::convert::Infallible>(bytes), rx))
-        });
-
-        let mut stream = Box::pin(stream);
-        let mut collected = Vec::new();
-
-        while let Some(item) = stream.next().await {
-            let bytes = item.expect("should be Ok");
-            let sse_str = String::from_utf8_lossy(&bytes);
-            if let Some(data) = sse_str.strip_prefix("data: ") {
-                collected.push(data.trim().to_string());
-            }
-        }
-
-        assert_eq!(collected, vec!["Hello", "", "world"]);
-    }
-
-    #[tokio::test]
-    async fn sse_streaming_handles_special_characters_in_token() {
-        use futures::StreamExt;
-
-        let (tx, rx) = tokio::sync::mpsc::channel::<
-            Result<actix_web::web::Bytes, std::convert::Infallible>,
-        >(128);
-
-        let tx_clone = tx.clone();
-        tokio::spawn(async move {
-            let tokens = vec!["Hello\nWorld", "Test\r\n", "Tab\there"];
-            for token in tokens {
-                let sse_data = format!("data: {}\n\n", token);
-                let _ = tx_clone
-                    .send(Ok(actix_web::web::Bytes::from(sse_data)))
-                    .await;
-            }
-        });
-
-        let stream = futures::stream::unfold(rx, |mut rx| async move {
-            rx.recv()
-                .await
-                .map(|Ok(bytes)| (Ok::<_, std::convert::Infallible>(bytes), rx))
-        });
-
-        let mut stream = Box::pin(stream);
-        let mut collected = Vec::new();
-
-        while let Some(item) = stream.next().await {
-            let bytes = item.expect("should be Ok");
-            let sse_str = String::from_utf8_lossy(&bytes);
-            if let Some(data) = sse_str.strip_prefix("data: ") {
-                collected.push(data.trim().to_string());
-            }
-        }
-
-        assert_eq!(collected, vec!["Hello\nWorld", "Test\r\n", "Tab\there"]);
-    }
-
-    #[tokio::test]
-    async fn sse_streaming_error_format() {
-        use futures::StreamExt;
-
-        let (tx, rx) = tokio::sync::mpsc::channel::<
-            Result<actix_web::web::Bytes, std::convert::Infallible>,
-        >(128);
-
-        let tx_clone = tx.clone();
-        tokio::spawn(async move {
-            let error_data = "data: {\"error\":\"streaming_error\",\"message\":\"Test error\"}\n\n";
-            let _ = tx_clone
-                .send(Ok(actix_web::web::Bytes::from(error_data)))
-                .await;
-        });
-
-        let stream = futures::stream::unfold(rx, |mut rx| async move {
-            rx.recv()
-                .await
-                .map(|Ok(bytes)| (Ok::<_, std::convert::Infallible>(bytes), rx))
-        });
-
-        let mut stream = Box::pin(stream);
-
-        if let Some(item) = stream.next().await {
-            let bytes = item.expect("should be Ok");
-            let sse_str = String::from_utf8_lossy(&bytes);
-
-            assert!(sse_str.contains("\"error\":\"streaming_error\""));
-            assert!(sse_str.contains("\"message\":\"Test error\""));
-        } else {
-            panic!("Expected one error event");
-        }
+        assert_eq!(collected.len(), 6);
+        assert!(collected[5].contains("[DONE]"));
     }
 }

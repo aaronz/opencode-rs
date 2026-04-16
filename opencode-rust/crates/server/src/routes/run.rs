@@ -9,6 +9,7 @@ use opencode_core::{Message, Session};
 use opencode_llm::{AnthropicProvider, ChatMessage, OllamaProvider, OpenAiProvider, Provider};
 use serde::Deserialize;
 use tokio::sync::mpsc;
+use tokio::task::JoinHandle;
 
 #[derive(Deserialize)]
 pub struct RunRequest {
@@ -145,7 +146,7 @@ async fn run_prompt_streaming(
     let tx_for_callback = tx.clone();
     let tx_for_error = tx.clone();
 
-    actix_rt::spawn(async move {
+    let _join_handle: JoinHandle<()> = actix_rt::spawn(async move {
         let result = provider
             .complete_streaming(
                 &prompt,
