@@ -147,7 +147,7 @@
       "priority": "P2",
       "title": "Create tests/state_tests.rs",
       "description": "StateTester specific tests. Snapshot capture/compare tests. Approximately 200 lines.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify file created at tests/state_tests.rs",
         "AddUnitTest: verify StateTester specific tests",
