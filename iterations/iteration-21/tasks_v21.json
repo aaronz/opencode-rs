@@ -1357,7 +1357,7 @@
       "priority": "P2",
       "title": "Test 100 iterations for consistent ordering",
       "description": "Test 100 iterations for consistent hook ordering",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify hook ordering is consistent across 100 iterations"
       ],
@@ -1408,7 +1408,7 @@
       "priority": "P2",
       "title": "Create security_tests.rs",
       "description": "Create tests/src/security_tests.rs for security test suite",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: ensure security test file compiles"
       ],
@@ -1423,7 +1423,7 @@
       "priority": "P2",
       "title": "Add SQL injection tests for sessions",
       "description": "Add SQL injection tests for session operations in security_tests.rs",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddErrorHandlingTest: verify SQL injection attempts are sanitized"
       ],

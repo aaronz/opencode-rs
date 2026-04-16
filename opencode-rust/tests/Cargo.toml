@@ -48,6 +48,10 @@ path = "src/streaming_response_tests.rs"
 name = "permission_integration_tests"
 path = "src/permission_integration_tests.rs"
 
+[[test]]
+name = "security_tests"
+path = "src/security_tests.rs"
+
 [dev-dependencies]
 assert_cmd = "2"
 predicates = "3"
