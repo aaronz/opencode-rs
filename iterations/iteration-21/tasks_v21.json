@@ -1342,7 +1342,7 @@
       "priority": "P2",
       "title": "Add deterministic hook test",
       "description": "Add deterministic hook test in crates/plugin/src/lib.rs for hook ordering",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: ensure hook test compiles"
       ],
@@ -1440,7 +1440,7 @@
       "priority": "P2",
       "title": "Add SQL injection tests for messages",
       "description": "Add SQL injection tests for message operations in security_tests.rs",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddErrorHandlingTest: verify SQL injection attempts are sanitized"
       ],

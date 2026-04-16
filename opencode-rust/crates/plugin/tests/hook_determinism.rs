@@ -137,7 +137,7 @@ fn hook_order_is_deterministic() {
         fn on_start(&mut self) -> Result<(), PluginError> {
             let order = self.call_count.fetch_add(1, Ordering::SeqCst);
             let mut seq = self.call_sequence.lock().unwrap();
-            if seq.len() == order as usize {
+            if seq.len() == order {
                 seq.push(self.name.clone());
             } else {
                 seq.push(format!("OUT_OF_ORDER:{}", self.name));
@@ -217,7 +217,7 @@ fn hook_order_is_consistent_across_invocations() {
             fn on_start(&mut self) -> Result<(), PluginError> {
                 let order = self.call_count.fetch_add(1, Ordering::SeqCst);
                 let mut seq = self.call_sequence.lock().unwrap();
-                if seq.len() == order as usize {
+                if seq.len() == order {
                     seq.push(self.name.clone());
                 } else {
                     seq.push(format!("OUT_OF_ORDER:{}", self.name));

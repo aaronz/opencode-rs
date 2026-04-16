@@ -126,7 +126,7 @@
 
 | ID | Task | Status | Owner | Files | Dependencies |
 |----|------|--------|-------|-------|--------------|
-| P2-029-01 | Add deterministic hook test in `crates/plugin/src/lib.rs` | TODO | | plugin/src/lib.rs | None |
+| P2-029-01 | Add deterministic hook test in `crates/plugin/src/lib.rs` | ✅ Done | | plugin/src/lib.rs | None |
 | P2-029-02 | Test 100 iterations for consistent ordering | ✅ Done | | plugin/src/lib.rs | P2-029-01 |
 | P2-029-03 | Document expected ordering behavior in test | ✅ Done | | plugin/src/lib.rs | P2-029-02 |
 | P2-029-04 | Verify test passes: `cargo test -p opencode-plugin hook_determinism` | ✅ Done | | | P2-029-03 |
