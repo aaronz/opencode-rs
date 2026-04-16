@@ -25,7 +25,11 @@ impl Debug for PtySimulator {
 }
 
 impl PtySimulator {
-    pub fn new(command: &[&str]) -> Result<Self> {
+    pub fn new() -> Result<Self> {
+        Self::new_with_command(&["bash", "-c", "echo ready"])
+    }
+
+    pub fn new_with_command(command: &[&str]) -> Result<Self> {
         let pty_system = native_pty_system();
         let pair = pty_system
             .openpty(PtySize {

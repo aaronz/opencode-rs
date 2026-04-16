@@ -464,7 +464,7 @@ fn test_dsl_wait_for_async_example() {
 
 #[test]
 fn test_pty_simulator_standalone() {
-    let mut pty = PtySimulator::new(&["cat"]).expect("PTY should be created");
+    let mut pty = PtySimulator::new_with_command(&["cat"]).expect("PTY should be created");
 
     assert!(pty.is_child_running(), "Child should be running");
 

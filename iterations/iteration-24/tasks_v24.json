@@ -106,7 +106,7 @@
       "priority": "P2",
       "title": "PtySimulator new() alignment",
       "description": "Add `new()` as alias that creates a default PTY. Uses `new(&[\"bash\", \"-c\", \"echo ready\"])` or similar. Or update PRD to reflect actual `new(command: &[&str])` signature.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify PtySimulator::new() works without arguments OR",
         "AddUnitTest: verify documentation reflects new(command: &[&str]) signature"

@@ -64,8 +64,8 @@ impl TestDsl {
     }
 
     pub fn with_pty(mut self, command: &[&str]) -> Result<Self> {
-        let pty =
-            PtySimulator::new(command).context("Failed to create PTY simulator for TestDsl")?;
+        let pty = PtySimulator::new_with_command(command)
+            .context("Failed to create PTY simulator for TestDsl")?;
         self.pty = Some(pty);
         Ok(self)
     }

@@ -111,7 +111,7 @@
 
 ### Task 2.3: PtySimulator new() alignment
 **FR:** FR-106  
-**Status:** TODO  
+**Status:** ✅ Done  
 **Priority:** P2  
 **Effort:** Low
 
@@ -121,8 +121,8 @@
 - Or update PRD to reflect actual `new(command: &[&str])` signature
 
 **Acceptance Criteria:**
-- [ ] Either `new()` works without arguments OR
-- [ ] PRD is updated to reflect `new(command: &[&str])` signature
+- [x] Either `new()` works without arguments OR
+- [x] PRD is updated to reflect `new(command: &[&str])` signature
 
 ---
 

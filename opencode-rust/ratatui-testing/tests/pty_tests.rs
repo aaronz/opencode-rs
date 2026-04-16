@@ -3,8 +3,23 @@ use ratatui_testing::PtySimulator;
 use std::time::Duration;
 
 #[test]
+fn test_pty_simulator_new_without_arguments() {
+    let result = PtySimulator::new();
+    assert!(
+        result.is_ok(),
+        "PtySimulator::new() without arguments should create a valid PTY"
+    );
+
+    let pty = result.unwrap();
+    assert!(pty.master.is_some(), "Master PTY should be Some");
+    assert!(pty.child.borrow().is_some(), "Child process should be Some");
+    assert!(pty.writer.is_some(), "Writer should be Some");
+    assert!(pty.reader.is_some(), "Reader should be Some");
+}
+
+#[test]
 fn test_pty_simulator_new_creates_valid_pty_pair() {
-    let result = PtySimulator::new(&["echo", "hello"]);
+    let result = PtySimulator::new_with_command(&["echo", "hello"]);
     assert!(
         result.is_ok(),
         "PtySimulator::new should create a valid PTY pair"
@@ -19,7 +34,7 @@ fn test_pty_simulator_new_creates_valid_pty_pair() {
 
 #[test]
 fn test_pty_simulator_child_process_is_spawned_and_running() {
-    let result = PtySimulator::new(&["sleep", "10"]);
+    let result = PtySimulator::new_with_command(&["sleep", "10"]);
     assert!(
         result.is_ok(),
         "PtySimulator::new should succeed with sleep command"
@@ -33,7 +48,7 @@ fn test_pty_simulator_child_process_is_spawned_and_running() {
 
 #[test]
 fn test_pty_simulator_writer_and_reader_properly_initialized() {
-    let result = PtySimulator::new(&["cat"]);
+    let result = PtySimulator::new_with_command(&["cat"]);
     assert!(
         result.is_ok(),
         "PtySimulator::new should succeed with cat command"
@@ -57,7 +72,7 @@ fn test_pty_simulator_writer_and_reader_properly_initialized() {
 
 #[test]
 fn test_pty_simulator_error_when_command_is_invalid() {
-    let result = PtySimulator::new(&["nonexistent_command_12345"]);
+    let result = PtySimulator::new_with_command(&["nonexistent_command_12345"]);
     assert!(
         result.is_err(),
         "PtySimulator::new should fail with invalid command"
@@ -66,7 +81,7 @@ fn test_pty_simulator_error_when_command_is_invalid() {
 
 #[test]
 fn test_key_event_injection_works() {
-    let result = PtySimulator::new(&["cat"]);
+    let result = PtySimulator::new_with_command(&["cat"]);
     assert!(result.is_ok(), "PtySimulator::new should succeed");
 
     let mut pty = result.unwrap();
@@ -80,7 +95,7 @@ fn test_key_event_injection_works() {
 
 #[test]
 fn test_key_event_injection_with_modifiers() {
-    let result = PtySimulator::new(&["cat"]);
+    let result = PtySimulator::new_with_command(&["cat"]);
     assert!(result.is_ok(), "PtySimulator::new should succeed");
 
     let mut pty = result.unwrap();
@@ -97,7 +112,7 @@ fn test_key_event_injection_with_modifiers() {
 
 #[test]
 fn test_mouse_event_injection_works() {
-    let result = PtySimulator::new(&["cat"]);
+    let result = PtySimulator::new_with_command(&["cat"]);
     assert!(result.is_ok(), "PtySimulator::new should succeed");
 
     let mut pty = result.unwrap();
@@ -116,7 +131,7 @@ fn test_mouse_event_injection_works() {
 
 #[test]
 fn test_mouse_event_injection_scroll() {
-    let result = PtySimulator::new(&["cat"]);
+    let result = PtySimulator::new_with_command(&["cat"]);
     assert!(result.is_ok(), "PtySimulator::new should succeed");
 
     let mut pty = result.unwrap();
@@ -138,7 +153,7 @@ fn test_mouse_event_injection_scroll() {
 
 #[test]
 fn test_key_event_injection_reaches_terminal() {
-    let result = PtySimulator::new(&["cat"]);
+    let result = PtySimulator::new_with_command(&["cat"]);
     assert!(result.is_ok(), "PtySimulator::new should succeed");
 
     let mut pty = result.unwrap();
@@ -167,7 +182,7 @@ fn test_key_event_injection_reaches_terminal() {
 
 #[test]
 fn test_multiple_key_events_injection() {
-    let result = PtySimulator::new(&["cat"]);
+    let result = PtySimulator::new_with_command(&["cat"]);
     assert!(result.is_ok(), "PtySimulator::new should succeed");
 
     let mut pty = result.unwrap();
