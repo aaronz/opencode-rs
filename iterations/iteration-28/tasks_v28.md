@@ -29,7 +29,7 @@
 | Task ID | Description | File | Estimated | Status |
 |---------|-------------|------|-----------|--------|
 | T-006 | Fix tool registry read tool test | `tests/src/agent_tool_tests.rs` | 1 hour | ✅ Done |
-| T-007 | Fix tool registry write tool test | `tests/src/agent_tool_tests.rs` | 1 hour | Failing |
+| T-007 | Fix tool registry write tool test | `tests/src/agent_tool_tests.rs` | 1 hour | ✅ Done |
 | T-008 | Fix path normalization traversal test | `tests/src/security_tests.rs` | 1 hour | Failing |
 | T-009 | Fix message content sanitization test | `tests/src/security_tests.rs` | 1 hour | Failing |
 | T-010 | Fix XSS prevention test | `tests/src/security_tests.rs` | 1 hour | Failing |

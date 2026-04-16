@@ -113,7 +113,7 @@
       "priority": "P0",
       "title": "Fix tool registry write tool test",
       "description": "Fix failing tool registry write tool test in tests/src/agent_tool_tests.rs",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify write tool correctly writes content to file",
         "RunTestSuite: execute agent_tool_tests to confirm fix"
