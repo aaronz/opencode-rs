@@ -147,7 +147,7 @@
       "priority": "P0",
       "title": "Fix message content sanitization test",
       "description": "Fix failing message content sanitization test in tests/src/security_tests.rs",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddSecurityTest: verify HTML/script tags are stripped from messages",
         "AddErrorHandlingTest: test various XSS payloads are sanitized"
@@ -164,7 +164,7 @@
       "priority": "P0",
       "title": "Fix XSS prevention test",
       "description": "Fix failing XSS prevention test in tests/src/security_tests.rs",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddSecurityTest: verify XSS payloads are neutralized",
         "AddIntegrationTest: test XSS prevention in message rendering pipeline"
