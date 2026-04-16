@@ -58,6 +58,7 @@ pub struct ServerState {
     pub tool_registry: Arc<ToolRegistry>,
     pub session_hub: Arc<SessionHub>,
     pub server_start_time: std::time::SystemTime,
+    pub permission_manager: Arc<RwLock<opencode_core::permission::PermissionManager>>,
 }
 
 pub async fn run_server(state: Arc<ServerState>, host: &str, port: u16) -> std::io::Result<()> {

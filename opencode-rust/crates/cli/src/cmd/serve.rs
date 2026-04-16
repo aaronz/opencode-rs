@@ -3,6 +3,7 @@ use directories::ProjectDirs;
 use opencode_control_plane::SharedAcpStream;
 use opencode_core::bus::SharedEventBus;
 use opencode_core::config::ServerConfig;
+use opencode_core::permission::PermissionManager;
 use opencode_core::Config;
 use opencode_llm::ModelRegistry;
 use opencode_server::routes::acp_ws::SharedAcpClientRegistry;
@@ -68,6 +69,7 @@ async fn run_serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
     let connection_monitor = Arc::new(ConnectionMonitor::new());
     let share_server = Arc::new(RwLock::new(ShareServer::with_default_config()));
     let tool_registry = Arc::new(build_default_registry(None).await);
+    let permission_manager = Arc::new(RwLock::new(PermissionManager::default()));
 
     let state = ServerState {
         storage,
@@ -84,6 +86,7 @@ async fn run_serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
         tool_registry,
         session_hub: Arc::new(opencode_server::routes::ws::SessionHub::new(256)),
         server_start_time: std::time::SystemTime::now(),
+        permission_manager,
     };
 
     run_server(Arc::new(state), &host, port).await?;

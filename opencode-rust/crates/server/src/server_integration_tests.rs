@@ -3,7 +3,7 @@ mod tests {
     use actix_web::http::StatusCode;
     use actix_web::test::TestRequest;
     use actix_web::Responder;
-    use opencode_core::{Message, Session};
+    use opencode_core::{Message, PermissionManager, Session};
     use std::sync::Arc;
 
     #[actix_web::test]
@@ -48,6 +48,9 @@ mod tests {
             tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
             session_hub: std::sync::Arc::new(crate::routes::ws::SessionHub::new(256)),
             server_start_time: std::time::SystemTime::now(),
+            permission_manager: std::sync::Arc::new(std::sync::RwLock::new(
+                PermissionManager::default(),
+            )),
         }
     }
 
@@ -88,6 +91,9 @@ mod tests {
             tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
             session_hub: std::sync::Arc::new(crate::routes::ws::SessionHub::new(256)),
             server_start_time: std::time::SystemTime::now(),
+            permission_manager: std::sync::Arc::new(std::sync::RwLock::new(
+                PermissionManager::default(),
+            )),
         }
     }
 
@@ -143,6 +149,85 @@ mod tests {
         .respond_to(&req);
 
         assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    #[actix_web::test]
+    async fn test_permission_reply_calls_permission_manager_grant() {
+        use actix_web::web;
+
+        let state = create_test_state();
+        let permission_manager = state.permission_manager.clone();
+
+        {
+            let pm = permission_manager.write().unwrap();
+            assert!(
+                !pm.check(&opencode_core::permission::Permission::FileWrite, "/test"),
+                "FileWrite should not be allowed initially"
+            );
+        }
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::permission_reply(
+            web::Data::new(state),
+            web::Path::from(("test-session".to_string(), "file_write_req".to_string())),
+            web::Json(crate::routes::session::PermissionReplyRequest {
+                decision: "allow".to_string(),
+            }),
+        )
+        .await
+        .respond_to(&req);
+
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        {
+            let pm = permission_manager.write().unwrap();
+            assert!(
+                pm.check(&opencode_core::permission::Permission::FileWrite, "/test"),
+                "FileWrite should be allowed after grant"
+            );
+        }
+    }
+
+    #[actix_web::test]
+    async fn test_permission_reply_calls_permission_manager_revoke() {
+        use actix_web::web;
+
+        let state = create_test_state();
+        let permission_manager = state.permission_manager.clone();
+
+        {
+            let mut pm = permission_manager.write().unwrap();
+            pm.grant(opencode_core::permission::Permission::BashExecute);
+        }
+
+        {
+            let pm = permission_manager.write().unwrap();
+            assert!(
+                pm.check(&opencode_core::permission::Permission::BashExecute, "/test"),
+                "BashExecute should be allowed after grant"
+            );
+        }
+
+        let req = TestRequest::default().to_http_request();
+        let resp = crate::routes::session::permission_reply(
+            web::Data::new(state),
+            web::Path::from(("test-session".to_string(), "bash_req".to_string())),
+            web::Json(crate::routes::session::PermissionReplyRequest {
+                decision: "deny".to_string(),
+            }),
+        )
+        .await
+        .respond_to(&req);
+
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        {
+            let pm = permission_manager.write().unwrap();
+            assert!(
+                !pm.check(&opencode_core::permission::Permission::BashExecute, "/test"),
+                "BashExecute should be denied after revoke"
+            );
+        }
     }
 
     // Auth enforcement tests
@@ -1732,6 +1817,7 @@ mod security_tests {
     use actix_web::test::TestRequest;
     use actix_web::web;
     use actix_web::Responder;
+    use opencode_core::PermissionManager;
     use std::sync::Arc;
 
     fn create_test_state_with_api_key(api_key: Option<String>) -> crate::ServerState {
@@ -1771,6 +1857,9 @@ mod security_tests {
             tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
             session_hub: std::sync::Arc::new(crate::routes::ws::SessionHub::new(256)),
             server_start_time: std::time::SystemTime::now(),
+            permission_manager: std::sync::Arc::new(std::sync::RwLock::new(
+                PermissionManager::default(),
+            )),
         }
     }
 
@@ -2168,6 +2257,7 @@ mod api_negative_tests {
     use actix_web::test::TestRequest;
     use actix_web::web;
     use actix_web::Responder;
+    use opencode_core::PermissionManager;
     use std::sync::Arc;
 
     fn create_test_state() -> crate::ServerState {
@@ -2205,6 +2295,9 @@ mod api_negative_tests {
             tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
             session_hub: std::sync::Arc::new(crate::routes::ws::SessionHub::new(256)),
             server_start_time: std::time::SystemTime::now(),
+            permission_manager: std::sync::Arc::new(std::sync::RwLock::new(
+                PermissionManager::default(),
+            )),
         }
     }
 
@@ -2245,6 +2338,9 @@ mod api_negative_tests {
             tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
             session_hub: std::sync::Arc::new(crate::routes::ws::SessionHub::new(256)),
             server_start_time: std::time::SystemTime::now(),
+            permission_manager: std::sync::Arc::new(std::sync::RwLock::new(
+                PermissionManager::default(),
+            )),
         }
     }
 
@@ -2882,7 +2978,7 @@ mod auth_negative_tests {
     use actix_web::http::StatusCode;
     use actix_web::test::TestRequest;
     use actix_web::web;
-    use opencode_core::{Message, Session};
+    use opencode_core::{Message, PermissionManager, Session};
     use std::sync::Arc;
 
     fn create_test_state_with_api_key(api_key: Option<String>) -> crate::ServerState {
@@ -2922,6 +3018,9 @@ mod auth_negative_tests {
             tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
             session_hub: std::sync::Arc::new(crate::routes::ws::SessionHub::new(256)),
             server_start_time: std::time::SystemTime::now(),
+            permission_manager: std::sync::Arc::new(std::sync::RwLock::new(
+                PermissionManager::default(),
+            )),
         }
     }
 
@@ -3451,6 +3550,9 @@ mod auth_negative_tests {
             tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
             session_hub: std::sync::Arc::new(crate::routes::ws::SessionHub::new(256)),
             server_start_time: std::time::SystemTime::now(),
+            permission_manager: std::sync::Arc::new(std::sync::RwLock::new(
+                PermissionManager::default(),
+            )),
         };
 
         let req = TestRequest::default().to_http_request();
@@ -3519,6 +3621,9 @@ mod auth_negative_tests {
             tool_registry: std::sync::Arc::new(opencode_tools::ToolRegistry::new()),
             session_hub: std::sync::Arc::new(crate::routes::ws::SessionHub::new(256)),
             server_start_time: std::time::SystemTime::now(),
+            permission_manager: std::sync::Arc::new(std::sync::RwLock::new(
+                PermissionManager::default(),
+            )),
         };
 
         let req = TestRequest::default().to_http_request();

@@ -597,6 +597,9 @@ fn create_ws_test_server_state() -> opencode_server::ServerState {
         tool_registry: Arc::new(opencode_tools::ToolRegistry::new()),
         session_hub: Arc::new(SessionHub::new(256)),
         server_start_time: std::time::SystemTime::now(),
+        permission_manager: Arc::new(std::sync::RwLock::new(
+            opencode_core::PermissionManager::default(),
+        )),
     }
 }
 

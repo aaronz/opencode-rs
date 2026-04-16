@@ -3,6 +3,7 @@ use directories::ProjectDirs;
 use opencode_control_plane::SharedAcpStream;
 use opencode_core::bus::SharedEventBus;
 use opencode_core::config::ServerConfig;
+use opencode_core::permission::PermissionManager;
 use opencode_core::session_sharing::SessionSharing;
 use opencode_core::Config;
 use opencode_llm::ModelRegistry;
@@ -50,6 +51,7 @@ pub struct WebServerState {
     pub acp_client_registry: SharedAcpClientRegistry,
     pub tool_registry: Arc<opencode_tools::ToolRegistry>,
     pub session_hub: Arc<opencode_server::routes::ws::SessionHub>,
+    pub permission_manager: Arc<RwLock<PermissionManager>>,
 }
 
 impl WebServerState {
@@ -75,6 +77,7 @@ impl WebServerState {
             acp_client_registry: SharedAcpClientRegistry::default(),
             tool_registry: Arc::new(build_default_registry(None).await),
             session_hub: Arc::new(opencode_server::routes::ws::SessionHub::new(256)),
+            permission_manager: Arc::new(RwLock::new(PermissionManager::default())),
         }
     }
 
@@ -94,6 +97,7 @@ impl WebServerState {
             tool_registry: self.tool_registry.clone(),
             session_hub: self.session_hub.clone(),
             server_start_time: std::time::SystemTime::now(),
+            permission_manager: self.permission_manager.clone(),
         }
     }
 }

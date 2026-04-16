@@ -982,7 +982,7 @@
       "priority": "P1",
       "title": "Add test: connection close terminates cleanly",
       "description": "Add integration test: connection close terminates stream cleanly",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddErrorHandlingTest: verify server handles connection close gracefully"
       ],
@@ -1033,7 +1033,7 @@
       "priority": "P1",
       "title": "Connect permission_reply to PermissionManager",
       "description": "Connect permission_reply endpoint to PermissionManager for decision processing",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify permission_reply calls PermissionManager"
       ],

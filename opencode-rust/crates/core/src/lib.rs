@@ -194,7 +194,7 @@ pub(crate) use mcp::McpManager;
 pub(crate) use part::Part;
 
 // permission
-pub(crate) use permission::PermissionManager;
+pub use permission::PermissionManager;
 
 // plugin
 pub(crate) use plugin::PluginManager;

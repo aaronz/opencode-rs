@@ -4,7 +4,8 @@ use crate::ServerState;
 use actix_web::{http::StatusCode, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
 use opencode_core::{
-    config::ShareMode, CheckpointManager, Message, Role, Session, SummaryGenerator,
+    config::ShareMode, permission::Permission, CheckpointManager, Message, PermissionManager, Role,
+    Session, SummaryGenerator,
 };
 use serde::Deserialize;
 use tokio::process::Command;
@@ -737,8 +738,25 @@ pub async fn abort_session(state: web::Data<ServerState>, id: web::Path<String>)
     }
 }
 
+fn req_id_to_permission(req_id: &str) -> Permission {
+    let lower = req_id.to_lowercase();
+    if lower.contains("file_read") || lower.contains("read") {
+        Permission::FileRead
+    } else if lower.contains("file_write") || lower.contains("write") {
+        Permission::FileWrite
+    } else if lower.contains("file_delete") || lower.contains("delete") {
+        Permission::FileDelete
+    } else if lower.contains("bash") || lower.contains("execute") {
+        Permission::BashExecute
+    } else if lower.contains("network") || lower.contains("external") {
+        Permission::NetworkAccess
+    } else {
+        Permission::FileRead
+    }
+}
+
 pub async fn permission_reply(
-    _state: web::Data<ServerState>,
+    state: web::Data<ServerState>,
     path: web::Path<(String, String)>,
     body: web::Json<PermissionReplyRequest>,
 ) -> impl Responder {
@@ -761,12 +779,33 @@ pub async fn permission_reply(
     if decision != "allow" && decision != "deny" {
         return bad_request("decision must be 'allow' or 'deny'");
     }
-    tracing::info!(
-        "Permission reply: session={}, req={}, decision={}",
-        session_id,
-        req_id,
-        decision
-    );
+
+    let permission = req_id_to_permission(&req_id);
+
+    if let Ok(mut pm) = state.permission_manager.write() {
+        match decision.as_str() {
+            "allow" => {
+                pm.grant(permission.clone());
+                tracing::info!(
+                    "Permission granted: session={}, req={}, permission={:?}",
+                    session_id,
+                    req_id,
+                    permission
+                );
+            }
+            "deny" => {
+                pm.revoke(&permission);
+                tracing::info!(
+                    "Permission denied: session={}, req={}, permission={:?}",
+                    session_id,
+                    req_id,
+                    permission
+                );
+            }
+            _ => {}
+        }
+    }
+
     HttpResponse::Ok().json(serde_json::json!({
         "status": "ok",
         "session_id": session_id,

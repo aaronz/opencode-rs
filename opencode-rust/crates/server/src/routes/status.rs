@@ -286,6 +286,7 @@ mod tests {
             tool_registry: Arc::new(ToolRegistry::new()),
             session_hub: Arc::new(SessionHub::new(256)),
             server_start_time: start_time,
+            permission_manager: Arc::new(RwLock::new(opencode_core::PermissionManager::default())),
         };
 
         let calculated_uptime = std::time::SystemTime::now()
