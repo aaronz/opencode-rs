@@ -6,7 +6,7 @@ use serde_json::json;
 use std::process::Command;
 
 #[derive(Args, Debug)]
-pub struct ProvidersArgs {
+pub(crate) struct ProvidersArgs {
     #[arg(short, long)]
     pub json: bool,
 
@@ -88,7 +88,7 @@ fn provider_enabled(config: &Config, id: &str) -> bool {
     enabled_by_allowlist && !disabled_by_denylist
 }
 
-pub fn run(args: ProvidersArgs) {
+pub(crate) fn run(args: ProvidersArgs) {
     let config = load_config();
     let registry = ModelRegistry::default();
     let providers = ["openai", "anthropic", "ollama"]

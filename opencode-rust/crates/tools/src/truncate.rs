@@ -4,12 +4,14 @@ use async_trait::async_trait;
 use opencode_core::OpenCodeError;
 use serde::Deserialize;
 
+#[allow(dead_code)]
 pub struct TruncateTool {
     max_lines: usize,
     max_bytes: usize,
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct TruncateArgs {
     content: String,
     max_lines: Option<usize>,
@@ -17,6 +19,7 @@ struct TruncateArgs {
 }
 
 impl TruncateTool {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self {
             max_lines: 2000,

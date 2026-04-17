@@ -388,7 +388,7 @@ mod tests {
     }
 }
 
-pub fn run(args: ProjectArgs) {
+pub(crate) fn run(args: ProjectArgs) {
     match args.action {
         Some(ProjectAction::Create { name, path }) => {
             let mut state = load_project_state();

@@ -5,17 +5,20 @@ use opencode_core::{OpenCodeError, SkillManager};
 use serde::Deserialize;
 use std::sync::Arc;
 
+#[allow(dead_code)]
 pub struct SkillTool {
     skill_manager: Arc<SkillManager>,
 }
 
 impl SkillTool {
+    #[allow(dead_code)]
     pub fn new(skill_manager: Arc<SkillManager>) -> Self {
         Self { skill_manager }
     }
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct SkillArgs {
     skill_name: String,
     parameters: Option<serde_json::Value>,

@@ -4,9 +4,11 @@ use async_trait::async_trait;
 use opencode_core::OpenCodeError;
 use serde::Deserialize;
 
+#[allow(dead_code)]
 pub struct InvalidTool;
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct InvalidArgs {
     #[allow(dead_code)]
     tool: String,

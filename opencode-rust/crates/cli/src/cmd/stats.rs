@@ -1,7 +1,7 @@
 use clap::Args;
 
 #[derive(Args, Debug)]
-pub struct StatsArgs {
+pub(crate) struct StatsArgs {
     #[arg(short, long)]
     pub json: bool,
 }
@@ -23,6 +23,6 @@ mod tests {
     }
 }
 
-pub fn run(args: StatsArgs) {
+pub(crate) fn run(args: StatsArgs) {
     println!("Showing stats, json: {}", args.json);
 }

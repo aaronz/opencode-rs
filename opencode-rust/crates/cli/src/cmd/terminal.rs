@@ -1,13 +1,13 @@
 use clap::{Args, Subcommand};
 
 #[derive(Args, Debug)]
-pub struct TerminalArgs {
+pub(crate) struct TerminalArgs {
     #[command(subcommand)]
     pub action: Option<TerminalAction>,
 }
 
 #[derive(Subcommand, Debug)]
-pub enum TerminalAction {
+pub(crate) enum TerminalAction {
     Open,
     Exec {
         #[arg(last = true)]
@@ -130,7 +130,7 @@ mod tests {
     }
 }
 
-pub fn run(args: TerminalArgs) {
+pub(crate) fn run(args: TerminalArgs) {
     match args.action {
         Some(TerminalAction::Open) => {
             println!("Terminal panel opened");

@@ -3,7 +3,7 @@ use opencode_core::Config;
 use opencode_tui::{App, OutputFormat};
 
 #[derive(Args, Debug)]
-pub struct RunArgs {
+pub(crate) struct RunArgs {
     #[arg(short, long)]
     pub prompt: Option<String>,
 
@@ -215,7 +215,7 @@ fn load_config() -> Config {
     Config::load(&path).unwrap_or_default()
 }
 
-pub fn run(args: RunArgs) {
+pub(crate) fn run(args: RunArgs) {
     if let Some(prompt) = args.prompt.clone() {
         let config = load_config();
         let model = args

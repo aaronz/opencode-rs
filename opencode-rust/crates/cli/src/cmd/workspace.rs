@@ -3,10 +3,11 @@ use once_cell::sync::Lazy;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-pub static WORKSPACE_SESSIONS: Lazy<Mutex<Vec<SessionInfo>>> = Lazy::new(|| Mutex::new(Vec::new()));
+pub(crate) static WORKSPACE_SESSIONS: Lazy<Mutex<Vec<SessionInfo>>> =
+    Lazy::new(|| Mutex::new(Vec::new()));
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
-pub struct SessionInfo {
+pub(crate) struct SessionInfo {
     pub id: String,
     pub name: String,
 }
@@ -57,7 +58,7 @@ fn workspace_sessions_path() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("./workspace-sessions.json"))
 }
 
-pub fn load_workspace_sessions() -> Vec<SessionInfo> {
+pub(crate) fn load_workspace_sessions() -> Vec<SessionInfo> {
     let path = workspace_sessions_path();
     std::fs::read_to_string(path)
         .ok()
@@ -65,7 +66,7 @@ pub fn load_workspace_sessions() -> Vec<SessionInfo> {
         .unwrap_or_default()
 }
 
-pub fn save_workspace_sessions(sessions: &[SessionInfo]) {
+pub(crate) fn save_workspace_sessions(sessions: &[SessionInfo]) {
     let path = workspace_sessions_path();
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
@@ -76,13 +77,13 @@ pub fn save_workspace_sessions(sessions: &[SessionInfo]) {
 }
 
 #[derive(Args, Debug)]
-pub struct WorkspaceArgs {
+pub(crate) struct WorkspaceArgs {
     #[command(subcommand)]
     pub action: Option<WorkspaceAction>,
 }
 
 #[derive(Subcommand, Debug)]
-pub enum WorkspaceAction {
+pub(crate) enum WorkspaceAction {
     #[command(about = "List workspace sessions")]
     Sessions {
         #[arg(long)]
@@ -195,7 +196,7 @@ mod workspace_tests {
     }
 }
 
-pub fn run(args: WorkspaceArgs) {
+pub(crate) fn run(args: WorkspaceArgs) {
     match args.action {
         Some(WorkspaceAction::Sessions { json }) => {
             let sessions = load_workspace_sessions();

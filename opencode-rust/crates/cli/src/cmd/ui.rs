@@ -1,25 +1,25 @@
 use clap::{Args, Subcommand};
 
 #[derive(Args, Debug)]
-pub struct UiArgs {
+pub(crate) struct UiArgs {
     #[command(subcommand)]
     pub action: UiAction,
 }
 
 #[derive(Subcommand, Debug)]
-pub enum UiAction {
+pub(crate) enum UiAction {
     #[command(about = "Manage sidebar")]
     Sidebar(SidebarArgs),
 }
 
 #[derive(Args, Debug)]
-pub struct SidebarArgs {
+pub(crate) struct SidebarArgs {
     #[command(subcommand)]
     pub action: SidebarAction,
 }
 
 #[derive(Subcommand, Debug)]
-pub enum SidebarAction {
+pub(crate) enum SidebarAction {
     #[command(about = "Toggle sidebar")]
     Toggle,
 
@@ -127,7 +127,7 @@ mod tests {
     }
 }
 
-pub fn run(args: UiArgs) {
+pub(crate) fn run(args: UiArgs) {
     match args.action {
         UiAction::Sidebar(sidebar_args) => match sidebar_args.action {
             SidebarAction::Toggle => {

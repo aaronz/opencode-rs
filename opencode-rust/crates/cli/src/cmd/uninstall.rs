@@ -3,7 +3,7 @@ use serde_json::json;
 use std::path::PathBuf;
 
 #[derive(Args, Debug)]
-pub struct UninstallArgs {
+pub(crate) struct UninstallArgs {
     #[arg(short, long)]
     pub force: bool,
 
@@ -97,7 +97,7 @@ mod tests {
     }
 }
 
-pub fn run(args: UninstallArgs) {
+pub(crate) fn run(args: UninstallArgs) {
     let data_dir = directories::ProjectDirs::from("com", "opencode", "rs")
         .map(|dirs| dirs.data_dir().to_path_buf())
         .unwrap_or_else(|| PathBuf::from("~/.local/share/opencode-rs"));

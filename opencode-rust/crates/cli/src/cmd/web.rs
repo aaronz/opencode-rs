@@ -18,7 +18,7 @@ use std::sync::Arc;
 use std::sync::RwLock;
 
 #[derive(Args, Debug)]
-pub struct WebArgs {
+pub(crate) struct WebArgs {
     #[arg(short, long)]
     pub port: Option<u16>,
 
@@ -26,7 +26,7 @@ pub struct WebArgs {
     pub hostname: Option<String>,
 }
 
-pub fn run(args: WebArgs) {
+pub(crate) fn run(args: WebArgs) {
     let runtime = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
 
     runtime.block_on(async {

@@ -2,7 +2,7 @@ use clap::Args;
 use serde_json::json;
 
 #[derive(Args, Debug)]
-pub struct UpgradeArgs {
+pub(crate) struct UpgradeArgs {
     #[arg(short, long)]
     pub version: Option<String>,
 
@@ -93,7 +93,7 @@ mod tests {
     }
 }
 
-pub fn run(args: UpgradeArgs) {
+pub(crate) fn run(args: UpgradeArgs) {
     let current_version = env!("CARGO_PKG_VERSION");
     let target_version = args.version.as_deref().unwrap_or("latest");
 

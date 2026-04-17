@@ -1,13 +1,13 @@
 use clap::{Args, Subcommand};
 
 #[derive(Args, Debug)]
-pub struct ShortcutsArgs {
+pub(crate) struct ShortcutsArgs {
     #[command(subcommand)]
     pub action: Option<ShortcutsAction>,
 }
 
 #[derive(Subcommand, Debug)]
-pub enum ShortcutsAction {
+pub(crate) enum ShortcutsAction {
     #[command(about = "List all keyboard shortcuts")]
     List {
         #[arg(long)]
@@ -132,7 +132,7 @@ mod tests {
     }
 }
 
-pub fn run(args: ShortcutsArgs) {
+pub(crate) fn run(args: ShortcutsArgs) {
     match args.action {
         Some(ShortcutsAction::List { json }) => {
             if json {

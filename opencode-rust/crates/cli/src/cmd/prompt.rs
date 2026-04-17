@@ -3,7 +3,7 @@ use clap::Args;
 use std::path::PathBuf;
 
 #[derive(Args, Debug)]
-pub struct PromptArgs {
+pub(crate) struct PromptArgs {
     #[arg(short, long)]
     pub session: Option<String>,
 
@@ -334,7 +334,7 @@ fn save_queue(queue: &[serde_json::Value]) {
     .expect("failed to write queue file");
 }
 
-pub fn run(args: PromptArgs) {
+pub(crate) fn run(args: PromptArgs) {
     if args.history {
         let history = if let Some(session_id) = args.session.as_deref() {
             load_session_records()

@@ -9,7 +9,7 @@ use opencode_core::Session;
 use uuid::Uuid;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
-pub struct SessionRecord {
+pub(crate) struct SessionRecord {
     pub id: String,
     pub name: String,
     pub created_at: String,
@@ -18,7 +18,7 @@ pub struct SessionRecord {
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
-pub struct SessionMessage {
+pub(crate) struct SessionMessage {
     pub role: String,
     pub content: String,
 }
@@ -419,7 +419,7 @@ mod tests {
     }
 }
 
-pub fn load_session_records() -> Vec<SessionRecord> {
+pub(crate) fn load_session_records() -> Vec<SessionRecord> {
     let sharing = get_session_sharing();
     let infos = sharing.list_sessions().unwrap_or_default();
 
@@ -447,7 +447,7 @@ pub fn load_session_records() -> Vec<SessionRecord> {
         .collect()
 }
 
-pub fn save_session_records(_records: &[SessionRecord]) {
+pub(crate) fn save_session_records(_records: &[SessionRecord]) {
     let sharing = get_session_sharing();
     if let Ok(sessions) = sharing.list_sessions() {
         sync_workspace_sessions_from_infos(&sessions);
@@ -458,7 +458,7 @@ fn get_session_sharing() -> SessionSharing {
     SessionSharing::with_default_path()
 }
 
-pub fn get_session_sharing_for_quick() -> SessionSharing {
+pub(crate) fn get_session_sharing_for_quick() -> SessionSharing {
     SessionSharing::with_default_path()
 }
 
@@ -779,7 +779,7 @@ fn list_sessions(json: bool) {
 }
 
 #[derive(Args, Debug)]
-pub struct SessionArgs {
+pub(crate) struct SessionArgs {
     #[arg(short, long)]
     pub id: Option<String>,
 
@@ -803,7 +803,7 @@ pub struct SessionArgs {
 }
 
 #[derive(Subcommand, Debug)]
-pub enum SessionAction {
+pub(crate) enum SessionAction {
     #[command(about = "Create a new session")]
     Create {
         #[arg(short, long)]
@@ -874,7 +874,7 @@ pub enum SessionAction {
     },
 }
 
-pub fn run(args: SessionArgs) {
+pub(crate) fn run(args: SessionArgs) {
     match args.action {
         Some(SessionAction::Create { name }) => {
             create_session(name, false);

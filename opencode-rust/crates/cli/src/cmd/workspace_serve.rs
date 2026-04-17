@@ -1,7 +1,7 @@
 use clap::Args;
 
 #[derive(Args, Debug)]
-pub struct WorkspaceServeArgs {
+pub(crate) struct WorkspaceServeArgs {
     #[arg(short, long)]
     pub port: Option<u16>,
 }
@@ -29,6 +29,6 @@ mod tests {
     }
 }
 
-pub fn run(args: WorkspaceServeArgs) {
+pub(crate) fn run(args: WorkspaceServeArgs) {
     println!("Starting workspace server on port {:?}", args.port);
 }

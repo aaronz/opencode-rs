@@ -339,9 +339,11 @@ impl Tool for FileMoveTool {
     }
 }
 
+#[allow(dead_code)]
 pub struct FileDeleteTool;
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct DeleteArgs {
     path: String,
     #[serde(default)]

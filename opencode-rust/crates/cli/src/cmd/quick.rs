@@ -2,13 +2,13 @@ use clap::{Args, Subcommand};
 use opencode_core::Config;
 
 #[derive(Args, Debug)]
-pub struct QuickArgs {
+pub(crate) struct QuickArgs {
     #[command(subcommand)]
     pub action: Option<QuickAction>,
 }
 
 #[derive(Subcommand, Debug)]
-pub enum QuickAction {
+pub(crate) enum QuickAction {
     #[command(about = "Create a new session quickly")]
     NewSession {
         #[arg(short, long)]
@@ -125,7 +125,7 @@ mod tests {
     }
 }
 
-pub fn run(args: QuickArgs) {
+pub(crate) fn run(args: QuickArgs) {
     match args.action {
         Some(QuickAction::NewSession { name }) => {
             let sharing = crate::cmd::session::get_session_sharing_for_quick();
