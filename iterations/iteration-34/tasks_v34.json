@@ -119,7 +119,7 @@
       "priority": "P0",
       "title": "Wire ConnectModelDialog after successful API key validation",
       "description": "Transition from API key input to model selection dialog and pass validated credentials to model dialog",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify ConnectModelDialog is shown after successful validation",
         "AddUnitTest: verify validated credentials are passed to model dialog",

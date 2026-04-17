@@ -53,7 +53,7 @@
 
 #### Tasks:
 
-- [ ] **T-006**: Wire `ConnectModelDialog` after successful API key validation
+- [x] **T-006**: Wire `ConnectModelDialog` after successful API key validation
   - Transition from API key input to model selection
   - Pass validated credentials to model dialog
 
