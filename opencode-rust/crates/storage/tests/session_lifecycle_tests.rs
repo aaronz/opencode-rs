@@ -26,7 +26,18 @@ async fn setup_storage_service(temp_dir: &TempDir) -> opencode_storage::StorageS
     manager.migrate().await.expect("Should run migrations");
     let session_repo = std::sync::Arc::new(SqliteSessionRepository::new(pool.clone()));
     let project_repo = std::sync::Arc::new(SqliteProjectRepository::new(pool.clone()));
-    opencode_storage::StorageService::new(session_repo, project_repo, pool)
+    let account_repo =
+        std::sync::Arc::new(opencode_storage::SqliteAccountRepository::new(pool.clone()));
+    let plugin_state_repo = std::sync::Arc::new(
+        opencode_storage::SqlitePluginStateRepository::new(pool.clone()),
+    );
+    opencode_storage::StorageService::new(
+        session_repo,
+        project_repo,
+        account_repo,
+        plugin_state_repo,
+        pool,
+    )
 }
 
 #[tokio::test]

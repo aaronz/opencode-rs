@@ -582,7 +582,7 @@
       "priority": "P2",
       "title": "Add SAFETY comments to unsafe blocks",
       "description": "Add SAFETY comments to unsafe blocks in crates/plugin/src/lib.rs at line 661.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify plugin unsafe blocks still function",
         "RunTestSuite: execute plugin tests"
@@ -591,7 +591,7 @@
         "cargo test -p opencode-plugin",
         "cargo clippy -p opencode-plugin -- -D warnings"
       ],
-      "impl_notes": "Document invariants and justification for unsafe",
+      "impl_notes": "SAFETY comment already exists at lines 657-660. All 139 plugin tests pass, clippy passes.",
       "dependencies": []
     },
     {

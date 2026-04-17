@@ -26,4 +26,7 @@ pub use memory_repository::{InMemoryProjectRepository, InMemorySessionRepository
 pub use migration::MigrationManager;
 pub use repository::{ProjectRepository, SessionRepository};
 pub use service::StorageService;
-pub use sqlite_repository::{SqliteProjectRepository, SqliteSessionRepository};
+pub use sqlite_repository::{
+    SqliteAccountRepository, SqlitePluginStateRepository, SqliteProjectRepository,
+    SqliteSessionRepository,
+};

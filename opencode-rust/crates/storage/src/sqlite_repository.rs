@@ -300,7 +300,7 @@ impl ProjectRepository for SqliteProjectRepository {
 }
 
 use crate::models::AccountModel;
-use crate::repository::{sealed, AccountRepository};
+use crate::repository::AccountRepository;
 
 pub struct SqliteAccountRepository {
     pool: StoragePool,
