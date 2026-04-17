@@ -667,7 +667,7 @@
       "priority": "P1",
       "title": "Apply pub(crate) for internal crate sharing",
       "description": "Apply pub(crate) visibility for items shared internally across a crate but not exposed publicly",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify internal items use pub(crate) where appropriate"
       ],
@@ -822,7 +822,7 @@
       "priority": "P1",
       "title": "Document WebSocket streaming capabilities",
       "description": "Document WebSocket streaming capabilities in documentation",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: verify documentation covers WebSocket streaming"
       ],

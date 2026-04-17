@@ -1,3 +1,105 @@
+//! WebSocket streaming module for real-time bidirectional communication.
+//!
+//! This module provides full bidirectional WebSocket streaming capabilities for the OpenCode server.
+//! Unlike SSE (Server-Sent Events) which is unidirectional, WebSocket connections allow both the
+//! client and server to send messages at any time.
+//!
+//! ## Features
+//!
+//! - **Bidirectional Streaming**: Full duplex communication where both client and server can send messages
+//! - **Session Management**: Multiple concurrent WebSocket clients per session with broadcast support
+//! - **Heartbeat/Keepalive**: Automatic connection health monitoring with 30-second intervals
+//! - **Reconnection Support**: Token-based reconnection with message replay for dropped connections
+//! - **Multi-Session Broadcasting**: Broadcast messages to all clients in a session
+//!
+//! ## Endpoint
+//!
+//! ```text
+//! GET /ws[/{session_id}]
+//! GET /ws?session_id={session_id}&token={reconnect_token}
+//! ```
+//!
+//! ## Connection Flow
+//!
+//! 1. Client initiates WebSocket handshake to `/ws` or `/ws/{session_id}`
+//! 2. Server responds with `x-reconnect-token` header for reconnection support
+//! 3. Server sends `Connected` message with session_id
+//! 4. Server replays last 100 messages if reconnecting with valid token
+//! 5. Bidirectional message exchange begins
+//!
+//! ## Server-to-Client Messages (StreamMessage)
+//!
+//! The server sends JSON messages with a `type` field:
+//!
+//! ```json
+//! {"type": "connected", "session_id": "abc123"}
+//! {"type": "message", "session_id": "abc123", "content": "...", "role": "assistant"}
+//! {"type": "tool_call", "session_id": "abc123", "tool_name": "...", "call_id": "..."}
+//! {"type": "tool_result", "session_id": "abc123", "call_id": "...", "output": "...", "success": true}
+//! {"type": "session_update", "session_id": "abc123", "status": "running"}
+//! {"type": "heartbeat", "timestamp": 1234567890}
+//! {"type": "error", "error": "...", "code": "...", "message": "..."}
+//! ```
+//!
+//! ## Client-to-Server Messages (WsClientMessage)
+//!
+//! ```json
+//! {"type": "run", "session_id": "abc123", "message": "Hello", "agent_type": "build", "model": "gpt-4"}
+//! {"type": "resume", "session_id": "abc123", "token": "reconnect-token"}
+//! {"type": "ping"}
+//! {"type": "close"}
+//! ```
+//!
+//! ## Example Client Usage (JavaScript)
+//!
+//! ```javascript
+//! // Connect to WebSocket
+//! const ws = new WebSocket('ws://localhost:8080/ws/test-session');
+//!
+//! ws.onopen = () => {
+//!   console.log('Connected');
+//!   // Send a message to run
+//!   ws.send(JSON.stringify({
+//!     type: 'run',
+//!     session_id: 'test-session',
+//! message: 'Hello, world!'
+//!   }));
+//! };
+//!
+//! ws.onmessage = (event) => {
+//!   const msg = JSON.parse(event.data);
+//!   switch (msg.type) {
+//!     case 'connected':
+//!       console.log('Session:', msg.session_id);
+//!       break;
+//!     case 'message':
+//!       console.log(`${msg.role}: ${msg.content}`);
+//!       break;
+//!     case 'tool_call':
+//!       console.log('Tool:', msg.tool_name);
+//!       break;
+//!   }
+//! };
+//! ```
+//!
+//! ## Comparison with SSE
+//!
+//! | Feature | WebSocket | SSE |
+//! |---------|-----------|-----|
+//! | Direction | Full duplex (bidirectional) | Server-to-client only |
+//! | Client-to-server messages | Native | Requires separate HTTP request |
+//! | Connection overhead | Single TCP connection | Single HTTP connection |
+//! | Browser support | Universal | Modern browsers |
+//! | Automatic reconnection | Manual implementation | Built-in |
+//! | Binary data | Supported | Text only |
+//!
+//! ## Heartbeat Mechanism
+//!
+//! - Server sends ping frames every 30 seconds
+//! - Client must respond with pong
+//! - If no activity for 120 seconds, connection is terminated
+//! - Connection monitor tracks all WebSocket connections
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -18,25 +120,44 @@ use crate::streaming::heartbeat::HeartbeatManager;
 use crate::streaming::{ReplayEntry, StreamMessage};
 use crate::ServerState;
 
+/// Path parameters for WebSocket endpoint.
 #[derive(Debug, Deserialize)]
 pub struct PathParams {
+    /// Optional session ID passed in URL path: /ws/{session_id}
     pub session_id: Option<String>,
 }
 
+/// Messages sent from WebSocket client to server.
+///
+/// Clients send these JSON messages over the WebSocket connection to:
+/// - Start a new agent run
+/// - Resume a session with a reconnection token
+/// - Keep the connection alive (ping)
+/// - Gracefully close the connection
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum WsClientMessage {
+    /// Start a new agent run in the specified session.
     Run {
+        /// The session ID to run in (or create new if not exists)
         session_id: String,
+        /// The user message to process
         message: String,
+        /// Optional agent type (e.g., "build", "plan", "general")
         agent_type: Option<String>,
+        /// Optional model name (e.g., "gpt-4", "claude-3-opus")
         model: Option<String>,
     },
+    /// Resume a session after reconnection using a token from previous connection.
     Resume {
+        /// The session ID to resume
         session_id: String,
+        /// The reconnection token received from x-reconnect-token header
         token: String,
     },
+    /// Keepalive ping - server will respond with heartbeat.
     Ping,
+    /// Gracefully close the WebSocket connection.
     Close,
 }
 
@@ -915,5 +1036,124 @@ mod ws_lifecycle_tests {
         let event = opencode_core::bus::InternalEvent::SessionEnded("my-session".to_string());
         let result = event_to_stream_message(event, "my-session");
         assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_ws_client_message_all_variants_serializable() {
+        let variants = [
+            WsClientMessage::Run {
+                session_id: "test-session".to_string(),
+                message: "test message".to_string(),
+                agent_type: Some("build".to_string()),
+                model: Some("gpt-4".to_string()),
+            },
+            WsClientMessage::Resume {
+                session_id: "test-session".to_string(),
+                token: "abc123".to_string(),
+            },
+            WsClientMessage::Ping,
+            WsClientMessage::Close,
+        ];
+
+        for variant in variants {
+            let json = serde_json::to_string(&variant).expect("should serialize");
+            let parsed: WsClientMessage = serde_json::from_str(&json).expect("should deserialize");
+            match (&variant, &parsed) {
+                (
+                    WsClientMessage::Run { session_id: s1, .. },
+                    WsClientMessage::Run { session_id: s2, .. },
+                ) => {
+                    assert_eq!(s1, s2);
+                }
+                (
+                    WsClientMessage::Resume {
+                        session_id: s1,
+                        token: t1,
+                        ..
+                    },
+                    WsClientMessage::Resume {
+                        session_id: s2,
+                        token: t2,
+                        ..
+                    },
+                ) => {
+                    assert_eq!(s1, s2);
+                    assert_eq!(t1, t2);
+                }
+                (WsClientMessage::Ping, WsClientMessage::Ping) => {}
+                (WsClientMessage::Close, WsClientMessage::Close) => {}
+                _ => panic!("variant mismatch"),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_ws_session_hub_register_and_broadcast() {
+        use crate::streaming::StreamMessage;
+
+        let hub = SessionHub::new(256);
+        let session_id = "broadcast-test-ws";
+        let client1 = "client-ws-1";
+        let client2 = "client-ws-2";
+
+        let mut receiver1 = hub.register_client(session_id, client1).await;
+        let mut receiver2 = hub.register_client(session_id, client2).await;
+
+        let msg = StreamMessage::Message {
+            session_id: session_id.to_string(),
+            content: "Hello from WS!".to_string(),
+            role: "assistant".to_string(),
+        };
+
+        hub.broadcast(session_id, msg).await;
+
+        let received1 = receiver1.recv().await.expect("client1 should receive");
+        let received2 = receiver2.recv().await.expect("client2 should receive");
+
+        match (&received1, &received2) {
+            (
+                StreamMessage::Message { content: c1, .. },
+                StreamMessage::Message { content: c2, .. },
+            ) => {
+                assert_eq!(c1, "Hello from WS!");
+                assert_eq!(c2, "Hello from WS!");
+            }
+            _ => panic!("Expected Message variant"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_ws_session_hub_broadcast_all() {
+        use crate::streaming::StreamMessage;
+
+        let hub = SessionHub::new(256);
+
+        let mut r1 = hub.register_client("session-1", "client-1").await;
+        let mut r2 = hub.register_client("session-2", "client-2").await;
+        let mut r3 = hub.register_client("session-3", "client-3").await;
+
+        let msg = StreamMessage::SessionUpdate {
+            session_id: "all".to_string(),
+            status: "test_broadcast_all".to_string(),
+        };
+
+        hub.broadcast_all(msg).await;
+
+        let msg1 = r1.recv().await.expect("client-1 should receive broadcast");
+        let msg2 = r2.recv().await.expect("client-2 should receive broadcast");
+        let msg3 = r3.recv().await.expect("client-3 should receive broadcast");
+
+        match (&msg1, &msg2, &msg3) {
+            (
+                StreamMessage::SessionUpdate { status: s1, .. },
+                StreamMessage::SessionUpdate { status: s2, .. },
+                StreamMessage::SessionUpdate { status: s3, .. },
+            ) => {
+                assert_eq!(s1, "test_broadcast_all");
+                assert_eq!(s2, "test_broadcast_all");
+                assert_eq!(s3, "test_broadcast_all");
+            }
+            _ => panic!("expected SessionUpdate variant"),
+        }
     }
 }

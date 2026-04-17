@@ -504,4 +504,167 @@ mod tests {
         let req: SseMessageRequest = serde_json::from_str(&json).unwrap();
         assert_eq!(req.message.len(), 10000);
     }
+
+    #[test]
+    fn test_sse_query_with_empty_session_id() {
+        let json = r#"{"session_id": ""}"#;
+        let query: SseQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(query.session_id, Some("".to_string()));
+    }
+
+    #[test]
+    fn test_sse_query_with_numeric_session_id() {
+        let json = r#"{"session_id": "12345"}"#;
+        let query: SseQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(query.session_id, Some("12345".to_string()));
+    }
+
+    #[test]
+    fn test_sse_message_request_special_characters() {
+        let json = r#"{"message": "Hello\nWorld\t!@#$%^&*()"}"#;
+        let req: SseMessageRequest = serde_json::from_str(json).unwrap();
+        assert!(req.message.contains('\n'));
+        assert!(req.message.contains('\t'));
+        assert!(req.message.contains("!@#$%^&*()"));
+    }
+
+    #[test]
+    fn test_message_event_type_all_variants() {
+        let test_cases = [
+            (
+                StreamMessage::Message {
+                    session_id: "test".to_string(),
+                    content: "hi".to_string(),
+                    role: "user".to_string(),
+                },
+                "message",
+            ),
+            (
+                StreamMessage::ToolCall {
+                    session_id: "test".to_string(),
+                    tool_name: "read".to_string(),
+                    args: serde_json::json!({}),
+                    call_id: "c1".to_string(),
+                },
+                "tool_call",
+            ),
+            (
+                StreamMessage::ToolResult {
+                    session_id: "test".to_string(),
+                    call_id: "c1".to_string(),
+                    output: "ok".to_string(),
+                    success: true,
+                },
+                "tool_result",
+            ),
+            (
+                StreamMessage::SessionUpdate {
+                    session_id: "test".to_string(),
+                    status: "done".to_string(),
+                },
+                "session_update",
+            ),
+            (StreamMessage::Heartbeat { timestamp: 123 }, "heartbeat"),
+            (
+                StreamMessage::Error {
+                    session_id: None,
+                    error: "err".to_string(),
+                    code: "ERR".to_string(),
+                    message: "error".to_string(),
+                },
+                "error",
+            ),
+            (
+                StreamMessage::Connected {
+                    session_id: Some("test".to_string()),
+                },
+                "connected",
+            ),
+        ];
+
+        for (msg, expected_type) in test_cases {
+            assert_eq!(
+                message_event_type(&msg),
+                expected_type,
+                "type mismatch for {:?}",
+                msg
+            );
+        }
+    }
+
+    #[test]
+    fn test_event_to_stream_message_all_internal_event_types() {
+        use opencode_core::bus::InternalEvent;
+
+        let test_cases = vec![
+            (InternalEvent::SessionStarted("sess".to_string()), true),
+            (InternalEvent::SessionEnded("sess".to_string()), true),
+            (
+                InternalEvent::MessageAdded {
+                    session_id: "sess".to_string(),
+                    message_id: "msg".to_string(),
+                },
+                true,
+            ),
+            (
+                InternalEvent::MessageUpdated {
+                    session_id: "sess".to_string(),
+                    message_id: "msg".to_string(),
+                },
+                true,
+            ),
+            (
+                InternalEvent::ToolCallStarted {
+                    session_id: "sess".to_string(),
+                    tool_name: "read".to_string(),
+                    call_id: "c1".to_string(),
+                },
+                true,
+            ),
+            (
+                InternalEvent::ToolCallEnded {
+                    session_id: "sess".to_string(),
+                    call_id: "c1".to_string(),
+                    success: true,
+                },
+                true,
+            ),
+            (
+                InternalEvent::ToolCallOutput {
+                    session_id: "sess".to_string(),
+                    call_id: "c1".to_string(),
+                    output: "out".to_string(),
+                },
+                true,
+            ),
+            (
+                InternalEvent::AgentStatusChanged {
+                    session_id: "sess".to_string(),
+                    status: "running".to_string(),
+                },
+                true,
+            ),
+            (
+                InternalEvent::Error {
+                    source: "src".to_string(),
+                    message: "msg".to_string(),
+                },
+                true,
+            ),
+            (
+                InternalEvent::AgentStarted {
+                    session_id: "sess".to_string(),
+                    agent: "agent".to_string(),
+                },
+                false,
+            ),
+        ];
+
+        for (event, should_convert) in test_cases {
+            let result = event_to_stream_message(event.clone(), "sess");
+            if should_convert {
+                assert!(result.is_some(), "Expected Some for {:?}", event);
+            }
+        }
+    }
 }
