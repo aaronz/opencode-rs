@@ -491,7 +491,7 @@
       "priority": "P1",
       "title": "Update model context lengths",
       "description": "Ensure all models have correct context window sizes",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify all models have context_length > 0",
         "AddUnitTest: verify context lengths match known provider specifications",
