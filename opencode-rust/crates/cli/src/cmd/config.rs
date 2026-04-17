@@ -27,6 +27,158 @@ pub struct ConfigArgs {
     pub value: Option<String>,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_config_args_default() {
+        let args = ConfigArgs {
+            json: 0,
+            keybinds: false,
+            models: false,
+            providers: false,
+            set: None,
+            migrate: false,
+            remove: false,
+            value: None,
+        };
+        assert_eq!(args.json, 0);
+        assert!(!args.keybinds);
+        assert!(!args.models);
+        assert!(!args.providers);
+        assert!(args.set.is_none());
+        assert!(!args.migrate);
+        assert!(!args.remove);
+        assert!(args.value.is_none());
+    }
+
+    #[test]
+    fn test_config_args_with_json() {
+        let args = ConfigArgs {
+            json: 1,
+            keybinds: false,
+            models: false,
+            providers: false,
+            set: None,
+            migrate: false,
+            remove: false,
+            value: None,
+        };
+        assert_eq!(args.json, 1);
+    }
+
+    #[test]
+    fn test_config_args_with_keybinds() {
+        let args = ConfigArgs {
+            json: 0,
+            keybinds: true,
+            models: false,
+            providers: false,
+            set: None,
+            migrate: false,
+            remove: false,
+            value: None,
+        };
+        assert!(args.keybinds);
+    }
+
+    #[test]
+    fn test_config_args_with_models() {
+        let args = ConfigArgs {
+            json: 0,
+            keybinds: false,
+            models: true,
+            providers: false,
+            set: None,
+            migrate: false,
+            remove: false,
+            value: None,
+        };
+        assert!(args.models);
+    }
+
+    #[test]
+    fn test_config_args_with_providers() {
+        let args = ConfigArgs {
+            json: 0,
+            keybinds: false,
+            models: false,
+            providers: true,
+            set: None,
+            migrate: false,
+            remove: false,
+            value: None,
+        };
+        assert!(args.providers);
+    }
+
+    #[test]
+    fn test_config_args_with_migrate() {
+        let args = ConfigArgs {
+            json: 0,
+            keybinds: false,
+            models: false,
+            providers: false,
+            set: None,
+            migrate: true,
+            remove: false,
+            value: None,
+        };
+        assert!(args.migrate);
+        assert!(!args.remove);
+    }
+
+    #[test]
+    fn test_config_args_with_remove() {
+        let args = ConfigArgs {
+            json: 0,
+            keybinds: false,
+            models: false,
+            providers: false,
+            set: None,
+            migrate: true,
+            remove: true,
+            value: None,
+        };
+        assert!(args.migrate);
+        assert!(args.remove);
+    }
+
+    #[test]
+    fn test_config_args_with_value() {
+        let args = ConfigArgs {
+            json: 0,
+            keybinds: false,
+            models: false,
+            providers: false,
+            set: None,
+            migrate: false,
+            remove: false,
+            value: Some("test_value".to_string()),
+        };
+        assert_eq!(args.value.as_deref(), Some("test_value"));
+    }
+
+    #[test]
+    fn test_config_args_multiple_flags() {
+        let args = ConfigArgs {
+            json: 2,
+            keybinds: true,
+            models: true,
+            providers: true,
+            set: None,
+            migrate: false,
+            remove: false,
+            value: None,
+        };
+        assert_eq!(args.json, 2);
+        assert!(args.keybinds);
+        assert!(args.models);
+        assert!(args.providers);
+    }
+}
+
 pub fn run(args: ConfigArgs) {
     if args.set.is_some() {
         eprintln!("Invalid setting key");

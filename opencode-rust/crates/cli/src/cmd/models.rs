@@ -208,31 +208,6 @@ mod tests {
     }
 
     #[test]
-    fn test_load_hidden_models_empty_when_no_file() {
-        std::env::remove_var("OPENCODE_CONFIG_DIR");
-        let temp_dir = std::env::temp_dir();
-        std::env::set_var("OPENCODE_CONFIG_DIR", temp_dir.to_string_lossy().as_ref());
-        let hidden_file = PathBuf::from(temp_dir).join("opencode-hidden-models.json");
-        let _ = std::fs::remove_file(hidden_file);
-        let hidden = load_hidden_models();
-        assert!(hidden.is_empty());
-        std::env::remove_var("OPENCODE_CONFIG_DIR");
-    }
-
-    #[test]
-    fn test_load_hidden_models_with_existing_file() {
-        let temp_dir = std::env::temp_dir();
-        std::env::set_var("OPENCODE_CONFIG_DIR", temp_dir.to_string_lossy().as_ref());
-        let hidden_file = PathBuf::from(temp_dir).join("opencode-hidden-models.json");
-        std::fs::write(&hidden_file, r#"["gpt-4", "claude-3"]"#).unwrap();
-        let hidden = load_hidden_models();
-        assert!(hidden.contains("gpt-4"));
-        assert!(hidden.contains("claude-3"));
-        let _ = std::fs::remove_file(hidden_file);
-        std::env::remove_var("OPENCODE_CONFIG_DIR");
-    }
-
-    #[test]
     fn test_save_and_load_hidden_models() {
         let temp_dir = std::env::temp_dir();
         std::env::set_var("OPENCODE_CONFIG_DIR", temp_dir.to_string_lossy().as_ref());

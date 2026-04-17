@@ -302,4 +302,135 @@ mod tests {
         assert!(result.success);
         assert_eq!(result.result, Some("executed successfully".to_string()));
     }
+
+    #[test]
+    fn test_agent_executor_with_max_iterations() {
+        let registry = ToolRegistry::new();
+        let executor = AgentExecutor::new(registry).with_max_iterations(20);
+        assert_eq!(executor.max_iterations, 20);
+    }
+
+    #[test]
+    fn test_get_available_tools() {
+        let mut registry = ToolRegistry::new();
+        registry.register(
+            ToolDefinition {
+                name: "tool1".to_string(),
+                description: "First tool".to_string(),
+                parameters: vec![],
+                ..Default::default()
+            },
+            Arc::new(|_| Ok("result1".to_string())),
+        );
+        registry.register(
+            ToolDefinition {
+                name: "tool2".to_string(),
+                description: "Second tool".to_string(),
+                parameters: vec![],
+                ..Default::default()
+            },
+            Arc::new(|_| Ok("result2".to_string())),
+        );
+
+        let executor = AgentExecutor::new(registry);
+        let tools = executor.get_available_tools();
+
+        assert_eq!(tools.len(), 2);
+        assert!(tools.iter().any(|t| t.name == "tool1"));
+        assert!(tools.iter().any(|t| t.name == "tool2"));
+    }
+
+    #[test]
+    fn test_executor_registry() {
+        let registry = ToolRegistry::new();
+        let executor = AgentExecutor::new(registry);
+
+        assert!(executor.registry().get_all().is_empty());
+    }
+
+    #[test]
+    fn test_create_invocation_record() {
+        let registry = ToolRegistry::new();
+        let executor = AgentExecutor::new(registry);
+
+        let call = ToolCall {
+            id: "1".to_string(),
+            name: "test_tool".to_string(),
+            arguments: serde_json::json!({"arg1": "value1"}),
+        };
+
+        let record = executor.create_invocation_record(&call);
+
+        assert_eq!(record.tool_name, "test_tool");
+        assert_eq!(record.arguments, serde_json::json!({"arg1": "value1"}));
+        assert!(record.result.is_none());
+        assert!(record.completed_at.is_none());
+        assert!(record.latency_ms.is_none());
+    }
+
+    #[test]
+    fn test_update_invocation_record_success() {
+        let registry = ToolRegistry::new();
+        let executor = AgentExecutor::new(registry);
+
+        let call = ToolCall {
+            id: "1".to_string(),
+            name: "test_tool".to_string(),
+            arguments: serde_json::json!({}),
+        };
+
+        let record = executor.create_invocation_record(&call);
+
+        let result = ToolResult {
+            id: Uuid::new_v4(),
+            tool_name: "test_tool".to_string(),
+            success: true,
+            result: Some("success result".to_string()),
+            error: None,
+            started_at: Utc::now(),
+            completed_at: Utc::now(),
+        };
+
+        let updated = executor.update_invocation_record(record, &result);
+
+        assert_eq!(updated.result, Some("success result".to_string()));
+        assert!(updated.completed_at.is_some());
+        assert!(updated.latency_ms.is_some());
+    }
+
+    #[test]
+    fn test_update_invocation_record_failure() {
+        let registry = ToolRegistry::new();
+        let executor = AgentExecutor::new(registry);
+
+        let call = ToolCall {
+            id: "1".to_string(),
+            name: "test_tool".to_string(),
+            arguments: serde_json::json!({}),
+        };
+
+        let record = executor.create_invocation_record(&call);
+
+        let result = ToolResult {
+            id: Uuid::new_v4(),
+            tool_name: "test_tool".to_string(),
+            success: false,
+            result: None,
+            error: Some("error message".to_string()),
+            started_at: Utc::now(),
+            completed_at: Utc::now(),
+        };
+
+        let updated = executor.update_invocation_record(record, &result);
+
+        assert_eq!(updated.result, Some("error message".to_string()));
+        assert!(updated.completed_at.is_some());
+    }
+
+    #[test]
+    fn test_build_default_executor() {
+        let executor = build_default_executor();
+        let tools = executor.get_available_tools();
+        assert!(!tools.is_empty());
+    }
 }

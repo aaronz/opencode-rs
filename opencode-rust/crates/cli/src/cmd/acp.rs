@@ -33,6 +33,119 @@ pub enum AcpAction {
     Status,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_acp_args_default() {
+        let args = AcpArgs {
+            action: None,
+            json: false,
+            server: None,
+        };
+        assert!(args.action.is_none());
+        assert!(!args.json);
+        assert!(args.server.is_none());
+    }
+
+    #[test]
+    fn test_acp_args_with_json() {
+        let args = AcpArgs {
+            action: None,
+            json: true,
+            server: None,
+        };
+        assert!(args.json);
+    }
+
+    #[test]
+    fn test_acp_args_with_server() {
+        let args = AcpArgs {
+            action: None,
+            json: false,
+            server: Some("http://localhost:9000".to_string()),
+        };
+        assert_eq!(args.server.as_deref(), Some("http://localhost:9000"));
+    }
+
+    #[test]
+    fn test_acp_action_start() {
+        let action = AcpAction::Start;
+        match action {
+            AcpAction::Start => {}
+            _ => panic!("Expected Start"),
+        }
+    }
+
+    #[test]
+    fn test_acp_action_connect() {
+        let action = AcpAction::Connect {
+            url: "http://example.com".to_string(),
+        };
+        match action {
+            AcpAction::Connect { url } => assert_eq!(url, "http://example.com"),
+            _ => panic!("Expected Connect"),
+        }
+    }
+
+    #[test]
+    fn test_acp_action_handshake() {
+        let action = AcpAction::Handshake {
+            client_id: "client123".to_string(),
+            version: "1.0".to_string(),
+            capabilities: vec!["chat".to_string(), "tasks".to_string()],
+        };
+        match action {
+            AcpAction::Handshake {
+                client_id,
+                version,
+                capabilities,
+            } => {
+                assert_eq!(client_id, "client123");
+                assert_eq!(version, "1.0");
+                assert_eq!(capabilities.len(), 2);
+            }
+            _ => panic!("Expected Handshake"),
+        }
+    }
+
+    #[test]
+    fn test_acp_action_handshake_default_version() {
+        let action = AcpAction::Handshake {
+            client_id: "client456".to_string(),
+            version: "2.0".to_string(),
+            capabilities: vec![],
+        };
+        match action {
+            AcpAction::Handshake { version, .. } => assert_eq!(version, "2.0"),
+            _ => panic!("Expected Handshake"),
+        }
+    }
+
+    #[test]
+    fn test_acp_action_status() {
+        let action = AcpAction::Status;
+        match action {
+            AcpAction::Status => {}
+            _ => panic!("Expected Status"),
+        }
+    }
+
+    #[test]
+    fn test_acp_args_with_action() {
+        let args = AcpArgs {
+            action: Some(AcpAction::Start),
+            json: false,
+            server: None,
+        };
+        match args.action {
+            Some(AcpAction::Start) => {}
+            _ => panic!("Expected Start"),
+        }
+    }
+}
+
 pub fn run(args: AcpArgs) {
     let runtime = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
     runtime.block_on(async {

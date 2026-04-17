@@ -122,3 +122,71 @@ pub fn init(cfg: &mut web::ServiceConfig) {
         web::post().to(permission_reply),
     );
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_permission_reply_request_deserialization() {
+        let json = r#"{"decision": "allow"}"#;
+        let req: PermissionReplyRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.decision, "allow");
+    }
+
+    #[test]
+    fn test_permission_reply_request_deny() {
+        let json = r#"{"decision": "deny"}"#;
+        let req: PermissionReplyRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.decision, "deny");
+    }
+
+    #[test]
+    fn test_req_id_to_permission_file_read() {
+        assert_eq!(req_id_to_permission("file_read_123"), Permission::FileRead);
+        assert_eq!(req_id_to_permission("read_123"), Permission::FileRead);
+        assert_eq!(req_id_to_permission("FileRead_456"), Permission::FileRead);
+    }
+
+    #[test]
+    fn test_req_id_to_permission_file_write() {
+        assert_eq!(
+            req_id_to_permission("file_write_123"),
+            Permission::FileWrite
+        );
+        assert_eq!(req_id_to_permission("write_123"), Permission::FileWrite);
+    }
+
+    #[test]
+    fn test_req_id_to_permission_file_delete() {
+        assert_eq!(
+            req_id_to_permission("file_delete_123"),
+            Permission::FileDelete
+        );
+        assert_eq!(req_id_to_permission("delete_123"), Permission::FileDelete);
+    }
+
+    #[test]
+    fn test_req_id_to_permission_bash_execute() {
+        assert_eq!(req_id_to_permission("bash_123"), Permission::BashExecute);
+        assert_eq!(req_id_to_permission("execute_123"), Permission::BashExecute);
+    }
+
+    #[test]
+    fn test_req_id_to_permission_network_access() {
+        assert_eq!(
+            req_id_to_permission("network_123"),
+            Permission::NetworkAccess
+        );
+        assert_eq!(
+            req_id_to_permission("external_123"),
+            Permission::NetworkAccess
+        );
+    }
+
+    #[test]
+    fn test_req_id_to_permission_default() {
+        assert_eq!(req_id_to_permission("unknown_123"), Permission::FileRead);
+        assert_eq!(req_id_to_permission(""), Permission::FileRead);
+    }
+}

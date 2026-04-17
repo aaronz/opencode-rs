@@ -129,6 +129,265 @@ pub enum ProjectAction {
     Current,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_project_args_default() {
+        let args = ProjectArgs { action: None };
+        assert!(args.action.is_none());
+    }
+
+    #[test]
+    fn test_project_args_with_action() {
+        let args = ProjectArgs {
+            action: Some(ProjectAction::Current),
+        };
+        match args.action {
+            Some(ProjectAction::Current) => {}
+            _ => panic!("Expected Current"),
+        }
+    }
+
+    #[test]
+    fn test_project_action_create() {
+        let action = ProjectAction::Create {
+            name: "my-project".to_string(),
+            path: Some("/path/to/project".to_string()),
+        };
+        match action {
+            ProjectAction::Create { name, path } => {
+                assert_eq!(name, "my-project");
+                assert_eq!(path.as_deref(), Some("/path/to/project"));
+            }
+            _ => panic!("Expected Create"),
+        }
+    }
+
+    #[test]
+    fn test_project_action_create_without_path() {
+        let action = ProjectAction::Create {
+            name: "my-project".to_string(),
+            path: None,
+        };
+        match action {
+            ProjectAction::Create { name, path } => {
+                assert_eq!(name, "my-project");
+                assert!(path.is_none());
+            }
+            _ => panic!("Expected Create"),
+        }
+    }
+
+    #[test]
+    fn test_project_action_rename() {
+        let action = ProjectAction::Rename {
+            from: "old-name".to_string(),
+            to: "new-name".to_string(),
+        };
+        match action {
+            ProjectAction::Rename { from, to } => {
+                assert_eq!(from, "old-name");
+                assert_eq!(to, "new-name");
+            }
+            _ => panic!("Expected Rename"),
+        }
+    }
+
+    #[test]
+    fn test_project_action_edit() {
+        let action = ProjectAction::Edit {
+            name: "my-project".to_string(),
+            description: Some("A test project".to_string()),
+            model: Some("gpt-4".to_string()),
+        };
+        match action {
+            ProjectAction::Edit {
+                name,
+                description,
+                model,
+            } => {
+                assert_eq!(name, "my-project");
+                assert_eq!(description.as_deref(), Some("A test project"));
+                assert_eq!(model.as_deref(), Some("gpt-4"));
+            }
+            _ => panic!("Expected Edit"),
+        }
+    }
+
+    #[test]
+    fn test_project_action_edit_partial() {
+        let action = ProjectAction::Edit {
+            name: "my-project".to_string(),
+            description: None,
+            model: Some("gpt-4".to_string()),
+        };
+        match action {
+            ProjectAction::Edit {
+                name,
+                description,
+                model,
+            } => {
+                assert_eq!(name, "my-project");
+                assert!(description.is_none());
+                assert_eq!(model.as_deref(), Some("gpt-4"));
+            }
+            _ => panic!("Expected Edit"),
+        }
+    }
+
+    #[test]
+    fn test_project_action_show() {
+        let action = ProjectAction::Show {
+            name: "my-project".to_string(),
+            json: true,
+        };
+        match action {
+            ProjectAction::Show { name, json } => {
+                assert_eq!(name, "my-project");
+                assert!(json);
+            }
+            _ => panic!("Expected Show"),
+        }
+    }
+
+    #[test]
+    fn test_project_action_show_no_json() {
+        let action = ProjectAction::Show {
+            name: "my-project".to_string(),
+            json: false,
+        };
+        match action {
+            ProjectAction::Show { name, json } => {
+                assert_eq!(name, "my-project");
+                assert!(!json);
+            }
+            _ => panic!("Expected Show"),
+        }
+    }
+
+    #[test]
+    fn test_project_action_list() {
+        let action = ProjectAction::List { json: true };
+        match action {
+            ProjectAction::List { json } => assert!(json),
+            _ => panic!("Expected List"),
+        }
+    }
+
+    #[test]
+    fn test_project_action_delete() {
+        let action = ProjectAction::Delete {
+            name: "my-project".to_string(),
+            confirm: true,
+        };
+        match action {
+            ProjectAction::Delete { name, confirm } => {
+                assert_eq!(name, "my-project");
+                assert!(confirm);
+            }
+            _ => panic!("Expected Delete"),
+        }
+    }
+
+    #[test]
+    fn test_project_action_delete_no_confirm() {
+        let action = ProjectAction::Delete {
+            name: "my-project".to_string(),
+            confirm: false,
+        };
+        match action {
+            ProjectAction::Delete { name, confirm } => {
+                assert_eq!(name, "my-project");
+                assert!(!confirm);
+            }
+            _ => panic!("Expected Delete"),
+        }
+    }
+
+    #[test]
+    fn test_project_action_switch() {
+        let action = ProjectAction::Switch {
+            name: "my-project".to_string(),
+        };
+        match action {
+            ProjectAction::Switch { name } => assert_eq!(name, "my-project"),
+            _ => panic!("Expected Switch"),
+        }
+    }
+
+    #[test]
+    fn test_project_action_current() {
+        let action = ProjectAction::Current;
+        match action {
+            ProjectAction::Current => {}
+            _ => panic!("Expected Current"),
+        }
+    }
+
+    #[test]
+    fn test_project_state_default() {
+        let state = ProjectState::default();
+        assert!(state.projects.is_empty());
+        assert!(state.current_project.is_none());
+    }
+
+    #[test]
+    fn test_project_info_creation() {
+        let info = ProjectInfo {
+            name: "test-project".to_string(),
+            path: "/path/to/project".to_string(),
+            description: Some("A test project".to_string()),
+            model: Some("gpt-4".to_string()),
+        };
+        assert_eq!(info.name, "test-project");
+        assert_eq!(info.path, "/path/to/project");
+        assert_eq!(info.description.as_deref(), Some("A test project"));
+        assert_eq!(info.model.as_deref(), Some("gpt-4"));
+    }
+
+    #[test]
+    fn test_project_info_minimal() {
+        let info = ProjectInfo {
+            name: "minimal".to_string(),
+            path: "/minimal".to_string(),
+            description: None,
+            model: None,
+        };
+        assert_eq!(info.name, "minimal");
+        assert!(info.description.is_none());
+        assert!(info.model.is_none());
+    }
+
+    #[test]
+    fn test_session_info_creation() {
+        let info = SessionInfo {
+            id: "session-123".to_string(),
+            name: "Test Session".to_string(),
+        };
+        assert_eq!(info.id, "session-123");
+        assert_eq!(info.name, "Test Session");
+    }
+
+    #[test]
+    fn test_project_state_with_projects() {
+        let mut state = ProjectState::default();
+        state.projects.insert(
+            "test".to_string(),
+            ProjectInfo {
+                name: "test".to_string(),
+                path: "/test".to_string(),
+                description: None,
+                model: None,
+            },
+        );
+        state.current_project = Some("test".to_string());
+        assert_eq!(state.projects.len(), 1);
+        assert_eq!(state.current_project.as_deref(), Some("test"));
+    }
+}
+
 pub fn run(args: ProjectArgs) {
     match args.action {
         Some(ProjectAction::Create { name, path }) => {

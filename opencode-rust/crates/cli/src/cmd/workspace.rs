@@ -113,15 +113,85 @@ mod workspace_tests {
     }
 
     #[test]
+    fn test_workspace_args_with_action() {
+        let args = WorkspaceArgs {
+            action: Some(WorkspaceAction::Sessions { json: false }),
+        };
+        match args.action {
+            Some(WorkspaceAction::Sessions { json }) => assert!(!json),
+            _ => panic!("Expected Sessions"),
+        }
+    }
+
+    #[test]
     fn test_workspace_action_sessions_fields() {
         let action = WorkspaceAction::Sessions { json: true };
         assert!(matches!(action, WorkspaceAction::Sessions { .. }));
     }
 
     #[test]
+    fn test_workspace_action_sessions_no_json() {
+        let action = WorkspaceAction::Sessions { json: false };
+        match action {
+            WorkspaceAction::Sessions { json } => assert!(!json),
+            _ => panic!("Expected Sessions"),
+        }
+    }
+
+    #[test]
     fn test_workspace_action_status_fields() {
         let action = WorkspaceAction::Status { json: false };
         assert!(matches!(action, WorkspaceAction::Status { .. }));
+    }
+
+    #[test]
+    fn test_workspace_action_status_with_json() {
+        let action = WorkspaceAction::Status { json: true };
+        match action {
+            WorkspaceAction::Status { json } => assert!(json),
+            _ => panic!("Expected Status"),
+        }
+    }
+
+    #[test]
+    fn test_workspace_action_context() {
+        let action = WorkspaceAction::Context { json: true };
+        match action {
+            WorkspaceAction::Context { json } => assert!(json),
+            _ => panic!("Expected Context"),
+        }
+    }
+
+    #[test]
+    fn test_workspace_action_context_no_json() {
+        let action = WorkspaceAction::Context { json: false };
+        match action {
+            WorkspaceAction::Context { json } => assert!(!json),
+            _ => panic!("Expected Context"),
+        }
+    }
+
+    #[test]
+    fn test_workspace_sessions_path_default() {
+        std::env::remove_var("OPENCODE_DATA_DIR");
+        let path = workspace_sessions_path();
+        assert!(path.to_string_lossy().contains("workspace-sessions.json"));
+    }
+
+    #[test]
+    fn test_workspace_sessions_path_with_data_dir() {
+        let temp_dir = std::env::temp_dir();
+        std::env::set_var("OPENCODE_DATA_DIR", temp_dir.to_string_lossy().as_ref());
+        let path = workspace_sessions_path();
+        assert!(path.to_string_lossy().contains("workspace-sessions.json"));
+        std::env::remove_var("OPENCODE_DATA_DIR");
+    }
+
+    #[test]
+    fn test_load_workspace_sessions_empty() {
+        std::env::remove_var("OPENCODE_DATA_DIR");
+        let sessions = load_workspace_sessions();
+        assert!(sessions.is_empty());
     }
 }
 

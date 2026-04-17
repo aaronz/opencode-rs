@@ -71,6 +71,30 @@ mod tests {
         assert!(args.json);
         assert!(args.dry_run);
     }
+
+    #[test]
+    fn test_uninstall_args_force_and_json() {
+        let args = UninstallArgs {
+            force: true,
+            json: true,
+            dry_run: false,
+        };
+        assert!(args.force);
+        assert!(args.json);
+        assert!(!args.dry_run);
+    }
+
+    #[test]
+    fn test_uninstall_args_force_and_dry_run() {
+        let args = UninstallArgs {
+            force: true,
+            json: false,
+            dry_run: true,
+        };
+        assert!(args.force);
+        assert!(!args.json);
+        assert!(args.dry_run);
+    }
 }
 
 pub fn run(args: UninstallArgs) {

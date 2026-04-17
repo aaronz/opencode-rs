@@ -178,6 +178,44 @@ impl Default for ShareManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::message::Message;
+
+    fn create_test_session() -> Session {
+        let mut session = Session::new();
+        session.messages.push(Message::user("Hello"));
+        session.messages.push(Message::assistant("Hi there!"));
+        session
+    }
+
+    fn create_session_with_sensitive_data() -> Session {
+        let mut session = Session::new();
+        session
+            .messages
+            .push(Message::user("My API key is sk-1234567890abcdef"));
+        session.messages.push(Message::assistant(
+            "I used api_key=secret123 to authenticate",
+        ));
+        session
+    }
+
+    fn create_session_with_patches() -> Session {
+        let mut session = Session::new();
+        session.messages.push(Message::user("Please fix the bug"));
+        session.messages.push(Message::assistant("Here is the fix: ```diff\n--- a/foo.rs\n+++ b/foo.rs\n@@ -1 +1 @@\n-old code\n+new code\n```"));
+        session
+    }
+
+    fn create_session_with_patch_and_regular_content() -> Session {
+        let mut session = Session::new();
+        session
+            .messages
+            .push(Message::assistant("Regular response without patches"));
+        session.messages.push(Message::assistant("Here is a change: ```patch\n--- original\n+++ modified\n@@ -1 +1 @@\n-content\n+new content\n```"));
+        session
+            .messages
+            .push(Message::assistant("Another response without patches"));
+        session
+    }
 
     #[test]
     fn test_share_manager_new() {
@@ -219,5 +257,233 @@ mod tests {
     fn test_share_manager_get_not_found() {
         let sm = ShareManager::new();
         assert!(sm.get("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_export_session_json_format() {
+        let sm = ShareManager::new();
+        let session = create_test_session();
+        let options = ExportOptions {
+            include_metadata: true,
+            sanitize_sensitive: false,
+            format: ExportFormat::Json,
+        };
+
+        let result = sm.export_session(&session, &options);
+
+        assert!(result.contains("\"id\""));
+        assert!(result.contains("\"messages\""));
+        assert!(result.contains("Hello"));
+        assert!(result.contains("Hi there!"));
+    }
+
+    #[test]
+    fn test_export_session_markdown_format() {
+        let sm = ShareManager::new();
+        let session = create_test_session();
+        let options = ExportOptions {
+            include_metadata: true,
+            sanitize_sensitive: false,
+            format: ExportFormat::Markdown,
+        };
+
+        let result = sm.export_session(&session, &options);
+
+        assert!(result.contains("# Session"));
+        assert!(result.contains("**Created:**"));
+        assert!(result.contains("**Updated:**"));
+        assert!(result.contains("**User**"));
+        assert!(result.contains("**Assistant**"));
+        assert!(result.contains("Hello"));
+        assert!(result.contains("Hi there!"));
+    }
+
+    #[test]
+    fn test_export_session_patch_bundle_format() {
+        let sm = ShareManager::new();
+        let session = create_session_with_patches();
+        let options = ExportOptions {
+            include_metadata: true,
+            sanitize_sensitive: false,
+            format: ExportFormat::PatchBundle,
+        };
+
+        let result = sm.export_session(&session, &options);
+
+        assert!(result.contains("# Patch Bundle"));
+        assert!(result.contains("```diff"));
+    }
+
+    #[test]
+    fn test_export_session_patch_bundle_no_patches() {
+        let sm = ShareManager::new();
+        let session = create_test_session();
+        let options = ExportOptions {
+            include_metadata: true,
+            sanitize_sensitive: false,
+            format: ExportFormat::PatchBundle,
+        };
+
+        let result = sm.export_session(&session, &options);
+
+        assert!(result.contains("# Patch Bundle"));
+        assert!(result.contains("*No patches found in session*"));
+    }
+
+    #[test]
+    fn test_export_json_with_metadata() {
+        let sm = ShareManager::new();
+        let session = create_test_session();
+        let options = ExportOptions {
+            include_metadata: true,
+            sanitize_sensitive: false,
+            format: ExportFormat::Json,
+        };
+
+        let result = sm.export_json(&session, &options);
+
+        assert!(result.contains("\"id\""));
+        assert!(result.contains("\"messages\""));
+        assert!(result.contains("\"created_at\""));
+    }
+
+    #[test]
+    fn test_export_json_without_metadata() {
+        let sm = ShareManager::new();
+        let session = create_test_session();
+        let options = ExportOptions {
+            include_metadata: false,
+            sanitize_sensitive: false,
+            format: ExportFormat::Json,
+        };
+
+        let result = sm.export_json(&session, &options);
+
+        let parsed: Vec<Message> = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed.len(), 2);
+    }
+
+    #[test]
+    fn test_export_json_with_sanitization() {
+        let sm = ShareManager::new();
+        let session = create_session_with_sensitive_data();
+        let options = ExportOptions {
+            include_metadata: true,
+            sanitize_sensitive: true,
+            format: ExportFormat::Json,
+        };
+
+        let result = sm.export_json(&session, &options);
+
+        assert!(result.contains("**[REDACTED]**"));
+        assert!(!result.contains("sk-1234567890abcdef"));
+    }
+
+    #[test]
+    fn test_export_json_without_sanitization() {
+        let sm = ShareManager::new();
+        let session = create_session_with_sensitive_data();
+        let options = ExportOptions {
+            include_metadata: true,
+            sanitize_sensitive: false,
+            format: ExportFormat::Json,
+        };
+
+        let result = sm.export_json(&session, &options);
+
+        assert!(result.contains("sk-1234567890abcdef"));
+    }
+
+    #[test]
+    fn test_export_markdown_with_forked_session() {
+        let mut sm = ShareManager::new();
+        let mut session = create_test_session();
+        session.parent_session_id = Some("parent-session-id".to_string());
+
+        let result = sm.export_markdown(&session);
+
+        assert!(result.contains("**Forked from:**"));
+        assert!(result.contains("parent-session-id"));
+    }
+
+    #[test]
+    fn test_export_markdown_empty_session() {
+        let sm = ShareManager::new();
+        let session = Session::new();
+
+        let result = sm.export_markdown(&session);
+
+        assert!(result.contains("# Session"));
+        assert!(result.contains("**Created:**"));
+    }
+
+    #[test]
+    fn test_export_patch_bundle_multiple_patches() {
+        let sm = ShareManager::new();
+        let session = create_session_with_patch_and_regular_content();
+
+        let result = sm.export_patch_bundle(&session);
+
+        assert!(result.contains("# Patch Bundle"));
+        assert!(result.contains("```patch"));
+        assert!(result.contains("--- original"));
+    }
+
+    #[test]
+    fn test_sanitize_session_api_key() {
+        let sm = ShareManager::new();
+        let session = create_session_with_sensitive_data();
+
+        let sanitized = sm.sanitize_session(&session);
+
+        let user_content = &sanitized.messages[0].content;
+        assert!(user_content.contains("**[REDACTED]**"));
+        assert!(!user_content.contains("sk-1234567890abcdef"));
+    }
+
+    #[test]
+    fn test_sanitize_session_api_key_pattern() {
+        let sm = ShareManager::new();
+        let mut session = Session::new();
+        session
+            .messages
+            .push(Message::user("api_key=my-secret-value"));
+        session.messages.push(Message::user("my-api-key=something"));
+        session.messages.push(Message::user("token=abc123"));
+
+        let sanitized = sm.sanitize_session(&session);
+
+        for msg in &sanitized.messages {
+            if msg.content.contains("**[REDACTED]**") {
+                assert!(!msg.content.contains("my-secret-value"));
+                assert!(!msg.content.contains("something"));
+                assert!(!msg.content.contains("abc123"));
+            }
+        }
+    }
+
+    #[test]
+    fn test_sanitize_session_no_sensitive_data() {
+        let sm = ShareManager::new();
+        let session = create_test_session();
+
+        let sanitized = sm.sanitize_session(&session);
+
+        assert_eq!(sanitized.messages.len(), session.messages.len());
+    }
+
+    #[test]
+    fn test_export_options_default() {
+        let options = ExportOptions::default();
+
+        assert!(options.include_metadata);
+        assert!(options.sanitize_sensitive);
+        assert_eq!(options.format, ExportFormat::Json);
+    }
+
+    #[test]
+    fn test_share_manager_default() {
+        let sm = ShareManager::default();
+        assert!(sm.list().is_empty());
     }
 }

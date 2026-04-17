@@ -36,6 +36,13 @@ mod tests {
     }
 
     #[test]
+    fn test_looks_interactive_with_various_read_patterns() {
+        assert!(looks_interactive("read -p 'Enter: '"));
+        assert!(!looks_interactive("readfile"));
+        assert!(!looks_interactive("pread"));
+    }
+
+    #[test]
     fn test_bash_args_basic() {
         let args = BashArgs {
             command: "echo hello".to_string(),
@@ -76,6 +83,28 @@ mod tests {
         };
         assert_eq!(args.json, 2);
         assert_eq!(args.timeout, Some(30));
+    }
+
+    #[test]
+    fn test_bash_args_command_only() {
+        let args = BashArgs {
+            command: "git status".to_string(),
+            json: 0,
+            timeout: None,
+        };
+        assert_eq!(args.command, "git status");
+    }
+
+    #[test]
+    fn test_bash_args_all_fields() {
+        let args = BashArgs {
+            command: "npm test".to_string(),
+            json: 3,
+            timeout: Some(120),
+        };
+        assert_eq!(args.command, "npm test");
+        assert_eq!(args.json, 3);
+        assert_eq!(args.timeout, Some(120));
     }
 }
 

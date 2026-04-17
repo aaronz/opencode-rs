@@ -212,6 +212,7 @@ impl Default for ReconnectionStore {
 #[cfg(test)]
 mod tests {
     use super::{ReconnectionStore, StreamMessage};
+    use opencode_core::bus::InternalEvent;
 
     #[test]
     fn stream_message_serialization_deserialization() {
@@ -489,6 +490,225 @@ mod tests {
         assert!(store
             .validate_token("nonexistent-session", &token)
             .is_none());
+    }
+
+    #[test]
+    fn test_stream_message_from_internal_event_message_added() {
+        let event = InternalEvent::MessageAdded {
+            session_id: "sess-1".to_string(),
+            message_id: "msg-123".to_string(),
+        };
+        let msg = StreamMessage::from_internal_event(&event);
+        assert!(msg.is_some());
+        match msg.unwrap() {
+            StreamMessage::Message {
+                session_id,
+                content,
+                role,
+            } => {
+                assert_eq!(session_id, "sess-1");
+                assert_eq!(content, "message_added:msg-123");
+                assert_eq!(role, "system");
+            }
+            _ => panic!("expected Message variant"),
+        }
+    }
+
+    #[test]
+    fn test_stream_message_from_internal_event_message_updated() {
+        let event = InternalEvent::MessageUpdated {
+            session_id: "sess-1".to_string(),
+            message_id: "msg-456".to_string(),
+        };
+        let msg = StreamMessage::from_internal_event(&event);
+        assert!(msg.is_some());
+        match msg.unwrap() {
+            StreamMessage::Message {
+                session_id,
+                content,
+                role,
+            } => {
+                assert_eq!(session_id, "sess-1");
+                assert_eq!(content, "message_updated:msg-456");
+                assert_eq!(role, "system");
+            }
+            _ => panic!("expected Message variant"),
+        }
+    }
+
+    #[test]
+    fn test_stream_message_from_internal_event_tool_call_started() {
+        let event = InternalEvent::ToolCallStarted {
+            session_id: "sess-1".to_string(),
+            tool_name: "read".to_string(),
+            call_id: "call-789".to_string(),
+        };
+        let msg = StreamMessage::from_internal_event(&event);
+        assert!(msg.is_some());
+        match msg.unwrap() {
+            StreamMessage::ToolCall {
+                session_id,
+                tool_name,
+                call_id,
+                ..
+            } => {
+                assert_eq!(session_id, "sess-1");
+                assert_eq!(tool_name, "read");
+                assert_eq!(call_id, "call-789");
+            }
+            _ => panic!("expected ToolCall variant"),
+        }
+    }
+
+    #[test]
+    fn test_stream_message_from_internal_event_tool_call_ended() {
+        let event = InternalEvent::ToolCallEnded {
+            session_id: "sess-1".to_string(),
+            call_id: "call-abc".to_string(),
+            success: true,
+        };
+        let msg = StreamMessage::from_internal_event(&event);
+        assert!(msg.is_some());
+        match msg.unwrap() {
+            StreamMessage::ToolResult {
+                session_id,
+                call_id,
+                success,
+                ..
+            } => {
+                assert_eq!(session_id, "sess-1");
+                assert_eq!(call_id, "call-abc");
+                assert!(success);
+            }
+            _ => panic!("expected ToolResult variant"),
+        }
+    }
+
+    #[test]
+    fn test_stream_message_from_internal_event_tool_call_output() {
+        let event = InternalEvent::ToolCallOutput {
+            session_id: "sess-1".to_string(),
+            call_id: "call-xyz".to_string(),
+            output: "file contents".to_string(),
+        };
+        let msg = StreamMessage::from_internal_event(&event);
+        assert!(msg.is_some());
+        match msg.unwrap() {
+            StreamMessage::ToolResult {
+                session_id,
+                call_id,
+                output,
+                success,
+            } => {
+                assert_eq!(session_id, "sess-1");
+                assert_eq!(call_id, "call-xyz");
+                assert_eq!(output, "file contents");
+                assert!(success);
+            }
+            _ => panic!("expected ToolResult variant"),
+        }
+    }
+
+    #[test]
+    fn test_stream_message_from_internal_event_agent_status_changed() {
+        let event = InternalEvent::AgentStatusChanged {
+            session_id: "sess-1".to_string(),
+            status: "running".to_string(),
+        };
+        let msg = StreamMessage::from_internal_event(&event);
+        assert!(msg.is_some());
+        match msg.unwrap() {
+            StreamMessage::SessionUpdate { session_id, status } => {
+                assert_eq!(session_id, "sess-1");
+                assert_eq!(status, "running");
+            }
+            _ => panic!("expected SessionUpdate variant"),
+        }
+    }
+
+    #[test]
+    fn test_stream_message_from_internal_event_error() {
+        let event = InternalEvent::Error {
+            source: "test-source".to_string(),
+            message: "test message".to_string(),
+        };
+        let msg = StreamMessage::from_internal_event(&event);
+        assert!(msg.is_some());
+        match msg.unwrap() {
+            StreamMessage::Error {
+                session_id,
+                error,
+                code,
+                message,
+            } => {
+                assert!(session_id.is_none());
+                assert_eq!(error, "test-source");
+                assert_eq!(code, "test-source");
+                assert_eq!(message, "test message");
+            }
+            _ => panic!("expected Error variant"),
+        }
+    }
+
+    #[test]
+    fn test_stream_message_from_internal_event_unhandled_variant() {
+        let event = InternalEvent::AgentStarted {
+            session_id: "sess-1".to_string(),
+            agent: "test-agent".to_string(),
+        };
+        let msg = StreamMessage::from_internal_event(&event);
+        assert!(msg.is_none());
+    }
+
+    #[test]
+    fn test_replay_entry_sequence_ordering() {
+        let store = ReconnectionStore::new(100);
+
+        for i in 1..=5 {
+            store.record_message(
+                "seq-test",
+                StreamMessage::Message {
+                    session_id: "seq-test".to_string(),
+                    content: format!("msg-{}", i),
+                    role: "user".to_string(),
+                },
+            );
+        }
+
+        let entries = store.replay_from("seq-test", 2);
+        assert_eq!(entries.len(), 3);
+        assert_eq!(entries[0].sequence, 3);
+        assert_eq!(entries[1].sequence, 4);
+        assert_eq!(entries[2].sequence, 5);
+    }
+
+    #[test]
+    fn test_reconnection_store_multiple_sessions() {
+        let store = ReconnectionStore::new(10);
+
+        store.record_message(
+            "session-a",
+            StreamMessage::Message {
+                session_id: "session-a".to_string(),
+                content: "a-msg".to_string(),
+                role: "user".to_string(),
+            },
+        );
+
+        store.record_message(
+            "session-b",
+            StreamMessage::Message {
+                session_id: "session-b".to_string(),
+                content: "b-msg".to_string(),
+                role: "user".to_string(),
+            },
+        );
+
+        let entries_a = store.replay_from("session-a", 0);
+        let entries_b = store.replay_from("session-b", 0);
+
+        assert_eq!(entries_a.len(), 1);
+        assert_eq!(entries_b.len(), 1);
     }
 }
 

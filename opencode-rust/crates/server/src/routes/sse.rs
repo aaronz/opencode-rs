@@ -482,4 +482,26 @@ mod tests {
         };
         assert_eq!(message_event_type(&msg), "error");
     }
+
+    #[test]
+    fn test_event_to_stream_message_session_ended() {
+        let event = InternalEvent::SessionEnded("my-session".to_string());
+        let result = event_to_stream_message(event, "my-session");
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_sse_message_request_with_empty_model() {
+        let json = r#"{"message": "test", "model": ""}"#;
+        let req: SseMessageRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.model, Some("".to_string()));
+    }
+
+    #[test]
+    fn test_sse_message_request_long_content() {
+        let long_message = "a".repeat(10000);
+        let json = format!(r#"{{"message": "{}"}}"#, long_message);
+        let req: SseMessageRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(req.message.len(), 10000);
+    }
 }

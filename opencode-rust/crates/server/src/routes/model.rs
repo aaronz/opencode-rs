@@ -24,3 +24,29 @@ pub async fn get_models(
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.route("", web::get().to(get_models));
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_model_query_empty() {
+        let json = r#"{}"#;
+        let query: ModelQuery = serde_json::from_str(json).unwrap();
+        assert!(query.provider.is_none());
+    }
+
+    #[test]
+    fn test_model_query_with_provider() {
+        let json = r#"{"provider": "openai"}"#;
+        let query: ModelQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(query.provider, Some("openai".to_string()));
+    }
+
+    #[test]
+    fn test_model_query_preserves_provider_name() {
+        let json = r#"{"provider": "anthropic"}"#;
+        let query: ModelQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(query.provider.unwrap(), "anthropic");
+    }
+}

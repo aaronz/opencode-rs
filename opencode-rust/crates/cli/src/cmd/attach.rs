@@ -57,7 +57,7 @@ mod tests {
         };
         assert_eq!(
             args.directory.as_ref().map(|p| p.as_os_str()),
-            Some(std::path::Path::new("/tmp"))
+            Some(std::ffi::OsStr::new("/tmp"))
         );
     }
 
@@ -72,8 +72,8 @@ mod tests {
         assert_eq!(
             args.directory
                 .as_ref()
-                .map(|p| p.to_string_lossy().as_ref()),
-            Some("/home/user/project")
+                .map(|p| p.to_string_lossy().into_owned()),
+            Some("/home/user/project".to_string())
         );
         assert_eq!(args.url.as_deref(), Some("wss://example.com/session"));
     }

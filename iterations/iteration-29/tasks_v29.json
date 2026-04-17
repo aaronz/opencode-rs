@@ -255,14 +255,14 @@
       "priority": "P1",
       "title": "Increase cli crate coverage to 80%",
       "description": "Increase code coverage for cli crate from 50% to 80%+",
-      "status": "in_progress",
+      "status": "partially_complete",
       "test_criteria": [
         "RunTestSuite: cargo llvm-cov shows cli crate coverage >= 80%"
       ],
       "test_commands": [
         "cargo llvm-cov -p opencode-cli --fail-under-lines 80 --lib"
       ],
-      "impl_notes": "Add unit tests for uncovered modules in cli crate",
+      "impl_notes": "Added lib target to cli crate and 187 unit tests. Coverage increased from ~18% to ~44%. Full 80% requires refactoring CLI modules (run() functions do I/O operations that are hard to unit test).",
       "dependencies": [
         "P1-001",
         "P1-002"
@@ -273,7 +273,7 @@
       "priority": "P1",
       "title": "Increase llm crate coverage to 80%",
       "description": "Increase code coverage for llm crate from 55% to 80%+",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: cargo llvm-cov shows llm crate coverage >= 80%"
       ],
@@ -291,7 +291,7 @@
       "priority": "P1",
       "title": "Increase core crate coverage to 80%",
       "description": "Increase code coverage for core crate from 60% to 80%+",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: cargo llvm-cov shows core crate coverage >= 80%"
       ],

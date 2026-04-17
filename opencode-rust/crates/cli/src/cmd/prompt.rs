@@ -44,6 +44,267 @@ pub struct PromptArgs {
     pub multiline: bool,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_prompt_args_default() {
+        let args = PromptArgs {
+            session: None,
+            history: false,
+            history_up: false,
+            history_down: false,
+            json: false,
+            content: None,
+            context: None,
+            asynchronous: false,
+            cancel: false,
+            queue_status: false,
+            shell: false,
+            terminal: false,
+            multiline: false,
+        };
+        assert!(args.session.is_none());
+        assert!(!args.history);
+        assert!(!args.history_up);
+        assert!(!args.history_down);
+        assert!(!args.json);
+        assert!(args.content.is_none());
+        assert!(args.context.is_none());
+        assert!(!args.asynchronous);
+        assert!(!args.cancel);
+        assert!(!args.queue_status);
+        assert!(!args.shell);
+        assert!(!args.terminal);
+        assert!(!args.multiline);
+    }
+
+    #[test]
+    fn test_prompt_args_with_session() {
+        let args = PromptArgs {
+            session: Some("session-123".to_string()),
+            history: false,
+            history_up: false,
+            history_down: false,
+            json: false,
+            content: None,
+            context: None,
+            asynchronous: false,
+            cancel: false,
+            queue_status: false,
+            shell: false,
+            terminal: false,
+            multiline: false,
+        };
+        assert_eq!(args.session.as_deref(), Some("session-123"));
+    }
+
+    #[test]
+    fn test_prompt_args_with_content() {
+        let args = PromptArgs {
+            session: None,
+            history: false,
+            history_up: false,
+            history_down: false,
+            json: false,
+            content: Some("Hello world".to_string()),
+            context: None,
+            asynchronous: false,
+            cancel: false,
+            queue_status: false,
+            shell: false,
+            terminal: false,
+            multiline: false,
+        };
+        assert_eq!(args.content.as_deref(), Some("Hello world"));
+    }
+
+    #[test]
+    fn test_prompt_args_with_context() {
+        let args = PromptArgs {
+            session: None,
+            history: false,
+            history_up: false,
+            history_down: false,
+            json: false,
+            content: Some("Hello".to_string()),
+            context: Some("/path/to/context".to_string()),
+            asynchronous: false,
+            cancel: false,
+            queue_status: false,
+            shell: false,
+            terminal: false,
+            multiline: false,
+        };
+        assert_eq!(args.context.as_deref(), Some("/path/to/context"));
+    }
+
+    #[test]
+    fn test_prompt_args_history_flags() {
+        let args = PromptArgs {
+            session: None,
+            history: true,
+            history_up: true,
+            history_down: false,
+            json: false,
+            content: None,
+            context: None,
+            asynchronous: false,
+            cancel: false,
+            queue_status: false,
+            shell: false,
+            terminal: false,
+            multiline: false,
+        };
+        assert!(args.history);
+        assert!(args.history_up);
+        assert!(!args.history_down);
+    }
+
+    #[test]
+    fn test_prompt_args_with_json() {
+        let args = PromptArgs {
+            session: None,
+            history: true,
+            history_up: false,
+            history_down: false,
+            json: true,
+            content: None,
+            context: None,
+            asynchronous: false,
+            cancel: false,
+            queue_status: false,
+            shell: false,
+            terminal: false,
+            multiline: false,
+        };
+        assert!(args.json);
+    }
+
+    #[test]
+    fn test_prompt_args_async_and_terminal() {
+        let args = PromptArgs {
+            session: Some("session-123".to_string()),
+            history: false,
+            history_up: false,
+            history_down: false,
+            json: false,
+            content: Some("async content".to_string()),
+            context: None,
+            asynchronous: true,
+            cancel: false,
+            queue_status: false,
+            shell: false,
+            terminal: true,
+            multiline: false,
+        };
+        assert!(args.asynchronous);
+        assert!(args.terminal);
+        assert!(!args.multiline);
+    }
+
+    #[test]
+    fn test_prompt_args_cancel() {
+        let args = PromptArgs {
+            session: Some("session-123".to_string()),
+            history: false,
+            history_up: false,
+            history_down: false,
+            json: false,
+            content: None,
+            context: None,
+            asynchronous: false,
+            cancel: true,
+            queue_status: false,
+            shell: false,
+            terminal: false,
+            multiline: false,
+        };
+        assert!(args.cancel);
+    }
+
+    #[test]
+    fn test_prompt_args_queue_status() {
+        let args = PromptArgs {
+            session: None,
+            history: false,
+            history_up: false,
+            history_down: false,
+            json: true,
+            content: None,
+            context: None,
+            asynchronous: false,
+            cancel: false,
+            queue_status: true,
+            shell: false,
+            terminal: false,
+            multiline: false,
+        };
+        assert!(args.queue_status);
+        assert!(args.json);
+    }
+
+    #[test]
+    fn test_prompt_args_shell() {
+        let args = PromptArgs {
+            session: Some("session-123".to_string()),
+            history: false,
+            history_up: false,
+            history_down: false,
+            json: false,
+            content: Some("echo hello".to_string()),
+            context: None,
+            asynchronous: false,
+            cancel: false,
+            queue_status: false,
+            shell: true,
+            terminal: false,
+            multiline: false,
+        };
+        assert!(args.shell);
+    }
+
+    #[test]
+    fn test_prompt_args_multiline() {
+        let args = PromptArgs {
+            session: None,
+            history: false,
+            history_up: false,
+            history_down: false,
+            json: false,
+            content: Some("multi\nline\ncontent".to_string()),
+            context: None,
+            asynchronous: false,
+            cancel: false,
+            queue_status: false,
+            shell: false,
+            terminal: false,
+            multiline: true,
+        };
+        assert!(args.multiline);
+    }
+
+    #[test]
+    fn test_prompt_queue_path_default() {
+        std::env::remove_var("OPENCODE_DATA_DIR");
+        let path = prompt_queue_path();
+        assert_eq!(
+            path.file_name().map(|s| s.to_str()),
+            Some(Some("prompt-queue.json"))
+        );
+    }
+
+    #[test]
+    fn test_prompt_queue_path_with_data_dir() {
+        let temp_dir = std::env::temp_dir();
+        std::env::set_var("OPENCODE_DATA_DIR", temp_dir.to_string_lossy().as_ref());
+        let path = prompt_queue_path();
+        assert!(path.to_string_lossy().contains("prompt-queue.json"));
+        std::env::remove_var("OPENCODE_DATA_DIR");
+    }
+}
+
 fn prompt_queue_path() -> PathBuf {
     if let Ok(data_dir) = std::env::var("OPENCODE_DATA_DIR") {
         let path = PathBuf::from(data_dir);

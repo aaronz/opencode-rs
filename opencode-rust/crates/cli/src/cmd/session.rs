@@ -53,6 +53,309 @@ mod tests {
     }
 
     #[test]
+    fn test_session_args_default() {
+        let args = SessionArgs {
+            id: None,
+            new: false,
+            message: None,
+            fork: false,
+            share: false,
+            json: false,
+            action: None,
+        };
+        assert!(args.id.is_none());
+        assert!(!args.new);
+        assert!(args.message.is_none());
+        assert!(!args.fork);
+        assert!(!args.share);
+        assert!(!args.json);
+        assert!(args.action.is_none());
+    }
+
+    #[test]
+    fn test_session_args_with_id() {
+        let args = SessionArgs {
+            id: Some("session-123".to_string()),
+            new: false,
+            message: None,
+            fork: false,
+            share: false,
+            json: false,
+            action: None,
+        };
+        assert_eq!(args.id.as_deref(), Some("session-123"));
+    }
+
+    #[test]
+    fn test_session_args_with_new() {
+        let args = SessionArgs {
+            id: None,
+            new: true,
+            message: None,
+            fork: false,
+            share: false,
+            json: false,
+            action: None,
+        };
+        assert!(args.new);
+    }
+
+    #[test]
+    fn test_session_args_with_message() {
+        let args = SessionArgs {
+            id: Some("session-123".to_string()),
+            new: false,
+            message: Some("Hello world".to_string()),
+            fork: false,
+            share: false,
+            json: false,
+            action: None,
+        };
+        assert_eq!(args.message.as_deref(), Some("Hello world"));
+    }
+
+    #[test]
+    fn test_session_args_with_fork() {
+        let args = SessionArgs {
+            id: Some("session-123".to_string()),
+            new: false,
+            message: None,
+            fork: true,
+            share: false,
+            json: false,
+            action: None,
+        };
+        assert!(args.fork);
+    }
+
+    #[test]
+    fn test_session_args_with_share() {
+        let args = SessionArgs {
+            id: Some("session-123".to_string()),
+            new: false,
+            message: None,
+            fork: false,
+            share: true,
+            json: false,
+            action: None,
+        };
+        assert!(args.share);
+    }
+
+    #[test]
+    fn test_session_args_with_json() {
+        let args = SessionArgs {
+            id: None,
+            new: false,
+            message: None,
+            fork: false,
+            share: false,
+            json: true,
+            action: None,
+        };
+        assert!(args.json);
+    }
+
+    #[test]
+    fn test_session_action_create() {
+        let action = SessionAction::Create { name: None };
+        match action {
+            SessionAction::Create { name } => assert!(name.is_none()),
+            _ => panic!("Expected Create"),
+        }
+    }
+
+    #[test]
+    fn test_session_action_create_with_name() {
+        let action = SessionAction::Create {
+            name: Some("My Session".to_string()),
+        };
+        match action {
+            SessionAction::Create { name } => assert_eq!(name.as_deref(), Some("My Session")),
+            _ => panic!("Expected Create"),
+        }
+    }
+
+    #[test]
+    fn test_session_action_delete() {
+        let action = SessionAction::Delete {
+            id: Some("session-123".to_string()),
+        };
+        match action {
+            SessionAction::Delete { id } => assert_eq!(id.as_deref(), Some("session-123")),
+            _ => panic!("Expected Delete"),
+        }
+    }
+
+    #[test]
+    fn test_session_action_delete_no_id() {
+        let action = SessionAction::Delete { id: None };
+        match action {
+            SessionAction::Delete { id } => assert!(id.is_none()),
+            _ => panic!("Expected Delete"),
+        }
+    }
+
+    #[test]
+    fn test_session_action_show() {
+        let action = SessionAction::Show {
+            id: Some("session-123".to_string()),
+            json: true,
+        };
+        match action {
+            SessionAction::Show { id, json } => {
+                assert_eq!(id.as_deref(), Some("session-123"));
+                assert!(json);
+            }
+            _ => panic!("Expected Show"),
+        }
+    }
+
+    #[test]
+    fn test_session_action_show_no_json() {
+        let action = SessionAction::Show {
+            id: Some("session-123".to_string()),
+            json: false,
+        };
+        match action {
+            SessionAction::Show { id, json } => {
+                assert_eq!(id.as_deref(), Some("session-123"));
+                assert!(!json);
+            }
+            _ => panic!("Expected Show"),
+        }
+    }
+
+    #[test]
+    fn test_session_action_list() {
+        let action = SessionAction::List { json: true };
+        match action {
+            SessionAction::List { json } => assert!(json),
+            _ => panic!("Expected List"),
+        }
+    }
+
+    #[test]
+    fn test_session_action_export() {
+        let action = SessionAction::Export;
+        match action {
+            SessionAction::Export => {}
+            _ => panic!("Expected Export"),
+        }
+    }
+
+    #[test]
+    fn test_session_action_message() {
+        let action = SessionAction::Message {
+            id: Some("session-123".to_string()),
+            content: Some("Hello".to_string()),
+        };
+        match action {
+            SessionAction::Message { id, content } => {
+                assert_eq!(id.as_deref(), Some("session-123"));
+                assert_eq!(content.as_deref(), Some("Hello"));
+            }
+            _ => panic!("Expected Message"),
+        }
+    }
+
+    #[test]
+    fn test_session_action_undo() {
+        let action = SessionAction::Undo {
+            id: Some("session-123".to_string()),
+            steps: 5,
+        };
+        match action {
+            SessionAction::Undo { id, steps } => {
+                assert_eq!(id.as_deref(), Some("session-123"));
+                assert_eq!(steps, 5);
+            }
+            _ => panic!("Expected Undo"),
+        }
+    }
+
+    #[test]
+    fn test_session_action_undo_default_steps() {
+        let action = SessionAction::Undo {
+            id: Some("session-123".to_string()),
+            steps: 1,
+        };
+        match action {
+            SessionAction::Undo { steps, .. } => assert_eq!(steps, 1),
+            _ => panic!("Expected Undo"),
+        }
+    }
+
+    #[test]
+    fn test_session_action_redo() {
+        let action = SessionAction::Redo {
+            id: Some("session-123".to_string()),
+            steps: 3,
+        };
+        match action {
+            SessionAction::Redo { id, steps } => {
+                assert_eq!(id.as_deref(), Some("session-123"));
+                assert_eq!(steps, 3);
+            }
+            _ => panic!("Expected Redo"),
+        }
+    }
+
+    #[test]
+    fn test_session_action_review() {
+        let action = SessionAction::Review {
+            file: Some("test.rs".to_string()),
+            format: "markdown".to_string(),
+        };
+        match action {
+            SessionAction::Review { file, format } => {
+                assert_eq!(file.as_deref(), Some("test.rs"));
+                assert_eq!(format, "markdown");
+            }
+            _ => panic!("Expected Review"),
+        }
+    }
+
+    #[test]
+    fn test_session_action_review_default_format() {
+        let action = SessionAction::Review {
+            file: Some("test.rs".to_string()),
+            format: "text".to_string(),
+        };
+        match action {
+            SessionAction::Review { format, .. } => assert_eq!(format, "text"),
+            _ => panic!("Expected Review"),
+        }
+    }
+
+    #[test]
+    fn test_session_action_diff() {
+        let action = SessionAction::Diff {
+            file: "Cargo.toml".to_string(),
+            context: 5,
+        };
+        match action {
+            SessionAction::Diff { file, context } => {
+                assert_eq!(file, "Cargo.toml");
+                assert_eq!(context, 5);
+            }
+            _ => panic!("Expected Diff"),
+        }
+    }
+
+    #[test]
+    fn test_session_action_diff_default_context() {
+        let action = SessionAction::Diff {
+            file: "lib.rs".to_string(),
+            context: 3,
+        };
+        match action {
+            SessionAction::Diff { context, .. } => assert_eq!(context, 3),
+            _ => panic!("Expected Diff"),
+        }
+    }
+
+    #[test]
     fn test_session_message_serialization() {
         let msg = SessionMessage {
             role: "assistant".to_string(),

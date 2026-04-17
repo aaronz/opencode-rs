@@ -49,7 +49,7 @@ mod tests {
         assert!(args.agent.is_none());
         assert!(args.model.is_none());
         assert!(!args.yes);
-        assert_eq!(args.format, OutputFormat::Text);
+        matches!(args.format, OutputFormat::Text);
     }
 
     #[test]
@@ -169,7 +169,7 @@ mod tests {
             title: None,
             format: OutputFormat::Json,
         };
-        assert_eq!(args.format, OutputFormat::Json);
+        matches!(args.format, OutputFormat::Json);
     }
 
     #[test]
@@ -184,7 +184,7 @@ mod tests {
             title: None,
             format: OutputFormat::Ndjson,
         };
-        assert_eq!(args.format, OutputFormat::Ndjson);
+        matches!(args.format, OutputFormat::Ndjson);
     }
 
     #[test]

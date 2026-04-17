@@ -8,7 +8,7 @@ use actix_ws::Message;
 use futures::StreamExt;
 use opencode_core::bus::InternalEvent;
 use opencode_core::{Message as CoreMessage, Session};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
 
@@ -23,7 +23,7 @@ pub struct PathParams {
     pub session_id: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum WsClientMessage {
     Run {
@@ -412,8 +412,109 @@ pub use session_hub::{ClientInfo, SessionClients, SessionHub};
 
 #[cfg(test)]
 mod ws_lifecycle_tests {
+    use super::parse_query;
     use super::session_hub::SessionHub;
+    use super::WsClientMessage;
     use crate::streaming::StreamMessage;
+
+    #[test]
+    fn test_ws_client_message_run_deserialization() {
+        let json = r#"{"type": "run", "session_id": "sess-123", "message": "Hello", "agent_type": "build", "model": "gpt-4"}"#;
+        let msg: WsClientMessage = serde_json::from_str(json).unwrap();
+        match msg {
+            WsClientMessage::Run {
+                session_id,
+                message,
+                agent_type,
+                model,
+            } => {
+                assert_eq!(session_id, "sess-123");
+                assert_eq!(message, "Hello");
+                assert_eq!(agent_type, Some("build".to_string()));
+                assert_eq!(model, Some("gpt-4".to_string()));
+            }
+            _ => panic!("expected Run variant"),
+        }
+    }
+
+    #[test]
+    fn test_ws_client_message_run_minimal() {
+        let json = r#"{"type": "run", "session_id": "sess-123", "message": "Hello"}"#;
+        let msg: WsClientMessage = serde_json::from_str(json).unwrap();
+        match msg {
+            WsClientMessage::Run {
+                session_id,
+                message,
+                agent_type,
+                model,
+            } => {
+                assert_eq!(session_id, "sess-123");
+                assert_eq!(message, "Hello");
+                assert!(agent_type.is_none());
+                assert!(model.is_none());
+            }
+            _ => panic!("expected Run variant"),
+        }
+    }
+
+    #[test]
+    fn test_ws_client_message_resume_deserialization() {
+        let json = r#"{"type": "resume", "session_id": "sess-123", "token": "abc-token"}"#;
+        let msg: WsClientMessage = serde_json::from_str(json).unwrap();
+        match msg {
+            WsClientMessage::Resume { session_id, token } => {
+                assert_eq!(session_id, "sess-123");
+                assert_eq!(token, "abc-token");
+            }
+            _ => panic!("expected Resume variant"),
+        }
+    }
+
+    #[test]
+    fn test_ws_client_message_ping_deserialization() {
+        let json = r#"{"type": "ping"}"#;
+        let msg: WsClientMessage = serde_json::from_str(json).unwrap();
+        match msg {
+            WsClientMessage::Ping => {}
+            _ => panic!("expected Ping variant"),
+        }
+    }
+
+    #[test]
+    fn test_ws_client_message_close_deserialization() {
+        let json = r#"{"type": "close"}"#;
+        let msg: WsClientMessage = serde_json::from_str(json).unwrap();
+        match msg {
+            WsClientMessage::Close => {}
+            _ => panic!("expected Close variant"),
+        }
+    }
+
+    #[test]
+    fn test_ws_client_message_serialization_roundtrip() {
+        let msg = WsClientMessage::Run {
+            session_id: "test-session".to_string(),
+            message: "test message".to_string(),
+            agent_type: Some("general".to_string()),
+            model: Some("claude-3".to_string()),
+        };
+        let json = serde_json::to_string(&msg).unwrap();
+        let parsed: WsClientMessage = serde_json::from_str(&json).unwrap();
+        match parsed {
+            WsClientMessage::Run {
+                session_id,
+                message,
+                agent_type,
+                model,
+            } => {
+                assert_eq!(session_id, "test-session");
+                assert_eq!(message, "test message");
+                assert_eq!(agent_type, Some("general".to_string()));
+                assert_eq!(model, Some("claude-3".to_string()));
+            }
+            _ => panic!("expected Run variant"),
+        }
+    }
 
     #[tokio::test]
     async fn test_ws_lifecycle_connection_setup_and_teardown() {
@@ -700,5 +801,119 @@ mod ws_lifecycle_tests {
 
         let err = r2.try_recv();
         assert!(err.is_err(), "disconnected client-A1 should not receive");
+    }
+
+    #[test]
+    fn test_ws_parse_query_empty() {
+        let query = "";
+        let params = parse_query(query);
+        assert_eq!(params.len(), 1);
+        assert!(params.contains_key(""));
+    }
+
+    #[test]
+    fn test_ws_parse_query_single_param() {
+        let query = "client_id=editor1";
+        let params = parse_query(query);
+        assert_eq!(params.get("client_id"), Some(&"editor1".to_string()));
+    }
+
+    #[test]
+    fn test_ws_parse_query_multiple_params() {
+        let query = "client_id=editor1&session_id=abc123";
+        let params = parse_query(query);
+        assert_eq!(params.get("client_id"), Some(&"editor1".to_string()));
+        assert_eq!(params.get("session_id"), Some(&"abc123".to_string()));
+    }
+
+    #[test]
+    fn test_ws_parse_query_with_empty_value() {
+        let query = "key1=value1&key2=";
+        let params = parse_query(query);
+        assert_eq!(params.get("key1"), Some(&"value1".to_string()));
+        assert_eq!(params.get("key2"), Some(&"".to_string()));
+    }
+
+    #[test]
+    fn test_ws_parse_query_no_value() {
+        let query = "keyonly";
+        let params = parse_query(query);
+        assert_eq!(params.get("keyonly"), Some(&"".to_string()));
+    }
+
+    #[test]
+    fn test_ws_parse_query_with_multiple_equals() {
+        let query = "key=value=with=equals";
+        let params = parse_query(query);
+        assert_eq!(params.get("key"), Some(&"value=with=equals".to_string()));
+    }
+
+    #[test]
+    fn test_ws_parse_query_url_encoded() {
+        let query = "session_id=abc%40123&token=xyz%26abc";
+        let params = parse_query(query);
+        assert_eq!(params.get("session_id"), Some(&"abc%40123".to_string()));
+        assert_eq!(params.get("token"), Some(&"xyz%26abc".to_string()));
+    }
+
+    #[test]
+    fn test_ws_parse_query_special_chars() {
+        let query = "key1=hello&key2=world-test_pets.123";
+        let params = parse_query(query);
+        assert_eq!(params.get("key1"), Some(&"hello".to_string()));
+        assert_eq!(params.get("key2"), Some(&"world-test_pets.123".to_string()));
+    }
+
+    fn event_to_stream_message(
+        event: opencode_core::bus::InternalEvent,
+        session_id: &str,
+    ) -> Option<crate::streaming::StreamMessage> {
+        let candidate = crate::streaming::StreamMessage::from_internal_event(&event)?;
+        match candidate.session_id() {
+            Some(source_session) if source_session == session_id => Some(candidate),
+            Some(_) => None,
+            None => Some(candidate),
+        }
+    }
+
+    #[test]
+    fn test_ws_event_to_stream_message_filters_by_session() {
+        let event = opencode_core::bus::InternalEvent::SessionStarted("other-session".to_string());
+        let result = event_to_stream_message(event, "my-session");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_ws_event_to_stream_message_passes_when_session_matches() {
+        let event = opencode_core::bus::InternalEvent::SessionStarted("my-session".to_string());
+        let result = event_to_stream_message(event, "my-session");
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_ws_event_to_stream_message_handles_error_without_session() {
+        let event = opencode_core::bus::InternalEvent::Error {
+            source: "test".to_string(),
+            message: "error".to_string(),
+        };
+        let result = event_to_stream_message(event, "any-session");
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_ws_event_to_stream_message_message_added() {
+        let event = opencode_core::bus::InternalEvent::MessageAdded {
+            session_id: "my-session".to_string(),
+            message_id: "msg-123".to_string(),
+        };
+        let result = event_to_stream_message(event, "my-session");
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_ws_event_to_stream_message_session_ended() {
+        let event = opencode_core::bus::InternalEvent::SessionEnded("my-session".to_string());
+        let result = event_to_stream_message(event, "my-session");
+        assert!(result.is_some());
     }
 }
