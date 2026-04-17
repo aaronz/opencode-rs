@@ -56,10 +56,11 @@
 ### [P1-003] Visibility audit across all crates
 - **Feature ID:** FR-028
 - **Priority:** P1
-- **Status:** Not Started
+- **Status:** ✅ Done
 - **Description:** Audit public APIs and ensure consistent visibility modifiers
 - **Affected Crates:** All crates
 - **Reference:** AGENTS.md naming conventions
+- **Implementation:** Added `visibility_audit.rs` tests verifying naming conventions and public API visibility
 
 ### [P1-004] Define plugin API version stability policy
 - **Feature ID:** FR-024

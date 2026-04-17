@@ -170,7 +170,7 @@
       "priority": "P1",
       "title": "ConnectMethodDialog Tests",
       "description": "Add tests per PRD Section 9.2: test_connect_method_dialog_shows_message_when_empty, test_connect_method_dialog_enter_on_empty_closes, test_connect_method_dialog_empty_list_up_does_not_panic, test_connect_method_dialog_single_item_down_stays_at_zero.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify empty methods + Enter closes dialog",
         "AddUnitTest: verify empty methods + navigation doesn't panic",

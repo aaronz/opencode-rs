@@ -58,7 +58,7 @@
       "priority": "P1",
       "title": "Visibility audit across all crates",
       "description": "Audit public APIs and ensure consistent visibility modifiers following AGENTS.md naming conventions.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify all public APIs have consistent visibility (pub, pub(crate), etc.)",
         "AddUnitTest: verify naming conventions for functions, types, enums, traits match AGENTS.md"

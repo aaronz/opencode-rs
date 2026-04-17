@@ -149,6 +149,36 @@ mod tests {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
     #[test]
+    fn test_connect_method_dialog_enter_on_empty_closes() {
+        let mut dialog = ConnectMethodDialog::new(Theme::default(), "anthropic".into());
+        dialog.methods.clear();
+        let action = dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert_eq!(action, DialogAction::Close);
+    }
+
+    #[test]
+    fn test_connect_method_dialog_empty_list_up_does_not_panic() {
+        let mut dialog = ConnectMethodDialog::new(Theme::default(), "google".into());
+        dialog.handle_input(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
+        dialog.handle_input(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    }
+
+    #[test]
+    fn test_connect_method_dialog_single_item_down_stays_at_zero() {
+        let mut dialog = ConnectMethodDialog::new(Theme::default(), "anthropic".into());
+        assert_eq!(dialog.selected_index, 0);
+        dialog.handle_input(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+        assert_eq!(dialog.selected_index, 0);
+    }
+
+    #[test]
+    fn test_connect_method_dialog_shows_message_when_empty() {
+        let dialog = ConnectMethodDialog::new(Theme::default(), "google".into());
+        assert!(dialog.methods.is_empty());
+        assert!(dialog.is_oauth_only);
+    }
+
+    #[test]
     fn connect_method_dialog_confirms_browser_auth_selection() {
         let mut dialog = ConnectMethodDialog::new(Theme::default(), "openai".into());
         let action = dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));

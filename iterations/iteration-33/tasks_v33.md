@@ -179,10 +179,11 @@ opencode-rs completion [SHELL]
 ---
 
 ### Task P1-5: FR-009 - ConnectMethodDialog Tests
-**Status:** TODO
+**Status:** DONE
 **Priority:** P1
 **Files:**
 - `opencode-rust/crates/tui/src/dialogs/connect_method.rs`
+- `opencode-rust/crates/tui/tests/connect_method_dialog_tests.rs`
 
 **Changes:**
 Add tests per PRD Section 9.2:
@@ -192,10 +193,10 @@ Add tests per PRD Section 9.2:
 4. `test_connect_method_dialog_single_item_down_stays_at_zero` - Single item navigation
 
 **Acceptance Criteria:**
-- [ ] Empty methods + Enter closes dialog
-- [ ] Empty methods + navigation doesn't panic
-- [ ] Single item + Down at end stays at 0
-- [ ] Empty state renders visible message with border
+- [x] Empty methods + Enter closes dialog
+- [x] Empty methods + navigation doesn't panic
+- [x] Single item + Down at end stays at 0
+- [x] Empty state renders visible message with border
 
 ---
 

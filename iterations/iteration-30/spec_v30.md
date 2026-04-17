@@ -858,7 +858,7 @@ pub struct SerializedBuffer {
 |----|--------|--------|
 | FR-018 | Add `cargo-llvm-cov` CI gate | Not Started |
 | FR-018 | Increase coverage to 80%+ across all crates | Not Started |
-| FR-028 | Visibility audit across all crates | Not Started |
+| FR-028 | Visibility audit across all crates | ✅ Done |
 | FR-024 | Define plugin API version stability policy | Not Started |
 | FR-025 | Verify WebSocket streaming capability | Not Started |
 | FR-026 | Add SDK documentation to CI | Not Started |
