@@ -1,2 +1,2 @@
-pub mod ndjson;
+mod ndjson;
 pub use ndjson::NdjsonSerializer;

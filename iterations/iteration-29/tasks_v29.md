@@ -48,14 +48,14 @@
 | P1-011 | Increase `plugin` crate coverage from 70% to 80%+ | plugin/* | ✅ Done |
 | P1-012 | Increase `config` crate coverage from 70% to 80%+ | config/* | ✅ Done |
 | P1-013 | Increase `auth` crate coverage from 75% to 80%+ | auth/* | Not Started |
-| P1-014 | Verify coverage threshold passes in CI | CI config | Not Started |
+| P1-014 | Verify coverage threshold passes in CI | CI config | ✅ Done |
 
 ### FR-028: Visibility Boundary Audit
 
 | Task ID | Description | Files | Status |
 |---------|-------------|-------|--------|
 | P1-015 | Audit `core` crate pub declarations | core/src/* | Not Started |
-| P1-016 | Audit `cli` crate pub declarations | cli/src/* | Not Started |
+| P1-016 | Audit `cli` crate pub declarations | cli/src/* | ✅ Done |
 | P1-017 | Audit `llm` crate pub declarations | llm/src/* | Not Started |
 | P1-018 | Audit `tools` crate pub declarations | tools/src/* | Not Started |
 | P1-019 | Audit `agent` crate pub declarations | agent/src/* | Not Started |

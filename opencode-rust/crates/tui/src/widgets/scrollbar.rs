@@ -44,3 +44,51 @@ impl Widget for Scrollbar {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_scrollbar_new() {
+        let scrollbar = Scrollbar::new(100);
+        assert_eq!(scrollbar.viewport_content_height, 100);
+        assert!(matches!(scrollbar.scroll_state, ScrollState::Auto));
+    }
+
+    #[test]
+    fn test_scrollbar_with_position() {
+        let scrollbar = Scrollbar::with_position(50);
+        assert_eq!(scrollbar.viewport_content_height, 0);
+        match scrollbar.scroll_state {
+            ScrollState::Manual(pos) => assert_eq!(pos, 50),
+            _ => panic!("Expected Manual state"),
+        }
+    }
+
+    #[test]
+    fn test_scroll_state_auto() {
+        assert!(matches!(ScrollState::Auto, ScrollState::Auto));
+    }
+
+    #[test]
+    fn test_scroll_state_manual() {
+        assert!(matches!(ScrollState::Manual(10), ScrollState::Manual(10)));
+        assert!(matches!(ScrollState::Manual(0), ScrollState::Manual(0)));
+    }
+
+    #[test]
+    fn test_scroll_state_clone() {
+        let state = ScrollState::Manual(42);
+        let cloned = state.clone();
+        assert_eq!(state, cloned);
+    }
+
+    #[test]
+    fn test_scroll_state_equality() {
+        assert_eq!(ScrollState::Auto, ScrollState::Auto);
+        assert_eq!(ScrollState::Manual(10), ScrollState::Manual(10));
+        assert_ne!(ScrollState::Auto, ScrollState::Manual(0));
+        assert_ne!(ScrollState::Manual(10), ScrollState::Manual(20));
+    }
+}

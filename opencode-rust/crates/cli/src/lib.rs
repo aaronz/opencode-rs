@@ -1,5 +1,7 @@
-pub mod cmd;
-pub mod output;
+#[allow(dead_code)]
+pub(crate) mod cmd;
+#[allow(dead_code)]
+pub(crate) mod output;
 
 #[cfg(test)]
 mod tests {

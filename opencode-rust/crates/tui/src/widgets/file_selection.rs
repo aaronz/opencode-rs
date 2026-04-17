@@ -76,3 +76,131 @@ impl Widget for FileSelectionList {
         list.render(area, buf);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_file_selection_list_new() {
+        let files = vec![FileItem {
+            path: PathBuf::from("/a"),
+            display_name: "a.txt".to_string(),
+            size: Some(100),
+            preview_lines: Vec::new(),
+        }];
+        let list = FileSelectionList::new(files);
+        assert_eq!(list.len(), 1);
+        assert!(!list.is_empty());
+    }
+
+    #[test]
+    fn test_file_selection_list_selected_file() {
+        let files = vec![
+            FileItem {
+                path: PathBuf::from("/a"),
+                display_name: "a.txt".to_string(),
+                size: Some(100),
+                preview_lines: Vec::new(),
+            },
+            FileItem {
+                path: PathBuf::from("/b"),
+                display_name: "b.txt".to_string(),
+                size: Some(200),
+                preview_lines: Vec::new(),
+            },
+        ];
+        let list = FileSelectionList::new(files);
+        assert!(list.selected_file().is_some());
+        assert_eq!(list.selected_file().unwrap().display_name, "a.txt");
+    }
+
+    #[test]
+    fn test_file_selection_list_move_up() {
+        let files = vec![
+            FileItem {
+                path: PathBuf::from("/a"),
+                display_name: "a.txt".to_string(),
+                size: Some(100),
+                preview_lines: Vec::new(),
+            },
+            FileItem {
+                path: PathBuf::from("/b"),
+                display_name: "b.txt".to_string(),
+                size: Some(200),
+                preview_lines: Vec::new(),
+            },
+        ];
+        let mut list = FileSelectionList::new(files);
+        list.move_up();
+        assert_eq!(list.selected, 0);
+    }
+
+    #[test]
+    fn test_file_selection_list_move_down() {
+        let files = vec![
+            FileItem {
+                path: PathBuf::from("/a"),
+                display_name: "a.txt".to_string(),
+                size: Some(100),
+                preview_lines: Vec::new(),
+            },
+            FileItem {
+                path: PathBuf::from("/b"),
+                display_name: "b.txt".to_string(),
+                size: Some(200),
+                preview_lines: Vec::new(),
+            },
+        ];
+        let mut list = FileSelectionList::new(files);
+        list.move_down();
+        assert_eq!(list.selected, 1);
+    }
+
+    #[test]
+    fn test_file_selection_list_select() {
+        let files = vec![
+            FileItem {
+                path: PathBuf::from("/a"),
+                display_name: "a.txt".to_string(),
+                size: Some(100),
+                preview_lines: Vec::new(),
+            },
+            FileItem {
+                path: PathBuf::from("/b"),
+                display_name: "b.txt".to_string(),
+                size: Some(200),
+                preview_lines: Vec::new(),
+            },
+        ];
+        let mut list = FileSelectionList::new(files);
+        list.select(1);
+        assert_eq!(list.selected, 1);
+        assert_eq!(list.selected_file().unwrap().display_name, "b.txt");
+    }
+
+    #[test]
+    fn test_file_selection_list_select_out_of_bounds() {
+        let files = vec![FileItem {
+            path: PathBuf::from("/a"),
+            display_name: "a.txt".to_string(),
+            size: Some(100),
+            preview_lines: Vec::new(),
+        }];
+        let mut list = FileSelectionList::new(files);
+        list.select(10);
+        assert_eq!(list.selected, 0);
+    }
+
+    #[test]
+    fn test_file_item_debug() {
+        let item = FileItem {
+            path: PathBuf::from("/test"),
+            display_name: "test.txt".to_string(),
+            size: Some(42),
+            preview_lines: vec!["line1".to_string()],
+        };
+        let debug = format!("{:?}", item);
+        assert!(debug.contains("test.txt"));
+    }
+}

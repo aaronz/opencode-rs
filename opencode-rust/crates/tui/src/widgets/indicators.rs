@@ -112,3 +112,116 @@ impl Widget for ProgressBar {
         gauge.render(area, buf);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_thinking_indicator_new() {
+        let indicator = ThinkingIndicator::new();
+        assert_eq!(indicator.label, "Thinking");
+        assert_eq!(indicator.frame_index, 0);
+    }
+
+    #[test]
+    fn test_thinking_indicator_with_label() {
+        let indicator = ThinkingIndicator::with_label("Processing");
+        assert_eq!(indicator.label, "Processing");
+    }
+
+    #[test]
+    fn test_thinking_indicator_tick() {
+        let mut indicator = ThinkingIndicator::new();
+        indicator.tick();
+        assert_eq!(indicator.frame_index, 1);
+    }
+
+    #[test]
+    fn test_thinking_indicator_tick_wraps() {
+        let mut indicator = ThinkingIndicator::new();
+        for _ in 0..THINKING_FRAMES.len() {
+            indicator.tick();
+        }
+        assert_eq!(indicator.frame_index, 0);
+    }
+
+    #[test]
+    fn test_thinking_indicator_set_label() {
+        let mut indicator = ThinkingIndicator::new();
+        indicator.set_label("New Label".to_string());
+        assert_eq!(indicator.label, "New Label");
+    }
+
+    #[test]
+    fn test_thinking_indicator_default() {
+        let indicator = ThinkingIndicator::default();
+        assert_eq!(indicator.label, "Thinking");
+    }
+
+    #[test]
+    fn test_thinking_frames_length() {
+        assert_eq!(THINKING_FRAMES.len(), 4);
+    }
+
+    #[test]
+    fn test_progress_bar_new() {
+        let bar = ProgressBar::new();
+        assert_eq!(bar.current, 0);
+        assert!(bar.total.is_none());
+        assert_eq!(bar.label, "Generating");
+    }
+
+    #[test]
+    fn test_progress_bar_with_total() {
+        let bar = ProgressBar::with_total(100);
+        assert_eq!(bar.current, 0);
+        assert_eq!(bar.total, Some(100));
+    }
+
+    #[test]
+    fn test_progress_bar_increment() {
+        let mut bar = ProgressBar::new();
+        bar.increment();
+        assert_eq!(bar.current, 1);
+    }
+
+    #[test]
+    fn test_progress_bar_set_progress() {
+        let mut bar = ProgressBar::new();
+        bar.set_progress(50);
+        assert_eq!(bar.current, 50);
+    }
+
+    #[test]
+    fn test_progress_bar_set_total() {
+        let mut bar = ProgressBar::new();
+        bar.set_total(100);
+        assert_eq!(bar.total, Some(100));
+    }
+
+    #[test]
+    fn test_progress_bar_percentage_none() {
+        let bar = ProgressBar::new();
+        assert!(bar.percentage().is_none());
+    }
+
+    #[test]
+    fn test_progress_bar_percentage_some() {
+        let mut bar = ProgressBar::with_total(100);
+        bar.set_progress(50);
+        assert_eq!(bar.percentage(), Some(50.0));
+    }
+
+    #[test]
+    fn test_progress_bar_percentage_zero() {
+        let bar = ProgressBar::with_total(100);
+        assert_eq!(bar.percentage(), Some(0.0));
+    }
+
+    #[test]
+    fn test_progress_bar_default() {
+        let bar = ProgressBar::default();
+        assert_eq!(bar.current, 0);
+    }
+}

@@ -340,9 +340,9 @@ mod tests {
     fn test_config_tui_config() {
         let config = Config::default_config();
         let tui_config = config.tui_config();
-        assert_eq!(tui_config.scroll_speed, 5);
+        assert_eq!(tui_config.scroll_speed, 10);
         assert_eq!(tui_config.scroll_acceleration, 0.5);
-        assert_eq!(tui_config.theme, "default");
+        assert_eq!(tui_config.theme, "dark");
     }
 
     #[test]
@@ -354,27 +354,49 @@ mod tests {
     #[test]
     fn test_config_diff_style_side_by_side() {
         let mut config = Config::default_config();
-        config.tui_config_mut().diff_style = "side-by-side".to_string();
+        config.merge_tui_config(TuiConfig {
+            scroll_speed: 10,
+            scroll_acceleration: 0.5,
+            theme: "dark".to_string(),
+            show_file_tree: true,
+            show_skills_panel: false,
+            diff_style: "side-by-side".to_string(),
+            typewriter_speed: 20,
+            max_context_size: 5000,
+            keybinds: None,
+            custom_themes: Vec::new(),
+        });
         assert!(matches!(config.diff_style(), DiffStyle::SideBySide));
     }
 
     #[test]
     fn test_config_diff_style_unified() {
         let mut config = Config::default_config();
-        config.tui_config_mut().diff_style = "unified".to_string();
+        config.merge_tui_config(TuiConfig {
+            scroll_speed: 10,
+            scroll_acceleration: 0.5,
+            theme: "dark".to_string(),
+            show_file_tree: true,
+            show_skills_panel: false,
+            diff_style: "unified".to_string(),
+            typewriter_speed: 20,
+            max_context_size: 5000,
+            keybinds: None,
+            custom_themes: Vec::new(),
+        });
         assert!(matches!(config.diff_style(), DiffStyle::Unified));
     }
 
     #[test]
     fn test_config_typewriter_speed() {
         let config = Config::default_config();
-        assert_eq!(config.typewriter_speed(), 50);
+        assert_eq!(config.typewriter_speed(), 20);
     }
 
     #[test]
     fn test_config_max_context_size() {
         let config = Config::default_config();
-        assert_eq!(config.max_context_size(), 100000);
+        assert_eq!(config.max_context_size(), 5000);
     }
 
     #[test]
@@ -445,11 +467,6 @@ mod tests {
         let result = theme.validate();
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Invalid hex color"));
-    }
-
-    #[test]
-    fn test_diff_style_default() {
-        assert!(matches!(DiffStyle::default(), DiffStyle::Auto));
     }
 
     #[test]

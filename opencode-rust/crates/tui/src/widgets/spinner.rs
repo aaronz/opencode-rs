@@ -79,3 +79,65 @@ impl Widget for Spinner {
         buf.set_span(area.x, area.y, &span, area.width);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_spinner_new() {
+        let spinner = Spinner::new("Loading");
+        assert_eq!(spinner.label, "Loading");
+        assert!(matches!(spinner.state, SpinnerState::InProgress));
+        assert!(spinner.color.is_none());
+    }
+
+    #[test]
+    fn test_spinner_with_state() {
+        let spinner = Spinner::with_state("Done", SpinnerState::Completed);
+        assert_eq!(spinner.label, "Done");
+        assert!(matches!(spinner.state, SpinnerState::Completed));
+    }
+
+    #[test]
+    fn test_spinner_tick() {
+        let mut spinner = Spinner::new("Loading");
+        let initial_index = spinner.frame_index;
+        spinner.tick();
+        assert!(spinner.frame_index != initial_index || SPINNER_FRAMES.len() == 1);
+    }
+
+    #[test]
+    fn test_spinner_set_completed() {
+        let mut spinner = Spinner::new("Loading");
+        spinner.set_completed();
+        assert!(matches!(spinner.state, SpinnerState::Completed));
+    }
+
+    #[test]
+    fn test_spinner_set_error() {
+        let mut spinner = Spinner::new("Loading");
+        spinner.set_error();
+        assert!(matches!(spinner.state, SpinnerState::Error));
+    }
+
+    #[test]
+    fn test_spinner_state_clone() {
+        let state = SpinnerState::Completed;
+        let cloned = state.clone();
+        assert_eq!(state, cloned);
+    }
+
+    #[test]
+    fn test_spinner_state_equality() {
+        assert_eq!(SpinnerState::InProgress, SpinnerState::InProgress);
+        assert_eq!(SpinnerState::Completed, SpinnerState::Completed);
+        assert_eq!(SpinnerState::Error, SpinnerState::Error);
+        assert_ne!(SpinnerState::InProgress, SpinnerState::Completed);
+    }
+
+    #[test]
+    fn test_spinner_frames_length() {
+        assert_eq!(SPINNER_FRAMES.len(), 10);
+    }
+}

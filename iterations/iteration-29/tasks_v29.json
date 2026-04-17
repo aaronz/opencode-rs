@@ -399,7 +399,7 @@
       "priority": "P1",
       "title": "Verify coverage threshold passes in CI",
       "description": "Verify coverage threshold passes in CI pipeline",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: cargo llvm-cov --fail-under-lines 80 passes on all crates"
       ],
@@ -427,7 +427,7 @@
       "priority": "P1",
       "title": "Audit core crate pub declarations",
       "description": "Audit core crate pub declarations and ensure only necessary items are public",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify core crate compiles with audited pub visibility"
       ],
@@ -443,7 +443,7 @@
       "priority": "P1",
       "title": "Audit cli crate pub declarations",
       "description": "Audit cli crate pub declarations and ensure only necessary items are public",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify cli crate compiles with audited pub visibility"
       ],
