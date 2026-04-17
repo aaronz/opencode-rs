@@ -2,7 +2,6 @@
 use std::sync::mpsc::{channel, Receiver, Sender};
 #[cfg(feature = "desktop")]
 use std::thread;
-#[cfg(feature = "desktop")]
 use tokio::sync::oneshot;
 
 #[cfg(feature = "desktop")]
