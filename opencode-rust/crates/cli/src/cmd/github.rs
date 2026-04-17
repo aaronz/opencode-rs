@@ -1,5 +1,11 @@
 use clap::{Args, Subcommand};
-use opencode_git::{setup_github_workflow, GitHubAppClient, WorkflowTemplate};
+use opencode_auth::oauth::OAuthFlow;
+use opencode_git::{setup_github_workflow, GitHubAppClient, GitHubClient, WorkflowTemplate};
+
+const GITHUB_API_BASE: &str = "https://api.github.com";
+const GITHUB_CLIENT_ID: &str = "Iv1.8a1f8c05dfd1c06e";
+const GITHUB_DEVICE_CODE_URL: &str = "https://github.com/login/device/code";
+const GITHUB_TOKEN_URL: &str = "https://github.com/login/oauth/access_token";
 
 #[derive(Args, Debug)]
 pub(crate) struct GitHubArgs {
@@ -77,13 +83,13 @@ mod tests {
 pub(crate) fn run(args: GitHubArgs) {
     match args.action {
         GitHubAction::Login => {
-            println!("GitHub login - TODO: Implement OAuth flow");
+            run_login();
         }
         GitHubAction::RepoList => {
-            println!("GitHub repo list - TODO: List repositories");
+            run_repo_list();
         }
         GitHubAction::IssueList { repo } => {
-            println!("GitHub issues for {} - TODO", repo);
+            run_issue_list(&repo);
         }
         GitHubAction::Install {
             token,
@@ -152,5 +158,138 @@ fn run_workflow(token: Option<String>, owner: &str, repo: &str, branch: &str) {
     println!("\nRequired secrets:");
     for secret in &template.secrets {
         println!("  - {}: {}", secret.name, secret.description);
+    }
+}
+
+fn run_login() {
+    println!("Starting GitHub OAuth login flow...");
+
+    let oauth_flow = OAuthFlow::new();
+
+    match oauth_flow.start_device_code_flow(
+        "github",
+        GITHUB_CLIENT_ID,
+        GITHUB_DEVICE_CODE_URL,
+        Some("repo read:user"),
+    ) {
+        Ok(session) => {
+            println!("\nTo complete login:");
+            println!("  1. Open: {}", session.verification_uri);
+            if let Some(ref complete) = session.verification_uri_complete {
+                println!("  2. Enter code: {}", session.user_code);
+                println!("  Or visit: {}", complete);
+            } else {
+                println!("  2. Enter code: {}", session.user_code);
+            }
+            println!("\nWaiting for authentication...\n");
+
+            match oauth_flow.poll_device_code_authorization(
+                &session,
+                GITHUB_CLIENT_ID,
+                "",
+                GITHUB_TOKEN_URL,
+                None,
+            ) {
+                Ok(token) => match oauth_flow.store_token("github", &token) {
+                    Ok(()) => {
+                        println!("✓ GitHub authentication successful!");
+                        println!("  Token stored securely.");
+                    }
+                    Err(e) => {
+                        eprintln!("Error storing token: {}", e);
+                        std::process::exit(1);
+                    }
+                },
+                Err(e) => {
+                    eprintln!("Error during authentication: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("Error starting OAuth flow: {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn run_repo_list() {
+    let token = std::env::var("GITHUB_TOKEN").unwrap_or_else(|_| {
+        eprintln!("Error: GitHub token required. Set GITHUB_TOKEN environment variable or login with 'opencode github login'");
+        std::process::exit(1);
+    });
+
+    let client = GitHubClient::new(&token, GITHUB_API_BASE);
+
+    match client.list_repos("") {
+        Ok(repos) => {
+            if repos.is_empty() {
+                println!("No repositories found.");
+                return;
+            }
+            println!("Your repositories:\n");
+            for repo in &repos {
+                let visibility = if repo.private {
+                    "[private]"
+                } else {
+                    "[public]"
+                };
+                println!(
+                    "  {} {} ({})",
+                    visibility,
+                    repo.full_name,
+                    repo.default_branch.as_deref().unwrap_or("main")
+                );
+            }
+            println!("\nTotal: {} repositories", repos.len());
+        }
+        Err(e) => {
+            eprintln!("Error fetching repositories: {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn run_issue_list(repo: &str) {
+    let parts: Vec<&str> = repo.split('/').collect();
+    if parts.len() != 2 {
+        eprintln!("Error: Repository must be in format 'owner/repo'");
+        std::process::exit(1);
+    }
+    let (owner, repo_name) = (parts[0], parts[1]);
+
+    let token = std::env::var("GITHUB_TOKEN").unwrap_or_else(|_| {
+        eprintln!("Error: GitHub token required. Set GITHUB_TOKEN environment variable or login with 'opencode github login'");
+        std::process::exit(1);
+    });
+
+    let client = GitHubClient::new(&token, GITHUB_API_BASE);
+
+    match client.list_issues(owner, repo_name, "open") {
+        Ok(issues) => {
+            let pure_issues: Vec<_> = issues.iter().filter(|i| i.pull_request.is_none()).collect();
+            if pure_issues.is_empty() {
+                println!("No open issues found for {}/{}", owner, repo_name);
+                return;
+            }
+            println!("Open issues for {}/{}:\n", owner, repo_name);
+            for issue in &pure_issues {
+                println!(
+                    "  #{} - {} (by {})",
+                    issue.number,
+                    issue.title,
+                    issue
+                        .user
+                        .as_ref()
+                        .map(|u| u.login.as_str())
+                        .unwrap_or("unknown")
+                );
+            }
+            println!("\nTotal: {} open issues", pure_issues.len());
+        }
+        Err(e) => {
+            eprintln!("Error fetching issues: {}", e);
+            std::process::exit(1);
+        }
     }
 }

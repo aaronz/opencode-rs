@@ -192,7 +192,7 @@
       "priority": "P2",
       "title": "GitHub Integration Completion",
       "description": "Remove TODO messages at lines 80-86. Implement GitHubAction::Login (OAuth flow), GitHubAction::RepoList (list user repositories), GitHubAction::IssueList { repo } (list issues for repo).",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify GitHub OAuth login flow completes successfully",
         "AddIntegrationTest: verify repository listing shows user's repositories",

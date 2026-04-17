@@ -133,6 +133,11 @@ impl GitHubClient {
         self.send(self.authed(self.client.get(url)))
     }
 
+    pub fn list_repos(&self, _owner: &str) -> Result<Vec<GitHubRepo>, GitHubError> {
+        let url = format!("{}/user/repos", self.api_base);
+        self.send(self.authed(self.client.get(url).query(&[("per_page", "100")])))
+    }
+
     pub fn trigger_workflow(
         &self,
         owner: &str,
@@ -221,6 +226,8 @@ pub struct GitHubIssue {
     pub body: Option<String>,
     pub html_url: Option<String>,
     pub user: Option<GitHubUser>,
+    #[serde(default)]
+    pub pull_request: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
