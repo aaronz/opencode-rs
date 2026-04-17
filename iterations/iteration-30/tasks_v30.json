@@ -22,7 +22,7 @@
       "priority": "P1",
       "title": "Add cargo-llvm-cov CI gate",
       "description": "Add coverage reporting to CI with 80% line coverage threshold using `cargo llvm-cov --fail-under-lines 80`.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify CI workflow runs cargo llvm-cov and fails when coverage drops below 80%",
         "RunTestSuite: execute cargo llvm-cov locally to verify current coverage meets threshold"
@@ -39,7 +39,7 @@
       "priority": "P1",
       "title": "Increase coverage to 80%+ across all crates",
       "description": "Raise test coverage to meet 80% minimum threshold across all crates.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "RunTestSuite: execute cargo llvm-cov --fail-under-lines 80 to verify all crates meet threshold",
         "AddRegressionTest: ensure new tests cover previously untested code paths"
