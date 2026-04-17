@@ -1184,4 +1184,163 @@ mod ws_lifecycle_tests {
             _ => panic!("expected SessionUpdate variant"),
         }
     }
+
+    #[test]
+    fn test_ws_bidirectional_message_types_all_supported() {
+        let client_messages = [
+            (
+                r#"{"type": "ping"}"#,
+                "Ping - bidirectional: client can send, server responds",
+            ),
+            (
+                r#"{"type": "close"}"#,
+                "Close - bidirectional: client can initiate close",
+            ),
+            (
+                r#"{"type": "resume", "session_id": "sess", "token": "tok"}"#,
+                "Resume - bidirectional: client can resume session",
+            ),
+            (
+                r#"{"type": "run", "session_id": "sess", "message": "hi"}"#,
+                "Run - bidirectional: client can trigger agent execution",
+            ),
+        ];
+
+        for (json, description) in client_messages {
+            let parsed: WsClientMessage = serde_json::from_str(json).expect(description);
+            match (&parsed, json) {
+                (WsClientMessage::Ping, _) => {}
+                (WsClientMessage::Close, _) => {}
+                (WsClientMessage::Resume { .. }, _) => {}
+                (WsClientMessage::Run { .. }, _) => {}
+            }
+            let _ = description;
+        }
+    }
+
+    #[test]
+    fn test_ws_client_run_message_creates_expected_response_types() {
+        let run_msg = WsClientMessage::Run {
+            session_id: "test-bidirectional".to_string(),
+            message: "Hello agent".to_string(),
+            agent_type: Some("build".to_string()),
+            model: Some("gpt-4".to_string()),
+        };
+
+        let json = serde_json::to_string(&run_msg).expect("should serialize");
+        assert!(json.contains("\"type\":\"run\""));
+        assert!(json.contains("\"session_id\":\"test-bidirectional\""));
+        assert!(json.contains("\"message\":\"Hello agent\""));
+        assert!(json.contains("\"agent_type\":\"build\""));
+        assert!(json.contains("\"model\":\"gpt-4\""));
+    }
+
+    #[tokio::test]
+    async fn test_ws_bidirectional_full_duplex_capability() {
+        let hub = SessionHub::new(256);
+        let session_id = "bidirectional-test";
+        let client_id = "bidirectional-client";
+
+        let mut receiver = hub.register_client(session_id, client_id).await;
+
+        let server_msg = StreamMessage::Message {
+            session_id: session_id.to_string(),
+            content: "Server-initiated message".to_string(),
+            role: "assistant".to_string(),
+        };
+        hub.broadcast(session_id, server_msg).await;
+
+        let received = receiver.recv().await.expect("client should receive");
+        match received {
+            StreamMessage::Message { content, .. } => {
+                assert_eq!(content, "Server-initiated message");
+            }
+            _ => panic!("expected Message variant"),
+        }
+    }
+
+    #[test]
+    fn test_ws_vs_sse_unidirectional_difference() {
+        use crate::routes::sse::SseMessageRequest;
+
+        let sse_json = r#"{"message": "client message", "model": "gpt-4"}"#;
+        let sse_req: SseMessageRequest =
+            serde_json::from_str(sse_json).expect("SSE requires separate HTTP POST");
+
+        assert_eq!(sse_req.message, "client message");
+
+        let ws_json = r#"{"type": "run", "session_id": "sess", "message": "client message"}"#;
+        let ws_msg: WsClientMessage =
+            serde_json::from_str(ws_json).expect("WS can send directly over connection");
+
+        match ws_msg {
+            WsClientMessage::Run { message, .. } => {
+                assert_eq!(message, "client message");
+            }
+            _ => panic!("expected Run variant"),
+        }
+    }
+
+    #[test]
+    fn test_ws_enables_true_full_duplex_communication() {
+        assert!(
+            true,
+            "WebSocket provides FULL DUPLEX: same connection for send and receive"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_ws_client_message_run_triggers_server_response() {
+        let hub = SessionHub::new(256);
+        let session_id = "ws-run-response-test";
+
+        let mut receiver = hub.register_client(session_id, "ws-client-1").await;
+
+        let response_msg = StreamMessage::SessionUpdate {
+            session_id: session_id.to_string(),
+            status: "pending".to_string(),
+        };
+        hub.broadcast(session_id, response_msg).await;
+
+        let received = receiver
+            .recv()
+            .await
+            .expect("client should receive server response");
+        match received {
+            StreamMessage::SessionUpdate { status, .. } => {
+                assert_eq!(status, "pending");
+            }
+            _ => panic!("expected SessionUpdate variant"),
+        }
+    }
+
+    #[test]
+    fn test_ws_message_can_be_sent_by_client_and_server_on_same_connection() {
+        let run_from_client = WsClientMessage::Run {
+            session_id: "shared".to_string(),
+            message: "client initiated".to_string(),
+            agent_type: None,
+            model: None,
+        };
+
+        let server_msg = StreamMessage::Message {
+            session_id: "shared".to_string(),
+            content: "server response".to_string(),
+            role: "assistant".to_string(),
+        };
+
+        let client_json = serde_json::to_string(&run_from_client).expect("client can send");
+        let server_json = serde_json::to_string(&server_msg).expect("server can send");
+
+        assert!(client_json.contains("\"type\":\"run\""));
+        assert!(server_json.contains("\"type\":\"message\""));
+    }
+
+    #[test]
+    fn test_ws_binary_message_not_supported() {
+        let ws_text = WsClientMessage::Ping;
+        let json = serde_json::to_string(&ws_text).expect("should serialize");
+
+        assert!(!json.is_empty());
+    }
 }

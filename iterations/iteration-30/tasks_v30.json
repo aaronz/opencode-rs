@@ -75,7 +75,7 @@
       "priority": "P1",
       "title": "Define plugin API version stability policy",
       "description": "Document version stability guarantees and deprecation policy for plugin API in opencode-plugin crate.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify plugin API exports are clearly marked with stability annotations",
         "AddRegressionTest: ensure breaking changes to plugin API are detected by clippy or version bump"
@@ -92,7 +92,7 @@
       "priority": "P1",
       "title": "Verify WebSocket streaming capability",
       "description": "Verify routes/ws.rs provides full bidirectional WebSocket streaming vs SSE. Compare ws.rs implementation against SSE implementation.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify WebSocket connection establishes and handles bidirectional messages",
         "AddIntegrationTest: verify WebSocket vs SSE streaming behavior difference"

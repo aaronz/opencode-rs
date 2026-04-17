@@ -1,9 +1,19 @@
+pub mod copilot_oauth;
+pub mod google_oauth;
 pub mod layer1_credential_source;
 pub mod layer2_auth_mechanism;
 pub mod layer3_provider_transport;
 pub mod layer4_runtime_access_control;
 pub mod tests;
 
+pub use copilot_oauth::{
+    is_oauth_only_provider, CopilotLocalCallbackServer, CopilotOAuthCallback, CopilotOAuthRequest,
+    CopilotOAuthService, CopilotOAuthSession, CopilotOAuthStore,
+};
+pub use google_oauth::{
+    GoogleLocalCallbackServer, GoogleOAuthCallback, GoogleOAuthRequest, GoogleOAuthService,
+    GoogleOAuthSession, GoogleOAuthStore,
+};
 pub use layer1_credential_source::{
     CompositeCredentialResolver, CredentialResolver, CredentialSource,
 };

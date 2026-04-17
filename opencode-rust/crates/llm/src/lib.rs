@@ -39,6 +39,12 @@ pub use auth::{
     AuthApplicator, AuthManager, AuthStrategy, Credential, CredentialStore, OAuthSessionManager,
     OAuthTokenResponse, ProviderAuthConfig,
 };
+pub use auth_layered::{
+    is_oauth_only_provider, CopilotLocalCallbackServer, CopilotOAuthCallback, CopilotOAuthRequest,
+    CopilotOAuthService, CopilotOAuthSession, CopilotOAuthStore, GoogleLocalCallbackServer,
+    GoogleOAuthCallback, GoogleOAuthRequest, GoogleOAuthService, GoogleOAuthSession,
+    GoogleOAuthStore,
+};
 pub use budget::{
     BudgetExceededError, BudgetLimit, BudgetTracker, ConversationBudgetState, RequestBudgetState,
     VariantCost,

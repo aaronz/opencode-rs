@@ -1,9 +1,12 @@
 #[cfg(test)]
 mod tests {
     use crate::auth_layered::{
-        AccessControlResult, AnthropicTransport, AuthMechanism, AwsSigV4Transport,
-        CompositeCredentialResolver, CredentialResolver, CredentialSource,
-        OpenAICompatibleTransport, ProviderTransport, RuntimeAccessControl, TransportLayer,
+        is_oauth_only_provider, AccessControlResult, AnthropicTransport, AuthMechanism,
+        AwsSigV4Transport, CompositeCredentialResolver, CopilotOAuthCallback, CopilotOAuthRequest,
+        CopilotOAuthService, CopilotOAuthSession, CopilotOAuthStore, CredentialResolver,
+        CredentialSource, GoogleOAuthCallback, GoogleOAuthRequest, GoogleOAuthService,
+        GoogleOAuthSession, GoogleOAuthStore, OpenAICompatibleTransport, ProviderTransport,
+        RuntimeAccessControl, TransportLayer,
     };
     use std::collections::HashMap;
 
@@ -173,5 +176,205 @@ mod tests {
         let cred = resolver.resolve("openai", &CredentialSource::ConfigInline);
         assert!(cred.is_some());
         assert_eq!(cred.unwrap().value, "sk-integration");
+    }
+
+    #[test]
+    fn test_oauth_only_providers_identified() {
+        assert!(is_oauth_only_provider("google"));
+        assert!(is_oauth_only_provider("copilot"));
+        assert!(!is_oauth_only_provider("openai"));
+        assert!(!is_oauth_only_provider("anthropic"));
+        assert!(!is_oauth_only_provider("ollama"));
+        assert!(!is_oauth_only_provider("mistral"));
+        assert!(!is_oauth_only_provider("bedrock"));
+    }
+
+    #[test]
+    fn test_google_oauth_service_creation() {
+        let service = GoogleOAuthService::new();
+        let result = service.start_local_callback_listener();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_google_oauth_authorize_url_generation() {
+        let service = GoogleOAuthService::new();
+        let request = GoogleOAuthRequest {
+            redirect_uri: "http://127.0.0.1:8080/auth/callback".to_string(),
+            state: "test-state".to_string(),
+            code_verifier: "test-verifier-12345678901234567890123456789012345678901234567890123456"
+                .to_string(),
+        };
+        let url = service.build_authorize_url(&request);
+        assert!(url.contains("accounts.google.com"));
+        assert!(url.contains("scope="));
+        assert!(url.contains("state=test-state"));
+    }
+
+    #[test]
+    fn test_google_oauth_session_storage() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = GoogleOAuthStore::new(dir.path().to_path_buf());
+        let session = GoogleOAuthSession {
+            access_token: "ya29.test".to_string(),
+            refresh_token: Some("1//test_refresh".to_string()),
+            expires_at_epoch_ms: chrono::Utc::now().timestamp_millis() + 3600000,
+            email: Some("test@gmail.com".to_string()),
+        };
+
+        assert!(store.save(&session).is_ok());
+        let loaded = store.load().unwrap().unwrap();
+        assert_eq!(loaded.access_token, "ya29.test");
+        assert_eq!(loaded.email, Some("test@gmail.com".to_string()));
+    }
+
+    #[test]
+    fn test_google_oauth_session_expiration() {
+        let expired_session = GoogleOAuthSession {
+            access_token: "ya29.expired".to_string(),
+            refresh_token: Some("1//expired_refresh".to_string()),
+            expires_at_epoch_ms: chrono::Utc::now().timestamp_millis() - 1000,
+            email: None,
+        };
+        assert!(expired_session.is_expired());
+
+        let valid_session = GoogleOAuthSession {
+            access_token: "ya29.valid".to_string(),
+            refresh_token: Some("1//valid_refresh".to_string()),
+            expires_at_epoch_ms: chrono::Utc::now().timestamp_millis() + 3600000,
+            email: None,
+        };
+        assert!(!valid_session.is_expired());
+    }
+
+    #[test]
+    fn test_google_oauth_exchange_code_state_mismatch() {
+        let service = GoogleOAuthService::new();
+        let callback = GoogleOAuthCallback {
+            code: "test-code".to_string(),
+            state: "wrong-state".to_string(),
+        };
+        let request = GoogleOAuthRequest {
+            redirect_uri: "http://127.0.0.1:8080/auth/callback".to_string(),
+            state: "correct-state".to_string(),
+            code_verifier: "verifier".to_string(),
+        };
+        let result = service.exchange_code(callback, &request);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_copilot_oauth_service_creation() {
+        let service = CopilotOAuthService::new();
+        let result = service.start_local_callback_listener();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_copilot_oauth_authorize_url_generation() {
+        let service = CopilotOAuthService::new();
+        let request = CopilotOAuthRequest {
+            redirect_uri: "http://127.0.0.1:8080/auth/callback".to_string(),
+            state: "test-state".to_string(),
+            code_verifier: "test-verifier-12345678901234567890123456789012345678901234567890123456"
+                .to_string(),
+        };
+        let url = service.build_authorize_url(&request);
+        assert!(url.contains("github.com"));
+        assert!(url.contains("scope=copilot"));
+        assert!(url.contains("state=test-state"));
+    }
+
+    #[test]
+    fn test_copilot_oauth_session_storage() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = CopilotOAuthStore::new(dir.path().to_path_buf());
+        let session = CopilotOAuthSession {
+            access_token: "gho_test_token".to_string(),
+            expires_at_epoch_ms: chrono::Utc::now().timestamp_millis() + 3600000,
+            token_type: "Bearer".to_string(),
+        };
+
+        assert!(store.save(&session).is_ok());
+        let loaded = store.load().unwrap().unwrap();
+        assert_eq!(loaded.access_token, "gho_test_token");
+        assert_eq!(loaded.token_type, "Bearer");
+    }
+
+    #[test]
+    fn test_copilot_oauth_session_expiration() {
+        let expired_session = CopilotOAuthSession {
+            access_token: "gho_expired".to_string(),
+            expires_at_epoch_ms: chrono::Utc::now().timestamp_millis() - 1000,
+            token_type: "Bearer".to_string(),
+        };
+        assert!(expired_session.is_expired());
+
+        let valid_session = CopilotOAuthSession {
+            access_token: "gho_valid".to_string(),
+            expires_at_epoch_ms: chrono::Utc::now().timestamp_millis() + 3600000,
+            token_type: "Bearer".to_string(),
+        };
+        assert!(!valid_session.is_expired());
+    }
+
+    #[test]
+    fn test_copilot_oauth_exchange_code_state_mismatch() {
+        let service = CopilotOAuthService::new();
+        let callback = CopilotOAuthCallback {
+            code: "test-code".to_string(),
+            state: "wrong-state".to_string(),
+        };
+        let request = CopilotOAuthRequest {
+            redirect_uri: "http://127.0.0.1:8080/auth/callback".to_string(),
+            state: "correct-state".to_string(),
+            code_verifier: "verifier".to_string(),
+        };
+        let result = service.exchange_code(callback, &request);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_non_oauth_providers_api_key_auth() {
+        let providers = vec!["openai", "anthropic", "ollama", "mistral", "groq"];
+        for provider in providers {
+            assert!(
+                !is_oauth_only_provider(provider),
+                "{} should support API key auth",
+                provider
+            );
+        }
+    }
+
+    #[test]
+    fn test_oauth_only_providers_list() {
+        let oauth_providers = vec!["google", "copilot"];
+        for provider in oauth_providers {
+            assert!(
+                is_oauth_only_provider(provider),
+                "{} should be OAuth-only",
+                provider
+            );
+        }
+    }
+
+    #[test]
+    fn test_google_oauth_callback_server_request() {
+        let service = GoogleOAuthService::new();
+        let server = service.start_local_callback_listener().unwrap();
+        let req = server.request();
+        assert_eq!(req.state.len(), 32);
+        assert!(req.redirect_uri.starts_with("http://127.0.0.1:"));
+        assert!(req.redirect_uri.ends_with("/auth/callback"));
+    }
+
+    #[test]
+    fn test_copilot_oauth_callback_server_request() {
+        let service = CopilotOAuthService::new();
+        let server = service.start_local_callback_listener().unwrap();
+        let req = server.request();
+        assert_eq!(req.state.len(), 32);
+        assert!(req.redirect_uri.starts_with("http://127.0.0.1:"));
+        assert!(req.redirect_uri.ends_with("/auth/callback"));
     }
 }

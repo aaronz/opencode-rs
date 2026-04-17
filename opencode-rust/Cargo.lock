@@ -77,7 +77,7 @@ dependencies = [
  "flate2",
  "foldhash 0.1.5",
  "futures-core",
- "h2",
+ "h2 0.3.27",
  "http 0.2.12",
  "httparse",
  "httpdate",
@@ -2690,6 +2690,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "h2"
+version = "0.4.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2f44da3a8150a6703ed5d34e164b875fd14c2cdab9af1252a9a1020bde2bdc54"
+dependencies = [
+ "atomic-waker",
+ "bytes",
+ "fnv",
+ "futures-core",
+ "futures-sink",
+ "http 1.4.0",
+ "indexmap 2.14.0",
+ "slab",
+ "tokio",
+ "tokio-util",
+ "tracing",
+]
+
+[[package]]
 name = "half"
 version = "2.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2875,6 +2894,7 @@ dependencies = [
  "bytes",
  "futures-channel",
  "futures-core",
+ "h2 0.4.13",
  "http 1.4.0",
  "http-body",
  "httparse",
@@ -2936,9 +2956,11 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite",
  "socket2 0.6.3",
+ "system-configuration",
  "tokio",
  "tower-service",
  "tracing",
+ "windows-registry",
 ]
 
 [[package]]
@@ -4600,6 +4622,7 @@ dependencies = [
  "opencode-tools",
  "rand 0.8.5",
  "regex-lite",
+ "reqwest",
  "serde",
  "serde_json",
  "tempfile",
@@ -5746,9 +5769,11 @@ checksum = "eddd3ca559203180a307f12d114c268abf583f59b03cb906fd0b3ff8646c1147"
 dependencies = [
  "base64 0.22.1",
  "bytes",
+ "encoding_rs",
  "futures-channel",
  "futures-core",
  "futures-util",
+ "h2 0.4.13",
  "http 1.4.0",
  "http-body",
  "http-body-util",
@@ -5758,6 +5783,7 @@ dependencies = [
  "hyper-util",
  "js-sys",
  "log",
+ "mime",
  "native-tls",
  "percent-encoding",
  "pin-project-lite",
@@ -6526,6 +6552,27 @@ dependencies = [
  "thiserror 2.0.18",
  "walkdir",
  "yaml-rust",
+]
+
+[[package]]
+name = "system-configuration"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a13f3d0daba03132c0aa9767f98351b3488edc2c100cda2d2ec2b04f3d8d3c8b"
+dependencies = [
+ "bitflags 2.11.1",
+ "core-foundation 0.9.4",
+ "system-configuration-sys",
+]
+
+[[package]]
+name = "system-configuration-sys"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e1d1b10ced5ca923a1fcb8d03e96b8d3268065d724548c0211415ff6ac6bac4"
+dependencies = [
+ "core-foundation-sys",
+ "libc",
 ]
 
 [[package]]
@@ -8296,6 +8343,17 @@ name = "windows-metadata"
 version = "0.39.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ee5e275231f07c6e240d14f34e1b635bf1faa1c76c57cfd59a5cdb9848e4278"
+
+[[package]]
+name = "windows-registry"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "02752bf7fbdcce7f2a27a742f798510f3e5ad88dbe84871e5168e2120c3d5720"
+dependencies = [
+ "windows-link",
+ "windows-result",
+ "windows-strings",
+]
 
 [[package]]
 name = "windows-result"
