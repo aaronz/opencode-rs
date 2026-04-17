@@ -22,7 +22,7 @@
       "priority": "P0",
       "title": "Fix unwrap() in web_search.rs:70",
       "description": "Fix the unwrap() call at crates/tools/src/web_search.rs:70 that can panic on error paths",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify web search handles network errors gracefully",
         "AddErrorHandlingTest: test web search with unavailable service returns proper error"
@@ -39,7 +39,7 @@
       "priority": "P0",
       "title": "Audit all production unwrap() occurrences",
       "description": "Audit all production code for .unwrap() occurrences across all crates and identify high-risk locations",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: grep confirms zero unwrap() in production paths"
       ],
