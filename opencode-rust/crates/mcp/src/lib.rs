@@ -19,7 +19,11 @@ pub use client::{
 };
 pub use integration::register_mcp_tools;
 pub use pool::{EndpointPoolStats, McpConnectionPool, PoolConfig, PoolStats, PooledClient};
-pub use protocol::*;
+pub use protocol::{
+    JsonRpcError, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse, ResourceContent,
+    ResourceDefinition, ResourcesCapability, ServerCapabilities, ServerInfo, ToolContent,
+    ToolDefinition, ToolResult, ToolsCapability,
+};
 pub use registry::{McpManager, McpPermission, McpRegistry};
 pub use server::McpServer;
 pub use tool_bridge::McpToolAdapter;

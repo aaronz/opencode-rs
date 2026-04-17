@@ -98,22 +98,30 @@ pub struct ResourceDefinition {
     pub mime_type: Option<String>,
 }
 
-pub const PARSE_ERROR: i32 = -32700;
-pub const INVALID_REQUEST: i32 = -32600;
-pub const METHOD_NOT_FOUND: i32 = -32601;
-pub const INVALID_PARAMS: i32 = -32602;
-pub const INTERNAL_ERROR: i32 = -32603;
+#[allow(dead_code)]
+pub(crate) const PARSE_ERROR: i32 = -32700;
+#[allow(dead_code)]
+pub(crate) const INVALID_REQUEST: i32 = -32600;
+#[allow(dead_code)]
+pub(crate) const METHOD_NOT_FOUND: i32 = -32601;
+#[allow(dead_code)]
+pub(crate) const INVALID_PARAMS: i32 = -32602;
+#[allow(dead_code)]
+pub(crate) const INTERNAL_ERROR: i32 = -32603;
 
+#[allow(dead_code)]
 pub(crate) struct SchemaCache {
     cache: HashMap<String, CachedToolSchema>,
     max_age: Duration,
 }
 
+#[allow(dead_code)]
 struct CachedToolSchema {
     tools: Vec<ToolDefinition>,
     cached_at: Instant,
 }
 
+#[allow(dead_code)]
 impl SchemaCache {
     pub(crate) fn new(max_age_hours: u64) -> Self {
         Self {
@@ -158,7 +166,7 @@ impl Default for SchemaCache {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum McpServerType {
+pub enum McpServerType {
     Local,
     Remote,
 }

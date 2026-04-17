@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use tokio::sync::{broadcast, mpsc};
@@ -407,7 +409,7 @@ impl WasmPlugin {
         &self.version
     }
 
-    pub fn take_event_receiver(&mut self) -> Option<broadcast::Receiver<WasmPluginEvent>> {
+    pub(crate) fn take_event_receiver(&mut self) -> Option<broadcast::Receiver<WasmPluginEvent>> {
         self.event_rx.take()
     }
 }

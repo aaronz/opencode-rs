@@ -76,7 +76,7 @@
 
 | Task ID | Description | Files | Status |
 |---------|-------------|-------|--------|
-| P1-032 | Define plugin ABI version scheme (major.minor.patch) | plugin/* | Not Started |
+| P1-032 | Define plugin ABI version scheme (major.minor.patch) | plugin/* | ✅ Done |
 | P1-033 | Document breaking change policy for plugins | plugin/* | Not Started |
 | P1-034 | Add version checks to plugin runtime | plugin/src/lib.rs | Not Started |
 | P1-035 | Publish plugin API stability policy | documentation | Not Started |

@@ -12,13 +12,107 @@ use indexmap::IndexMap;
 use opencode_permission::{ApprovalResult, PermissionScope};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::fmt::{self, Formatter, Result as FmtResult};
+use std::num::ParseIntError;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 pub mod sealed {
     pub trait SealedToolProvider {}
     pub trait SealedPlugin {}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct PluginAbiVersion {
+    pub major: u32,
+    pub minor: u32,
+    pub patch: u32,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum PluginAbiVersionError {
+    #[error("invalid version format: '{0}', expected major.minor.patch")]
+    InvalidFormat(String),
+    #[error("version component out of range: {0}")]
+    OutOfRange(#[from] ParseIntError),
+}
+
+impl PluginAbiVersion {
+    pub fn new(major: u32, minor: u32, patch: u32) -> Self {
+        Self {
+            major,
+            minor,
+            patch,
+        }
+    }
+
+    pub fn from_string(s: &str) -> Result<Self, PluginAbiVersionError> {
+        let parts: Vec<&str> = s.split('.').collect();
+        if parts.len() != 3 {
+            return Err(PluginAbiVersionError::InvalidFormat(s.to_string()));
+        }
+        let major = parts[0].parse()?;
+        let minor = parts[1].parse()?;
+        let patch = parts[2].parse()?;
+        Ok(Self {
+            major,
+            minor,
+            patch,
+        })
+    }
+
+    pub fn is_compatible_with(&self, other: &PluginAbiVersion) -> bool {
+        self.major == other.major
+    }
+
+    pub fn supports_abi(&self, min_abi: &PluginAbiVersion) -> bool {
+        self >= min_abi
+    }
+}
+
+impl Default for PluginAbiVersion {
+    fn default() -> Self {
+        Self {
+            major: 1,
+            minor: 0,
+            patch: 0,
+        }
+    }
+}
+
+impl fmt::Display for PluginAbiVersion {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        write!(f, "{}.{}.{}", self.major, self.minor, self.patch)
+    }
+}
+
+impl FromStr for PluginAbiVersion {
+    type Err = PluginAbiVersionError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::from_string(s)
+    }
+}
+
+impl Serialize for PluginAbiVersion {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for PluginAbiVersion {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Self::from_string(&s).map_err(serde::de::Error::custom)
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -690,6 +784,7 @@ impl Drop for PluginManager {
     }
 }
 
+#[allow(dead_code)]
 pub(crate) fn initialize_plugins(
     project_path: Option<&Path>,
 ) -> Result<PluginManager, PluginError> {

@@ -717,7 +717,7 @@
       "priority": "P1",
       "title": "Define plugin ABI version scheme",
       "description": "Define plugin ABI version scheme (major.minor.patch) for plugin API stability",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify version parsing and comparison works correctly"
       ],
