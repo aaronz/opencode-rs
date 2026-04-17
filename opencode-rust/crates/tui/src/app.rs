@@ -338,6 +338,7 @@ pub enum AppMode {
     ProviderManagement,
     ConnectProvider,
     ConnectMethod,
+    ConnectApiKey,
     ConnectProgress,
     ConnectModel,
     FileSelection,
@@ -468,6 +469,7 @@ pub struct App {
     pub provider_management_dialog: ProviderManagementDialog,
     pub connect_provider_dialog: ConnectProviderDialog,
     pub connect_method_dialog: Option<ConnectMethodDialog>,
+    pub api_key_input_dialog: Option<ApiKeyInputDialog>,
     pub connect_model_dialog: Option<ConnectModelDialog>,
     pub file_selection_dialog: FileSelectionDialog,
     pub directory_selection_dialog: DirectorySelectionDialog,
@@ -628,6 +630,7 @@ impl App {
             provider_management_dialog: ProviderManagementDialog::new(theme.clone()),
             connect_provider_dialog: ConnectProviderDialog::new(theme.clone()),
             connect_method_dialog: None,
+            api_key_input_dialog: None,
             connect_model_dialog: None,
             file_selection_dialog: FileSelectionDialog::new(theme.clone()),
             directory_selection_dialog: DirectorySelectionDialog::new(theme.clone()),
@@ -730,6 +733,7 @@ impl App {
         self.pending_browser_session = None;
         self.pending_browser_models.clear();
         self.connect_method_dialog = None;
+        self.api_key_input_dialog = None;
         self.connect_model_dialog = None;
         self.mode = AppMode::ConnectProvider;
     }
@@ -747,6 +751,8 @@ impl App {
             && self.pending_connect_method.as_deref() == Some("browser")
         {
             self.start_openai_browser_connect();
+        } else if self.pending_connect_method.as_deref() == Some("api_key") {
+            self.start_api_key_input();
         } else {
             self.add_message(
                 "Selected connect method is not implemented yet".to_string(),
@@ -754,6 +760,66 @@ impl App {
             );
             self.mode = AppMode::Chat;
         }
+    }
+
+    fn start_api_key_input(&mut self) {
+        let provider_id = self.pending_connect_provider.clone().unwrap_or_default();
+        let provider_name = self.get_provider_name(&provider_id);
+        let theme = self.theme_manager.current().clone();
+        self.api_key_input_dialog = Some(ApiKeyInputDialog::new(theme, provider_id, provider_name));
+        self.mode = AppMode::ConnectApiKey;
+    }
+
+    fn handle_api_key_input_confirm(&mut self, api_key: String) {
+        let provider_id = self.pending_connect_provider.clone().unwrap_or_default();
+        if let Err(e) = self.save_api_key_credential(&provider_id, &api_key) {
+            self.add_message(format!("Failed to save API key: {}", e), false);
+        } else {
+            self.add_message(
+                format!(
+                    "API key saved successfully for {}",
+                    self.get_provider_name(&provider_id)
+                ),
+                false,
+            );
+        }
+        self.mode = AppMode::Chat;
+    }
+
+    fn get_provider_name(&self, provider_id: &str) -> String {
+        match provider_id {
+            "openai" => "OpenAI".to_string(),
+            "anthropic" => "Anthropic".to_string(),
+            "google" => "Google".to_string(),
+            "ollama" => "Ollama".to_string(),
+            "lmstudio" => "LM Studio".to_string(),
+            "azure" => "Azure".to_string(),
+            "openrouter" => "OpenRouter".to_string(),
+            "mistral" => "Mistral".to_string(),
+            "groq" => "Groq".to_string(),
+            "deepinfra" => "DeepInfra".to_string(),
+            "cerebras" => "Cerebras".to_string(),
+            "cohere" => "Cohere".to_string(),
+            "togetherai" => "Together AI".to_string(),
+            "perplexity" => "Perplexity".to_string(),
+            "xai" => "xAI".to_string(),
+            "huggingface" => "Hugging Face".to_string(),
+            "copilot" => "GitHub Copilot".to_string(),
+            "ai21" => "AI21".to_string(),
+            _ => provider_id.to_string(),
+        }
+    }
+
+    fn save_api_key_credential(&self, provider_id: &str, api_key: &str) -> Result<(), String> {
+        let credential = opencode_auth::Credential {
+            api_key: api_key.to_string(),
+            base_url: None,
+            metadata: std::collections::HashMap::new(),
+        };
+        let store = opencode_auth::CredentialStore::new();
+        store
+            .store(provider_id, &credential)
+            .map_err(|e| e.to_string())
     }
 
     fn start_openai_browser_connect(&mut self) {
@@ -1330,6 +1396,7 @@ impl App {
                 }
                 AppMode::ConnectProvider => self.handle_connect_provider_dialog(&mut terminal)?,
                 AppMode::ConnectMethod => self.handle_connect_method_dialog(&mut terminal)?,
+                AppMode::ConnectApiKey => self.handle_api_key_input_dialog(&mut terminal)?,
                 AppMode::ConnectProgress => self.handle_connect_progress_dialog(&mut terminal)?,
                 AppMode::ConnectModel => self.handle_connect_model_dialog(&mut terminal)?,
                 AppMode::FileSelection => self.handle_file_selection_dialog(&mut terminal)?,
@@ -3268,6 +3335,12 @@ OpenCode Agent Configuration
                     dialog.draw(f, f.area());
                 }
             }
+            AppMode::ConnectApiKey => {
+                self.draw_chat(f);
+                if let Some(dialog) = self.api_key_input_dialog.as_ref() {
+                    dialog.draw(f, f.area());
+                }
+            }
             AppMode::ConnectProgress => {
                 self.draw_chat(f);
                 let area = Rect::new(
@@ -4420,6 +4493,31 @@ OpenCode Agent Configuration
                     match action {
                         DialogAction::Close => self.mode = AppMode::ConnectProvider,
                         DialogAction::Confirm(method) => self.handle_connect_method_confirm(method),
+                        _ => {}
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn handle_api_key_input_dialog(
+        &mut self,
+        _terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    ) -> io::Result<()> {
+        if let Event::Key(key) = event::read()? {
+            if key.kind == KeyEventKind::Press {
+                if let Some(dialog) = self.api_key_input_dialog.as_mut() {
+                    let action = dialog.handle_input(key);
+                    match action {
+                        DialogAction::Close => {
+                            self.api_key_input_dialog = None;
+                            self.mode = AppMode::ConnectMethod;
+                        }
+                        DialogAction::Confirm(api_key) => {
+                            self.api_key_input_dialog = None;
+                            self.handle_api_key_input_confirm(api_key);
+                        }
                         _ => {}
                     }
                 }

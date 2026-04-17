@@ -1,3 +1,4 @@
+pub mod api_key_input;
 pub mod connect_method;
 pub mod connect_model;
 pub mod connect_provider;
@@ -16,6 +17,7 @@ pub mod release_notes;
 pub mod settings;
 pub mod slash_command;
 
+pub use api_key_input::ApiKeyInputDialog;
 pub use connect_method::ConnectMethodDialog;
 pub use connect_model::ConnectModelDialog;
 pub use connect_provider::ConnectProviderDialog;

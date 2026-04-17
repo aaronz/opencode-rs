@@ -28,7 +28,7 @@
       "priority": "P0",
       "title": "Implement API Key Input Dialog",
       "description": "Create ApiKeyInputDialog struct implementing Dialog trait. Mask input (show dots, not plain text). Add validation before saving. Wire into dialog flow: Provider Selection -> Auth Method (API Key) -> API Key Input -> Validate -> Save.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify dialog renders correctly with masked input",
         "AddUnitTest: verify input is masked (dots, not plain text)",
