@@ -6,22 +6,26 @@ use serde::Deserialize;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+#[allow(dead_code)]
 pub struct BatchTool {
     registry: Arc<RwLock<ToolRegistry>>,
 }
 
 impl BatchTool {
+    #[allow(dead_code)]
     pub fn new(registry: Arc<RwLock<ToolRegistry>>) -> Self {
         Self { registry }
     }
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct BatchArgs {
     invocations: Vec<ToolInvocation>,
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct ToolInvocation {
     tool_name: String,
     input: serde_json::Value,

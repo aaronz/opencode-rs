@@ -8,9 +8,11 @@ use serde::Deserialize;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
+#[allow(dead_code)]
 pub struct FileReadTool;
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct ReadArgs {
     path: String,
     offset: Option<usize>,
@@ -78,9 +80,11 @@ impl Tool for FileReadTool {
     }
 }
 
+#[allow(dead_code)]
 pub struct FileWriteTool;
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct WriteArgs {
     path: String,
     content: String,
@@ -122,9 +126,11 @@ impl Tool for FileWriteTool {
     }
 }
 
+#[allow(dead_code)]
 pub struct GlobTool;
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct GlobArgs {
     pattern: String,
     root: Option<String>,
@@ -191,9 +197,11 @@ impl Tool for GlobTool {
     }
 }
 
+#[allow(dead_code)]
 pub struct StatTool;
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct StatArgs {
     path: String,
 }
@@ -277,9 +285,11 @@ impl Tool for StatTool {
     }
 }
 
+#[allow(dead_code)]
 pub struct FileMoveTool;
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct MoveArgs {
     source: String,
     destination: String,

@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+#[allow(dead_code)]
 pub fn assert_external_directory(target: &str) -> bool {
     if target.is_empty() {
         return false;

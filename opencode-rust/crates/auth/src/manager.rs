@@ -65,8 +65,9 @@ impl AuthManager {
 mod tests {
     use super::*;
     use opencode_storage::database::StoragePool;
-    use opencode_storage::memory_repository::InMemorySessionRepository;
     use opencode_storage::migration::MigrationManager;
+    use opencode_storage::InMemoryProjectRepository;
+    use opencode_storage::InMemorySessionRepository;
     use std::sync::Arc;
 
     struct TestEnv {
@@ -83,8 +84,7 @@ mod tests {
         manager.migrate().await.unwrap();
 
         let session_repo = Arc::new(InMemorySessionRepository::new());
-        let project_repo =
-            Arc::new(opencode_storage::memory_repository::InMemoryProjectRepository::new());
+        let project_repo = Arc::new(InMemoryProjectRepository::new());
 
         let storage = StorageService::new(session_repo, project_repo, pool);
 

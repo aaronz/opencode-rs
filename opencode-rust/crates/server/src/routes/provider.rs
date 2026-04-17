@@ -594,7 +594,7 @@ mod tests {
 
         let store = credential_store();
 
-        let store_clone = store.clone();
+        let store_clone = store;
         let handle = thread::spawn(move || {
             let _lock = store_clone.lock();
         });

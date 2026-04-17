@@ -57,7 +57,7 @@
 | P1-015 | Audit `core` crate pub declarations | core/src/* | Not Started |
 | P1-016 | Audit `cli` crate pub declarations | cli/src/* | ✅ Done |
 | P1-017 | Audit `llm` crate pub declarations | llm/src/* | Not Started |
-| P1-018 | Audit `tools` crate pub declarations | tools/src/* | Not Started |
+| P1-018 | Audit `tools` crate pub declarations | tools/src/* | ✅ Done |
 | P1-019 | Audit `agent` crate pub declarations | agent/src/* | Not Started |
 | P1-020 | Audit `tui` crate pub declarations | tui/src/* | Not Started |
 | P1-021 | Audit `lsp` crate pub declarations | lsp/src/* | Not Started |

@@ -356,7 +356,7 @@ mod tests {
 
         let manager = get_sso_manager();
 
-        let manager_clone = manager.clone();
+        let manager_clone = manager;
         let handle = thread::spawn(move || {
             let _lock = manager_clone.lock();
         });

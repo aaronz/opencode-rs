@@ -302,12 +302,12 @@ impl ProjectRepository for SqliteProjectRepository {
 use crate::models::AccountModel;
 use crate::repository::AccountRepository;
 
-pub struct SqliteAccountRepository {
+pub(crate) struct SqliteAccountRepository {
     pool: StoragePool,
 }
 
 impl SqliteAccountRepository {
-    pub fn new(pool: StoragePool) -> Self {
+    pub(crate) fn new(pool: StoragePool) -> Self {
         Self { pool }
     }
 }
@@ -452,7 +452,7 @@ impl AccountRepository for SqliteAccountRepository {
 }
 
 impl SqliteAccountRepository {
-    fn map_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<AccountModel> {
+    pub(crate) fn map_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<AccountModel> {
         Ok(AccountModel {
             id: row.get(0)?,
             username: row.get(1)?,
@@ -472,12 +472,12 @@ impl SqliteAccountRepository {
 use crate::models::PluginStateModel;
 use crate::repository::PluginStateRepository;
 
-pub struct SqlitePluginStateRepository {
+pub(crate) struct SqlitePluginStateRepository {
     pool: StoragePool,
 }
 
 impl SqlitePluginStateRepository {
-    pub fn new(pool: StoragePool) -> Self {
+    pub(crate) fn new(pool: StoragePool) -> Self {
         Self { pool }
     }
 }
