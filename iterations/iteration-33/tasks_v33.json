@@ -70,7 +70,7 @@
       "priority": "P0",
       "title": "Fix modulo by 1 bug",
       "description": "Fix line 105 in connect_method.rs: Change '(self.selected_index + 1) % self.methods.len().max(1)'. When methods.len() is 0, don't use modulo at all - just stay at index 0.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify single item + Down stays at index 0",
         "AddErrorHandlingTest: verify empty list + navigation doesn't cause index issues",
@@ -89,7 +89,7 @@
       "priority": "P1",
       "title": "Expanded Model Catalog",
       "description": "Add github-copilot/* models, opencode/gpt-5-nano, opencode/minimax-m2.5-free, opencode/nemotron-3-super-free, google/antigravity-* models, kimi/* models, z.ai/* models. Target 50+ models total.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify model catalog contains 50+ models",
         "AddUnitTest: verify all original provider models are still available",

@@ -314,6 +314,616 @@ impl ModelRegistry {
             },
         );
 
+        // GitHub Copilot models
+        models.insert(
+            "github-copilot/gpt-4o".to_string(),
+            ModelInfo {
+                name: "github-copilot/gpt-4o".to_string(),
+                provider: "github-copilot".to_string(),
+                max_tokens: 16384,
+                max_input_tokens: 128000,
+                supports_functions: true,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.01,
+            },
+        );
+
+        models.insert(
+            "github-copilot/gpt-4o-mini".to_string(),
+            ModelInfo {
+                name: "github-copilot/gpt-4o-mini".to_string(),
+                provider: "github-copilot".to_string(),
+                max_tokens: 16384,
+                max_input_tokens: 128000,
+                supports_functions: true,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.003,
+            },
+        );
+
+        models.insert(
+            "github-copilot/claude-sonnet-4".to_string(),
+            ModelInfo {
+                name: "github-copilot/claude-sonnet-4".to_string(),
+                provider: "github-copilot".to_string(),
+                max_tokens: 4096,
+                max_input_tokens: 200000,
+                supports_functions: false,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.003,
+            },
+        );
+
+        models.insert(
+            "github-copilot/claude-haiku-3".to_string(),
+            ModelInfo {
+                name: "github-copilot/claude-haiku-3".to_string(),
+                provider: "github-copilot".to_string(),
+                max_tokens: 4096,
+                max_input_tokens: 200000,
+                supports_functions: false,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.00025,
+            },
+        );
+
+        models.insert(
+            "github-copilot/o1".to_string(),
+            ModelInfo {
+                name: "github-copilot/o1".to_string(),
+                provider: "github-copilot".to_string(),
+                max_tokens: 32768,
+                max_input_tokens: 128000,
+                supports_functions: false,
+                supports_vision: false,
+                supports_streaming: false,
+                cost_per_1k_tokens: 0.015,
+            },
+        );
+
+        models.insert(
+            "github-copilot/o1-mini".to_string(),
+            ModelInfo {
+                name: "github-copilot/o1-mini".to_string(),
+                provider: "github-copilot".to_string(),
+                max_tokens: 65536,
+                max_input_tokens: 131072,
+                supports_functions: false,
+                supports_vision: false,
+                supports_streaming: false,
+                cost_per_1k_tokens: 0.007,
+            },
+        );
+
+        models.insert(
+            "github-copilot/o1-preview".to_string(),
+            ModelInfo {
+                name: "github-copilot/o1-preview".to_string(),
+                provider: "github-copilot".to_string(),
+                max_tokens: 32768,
+                max_input_tokens: 131072,
+                supports_functions: false,
+                supports_vision: false,
+                supports_streaming: false,
+                cost_per_1k_tokens: 0.015,
+            },
+        );
+
+        // OpenCode models
+        models.insert(
+            "opencode/gpt-5-nano".to_string(),
+            ModelInfo {
+                name: "opencode/gpt-5-nano".to_string(),
+                provider: "opencode".to_string(),
+                max_tokens: 16384,
+                max_input_tokens: 128000,
+                supports_functions: true,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.0005,
+            },
+        );
+
+        models.insert(
+            "opencode/minimax-m2.5-free".to_string(),
+            ModelInfo {
+                name: "opencode/minimax-m2.5-free".to_string(),
+                provider: "opencode".to_string(),
+                max_tokens: 8192,
+                max_input_tokens: 1000000,
+                supports_functions: false,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.0,
+            },
+        );
+
+        models.insert(
+            "opencode/nemotron-3-super-free".to_string(),
+            ModelInfo {
+                name: "opencode/nemotron-3-super-free".to_string(),
+                provider: "opencode".to_string(),
+                max_tokens: 8192,
+                max_input_tokens: 131072,
+                supports_functions: false,
+                supports_vision: false,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.0,
+            },
+        );
+
+        // Google Antigravity models
+        models.insert(
+            "google/antigravity-1".to_string(),
+            ModelInfo {
+                name: "google/antigravity-1".to_string(),
+                provider: "google".to_string(),
+                max_tokens: 8192,
+                max_input_tokens: 1000000,
+                supports_functions: false,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.0,
+            },
+        );
+
+        models.insert(
+            "google/antigravity-2".to_string(),
+            ModelInfo {
+                name: "google/antigravity-2".to_string(),
+                provider: "google".to_string(),
+                max_tokens: 16384,
+                max_input_tokens: 2000000,
+                supports_functions: false,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.0,
+            },
+        );
+
+        models.insert(
+            "google/antigravity-3".to_string(),
+            ModelInfo {
+                name: "google/antigravity-3".to_string(),
+                provider: "google".to_string(),
+                max_tokens: 16384,
+                max_input_tokens: 2000000,
+                supports_functions: true,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.0,
+            },
+        );
+
+        models.insert(
+            "google/antigravity-ultra".to_string(),
+            ModelInfo {
+                name: "google/antigravity-ultra".to_string(),
+                provider: "google".to_string(),
+                max_tokens: 32768,
+                max_input_tokens: 2000000,
+                supports_functions: true,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.001,
+            },
+        );
+
+        // Kimi models
+        models.insert(
+            "kimi/kimi-2.5".to_string(),
+            ModelInfo {
+                name: "kimi/kimi-2.5".to_string(),
+                provider: "kimi".to_string(),
+                max_tokens: 32768,
+                max_input_tokens: 128000,
+                supports_functions: true,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.002,
+            },
+        );
+
+        models.insert(
+            "kimi/kimi-2".to_string(),
+            ModelInfo {
+                name: "kimi/kimi-2".to_string(),
+                provider: "kimi".to_string(),
+                max_tokens: 16384,
+                max_input_tokens: 128000,
+                supports_functions: true,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.0015,
+            },
+        );
+
+        models.insert(
+            "kimi/kimi-1.5".to_string(),
+            ModelInfo {
+                name: "kimi/kimi-1.5".to_string(),
+                provider: "kimi".to_string(),
+                max_tokens: 16384,
+                max_input_tokens: 128000,
+                supports_functions: true,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.001,
+            },
+        );
+
+        models.insert(
+            "kimi/kimi-latest".to_string(),
+            ModelInfo {
+                name: "kimi/kimi-latest".to_string(),
+                provider: "kimi".to_string(),
+                max_tokens: 32768,
+                max_input_tokens: 128000,
+                supports_functions: true,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.002,
+            },
+        );
+
+        models.insert(
+            "kimi/moonshot-turbo".to_string(),
+            ModelInfo {
+                name: "kimi/moonshot-turbo".to_string(),
+                provider: "kimi".to_string(),
+                max_tokens: 16384,
+                max_input_tokens: 128000,
+                supports_functions: false,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.001,
+            },
+        );
+
+        models.insert(
+            "kimi/moonshot-v1-128k".to_string(),
+            ModelInfo {
+                name: "kimi/moonshot-v1-128k".to_string(),
+                provider: "kimi".to_string(),
+                max_tokens: 16384,
+                max_input_tokens: 131072,
+                supports_functions: false,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.002,
+            },
+        );
+
+        // Z.AI models
+        models.insert(
+            "z.ai/z-1".to_string(),
+            ModelInfo {
+                name: "z.ai/z-1".to_string(),
+                provider: "z.ai".to_string(),
+                max_tokens: 16384,
+                max_input_tokens: 128000,
+                supports_functions: true,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.002,
+            },
+        );
+
+        models.insert(
+            "z.ai/z-1-mini".to_string(),
+            ModelInfo {
+                name: "z.ai/z-1-mini".to_string(),
+                provider: "z.ai".to_string(),
+                max_tokens: 16384,
+                max_input_tokens: 128000,
+                supports_functions: true,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.001,
+            },
+        );
+
+        models.insert(
+            "z.ai/z-1-flash".to_string(),
+            ModelInfo {
+                name: "z.ai/z-1-flash".to_string(),
+                provider: "z.ai".to_string(),
+                max_tokens: 8192,
+                max_input_tokens: 128000,
+                supports_functions: false,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.0005,
+            },
+        );
+
+        models.insert(
+            "z.ai/z-1-preview".to_string(),
+            ModelInfo {
+                name: "z.ai/z-1-preview".to_string(),
+                provider: "z.ai".to_string(),
+                max_tokens: 32768,
+                max_input_tokens: 128000,
+                supports_functions: true,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.003,
+            },
+        );
+
+        models.insert(
+            "z.ai/llama-3.1-70b".to_string(),
+            ModelInfo {
+                name: "z.ai/llama-3.1-70b".to_string(),
+                provider: "z.ai".to_string(),
+                max_tokens: 8192,
+                max_input_tokens: 32768,
+                supports_functions: false,
+                supports_vision: false,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.0005,
+            },
+        );
+
+        models.insert(
+            "z.ai/llama-3.1-8b".to_string(),
+            ModelInfo {
+                name: "z.ai/llama-3.1-8b".to_string(),
+                provider: "z.ai".to_string(),
+                max_tokens: 8192,
+                max_input_tokens: 32768,
+                supports_functions: false,
+                supports_vision: false,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.0002,
+            },
+        );
+
+        models.insert(
+            "z.ai/codellama-70b".to_string(),
+            ModelInfo {
+                name: "z.ai/codellama-70b".to_string(),
+                provider: "z.ai".to_string(),
+                max_tokens: 4096,
+                max_input_tokens: 16384,
+                supports_functions: false,
+                supports_vision: false,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.0005,
+            },
+        );
+
+        models.insert(
+            "z.ai/mistral-7b".to_string(),
+            ModelInfo {
+                name: "z.ai/mistral-7b".to_string(),
+                provider: "z.ai".to_string(),
+                max_tokens: 8192,
+                max_input_tokens: 32768,
+                supports_functions: false,
+                supports_vision: false,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.0002,
+            },
+        );
+
+        models.insert(
+            "z.ai/mixtral-8x7b".to_string(),
+            ModelInfo {
+                name: "z.ai/mixtral-8x7b".to_string(),
+                provider: "z.ai".to_string(),
+                max_tokens: 8192,
+                max_input_tokens: 32768,
+                supports_functions: false,
+                supports_vision: false,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.0005,
+            },
+        );
+
+        // Additional models from existing providers
+        models.insert(
+            "openai/o1".to_string(),
+            ModelInfo {
+                name: "openai/o1".to_string(),
+                provider: "openai".to_string(),
+                max_tokens: 32768,
+                max_input_tokens: 128000,
+                supports_functions: false,
+                supports_vision: false,
+                supports_streaming: false,
+                cost_per_1k_tokens: 0.015,
+            },
+        );
+
+        models.insert(
+            "openai/o1-mini".to_string(),
+            ModelInfo {
+                name: "openai/o1-mini".to_string(),
+                provider: "openai".to_string(),
+                max_tokens: 65536,
+                max_input_tokens: 131072,
+                supports_functions: false,
+                supports_vision: false,
+                supports_streaming: false,
+                cost_per_1k_tokens: 0.007,
+            },
+        );
+
+        models.insert(
+            "openai/o1-preview".to_string(),
+            ModelInfo {
+                name: "openai/o1-preview".to_string(),
+                provider: "openai".to_string(),
+                max_tokens: 32768,
+                max_input_tokens: 131072,
+                supports_functions: false,
+                supports_vision: false,
+                supports_streaming: false,
+                cost_per_1k_tokens: 0.015,
+            },
+        );
+
+        models.insert(
+            "openai/gpt-4o-2024-08-13".to_string(),
+            ModelInfo {
+                name: "openai/gpt-4o-2024-08-13".to_string(),
+                provider: "openai".to_string(),
+                max_tokens: 16384,
+                max_input_tokens: 128000,
+                supports_functions: true,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.006,
+            },
+        );
+
+        models.insert(
+            "openai/gpt-4o-mini-2024-07-18".to_string(),
+            ModelInfo {
+                name: "openai/gpt-4o-mini-2024-07-18".to_string(),
+                provider: "openai".to_string(),
+                max_tokens: 16384,
+                max_input_tokens: 128000,
+                supports_functions: true,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.0015,
+            },
+        );
+
+        // Additional Claude models
+        models.insert(
+            "anthropic/claude-sonnet-4-20250514".to_string(),
+            ModelInfo {
+                name: "anthropic/claude-sonnet-4-20250514".to_string(),
+                provider: "anthropic".to_string(),
+                max_tokens: 4096,
+                max_input_tokens: 200000,
+                supports_functions: false,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.003,
+            },
+        );
+
+        models.insert(
+            "anthropic/claude-opus-4-20250514".to_string(),
+            ModelInfo {
+                name: "anthropic/claude-opus-4-20250514".to_string(),
+                provider: "anthropic".to_string(),
+                max_tokens: 4096,
+                max_input_tokens: 200000,
+                supports_functions: false,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.015,
+            },
+        );
+
+        models.insert(
+            "anthropic/claude-3-5-sonnet-latest".to_string(),
+            ModelInfo {
+                name: "anthropic/claude-3-5-sonnet-latest".to_string(),
+                provider: "anthropic".to_string(),
+                max_tokens: 4096,
+                max_input_tokens: 200000,
+                supports_functions: false,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.003,
+            },
+        );
+
+        models.insert(
+            "anthropic/claude-3-5-haiku-latest".to_string(),
+            ModelInfo {
+                name: "anthropic/claude-3-5-haiku-latest".to_string(),
+                provider: "anthropic".to_string(),
+                max_tokens: 4096,
+                max_input_tokens: 200000,
+                supports_functions: false,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.00025,
+            },
+        );
+
+        // Additional Google Gemini models
+        models.insert(
+            "google/gemini-2.0-flash".to_string(),
+            ModelInfo {
+                name: "google/gemini-2.0-flash".to_string(),
+                provider: "google".to_string(),
+                max_tokens: 8192,
+                max_input_tokens: 1000000,
+                supports_functions: false,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.0,
+            },
+        );
+
+        models.insert(
+            "google/gemini-2.0-flash-exp".to_string(),
+            ModelInfo {
+                name: "google/gemini-2.0-flash-exp".to_string(),
+                provider: "google".to_string(),
+                max_tokens: 8192,
+                max_input_tokens: 1000000,
+                supports_functions: false,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.0,
+            },
+        );
+
+        models.insert(
+            "google/gemini-1.5-pro-latest".to_string(),
+            ModelInfo {
+                name: "google/gemini-1.5-pro-latest".to_string(),
+                provider: "google".to_string(),
+                max_tokens: 8192,
+                max_input_tokens: 2000000,
+                supports_functions: false,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.00125,
+            },
+        );
+
+        models.insert(
+            "google/gemini-1.5-flash-latest".to_string(),
+            ModelInfo {
+                name: "google/gemini-1.5-flash-latest".to_string(),
+                provider: "google".to_string(),
+                max_tokens: 8192,
+                max_input_tokens: 1000000,
+                supports_functions: false,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.0,
+            },
+        );
+
+        models.insert(
+            "google/gemini-exp-1206".to_string(),
+            ModelInfo {
+                name: "google/gemini-exp-1206".to_string(),
+                provider: "google".to_string(),
+                max_tokens: 16384,
+                max_input_tokens: 2000000,
+                supports_functions: false,
+                supports_vision: true,
+                supports_streaming: true,
+                cost_per_1k_tokens: 0.001,
+            },
+        );
+
         Self {
             models,
             provider_filter: None,
@@ -454,5 +1064,170 @@ mod tests {
             Some("anthropic".to_string())
         );
         assert_eq!(registry.get_next_available_provider("anthropic"), None);
+    }
+
+    #[test]
+    fn verify_model_catalog_contains_50_plus_models() {
+        let registry = ModelRegistry::new();
+        let model_count = registry.list().len();
+        assert!(
+            model_count >= 50,
+            "Model catalog should contain at least 50 models, but only contains {}",
+            model_count
+        );
+    }
+
+    #[test]
+    fn verify_original_provider_models_still_available() {
+        let registry = ModelRegistry::new();
+
+        let original_models = vec![
+            "gpt-4o",
+            "gpt-4o-mini",
+            "gpt-4-turbo",
+            "claude-sonnet-4-20250514",
+            "claude-haiku-3",
+            "claude-opus-4-20250514",
+            "llama3",
+            "codellama",
+            "gpt-4o-azure",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash",
+            "openrouter/gpt-4o",
+            "grok-2",
+            "mistral-large-latest",
+            "llama-3.1-70b-versatile",
+            "deepinfra/llama-3.1-70b",
+            "cerebras/llama-3.1-70b",
+            "cohere-command-r-plus",
+            "togetherai/llama-3.1-70b",
+            "perplexity/llama-3.1-sonar-large",
+        ];
+
+        for model_name in original_models {
+            let model = registry.get(model_name);
+            assert!(
+                model.is_some(),
+                "Original model '{}' should still be available",
+                model_name
+            );
+        }
+    }
+
+    #[test]
+    fn verify_model_context_lengths_displayed_correctly() {
+        let registry = ModelRegistry::new();
+
+        let test_cases = vec![
+            ("gpt-4o", 16384, 128000),
+            ("gpt-4o-mini", 16384, 128000),
+            ("gemini-1.5-pro", 8192, 2000000),
+            ("gemini-1.5-flash", 8192, 1000000),
+            ("claude-sonnet-4-20250514", 4096, 200000),
+            ("claude-haiku-3", 4096, 200000),
+            ("llama3", 4096, 8192),
+            ("github-copilot/gpt-4o", 16384, 128000),
+            ("kimi/kimi-2.5", 32768, 128000),
+            ("z.ai/z-1", 16384, 128000),
+            ("google/antigravity-1", 8192, 1000000),
+            ("opencode/gpt-5-nano", 16384, 128000),
+        ];
+
+        for (model_name, expected_max_tokens, expected_max_input) in test_cases {
+            let model = registry.get(model_name);
+            assert!(model.is_some(), "Model '{}' should exist", model_name);
+            let model = model.unwrap();
+            assert_eq!(
+                model.max_tokens, expected_max_tokens,
+                "Model '{}' max_tokens should be {}",
+                model_name, expected_max_tokens
+            );
+            assert_eq!(
+                model.max_input_tokens, expected_max_input,
+                "Model '{}' max_input_tokens should be {}",
+                model_name, expected_max_input
+            );
+        }
+    }
+
+    #[test]
+    fn verify_new_provider_models_available() {
+        let registry = ModelRegistry::new();
+
+        let new_models = vec![
+            "github-copilot/gpt-4o",
+            "github-copilot/gpt-4o-mini",
+            "github-copilot/claude-sonnet-4",
+            "github-copilot/claude-haiku-3",
+            "github-copilot/o1",
+            "github-copilot/o1-mini",
+            "github-copilot/o1-preview",
+            "opencode/gpt-5-nano",
+            "opencode/minimax-m2.5-free",
+            "opencode/nemotron-3-super-free",
+            "google/antigravity-1",
+            "google/antigravity-2",
+            "google/antigravity-3",
+            "google/antigravity-ultra",
+            "kimi/kimi-2.5",
+            "kimi/kimi-2",
+            "kimi/kimi-1.5",
+            "kimi/kimi-latest",
+            "kimi/moonshot-turbo",
+            "kimi/moonshot-v1-128k",
+            "z.ai/z-1",
+            "z.ai/z-1-mini",
+            "z.ai/z-1-flash",
+            "z.ai/z-1-preview",
+            "z.ai/llama-3.1-70b",
+            "z.ai/llama-3.1-8b",
+            "z.ai/codellama-70b",
+            "z.ai/mistral-7b",
+            "z.ai/mixtral-8x7b",
+        ];
+
+        for model_name in new_models {
+            let model = registry.get(model_name);
+            assert!(
+                model.is_some(),
+                "New model '{}' should be available",
+                model_name
+            );
+        }
+    }
+
+    #[test]
+    fn verify_all_new_providers_listed() {
+        let registry = ModelRegistry::new();
+        let providers = registry.list_providers();
+
+        let expected_providers = vec![
+            "anthropic",
+            "azure",
+            "cerebras",
+            "cohere",
+            "deepinfra",
+            "github-copilot",
+            "google",
+            "groq",
+            "kimi",
+            "mistral",
+            "ollama",
+            "openai",
+            "opencode",
+            "openrouter",
+            "perplexity",
+            "togetherai",
+            "xai",
+            "z.ai",
+        ];
+
+        for provider in expected_providers {
+            assert!(
+                providers.contains(&provider.to_string()),
+                "Provider '{}' should be in the provider list",
+                provider
+            );
+        }
     }
 }

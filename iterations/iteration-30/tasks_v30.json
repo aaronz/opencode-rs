@@ -39,7 +39,7 @@
       "priority": "P1",
       "title": "Increase coverage to 80%+ across all crates",
       "description": "Raise test coverage to meet 80% minimum threshold across all crates.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: execute cargo llvm-cov --fail-under-lines 80 to verify all crates meet threshold",
         "AddRegressionTest: ensure new tests cover previously untested code paths"
