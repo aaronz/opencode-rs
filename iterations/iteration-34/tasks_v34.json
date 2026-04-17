@@ -292,7 +292,7 @@
       "priority": "P1",
       "title": "Add integration tests for Google OAuth flow",
       "description": "Test complete Google OAuth flow from provider selection through model selection",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: test complete Google OAuth flow",
         "AddIntegrationTest: test error handling during OAuth",

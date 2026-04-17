@@ -99,7 +99,7 @@
 - [ ] **T-013**: Wire model selection after successful Google OAuth
   - Proceed to `ConnectModelDialog` after OAuth complete
 
-- [ ] **T-014**: Add integration tests for Google OAuth flow
+- [x] **T-014**: Add integration tests for Google OAuth flow
 
 ---
 
