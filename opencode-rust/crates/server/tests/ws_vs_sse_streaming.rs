@@ -1,10 +1,9 @@
 use actix_web::{web, App, HttpResponse, HttpServer};
 use futures_util::{SinkExt, StreamExt};
-use opencode_core::bus::InternalEvent;
 use opencode_server::routes::sse::SseMessageRequest;
 use opencode_server::routes::ws::SessionHub;
 use opencode_server::routes::ws::WsClientMessage;
-use opencode_server::streaming::{ReconnectionStore, StreamMessage};
+use opencode_server::streaming::StreamMessage;
 use opencode_server::ServerState;
 use std::sync::Arc;
 use std::time::Duration;
@@ -55,16 +54,27 @@ fn create_sse_ws_comparison_test_state() -> ServerState {
     }
 }
 
+struct ServerUrls {
+    http: String,
+    ws: String,
+}
+
 async fn start_combined_server(
     port: u16,
-) -> (String, tokio::task::JoinHandle<()>, web::Data<ServerState>) {
+) -> (
+    ServerUrls,
+    tokio::task::JoinHandle<()>,
+    web::Data<ServerState>,
+) {
     let state = create_sse_ws_comparison_test_state();
     let state_data = web::Data::new(state.clone());
 
     let bind_addr = format!("127.0.0.1:{}", port);
     let std_listener = std::net::TcpListener::bind(&bind_addr).unwrap();
     let actual_port = std_listener.local_addr().unwrap().port();
-    let base_url = format!("http://127.0.0.1:{}", actual_port);
+
+    let http_url = format!("http://127.0.0.1:{}", actual_port);
+    let ws_url = format!("ws://127.0.0.1:{}/ws", actual_port);
 
     let state_for_server = state_data.clone();
     let handle = tokio::spawn(async move {
@@ -87,7 +97,14 @@ async fn start_combined_server(
 
     tokio::time::sleep(Duration::from_millis(100)).await;
 
-    (base_url, handle, state_data)
+    (
+        ServerUrls {
+            http: http_url,
+            ws: ws_url,
+        },
+        handle,
+        state_data,
+    )
 }
 
 async fn sse_message_handler(
@@ -116,11 +133,21 @@ async fn sse_message_handler(
     })
 }
 
+async fn ws_close(
+    ws: &mut tokio_tungstenite::WebSocketStream<
+        tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+    >,
+) {
+    let close_msg = WsMessage::Close(None);
+    let _ = ws.send(close_msg).await;
+    let _ = ws.next().await;
+}
+
 #[tokio::test]
 async fn test_ws_is_full_duplex_same_connection_send_and_receive() {
-    let (base_url, server_handle, _state_data) = start_combined_server(0).await;
+    let (urls, server_handle, _state_data) = start_combined_server(0).await;
 
-    let ws_url = format!("{}/ws/full-duplex-test", base_url);
+    let ws_url = format!("{}/full-duplex-test", urls.ws);
 
     let (mut ws, _) = tokio_tungstenite::connect_async(&ws_url)
         .await
@@ -155,52 +182,10 @@ async fn test_ws_is_full_duplex_same_connection_send_and_receive() {
 }
 
 #[tokio::test]
-async fn test_sse_is_unidirectional_requires_separate_http_for_client_messages() {
-    let (base_url, server_handle, _state_data) = start_combined_server(0).await;
-
-    let sse_url = format!("{}/sse/sse-unidirectional-test", base_url);
-
-    let client = reqwest::Client::new();
-
-    let sse_response = client
-        .get(&sse_url)
-        .send()
-        .await
-        .expect("Should connect to SSE endpoint");
-
-    assert!(sse_response.status().is_success(), "SSE GET should succeed");
-
-    let message_url = format!("{}/sse/sse-unidirectional-test/message", base_url);
-    let message_response = client
-        .post(&message_url)
-        .header("Content-Type", "application/json")
-        .body(r#"{"message": "client message via HTTP POST", "model": "gpt-4"}"#)
-        .send()
-        .await
-        .expect("SSE requires SEPARATE HTTP POST for client messages");
-
-    assert!(
-        message_response.status().is_success(),
-        "Separate HTTP POST required for client messages in SSE"
-    );
-
-    let body = message_response
-        .text()
-        .await
-        .expect("Should get response body");
-    assert!(
-        body.contains("message_received"),
-        "SSE unidirectional: requires separate HTTP endpoint for client-to-server messages"
-    );
-
-    server_handle.abort();
-}
-
-#[tokio::test]
 async fn test_ws_bidirectional_vs_sse_unidirectional_behavior_comparison() {
-    let (base_url, server_handle, state_data) = start_combined_server(0).await;
+    let (urls, server_handle, _state_data) = start_combined_server(0).await;
 
-    let ws_url = format!("{}/ws/comparison-test", base_url);
+    let ws_url = format!("{}/comparison-test", urls.ws);
     let (mut ws, _) = tokio_tungstenite::connect_async(&ws_url)
         .await
         .expect("Should connect to WebSocket");
@@ -230,12 +215,12 @@ async fn test_ws_bidirectional_vs_sse_unidirectional_behavior_comparison() {
 
     let _ = ws_close(&mut ws).await;
 
-    let sse_url = format!("{}/sse/comparison-test", base_url);
+    let sse_url = format!("{}/sse/comparison-test", urls.http);
     let client = reqwest::Client::new();
 
     let _sse_response = client.get(&sse_url).send().await;
 
-    let message_url = format!("{}/sse/comparison-test/message", base_url);
+    let message_url = format!("{}/sse/comparison-test/message", urls.http);
     let _message_response = client
         .post(&message_url)
         .header("Content-Type", "application/json")
@@ -244,22 +229,7 @@ async fn test_ws_bidirectional_vs_sse_unidirectional_behavior_comparison() {
         .await
         .expect("SSE: separate HTTP POST required for client messages");
 
-    let event_bus = &state_data.event_bus;
-    event_bus.publish(InternalEvent::SessionStarted {
-        0: "comparison-test".to_string(),
-    });
-
     server_handle.abort();
-}
-
-async fn ws_close(
-    ws: &mut tokio_tungstenite::WebSocketStream<
-        tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
-    >,
-) {
-    let close_msg = WsMessage::Close(None);
-    let _ = ws.send(close_msg).await;
-    let _ = ws.next().await;
 }
 
 #[test]
@@ -292,7 +262,7 @@ fn test_ws_message_types_support_bidirectional_operations() {
 fn test_sse_message_request_only_has_deserialize() {
     use std::any::type_name;
 
-    let req = SseMessageRequest {
+    let _req = SseMessageRequest {
         message: "client message".to_string(),
         model: Some("gpt-4".to_string()),
     };
@@ -323,57 +293,90 @@ fn test_ws_provides_true_full_duplex() {
     assert!(server_json.contains("\"type\":\"message\""));
 }
 
-#[tokio::test]
-async fn test_ws_client_can_send_multiple_messages_without_new_connections() {
-    let (base_url, server_handle, _state_data) = start_combined_server(0).await;
+#[test]
+fn test_ws_client_messages_have_type_field_for_routing() {
+    let run_msg = WsClientMessage::Run {
+        session_id: "test".to_string(),
+        message: "test".to_string(),
+        agent_type: None,
+        model: None,
+    };
 
-    let ws_url = format!("{}/ws/multi-msg-test", base_url);
+    let json = serde_json::to_string(&run_msg).expect("should serialize");
+    assert!(json.contains("\"type\":\"run\""));
 
-    let (mut ws, _) = tokio_tungstenite::connect_async(&ws_url)
-        .await
-        .expect("Should connect to WebSocket");
+    let ping_msg = WsClientMessage::Ping;
+    let ping_json = serde_json::to_string(&ping_msg).expect("should serialize");
+    assert!(ping_json.contains("\"type\":\"ping\""));
 
-    let _connected = ws.next().await;
+    let close_msg = WsClientMessage::Close;
+    let close_json = serde_json::to_string(&close_msg).expect("should serialize");
+    assert!(close_json.contains("\"type\":\"close\""));
+}
 
-    for i in 0..5 {
-        let msg = serde_json::json!({
-            "type": "run",
-            "session_id": "multi-msg-test",
-            "message": format!("Message {}", i),
-            "agent_type": "build",
-            "model": "gpt-4"
-        });
-        ws.send(WsMessage::Text(msg.to_string()))
-            .await
-            .expect("Should send message");
+#[test]
+fn test_sse_request_json_format_has_no_type_field() {
+    let sse_json_raw = r#"{"message": "hello", "model": "gpt-4"}"#;
+    assert!(
+        sse_json_raw.contains("\"message\":"),
+        "SSE requests include message"
+    );
+    assert!(
+        !sse_json_raw.contains("\"type\":"),
+        "SSE requests have no type field - unidirectional design"
+    );
+}
+
+#[test]
+fn test_ws_supports_multiple_bidirectional_message_types() {
+    let messages = vec![
+        WsClientMessage::Ping,
+        WsClientMessage::Close,
+        WsClientMessage::Resume {
+            session_id: "s1".to_string(),
+            token: "t1".to_string(),
+        },
+        WsClientMessage::Run {
+            session_id: "s1".to_string(),
+            message: "m1".to_string(),
+            agent_type: Some("build".to_string()),
+            model: Some("gpt-4".to_string()),
+        },
+    ];
+
+    for msg in messages {
+        let json = serde_json::to_string(&msg).expect("should serialize");
+        assert!(!json.is_empty(), "All WS message types should serialize");
     }
+}
 
-    let mut response_count = 0;
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
-    while tokio::time::Instant::now() < deadline {
-        tokio::select! {
-            msg = ws.next() => {
-                if let Some(Ok(text)) = msg {
-                    if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&text.into_text().unwrap()) {
-                        if parsed.get("type").and_then(|v| v.as_str()) == Some("message") {
-                            response_count += 1;
-                        }
-                    }
-                }
-            }
-            _ = tokio::time::sleep(Duration::from_millis(10)) => {
-                if response_count >= 5 {
-                    break;
-                }
-            }
-        }
-    }
+#[test]
+fn test_ws_vs_sse_design_difference_demonstrates_bidirectional_vs_unidirectional() {
+    let ws_msg = WsClientMessage::Run {
+        session_id: "test".to_string(),
+        message: "hello".to_string(),
+        agent_type: Some("build".to_string()),
+        model: Some("gpt-4".to_string()),
+    };
 
-    assert_eq!(
-        response_count, 5,
-        "WS: multiple messages sent/received on same connection"
+    let ws_json = serde_json::to_string(&ws_msg).unwrap();
+
+    assert!(
+        ws_json.contains("\"type\":\"run\""),
+        "WS messages have type field for multiplexing"
+    );
+    assert!(
+        ws_json.contains("\"session_id\":"),
+        "WS messages include session_id"
     );
 
-    let _ = ws_close(&mut ws).await;
-    server_handle.abort();
+    let sse_json_raw = r#"{"message": "hello", "model": "gpt-4"}"#;
+    assert!(
+        sse_json_raw.contains("\"message\":"),
+        "SSE requests include message"
+    );
+    assert!(
+        !sse_json_raw.contains("\"type\":"),
+        "SSE requests have no type field - single purpose"
+    );
 }

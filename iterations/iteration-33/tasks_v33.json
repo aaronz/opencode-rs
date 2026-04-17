@@ -233,7 +233,7 @@
       "priority": "P2",
       "title": "OAuth Flows for Google/Copilot",
       "description": "Implement Google OAuth flow and GitHub Copilot OAuth flow. Update ConnectMethodDialog for OAuth-only providers. Providers needing OAuth: Google, GitHub Copilot.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify Google OAuth login flow completes successfully",
         "AddIntegrationTest: verify GitHub Copilot OAuth login flow completes successfully",
