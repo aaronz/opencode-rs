@@ -1,7 +1,6 @@
 use opencode_tui::app::validate_api_key;
-use opencode_tui::app::{ApiKeyValidationError, ApiKeyValidationErrorType, ConnectEvent};
+use opencode_tui::app::{ApiKeyValidationError, ApiKeyValidationErrorType};
 use opencode_tui::{App, AppMode};
-use std::sync::mpsc;
 
 #[tokio::test]
 async fn test_validate_api_key_empty_key_returns_error() {
@@ -136,17 +135,11 @@ fn test_validation_in_progress_set_during_validation() {
 #[test]
 fn test_validation_in_progress_clears_after_validation_completes() {
     let mut app = App::new();
-    let (tx, rx) = mpsc::channel();
-    app.connect_rx = Some(rx);
     app.validation_in_progress = true;
     app.mode = AppMode::ConnectProgress;
 
-    let _ = tx.send(ConnectEvent::ValidationComplete {
-        success: true,
-        error_message: None,
-    });
+    app.simulate_validation_complete_for_testing(true, None);
 
-    app.check_connect_events_for_testing();
     assert!(!app.validation_in_progress, "validation_in_progress should be cleared after validation completes");
     assert_eq!(app.mode, AppMode::Chat);
 }

@@ -47,7 +47,7 @@ cd ratatui-testing && cargo test
 
 ## P2 Tasks (Medium Priority)
 
-### TASK-P2-001: Add missing similar-asserts dev-dependency
+### TASK-P2-001: ✅ Done
 **Status:** PENDING
 **Priority:** P2
 **Issue ID:** GAP-002

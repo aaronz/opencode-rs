@@ -1702,6 +1702,16 @@ impl App {
         self.check_connect_events();
     }
 
+    pub fn simulate_validation_complete_for_testing(&mut self, success: bool, error_message: Option<String>) {
+        let (tx, rx) = mpsc::channel();
+        self.connect_rx = Some(rx);
+        let _ = tx.send(ConnectEvent::ValidationComplete {
+            success,
+            error_message,
+        });
+        self.check_connect_events();
+    }
+
     fn check_connect_events(&mut self) {
         if let Some(ref mut rx) = self.connect_rx {
             let mut events = Vec::new();

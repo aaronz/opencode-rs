@@ -27,7 +27,7 @@
       "priority": "P0",
       "title": "Add loading state during API key validation",
       "description": "Show 'Validating...' message in UI and disable input during validation to prevent double-submission",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify loading state is set during validation",
         "AddUnitTest: verify input is disabled while validating",
