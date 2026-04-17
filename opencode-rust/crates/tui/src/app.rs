@@ -29,9 +29,10 @@ use opencode_core::{
     ToolRegistry,
 };
 use opencode_llm::{
-    BrowserAuthModelInfo, GoogleOAuthService, GoogleOAuthSession, GoogleOAuthStore,
-    OpenAiBrowserAuthService, OpenAiBrowserAuthStore, OpenAiBrowserSession,
-    OpenAiProvider, Provider, ProviderCatalogFetcher, ProviderConfig, ProviderType,
+    BrowserAuthModelInfo, CopilotOAuthService, CopilotOAuthSession, CopilotOAuthStore,
+    GoogleOAuthService, GoogleOAuthSession, GoogleOAuthStore, OpenAiBrowserAuthService,
+    OpenAiBrowserAuthStore, OpenAiBrowserSession, OpenAiProvider, Provider, ProviderCatalogFetcher,
+    ProviderConfig, ProviderType,
 };
 use opencode_lsp::client::LspClient;
 use opencode_lsp::types::{Diagnostic, Location};
@@ -59,6 +60,7 @@ pub enum ConnectEvent {
     BrowserOpened(String),
     AuthComplete(OpenAiBrowserSession, Vec<BrowserAuthModelInfo>),
     GoogleAuthComplete(GoogleOAuthSession, Vec<BrowserAuthModelInfo>),
+    CopilotAuthComplete(CopilotOAuthSession, Vec<BrowserAuthModelInfo>),
     Failed(String),
     ValidationComplete {
         success: bool,
@@ -510,6 +512,7 @@ pub struct App {
     pub pending_connect_method: Option<String>,
     pub pending_browser_session: Option<OpenAiBrowserSession>,
     pub pending_google_session: Option<GoogleOAuthSession>,
+    pub pending_copilot_session: Option<CopilotOAuthSession>,
     pub pending_browser_models: Vec<BrowserAuthModelInfo>,
     pub validation_in_progress: bool,
     pub pending_api_key_for_validation: Option<String>,
@@ -1079,6 +1082,7 @@ impl App {
             pending_connect_method: None,
             pending_browser_session: None,
             pending_google_session: None,
+            pending_copilot_session: None,
             pending_browser_models: Vec::new(),
             validation_in_progress: false,
             pending_api_key_for_validation: None,
@@ -1182,6 +1186,10 @@ impl App {
             && self.pending_connect_method.as_deref() == Some("browser")
         {
             self.start_google_browser_connect();
+        } else if self.pending_connect_provider.as_deref() == Some("copilot")
+            && self.pending_connect_method.as_deref() == Some("browser")
+        {
+            self.start_copilot_browser_connect();
         } else if self.pending_connect_method.as_deref() == Some("api_key") {
             self.start_api_key_input();
         } else {
@@ -1400,6 +1408,76 @@ impl App {
         });
     }
 
+    fn start_copilot_browser_connect(&mut self) {
+        let (tx, rx) = mpsc::channel();
+        self.connect_rx = Some(rx);
+        self.mode = AppMode::ConnectProgress;
+
+        std::thread::spawn(move || {
+            let service = CopilotOAuthService::new();
+            let listener = match service.start_local_callback_listener() {
+                Ok(listener) => listener,
+                Err(error) => {
+                    let _ = tx.send(ConnectEvent::Failed(error.to_string()));
+                    return;
+                }
+            };
+
+            let request = listener.request();
+            let url = service.build_authorize_url(&request);
+            if let Err(error) = open_external(&url) {
+                let _ = tx.send(ConnectEvent::Failed(error));
+                return;
+            }
+            let _ = tx.send(ConnectEvent::BrowserOpened(url.clone()));
+
+            let callback = match listener.wait_for_callback() {
+                Ok(callback) => callback,
+                Err(error) => {
+                    let _ = tx.send(ConnectEvent::Failed(error.to_string()));
+                    return;
+                }
+            };
+
+            let session = match service.exchange_code(callback, &request) {
+                Ok(session) => session,
+                Err(error) => {
+                    let _ = tx.send(ConnectEvent::Failed(error.to_string()));
+                    return;
+                }
+            };
+
+            let copilot_models = vec![
+                BrowserAuthModelInfo {
+                    id: "gpt-4o".to_string(),
+                    name: "GPT-4o".to_string(),
+                },
+                BrowserAuthModelInfo {
+                    id: "gpt-4o-mini".to_string(),
+                    name: "GPT-4o Mini".to_string(),
+                },
+                BrowserAuthModelInfo {
+                    id: "o1".to_string(),
+                    name: "o1".to_string(),
+                },
+                BrowserAuthModelInfo {
+                    id: "o1-mini".to_string(),
+                    name: "o1 Mini".to_string(),
+                },
+                BrowserAuthModelInfo {
+                    id: "o1-preview".to_string(),
+                    name: "o1 Preview".to_string(),
+                },
+                BrowserAuthModelInfo {
+                    id: "o3-mini".to_string(),
+                    name: "o3 Mini".to_string(),
+                },
+            ];
+
+            let _ = tx.send(ConnectEvent::CopilotAuthComplete(session, copilot_models));
+        });
+    }
+
     fn complete_browser_auth(
         &mut self,
         session: OpenAiBrowserSession,
@@ -1424,6 +1502,22 @@ impl App {
         let store = GoogleOAuthStore::from_default_location();
         let _ = store.save(&session);
         self.pending_google_session = Some(session);
+        self.pending_browser_models = models.clone();
+        self.connect_model_dialog = Some(ConnectModelDialog::new(
+            self.theme_manager.current().clone(),
+            models,
+        ));
+        self.mode = AppMode::ConnectModel;
+    }
+
+    fn complete_copilot_auth(
+        &mut self,
+        session: CopilotOAuthSession,
+        models: Vec<BrowserAuthModelInfo>,
+    ) {
+        let store = CopilotOAuthStore::from_default_location();
+        let _ = store.save(&session);
+        self.pending_copilot_session = Some(session);
         self.pending_browser_models = models.clone();
         self.connect_model_dialog = Some(ConnectModelDialog::new(
             self.theme_manager.current().clone(),
@@ -1479,6 +1573,41 @@ impl App {
             };
             if let Some(providers) = &mut self.config.providers {
                 if let Some(existing) = providers.iter_mut().find(|p| p.name == "google") {
+                    existing.default_model = Some(model_id.clone());
+                } else {
+                    providers.push(provider_config);
+                }
+            } else {
+                self.config.providers = Some(vec![provider_config]);
+            }
+            if let Err(e) = self.config.save(&Config::default_config_path()) {
+                tracing::warn!("Failed to save provider config: {}", e);
+            }
+        } else if let Some(session) = self.pending_copilot_session.clone() {
+            let store = CopilotOAuthStore::from_default_location();
+            store.save(&session).map_err(|e| e.to_string())?;
+
+            self.provider = "copilot".to_string();
+            std::env::set_var("GITHUB_COPILOT_TOKEN", &session.access_token);
+            std::env::set_var("COPILOT_MODEL", &model_id);
+            std::env::set_var("OPENCODE_MODEL", &model_id);
+
+            let copilot_provider = opencode_llm::copilot::CopilotProvider::new(
+                opencode_llm::ProviderConfig {
+                    model: model_id.clone(),
+                    api_key: session.access_token.clone(),
+                    temperature: 0.7,
+                }
+            );
+            self.llm_provider = Some(std::sync::Arc::new(copilot_provider));
+
+            let provider_config = crate::config::ProviderConfig {
+                name: "copilot".to_string(),
+                api_key: None,
+                default_model: Some(model_id.clone()),
+            };
+            if let Some(providers) = &mut self.config.providers {
+                if let Some(existing) = providers.iter_mut().find(|p| p.name == "copilot") {
                     existing.default_model = Some(model_id.clone());
                 } else {
                     providers.push(provider_config);
@@ -1549,6 +1678,7 @@ impl App {
         self.pending_api_key_models.clear();
         self.pending_browser_session = None;
         self.pending_google_session = None;
+        self.pending_copilot_session = None;
         self.pending_browser_models.clear();
         self.connect_model_dialog = None;
         self.mode = AppMode::Chat;
@@ -1560,6 +1690,7 @@ impl App {
         self.pending_api_key_models.clear();
         self.pending_browser_session = None;
         self.pending_google_session = None;
+        self.pending_copilot_session = None;
         self.pending_browser_models.clear();
         self.connect_model_dialog = None;
         self.mode = AppMode::Chat;
@@ -1580,6 +1711,32 @@ impl App {
         models: Vec<BrowserAuthModelInfo>,
     ) {
         self.complete_google_auth(session, models);
+    }
+
+    pub fn complete_copilot_auth_for_test(
+        &mut self,
+        session: CopilotOAuthSession,
+        models: Vec<BrowserAuthModelInfo>,
+    ) {
+        self.complete_copilot_auth(session, models);
+    }
+
+    pub fn prime_copilot_connect_state_for_test(&mut self) {
+        self.complete_copilot_auth_for_test(
+            CopilotOAuthSession {
+                access_token: "test_access_token".to_string(),
+                expires_at_epoch_ms: chrono::Utc::now().timestamp_millis() + 3600000,
+                token_type: "Bearer".to_string(),
+            },
+            vec![BrowserAuthModelInfo {
+                id: "gpt-4o".to_string(),
+                name: "GPT-4o".to_string(),
+            }],
+        );
+    }
+
+    pub fn confirm_model_for_copilot_auth_for_test(&mut self, model_id: &str) -> Result<(), String> {
+        self.handle_connect_model_confirm(model_id.to_string())
     }
 
     #[cfg(test)]
@@ -2233,6 +2390,9 @@ impl App {
                     }
                     ConnectEvent::GoogleAuthComplete(session, models) => {
                         self.complete_google_auth(session, models);
+                    }
+                    ConnectEvent::CopilotAuthComplete(session, models) => {
+                        self.complete_copilot_auth(session, models);
                     }
                     ConnectEvent::Failed(error) => {
                         self.add_message(format!("OpenAI connect failed: {}", error), false);

@@ -111,7 +111,7 @@
 
 #### Tasks:
 
-- [ ] **T-015**: Connect `CopilotOAuthService` to TUI connect flow
+- [x] **T-015**: Connect `CopilotOAuthService` to TUI connect flow
   - Wire to `handle_connect_method_confirm()`
   - Launch device code flow when "browser" selected for Copilot
 

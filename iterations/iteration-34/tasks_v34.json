@@ -316,7 +316,7 @@
       "priority": "P1",
       "title": "Connect CopilotOAuthService to TUI connect flow",
       "description": "Wire CopilotOAuthService to handle_connect_method_confirm() and launch device code flow when 'browser' selected for Copilot",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify CopilotOAuthService is called when device flow selected",
         "AddUnitTest: verify device code flow is launched for Copilot",
@@ -335,7 +335,7 @@
       "priority": "P1",
       "title": "Handle device code flow",
       "description": "Display device code to user, poll for token exchange, and store credentials",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify device code is displayed to user",
         "AddUnitTest: verify polling for token exchange works correctly",
