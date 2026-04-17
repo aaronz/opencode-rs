@@ -123,7 +123,7 @@
 - [ ] **T-017**: Wire model selection after successful Copilot OAuth
   - Proceed to `ConnectModelDialog` after OAuth complete
 
-- [ ] **T-018**: Add integration tests for Copilot OAuth flow
+- [x] **T-018**: Add integration tests for Copilot OAuth flow
 
 ---
 

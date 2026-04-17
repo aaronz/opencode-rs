@@ -377,7 +377,7 @@
       "priority": "P1",
       "title": "Add integration tests for Copilot OAuth flow",
       "description": "Test complete Copilot OAuth flow from provider selection through model selection",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: test complete Copilot OAuth flow",
         "AddIntegrationTest: test error handling during OAuth",
@@ -419,7 +419,7 @@
       "priority": "P1",
       "title": "Add OpenCode models",
       "description": "Add opencode/gpt-5-nano, opencode/minimax-m2.5-free, opencode/nemotron-3-super-free models",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify all OpenCode models are included",
         "AddRegressionTest: verify model count increases correctly"
