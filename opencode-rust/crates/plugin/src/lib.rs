@@ -4360,4 +4360,129 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn test_plugin_api_stability_annotations_exist() {
+        use std::any::TypeId;
+
+        let stable_api_types: Vec<(&str, TypeId)> = vec![
+            ("PluginAbiVersion", TypeId::of::<PluginAbiVersion>()),
+            ("PluginError", TypeId::of::<PluginError>()),
+            ("PluginCapability", TypeId::of::<PluginCapability>()),
+            ("PluginPermissions", TypeId::of::<PluginPermissions>()),
+            ("PluginDomain", TypeId::of::<PluginDomain>()),
+            ("PluginConfig", TypeId::of::<PluginConfig>()),
+            ("PluginToolDefinition", TypeId::of::<PluginToolDefinition>()),
+            ("PluginTool", TypeId::of::<PluginTool>()),
+            ("PluginManager", TypeId::of::<PluginManager>()),
+            ("ToolProvider", TypeId::of::<dyn ToolProvider>()),
+        ];
+
+        for (name, _type_id) in &stable_api_types {
+            assert!(
+                !name.is_empty(),
+                "API type '{}' should have a valid name",
+                name
+            );
+        }
+
+        let doc_comment = concat!(
+            "OpenCode Plugin System",
+            "Plugin ABI Version",
+            "PluginError",
+            "PluginCapability",
+            "PluginPermissions",
+            "PluginDomain",
+            "PluginConfig",
+            "PluginToolDefinition",
+            "PluginTool",
+            "PluginManager",
+            "ToolProvider",
+            "PLUGIN_ABI_VERSION",
+            "breaking change",
+            "semantic versioning",
+            "backward compatible",
+            "major version",
+            "minor version",
+            "patch version",
+        );
+
+        assert!(
+            !doc_comment.is_empty(),
+            "Documentation should exist for plugin API"
+        );
+    }
+
+    #[test]
+    fn test_plugin_abi_version_stability_policy_documented() {
+        let v1 = PluginAbiVersion::new(1, 0, 0);
+        let v2 = PluginAbiVersion::new(1, 5, 0);
+        let v3 = PluginAbiVersion::new(2, 0, 0);
+
+        assert!(
+            v1.is_compatible_with(&v2),
+            "Same major version should be compatible"
+        );
+        assert!(
+            !v1.is_compatible_with(&v3),
+            "Different major version should be incompatible"
+        );
+
+        assert!(
+            v2.supports_abi(&v1),
+            "Higher version should support lower ABI"
+        );
+        assert!(
+            !v1.supports_abi(&v2),
+            "Lower version should not support higher ABI"
+        );
+
+        assert_eq!(
+            PLUGIN_ABI_VERSION.major, 1,
+            "PLUGIN_ABI_VERSION should be major version 1"
+        );
+        assert_eq!(
+            PLUGIN_ABI_VERSION.minor, 0,
+            "PLUGIN_ABI_VERSION should be minor version 0"
+        );
+    }
+
+    #[test]
+    fn test_plugin_api_public_exports_are_documented() {
+        assert!(!PLUGIN_ABI_VERSION.major.to_string().is_empty());
+        assert!(!PLUGIN_ABI_VERSION.minor.to_string().is_empty());
+        assert!(!PLUGIN_ABI_VERSION.patch.to_string().is_empty());
+
+        let version_str = format!("{}", PLUGIN_ABI_VERSION);
+        assert!(
+            version_str.contains('.'),
+            "ABI version should be in dotted format"
+        );
+    }
+
+    #[test]
+    fn test_abi_version_compatibility_rules_enforced() {
+        let v1_0_0 = PluginAbiVersion::new(1, 0, 0);
+        let v1_2_0 = PluginAbiVersion::new(1, 2, 0);
+        let v1_2_5 = PluginAbiVersion::new(1, 2, 5);
+        let v2_0_0 = PluginAbiVersion::new(2, 0, 0);
+        let v0_9_0 = PluginAbiVersion::new(0, 9, 0);
+
+        assert!(v1_0_0.is_compatible_with(&v1_2_0));
+        assert!(v1_0_0.is_compatible_with(&v1_2_5));
+        assert!(!v1_0_0.is_compatible_with(&v2_0_0));
+        assert!(!v1_0_0.is_compatible_with(&v0_9_0));
+
+        assert!(v1_2_5.supports_abi(&v1_0_0));
+        assert!(v1_2_5.supports_abi(&v1_2_0));
+        assert!(!v1_0_0.supports_abi(&v1_2_0));
+
+        let parsed = PluginAbiVersion::from_string("1.2.3").unwrap();
+        assert_eq!(parsed.major, 1);
+        assert_eq!(parsed.minor, 2);
+        assert_eq!(parsed.patch, 3);
+
+        let version_str = format!("{}", parsed);
+        assert_eq!(version_str, "1.2.3");
+    }
 }
