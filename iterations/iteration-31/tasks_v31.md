@@ -10,7 +10,7 @@
 ## P1 Tasks (High Priority)
 
 ### TASK-P1-001: Fix PtySimulator read_output buffer drain issue
-**Status:** PENDING
+**Status:** ✅ Done
 **Priority:** P1
 **Issue ID:** GAP-001
 **Estimated Time:** 15 minutes
@@ -141,7 +141,7 @@ Add FR-SNAP-001 section to PRD documenting the snapshot module API.
 
 | Task ID | Priority | Description | Estimated Time | Status |
 |---------|----------|-------------|---------------|--------|
-| TASK-P1-001 | P1 | Fix PtySimulator read_output buffer drain | 15 min | PENDING |
+| TASK-P1-001 | P1 | Fix PtySimulator read_output buffer drain | 15 min | ✅ Done |
 | TASK-P2-001 | P2 | Add similar-asserts dev-dependency | 1 min | PENDING |
 | TASK-P2-002 | P2 | Document DialogTester in PRD | 30 min | PENDING |
 | TASK-P2-003 | P2 | Remove dead code warnings | 5 min | PENDING |
@@ -153,7 +153,7 @@ Add FR-SNAP-001 section to PRD documenting the snapshot module API.
 
 ## Completion Checklist
 
-- [ ] TASK-P1-001 completed and verified
+- [x] TASK-P1-001 completed and verified
 - [ ] TASK-P2-001 completed and verified
 - [ ] TASK-P2-002 completed and verified
 - [ ] TASK-P2-003 completed and verified

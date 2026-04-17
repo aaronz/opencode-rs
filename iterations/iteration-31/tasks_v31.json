@@ -5,7 +5,7 @@
       "priority": "P1",
       "title": "Fix PtySimulator read_output buffer drain issue",
       "description": "The `read_output()` function in `src/pty.rs:130` breaks after the first successful read instead of continuing to drain the buffer. This causes tests to miss output that arrives in multiple chunks. Root cause is a premature `break` statement at line 130 that prevents the loop from continuing to read until timeout. Fix: Remove the `break` statement to allow the loop to continue reading until timeout.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify read_output() continues reading until timeout by simulating chunked output",
         "AddIntegrationTest: verify all buffered data is captured when output arrives in multiple chunks",
