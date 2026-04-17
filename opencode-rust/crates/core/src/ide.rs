@@ -135,6 +135,29 @@ mod tests {
         assert_eq!(Ide::from_name("Windsurf"), Some(Ide::Windsurf));
         assert_eq!(Ide::from_name("Cursor"), Some(Ide::Cursor));
         assert_eq!(Ide::from_name("Unknown IDE"), None);
+        assert_eq!(Ide::from_name("VSCodium"), Some(Ide::Vscodium));
+        assert_eq!(
+            Ide::from_name("Visual Studio Code - Insiders"),
+            Some(Ide::VscodeInsiders)
+        );
+        assert_eq!(Ide::from_name("Visual Studio Code"), Some(Ide::Vscode));
+    }
+
+    #[test]
+    fn test_ide_command() {
+        assert_eq!(Ide::Windsurf.command(), "windsurf");
+        assert_eq!(Ide::VscodeInsiders.command(), "code-insiders");
+        assert_eq!(Ide::Vscode.command(), "code");
+        assert_eq!(Ide::Cursor.command(), "cursor");
+        assert_eq!(Ide::Vscodium.command(), "codium");
+        assert_eq!(Ide::Unknown.command(), "");
+    }
+
+    #[test]
+    fn test_ide_install_unknown_ide() {
+        let result = IdeManager::install(Ide::Unknown);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Unknown IDE");
     }
 
     struct StubExtension {
