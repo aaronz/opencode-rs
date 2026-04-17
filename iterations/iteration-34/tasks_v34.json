@@ -93,7 +93,7 @@
       "priority": "P0",
       "title": "Add unit tests for API key validation",
       "description": "Test valid API key acceptance, invalid API key rejection, and network error handling",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: test valid_api_key_acceptance returns success",
         "AddUnitTest: test invalid_api_key_rejection returns error",

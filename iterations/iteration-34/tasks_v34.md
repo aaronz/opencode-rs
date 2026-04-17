@@ -37,7 +37,7 @@
   - OpenAI-compatible: `/models` endpoint
   - LM Studio: `/api/tags` endpoint
 
-- [ ] **T-005**: Add unit tests for API key validation
+- [x] **T-005**: Add unit tests for API key validation
   - Test valid API key acceptance
   - Test invalid API key rejection
   - Test network error handling
