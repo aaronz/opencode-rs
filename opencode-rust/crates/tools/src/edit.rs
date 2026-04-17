@@ -156,7 +156,9 @@ fn replace(
                 continue;
             }
 
-            let idx = index.expect("index was validated as Some at line 145");
+            let idx = index.ok_or_else(|| {
+                "Internal error: find returned Some but rfind returned None".to_string()
+            })?;
             let (start, end) = content.split_at(idx);
             return Ok(format!("{}{}{}", start, new_string, &end[search.len()..]));
         }

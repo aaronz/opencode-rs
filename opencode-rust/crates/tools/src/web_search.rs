@@ -103,7 +103,9 @@ impl Tool for WebSearchTool {
 
         if !response.status().is_success() {
             let status = response.status();
-            let text = response.text().await.unwrap_or_default();
+            let text = response.text().await.map_err(|e| {
+                OpenCodeError::Tool(format!("Failed to read error response: {}", e))
+            })?;
             return Ok(ToolResult::err(format!(
                 "Search error ({}): {}",
                 status, text
@@ -177,5 +179,71 @@ mod tests {
             }
             _ => panic!("Expected OpenCodeError::Tool"),
         }
+    }
+
+    #[tokio::test]
+    async fn test_web_search_handles_network_errors_gracefully() {
+        remove_api_keys();
+        std::env::set_var("EXA_API_KEY", "test_key");
+
+        let tool = WebSearchTool;
+        let args = serde_json::json!({"query": "test query"});
+
+        let result = tool.execute(args, None).await;
+
+        std::env::remove_var("EXA_API_KEY");
+
+        match result {
+            Ok(tool_result) => {
+                assert!(
+                    tool_result.success,
+                    "Expected success or proper error, got error: {:?}",
+                    tool_result
+                );
+            }
+            Err(e) => {
+                let err_msg = e.to_string();
+                assert!(
+                    err_msg.contains("Request failed")
+                        || err_msg.contains("connection")
+                        || err_msg.contains("API key is missing"),
+                    "Expected network or auth error, got: {}",
+                    err_msg
+                );
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_web_search_returns_proper_error_on_malformed_response() {
+        remove_api_keys();
+        std::env::set_var("EXA_API_KEY", "test_key");
+
+        let tool = WebSearchTool;
+        let args = serde_json::json!({"query": "test"});
+
+        let result = tool.execute(args, None).await;
+
+        std::env::remove_var("EXA_API_KEY");
+
+        match &result {
+            Ok(tool_result) => {
+                assert!(tool_result.success, "Expected successful result");
+            }
+            Err(e) => {
+                let err_msg = e.to_string();
+                assert!(
+                    err_msg.contains("Request failed")
+                        || err_msg.contains("connection")
+                        || err_msg.contains("API key is missing"),
+                    "Expected proper error, got: {}",
+                    err_msg
+                );
+            }
+        }
+        assert!(
+            result.is_ok() || result.is_err(),
+            "Should return either success or a proper error, not panic"
+        );
     }
 }

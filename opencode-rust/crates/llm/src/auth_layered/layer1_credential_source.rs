@@ -432,6 +432,8 @@ mod tests {
     #[test]
     fn test_aws_credential_chain_resolves_for_bedrock() {
         std::env::remove_var("AWS_PROFILE");
+        std::env::remove_var("AWS_WEB_IDENTITY_TOKEN_FILE");
+        std::env::remove_var("AWS_ROLE_ARN");
         std::env::set_var("AWS_ACCESS_KEY_ID", "test-key");
         std::env::set_var("AWS_SECRET_ACCESS_KEY", "test-secret");
 

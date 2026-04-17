@@ -11,10 +11,7 @@ use opencode_server::routes::acp_ws::SharedAcpClientRegistry;
 use opencode_server::routes::share::ShareServer;
 use opencode_server::streaming::{conn_state::ConnectionMonitor, ReconnectionStore};
 use opencode_server::{run_server, ServerState};
-use opencode_storage::{
-    SqliteAccountRepository, SqlitePluginStateRepository, SqliteProjectRepository,
-    SqliteSessionRepository, StorageService,
-};
+use opencode_storage::{SqliteProjectRepository, SqliteSessionRepository, StorageService};
 use opencode_tools::build_default_registry;
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -64,15 +61,7 @@ async fn run_serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
     let pool = opencode_storage::database::StoragePool::new(&db_path)?;
     let session_repo = Arc::new(SqliteSessionRepository::new(pool.clone()));
     let project_repo = Arc::new(SqliteProjectRepository::new(pool.clone()));
-    let account_repo = Arc::new(SqliteAccountRepository::new(pool.clone()));
-    let plugin_state_repo = Arc::new(SqlitePluginStateRepository::new(pool.clone()));
-    let storage = Arc::new(StorageService::new(
-        session_repo,
-        project_repo,
-        account_repo,
-        plugin_state_repo,
-        pool,
-    ));
+    let storage = Arc::new(StorageService::new(session_repo, project_repo, pool));
 
     let models = Arc::new(ModelRegistry::new());
     let config = Arc::new(RwLock::new(config));

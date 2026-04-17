@@ -4,10 +4,7 @@ use opencode_core::message::Message;
 use opencode_core::revert::RevertManager;
 use opencode_core::session::Session;
 use opencode_storage::migration::MigrationManager;
-use opencode_storage::{
-    SqliteAccountRepository, SqlitePluginStateRepository, SqliteProjectRepository,
-    SqliteSessionRepository, StoragePool,
-};
+use opencode_storage::{SqliteProjectRepository, SqliteSessionRepository, StoragePool};
 use tempfile::TempDir;
 use uuid::Uuid;
 
@@ -29,15 +26,7 @@ async fn setup_storage_service(temp_dir: &TempDir) -> opencode_storage::StorageS
     manager.migrate().await.expect("Should run migrations");
     let session_repo = std::sync::Arc::new(SqliteSessionRepository::new(pool.clone()));
     let project_repo = std::sync::Arc::new(SqliteProjectRepository::new(pool.clone()));
-    let account_repo = std::sync::Arc::new(SqliteAccountRepository::new(pool.clone()));
-    let plugin_state_repo = std::sync::Arc::new(SqlitePluginStateRepository::new(pool.clone()));
-    opencode_storage::StorageService::new(
-        session_repo,
-        project_repo,
-        account_repo,
-        plugin_state_repo,
-        pool,
-    )
+    opencode_storage::StorageService::new(session_repo, project_repo, pool)
 }
 
 #[tokio::test]
