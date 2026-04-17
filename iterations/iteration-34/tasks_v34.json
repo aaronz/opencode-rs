@@ -272,7 +272,7 @@
       "priority": "P1",
       "title": "Wire model selection after successful Google OAuth",
       "description": "Proceed to ConnectModelDialog after Google OAuth completes successfully",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify ConnectModelDialog is shown after Google OAuth success",
         "AddIntegrationTest: verify credentials are passed to model dialog"
