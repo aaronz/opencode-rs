@@ -9,6 +9,10 @@ license.workspace = true
 name = "opencode-rs"
 path = "src/main.rs"
 
+[lib]
+name = "opencode_cli"
+path = "src/lib.rs"
+
 [features]
 default = []
 desktop = ["dep:wry", "dep:webkit2gtk"]

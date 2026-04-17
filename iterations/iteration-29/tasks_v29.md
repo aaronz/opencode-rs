@@ -39,7 +39,7 @@
 | P1-002 | Set `--fail-under-lines 80` coverage threshold | CI config | Not Started |
 | P1-003 | Increase `agent` crate coverage from 45% to 80%+ | agent/* | Not Started |
 | P1-004 | Increase `server` crate coverage from 40% to 80%+ | server/* | Not Started |
-| P1-005 | Increase `tools` crate coverage from 50% to 80%+ | tools/* | Not Started |
+| P1-005 | Increase `tools` crate coverage from 50% to 80%+ | tools/* | Done |
 | P1-006 | Increase `cli` crate coverage from 50% to 80%+ | cli/* | Not Started |
 | P1-007 | Increase `llm` crate coverage from 55% to 80%+ | llm/* | Not Started |
 | P1-008 | Increase `core` crate coverage from 60% to 80%+ | core/* | Not Started |

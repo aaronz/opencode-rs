@@ -237,7 +237,7 @@
       "priority": "P1",
       "title": "Increase tools crate coverage to 80%",
       "description": "Increase code coverage for tools crate from 50% to 80%+",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: cargo llvm-cov shows tools crate coverage >= 80%"
       ],
@@ -255,7 +255,7 @@
       "priority": "P1",
       "title": "Increase cli crate coverage to 80%",
       "description": "Increase code coverage for cli crate from 50% to 80%+",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "RunTestSuite: cargo llvm-cov shows cli crate coverage >= 80%"
       ],
