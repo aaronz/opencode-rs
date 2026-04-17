@@ -95,7 +95,7 @@ mod tests {
         }
 
         let mut in_cfg_test = false;
-        let mut brace_count = 0;
+        let mut brace_count: isize = 0;
 
         for (idx, line) in lines.iter().enumerate() {
             let trimmed = line.trim();
@@ -107,8 +107,8 @@ mod tests {
             }
 
             if in_cfg_test {
-                brace_count += line.chars().filter(|&c| c == '{').count();
-                brace_count -= line.chars().filter(|&c| c == '}').count();
+                brace_count += line.chars().filter(|&c| c == '{').count() as isize;
+                brace_count -= line.chars().filter(|&c| c == '}').count() as isize;
 
                 if brace_count < 0 {
                     in_cfg_test = false;
