@@ -115,7 +115,7 @@
   - Wire to `handle_connect_method_confirm()`
   - Launch device code flow when "browser" selected for Copilot
 
-- [ ] **T-016**: Handle device code flow
+- [x] **T-016**: Handle device code flow
   - Display device code to user
   - Poll for token exchange
   - Store credentials
