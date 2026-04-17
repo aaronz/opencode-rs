@@ -45,7 +45,8 @@ fn api_key_for_provider(config: &opencode_core::Config, provider_id: &str) -> Op
         .get_provider(provider_id)
         .and_then(|provider| provider.options.as_ref())
         .and_then(|options| options.api_key.clone())
-        .or_else(|| config.api_key.clone())
+        .filter(|v| !v.is_empty())
+        .or_else(|| config.api_key.clone().filter(|v| !v.is_empty()))
         .or_else(|| match provider_id {
             "openai" => std::env::var("OPENAI_API_KEY").ok(),
             "anthropic" => std::env::var("ANTHROPIC_API_KEY").ok(),

@@ -951,6 +951,28 @@ impl PluginManager {
             .collect()
     }
 
+    /// Loads plugins from discovered plugin entries.
+    ///
+    /// # Safety
+    ///
+    /// This function loads WASM plugins via `PluginLoader::load_plugin`, which is unsafe
+    /// because it:
+    /// - Dereferences a raw pointer returned by the plugin's `plugin_create()` function
+    /// - Assumes the plugin library was compiled with the same ABI version
+    /// - Assumes the plugin returns a valid vtable pointer
+    ///
+    /// The safety invariants are maintained by:
+    /// - Validating the plugin name and domain via `validate_runtime_loadable()` before loading
+    /// - Verifying the library_path exists during discovery phase
+    /// - The WASM runtime validates plugin bytecode before execution
+    /// - Malformed plugins will return `PluginError` rather than causing undefined behavior
+    ///
+    /// # Errors
+    ///
+    /// Returns `PluginError` if:
+    /// - Plugin validation fails
+    /// - Library cannot be loaded
+    /// - Plugin initialization fails
     fn load_discovered(
         &mut self,
         discovered: Vec<discovery::DiscoveredPlugin>,
@@ -979,10 +1001,12 @@ impl PluginManager {
             }
 
             let plugin_name = entry.config.name.clone();
-            // SAFETY: `load_plugin` requires a valid plugin library compiled with the same
-            // ABI version. The entry.config.name was validated during discovery, and the
-            // library_path was verified to exist. Malformed plugins will return PluginError
-            // rather than causing UB. See PluginLoader::load_plugin SAFETY docs for details.
+            // SAFETY: This function is called within a loop over discovered plugin entries.
+            // Each entry has been validated by `validate_runtime_loadable` before this point.
+            // The `load_plugin` function (see loader.rs) requires a valid library compiled
+            // with the same ABI version. Malformed plugins return PluginError rather than
+            // causing undefined behavior. The library_path was verified to exist during
+            // discovery. See PluginLoader::load_plugin SAFETY documentation for details.
             let plugin = unsafe { self.loader.load_plugin(&entry.library_path)? };
             self.register_with_config(plugin, entry.config)?;
             self.plugin_paths
