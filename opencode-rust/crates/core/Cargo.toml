@@ -38,3 +38,8 @@ rand.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
+rstest.workspace = true
+
+[features]
+default = []
+rstest = []

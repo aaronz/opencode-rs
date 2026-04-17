@@ -15,6 +15,7 @@ use thiserror::Error;
 /// Legacy variants (Network, Parse, Llm, Tui, Storage) are preserved for
 /// backward compatibility and mapped to the closest error code range.
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum OpenCodeError {
     // --- Wrapper errors (From implementations) ---
     #[error("IO error: {0}")]

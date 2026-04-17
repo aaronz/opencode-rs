@@ -4,6 +4,7 @@ use serde_json::Value;
 use std::path::Path;
 
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum JsoncError {
     #[error("Parse error at line {line}, column {column}: {message}")]
     Parse {

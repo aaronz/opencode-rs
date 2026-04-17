@@ -56,9 +56,14 @@ path = "src/security_tests.rs"
 name = "agent_tool_tests"
 path = "src/agent_tool_tests.rs"
 
+[[test]]
+name = "parameterized_tests"
+path = "src/parameterized_tests.rs"
+
 [dev-dependencies]
 assert_cmd = "2"
 predicates = "3"
 actix-ws = "0.3"
 tokio-tungstenite = { version = "0.26", features = ["native-tls"] }
 futures-channel = "0.3"
+rstest.workspace = true

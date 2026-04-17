@@ -12,6 +12,7 @@ use thiserror::Error;
 
 /// Structured storage error type with specific variants for different failure modes.
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum StorageError {
     // --- Session errors (51xx) ---
     #[error("session not found: {0}")]

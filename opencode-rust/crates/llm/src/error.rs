@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[derive(Error, Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum LlmError {
     #[error("Rate limit exceeded. Consider reducing request frequency or upgrading your plan.")]
     RateLimitExceeded { retry_after: Option<u64> },

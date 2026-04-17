@@ -497,7 +497,7 @@
       "priority": "P2",
       "title": "Audit enum matching for exhaustiveness",
       "description": "Audit enum matching across the codebase to ensure exhaustive matching with proper wildcard handling.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: add #[deny(non_exhaustive)] where appropriate",
         "RunTestSuite: ensure compilation with exhaustive warnings"
@@ -506,7 +506,7 @@
         "cargo clippy --all -- -D warnings",
         "cargo build --all"
       ],
-      "impl_notes": "Use #[deny(non_exhaustive)] to catch missing matches in future",
+      "impl_notes": "Added #[non_exhaustive] to key error enums: OpenCodeError, LlmError, StorageError, ConfigError, JsoncError. This ensures external code uses wildcard patterns when matching, allowing new variants to be added without breaking changes. Business-critical state enums (SessionState) were intentionally left without #[non_exhaustive] per FR-017 to require exhaustive matching.",
       "dependencies": []
     },
     {
@@ -514,7 +514,7 @@
       "priority": "P2",
       "title": "Add rstest for parameterized tests",
       "description": "Add rstest dependency and use parameterized tests where appropriate for cleaner test code.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify parameterized tests work correctly",
         "AddRegressionTest: ensure existing tests still pass"
@@ -531,7 +531,7 @@
       "priority": "P2",
       "title": "Seal additional traits",
       "description": "Seal additional traits that should not have external implementations to maintain API boundaries.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify sealed traits cannot be implemented externally",
         "RunTestSuite: ensure code compiles"
@@ -540,7 +540,7 @@
         "cargo test --all",
         "cargo clippy --all -- -D warnings"
       ],
-      "impl_notes": "Add sealed trait pattern to appropriate traits",
+      "impl_notes": "Sealed the following traits: ProviderFactory (provider_abstraction.rs), ProviderTransport & AuthenticatedTransport (layer3_provider_transport.rs), CredentialResolver (layer1_credential_source.rs and auth/credential_ref.rs), Command (command.rs), ToolHandler & ResourceHandler (mcp/server.rs). All internal implementations updated to implement the Sealed trait. Tests pass for all modified crates.",
       "dependencies": []
     },
     {

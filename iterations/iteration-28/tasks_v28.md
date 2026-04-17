@@ -79,8 +79,8 @@
 | T-026 | Expand builder pattern to server routes | 1 week | ✅ Done |
 | T-027 | Add newtypes: SessionId, UserId, ProjectId | 2 days | ✅ Done |
 | T-028 | Audit enum matching for exhaustiveness | 2 days | Not Started |
-| T-029 | Add rstest for parameterized tests | 2 days | Not Started |
-| T-030 | Seal additional traits | 1 day | Not Started |
+| T-029 | Add rstest for parameterized tests | 2 days | ✅ Done |
+| T-030 | Seal additional traits | 1 day | ✅ Done |
 | T-031 | Extend repository pattern to all data access | 1 week | Not Started |
 
 ### Code Quality

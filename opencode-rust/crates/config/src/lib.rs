@@ -20,6 +20,7 @@ use remote_cache::{load_cache, save_cache, RemoteConfigCache};
 use secret_storage::resolve_keychain_secret;
 
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum ConfigError {
     #[error("Config error: {0}")]
     Config(String),
