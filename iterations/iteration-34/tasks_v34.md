@@ -91,10 +91,10 @@
   - Wire to `handle_connect_method_confirm()`
   - Launch browser OAuth when "browser" selected for Google
 
-- [ ] **T-012**: Handle OAuth callback
-  - Receive OAuth callback in app
-  - Exchange code for tokens
-  - Store credentials
+- [x] **T-012**: Handle OAuth callback
+   - Receive OAuth callback in app
+   - Exchange code for tokens
+   - Store credentials
 
 - [ ] **T-013**: Wire model selection after successful Google OAuth
   - Proceed to `ConnectModelDialog` after OAuth complete

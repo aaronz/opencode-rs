@@ -250,7 +250,7 @@
       "priority": "P1",
       "title": "Handle OAuth callback",
       "description": "Receive OAuth callback in app, exchange code for tokens, and store credentials",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify OAuth callback is received correctly",
         "AddUnitTest: verify code is exchanged for tokens",
