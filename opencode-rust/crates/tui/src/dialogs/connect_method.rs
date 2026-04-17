@@ -14,23 +14,33 @@ pub struct ConnectMethodDialog {
     selected_index: usize,
     methods: Vec<(String, String)>,
     theme: Theme,
+    is_oauth_only: bool,
+    show_feedback: bool,
 }
+
+const OAUTH_ONLY_PROVIDERS: [&str; 2] = ["google", "copilot"];
 
 impl ConnectMethodDialog {
     pub fn new(theme: Theme, provider_id: String) -> Self {
+        let is_oauth_only = OAUTH_ONLY_PROVIDERS.contains(&provider_id.as_str());
+
         let methods = if provider_id == "openai" {
             vec![
                 ("browser".to_string(), "Browser auth".to_string()),
                 ("api_key".to_string(), "API key".to_string()),
             ]
-        } else {
+        } else if is_oauth_only {
             Vec::new()
+        } else {
+            vec![("api_key".to_string(), "API key".to_string())]
         };
 
         Self {
             selected_index: 0,
             methods,
             theme,
+            is_oauth_only,
+            show_feedback: false,
         }
     }
 }
@@ -63,8 +73,17 @@ impl Dialog for ConnectMethodDialog {
         let inner = block.inner(dialog_area);
 
         if self.methods.is_empty() {
-            let msg =
-                "No authentication methods available for this provider.\nPress Enter to go back.";
+            let msg = if self.show_feedback {
+                if self.is_oauth_only {
+                    "OAuth authentication is not yet implemented.\nPress ESC to go back."
+                } else {
+                    "No authentication methods available.\nPress Enter to go back."
+                }
+            } else if self.is_oauth_only {
+                "OAuth authentication is not yet implemented.\nPress ESC to go back."
+            } else {
+                "No authentication methods available.\nPress Enter to go back."
+            };
             f.render_widget(
                 Paragraph::new(msg).style(Style::default().fg(self.theme.muted_color())),
                 inner,
@@ -102,12 +121,19 @@ impl Dialog for ConnectMethodDialog {
                 DialogAction::None
             }
             KeyCode::Down => {
-                self.selected_index = (self.selected_index + 1) % self.methods.len().max(1);
+                if !self.methods.is_empty() {
+                    self.selected_index = (self.selected_index + 1) % self.methods.len();
+                }
                 DialogAction::None
             }
             KeyCode::Enter => {
                 if self.methods.is_empty() {
-                    DialogAction::Close
+                    if self.is_oauth_only {
+                        self.show_feedback = true;
+                        DialogAction::None
+                    } else {
+                        DialogAction::Close
+                    }
                 } else {
                     DialogAction::Confirm(self.methods[self.selected_index].0.clone())
                 }
@@ -127,5 +153,73 @@ mod tests {
         let mut dialog = ConnectMethodDialog::new(Theme::default(), "openai".into());
         let action = dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
         assert_eq!(action, DialogAction::Confirm("browser".into()));
+    }
+
+    #[test]
+    fn api_key_providers_show_api_key_option() {
+        let dialog = ConnectMethodDialog::new(Theme::default(), "anthropic".into());
+        assert_eq!(dialog.methods.len(), 1);
+        assert_eq!(dialog.methods[0].0, "api_key");
+        assert_eq!(dialog.methods[0].1, "API key");
+    }
+
+    #[test]
+    fn openai_shows_both_auth_methods() {
+        let dialog = ConnectMethodDialog::new(Theme::default(), "openai".into());
+        assert_eq!(dialog.methods.len(), 2);
+        assert_eq!(dialog.methods[0].0, "browser");
+        assert_eq!(dialog.methods[1].0, "api_key");
+    }
+
+    #[test]
+    fn oauth_only_providers_show_not_yet_implemented() {
+        let dialog = ConnectMethodDialog::new(Theme::default(), "google".into());
+        assert!(dialog.methods.is_empty());
+        assert!(dialog.is_oauth_only);
+    }
+
+    #[test]
+    fn copilot_shows_not_yet_implemented() {
+        let dialog = ConnectMethodDialog::new(Theme::default(), "copilot".into());
+        assert!(dialog.methods.is_empty());
+        assert!(dialog.is_oauth_only);
+    }
+
+    #[test]
+    fn empty_list_enter_closes_for_non_oauth() {
+        let mut dialog = ConnectMethodDialog::new(Theme::default(), "anthropic".into());
+        dialog.methods.clear();
+        let action = dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert_eq!(action, DialogAction::Close);
+    }
+
+    #[test]
+    fn empty_list_enter_does_not_close_for_oauth() {
+        let mut dialog = ConnectMethodDialog::new(Theme::default(), "google".into());
+        let action = dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert_eq!(action, DialogAction::None);
+        assert!(dialog.show_feedback);
+    }
+
+    #[test]
+    fn empty_list_navigation_does_not_panic() {
+        let mut dialog = ConnectMethodDialog::new(Theme::default(), "google".into());
+        dialog.handle_input(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
+        dialog.handle_input(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    }
+
+    #[test]
+    fn single_item_down_stays_at_zero() {
+        let mut dialog = ConnectMethodDialog::new(Theme::default(), "anthropic".into());
+        assert_eq!(dialog.selected_index, 0);
+        dialog.handle_input(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+        assert_eq!(dialog.selected_index, 0);
+    }
+
+    #[test]
+    fn api_key_selection_confirms() {
+        let mut dialog = ConnectMethodDialog::new(Theme::default(), "anthropic".into());
+        let action = dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert_eq!(action, DialogAction::Confirm("api_key".into()));
     }
 }

@@ -1,0 +1,255 @@
+{
+  "tasks": [
+    {
+      "id": "FR-007",
+      "priority": "P0",
+      "title": "Fix ConnectMethodDialog",
+      "description": "Add 'API Key' method for all non-OAuth-only providers. For OAuth-only providers (Google, Copilot), show 'Not yet implemented' message. Ensure Enter on empty does NOT close silently.",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify API-key providers show 'API Key' option",
+        "AddUnitTest: verify empty dialog shows explanatory message",
+        "AddRegressionTest: verify Enter on empty closes with feedback message",
+        "AddUnitTest: verify OAuth-only providers show 'Not yet implemented' message"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui --lib connect_method",
+        "cargo clippy -p opencode-tui -- -D warnings",
+        "cargo build -p opencode-tui"
+      ],
+      "impl_notes": "Line 21-28: Add 'API Key' method selection. Line 105: Fix modulo by 1 bug for single item navigation.",
+      "dependencies": [
+        "FR-008",
+        "TD-2"
+      ]
+    },
+    {
+      "id": "FR-008",
+      "priority": "P0",
+      "title": "Implement API Key Input Dialog",
+      "description": "Create ApiKeyInputDialog struct implementing Dialog trait. Mask input (show dots, not plain text). Add validation before saving. Wire into dialog flow: Provider Selection -> Auth Method (API Key) -> API Key Input -> Validate -> Save.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify dialog renders correctly with masked input",
+        "AddUnitTest: verify input is masked (dots, not plain text)",
+        "AddErrorHandlingTest: verify validation fails on invalid key format",
+        "AddIntegrationTest: verify full flow from Provider Selection to Save works end-to-end"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui --lib api_key_input",
+        "cargo clippy -p opencode-tui -- -D warnings",
+        "cargo build -p opencode-tui"
+      ],
+      "impl_notes": "Create NEW file: opencode-rust/crates/tui/src/dialogs/api_key_input.rs. Mask input using password mode in ratatui.",
+      "dependencies": [
+        "FR-007"
+      ]
+    },
+    {
+      "id": "FR-001",
+      "priority": "P0",
+      "title": "Dynamic Provider Registry",
+      "description": "Remove hardcoded ['openai', 'anthropic', 'ollama'] at line 94 in providers.rs. Read providers dynamically from ModelRegistry. Match provider list with ConnectProviderDialog (18 providers).",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify providers CLI lists all 18 providers",
+        "AddRegressionTest: verify list matches TUI dialog options exactly",
+        "AddUnitTest: verify no duplicate providers in output",
+        "AddIntegrationTest: verify ModelRegistry is source of truth for provider list"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli --lib providers",
+        "cargo clippy -p opencode-cli -- -D warnings",
+        "cargo build -p opencode-cli"
+      ],
+      "impl_notes": "Line 94 in crates/cli/src/cmd/providers.rs. Remove hardcoded list, use ModelRegistry::list_providers().",
+      "dependencies": []
+    },
+    {
+      "id": "TD-2",
+      "priority": "P0",
+      "title": "Fix modulo by 1 bug",
+      "description": "Fix line 105 in connect_method.rs: Change '(self.selected_index + 1) % self.methods.len().max(1)'. When methods.len() is 0, don't use modulo at all - just stay at index 0.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify single item + Down stays at index 0",
+        "AddErrorHandlingTest: verify empty list + navigation doesn't cause index issues",
+        "AddUnitTest: verify modulo is not used when methods list is empty"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui --lib connect_method",
+        "cargo clippy -p opencode-tui -- -D warnings",
+        "cargo build -p opencode-tui"
+      ],
+      "impl_notes": "Line 105: Fix navigation logic. When methods.len() == 0, selected_index should remain 0.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-002",
+      "priority": "P1",
+      "title": "Expanded Model Catalog",
+      "description": "Add github-copilot/* models, opencode/gpt-5-nano, opencode/minimax-m2.5-free, opencode/nemotron-3-super-free, google/antigravity-* models, kimi/* models, z.ai/* models. Target 50+ models total.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify model catalog contains 50+ models",
+        "AddUnitTest: verify all original provider models are still available",
+        "AddUnitTest: verify model context lengths are displayed correctly",
+        "AddRegressionTest: verify existing model functionality not broken"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm --lib models",
+        "cargo clippy -p opencode-llm -- -D warnings",
+        "cargo build -p opencode-llm"
+      ],
+      "impl_notes": "File: crates/llm/src/models.rs. Add models in provider sections: github-copilot, opencode, google, kimi, z.ai.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-003",
+      "priority": "P1",
+      "title": "Shell Completion Command",
+      "description": "Create completion command module supporting bash, zsh, fish, PowerShell. Output completion script to stdout. Add command to CLI registry.",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify 'opencode completion bash' generates valid bash completions",
+        "AddIntegrationTest: verify 'opencode completion zsh' generates valid zsh completions",
+        "AddIntegrationTest: verify completions work for all CLI commands",
+        "AddUnitTest: verify all 4 shell types generate output"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli --lib completion",
+        "cargo clippy -p opencode-cli -- -D warnings",
+        "cargo build -p opencode-cli"
+      ],
+      "impl_notes": "Create NEW file: crates/cli/src/cmd/completion.rs. Command structure: opencode completion [SHELL].",
+      "dependencies": []
+    },
+    {
+      "id": "FR-004",
+      "priority": "P1",
+      "title": "Plugin CLI Commands",
+      "description": "Create plugin command module with subcommands: plugin install <name>, plugin list, plugin remove <name>, plugin search [query]. Persist plugins in opencode.json config. Add to CLI registry.",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify plugin install <name> installs and persists plugin",
+        "AddIntegrationTest: verify plugin list shows installed plugins",
+        "AddIntegrationTest: verify plugin remove <name> removes plugin",
+        "AddIntegrationTest: verify plugin search [query] finds matching plugins",
+        "AddRegressionTest: verify plugins persist across CLI restarts"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli --lib plugin",
+        "cargo clippy -p opencode-cli -- -D warnings",
+        "cargo build -p opencode-cli"
+      ],
+      "impl_notes": "Create NEW file: crates/cli/src/cmd/plugin.rs. Persist in opencode.json config file.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-005",
+      "priority": "P1",
+      "title": "PR Command Implementation",
+      "description": "Remove stub implementation at lines 39-40. Implement PR fetch functionality: pr <number> fetch PR details, pr checkout <number> checkout PR branch, pr list list recent PRs. Use GitHub API.",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify pr <number> fetches and displays PR details from GitHub API",
+        "AddIntegrationTest: verify pr checkout <number> checks out PR branch locally",
+        "AddIntegrationTest: verify pr list shows recent PRs",
+        "AddErrorHandlingTest: verify error handling for invalid PR numbers"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli --lib pr",
+        "cargo clippy -p opencode-cli -- -D warnings",
+        "cargo build -p opencode-cli"
+      ],
+      "impl_notes": "File: crates/cli/src/cmd/pr.rs. Remove stub at lines 39-40. Use github.com API for PR data.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-009",
+      "priority": "P1",
+      "title": "ConnectMethodDialog Tests",
+      "description": "Add tests per PRD Section 9.2: test_connect_method_dialog_shows_message_when_empty, test_connect_method_dialog_enter_on_empty_closes, test_connect_method_dialog_empty_list_up_does_not_panic, test_connect_method_dialog_single_item_down_stays_at_zero.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify empty methods + Enter closes dialog",
+        "AddUnitTest: verify empty methods + navigation doesn't panic",
+        "AddUnitTest: verify single item + Down at end stays at 0",
+        "AddRegressionTest: verify empty state renders visible message with border"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui --lib connect_method::tests",
+        "cargo clippy -p opencode-tui -- -D warnings",
+        "cargo build -p opencode-tui"
+      ],
+      "impl_notes": "File: crates/tui/src/dialogs/connect_method.rs. Follow TDD approach - write tests first.",
+      "dependencies": [
+        "TD-2"
+      ]
+    },
+    {
+      "id": "FR-006",
+      "priority": "P2",
+      "title": "GitHub Integration Completion",
+      "description": "Remove TODO messages at lines 80-86. Implement GitHubAction::Login (OAuth flow), GitHubAction::RepoList (list user repositories), GitHubAction::IssueList { repo } (list issues for repo).",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify GitHub OAuth login flow completes successfully",
+        "AddIntegrationTest: verify repository listing shows user's repositories",
+        "AddIntegrationTest: verify issue listing shows repo issues",
+        "AddRegressionTest: verify GitHub command no longer has TODO messages"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli --lib github",
+        "cargo clippy -p opencode-cli -- -D warnings",
+        "cargo build -p opencode-cli"
+      ],
+      "impl_notes": "File: crates/cli/src/cmd/github.rs. Remove TODOs at lines 80-86.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-010",
+      "priority": "P2",
+      "title": "ConnectModelDialog Tests",
+      "description": "Add rendering and interaction tests: test_connect_model_dialog_empty_list_enter_closes, test_connect_model_dialog_empty_list_up_does_not_panic, test_connect_model_dialog_single_item_down_stays_at_zero, test_connect_model_dialog_renders_empty_state, test_connect_model_dialog_renders_models.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify empty list + Enter closes dialog",
+        "AddUnitTest: verify empty list + navigation doesn't panic",
+        "AddUnitTest: verify single item + Down stays at 0",
+        "AddRegressionTest: verify empty state renders with border",
+        "AddRegressionTest: verify model list renders correctly with scrollable content"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui --lib connect_model::tests",
+        "cargo clippy -p opencode-tui -- -D warnings",
+        "cargo build -p opencode-tui"
+      ],
+      "impl_notes": "File: crates/tui/src/dialogs/connect_model.rs. Use ratatui TestBackend for rendering tests.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-011",
+      "priority": "P2",
+      "title": "OAuth Flows for Google/Copilot",
+      "description": "Implement Google OAuth flow and GitHub Copilot OAuth flow. Update ConnectMethodDialog for OAuth-only providers. Providers needing OAuth: Google, GitHub Copilot.",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify Google OAuth login flow completes successfully",
+        "AddIntegrationTest: verify GitHub Copilot OAuth login flow completes successfully",
+        "AddUnitTest: verify OAuth-only providers are correctly identified in ConnectMethodDialog",
+        "AddRegressionTest: verify non-OAuth providers still work with API key method"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm --lib auth_layered",
+        "cargo clippy -p opencode-llm -- -D warnings",
+        "cargo build -p opencode-llm"
+      ],
+      "impl_notes": "Files in crates/llm/src/auth_layered/. Update ConnectMethodDialog to handle OAuth-only providers.",
+      "dependencies": [
+        "FR-007",
+        "FR-008"
+      ]
+    }
+  ]
+}
