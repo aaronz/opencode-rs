@@ -129,7 +129,7 @@
       "priority": "P1",
       "title": "Plugin CLI Commands",
       "description": "Create plugin command module with subcommands: plugin install <name>, plugin list, plugin remove <name>, plugin search [query]. Persist plugins in opencode.json config. Add to CLI registry.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify plugin install <name> installs and persists plugin",
         "AddIntegrationTest: verify plugin list shows installed plugins",
@@ -150,7 +150,7 @@
       "priority": "P1",
       "title": "PR Command Implementation",
       "description": "Remove stub implementation at lines 39-40. Implement PR fetch functionality: pr <number> fetch PR details, pr checkout <number> checkout PR branch, pr list list recent PRs. Use GitHub API.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify pr <number> fetches and displays PR details from GitHub API",
         "AddIntegrationTest: verify pr checkout <number> checks out PR branch locally",

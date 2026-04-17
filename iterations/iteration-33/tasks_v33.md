@@ -158,7 +158,7 @@ opencode-rs completion [SHELL]
 ---
 
 ### Task P1-4: FR-005 - PR Command Implementation
-**Status:** TODO
+**Status:** ✅ Done
 **Priority:** P1
 **Files:**
 - `opencode-rust/crates/cli/src/cmd/pr.rs`
@@ -172,9 +172,9 @@ opencode-rs completion [SHELL]
 3. Use GitHub API for PR data
 
 **Acceptance Criteria:**
-- [ ] Fetch PR details from GitHub API
-- [ ] Checkout PR branch locally
-- [ ] Display PR diff summary
+- [x] Fetch PR details from GitHub API
+- [x] Checkout PR branch locally
+- [x] Display PR diff summary
 
 ---
 

@@ -54,7 +54,7 @@ opencode-rs is a Rust reimplementation of the original opencode (TypeScript/Bun 
 
 | Command | Status | Issue | Priority | Implementation |
 |---------|--------|-------|----------|----------------|
-| `pr` | ❌ Stub | Prints debug only | P1 | **FR-005**: PR fetch/checkout |
+| `pr` | ✅ Implemented | PR fetch/checkout/list | P1 | **FR-005**: Complete |
 | `github` | ⚠️ Renamed | `git-hub` exists, incomplete | P2 | **FR-006**: GitHub integration |
 
 ### 2.5 Rust-Exclusive Commands
@@ -173,8 +173,8 @@ opencode-rs completion [SHELL]
 ### FR-005: PR Command Implementation
 
 **Priority:** P1 (High)
-**Module:** `crates/cli/src/cmd/pr.rs:39-40`
-**Issue:** Stub implementation prints debug only
+**Module:** `crates/cli/src/cmd/pr.rs`
+**Status:** ✅ Implemented
 
 **Specification:**
 - Implement PR fetch and checkout functionality:
@@ -183,9 +183,9 @@ opencode-rs completion [SHELL]
   - `opencode-rs pr list` - List recent PRs
 
 **Acceptance Criteria:**
-- [ ] Fetch PR details from GitHub API
-- [ ] Checkout PR branch locally
-- [ ] Display PR diff summary
+- [x] Fetch PR details from GitHub API
+- [x] Checkout PR branch locally
+- [x] Display PR diff summary
 
 ---
 
@@ -436,7 +436,7 @@ z.ai/* (z.ai models)
 - [ ] **FR-002**: Model catalog expanded to 50+ models
 - [ ] **FR-003**: Shell completion command functional
 - [ ] **FR-004**: Plugin CLI commands implemented
-- [ ] **FR-005**: PR command fetches and checks out PRs
+- [x] **FR-005**: PR command fetches and checks out PRs
 - [ ] **FR-009**: ConnectMethodDialog has unit tests
 
 ### P2 Criteria (Medium Term)
