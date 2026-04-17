@@ -112,7 +112,7 @@
       "priority": "P0",
       "title": "Ensure library crates use thiserror",
       "description": "Ensure all library crates use thiserror for typed errors instead of String or Box<dyn Error>",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify library crates have proper typed errors",
         "RunTestSuite: cargo clippy passes on all library crates"
@@ -131,7 +131,7 @@
       "priority": "P0",
       "title": "Verify application crates may use anyhow",
       "description": "Verify application crates (cli, server) may use anyhow for flexible error context",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: verify application crates compile with anyhow usage"
       ],
@@ -139,7 +139,7 @@
         "cargo clippy -p opencode-cli -- -D warnings",
         "cargo clippy -p opencode-server -- -D warnings"
       ],
-      "impl_notes": "Application crates can use anyhow for context-rich errors at boundaries",
+      "impl_notes": "Application crates can use anyhow for context-rich errors at boundaries. Both clippy commands pass with -D warnings.",
       "dependencies": [
         "P0-007"
       ]
