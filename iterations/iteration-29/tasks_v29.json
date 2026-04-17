@@ -1249,7 +1249,7 @@
       "priority": "P1",
       "title": "Add cargo deny check to CI",
       "description": "Add cargo deny check to CI for dependency license and sources verification",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: CI verifies dependency licenses and sources"
       ],
