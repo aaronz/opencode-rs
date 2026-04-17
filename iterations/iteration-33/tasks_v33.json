@@ -70,7 +70,7 @@
       "priority": "P0",
       "title": "Fix modulo by 1 bug",
       "description": "Fix line 105 in connect_method.rs: Change '(self.selected_index + 1) % self.methods.len().max(1)'. When methods.len() is 0, don't use modulo at all - just stay at index 0.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify single item + Down stays at index 0",
         "AddErrorHandlingTest: verify empty list + navigation doesn't cause index issues",

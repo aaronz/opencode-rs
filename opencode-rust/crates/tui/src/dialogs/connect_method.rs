@@ -122,7 +122,7 @@ impl Dialog for ConnectMethodDialog {
             }
             KeyCode::Down => {
                 if !self.methods.is_empty() {
-                    self.selected_index = (self.selected_index + 1) % self.methods.len();
+                    self.selected_index = (self.selected_index + 1) % self.methods.len().max(1);
                 }
                 DialogAction::None
             }
