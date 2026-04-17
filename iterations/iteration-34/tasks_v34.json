@@ -48,7 +48,7 @@
       "priority": "P0",
       "title": "Add error handling with retry option",
       "description": "Display user-friendly error message on validation failure, allow user to re-enter API key, and do NOT save invalid keys",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify invalid API key shows error message to user",
         "AddUnitTest: verify user can retry after validation failure",

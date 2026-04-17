@@ -16,6 +16,7 @@ pub mod provider_management;
 pub mod release_notes;
 pub mod settings;
 pub mod slash_command;
+pub mod validation_error_dialog;
 
 pub use api_key_input::ApiKeyInputDialog;
 pub use connect_method::ConnectMethodDialog;
@@ -33,6 +34,7 @@ pub use provider_management::{ProviderInfo, ProviderManagementDialog, ProviderSt
 pub use release_notes::ReleaseNotesDialog;
 pub use settings::SettingsDialog;
 pub use slash_command::SlashCommandOverlay;
+pub use validation_error_dialog::ValidationErrorDialog;
 
 use ratatui::Frame;
 

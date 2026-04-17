@@ -69,7 +69,7 @@ Add `similar-asserts = "1.5"` to `[dev-dependencies]` in Cargo.toml.
 ---
 
 ### TASK-P2-002: Document DialogTester in PRD
-**Status:** PENDING
+**Status:** ✅ Done
 **Priority:** P2
 **Issue ID:** GAP-003
 **Estimated Time:** 30 minutes
@@ -84,9 +84,9 @@ Update `spec_v31.md` to include DialogRenderTester module documentation (FR-DIAL
 - `spec_v31.md` (or create gap-analysis update)
 
 **Acceptance Criteria:**
-- [ ] PRD includes DialogRenderTester API documentation
-- [ ] FR-DIALOG-001 section added with Public API
-- [ ] Acceptance criteria for DialogTester documented
+- [x] PRD includes DialogRenderTester API documentation
+- [x] FR-DIALOG-001 section added with Public API
+- [x] Acceptance criteria for DialogTester documented
 
 ---
 
@@ -143,7 +143,7 @@ Add FR-SNAP-001 section to PRD documenting the snapshot module API.
 |---------|----------|-------------|---------------|--------|
 | TASK-P1-001 | P1 | Fix PtySimulator read_output buffer drain | 15 min | ✅ Done |
 | TASK-P2-001 | P2 | Add similar-asserts dev-dependency | 1 min | PENDING |
-| TASK-P2-002 | P2 | Document DialogTester in PRD | 30 min | PENDING |
+| TASK-P2-002 | P2 | Document DialogTester in PRD | 30 min | ✅ Done |
 | TASK-P2-003 | P2 | Remove dead code warnings | 5 min | PENDING |
 | TASK-P2-004 | P2 | Document snapshot.rs in PRD | 10 min | PENDING |
 
@@ -155,7 +155,7 @@ Add FR-SNAP-001 section to PRD documenting the snapshot module API.
 
 - [x] TASK-P1-001 completed and verified
 - [ ] TASK-P2-001 completed and verified
-- [ ] TASK-P2-002 completed and verified
+- [x] TASK-P2-002 completed and verified
 - [ ] TASK-P2-003 completed and verified
 - [ ] TASK-P2-004 completed and verified
 - [ ] Full test suite passes: `cargo test -p ratatui-testing`

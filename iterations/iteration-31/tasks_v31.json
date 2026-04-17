@@ -41,7 +41,7 @@
       "priority": "P2",
       "title": "Document DialogTester in PRD",
       "description": "DialogTester module exists in `dialog_tester.rs` but is not documented in the PRD specification. Need to update `spec_v31.md` to include DialogRenderTester module documentation (FR-DIALOG-001).",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify spec_v31.md contains FR-DIALOG-001 section",
         "AddRegressionTest: verify PRD includes DialogRenderTester Public API documentation"
