@@ -45,6 +45,9 @@ jobs:
       - name: Run library tests
         run: cd opencode-rust && cargo test --lib
 
+      - name: Run integration tests
+        run: cd opencode-rust && cargo test --test '*'
+
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
 

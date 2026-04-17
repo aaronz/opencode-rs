@@ -1179,7 +1179,7 @@
       "priority": "P1",
       "title": "Add cargo test --test '*' to CI",
       "description": "Add cargo test --test '*' to CI pipeline for integration tests",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: CI runs all integration tests"
       ],
