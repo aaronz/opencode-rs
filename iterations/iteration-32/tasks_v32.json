@@ -25,7 +25,7 @@
       "priority": "P2",
       "title": "Update PRD File Structure Documentation",
       "description": "PRD shows 6 test files but 8 exist (dialog_tests, dsl_integration_tests, snapshot_tests are enhancements). Need to update spec_v32.md to reflect actual 8-file structure.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify spec_v32.md contains all 8 test files documented",
         "AddUnitTest: verify extra test files are noted as enhancements beyond PRD"

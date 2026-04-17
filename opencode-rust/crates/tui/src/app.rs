@@ -46,6 +46,7 @@ use ratatui::{
 use std::io;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
+use serde::Deserialize;
 
 pub enum LlmEvent {
     Chunk(String),
@@ -57,7 +58,11 @@ pub enum ConnectEvent {
     BrowserOpened(String),
     AuthComplete(OpenAiBrowserSession, Vec<BrowserAuthModelInfo>),
     Failed(String),
-    ValidationComplete { success: bool, error_message: Option<String> },
+    ValidationComplete {
+        success: bool,
+        error_message: Option<String>,
+        models: Option<Vec<BrowserAuthModelInfo>>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -505,6 +510,8 @@ pub struct App {
     pub pending_browser_models: Vec<BrowserAuthModelInfo>,
     pub validation_in_progress: bool,
     pub pending_api_key_for_validation: Option<String>,
+    pub pending_api_key_models: Vec<BrowserAuthModelInfo>,
+    pub pending_api_key_for_provider: Option<String>,
     pub token_counter: TokenCounter,
     pub cost_calculator: CostCalculator,
     pub session_token_id: String,
@@ -696,6 +703,222 @@ pub async fn validate_api_key(
     }
 }
 
+#[derive(Debug, Deserialize)]
+struct OpenAIModelsResponse {
+    data: Vec<OpenAIModelData>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenAIModelData {
+    id: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct AnthropicModelsResponse {
+    models: Vec<AnthropicModelData>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AnthropicModelData {
+    id: String,
+}
+
+pub async fn validate_api_key_and_fetch_models(
+    provider_id: &str,
+    api_key: &str,
+) -> Result<Vec<BrowserAuthModelInfo>, ApiKeyValidationError> {
+    if api_key.is_empty() {
+        return Err(ApiKeyValidationError {
+            message: "API key cannot be empty".to_string(),
+            error_type: ApiKeyValidationErrorType::EmptyKey,
+            status_code: None,
+        });
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| ApiKeyValidationError {
+            message: format!("Failed to create HTTP client: {}", e),
+            error_type: ApiKeyValidationErrorType::NetworkError,
+            status_code: None,
+        })?;
+
+    let (url, auth_header, is_anthropic, is_lm_studio) = match provider_id {
+        "anthropic" => (
+            "https://api.anthropic.com/v1/models".to_string(),
+            format!("Bearer {}", api_key),
+            true,
+            false,
+        ),
+        "openai" => (
+            "https://api.openai.com/v1/models".to_string(),
+            format!("Bearer {}", api_key),
+            false,
+            false,
+        ),
+        "lmstudio" | "lm_studio" | "lm-studio" => {
+            let base_url = std::env::var("LMSTUDIO_BASE_URL")
+                .ok()
+                .or_else(|| std::env::var("OPENCODE_BASE_URL").ok())
+                .unwrap_or_else(|| "http://localhost:1234".to_string());
+            (
+                format!("{}/api/tags", base_url.trim_end_matches('/')),
+                format!("Bearer {}", api_key),
+                false,
+                true,
+            )
+        }
+        _ => {
+            let base_url = match std::env::var(
+                format!("{}_BASE_URL", provider_id.to_uppercase()).replace("-", "_"),
+            )
+            .ok()
+            .or_else(|| std::env::var("OPENCODE_BASE_URL").ok())
+            {
+                Some(url) => url,
+                None => "https://api.openai.com".to_string(),
+            };
+            (
+                format!("{}/v1/models", base_url.trim_end_matches('/')),
+                format!("Bearer {}", api_key),
+                false,
+                false,
+            )
+        }
+    };
+
+    let response = client
+        .get(&url)
+        .header("Authorization", &auth_header)
+        .send()
+        .await
+        .map_err(|e| {
+            let error_type = if e.is_timeout() {
+                ApiKeyValidationErrorType::Timeout
+            } else {
+                ApiKeyValidationErrorType::NetworkError
+            };
+            ApiKeyValidationError {
+                message: format!("Network error: {}", e),
+                error_type,
+                status_code: None,
+            }
+        })?;
+
+    let status = response.status();
+
+    if status.is_success() {
+        let body = response.text().await.map_err(|e| ApiKeyValidationError {
+            message: format!("Failed to read response body: {}", e),
+            error_type: ApiKeyValidationErrorType::InvalidResponse,
+            status_code: None,
+        })?;
+
+        let models = if is_lm_studio {
+            parse_lm_studio_models(&body)
+        } else if is_anthropic {
+            parse_anthropic_models(&body)
+        } else {
+            parse_openai_models(&body)
+        };
+
+        Ok(models)
+    } else if status.as_u16() == 401 || status.as_u16() == 403 {
+        let error_body = response.text().await.unwrap_or_default();
+        let error_message = if is_anthropic {
+            parse_anthropic_error(&error_body).unwrap_or_else(|| {
+                format!(
+                    "Authentication failed: invalid API key (HTTP {})",
+                    status.as_u16()
+                )
+            })
+        } else {
+            parse_openai_error(&error_body).unwrap_or_else(|| {
+                format!(
+                    "Authentication failed: invalid API key (HTTP {})",
+                    status.as_u16()
+                )
+            })
+        };
+        Err(ApiKeyValidationError {
+            message: error_message,
+            error_type: ApiKeyValidationErrorType::AuthenticationError,
+            status_code: Some(status.as_u16()),
+        })
+    } else if status.as_u16() >= 500 {
+        Err(ApiKeyValidationError {
+            message: format!(
+                "Server error (HTTP {}): please try again later",
+                status.as_u16()
+            ),
+            error_type: ApiKeyValidationErrorType::ServerError,
+            status_code: Some(status.as_u16()),
+        })
+    } else {
+        Err(ApiKeyValidationError {
+            message: format!("Request failed with HTTP {}", status.as_u16()),
+            error_type: ApiKeyValidationErrorType::Unknown,
+            status_code: Some(status.as_u16()),
+        })
+    }
+}
+
+fn parse_openai_models(body: &str) -> Vec<BrowserAuthModelInfo> {
+    serde_json::from_str::<OpenAIModelsResponse>(body)
+        .map(|response| {
+            response
+                .data
+                .into_iter()
+                .map(|m| BrowserAuthModelInfo {
+                    id: m.id.clone(),
+                    name: m.id,
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn parse_anthropic_models(body: &str) -> Vec<BrowserAuthModelInfo> {
+    serde_json::from_str::<AnthropicModelsResponse>(body)
+        .map(|response| {
+            response
+                .models
+                .into_iter()
+                .map(|m| BrowserAuthModelInfo {
+                    id: m.id.clone(),
+                    name: m.id,
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn parse_lm_studio_models(body: &str) -> Vec<BrowserAuthModelInfo> {
+    #[derive(Debug, Deserialize)]
+    struct LmStudioModelsResponse {
+        models: Vec<LmStudioModelData>,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct LmStudioModelData {
+        name: String,
+    }
+
+    serde_json::from_str::<LmStudioModelsResponse>(body)
+        .map(|response| {
+            response
+                .models
+                .into_iter()
+                .map(|m| BrowserAuthModelInfo {
+                    id: m.name.clone(),
+                    name: m.name,
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 fn parse_anthropic_error(body: &str) -> Option<String> {
     serde_json::from_str::<serde_json::Value>(body)
         .ok()
@@ -855,6 +1078,8 @@ impl App {
             pending_browser_models: Vec::new(),
             validation_in_progress: false,
             pending_api_key_for_validation: None,
+            pending_api_key_models: Vec::new(),
+            pending_api_key_for_provider: None,
             token_counter,
             cost_calculator: CostCalculator::new(),
             session_token_id,
@@ -926,6 +1151,9 @@ impl App {
         self.pending_connect_method = None;
         self.pending_browser_session = None;
         self.pending_browser_models.clear();
+        self.pending_api_key_for_validation = None;
+        self.pending_api_key_models.clear();
+        self.pending_api_key_for_provider = None;
         self.connect_method_dialog = None;
         self.api_key_input_dialog = None;
         self.connect_model_dialog = None;
@@ -979,22 +1207,25 @@ impl App {
                     let _ = tx.send(ConnectEvent::ValidationComplete {
                         success: false,
                         error_message: Some(format!("Failed to create runtime: {}", e)),
+                        models: None,
                     });
                     return;
                 }
             };
-            let result = runtime.block_on(crate::app::validate_api_key(&provider_id, &api_key));
+            let result = runtime.block_on(crate::app::validate_api_key_and_fetch_models(&provider_id, &api_key));
             match result {
-                Ok(()) => {
+                Ok(models) => {
                     let _ = tx.send(ConnectEvent::ValidationComplete {
                         success: true,
                         error_message: None,
+                        models: Some(models),
                     });
                 }
                 Err(e) => {
                     let _ = tx.send(ConnectEvent::ValidationComplete {
                         success: false,
                         error_message: Some(e.to_string()),
+                        models: None,
                     });
                 }
             }
@@ -1119,24 +1350,69 @@ impl App {
     }
 
     fn handle_connect_model_confirm(&mut self, model_id: String) -> Result<(), String> {
-        let session = self
-            .pending_browser_session
-            .clone()
-            .ok_or_else(|| "missing browser session".to_string())?;
-        let store = OpenAiBrowserAuthStore::from_default_location();
-        store.save(&session).map_err(|e| e.to_string())?;
+        if let Some(session) = self.pending_browser_session.clone() {
+            let store = OpenAiBrowserAuthStore::from_default_location();
+            store.save(&session).map_err(|e| e.to_string())?;
 
-        self.provider = "openai".to_string();
-        std::env::set_var("OPENAI_MODEL", &model_id);
-        std::env::set_var("OPENCODE_MODEL", &model_id);
-        self.llm_provider = Some(std::sync::Arc::new(OpenAiProvider::new_browser_auth(
-            session, model_id, store,
-        )));
+            self.provider = "openai".to_string();
+            std::env::set_var("OPENAI_MODEL", &model_id);
+            std::env::set_var("OPENCODE_MODEL", &model_id);
+            self.llm_provider = Some(std::sync::Arc::new(OpenAiProvider::new_browser_auth(
+                session, model_id.clone(), store,
+            )));
+        } else if let Some(api_key) = self.pending_api_key_for_provider.clone() {
+            let provider_id = self.pending_connect_provider.clone().unwrap_or_default();
+            self.provider = provider_id.clone();
+            std::env::set_var(format!("{}_MODEL", provider_id.to_uppercase().replace("-", "_")), &model_id);
+            std::env::set_var("OPENCODE_MODEL", &model_id);
+
+            let config = ProviderConfig {
+                model: model_id.clone(),
+                api_key: api_key.clone(),
+                temperature: 0.7,
+            };
+
+            self.llm_provider = match provider_id.as_str() {
+                "openai" => Some(std::sync::Arc::new(opencode_llm::OpenAiProvider::new(
+                    config.api_key.clone(),
+                    config.model.clone(),
+                ))),
+                "anthropic" => Some(std::sync::Arc::new(opencode_llm::AnthropicProvider::new(
+                    config.api_key.clone(),
+                    config.model.clone(),
+                ))),
+                "ollama" => Some(std::sync::Arc::new(opencode_llm::OllamaProvider::new(
+                    config.model.clone(),
+                    None,
+                ))),
+                "lmstudio" | "lm_studio" | "lm-studio" => Some(std::sync::Arc::new(opencode_llm::LmStudioProvider::new(
+                    config.model.clone(),
+                    std::env::var("LMSTUDIO_BASE_URL").ok().or_else(|| std::env::var("OPENCODE_BASE_URL").ok()),
+                ))),
+                _ => Some(std::sync::Arc::new(opencode_llm::OpenAiProvider::new(
+                    config.api_key.clone(),
+                    config.model.clone(),
+                ))),
+            };
+        } else {
+            return Err("No valid authentication session found".to_string());
+        }
+
+        self.pending_api_key_for_provider = None;
+        self.pending_api_key_models.clear();
+        self.pending_browser_session = None;
+        self.pending_browser_models.clear();
+        self.connect_model_dialog = None;
         self.mode = AppMode::Chat;
         Ok(())
     }
 
     fn handle_connect_model_cancel(&mut self) {
+        self.pending_api_key_for_provider = None;
+        self.pending_api_key_models.clear();
+        self.pending_browser_session = None;
+        self.pending_browser_models.clear();
+        self.connect_model_dialog = None;
         self.mode = AppMode::Chat;
     }
 
@@ -1163,6 +1439,26 @@ impl App {
                 name: "GPT-5.3 Codex".to_string(),
             }],
         );
+    }
+
+    pub fn complete_api_key_auth_for_test(
+        &mut self,
+        provider_id: &str,
+        api_key: &str,
+        models: Vec<BrowserAuthModelInfo>,
+    ) {
+        self.pending_connect_provider = Some(provider_id.to_string());
+        self.pending_api_key_for_provider = Some(api_key.to_string());
+        self.pending_api_key_models = models;
+        self.connect_model_dialog = Some(ConnectModelDialog::new(
+            self.theme_manager.current().clone(),
+            self.pending_api_key_models.clone(),
+        ));
+        self.mode = AppMode::ConnectModel;
+    }
+
+    pub fn confirm_model_for_api_key_auth_for_test(&mut self, model_id: &str) -> Result<(), String> {
+        self.handle_connect_model_confirm(model_id.to_string())
     }
 
     /// Initialize the LLM provider based on the provider name
@@ -1721,12 +2017,13 @@ impl App {
         self.check_connect_events();
     }
 
-    pub fn simulate_validation_complete_for_testing(&mut self, success: bool, error_message: Option<String>) {
+    pub fn simulate_validation_complete_for_testing(&mut self, success: bool, error_message: Option<String>, models: Option<Vec<BrowserAuthModelInfo>>) {
         let (tx, rx) = mpsc::channel();
         self.connect_rx = Some(rx);
         let _ = tx.send(ConnectEvent::ValidationComplete {
             success,
             error_message,
+            models,
         });
         self.check_connect_events();
     }
@@ -1753,7 +2050,7 @@ impl App {
                         self.add_message(format!("OpenAI connect failed: {}", error), false);
                         self.mode = AppMode::Chat;
                     }
-                    ConnectEvent::ValidationComplete { success, error_message } => {
+                    ConnectEvent::ValidationComplete { success, error_message, models } => {
                         self.validation_in_progress = false;
                         if success {
                             let provider_id = self.pending_connect_provider.clone().unwrap_or_default();
@@ -1768,7 +2065,15 @@ impl App {
                                 self.add_message(format!("Failed to save API key: {}", e), false);
                                 self.mode = AppMode::Chat;
                             } else {
-                                self.mode = AppMode::Chat;
+                                let api_key = self.pending_api_key_for_validation.clone().unwrap_or_default();
+                                self.pending_api_key_models = models.unwrap_or_default();
+                                self.pending_api_key_for_provider = Some(api_key);
+                                let theme = self.theme_manager.current().clone();
+                                self.connect_model_dialog = Some(ConnectModelDialog::new(
+                                    theme,
+                                    self.pending_api_key_models.clone(),
+                                ));
+                                self.mode = AppMode::ConnectModel;
                             }
                         } else {
                             let provider_id = self.pending_connect_provider.clone().unwrap_or_default();

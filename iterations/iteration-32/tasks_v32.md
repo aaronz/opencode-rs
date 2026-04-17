@@ -41,17 +41,17 @@
 ### P2-001: Update PRD File Structure Documentation
 **Module:** Documentation
 **Priority:** P2
-**Status:** Pending
+**Status:** ✅ Done
 
 **Issue:** PRD shows 6 test files but 8 exist (dialog_tests, dsl_integration_tests, snapshot_tests are enhancements).
 
 **Acceptance Criteria:**
-- [ ] spec_v32.md reflects actual 8-file structure
-- [ ] Extra test files documented as enhancements
+- [x] spec_v32.md reflects actual 8-file structure
+- [x] Extra test files documented as enhancements
 
 **Subtasks:**
-- [ ] Update File Structure section in spec to list all 8 test files
-- [ ] Add note explaining extra files are enhancements beyond PRD
+- [x] Update File Structure section in spec to list all 8 test files
+- [x] Add note explaining extra files are enhancements beyond PRD
 
 **Estimated Effort:** 1 hour
 
