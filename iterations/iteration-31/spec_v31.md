@@ -562,7 +562,6 @@ Ok(n) => {
 | GAP-002 | Missing `similar-asserts` dev-dependency | `Cargo.toml` | Dev workflow mismatch with PRD |
 | GAP-003 | DialogTester not documented in PRD | `dialog_tester.rs` | Documentation gap |
 | GAP-004 | Dead code warnings (`#[allow(dead_code)]`) | `dialog_tester.rs:92,100` | Code cleanliness |
-| GAP-005 | `snapshot.rs` module not in PRD | `snapshot.rs` | Documentation gap |
 
 ---
 

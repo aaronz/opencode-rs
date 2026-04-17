@@ -164,7 +164,6 @@ mod tests {
         ValidationErrorDialog::new(
             "Test Title".to_string(),
             "Test error message".to_string(),
-            "OpenAI".to_string(),
             Theme::default(),
         )
     }
@@ -174,7 +173,6 @@ mod tests {
         let dialog = create_dialog();
         assert_eq!(dialog.title, "Test Title");
         assert_eq!(dialog.message, "Test error message");
-        assert_eq!(dialog.provider_name, "OpenAI");
         assert!(dialog.selected_try_again);
     }
 

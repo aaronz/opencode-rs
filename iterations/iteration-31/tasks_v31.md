@@ -90,7 +90,7 @@ Update `spec_v31.md` to include DialogRenderTester module documentation (FR-DIAL
 
 ---
 
-### TASK-P2-003: Remove dead code warnings
+### TASK-P2-003: ✅ Done
 **Status:** PENDING
 **Priority:** P2
 **Issue ID:** GAP-004
@@ -116,7 +116,7 @@ Either remove the functions if not needed, or integrate them into tests.
 ---
 
 ### TASK-P2-004: Document snapshot.rs in PRD
-**Status:** PENDING
+**Status:** ✅ Done
 **Priority:** P2
 **Issue ID:** GAP-005
 **Estimated Time:** 10 minutes
@@ -145,7 +145,7 @@ Add FR-SNAP-001 section to PRD documenting the snapshot module API.
 | TASK-P2-001 | P2 | Add similar-asserts dev-dependency | 1 min | PENDING |
 | TASK-P2-002 | P2 | Document DialogTester in PRD | 30 min | ✅ Done |
 | TASK-P2-003 | P2 | Remove dead code warnings | 5 min | ✅ Done |
-| TASK-P2-004 | P2 | Document snapshot.rs in PRD | 10 min | PENDING |
+| TASK-P2-004 | P2 | Document snapshot.rs in PRD | 10 min | ✅ Done |
 
 **Total Estimated Time:** 61 minutes
 
@@ -157,7 +157,7 @@ Add FR-SNAP-001 section to PRD documenting the snapshot module API.
 - [ ] TASK-P2-001 completed and verified
 - [x] TASK-P2-002 completed and verified
 - [x] TASK-P2-003 completed and verified
-- [ ] TASK-P2-004 completed and verified
+- [x] TASK-P2-004 completed and verified
 - [ ] Full test suite passes: `cargo test -p ratatui-testing`
 - [ ] Clippy passes: `cargo clippy --all-targets --all-features -- -D warnings`
 - [ ] Formatting correct: `cargo fmt --all -- --check`

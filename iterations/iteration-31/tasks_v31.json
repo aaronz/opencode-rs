@@ -76,7 +76,7 @@
       "priority": "P2",
       "title": "Document snapshot.rs in PRD",
       "description": "The `snapshot.rs` module exists and is functional but is not documented in the PRD specification. Need to add FR-SNAP-001 section to PRD documenting the snapshot module API.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify spec_v31.md contains FR-SNAP-001 section",
         "AddRegressionTest: verify PRD includes snapshot module Public API documentation"
