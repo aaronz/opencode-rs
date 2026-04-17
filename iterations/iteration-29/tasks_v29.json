@@ -555,7 +555,7 @@
       "priority": "P1",
       "title": "Audit server crate pub declarations",
       "description": "Audit server crate pub declarations and ensure only necessary items are public",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify server crate compiles with audited pub visibility"
       ],
@@ -563,7 +563,7 @@
         "cargo clippy -p opencode-server -- -D warnings",
         "cargo test -p opencode-server --lib"
       ],
-      "impl_notes": "Check each pub item is truly needed as public API",
+      "impl_notes": "Changed builders in routes/builders.rs from pub to pub(crate) since they are only used internally for testing. Added #[allow(dead_code)] where needed for test-only code.",
       "dependencies": []
     },
     {
@@ -587,7 +587,7 @@
       "priority": "P1",
       "title": "Audit permission crate pub declarations",
       "description": "Audit permission crate pub declarations and ensure only necessary items are public",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: verify permission crate compiles with audited pub visibility"
       ],

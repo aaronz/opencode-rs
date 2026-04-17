@@ -1,8 +1,8 @@
-pub mod audit_log;
-pub mod evaluator;
-pub mod models;
-pub mod queue;
-pub mod sensitive_file;
+pub(crate) mod audit_log;
+pub(crate) mod evaluator;
+pub(crate) mod models;
+pub(crate) mod queue;
+pub(crate) mod sensitive_file;
 
 pub use audit_log::{AuditDecision, AuditEntry, AuditLog, DecisionScope, PermissionDecision};
 pub use evaluator::{FilePermissionResult, PermissionEvaluator};

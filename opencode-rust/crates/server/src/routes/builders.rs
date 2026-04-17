@@ -5,6 +5,7 @@ use crate::routes::status::{PluginStatus, ProviderStatus, StatusResponse};
 use opencode_llm::AuthStrategy;
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub(crate) struct StatusResponseBuilder {
     version: Option<String>,
     rustc_version: Option<String>,
@@ -17,6 +18,7 @@ pub(crate) struct StatusResponseBuilder {
     plugins: Vec<PluginStatus>,
 }
 
+#[allow(dead_code)]
 impl StatusResponseBuilder {
     pub(crate) fn new() -> Self {
         Self {
@@ -111,12 +113,14 @@ impl Default for StatusResponseBuilder {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub(crate) struct ProviderStatusBuilder {
     name: Option<String>,
     status: Option<String>,
     model: Option<String>,
 }
 
+#[allow(dead_code)]
 impl ProviderStatusBuilder {
     pub(crate) fn new() -> Self {
         Self {
@@ -157,12 +161,14 @@ impl Default for ProviderStatusBuilder {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub(crate) struct PluginStatusBuilder {
     name: Option<String>,
     version: Option<String>,
     status: Option<String>,
 }
 
+#[allow(dead_code)]
 impl PluginStatusBuilder {
     pub(crate) fn new() -> Self {
         Self {
@@ -203,12 +209,14 @@ impl Default for PluginStatusBuilder {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub(crate) struct ProviderResponseBuilder {
     provider_id: Option<String>,
     endpoint: Option<String>,
     auth_strategy: Option<AuthStrategy>,
 }
 
+#[allow(dead_code)]
 impl ProviderResponseBuilder {
     pub(crate) fn new() -> Self {
         Self {

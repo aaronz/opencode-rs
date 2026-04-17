@@ -14,7 +14,7 @@
 //! ## Usage
 //!
 //! ```rust
-//! use opencode_permission::sensitive_file::is_sensitive_path;
+//! use opencode_permission::is_sensitive_path;
 //!
 //! // Check if a path is sensitive
 //! if is_sensitive_path("/path/to/.env") {

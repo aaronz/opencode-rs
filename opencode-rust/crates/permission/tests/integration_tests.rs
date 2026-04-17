@@ -1,9 +1,8 @@
-use opencode_permission::models::{AgentPermissionScope, Role};
-use opencode_permission::Permission;
 use opencode_permission::{
     check_tool_permission, check_tool_permission_default, ApprovalQueue, ApprovalResult,
     PermissionEvaluator, PermissionScope, UserPermissions,
 };
+use opencode_permission::{AgentPermissionScope, Permission, Role};
 
 #[test]
 fn test_check_tool_permission_default_is_readonly() {
