@@ -957,7 +957,7 @@
       "priority": "P2",
       "title": "Verify all unsafe blocks have proper documentation",
       "description": "Verify all unsafe blocks have proper SAFETY documentation",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "RunTestSuite: grep confirms all unsafe blocks have SAFETY comments"
       ],
