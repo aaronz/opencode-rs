@@ -112,7 +112,7 @@
       "priority": "P0",
       "title": "Ensure library crates use thiserror",
       "description": "Ensure all library crates use thiserror for typed errors instead of String or Box<dyn Error>",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify library crates have proper typed errors",
         "RunTestSuite: cargo clippy passes on all library crates"

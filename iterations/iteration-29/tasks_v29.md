@@ -22,7 +22,7 @@
 
 | Task ID | Description | Files | Status |
 |---------|-------------|-------|--------|
-| P0-006 | Convert `crates/server/src/routes/` String errors to thiserror | Route handlers | Not Started |
+| P0-006 | Convert `crates/server/src/routes/` String errors to thiserror | Route handlers | ✅ Done |
 | P0-007 | Ensure all library crates use thiserror for typed errors | All lib crates | Not Started |
 | P0-008 | Verify application crates may use anyhow for flexible context | app crates | Not Started |
 | P0-009 | Run clippy to verify no error handling warnings | All crates | Not Started |
