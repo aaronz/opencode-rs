@@ -32,7 +32,10 @@ jobs:
         with:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-          
+
+      - name: Check formatting
+        run: cd opencode-rust && cargo fmt --all -- --check
+
       - name: Build
         run: cd opencode-rust && cargo build --release --all
 

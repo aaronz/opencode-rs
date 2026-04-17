@@ -136,7 +136,7 @@
 
 | Task ID | Description | Status |
 |---------|-------------|--------|
-| CI-001 | Add `cargo fmt --check` to CI | Needed |
+| CI-001 | Add `cargo fmt --check` to CI | ✅ Done |
 | CI-002 | Fix clippy warnings in CI | Needed |
 | CI-003 | Add `cargo test --lib` to CI | Needed |
 | CI-004 | Add `cargo test --test '*'` to CI | Needed |

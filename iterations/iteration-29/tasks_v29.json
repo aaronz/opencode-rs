@@ -1131,7 +1131,7 @@
       "priority": "P1",
       "title": "Add cargo fmt --check to CI",
       "description": "Add cargo fmt --check to CI pipeline for code formatting enforcement",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: CI fails if code is not properly formatted"
       ],
@@ -1139,7 +1139,7 @@
         "cargo fmt --all -- --check",
         "cargo clippy --all -- -D warnings"
       ],
-      "impl_notes": "Add fmt check as early CI step",
+      "impl_notes": "Added fmt check at .github/workflows/ci.yml:36-37 as early CI step before build",
       "dependencies": []
     },
     {
@@ -1147,7 +1147,7 @@
       "priority": "P1",
       "title": "Fix clippy warnings in CI",
       "description": "Fix all clippy warnings so CI passes with -D warnings",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "RunTestSuite: cargo clippy --all -- -D warnings passes"
       ],
