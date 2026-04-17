@@ -126,7 +126,7 @@
 |---------|-------------|-------|--------|
 | P2-010 | Create TOML to JSONC migration tooling | config/* | ✅ Done |
 | P2-011 | Implement auto-convert TOML to JSONC on load | config/* | Not Started |
-| P2-012 | Add deprecation warning for TOML format | config/* | Not Started |
+| P2-012 | Add deprecation warning for TOML format | config/* | ✅ Done |
 | P2-013 | Document TOML to JSONC migration steps | documentation | Not Started |
 | P2-014 | Consider removing TOML support after transition | config/* | Not Started |
 

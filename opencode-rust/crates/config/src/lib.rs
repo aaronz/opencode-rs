@@ -1047,12 +1047,10 @@ impl Config {
         } else {
             let content = std::fs::read_to_string(path)?;
             let content = Self::substitute_variables(&content, path.parent())?;
-            if path.extension().and_then(|s| s.to_str()) == Some("json")
-                || path.extension().and_then(|s| s.to_str()) == Some("jsonc")
-                || path.extension().and_then(|s| s.to_str()) == Some("json5")
-            {
+            let ext = path.extension().and_then(|s| s.to_str());
+            if ext == Some("json") || ext == Some("jsonc") || ext == Some("json5") {
                 Config::parse_json_content(&content)?
-            } else {
+            } else if ext == Some("toml") {
                 let config: Config = toml::from_str(&content).map_err(|e| ConfigError::Config(format!(
                     "Failed to parse TOML config {}: {}. Check your config file for syntax errors (e.g., missing quotes, invalid arrays).",
                     path.display(),
@@ -1060,9 +1058,22 @@ impl Config {
                 )))?;
                 tracing::warn!(
                     "TOML configuration format is deprecated and will be removed in a future release. \
-                    Run `opencode-rs config migrate` to migrate {} to JSONC format.",
+                    Auto-converting {} to JSONC format.",
                     path.display()
                 );
+                Self::auto_convert_toml_to_jsonc(path, &config)?;
+                config
+            } else {
+                let config: Config = toml::from_str(&content).map_err(|e| ConfigError::Config(format!(
+                    "Failed to parse config {}: {}. Expected .json, .jsonc, .json5, or .toml extension.",
+                    path.display(),
+                    e
+                )))?;
+                tracing::warn!(
+                    "Unknown config format for {}. Auto-converting to JSONC.",
+                    path.display()
+                );
+                Self::auto_convert_toml_to_jsonc(path, &config)?;
                 config
             }
         };
@@ -1071,6 +1082,43 @@ impl Config {
 
         config.apply_env_overrides();
         Ok(config)
+    }
+
+    fn auto_convert_toml_to_jsonc(path: &Path, config: &Config) -> Result<(), ConfigError> {
+        let jsonc_path = path.with_extension("jsonc");
+        if jsonc_path.exists() {
+            return Ok(());
+        }
+
+        let json_content = serde_json::to_string_pretty(config).map_err(|e| {
+            ConfigError::Config(format!("Failed to serialize config to JSON: {}", e))
+        })?;
+
+        if let Some(parent) = jsonc_path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| {
+                ConfigError::Config(format!(
+                    "Failed to create directory {}: {}",
+                    parent.display(),
+                    e
+                ))
+            })?;
+        }
+
+        std::fs::write(&jsonc_path, &json_content).map_err(|e| {
+            ConfigError::Config(format!(
+                "Failed to write JSONC config {}: {}",
+                jsonc_path.display(),
+                e
+            ))
+        })?;
+
+        tracing::info!(
+            "Auto-converted TOML config {} -> {}",
+            path.display(),
+            jsonc_path.display()
+        );
+
+        Ok(())
     }
 
     fn parse_json_content(content: &str) -> Result<Self, ConfigError> {
@@ -3959,6 +4007,42 @@ temperature = 0.7
     }
 
     #[test]
+    fn test_toml_config_deprecation_warning() {
+        use tracing::Level;
+
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("config.toml");
+        std::fs::write(
+            &path,
+            r#"
+model = "openai/gpt-4"
+"#,
+        )
+        .unwrap();
+
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let log_path = temp_file.path().to_path_buf();
+
+        let subscriber = tracing_subscriber::fmt()
+            .with_max_level(Level::WARN)
+            .with_writer(std::fs::File::create(&log_path).unwrap())
+            .with_ansi(false)
+            .finish();
+
+        tracing::subscriber::with_default(subscriber, || {
+            let result = Config::load(&path);
+            assert!(result.is_ok());
+        });
+
+        let output = std::fs::read_to_string(&log_path).unwrap();
+        assert!(
+            output.contains("TOML configuration format is deprecated"),
+            "TOML deprecation warning should have been emitted, but got: {}",
+            output
+        );
+    }
+
+    #[test]
     fn test_config_load_json5_file() {
         let temp = tempfile::tempdir().unwrap();
         let path = temp.path().join("config.json5");
@@ -4534,6 +4618,59 @@ temperature = 0.7
         });
         let errors = Config::validate_runtime_no_tui_fields(&json);
         assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_toml_config_auto_convert_on_load() {
+        let temp = tempfile::tempdir().unwrap();
+        let toml_path = temp.path().join("config.toml");
+        std::fs::write(
+            &toml_path,
+            r#"
+model = "openai/gpt-4"
+temperature = 0.7
+"#,
+        )
+        .unwrap();
+
+        let result = Config::load(&toml_path);
+        assert!(result.is_ok());
+
+        let jsonc_path = toml_path.with_extension("jsonc");
+        assert!(
+            jsonc_path.exists(),
+            "JSONC file should be auto-created at {}",
+            jsonc_path.display()
+        );
+
+        let jsonc_content = std::fs::read_to_string(&jsonc_path).unwrap();
+        assert!(
+            jsonc_content.contains("gpt-4"),
+            "JSONC should contain the model value"
+        );
+        assert!(
+            jsonc_content.contains("0.7"),
+            "JSONC should contain the temperature value"
+        );
+    }
+
+    #[test]
+    fn test_toml_config_auto_convert_skips_existing_jsonc() {
+        let temp = tempfile::tempdir().unwrap();
+        let toml_path = temp.path().join("config.toml");
+        let jsonc_path = temp.path().join("config.jsonc");
+
+        std::fs::write(&toml_path, r#"model = "openai/gpt-4""#).unwrap();
+        std::fs::write(&jsonc_path, r#"{"model": "already-exists"}"#).unwrap();
+
+        let result = Config::load(&toml_path);
+        assert!(result.is_ok());
+
+        let jsonc_content = std::fs::read_to_string(&jsonc_path).unwrap();
+        assert!(
+            jsonc_content.contains("already-exists"),
+            "Existing JSONC should not be overwritten"
+        );
     }
 
     #[test]
