@@ -109,14 +109,14 @@
 | P2-002 | Add SAFETY comments to `crates/tui/src/app.rs:4677, 4690` | tui/src/app.rs | Not Started |
 | P2-003 | Add SAFETY comments to `crates/server/src/routes/validation.rs:237, 256` | server/src/routes/validation.rs | ✅ Done |
 | P2-004 | Audit all `unsafe` blocks for missing SAFETY comments | All crates | Not Started |
-| P2-005 | Verify all unsafe blocks have proper documentation | All crates | Not Started |
+| P2-005 | Verify all unsafe blocks have proper documentation | All crates | ✅ Done |
 
 ### FR-019: Benchmark CI Integration
 
 | Task ID | Description | Files | Status |
 |---------|-------------|-------|--------|
 | P2-006 | Add `cargo bench` to CI pipeline | CI config | ✅ Done |
-| P2-007 | Set up performance regression detection | CI config | Not Started |
+| P2-007 | Set up performance regression detection | CI config | ✅ Done |
 | P2-008 | Document baseline performance metrics | documentation | Not Started |
 | P2-009 | Verify benchmark suite runs in CI | CI config | Not Started |
 

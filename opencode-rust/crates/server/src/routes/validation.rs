@@ -235,6 +235,7 @@ impl NumberValidator<usize> {
         // enough and no aliasing mutable references exist. The dereference produces
         // a `&mut ValidationErrors` matching the original lifetime.
         unsafe {
+            // SAFETY: Dereferencing self.errors is safe per the contract above.
             (&mut *self.errors).add_if(
                 self.value < min,
                 FieldError::out_of_range(&self.field, Some(min), None),
@@ -255,6 +256,7 @@ impl NumberValidator<usize> {
         // enough and no aliasing mutable references exist. The dereference produces
         // a `&mut ValidationErrors` matching the original lifetime.
         unsafe {
+            // SAFETY: Dereferencing self.errors is safe per the contract above.
             (&mut *self.errors).add_if(
                 self.value > max,
                 FieldError::out_of_range(&self.field, None, Some(max)),

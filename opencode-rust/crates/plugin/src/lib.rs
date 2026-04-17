@@ -1008,6 +1008,8 @@ impl PluginManager {
             // causing undefined behavior. The library_path was verified to exist during
             // discovery. See PluginLoader::load_plugin SAFETY documentation for details.
             let plugin = unsafe { self.loader.load_plugin(&entry.library_path)? };
+            // SAFETY: load_plugin is safe to call because each entry was validated by
+            // validate_runtime_loadable before this point, as documented above.
             self.register_with_config(plugin, entry.config)?;
             self.plugin_paths
                 .insert(plugin_name.clone(), entry.library_path);

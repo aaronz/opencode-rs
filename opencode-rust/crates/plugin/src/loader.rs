@@ -26,7 +26,9 @@ impl PluginLoader {
     ) -> Result<Box<dyn Plugin>, PluginError> {
         let lib = Library::new(path.as_ref())
             .map_err(|e| PluginError::Load(format!("Failed to load library: {}", e)))?;
-
+        // SAFETY: The unsafe fn type is required because _create_plugin is an extern
+        // function that returns a raw pointer. Callers must ensure the plugin library
+        // is compiled with the same ABI version and returns a valid vtable pointer.
         type PluginCreate = unsafe fn() -> *mut dyn Plugin;
         let constructor: Symbol<PluginCreate> = lib
             .get(b"_create_plugin")

@@ -4274,12 +4274,14 @@ dependencies = [
 name = "opencode-benches"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "criterion",
  "jsonc-parser",
  "opencode-core",
  "opencode-plugin",
  "opencode-storage",
  "opencode-tools",
+ "serde",
  "serde_json",
  "tempfile",
  "tokio",

@@ -871,7 +871,7 @@
       "priority": "P1",
       "title": "Consider docs.rs publishing setup",
       "description": "Consider docs.rs publishing setup for SDK documentation",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify docs.rs metadata is correct in Cargo.toml"
       ],
@@ -957,7 +957,7 @@
       "priority": "P2",
       "title": "Verify all unsafe blocks have proper documentation",
       "description": "Verify all unsafe blocks have proper SAFETY documentation",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: grep confirms all unsafe blocks have SAFETY comments"
       ],
@@ -965,7 +965,7 @@
         "cargo clippy --all -- -D warnings",
         "cargo build --release"
       ],
-      "impl_notes": "Final verification step",
+      "impl_notes": "Final verification step - All unsafe blocks already have proper SAFETY comments",
       "dependencies": [
         "P2-004"
       ]
@@ -991,7 +991,7 @@
       "priority": "P2",
       "title": "Set up performance regression detection",
       "description": "Set up performance regression detection in CI pipeline",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify benchmark results are compared against baseline"
       ],
@@ -1009,7 +1009,7 @@
       "priority": "P2",
       "title": "Document baseline performance metrics",
       "description": "Document baseline performance metrics for benchmark suite",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: verify baseline metrics are documented"
       ],

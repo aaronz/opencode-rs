@@ -50,3 +50,9 @@ jobs:
 
       - name: Run cargo doc
         run: cd opencode-rust && cargo doc --no-deps --all-features
+
+      - name: Run benchmarks
+        run: cd opencode-rust/opencode-benches && cargo bench -- --noplot
+
+      - name: Run benchmark regression test
+        run: cd opencode-rust && cargo test --test benchmark_regression_tests
