@@ -14,6 +14,71 @@ pub struct BashArgs {
     pub timeout: Option<u64>,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_looks_interactive_with_read() {
+        assert!(looks_interactive("read -p 'Enter name: '"));
+    }
+
+    #[test]
+    fn test_looks_interactive_with_read_space() {
+        assert!(looks_interactive("read name"));
+    }
+
+    #[test]
+    fn test_looks_interactive_false() {
+        assert!(!looks_interactive("echo hello"));
+        assert!(!looks_interactive("ls -la"));
+        assert!(!looks_interactive("grep 'test' file.txt"));
+    }
+
+    #[test]
+    fn test_bash_args_basic() {
+        let args = BashArgs {
+            command: "echo hello".to_string(),
+            json: 0,
+            timeout: None,
+        };
+        assert_eq!(args.command, "echo hello");
+        assert_eq!(args.json, 0);
+        assert!(args.timeout.is_none());
+    }
+
+    #[test]
+    fn test_bash_args_with_json() {
+        let args = BashArgs {
+            command: "ls".to_string(),
+            json: 1,
+            timeout: None,
+        };
+        assert_eq!(args.json, 1);
+    }
+
+    #[test]
+    fn test_bash_args_with_timeout() {
+        let args = BashArgs {
+            command: "sleep 5".to_string(),
+            json: 0,
+            timeout: Some(60),
+        };
+        assert_eq!(args.timeout, Some(60));
+    }
+
+    #[test]
+    fn test_bash_args_with_json_and_timeout() {
+        let args = BashArgs {
+            command: "pwd".to_string(),
+            json: 2,
+            timeout: Some(30),
+        };
+        assert_eq!(args.json, 2);
+        assert_eq!(args.timeout, Some(30));
+    }
+}
+
 fn looks_interactive(command: &str) -> bool {
     command.contains("read ") || command.contains("read -p")
 }

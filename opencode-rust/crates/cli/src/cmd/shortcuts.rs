@@ -36,6 +36,32 @@ pub enum ShortcutsAction {
     },
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_shortcuts_args_no_action() {
+        let args = ShortcutsArgs { action: None };
+        assert!(args.action.is_none());
+    }
+
+    #[test]
+    fn test_shortcuts_action_list_fields() {
+        let action = ShortcutsAction::List { json: true };
+        assert!(matches!(action, ShortcutsAction::List { .. }));
+    }
+
+    #[test]
+    fn test_shortcuts_action_set_fields() {
+        let action = ShortcutsAction::Set {
+            command: "palette.open".to_string(),
+            shortcut: "Ctrl+Shift+P".to_string(),
+        };
+        assert!(matches!(action, ShortcutsAction::Set { .. }));
+    }
+}
+
 pub fn run(args: ShortcutsArgs) {
     match args.action {
         Some(ShortcutsAction::List { json }) => {

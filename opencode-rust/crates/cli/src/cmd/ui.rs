@@ -38,6 +38,31 @@ pub enum SidebarAction {
     },
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ui_action_sidebar() {
+        let action = UiAction::Sidebar(SidebarArgs {
+            action: SidebarAction::Toggle,
+        });
+        assert!(matches!(action, UiAction::Sidebar(..)));
+    }
+
+    #[test]
+    fn test_sidebar_action_toggle() {
+        let action = SidebarAction::Toggle;
+        assert!(matches!(action, SidebarAction::Toggle));
+    }
+
+    #[test]
+    fn test_sidebar_action_sessions_fields() {
+        let action = SidebarAction::Sessions { json: true };
+        assert!(matches!(action, SidebarAction::Sessions { .. }));
+    }
+}
+
 pub fn run(args: UiArgs) {
     match args.action {
         UiAction::Sidebar(sidebar_args) => match sidebar_args.action {

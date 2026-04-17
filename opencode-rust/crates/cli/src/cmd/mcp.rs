@@ -27,6 +27,30 @@ pub enum McpAction {
     },
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mcp_args_default() {
+        let args = McpArgs {
+            json: false,
+            action: McpAction::List,
+        };
+        assert!(!args.json);
+        assert!(matches!(args.action, McpAction::List));
+    }
+
+    #[test]
+    fn test_mcp_action_install() {
+        let action = McpAction::Install {
+            name: "my-mcp-server".to_string(),
+            command: "npx".to_string(),
+        };
+        assert!(matches!(action, McpAction::Install { .. }));
+    }
+}
+
 pub fn run(args: McpArgs) {
     if args.json {
         let action_str = match &args.action {

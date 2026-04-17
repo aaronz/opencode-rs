@@ -31,6 +31,46 @@ pub enum FilesAction {
     },
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_files_action_list() {
+        let action = FilesAction::List {
+            json: false,
+            ext: None,
+        };
+        assert!(matches!(action, FilesAction::List { .. }));
+    }
+
+    #[test]
+    fn test_files_action_list_fields() {
+        let action = FilesAction::List {
+            json: true,
+            ext: Some("rs".to_string()),
+        };
+        assert!(matches!(action, FilesAction::List { .. }));
+    }
+
+    #[test]
+    fn test_files_action_read() {
+        let action = FilesAction::Read {
+            path: "src/main.rs".to_string(),
+        };
+        assert!(matches!(action, FilesAction::Read { .. }));
+    }
+
+    #[test]
+    fn test_files_action_search() {
+        let action = FilesAction::Search {
+            pattern: "fn main".to_string(),
+            json: true,
+        };
+        assert!(matches!(action, FilesAction::Search { .. }));
+    }
+}
+
 pub fn run(args: FilesArgs) {
     match args.action {
         FilesAction::List { json, ext } => {

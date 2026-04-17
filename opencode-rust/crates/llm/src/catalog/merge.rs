@@ -175,3 +175,369 @@ pub fn merge_catalogs(
         .with_enabled_filter(enabled, disabled)
         .build()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::catalog::types::{
+        CatalogSource, CostInfo, LimitInfo, ModelCapabilities, ModelDescriptor, ModelStatus,
+        ProviderCatalog, ProviderDescriptor,
+    };
+    use opencode_config::ProviderConfig;
+    use std::collections::BTreeMap;
+
+    fn create_test_catalog() -> ProviderCatalog {
+        let mut providers = BTreeMap::new();
+        providers.insert(
+            "openai".to_string(),
+            ProviderDescriptor {
+                id: "openai".to_string(),
+                display_name: "OpenAI".to_string(),
+                api_base_url: Some("https://api.openai.com".to_string()),
+                docs_url: None,
+                env_vars: vec!["OPENAI_API_KEY".to_string()],
+                npm_package: None,
+                models: BTreeMap::new(),
+                source: CatalogSource::ModelsDev,
+            },
+        );
+        providers.insert(
+            "anthropic".to_string(),
+            ProviderDescriptor {
+                id: "anthropic".to_string(),
+                display_name: "Anthropic".to_string(),
+                api_base_url: Some("https://api.anthropic.com".to_string()),
+                docs_url: None,
+                env_vars: vec!["ANTHROPIC_API_KEY".to_string()],
+                npm_package: None,
+                models: BTreeMap::new(),
+                source: CatalogSource::ModelsDev,
+            },
+        );
+        ProviderCatalog {
+            providers,
+            fetched_at: chrono::Utc::now(),
+            source: CatalogSource::ModelsDev,
+        }
+    }
+
+    fn create_test_model(id: &str, display_name: &str) -> ModelDescriptor {
+        ModelDescriptor {
+            id: id.to_string(),
+            display_name: display_name.to_string(),
+            family: None,
+            provider_id: "test".to_string(),
+            capabilities: ModelCapabilities::default(),
+            cost: CostInfo::default(),
+            limits: LimitInfo::default(),
+            status: ModelStatus::Active,
+        }
+    }
+
+    #[test]
+    fn test_catalog_merger_new() {
+        let catalog = create_test_catalog();
+        let merger = CatalogMerger::new(catalog.clone());
+        let result = merger.build();
+        assert_eq!(result.providers.len(), catalog.providers.len());
+    }
+
+    #[test]
+    fn test_catalog_merger_with_local_providers() {
+        let catalog = create_test_catalog();
+        let result = CatalogMerger::new(catalog).with_local_providers().build();
+        assert!(result.providers.contains_key("ollama"));
+        assert!(result.providers.contains_key("lmstudio"));
+        assert!(result.providers.contains_key("local"));
+    }
+
+    #[test]
+    fn test_catalog_merger_does_not_override_existing_providers() {
+        let catalog = create_test_catalog();
+        let result = CatalogMerger::new(catalog).with_local_providers().build();
+        assert_eq!(result.providers.get("openai").unwrap().id, "openai");
+    }
+
+    #[test]
+    fn test_catalog_merger_with_empty_config_overrides() {
+        let catalog = create_test_catalog();
+        let config_providers = BTreeMap::new();
+        let result = CatalogMerger::new(catalog)
+            .with_config_overrides(&config_providers)
+            .build();
+        assert_eq!(result.providers.len(), 2);
+    }
+
+    #[test]
+    fn test_catalog_merger_with_config_override_display_name() {
+        let mut catalog = create_test_catalog();
+        let mut models = BTreeMap::new();
+        models.insert("gpt-4".to_string(), create_test_model("gpt-4", "GPT-4"));
+        catalog.providers.get_mut("openai").unwrap().models = models;
+
+        let mut config = ProviderConfig::default();
+        config.name = Some("OpenAI Updated".to_string());
+
+        let mut config_providers = BTreeMap::new();
+        config_providers.insert("openai".to_string(), config);
+
+        let result = CatalogMerger::new(catalog)
+            .with_config_overrides(&config_providers)
+            .build();
+        assert_eq!(
+            result.providers.get("openai").unwrap().display_name,
+            "OpenAI Updated"
+        );
+    }
+
+    #[test]
+    fn test_catalog_merger_with_config_override_base_url() {
+        let catalog = create_test_catalog();
+
+        let mut config = ProviderConfig::default();
+        let mut options = opencode_config::ProviderOptions::default();
+        options.base_url = Some("https://custom.openai.com".to_string());
+        config.options = Some(options);
+
+        let mut config_providers = BTreeMap::new();
+        config_providers.insert("openai".to_string(), config);
+
+        let result = CatalogMerger::new(catalog)
+            .with_config_overrides(&config_providers)
+            .build();
+        assert_eq!(
+            result.providers.get("openai").unwrap().api_base_url,
+            Some("https://custom.openai.com".to_string())
+        );
+    }
+
+    #[test]
+    fn test_catalog_merger_with_config_hides_models() {
+        let mut catalog = create_test_catalog();
+        let mut models = BTreeMap::new();
+        models.insert("gpt-4".to_string(), create_test_model("gpt-4", "GPT-4"));
+        models.insert(
+            "gpt-3.5".to_string(),
+            create_test_model("gpt-3.5", "GPT-3.5"),
+        );
+        catalog.providers.get_mut("openai").unwrap().models = models;
+
+        let mut model_config = std::collections::HashMap::new();
+        model_config.insert(
+            "gpt-3.5".to_string(),
+            opencode_config::ModelConfig {
+                name: None,
+                visible: Some(false),
+                id: None,
+                variants: None,
+                extra: None,
+            },
+        );
+
+        let mut config = ProviderConfig::default();
+        config.models = Some(model_config);
+
+        let mut config_providers = BTreeMap::new();
+        config_providers.insert("openai".to_string(), config);
+
+        let result = CatalogMerger::new(catalog)
+            .with_config_overrides(&config_providers)
+            .build();
+        let openai_models = &result.providers.get("openai").unwrap().models;
+        assert!(openai_models.contains_key("gpt-4"));
+        assert!(!openai_models.contains_key("gpt-3.5"));
+    }
+
+    #[test]
+    fn test_catalog_merger_creates_synthetic_provider() {
+        let catalog = create_test_catalog();
+        let mut config = ProviderConfig::default();
+        config.name = Some("Custom Provider".to_string());
+        let mut options = opencode_config::ProviderOptions::default();
+        options.base_url = Some("https://custom.example.com".to_string());
+        config.options = Some(options);
+
+        let mut config_providers = BTreeMap::new();
+        config_providers.insert("custom".to_string(), config);
+
+        let result = CatalogMerger::new(catalog)
+            .with_config_overrides(&config_providers)
+            .build();
+        assert!(result.providers.contains_key("custom"));
+        assert_eq!(
+            result.providers.get("custom").unwrap().display_name,
+            "Custom Provider"
+        );
+    }
+
+    #[test]
+    fn test_catalog_merger_synthetic_provider_with_models() {
+        let catalog = create_test_catalog();
+        let mut model_config = std::collections::HashMap::new();
+        model_config.insert(
+            "custom-model".to_string(),
+            opencode_config::ModelConfig {
+                name: Some("Custom Model".to_string()),
+                visible: None,
+                id: None,
+                variants: None,
+                extra: None,
+            },
+        );
+
+        let mut config = ProviderConfig::default();
+        config.models = Some(model_config);
+
+        let mut config_providers = BTreeMap::new();
+        config_providers.insert("custom".to_string(), config);
+
+        let result = CatalogMerger::new(catalog)
+            .with_config_overrides(&config_providers)
+            .build();
+        let custom_models = &result.providers.get("custom").unwrap().models;
+        assert!(custom_models.contains_key("custom-model"));
+        assert_eq!(
+            custom_models.get("custom-model").unwrap().display_name,
+            "Custom Model"
+        );
+    }
+
+    #[test]
+    fn test_catalog_merger_synthetic_provider_hidden_models() {
+        let catalog = create_test_catalog();
+        let mut model_config = std::collections::HashMap::new();
+        model_config.insert(
+            "visible-model".to_string(),
+            opencode_config::ModelConfig {
+                name: None,
+                visible: Some(true),
+                id: None,
+                variants: None,
+                extra: None,
+            },
+        );
+        model_config.insert(
+            "hidden-model".to_string(),
+            opencode_config::ModelConfig {
+                name: None,
+                visible: Some(false),
+                id: None,
+                variants: None,
+                extra: None,
+            },
+        );
+
+        let mut config = ProviderConfig::default();
+        config.models = Some(model_config);
+
+        let mut config_providers = BTreeMap::new();
+        config_providers.insert("custom".to_string(), config);
+
+        let result = CatalogMerger::new(catalog)
+            .with_config_overrides(&config_providers)
+            .build();
+        let custom_models = result
+            .providers
+            .get("custom")
+            .unwrap()
+            .models
+            .keys()
+            .collect::<Vec<_>>();
+        assert!(custom_models.contains(&&"visible-model".to_string()));
+        assert!(!custom_models.contains(&&"hidden-model".to_string()));
+    }
+
+    #[test]
+    fn test_catalog_merger_enabled_filter() {
+        let catalog = create_test_catalog();
+        let result = CatalogMerger::new(catalog)
+            .with_enabled_filter(Some(&["openai".to_string()]), &[])
+            .build();
+        assert!(result.providers.contains_key("openai"));
+        assert!(!result.providers.contains_key("anthropic"));
+    }
+
+    #[test]
+    fn test_catalog_merger_disabled_filter() {
+        let catalog = create_test_catalog();
+        let result = CatalogMerger::new(catalog)
+            .with_enabled_filter(None, &["anthropic".to_string()])
+            .build();
+        assert!(result.providers.contains_key("openai"));
+        assert!(!result.providers.contains_key("anthropic"));
+    }
+
+    #[test]
+    fn test_catalog_merger_enabled_and_disabled_together() {
+        let mut catalog = create_test_catalog();
+        catalog.providers.insert(
+            "custom".to_string(),
+            ProviderDescriptor {
+                id: "custom".to_string(),
+                display_name: "Custom".to_string(),
+                api_base_url: None,
+                docs_url: None,
+                env_vars: vec![],
+                npm_package: None,
+                models: BTreeMap::new(),
+                source: CatalogSource::Config,
+            },
+        );
+
+        let result = CatalogMerger::new(catalog)
+            .with_enabled_filter(
+                Some(&["openai".to_string(), "custom".to_string()]),
+                &["anthropic".to_string()],
+            )
+            .build();
+        assert!(result.providers.contains_key("openai"));
+        assert!(result.providers.contains_key("custom"));
+        assert!(!result.providers.contains_key("anthropic"));
+    }
+
+    #[test]
+    fn test_catalog_merger_empty_enabled_allows_non_disabled() {
+        let catalog = create_test_catalog();
+        let result = CatalogMerger::new(catalog)
+            .with_enabled_filter(Some(&[]), &["anthropic".to_string()])
+            .build();
+        assert!(!result.providers.contains_key("anthropic"));
+    }
+
+    #[test]
+    fn test_merge_catalogs_function() {
+        let catalog = create_test_catalog();
+        let config_providers = BTreeMap::new();
+        let result = merge_catalogs(catalog, &config_providers, None, &["anthropic".to_string()]);
+        assert!(result.providers.contains_key("openai"));
+        assert!(!result.providers.contains_key("anthropic"));
+        assert!(result.providers.contains_key("ollama"));
+    }
+
+    #[test]
+    fn test_catalog_source_for_local_providers() {
+        let catalog = create_test_catalog();
+        let result = CatalogMerger::new(catalog).with_local_providers().build();
+        assert_eq!(
+            result.providers.get("ollama").unwrap().source,
+            CatalogSource::Local
+        );
+    }
+
+    #[test]
+    fn test_catalog_source_for_synthetic_provider() {
+        let catalog = create_test_catalog();
+        let config = ProviderConfig::default();
+
+        let mut config_providers = BTreeMap::new();
+        config_providers.insert("newprovider".to_string(), config);
+
+        let result = CatalogMerger::new(catalog)
+            .with_config_overrides(&config_providers)
+            .build();
+        assert_eq!(
+            result.providers.get("newprovider").unwrap().source,
+            CatalogSource::Config
+        );
+    }
+}

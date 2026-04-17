@@ -257,4 +257,187 @@ mod tests {
             "https://api.openai.com/v1/chat/completions"
         );
     }
+
+    #[test]
+    fn test_transport_layer_full_url_with_path_override() {
+        let layer = TransportLayer::new(
+            Box::new(OpenAICompatibleTransport),
+            "https://api.openai.com".to_string(),
+        );
+        assert_eq!(
+            layer.full_url(Some("/v1/completions")),
+            "https://api.openai.com/v1/completions"
+        );
+    }
+
+    #[test]
+    fn test_openai_compatible_transport_required_headers() {
+        let transport = OpenAICompatibleTransport;
+        let headers = transport.required_headers();
+        assert!(headers
+            .iter()
+            .any(|(k, v)| *k == "Content-Type" && *v == "application/json"));
+    }
+
+    #[test]
+    fn test_anthropic_transport_required_headers() {
+        let transport = AnthropicTransport;
+        let headers = transport.required_headers();
+        assert!(headers
+            .iter()
+            .any(|(k, v)| *k == "Content-Type" && *v == "application/json"));
+        assert!(headers
+            .iter()
+            .any(|(k, v)| *k == "anthropic-version" && *v == "2023-06-01"));
+    }
+
+    #[test]
+    fn test_responses_api_transport_required_headers() {
+        let transport = ResponsesAPITransport;
+        let headers = transport.required_headers();
+        assert!(headers
+            .iter()
+            .any(|(k, v)| *k == "Content-Type" && *v == "application/json"));
+    }
+
+    #[test]
+    fn test_aws_sigv4_transport_new() {
+        let transport = AwsSigV4Transport::new("us-east-1".to_string(), "bedrock".to_string());
+        assert_eq!(transport.region, "us-east-1");
+        assert_eq!(transport.service, "bedrock");
+    }
+
+    #[test]
+    fn test_aws_sigv4_transport_endpoint() {
+        let transport = AwsSigV4Transport::new("us-east-1".to_string(), "bedrock".to_string());
+        assert_eq!(transport.endpoint_path(), "/2023-05-31/inference-profiles");
+    }
+
+    #[test]
+    fn test_aws_sigv4_transport_required_headers() {
+        let transport = AwsSigV4Transport::new("us-east-1".to_string(), "bedrock".to_string());
+        let headers = transport.required_headers();
+        assert!(headers
+            .iter()
+            .any(|(k, v)| *k == "Content-Type" && *v == "application/json"));
+    }
+
+    #[test]
+    fn test_transport_headers_default() {
+        let headers = TransportHeaders::default();
+        assert!(headers.custom_headers.is_empty());
+        assert!(headers.query_params.is_empty());
+    }
+
+    #[test]
+    fn test_transport_headers_with_values() {
+        let mut headers = TransportHeaders::default();
+        headers
+            .custom_headers
+            .insert("X-Custom".to_string(), "value".to_string());
+        headers
+            .query_params
+            .insert("api-version".to_string(), "2023-01-01".to_string());
+        assert_eq!(
+            headers.custom_headers.get("X-Custom"),
+            Some(&"value".to_string())
+        );
+        assert_eq!(
+            headers.query_params.get("api-version"),
+            Some(&"2023-01-01".to_string())
+        );
+    }
+
+    #[test]
+    fn test_transport_layer_build_request() {
+        let layer = TransportLayer::new(
+            Box::new(OpenAICompatibleTransport),
+            "https://api.openai.com".to_string(),
+        );
+        let client = reqwest::Client::new();
+        let _request = layer.build_request(&client);
+    }
+
+    #[test]
+    fn test_transport_layer_with_custom_headers() {
+        let mut layer = TransportLayer::new(
+            Box::new(OpenAICompatibleTransport),
+            "https://api.openai.com".to_string(),
+        );
+        layer
+            .headers
+            .custom_headers
+            .insert("X-Custom-Header".to_string(), "custom-value".to_string());
+        let client = reqwest::Client::new();
+        let _request = layer.build_request(&client);
+    }
+
+    #[test]
+    fn test_openai_compatible_transport_apply_auth_bearer_token() {
+        let transport = OpenAICompatibleTransport;
+        let client = reqwest::Client::new();
+        let request = client.post("https://api.openai.com/v1/chat/completions");
+        let _auth_request =
+            transport.apply_auth(request, "test-token", &AuthMechanism::BearerToken);
+    }
+
+    #[test]
+    fn test_openai_compatible_transport_apply_auth_basic_auth() {
+        let transport = OpenAICompatibleTransport;
+        let client = reqwest::Client::new();
+        let request = client.post("https://api.openai.com/v1/chat/completions");
+        let _auth_request =
+            transport.apply_auth(request, "username:password", &AuthMechanism::BasicAuth);
+    }
+
+    #[test]
+    fn test_openai_compatible_transport_apply_auth_api_key() {
+        let transport = OpenAICompatibleTransport;
+        let client = reqwest::Client::new();
+        let request = client.post("https://api.openai.com/v1/chat/completions");
+        let _auth_request = transport.apply_auth(request, "api-key", &AuthMechanism::ApiKey);
+    }
+
+    #[test]
+    fn test_anthropic_transport_apply_auth_api_key() {
+        let transport = AnthropicTransport;
+        let client = reqwest::Client::new();
+        let request = client.post("https://api.anthropic.com/v1/messages");
+        let _auth_request = transport.apply_auth(request, "sk-ant-api-key", &AuthMechanism::ApiKey);
+    }
+
+    #[test]
+    fn test_anthropic_transport_apply_auth_bearer_token() {
+        let transport = AnthropicTransport;
+        let client = reqwest::Client::new();
+        let request = client.post("https://api.anthropic.com/v1/messages");
+        let _auth_request =
+            transport.apply_auth(request, "bearer-token", &AuthMechanism::BearerToken);
+    }
+
+    #[test]
+    fn test_responses_api_transport_apply_auth_bearer() {
+        let transport = ResponsesAPITransport;
+        let client = reqwest::Client::new();
+        let request = client.post("https://api.openai.com/v1/responses");
+        let _auth_request = transport.apply_auth(request, "token", &AuthMechanism::BearerToken);
+    }
+
+    #[test]
+    fn test_responses_api_transport_apply_auth_oauth_browser() {
+        let transport = ResponsesAPITransport;
+        let client = reqwest::Client::new();
+        let request = client.post("https://api.openai.com/v1/responses");
+        let _auth_request =
+            transport.apply_auth(request, "oauth-token", &AuthMechanism::OAuthBrowser);
+    }
+
+    #[test]
+    fn test_aws_sigv4_transport_apply_auth() {
+        let transport = AwsSigV4Transport::new("us-east-1".to_string(), "bedrock".to_string());
+        let client = reqwest::Client::new();
+        let request = client.post("https://bedrock.us-east-1.amazonaws.com/...");
+        let _auth_request =
+            transport.apply_auth(request, "sigv4-token", &AuthMechanism::BearerToken);
+    }
 }

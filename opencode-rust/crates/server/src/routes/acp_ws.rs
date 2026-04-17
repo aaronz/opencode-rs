@@ -990,4 +990,244 @@ mod tests {
         let msg: AcpWsMessage = serde_json::from_str(close_json).expect("Should deserialize close");
         assert!(matches!(msg, AcpWsMessage::Close));
     }
+
+    #[test]
+    fn test_acp_event_to_outgoing_session_started() {
+        let event = AcpAgentEvent::new(
+            "agent-session",
+            AcpEventType::SessionStarted,
+            serde_json::json!({}),
+        );
+        let outgoing = acp_event_to_outgoing(event);
+        assert!(outgoing.is_some());
+        match outgoing.unwrap() {
+            AcpWsOutgoing::StatusUpdate { session_id, status } => {
+                assert_eq!(session_id, "agent-session");
+                assert_eq!(status, "started");
+            }
+            _ => panic!("Expected StatusUpdate"),
+        }
+    }
+
+    #[test]
+    fn test_acp_event_to_outgoing_session_ended() {
+        let event = AcpAgentEvent::new(
+            "agent-end",
+            AcpEventType::SessionEnded,
+            serde_json::json!({}),
+        );
+        let outgoing = acp_event_to_outgoing(event);
+        assert!(outgoing.is_some());
+        match outgoing.unwrap() {
+            AcpWsOutgoing::StatusUpdate { session_id, status } => {
+                assert_eq!(session_id, "agent-end");
+                assert_eq!(status, "ended");
+            }
+            _ => panic!("Expected StatusUpdate"),
+        }
+    }
+
+    #[test]
+    fn test_acp_event_to_outgoing_tool_completed() {
+        let event = AcpAgentEvent::new(
+            "agent-tool",
+            AcpEventType::ToolCallCompleted,
+            serde_json::json!({
+                "call_id": "call-finished",
+                "success": true
+            }),
+        );
+        let outgoing = acp_event_to_outgoing(event);
+        assert!(outgoing.is_some());
+        match outgoing.unwrap() {
+            AcpWsOutgoing::ToolResult {
+                session_id,
+                call_id,
+                success,
+                ..
+            } => {
+                assert_eq!(session_id, "agent-tool");
+                assert_eq!(call_id, "call-finished");
+                assert!(success);
+            }
+            _ => panic!("Expected ToolResult"),
+        }
+    }
+
+    #[test]
+    fn test_acp_event_to_outgoing_tool_failed() {
+        let event = AcpAgentEvent::new(
+            "agent-fail",
+            AcpEventType::ToolCallFailed,
+            serde_json::json!({
+                "call_id": "call-failed",
+                "error": "Tool execution failed"
+            }),
+        );
+        let outgoing = acp_event_to_outgoing(event);
+        assert!(outgoing.is_some());
+        match outgoing.unwrap() {
+            AcpWsOutgoing::ToolResult {
+                session_id,
+                call_id,
+                success,
+                output,
+            } => {
+                assert_eq!(session_id, "agent-fail");
+                assert_eq!(call_id, "call-failed");
+                assert!(!success);
+                assert_eq!(output, "Tool execution failed");
+            }
+            _ => panic!("Expected ToolResult"),
+        }
+    }
+
+    #[test]
+    fn test_acp_event_to_outgoing_message_generated() {
+        let event = AcpAgentEvent::new(
+            "editor",
+            AcpEventType::MessageGenerated,
+            serde_json::json!({
+                "session_id": "sess-123",
+                "content": "Hello world"
+            }),
+        );
+        let outgoing = acp_event_to_outgoing(event);
+        assert!(outgoing.is_some());
+        match outgoing.unwrap() {
+            AcpWsOutgoing::SessionMessage {
+                session_id,
+                content,
+                role,
+            } => {
+                assert_eq!(session_id, "sess-123");
+                assert_eq!(content, "Hello world");
+                assert_eq!(role, "assistant");
+            }
+            _ => panic!("Expected SessionMessage"),
+        }
+    }
+
+    #[test]
+    fn test_acp_event_to_outgoing_log_line_returns_none() {
+        let event = AcpAgentEvent::new(
+            "agent-log",
+            AcpEventType::LogLine,
+            serde_json::json!({"line": "DEBUG: something happened"}),
+        );
+        let outgoing = acp_event_to_outgoing(event);
+        assert!(outgoing.is_none());
+    }
+
+    #[test]
+    fn test_acp_event_to_outgoing_heartbeat() {
+        let event = AcpAgentEvent::new(
+            "heartbeat-agent",
+            AcpEventType::Heartbeat,
+            serde_json::json!({}),
+        );
+        let outgoing = acp_event_to_outgoing(event);
+        assert!(outgoing.is_some());
+        match outgoing.unwrap() {
+            AcpWsOutgoing::Heartbeat { timestamp } => {
+                assert!(timestamp > 0);
+            }
+            _ => panic!("Expected Heartbeat"),
+        }
+    }
+
+    #[test]
+    fn test_parse_query_with_empty_value() {
+        let query = "key1=value1&key2=";
+        let params = parse_query(query);
+        assert_eq!(params.get("key1"), Some(&"value1".to_string()));
+        assert_eq!(params.get("key2"), Some(&"".to_string()));
+    }
+
+    #[test]
+    fn test_parse_query_with_no_value() {
+        let query = "keyonly";
+        let params = parse_query(query);
+        assert_eq!(params.get("keyonly"), Some(&"".to_string()));
+    }
+
+    #[test]
+    fn test_parse_query_with_multiple_equals() {
+        let query = "key=value=with=equals";
+        let params = parse_query(query);
+        assert_eq!(params.get("key"), Some(&"value=with=equals".to_string()));
+    }
+
+    #[test]
+    fn test_acp_client_registry_update_heartbeat() {
+        let mut registry = AcpClientRegistry::new();
+
+        registry.register(
+            "conn-1".to_string(),
+            AcpClientConnection {
+                client_id: "editor-1".to_string(),
+                session_id: "session-1".to_string(),
+                connected_at: 1234567890,
+                last_heartbeat: None,
+                capabilities: vec![],
+            },
+        );
+
+        registry.update_heartbeat("conn-1");
+        let client = registry.get("conn-1").unwrap();
+        assert!(client.last_heartbeat.is_some());
+    }
+
+    #[test]
+    fn test_acp_client_registry_active_clients() {
+        let mut registry = AcpClientRegistry::new();
+
+        registry.register(
+            "conn-1".to_string(),
+            AcpClientConnection {
+                client_id: "editor-1".to_string(),
+                session_id: "session-1".to_string(),
+                connected_at: 1234567890,
+                last_heartbeat: Some(1234567890),
+                capabilities: vec![],
+            },
+        );
+
+        assert_eq!(registry.active_clients(), 1);
+
+        registry.register(
+            "conn-2".to_string(),
+            AcpClientConnection {
+                client_id: "editor-2".to_string(),
+                session_id: "session-2".to_string(),
+                connected_at: 1234567890,
+                last_heartbeat: Some(1234567890),
+                capabilities: vec![],
+            },
+        );
+
+        assert_eq!(registry.active_clients(), 2);
+    }
+
+    #[test]
+    fn test_acp_client_registry_get_by_client() {
+        let mut registry = AcpClientRegistry::new();
+
+        registry.register(
+            "conn-1".to_string(),
+            AcpClientConnection {
+                client_id: "editor-1".to_string(),
+                session_id: "session-1".to_string(),
+                connected_at: 1234567890,
+                last_heartbeat: Some(1234567890),
+                capabilities: vec![],
+            },
+        );
+
+        let clients = registry.get_by_client("editor-1");
+        assert_eq!(clients.len(), 1);
+
+        let clients = registry.get_by_client("nonexistent");
+        assert!(clients.is_empty());
+    }
 }

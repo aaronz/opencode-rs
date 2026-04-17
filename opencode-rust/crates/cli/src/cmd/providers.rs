@@ -218,6 +218,151 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_provider_name_openai() {
+        assert_eq!(provider_name("openai"), "OpenAI");
+    }
+
+    #[test]
+    fn test_provider_name_anthropic() {
+        assert_eq!(provider_name("anthropic"), "Anthropic");
+    }
+
+    #[test]
+    fn test_provider_name_ollama() {
+        assert_eq!(provider_name("ollama"), "Ollama");
+    }
+
+    #[test]
+    fn test_provider_name_unknown() {
+        assert_eq!(provider_name("custom"), "Custom");
+    }
+
+    #[test]
+    fn test_provider_name_unknown_single_char() {
+        assert_eq!(provider_name("x"), "X");
+    }
+
+    #[test]
+    fn test_provider_name_empty() {
+        assert_eq!(provider_name(""), "");
+    }
+
+    #[test]
+    fn test_provider_name_mixed_case() {
+        assert_eq!(provider_name("myProvider"), "MyProvider");
+    }
+
+    #[test]
+    fn test_provider_enabled_no_restrictions() {
+        let config = Config::default();
+        assert!(provider_enabled(&config, "openai"));
+        assert!(provider_enabled(&config, "anthropic"));
+        assert!(provider_enabled(&config, "ollama"));
+    }
+
+    #[test]
+    fn test_provider_enabled_with_allowlist() {
+        let mut config = Config::default();
+        config.enabled_providers = Some(vec!["openai".to_string()]);
+        assert!(provider_enabled(&config, "openai"));
+        assert!(!provider_enabled(&config, "anthropic"));
+        assert!(!provider_enabled(&config, "ollama"));
+    }
+
+    #[test]
+    fn test_provider_enabled_with_denylist() {
+        let mut config = Config::default();
+        config.disabled_providers = Some(vec!["openai".to_string()]);
+        assert!(!provider_enabled(&config, "openai"));
+        assert!(provider_enabled(&config, "anthropic"));
+        assert!(provider_enabled(&config, "ollama"));
+    }
+
+    #[test]
+    fn test_provider_enabled_allowlist_takes_precedence() {
+        let mut config = Config::default();
+        config.enabled_providers = Some(vec!["openai".to_string()]);
+        config.disabled_providers = Some(vec!["openai".to_string()]);
+        assert!(!provider_enabled(&config, "openai"));
+    }
+
+    #[test]
+    fn test_provider_enabled_multiple_in_allowlist() {
+        let mut config = Config::default();
+        config.enabled_providers = Some(vec!["openai".to_string(), "anthropic".to_string()]);
+        assert!(provider_enabled(&config, "openai"));
+        assert!(provider_enabled(&config, "anthropic"));
+        assert!(!provider_enabled(&config, "ollama"));
+    }
+
+    #[test]
+    fn test_provider_enabled_multiple_in_denylist() {
+        let mut config = Config::default();
+        config.disabled_providers = Some(vec!["openai".to_string(), "anthropic".to_string()]);
+        assert!(!provider_enabled(&config, "openai"));
+        assert!(!provider_enabled(&config, "anthropic"));
+        assert!(provider_enabled(&config, "ollama"));
+    }
+
+    #[test]
+    fn test_providers_args_default() {
+        let args = ProvidersArgs {
+            json: false,
+            test_connection: None,
+            login: None,
+            browser: false,
+        };
+        assert!(!args.json);
+        assert!(args.test_connection.is_none());
+        assert!(args.login.is_none());
+        assert!(!args.browser);
+    }
+
+    #[test]
+    fn test_providers_args_with_json() {
+        let args = ProvidersArgs {
+            json: true,
+            test_connection: None,
+            login: None,
+            browser: false,
+        };
+        assert!(args.json);
+    }
+
+    #[test]
+    fn test_providers_args_with_test_connection() {
+        let args = ProvidersArgs {
+            json: false,
+            test_connection: Some("openai".to_string()),
+            login: None,
+            browser: false,
+        };
+        assert_eq!(args.test_connection.as_deref(), Some("openai"));
+    }
+
+    #[test]
+    fn test_providers_args_with_login() {
+        let args = ProvidersArgs {
+            json: false,
+            test_connection: None,
+            login: Some("anthropic".to_string()),
+            browser: false,
+        };
+        assert_eq!(args.login.as_deref(), Some("anthropic"));
+    }
+
+    #[test]
+    fn test_providers_args_with_browser() {
+        let args = ProvidersArgs {
+            json: false,
+            test_connection: None,
+            login: Some("openai".to_string()),
+            browser: true,
+        };
+        assert!(args.browser);
+    }
+
+    #[test]
     fn test_providers_login_json_shape() {
         let args = ProvidersArgs {
             json: true,

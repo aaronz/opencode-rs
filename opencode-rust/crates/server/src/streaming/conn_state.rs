@@ -366,6 +366,7 @@ impl ConnectionMonitor {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
 
     #[tokio::test]
     async fn test_register_and_unregister_connection() {
@@ -477,5 +478,217 @@ mod tests {
 
         let session2_conns = monitor.get_session_connections("session-2").await;
         assert_eq!(session2_conns.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_reconnection_attempt() {
+        let monitor = ConnectionMonitor::new();
+
+        monitor
+            .register_connection(
+                "conn-1".to_string(),
+                ConnectionType::Sse,
+                "session-1".to_string(),
+            )
+            .await;
+
+        monitor.reconnection_attempt("conn-1", 3).await;
+
+        let info = monitor.get_connection("conn-1").await.unwrap();
+        assert_eq!(info.reconnection_attempts, 3);
+        assert_eq!(info.status, ConnectionStatus::Reconnecting);
+    }
+
+    #[tokio::test]
+    async fn test_connection_failed() {
+        let monitor = ConnectionMonitor::new();
+
+        monitor
+            .register_connection(
+                "conn-1".to_string(),
+                ConnectionType::Sse,
+                "session-1".to_string(),
+            )
+            .await;
+
+        monitor
+            .connection_failed("conn-1", "connection error")
+            .await;
+
+        let info = monitor.get_connection("conn-1").await.unwrap();
+        assert_eq!(info.status, ConnectionStatus::Failed);
+    }
+
+    #[tokio::test]
+    async fn test_update_status() {
+        let monitor = ConnectionMonitor::new();
+
+        monitor
+            .register_connection(
+                "conn-1".to_string(),
+                ConnectionType::Sse,
+                "session-1".to_string(),
+            )
+            .await;
+
+        monitor
+            .update_status("conn-1", ConnectionStatus::Reconnecting)
+            .await;
+
+        let info = monitor.get_connection("conn-1").await.unwrap();
+        assert_eq!(info.status, ConnectionStatus::Reconnecting);
+    }
+
+    #[tokio::test]
+    async fn test_update_bytes() {
+        let monitor = ConnectionMonitor::new();
+
+        monitor
+            .register_connection(
+                "conn-1".to_string(),
+                ConnectionType::Sse,
+                "session-1".to_string(),
+            )
+            .await;
+
+        monitor.update_bytes("conn-1", 1024, 512).await;
+
+        let info = monitor.get_connection("conn-1").await.unwrap();
+        assert_eq!(info.bytes_sent, 1024);
+        assert_eq!(info.bytes_received, 512);
+    }
+
+    #[tokio::test]
+    async fn test_is_connection_healthy() {
+        let monitor = ConnectionMonitor::new();
+
+        monitor
+            .register_connection(
+                "conn-1".to_string(),
+                ConnectionType::Sse,
+                "session-1".to_string(),
+            )
+            .await;
+
+        let healthy = monitor
+            .is_connection_healthy("conn-1", Duration::from_secs(60))
+            .await;
+        assert!(healthy);
+    }
+
+    #[tokio::test]
+    async fn test_is_connection_healthy_nonexistent() {
+        let monitor = ConnectionMonitor::new();
+
+        let healthy = monitor
+            .is_connection_healthy("nonexistent", Duration::from_secs(60))
+            .await;
+        assert!(!healthy);
+    }
+
+    #[tokio::test]
+    async fn test_cleanup_stale_connections() {
+        let monitor = ConnectionMonitor::new();
+
+        monitor
+            .register_connection(
+                "conn-1".to_string(),
+                ConnectionType::Sse,
+                "session-1".to_string(),
+            )
+            .await;
+
+        monitor
+            .update_status("conn-1", ConnectionStatus::Failed)
+            .await;
+
+        let stale = monitor
+            .cleanup_stale_connections(Duration::from_secs(60))
+            .await;
+        assert_eq!(stale.len(), 1);
+        assert_eq!(stale[0], "conn-1");
+    }
+
+    #[tokio::test]
+    async fn test_get_active_connections() {
+        let monitor = ConnectionMonitor::new();
+
+        monitor
+            .register_connection(
+                "conn-1".to_string(),
+                ConnectionType::Sse,
+                "session-1".to_string(),
+            )
+            .await;
+        monitor
+            .register_connection(
+                "conn-2".to_string(),
+                ConnectionType::WebSocket,
+                "session-2".to_string(),
+            )
+            .await;
+
+        monitor
+            .update_status("conn-1", ConnectionStatus::Disconnected)
+            .await;
+
+        let active = monitor.get_active_connections().await;
+        assert_eq!(active.len(), 1);
+        assert_eq!(active[0].id, "conn-2");
+    }
+
+    #[tokio::test]
+    async fn test_get_connection_not_found() {
+        let monitor = ConnectionMonitor::new();
+
+        let info = monitor.get_connection("nonexistent").await;
+        assert!(info.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_multiple_heartbeat_failures() {
+        let monitor = ConnectionMonitor::new();
+
+        monitor
+            .register_connection(
+                "conn-1".to_string(),
+                ConnectionType::Sse,
+                "session-1".to_string(),
+            )
+            .await;
+
+        for _ in 0..5 {
+            monitor.heartbeat_failure("conn-1").await;
+        }
+
+        let info = monitor.get_connection("conn-1").await.unwrap();
+        assert_eq!(info.heartbeat_failures, 5);
+    }
+
+    #[tokio::test]
+    async fn test_connection_stats_after_unregister() {
+        let monitor = ConnectionMonitor::new();
+
+        monitor
+            .register_connection(
+                "conn-1".to_string(),
+                ConnectionType::Sse,
+                "session-1".to_string(),
+            )
+            .await;
+        monitor
+            .register_connection(
+                "conn-2".to_string(),
+                ConnectionType::Sse,
+                "session-1".to_string(),
+            )
+            .await;
+
+        monitor.unregister_connection("conn-1", "done").await;
+
+        let stats = monitor.get_stats().await;
+        assert_eq!(stats.total_connections, 2);
+        assert_eq!(stats.active_connections, 1);
+        assert_eq!(stats.sse_connections, 1);
     }
 }

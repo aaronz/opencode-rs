@@ -60,6 +60,36 @@ pub enum GitLabAction {
     },
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_gitlab_args_login() {
+        let args = GitLabArgs {
+            action: GitLabAction::Login,
+        };
+        assert!(matches!(args.action, GitLabAction::Login));
+    }
+
+    #[test]
+    fn test_gitlab_action_install_fields() {
+        let action = GitLabAction::Install {
+            token: None,
+            project: "group/project".to_string(),
+            branch: "main".to_string(),
+            use_component: false,
+        };
+        assert!(matches!(action, GitLabAction::Install { .. }));
+    }
+
+    #[test]
+    fn test_gitlab_experimental_warning_not_empty() {
+        assert!(!GITLAB_EXPERIMENTAL_WARNING.is_empty());
+        assert!(GITLAB_EXPERIMENTAL_WARNING.contains("experimental"));
+    }
+}
+
 pub fn run(args: GitLabArgs) {
     eprintln!("{}", GITLAB_EXPERIMENTAL_WARNING);
     match args.action {

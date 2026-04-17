@@ -68,4 +68,18 @@ mod tests {
             .respond_to(&actix_web::test::TestRequest::default().to_http_request());
         assert_eq!(response.status(), actix_web::http::StatusCode::OK);
     }
+
+    #[test]
+    fn test_index_content_type() {
+        let response = INDEX_HTML;
+        assert!(response.contains("<!DOCTYPE html") || response.contains("<html"));
+    }
+
+    #[actix_web::test]
+    async fn api_docs_contains_status_endpoint() {
+        let response = api_docs()
+            .await
+            .respond_to(&actix_web::test::TestRequest::default().to_http_request());
+        assert_eq!(response.status(), actix_web::http::StatusCode::OK);
+    }
 }

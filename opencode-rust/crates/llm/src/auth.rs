@@ -654,4 +654,251 @@ mod tests {
         let key = ApiKey::new("openai".to_string(), "sk-test".to_string());
         assert!(key.is_valid());
     }
+
+    #[test]
+    fn test_api_key_expired() {
+        let mut key = ApiKey::new("openai".to_string(), "sk-test".to_string());
+        key.expires_at = Some(chrono::Utc::now() - chrono::Duration::hours(1));
+        assert!(!key.is_valid());
+    }
+
+    #[tokio::test]
+    async fn test_auth_strategy_bearer_api_key() {
+        let strategy = AuthStrategy::BearerApiKey { header_name: None };
+        let cred = Credential::new("openai".to_string(), "sk-test".to_string());
+        let client = reqwest::Client::new();
+        let request = client.post("https://api.openai.com");
+        let result = strategy.apply_to_request(request, &cred).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_auth_strategy_header_api_key() {
+        let strategy = AuthStrategy::HeaderApiKey {
+            header_name: "x-api-key".to_string(),
+        };
+        let cred = Credential::new("openai".to_string(), "sk-test".to_string());
+        let client = reqwest::Client::new();
+        let request = client.post("https://api.openai.com");
+        let result = strategy.apply_to_request(request, &cred).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_auth_strategy_query_api_key() {
+        let strategy = AuthStrategy::QueryApiKey {
+            param_name: "api_key".to_string(),
+        };
+        let cred = Credential::new("openai".to_string(), "sk-test".to_string());
+        let client = reqwest::Client::new();
+        let request = client.post("https://api.openai.com");
+        let result = strategy.apply_to_request(request, &cred).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_auth_strategy_oauth_session() {
+        let strategy = AuthStrategy::OAuthSession {
+            token_endpoint: "https://auth.example.com/token".to_string(),
+            client_id: "client_id".to_string(),
+            client_secret: "client_secret".to_string(),
+            scopes: vec!["read".to_string(), "write".to_string()],
+        };
+        let cred = Credential::new("openai".to_string(), "access_token".to_string());
+        let client = reqwest::Client::new();
+        let request = client.post("https://api.openai.com");
+        let result = strategy.apply_to_request(request, &cred).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_auth_strategy_none() {
+        let strategy = AuthStrategy::None;
+        let cred = Credential::new("openai".to_string(), "sk-test".to_string());
+        let client = reqwest::Client::new();
+        let request = client.post("https://api.openai.com");
+        let result = strategy.apply_to_request(request, &cred).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_auth_strategy_invalid_credential() {
+        let strategy = AuthStrategy::BearerApiKey { header_name: None };
+        let mut cred = Credential::new("openai".to_string(), "".to_string());
+        cred.expires_at = Some(chrono::Utc::now() - chrono::Duration::hours(1));
+        let client = reqwest::Client::new();
+        let request = client.post("https://api.openai.com");
+        let result = strategy.apply_to_request(request, &cred).await;
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_credential_expires_soon_no_expiry() {
+        let cred = Credential::new("openai".to_string(), "sk-test".to_string());
+        assert!(!cred.expires_soon(600));
+    }
+
+    #[test]
+    fn test_credential_store_remove() {
+        let mut store = CredentialStore::new();
+        let cred = Credential::new("openai".to_string(), "sk-test".to_string());
+        store.store(cred);
+
+        let removed = store.remove("openai");
+        assert!(removed.is_some());
+        assert!(store.get("openai").is_none());
+    }
+
+    #[test]
+    fn test_credential_store_list() {
+        let mut store = CredentialStore::new();
+        store.store(Credential::new(
+            "openai".to_string(),
+            "sk-test1".to_string(),
+        ));
+        store.store(Credential::new(
+            "anthropic".to_string(),
+            "sk-test2".to_string(),
+        ));
+
+        let list = store.list();
+        assert_eq!(list.len(), 2);
+    }
+
+    #[test]
+    fn test_credential_store_resolve_found() {
+        let mut store = CredentialStore::new();
+        store.store(Credential::new("openai".to_string(), "sk-test".to_string()));
+
+        let result = store.resolve("openai");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_credential_store_resolve_not_found() {
+        let store = CredentialStore::new();
+        let result = store.resolve("openai");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_credential_store_validate_all() {
+        let mut store = CredentialStore::new();
+        store.store(Credential::new(
+            "openai".to_string(),
+            "sk-test1".to_string(),
+        ));
+        store.store(Credential::new(
+            "anthropic".to_string(),
+            "sk-test2".to_string(),
+        ));
+
+        let validations = store.validate_all();
+        assert_eq!(validations.len(), 2);
+    }
+
+    #[test]
+    fn test_auth_manager_new() {
+        let manager = AuthManager::new();
+        assert!(manager.get_key("openai").is_none());
+    }
+
+    #[test]
+    fn test_auth_manager_set_get_key() {
+        let mut manager = AuthManager::new();
+        manager.set_key("openai".to_string(), "sk-test".to_string());
+        let key = manager.get_key("openai");
+        assert!(key.is_some());
+        assert_eq!(key.unwrap().key, "sk-test");
+    }
+
+    #[test]
+    fn test_auth_manager_validate_key_not_found() {
+        let manager = AuthManager::new();
+        let result = manager.validate_key("openai");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_auth_manager_validate_key_expired() {
+        let mut manager = AuthManager::new();
+        let mut key = ApiKey::new("openai".to_string(), "sk-test".to_string());
+        key.expires_at = Some(chrono::Utc::now() - chrono::Duration::hours(1));
+        manager.keys.insert("openai".to_string(), key);
+        let result = manager.validate_key("openai");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_auth_manager_load_from_env() {
+        std::env::set_var("OPENAI_API_KEY", "sk-test-from-env");
+        let mut manager = AuthManager::new();
+        manager.load_from_env();
+        let key = manager.get_key("openai");
+        assert!(key.is_some());
+        assert_eq!(key.unwrap().key, "sk-test-from-env");
+        std::env::remove_var("OPENAI_API_KEY");
+    }
+
+    #[test]
+    fn test_oauth_token_response_serde() {
+        let json = r#"{
+            "access_token": "at123",
+            "token_type": "Bearer",
+            "expires_in": 3600,
+            "refresh_token": "rt456",
+            "scope": "read write"
+        }"#;
+        let response: OAuthTokenResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(response.access_token, "at123");
+        assert_eq!(response.token_type, "Bearer");
+        assert_eq!(response.expires_in, Some(3600));
+        assert_eq!(response.refresh_token, Some("rt456".to_string()));
+        assert_eq!(response.scope, Some("read write".to_string()));
+    }
+
+    #[test]
+    fn test_credential_with_metadata() {
+        let mut cred = Credential::new("openai".to_string(), "sk-test".to_string());
+        cred.metadata
+            .insert("env".to_string(), "production".to_string());
+        assert_eq!(cred.metadata.get("env"), Some(&"production".to_string()));
+    }
+
+    #[test]
+    fn test_provider_auth_config_with_multiple_headers() {
+        let config = ProviderAuthConfig::new(
+            "openai".to_string(),
+            "https://api.openai.com/v1".to_string(),
+            AuthStrategy::BearerApiKey { header_name: None },
+        )
+        .with_header("Header1".to_string(), "value1".to_string())
+        .with_header("Header2".to_string(), "value2".to_string());
+
+        assert_eq!(config.headers.len(), 2);
+    }
+
+    #[test]
+    fn test_credential_store_with_encryption_key() {
+        let store = CredentialStore::new().with_encryption_key("my-key".to_string());
+        assert_eq!(store.encryption_key, Some("my-key".to_string()));
+    }
+
+    #[test]
+    fn test_credential_store_default() {
+        let store = CredentialStore::default();
+        assert!(store.credentials.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_oauth_session_manager_new() {
+        let manager = OAuthSessionManager::new();
+        assert!(manager
+            .refresh_token(
+                &AuthStrategy::BearerApiKey { header_name: None },
+                &Credential::new("openai".to_string(), "key".to_string()),
+            )
+            .await
+            .is_err());
+    }
 }

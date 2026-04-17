@@ -223,3 +223,78 @@ impl Provider for GoogleProvider {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn google_provider_new() {
+        let provider = GoogleProvider::new("test-key".to_string(), "gemini-pro".to_string());
+        assert_eq!(provider.model, "gemini-pro");
+        assert_eq!(provider.api_key, "test-key");
+        assert!(provider.thinking_throttle.is_none());
+    }
+
+    #[test]
+    fn google_provider_with_thinking_throttle() {
+        let provider = GoogleProvider::new("test-key".to_string(), "gemini-pro".to_string())
+            .with_thinking_throttle("low".to_string());
+        assert_eq!(provider.thinking_throttle, Some("low".to_string()));
+    }
+
+    #[test]
+    fn google_request_serialization() {
+        let request = GoogleRequest {
+            contents: vec![GoogleContent {
+                parts: vec![GooglePart {
+                    text: "Hello".to_string(),
+                }],
+            }],
+            thinking_config: None,
+        };
+        let json = serde_json::to_string(&request).unwrap();
+        assert!(json.contains("Hello"));
+    }
+
+    #[test]
+    fn google_request_serialization_with_thinking() {
+        let request = GoogleRequest {
+            contents: vec![GoogleContent {
+                parts: vec![GooglePart {
+                    text: "Hello".to_string(),
+                }],
+            }],
+            thinking_config: Some(GoogleThinkingConfig {
+                thinking_throttle: "low".to_string(),
+            }),
+        };
+        let json = serde_json::to_string(&request).unwrap();
+        assert!(json.contains("thinking_throttle"));
+        assert!(json.contains("low"));
+    }
+
+    #[test]
+    fn google_response_deserialization() {
+        let json = r#"{"candidates":[{"content":{"parts":[{"text":"Hello"}]}}]}"#;
+        let response: GoogleResponse = serde_json::from_str(json).unwrap();
+        assert!(response.candidates.is_some());
+        let candidates = response.candidates.unwrap();
+        assert_eq!(candidates.len(), 1);
+    }
+
+    #[test]
+    fn google_response_deserialization_empty_candidates() {
+        let json = r#"{"candidates":[]}"#;
+        let response: GoogleResponse = serde_json::from_str(json).unwrap();
+        assert!(response.candidates.is_some());
+        assert!(response.candidates.unwrap().is_empty());
+    }
+
+    #[test]
+    fn google_response_deserialization_no_candidates() {
+        let json = r#"{}"#;
+        let response: GoogleResponse = serde_json::from_str(json).unwrap();
+        assert!(response.candidates.is_none());
+    }
+}

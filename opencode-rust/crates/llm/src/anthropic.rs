@@ -226,3 +226,121 @@ impl Provider for AnthropicProvider {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn anthropic_provider_new() {
+        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3".to_string());
+        assert_eq!(provider.model, "claude-3");
+        assert_eq!(provider.api_key, "test-key");
+        assert!(provider.thinking_budget.is_none());
+    }
+
+    #[test]
+    fn anthropic_provider_with_thinking_budget_low() {
+        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3".to_string())
+            .with_thinking_budget(AnthropicThinkingConfig::Low);
+        assert!(provider.thinking_budget.is_some());
+    }
+
+    #[test]
+    fn anthropic_provider_with_thinking_budget_high() {
+        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3".to_string())
+            .with_thinking_budget(AnthropicThinkingConfig::High);
+        assert!(provider.thinking_budget.is_some());
+    }
+
+    #[test]
+    fn anthropic_provider_with_thinking_budget_max() {
+        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3".to_string())
+            .with_thinking_budget(AnthropicThinkingConfig::Max);
+        assert!(provider.thinking_budget.is_some());
+    }
+
+    #[test]
+    fn anthropic_request_serialization() {
+        let request = AnthropicRequest {
+            model: "claude-3".to_string(),
+            messages: vec![AnthropicMessage {
+                role: "user".to_string(),
+                content: "Hello".to_string(),
+            }],
+            max_tokens: 4096,
+            stream: false,
+            thinking: None,
+        };
+        let json = serde_json::to_string(&request).unwrap();
+        assert!(json.contains("claude-3"));
+        assert!(json.contains("user"));
+        assert!(json.contains("Hello"));
+    }
+
+    #[test]
+    fn anthropic_request_serialization_with_thinking() {
+        let request = AnthropicRequest {
+            model: "claude-3".to_string(),
+            messages: vec![AnthropicMessage {
+                role: "user".to_string(),
+                content: "Hello".to_string(),
+            }],
+            max_tokens: 4096,
+            stream: false,
+            thinking: Some(AnthropicThinking {
+                thinking_type: "enabled".to_string(),
+                budget_tokens: 1000,
+            }),
+        };
+        let json = serde_json::to_string(&request).unwrap();
+        assert!(json.contains("thinking"));
+        assert!(json.contains("budget_tokens"));
+    }
+
+    #[test]
+    fn anthropic_response_deserialization() {
+        let json = r#"{"content":[{"text":"Hello"}]}"#;
+        let response: AnthropicResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(response.content.len(), 1);
+        assert_eq!(response.content[0].text, "Hello");
+    }
+
+    #[test]
+    fn anthropic_response_deserialization_multiple_content() {
+        let json = r#"{"content":[{"text":"Part1"},{"text":"Part2"}]}"#;
+        let response: AnthropicResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(response.content.len(), 2);
+    }
+
+    #[test]
+    fn stream_event_deserialization() {
+        let json = r#"{"type":"content_block_delta","delta":{"text":"Hello"}}"#;
+        let event: StreamEvent = serde_json::from_str(json).unwrap();
+        assert_eq!(event.event_type, "content_block_delta");
+        assert!(event.delta.is_some());
+        assert_eq!(event.delta.unwrap().text, Some("Hello".to_string()));
+    }
+
+    #[test]
+    fn stream_event_deserialization_message_stop() {
+        let json = r#"{"type":"message_stop","delta":null}"#;
+        let event: StreamEvent = serde_json::from_str(json).unwrap();
+        assert_eq!(event.event_type, "message_stop");
+        assert!(event.delta.is_none());
+    }
+
+    #[test]
+    fn stream_delta_deserialization_with_text() {
+        let json = r#"{"text":"Hello"}"#;
+        let delta: StreamDelta = serde_json::from_str(json).unwrap();
+        assert_eq!(delta.text, Some("Hello".to_string()));
+    }
+
+    #[test]
+    fn stream_delta_deserialization_empty() {
+        let json = r#"{"text":null}"#;
+        let delta: StreamDelta = serde_json::from_str(json).unwrap();
+        assert!(delta.text.is_none());
+    }
+}

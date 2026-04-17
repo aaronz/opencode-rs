@@ -273,7 +273,7 @@
       "priority": "P1",
       "title": "Increase llm crate coverage to 80%",
       "description": "Increase code coverage for llm crate from 55% to 80%+",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "RunTestSuite: cargo llvm-cov shows llm crate coverage >= 80%"
       ],

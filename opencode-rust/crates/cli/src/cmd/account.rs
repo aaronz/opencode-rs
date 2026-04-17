@@ -17,6 +17,56 @@ pub enum AccountAction {
     Status,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_account_args_login() {
+        let args = AccountArgs {
+            json: false,
+            action: AccountAction::Login,
+        };
+        match args.action {
+            AccountAction::Login => {}
+            _ => panic!("Expected Login"),
+        }
+    }
+
+    #[test]
+    fn test_account_args_logout() {
+        let args = AccountArgs {
+            json: false,
+            action: AccountAction::Logout,
+        };
+        match args.action {
+            AccountAction::Logout => {}
+            _ => panic!("Expected Logout"),
+        }
+    }
+
+    #[test]
+    fn test_account_args_status() {
+        let args = AccountArgs {
+            json: false,
+            action: AccountAction::Status,
+        };
+        match args.action {
+            AccountAction::Status => {}
+            _ => panic!("Expected Status"),
+        }
+    }
+
+    #[test]
+    fn test_account_args_with_json() {
+        let args = AccountArgs {
+            json: true,
+            action: AccountAction::Login,
+        };
+        assert!(args.json);
+    }
+}
+
 pub fn run(args: AccountArgs) {
     if args.json {
         let action_str = match args.action {

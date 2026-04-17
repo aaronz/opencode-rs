@@ -557,4 +557,145 @@ mod tests {
             "https://chatgpt.com/backend-api/codex/models"
         );
     }
+
+    #[test]
+    fn test_openai_provider_with_reasoning_effort() {
+        let provider = OpenAiProvider::new("test-key".to_string(), "gpt-4".to_string())
+            .with_reasoning_effort("high".to_string());
+        assert_eq!(provider.reasoning_effort, Some("high".to_string()));
+    }
+
+    #[test]
+    fn test_openai_provider_uses_api_key_auth() {
+        let provider = OpenAiProvider::new("test-key".to_string(), "gpt-4".to_string());
+        assert!(!provider.uses_browser_auth());
+    }
+
+    #[test]
+    fn test_chat_request_serialization() {
+        let request = ChatRequest {
+            model: "gpt-4".to_string(),
+            messages: vec![Message {
+                role: "user".to_string(),
+                content: "Hello".to_string(),
+            }],
+            stream: false,
+            reasoning: None,
+        };
+        let json = serde_json::to_string(&request).unwrap();
+        assert!(json.contains("gpt-4"));
+        assert!(json.contains("user"));
+        assert!(json.contains("Hello"));
+    }
+
+    #[test]
+    fn test_chat_request_serialization_with_reasoning() {
+        let request = ChatRequest {
+            model: "gpt-4".to_string(),
+            messages: vec![Message {
+                role: "user".to_string(),
+                content: "Hello".to_string(),
+            }],
+            stream: false,
+            reasoning: Some(ReasoningRequest {
+                effort: "high".to_string(),
+            }),
+        };
+        let json = serde_json::to_string(&request).unwrap();
+        assert!(json.contains("reasoning"));
+        assert!(json.contains("high"));
+    }
+
+    #[test]
+    fn test_chat_completion_deserialization() {
+        let json = r#"{"choices":[{"message":{"content":"Hello"}}]}"#;
+        let completion: ChatCompletion = serde_json::from_str(json).unwrap();
+        assert_eq!(completion.choices.len(), 1);
+        assert_eq!(completion.choices[0].message.content, "Hello");
+    }
+
+    #[test]
+    fn test_stream_chunk_deserialization() {
+        let json = r#"{"choices":[{"delta":{"content":"Hello"}}]}"#;
+        let chunk: StreamChunk = serde_json::from_str(json).unwrap();
+        assert_eq!(chunk.choices.len(), 1);
+        assert_eq!(chunk.choices[0].delta.content, Some("Hello".to_string()));
+    }
+
+    #[test]
+    fn test_stream_chunk_deserialization_no_content() {
+        let json = r#"{"choices":[{"delta":{}}]}"#;
+        let chunk: StreamChunk = serde_json::from_str(json).unwrap();
+        assert_eq!(chunk.choices.len(), 1);
+        assert!(chunk.choices[0].delta.content.is_none());
+    }
+
+    #[test]
+    fn test_browser_auth_model_info_serde() {
+        let info = BrowserAuthModelInfo {
+            id: "gpt-4".to_string(),
+            name: "GPT-4".to_string(),
+        };
+        let json = serde_json::to_string(&info).unwrap();
+        assert!(json.contains("gpt-4"));
+        assert!(json.contains("GPT-4"));
+    }
+
+    #[test]
+    fn test_responses_request_serialization() {
+        let request = ResponsesRequest {
+            model: "gpt-4".to_string(),
+            input: vec![ResponsesInputMessage {
+                role: "user".to_string(),
+                content: vec![ResponsesInputContent {
+                    kind: "input_text".to_string(),
+                    text: "Hello".to_string(),
+                }],
+            }],
+            stream: false,
+        };
+        let json = serde_json::to_string(&request).unwrap();
+        assert!(json.contains("gpt-4"));
+        assert!(json.contains("input_text"));
+    }
+
+    #[test]
+    fn test_responses_response_deserialization() {
+        let json = r#"{"output":[{"content":[{"text":"Hello"}]}]}"#;
+        let response: ResponsesResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(response.output.len(), 1);
+        assert_eq!(
+            response.output[0].content[0].text,
+            Some("Hello".to_string())
+        );
+    }
+
+    #[test]
+    fn test_browser_models_response_direct() {
+        let json = r#"[{"id":"gpt-4","name":"GPT-4"},{"id":"gpt-3.5","name":"GPT-3.5"}]"#;
+        let response: BrowserModelsResponse = serde_json::from_str(json).unwrap();
+        match response {
+            BrowserModelsResponse::Direct(models) => assert_eq!(models.len(), 2),
+            _ => panic!("Expected Direct variant"),
+        }
+    }
+
+    #[test]
+    fn test_browser_models_response_wrapped() {
+        let json = r#"{"models":[{"id":"gpt-4","name":"GPT-4"}]}"#;
+        let response: BrowserModelsResponse = serde_json::from_str(json).unwrap();
+        match response {
+            BrowserModelsResponse::Wrapped { models } => assert_eq!(models.len(), 1),
+            _ => panic!("Expected Wrapped variant"),
+        }
+    }
+
+    #[test]
+    fn test_refresh_token_response_deserialization() {
+        let json = r#"{"access_token":"at123","refresh_token":"rt456","expires_in":3600}"#;
+        let response: RefreshTokenResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(response.access_token, "at123");
+        assert_eq!(response.refresh_token, "rt456");
+        assert_eq!(response.expires_in, Some(3600));
+    }
 }

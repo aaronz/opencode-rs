@@ -47,6 +47,30 @@ pub enum McpAuthAction {
     Cleanup,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mcp_auth_args_list() {
+        let args = McpAuthArgs {
+            action: McpAuthAction::List,
+        };
+        assert!(matches!(args.action, McpAuthAction::List));
+    }
+
+    #[test]
+    fn test_mcp_auth_action_login_fields() {
+        let action = McpAuthAction::Login {
+            server: "my-server".to_string(),
+            client_id: None,
+            client_secret: None,
+            scope: None,
+        };
+        assert!(matches!(action, McpAuthAction::Login { .. }));
+    }
+}
+
 pub fn run(args: McpAuthArgs) {
     match args.action {
         McpAuthAction::List => run_list(),

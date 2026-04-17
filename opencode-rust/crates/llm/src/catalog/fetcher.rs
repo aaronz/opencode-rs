@@ -278,3 +278,351 @@ pub enum FetchError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::catalog::models_dev::{
+        ModelsDevApiResponse, ModelsDevCost, ModelsDevLimit, ModelsDevModalities, ModelsDevModel,
+        ModelsDevProvider,
+    };
+    use std::collections::BTreeMap;
+
+    fn create_test_fetcher() -> ProviderCatalogFetcher {
+        ProviderCatalogFetcher::new(std::env::temp_dir().join("test_catalog.json"))
+    }
+
+    fn create_test_models_dev_response() -> ModelsDevApiResponse {
+        let mut models = BTreeMap::new();
+        models.insert(
+            "gpt-4".to_string(),
+            ModelsDevModel {
+                id: "gpt-4".to_string(),
+                name: "GPT-4".to_string(),
+                family: Some("GPT-4".to_string()),
+                release_date: None,
+                attachment: true,
+                reasoning: true,
+                temperature: Some(true),
+                tool_call: true,
+                modalities: Some(ModelsDevModalities {
+                    input: vec!["text".to_string()],
+                    output: vec!["text".to_string()],
+                }),
+                open_weights: false,
+                interleaved: None,
+                cost: Some(ModelsDevCost {
+                    input: Some(0.01),
+                    output: Some(0.03),
+                    reasoning: None,
+                    cache_read: Some(0.001),
+                    cache_write: Some(0.001),
+                    input_audio: None,
+                    output_audio: None,
+                    context_over_200k: None,
+                }),
+                limit: Some(ModelsDevLimit {
+                    context: Some(128000),
+                    input: Some(128000),
+                    output: Some(4096),
+                }),
+                experimental: None,
+                status: Some("active".to_string()),
+            },
+        );
+
+        let mut providers = BTreeMap::new();
+        providers.insert(
+            "openai".to_string(),
+            ModelsDevProvider {
+                id: "openai".to_string(),
+                name: "OpenAI".to_string(),
+                api: Some("https://api.openai.com".to_string()),
+                doc: Some("https://platform.openai.com".to_string()),
+                npm: None,
+                env: vec!["OPENAI_API_KEY".to_string()],
+                models,
+            },
+        );
+
+        providers
+    }
+
+    #[test]
+    fn test_transform_to_catalog() {
+        let fetcher = create_test_fetcher();
+        let data = create_test_models_dev_response();
+        let catalog = fetcher.transform_to_catalog(data);
+        assert_eq!(catalog.providers.len(), 1);
+        assert!(catalog.providers.contains_key("openai"));
+        assert_eq!(catalog.source, CatalogSource::ModelsDev);
+    }
+
+    #[test]
+    fn test_transform_provider() {
+        let fetcher = create_test_fetcher();
+        let provider = ModelsDevProvider {
+            id: "test".to_string(),
+            name: "Test Provider".to_string(),
+            api: Some("https://api.test.com".to_string()),
+            doc: Some("https://docs.test.com".to_string()),
+            npm: Some("@test/npm".to_string()),
+            env: vec!["TEST_API_KEY".to_string()],
+            models: BTreeMap::new(),
+        };
+        let descriptor = fetcher.transform_provider(provider);
+        assert_eq!(descriptor.id, "test");
+        assert_eq!(descriptor.display_name, "Test Provider");
+        assert_eq!(
+            descriptor.api_base_url,
+            Some("https://api.test.com".to_string())
+        );
+        assert_eq!(
+            descriptor.docs_url,
+            Some("https://docs.test.com".to_string())
+        );
+        assert_eq!(descriptor.npm_package, Some("@test/npm".to_string()));
+        assert_eq!(descriptor.env_vars, vec!["TEST_API_KEY".to_string()]);
+        assert_eq!(descriptor.source, CatalogSource::ModelsDev);
+    }
+
+    #[test]
+    fn test_transform_provider_empty_optionals() {
+        let fetcher = create_test_fetcher();
+        let provider = ModelsDevProvider {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            api: None,
+            doc: None,
+            npm: None,
+            env: vec![],
+            models: BTreeMap::new(),
+        };
+        let descriptor = fetcher.transform_provider(provider);
+        assert_eq!(descriptor.api_base_url, None);
+        assert_eq!(descriptor.docs_url, None);
+        assert_eq!(descriptor.npm_package, None);
+    }
+
+    #[test]
+    fn test_transform_model() {
+        let fetcher = create_test_fetcher();
+        let model = ModelsDevModel {
+            id: "gpt-4".to_string(),
+            name: "GPT-4".to_string(),
+            family: Some("GPT-4".to_string()),
+            release_date: None,
+            attachment: true,
+            reasoning: true,
+            temperature: Some(true),
+            tool_call: true,
+            modalities: Some(ModelsDevModalities {
+                input: vec!["text".to_string(), "image".to_string()],
+                output: vec!["text".to_string()],
+            }),
+            open_weights: false,
+            interleaved: Some(serde_json::Value::Null),
+            cost: Some(ModelsDevCost {
+                input: Some(0.01),
+                output: Some(0.03),
+                reasoning: None,
+                cache_read: Some(0.001),
+                cache_write: Some(0.001),
+                input_audio: None,
+                output_audio: None,
+                context_over_200k: None,
+            }),
+            limit: Some(ModelsDevLimit {
+                context: Some(128000),
+                input: Some(128000),
+                output: Some(4096),
+            }),
+            experimental: None,
+            status: Some("beta".to_string()),
+        };
+        let descriptor = fetcher.transform_model(model, "openai");
+        assert_eq!(descriptor.id, "gpt-4");
+        assert_eq!(descriptor.display_name, "GPT-4");
+        assert_eq!(descriptor.family, Some("GPT-4".to_string()));
+        assert_eq!(descriptor.provider_id, "openai");
+        assert!(descriptor.capabilities.attachment);
+        assert!(descriptor.capabilities.reasoning);
+        assert!(descriptor.capabilities.tool_call);
+        assert!(descriptor.capabilities.temperature);
+        assert!(!descriptor.capabilities.open_weights);
+        assert_eq!(
+            descriptor.capabilities.input_modalities,
+            vec!["text", "image"]
+        );
+        assert_eq!(descriptor.capabilities.output_modalities, vec!["text"]);
+        assert_eq!(descriptor.cost.input, 0.01);
+        assert_eq!(descriptor.cost.output, 0.03);
+        assert_eq!(descriptor.cost.cache_read, 0.001);
+        assert_eq!(descriptor.limits.context, 128000);
+        assert_eq!(descriptor.limits.input, Some(128000));
+        assert_eq!(descriptor.limits.output, 4096);
+        assert_eq!(descriptor.status, ModelStatus::Beta);
+    }
+
+    #[test]
+    fn test_transform_model_alpha_status() {
+        let fetcher = create_test_fetcher();
+        let model = ModelsDevModel {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            family: None,
+            release_date: None,
+            attachment: false,
+            reasoning: false,
+            temperature: None,
+            tool_call: false,
+            modalities: None,
+            open_weights: true,
+            interleaved: None,
+            cost: None,
+            limit: None,
+            experimental: None,
+            status: Some("alpha".to_string()),
+        };
+        let descriptor = fetcher.transform_model(model, "test");
+        assert_eq!(descriptor.status, ModelStatus::Alpha);
+    }
+
+    #[test]
+    fn test_transform_model_deprecated_status() {
+        let fetcher = create_test_fetcher();
+        let model = ModelsDevModel {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            family: None,
+            release_date: None,
+            attachment: false,
+            reasoning: false,
+            temperature: None,
+            tool_call: false,
+            modalities: None,
+            open_weights: true,
+            interleaved: None,
+            cost: None,
+            limit: None,
+            experimental: None,
+            status: Some("deprecated".to_string()),
+        };
+        let descriptor = fetcher.transform_model(model, "test");
+        assert_eq!(descriptor.status, ModelStatus::Deprecated);
+    }
+
+    #[test]
+    fn test_transform_model_default_status() {
+        let fetcher = create_test_fetcher();
+        let model = ModelsDevModel {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            family: None,
+            release_date: None,
+            attachment: false,
+            reasoning: false,
+            temperature: None,
+            tool_call: false,
+            modalities: None,
+            open_weights: true,
+            interleaved: None,
+            cost: None,
+            limit: None,
+            experimental: None,
+            status: None,
+        };
+        let descriptor = fetcher.transform_model(model, "test");
+        assert_eq!(descriptor.status, ModelStatus::Active);
+    }
+
+    #[test]
+    fn test_transform_model_with_no_cost() {
+        let fetcher = create_test_fetcher();
+        let model = ModelsDevModel {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            family: None,
+            release_date: None,
+            attachment: false,
+            reasoning: false,
+            temperature: None,
+            tool_call: false,
+            modalities: None,
+            open_weights: true,
+            interleaved: None,
+            cost: None,
+            limit: None,
+            experimental: None,
+            status: None,
+        };
+        let descriptor = fetcher.transform_model(model, "test");
+        assert_eq!(descriptor.cost.input, 0.0);
+        assert_eq!(descriptor.cost.output, 0.0);
+        assert_eq!(descriptor.cost.cache_read, 0.0);
+        assert_eq!(descriptor.cost.cache_write, 0.0);
+    }
+
+    #[test]
+    fn test_transform_model_with_no_limit() {
+        let fetcher = create_test_fetcher();
+        let model = ModelsDevModel {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            family: None,
+            release_date: None,
+            attachment: false,
+            reasoning: false,
+            temperature: None,
+            tool_call: false,
+            modalities: None,
+            open_weights: true,
+            interleaved: None,
+            cost: None,
+            limit: None,
+            experimental: None,
+            status: None,
+        };
+        let descriptor = fetcher.transform_model(model, "test");
+        assert_eq!(descriptor.limits.context, 0);
+        assert_eq!(descriptor.limits.input, None);
+        assert_eq!(descriptor.limits.output, 0);
+    }
+
+    #[test]
+    fn test_is_cache_valid_true() {
+        let fetcher = create_test_fetcher();
+        let catalog = ProviderCatalog {
+            providers: BTreeMap::new(),
+            fetched_at: chrono::Utc::now(),
+            source: CatalogSource::ModelsDev,
+        };
+        assert!(fetcher.is_cache_valid(&catalog));
+    }
+
+    #[test]
+    fn test_is_cache_valid_false() {
+        let fetcher = create_test_fetcher();
+        let catalog = ProviderCatalog {
+            providers: BTreeMap::new(),
+            fetched_at: chrono::Utc::now() - chrono::Duration::minutes(10),
+            source: CatalogSource::ModelsDev,
+        };
+        assert!(!fetcher.is_cache_valid(&catalog));
+    }
+
+    #[test]
+    fn test_fetch_error_display() {
+        let error = FetchError::Network("connection refused".to_string());
+        assert!(error.to_string().contains("Network error"));
+        assert!(error.to_string().contains("connection refused"));
+
+        let error = FetchError::HttpStatus(404);
+        assert!(error.to_string().contains("HTTP error"));
+        assert!(error.to_string().contains("404"));
+
+        let error = FetchError::Parse("invalid json".to_string());
+        assert!(error.to_string().contains("Parse error"));
+        assert!(error.to_string().contains("invalid json"));
+    }
+}

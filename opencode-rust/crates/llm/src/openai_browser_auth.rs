@@ -358,4 +358,141 @@ mod tests {
         let loaded = store.load().unwrap().unwrap();
         assert_eq!(loaded, session);
     }
+
+    #[test]
+    fn test_openai_browser_session_is_expired() {
+        let session = OpenAiBrowserSession {
+            access_token: "access".into(),
+            refresh_token: "refresh".into(),
+            expires_at_epoch_ms: chrono::Utc::now().timestamp_millis() - 1000,
+            account_id: None,
+        };
+        assert!(session.is_expired());
+    }
+
+    #[test]
+    fn test_openai_browser_session_is_not_expired() {
+        let session = OpenAiBrowserSession {
+            access_token: "access".into(),
+            refresh_token: "refresh".into(),
+            expires_at_epoch_ms: chrono::Utc::now().timestamp_millis() + 100000,
+            account_id: None,
+        };
+        assert!(!session.is_expired());
+    }
+
+    #[test]
+    fn test_openai_browser_auth_store_load_no_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = OpenAiBrowserAuthStore::new(dir.path().join("nonexistent.json"));
+        let result = store.load();
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+    }
+
+    #[test]
+    fn test_openai_browser_auth_store_clear() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = OpenAiBrowserAuthStore::new(dir.path().to_path_buf());
+        let session = OpenAiBrowserSession {
+            access_token: "access".into(),
+            refresh_token: "refresh".into(),
+            expires_at_epoch_ms: 123456,
+            account_id: None,
+        };
+        store.save(&session).unwrap();
+        store.clear().unwrap();
+        assert!(!store.file_path().exists());
+    }
+
+    #[test]
+    fn test_openai_browser_auth_store_clear_no_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = OpenAiBrowserAuthStore::new(dir.path().to_path_buf());
+        let result = store.clear();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_openai_browser_auth_store_file_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = OpenAiBrowserAuthStore::new(dir.path().to_path_buf());
+        assert_eq!(store.file_path(), dir.path().join(SESSION_FILE_NAME));
+    }
+
+    #[test]
+    fn test_generate_verifier_length() {
+        let verifier = generate_verifier();
+        assert_eq!(verifier.len(), 86);
+    }
+
+    #[test]
+    fn test_generate_challenge_length() {
+        let challenge = generate_challenge("test-verifier");
+        assert!(!challenge.is_empty());
+    }
+
+    #[test]
+    fn test_extract_account_id_from_jwt_no_account() {
+        let payload = serde_json::json!({});
+        let token = fake_jwt(payload);
+        assert!(extract_account_id_from_jwt(&token).is_none());
+    }
+
+    #[test]
+    fn test_extract_account_id_from_jwt_organizations() {
+        let payload = serde_json::json!({
+            "organizations": [{"id": "org_123"}]
+        });
+        let token = fake_jwt(payload);
+        assert_eq!(
+            extract_account_id_from_jwt(&token).as_deref(),
+            Some("org_123")
+        );
+    }
+
+    #[test]
+    fn test_local_callback_server_request() {
+        use std::net::TcpListener;
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+
+        let server = LocalCallbackServer {
+            listener,
+            request: OpenAiBrowserAuthRequest {
+                redirect_uri: format!("http://127.0.0.1:{}/auth/callback", port),
+                state: "test-state".to_string(),
+                code_verifier: "test-verifier".to_string(),
+            },
+        };
+
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        });
+
+        drop(server);
+    }
+
+    #[test]
+    fn test_openai_browser_auth_service_new() {
+        let service = OpenAiBrowserAuthService::new();
+        assert!(service.start_local_callback_listener().is_ok());
+    }
+
+    #[test]
+    fn test_openai_browser_auth_service_exchange_code_state_mismatch() {
+        let service = OpenAiBrowserAuthService::new();
+        let callback = OpenAiBrowserCallback {
+            code: "code".to_string(),
+            state: "wrong-state".to_string(),
+        };
+        let request = OpenAiBrowserAuthRequest {
+            redirect_uri: "http://127.0.0.1:8080/auth/callback".to_string(),
+            state: "correct-state".to_string(),
+            code_verifier: "verifier".to_string(),
+        };
+        let result = service.exchange_code(callback, &request);
+        assert!(result.is_err());
+    }
 }

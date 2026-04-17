@@ -11,6 +11,40 @@ pub struct SessionInfo {
     pub name: String,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_session_info_creation() {
+        let info = SessionInfo {
+            id: "session-1".to_string(),
+            name: "Test Session".to_string(),
+        };
+        assert_eq!(info.id, "session-1");
+        assert_eq!(info.name, "Test Session");
+    }
+
+    #[test]
+    fn test_session_info_serialization() {
+        let info = SessionInfo {
+            id: "sess-123".to_string(),
+            name: "My Session".to_string(),
+        };
+        let json = serde_json::to_string(&info).unwrap();
+        assert!(json.contains("sess-123"));
+        assert!(json.contains("My Session"));
+    }
+
+    #[test]
+    fn test_session_info_deserialization() {
+        let json = r#"{"id":"id-456","name":"Deserialized"}"#;
+        let info: SessionInfo = serde_json::from_str(json).unwrap();
+        assert_eq!(info.id, "id-456");
+        assert_eq!(info.name, "Deserialized");
+    }
+}
+
 fn workspace_sessions_path() -> PathBuf {
     if let Ok(data_dir) = std::env::var("OPENCODE_DATA_DIR") {
         let path = PathBuf::from(data_dir);
@@ -66,6 +100,29 @@ pub enum WorkspaceAction {
         #[arg(long)]
         json: bool,
     },
+}
+
+#[cfg(test)]
+mod workspace_tests {
+    use super::*;
+
+    #[test]
+    fn test_workspace_args_no_action() {
+        let args = WorkspaceArgs { action: None };
+        assert!(args.action.is_none());
+    }
+
+    #[test]
+    fn test_workspace_action_sessions_fields() {
+        let action = WorkspaceAction::Sessions { json: true };
+        assert!(matches!(action, WorkspaceAction::Sessions { .. }));
+    }
+
+    #[test]
+    fn test_workspace_action_status_fields() {
+        let action = WorkspaceAction::Status { json: false };
+        assert!(matches!(action, WorkspaceAction::Status { .. }));
+    }
 }
 
 pub fn run(args: WorkspaceArgs) {

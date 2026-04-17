@@ -23,6 +23,37 @@ pub enum TerminalAction {
     },
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_terminal_args_no_action() {
+        let args = TerminalArgs { action: None };
+        assert!(args.action.is_none());
+    }
+
+    #[test]
+    fn test_terminal_action_open() {
+        let action = TerminalAction::Open;
+        assert!(matches!(action, TerminalAction::Open));
+    }
+
+    #[test]
+    fn test_terminal_action_exec_fields() {
+        let action = TerminalAction::Exec {
+            command: vec!["ls".to_string(), "-la".to_string()],
+        };
+        assert!(matches!(action, TerminalAction::Exec { .. }));
+    }
+
+    #[test]
+    fn test_terminal_action_tabs_fields() {
+        let action = TerminalAction::Tabs { json: true };
+        assert!(matches!(action, TerminalAction::Tabs { .. }));
+    }
+}
+
 pub fn run(args: TerminalArgs) {
     match args.action {
         Some(TerminalAction::Open) => {

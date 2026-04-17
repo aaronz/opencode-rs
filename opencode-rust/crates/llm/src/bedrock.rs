@@ -318,4 +318,210 @@ mod tests {
             env::remove_var("AWS_SECRET_ACCESS_KEY");
         }
     }
+
+    #[test]
+    fn test_bedrock_credential_resolution_profile() {
+        let old_token = env::var("AWS_BEARER_TOKEN_BEDROCK").ok();
+        let old_access = env::var("AWS_ACCESS_KEY_ID").ok();
+        let old_secret = env::var("AWS_SECRET_ACCESS_KEY").ok();
+        let old_web_identity = env::var("AWS_WEB_IDENTITY_TOKEN_FILE").ok();
+        let old_role = env::var("AWS_ROLE_ARN").ok();
+        env::remove_var("AWS_BEARER_TOKEN_BEDROCK");
+        env::remove_var("AWS_ACCESS_KEY_ID");
+        env::remove_var("AWS_SECRET_ACCESS_KEY");
+        env::remove_var("AWS_WEB_IDENTITY_TOKEN_FILE");
+        env::remove_var("AWS_ROLE_ARN");
+        env::set_var("AWS_PROFILE", "my-profile");
+
+        let provider = BedrockProvider::new(ProviderConfig::default(), "us-east-1".to_string());
+        let creds = provider.resolve_credentials().unwrap();
+        assert!(matches!(creds, BedrockCredentials::Profile(p) if p == "my-profile"));
+
+        if let Some(old) = old_token {
+            env::set_var("AWS_BEARER_TOKEN_BEDROCK", old);
+        }
+        if let Some(old) = old_access {
+            env::set_var("AWS_ACCESS_KEY_ID", old);
+        }
+        if let Some(old) = old_secret {
+            env::set_var("AWS_SECRET_ACCESS_KEY", old);
+        }
+        if let Some(old) = old_web_identity {
+            env::set_var("AWS_WEB_IDENTITY_TOKEN_FILE", old);
+        }
+        if let Some(old) = old_role {
+            env::set_var("AWS_ROLE_ARN", old);
+        }
+        env::remove_var("AWS_PROFILE");
+    }
+
+    #[test]
+    fn test_bedrock_credential_resolution_oidc() {
+        let old_token = env::var("AWS_BEARER_TOKEN_BEDROCK").ok();
+        let old_access = env::var("AWS_ACCESS_KEY_ID").ok();
+        let old_secret = env::var("AWS_SECRET_ACCESS_KEY").ok();
+        let old_profile = env::var("AWS_PROFILE").ok();
+        let old_web_identity = env::var("AWS_WEB_IDENTITY_TOKEN_FILE").ok();
+        let old_role = env::var("AWS_ROLE_ARN").ok();
+        let old_session_name = env::var("AWS_ROLE_SESSION_NAME").ok();
+        env::remove_var("AWS_BEARER_TOKEN_BEDROCK");
+        env::remove_var("AWS_ACCESS_KEY_ID");
+        env::remove_var("AWS_SECRET_ACCESS_KEY");
+        env::remove_var("AWS_PROFILE");
+        env::set_var("AWS_WEB_IDENTITY_TOKEN_FILE", "/path/to/token");
+        env::set_var("AWS_ROLE_ARN", "arn:aws:iam::123456789012:role/MyRole");
+        env::set_var("AWS_ROLE_SESSION_NAME", "my-session");
+
+        let provider = BedrockProvider::new(ProviderConfig::default(), "us-east-1".to_string());
+        let creds = provider.resolve_credentials().unwrap();
+        match creds {
+            BedrockCredentials::Oidc {
+                token_file,
+                role_arn,
+                session_name,
+            } => {
+                assert_eq!(token_file, "/path/to/token");
+                assert_eq!(role_arn, "arn:aws:iam::123456789012:role/MyRole");
+                assert_eq!(session_name, "my-session");
+            }
+            other => panic!("Expected Oidc credentials, got {:?}", other),
+        }
+
+        if let Some(old) = old_token {
+            env::set_var("AWS_BEARER_TOKEN_BEDROCK", old);
+        }
+        if let Some(old) = old_access {
+            env::set_var("AWS_ACCESS_KEY_ID", old);
+        }
+        if let Some(old) = old_secret {
+            env::set_var("AWS_SECRET_ACCESS_KEY", old);
+        }
+        if let Some(old) = old_profile {
+            env::set_var("AWS_PROFILE", old);
+        }
+        if let Some(old) = old_web_identity {
+            env::set_var("AWS_WEB_IDENTITY_TOKEN_FILE", old);
+        } else {
+            env::remove_var("AWS_WEB_IDENTITY_TOKEN_FILE");
+        }
+        if let Some(old) = old_role {
+            env::set_var("AWS_ROLE_ARN", old);
+        } else {
+            env::remove_var("AWS_ROLE_ARN");
+        }
+        if let Some(old) = old_session_name {
+            env::set_var("AWS_ROLE_SESSION_NAME", old);
+        } else {
+            env::remove_var("AWS_ROLE_SESSION_NAME");
+        }
+    }
+
+    #[test]
+    fn test_bedrock_credential_resolution_no_credentials() {
+        let old_token = env::var("AWS_BEARER_TOKEN_BEDROCK").ok();
+        let old_access = env::var("AWS_ACCESS_KEY_ID").ok();
+        let old_secret = env::var("AWS_SECRET_ACCESS_KEY").ok();
+        let old_profile = env::var("AWS_PROFILE").ok();
+        let old_web_identity = env::var("AWS_WEB_IDENTITY_TOKEN_FILE").ok();
+        let old_role = env::var("AWS_ROLE_ARN").ok();
+        env::remove_var("AWS_BEARER_TOKEN_BEDROCK");
+        env::remove_var("AWS_ACCESS_KEY_ID");
+        env::remove_var("AWS_SECRET_ACCESS_KEY");
+        env::remove_var("AWS_PROFILE");
+        env::remove_var("AWS_WEB_IDENTITY_TOKEN_FILE");
+        env::remove_var("AWS_ROLE_ARN");
+
+        let provider = BedrockProvider::new(ProviderConfig::default(), "us-east-1".to_string());
+        let result = provider.resolve_credentials();
+        assert!(result.is_err());
+
+        if let Some(old) = old_token {
+            env::set_var("AWS_BEARER_TOKEN_BEDROCK", old);
+        }
+        if let Some(old) = old_access {
+            env::set_var("AWS_ACCESS_KEY_ID", old);
+        }
+        if let Some(old) = old_secret {
+            env::set_var("AWS_SECRET_ACCESS_KEY", old);
+        }
+        if let Some(old) = old_profile {
+            env::set_var("AWS_PROFILE", old);
+        }
+        if let Some(old) = old_web_identity {
+            env::set_var("AWS_WEB_IDENTITY_TOKEN_FILE", old);
+        }
+        if let Some(old) = old_role {
+            env::set_var("AWS_ROLE_ARN", old);
+        }
+    }
+
+    #[test]
+    fn test_bedrock_provider_from_env() {
+        let old_region = env::var("AWS_DEFAULT_REGION").ok();
+        let old_model = env::var("BEDROCK_MODEL").ok();
+        env::set_var("AWS_DEFAULT_REGION", "eu-west-1");
+        env::set_var("BEDROCK_MODEL", "custom.model");
+
+        let provider = BedrockProvider::from_env();
+        assert!(provider.is_some());
+
+        if let Some(p) = provider {
+            assert_eq!(p.region, "eu-west-1");
+        }
+
+        if let Some(old) = old_region {
+            env::set_var("AWS_DEFAULT_REGION", old);
+        } else {
+            env::remove_var("AWS_DEFAULT_REGION");
+        }
+        if let Some(old) = old_model {
+            env::set_var("BEDROCK_MODEL", old);
+        } else {
+            env::remove_var("BEDROCK_MODEL");
+        }
+    }
+
+    #[test]
+    fn test_bedrock_provider_from_env_default_region() {
+        let old_region = env::var("AWS_DEFAULT_REGION").ok();
+        let old_aws_region = env::var("AWS_REGION").ok();
+        let old_model = env::var("BEDROCK_MODEL").ok();
+        env::remove_var("AWS_DEFAULT_REGION");
+        env::remove_var("AWS_REGION");
+        env::remove_var("BEDROCK_MODEL");
+
+        let provider = BedrockProvider::from_env();
+        assert!(provider.is_some());
+
+        if let Some(p) = provider {
+            assert_eq!(p.region, "us-east-1");
+        }
+
+        if let Some(old) = old_region {
+            env::set_var("AWS_DEFAULT_REGION", old);
+        }
+        if let Some(old) = old_aws_region {
+            env::set_var("AWS_REGION", old);
+        }
+        if let Some(old) = old_model {
+            env::set_var("BEDROCK_MODEL", old);
+        }
+    }
+
+    #[test]
+    fn test_bedrock_credentials_debug() {
+        let creds = BedrockCredentials::BearerToken("token".to_string());
+        let debug_str = format!("{:?}", creds);
+        assert!(debug_str.contains("BearerToken"));
+    }
+
+    #[test]
+    fn test_bedrock_get_models_contains_expected() {
+        let provider = BedrockProvider::new(ProviderConfig::default(), "us-east-1".to_string());
+        let models = provider.get_models();
+        let model_ids: Vec<&str> = models.iter().map(|m| m.id.as_str()).collect();
+        assert!(model_ids.contains(&"anthropic.claude-3-5-sonnet-20241022-v2:0"));
+        assert!(model_ids.contains(&"anthropic.claude-3-sonnet-20240229-v1:0"));
+        assert!(model_ids.contains(&"meta.llama3-70b-instruct-v1:0"));
+    }
 }

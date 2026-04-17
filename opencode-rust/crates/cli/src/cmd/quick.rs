@@ -28,6 +28,70 @@ pub enum QuickAction {
     ToggleSidebar,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_quick_args_no_action() {
+        let args = QuickArgs { action: None };
+        assert!(args.action.is_none());
+    }
+
+    #[test]
+    fn test_quick_action_new_session() {
+        let action = QuickAction::NewSession {
+            name: "Test Session".to_string(),
+        };
+        match action {
+            QuickAction::NewSession { name } => {
+                assert_eq!(name, "Test Session");
+            }
+            _ => panic!("Expected NewSession variant"),
+        }
+    }
+
+    #[test]
+    fn test_quick_action_switch_model() {
+        let action = QuickAction::SwitchModel {
+            model: "gpt-4o".to_string(),
+        };
+        match action {
+            QuickAction::SwitchModel { model } => {
+                assert_eq!(model, "gpt-4o");
+            }
+            _ => panic!("Expected SwitchModel variant"),
+        }
+    }
+
+    #[test]
+    fn test_quick_action_settings() {
+        let action = QuickAction::Settings;
+        match action {
+            QuickAction::Settings => {}
+            _ => panic!("Expected Settings variant"),
+        }
+    }
+
+    #[test]
+    fn test_quick_action_toggle_sidebar() {
+        let action = QuickAction::ToggleSidebar;
+        match action {
+            QuickAction::ToggleSidebar => {}
+            _ => panic!("Expected ToggleSidebar variant"),
+        }
+    }
+
+    #[test]
+    fn test_quick_action_debug() {
+        let action = QuickAction::NewSession {
+            name: "Debug Session".to_string(),
+        };
+        let debug_str = format!("{:?}", action);
+        assert!(debug_str.contains("Debug Session"));
+    }
+}
+
 pub fn run(args: QuickArgs) {
     match args.action {
         Some(QuickAction::NewSession { name }) => {

@@ -889,6 +889,7 @@ impl ProviderFactory for DynamicProviderFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::error::Error;
 
     #[test]
     fn test_provider_identity_creation() {
@@ -1116,5 +1117,272 @@ mod tests {
         manager.register_factory(Box::new(CustomFactory));
 
         assert!(manager.has_provider("custom"));
+    }
+
+    #[test]
+    fn test_reasoning_budget_for_provider_anthropic() {
+        let budget = ReasoningBudget::High;
+        let config = budget.for_provider("anthropic");
+        assert!(config.is_some());
+        match config {
+            Some(ProviderReasoningConfig::Anthropic { thinking }) => {
+                assert!(thinking.is_some());
+            }
+            _ => panic!("Expected Anthropic config"),
+        }
+    }
+
+    #[test]
+    fn test_reasoning_budget_for_provider_openai() {
+        let budget = ReasoningBudget::Medium;
+        let config = budget.for_provider("openai");
+        assert!(config.is_some());
+        match config {
+            Some(ProviderReasoningConfig::OpenAI { reasoning_effort }) => {
+                assert_eq!(reasoning_effort, Some("medium".to_string()));
+            }
+            _ => panic!("Expected OpenAI config"),
+        }
+    }
+
+    #[test]
+    fn test_reasoning_budget_for_provider_google() {
+        let budget = ReasoningBudget::Low;
+        let config = budget.for_provider("google");
+        assert!(config.is_some());
+        match config {
+            Some(ProviderReasoningConfig::Google { thinking_throttle }) => {
+                assert_eq!(thinking_throttle, Some("low".to_string()));
+            }
+            _ => panic!("Expected Google config"),
+        }
+    }
+
+    #[test]
+    fn test_reasoning_budget_for_unknown_provider() {
+        let budget = ReasoningBudget::High;
+        let config = budget.for_provider("unknown");
+        assert!(config.is_none());
+    }
+
+    #[test]
+    fn test_provider_identity_with_variant() {
+        let identity = ProviderIdentity::openai("gpt-4").with_variant("variant-1");
+        assert_eq!(identity.variant, Some("variant-1".to_string()));
+    }
+
+    #[test]
+    fn test_provider_identity_all_factory_methods() {
+        let openai = ProviderIdentity::openai("gpt-4");
+        let anthropic = ProviderIdentity::anthropic("claude-3");
+        let google = ProviderIdentity::google("gemini");
+        let ollama = ProviderIdentity::ollama("llama2");
+        let lmstudio = ProviderIdentity::lmstudio("llama2");
+        let local = ProviderIdentity::local("llama2");
+
+        assert_eq!(openai.provider_type, "openai");
+        assert_eq!(anthropic.provider_type, "anthropic");
+        assert_eq!(google.provider_type, "google");
+        assert_eq!(ollama.provider_type, "ollama");
+        assert_eq!(lmstudio.provider_type, "lmstudio");
+        assert_eq!(local.provider_type, "local");
+    }
+
+    #[test]
+    fn test_provider_spec_all_variants() {
+        let specs = vec![
+            ProviderSpec::OpenAI {
+                api_key: "key".to_string(),
+                model: "gpt-4".to_string(),
+                base_url: None,
+            },
+            ProviderSpec::Anthropic {
+                api_key: "key".to_string(),
+                model: "claude-3".to_string(),
+                base_url: None,
+            },
+            ProviderSpec::Google {
+                api_key: "key".to_string(),
+                model: "gemini".to_string(),
+            },
+            ProviderSpec::Ollama {
+                base_url: None,
+                model: "llama2".to_string(),
+            },
+            ProviderSpec::LmStudio {
+                base_url: None,
+                model: "llama2".to_string(),
+            },
+            ProviderSpec::LocalInference {
+                base_url: "http://localhost".to_string(),
+                model: "llama2".to_string(),
+            },
+            ProviderSpec::Azure {
+                api_key: "key".to_string(),
+                endpoint: "https://example.azure.com".to_string(),
+                deployment: "gpt-4".to_string(),
+                api_version: None,
+            },
+            ProviderSpec::OpenRouter {
+                api_key: "key".to_string(),
+                model: "gpt-4".to_string(),
+                base_url: None,
+            },
+            ProviderSpec::Mistral {
+                api_key: "key".to_string(),
+                model: "mistral".to_string(),
+            },
+            ProviderSpec::Groq {
+                api_key: "key".to_string(),
+                model: "llama2".to_string(),
+            },
+        ];
+
+        for spec in specs {
+            assert!(!spec.provider_type().is_empty());
+            assert!(!spec.model().is_empty());
+        }
+    }
+
+    #[test]
+    fn test_dyn_provider_error_display() {
+        let error = DynProviderError {
+            message: "test error".to_string(),
+        };
+        let display = format!("{}", error);
+        assert!(display.contains("test error"));
+    }
+
+    #[test]
+    fn test_dyn_provider_error_source() {
+        let error = DynProviderError {
+            message: "test error".to_string(),
+        };
+        let source = error.source();
+        assert!(source.is_none());
+    }
+
+    #[test]
+    fn test_provider_config_from_identity_openai() {
+        std::env::set_var("OPENAI_API_KEY", "test-key");
+        let identity = ProviderIdentity::openai("gpt-4");
+        let config = ProviderConfig::from_identity(&identity);
+        assert!(config.is_some());
+        std::env::remove_var("OPENAI_API_KEY");
+    }
+
+    #[test]
+    fn test_provider_config_from_identity_anthropic() {
+        std::env::set_var("ANTHROPIC_API_KEY", "test-key");
+        let identity = ProviderIdentity::anthropic("claude-3");
+        let config = ProviderConfig::from_identity(&identity);
+        assert!(config.is_some());
+        std::env::remove_var("ANTHROPIC_API_KEY");
+    }
+
+    #[test]
+    fn test_provider_config_from_identity_google() {
+        std::env::set_var("GOOGLE_API_KEY", "test-key");
+        let identity = ProviderIdentity::google("gemini");
+        let config = ProviderConfig::from_identity(&identity);
+        assert!(config.is_some());
+        std::env::remove_var("GOOGLE_API_KEY");
+    }
+
+    #[test]
+    fn test_provider_config_from_identity_ollama() {
+        let identity = ProviderIdentity::ollama("llama2");
+        let config = ProviderConfig::from_identity(&identity);
+        assert!(config.is_some());
+    }
+
+    #[test]
+    fn test_provider_config_from_identity_lmstudio() {
+        let identity = ProviderIdentity::lmstudio("llama2");
+        let config = ProviderConfig::from_identity(&identity);
+        assert!(config.is_some());
+    }
+
+    #[test]
+    fn test_provider_config_from_identity_local() {
+        let identity = ProviderIdentity::local("llama2");
+        let config = ProviderConfig::from_identity(&identity);
+        assert!(config.is_some());
+    }
+
+    #[test]
+    fn test_provider_config_from_identity_unknown() {
+        let identity = ProviderIdentity::new("unknown", Some("model"));
+        let config = ProviderConfig::from_identity(&identity);
+        assert!(config.is_none());
+    }
+
+    #[test]
+    fn test_dynamic_provider_factory_creates_openai() {
+        let factory = DynamicProviderFactory::new();
+        let config = ProviderConfig::from_spec(ProviderSpec::OpenAI {
+            api_key: "key".to_string(),
+            model: "gpt-4".to_string(),
+            base_url: None,
+        });
+        let result = factory.create(&config);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_dynamic_provider_factory_creates_anthropic() {
+        let factory = DynamicProviderFactory::new();
+        let config = ProviderConfig::from_spec(ProviderSpec::Anthropic {
+            api_key: "key".to_string(),
+            model: "claude-3".to_string(),
+            base_url: None,
+        });
+        let result = factory.create(&config);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_dynamic_provider_factory_creates_ollama() {
+        let factory = DynamicProviderFactory::new();
+        let config = ProviderConfig::from_spec(ProviderSpec::Ollama {
+            base_url: Some("http://localhost:11434".to_string()),
+            model: "llama2".to_string(),
+        });
+        let result = factory.create(&config);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_dynamic_provider_factory_supports_always_returns_true() {
+        let factory = DynamicProviderFactory::new();
+        let spec = ProviderSpec::OpenAI {
+            api_key: "key".to_string(),
+            model: "gpt-4".to_string(),
+            base_url: None,
+        };
+        assert!(factory.supports(&spec));
+    }
+
+    #[test]
+    fn test_provider_manager_create_provider_fallback() {
+        let manager = ProviderManager::new();
+        let spec = ProviderSpec::OpenAI {
+            api_key: "key".to_string(),
+            model: "gpt-4".to_string(),
+            base_url: None,
+        };
+        let result = manager.create_provider_fallback(&spec);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_provider_manager_create_provider_unknown_type() {
+        let manager = ProviderManager::new();
+        let spec = ProviderSpec::Mistral {
+            api_key: "key".to_string(),
+            model: "mistral".to_string(),
+        };
+        let result = manager.create_provider_fallback(&spec);
+        assert!(result.is_ok());
     }
 }

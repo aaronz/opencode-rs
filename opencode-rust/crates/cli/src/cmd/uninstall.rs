@@ -14,6 +14,65 @@ pub struct UninstallArgs {
     pub dry_run: bool,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_uninstall_args_default() {
+        let args = UninstallArgs {
+            force: false,
+            json: false,
+            dry_run: false,
+        };
+        assert!(!args.force);
+        assert!(!args.json);
+        assert!(!args.dry_run);
+    }
+
+    #[test]
+    fn test_uninstall_args_with_force() {
+        let args = UninstallArgs {
+            force: true,
+            json: false,
+            dry_run: false,
+        };
+        assert!(args.force);
+    }
+
+    #[test]
+    fn test_uninstall_args_with_json() {
+        let args = UninstallArgs {
+            force: false,
+            json: true,
+            dry_run: false,
+        };
+        assert!(args.json);
+    }
+
+    #[test]
+    fn test_uninstall_args_with_dry_run() {
+        let args = UninstallArgs {
+            force: false,
+            json: false,
+            dry_run: true,
+        };
+        assert!(args.dry_run);
+    }
+
+    #[test]
+    fn test_uninstall_args_full() {
+        let args = UninstallArgs {
+            force: true,
+            json: true,
+            dry_run: true,
+        };
+        assert!(args.force);
+        assert!(args.json);
+        assert!(args.dry_run);
+    }
+}
+
 pub fn run(args: UninstallArgs) {
     let data_dir = directories::ProjectDirs::from("com", "opencode", "rs")
         .map(|dirs| dirs.data_dir().to_path_buf())

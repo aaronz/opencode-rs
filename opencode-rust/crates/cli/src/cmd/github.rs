@@ -42,6 +42,38 @@ pub enum GitHubAction {
     },
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_github_args_default() {
+        let args = GitHubArgs {
+            action: GitHubAction::Login,
+        };
+        assert!(matches!(args.action, GitHubAction::Login));
+    }
+
+    #[test]
+    fn test_github_action_issue_list() {
+        let action = GitHubAction::IssueList {
+            repo: "owner/repo".to_string(),
+        };
+        assert!(matches!(action, GitHubAction::IssueList { .. }));
+    }
+
+    #[test]
+    fn test_github_action_install_fields() {
+        let action = GitHubAction::Install {
+            token: None,
+            owner: "myowner".to_string(),
+            repo: "myrepo".to_string(),
+            branch: "main".to_string(),
+        };
+        assert!(matches!(action, GitHubAction::Install { .. }));
+    }
+}
+
 pub fn run(args: GitHubArgs) {
     match args.action {
         GitHubAction::Login => {

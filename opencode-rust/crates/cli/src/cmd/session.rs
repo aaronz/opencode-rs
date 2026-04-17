@@ -23,6 +23,99 @@ pub struct SessionMessage {
     pub content: String,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_session_record_creation() {
+        let record = SessionRecord {
+            id: "test-id".to_string(),
+            name: "Test Session".to_string(),
+            created_at: "2024-01-01T00:00:00Z".to_string(),
+            messages: vec![],
+            redo_history: vec![],
+        };
+        assert_eq!(record.id, "test-id");
+        assert_eq!(record.name, "Test Session");
+        assert!(record.messages.is_empty());
+        assert!(record.redo_history.is_empty());
+    }
+
+    #[test]
+    fn test_session_message_creation() {
+        let msg = SessionMessage {
+            role: "user".to_string(),
+            content: "Hello".to_string(),
+        };
+        assert_eq!(msg.role, "user");
+        assert_eq!(msg.content, "Hello");
+    }
+
+    #[test]
+    fn test_session_message_serialization() {
+        let msg = SessionMessage {
+            role: "assistant".to_string(),
+            content: "Hi there!".to_string(),
+        };
+        let json = serde_json::to_string(&msg).unwrap();
+        assert!(json.contains("assistant"));
+        assert!(json.contains("Hi there!"));
+    }
+
+    #[test]
+    fn test_session_record_serialization() {
+        let record = SessionRecord {
+            id: "123".to_string(),
+            name: "My Session".to_string(),
+            created_at: "2024-01-01T00:00:00Z".to_string(),
+            messages: vec![SessionMessage {
+                role: "user".to_string(),
+                content: "Test".to_string(),
+            }],
+            redo_history: vec![],
+        };
+        let json = serde_json::to_string(&record).unwrap();
+        assert!(json.contains("123"));
+        assert!(json.contains("My Session"));
+        assert!(json.contains("Test"));
+    }
+
+    #[test]
+    fn test_session_record_with_multiple_messages() {
+        let record = SessionRecord {
+            id: "456".to_string(),
+            name: "Multi Message".to_string(),
+            created_at: "2024-01-01T00:00:00Z".to_string(),
+            messages: vec![
+                SessionMessage {
+                    role: "user".to_string(),
+                    content: "First".to_string(),
+                },
+                SessionMessage {
+                    role: "assistant".to_string(),
+                    content: "Second".to_string(),
+                },
+                SessionMessage {
+                    role: "user".to_string(),
+                    content: "Third".to_string(),
+                },
+            ],
+            redo_history: vec![],
+        };
+        assert_eq!(record.messages.len(), 3);
+        assert_eq!(record.messages[0].content, "First");
+        assert_eq!(record.messages[1].content, "Second");
+        assert_eq!(record.messages[2].content, "Third");
+    }
+
+    #[test]
+    fn test_append_session_message_returns_false_for_invalid_uuid() {
+        let result = append_session_message("invalid-uuid", "test content");
+        assert!(!result);
+    }
+}
+
 pub fn load_session_records() -> Vec<SessionRecord> {
     let sharing = get_session_sharing();
     let infos = sharing.list_sessions().unwrap_or_default();

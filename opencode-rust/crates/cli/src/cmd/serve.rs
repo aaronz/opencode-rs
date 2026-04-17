@@ -25,6 +25,49 @@ pub struct ServeArgs {
     pub hostname: Option<String>,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_serve_args_default() {
+        let args = ServeArgs {
+            port: None,
+            hostname: None,
+        };
+        assert!(args.port.is_none());
+        assert!(args.hostname.is_none());
+    }
+
+    #[test]
+    fn test_serve_args_with_port() {
+        let args = ServeArgs {
+            port: Some(8080),
+            hostname: None,
+        };
+        assert_eq!(args.port, Some(8080));
+    }
+
+    #[test]
+    fn test_serve_args_with_hostname() {
+        let args = ServeArgs {
+            port: None,
+            hostname: Some("0.0.0.0".to_string()),
+        };
+        assert_eq!(args.hostname.as_deref(), Some("0.0.0.0"));
+    }
+
+    #[test]
+    fn test_serve_args_full() {
+        let args = ServeArgs {
+            port: Some(3000),
+            hostname: Some("localhost".to_string()),
+        };
+        assert_eq!(args.port, Some(3000));
+        assert_eq!(args.hostname.as_deref(), Some("localhost"));
+    }
+}
+
 pub fn run(args: ServeArgs) {
     let runtime = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
 

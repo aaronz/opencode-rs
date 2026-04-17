@@ -154,7 +154,7 @@ mod tests {
         let base = serde_json::json!({"value": 123});
         let patch = serde_json::json!({"value": "string"});
         let result = deep_merge(base, patch);
-        assert_eq!(result, "string");
+        assert_eq!(result, serde_json::json!({"value": "string"}));
     }
 
     #[test]

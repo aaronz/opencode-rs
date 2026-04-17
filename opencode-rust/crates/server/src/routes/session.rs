@@ -1180,4 +1180,98 @@ mod tests {
         assert_eq!(req.command, "git");
         assert_eq!(req.args.unwrap(), vec!["commit", "-m", "message"]);
     }
+
+    #[test]
+    fn test_req_id_to_permission_file_read() {
+        assert_eq!(req_id_to_permission("file_read_123"), Permission::FileRead);
+        assert_eq!(req_id_to_permission("read_123"), Permission::FileRead);
+        assert_eq!(req_id_to_permission("FileRead_456"), Permission::FileRead);
+    }
+
+    #[test]
+    fn test_req_id_to_permission_file_write() {
+        assert_eq!(
+            req_id_to_permission("file_write_123"),
+            Permission::FileWrite
+        );
+        assert_eq!(req_id_to_permission("write_123"), Permission::FileWrite);
+        assert_eq!(req_id_to_permission("FileWrite_456"), Permission::FileWrite);
+    }
+
+    #[test]
+    fn test_req_id_to_permission_file_delete() {
+        assert_eq!(
+            req_id_to_permission("file_delete_123"),
+            Permission::FileDelete
+        );
+        assert_eq!(req_id_to_permission("delete_123"), Permission::FileDelete);
+        assert_eq!(
+            req_id_to_permission("FileDelete_456"),
+            Permission::FileDelete
+        );
+    }
+
+    #[test]
+    fn test_req_id_to_permission_bash_execute() {
+        assert_eq!(req_id_to_permission("bash_123"), Permission::BashExecute);
+        assert_eq!(req_id_to_permission("execute_123"), Permission::BashExecute);
+        assert_eq!(
+            req_id_to_permission("BashExecute_456"),
+            Permission::BashExecute
+        );
+    }
+
+    #[test]
+    fn test_req_id_to_permission_network_access() {
+        assert_eq!(
+            req_id_to_permission("network_123"),
+            Permission::NetworkAccess
+        );
+        assert_eq!(
+            req_id_to_permission("external_123"),
+            Permission::NetworkAccess
+        );
+        assert_eq!(
+            req_id_to_permission("NetworkAccess_456"),
+            Permission::NetworkAccess
+        );
+    }
+
+    #[test]
+    fn test_req_id_to_permission_default() {
+        assert_eq!(req_id_to_permission("unknown_123"), Permission::FileRead);
+        assert_eq!(req_id_to_permission(""), Permission::FileRead);
+        assert_eq!(req_id_to_permission("something_else"), Permission::FileRead);
+    }
+
+    #[test]
+    fn test_derive_tool_name_from_req_id_file_read() {
+        assert_eq!(derive_tool_name_from_req_id("file_read_123"), "read");
+        assert_eq!(derive_tool_name_from_req_id("read_123"), "read");
+        assert_eq!(derive_tool_name_from_req_id("FileRead_456"), "read");
+    }
+
+    #[test]
+    fn test_derive_tool_name_from_req_id_file_write() {
+        assert_eq!(derive_tool_name_from_req_id("file_write_123"), "write");
+        assert_eq!(derive_tool_name_from_req_id("write_123"), "write");
+    }
+
+    #[test]
+    fn test_derive_tool_name_from_req_id_delete() {
+        assert_eq!(derive_tool_name_from_req_id("file_delete_123"), "delete");
+        assert_eq!(derive_tool_name_from_req_id("delete_123"), "delete");
+    }
+
+    #[test]
+    fn test_derive_tool_name_from_req_id_bash() {
+        assert_eq!(derive_tool_name_from_req_id("bash_123"), "bash");
+        assert_eq!(derive_tool_name_from_req_id("execute_123"), "bash");
+    }
+
+    #[test]
+    fn test_derive_tool_name_from_req_id_default() {
+        assert_eq!(derive_tool_name_from_req_id("unknown_123"), "unknown_123");
+        assert_eq!(derive_tool_name_from_req_id(""), "");
+    }
 }

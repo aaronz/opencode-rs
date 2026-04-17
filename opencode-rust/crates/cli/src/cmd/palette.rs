@@ -33,6 +33,32 @@ pub enum PaletteAction {
     },
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_palette_args_no_action() {
+        let args = PaletteArgs { action: None };
+        assert!(args.action.is_none());
+    }
+
+    #[test]
+    fn test_palette_action_open() {
+        let action = PaletteAction::Open;
+        assert!(matches!(action, PaletteAction::Open));
+    }
+
+    #[test]
+    fn test_palette_action_search_fields() {
+        let action = PaletteAction::Search {
+            query: Some("session".to_string()),
+            json: true,
+        };
+        assert!(matches!(action, PaletteAction::Search { .. }));
+    }
+}
+
 pub fn run(args: PaletteArgs) {
     match args.action {
         Some(PaletteAction::Open) => {

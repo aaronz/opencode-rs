@@ -48,6 +48,211 @@ struct ModelRow {
     max_input_tokens: u32,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_models_args_default() {
+        let args = ModelsArgs {
+            provider: None,
+            json: false,
+            visibility: None,
+            switch: None,
+            action: None,
+        };
+        assert!(args.provider.is_none());
+        assert!(!args.json);
+        assert!(args.visibility.is_none());
+        assert!(args.switch.is_none());
+        assert!(args.action.is_none());
+    }
+
+    #[test]
+    fn test_models_args_with_provider() {
+        let args = ModelsArgs {
+            provider: Some("openai".to_string()),
+            json: false,
+            visibility: None,
+            switch: None,
+            action: None,
+        };
+        assert_eq!(args.provider.as_deref(), Some("openai"));
+    }
+
+    #[test]
+    fn test_models_args_with_json() {
+        let args = ModelsArgs {
+            provider: None,
+            json: true,
+            visibility: None,
+            switch: None,
+            action: None,
+        };
+        assert!(args.json);
+    }
+
+    #[test]
+    fn test_models_args_with_visibility() {
+        let args = ModelsArgs {
+            provider: None,
+            json: false,
+            visibility: Some("visible".to_string()),
+            switch: None,
+            action: None,
+        };
+        assert_eq!(args.visibility.as_deref(), Some("visible"));
+    }
+
+    #[test]
+    fn test_models_args_with_switch() {
+        let args = ModelsArgs {
+            provider: None,
+            json: false,
+            visibility: None,
+            switch: Some("gpt-4o".to_string()),
+            action: None,
+        };
+        assert_eq!(args.switch.as_deref(), Some("gpt-4o"));
+    }
+
+    #[test]
+    fn test_models_args_full() {
+        let args = ModelsArgs {
+            provider: Some("anthropic".to_string()),
+            json: true,
+            visibility: Some("hidden".to_string()),
+            switch: Some("claude-3-5-sonnet".to_string()),
+            action: None,
+        };
+        assert_eq!(args.provider.as_deref(), Some("anthropic"));
+        assert!(args.json);
+        assert_eq!(args.visibility.as_deref(), Some("hidden"));
+        assert_eq!(args.switch.as_deref(), Some("claude-3-5-sonnet"));
+    }
+
+    #[test]
+    fn test_models_action_visibility_hide() {
+        let action = ModelsAction::Visibility {
+            hide: Some("gpt-4".to_string()),
+            show: None,
+            list_hidden: false,
+        };
+        match &action {
+            ModelsAction::Visibility {
+                hide,
+                show,
+                list_hidden,
+            } => {
+                assert_eq!(hide.as_deref(), Some("gpt-4"));
+                assert!(show.is_none());
+                assert!(!*list_hidden);
+            }
+        }
+    }
+
+    #[test]
+    fn test_models_action_visibility_show() {
+        let action = ModelsAction::Visibility {
+            hide: None,
+            show: Some("gpt-4".to_string()),
+            list_hidden: false,
+        };
+        match &action {
+            ModelsAction::Visibility {
+                hide,
+                show,
+                list_hidden,
+            } => {
+                assert!(hide.is_none());
+                assert_eq!(show.as_deref(), Some("gpt-4"));
+                assert!(!*list_hidden);
+            }
+        }
+    }
+
+    #[test]
+    fn test_models_action_visibility_list_hidden() {
+        let action = ModelsAction::Visibility {
+            hide: None,
+            show: None,
+            list_hidden: true,
+        };
+        match &action {
+            ModelsAction::Visibility {
+                hide,
+                show,
+                list_hidden,
+            } => {
+                assert!(hide.is_none());
+                assert!(show.is_none());
+                assert!(*list_hidden);
+            }
+        }
+    }
+
+    #[test]
+    fn test_model_row_serialization() {
+        let row = ModelRow {
+            id: "gpt-4o".to_string(),
+            name: "GPT-4o".to_string(),
+            provider: "openai".to_string(),
+            supports_streaming: true,
+            supports_functions: true,
+            max_input_tokens: 128000,
+        };
+        let json = serde_json::to_string(&row).unwrap();
+        assert!(json.contains("gpt-4o"));
+        assert!(json.contains("openai"));
+        assert!(json.contains("128000"));
+    }
+
+    #[test]
+    fn test_load_hidden_models_empty_when_no_file() {
+        std::env::remove_var("OPENCODE_CONFIG_DIR");
+        let temp_dir = std::env::temp_dir();
+        std::env::set_var("OPENCODE_CONFIG_DIR", temp_dir.to_string_lossy().as_ref());
+        let hidden_file = PathBuf::from(temp_dir).join("opencode-hidden-models.json");
+        let _ = std::fs::remove_file(hidden_file);
+        let hidden = load_hidden_models();
+        assert!(hidden.is_empty());
+        std::env::remove_var("OPENCODE_CONFIG_DIR");
+    }
+
+    #[test]
+    fn test_load_hidden_models_with_existing_file() {
+        let temp_dir = std::env::temp_dir();
+        std::env::set_var("OPENCODE_CONFIG_DIR", temp_dir.to_string_lossy().as_ref());
+        let hidden_file = PathBuf::from(temp_dir).join("opencode-hidden-models.json");
+        std::fs::write(&hidden_file, r#"["gpt-4", "claude-3"]"#).unwrap();
+        let hidden = load_hidden_models();
+        assert!(hidden.contains("gpt-4"));
+        assert!(hidden.contains("claude-3"));
+        let _ = std::fs::remove_file(hidden_file);
+        std::env::remove_var("OPENCODE_CONFIG_DIR");
+    }
+
+    #[test]
+    fn test_save_and_load_hidden_models() {
+        let temp_dir = std::env::temp_dir();
+        std::env::set_var("OPENCODE_CONFIG_DIR", temp_dir.to_string_lossy().as_ref());
+        let hidden_file = PathBuf::from(temp_dir).join("opencode-hidden-models.json");
+        let _ = std::fs::remove_file(&hidden_file);
+
+        let mut hidden = BTreeSet::new();
+        hidden.insert("model-1".to_string());
+        hidden.insert("model-2".to_string());
+        save_hidden_models(&hidden);
+
+        let loaded = load_hidden_models();
+        assert!(loaded.contains("model-1"));
+        assert!(loaded.contains("model-2"));
+
+        let _ = std::fs::remove_file(&hidden_file);
+        std::env::remove_var("OPENCODE_CONFIG_DIR");
+    }
+}
+
 fn hidden_models_path() -> PathBuf {
     if let Ok(dir) = std::env::var("OPENCODE_CONFIG_DIR") {
         let path = PathBuf::from(dir);
