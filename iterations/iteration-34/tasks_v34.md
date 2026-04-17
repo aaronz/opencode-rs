@@ -178,7 +178,7 @@
 - [ ] **T-028**: Implement zsh completion generation
   - `opencode-rs completion zsh`
 
-- [ ] **T-029**: Implement fish completion generation
+- [x] **T-029**: Implement fish completion generation
   - `opencode-rs completion fish`
 
 - [ ] **T-030**: Implement PowerShell completion generation

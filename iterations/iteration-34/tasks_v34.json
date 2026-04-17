@@ -541,7 +541,7 @@
       "priority": "P1",
       "title": "Create completion command module",
       "description": "Create crates/cli/src/cmd/completion.rs module",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify completion module exists and can be imported",
         "AddRegressionTest: verify CLI builds with new module"
@@ -580,7 +580,7 @@
       "priority": "P1",
       "title": "Implement zsh completion generation",
       "description": "Implement opencode-rs completion zsh command",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify zsh completion generates valid zsh script",
         "AddUnitTest: verify completion script includes all CLI commands"
@@ -600,7 +600,7 @@
       "priority": "P1",
       "title": "Implement fish completion generation",
       "description": "Implement opencode-rs completion fish command",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify fish completion generates valid fish script",
         "AddUnitTest: verify completion script includes all CLI commands"
