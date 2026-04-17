@@ -769,7 +769,7 @@
       "priority": "P1",
       "title": "Publish plugin API stability policy",
       "description": "Publish plugin API stability policy in documentation",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: verify stability policy documentation is accessible"
       ],
