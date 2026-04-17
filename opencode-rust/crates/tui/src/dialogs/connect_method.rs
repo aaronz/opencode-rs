@@ -6,7 +6,7 @@ use ratatui::{
     layout::Rect,
     style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, List, ListItem},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame,
 };
 
@@ -40,36 +40,54 @@ impl sealed::Sealed for ConnectMethodDialog {}
 impl Dialog for ConnectMethodDialog {
     fn draw(&self, f: &mut Frame, area: Rect) {
         let width = 60.min(area.width.saturating_sub(4));
-        let height = 10.min(area.height.saturating_sub(4));
+        let height = if self.methods.is_empty() {
+            8.min(area.height.saturating_sub(4))
+        } else {
+            10.min(area.height.saturating_sub(4))
+        };
         let x = (area.width - width) / 2;
         let y = (area.height - height) / 2;
         let dialog_area = Rect::new(x, y, width, height);
 
         f.render_widget(Clear, dialog_area);
         let block = Block::default()
-            .title("Select Auth Method")
+            .title(if self.methods.is_empty() {
+                "Auth Method Not Available"
+            } else {
+                "Select Auth Method"
+            })
             .borders(Borders::ALL)
             .border_style(Style::default().fg(self.theme.primary_color()));
         f.render_widget(block.clone(), dialog_area);
 
         let inner = block.inner(dialog_area);
-        let items: Vec<ListItem> = self
-            .methods
-            .iter()
-            .enumerate()
-            .map(|(index, (_, name))| {
-                let style = if index == self.selected_index {
-                    Style::default()
-                        .fg(self.theme.primary_color())
-                        .add_modifier(Modifier::BOLD)
-                } else {
-                    Style::default().fg(self.theme.foreground_color())
-                };
-                ListItem::new(Line::from(Span::styled(name.clone(), style)))
-            })
-            .collect();
 
-        f.render_widget(List::new(items), inner);
+        if self.methods.is_empty() {
+            let msg =
+                "No authentication methods available for this provider.\nPress Enter to go back.";
+            f.render_widget(
+                Paragraph::new(msg).style(Style::default().fg(self.theme.muted_color())),
+                inner,
+            );
+        } else {
+            let items: Vec<ListItem> = self
+                .methods
+                .iter()
+                .enumerate()
+                .map(|(index, (_, name))| {
+                    let style = if index == self.selected_index {
+                        Style::default()
+                            .fg(self.theme.primary_color())
+                            .add_modifier(Modifier::BOLD)
+                    } else {
+                        Style::default().fg(self.theme.foreground_color())
+                    };
+                    ListItem::new(Line::from(Span::styled(name.clone(), style)))
+                })
+                .collect();
+
+            f.render_widget(List::new(items), inner);
+        }
     }
 
     fn handle_input(&mut self, key: KeyEvent) -> DialogAction {
