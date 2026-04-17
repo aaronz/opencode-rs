@@ -139,7 +139,7 @@ impl ToolCall {
 
 /// Tool execution response from the API.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ToolExecutionResponse {
+pub(crate) struct ToolExecutionResponse {
     /// Execution result ID.
     pub id: Uuid,
 

@@ -40,10 +40,10 @@
 //! | 7xxx  | Validation |
 //! | 9xxx  | Internal |
 
-pub mod auth;
-pub mod client;
-pub mod error;
-pub mod session;
+pub(crate) mod auth;
+pub(crate) mod client;
+pub(crate) mod error;
+pub(crate) mod session;
 pub mod tools;
 
 pub use auth::ApiKeyAuth;
@@ -52,5 +52,4 @@ pub use error::{SdkError, SdkResult};
 pub use session::{SdkSession, SessionInfo};
 pub use tools::{ToolDefinition, ToolExecutor, ToolResult};
 
-/// Re-export core types for convenience
 pub use opencode_core::Message;

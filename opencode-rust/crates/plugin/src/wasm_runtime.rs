@@ -5,7 +5,7 @@ use tokio::task::JoinHandle;
 use wasmtime::{Config, Engine, Instance, Linker, Memory, Module, Store};
 
 #[derive(Debug, thiserror::Error)]
-pub enum WasmError {
+pub(crate) enum WasmError {
     #[error("WASM compilation failed: {0}")]
     Compile(String),
     #[error("WASM instantiation failed: {0}")]
@@ -29,13 +29,13 @@ impl From<wasmtime::Error> for WasmError {
 }
 
 #[derive(Clone)]
-pub struct WasmCapabilities {
-    pub filesystem_scope: Option<String>,
-    pub network_allowed: bool,
-    pub allowed_env_vars: Vec<String>,
-    pub execution_timeout_secs: Option<u64>,
-    pub max_memory_bytes: Option<u64>,
-    pub max_cpu_time_secs: Option<u64>,
+pub(crate) struct WasmCapabilities {
+    pub(crate) filesystem_scope: Option<String>,
+    pub(crate) network_allowed: bool,
+    pub(crate) allowed_env_vars: Vec<String>,
+    pub(crate) execution_timeout_secs: Option<u64>,
+    pub(crate) max_memory_bytes: Option<u64>,
+    pub(crate) max_cpu_time_secs: Option<u64>,
 }
 
 impl Default for WasmCapabilities {
@@ -51,12 +51,12 @@ impl Default for WasmCapabilities {
     }
 }
 
-pub struct WasmRuntime {
+pub(crate) struct WasmRuntime {
     engine: Engine,
     capabilities: WasmCapabilities,
 }
 
-pub struct WasmInstance {
+pub(crate) struct WasmInstance {
     store: Store<WasmInstanceState>,
     instance: Instance,
 }
@@ -73,7 +73,7 @@ impl Default for WasmInstanceState {
     }
 }
 
-pub struct WasmPlugin {
+pub(crate) struct WasmPlugin {
     name: String,
     version: String,
     runtime: WasmRuntime,
@@ -81,24 +81,24 @@ pub struct WasmPlugin {
     event_rx: Option<broadcast::Receiver<WasmPluginEvent>>,
 }
 
-pub trait EventBridgeBackend: Send + Sync {
+pub(crate) trait EventBridgeBackend: Send + Sync {
     fn subscribe(&self) -> broadcast::Receiver<EventEnvelope>;
     fn publish(&self, event: EventEnvelope);
 }
 
 #[derive(Debug, Clone)]
-pub struct EventEnvelope {
-    pub event_type: String,
-    pub payload: String,
+pub(crate) struct EventEnvelope {
+    pub(crate) event_type: String,
+    pub(crate) payload: String,
 }
 
-pub struct WasmEventBridge<B: EventBridgeBackend> {
+pub(crate) struct WasmEventBridge<B: EventBridgeBackend> {
     _task: JoinHandle<()>,
     _backend: Arc<B>,
 }
 
 impl<B: EventBridgeBackend + 'static> WasmEventBridge<B> {
-    pub fn new(mut plugin: WasmPlugin, backend: Arc<B>) -> Result<Self, WasmError> {
+    pub(crate) fn new(mut plugin: WasmPlugin, backend: Arc<B>) -> Result<Self, WasmError> {
         let event_rx = plugin
             .take_event_receiver()
             .ok_or_else(|| WasmError::Instantiate("plugin has no event receiver".to_string()))?;
@@ -172,7 +172,7 @@ impl<B: EventBridgeBackend + 'static> WasmEventBridge<B> {
 }
 
 #[derive(Debug, Clone)]
-pub enum WasmPluginEvent {
+pub(crate) enum WasmPluginEvent {
     Subscribe { event_name: String },
     Unsubscribe { event_name: String },
     Log { level: String, message: String },
@@ -180,7 +180,7 @@ pub enum WasmPluginEvent {
 }
 
 impl WasmRuntime {
-    pub fn new(capabilities: WasmCapabilities) -> Result<Self, WasmError> {
+    pub(crate) fn new(capabilities: WasmCapabilities) -> Result<Self, WasmError> {
         let mut config = Config::new();
         config.consume_fuel(true);
 
@@ -196,12 +196,12 @@ impl WasmRuntime {
         })
     }
 
-    pub fn load_module(&self, path: &Path) -> Result<Module, WasmError> {
+    pub(crate) fn load_module(&self, path: &Path) -> Result<Module, WasmError> {
         let bytes = std::fs::read(path)?;
         Module::new(&self.engine, bytes).map_err(|e| WasmError::Compile(e.to_string()))
     }
 
-    pub fn instantiate_module(&self, module: &Module) -> Result<WasmInstance, WasmError> {
+    pub(crate) fn instantiate_module(&self, module: &Module) -> Result<WasmInstance, WasmError> {
         let memory = Arc::new(Mutex::new(None));
         let state = WasmInstanceState { memory };
 

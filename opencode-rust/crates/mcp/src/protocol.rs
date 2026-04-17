@@ -104,7 +104,7 @@ pub const METHOD_NOT_FOUND: i32 = -32601;
 pub const INVALID_PARAMS: i32 = -32602;
 pub const INTERNAL_ERROR: i32 = -32603;
 
-pub struct SchemaCache {
+pub(crate) struct SchemaCache {
     cache: HashMap<String, CachedToolSchema>,
     max_age: Duration,
 }

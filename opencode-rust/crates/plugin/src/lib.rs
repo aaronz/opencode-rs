@@ -4,7 +4,7 @@ pub mod config;
 pub mod discovery;
 pub mod loader;
 pub mod registry;
-pub mod wasm_runtime;
+pub(crate) mod wasm_runtime;
 
 use async_trait::async_trait;
 use discovery::PluginDiscovery;
@@ -690,7 +690,9 @@ impl Drop for PluginManager {
     }
 }
 
-pub fn initialize_plugins(project_path: Option<&Path>) -> Result<PluginManager, PluginError> {
+pub(crate) fn initialize_plugins(
+    project_path: Option<&Path>,
+) -> Result<PluginManager, PluginError> {
     let mut manager = PluginManager::new();
     let loaded = manager.discover_and_load(project_path)?;
     tracing::info!(

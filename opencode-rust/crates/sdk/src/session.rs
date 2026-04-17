@@ -34,7 +34,7 @@ pub struct SessionInfo {
 pub struct CreateSessionRequest {
     /// Optional initial prompt to start the session with.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub initial_prompt: Option<String>,
+    pub(crate) initial_prompt: Option<String>,
 }
 
 /// Session creation response from the API.
@@ -55,7 +55,7 @@ pub struct CreateSessionResponse {
 
 /// Fork session request.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ForkSessionRequest {
+pub(crate) struct ForkSessionRequest {
     /// Message index to fork at.
     pub fork_at_message_index: usize,
 }
@@ -76,7 +76,7 @@ pub struct ForkSessionResponse {
 
 /// Add message request.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AddMessageRequest {
+pub(crate) struct AddMessageRequest {
     /// Message role (user, assistant, system).
     #[serde(default = "default_role")]
     pub role: String,
@@ -101,7 +101,8 @@ pub struct AddMessageResponse {
 
 /// Session summary information.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SessionSummary {
+#[allow(dead_code)]
+pub(crate) struct SessionSummary {
     /// Summary text.
     pub summary: String,
 
