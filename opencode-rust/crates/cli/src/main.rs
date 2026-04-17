@@ -26,6 +26,7 @@ use cmd::{
     mcp::{self, McpArgs},
     models::{self, ModelsArgs},
     palette::{self, PaletteArgs},
+    plugin::{self, PluginArgs},
     pr::{self, PrArgs},
     project::{self, ProjectArgs},
     prompt::{self, PromptArgs},
@@ -198,6 +199,9 @@ enum Commands {
     #[command(about = "Command palette")]
     Palette(PaletteArgs),
 
+    #[command(about = "Manage plugins")]
+    Plugin(PluginArgs),
+
     #[command(about = "Manage keyboard shortcuts")]
     Shortcuts(ShortcutsArgs),
 
@@ -301,6 +305,7 @@ fn main() {
         Some(Commands::Acp(args)) => acp::run(args),
         Some(Commands::WorkspaceServe(args)) => workspace_serve::run(args),
         Some(Commands::Palette(args)) => palette::run(args),
+        Some(Commands::Plugin(args)) => plugin::run(args),
         Some(Commands::Shortcuts(args)) => shortcuts::run(args),
         Some(Commands::Workspace(args)) => workspace::run(args),
         Some(Commands::Ui(args)) => ui::run(args),

@@ -24,6 +24,7 @@ pub(crate) mod mcp;
 pub(crate) mod mcp_auth;
 pub(crate) mod models;
 pub(crate) mod palette;
+pub(crate) mod plugin;
 pub(crate) mod pr;
 pub(crate) mod project;
 pub(crate) mod prompt;

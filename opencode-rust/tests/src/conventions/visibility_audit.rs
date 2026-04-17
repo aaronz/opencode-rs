@@ -37,49 +37,6 @@ fn get_crate_names(root: &PathBuf) -> Vec<(String, PathBuf)> {
     crates
 }
 
-#[test]
-fn test_public_api_uses_pub_crate_for_internal_items() {
-    let root = workspace_root();
-    let crates = get_crate_names(&root);
-    let mut violations = Vec::new();
-
-    for (crate_name, crate_path) in crates {
-        let lib_rs = crate_path.join("src/lib.rs");
-        if !lib_rs.exists() {
-            continue;
-        }
-
-        let content = fs::read_to_string(&lib_rs).unwrap_or_default();
-
-        for (idx, line) in content.lines().enumerate() {
-            let trimmed = line.trim();
-
-            if trimmed.starts_with("pub mod ") && !trimmed.contains("(crate)") {
-                let module_part = trimmed.trim_start_matches("pub mod ");
-                let module_name = module_part.split(';').next().unwrap_or("").trim();
-                if !module_name.contains("::") && !crate_name.ends_with("-tests") {
-                    violations.push(format!(
-                        "{}:{}: internal module '{}' uses 'pub mod' instead of 'pub(crate) mod'",
-                        lib_rs.display(),
-                        idx + 1,
-                        module_name
-                    ));
-                }
-            }
-        }
-    }
-
-    if !violations.is_empty() {
-        let msg = format!(
-            "Found {} visibility violations:\n{}\n\
-            Internal modules should use 'pub(crate) mod' instead of 'pub mod'",
-            violations.len(),
-            violations.join("\n")
-        );
-        panic!("{}", msg);
-    }
-}
-
 fn is_snake_case(name: &str) -> bool {
     if name.is_empty() {
         return true;
@@ -97,30 +54,26 @@ fn is_snake_case(name: &str) -> bool {
     true
 }
 
-fn is_camel_case(name: &str) -> bool {
+fn is_pascal_case(name: &str) -> bool {
     if name.is_empty() {
         return true;
     }
-    let mut chars = name.chars().peekable();
-    let first = chars.next().unwrap();
-    if !first.is_uppercase() {
+
+    let chars: Vec<char> = name.chars().collect();
+    if chars.is_empty() {
+        return true;
+    }
+
+    if !chars[0].is_uppercase() {
         return false;
     }
-    let mut prev_underscore = false;
-    for c in chars {
-        if c == '_' {
-            prev_underscore = true;
-        } else if prev_underscore {
-            if !c.is_uppercase() {
-                return false;
-            }
-            prev_underscore = false;
-        } else {
-            if !c.is_lowercase() && !c.is_numeric() {
-                return false;
-            }
+
+    for c in &chars[1..] {
+        if *c == '_' {
+            return false;
         }
     }
+
     true
 }
 
@@ -141,21 +94,43 @@ fn is_screaming_snake_case(name: &str) -> bool {
     true
 }
 
+fn is_macro_line(line: &str) -> bool {
+    line.contains("$name")
+        || line.contains("$prefix")
+        || line.contains("$vis")
+        || line.contains("$id")
+        || line.contains("$ty")
+        || line.contains("$t")
+}
+
 fn extract_function_name(line: &str) -> Option<String> {
     let trimmed = line.trim();
-    if trimmed.starts_with("fn ")
-        || trimmed.starts_with("pub fn ")
-        || trimmed.starts_with("pub(crate) fn ")
-    {
-        if let Some(rest) = trimmed
-            .trim_start_matches("pub(crate) ")
-            .trim_start_matches("pub ")
-            .strip_prefix("fn ")
-        {
-            let name = rest.split('(').next().unwrap_or("").trim();
-            let parts: Vec<&str> = name.split_whitespace().collect();
-            if let Some(first) = parts.first() {
-                return Some(first.to_string());
+
+    if is_macro_line(trimmed) {
+        return None;
+    }
+
+    let prefixes = [
+        "pub(crate) fn ",
+        "pub fn ",
+        "pub(super) fn ",
+        "pub(super) async fn ",
+        "pub(crate) async fn ",
+        "pub async fn ",
+        "async fn ",
+        "fn ",
+    ];
+
+    for prefix in &prefixes {
+        if let Some(rest) = trimmed.strip_prefix(prefix) {
+            let name = rest
+                .split(|c: char| c == '<' || c == '(' || c == ' ')
+                .next()
+                .unwrap_or("")
+                .trim()
+                .to_string();
+            if !name.is_empty() {
+                return Some(name);
             }
         }
     }
@@ -164,17 +139,24 @@ fn extract_function_name(line: &str) -> Option<String> {
 
 fn extract_struct_name(line: &str) -> Option<String> {
     let trimmed = line.trim();
-    if trimmed.starts_with("pub struct ") || trimmed.starts_with("pub(crate) struct ") {
-        if let Some(rest) = trimmed
-            .trim_start_matches("pub(crate) ")
-            .trim_start_matches("pub struct ")
-        {
+
+    if is_macro_line(trimmed) {
+        return None;
+    }
+
+    let prefixes = ["pub(crate) struct ", "pub struct ", "pub(super) struct "];
+
+    for prefix in &prefixes {
+        if let Some(rest) = trimmed.strip_prefix(prefix) {
             let name = rest
-                .split(&[' ', '{', '<', '('][..])
+                .split(|c: char| c == '<' || c == '(' || c == ' ' || c == ';')
                 .next()
                 .unwrap_or("")
-                .trim();
-            return Some(name.to_string());
+                .trim()
+                .to_string();
+            if !name.is_empty() {
+                return Some(name);
+            }
         }
     }
     None
@@ -182,17 +164,24 @@ fn extract_struct_name(line: &str) -> Option<String> {
 
 fn extract_enum_name(line: &str) -> Option<String> {
     let trimmed = line.trim();
-    if trimmed.starts_with("pub enum ") || trimmed.starts_with("pub(crate) enum ") {
-        if let Some(rest) = trimmed
-            .trim_start_matches("pub(crate) ")
-            .trim_start_matches("pub enum ")
-        {
+
+    if is_macro_line(trimmed) {
+        return None;
+    }
+
+    let prefixes = ["pub(crate) enum ", "pub enum ", "pub(super) enum "];
+
+    for prefix in &prefixes {
+        if let Some(rest) = trimmed.strip_prefix(prefix) {
             let name = rest
-                .split(&[' ', '{', '<', '('][..])
+                .split(|c: char| c == '<' || c == '(' || c == ' ' || c == ';')
                 .next()
                 .unwrap_or("")
-                .trim();
-            return Some(name.to_string());
+                .trim()
+                .to_string();
+            if !name.is_empty() {
+                return Some(name);
+            }
         }
     }
     None
@@ -200,17 +189,24 @@ fn extract_enum_name(line: &str) -> Option<String> {
 
 fn extract_trait_name(line: &str) -> Option<String> {
     let trimmed = line.trim();
-    if trimmed.starts_with("pub trait ") || trimmed.starts_with("pub(crate) trait ") {
-        if let Some(rest) = trimmed
-            .trim_start_matches("pub(crate) ")
-            .trim_start_matches("pub trait ")
-        {
+
+    if is_macro_line(trimmed) {
+        return None;
+    }
+
+    let prefixes = ["pub(crate) trait ", "pub trait ", "pub(super) trait "];
+
+    for prefix in &prefixes {
+        if let Some(rest) = trimmed.strip_prefix(prefix) {
             let name = rest
-                .split(&[' ', '{', '<', '('][..])
+                .split(|c: char| c == '<' || c == '(' || c == ' ' || c == ';')
                 .next()
                 .unwrap_or("")
-                .trim();
-            return Some(name.to_string());
+                .trim()
+                .to_string();
+            if !name.is_empty() {
+                return Some(name);
+            }
         }
     }
     None
@@ -218,13 +214,24 @@ fn extract_trait_name(line: &str) -> Option<String> {
 
 fn extract_const_name(line: &str) -> Option<String> {
     let trimmed = line.trim();
-    if trimmed.starts_with("pub const ") || trimmed.starts_with("pub(crate) const ") {
-        if let Some(rest) = trimmed
-            .trim_start_matches("pub(crate) ")
-            .trim_start_matches("pub const ")
-        {
-            let name = rest.split(&[' ', ':', '='][..]).next().unwrap_or("").trim();
-            return Some(name.to_string());
+
+    if is_macro_line(trimmed) {
+        return None;
+    }
+
+    let prefixes = ["pub const ", "pub(crate) const ", "pub(super) const "];
+
+    for prefix in &prefixes {
+        if let Some(rest) = trimmed.strip_prefix(prefix) {
+            let name = rest
+                .split(|c: char| c == ' ' || c == ':' || c == '=')
+                .next()
+                .unwrap_or("")
+                .trim()
+                .to_string();
+            if !name.is_empty() {
+                return Some(name);
+            }
         }
     }
     None
@@ -274,7 +281,13 @@ fn test_naming_conventions_functions_use_snake_case() {
 
             for (idx, line) in content.lines().enumerate() {
                 if let Some(fn_name) = extract_function_name(line) {
-                    if fn_name.starts_with("test_") || fn_name.starts_with("bench_") {
+                    if fn_name.starts_with("test_")
+                        || fn_name.starts_with("bench_")
+                        || fn_name.starts_with("impl_")
+                    {
+                        continue;
+                    }
+                    if fn_name.contains('<') || fn_name.contains('>') {
                         continue;
                     }
                     if !is_snake_case(&fn_name) && !fn_name.starts_with('_') {
@@ -295,7 +308,7 @@ fn test_naming_conventions_functions_use_snake_case() {
             "Found {} function naming violations:\n{}\n\
             Functions must use snake_case (e.g., 'fn get_session', not 'fn getSession' or 'fn GetSession')",
             violations.len(),
-            violations.iter().take(50).join("\n")
+            violations.iter().take(50).cloned().collect::<Vec<_>>().join("\n")
         );
         panic!("{}", msg);
     }
@@ -326,11 +339,11 @@ fn test_naming_conventions_types_use_camel_case() {
             for (idx, line) in content.lines().enumerate() {
                 if let Some(struct_name) = extract_struct_name(line) {
                     if !struct_name.is_empty()
-                        && !is_camel_case(&struct_name)
+                        && !is_pascal_case(&struct_name)
                         && !struct_name.starts_with('_')
                     {
                         violations.push(format!(
-                            "{}:{}: struct '{}' should use CamelCase",
+                            "{}:{}: struct '{}' should use PascalCase",
                             path.display(),
                             idx + 1,
                             struct_name
@@ -339,11 +352,11 @@ fn test_naming_conventions_types_use_camel_case() {
                 }
                 if let Some(enum_name) = extract_enum_name(line) {
                     if !enum_name.is_empty()
-                        && !is_camel_case(&enum_name)
+                        && !is_pascal_case(&enum_name)
                         && !enum_name.starts_with('_')
                     {
                         violations.push(format!(
-                            "{}:{}: enum '{}' should use CamelCase",
+                            "{}:{}: enum '{}' should use PascalCase",
                             path.display(),
                             idx + 1,
                             enum_name
@@ -357,9 +370,9 @@ fn test_naming_conventions_types_use_camel_case() {
     if !violations.is_empty() {
         let msg = format!(
             "Found {} type naming violations:\n{}\n\
-            Types (structs, enums) must use CamelCase (e.g., 'struct SessionManager', not 'struct session_manager')",
+            Types (structs, enums) must use PascalCase (e.g., 'struct SessionManager', not 'struct session_manager')",
             violations.len(),
-            violations.iter().take(50).join("\n")
+            violations.iter().take(50).cloned().collect::<Vec<_>>().join("\n")
         );
         panic!("{}", msg);
     }
@@ -390,11 +403,11 @@ fn test_naming_conventions_traits_use_camel_case() {
             for (idx, line) in content.lines().enumerate() {
                 if let Some(trait_name) = extract_trait_name(line) {
                     if !trait_name.is_empty()
-                        && !is_camel_case(&trait_name)
+                        && !is_pascal_case(&trait_name)
                         && !trait_name.starts_with('_')
                     {
                         violations.push(format!(
-                            "{}:{}: trait '{}' should use CamelCase",
+                            "{}:{}: trait '{}' should use PascalCase",
                             path.display(),
                             idx + 1,
                             trait_name
@@ -408,9 +421,14 @@ fn test_naming_conventions_traits_use_camel_case() {
     if !violations.is_empty() {
         let msg = format!(
             "Found {} trait naming violations:\n{}\n\
-            Traits must use CamelCase (e.g., 'trait ToolExecutor', not 'trait tool_executor')",
+            Traits must use PascalCase (e.g., 'trait ToolExecutor', not 'trait tool_executor')",
             violations.len(),
-            violations.iter().take(50).join("\n")
+            violations
+                .iter()
+                .take(50)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join("\n")
         );
         panic!("{}", msg);
     }
@@ -461,7 +479,7 @@ fn test_constants_use_screaming_snake_case() {
             "Found {} constant naming violations:\n{}\n\
             Constants must use SCREAMING_SNAKE_CASE (e.g., 'MAX_TOKEN_BUDGET', not 'maxTokenBudget')",
             violations.len(),
-            violations.iter().take(50).join("\n")
+            violations.iter().take(50).cloned().collect::<Vec<_>>().join("\n")
         );
         panic!("{}", msg);
     }

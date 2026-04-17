@@ -129,7 +129,7 @@
       "priority": "P1",
       "title": "Plugin CLI Commands",
       "description": "Create plugin command module with subcommands: plugin install <name>, plugin list, plugin remove <name>, plugin search [query]. Persist plugins in opencode.json config. Add to CLI registry.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify plugin install <name> installs and persists plugin",
         "AddIntegrationTest: verify plugin list shows installed plugins",
