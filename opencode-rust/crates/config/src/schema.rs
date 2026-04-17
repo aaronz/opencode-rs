@@ -490,4 +490,210 @@ mod tests {
             .any(|e| e.contains("$.scroll_acceleration.enabled")));
         assert!(errors.iter().any(|e| e.contains("$.keybinds.commands")));
     }
+
+    #[test]
+    fn validate_tui_config_scroll_speed_zero() {
+        let config = TuiConfig {
+            scroll_speed: Some(0),
+            ..Default::default()
+        };
+        let errors = validate_tui_config(&config);
+        assert!(!errors.is_empty());
+        assert!(errors.iter().any(|e| e.field.contains("scrollSpeed")));
+    }
+
+    #[test]
+    fn validate_tui_config_scroll_speed_excessively_high() {
+        let config = TuiConfig {
+            scroll_speed: Some(2000),
+            ..Default::default()
+        };
+        let errors = validate_tui_config(&config);
+        assert!(!errors.is_empty());
+        assert!(errors
+            .iter()
+            .any(|e| e.severity == ValidationSeverity::Warning));
+    }
+
+    #[test]
+    fn validate_tui_config_scroll_acceleration_speed_negative() {
+        let config = TuiConfig {
+            scroll_acceleration: Some(ScrollAccelerationConfig {
+                enabled: true,
+                speed: Some(-1.0),
+            }),
+            ..Default::default()
+        };
+        let errors = validate_tui_config(&config);
+        assert!(!errors.is_empty());
+        assert!(errors
+            .iter()
+            .any(|e| e.field.contains("scrollAcceleration.speed")));
+    }
+
+    #[test]
+    fn validate_tui_config_scroll_acceleration_speed_excessive() {
+        let config = TuiConfig {
+            scroll_acceleration: Some(ScrollAccelerationConfig {
+                enabled: true,
+                speed: Some(20.0),
+            }),
+            ..Default::default()
+        };
+        let errors = validate_tui_config(&config);
+        assert!(!errors.is_empty());
+        assert!(errors
+            .iter()
+            .any(|e| e.severity == ValidationSeverity::Warning));
+    }
+
+    #[test]
+    fn validate_tui_config_no_errors() {
+        let config = TuiConfig {
+            scroll_speed: Some(50),
+            scroll_acceleration: Some(ScrollAccelerationConfig {
+                enabled: true,
+                speed: Some(1.0),
+            }),
+            ..Default::default()
+        };
+        let errors = validate_tui_config(&config);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn pointer_to_path_empty() {
+        let result = pointer_to_path("");
+        assert_eq!(result, "$");
+    }
+
+    #[test]
+    fn pointer_to_path_simple() {
+        let result = pointer_to_path("/field");
+        assert_eq!(result, "field");
+    }
+
+    #[test]
+    fn pointer_to_path_nested() {
+        let result = pointer_to_path("/server/port");
+        assert_eq!(result, "server.port");
+    }
+
+    #[test]
+    fn pointer_to_path_with_tilde_encoding() {
+        let result = pointer_to_path("/data/~1value");
+        assert_eq!(result, "data.value");
+    }
+
+    #[test]
+    fn pointer_to_path_with_tilde() {
+        let result = pointer_to_path("/data~0value");
+        assert_eq!(result, "data~value");
+    }
+
+    #[test]
+    fn cache_file_name_with_url() {
+        let url = "https://example.com/config.schema.json";
+        let name = cache_file_name(url);
+        assert!(name.ends_with(".json"));
+        assert!(name.contains("config"));
+    }
+
+    #[test]
+    fn cache_file_name_no_extension() {
+        let url = "https://example.com/schema";
+        let name = cache_file_name(url);
+        assert!(name.ends_with(".json"));
+    }
+
+    #[test]
+    fn cache_file_name_with_special_chars() {
+        let url = "https://example.com/path?query=value#fragment";
+        let name = cache_file_name(url);
+        assert!(!name.contains("?"));
+        assert!(!name.contains("#"));
+    }
+
+    #[test]
+    fn cache_file_name_invalid_url() {
+        let name = cache_file_name("not a url");
+        assert!(name.ends_with(".json"));
+    }
+
+    #[test]
+    fn schema_cache_dir_with_env_override() {
+        let temp = tempfile::tempdir().unwrap();
+        std::env::set_var("OPENCODE_SCHEMA_CACHE_DIR", temp.path().to_str().unwrap());
+        let dir = schema_cache_dir();
+        assert_eq!(dir, temp.path());
+        std::env::remove_var("OPENCODE_SCHEMA_CACHE_DIR");
+    }
+
+    #[test]
+    fn schema_error_display() {
+        let err = SchemaError::InvalidUrl("bad url".to_string());
+        assert!(err.to_string().contains("Invalid schema URL"));
+    }
+
+    #[test]
+    fn get_builtin_schema_returns_valid_json() {
+        let schema = get_builtin_schema();
+        assert!(schema.is_object());
+    }
+
+    #[test]
+    fn validate_tui_schema_valid_cases() {
+        let value = serde_json::json!({
+            "scroll_speed": 50,
+            "scroll_acceleration": { "enabled": true, "speed": 1.5 },
+            "diff_style": "sideBySide",
+            "theme": { "name": "dark" },
+            "keybinds": { "commands": "ctrl-c" }
+        });
+        let errors = validate_tui_schema(&value);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn validate_tui_schema_theme_not_object() {
+        let value = serde_json::json!({
+            "theme": "dark"
+        });
+        let errors = validate_tui_schema(&value);
+        assert!(errors.iter().any(|e| e.contains("$.theme")));
+    }
+
+    #[test]
+    fn validate_tui_schema_keybinds_not_object() {
+        let value = serde_json::json!({
+            "keybinds": ["ctrl-c"]
+        });
+        let errors = validate_tui_schema(&value);
+        assert!(errors.iter().any(|e| e.contains("$.keybinds")));
+    }
+
+    #[test]
+    fn validate_tui_schema_unknown_field() {
+        let value = serde_json::json!({
+            "unknown_field": "value"
+        });
+        let errors = validate_tui_schema(&value);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn schema_validation_error_struct() {
+        let error = SchemaValidationError {
+            path: "field".to_string(),
+            message: "test error".to_string(),
+        };
+        assert!(error.path == "field");
+    }
+
+    #[test]
+    fn schema_validation_result_default() {
+        let result = SchemaValidationResult::default();
+        assert!(result.valid);
+        assert!(result.errors.is_empty());
+    }
 }

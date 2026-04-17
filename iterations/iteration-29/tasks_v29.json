@@ -255,7 +255,7 @@
       "priority": "P1",
       "title": "Increase cli crate coverage to 80%",
       "description": "Increase code coverage for cli crate from 50% to 80%+",
-      "status": "partially_complete",
+      "status": "manual_check",
       "test_criteria": [
         "RunTestSuite: cargo llvm-cov shows cli crate coverage >= 80%"
       ],
@@ -345,7 +345,7 @@
       "priority": "P1",
       "title": "Increase plugin crate coverage to 80%",
       "description": "Increase code coverage for plugin crate from 70% to 80%+",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: cargo llvm-cov shows plugin crate coverage >= 80%"
       ],
@@ -363,7 +363,7 @@
       "priority": "P1",
       "title": "Increase config crate coverage to 80%",
       "description": "Increase code coverage for config crate from 70% to 80%+",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "RunTestSuite: cargo llvm-cov shows config crate coverage >= 80%"
       ],

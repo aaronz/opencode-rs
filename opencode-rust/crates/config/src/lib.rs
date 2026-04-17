@@ -3411,4 +3411,1157 @@ mod tests {
             output
         );
     }
+
+    #[test]
+    fn test_validation_error_is_error() {
+        let error = ValidationError {
+            field: "test".to_string(),
+            message: "test error".to_string(),
+            severity: ValidationSeverity::Error,
+        };
+        assert!(error.is_error());
+        assert!(!error.is_warning());
+    }
+
+    #[test]
+    fn test_validation_error_is_warning() {
+        let error = ValidationError {
+            field: "test".to_string(),
+            message: "test warning".to_string(),
+            severity: ValidationSeverity::Warning,
+        };
+        assert!(error.is_warning());
+        assert!(!error.is_error());
+    }
+
+    #[test]
+    fn test_agent_map_config_get_agent() {
+        let mut agents = HashMap::new();
+        agents.insert(
+            "build".to_string(),
+            AgentConfig {
+                model: Some("gpt-4".to_string()),
+                ..Default::default()
+            },
+        );
+        let config = AgentMapConfig {
+            agents,
+            default_agent: None,
+        };
+        assert!(config.get_agent("build").is_some());
+        assert!(config.get_agent("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_agent_map_config_get_default_agent() {
+        let mut agents = HashMap::new();
+        agents.insert(
+            "build".to_string(),
+            AgentConfig {
+                model: Some("gpt-4".to_string()),
+                ..Default::default()
+            },
+        );
+        let config = AgentMapConfig {
+            agents,
+            default_agent: Some("build".to_string()),
+        };
+        assert!(config.get_default_agent().is_some());
+        assert_eq!(
+            config.get_default_agent().unwrap().model.as_deref(),
+            Some("gpt-4")
+        );
+    }
+
+    #[test]
+    fn test_agent_map_config_get_default_agent_nonexistent() {
+        let mut agents = HashMap::new();
+        agents.insert(
+            "build".to_string(),
+            AgentConfig {
+                model: Some("gpt-4".to_string()),
+                ..Default::default()
+            },
+        );
+        let config = AgentMapConfig {
+            agents,
+            default_agent: Some("nonexistent".to_string()),
+        };
+        assert!(config.get_default_agent().is_none());
+    }
+
+    #[test]
+    fn test_config_validate_model_without_slash() {
+        let mut config = Config::default();
+        config.model = Some("invalid-model".to_string());
+        let errors = config.validate();
+        assert!(!errors.is_empty());
+        assert!(errors.iter().any(|e| e.field == "model"));
+    }
+
+    #[test]
+    fn test_config_validate_temperature_out_of_range() {
+        let mut config = Config::default();
+        config.temperature = Some(5.0);
+        let errors = config.validate();
+        assert!(!errors.is_empty());
+        assert!(errors.iter().any(|e| e.field == "temperature"));
+    }
+
+    #[test]
+    fn test_config_validate_agent_temperature_out_of_range() {
+        let mut agents = HashMap::new();
+        agents.insert(
+            "build".to_string(),
+            AgentConfig {
+                temperature: Some(5.0),
+                ..Default::default()
+            },
+        );
+        let config = Config {
+            agent: Some(AgentMapConfig {
+                agents,
+                default_agent: None,
+            }),
+            ..Default::default()
+        };
+        let errors = config.validate();
+        assert!(!errors.is_empty());
+        assert!(errors
+            .iter()
+            .any(|e| e.field.contains("agent.build.temperature")));
+    }
+
+    #[test]
+    fn test_config_validate_agent_top_p_out_of_range() {
+        let mut agents = HashMap::new();
+        agents.insert(
+            "build".to_string(),
+            AgentConfig {
+                top_p: Some(2.0),
+                ..Default::default()
+            },
+        );
+        let config = Config {
+            agent: Some(AgentMapConfig {
+                agents,
+                default_agent: None,
+            }),
+            ..Default::default()
+        };
+        let errors = config.validate();
+        assert!(!errors.is_empty());
+        assert!(errors.iter().any(|e| e.field.contains("agent.build.top_p")));
+    }
+
+    #[test]
+    fn test_config_validate_disabled_and_enabled_conflict() {
+        let config = Config {
+            disabled_providers: Some(vec!["openai".to_string()]),
+            enabled_providers: Some(vec!["openai".to_string(), "anthropic".to_string()]),
+            ..Default::default()
+        };
+        let errors = config.validate();
+        assert!(!errors.is_empty());
+        assert!(errors
+            .iter()
+            .any(|e| e.field.contains("disabled_providers/enabled_providers")));
+    }
+
+    #[test]
+    fn test_config_validate_server_port_low() {
+        let config = Config {
+            server: Some(ServerConfig {
+                port: Some(80),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let errors = config.validate();
+        assert!(!errors.is_empty());
+        assert!(errors.iter().any(|e| e.field == "server.port"));
+    }
+
+    #[test]
+    fn test_config_validate_compaction_reserved_high() {
+        let config = Config {
+            compaction: Some(CompactionConfig {
+                reserved: Some(20000),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let errors = config.validate();
+        assert!(!errors.is_empty());
+        assert!(errors.iter().any(|e| e.field == "compaction.reserved"));
+    }
+
+    #[test]
+    fn test_config_is_valid() {
+        let config = Config {
+            model: Some("openai/gpt-4".to_string()),
+            temperature: Some(0.7),
+            ..Default::default()
+        };
+        assert!(config.is_valid());
+    }
+
+    #[test]
+    fn test_config_is_not_valid() {
+        let config = Config {
+            model: Some("invalid".to_string()),
+            temperature: Some(5.0),
+            ..Default::default()
+        };
+        assert!(!config.is_valid());
+    }
+
+    #[test]
+    fn test_config_batch_tool_enabled() {
+        let config = Config {
+            experimental: Some(ExperimentalConfig {
+                batch_tool: Some(true),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        assert!(config.batch_tool_enabled());
+
+        let config = Config::default();
+        assert!(!config.batch_tool_enabled());
+    }
+
+    #[test]
+    fn test_config_open_telemetry_enabled() {
+        let config = Config {
+            experimental: Some(ExperimentalConfig {
+                open_telemetry: Some(true),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        assert!(config.open_telemetry_enabled());
+
+        let config = Config::default();
+        assert!(!config.open_telemetry_enabled());
+    }
+
+    #[test]
+    fn test_config_get_disabled_tools_permission_action_deny() {
+        let config = Config {
+            permission: Some(PermissionConfig {
+                read: Some(PermissionRule::Action(PermissionAction::Deny)),
+                edit: Some(PermissionRule::Action(PermissionAction::Allow)),
+                todowrite: Some(PermissionAction::Deny),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let disabled = config.get_disabled_tools();
+        assert!(disabled.contains("read"));
+        assert!(disabled.contains("todowrite"));
+        assert!(!disabled.contains("edit"));
+    }
+
+    #[test]
+    fn test_config_get_disabled_tools_permission_object_deny() {
+        let config = Config {
+            permission: Some(PermissionConfig {
+                read: Some(PermissionRule::Object(HashMap::from([
+                    ("file1".to_string(), PermissionAction::Deny),
+                    ("file2".to_string(), PermissionAction::Allow),
+                ]))),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let disabled = config.get_disabled_tools();
+        assert!(disabled.contains("file1"));
+        assert!(!disabled.contains("file2"));
+    }
+
+    #[test]
+    fn test_config_get_disabled_tools_permission_extra() {
+        let config = Config {
+            permission: Some(PermissionConfig {
+                extra: Some(HashMap::from([(
+                    "custom_tool".to_string(),
+                    PermissionRule::Action(PermissionAction::Deny),
+                )])),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let disabled = config.get_disabled_tools();
+        assert!(disabled.contains("custom_tool"));
+    }
+
+    #[test]
+    fn test_config_get_provider() {
+        let mut providers = HashMap::new();
+        providers.insert(
+            "openai".to_string(),
+            ProviderConfig {
+                id: Some("openai".to_string()),
+                ..Default::default()
+            },
+        );
+        let config = Config {
+            provider: Some(providers),
+            ..Default::default()
+        };
+        assert!(config.get_provider("openai").is_some());
+        assert!(config.get_provider("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_config_get_provider_filter() {
+        let config = Config {
+            disabled_providers: Some(vec!["openai".to_string()]),
+            enabled_providers: Some(vec!["anthropic".to_string()]),
+            ..Default::default()
+        };
+        let filter = config.get_provider_filter();
+        assert!(filter.is_some());
+        let (disabled, enabled) = filter.unwrap();
+        assert!(disabled.contains(&"openai".to_string()));
+        assert!(enabled.contains(&"anthropic".to_string()));
+    }
+
+    #[test]
+    fn test_config_get_provider_filter_none() {
+        let config = Config::default();
+        assert!(config.get_provider_filter().is_none());
+    }
+
+    #[test]
+    fn test_config_provider_enabled_empty_enabled_list() {
+        let config = Config {
+            disabled_providers: Some(vec!["openai".to_string()]),
+            enabled_providers: Some(vec![]),
+            ..Default::default()
+        };
+        assert!(config.is_provider_enabled("openai"));
+        assert!(!config.is_provider_enabled("anthropic"));
+    }
+
+    #[test]
+    fn test_contains_keychain_reference() {
+        assert!(Config::contains_keychain_reference("{keychain:secret}"));
+        assert!(Config::contains_keychain_reference(
+            "some {keychain:test} text"
+        ));
+        assert!(!Config::contains_keychain_reference("no keychain here"));
+    }
+
+    #[test]
+    fn test_redact_keychain_references() {
+        let input = "before {keychain:my-secret} after";
+        let result = Config::redact_keychain_references(input);
+        assert_eq!(result, "before [keychain:my-secret] after");
+    }
+
+    #[test]
+    fn test_redact_keychain_references_multiple() {
+        let input = "{keychain:one} and {keychain:two}";
+        let result = Config::redact_keychain_references(input);
+        assert_eq!(result, "[keychain:one] and [keychain:two]");
+    }
+
+    #[test]
+    fn test_redact_keychain_references_no_match() {
+        let input = "no secrets here";
+        let result = Config::redact_keychain_references(input);
+        assert_eq!(result, input);
+    }
+
+    #[test]
+    fn test_keybind_config_detect_conflicts() {
+        let config = KeybindConfig {
+            commands: Some("ctrl-c".to_string()),
+            timeline: Some("ctrl-c".to_string()),
+            ..Default::default()
+        };
+        let conflicts = config.detect_conflicts();
+        assert!(!conflicts.is_empty());
+    }
+
+    #[test]
+    fn test_keybind_config_no_conflicts() {
+        let config = KeybindConfig {
+            commands: Some("ctrl-c".to_string()),
+            timeline: Some("ctrl-v".to_string()),
+            ..Default::default()
+        };
+        let conflicts = config.detect_conflicts();
+        assert!(conflicts.is_empty());
+    }
+
+    #[test]
+    fn test_keybind_config_merge_with_defaults() {
+        let user = KeybindConfig {
+            commands: Some("ctrl-x".to_string()),
+            ..Default::default()
+        };
+        let defaults = KeybindConfig {
+            commands: Some("ctrl-c".to_string()),
+            timeline: Some("ctrl-v".to_string()),
+            ..Default::default()
+        };
+        let (merged, conflicts) = user.merge_with_defaults(&defaults);
+        assert_eq!(merged.commands, Some("ctrl-x".to_string()));
+        assert_eq!(merged.timeline, Some("ctrl-v".to_string()));
+        assert!(conflicts.is_empty());
+    }
+
+    #[test]
+    fn test_keybind_config_merge_custom() {
+        let user = KeybindConfig {
+            custom: Some(HashMap::from([(
+                "custom1".to_string(),
+                "ctrl-q".to_string(),
+            )])),
+            ..Default::default()
+        };
+        let defaults = KeybindConfig {
+            custom: Some(HashMap::from([(
+                "custom2".to_string(),
+                "ctrl-w".to_string(),
+            )])),
+            ..Default::default()
+        };
+        let (merged, _conflicts) = user.merge_with_defaults(&defaults);
+        assert!(merged.custom.is_some());
+        let custom = merged.custom.unwrap();
+        assert!(custom.contains_key("custom1"));
+        assert!(custom.contains_key("custom2"));
+    }
+
+    #[test]
+    fn test_theme_config_resolve_path_absolute() {
+        let temp = tempfile::tempdir().unwrap();
+        let config = ThemeConfig {
+            path: Some(temp.path().to_path_buf()),
+            ..Default::default()
+        };
+        assert!(config.resolve_path(None).is_some());
+    }
+
+    #[test]
+    fn test_theme_config_resolve_path_relative() {
+        let temp = tempfile::tempdir().unwrap();
+        std::env::set_var("HOME", temp.path().to_str().unwrap());
+        let config = ThemeConfig {
+            path: Some(PathBuf::from("~/themes/my-theme")),
+            ..Default::default()
+        };
+        let resolved = config.resolve_path(None);
+        std::env::remove_var("HOME");
+        if resolved.is_some() {
+            let path = resolved.unwrap();
+            if path.exists() {
+                assert!(path.to_string_lossy().contains("my-theme"));
+            }
+        }
+    }
+
+    #[test]
+    fn test_theme_config_resolve_path_tilde() {
+        let temp = tempfile::tempdir().unwrap();
+        std::env::set_var("HOME", temp.path().to_str().unwrap());
+        let config = ThemeConfig {
+            path: Some(PathBuf::from("~")),
+            ..Default::default()
+        };
+        let resolved = config.resolve_path(None);
+        std::env::remove_var("HOME");
+        assert!(resolved.is_some());
+    }
+
+    #[test]
+    fn test_theme_config_resolve_path_not_exists() {
+        let config = ThemeConfig {
+            path: Some(PathBuf::from("/nonexistent/path")),
+            ..Default::default()
+        };
+        assert!(config.resolve_path(None).is_none());
+    }
+
+    #[test]
+    fn test_config_save_json() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("config.json");
+        let config = Config {
+            model: Some("openai/gpt-4".to_string()),
+            temperature: Some(0.7),
+            ..Default::default()
+        };
+        let result = config.save(&path);
+        assert!(result.is_ok());
+        assert!(path.exists());
+        let content = std::fs::read_to_string(&path).unwrap();
+        assert!(content.contains("gpt-4"));
+    }
+
+    #[test]
+    fn test_config_save_jsonc() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("config.jsonc");
+        let config = Config {
+            model: Some("openai/gpt-4".to_string()),
+            ..Default::default()
+        };
+        let result = config.save(&path);
+        assert!(result.is_ok());
+        assert!(path.exists());
+    }
+
+    #[test]
+    fn test_config_save_toml() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("config.toml");
+        let config = Config {
+            model: Some("openai/gpt-4".to_string()),
+            ..Default::default()
+        };
+        let result = config.save(&path);
+        assert!(result.is_ok());
+        assert!(path.exists());
+    }
+
+    #[test]
+    fn test_config_save_creates_parent_dirs() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("deep").join("nested").join("config.json");
+        let config = Config::default();
+        let result = config.save(&path);
+        assert!(result.is_ok());
+        assert!(path.exists());
+    }
+
+    #[test]
+    fn test_config_load_toml_file() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("config.toml");
+        std::fs::write(
+            &path,
+            r#"
+model = "openai/gpt-4"
+temperature = 0.7
+"#,
+        )
+        .unwrap();
+        let config = Config::load(&path);
+        assert!(config.is_ok());
+        let config = config.unwrap();
+        assert_eq!(config.model, Some("openai/gpt-4".to_string()));
+        assert_eq!(config.temperature, Some(0.7));
+    }
+
+    #[test]
+    fn test_config_load_json5_file() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("config.json5");
+        std::fs::write(&path, r#"{"model": "openai/gpt-4"}"#).unwrap();
+        let config = Config::load(&path);
+        assert!(config.is_ok());
+    }
+
+    #[test]
+    fn test_config_load_nonexistent_file() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("nonexistent.json");
+        let config = Config::load(&path);
+        assert!(config.is_ok());
+        assert!(config.unwrap().model.is_none());
+    }
+
+    #[test]
+    fn test_config_migrate_toml_to_jsonc() {
+        let temp = tempfile::tempdir().unwrap();
+        let toml_path = temp.path().join("config.toml");
+        std::fs::write(
+            &toml_path,
+            r#"
+model = "openai/gpt-4"
+temperature = 0.7
+"#,
+        )
+        .unwrap();
+        let result = Config::migrate_toml_to_jsonc(&toml_path, false);
+        assert!(result.is_ok());
+        let jsonc_path = result.unwrap();
+        assert!(jsonc_path.exists());
+        let content = std::fs::read_to_string(&jsonc_path).unwrap();
+        assert!(content.contains("gpt-4"));
+        assert!(toml_path.exists());
+    }
+
+    #[test]
+    fn test_config_migrate_toml_to_jsonc_remove_original() {
+        let temp = tempfile::tempdir().unwrap();
+        let toml_path = temp.path().join("config.toml");
+        std::fs::write(&toml_path, r#"model = "test""#).unwrap();
+        let result = Config::migrate_toml_to_jsonc(&toml_path, true);
+        assert!(result.is_ok());
+        assert!(!toml_path.exists());
+    }
+
+    #[test]
+    fn test_config_migrate_toml_to_jsonc_nonexistent() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("nonexistent.toml");
+        let result = Config::migrate_toml_to_jsonc(&path, false);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_config_migrate_toml_to_jsonc_wrong_extension() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("config.json");
+        std::fs::write(&path, "{}").unwrap();
+        let result = Config::migrate_toml_to_jsonc(&path, false);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_config_migrate_from_ts_format() {
+        let json = r#"{
+            "logLevel": "debug",
+            "model": "openai/gpt-4",
+            "smallModel": "openai/gpt-3.5",
+            "defaultAgent": "build",
+            "username": "testuser",
+            "apiKey": "secret-key",
+            "temperature": 0.7,
+            "maxTokens": 1000,
+            "providers": {
+                "openai": {
+                    "apiKey": "provider-key",
+                    "baseUrl": "https://api.openai.com"
+                }
+            },
+            "disabledProviders": ["ollama"],
+            "enabledProviders": ["openai", "anthropic"],
+            "share": "auto",
+            "autoUpdate": true,
+            "snapshot": false
+        }"#;
+        let config = Config::migrate_from_ts_format(json);
+        assert!(config.is_ok());
+        let config = config.unwrap();
+        assert_eq!(config.log_level, Some(LogLevel::Debug));
+        assert_eq!(config.model, Some("openai/gpt-4".to_string()));
+        assert_eq!(config.small_model, Some("openai/gpt-3.5".to_string()));
+        assert_eq!(config.username, Some("testuser".to_string()));
+        assert_eq!(config.api_key, Some("secret-key".to_string()));
+        assert_eq!(config.temperature, Some(0.7));
+        assert_eq!(config.max_tokens, Some(1000));
+        assert!(config.provider.is_some());
+        assert_eq!(config.disabled_providers, Some(vec!["ollama".to_string()]));
+        assert_eq!(
+            config.enabled_providers,
+            Some(vec!["openai".to_string(), "anthropic".to_string()])
+        );
+        assert_eq!(config.share, Some(ShareMode::Auto));
+        assert_eq!(config.autoupdate, Some(AutoUpdate::Bool(true)));
+        assert_eq!(config.snapshot, Some(false));
+    }
+
+    #[test]
+    fn test_config_migrate_from_ts_format_autoupdate_notify() {
+        let json = r#"{"autoUpdate": "notify"}"#;
+        let config = Config::migrate_from_ts_format(json);
+        assert!(config.is_ok());
+        let config = config.unwrap();
+        assert_eq!(
+            config.autoupdate,
+            Some(AutoUpdate::Notify("notify".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_agents_md_config_to_scan_config() {
+        let config = AgentsMdConfig {
+            enabled: Some(false),
+            stop_at_worktree_root: Some(false),
+            include_hidden: Some(true),
+        };
+        let scan = config.to_scan_config();
+        assert!(!scan.enabled);
+        assert!(!scan.stop_at_worktree_root);
+        assert!(scan.include_hidden);
+    }
+
+    #[test]
+    fn test_agents_md_config_to_scan_defaults() {
+        let config = AgentsMdConfig::default();
+        let scan = config.to_scan_config();
+        assert!(scan.enabled);
+        assert!(scan.stop_at_worktree_root);
+        assert!(!scan.include_hidden);
+    }
+
+    #[test]
+    fn test_config_error_from_string() {
+        let err: String = ConfigError::Config("test error".to_string()).into();
+        assert!(err.contains("test error"));
+    }
+
+    #[test]
+    fn test_timeout_config_serialization() {
+        let json = serde_json::json!({"type": "milliseconds", "value": 5000});
+        let config: TimeoutConfig = serde_json::from_value(json).unwrap();
+        assert!(matches!(config, TimeoutConfig::Milliseconds(5000)));
+    }
+
+    #[test]
+    fn test_mcp_config_local() {
+        let json = serde_json::json!({
+            "type": "local",
+            "command": ["npx", "mcp-server"]
+        });
+        let config: McpConfig = serde_json::from_value(json).unwrap();
+        assert!(matches!(config, McpConfig::Local(_)));
+    }
+
+    #[test]
+    fn test_mcp_config_remote() {
+        let json = serde_json::json!({
+            "type": "remote",
+            "url": "https://mcp.example.com"
+        });
+        let config: McpConfig = serde_json::from_value(json).unwrap();
+        assert!(matches!(config, McpConfig::Remote(_)));
+    }
+
+    #[test]
+    fn test_mcp_config_simple() {
+        let json = serde_json::json!({"type": "simple", "enabled": true});
+        let config: McpConfig = serde_json::from_value(json).unwrap();
+        assert!(matches!(config, McpConfig::Simple { enabled: true }));
+    }
+
+    #[test]
+    fn test_mcp_oauth_union_config() {
+        let json = serde_json::json!({
+            "client_id": "test-id",
+            "client_secret": "test-secret"
+        });
+        let oauth: McpOAuthUnion = serde_json::from_value(json).unwrap();
+        assert!(matches!(oauth, McpOAuthUnion::Config(_)));
+    }
+
+    #[test]
+    fn test_mcp_oauth_union_disabled() {
+        let json = serde_json::json!(false);
+        let oauth: McpOAuthUnion = serde_json::from_value(json).unwrap();
+        assert!(matches!(oauth, McpOAuthUnion::Disabled(false)));
+    }
+
+    #[test]
+    fn test_lsp_config_disabled() {
+        let json = serde_json::json!({"type": "disabled", "disabled": true});
+        let config: LspConfig = serde_json::from_value(json).unwrap();
+        assert!(matches!(config, LspConfig::Disabled(true)));
+    }
+
+    #[test]
+    fn test_lsp_config_servers() {
+        let json = serde_json::json!({
+            "type": "servers",
+            "rust": {"command": ["rust-analyzer"]}
+        });
+        let config: LspConfig = serde_json::from_value(json).unwrap();
+        assert!(matches!(config, LspConfig::Servers(_)));
+    }
+
+    #[test]
+    fn test_formatter_config_disabled() {
+        let json = serde_json::json!({"type": "disabled", "disabled": true});
+        let config: FormatterConfig = serde_json::from_value(json).unwrap();
+        assert!(matches!(config, FormatterConfig::Disabled(true)));
+    }
+
+    #[test]
+    fn test_formatter_config_formatters() {
+        let json = serde_json::json!({
+            "type": "formatters",
+            "prettier": {"command": ["prettier"]}
+        });
+        let config: FormatterConfig = serde_json::from_value(json).unwrap();
+        assert!(matches!(config, FormatterConfig::Formatters(_)));
+    }
+
+    #[test]
+    fn test_diff_style_serialization() {
+        let json = serde_json::json!("sideBySide");
+        let config: DiffStyle = serde_json::from_value(json).unwrap();
+        assert!(matches!(config, DiffStyle::SideBySide));
+    }
+
+    #[test]
+    fn test_scroll_acceleration_deserialize_legacy() {
+        let json = serde_json::json!(1.5);
+        let config: ScrollAccelerationConfig = serde_json::from_value(json).unwrap();
+        assert!(config.enabled);
+        assert_eq!(config.speed, Some(1.5));
+    }
+
+    #[test]
+    fn test_scroll_acceleration_deserialize_map() {
+        let json = serde_json::json!({"enabled": false, "speed": 2.0});
+        let config: ScrollAccelerationConfig = serde_json::from_value(json).unwrap();
+        assert!(!config.enabled);
+        assert_eq!(config.speed, Some(2.0));
+    }
+
+    #[test]
+    fn test_scroll_acceleration_deserialize_map_unknown_key() {
+        let json = serde_json::json!({"enabled": true, "unknown": 123, "speed": 1.0});
+        let config: ScrollAccelerationConfig = serde_json::from_value(json).unwrap();
+        assert!(config.enabled);
+        assert_eq!(config.speed, Some(1.0));
+    }
+
+    #[test]
+    fn test_tui_plugin_config_default() {
+        let config = TuiPluginConfig::default();
+        assert_eq!(config.plugin_enabled, Some(true));
+    }
+
+    #[test]
+    fn test_tui_config_deserialization() {
+        let json = serde_json::json!({
+            "scroll_speed": 50,
+            "diff_style": "inline"
+        });
+        let config: TuiConfig = serde_json::from_value(json).unwrap();
+        assert_eq!(config.scroll_speed, Some(50));
+        assert!(matches!(config.diff_style, Some(DiffStyle::Inline)));
+    }
+
+    #[test]
+    fn test_provider_config_sanitize_for_logging() {
+        let config = ProviderConfig {
+            id: Some("test".to_string()),
+            options: Some(ProviderOptions {
+                api_key: Some("secret".to_string()),
+                base_url: Some("https://api.test.com".to_string()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let sanitized = config.sanitize_for_logging();
+        assert_eq!(
+            sanitized.options.as_ref().unwrap().api_key.as_deref(),
+            Some("***REDACTED***")
+        );
+        assert_eq!(
+            sanitized.options.as_ref().unwrap().base_url.as_deref(),
+            Some("https://api.test.com")
+        );
+    }
+
+    #[test]
+    fn test_server_config_default() {
+        let config = ServerConfig::default();
+        assert!(config.port.is_none());
+        assert!(config.hostname.is_none());
+    }
+
+    #[test]
+    fn test_desktop_config_default() {
+        let config = DesktopConfig::default();
+        assert!(config.enabled.is_none());
+        assert!(config.auto_open_browser.is_none());
+    }
+
+    #[test]
+    fn test_acp_config_default() {
+        let config = AcpConfig::default();
+        assert!(config.enabled.is_none());
+        assert!(config.server_id.is_none());
+    }
+
+    #[test]
+    fn test_log_level_serialization() {
+        let json = serde_json::json!("debug");
+        let level: LogLevel = serde_json::from_value(json).unwrap();
+        assert!(matches!(level, LogLevel::Debug));
+    }
+
+    #[test]
+    fn test_share_mode_serialization() {
+        let json = serde_json::json!("collaborative");
+        let mode: ShareMode = serde_json::from_value(json).unwrap();
+        assert!(matches!(mode, ShareMode::Collaborative));
+    }
+
+    #[test]
+    fn test_auto_update_serialization_bool() {
+        let json = serde_json::json!(true);
+        let update: AutoUpdate = serde_json::from_value(json).unwrap();
+        assert!(matches!(update, AutoUpdate::Bool(true)));
+    }
+
+    #[test]
+    fn test_auto_update_serialization_string() {
+        let json = serde_json::json!("notify");
+        let update: AutoUpdate = serde_json::from_value(json).unwrap();
+        assert!(matches!(update, AutoUpdate::Notify(s) if s == "notify"));
+    }
+
+    #[test]
+    fn test_permission_action_serialization() {
+        let json = serde_json::json!("allow");
+        let action: PermissionAction = serde_json::from_value(json).unwrap();
+        assert!(matches!(action, PermissionAction::Allow));
+    }
+
+    #[test]
+    fn test_permission_rule_action() {
+        let json = serde_json::json!({"action": "deny"});
+        let rule: PermissionRule = serde_json::from_value(json).unwrap();
+        assert!(matches!(
+            rule,
+            PermissionRule::Action(PermissionAction::Deny)
+        ));
+    }
+
+    #[test]
+    fn test_permission_rule_object() {
+        let json = serde_json::json!({"file1": "allow", "file2": "deny"});
+        let rule: PermissionRule = serde_json::from_value(json).unwrap();
+        assert!(matches!(rule, PermissionRule::Object(_)));
+    }
+
+    #[test]
+    fn test_cli_override_config() {
+        let config = CliOverrideConfig {
+            model: Some("gpt-4".to_string()),
+            provider: Some("openai".to_string()),
+            temperature: Some(0.5),
+            max_tokens: Some(2000),
+            default_agent: Some("build".to_string()),
+        };
+        assert_eq!(config.model, Some("gpt-4".to_string()));
+        assert_eq!(config.provider, Some("openai".to_string()));
+    }
+
+    #[test]
+    fn test_model_config_extra() {
+        let json = serde_json::json!({
+            "id": "gpt-4",
+            "name": "GPT-4",
+            "extra_field": "extra_value"
+        });
+        let config: ModelConfig = serde_json::from_value(json).unwrap();
+        assert!(config.extra.is_some());
+    }
+
+    #[test]
+    fn test_variant_config_extra() {
+        let json = serde_json::json!({
+            "disabled": false,
+            "custom": "value"
+        });
+        let config: VariantConfig = serde_json::from_value(json).unwrap();
+        assert!(config.extra.is_some());
+    }
+
+    #[test]
+    fn test_command_config() {
+        let json = serde_json::json!({
+            "template": "echo hello",
+            "description": "A test command",
+            "agent": "build",
+            "model": "gpt-4",
+            "subtask": true
+        });
+        let config: CommandConfig = serde_json::from_value(json).unwrap();
+        assert_eq!(config.template, "echo hello");
+        assert!(config.description.is_some());
+        assert!(config.agent.is_some());
+        assert!(config.model.is_some());
+        assert!(config.subtask.is_some());
+    }
+
+    #[test]
+    fn test_skills_config() {
+        let json = serde_json::json!({
+            "paths": ["/path/to/skills"],
+            "urls": ["https://example.com/skills"]
+        });
+        let config: SkillsConfig = serde_json::from_value(json).unwrap();
+        assert!(config.paths.is_some());
+        assert!(config.urls.is_some());
+    }
+
+    #[test]
+    fn test_watcher_config() {
+        let json = serde_json::json!({
+            "ignore": ["*.log", "node_modules"]
+        });
+        let config: WatcherConfig = serde_json::from_value(json).unwrap();
+        assert!(config.ignore.is_some());
+        assert_eq!(config.ignore.as_ref().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_agent_config_all_fields() {
+        let json = serde_json::json!({
+            "model": "gpt-4",
+            "variant": "chat",
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "prompt": "You are helpful",
+            "disable": false,
+            "description": "A build agent",
+            "hidden": false,
+            "color": "#00ff00",
+            "steps": 10,
+            "max_steps": 100
+        });
+        let config: AgentConfig = serde_json::from_value(json).unwrap();
+        assert_eq!(config.model, Some("gpt-4".to_string()));
+        assert_eq!(config.variant, Some("chat".to_string()));
+        assert_eq!(config.temperature, Some(0.7));
+        assert_eq!(config.top_p, Some(0.9));
+        assert_eq!(config.prompt, Some("You are helpful".to_string()));
+        assert!(!config.disable.unwrap());
+        assert_eq!(config.description, Some("A build agent".to_string()));
+        assert!(!config.hidden.unwrap());
+        assert_eq!(config.color, Some("#00ff00".to_string()));
+        assert_eq!(config.steps, Some(10));
+        assert_eq!(config.max_steps, Some(100));
+    }
+
+    #[test]
+    fn test_enterprise_config() {
+        let json = serde_json::json!({
+            "url": "https://enterprise.example.com",
+            "remoteConfigDomain": "config.enterprise.example.com"
+        });
+        let config: EnterpriseConfig = serde_json::from_value(json).unwrap();
+        assert!(config.url.is_some());
+        assert!(config.remote_config_domain.is_some());
+    }
+
+    #[test]
+    fn test_compaction_config() {
+        let json = serde_json::json!({
+            "auto": true,
+            "prune": false,
+            "reserved": 1000,
+            "warning_threshold": 0.8,
+            "compact_threshold": 0.9,
+            "continuation_threshold": 0.5,
+            "preserve_recent_messages": 50,
+            "preserve_system_messages": true,
+            "summary_prefix": "Summary:"
+        });
+        let config: CompactionConfig = serde_json::from_value(json).unwrap();
+        assert!(config.auto.unwrap());
+        assert!(!config.prune.unwrap());
+        assert_eq!(config.reserved, Some(1000));
+    }
+
+    #[test]
+    fn test_experimental_config() {
+        let json = serde_json::json!({
+            "disable_paste_summary": true,
+            "batch_tool": true,
+            "open_telemetry": false,
+            "primary_tools": ["read", "edit"],
+            "continue_loop_on_deny": true,
+            "mcp_timeout": 30000
+        });
+        let config: ExperimentalConfig = serde_json::from_value(json).unwrap();
+        assert!(config.disable_paste_summary.unwrap());
+        assert!(config.batch_tool.unwrap());
+        assert!(!config.open_telemetry.unwrap());
+    }
+
+    #[test]
+    fn test_keybind_config_serialization() {
+        let json = serde_json::json!({
+            "commands": "ctrl-x",
+            "timeline": "ctrl-t",
+            "settings": "ctrl-,",
+            "custom": {"custom1": "ctrl-q"}
+        });
+        let config: KeybindConfig = serde_json::from_value(json).unwrap();
+        assert_eq!(config.commands, Some("ctrl-x".to_string()));
+        assert_eq!(config.timeline, Some("ctrl-t".to_string()));
+    }
+
+    #[test]
+    fn test_theme_config_with_scan_dirs() {
+        let json = serde_json::json!({
+            "name": "dark",
+            "path": "/themes/dark",
+            "scan_dirs": ["/usr/share/themes"]
+        });
+        let config: ThemeConfig = serde_json::from_value(json).unwrap();
+        assert!(config.scan_dirs.is_some());
+    }
+
+    #[test]
+    fn test_validate_tui_config_no_runtime_fields() {
+        let json = serde_json::json!({
+            "scroll_speed": 50,
+            "theme": {"name": "dark"}
+        });
+        let errors = Config::validate_tui_config_no_runtime_fields(&json);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_validate_tui_config_with_runtime_fields() {
+        let json = serde_json::json!({
+            "scroll_speed": 50,
+            "tui": {"theme": "dark"}
+        });
+        let errors = Config::validate_tui_config_no_runtime_fields(&json);
+        assert!(!errors.is_empty());
+        assert!(errors.contains(&"tui".to_string()));
+    }
+
+    #[test]
+    fn test_validate_runtime_no_tui_fields_empty() {
+        let json = serde_json::json!({
+            "model": "gpt-4",
+            "temperature": 0.7
+        });
+        let errors = Config::validate_runtime_no_tui_fields(&json);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_validate_runtime_no_tui_fields_with_tui_fields() {
+        let json = serde_json::json!({
+            "model": "gpt-4",
+            "scroll_speed": 50,
+            "tui": {}
+        });
+        let errors = Config::validate_runtime_no_tui_fields(&json);
+        assert!(!errors.is_empty());
+        assert!(errors.contains(&"scroll_speed".to_string()));
+        assert!(errors.contains(&"tui".to_string()));
+    }
+
+    #[test]
+    fn test_tui_config_default() {
+        let config = TuiConfig::default();
+        assert!(config.schema.is_none());
+        assert!(config.scroll_speed.is_none());
+    }
+
+    #[test]
+    fn test_validation_result_default() {
+        let result = ValidationResult::default();
+        assert!(result.valid);
+        assert!(result.errors.is_empty());
+    }
 }
