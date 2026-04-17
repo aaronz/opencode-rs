@@ -750,7 +750,7 @@
       "priority": "P1",
       "title": "Add version checks to plugin runtime",
       "description": "Add version checks to plugin runtime to enforce ABI compatibility",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify version check rejects incompatible plugins",
         "AddErrorHandlingTest: test version mismatch handling"
@@ -787,7 +787,7 @@
       "priority": "P1",
       "title": "Verify WebSocket capability in ws.rs",
       "description": "Verify crates/server/src/routes/ws.rs WebSocket capability and functionality",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify WebSocket connection handling",
         "AddIntegrationTest: verify WebSocket message streaming works"
