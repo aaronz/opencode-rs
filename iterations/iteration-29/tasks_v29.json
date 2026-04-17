@@ -699,7 +699,7 @@
       "priority": "P1",
       "title": "Verify only necessary items marked pub",
       "description": "Verify only necessary items are marked pub across all crates",
-      "status": "done",
+      "status": "manual_check",
       "test_criteria": [
         "RunTestSuite: all crates compile and tests pass after visibility audit"
       ],
@@ -937,7 +937,7 @@
       "priority": "P2",
       "title": "Audit all unsafe blocks for SAFETY comments",
       "description": "Audit all unsafe blocks across all crates for missing SAFETY comments",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify all unsafe blocks have SAFETY comments"
       ],
@@ -1026,7 +1026,7 @@
       "priority": "P2",
       "title": "Verify benchmark suite runs in CI",
       "description": "Verify benchmark suite runs successfully in CI",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "RunTestSuite: cargo bench executes successfully in CI"
       ],
@@ -1044,7 +1044,7 @@
       "priority": "P2",
       "title": "Create TOML to JSONC migration tooling",
       "description": "Create TOML to JSONC migration tooling for config format conversion",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify TOML parsing and JSONC output correctness"
       ],
@@ -1060,7 +1060,7 @@
       "priority": "P2",
       "title": "Implement auto-convert TOML to JSONC on load",
       "description": "Implement auto-convert TOML to JSONC on config load for backward compatibility",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify TOML configs are auto-converted to JSONC on load"
       ],

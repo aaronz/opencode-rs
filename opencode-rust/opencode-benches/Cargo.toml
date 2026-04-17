@@ -37,11 +37,6 @@ harness = false
 path = "benches/config_and_token.rs"
 
 [[bench]]
-name = "plugin_operations"
-harness = false
-path = "benches/plugin_operations.rs"
-
-[[bench]]
 name = "jsonc_parsing"
 harness = false
 path = "benches/jsonc_parsing.rs"

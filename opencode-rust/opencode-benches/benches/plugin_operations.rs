@@ -1,10 +1,12 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use opencode_plugin::{Plugin, PluginManager};
+use opencode_plugin::{sealed, Plugin, PluginManager};
 use std::time::Duration;
 
 struct DummyPlugin {
     name: String,
 }
+
+impl sealed::SealedPlugin for DummyPlugin {}
 
 impl Plugin for DummyPlugin {
     fn name(&self) -> &str {

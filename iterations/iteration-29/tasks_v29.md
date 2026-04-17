@@ -108,7 +108,7 @@
 | P2-001 | Add SAFETY comment to `crates/plugin/src/lib.rs:661` | plugin/src/lib.rs | ✅ Done |
 | P2-002 | Add SAFETY comments to `crates/tui/src/app.rs:4677, 4690` | tui/src/app.rs | Not Started |
 | P2-003 | Add SAFETY comments to `crates/server/src/routes/validation.rs:237, 256` | server/src/routes/validation.rs | ✅ Done |
-| P2-004 | Audit all `unsafe` blocks for missing SAFETY comments | All crates | Not Started |
+| P2-004 | Audit all `unsafe` blocks for missing SAFETY comments | All crates | ✅ Done |
 | P2-005 | Verify all unsafe blocks have proper documentation | All crates | ✅ Done |
 
 ### FR-019: Benchmark CI Integration
@@ -124,7 +124,7 @@
 
 | Task ID | Description | Files | Status |
 |---------|-------------|-------|--------|
-| P2-010 | Create TOML to JSONC migration tooling | config/* | Not Started |
+| P2-010 | Create TOML to JSONC migration tooling | config/* | ✅ Done |
 | P2-011 | Implement auto-convert TOML to JSONC on load | config/* | Not Started |
 | P2-012 | Add deprecation warning for TOML format | config/* | Not Started |
 | P2-013 | Document TOML to JSONC migration steps | documentation | Not Started |
