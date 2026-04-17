@@ -57,6 +57,7 @@ pub enum ConnectEvent {
     BrowserOpened(String),
     AuthComplete(OpenAiBrowserSession, Vec<BrowserAuthModelInfo>),
     Failed(String),
+    ValidationComplete { success: bool, error_message: Option<String> },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -448,7 +449,7 @@ pub struct App {
     pub provider: String,
     llm_provider: Option<std::sync::Arc<dyn Provider + Send + Sync>>,
     llm_rx: Option<mpsc::Receiver<LlmEvent>>,
-    connect_rx: Option<mpsc::Receiver<ConnectEvent>>,
+    pub(crate) connect_rx: Option<mpsc::Receiver<ConnectEvent>>,
     pub mode: AppMode,
     pub tui_state: TuiState,
     pub reconnect_timeout: Option<std::time::Instant>,
@@ -500,6 +501,8 @@ pub struct App {
     pub pending_connect_method: Option<String>,
     pub pending_browser_session: Option<OpenAiBrowserSession>,
     pub pending_browser_models: Vec<BrowserAuthModelInfo>,
+    pub validation_in_progress: bool,
+    pub pending_api_key_for_validation: Option<String>,
     pub token_counter: TokenCounter,
     pub cost_calculator: CostCalculator,
     pub session_token_id: String,
@@ -832,6 +835,8 @@ impl App {
             pending_connect_method: None,
             pending_browser_session: None,
             pending_browser_models: Vec::new(),
+            validation_in_progress: false,
+            pending_api_key_for_validation: None,
             token_counter,
             cost_calculator: CostCalculator::new(),
             session_token_id,
@@ -943,18 +948,39 @@ impl App {
 
     fn handle_api_key_input_confirm(&mut self, api_key: String) {
         let provider_id = self.pending_connect_provider.clone().unwrap_or_default();
-        if let Err(e) = self.save_api_key_credential(&provider_id, &api_key) {
-            self.add_message(format!("Failed to save API key: {}", e), false);
-        } else {
-            self.add_message(
-                format!(
-                    "API key saved successfully for {}",
-                    self.get_provider_name(&provider_id)
-                ),
-                false,
-            );
-        }
-        self.mode = AppMode::Chat;
+        self.pending_api_key_for_validation = Some(api_key.clone());
+        let (tx, rx) = mpsc::channel();
+        self.connect_rx = Some(rx);
+        self.validation_in_progress = true;
+        self.mode = AppMode::ConnectProgress;
+
+        std::thread::spawn(move || {
+            let runtime = match tokio::runtime::Runtime::new() {
+                Ok(rt) => rt,
+                Err(e) => {
+                    let _ = tx.send(ConnectEvent::ValidationComplete {
+                        success: false,
+                        error_message: Some(format!("Failed to create runtime: {}", e)),
+                    });
+                    return;
+                }
+            };
+            let result = runtime.block_on(crate::app::validate_api_key(&provider_id, &api_key));
+            match result {
+                Ok(()) => {
+                    let _ = tx.send(ConnectEvent::ValidationComplete {
+                        success: true,
+                        error_message: None,
+                    });
+                }
+                Err(e) => {
+                    let _ = tx.send(ConnectEvent::ValidationComplete {
+                        success: false,
+                        error_message: Some(e.to_string()),
+                    });
+                }
+            }
+        });
     }
 
     fn get_provider_name(&self, provider_id: &str) -> String {
@@ -1672,6 +1698,10 @@ impl App {
         }
     }
 
+    pub fn check_connect_events_for_testing(&mut self) {
+        self.check_connect_events();
+    }
+
     fn check_connect_events(&mut self) {
         if let Some(ref mut rx) = self.connect_rx {
             let mut events = Vec::new();
@@ -1693,6 +1723,35 @@ impl App {
                     ConnectEvent::Failed(error) => {
                         self.add_message(format!("OpenAI connect failed: {}", error), false);
                         self.mode = AppMode::Chat;
+                    }
+                    ConnectEvent::ValidationComplete { success, error_message } => {
+                        self.validation_in_progress = false;
+                        if success {
+                            let provider_id = self.pending_connect_provider.clone().unwrap_or_default();
+                            self.add_message(
+                                format!(
+                                    "API key validated successfully for {}",
+                                    self.get_provider_name(&provider_id)
+                                ),
+                                false,
+                            );
+                            if let Err(e) = self.save_api_key_credential(&provider_id, self.pending_api_key_for_validation.as_deref().unwrap_or("")) {
+                                self.add_message(format!("Failed to save API key: {}", e), false);
+                                self.mode = AppMode::Chat;
+                            } else {
+                                self.mode = AppMode::Chat;
+                            }
+                        } else {
+                            self.add_message(
+                                format!(
+                                    "API key validation failed: {}",
+                                    error_message.unwrap_or_else(|| "Unknown error".to_string())
+                                ),
+                                false,
+                            );
+                            self.mode = AppMode::Chat;
+                        }
+                        self.pending_api_key_for_validation = None;
                     }
                 }
             }
@@ -3521,8 +3580,13 @@ OpenCode Agent Configuration
                     6.min(f.area().height.saturating_sub(2)),
                 );
                 f.render_widget(Clear, area);
+                let message = if self.validation_in_progress {
+                    "Validating API key..."
+                } else {
+                    "Waiting for browser authentication..."
+                };
                 f.render_widget(
-                    Paragraph::new(vec![Line::from("Waiting for browser authentication...")])
+                    Paragraph::new(vec![Line::from(message)])
                         .block(Block::default().title("Connect").borders(Borders::ALL)),
                     area,
                 );

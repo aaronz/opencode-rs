@@ -24,7 +24,7 @@
       "priority": "P2",
       "title": "Add missing similar-asserts dev-dependency",
       "description": "PRD specification requires `similar-asserts = \"1.5\"` in dev-dependencies but Cargo.toml is missing this entry. Add the missing dependency to enable assertion comparison features in tests.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: ensure Cargo.toml has valid dev-dependencies structure",
         "RunTestSuite: verify `cargo check` passes with new dependency"

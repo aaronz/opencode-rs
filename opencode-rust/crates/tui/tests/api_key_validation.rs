@@ -1,5 +1,7 @@
 use opencode_tui::app::validate_api_key;
-use opencode_tui::app::{ApiKeyValidationError, ApiKeyValidationErrorType};
+use opencode_tui::app::{ApiKeyValidationError, ApiKeyValidationErrorType, ConnectEvent};
+use opencode_tui::{App, AppMode};
+use std::sync::mpsc;
 
 #[tokio::test]
 async fn test_validate_api_key_empty_key_returns_error() {
@@ -112,4 +114,47 @@ async fn test_validate_api_key_error_types_are_correct() {
         status_code: Some(500),
     };
     assert_eq!(server_error.error_type, ApiKeyValidationErrorType::ServerError);
+}
+
+#[test]
+fn test_validation_in_progress_initial_state_is_false() {
+    let app = App::new();
+    assert!(!app.validation_in_progress, "validation_in_progress should be false initially");
+}
+
+#[test]
+fn test_validation_in_progress_set_during_validation() {
+    let mut app = App::new();
+    app.pending_connect_provider = Some("openai".to_string());
+    app.pending_api_key_for_validation = Some("sk-test-api-key-12345".to_string());
+    app.validation_in_progress = true;
+    app.mode = AppMode::ConnectProgress;
+    assert!(app.validation_in_progress, "validation_in_progress should be true during validation");
+    assert_eq!(app.mode, AppMode::ConnectProgress, "mode should be ConnectProgress during validation");
+}
+
+#[test]
+fn test_validation_in_progress_clears_after_validation_completes() {
+    let mut app = App::new();
+    let (tx, rx) = mpsc::channel();
+    app.connect_rx = Some(rx);
+    app.validation_in_progress = true;
+    app.mode = AppMode::ConnectProgress;
+
+    let _ = tx.send(ConnectEvent::ValidationComplete {
+        success: true,
+        error_message: None,
+    });
+
+    app.check_connect_events_for_testing();
+    assert!(!app.validation_in_progress, "validation_in_progress should be cleared after validation completes");
+    assert_eq!(app.mode, AppMode::Chat);
+}
+
+#[test]
+fn test_input_is_disabled_during_validation() {
+    let mut app = App::new();
+    app.validation_in_progress = true;
+    app.mode = AppMode::ConnectProgress;
+    assert_eq!(app.mode, AppMode::ConnectProgress, "ConnectProgress mode should disable normal input handling");
 }

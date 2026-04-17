@@ -6,7 +6,7 @@
       "priority": "P0",
       "title": "Create validate_api_key() function",
       "description": "Create validate_api_key() function in app.rs to make test API call to provider's /v1/models endpoint, handle different response structures (Anthropic vs OpenAI-compatible), and return validation result with error details if invalid",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify validate_api_key returns Ok for valid Anthropic API key",
         "AddUnitTest: verify validate_api_key returns Ok for valid OpenAI-compatible API key",
@@ -27,7 +27,7 @@
       "priority": "P0",
       "title": "Add loading state during API key validation",
       "description": "Show 'Validating...' message in UI and disable input during validation to prevent double-submission",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify loading state is set during validation",
         "AddUnitTest: verify input is disabled while validating",
