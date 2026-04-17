@@ -149,7 +149,7 @@
       "priority": "P0",
       "title": "Run clippy to verify no error handling warnings",
       "description": "Run clippy across all crates to verify no error handling warnings remain",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: cargo clippy --all passes with zero warnings"
       ],
@@ -183,7 +183,7 @@
       "priority": "P1",
       "title": "Set --fail-under-lines 80 coverage threshold",
       "description": "Set --fail-under-lines 80 coverage threshold in CI to enforce minimum coverage",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: CI fails if coverage drops below 80%"
       ],
@@ -191,7 +191,7 @@
         "cargo llvm-cov --fail-under-lines 80 --lib || true",
         "cargo clippy --all -- -D warnings"
       ],
-      "impl_notes": "Configure the threshold in CI configuration file",
+      "impl_notes": "Coverage threshold already configured in CI at .github/workflows/ci.yml:46: cargo llvm-cov --all --fail-under-lines 80",
       "dependencies": [
         "P1-001"
       ]
@@ -201,7 +201,7 @@
       "priority": "P1",
       "title": "Increase agent crate coverage to 80%",
       "description": "Increase code coverage for agent crate from 45% to 80%+",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "RunTestSuite: cargo llvm-cov shows agent crate coverage >= 80%"
       ],

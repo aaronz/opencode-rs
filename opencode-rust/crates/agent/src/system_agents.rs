@@ -101,6 +101,50 @@ impl Agent for CompactionAgent {
     }
 }
 
+#[cfg(test)]
+mod compaction_tests {
+    use super::*;
+
+    #[test]
+    fn test_compaction_agent_new() {
+        let agent = CompactionAgent::new();
+        assert!(agent.model.is_none());
+    }
+
+    #[test]
+    fn test_compaction_agent_with_model() {
+        let agent = CompactionAgent::new().with_model("gpt-4");
+        assert_eq!(agent.model.as_deref(), Some("gpt-4"));
+    }
+
+    #[test]
+    fn test_compaction_agent_default() {
+        let agent = CompactionAgent::default();
+        assert!(agent.model.is_none());
+    }
+
+    #[test]
+    fn test_compaction_agent_properties() {
+        let agent = CompactionAgent::new();
+        assert_eq!(agent.agent_type(), AgentType::Compaction);
+        assert_eq!(agent.name(), "compaction");
+        assert_eq!(
+            agent.description(),
+            "Agent for compressing conversation history"
+        );
+        assert!(!agent.can_execute_tools());
+        assert!(!agent.can_write_files());
+        assert!(!agent.can_run_commands());
+        assert!(!agent.is_visible());
+    }
+
+    #[test]
+    fn test_compaction_agent_preferred_model() {
+        let agent = CompactionAgent::new().with_model("claude-3");
+        assert_eq!(agent.preferred_model(), Some("claude-3".to_string()));
+    }
+}
+
 pub struct TitleAgent {
     model: Option<String>,
 }
@@ -196,6 +240,50 @@ impl Agent for TitleAgent {
 
     fn preferred_model(&self) -> Option<String> {
         self.model.clone()
+    }
+}
+
+#[cfg(test)]
+mod title_tests {
+    use super::*;
+
+    #[test]
+    fn test_title_agent_new() {
+        let agent = TitleAgent::new();
+        assert!(agent.model.is_none());
+    }
+
+    #[test]
+    fn test_title_agent_with_model() {
+        let agent = TitleAgent::new().with_model("gpt-4");
+        assert_eq!(agent.model.as_deref(), Some("gpt-4"));
+    }
+
+    #[test]
+    fn test_title_agent_default() {
+        let agent = TitleAgent::default();
+        assert!(agent.model.is_none());
+    }
+
+    #[test]
+    fn test_title_agent_properties() {
+        let agent = TitleAgent::new();
+        assert_eq!(agent.agent_type(), AgentType::Title);
+        assert_eq!(agent.name(), "title");
+        assert_eq!(
+            agent.description(),
+            "Agent for generating conversation titles"
+        );
+        assert!(!agent.can_execute_tools());
+        assert!(!agent.can_write_files());
+        assert!(!agent.can_run_commands());
+        assert!(!agent.is_visible());
+    }
+
+    #[test]
+    fn test_title_agent_preferred_model() {
+        let agent = TitleAgent::new().with_model("claude-3");
+        assert_eq!(agent.preferred_model(), Some("claude-3".to_string()));
     }
 }
 

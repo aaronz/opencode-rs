@@ -121,3 +121,78 @@ impl Agent for GeneralAgent {
         self.model.clone()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_general_agent_new() {
+        let agent = GeneralAgent::new();
+        assert!(agent.model.is_none());
+        assert!(agent.skill_prompt.is_none());
+    }
+
+    #[test]
+    fn test_general_agent_with_model() {
+        let agent = GeneralAgent::new().with_model("gpt-4");
+        assert_eq!(agent.model.as_deref(), Some("gpt-4"));
+    }
+
+    #[test]
+    fn test_general_agent_with_skill_prompt() {
+        let agent = GeneralAgent::new().with_skill_prompt("Test skill prompt");
+        assert_eq!(agent.skill_prompt.as_deref(), Some("Test skill prompt"));
+    }
+
+    #[test]
+    fn test_general_agent_default() {
+        let agent = GeneralAgent::default();
+        assert!(agent.model.is_none());
+    }
+
+    #[test]
+    fn test_general_agent_properties() {
+        let agent = GeneralAgent::new();
+        assert_eq!(agent.agent_type(), AgentType::General);
+        assert_eq!(agent.name(), "general");
+        assert_eq!(
+            agent.description(),
+            "Subagent for complex multi-step searches and research"
+        );
+        assert!(agent.can_execute_tools());
+        assert!(!agent.can_write_files());
+        assert!(!agent.can_run_commands());
+        assert!(agent.is_visible());
+    }
+
+    #[test]
+    fn test_general_agent_composed_system_prompt_without_skill() {
+        let agent = GeneralAgent::new();
+        let prompt = agent.composed_system_prompt();
+        assert!(prompt.contains("GENERAL agent"));
+        assert!(!prompt.contains("[Enabled Skills]"));
+    }
+
+    #[test]
+    fn test_general_agent_composed_system_prompt_with_skill() {
+        let agent = GeneralAgent::new().with_skill_prompt("Test skill");
+        let prompt = agent.composed_system_prompt();
+        assert!(prompt.contains("GENERAL agent"));
+        assert!(prompt.contains("[Enabled Skills]"));
+        assert!(prompt.contains("Test skill"));
+    }
+
+    #[test]
+    fn test_general_agent_composed_system_prompt_with_empty_skill() {
+        let agent = GeneralAgent::new().with_skill_prompt("   ");
+        let prompt = agent.composed_system_prompt();
+        assert!(!prompt.contains("[Enabled Skills]"));
+    }
+
+    #[test]
+    fn test_general_agent_preferred_model() {
+        let agent = GeneralAgent::new().with_model("claude-3");
+        assert_eq!(agent.preferred_model(), Some("claude-3".to_string()));
+    }
+}

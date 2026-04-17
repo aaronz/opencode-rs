@@ -100,3 +100,47 @@ impl Agent for ExploreAgent {
         self.model.clone()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_explore_agent_new() {
+        let agent = ExploreAgent::new();
+        assert!(agent.model.is_none());
+    }
+
+    #[test]
+    fn test_explore_agent_with_model() {
+        let agent = ExploreAgent::new().with_model("gpt-4");
+        assert_eq!(agent.model.as_deref(), Some("gpt-4"));
+    }
+
+    #[test]
+    fn test_explore_agent_default() {
+        let agent = ExploreAgent::default();
+        assert!(agent.model.is_none());
+    }
+
+    #[test]
+    fn test_explore_agent_properties() {
+        let agent = ExploreAgent::new();
+        assert_eq!(agent.agent_type(), AgentType::Explore);
+        assert_eq!(agent.name(), "explore");
+        assert_eq!(
+            agent.description(),
+            "Fast agent specialized for exploring codebases"
+        );
+        assert!(agent.can_execute_tools());
+        assert!(!agent.can_write_files());
+        assert!(agent.can_run_commands());
+        assert!(agent.is_visible());
+    }
+
+    #[test]
+    fn test_explore_agent_preferred_model() {
+        let agent = ExploreAgent::new().with_model("claude-3");
+        assert_eq!(agent.preferred_model(), Some("claude-3".to_string()));
+    }
+}
