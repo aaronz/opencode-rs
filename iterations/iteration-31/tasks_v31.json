@@ -1,0 +1,92 @@
+{
+  "tasks": [
+    {
+      "id": "TASK-P1-001",
+      "priority": "P1",
+      "title": "Fix PtySimulator read_output buffer drain issue",
+      "description": "The `read_output()` function in `src/pty.rs:130` breaks after the first successful read instead of continuing to drain the buffer. This causes tests to miss output that arrives in multiple chunks. Root cause is a premature `break` statement at line 130 that prevents the loop from continuing to read until timeout. Fix: Remove the `break` statement to allow the loop to continue reading until timeout.",
+      "status": "in_progress",
+      "test_criteria": [
+        "AddUnitTest: verify read_output() continues reading until timeout by simulating chunked output",
+        "AddIntegrationTest: verify all buffered data is captured when output arrives in multiple chunks",
+        "AddRegressionTest: ensure existing PTY read tests still pass after the fix"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --lib -- --nocapture",
+        "cargo test -p ratatui-testing pty",
+        "cargo clippy -p ratatui-testing --all-targets --all-features -- -D warnings"
+      ],
+      "impl_notes": "Remove the `break` statement at line 130 in src/pty.rs. The loop should continue reading until the timeout is reached, allowing all buffered data to be captured.",
+      "dependencies": []
+    },
+    {
+      "id": "TASK-P2-001",
+      "priority": "P2",
+      "title": "Add missing similar-asserts dev-dependency",
+      "description": "PRD specification requires `similar-asserts = \"1.5\"` in dev-dependencies but Cargo.toml is missing this entry. Add the missing dependency to enable assertion comparison features in tests.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: ensure Cargo.toml has valid dev-dependencies structure",
+        "RunTestSuite: verify `cargo check` passes with new dependency"
+      ],
+      "test_commands": [
+        "cargo check -p ratatui-testing",
+        "cargo metadata --manifest-path ratatui-testing/Cargo.toml --format-version 1 --no-deps"
+      ],
+      "impl_notes": "Add `similar-asserts = \"1.5\"` to `[dev-dependencies]` section in Cargo.toml.",
+      "dependencies": []
+    },
+    {
+      "id": "TASK-P2-002",
+      "priority": "P2",
+      "title": "Document DialogTester in PRD",
+      "description": "DialogTester module exists in `dialog_tester.rs` but is not documented in the PRD specification. Need to update `spec_v31.md` to include DialogRenderTester module documentation (FR-DIALOG-001).",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify spec_v31.md contains FR-DIALOG-001 section",
+        "AddRegressionTest: verify PRD includes DialogRenderTester Public API documentation"
+      ],
+      "test_commands": [
+        "grep -c 'FR-DIALOG-001' spec_v31.md || echo 'FR-DIALOG-001 not found'",
+        "grep -c 'DialogRenderTester' spec_v31.md || echo 'DialogRenderTester not found'"
+      ],
+      "impl_notes": "Update spec_v31.md to add FR-DIALOG-001 section documenting DialogRenderTester public API and acceptance criteria.",
+      "dependencies": []
+    },
+    {
+      "id": "TASK-P2-003",
+      "priority": "P2",
+      "title": "Remove dead code warnings",
+      "description": "Two functions in `dialog_tester.rs` have `#[allow(dead_code)]` decorators but are not used anywhere: `assert_render_result` at line 92 and `assert_empty_state` at line 100. Either remove the functions if not needed, or integrate them into tests.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: ensure no #[allow(dead_code)] decorators remain in dialog_tester.rs",
+        "AddRegressionTest: ensure all dialog tests still pass after removing or integrating dead functions",
+        "RunTestSuite: verify `cargo clippy` produces no dead_code warnings"
+      ],
+      "test_commands": [
+        "cargo clippy -p ratatui-testing --all-targets --all-features -- -D warnings 2>&1 | grep -i 'dead_code' || echo 'No dead_code warnings'",
+        "cargo test -p ratatui-testing --test dialog_tests"
+      ],
+      "impl_notes": "Either remove `assert_render_result` and `assert_empty_state` functions if unused, or integrate them into tests and remove the `#[allow(dead_code)]` decorators.",
+      "dependencies": []
+    },
+    {
+      "id": "TASK-P2-004",
+      "priority": "P2",
+      "title": "Document snapshot.rs in PRD",
+      "description": "The `snapshot.rs` module exists and is functional but is not documented in the PRD specification. Need to add FR-SNAP-001 section to PRD documenting the snapshot module API.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify spec_v31.md contains FR-SNAP-001 section",
+        "AddRegressionTest: verify PRD includes snapshot module Public API documentation"
+      ],
+      "test_commands": [
+        "grep -c 'FR-SNAP-001' spec_v31.md || echo 'FR-SNAP-001 not found'",
+        "grep -c 'snapshot' spec_v31.md || echo 'snapshot not documented'"
+      ],
+      "impl_notes": "Update spec_v31.md to add FR-SNAP-001 section documenting snapshot module public API and file structure.",
+      "dependencies": []
+    }
+  ]
+}

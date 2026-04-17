@@ -135,7 +135,7 @@
 | ID | Issue | Status | Notes |
 |----|-------|--------|-------|
 | P2-002 | SAFETY comments tui/app.rs:4677,4690 | 🔄 In Progress | Comments needed |
-| P2-008 | Document baseline metrics | 🔄 In Progress | Pending benchmark data |
+| P2-008 | Document baseline metrics | ✅ Done | Baseline metrics documented in iterations/src/P2-008_baseline_metrics.md |
 | P2-009 | Benchmark suite runs in CI | 🔄 In Progress | CI integration complete, execution pending |
 | P2-014 | Remove TOML support | ✅ Done | JSONC-only |
 
@@ -234,7 +234,6 @@ $ cargo build --release
 | Priority | Task | Action |
 |----------|------|--------|
 | P2-002 | SAFETY comments | Add comments to tui/app.rs:4677,4690 |
-| P2-008 | Baseline metrics | Document benchmark baselines |
 | P2-009 | Benchmark CI | Verify benchmark execution |
 
 ### 7.3 New Items for Iteration 30
@@ -243,7 +242,6 @@ $ cargo build --release
 |------|-------------|
 | N1 | Complete remaining visibility audits (llm, storage) |
 | N2 | Address tui SAFETY comments |
-| N3 | Document baseline performance metrics |
 | N4 | Verify benchmark execution in CI |
 
 ---

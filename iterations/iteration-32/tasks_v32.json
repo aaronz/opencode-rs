@@ -1,0 +1,150 @@
+{
+  "tasks": [
+    {
+      "id": "P1-001",
+      "priority": "P1",
+      "title": "Make Windows PTY Limitation More Prominent",
+      "description": "Windows PTY limitation is documented but not prominent enough for Windows users. Need to add compile-time warnings, runtime warnings, and clear documentation about Windows best-effort status.",
+      "status": "in_progress",
+      "test_criteria": [
+        "AddUnitTest: verify #[cfg(windows)] compile-time warning is present at module level",
+        "AddUnitTest: verify runtime warning is emitted when PTY operations attempted on Windows",
+        "AddRegressionTest: ensure Unix PTY functionality continues to work without warnings",
+        "RunTestSuite: cargo test -p ratatui-testing to verify all existing tests pass"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --lib",
+        "cargo clippy -p ratatui-testing --all-targets -- -D warnings",
+        "cargo build --release -p ratatui-testing"
+      ],
+      "impl_notes": "Use tracing::warn! for runtime warnings on Windows. Ensure #[cfg(windows)] doc comments are prominent at module entry.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-001",
+      "priority": "P2",
+      "title": "Update PRD File Structure Documentation",
+      "description": "PRD shows 6 test files but 8 exist (dialog_tests, dsl_integration_tests, snapshot_tests are enhancements). Need to update spec_v32.md to reflect actual 8-file structure.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify spec_v32.md contains all 8 test files documented",
+        "AddUnitTest: verify extra test files are noted as enhancements beyond PRD"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test '*'",
+        "cargo doc -p ratatui-testing --no-deps"
+      ],
+      "impl_notes": "Update File Structure section in spec to list all 8 test files. Add note explaining extra files are enhancements.",
+      "dependencies": []
+    },
+    {
+      "id": "P2-002",
+      "priority": "P2",
+      "title": "Document DialogRenderTester Extension",
+      "description": "DialogRenderTester module exists but is not in the original PRD. Need to add FR-DIALOG-001 section to spec and update Module Status table.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify DialogRenderTester is exported in lib.rs",
+        "AddUnitTest: verify DialogRenderTester has proper doc comments"
+      ],
+      "test_commands": [
+        "cargo doc -p ratatui-testing --no-deps",
+        "cargo clippy -p ratatui-testing --all-targets -- -D warnings"
+      ],
+      "impl_notes": "Add FR-DIALOG-001 section to spec with DialogRenderTester details. Update Module Status table.",
+      "dependencies": []
+    },
+    {
+      "id": "P3-001",
+      "priority": "P3",
+      "title": "Review Global unwrap_used Allowance",
+      "description": "#![allow(clippy::unwrap_used)] globally permits unwrap usage throughout the crate. Need to audit all unwrap usages and replace with proper error handling where feasible.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: cargo clippy --all-targets -- -W clippy::unwrap_used shows no new unwrap usages",
+        "RunTestSuite: cargo test -p ratatui-testing passes after refactoring",
+        "AddUnitTest: verify error handling is properly implemented for previously unwrap'd code paths"
+      ],
+      "test_commands": [
+        "cargo clippy -p ratatui-testing --all-targets -- -D warnings",
+        "cargo test -p ratatui-testing --all-features",
+        "cargo build --release -p ratatui-testing"
+      ],
+      "impl_notes": "Audit all unwrap usages, replace with proper error handling (Result/Option with ? operator or unwrap_or/unwrap_or_else). Move allowance to specific modules if needed with explanatory comments.",
+      "dependencies": []
+    },
+    {
+      "id": "P3-002",
+      "priority": "P3",
+      "title": "Simplify Windows PTY Stub",
+      "description": "105 lines of stub code for Windows could be simplified with macros to reduce boilerplate while ensuring consistent, helpful error messages.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify Windows stub still returns helpful error messages",
+        "AddUnitTest: verify reduced line count with maintained functionality",
+        "RunTestSuite: cargo test -p ratatui-testing passes on Unix"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --lib",
+        "cargo clippy -p ratatui-testing --all-targets -- -D warnings"
+      ],
+      "impl_notes": "Review current Windows stub implementation. Create macro or helper to reduce repetition while preserving descriptive error messages.",
+      "dependencies": []
+    },
+    {
+      "id": "P3-003",
+      "priority": "P3",
+      "title": "Extract parse_key_sequence to Separate Module",
+      "description": "parse_key_sequence is 95 lines and could be reused elsewhere. Extract to src/key_sequence.rs module.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify parse_key_sequence works correctly in extracted module",
+        "AddRegressionTest: verify dsl.rs still uses parse_key_sequence after extraction",
+        "RunTestSuite: cargo test -p ratatui-testing passes"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --lib -- dsl",
+        "cargo clippy -p ratatui-testing --all-targets -- -D warnings",
+        "cargo build --release -p ratatui-testing"
+      ],
+      "impl_notes": "Create src/key_sequence.rs with parse_key_sequence function. Add pub mod key_sequence; to lib.rs. Update dsl.rs to use use crate::key_sequence::parse_key_sequence;",
+      "dependencies": []
+    },
+    {
+      "id": "P3-004",
+      "priority": "P3",
+      "title": "Share Tokio Runtime in wait_for Variants",
+      "description": "Each wait method creates its own tokio runtime which is inefficient. Investigate why separate runtimes are used and either share a runtime or document why separate ones are necessary.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify all wait_for variants still function correctly",
+        "AddUnitTest: verify shared runtime approach works for all wait methods",
+        "RunTestSuite: cargo test -p ratatui-testing passes with shared runtime"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --lib -- wait",
+        "cargo clippy -p ratatui-testing --all-targets -- -D warnings"
+      ],
+      "impl_notes": "Audit wait_for, wait_for_async, poll_until, poll_until_async methods. Determine if shared runtime is feasible. Document decision in code comments.",
+      "dependencies": []
+    },
+    {
+      "id": "P3-005",
+      "priority": "P3",
+      "title": "Consolidate Overlapping DialogTester Functionality",
+      "description": "DialogTester partially overlaps with TestDsl buffer inspection methods. Identify overlapping methods and either consolidate or document distinct purposes clearly.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify overlapping methods have clear distinct purposes",
+        "AddRegressionTest: verify DialogRenderTester and TestDsl buffer methods work correctly",
+        "RunTestSuite: cargo test -p ratatui-testing passes"
+      ],
+      "test_commands": [
+        "cargo test -p ratatui-testing --test '*'",
+        "cargo clippy -p ratatui-testing --all-targets -- -D warnings"
+      ],
+      "impl_notes": "Compare DialogRenderTester and TestDsl buffer methods. Document the distinction or consolidate duplicates.",
+      "dependencies": []
+    }
+  ]
+}

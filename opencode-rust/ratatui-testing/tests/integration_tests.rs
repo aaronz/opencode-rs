@@ -645,3 +645,51 @@ fn test_buffer_diff_multiline_string_diff() {
         "Should detect at least one difference"
     );
 }
+
+#[cfg(unix)]
+#[test]
+fn test_pty_read_captures_all_chunked_output() {
+    let mut pty = PtySimulator::new_with_command(&[
+        "bash",
+        "-c",
+        "sleep 0.05 && echo line1 && sleep 0.05 && echo line2 && sleep 0.05 && echo line3",
+    ])
+    .expect("PTY should be created");
+
+    std::thread::sleep(std::time::Duration::from_millis(300));
+
+    let output = pty
+        .read_output(std::time::Duration::from_millis(1000))
+        .expect("Read should succeed");
+    assert!(
+        output.contains("line1") && output.contains("line2") && output.contains("line3"),
+        "Should capture all chunked output, got: {:?}",
+        output
+    );
+
+    drop(pty);
+}
+
+#[cfg(unix)]
+#[test]
+fn test_pty_read_returns_complete_data_from_command() {
+    let mut pty = PtySimulator::new_with_command(&[
+        "bash",
+        "-c",
+        "printf 'part1' && sleep 0.05 && printf 'part2' && sleep 0.05 && printf 'part3'",
+    ])
+    .expect("PTY should be created");
+
+    std::thread::sleep(std::time::Duration::from_millis(300));
+
+    let output = pty
+        .read_output(std::time::Duration::from_millis(1000))
+        .expect("Read should succeed");
+    assert!(
+        output.contains("part1") && output.contains("part2") && output.contains("part3"),
+        "Should capture all parts from buffered command output, got: {:?}",
+        output
+    );
+
+    drop(pty);
+}

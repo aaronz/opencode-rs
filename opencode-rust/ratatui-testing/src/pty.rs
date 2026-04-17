@@ -127,7 +127,7 @@ impl PtySimulator {
                 Ok(0) => break,
                 Ok(n) => {
                     buffer.extend_from_slice(&temp_buf[..n]);
-                    break;
+                    continue;
                 }
                 Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                     std::thread::sleep(Duration::from_millis(10));

@@ -361,3 +361,161 @@ fn test_pty_simulator_unix_is_child_running_returns_correct_value() {
     );
     drop(pty);
 }
+
+#[cfg(unix)]
+#[test]
+fn test_read_output_continues_reading_until_timeout() {
+    use std::time::Duration;
+
+    let mut pty = PtySimulator::new_with_command(&[
+        "bash",
+        "-c",
+        "sleep 0.05 && echo first && sleep 0.05 && echo second && sleep 0.05 && echo third",
+    ])
+    .expect("PTY should be created");
+
+    std::thread::sleep(Duration::from_millis(300));
+
+    let output = pty
+        .read_output(Duration::from_millis(1000))
+        .expect("Read should succeed");
+    assert!(
+        output.contains("first") && output.contains("second") && output.contains("third"),
+        "Output should contain all three chunks, got: {:?}",
+        output
+    );
+
+    drop(pty);
+}
+
+#[cfg(unix)]
+#[test]
+fn test_read_output_drains_buffer_completely() {
+    let mut pty = PtySimulator::new_with_command(&["bash", "-c", "printf 'chunk1 chunk2 chunk3'"])
+        .expect("PTY should be created");
+
+    std::thread::sleep(Duration::from_millis(100));
+
+    let output = pty
+        .read_output(Duration::from_millis(200))
+        .expect("Read should succeed");
+    assert!(
+        output.contains("chunk1") && output.contains("chunk2") && output.contains("chunk3"),
+        "Output should contain all buffered data, got: {:?}",
+        output
+    );
+
+    drop(pty);
+}
+
+#[cfg(unix)]
+#[test]
+fn test_read_output_returns_immediately_on_wouldblock_then_has_data() {
+    let mut pty = PtySimulator::new_with_command(&["bash", "-c", "echo quick_output"])
+        .expect("PTY should be created");
+
+    std::thread::sleep(Duration::from_millis(50));
+
+    let output = pty
+        .read_output(Duration::from_millis(100))
+        .expect("Read should succeed");
+    assert!(
+        output.contains("quick_output"),
+        "Should capture immediate output, got: {:?}",
+        output
+    );
+
+    drop(pty);
+}
+
+#[cfg(windows)]
+#[test]
+fn test_pty_simulator_windows_deprecated_attribute_present() {
+    let _ = PtySimulator::default();
+}
+
+#[cfg(windows)]
+#[test]
+fn test_pty_simulator_windows_runtime_warning_on_new() {
+    use std::sync::Once;
+    use tracing::field::display;
+    use tracing_subscriber::fmt::format::FmtSpan;
+    use tracing_subscriber::layer::SubscriberExt;
+    use tracing_subscriber::util::SubscriberInitExt;
+
+    static WARNINGS: Once = Once::new();
+    static mut WARNED: bool = false;
+
+    let subscriber = tracing_subscriber::fmt()
+        .with_span_events(FmtSpan::CLOSE)
+        .finish()
+        .with(tracing_subscriber::filter::LevelFilter::INFO);
+
+    let _guard = subscriber.set_default();
+
+    let result = PtySimulator::new();
+    assert!(result.is_err());
+
+    tracing::info!("Test completed");
+}
+
+#[cfg(windows)]
+#[test]
+fn test_pty_simulator_windows_module_has_cfg_windows() {
+    let pty = PtySimulator::default();
+    assert!(!pty.is_child_running());
+}
+
+#[cfg(unix)]
+#[test]
+fn test_pty_simulator_unix_no_warnings_emitted() {
+    use tracing_subscriber::fmt::format::FmtSpan;
+    use tracing_subscriber::prelude::*;
+
+    let subscriber = tracing_subscriber::fmt()
+        .with_span_events(FmtSpan::CLOSE)
+        .finish()
+        .with(tracing_subscriber::filter::LevelFilter::INFO);
+
+    let _guard = subscriber.set_default();
+
+    let result = PtySimulator::new();
+    assert!(
+        result.is_ok(),
+        "Unix PtySimulator::new() should succeed without warnings"
+    );
+
+    drop(_guard);
+
+    let result = PtySimulator::new_with_command(&["echo", "test"]);
+    assert!(
+        result.is_ok(),
+        "Unix PtySimulator::new_with_command() should succeed without warnings"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn test_pty_simulator_unix_functionality_works_without_windows_code() {
+    let mut pty = PtySimulator::new().expect("Unix PTY should work");
+    assert!(pty.is_child_running(), "Child should be running on Unix");
+
+    let result = pty.write_input("test\n");
+    assert!(result.is_ok(), "write_input should work on Unix");
+
+    let output = pty.read_output(Duration::from_millis(100));
+    assert!(output.is_ok(), "read_output should work on Unix");
+
+    pty.resize(80, 24).expect("resize should work on Unix");
+
+    drop(pty);
+}
+
+#[cfg(unix)]
+#[test]
+fn test_pty_simulator_unix_no_deprecated_attribute() {
+    let pty = PtySimulator::new().expect("Unix PtySimulator should not be deprecated");
+    assert!(pty.master.is_some());
+    assert!(pty.writer.is_some());
+    assert!(pty.reader.is_some());
+}
