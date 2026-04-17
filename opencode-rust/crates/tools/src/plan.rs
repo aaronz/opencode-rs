@@ -63,7 +63,6 @@ impl Tool for PlanTool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::tempdir;
 
     #[tokio::test]
     async fn test_plan_tool_name() {

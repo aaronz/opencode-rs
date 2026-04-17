@@ -241,7 +241,7 @@ mod tests {
         let args = serde_json::json!({
             "command": "echo start && yes | head -10000 && echo end"
         });
-        let result = tool.execute(args, None).await.unwrap();
+        let _result = tool.execute(args, None).await.unwrap();
     }
 
     #[tokio::test]
