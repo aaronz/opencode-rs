@@ -1,0 +1,5 @@
+msrv = "1.85"
+too-many-arguments-threshold = 8
+type-complexity-threshold = 500
+enum-variant-name-threshold = 3
+disallowed-names = ["foo", "bar", "baz", "quux", "toto", "tutu"]

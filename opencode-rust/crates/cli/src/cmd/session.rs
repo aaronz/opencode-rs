@@ -502,6 +502,10 @@ pub fn append_session_message(session_id: &str, content: &str) -> bool {
         .is_ok()
 }
 
+#[expect(
+    clippy::expect_used,
+    reason = "CLI entry point where failure should panic"
+)]
 fn create_session(name: Option<String>, json: bool) {
     let sharing = get_session_sharing();
     let session = sharing
@@ -532,6 +536,10 @@ fn create_session(name: Option<String>, json: bool) {
     }
 }
 
+#[expect(
+    clippy::expect_used,
+    reason = "CLI entry point where failure should panic"
+)]
 fn show_session(session_id: &str, json: bool) {
     let sharing = get_session_sharing();
     let id = match Uuid::parse_str(session_id) {
@@ -657,6 +665,10 @@ fn redo_session(session_id: &str, steps: usize) {
     }
 }
 
+#[expect(
+    clippy::expect_used,
+    reason = "CLI entry point where failure should panic"
+)]
 fn fork_session(session_id: &str) {
     let sharing = get_session_sharing();
     let id = match Uuid::parse_str(session_id) {
@@ -684,6 +696,10 @@ fn fork_session(session_id: &str) {
     }
 }
 
+#[expect(
+    clippy::expect_used,
+    reason = "CLI entry point where failure should panic"
+)]
 fn share_session(session_id: &str) {
     let sharing = get_session_sharing();
     let id = match Uuid::parse_str(session_id) {
@@ -719,6 +735,10 @@ fn share_session(session_id: &str) {
     }
 }
 
+#[expect(
+    clippy::expect_used,
+    reason = "CLI entry point where failure should panic"
+)]
 fn export_session(session_id: &str) {
     let sharing = get_session_sharing();
     let id = match Uuid::parse_str(session_id) {
@@ -742,6 +762,10 @@ fn export_session(session_id: &str) {
     }
 }
 
+#[expect(
+    clippy::expect_used,
+    reason = "CLI entry point where failure should panic"
+)]
 fn export_all_sessions() {
     let sharing = get_session_sharing();
     let sessions = sharing.list_sessions().unwrap_or_default();
@@ -753,6 +777,10 @@ fn export_all_sessions() {
     println!("{}", output);
 }
 
+#[expect(
+    clippy::expect_used,
+    reason = "CLI entry point where failure should panic"
+)]
 fn list_sessions(json: bool) {
     let sharing = get_session_sharing();
     let sessions = sharing.list_sessions().unwrap_or_default();

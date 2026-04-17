@@ -56,9 +56,11 @@ impl InputHistory {
         };
 
         self.current_index = new_index;
-        self.entries
-            .get(new_index.expect("current_index is Some at this point"))
-            .cloned()
+        #[expect(clippy::expect_used)]
+        let entry = self
+            .entries
+            .get(new_index.expect("current_index is Some at this point"));
+        entry.cloned()
     }
 
     pub fn next(&mut self) -> Option<String> {
@@ -76,9 +78,11 @@ impl InputHistory {
         };
 
         self.current_index = new_index;
-        self.entries
-            .get(new_index.expect("current_index is Some at this point"))
-            .cloned()
+        #[expect(clippy::expect_used)]
+        let entry = self
+            .entries
+            .get(new_index.expect("current_index is Some at this point"));
+        entry.cloned()
     }
 
     pub fn reset_navigation(&mut self) {

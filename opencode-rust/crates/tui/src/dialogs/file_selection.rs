@@ -272,12 +272,12 @@ impl Dialog for FileSelectionDialog {
                     } else if self.selected_indices.contains(&self.selected_index) {
                         let selected = self.selected_paths();
                         if selected.len() == 1 {
-                            DialogAction::Confirm(
-                                selected
-                                    .into_iter()
-                                    .next()
-                                    .expect("selected.len() == 1 ensures exactly one element"),
-                            )
+                            #[expect(clippy::expect_used)]
+                            let path = selected
+                                .into_iter()
+                                .next()
+                                .expect("selected.len() == 1 ensures exactly one element");
+                            DialogAction::Confirm(path)
                         } else if !selected.is_empty() {
                             DialogAction::ConfirmMultiple(selected)
                         } else {

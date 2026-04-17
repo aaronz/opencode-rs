@@ -98,10 +98,12 @@ impl std::fmt::Debug for PooledClient {
 }
 
 impl PooledClient {
+    #[expect(clippy::expect_used)]
     pub fn client(&self) -> &McpClient {
         self.inner.as_ref().expect("client already released")
     }
 
+    #[expect(clippy::expect_used)]
     pub fn client_mut(&mut self) -> &mut McpClient {
         self.inner.as_mut().expect("client already released")
     }

@@ -2040,11 +2040,10 @@ impl App {
                 match fs::write(&share_path, &content) {
                     Ok(_) => {
                         self.share_url = Some(share_path.to_string_lossy().to_string());
+                        #[expect(clippy::expect_used)]
+                        let url = self.share_url.as_ref().expect("share_url set above");
                         self.add_message(
-                            format!(
-                                "Session shared: {}\nUse /unshare to remove.",
-                                self.share_url.as_ref().expect("share_url set above")
-                            ),
+                            format!("Session shared: {}\nUse /unshare to remove.", url),
                             false,
                         );
                     }
@@ -2963,13 +2962,14 @@ OpenCode Agent Configuration
                                             break;
                                         }
                                     } else {
+                                        #[expect(clippy::expect_used)]
+                                        let error_msg = result
+                                            .error
+                                            .as_ref()
+                                            .expect("error is Some in else branch");
                                         file_contexts.push(format!(
                                             "\n[Error reading {}: {}]\n",
-                                            result.path,
-                                            result
-                                                .error
-                                                .as_ref()
-                                                .expect("error is Some in else branch")
+                                            result.path, error_msg
                                         ));
                                     }
                                 }
@@ -3017,6 +3017,7 @@ OpenCode Agent Configuration
 
                                 let (tx, rx) = mpsc::channel();
                                 self.llm_rx = Some(rx);
+                                #[expect(clippy::expect_used)]
                                 let provider_clone = self
                                     .llm_provider
                                     .as_ref()
@@ -3039,6 +3040,7 @@ OpenCode Agent Configuration
                                 };
 
                                 std::thread::spawn(move || {
+                                    #[expect(clippy::expect_used)]
                                     let rt = tokio::runtime::Runtime::new()
                                         .expect("failed to create Tokio runtime");
                                     rt.block_on(async {
@@ -3669,14 +3671,10 @@ OpenCode Agent Configuration
                                     .map(|s| s.name.clone());
                                 if session_name.is_some() {
                                     self.session_manager.select(idx);
-                                    self.add_message(
-                                        format!(
-                                            "Loaded session: {}",
-                                            session_name
-                                                .expect("session_name is Some per is_some check")
-                                        ),
-                                        false,
-                                    );
+                                    #[expect(clippy::expect_used)]
+                                    let name = session_name
+                                        .expect("session_name is Some per is_some check");
+                                    self.add_message(format!("Loaded session: {}", name), false);
                                     self.mode = AppMode::Chat;
                                 }
                             }

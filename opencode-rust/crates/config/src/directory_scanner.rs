@@ -1,8 +1,32 @@
 use glob::glob;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use regex::Regex;
+
+static FRONTMATTER_REGEX: OnceLock<Regex> = OnceLock::new();
+static KV_REGEX: OnceLock<Regex> = OnceLock::new();
+
+#[expect(
+    clippy::expect_used,
+    reason = "Regex patterns are hardcoded and validated at compile time"
+)]
+fn get_frontmatter_regex() -> &'static Regex {
+    FRONTMATTER_REGEX.get_or_init(|| {
+        Regex::new(r"(?s)\A---\s*\n(.*?)\n---\s*\n?(.*)\z").expect("valid frontmatter regex")
+    })
+}
+
+#[expect(
+    clippy::expect_used,
+    reason = "Regex patterns are hardcoded and validated at compile time"
+)]
+fn get_kv_regex() -> &'static Regex {
+    KV_REGEX.get_or_init(|| {
+        Regex::new(r"^([A-Za-z_][A-Za-z0-9_]*):\s*(.*?)\s*$").expect("valid key/value regex")
+    })
+}
 
 /// Information about a discovered agent
 #[derive(Debug, Clone)]
@@ -330,10 +354,8 @@ impl DirectoryScanner {
             return Vec::new();
         }
 
-        let frontmatter_re =
-            Regex::new(r"(?s)\A---\s*\n(.*?)\n---\s*\n?(.*)\z").expect("valid frontmatter regex");
-        let kv_re =
-            Regex::new(r"^([A-Za-z_][A-Za-z0-9_]*):\s*(.*?)\s*$").expect("valid key/value regex");
+        let frontmatter_re = get_frontmatter_regex();
+        let kv_re = get_kv_regex();
 
         let mut modes = Vec::new();
         if let Ok(entries) = std::fs::read_dir(&modes_dir) {

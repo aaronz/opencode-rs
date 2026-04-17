@@ -70,6 +70,7 @@ impl Key {
                     }
                 }
                 c if c.len() == 1 => {
+                    #[expect(clippy::expect_used)]
                     let mut ch = part
                         .chars()
                         .next()

@@ -376,6 +376,7 @@ fn redact_sensitive_info(content: &str) -> String {
         "token_",
         "_token",
     ];
+    #[expect(clippy::expect_used)]
     let fallback_regex =
         regex::Regex::new(r"api_key").expect("regex pattern 'api_key' should always be valid");
     let mut result = content.to_string();

@@ -334,6 +334,10 @@ fn init_plugins() {
     }
 }
 
+#[expect(
+    clippy::expect_used,
+    reason = "CLI entry point where failure should panic with clear error messages"
+)]
 fn run_tui(args: TuiArgs) {
     if let Some(action) = args.action.as_deref() {
         match action {

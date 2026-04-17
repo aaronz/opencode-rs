@@ -38,6 +38,7 @@ impl SyntaxHighlighter {
             .find_syntax_by_token(lang)
             .unwrap_or_else(|| self.syntax_set.find_syntax_plain_text());
 
+        #[expect(clippy::expect_used)]
         let theme = self
             .theme_set
             .themes

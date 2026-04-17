@@ -26,58 +26,65 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use std::path::Path;
 
+#[expect(
+    clippy::expect_used,
+    reason = "Regex patterns are hardcoded and validated at compile time"
+)]
+fn compile_regex(pattern: &str) -> Regex {
+    Regex::new(pattern).expect("hardcoded regex pattern should always be valid")
+}
+
 /// List of sensitive file name patterns (basename only).
 static SENSITIVE_NAMES: Lazy<Vec<Regex>> = Lazy::new(|| {
     vec![
-        Regex::new(r"(?:^|[/\\])\.env(?:\.\w+)?$").expect("valid .env pattern regex"),
-        Regex::new(r"\.pem$").expect("valid .pem extension regex"),
-        Regex::new(r"\.key$").expect("valid .key extension regex"),
-        Regex::new(r"^credentials\.json$").expect("valid credentials.json pattern"),
-        Regex::new(r"^credentials\.yaml$").expect("valid credentials.yaml pattern"),
-        Regex::new(r"^credentials\.yml$").expect("valid credentials.yml pattern"),
-        Regex::new(r"(?:^|[/\\])\.secrets$").expect("valid .secrets pattern regex"),
-        Regex::new(r"^secrets\.\w+$").expect("valid secrets.* pattern"),
-        Regex::new(r"^secret\.\w+$").expect("valid secret.* pattern"),
-        Regex::new(r"(?:^|[/\\])\.secret$").expect("valid .secret pattern regex"),
-        Regex::new(r"^api_key$").expect("valid api_key pattern"),
-        Regex::new(r"^apikey$").expect("valid apikey pattern"),
-        Regex::new(r"^token$").expect("valid token pattern"),
-        Regex::new(r"^oauth\b").expect("valid oauth pattern"),
-        Regex::new(r"^id_rsa$").expect("valid id_rsa pattern"),
-        Regex::new(r"^id_ed25519$").expect("valid id_ed25519 pattern"),
-        Regex::new(r"^id_ecdsa$").expect("valid id_ecdsa pattern"),
-        Regex::new(r"^\.git-credentials$").expect("valid .git-credentials pattern"),
-        Regex::new(r"^\.gitconfig$").expect("valid .gitconfig pattern"),
-        Regex::new(r"^s3cfg$").expect("valid s3cfg pattern"),
-        Regex::new(r"^\.s3cfg$").expect("valid .s3cfg pattern"),
-        Regex::new(r"^database\.json$").expect("valid database.json pattern"),
-        Regex::new(r"^\.db_credentials$").expect("valid .db_credentials pattern"),
-        Regex::new(r"^\.dockerconfigjson$").expect("valid .dockerconfigjson pattern"),
-        Regex::new(r"^azure\.json$").expect("valid azure.json pattern"),
-        Regex::new(r"application_credentials\.json$")
-            .expect("valid application_credentials.json pattern"),
+        compile_regex(r"(?:^|[/\\])\.env(?:\.\w+)?$"),
+        compile_regex(r"\.pem$"),
+        compile_regex(r"\.key$"),
+        compile_regex(r"^credentials\.json$"),
+        compile_regex(r"^credentials\.yaml$"),
+        compile_regex(r"^credentials\.yml$"),
+        compile_regex(r"(?:^|[/\\])\.secrets$"),
+        compile_regex(r"^secrets\.\w+$"),
+        compile_regex(r"^secret\.\w+$"),
+        compile_regex(r"(?:^|[/\\])\.secret$"),
+        compile_regex(r"^api_key$"),
+        compile_regex(r"^apikey$"),
+        compile_regex(r"^token$"),
+        compile_regex(r"^oauth\b"),
+        compile_regex(r"^id_rsa$"),
+        compile_regex(r"^id_ed25519$"),
+        compile_regex(r"^id_ecdsa$"),
+        compile_regex(r"^\.git-credentials$"),
+        compile_regex(r"^\.gitconfig$"),
+        compile_regex(r"^s3cfg$"),
+        compile_regex(r"^\.s3cfg$"),
+        compile_regex(r"^database\.json$"),
+        compile_regex(r"^\.db_credentials$"),
+        compile_regex(r"^\.dockerconfigjson$"),
+        compile_regex(r"^azure\.json$"),
+        compile_regex(r"application_credentials\.json$"),
     ]
 });
 
 /// List of sensitive path patterns (full path patterns).
 static SENSITIVE_PATHS: Lazy<Vec<Regex>> = Lazy::new(|| {
     vec![
-        Regex::new(r"\.aws/credentials$").expect("valid .aws/credentials pattern"),
-        Regex::new(r"\.aws/config$").expect("valid .aws/config pattern"),
-        Regex::new(r"gcloud/application_credentials\.json$").expect("valid gcloud pattern"),
-        Regex::new(r"gcloud/configurations/config_\w+$").expect("valid gcloud config pattern"),
-        Regex::new(r"\.azure/azureProfile\.json$").expect("valid azure profile pattern"),
-        Regex::new(r"\.azure/accessTokens\.json$").expect("valid azure tokens pattern"),
-        Regex::new(r"\.config/ghHosts$").expect("valid ghHosts pattern"),
-        Regex::new(r"kubernetes/secrets\.yaml$").expect("valid k8s secrets pattern"),
-        Regex::new(r"ssh/config$").expect("valid ssh config pattern"),
-        Regex::new(r"\.m2/settings\.xml$").expect("valid maven settings pattern"),
-        Regex::new(r"\.npmrc$").expect("valid npmrc pattern"),
-        Regex::new(r"\.pip/pip\.conf$").expect("valid pip config pattern"),
-        Regex::new(r"^\.netrc$").expect("valid netrc pattern"),
-        Regex::new(r"\.bash_history$").expect("valid bash_history pattern"),
-        Regex::new(r"\.zsh_history$").expect("valid zsh_history pattern"),
-        Regex::new(r"\.history$").expect("valid .history pattern"),
+        compile_regex(r"\.aws/credentials$"),
+        compile_regex(r"\.aws/config$"),
+        compile_regex(r"gcloud/application_credentials\.json$"),
+        compile_regex(r"gcloud/configurations/config_\w+$"),
+        compile_regex(r"\.azure/azureProfile\.json$"),
+        compile_regex(r"\.azure/accessTokens\.json$"),
+        compile_regex(r"\.config/ghHosts$"),
+        compile_regex(r"kubernetes/secrets\.yaml$"),
+        compile_regex(r"ssh/config$"),
+        compile_regex(r"\.m2/settings\.xml$"),
+        compile_regex(r"\.npmrc$"),
+        compile_regex(r"\.pip/pip\.conf$"),
+        compile_regex(r"^\.netrc$"),
+        compile_regex(r"\.bash_history$"),
+        compile_regex(r"\.zsh_history$"),
+        compile_regex(r"\.history$"),
     ]
 });
 

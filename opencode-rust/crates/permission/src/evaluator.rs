@@ -72,6 +72,7 @@ impl PermissionEvaluator {
                 .replace("?", ".")
         );
 
+        #[expect(clippy::expect_used)]
         let regex = self
             .regex_cache
             .entry(regex_pattern.clone())

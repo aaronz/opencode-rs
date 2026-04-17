@@ -1,0 +1,142 @@
+{
+  "tasks": [
+    {
+      "id": "FR-017",
+      "priority": "P0",
+      "title": "Eliminate production unwrap() calls",
+      "description": "Fix 3484+ `.unwrap()` and `.expect()` instances in production code across all crates. Replace each with proper error propagation using `?` and provide meaningful error messages where applicable.",
+      "status": "done",
+      "test_criteria": [
+        "RunRegressionTest: verify no new .unwrap() or .expect() added via cargo clippy --all -- -D warnings",
+        "AddUnitTest: verify each replaced unwrap has proper error handling with meaningful error messages"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings",
+        "grep -r '\\.unwrap()' crates/*/src/*.rs | grep -v 'test' | wc -l"
+      ],
+      "impl_notes": "Run grep first to establish baseline count, then systematically replace unwraps with proper error propagation. Consider creating a script to identify high-impact unwraps first (those in hot paths or that could panic).",
+      "dependencies": []
+    },
+    {
+      "id": "FR-018",
+      "priority": "P1",
+      "title": "Add cargo-llvm-cov CI gate",
+      "description": "Add coverage reporting to CI with 80% line coverage threshold using `cargo llvm-cov --fail-under-lines 80`.",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify CI workflow runs cargo llvm-cov and fails when coverage drops below 80%",
+        "RunTestSuite: execute cargo llvm-cov locally to verify current coverage meets threshold"
+      ],
+      "test_commands": [
+        "cargo llvm-cov --fail-under-lines 80",
+        "cargo llvm-cov report --lcov --output-path lcov.info"
+      ],
+      "impl_notes": "Add to CI workflow files. Ensure cargo-llvm-cov is installed in CI environment or use action like davis/internal/cargo-llvm-cov.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-018b",
+      "priority": "P1",
+      "title": "Increase coverage to 80%+ across all crates",
+      "description": "Raise test coverage to meet 80% minimum threshold across all crates.",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: execute cargo llvm-cov --fail-under-lines 80 to verify all crates meet threshold",
+        "AddRegressionTest: ensure new tests cover previously untested code paths"
+      ],
+      "test_commands": [
+        "cargo llvm-cov --all --fail-under-lines 80",
+        "cargo test --all"
+      ],
+      "impl_notes": "Depends on P1-001 (FR-018) - CI gate must be added first. Use cargo llvm-cov html report to identify uncovered lines.",
+      "dependencies": [
+        "FR-018"
+      ]
+    },
+    {
+      "id": "FR-028",
+      "priority": "P1",
+      "title": "Visibility audit across all crates",
+      "description": "Audit public APIs and ensure consistent visibility modifiers following AGENTS.md naming conventions.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify all public APIs have consistent visibility (pub, pub(crate), etc.)",
+        "AddUnitTest: verify naming conventions for functions, types, enums, traits match AGENTS.md"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings",
+        "cargo fmt --all -- --check"
+      ],
+      "impl_notes": "Review each crate's lib.rs exports. Ensure internal helpers are not inadvertently made public. Check trait implementations for visibility consistency.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-024",
+      "priority": "P1",
+      "title": "Define plugin API version stability policy",
+      "description": "Document version stability guarantees and deprecation policy for plugin API in opencode-plugin crate.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify plugin API exports are clearly marked with stability annotations",
+        "AddRegressionTest: ensure breaking changes to plugin API are detected by clippy or version bump"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-plugin -- -D warnings",
+        "cargo doc -p opencode-plugin --no-deps"
+      ],
+      "impl_notes": "Document the stability guarantees in crate documentation. Define what constitutes a breaking change vs additive change. Add deprecation notices where needed.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-025",
+      "priority": "P1",
+      "title": "Verify WebSocket streaming capability",
+      "description": "Verify routes/ws.rs provides full bidirectional WebSocket streaming vs SSE. Compare ws.rs implementation against SSE implementation.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify WebSocket connection establishes and handles bidirectional messages",
+        "AddIntegrationTest: verify WebSocket vs SSE streaming behavior difference"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-server",
+        "cargo clippy -p opencode-server -- -D warnings"
+      ],
+      "impl_notes": "Review crates/server/src/routes/ws.rs and crates/server/src/routes/stream.rs. Verify WebSocket supports full duplex communication while SSE is unidirectional.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-026",
+      "priority": "P1",
+      "title": "Add SDK documentation to CI",
+      "description": "Add `cargo doc --no-deps` to CI pipeline for SDK documentation generation.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify CI runs cargo doc --no-deps without errors",
+        "AddUnitTest: verify documentation builds for all public crates"
+      ],
+      "test_commands": [
+        "cargo doc --all-features --no-deps",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Reference FR-013 partial implementation. Ensure doc builds pass in CI. Consider adding --document-private-items flag if needed.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-037",
+      "priority": "P2",
+      "title": "Add similar-asserts dev dependency",
+      "description": "Add `similar-asserts = \"1.5\"` to dev-dependencies in ratatui-testing/Cargo.toml for visual snapshot diffing.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify similar-asserts dependency resolves and compiles",
+        "RunTestSuite: execute cargo test -p ratatui-testing to ensure no conflicts"
+      ],
+      "test_commands": [
+        "cargo build -p ratatui-testing",
+        "cargo test -p ratatui-testing"
+      ],
+      "impl_notes": "Optional task - only needed if visual diffing is desired. Not critical path. Add to dev-dependencies section only.",
+      "dependencies": []
+    }
+  ]
+}

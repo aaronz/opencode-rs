@@ -31,6 +31,10 @@ impl<W: Write> NdjsonSerializer<W> {
         Self { writer }
     }
 
+    #[expect(
+        clippy::expect_used,
+        reason = "System time should always be after UNIX EPOCH on valid systems"
+    )]
     fn timestamp() -> u64 {
         SystemTime::now()
             .duration_since(UNIX_EPOCH)

@@ -181,7 +181,8 @@ impl OpenAiBrowserAuthService {
     }
 
     pub fn build_authorize_url(&self, request: &OpenAiBrowserAuthRequest) -> String {
-        reqwest::Url::parse_with_params(
+        #[expect(clippy::expect_used)]
+        let url = reqwest::Url::parse_with_params(
             &format!("{}/oauth/authorize", OPENAI_AUTH_ISSUER),
             &[
                 ("response_type", "code"),
@@ -199,8 +200,8 @@ impl OpenAiBrowserAuthService {
                 ("originator", "opencode-rs"),
             ],
         )
-        .expect("valid authorize url")
-        .to_string()
+        .expect("valid authorize url");
+        url.to_string()
     }
 
     pub fn exchange_code(

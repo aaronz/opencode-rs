@@ -1,3 +1,8 @@
+#![expect(
+    clippy::expect_used,
+    reason = "CLI entry points where failure should panic with clear error messages"
+)]
+
 pub(crate) mod account;
 pub(crate) mod acp;
 pub(crate) mod agent;

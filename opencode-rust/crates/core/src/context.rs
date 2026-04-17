@@ -13,6 +13,16 @@ use std::sync::OnceLock;
 
 const PRESERVE_LAST_MESSAGES: usize = 3;
 
+static FILE_PATH_REGEX: OnceLock<Regex> = OnceLock::new();
+
+#[expect(
+    clippy::expect_used,
+    reason = "Regex pattern is hardcoded and validated at compile time"
+)]
+fn get_file_path_regex() -> &'static Regex {
+    FILE_PATH_REGEX.get_or_init(|| Regex::new(r"([\w./-]+\.[\w]+)").expect("valid file path regex"))
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ContextLayer {
     L0ExplicitInput,
@@ -220,7 +230,7 @@ impl ContextBuilder {
             collected.insert(file.display().to_string());
         }
 
-        let file_pattern = Regex::new(r"([\w./-]+\.[\w]+)").expect("valid file path regex");
+        let file_pattern = get_file_path_regex();
         for message in referenced_messages {
             for captures in file_pattern.captures_iter(&message.content) {
                 if let Some(m) = captures.get(1) {
