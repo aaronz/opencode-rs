@@ -203,10 +203,11 @@ Add tests per PRD Section 9.2:
 ## P2 Medium Priority
 
 ### Task P2-1: FR-006 - GitHub Integration Completion
-**Status:** TODO
+**Status:** ✅ Done
 **Priority:** P2
 **Files:**
 - `opencode-rust/crates/cli/src/cmd/github.rs`
+- `opencode-rust/crates/git/src/github.rs`
 
 **Changes:**
 1. Remove TODO messages (lines 80-86)
@@ -215,9 +216,9 @@ Add tests per PRD Section 9.2:
 4. Implement `GitHubAction::IssueList { repo }` - List issues for repo
 
 **Acceptance Criteria:**
-- [ ] GitHub OAuth login functional
-- [ ] Repository listing shows user repos
-- [ ] Issue listing shows repo issues
+- [x] GitHub OAuth login functional
+- [x] Repository listing shows user repos
+- [x] Issue listing shows repo issues
 
 ---
 
