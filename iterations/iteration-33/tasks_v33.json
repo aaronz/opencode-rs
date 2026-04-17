@@ -212,7 +212,7 @@
       "priority": "P2",
       "title": "ConnectModelDialog Tests",
       "description": "Add rendering and interaction tests: test_connect_model_dialog_empty_list_enter_closes, test_connect_model_dialog_empty_list_up_does_not_panic, test_connect_model_dialog_single_item_down_stays_at_zero, test_connect_model_dialog_renders_empty_state, test_connect_model_dialog_renders_models.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify empty list + Enter closes dialog",
         "AddUnitTest: verify empty list + navigation doesn't panic",
@@ -233,7 +233,7 @@
       "priority": "P2",
       "title": "OAuth Flows for Google/Copilot",
       "description": "Implement Google OAuth flow and GitHub Copilot OAuth flow. Update ConnectMethodDialog for OAuth-only providers. Providers needing OAuth: Google, GitHub Copilot.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify Google OAuth login flow completes successfully",
         "AddIntegrationTest: verify GitHub Copilot OAuth login flow completes successfully",
