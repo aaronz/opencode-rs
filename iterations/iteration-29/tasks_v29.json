@@ -58,7 +58,7 @@
       "priority": "P0",
       "title": "Convert high-risk unwrap() to error propagation",
       "description": "Convert high-risk unwrap() locations in routes/*.rs to proper error propagation",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify route handlers return proper errors instead of panicking",
         "AddErrorHandlingTest: test route error paths with invalid inputs"
