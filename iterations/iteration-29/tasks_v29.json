@@ -804,7 +804,7 @@
       "priority": "P1",
       "title": "Compare WebSocket vs SSE functionality",
       "description": "Compare WebSocket module vs SSE functionality across server routes",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: verify both WS and SSE features are functional"
       ],
