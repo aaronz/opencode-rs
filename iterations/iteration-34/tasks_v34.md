@@ -57,7 +57,7 @@
   - Transition from API key input to model selection
   - Pass validated credentials to model dialog
 
-- [ ] **T-007**: Fetch available models from provider after validation
+- [x] **T-007**: Fetch available models from provider after validation
   - Query provider's `/v1/models` endpoint
   - Filter models based on provider
   - Populate model list for dialog

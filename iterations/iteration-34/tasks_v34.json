@@ -141,7 +141,7 @@
       "priority": "P0",
       "title": "Fetch available models from provider after validation",
       "description": "Query provider's /v1/models endpoint after API key validation, filter models based on provider, and populate model list for dialog",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify models are fetched from Anthropic /v1/models",
         "AddUnitTest: verify models are fetched from OpenAI-compatible /models",

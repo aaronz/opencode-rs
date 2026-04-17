@@ -864,7 +864,7 @@ pub async fn validate_api_key_and_fetch_models(
     }
 }
 
-fn parse_openai_models(body: &str) -> Vec<BrowserAuthModelInfo> {
+pub fn parse_openai_models(body: &str) -> Vec<BrowserAuthModelInfo> {
     serde_json::from_str::<OpenAIModelsResponse>(body)
         .map(|response| {
             response
@@ -879,7 +879,7 @@ fn parse_openai_models(body: &str) -> Vec<BrowserAuthModelInfo> {
         .unwrap_or_default()
 }
 
-fn parse_anthropic_models(body: &str) -> Vec<BrowserAuthModelInfo> {
+pub fn parse_anthropic_models(body: &str) -> Vec<BrowserAuthModelInfo> {
     serde_json::from_str::<AnthropicModelsResponse>(body)
         .map(|response| {
             response
@@ -894,7 +894,7 @@ fn parse_anthropic_models(body: &str) -> Vec<BrowserAuthModelInfo> {
         .unwrap_or_default()
 }
 
-fn parse_lm_studio_models(body: &str) -> Vec<BrowserAuthModelInfo> {
+pub fn parse_lm_studio_models(body: &str) -> Vec<BrowserAuthModelInfo> {
     #[derive(Debug, Deserialize)]
     struct LmStudioModelsResponse {
         models: Vec<LmStudioModelData>,
