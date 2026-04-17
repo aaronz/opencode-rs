@@ -115,14 +115,14 @@ struct CachedToolSchema {
 }
 
 impl SchemaCache {
-    pub fn new(max_age_hours: u64) -> Self {
+    pub(crate) fn new(max_age_hours: u64) -> Self {
         Self {
             cache: HashMap::new(),
             max_age: Duration::from_secs(max_age_hours * 3600),
         }
     }
 
-    pub fn get(&self, server_name: &str) -> Option<Vec<ToolDefinition>> {
+    pub(crate) fn get(&self, server_name: &str) -> Option<Vec<ToolDefinition>> {
         self.cache.get(server_name).and_then(|cached| {
             if cached.cached_at.elapsed() < self.max_age {
                 Some(cached.tools.clone())
@@ -132,7 +132,7 @@ impl SchemaCache {
         })
     }
 
-    pub fn set(&mut self, server_name: String, tools: Vec<ToolDefinition>) {
+    pub(crate) fn set(&mut self, server_name: String, tools: Vec<ToolDefinition>) {
         self.cache.insert(
             server_name,
             CachedToolSchema {
@@ -142,11 +142,11 @@ impl SchemaCache {
         );
     }
 
-    pub fn invalidate(&mut self, server_name: &str) {
+    pub(crate) fn invalidate(&mut self, server_name: &str) {
         self.cache.remove(server_name);
     }
 
-    pub fn invalidate_all(&mut self) {
+    pub(crate) fn invalidate_all(&mut self) {
         self.cache.clear();
     }
 }
@@ -158,7 +158,7 @@ impl Default for SchemaCache {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum McpServerType {
+pub(crate) enum McpServerType {
     Local,
     Remote,
 }

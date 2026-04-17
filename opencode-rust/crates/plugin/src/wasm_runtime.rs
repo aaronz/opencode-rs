@@ -295,13 +295,13 @@ impl WasmRuntime {
         Ok(())
     }
 
-    pub fn capabilities(&self) -> &WasmCapabilities {
+    pub(crate) fn capabilities(&self) -> &WasmCapabilities {
         &self.capabilities
     }
 }
 
 impl WasmInstance {
-    pub fn call(&mut self, func_name: &str) -> Result<(), WasmError> {
+    pub(crate) fn call(&mut self, func_name: &str) -> Result<(), WasmError> {
         let func = self
             .instance
             .get_func(&mut self.store, func_name)
@@ -313,7 +313,11 @@ impl WasmInstance {
         Ok(())
     }
 
-    pub fn call_with_input(&mut self, func_name: &str, input: &str) -> Result<String, WasmError> {
+    pub(crate) fn call_with_input(
+        &mut self,
+        func_name: &str,
+        input: &str,
+    ) -> Result<String, WasmError> {
         let func = self
             .instance
             .get_func(&mut self.store, func_name)
@@ -351,7 +355,7 @@ impl WasmInstance {
 }
 
 impl WasmPlugin {
-    pub fn new(
+    pub(crate) fn new(
         name: String,
         version: String,
         capabilities: WasmCapabilities,
@@ -367,14 +371,14 @@ impl WasmPlugin {
         })
     }
 
-    pub fn load(&mut self, module_path: &Path) -> Result<(), WasmError> {
+    pub(crate) fn load(&mut self, module_path: &Path) -> Result<(), WasmError> {
         let module = self.runtime.load_module(module_path)?;
         let instance = self.runtime.instantiate_module(&module)?;
         self.instance = Some(instance);
         Ok(())
     }
 
-    pub fn execute(&mut self, func_name: &str) -> Result<(), WasmError> {
+    pub(crate) fn execute(&mut self, func_name: &str) -> Result<(), WasmError> {
         if let Some(ref mut instance) = self.instance {
             instance.call(func_name)?;
         } else {
@@ -383,7 +387,7 @@ impl WasmPlugin {
         Ok(())
     }
 
-    pub fn execute_with_input(
+    pub(crate) fn execute_with_input(
         &mut self,
         func_name: &str,
         input: &str,
@@ -395,11 +399,11 @@ impl WasmPlugin {
         }
     }
 
-    pub fn name(&self) -> &str {
+    pub(crate) fn name(&self) -> &str {
         &self.name
     }
 
-    pub fn version(&self) -> &str {
+    pub(crate) fn version(&self) -> &str {
         &self.version
     }
 
