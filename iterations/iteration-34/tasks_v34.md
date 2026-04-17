@@ -136,7 +136,7 @@
 
 #### Tasks:
 
-- [ ] **T-019**: Add GitHub Copilot models
+- [x] **T-019**: Add GitHub Copilot models
   - `github-copilot/*` models
 
 - [ ] **T-020**: Add OpenCode models

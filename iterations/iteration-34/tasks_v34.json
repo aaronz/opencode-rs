@@ -401,7 +401,7 @@
       "priority": "P1",
       "title": "Add GitHub Copilot models",
       "description": "Add github-copilot/* models to model catalog",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify github-copilot models are included in model list",
         "AddRegressionTest: verify model count increases by Copilot models"

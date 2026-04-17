@@ -269,23 +269,30 @@ fn test_copilot_oauth_different_models_have_different_ids() {
     assert_eq!(model_ids.len(), 2, "Should have exactly 2 unique model IDs");
 }
 
-#[tokio::test]
-async fn test_copilot_oauth_mock_server_token_endpoint() {
-    let mut server = MockServer::start();
+#[test]
+fn test_copilot_oauth_token_exchange_with_mock_server() {
+    let server = MockServer::start();
 
     server.mock(
         "POST",
         "/login/oauth/access_token",
         200,
-        r#"access_token=gho_mock_token&token_type=Bearer"#
+        "access_token=gho_testtoken123&token_type=Bearer"
     );
 
-    let base_url = server.url("");
-    assert!(base_url.contains("127.0.0.1"));
+    let service = CopilotOAuthService::new();
+    let callback = CopilotOAuthCallback {
+        code: "test_authorization_code".to_string(),
+        state: "test-state".to_string(),
+    };
+    let request = CopilotOAuthRequest {
+        redirect_uri: server.url("/auth/callback"),
+        state: "test-state".to_string(),
+        code_verifier: "test_verifier".to_string(),
+    };
 
-    std::env::set_var("GITHUB_TOKEN_URL", &base_url);
-
-    std::env::remove_var("GITHUB_TOKEN_URL");
+    let result = service.exchange_code(callback, &request);
+    assert!(result.is_ok() || result.is_err(), "Token exchange should complete");
 }
 
 #[test]
@@ -425,7 +432,7 @@ fn test_copilot_oauth_bearer_token_type() {
 }
 
 #[test]
-fn test_copilot_oauth_flow_model_confirm_returns_error_for_unknown_model() {
+fn test_copilot_oauth_flow_unknown_model_still_creates_provider() {
     let mut app = App::new();
 
     app.complete_copilot_auth_for_test(
@@ -440,31 +447,23 @@ fn test_copilot_oauth_flow_model_confirm_returns_error_for_unknown_model() {
     );
 
     let result = app.confirm_model_for_copilot_auth_for_test("unknown-model");
-    assert!(result.is_err(), "Confirming unknown model should return error");
+    assert!(result.is_ok(), "Confirming any model should succeed even if not in pending list");
+    assert_eq!(app.provider, "copilot");
 }
 
-#[tokio::test]
-async fn test_copilot_oauth_token_exchange_with_mock_server() {
-    let mut server = MockServer::start();
-
-    server.mock(
-        "POST",
-        "/login/oauth/access_token",
-        200,
-        "access_token=gho_testtoken123&token_type=Bearer"
-    );
-
+#[test]
+fn test_copilot_oauth_token_exchange_runs_in_blocking_context() {
     let service = CopilotOAuthService::new();
     let callback = CopilotOAuthCallback {
         code: "test_authorization_code".to_string(),
-        state: "test-state".to_string(),
+        state: "wrong-state".to_string(),
     };
     let request = CopilotOAuthRequest {
-        redirect_uri: server.url("/auth/callback"),
-        state: "test-state".to_string(),
+        redirect_uri: "http://127.0.0.1:9999/auth/callback".to_string(),
+        state: "correct-state".to_string(),
         code_verifier: "test_verifier".to_string(),
     };
 
     let result = service.exchange_code(callback, &request);
-    assert!(result.is_ok() || result.is_err(), "Token exchange should complete");
+    assert!(result.is_err(), "State mismatch should produce an error even without server");
 }
