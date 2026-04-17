@@ -1211,7 +1211,7 @@
       "priority": "P1",
       "title": "Add cargo llvm-cov to CI",
       "description": "Add cargo llvm-cov --fail-under-lines 80 to CI for coverage enforcement",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: CI enforces 80% line coverage threshold"
       ],
