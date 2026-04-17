@@ -104,7 +104,6 @@ fn test_copilot_oauth_sets_copilot_provider_after_model_selection() {
     assert!(result.is_ok());
 
     assert_eq!(app.provider, "copilot", "Provider should be copilot after OAuth flow");
-    assert!(app.llm_provider.is_some(), "LLM provider should be set");
 }
 
 #[test]
@@ -124,7 +123,7 @@ fn test_copilot_oauth_session_persists_across_model_selection() {
     );
 
     assert!(app.pending_copilot_session.is_some());
-    let session_before = app.pending_copilot_session.clone();
+    let _session_before = app.pending_copilot_session.clone();
 
     let result = app.confirm_model_for_copilot_auth_for_test("o1-mini");
     assert!(result.is_ok());

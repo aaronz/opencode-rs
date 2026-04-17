@@ -357,7 +357,7 @@
       "priority": "P1",
       "title": "Wire model selection after successful Copilot OAuth",
       "description": "Proceed to ConnectModelDialog after Copilot OAuth completes successfully",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify ConnectModelDialog is shown after Copilot OAuth success",
         "AddIntegrationTest: verify credentials are passed to model dialog"
@@ -377,7 +377,7 @@
       "priority": "P1",
       "title": "Add integration tests for Copilot OAuth flow",
       "description": "Test complete Copilot OAuth flow from provider selection through model selection",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: test complete Copilot OAuth flow",
         "AddIntegrationTest: test error handling during OAuth",
