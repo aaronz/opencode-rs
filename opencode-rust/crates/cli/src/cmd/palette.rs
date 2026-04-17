@@ -1,13 +1,13 @@
 use clap::{Args, Subcommand};
 
 #[derive(Args, Debug)]
-pub struct PaletteArgs {
+pub(crate) struct PaletteArgs {
     #[command(subcommand)]
     pub action: Option<PaletteAction>,
 }
 
 #[derive(Subcommand, Debug)]
-pub enum PaletteAction {
+pub(crate) enum PaletteAction {
     #[command(about = "Open command palette")]
     Open,
 
@@ -59,7 +59,7 @@ mod tests {
     }
 }
 
-pub fn run(args: PaletteArgs) {
+pub(crate) fn run(args: PaletteArgs) {
     match args.action {
         Some(PaletteAction::Open) => {
             println!("Command palette opened");

@@ -153,3 +153,24 @@ impl Dialog for DirectorySelectionDialog {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_dir_entry_creation() {
+        let entry = DirEntry {
+            name: "test_dir".to_string(),
+            _is_dir: true,
+        };
+        assert_eq!(entry.name, "test_dir");
+    }
+
+    #[test]
+    fn test_directory_selection_dialog_new() {
+        let theme = Theme::default();
+        let dialog = DirectorySelectionDialog::new(theme);
+        assert_eq!(dialog.selected_index, 0);
+    }
+}

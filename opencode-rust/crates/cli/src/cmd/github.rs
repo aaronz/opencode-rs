@@ -2,13 +2,13 @@ use clap::{Args, Subcommand};
 use opencode_git::{setup_github_workflow, GitHubAppClient, WorkflowTemplate};
 
 #[derive(Args, Debug)]
-pub struct GitHubArgs {
+pub(crate) struct GitHubArgs {
     #[command(subcommand)]
     pub action: GitHubAction,
 }
 
 #[derive(Subcommand, Debug)]
-pub enum GitHubAction {
+pub(crate) enum GitHubAction {
     Login,
     RepoList,
     IssueList {
@@ -74,7 +74,7 @@ mod tests {
     }
 }
 
-pub fn run(args: GitHubArgs) {
+pub(crate) fn run(args: GitHubArgs) {
     match args.action {
         GitHubAction::Login => {
             println!("GitHub login - TODO: Implement OAuth flow");

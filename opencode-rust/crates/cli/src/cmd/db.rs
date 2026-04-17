@@ -1,13 +1,13 @@
 use clap::{Args, Subcommand};
 
 #[derive(Args, Debug)]
-pub struct DbArgs {
+pub(crate) struct DbArgs {
     #[command(subcommand)]
     pub action: DbAction,
 }
 
 #[derive(Subcommand, Debug)]
-pub enum DbAction {
+pub(crate) enum DbAction {
     Init,
     Migrate,
     Backup,
@@ -51,6 +51,6 @@ mod tests {
     }
 }
 
-pub fn run(args: DbArgs) {
+pub(crate) fn run(args: DbArgs) {
     println!("DB action: {:?}", args.action);
 }

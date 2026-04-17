@@ -4,7 +4,7 @@ use serde_json::json;
 use crate::cmd::mcp_auth::{self, McpAuthArgs};
 
 #[derive(Args, Debug)]
-pub struct McpArgs {
+pub(crate) struct McpArgs {
     #[arg(long)]
     pub json: bool,
 
@@ -13,7 +13,7 @@ pub struct McpArgs {
 }
 
 #[derive(Subcommand, Debug)]
-pub enum McpAction {
+pub(crate) enum McpAction {
     #[command(about = "Manage MCP server authentication")]
     Auth(McpAuthArgs),
 
@@ -51,7 +51,7 @@ mod tests {
     }
 }
 
-pub fn run(args: McpArgs) {
+pub(crate) fn run(args: McpArgs) {
     if args.json {
         let action_str = match &args.action {
             McpAction::Auth(_) => "auth",

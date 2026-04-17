@@ -123,3 +123,94 @@ impl Default for SyntaxHighlighter {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_syntect_color_to_ratatui_black() {
+        let syntect_color = SyntectColor::BLACK;
+        let ratatui_color = syntect_color_to_ratatui(syntect_color);
+        assert!(matches!(ratatui_color, Color::Rgb(0, 0, 0)));
+    }
+
+    #[test]
+    fn test_syntect_color_to_ratatui_white() {
+        let syntect_color = SyntectColor::WHITE;
+        let ratatui_color = syntect_color_to_ratatui(syntect_color);
+        assert!(matches!(ratatui_color, Color::Rgb(255, 255, 255)));
+    }
+
+    #[test]
+    fn test_syntax_highlighter_new() {
+        let highlighter = SyntaxHighlighter::new();
+        assert!(!highlighter.syntax_set.syntaxes().is_empty());
+        assert!(!highlighter.theme_set.themes.is_empty());
+    }
+
+    #[test]
+    fn test_syntax_highlighter_default() {
+        let highlighter = SyntaxHighlighter::default();
+        assert!(!highlighter.syntax_set.syntaxes().is_empty());
+    }
+
+    #[test]
+    fn test_syntax_highlighter_get_syntax_rust() {
+        let highlighter = SyntaxHighlighter::new();
+        let syntax = highlighter.get_syntax("rust");
+        assert!(syntax.is_some());
+    }
+
+    #[test]
+    fn test_syntax_highlighter_get_syntax_javascript() {
+        let highlighter = SyntaxHighlighter::new();
+        let syntax = highlighter.get_syntax("javascript");
+        assert!(syntax.is_some());
+    }
+
+    #[test]
+    fn test_syntax_highlighter_get_syntax_nonexistent() {
+        let highlighter = SyntaxHighlighter::new();
+        let syntax = highlighter.get_syntax("nonexistent_language_xyz");
+        assert!(syntax.is_none());
+    }
+
+    #[test]
+    fn test_syntax_highlighter_get_theme() {
+        let highlighter = SyntaxHighlighter::new();
+        let theme = highlighter.get_theme("base16-ocean.dark");
+        assert!(theme.is_some());
+    }
+
+    #[test]
+    fn test_syntax_highlighter_get_theme_nonexistent() {
+        let highlighter = SyntaxHighlighter::new();
+        let theme = highlighter.get_theme("nonexistent_theme_xyz");
+        assert!(theme.is_none());
+    }
+
+    #[test]
+    fn test_syntax_highlighter_supported_languages() {
+        let highlighter = SyntaxHighlighter::new();
+        let languages = highlighter.supported_languages();
+        assert!(!languages.is_empty());
+        assert!(languages.iter().any(|l| *l == "Rust"));
+        assert!(languages.iter().any(|l| *l == "JavaScript"));
+    }
+
+    #[test]
+    fn test_syntax_highlighter_highlight_code() {
+        let highlighter = SyntaxHighlighter::new();
+        let code = "fn main() { println!(\"hello\"); }";
+        let lines = highlighter.highlight_code(code, "rust", "base16-ocean.dark");
+        assert!(!lines.is_empty());
+    }
+
+    #[test]
+    fn test_syntax_highlighter_highlight_code_nonexistent_lang() {
+        let highlighter = SyntaxHighlighter::new();
+        let lines = highlighter.highlight_code("some code", "nonexistent", "base16-ocean.dark");
+        assert!(!lines.is_empty());
+    }
+}

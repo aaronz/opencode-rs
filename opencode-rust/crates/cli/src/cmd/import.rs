@@ -1,7 +1,7 @@
 use clap::Args;
 
 #[derive(Args, Debug)]
-pub struct ImportArgs {
+pub(crate) struct ImportArgs {
     #[arg(short, long)]
     pub input: String,
 
@@ -44,6 +44,6 @@ mod tests {
     }
 }
 
-pub fn run(args: ImportArgs) {
+pub(crate) fn run(args: ImportArgs) {
     println!("Importing from {}, format: {:?}", args.input, args.format);
 }

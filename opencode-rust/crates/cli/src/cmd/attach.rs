@@ -2,7 +2,7 @@ use clap::Args;
 use std::path::PathBuf;
 
 #[derive(Args, Debug)]
-pub struct AttachArgs {
+pub(crate) struct AttachArgs {
     #[arg(short, long)]
     pub session_id: Option<String>,
 
@@ -79,7 +79,7 @@ mod tests {
     }
 }
 
-pub fn run(args: AttachArgs) {
+pub(crate) fn run(args: AttachArgs) {
     if let Some(url) = args.url {
         println!("Attaching to URL: {}", url);
     } else if let Some(session_id) = args.session_id {

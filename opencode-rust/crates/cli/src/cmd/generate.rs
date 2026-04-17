@@ -1,7 +1,7 @@
 use clap::Args;
 
 #[derive(Args, Debug)]
-pub struct GenerateArgs {
+pub(crate) struct GenerateArgs {
     #[arg(short, long)]
     pub template: Option<String>,
 
@@ -52,7 +52,7 @@ mod tests {
     }
 }
 
-pub fn run(args: GenerateArgs) {
+pub(crate) fn run(args: GenerateArgs) {
     println!(
         "Generating with template {:?}, output: {:?}",
         args.template, args.output

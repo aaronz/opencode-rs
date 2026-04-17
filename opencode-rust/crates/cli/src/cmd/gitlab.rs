@@ -16,13 +16,13 @@ Users are advised that:
 "#;
 
 #[derive(Args, Debug)]
-pub struct GitLabArgs {
+pub(crate) struct GitLabArgs {
     #[command(subcommand)]
     pub action: GitLabAction,
 }
 
 #[derive(Subcommand, Debug)]
-pub enum GitLabAction {
+pub(crate) enum GitLabAction {
     Login,
     ProjectList,
     Install {
@@ -90,7 +90,7 @@ mod tests {
     }
 }
 
-pub fn run(args: GitLabArgs) {
+pub(crate) fn run(args: GitLabArgs) {
     eprintln!("{}", GITLAB_EXPERIMENTAL_WARNING);
     match args.action {
         GitLabAction::Login => {

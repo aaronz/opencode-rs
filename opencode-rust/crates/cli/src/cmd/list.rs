@@ -3,7 +3,7 @@ use clap::{ArgAction, Args};
 use serde_json::json;
 
 #[derive(Args, Debug)]
-pub struct ListArgs {
+pub(crate) struct ListArgs {
     #[arg(short, long)]
     pub all: bool,
 
@@ -83,7 +83,7 @@ mod tests {
     }
 }
 
-pub fn run(args: ListArgs) {
+pub(crate) fn run(args: ListArgs) {
     let mut sessions = load_session_records()
         .into_iter()
         .map(|record| {

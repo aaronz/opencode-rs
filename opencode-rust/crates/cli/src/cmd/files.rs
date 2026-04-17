@@ -1,13 +1,13 @@
 use clap::{Args, Subcommand};
 
 #[derive(Args, Debug)]
-pub struct FilesArgs {
+pub(crate) struct FilesArgs {
     #[command(subcommand)]
     pub action: FilesAction,
 }
 
 #[derive(Subcommand, Debug)]
-pub enum FilesAction {
+pub(crate) enum FilesAction {
     #[command(about = "List files")]
     List {
         #[arg(long)]
@@ -71,7 +71,7 @@ mod tests {
     }
 }
 
-pub fn run(args: FilesArgs) {
+pub(crate) fn run(args: FilesArgs) {
     match args.action {
         FilesAction::List { json, ext } => {
             if json {

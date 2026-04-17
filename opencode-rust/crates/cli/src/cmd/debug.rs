@@ -1,13 +1,13 @@
 use clap::{Args, Subcommand};
 
 #[derive(Args, Debug)]
-pub struct DebugArgs {
+pub(crate) struct DebugArgs {
     #[command(subcommand)]
     pub action: DebugAction,
 }
 
 #[derive(Subcommand, Debug)]
-pub enum DebugAction {
+pub(crate) enum DebugAction {
     Config,
     Lsp,
     Agent,
@@ -72,6 +72,6 @@ mod tests {
     }
 }
 
-pub fn run(args: DebugArgs) {
+pub(crate) fn run(args: DebugArgs) {
     println!("Debug action: {:?}", args.action);
 }

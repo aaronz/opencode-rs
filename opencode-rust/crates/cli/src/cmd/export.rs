@@ -1,7 +1,7 @@
 use clap::Args;
 
 #[derive(Args, Debug)]
-pub struct ExportArgs {
+pub(crate) struct ExportArgs {
     #[arg(short, long)]
     pub output: Option<String>,
 
@@ -52,6 +52,6 @@ mod tests {
     }
 }
 
-pub fn run(args: ExportArgs) {
+pub(crate) fn run(args: ExportArgs) {
     println!("Exporting to {:?}, format: {:?}", args.output, args.format);
 }

@@ -22,7 +22,7 @@ use tokio::sync::oneshot;
 use crate::webview::WebViewManager;
 
 #[derive(Args, Debug)]
-pub struct DesktopArgs {
+pub(crate) struct DesktopArgs {
     #[arg(short, long)]
     pub port: Option<u16>,
 
@@ -36,7 +36,7 @@ pub struct DesktopArgs {
     pub acp_enabled: Option<bool>,
 }
 
-pub fn run(args: DesktopArgs) {
+pub(crate) fn run(args: DesktopArgs) {
     let runtime = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
 
     runtime.block_on(async {

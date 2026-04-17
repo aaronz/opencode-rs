@@ -2,7 +2,7 @@ use clap::{ArgAction, Args};
 use opencode_core::Config;
 
 #[derive(Args, Debug)]
-pub struct ConfigArgs {
+pub(crate) struct ConfigArgs {
     #[arg(short, long, action = ArgAction::Count)]
     pub json: u8,
 
@@ -179,7 +179,7 @@ mod tests {
     }
 }
 
-pub fn run(args: ConfigArgs) {
+pub(crate) fn run(args: ConfigArgs) {
     if args.set.is_some() {
         eprintln!("Invalid setting key");
         std::process::exit(1);

@@ -7,7 +7,7 @@ use std::collections::BTreeSet;
 use std::path::PathBuf;
 
 #[derive(Args, Debug)]
-pub struct ModelsArgs {
+pub(crate) struct ModelsArgs {
     #[arg(short, long)]
     pub provider: Option<String>,
 
@@ -25,7 +25,7 @@ pub struct ModelsArgs {
 }
 
 #[derive(Subcommand, Debug)]
-pub enum ModelsAction {
+pub(crate) enum ModelsAction {
     Visibility {
         #[arg(short, long)]
         hide: Option<String>,
@@ -264,7 +264,7 @@ fn load_config() -> Config {
     Config::load(&path).unwrap_or_default()
 }
 
-pub fn run(args: ModelsArgs) {
+pub(crate) fn run(args: ModelsArgs) {
     match args.action {
         Some(ModelsAction::Visibility {
             hide,

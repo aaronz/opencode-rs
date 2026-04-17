@@ -2,7 +2,7 @@ use clap::{Args, Subcommand};
 use serde_json::json;
 
 #[derive(Args, Debug)]
-pub struct AccountArgs {
+pub(crate) struct AccountArgs {
     #[arg(long)]
     pub json: bool,
 
@@ -11,7 +11,7 @@ pub struct AccountArgs {
 }
 
 #[derive(Subcommand, Debug)]
-pub enum AccountAction {
+pub(crate) enum AccountAction {
     Login,
     Logout,
     Status,
@@ -67,7 +67,7 @@ mod tests {
     }
 }
 
-pub fn run(args: AccountArgs) {
+pub(crate) fn run(args: AccountArgs) {
     if args.json {
         let action_str = match args.action {
             AccountAction::Login => "login",

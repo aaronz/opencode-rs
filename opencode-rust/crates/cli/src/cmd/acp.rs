@@ -2,7 +2,7 @@ use clap::{Args, Subcommand};
 use serde_json::json;
 
 #[derive(Args, Debug)]
-pub struct AcpArgs {
+pub(crate) struct AcpArgs {
     #[command(subcommand)]
     pub action: Option<AcpAction>,
 
@@ -14,7 +14,7 @@ pub struct AcpArgs {
 }
 
 #[derive(Subcommand, Debug)]
-pub enum AcpAction {
+pub(crate) enum AcpAction {
     Start,
     Connect {
         #[arg(long)]

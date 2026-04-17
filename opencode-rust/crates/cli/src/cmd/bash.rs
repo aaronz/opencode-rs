@@ -3,7 +3,7 @@ use std::process::{Command, Stdio};
 use std::time::Duration;
 
 #[derive(Args, Debug)]
-pub struct BashArgs {
+pub(crate) struct BashArgs {
     #[arg(long)]
     pub command: String,
 
@@ -112,7 +112,7 @@ fn looks_interactive(command: &str) -> bool {
     command.contains("read ") || command.contains("read -p")
 }
 
-pub fn run(args: BashArgs) {
+pub(crate) fn run(args: BashArgs) {
     if looks_interactive(&args.command) {
         eprintln!("interactive command detected");
         std::process::exit(1);

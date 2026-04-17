@@ -4,18 +4,18 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-pub static PROJECT_STATE: Lazy<Mutex<ProjectState>> =
+pub(crate) static PROJECT_STATE: Lazy<Mutex<ProjectState>> =
     Lazy::new(|| Mutex::new(ProjectState::default()));
 
 #[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
-pub struct ProjectState {
+pub(crate) struct ProjectState {
     pub projects: HashMap<String, ProjectInfo>,
     pub current_project: Option<String>,
     pub _sessions: HashMap<String, Vec<SessionInfo>>,
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
-pub struct ProjectInfo {
+pub(crate) struct ProjectInfo {
     pub name: String,
     pub path: String,
     pub description: Option<String>,
@@ -34,7 +34,7 @@ fn project_state_path() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("./projects.json"))
 }
 
-pub fn load_project_state() -> ProjectState {
+pub(crate) fn load_project_state() -> ProjectState {
     let path = project_state_path();
     std::fs::read_to_string(path)
         .ok()
@@ -53,19 +53,19 @@ fn save_project_state(state: &ProjectState) {
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
-pub struct SessionInfo {
+pub(crate) struct SessionInfo {
     pub id: String,
     pub name: String,
 }
 
 #[derive(Args, Debug)]
-pub struct ProjectArgs {
+pub(crate) struct ProjectArgs {
     #[command(subcommand)]
     pub action: Option<ProjectAction>,
 }
 
 #[derive(Subcommand, Debug)]
-pub enum ProjectAction {
+pub(crate) enum ProjectAction {
     #[command(about = "Create a new project")]
     Create {
         #[arg(short, long)]

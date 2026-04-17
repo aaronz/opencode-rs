@@ -6,13 +6,13 @@ use opencode_core::config::{Config, McpConfig, McpOAuthUnion};
 use opencode_mcp::auth::{McpAuthTokenStore, McpOAuthToken};
 
 #[derive(Args, Debug)]
-pub struct McpAuthArgs {
+pub(crate) struct McpAuthArgs {
     #[command(subcommand)]
     pub action: McpAuthAction,
 }
 
 #[derive(Subcommand, Debug)]
-pub enum McpAuthAction {
+pub(crate) enum McpAuthAction {
     #[command(about = "List all MCP server tokens")]
     List,
 
@@ -71,7 +71,7 @@ mod tests {
     }
 }
 
-pub fn run(args: McpAuthArgs) {
+pub(crate) fn run(args: McpAuthArgs) {
     match args.action {
         McpAuthAction::List => run_list(),
         McpAuthAction::Login {

@@ -382,7 +382,6 @@ impl Agent for SummaryAgent {
     }
 }
 
-
 #[cfg(test)]
 mod summary_tests {
     use super::*;

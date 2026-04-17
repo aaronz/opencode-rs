@@ -351,3 +351,111 @@ impl Dialog for FileSelectionDialog {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_file_selection_dialog_with_initial_entries() {
+        let theme = Theme::default();
+        let entries = vec![
+            (PathBuf::from("file1.txt"), false),
+            (PathBuf::from("dir1"), true),
+            (PathBuf::from("file2.rs"), false),
+        ];
+        let dialog = FileSelectionDialog::with_initial_entries(theme, entries);
+        assert_eq!(dialog.selected_index, 0);
+        assert!(dialog.filter.is_empty());
+        assert_eq!(dialog.selected_indices.len(), 0);
+    }
+
+    #[test]
+    fn test_file_selection_dialog_clear_filter() {
+        let theme = Theme::default();
+        let entries = vec![
+            (PathBuf::from("file1.txt"), false),
+            (PathBuf::from("file2.txt"), false),
+        ];
+        let mut dialog = FileSelectionDialog::with_initial_entries(theme, entries);
+        dialog.filter = "file".to_string();
+        dialog.selected_index = 5;
+        dialog.clear_filter();
+        assert!(dialog.filter.is_empty());
+        assert_eq!(dialog.selected_index, 0);
+    }
+
+    #[test]
+    fn test_file_entry_creation() {
+        let entry = FileEntry {
+            name: "test.txt".to_string(),
+            is_dir: false,
+            is_hidden: false,
+            path: Some(PathBuf::from("/test/path/test.txt")),
+        };
+        assert_eq!(entry.name, "test.txt");
+        assert!(!entry.is_dir);
+        assert!(!entry.is_hidden);
+    }
+
+    #[test]
+    fn test_file_entry_hidden_detection() {
+        let visible = FileEntry {
+            name: "visible.txt".to_string(),
+            is_dir: false,
+            is_hidden: false,
+            path: None,
+        };
+        let hidden = FileEntry {
+            name: ".hidden".to_string(),
+            is_dir: false,
+            is_hidden: true,
+            path: None,
+        };
+        assert!(!visible.is_hidden);
+        assert!(hidden.is_hidden);
+    }
+
+    #[test]
+    fn test_selected_paths_empty() {
+        let theme = Theme::default();
+        let entries = vec![
+            (PathBuf::from("file1.txt"), false),
+            (PathBuf::from("dir1"), true),
+        ];
+        let dialog = FileSelectionDialog::with_initial_entries(theme, entries);
+        let paths = dialog.selected_paths();
+        assert!(paths.is_empty());
+    }
+
+    #[test]
+    fn test_selected_paths_with_selection() {
+        let theme = Theme::default();
+        let entries = vec![
+            (PathBuf::from("file1.txt"), false),
+            (PathBuf::from("dir1"), true),
+            (PathBuf::from("file2.rs"), false),
+        ];
+        let mut dialog = FileSelectionDialog::with_initial_entries(theme, entries);
+        dialog.selected_indices = vec![0, 2];
+        let paths = dialog.selected_paths();
+        assert_eq!(paths.len(), 2);
+        assert!(paths[0].contains("file1.txt"));
+        assert!(paths[1].contains("file2.rs"));
+    }
+
+    #[test]
+    fn test_selected_paths_excludes_directories() {
+        let theme = Theme::default();
+        let entries = vec![
+            (PathBuf::from("file1.txt"), false),
+            (PathBuf::from("dir1"), true),
+            (PathBuf::from("file2.rs"), false),
+        ];
+        let mut dialog = FileSelectionDialog::with_initial_entries(theme, entries);
+        dialog.selected_indices = vec![0, 1, 2];
+        let paths = dialog.selected_paths();
+        assert_eq!(paths.len(), 2);
+    }
+}
