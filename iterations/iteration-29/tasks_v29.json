@@ -167,7 +167,7 @@
       "priority": "P1",
       "title": "Add cargo-llvm-cov to CI pipeline",
       "description": "Add cargo-llvm-cov to CI configuration for code coverage reporting",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: CI pipeline includes llvm-cov step"
       ],
@@ -175,7 +175,7 @@
         "cargo llvm-cov --version || true",
         "cargo clippy --all -- -D warnings"
       ],
-      "impl_notes": "Install cargo-llvm-cov in CI environment",
+      "impl_notes": "cargo-llvm-cov already installed in CI via taiki-e/install-action. CI pipeline at .github/workflows/ci.yml includes llvm-cov installation and coverage step: cargo llvm-cov --all --fail-under-lines 80",
       "dependencies": []
     },
     {

@@ -35,7 +35,7 @@
 
 | Task ID | Description | Files | Status |
 |---------|-------------|-------|--------|
-| P1-001 | Add `cargo-llvm-cov` to CI pipeline | CI config | Not Started |
+| P1-001 | Add `cargo-llvm-cov` to CI pipeline | CI config | ✅ Done |
 | P1-002 | Set `--fail-under-lines 80` coverage threshold | CI config | Not Started |
 | P1-003 | Increase `agent` crate coverage from 45% to 80%+ | agent/* | Not Started |
 | P1-004 | Increase `server` crate coverage from 40% to 80%+ | server/* | Not Started |
