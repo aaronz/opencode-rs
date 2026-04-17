@@ -603,7 +603,7 @@
       "priority": "P1",
       "title": "Audit plugin crate pub declarations",
       "description": "Audit plugin crate pub declarations and ensure only necessary items are public",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: verify plugin crate compiles with audited pub visibility"
       ],

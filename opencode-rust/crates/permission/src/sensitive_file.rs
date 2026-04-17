@@ -110,7 +110,7 @@ static SENSITIVE_EXTENSIONS: Lazy<Vec<&'static str>> = Lazy::new(|| {
 /// ## Examples
 ///
 /// ```rust
-/// use opencode_permission::sensitive_file::is_sensitive_path;
+/// use opencode_permission::is_sensitive_path;
 ///
 /// assert!(is_sensitive_path(".env"));
 /// assert!(is_sensitive_path("/path/to/.env.local"));
@@ -162,7 +162,7 @@ pub fn is_sensitive_path<P: AsRef<Path>>(path: P) -> bool {
 /// ## Examples
 ///
 /// ```rust
-/// use opencode_permission::sensitive_file::is_sensitive_directory;
+/// use opencode_permission::is_sensitive_directory;
 ///
 /// assert!(is_sensitive_directory("/etc/ssh/some_file"));
 /// assert!(!is_sensitive_directory("/home/user/project/source.rs"));
