@@ -5,7 +5,7 @@ use crate::routes::status::{PluginStatus, ProviderStatus, StatusResponse};
 use opencode_llm::AuthStrategy;
 
 #[derive(Debug, Clone)]
-pub struct StatusResponseBuilder {
+pub(crate) struct StatusResponseBuilder {
     version: Option<String>,
     rustc_version: Option<String>,
     build_timestamp: Option<String>,
@@ -111,7 +111,7 @@ impl Default for StatusResponseBuilder {
 }
 
 #[derive(Debug, Clone)]
-pub struct ProviderStatusBuilder {
+pub(crate) struct ProviderStatusBuilder {
     name: Option<String>,
     status: Option<String>,
     model: Option<String>,
@@ -157,7 +157,7 @@ impl Default for ProviderStatusBuilder {
 }
 
 #[derive(Debug, Clone)]
-pub struct PluginStatusBuilder {
+pub(crate) struct PluginStatusBuilder {
     name: Option<String>,
     version: Option<String>,
     status: Option<String>,
@@ -203,7 +203,7 @@ impl Default for PluginStatusBuilder {
 }
 
 #[derive(Debug, Clone)]
-pub struct ProviderResponseBuilder {
+pub(crate) struct ProviderResponseBuilder {
     provider_id: Option<String>,
     endpoint: Option<String>,
     auth_strategy: Option<AuthStrategy>,
@@ -249,7 +249,7 @@ impl Default for ProviderResponseBuilder {
 }
 
 #[derive(Debug, Clone)]
-pub struct ProviderStatusResponseBuilder {
+pub(crate) struct ProviderStatusResponseBuilder {
     provider_id: Option<String>,
     enabled: Option<bool>,
     exists: Option<bool>,
