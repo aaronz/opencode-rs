@@ -249,12 +249,14 @@ impl Default for ProviderResponseBuilder {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub(crate) struct ProviderStatusResponseBuilder {
     provider_id: Option<String>,
     enabled: Option<bool>,
     exists: Option<bool>,
 }
 
+#[allow(dead_code)]
 impl ProviderStatusResponseBuilder {
     pub(crate) fn new() -> Self {
         Self {
