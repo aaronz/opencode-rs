@@ -516,7 +516,7 @@
       "priority": "P1",
       "title": "Target 50+ models minimum",
       "description": "Verify model count meets requirement of 50+ models",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify total model count >= 50",
         "AddRegressionTest: verify model count does not decrease"
@@ -541,7 +541,7 @@
       "priority": "P1",
       "title": "Create completion command module",
       "description": "Create crates/cli/src/cmd/completion.rs module",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify completion module exists and can be imported",
         "AddRegressionTest: verify CLI builds with new module"
