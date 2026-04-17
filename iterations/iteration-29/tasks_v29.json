@@ -201,7 +201,7 @@
       "priority": "P1",
       "title": "Increase agent crate coverage to 80%",
       "description": "Increase code coverage for agent crate from 45% to 80%+",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: cargo llvm-cov shows agent crate coverage >= 80%"
       ],
@@ -219,7 +219,7 @@
       "priority": "P1",
       "title": "Increase server crate coverage to 80%",
       "description": "Increase code coverage for server crate from 40% to 80%+",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "RunTestSuite: cargo llvm-cov shows server crate coverage >= 80%"
       ],

@@ -381,3 +381,48 @@ impl Agent for SummaryAgent {
         self.model.clone()
     }
 }
+
+
+#[cfg(test)]
+mod summary_tests {
+    use super::*;
+
+    #[test]
+    fn test_summary_agent_new() {
+        let agent = SummaryAgent::new();
+        assert!(agent.model.is_none());
+    }
+
+    #[test]
+    fn test_summary_agent_with_model() {
+        let agent = SummaryAgent::new().with_model("gpt-4");
+        assert_eq!(agent.model.as_deref(), Some("gpt-4"));
+    }
+
+    #[test]
+    fn test_summary_agent_default() {
+        let agent = SummaryAgent::default();
+        assert!(agent.model.is_none());
+    }
+
+    #[test]
+    fn test_summary_agent_properties() {
+        let agent = SummaryAgent::new();
+        assert_eq!(agent.agent_type(), AgentType::Summary);
+        assert_eq!(agent.name(), "summary");
+        assert_eq!(
+            agent.description(),
+            "Agent for generating conversation summaries"
+        );
+        assert!(!agent.can_execute_tools());
+        assert!(!agent.can_write_files());
+        assert!(!agent.can_run_commands());
+        assert!(!agent.is_visible());
+    }
+
+    #[test]
+    fn test_summary_agent_preferred_model() {
+        let agent = SummaryAgent::new().with_model("claude-3");
+        assert_eq!(agent.preferred_model(), Some("claude-3".to_string()));
+    }
+}
