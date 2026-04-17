@@ -163,7 +163,7 @@
       "priority": "P0",
       "title": "Configure provider with selected model",
       "description": "Store model selection with provider config, set as active provider/model, and return to Chat mode",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify selected model is stored in provider config",
         "AddUnitTest: verify active provider is set after model selection",

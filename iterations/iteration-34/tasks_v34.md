@@ -62,7 +62,7 @@
   - Filter models based on provider
   - Populate model list for dialog
 
-- [ ] **T-008**: Configure provider with selected model
+- [x] **T-008**: Configure provider with selected model
   - Store model selection with provider config
   - Set as active provider/model
   - Return to Chat mode

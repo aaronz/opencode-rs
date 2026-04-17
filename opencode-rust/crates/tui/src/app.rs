@@ -1360,13 +1360,31 @@ impl App {
             self.llm_provider = Some(std::sync::Arc::new(OpenAiProvider::new_browser_auth(
                 session, model_id.clone(), store,
             )));
+
+            let provider_config = crate::config::ProviderConfig {
+                name: "openai".to_string(),
+                api_key: None,
+                default_model: Some(model_id.clone()),
+            };
+            if let Some(providers) = &mut self.config.providers {
+                if let Some(existing) = providers.iter_mut().find(|p| p.name == "openai") {
+                    existing.default_model = Some(model_id.clone());
+                } else {
+                    providers.push(provider_config);
+                }
+            } else {
+                self.config.providers = Some(vec![provider_config]);
+            }
+            if let Err(e) = self.config.save(&Config::default_config_path()) {
+                tracing::warn!("Failed to save provider config: {}", e);
+            }
         } else if let Some(api_key) = self.pending_api_key_for_provider.clone() {
             let provider_id = self.pending_connect_provider.clone().unwrap_or_default();
             self.provider = provider_id.clone();
             std::env::set_var(format!("{}_MODEL", provider_id.to_uppercase().replace("-", "_")), &model_id);
             std::env::set_var("OPENCODE_MODEL", &model_id);
 
-            let config = ProviderConfig {
+            let llm_config = opencode_llm::ProviderConfig {
                 model: model_id.clone(),
                 api_key: api_key.clone(),
                 temperature: 0.7,
@@ -1374,26 +1392,44 @@ impl App {
 
             self.llm_provider = match provider_id.as_str() {
                 "openai" => Some(std::sync::Arc::new(opencode_llm::OpenAiProvider::new(
-                    config.api_key.clone(),
-                    config.model.clone(),
+                    llm_config.api_key.clone(),
+                    llm_config.model.clone(),
                 ))),
                 "anthropic" => Some(std::sync::Arc::new(opencode_llm::AnthropicProvider::new(
-                    config.api_key.clone(),
-                    config.model.clone(),
+                    llm_config.api_key.clone(),
+                    llm_config.model.clone(),
                 ))),
                 "ollama" => Some(std::sync::Arc::new(opencode_llm::OllamaProvider::new(
-                    config.model.clone(),
+                    llm_config.model.clone(),
                     None,
                 ))),
                 "lmstudio" | "lm_studio" | "lm-studio" => Some(std::sync::Arc::new(opencode_llm::LmStudioProvider::new(
-                    config.model.clone(),
+                    llm_config.model.clone(),
                     std::env::var("LMSTUDIO_BASE_URL").ok().or_else(|| std::env::var("OPENCODE_BASE_URL").ok()),
                 ))),
                 _ => Some(std::sync::Arc::new(opencode_llm::OpenAiProvider::new(
-                    config.api_key.clone(),
-                    config.model.clone(),
+                    llm_config.api_key.clone(),
+                    llm_config.model.clone(),
                 ))),
             };
+
+            let provider_config = crate::config::ProviderConfig {
+                name: provider_id.clone(),
+                api_key: Some(api_key),
+                default_model: Some(model_id.clone()),
+            };
+            if let Some(providers) = &mut self.config.providers {
+                if let Some(existing) = providers.iter_mut().find(|p| p.name == provider_id) {
+                    existing.default_model = Some(model_id.clone());
+                } else {
+                    providers.push(provider_config);
+                }
+            } else {
+                self.config.providers = Some(vec![provider_config]);
+            }
+            if let Err(e) = self.config.save(&Config::default_config_path()) {
+                tracing::warn!("Failed to save provider config: {}", e);
+            }
         } else {
             return Err("No valid authentication session found".to_string());
         }
