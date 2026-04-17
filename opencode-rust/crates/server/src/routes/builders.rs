@@ -18,7 +18,7 @@ pub(crate) struct StatusResponseBuilder {
 }
 
 impl StatusResponseBuilder {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             version: None,
             rustc_version: None,
@@ -32,62 +32,62 @@ impl StatusResponseBuilder {
         }
     }
 
-    pub fn version(mut self, version: impl Into<String>) -> Self {
+    pub(crate) fn version(mut self, version: impl Into<String>) -> Self {
         self.version = Some(version.into());
         self
     }
 
-    pub fn rustc_version(mut self, version: impl Into<String>) -> Self {
+    pub(crate) fn rustc_version(mut self, version: impl Into<String>) -> Self {
         self.rustc_version = Some(version.into());
         self
     }
 
-    pub fn build_timestamp(mut self, timestamp: impl Into<String>) -> Self {
+    pub(crate) fn build_timestamp(mut self, timestamp: impl Into<String>) -> Self {
         self.build_timestamp = Some(timestamp.into());
         self
     }
 
-    pub fn status(mut self, status: impl Into<String>) -> Self {
+    pub(crate) fn status(mut self, status: impl Into<String>) -> Self {
         self.status = Some(status.into());
         self
     }
 
-    pub fn uptime_seconds(mut self, seconds: u64) -> Self {
+    pub(crate) fn uptime_seconds(mut self, seconds: u64) -> Self {
         self.uptime_seconds = Some(seconds);
         self
     }
 
-    pub fn active_sessions(mut self, count: usize) -> Self {
+    pub(crate) fn active_sessions(mut self, count: usize) -> Self {
         self.active_sessions = Some(count);
         self
     }
 
-    pub fn total_sessions(mut self, count: usize) -> Self {
+    pub(crate) fn total_sessions(mut self, count: usize) -> Self {
         self.total_sessions = Some(count);
         self
     }
 
-    pub fn add_provider(mut self, provider: ProviderStatus) -> Self {
+    pub(crate) fn add_provider(mut self, provider: ProviderStatus) -> Self {
         self.providers.push(provider);
         self
     }
 
-    pub fn providers(mut self, providers: Vec<ProviderStatus>) -> Self {
+    pub(crate) fn providers(mut self, providers: Vec<ProviderStatus>) -> Self {
         self.providers = providers;
         self
     }
 
-    pub fn add_plugin(mut self, plugin: PluginStatus) -> Self {
+    pub(crate) fn add_plugin(mut self, plugin: PluginStatus) -> Self {
         self.plugins.push(plugin);
         self
     }
 
-    pub fn plugins(mut self, plugins: Vec<PluginStatus>) -> Self {
+    pub(crate) fn plugins(mut self, plugins: Vec<PluginStatus>) -> Self {
         self.plugins = plugins;
         self
     }
 
-    pub fn build(self) -> StatusResponse {
+    pub(crate) fn build(self) -> StatusResponse {
         StatusResponse {
             version: self.version.unwrap_or_else(|| "unknown".to_string()),
             rustc_version: self.rustc_version.unwrap_or_else(|| "unknown".to_string()),
@@ -118,7 +118,7 @@ pub(crate) struct ProviderStatusBuilder {
 }
 
 impl ProviderStatusBuilder {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             name: None,
             status: None,
@@ -126,22 +126,22 @@ impl ProviderStatusBuilder {
         }
     }
 
-    pub fn name(mut self, name: impl Into<String>) -> Self {
+    pub(crate) fn name(mut self, name: impl Into<String>) -> Self {
         self.name = Some(name.into());
         self
     }
 
-    pub fn status(mut self, status: impl Into<String>) -> Self {
+    pub(crate) fn status(mut self, status: impl Into<String>) -> Self {
         self.status = Some(status.into());
         self
     }
 
-    pub fn model(mut self, model: impl Into<String>) -> Self {
+    pub(crate) fn model(mut self, model: impl Into<String>) -> Self {
         self.model = Some(model.into());
         self
     }
 
-    pub fn build(self) -> ProviderStatus {
+    pub(crate) fn build(self) -> ProviderStatus {
         ProviderStatus {
             name: self.name.unwrap_or_else(|| "unknown".to_string()),
             status: self.status.unwrap_or_else(|| "unknown".to_string()),
@@ -164,7 +164,7 @@ pub(crate) struct PluginStatusBuilder {
 }
 
 impl PluginStatusBuilder {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             name: None,
             version: None,
@@ -172,22 +172,22 @@ impl PluginStatusBuilder {
         }
     }
 
-    pub fn name(mut self, name: impl Into<String>) -> Self {
+    pub(crate) fn name(mut self, name: impl Into<String>) -> Self {
         self.name = Some(name.into());
         self
     }
 
-    pub fn version(mut self, version: impl Into<String>) -> Self {
+    pub(crate) fn version(mut self, version: impl Into<String>) -> Self {
         self.version = Some(version.into());
         self
     }
 
-    pub fn status(mut self, status: impl Into<String>) -> Self {
+    pub(crate) fn status(mut self, status: impl Into<String>) -> Self {
         self.status = Some(status.into());
         self
     }
 
-    pub fn build(self) -> PluginStatus {
+    pub(crate) fn build(self) -> PluginStatus {
         PluginStatus {
             name: self.name.unwrap_or_else(|| "unknown".to_string()),
             version: self.version.unwrap_or_else(|| "1.0.0".to_string()),
@@ -210,7 +210,7 @@ pub(crate) struct ProviderResponseBuilder {
 }
 
 impl ProviderResponseBuilder {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             provider_id: None,
             endpoint: None,
@@ -218,22 +218,22 @@ impl ProviderResponseBuilder {
         }
     }
 
-    pub fn provider_id(mut self, id: impl Into<String>) -> Self {
+    pub(crate) fn provider_id(mut self, id: impl Into<String>) -> Self {
         self.provider_id = Some(id.into());
         self
     }
 
-    pub fn endpoint(mut self, endpoint: impl Into<String>) -> Self {
+    pub(crate) fn endpoint(mut self, endpoint: impl Into<String>) -> Self {
         self.endpoint = Some(endpoint.into());
         self
     }
 
-    pub fn auth_strategy(mut self, strategy: AuthStrategy) -> Self {
+    pub(crate) fn auth_strategy(mut self, strategy: AuthStrategy) -> Self {
         self.auth_strategy = Some(strategy);
         self
     }
 
-    pub fn build(self) -> ProviderResponse {
+    pub(crate) fn build(self) -> ProviderResponse {
         ProviderResponse {
             provider_id: self.provider_id.unwrap_or_else(|| "unknown".to_string()),
             endpoint: self.endpoint.unwrap_or_else(|| String::new()),
@@ -256,7 +256,7 @@ pub(crate) struct ProviderStatusResponseBuilder {
 }
 
 impl ProviderStatusResponseBuilder {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             provider_id: None,
             enabled: None,
@@ -264,22 +264,22 @@ impl ProviderStatusResponseBuilder {
         }
     }
 
-    pub fn provider_id(mut self, id: impl Into<String>) -> Self {
+    pub(crate) fn provider_id(mut self, id: impl Into<String>) -> Self {
         self.provider_id = Some(id.into());
         self
     }
 
-    pub fn enabled(mut self, enabled: bool) -> Self {
+    pub(crate) fn enabled(mut self, enabled: bool) -> Self {
         self.enabled = Some(enabled);
         self
     }
 
-    pub fn exists(mut self, exists: bool) -> Self {
+    pub(crate) fn exists(mut self, exists: bool) -> Self {
         self.exists = Some(exists);
         self
     }
 
-    pub fn build(self) -> ProviderStatusResponse {
+    pub(crate) fn build(self) -> ProviderStatusResponse {
         ProviderStatusResponse {
             provider_id: self.provider_id.unwrap_or_else(|| "unknown".to_string()),
             enabled: self.enabled.unwrap_or(false),
@@ -295,14 +295,16 @@ impl Default for ProviderStatusResponseBuilder {
 }
 
 #[derive(Debug, Clone)]
-pub struct ProviderConfigChangedEventBuilder {
+#[allow(dead_code)]
+pub(crate) struct ProviderConfigChangedEventBuilder {
     event: Option<String>,
     provider_id: Option<String>,
     enabled: Option<bool>,
 }
 
+#[allow(dead_code)]
 impl ProviderConfigChangedEventBuilder {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             event: None,
             provider_id: None,
@@ -310,22 +312,22 @@ impl ProviderConfigChangedEventBuilder {
         }
     }
 
-    pub fn event(mut self, event: impl Into<String>) -> Self {
+    pub(crate) fn event(mut self, event: impl Into<String>) -> Self {
         self.event = Some(event.into());
         self
     }
 
-    pub fn provider_id(mut self, id: impl Into<String>) -> Self {
+    pub(crate) fn provider_id(mut self, id: impl Into<String>) -> Self {
         self.provider_id = Some(id.into());
         self
     }
 
-    pub fn enabled(mut self, enabled: bool) -> Self {
+    pub(crate) fn enabled(mut self, enabled: bool) -> Self {
         self.enabled = Some(enabled);
         self
     }
 
-    pub fn build(self) -> ProviderConfigChangedEvent {
+    pub(crate) fn build(self) -> ProviderConfigChangedEvent {
         ProviderConfigChangedEvent {
             event: self
                 .event
