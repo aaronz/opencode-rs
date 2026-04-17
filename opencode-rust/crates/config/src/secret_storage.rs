@@ -79,4 +79,97 @@ mod tests {
         let result = storage.get_secret("nonexistent-secret");
         assert!(result.is_err());
     }
+
+    #[test]
+    fn test_get_secret_success() {
+        let tmp = TempDir::new().unwrap();
+        let secrets_path = tmp.path().join("secrets.json");
+        let secrets_content = r#"{"my-secret": "secret-value"}"#;
+        std::fs::write(&secrets_path, secrets_content).unwrap();
+        let storage = SecretStorage::with_path(secrets_path);
+
+        let result = storage.get_secret("my-secret");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "secret-value");
+    }
+
+    #[test]
+    fn test_get_secret_invalid_json() {
+        let tmp = TempDir::new().unwrap();
+        let secrets_path = tmp.path().join("secrets.json");
+        std::fs::write(&secrets_path, "not valid json").unwrap();
+        let storage = SecretStorage::with_path(secrets_path);
+
+        let result = storage.get_secret("my-secret");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_get_secret_not_string_value() {
+        let tmp = TempDir::new().unwrap();
+        let secrets_path = tmp.path().join("secrets.json");
+        let secrets_content = r#"{"my-secret": 12345}"#;
+        std::fs::write(&secrets_path, secrets_content).unwrap();
+        let storage = SecretStorage::with_path(secrets_path);
+
+        let result = storage.get_secret("my-secret");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_resolve_keychain_secret() {
+        let tmp = TempDir::new().unwrap();
+        let secrets_path = tmp.path().join("secrets.json");
+        let secrets_content = r#"{"test-key": "test-value"}"#;
+        std::fs::write(&secrets_path, secrets_content).unwrap();
+
+        let storage = SecretStorage::with_path(secrets_path);
+        let result = storage.get_secret("test-key");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "test-value");
+    }
+
+    #[test]
+    fn test_resolve_keychain_secret_not_found() {
+        let tmp = TempDir::new().unwrap();
+        std::env::set_var("OPENCODE_DATA_DIR", tmp.path().to_str().unwrap());
+        let secrets_path = tmp.path().join("secrets.json");
+        std::fs::write(&secrets_path, "{}").unwrap();
+
+        let result = resolve_keychain_secret("nonexistent");
+        std::env::remove_var("OPENCODE_DATA_DIR");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_secret_storage_error_display() {
+        let err = SecretStorageError::NotFound("test-secret".to_string());
+        assert!(err.to_string().contains("test-secret"));
+    }
+
+    #[test]
+    fn test_secret_storage_new() {
+        let storage = SecretStorage::new();
+        assert!(storage
+            .secrets_path
+            .to_string_lossy()
+            .contains("secrets.json"));
+    }
+
+    #[test]
+    fn test_default_secrets_path_with_data_dir() {
+        let tmp = TempDir::new().unwrap();
+        std::env::set_var("OPENCODE_DATA_DIR", tmp.path().to_str().unwrap());
+        let path = SecretStorage::default_secrets_path();
+        std::env::remove_var("OPENCODE_DATA_DIR");
+        assert!(path.to_string_lossy().contains("secrets.json"));
+    }
+
+    #[test]
+    fn test_default_secrets_path_fallback() {
+        std::env::remove_var("OPENCODE_DATA_DIR");
+        std::env::remove_var("HOME");
+        let path = SecretStorage::default_secrets_path();
+        assert!(path.to_string_lossy().contains("secrets.json"));
+    }
 }

@@ -982,4 +982,208 @@ mod tests {
         assert!(!session.is_expired());
         assert!(session.time_remaining().num_seconds() > 0);
     }
+
+    #[test]
+    fn test_oauth_error_display() {
+        let err = OAuthError::UnknownProvider("test-provider".to_string());
+        assert!(err.to_string().contains("test-provider"));
+
+        let err = OAuthError::TokenExchangeFailed {
+            status: 401,
+            body: "Unauthorized".to_string(),
+        };
+        assert!(err.to_string().contains("401"));
+
+        let err = OAuthError::StatePoisoned;
+        assert!(err.to_string().contains("state lock poisoned"));
+    }
+
+    #[test]
+    fn test_oauth_error_from_open_code_error() {
+        let opencode_err = OpenCodeError::Storage("test error".to_string());
+        let oauth_err: OAuthError = opencode_err.into();
+        match oauth_err {
+            OAuthError::Io(_) => {}
+            _ => panic!("Expected Io error"),
+        }
+    }
+
+    #[test]
+    fn test_session_manager_file_path() {
+        let tmp = tempfile::tempdir().unwrap();
+        let manager = OAuthSessionManager::new(tmp.path().to_path_buf());
+        assert!(manager
+            .file_path()
+            .to_string_lossy()
+            .contains("oauth-sessions.json"));
+    }
+
+    #[test]
+    fn test_session_manager_default_path() {
+        let path = OAuthSessionManager::default_path();
+        assert!(path.to_string_lossy().contains(".config"));
+    }
+
+    #[test]
+    fn test_session_manager_save_and_load_session() {
+        let tmp = tempfile::tempdir().unwrap();
+        let manager = OAuthSessionManager::new(tmp.path().to_path_buf());
+
+        let session = OAuthSession {
+            provider: "github".to_string(),
+            state: "test-state".to_string(),
+            code_verifier: "test-verifier".to_string(),
+            created_at: Utc::now(),
+        };
+
+        manager.save_session(session.clone()).unwrap();
+
+        let loaded = manager.load_session("github").unwrap().unwrap();
+        assert_eq!(loaded.state, "test-state");
+        assert_eq!(loaded.code_verifier, "test-verifier");
+    }
+
+    #[test]
+    fn test_session_manager_load_no_sessions() {
+        let tmp = tempfile::tempdir().unwrap();
+        let manager = OAuthSessionManager::new(tmp.path().to_path_buf());
+
+        let sessions = manager.load_active_sessions().unwrap();
+        assert!(sessions.is_empty());
+    }
+
+    #[test]
+    fn test_session_manager_clear_session() {
+        let tmp = tempfile::tempdir().unwrap();
+        let manager = OAuthSessionManager::new(tmp.path().to_path_buf());
+
+        let session = OAuthSession {
+            provider: "github".to_string(),
+            state: "test-state".to_string(),
+            code_verifier: "test-verifier".to_string(),
+            created_at: Utc::now(),
+        };
+
+        manager.save_session(session).unwrap();
+        manager.clear_session("github").unwrap();
+
+        let loaded = manager.load_session("github").unwrap();
+        assert!(loaded.is_none());
+    }
+
+    #[test]
+    fn test_load_token_for_provider() {
+        let tmp = tempfile::tempdir().unwrap();
+        let store = CredentialStore::with_paths(
+            tmp.path().join("credentials.enc.json"),
+            tmp.path().join("credentials.key"),
+        );
+        let session_manager = OAuthSessionManager::new(tmp.path().to_path_buf());
+        let flow = OAuthFlow::with_client_and_store(
+            reqwest::blocking::Client::new(),
+            store,
+            session_manager,
+        );
+
+        let token = OAuthToken {
+            access_token: "test-token".to_string(),
+            refresh_token: Some("refresh-token".to_string()),
+            expires_in: 3600,
+            token_type: "Bearer".to_string(),
+            scope: Some("read".to_string()),
+            received_at: Utc::now(),
+        };
+
+        flow.store_token("github", &token).unwrap();
+
+        let loaded = flow.load_token_for_provider("github").unwrap().unwrap();
+        assert_eq!(loaded.access_token, "test-token");
+    }
+
+    #[test]
+    fn test_load_token_for_provider_not_found() {
+        let tmp = tempfile::tempdir().unwrap();
+        let store = CredentialStore::with_paths(
+            tmp.path().join("credentials.enc.json"),
+            tmp.path().join("credentials.key"),
+        );
+        let session_manager = OAuthSessionManager::new(tmp.path().to_path_buf());
+        let flow = OAuthFlow::with_client_and_store(
+            reqwest::blocking::Client::new(),
+            store,
+            session_manager,
+        );
+
+        let loaded = flow.load_token_for_provider("nonexistent").unwrap();
+        assert!(loaded.is_none());
+    }
+
+    #[test]
+    fn test_provider_authorize_url_https() {
+        let url =
+            OAuthFlow::provider_authorize_url("https://custom.auth.example/authorize").unwrap();
+        assert_eq!(url, "https://custom.auth.example/authorize");
+    }
+
+    #[test]
+    fn test_provider_authorize_url_github() {
+        let url = OAuthFlow::provider_authorize_url("github").unwrap();
+        assert!(url.contains("github.com"));
+    }
+
+    #[test]
+    fn test_provider_authorize_url_openai() {
+        let url = OAuthFlow::provider_authorize_url("openai").unwrap();
+        assert!(url.contains("auth.openai.com"));
+    }
+
+    #[test]
+    fn test_provider_authorize_url_unknown() {
+        let result = OAuthFlow::provider_authorize_url("unknown-provider");
+        assert!(matches!(result, Err(OAuthError::UnknownProvider(_))));
+    }
+
+    #[test]
+    fn test_oauth_session_struct() {
+        let session = OAuthSession {
+            provider: "github".to_string(),
+            state: "state-123".to_string(),
+            code_verifier: "verifier-456".to_string(),
+            created_at: Utc::now(),
+        };
+        assert_eq!(session.provider, "github");
+        assert_eq!(session.state, "state-123");
+    }
+
+    #[test]
+    fn test_oauth_session_equality() {
+        let now = Utc::now();
+        let session1 = OAuthSession {
+            provider: "github".to_string(),
+            state: "state".to_string(),
+            code_verifier: "verifier".to_string(),
+            created_at: now,
+        };
+        let session2 = OAuthSession {
+            provider: "github".to_string(),
+            state: "state".to_string(),
+            code_verifier: "verifier".to_string(),
+            created_at: now,
+        };
+        assert_eq!(session1, session2);
+    }
+
+    #[test]
+    fn test_device_code_response_struct() {
+        let resp = DeviceCodeResponse {
+            device_code: "device-code".to_string(),
+            user_code: "user-code".to_string(),
+            verification_uri: "https://example.com/verify".to_string(),
+            verification_uri_complete: Some("https://example.com/verify?code=user".to_string()),
+            expires_in: 1800,
+            interval: Some(5),
+        };
+        assert_eq!(resp.device_code, "device-code");
+        assert_eq!(resp.user_code, "user-code");
+    }
 }

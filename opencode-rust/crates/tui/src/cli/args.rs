@@ -175,3 +175,241 @@ pub enum OutputFormat {
     Json,
     Ndjson,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_permission_mode_variants() {
+        assert!(matches!(PermissionMode::ReadOnly, PermissionMode::ReadOnly));
+        assert!(matches!(
+            PermissionMode::WorkspaceWrite,
+            PermissionMode::WorkspaceWrite
+        ));
+        assert!(matches!(
+            PermissionMode::DangerFullAccess,
+            PermissionMode::DangerFullAccess
+        ));
+    }
+
+    #[test]
+    fn test_output_format_variants() {
+        assert!(matches!(OutputFormat::Text, OutputFormat::Text));
+        assert!(matches!(OutputFormat::Json, OutputFormat::Json));
+        assert!(matches!(OutputFormat::Ndjson, OutputFormat::Ndjson));
+    }
+
+    #[test]
+    fn test_cli_args_validate_directory_valid() {
+        let args = CliArgs {
+            directory: ".".to_string(),
+            model: None,
+            session_id: None,
+            permission_mode: PermissionMode::WorkspaceWrite,
+            dangerously_skip_permissions: false,
+            output_format: OutputFormat::Text,
+            allowed_tools: None,
+            non_interactive: false,
+            provider: None,
+            temperature: None,
+            max_tokens: None,
+        };
+        assert!(args.validate_directory().is_ok());
+    }
+
+    #[test]
+    fn test_cli_args_validate_directory_not_exists() {
+        let args = CliArgs {
+            directory: "/nonexistent/path/12345".to_string(),
+            model: None,
+            session_id: None,
+            permission_mode: PermissionMode::WorkspaceWrite,
+            dangerously_skip_permissions: false,
+            output_format: OutputFormat::Text,
+            allowed_tools: None,
+            non_interactive: false,
+            provider: None,
+            temperature: None,
+            max_tokens: None,
+        };
+        let result = args.validate_directory();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("does not exist"));
+    }
+
+    #[test]
+    fn test_cli_args_validate_model_empty() {
+        let args = CliArgs {
+            directory: ".".to_string(),
+            model: Some("".to_string()),
+            session_id: None,
+            permission_mode: PermissionMode::WorkspaceWrite,
+            dangerously_skip_permissions: false,
+            output_format: OutputFormat::Text,
+            allowed_tools: None,
+            non_interactive: false,
+            provider: None,
+            temperature: None,
+            max_tokens: None,
+        };
+        let result = args.validate_model();
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Model name cannot be empty");
+    }
+
+    #[test]
+    fn test_cli_args_validate_model_too_long() {
+        let args = CliArgs {
+            directory: ".".to_string(),
+            model: Some("a".repeat(101)),
+            session_id: None,
+            permission_mode: PermissionMode::WorkspaceWrite,
+            dangerously_skip_permissions: false,
+            output_format: OutputFormat::Text,
+            allowed_tools: None,
+            non_interactive: false,
+            provider: None,
+            temperature: None,
+            max_tokens: None,
+        };
+        let result = args.validate_model();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("too long"));
+    }
+
+    #[test]
+    fn test_cli_args_validate_temperature_valid() {
+        let args = CliArgs {
+            directory: ".".to_string(),
+            model: None,
+            session_id: None,
+            permission_mode: PermissionMode::WorkspaceWrite,
+            dangerously_skip_permissions: false,
+            output_format: OutputFormat::Text,
+            allowed_tools: None,
+            non_interactive: false,
+            provider: None,
+            temperature: Some(1.5),
+            max_tokens: None,
+        };
+        assert!(args.validate_temperature().is_ok());
+    }
+
+    #[test]
+    fn test_cli_args_validate_temperature_out_of_range() {
+        let args = CliArgs {
+            directory: ".".to_string(),
+            model: None,
+            session_id: None,
+            permission_mode: PermissionMode::WorkspaceWrite,
+            dangerously_skip_permissions: false,
+            output_format: OutputFormat::Text,
+            allowed_tools: None,
+            non_interactive: false,
+            provider: None,
+            temperature: Some(3.0),
+            max_tokens: None,
+        };
+        let result = args.validate_temperature();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Temperature must be between"));
+    }
+
+    #[test]
+    fn test_cli_args_validate_max_tokens_zero() {
+        let args = CliArgs {
+            directory: ".".to_string(),
+            model: None,
+            session_id: None,
+            permission_mode: PermissionMode::WorkspaceWrite,
+            dangerously_skip_permissions: false,
+            output_format: OutputFormat::Text,
+            allowed_tools: None,
+            non_interactive: false,
+            provider: None,
+            temperature: None,
+            max_tokens: Some(0),
+        };
+        let result = args.validate_max_tokens();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("greater than 0"));
+    }
+
+    #[test]
+    fn test_cli_args_validate_max_tokens_too_high() {
+        let args = CliArgs {
+            directory: ".".to_string(),
+            model: None,
+            session_id: None,
+            permission_mode: PermissionMode::WorkspaceWrite,
+            dangerously_skip_permissions: false,
+            output_format: OutputFormat::Text,
+            allowed_tools: None,
+            non_interactive: false,
+            provider: None,
+            temperature: None,
+            max_tokens: Some(200000),
+        };
+        let result = args.validate_max_tokens();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("exceeds maximum"));
+    }
+
+    #[test]
+    fn test_cli_args_validate_success() {
+        let args = CliArgs {
+            directory: ".".to_string(),
+            model: Some("gpt-4".to_string()),
+            session_id: None,
+            permission_mode: PermissionMode::WorkspaceWrite,
+            dangerously_skip_permissions: false,
+            output_format: OutputFormat::Text,
+            allowed_tools: None,
+            non_interactive: false,
+            provider: None,
+            temperature: Some(0.7),
+            max_tokens: Some(1000),
+        };
+        assert!(args.validate().is_ok());
+    }
+
+    #[test]
+    fn test_cli_args_validate_multiple_errors() {
+        let args = CliArgs {
+            directory: "/nonexistent".to_string(),
+            model: Some("".to_string()),
+            session_id: None,
+            permission_mode: PermissionMode::WorkspaceWrite,
+            dangerously_skip_permissions: false,
+            output_format: OutputFormat::Text,
+            allowed_tools: None,
+            non_interactive: false,
+            provider: None,
+            temperature: Some(5.0),
+            max_tokens: Some(0),
+        };
+        let result = args.validate();
+        assert!(result.is_err());
+        let errors = result.unwrap_err();
+        assert!(errors.len() >= 3);
+    }
+
+    #[test]
+    fn test_cli_args_resolved_directory() {
+        let args = CliArgs {
+            directory: ".".to_string(),
+            model: None,
+            session_id: None,
+            permission_mode: PermissionMode::WorkspaceWrite,
+            dangerously_skip_permissions: false,
+            output_format: OutputFormat::Text,
+            allowed_tools: None,
+            non_interactive: false,
+            provider: None,
+            temperature: None,
+            max_tokens: None,
+        };
+        assert!(args.resolved_directory().is_ok());
+    }
+}

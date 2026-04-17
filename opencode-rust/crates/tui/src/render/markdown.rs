@@ -438,3 +438,234 @@ impl Default for MarkdownRenderer {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_markdown_renderer_new() {
+        let renderer = MarkdownRenderer::new();
+        assert!(renderer.options.contains(Options::all()));
+    }
+
+    #[test]
+    fn test_markdown_renderer_default() {
+        let renderer = MarkdownRenderer::default();
+        assert!(renderer.options.contains(Options::all()));
+    }
+
+    #[test]
+    fn test_render_simple_text() {
+        let renderer = MarkdownRenderer::new();
+        let html = renderer.render("Hello world");
+        assert!(html.contains("Hello world"));
+    }
+
+    #[test]
+    fn test_render_heading() {
+        let renderer = MarkdownRenderer::new();
+        let html = renderer.render("# Heading");
+        assert!(html.contains("<h1>Heading</h1>"));
+    }
+
+    #[test]
+    fn test_render_bold() {
+        let renderer = MarkdownRenderer::new();
+        let html = renderer.render("**bold**");
+        assert!(html.contains("<strong>bold</strong>"));
+    }
+
+    #[test]
+    fn test_render_italic() {
+        let renderer = MarkdownRenderer::new();
+        let html = renderer.render("*italic*");
+        assert!(html.contains("<em>italic</em>"));
+    }
+
+    #[test]
+    fn test_render_code_block() {
+        let renderer = MarkdownRenderer::new();
+        let html = renderer.render("```rust\nfn main() {}\n```");
+        assert!(html.contains("<code"));
+    }
+
+    #[test]
+    fn test_render_link() {
+        let renderer = MarkdownRenderer::new();
+        let html = renderer.render("[link](https://example.com)");
+        assert!(html.contains("<a href=\"https://example.com\""));
+    }
+
+    #[test]
+    fn test_render_list() {
+        let renderer = MarkdownRenderer::new();
+        let html = renderer.render("- item1\n- item2");
+        assert!(html.contains("<ul>"));
+    }
+
+    #[test]
+    fn test_parse_elements_empty() {
+        let renderer = MarkdownRenderer::new();
+        let elements = renderer.parse_elements("");
+        assert!(elements.is_empty());
+    }
+
+    #[test]
+    fn test_parse_elements_heading() {
+        let renderer = MarkdownRenderer::new();
+        let elements = renderer.parse_elements("# Title");
+        assert!(!elements.is_empty());
+        assert!(matches!(elements[0].element_type, ElementType::Heading(1)));
+    }
+
+    #[test]
+    fn test_parse_elements_paragraph() {
+        let renderer = MarkdownRenderer::new();
+        let elements = renderer.parse_elements("Hello world");
+        assert!(!elements.is_empty());
+        assert!(matches!(elements[0].element_type, ElementType::Paragraph));
+    }
+
+    #[test]
+    fn test_parse_elements_multiple() {
+        let renderer = MarkdownRenderer::new();
+        let elements = renderer.parse_elements("# Title\n\nParagraph");
+        assert!(elements.len() >= 2);
+    }
+
+    #[test]
+    fn test_parsed_element_debug() {
+        let element = ParsedElement {
+            content: "test".to_string(),
+            element_type: ElementType::Paragraph,
+        };
+        let debug = format!("{:?}", element);
+        assert!(debug.contains("test"));
+    }
+
+    #[test]
+    fn test_parsed_element_clone() {
+        let element = ParsedElement {
+            content: "test".to_string(),
+            element_type: ElementType::Bold,
+        };
+        let cloned = element.clone();
+        assert_eq!(element.content, cloned.content);
+        assert_eq!(element.element_type, cloned.element_type);
+    }
+
+    #[test]
+    fn test_element_type_heading_levels() {
+        assert!(matches!(ElementType::Heading(1), ElementType::Heading(1)));
+        assert!(matches!(ElementType::Heading(6), ElementType::Heading(6)));
+    }
+
+    #[test]
+    fn test_element_type_equality() {
+        assert_eq!(ElementType::Paragraph, ElementType::Paragraph);
+        assert_eq!(ElementType::Bold, ElementType::Bold);
+        assert_eq!(
+            ElementType::CodeBlock("rust".to_string()),
+            ElementType::CodeBlock("rust".to_string())
+        );
+        assert_ne!(ElementType::Paragraph, ElementType::Bold);
+    }
+
+    #[test]
+    fn test_parse_elements_bold() {
+        let renderer = MarkdownRenderer::new();
+        let elements = renderer.parse_elements("**bold text**");
+        assert!(!elements.is_empty());
+        assert!(matches!(elements[0].element_type, ElementType::Bold));
+    }
+
+    #[test]
+    fn test_parse_elements_italic() {
+        let renderer = MarkdownRenderer::new();
+        let elements = renderer.parse_elements("*italic text*");
+        assert!(!elements.is_empty());
+        assert!(matches!(elements[0].element_type, ElementType::Italic));
+    }
+
+    #[test]
+    fn test_parse_elements_code_block() {
+        let renderer = MarkdownRenderer::new();
+        let elements = renderer.parse_elements("```python\nprint('hello')\n```");
+        assert!(!elements.is_empty());
+        assert!(matches!(
+            elements[0].element_type,
+            ElementType::CodeBlock(ref lang) if lang == "python"
+        ));
+    }
+
+    #[test]
+    fn test_parse_elements_list() {
+        let renderer = MarkdownRenderer::new();
+        let elements = renderer.parse_elements("- item1\n- item2");
+        assert!(!elements.is_empty());
+        assert!(matches!(elements[0].element_type, ElementType::List(false)));
+    }
+
+    #[test]
+    fn test_parse_elements_ordered_list() {
+        let renderer = MarkdownRenderer::new();
+        let elements = renderer.parse_elements("1. first\n2. second");
+        assert!(!elements.is_empty());
+        assert!(matches!(elements[0].element_type, ElementType::List(true)));
+    }
+
+    #[test]
+    fn test_parse_elements_blockquote() {
+        let renderer = MarkdownRenderer::new();
+        let elements = renderer.parse_elements("> quote");
+        assert!(!elements.is_empty());
+        assert!(matches!(elements[0].element_type, ElementType::BlockQuote));
+    }
+
+    #[test]
+    fn test_parse_elements_link() {
+        let renderer = MarkdownRenderer::new();
+        let elements = renderer.parse_elements("[link](https://example.com)");
+        assert!(!elements.is_empty());
+        assert!(matches!(
+            elements[0].element_type,
+            ElementType::Link(ref url) if url == "https://example.com"
+        ));
+    }
+
+    #[test]
+    fn test_render_rule() {
+        let renderer = MarkdownRenderer::new();
+        let html = renderer.render("---");
+        assert!(html.contains("<hr"));
+    }
+
+    #[test]
+    fn test_heading_level_to_u8() {
+        assert_eq!(
+            MarkdownRenderer::heading_level_to_u8(pulldown_cmark::HeadingLevel::H1),
+            1
+        );
+        assert_eq!(
+            MarkdownRenderer::heading_level_to_u8(pulldown_cmark::HeadingLevel::H2),
+            2
+        );
+        assert_eq!(
+            MarkdownRenderer::heading_level_to_u8(pulldown_cmark::HeadingLevel::H3),
+            3
+        );
+        assert_eq!(
+            MarkdownRenderer::heading_level_to_u8(pulldown_cmark::HeadingLevel::H4),
+            4
+        );
+        assert_eq!(
+            MarkdownRenderer::heading_level_to_u8(pulldown_cmark::HeadingLevel::H5),
+            5
+        );
+        assert_eq!(
+            MarkdownRenderer::heading_level_to_u8(pulldown_cmark::HeadingLevel::H6),
+            6
+        );
+    }
+}

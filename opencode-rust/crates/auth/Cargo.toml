@@ -27,3 +27,5 @@ argon2 = "0.5"
 
 [dev-dependencies]
 tempfile = { workspace = true }
+opencode-storage = { path = "../storage" }
+tokio = { workspace = true, features = ["full"] }

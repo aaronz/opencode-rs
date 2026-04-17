@@ -346,4 +346,247 @@ mod tests {
         let error_string = format!("{}", error);
         assert!(error_string.contains("Parse") || error_string.contains("line"));
     }
+
+    #[test]
+    fn test_jsonc_error_with_file_path() {
+        let input = "{invalid}";
+        let result = parse_jsonc(input);
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        let path = std::path::PathBuf::from("/test/path.jsonc");
+        let error_string = error.with_file_path(&path);
+        assert!(error_string.contains("/test/path.jsonc"));
+    }
+
+    #[test]
+    fn test_jsonc_error_io_with_file_path() {
+        let error = JsoncError::Io(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "file not found",
+        ));
+        let path = std::path::PathBuf::from("/test/path.jsonc");
+        let error_string = error.with_file_path(&path);
+        assert!(error_string.contains("/test/path.jsonc"));
+        assert!(error_string.contains("not found"));
+    }
+
+    #[test]
+    fn test_jsonc_error_generate_context_double_quote() {
+        let error = JsoncError::generate_context("double-quote expected");
+        assert!(error.contains("double quotes"));
+    }
+
+    #[test]
+    fn test_jsonc_error_generate_context_trailing_comma() {
+        let error = JsoncError::generate_context("trailing comma");
+        assert!(error.contains("trailing comma"));
+    }
+
+    #[test]
+    fn test_jsonc_error_generate_context_missing_comma() {
+        let error = JsoncError::generate_context("missing comma");
+        assert!(error.contains("comma"));
+    }
+
+    #[test]
+    fn test_jsonc_error_generate_context_missing_colon() {
+        let error = JsoncError::generate_context("expected colon");
+        assert!(error.contains("colon"));
+    }
+
+    #[test]
+    fn test_jsonc_error_generate_context_unterminated_string() {
+        let error = JsoncError::generate_context("unterminated string");
+        assert!(error.contains("double quotes"));
+    }
+
+    #[test]
+    fn test_jsonc_error_generate_context_invalid_escape() {
+        let error = JsoncError::generate_context("invalid escape sequence");
+        assert!(error.contains("escape"));
+    }
+
+    #[test]
+    fn test_jsonc_error_generate_context_unexpected_token() {
+        let error = JsoncError::generate_context("unexpected token");
+        assert!(error.contains("brackets") || error.contains("braces"));
+    }
+
+    #[test]
+    fn test_jsonc_error_generate_context_comment() {
+        let error = JsoncError::generate_context("invalid comment syntax");
+        assert!(error.contains("comment"));
+    }
+
+    #[test]
+    fn test_jsonc_error_generate_context_bracket() {
+        let error = JsoncError::generate_context("unexpected bracket");
+        assert!(error.contains("square brackets"));
+    }
+
+    #[test]
+    fn test_jsonc_error_generate_context_brace() {
+        let error = JsoncError::generate_context("unexpected brace");
+        assert!(error.contains("curly braces"));
+    }
+
+    #[test]
+    fn test_jsonc_error_generate_context_default() {
+        let error = JsoncError::generate_context("some random error");
+        assert!(!error.is_empty());
+    }
+
+    #[test]
+    fn test_jsonc_error_extract_source_line() {
+        let source = "line1\nline2\nline3\n";
+        let line = JsoncError::extract_source_line(source, 2);
+        assert!(line.is_some());
+        assert_eq!(line.unwrap(), "line2");
+    }
+
+    #[test]
+    fn test_jsonc_error_extract_source_line_empty_source() {
+        let source = "";
+        let line = JsoncError::extract_source_line(source, 1);
+        assert!(line.is_none());
+    }
+
+    #[test]
+    fn test_jsonc_error_extract_source_line_line_zero() {
+        let source = "line1\nline2";
+        let line = JsoncError::extract_source_line(source, 0);
+        assert!(line.is_some());
+        assert_eq!(line.unwrap(), "line1");
+    }
+
+    #[test]
+    fn test_jsonc_error_with_source() {
+        let input = "{invalid}";
+        let result = parse_jsonc(input);
+        assert!(result.is_err());
+        let mut error = result.unwrap_err();
+        let source = "line1\nline2\n{invalid}";
+        error = error.with_source(source);
+        match error {
+            JsoncError::Parse { source_line, .. } => {
+                assert!(source_line.is_some());
+            }
+            _ => panic!("Expected Parse error"),
+        }
+    }
+
+    #[test]
+    fn test_is_jsonc_extension() {
+        assert!(is_jsonc_extension("jsonc"));
+        assert!(is_jsonc_extension("JSONC"));
+        assert!(is_jsonc_extension("json5"));
+        assert!(is_jsonc_extension("JSON5"));
+        assert!(!is_jsonc_extension("json"));
+        assert!(!is_jsonc_extension("js"));
+        assert!(!is_jsonc_extension("toml"));
+    }
+
+    #[test]
+    fn test_parse_jsonc_file() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("test.jsonc");
+        std::fs::write(&path, r#"{"key": "value"}"#).unwrap();
+        let result = parse_jsonc_file(&path);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap()["key"], "value");
+    }
+
+    #[test]
+    fn test_parse_jsonc_file_with_comments() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("test.jsonc");
+        std::fs::write(&path, r#"{"key": "value" /* comment */}"#).unwrap();
+        let result = parse_jsonc_file(&path);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_parse_jsonc_file_not_found() {
+        let path = std::path::PathBuf::from("/nonexistent/path.jsonc");
+        let result = parse_jsonc_file(&path);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_strip_jsonc_comments_empty_string() {
+        let result = strip_jsonc_comments("");
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn test_strip_jsonc_comments_no_comments() {
+        let input = r#"{"key": "value"}"#;
+        let result = strip_jsonc_comments(input);
+        assert_eq!(result, input);
+    }
+
+    #[test]
+    fn test_strip_jsonc_comments_string_with_slashes() {
+        let input = r#"{"url": "http://example.com/path"}"#;
+        let result = strip_jsonc_comments(input);
+        assert!(result.contains("http://"));
+    }
+
+    #[test]
+    fn test_strip_jsonc_comments_escaped_quote() {
+        let input = r#"{"msg": "He said \"hello\""}"#;
+        let result = strip_jsonc_comments(input);
+        assert!(result.contains("He said"));
+    }
+
+    #[test]
+    fn test_strip_jsonc_comments_multiline_at_end() {
+        let input = r#"{"key": "value"}
+/* comment */"#;
+        let result = strip_jsonc_comments(input);
+        assert!(result.contains("key"));
+        assert!(!result.contains("comment"));
+    }
+
+    #[test]
+    fn test_strip_jsonc_only_slash() {
+        let input = "just / a slash";
+        let result = strip_jsonc_comments(input);
+        assert_eq!(result, input);
+    }
+
+    #[test]
+    fn test_json_value_to_serde_value_string() {
+        use jsonc_parser::JsonValue;
+        let json = JsonValue::String("test".into());
+        let result = json_value_to_serde_value(json);
+        assert_eq!(result, serde_json::json!("test"));
+    }
+
+    #[test]
+    fn test_json_value_to_serde_value_boolean() {
+        use jsonc_parser::JsonValue;
+        let json = JsonValue::Boolean(true);
+        let result = json_value_to_serde_value(json);
+        assert_eq!(result, serde_json::json!(true));
+    }
+
+    #[test]
+    fn test_json_value_to_serde_value_null() {
+        use jsonc_parser::JsonValue;
+        let json = JsonValue::Null;
+        let result = json_value_to_serde_value(json);
+        assert_eq!(result, serde_json::json!(null));
+    }
+
+    #[test]
+    fn test_json_value_to_serde_value_object() {
+        use jsonc_parser::JsonValue;
+        use std::collections::HashMap;
+        let mut map = HashMap::new();
+        map.insert("key".into(), JsonValue::String("value".into()));
+        let json = JsonValue::Object(jsonc_parser::JsonObject::new(map));
+        let result = json_value_to_serde_value(json);
+        assert_eq!(result["key"], "value");
+    }
 }

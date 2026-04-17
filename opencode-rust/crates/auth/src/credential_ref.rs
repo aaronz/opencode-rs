@@ -290,6 +290,7 @@ impl CredentialStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
 
     #[test]
     fn test_credential_ref_literal() {
@@ -341,5 +342,213 @@ mod tests {
     #[test]
     fn test_credential_type_default() {
         assert_eq!(CredentialType::default(), CredentialType::ApiKey);
+    }
+
+    #[test]
+    fn test_credential_store_rotate() {
+        let tmp = tempfile::tempdir().unwrap();
+        let store = CredentialStore::with_paths(
+            tmp.path().join("credentials.enc.json"),
+            tmp.path().join("credentials.key"),
+        );
+
+        let original_cred = Credential {
+            api_key: "original-key".to_string(),
+            base_url: Some("https://original.com".to_string()),
+            metadata: HashMap::new(),
+        };
+
+        store.store("github", &original_cred).unwrap();
+
+        let new_cred = Credential {
+            api_key: "new-key".to_string(),
+            base_url: Some("https://new.com".to_string()),
+            metadata: HashMap::new(),
+        };
+
+        store.rotate("github", &new_cred).unwrap();
+
+        let loaded = store.load("github").unwrap().unwrap();
+        assert_eq!(loaded.api_key, "new-key");
+    }
+
+    #[test]
+    fn test_credential_store_rotate_nonexistent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let store = CredentialStore::with_paths(
+            tmp.path().join("credentials.enc.json"),
+            tmp.path().join("credentials.key"),
+        );
+
+        let new_cred = Credential {
+            api_key: "new-key".to_string(),
+            base_url: None,
+            metadata: HashMap::new(),
+        };
+
+        store.rotate("nonexistent", &new_cred).unwrap();
+
+        let loaded = store.load("nonexistent").unwrap().unwrap();
+        assert_eq!(loaded.api_key, "new-key");
+    }
+
+    #[test]
+    fn test_credential_store_rollback() {
+        let tmp = tempfile::tempdir().unwrap();
+        let store = CredentialStore::with_paths(
+            tmp.path().join("credentials.enc.json"),
+            tmp.path().join("credentials.key"),
+        );
+
+        let original_cred = Credential {
+            api_key: "original-key".to_string(),
+            base_url: None,
+            metadata: HashMap::new(),
+        };
+
+        store.store("github", &original_cred).unwrap();
+
+        let new_cred = Credential {
+            api_key: "new-key".to_string(),
+            base_url: None,
+            metadata: HashMap::new(),
+        };
+
+        store.store("github", &new_cred).unwrap();
+
+        store
+            .rollback("github", Some(original_cred.clone()))
+            .unwrap();
+
+        let loaded = store.load("github").unwrap().unwrap();
+        assert_eq!(loaded.api_key, "original-key");
+    }
+
+    #[test]
+    fn test_credential_store_rollback_with_none_does_nothing() {
+        let tmp = tempfile::tempdir().unwrap();
+        let store = CredentialStore::with_paths(
+            tmp.path().join("credentials.enc.json"),
+            tmp.path().join("credentials.key"),
+        );
+
+        store
+            .store(
+                "github",
+                &Credential {
+                    api_key: "key".to_string(),
+                    base_url: None,
+                    metadata: HashMap::new(),
+                },
+            )
+            .unwrap();
+
+        store.rollback("github", None).unwrap();
+
+        let loaded = store.load("github").unwrap().unwrap();
+        assert_eq!(loaded.api_key, "key");
+    }
+
+    #[test]
+    fn test_credential_store_rollback_with_some() {
+        let tmp = tempfile::tempdir().unwrap();
+        let store = CredentialStore::with_paths(
+            tmp.path().join("credentials.enc.json"),
+            tmp.path().join("credentials.key"),
+        );
+
+        store
+            .store(
+                "github",
+                &Credential {
+                    api_key: "key".to_string(),
+                    base_url: None,
+                    metadata: HashMap::new(),
+                },
+            )
+            .unwrap();
+
+        store
+            .rollback(
+                "github",
+                Some(Credential {
+                    api_key: "rolled-back-key".to_string(),
+                    base_url: None,
+                    metadata: HashMap::new(),
+                }),
+            )
+            .unwrap();
+
+        let loaded = store.load("github").unwrap().unwrap();
+        assert_eq!(loaded.api_key, "rolled-back-key");
+    }
+
+    #[test]
+    fn test_credential_ref_resolve_ref_not_found() {
+        let resolver = DefaultCredentialResolver::new();
+        let ref_not_found = CredentialRef::Ref("nonexistent-id".to_string());
+        let result = resolver.resolve(&ref_not_found);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            CredentialResolutionError::NotFound(id) => {
+                assert_eq!(id, "nonexistent-id");
+            }
+            _ => panic!("Expected NotFound error"),
+        }
+    }
+
+    #[test]
+    fn test_credential_ref_store_error() {
+        let resolver = DefaultCredentialResolver::new();
+        let ref_store = CredentialRef::Ref("test-id".to_string());
+        let result = resolver.resolve(&ref_store);
+        match result {
+            Err(CredentialResolutionError::StoreError(_)) => {}
+            Err(CredentialResolutionError::NotFound(_)) => {}
+            _ => {}
+        }
+    }
+
+    #[test]
+    fn test_credential_resolution_error_display() {
+        let err = CredentialResolutionError::StoreError("test error".to_string());
+        assert!(err.to_string().contains("test error"));
+
+        let err = CredentialResolutionError::NotFound("id-123".to_string());
+        assert!(err.to_string().contains("id-123"));
+
+        let err = CredentialResolutionError::FileReadError("read error".to_string());
+        assert!(err.to_string().contains("read error"));
+    }
+
+    #[test]
+    fn test_credential_store_entry_serialization() {
+        let entry = CredentialStoreEntry {
+            id: "test-id".to_string(),
+            name: "Test Credential".to_string(),
+            credential_type: CredentialType::ApiKey,
+            encrypted_value: "encrypted".to_string(),
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            rotated_at: None,
+            transition_ends_at: None,
+            previous_value: None,
+        };
+
+        let json = serde_json::to_string(&entry).unwrap();
+        assert!(json.contains("test-id"));
+    }
+
+    #[test]
+    fn test_credential_type_variants() {
+        let api_key = CredentialType::ApiKey;
+        let oauth = CredentialType::Oauth;
+        let saml = CredentialType::Saml;
+        let oidc = CredentialType::Oidc;
+
+        assert_eq!(format!("{:?}", api_key), "ApiKey");
+        assert_eq!(format!("{:?}", oauth), "Oauth");
+        assert_eq!(format!("{:?}", saml), "Saml");
+        assert_eq!(format!("{:?}", oidc), "Oidc");
     }
 }

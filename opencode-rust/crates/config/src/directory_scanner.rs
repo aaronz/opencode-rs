@@ -829,4 +829,178 @@ mod tests {
             Some("deny")
         );
     }
+
+    #[test]
+    fn test_scan_skills() {
+        let temp = TempDir::new().unwrap();
+        let skills_dir = temp.path().join(".opencode").join("skills");
+        let skill_dir = skills_dir.join("test-skill");
+        fs::create_dir_all(&skill_dir).unwrap();
+        fs::write(
+            skill_dir.join("SKILL.md"),
+            "# Test Skill\n\nA test skill content.",
+        )
+        .unwrap();
+
+        let scanner = DirectoryScanner::new();
+        let skills = scanner.scan_skills(&temp.path().join(".opencode"));
+
+        assert_eq!(skills.len(), 1);
+        assert_eq!(skills[0].name, "test-skill");
+        assert!(skills[0].content.contains("Test Skill"));
+    }
+
+    #[test]
+    fn test_scan_skills_nonexistent_dir() {
+        let temp = TempDir::new().unwrap();
+        let scanner = DirectoryScanner::new();
+        let skills = scanner.scan_skills(&temp.path().join(".nonexistent"));
+        assert!(skills.is_empty());
+    }
+
+    #[test]
+    fn test_scan_skills_no_skill_md() {
+        let temp = TempDir::new().unwrap();
+        let skills_dir = temp.path().join(".opencode").join("skills");
+        let skill_dir = skills_dir.join("test-skill");
+        fs::create_dir_all(&skill_dir).unwrap();
+        fs::write(skill_dir.join("README.md"), "Not a skill").unwrap();
+
+        let scanner = DirectoryScanner::new();
+        let skills = scanner.scan_skills(&temp.path().join(".opencode"));
+
+        assert!(skills.is_empty());
+    }
+
+    #[test]
+    fn test_scan_commands_with_pattern() {
+        let temp = TempDir::new().unwrap();
+        let commands_dir = temp.path().join(".opencode").join("commands");
+        fs::create_dir_all(&commands_dir).unwrap();
+        fs::write(commands_dir.join("test.md"), "# Test").unwrap();
+        fs::write(commands_dir.join("other.md"), "# Other").unwrap();
+
+        let scanner = DirectoryScanner::new();
+        let commands = scanner.scan_commands(&temp.path().join(".opencode"), Some("*.md"));
+
+        assert_eq!(commands.len(), 2);
+    }
+
+    #[test]
+    fn test_scan_commands_pattern_no_match() {
+        let temp = TempDir::new().unwrap();
+        let commands_dir = temp.path().join(".opencode").join("commands");
+        fs::create_dir_all(&commands_dir).unwrap();
+        fs::write(commands_dir.join("test.txt"), "# Test").unwrap();
+
+        let scanner = DirectoryScanner::new();
+        let commands = scanner.scan_commands(&temp.path().join(".opencode"), Some("*.md"));
+
+        assert!(commands.is_empty());
+    }
+
+    #[test]
+    fn test_resolve_theme_path() {
+        let temp = TempDir::new().unwrap();
+        let themes_dir = temp.path().join("themes");
+        fs::create_dir_all(&themes_dir).unwrap();
+        let theme_path = themes_dir.join("dark.json");
+        fs::write(&theme_path, r#"{"name": "dark"}"#).unwrap();
+
+        let result = resolve_theme_path("dark", &[themes_dir.to_str().unwrap().to_string()]);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_resolve_theme_path_with_json_suffix() {
+        let temp = TempDir::new().unwrap();
+        let themes_dir = temp.path().join("themes");
+        fs::create_dir_all(&themes_dir).unwrap();
+        let theme_path = themes_dir.join("dark.json");
+        fs::write(&theme_path, r#"{"name": "dark"}"#).unwrap();
+
+        let result = resolve_theme_path("dark.json", &[themes_dir.to_str().unwrap().to_string()]);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_resolve_theme_path_not_found() {
+        let temp = TempDir::new().unwrap();
+        let themes_dir = temp.path().join("themes");
+        fs::create_dir_all(&themes_dir).unwrap();
+
+        let result =
+            resolve_theme_path("nonexistent", &[temp.path().to_str().unwrap().to_string()]);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_scan_tools_invalid_regex() {
+        let temp = TempDir::new().unwrap();
+        let tools_dir = temp.path().join(".opencode").join("tools");
+        fs::create_dir_all(&tools_dir).unwrap();
+        fs::write(
+            tools_dir.join("noexport.ts"),
+            r#"// No export default tool here
+const x = 1;
+"#,
+        )
+        .unwrap();
+
+        let scanner = DirectoryScanner::new();
+        let tools = scanner.scan_tools(&temp.path().join(".opencode"));
+        assert!(tools.is_empty());
+    }
+
+    #[test]
+    fn test_scan_tools_no_name_in_export() {
+        let temp = TempDir::new().unwrap();
+        let tools_dir = temp.path().join(".opencode").join("tools");
+        fs::create_dir_all(&tools_dir).unwrap();
+        fs::write(
+            tools_dir.join("noname.ts"),
+            r#"export default tool({
+                description: "No name field",
+                args: {}
+            });
+"#,
+        )
+        .unwrap();
+
+        let scanner = DirectoryScanner::new();
+        let tools = scanner.scan_tools(&temp.path().join(".opencode"));
+        assert!(tools.len() == 1);
+    }
+
+    #[test]
+    fn test_is_tool_file() {
+        assert!(DirectoryScanner::is_tool_file(Path::new("test.ts")));
+        assert!(DirectoryScanner::is_tool_file(Path::new("test.js")));
+        assert!(DirectoryScanner::is_tool_file(Path::new("test.mts")));
+        assert!(DirectoryScanner::is_tool_file(Path::new("test.cts")));
+        assert!(!DirectoryScanner::is_tool_file(Path::new("test.rs")));
+        assert!(!DirectoryScanner::is_tool_file(Path::new("test.py")));
+    }
+
+    #[test]
+    fn test_scan_modes_no_frontmatter() {
+        let temp = TempDir::new().unwrap();
+        let modes_dir = temp.path().join(".opencode").join("modes");
+        fs::create_dir_all(&modes_dir).unwrap();
+        fs::write(
+            modes_dir.join("simple.md"),
+            "Just plain text without frontmatter",
+        )
+        .unwrap();
+
+        let scanner = DirectoryScanner::new();
+        let modes = scanner.scan_modes(&temp.path().join(".opencode"));
+
+        assert_eq!(modes.len(), 1);
+        assert_eq!(modes[0].name, "simple");
+        assert_eq!(
+            modes[0].system_prompt,
+            "Just plain text without frontmatter"
+        );
+    }
 }

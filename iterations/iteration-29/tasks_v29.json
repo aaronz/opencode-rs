@@ -219,7 +219,7 @@
       "priority": "P1",
       "title": "Increase server crate coverage to 80%",
       "description": "Increase code coverage for server crate from 40% to 80%+",
-      "status": "in_progress",
+      "status": "manual_check",
       "test_criteria": [
         "RunTestSuite: cargo llvm-cov shows server crate coverage >= 80%"
       ],
@@ -363,7 +363,7 @@
       "priority": "P1",
       "title": "Increase config crate coverage to 80%",
       "description": "Increase code coverage for config crate from 70% to 80%+",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: cargo llvm-cov shows config crate coverage >= 80%"
       ],
@@ -381,7 +381,7 @@
       "priority": "P1",
       "title": "Increase auth crate coverage to 80%",
       "description": "Increase code coverage for auth crate from 75% to 80%+",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "RunTestSuite: cargo llvm-cov shows auth crate coverage >= 80%"
       ],
@@ -399,7 +399,7 @@
       "priority": "P1",
       "title": "Verify coverage threshold passes in CI",
       "description": "Verify coverage threshold passes in CI pipeline",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "RunTestSuite: cargo llvm-cov --fail-under-lines 80 passes on all crates"
       ],

@@ -81,3 +81,59 @@ impl Default for EditorLauncher {
         Self::from_env()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_editor_launcher_new() {
+        let launcher = EditorLauncher::new();
+        assert!(launcher.preferred_editor.is_none());
+    }
+
+    #[test]
+    fn test_editor_launcher_with_editor() {
+        let launcher = EditorLauncher::new().with_editor("vim".to_string());
+        assert_eq!(launcher.preferred_editor, Some("vim".to_string()));
+    }
+
+    #[test]
+    fn test_editor_launcher_with_editor_chaining() {
+        let launcher = EditorLauncher::new()
+            .with_editor("code".to_string())
+            .with_editor("vim".to_string());
+        assert_eq!(launcher.preferred_editor, Some("vim".to_string()));
+    }
+
+    #[test]
+    fn test_editor_launcher_default() {
+        let launcher = EditorLauncher::default();
+        if let Some(ref editor) = launcher.preferred_editor {
+            assert!(!editor.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_editor_launcher_resolve_editor_with_preferred() {
+        let launcher = EditorLauncher::new().with_editor("vim".to_string());
+        let result = launcher.resolve_editor();
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "vim");
+    }
+
+    #[test]
+    fn test_editor_launcher_resolve_editor_empty_preferred() {
+        let launcher = EditorLauncher::new();
+        let result = launcher.resolve_editor();
+        if result.is_err() {
+            assert!(result.unwrap_err().contains("No available editor"));
+        }
+    }
+
+    #[test]
+    fn test_editor_launcher_editor_available() {
+        let result = EditorLauncher::editor_available("nonexistent-editor-xyz");
+        assert!(!result);
+    }
+}

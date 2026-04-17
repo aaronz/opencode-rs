@@ -46,7 +46,7 @@
 | P1-009 | Increase `tui` crate coverage from 60% to 80%+ | tui/* | Not Started |
 | P1-010 | Increase `storage` crate coverage from 70% to 80%+ | storage/* | Not Started |
 | P1-011 | Increase `plugin` crate coverage from 70% to 80%+ | plugin/* | ✅ Done |
-| P1-012 | Increase `config` crate coverage from 70% to 80%+ | config/* | Not Started |
+| P1-012 | Increase `config` crate coverage from 70% to 80%+ | config/* | ✅ Done |
 | P1-013 | Increase `auth` crate coverage from 75% to 80%+ | auth/* | Not Started |
 | P1-014 | Verify coverage threshold passes in CI | CI config | Not Started |
 

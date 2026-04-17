@@ -54,3 +54,63 @@ pub enum DialogAction {
     ConfirmMultiple(Vec<String>),
     Navigate(String),
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_dialog_action_none() {
+        assert!(matches!(DialogAction::None, DialogAction::None));
+    }
+
+    #[test]
+    fn test_dialog_action_close() {
+        assert!(matches!(DialogAction::Close, DialogAction::Close));
+    }
+
+    #[test]
+    fn test_dialog_action_confirm() {
+        let action = DialogAction::Confirm("test".to_string());
+        match action {
+            DialogAction::Confirm(s) => assert_eq!(s, "test"),
+            _ => panic!("Expected Confirm"),
+        }
+    }
+
+    #[test]
+    fn test_dialog_action_confirm_multiple() {
+        let action = DialogAction::ConfirmMultiple(vec!["a".to_string(), "b".to_string()]);
+        match action {
+            DialogAction::ConfirmMultiple(v) => assert_eq!(v.len(), 2),
+            _ => panic!("Expected ConfirmMultiple"),
+        }
+    }
+
+    #[test]
+    fn test_dialog_action_navigate() {
+        let action = DialogAction::Navigate("next".to_string());
+        match action {
+            DialogAction::Navigate(s) => assert_eq!(s, "next"),
+            _ => panic!("Expected Navigate"),
+        }
+    }
+
+    #[test]
+    fn test_dialog_action_equality() {
+        assert_eq!(DialogAction::None, DialogAction::None);
+        assert_eq!(DialogAction::Close, DialogAction::Close);
+        assert_eq!(
+            DialogAction::Confirm("x".to_string()),
+            DialogAction::Confirm("x".to_string())
+        );
+        assert_ne!(DialogAction::None, DialogAction::Close);
+    }
+
+    #[test]
+    fn test_dialog_action_clone() {
+        let action = DialogAction::Confirm("test".to_string());
+        let cloned = action.clone();
+        assert_eq!(action, cloned);
+    }
+}

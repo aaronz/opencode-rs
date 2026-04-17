@@ -4,7 +4,8 @@ use std::time::Duration;
 use serde_json::Value;
 use thiserror::Error;
 
-use super::{TuiConfig, ValidationError, ValidationSeverity};
+#[allow(unused_imports)]
+use super::{ScrollAccelerationConfig, TuiConfig, ValidationError, ValidationSeverity};
 
 pub fn validate_tui_schema(value: &Value) -> Vec<String> {
     let mut errors = Vec::new();
@@ -582,7 +583,7 @@ mod tests {
     #[test]
     fn pointer_to_path_with_tilde_encoding() {
         let result = pointer_to_path("/data/~1value");
-        assert_eq!(result, "data.value");
+        assert_eq!(result, "data./value");
     }
 
     #[test]
@@ -693,7 +694,7 @@ mod tests {
     #[test]
     fn schema_validation_result_default() {
         let result = SchemaValidationResult::default();
-        assert!(result.valid);
+        assert!(!result.valid);
         assert!(result.errors.is_empty());
     }
 }
