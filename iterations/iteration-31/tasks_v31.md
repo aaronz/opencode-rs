@@ -115,7 +115,7 @@ Either remove the functions if not needed, or integrate them into tests.
 
 ---
 
-### TASK-P2-004: Document snapshot.rs in PRD
+### TASK-P2-004: ✅ Done
 **Status:** ✅ Done
 **Priority:** P2
 **Issue ID:** GAP-005

@@ -27,7 +27,7 @@
   - Show "Validating..." message in UI
   - Disable input during validation
 
-- [ ] **T-003**: Add error handling with retry option
+- [x] **T-003**: Add error handling with retry option
   - Display user-friendly error message on validation failure
   - Allow user to re-enter API key
   - Do NOT save invalid keys
