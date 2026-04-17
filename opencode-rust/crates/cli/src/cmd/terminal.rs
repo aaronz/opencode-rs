@@ -34,6 +34,17 @@ mod tests {
     }
 
     #[test]
+    fn test_terminal_args_with_action() {
+        let args = TerminalArgs {
+            action: Some(TerminalAction::Open),
+        };
+        match args.action {
+            Some(TerminalAction::Open) => {}
+            _ => panic!("Expected Open"),
+        }
+    }
+
+    #[test]
     fn test_terminal_action_open() {
         let action = TerminalAction::Open;
         assert!(matches!(action, TerminalAction::Open));
@@ -48,9 +59,74 @@ mod tests {
     }
 
     #[test]
+    fn test_terminal_action_exec_empty_command() {
+        let action = TerminalAction::Exec { command: vec![] };
+        match action {
+            TerminalAction::Exec { command } => assert!(command.is_empty()),
+            _ => panic!("Expected Exec"),
+        }
+    }
+
+    #[test]
+    fn test_terminal_action_exec_single_command() {
+        let action = TerminalAction::Exec {
+            command: vec!["pwd".to_string()],
+        };
+        match action {
+            TerminalAction::Exec { command } => assert_eq!(command.len(), 1),
+            _ => panic!("Expected Exec"),
+        }
+    }
+
+    #[test]
+    fn test_terminal_action_exec_multiple_args() {
+        let action = TerminalAction::Exec {
+            command: vec![
+                "git".to_string(),
+                "commit".to_string(),
+                "-m".to_string(),
+                "msg".to_string(),
+            ],
+        };
+        match action {
+            TerminalAction::Exec { command } => assert_eq!(command.len(), 4),
+            _ => panic!("Expected Exec"),
+        }
+    }
+
+    #[test]
     fn test_terminal_action_tabs_fields() {
         let action = TerminalAction::Tabs { json: true };
         assert!(matches!(action, TerminalAction::Tabs { .. }));
+    }
+
+    #[test]
+    fn test_terminal_action_tabs_no_json() {
+        let action = TerminalAction::Tabs { json: false };
+        match action {
+            TerminalAction::Tabs { json } => assert!(!json),
+            _ => panic!("Expected Tabs"),
+        }
+    }
+
+    #[test]
+    fn test_terminal_action_close() {
+        let action = TerminalAction::Close {
+            tab: Some("1".to_string()),
+        };
+        match action {
+            TerminalAction::Close { tab } => assert_eq!(tab.as_deref(), Some("1")),
+            _ => panic!("Expected Close"),
+        }
+    }
+
+    #[test]
+    fn test_terminal_action_close_no_tab() {
+        let action = TerminalAction::Close { tab: None };
+        match action {
+            TerminalAction::Close { tab } => assert!(tab.is_none()),
+            _ => panic!("Expected Close"),
+        }
     }
 }
 

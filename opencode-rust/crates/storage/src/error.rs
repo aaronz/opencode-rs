@@ -172,8 +172,124 @@ mod tests {
 
     #[test]
     fn test_from_pool_error() {
-        // deadpool_sqlite::PoolError doesn't have a public constructor in a simple form,
-        // but we test the From impl exists
         let _ = StorageError::PoolError("pool closed".into());
+    }
+
+    #[test]
+    fn test_storage_error_all_codes() {
+        assert_eq!(StorageError::SessionNotFound("test".into()).code(), 5101);
+        assert_eq!(StorageError::SessionCorrupted("test".into()).code(), 5102);
+        assert_eq!(StorageError::SessionExpired("test".into()).code(), 5103);
+        assert_eq!(StorageError::ProjectNotFound("test".into()).code(), 5201);
+        assert_eq!(StorageError::ProjectCorrupted("test".into()).code(), 5202);
+        assert_eq!(StorageError::AccountNotFound("test".into()).code(), 5301);
+        assert_eq!(StorageError::AccountAuthFailed("test".into()).code(), 5302);
+        assert_eq!(StorageError::Database("test".into()).code(), 5401);
+        assert_eq!(StorageError::PoolError("test".into()).code(), 5402);
+        assert_eq!(StorageError::Serialization("test".into()).code(), 5501);
+        assert_eq!(StorageError::Deserialization("test".into()).code(), 5502);
+        assert_eq!(StorageError::Internal("test".into()).code(), 5901);
+    }
+
+    #[test]
+    fn test_storage_error_display_all_variants() {
+        let variants = [
+            (
+                StorageError::SessionNotFound("test".into()),
+                "session not found",
+            ),
+            (
+                StorageError::SessionCorrupted("test".into()),
+                "session corrupted",
+            ),
+            (
+                StorageError::SessionExpired("test".into()),
+                "session expired",
+            ),
+            (
+                StorageError::ProjectNotFound("test".into()),
+                "project not found",
+            ),
+            (
+                StorageError::ProjectCorrupted("test".into()),
+                "project corrupted",
+            ),
+            (
+                StorageError::AccountNotFound("test".into()),
+                "account not found",
+            ),
+            (
+                StorageError::AccountAuthFailed("test".into()),
+                "account auth failed",
+            ),
+            (StorageError::Database("test".into()), "database error"),
+            (
+                StorageError::PoolError("test".into()),
+                "database pool error",
+            ),
+            (
+                StorageError::Serialization("test".into()),
+                "serialization error",
+            ),
+            (
+                StorageError::Deserialization("test".into()),
+                "deserialization error",
+            ),
+            (
+                StorageError::Internal("test".into()),
+                "internal storage error",
+            ),
+        ];
+
+        for (err, expected_substring) in variants {
+            let display = err.to_string();
+            assert!(
+                display.contains(expected_substring),
+                "Expected '{}' to contain '{}'",
+                display,
+                expected_substring
+            );
+        }
+    }
+
+    #[test]
+    fn test_from_io_error() {
+        use std::io;
+        let io_err = io::Error::new(io::ErrorKind::NotFound, "file not found");
+        let storage_err: StorageError = io_err.into();
+        match storage_err {
+            StorageError::Database(_) => {}
+            other => panic!("expected Database variant, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_from_opencode_error() {
+        let core_err = opencode_core::OpenCodeError::Storage("test".into());
+        let storage_err: StorageError = core_err.into();
+        match storage_err {
+            StorageError::Database(_) => {}
+            other => panic!("expected Database variant, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_storage_error_to_opencore_error() {
+        let storage_err = StorageError::SessionNotFound("test".into());
+        let core_err: opencode_core::OpenCodeError = storage_err.into();
+        match core_err {
+            opencode_core::OpenCodeError::Storage(_) => {}
+            other => panic!("expected Storage variant, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_rusqlite_error_query_returned_no_rows() {
+        let rusqlite_err = rusqlite::Error::QueryReturnedNoRows;
+        let storage_err: StorageError = rusqlite_err.into();
+        match storage_err {
+            StorageError::Database(_) => {}
+            other => panic!("expected Database variant, got {:?}", other),
+        }
     }
 }

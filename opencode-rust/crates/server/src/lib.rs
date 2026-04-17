@@ -261,7 +261,7 @@ fn validate_port(port: u16) -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::validate_port;
+    use super::*;
 
     #[test]
     fn validate_port_rejects_privileged_ports() {
@@ -273,5 +273,94 @@ mod tests {
     fn validate_port_accepts_non_privileged_ports() {
         assert!(validate_port(1024).is_ok());
         assert!(validate_port(65535).is_ok());
+    }
+
+    #[test]
+    fn server_state_clone_preserves_fields() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
+        let session_repo = Arc::new(opencode_storage::SqliteSessionRepository::new(pool.clone()));
+        let project_repo = Arc::new(opencode_storage::SqliteProjectRepository::new(pool.clone()));
+        let state = ServerState {
+            storage: Arc::new(opencode_storage::StorageService::new(
+                session_repo,
+                project_repo,
+                pool,
+            )),
+            models: Arc::new(opencode_llm::ModelRegistry::new()),
+            config: Arc::new(RwLock::new(Config::default())),
+            event_bus: opencode_core::bus::SharedEventBus::default(),
+            reconnection_store: streaming::ReconnectionStore::default(),
+            temp_db_dir: None,
+            connection_monitor: Arc::new(streaming::conn_state::ConnectionMonitor::new()),
+            share_server: Arc::new(RwLock::new(
+                routes::share::ShareServer::with_default_config(),
+            )),
+            acp_enabled: true,
+            acp_stream: opencode_control_plane::AcpEventStream::new().into(),
+            acp_client_registry: Arc::new(tokio::sync::RwLock::new(
+                routes::acp_ws::AcpClientRegistry::new(),
+            )),
+            tool_registry: Arc::new(opencode_tools::ToolRegistry::new()),
+            session_hub: Arc::new(routes::ws::SessionHub::new(256)),
+            server_start_time: std::time::SystemTime::now(),
+            permission_manager: Arc::new(RwLock::new(opencode_core::PermissionManager::default())),
+            approval_queue: Arc::new(RwLock::new(opencode_permission::ApprovalQueue::new(
+                opencode_permission::PermissionScope::Full,
+            ))),
+            audit_log: None,
+        };
+
+        let cloned = state.clone();
+        assert_eq!(state.acp_enabled, cloned.acp_enabled);
+        assert_eq!(
+            state
+                .server_start_time
+                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                .unwrap(),
+            cloned
+                .server_start_time
+                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn server_state_all_fields_initialized() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
+        let session_repo = Arc::new(opencode_storage::SqliteSessionRepository::new(pool.clone()));
+        let project_repo = Arc::new(opencode_storage::SqliteProjectRepository::new(pool.clone()));
+        let _state = ServerState {
+            storage: Arc::new(opencode_storage::StorageService::new(
+                session_repo,
+                project_repo,
+                pool,
+            )),
+            models: Arc::new(opencode_llm::ModelRegistry::new()),
+            config: Arc::new(RwLock::new(Config::default())),
+            event_bus: opencode_core::bus::SharedEventBus::default(),
+            reconnection_store: streaming::ReconnectionStore::default(),
+            temp_db_dir: None,
+            connection_monitor: Arc::new(streaming::conn_state::ConnectionMonitor::new()),
+            share_server: Arc::new(RwLock::new(
+                routes::share::ShareServer::with_default_config(),
+            )),
+            acp_enabled: false,
+            acp_stream: opencode_control_plane::AcpEventStream::new().into(),
+            acp_client_registry: Arc::new(tokio::sync::RwLock::new(
+                routes::acp_ws::AcpClientRegistry::new(),
+            )),
+            tool_registry: Arc::new(opencode_tools::ToolRegistry::new()),
+            session_hub: Arc::new(routes::ws::SessionHub::new(256)),
+            server_start_time: std::time::SystemTime::now(),
+            permission_manager: Arc::new(RwLock::new(opencode_core::PermissionManager::default())),
+            approval_queue: Arc::new(RwLock::new(opencode_permission::ApprovalQueue::new(
+                opencode_permission::PermissionScope::Full,
+            ))),
+            audit_log: None,
+        };
     }
 }

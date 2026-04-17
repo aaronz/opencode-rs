@@ -152,6 +152,203 @@ mod tests {
         let inv2 = ToolInvocation::new(session_id, message_id, "read".to_string(), args);
         assert_eq!(inv1.args_hash, inv2.args_hash);
     }
+
+    #[test]
+    fn test_invocation_status_display() {
+        assert_eq!(InvocationStatus::Running.to_string(), "running");
+        assert_eq!(InvocationStatus::Completed.to_string(), "completed");
+        assert_eq!(InvocationStatus::Failed.to_string(), "failed");
+    }
+
+    #[test]
+    fn test_invocation_status_default() {
+        let status = InvocationStatus::default();
+        assert_eq!(status, InvocationStatus::Running);
+    }
+
+    #[test]
+    fn test_tool_invocation_complete() {
+        let session_id = Uuid::new_v4();
+        let message_id = Uuid::new_v4();
+        let mut invocation = ToolInvocation::new(
+            session_id,
+            message_id,
+            "read".to_string(),
+            serde_json::json!({}),
+        );
+
+        let result = serde_json::json!({"content": "test result", "success": true});
+        invocation.complete(result.clone());
+
+        assert_eq!(invocation.status, InvocationStatus::Completed);
+        assert!(invocation.completed_at.is_some());
+        assert!(invocation.latency_ms.is_some());
+        assert!(invocation.result.is_some());
+        assert!(invocation.result_summary.is_some());
+    }
+
+    #[test]
+    fn test_tool_invocation_fail() {
+        let session_id = Uuid::new_v4();
+        let message_id = Uuid::new_v4();
+        let mut invocation = ToolInvocation::new(
+            session_id,
+            message_id,
+            "read".to_string(),
+            serde_json::json!({}),
+        );
+
+        invocation.fail();
+
+        assert_eq!(invocation.status, InvocationStatus::Failed);
+        assert!(invocation.completed_at.is_some());
+        assert!(invocation.latency_ms.is_some());
+        assert!(invocation.result.is_none());
+    }
+
+    #[test]
+    fn test_tool_invocation_set_permission_request_id() {
+        let session_id = Uuid::new_v4();
+        let message_id = Uuid::new_v4();
+        let mut invocation = ToolInvocation::new(
+            session_id,
+            message_id,
+            "read".to_string(),
+            serde_json::json!({}),
+        );
+
+        assert!(invocation.permission_request_id.is_none());
+
+        let request_id = Uuid::new_v4();
+        invocation.set_permission_request_id(request_id);
+
+        assert_eq!(invocation.permission_request_id, Some(request_id));
+    }
+
+    #[test]
+    fn test_redact_sensitive_info() {
+        let input = r#"api_key=sk-1234567890abcdef token=my_secret_token password=secret123"#;
+        let result = redact_sensitive_info(input);
+        assert!(result.contains("***REDACTED***"));
+        assert!(!result.contains("sk-1234567890abcdef"));
+    }
+
+    #[test]
+    fn test_redact_sensitive_info_bearer_token() {
+        let input = r#"authorization=bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"#;
+        let result = redact_sensitive_info(input);
+        assert!(result.contains("***REDACTED***"));
+    }
+
+    #[test]
+    fn test_redact_sensitive_info_credentials() {
+        let input = r#"credentials=my_credential secret=my_secret token_api=my_token"#;
+        let result = redact_sensitive_info(input);
+        assert!(result.contains("***REDACTED***"));
+    }
+
+    #[test]
+    fn test_compute_result_summary_truncation() {
+        let long_result = serde_json::json!({
+            "content": "x".repeat(2000)
+        });
+        let summary = compute_result_summary(&long_result);
+        assert!(summary.len() <= 1024);
+    }
+
+    #[test]
+    fn test_compute_result_summary_no_truncation() {
+        let short_result = serde_json::json!({"key": "value"});
+        let summary = compute_result_summary(&short_result);
+        assert_eq!(summary, r#"{"key":"value"}"#);
+    }
+
+    #[test]
+    fn test_session_model_from_session() {
+        use opencode_core::{Message, Session};
+        let mut session = Session::new();
+        session.add_message(Message::user("Hello".to_string()));
+        session.add_message(Message::assistant("Hi there".to_string()));
+
+        let model = SessionModel::from(session.clone());
+
+        assert_eq!(model.id, session.id.to_string());
+        assert_eq!(model.created_at, session.created_at);
+        assert_eq!(model.updated_at, session.updated_at);
+        assert!(!model.data.is_empty());
+    }
+
+    #[test]
+    fn test_session_try_from_session_model() {
+        use opencode_core::{Message, Session};
+        let mut session = Session::new();
+        session.add_message(Message::user("Hello".to_string()));
+
+        let model = SessionModel::from(session.clone());
+        let round_trip = Session::try_from(model).unwrap();
+
+        assert_eq!(round_trip.id, session.id);
+        assert_eq!(round_trip.messages.len(), session.messages.len());
+    }
+
+    #[test]
+    fn test_session_try_from_session_model_invalid_data() {
+        let model = SessionModel {
+            id: "test".to_string(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            data: "invalid json".to_string(),
+        };
+
+        let result = Session::try_from(model);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_plugin_state_model() {
+        let model = PluginStateModel {
+            plugin_id: "test-plugin".to_string(),
+            state_data: r#"{"key": "value"}"#.to_string(),
+            updated_at: Utc::now(),
+        };
+
+        assert_eq!(model.plugin_id, "test-plugin");
+        assert_eq!(model.state_data, r#"{"key": "value"}"#);
+    }
+
+    #[test]
+    fn test_project_model() {
+        let model = ProjectModel {
+            id: "proj-1".to_string(),
+            path: "/tmp/test".to_string(),
+            name: Some("Test Project".to_string()),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            data: Some(r#"{"setting": true}"#.to_string()),
+        };
+
+        assert_eq!(model.name, Some("Test Project".to_string()));
+        assert!(model.data.is_some());
+    }
+
+    #[test]
+    fn test_account_model_last_login() {
+        let last_login = Utc::now();
+        let model = AccountModel {
+            id: "acc-1".to_string(),
+            username: "testuser".to_string(),
+            email: Some("test@example.com".to_string()),
+            password_hash: "hash123".to_string(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            last_login_at: Some(last_login),
+            is_active: true,
+            data: None,
+        };
+
+        assert!(model.last_login_at.is_some());
+        assert_eq!(model.last_login_at.unwrap(), last_login);
+    }
 }
 
 fn compute_result_summary(result: &serde_json::Value) -> String {

@@ -66,6 +66,24 @@ mod tests {
         assert_eq!(args.port, Some(3000));
         assert_eq!(args.hostname.as_deref(), Some("localhost"));
     }
+
+    #[test]
+    fn test_serve_args_with_various_ports() {
+        let args = ServeArgs {
+            port: Some(9000),
+            hostname: None,
+        };
+        assert_eq!(args.port, Some(9000));
+    }
+
+    #[test]
+    fn test_serve_args_with_different_hostnames() {
+        let args = ServeArgs {
+            port: None,
+            hostname: Some("127.0.0.1".to_string()),
+        };
+        assert_eq!(args.hostname.as_deref(), Some("127.0.0.1"));
+    }
 }
 
 pub fn run(args: ServeArgs) {

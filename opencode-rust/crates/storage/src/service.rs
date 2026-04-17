@@ -257,3 +257,331 @@ impl StorageService {
         .map_err(|e| OpenCodeError::Storage(e.to_string()))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::database::StoragePool;
+    use crate::memory_repository::InMemorySessionRepository;
+    use crate::migration::MigrationManager;
+    use chrono::Utc;
+    use uuid::Uuid;
+
+    fn create_test_session() -> Session {
+        let mut session = Session::new();
+        session.add_message(Message::user("Hello".to_string()));
+        session.add_message(Message::assistant("Hi there".to_string()));
+        session
+    }
+
+    fn create_test_project() -> ProjectModel {
+        ProjectModel {
+            id: Uuid::new_v4().to_string(),
+            path: "/tmp/test_project".to_string(),
+            name: Some("Test Project".to_string()),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            data: None,
+        }
+    }
+
+    fn create_test_account() -> AccountModel {
+        AccountModel {
+            id: Uuid::new_v4().to_string(),
+            username: "testuser".to_string(),
+            email: Some("test@example.com".to_string()),
+            password_hash: "hashed_password".to_string(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            last_login_at: None,
+            is_active: true,
+            data: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_storage_service_new() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let service = StorageService::new(session_repo, project_repo, pool);
+        assert!(service.session_repo.as_ref().count().await.is_ok());
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_save_and_load_session() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let service = StorageService::new(session_repo, project_repo, pool);
+        let session = create_test_session();
+
+        service.save_session(&session).await.unwrap();
+
+        let loaded = service.load_session(&session.id.to_string()).await.unwrap();
+        assert!(loaded.is_some());
+        assert_eq!(loaded.unwrap().id, session.id);
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_load_session_not_found() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let service = StorageService::new(session_repo, project_repo, pool);
+
+        let loaded = service.load_session("nonexistent-id").await.unwrap();
+        assert!(loaded.is_none());
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_get_session_messages_paginated() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let service = StorageService::new(session_repo, project_repo, pool);
+        let mut session = create_test_session();
+        for i in 0..10 {
+            session.add_message(Message::user(format!("Message {}", i)));
+        }
+
+        service.save_session(&session).await.unwrap();
+
+        let messages = service
+            .get_session_messages_paginated(&session.id.to_string(), 5, 0)
+            .await
+            .unwrap();
+        assert_eq!(messages.len(), 5);
+
+        let messages = service
+            .get_session_messages_paginated(&session.id.to_string(), 5, 5)
+            .await
+            .unwrap();
+        assert_eq!(messages.len(), 5);
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_count_session_messages() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let service = StorageService::new(session_repo, project_repo, pool);
+        let mut session = create_test_session();
+        for i in 0..5 {
+            session.add_message(Message::user(format!("Message {}", i)));
+        }
+
+        service.save_session(&session).await.unwrap();
+
+        let count = service
+            .count_session_messages(&session.id.to_string())
+            .await
+            .unwrap();
+        assert_eq!(count, 7);
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_delete_session() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let service = StorageService::new(session_repo, project_repo, pool);
+        let session = create_test_session();
+
+        service.save_session(&session).await.unwrap();
+        assert!(service
+            .load_session(&session.id.to_string())
+            .await
+            .unwrap()
+            .is_some());
+
+        service
+            .delete_session(&session.id.to_string())
+            .await
+            .unwrap();
+        assert!(service
+            .load_session(&session.id.to_string())
+            .await
+            .unwrap()
+            .is_none());
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_list_sessions() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let service = StorageService::new(session_repo, project_repo, pool);
+
+        for _ in 0..5 {
+            let session = create_test_session();
+            service.save_session(&session).await.unwrap();
+        }
+
+        let sessions = service.list_sessions(10, 0).await.unwrap();
+        assert_eq!(sessions.len(), 5);
+
+        let sessions = service.list_sessions(2, 0).await.unwrap();
+        assert_eq!(sessions.len(), 2);
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_count_sessions() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let service = StorageService::new(session_repo, project_repo, pool);
+
+        assert_eq!(service.count_sessions().await.unwrap(), 0);
+
+        for _ in 0..3 {
+            let session = create_test_session();
+            service.save_session(&session).await.unwrap();
+        }
+
+        assert_eq!(service.count_sessions().await.unwrap(), 3);
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_save_and_load_project() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let service = StorageService::new(session_repo, project_repo, pool);
+        let project = create_test_project();
+
+        service.save_project(&project).await.unwrap();
+
+        let loaded = service.load_project_by_path(&project.path).await.unwrap();
+        assert!(loaded.is_some());
+        assert_eq!(loaded.unwrap().id, project.id);
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_list_projects() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let service = StorageService::new(session_repo, project_repo, pool);
+
+        for i in 0..5 {
+            let mut project = create_test_project();
+            project.path = format!("/tmp/test_project_{}", i);
+            service.save_project(&project).await.unwrap();
+        }
+
+        let projects = service.list_projects(10, 0).await.unwrap();
+        assert_eq!(projects.len(), 5);
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_save_and_load_account() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let service = StorageService::new(session_repo, project_repo, pool.clone());
+
+        let manager = MigrationManager::new(pool, 2);
+        manager.migrate().await.unwrap();
+
+        let account = create_test_account();
+
+        service.save_account(&account).await.unwrap();
+
+        let loaded = service.load_account_by_id(&account.id).await.unwrap();
+        assert!(loaded.is_some());
+        assert_eq!(loaded.unwrap().username, account.username);
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_list_accounts() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let manager = MigrationManager::new(pool.clone(), 2);
+        manager.migrate().await.unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let service = StorageService::new(session_repo, project_repo, pool);
+
+        for i in 0..5 {
+            let mut account = create_test_account();
+            account.username = format!("user{}", i);
+            service.save_account(&account).await.unwrap();
+        }
+
+        let accounts = service.list_accounts(10, 0).await.unwrap();
+        assert!(accounts.len() > 0, "Should have saved some accounts");
+
+        drop(temp_dir);
+    }
+}

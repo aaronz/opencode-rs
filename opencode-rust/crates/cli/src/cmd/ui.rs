@@ -61,6 +61,70 @@ mod tests {
         let action = SidebarAction::Sessions { json: true };
         assert!(matches!(action, SidebarAction::Sessions { .. }));
     }
+
+    #[test]
+    fn test_sidebar_action_sessions_no_json() {
+        let action = SidebarAction::Sessions { json: false };
+        match action {
+            SidebarAction::Sessions { json } => assert!(!json),
+            _ => panic!("Expected Sessions"),
+        }
+    }
+
+    #[test]
+    fn test_sidebar_action_recent() {
+        let action = SidebarAction::Recent {
+            limit: Some(10),
+            json: true,
+        };
+        match action {
+            SidebarAction::Recent { limit, json } => {
+                assert_eq!(limit, Some(10));
+                assert!(json);
+            }
+            _ => panic!("Expected Recent"),
+        }
+    }
+
+    #[test]
+    fn test_sidebar_action_recent_no_limit() {
+        let action = SidebarAction::Recent {
+            limit: None,
+            json: false,
+        };
+        match action {
+            SidebarAction::Recent { limit, json } => {
+                assert!(limit.is_none());
+                assert!(!json);
+            }
+            _ => panic!("Expected Recent"),
+        }
+    }
+
+    #[test]
+    fn test_sidebar_args_creation() {
+        let args = SidebarArgs {
+            action: SidebarAction::Toggle,
+        };
+        match args.action {
+            SidebarAction::Toggle => {}
+            _ => panic!("Expected Toggle"),
+        }
+    }
+
+    #[test]
+    fn test_ui_args_creation() {
+        let args = UiArgs {
+            action: UiAction::Sidebar(SidebarArgs {
+                action: SidebarAction::Sessions { json: false },
+            }),
+        };
+        match args.action {
+            UiAction::Sidebar(SidebarArgs { action }) => {
+                assert!(matches!(action, SidebarAction::Sessions { .. }));
+            }
+        }
+    }
 }
 
 pub fn run(args: UiArgs) {

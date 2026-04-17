@@ -39,6 +39,17 @@ mod tests {
     }
 
     #[test]
+    fn test_quick_args_with_action() {
+        let args = QuickArgs {
+            action: Some(QuickAction::Settings),
+        };
+        match args.action {
+            Some(QuickAction::Settings) => {}
+            _ => panic!("Expected Settings"),
+        }
+    }
+
+    #[test]
     fn test_quick_action_new_session() {
         let action = QuickAction::NewSession {
             name: "Test Session".to_string(),
@@ -52,6 +63,17 @@ mod tests {
     }
 
     #[test]
+    fn test_quick_action_new_session_various_names() {
+        let action = QuickAction::NewSession {
+            name: "Session 123".to_string(),
+        };
+        match action {
+            QuickAction::NewSession { name } => assert_eq!(name, "Session 123"),
+            _ => panic!("Expected NewSession"),
+        }
+    }
+
+    #[test]
     fn test_quick_action_switch_model() {
         let action = QuickAction::SwitchModel {
             model: "gpt-4o".to_string(),
@@ -61,6 +83,17 @@ mod tests {
                 assert_eq!(model, "gpt-4o");
             }
             _ => panic!("Expected SwitchModel variant"),
+        }
+    }
+
+    #[test]
+    fn test_quick_action_switch_model_various_models() {
+        let action = QuickAction::SwitchModel {
+            model: "claude-3-opus".to_string(),
+        };
+        match action {
+            QuickAction::SwitchModel { model } => assert_eq!(model, "claude-3-opus"),
+            _ => panic!("Expected SwitchModel"),
         }
     }
 

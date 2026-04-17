@@ -309,7 +309,7 @@
       "priority": "P1",
       "title": "Increase tui crate coverage to 80%",
       "description": "Increase code coverage for tui crate from 60% to 80%+",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "RunTestSuite: cargo llvm-cov shows tui crate coverage >= 80%"
       ],
@@ -327,7 +327,7 @@
       "priority": "P1",
       "title": "Increase storage crate coverage to 80%",
       "description": "Increase code coverage for storage crate from 70% to 80%+",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: cargo llvm-cov shows storage crate coverage >= 80%"
       ],

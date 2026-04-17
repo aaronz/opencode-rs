@@ -63,7 +63,7 @@ impl MigrationManager {
                         data TEXT NOT NULL
                     );
                     CREATE INDEX idx_sessions_updated_at ON sessions(updated_at);
-                    
+
                     CREATE TABLE projects (
                         id TEXT PRIMARY KEY,
                         path TEXT NOT NULL UNIQUE,
@@ -74,7 +74,7 @@ impl MigrationManager {
                     );
                     CREATE INDEX idx_projects_path ON projects(path);
                     CREATE INDEX idx_projects_updated_at ON projects(updated_at);
-                    
+
                     CREATE TABLE accounts (
                         id TEXT PRIMARY KEY,
                         username TEXT NOT NULL UNIQUE,
@@ -89,7 +89,7 @@ impl MigrationManager {
                     CREATE INDEX idx_accounts_username ON accounts(username);
                     CREATE INDEX idx_accounts_email ON accounts(email);
                     CREATE INDEX idx_accounts_updated_at ON accounts(updated_at);
-                    
+
                     CREATE TABLE permissions (
                         user_id TEXT NOT NULL,
                         permission TEXT NOT NULL,
@@ -124,5 +124,108 @@ impl MigrationManager {
         .await
         .map_err(|e| OpenCodeError::Storage(e.to_string()))?
         .map_err(|e: rusqlite::Error| OpenCodeError::Storage(e.to_string()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::StoragePool;
+
+    #[tokio::test]
+    async fn test_migration_manager_new() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let manager = MigrationManager::new(pool, 2);
+        assert_eq!(manager.current_version, 2);
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_migrate_creates_tables() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let manager = MigrationManager::new(pool.clone(), 2);
+        manager.migrate().await.unwrap();
+
+        let conn = pool.get().await.unwrap();
+        let session_count = conn
+            .execute(|c| {
+                c.query_row("SELECT COUNT(*) FROM sessions", [], |row| {
+                    row.get::<_, i32>(0)
+                })
+            })
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(session_count, 0);
+
+        let project_count = conn
+            .execute(|c| {
+                c.query_row("SELECT COUNT(*) FROM projects", [], |row| {
+                    row.get::<_, i32>(0)
+                })
+            })
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(project_count, 0);
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_migrate_idempotent() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let manager = MigrationManager::new(pool.clone(), 2);
+
+        manager.migrate().await.unwrap();
+        manager.migrate().await.unwrap();
+
+        let conn = pool.get().await.unwrap();
+        let version = conn
+            .execute(|c| {
+                c.query_row("SELECT MAX(version) FROM schema_migrations", [], |row| {
+                    row.get::<_, i32>(0)
+                })
+            })
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(version, 2);
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_migration_version_tracking() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let manager_v1 = MigrationManager::new(pool.clone(), 1);
+        manager_v1.migrate().await.unwrap();
+
+        let conn = pool.get().await.unwrap();
+        let version = conn
+            .execute(|c| {
+                c.query_row("SELECT MAX(version) FROM schema_migrations", [], |row| {
+                    row.get::<_, i32>(0)
+                })
+            })
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(version, 1);
+
+        drop(temp_dir);
     }
 }

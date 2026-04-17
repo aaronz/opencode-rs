@@ -47,9 +47,29 @@ mod tests {
     }
 
     #[test]
+    fn test_shortcuts_args_with_action() {
+        let args = ShortcutsArgs {
+            action: Some(ShortcutsAction::List { json: false }),
+        };
+        match args.action {
+            Some(ShortcutsAction::List { json }) => assert!(!json),
+            _ => panic!("Expected List"),
+        }
+    }
+
+    #[test]
     fn test_shortcuts_action_list_fields() {
         let action = ShortcutsAction::List { json: true };
         assert!(matches!(action, ShortcutsAction::List { .. }));
+    }
+
+    #[test]
+    fn test_shortcuts_action_list_no_json() {
+        let action = ShortcutsAction::List { json: false };
+        match action {
+            ShortcutsAction::List { json } => assert!(!json),
+            _ => panic!("Expected List"),
+        }
     }
 
     #[test]
@@ -59,6 +79,56 @@ mod tests {
             shortcut: "Ctrl+Shift+P".to_string(),
         };
         assert!(matches!(action, ShortcutsAction::Set { .. }));
+    }
+
+    #[test]
+    fn test_shortcuts_action_set_various_commands() {
+        let action = ShortcutsAction::Set {
+            command: "session.new".to_string(),
+            shortcut: "Ctrl+N".to_string(),
+        };
+        match action {
+            ShortcutsAction::Set { command, shortcut } => {
+                assert_eq!(command, "session.new");
+                assert_eq!(shortcut, "Ctrl+N");
+            }
+            _ => panic!("Expected Set"),
+        }
+    }
+
+    #[test]
+    fn test_shortcuts_action_reset_with_command() {
+        let action = ShortcutsAction::Reset {
+            command: Some("palette.open".to_string()),
+        };
+        match action {
+            ShortcutsAction::Reset { command } => {
+                assert_eq!(command.as_deref(), Some("palette.open"));
+            }
+            _ => panic!("Expected Reset"),
+        }
+    }
+
+    #[test]
+    fn test_shortcuts_action_reset_without_command() {
+        let action = ShortcutsAction::Reset { command: None };
+        match action {
+            ShortcutsAction::Reset { command } => assert!(command.is_none()),
+            _ => panic!("Expected Reset"),
+        }
+    }
+
+    #[test]
+    fn test_shortcuts_action_exec() {
+        let action = ShortcutsAction::Exec {
+            shortcut: "Ctrl+Shift+P".to_string(),
+        };
+        match action {
+            ShortcutsAction::Exec { shortcut } => {
+                assert_eq!(shortcut, "Ctrl+Shift+P");
+            }
+            _ => panic!("Expected Exec"),
+        }
     }
 }
 
