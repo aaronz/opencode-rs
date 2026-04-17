@@ -65,7 +65,7 @@
 | P1-023 | Audit `server` crate pub declarations | server/src/* | ✅ Done |
 | P1-024 | Audit `auth` crate pub declarations | auth/src/* | ✅ Done |
 | P1-025 | Audit `permission` crate pub declarations | permission/src/* | ✅ Done |
-| P1-026 | Audit `plugin` crate pub declarations | plugin/src/* | Not Started |
+| P1-026 | Audit `plugin` crate pub declarations | plugin/src/* | ✅ Done |
 | P1-027 | Audit `git` crate pub declarations | git/src/* | ✅ Done |
 | P1-028 | Audit `mcp` crate pub declarations | mcp/src/* | Not Started |
 | P1-029 | Audit `sdk` crate pub declarations | sdk/src/* | Not Started |

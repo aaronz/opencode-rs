@@ -603,7 +603,7 @@
       "priority": "P1",
       "title": "Audit plugin crate pub declarations",
       "description": "Audit plugin crate pub declarations and ensure only necessary items are public",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify plugin crate compiles with audited pub visibility"
       ],
@@ -635,7 +635,7 @@
       "priority": "P1",
       "title": "Audit mcp crate pub declarations",
       "description": "Audit mcp crate pub declarations and ensure only necessary items are public",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify mcp crate compiles with audited pub visibility"
       ],
@@ -733,7 +733,7 @@
       "priority": "P1",
       "title": "Document breaking change policy for plugins",
       "description": "Document breaking change policy for plugins including version increment rules",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: verify documentation exists for breaking change policy"
       ],

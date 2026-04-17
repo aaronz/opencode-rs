@@ -1,3 +1,94 @@
+//! # OpenCode Plugin System
+//!
+//! This crate provides the plugin infrastructure for OpenCode RS, enabling
+//! extensible functionality through WASM-based plugins.
+//!
+//! ## Plugin Architecture
+//!
+//! Plugins are WASM modules that can register tools, respond to lifecycle events,
+//! and extend the capabilities of the OpenCode runtime.
+//!
+//! ## Breaking Change Policy
+//!
+//! The plugin system uses semantic versioning (SemVer) for ABI compatibility.
+//! Plugins declare a `PluginAbiVersion` that indicates their API compatibility.
+//!
+//! ### Version Increment Rules
+//!
+//! | Change Type | Version Increment | Compatibility |
+//! |-------------|-------------------|---------------|
+//! | Bug fixes, additive changes | patch (x.y.Z) | Fully compatible |
+//! | New functionality, backward-compatible | minor (x.Y.0) | Forward compatible |
+//! | Breaking changes to API, types, traits | major (X.0.0) | Incompatible |
+//!
+//! ### Compatibility Rules
+//!
+//! 1. **Major Version Lock**: Plugins with different major versions are **never**
+//!    compatible. A plugin built against ABI 1.x.x will not load against ABI 2.x.x.
+//!
+//! 2. **Minor/Patch Forward Compatibility**: A plugin built against ABI 1.2.0 will
+//!    work with runtime supporting ABI 1.3.0 or 1.2.5 (any 1.x.y where x >= 2).
+//!
+//! 3. **Minimum ABI Requirement**: Plugins may declare a `min_abi` to indicate
+//!    they require at least that version to function correctly.
+//!
+//! ### Breaking Changes Include
+//!
+//! - Removing or renaming public types, traits, or functions
+//! - Changing function signatures
+//! - Modifying struct layouts
+//! - Changing enum variant definitions
+//! - Altering serialization formats
+//! - Removing or changing plugin lifecycle hooks
+//! - Modifying tool registration APIs
+//!
+//! ### What Is NOT a Breaking Change
+//!
+//! - Adding new optional methods to traits (with default implementations)
+//! - Adding new enum variants (when handled via `_` wildcard)
+//! - Adding new fields to structs (when using update syntax or serde defaults).
+//! - Increasing crate dependencies to newer compatible versions.
+//!
+//! ## Plugin Development Guidelines
+//!
+//! When developing a plugin:
+//!
+//! 1. **Declare your ABI version**: Use `PluginAbiVersion` to declare which ABI
+//!    your plugin was built against.
+//!
+//! 2. **Test compatibility**: Verify your plugin works with the minimum and
+//!    latest ABI versions you claim to support.
+//!
+//! 3. **Document breaking deps**: If your plugin depends on external crates,
+//!    document which versions are required and any breaking changes from those
+//!    dependencies that affect plugin behavior.
+//!
+//! 4. **Version your plugin**: Use semantic versioning for your plugin's own
+//!    release version, independent of the ABI version.
+//!
+//! ## Example
+//!
+//! ```ignore
+//! use opencode_plugin::{Plugin, PluginAbiVersion, PluginError};
+//!
+//! struct MyPlugin {
+//!     version: String,
+//!     abi_version: PluginAbiVersion,
+//! }
+//!
+//! impl Plugin for MyPlugin {
+//!     fn name(&self) -> &str { "my-plugin" }
+//!     fn version(&self) -> &str { &self.version }
+//!     // ... other required methods
+//! }
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`PluginAbiVersion`] for ABI version type and compatibility checking
+//! - [`Plugin`] trait for plugin implementation requirements
+//! - [`PluginManager`] for plugin lifecycle management
+
 #![allow(clippy::type_complexity, clippy::redundant_closure)]
 
 pub mod config;
@@ -24,10 +115,76 @@ pub mod sealed {
     pub trait SealedPlugin {}
 }
 
+/// Plugin ABI Version
+///
+/// Represents the API version of the plugin system using semantic versioning.
+/// This version determines plugin compatibility with the OpenCode runtime.
+///
+/// ## Version Format
+///
+/// `PluginAbiVersion` follows semantic versioning (SemVer) with format `major.minor.patch`:
+///
+/// - **major**: Breaking changes that are not backward compatible
+/// - **minor**: New functionality that is backward compatible
+/// - **patch**: Bug fixes that are backward compatible
+///
+/// ## Compatibility
+///
+/// Two ABI versions are compatible if and only if their **major versions match**.
+/// This is enforced by [`PluginAbiVersion::is_compatible_with()`].
+///
+/// ## Version Increment Guidelines
+///
+/// ### Increment `patch` when:
+/// - Fixing bugs in plugin APIs
+/// - Improving performance without API changes
+/// - Updating documentation
+/// - Changes that don't affect the plugin interface
+///
+/// ### Increment `minor` when:
+/// - Adding new optional methods to traits (with default implementations)
+/// - Adding new fields to structs (with defaults)
+/// - Adding new enum variants (that don't break existing pattern matching)
+/// - Adding new plugin lifecycle hooks (with default implementations)
+/// - Any change that is backward compatible for plugins
+///
+/// ### Increment `major` when:
+/// - Removing or renaming public types, functions, or methods
+/// - Changing function signatures
+/// - Changing struct layouts in incompatible ways
+/// - Changing enum variants
+/// - Changing serialization formats
+/// - Removing plugin lifecycle hooks
+/// - Any change that breaks existing plugins
+///
+/// ## Examples
+///
+/// ```
+/// use opencode_plugin::PluginAbiVersion;
+///
+/// let v1 = PluginAbiVersion::new(1, 2, 0);
+/// let v2 = PluginAbiVersion::new(1, 3, 0);
+/// let v3 = PluginAbiVersion::new(2, 0, 0);
+///
+/// // Same major version = compatible
+/// assert!(v1.is_compatible_with(&v2));
+/// assert!(v2.is_compatible_with(&v1));
+///
+/// // Different major version = incompatible
+/// assert!(!v1.is_compatible_with(&v3));
+/// assert!(!v3.is_compatible_with(&v1));
+///
+/// // Version supports minimum ABI
+/// assert!(v2.supports_abi(&v1));
+/// assert!(!v1.supports_abi(&v2));
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PluginAbiVersion {
+    /// Major version: incremented for breaking changes
     pub major: u32,
+    /// Minor version: incremented for backward-compatible additions
     pub minor: u32,
+    /// Patch version: incremented for backward-compatible fixes
     pub patch: u32,
 }
 
@@ -40,6 +197,9 @@ pub enum PluginAbiVersionError {
 }
 
 impl PluginAbiVersion {
+    /// Creates a new `PluginAbiVersion` with the given major, minor, and patch versions.
+    ///
+    /// See the struct-level documentation for version increment guidelines.
     pub fn new(major: u32, minor: u32, patch: u32) -> Self {
         Self {
             major,
@@ -48,6 +208,23 @@ impl PluginAbiVersion {
         }
     }
 
+    /// Parses a version string in the format "major.minor.patch".
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PluginAbiVersionError::InvalidFormat`] if the string does not contain
+    /// exactly three dot-separated integers.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use opencode_plugin::PluginAbiVersion;
+    ///
+    /// let version = PluginAbiVersion::from_string("1.2.3").unwrap();
+    /// assert_eq!(version.major, 1);
+    /// assert_eq!(version.minor, 2);
+    /// assert_eq!(version.patch, 3);
+    /// ```
     pub fn from_string(s: &str) -> Result<Self, PluginAbiVersionError> {
         let parts: Vec<&str> = s.split('.').collect();
         if parts.len() != 3 {
@@ -63,10 +240,48 @@ impl PluginAbiVersion {
         })
     }
 
+    /// Checks if this ABI version is compatible with another version.
+    ///
+    /// **Compatibility requires matching major versions.**
+    ///
+    /// This is the core rule of the plugin breaking change policy: plugins built
+    /// against different major ABI versions are never compatible.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use opencode_plugin::PluginAbiVersion;
+    ///
+    /// let v1 = PluginAbiVersion::new(1, 0, 0);
+    /// let v2 = PluginAbiVersion::new(1, 5, 0);
+    /// let v3 = PluginAbiVersion::new(2, 0, 0);
+    ///
+    /// // Same major version = compatible
+    /// assert!(v1.is_compatible_with(&v2));
+    ///
+    /// // Different major version = incompatible
+    /// assert!(!v1.is_compatible_with(&v3));
+    /// ```
     pub fn is_compatible_with(&self, other: &PluginAbiVersion) -> bool {
         self.major == other.major
     }
 
+    /// Checks if this ABI version supports at least the specified minimum ABI version.
+    ///
+    /// Unlike [`PluginAbiVersion::is_compatible_with()`], this method checks if the runtime supports
+    /// a plugin's minimum requirements (version comparison).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use opencode_plugin::PluginAbiVersion;
+    ///
+    /// let runtime = PluginAbiVersion::new(1, 3, 0);
+    /// let min_required = PluginAbiVersion::new(1, 2, 0);
+    ///
+    /// // Runtime supports the minimum required ABI
+    /// assert!(runtime.supports_abi(&min_required));
+    /// ```
     pub fn supports_abi(&self, min_abi: &PluginAbiVersion) -> bool {
         self >= min_abi
     }
