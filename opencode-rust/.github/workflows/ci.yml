@@ -27,6 +27,12 @@ jobs:
       - name: Check clippy
         run: cargo clippy --all -- -D warnings
 
+      - name: Cargo deny check
+        uses: cargo-bins/cargo-deny@main
+        with:
+          command: check
+          arguments: --workspace
+
       - name: Build
         run: cargo build --release
 
