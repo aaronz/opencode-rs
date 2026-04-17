@@ -1113,7 +1113,7 @@
       "priority": "P2",
       "title": "Consider removing TOML support after transition",
       "description": "Consider removing TOML support after transition period is complete",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "RunTestSuite: verify JSONC-only support after TOML removal"
       ],
