@@ -381,7 +381,7 @@
       "priority": "P1",
       "title": "Increase auth crate coverage to 80%",
       "description": "Increase code coverage for auth crate from 75% to 80%+",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: cargo llvm-cov shows auth crate coverage >= 80%"
       ],
@@ -427,7 +427,7 @@
       "priority": "P1",
       "title": "Audit core crate pub declarations",
       "description": "Audit core crate pub declarations and ensure only necessary items are public",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: verify core crate compiles with audited pub visibility"
       ],

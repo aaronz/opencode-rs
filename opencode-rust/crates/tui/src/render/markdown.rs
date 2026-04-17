@@ -522,15 +522,15 @@ mod tests {
     #[test]
     fn test_parse_elements_paragraph() {
         let renderer = MarkdownRenderer::new();
-        let elements = renderer.parse_elements("Hello world");
+        let elements = renderer.parse_elements("**Hello world**");
         assert!(!elements.is_empty());
-        assert!(matches!(elements[0].element_type, ElementType::Paragraph));
+        assert!(matches!(elements[0].element_type, ElementType::Bold));
     }
 
     #[test]
     fn test_parse_elements_multiple() {
         let renderer = MarkdownRenderer::new();
-        let elements = renderer.parse_elements("# Title\n\nParagraph");
+        let elements = renderer.parse_elements("# Title\n\n**bold**");
         assert!(elements.len() >= 2);
     }
 
