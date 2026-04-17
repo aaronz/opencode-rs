@@ -11,6 +11,7 @@ use cmd::{
     agent::{self, AgentArgs},
     attach::{self, AttachArgs},
     bash::{self, BashArgs},
+    completion::{self, CompletionArgs},
     config::{self, ConfigArgs},
     db::{self, DbArgs},
     debug::{self, DebugArgs},
@@ -124,6 +125,9 @@ enum Commands {
 
     #[command(about = "Execute shell command")]
     Bash(BashArgs),
+
+    #[command(about = "Generate shell completions")]
+    Completion(CompletionArgs),
 
     #[command(about = "List available models")]
     Models(ModelsArgs),
@@ -273,6 +277,7 @@ fn main() {
         Some(Commands::Config(args)) => config::run(args),
         Some(Commands::Agent(args)) => agent::run(args),
         Some(Commands::Bash(args)) => bash::run(args),
+        Some(Commands::Completion(args)) => completion::run(args),
         Some(Commands::Models(args)) => models::run(args),
         Some(Commands::Providers(args)) => providers::run(args),
         Some(Commands::Mcp(args)) => mcp::run(args),

@@ -5,3 +5,4 @@ pub mod route_conventions;
 pub mod test_layout;
 pub mod tui_conventions;
 pub mod unwrap_audit;
+pub mod visibility_audit;
