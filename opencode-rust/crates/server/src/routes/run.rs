@@ -1,4 +1,5 @@
 use crate::routes::error::json_error;
+use crate::routes::error::RouteError;
 use crate::routes::execute::integration::{execute_agent_loop, ExecutionContext};
 use crate::routes::execute::stream::execute_event_stream;
 use crate::routes::execute::types::ExecuteEvent;
@@ -64,12 +65,14 @@ pub fn build_provider(
     provider_id: &str,
     model: &str,
     config: &opencode_core::Config,
-) -> Result<Box<dyn Provider + Send + Sync>, String> {
+) -> Result<Box<dyn Provider + Send + Sync>, RouteError> {
     match provider_id {
         "anthropic" => {
             let key = api_key_for_provider(config, "anthropic")
                 .filter(|v| !v.trim().is_empty())
-                .ok_or_else(|| "Missing Anthropic API key".to_string())?;
+                .ok_or_else(|| {
+                    RouteError::ProviderAuthFailed("Missing Anthropic API key".into())
+                })?;
             Ok(Box::new(AnthropicProvider::new(key, model.to_string())))
         }
         "ollama" => Ok(Box::new(OllamaProvider::new(
@@ -79,7 +82,7 @@ pub fn build_provider(
         _ => {
             let key = api_key_for_provider(config, "openai")
                 .filter(|v| !v.trim().is_empty())
-                .ok_or_else(|| "Missing OpenAI API key".to_string())?;
+                .ok_or_else(|| RouteError::ProviderAuthFailed("Missing OpenAI API key".into()))?;
             Ok(Box::new(OpenAiProvider::new(key, model.to_string())))
         }
     }
@@ -131,12 +134,8 @@ async fn run_prompt_with_agent_execution(
         resolve_model_and_provider(&state, Some(selected_model.clone()));
     let provider = match build_provider(&provider_id, &model_name, &config) {
         Ok(provider) => provider,
-        Err(message) => {
-            return Err(json_error(
-                StatusCode::BAD_REQUEST,
-                "provider_init_error",
-                message,
-            ));
+        Err(err) => {
+            return Err(err.to_response());
         }
     };
 
@@ -503,5 +502,75 @@ mod tests {
         assert_eq!(agent_type_from_string("Debug"), AgentType::Debug);
         assert_eq!(agent_type_from_string("General"), AgentType::General);
         assert_eq!(agent_type_from_string(""), AgentType::General);
+    }
+
+    #[test]
+    fn test_build_provider_missing_openai_api_key_returns_typed_error() {
+        let was_set = std::env::var("OPENAI_API_KEY").ok();
+        std::env::remove_var("OPENAI_API_KEY");
+        let config = opencode_core::Config::default();
+        let result = build_provider("openai", "gpt-4o", &config);
+        assert!(result.is_err());
+        if let Err(err) = result {
+            assert!(matches!(err, RouteError::ProviderAuthFailed(_)));
+            assert_eq!(err.code(), 3002);
+            assert_eq!(err.http_status(), actix_web::http::StatusCode::NOT_FOUND);
+        } else {
+            panic!("Expected error");
+        }
+        if let Some(val) = was_set {
+            std::env::set_var("OPENAI_API_KEY", val);
+        }
+    }
+
+    #[test]
+    fn test_build_provider_missing_anthropic_api_key_returns_typed_error() {
+        let was_set = std::env::var("ANTHROPIC_API_KEY").ok();
+        std::env::remove_var("ANTHROPIC_API_KEY");
+        let config = opencode_core::Config::default();
+        let result = build_provider("anthropic", "claude-3-opus", &config);
+        assert!(result.is_err());
+        if let Err(err) = result {
+            assert!(matches!(err, RouteError::ProviderAuthFailed(_)));
+            assert_eq!(err.code(), 3002);
+            assert_eq!(err.http_status(), actix_web::http::StatusCode::NOT_FOUND);
+        } else {
+            panic!("Expected error");
+        }
+        if let Some(val) = was_set {
+            std::env::set_var("ANTHROPIC_API_KEY", val);
+        }
+    }
+
+    #[test]
+    fn test_build_provider_with_api_key_returns_provider() {
+        let was_set = std::env::var("OPENAI_API_KEY").ok();
+        std::env::set_var("OPENAI_API_KEY", "test-key-123");
+        let config = opencode_core::Config::default();
+        let result = build_provider("openai", "gpt-4o", &config);
+        assert!(result.is_ok());
+        match was_set {
+            Some(val) => std::env::set_var("OPENAI_API_KEY", val),
+            None => std::env::remove_var("OPENAI_API_KEY"),
+        }
+    }
+
+    #[test]
+    fn test_build_provider_error_is_typed_enum_not_string() {
+        let was_set = std::env::var("OPENAI_API_KEY").ok();
+        std::env::remove_var("OPENAI_API_KEY");
+        let config = opencode_core::Config::default();
+        let result = build_provider("openai", "gpt-4o", &config);
+        assert!(result.is_err());
+        if let Err(err) = result {
+            let err_type = err.error_type();
+            assert_eq!(err_type, "provider_auth_failed");
+            assert!(err.to_string().contains("Missing OpenAI API key"));
+        } else {
+            panic!("Expected error");
+        }
+        if let Some(val) = was_set {
+            std::env::set_var("OPENAI_API_KEY", val);
+        }
     }
 }

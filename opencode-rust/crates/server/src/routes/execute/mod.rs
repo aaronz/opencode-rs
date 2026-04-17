@@ -169,8 +169,9 @@ pub async fn execute_session(
     // Build provider - this is simplified; full impl would need provider resolution
     let provider = match crate::routes::run::build_provider(&provider_id, &model, &config) {
         Ok(p) => p,
-        Err(message) => {
-            return json_error(StatusCode::BAD_REQUEST, "provider_init_error", message);
+        Err(err) => {
+            let msg = err.user_message();
+            return json_error(StatusCode::BAD_REQUEST, "provider_init_error", msg);
         }
     };
 

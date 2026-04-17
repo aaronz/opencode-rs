@@ -77,7 +77,7 @@
       "priority": "P0",
       "title": "Verify zero unwrap() in production",
       "description": "Run grep command to verify zero unwrap() occurrences in production code",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: grep command returns zero matches for unwrap() in production"
       ],
@@ -85,7 +85,7 @@
         "grep -r '\\.unwrap()' crates/*/src/ --include='*.rs' | grep -v 'test' | grep -v 'Test' || echo 'No unwrap() found'",
         "cargo clippy --all -- -D warnings"
       ],
-      "impl_notes": "Final verification step after fixing all unwrap() occurrences",
+      "impl_notes": "Final verification step after fixing all unwrap() occurrences. Regression test `conventions::unwrap_audit::tests::no_unwrap_in_production_code` passes, confirming zero unwrap() in production code outside #[cfg(test)] blocks. Also fixed compile error in execute/mod.rs.",
       "dependencies": [
         "P0-004"
       ]
@@ -95,7 +95,7 @@
       "priority": "P0",
       "title": "Convert routes String errors to thiserror",
       "description": "Convert all String error types in crates/server/src/routes/ to use thiserror enum variants",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify route errors are typed enums not Strings",
         "AddErrorHandlingTest: test error propagation from routes"
