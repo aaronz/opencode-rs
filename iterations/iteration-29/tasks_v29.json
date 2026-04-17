@@ -651,7 +651,7 @@
       "priority": "P1",
       "title": "Audit sdk crate pub declarations",
       "description": "Audit sdk crate pub declarations and ensure only necessary items are public",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: verify sdk crate compiles with audited pub visibility"
       ],
