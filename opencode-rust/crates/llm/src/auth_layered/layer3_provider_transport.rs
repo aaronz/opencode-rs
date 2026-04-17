@@ -6,13 +6,17 @@ use std::collections::HashMap;
 
 use super::layer2_auth_mechanism::AuthMechanism;
 
+pub mod sealed {
+    pub trait Sealed {}
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TransportHeaders {
     pub custom_headers: HashMap<String, String>,
     pub query_params: HashMap<String, String>,
 }
 
-pub trait ProviderTransport: Send + Sync {
+pub trait ProviderTransport: Send + Sync + sealed::Sealed {
     fn apply_auth(
         &self,
         request: RequestBuilder,
@@ -27,6 +31,7 @@ pub struct OpenAICompatibleTransport;
 pub struct AnthropicTransport;
 pub struct ResponsesAPITransport;
 
+impl sealed::Sealed for OpenAICompatibleTransport {}
 impl ProviderTransport for OpenAICompatibleTransport {
     fn apply_auth(
         &self,
@@ -59,6 +64,7 @@ impl ProviderTransport for OpenAICompatibleTransport {
     }
 }
 
+impl sealed::Sealed for AnthropicTransport {}
 impl ProviderTransport for AnthropicTransport {
     fn apply_auth(
         &self,
@@ -88,6 +94,7 @@ impl ProviderTransport for AnthropicTransport {
     }
 }
 
+impl sealed::Sealed for ResponsesAPITransport {}
 impl ProviderTransport for ResponsesAPITransport {
     fn apply_auth(
         &self,
@@ -128,6 +135,7 @@ impl AwsSigV4Transport {
     }
 }
 
+impl sealed::Sealed for AwsSigV4Transport {}
 impl ProviderTransport for AwsSigV4Transport {
     fn apply_auth(
         &self,
@@ -180,7 +188,7 @@ impl TransportLayer {
 }
 
 #[async_trait]
-pub trait AuthenticatedTransport: Send + Sync {
+pub trait AuthenticatedTransport: Send + Sync + sealed::Sealed {
     async fn authenticated_request(
         &self,
         client: &reqwest::Client,
@@ -189,6 +197,7 @@ pub trait AuthenticatedTransport: Send + Sync {
     ) -> Result<RequestBuilder, OpenCodeError>;
 }
 
+impl sealed::Sealed for TransportLayer {}
 #[async_trait]
 impl AuthenticatedTransport for TransportLayer {
     async fn authenticated_request(

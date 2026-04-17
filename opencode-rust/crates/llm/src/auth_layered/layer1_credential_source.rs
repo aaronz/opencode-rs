@@ -2,6 +2,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+pub mod sealed {
+    pub trait Sealed {}
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum CredentialSource {
     AuthFile,
@@ -48,7 +52,7 @@ pub struct ResolvedCredential {
     pub metadata: HashMap<String, String>,
 }
 
-pub trait CredentialResolver: Send + Sync {
+pub trait CredentialResolver: Send + Sync + sealed::Sealed {
     fn resolve(&self, provider: &str, source: &CredentialSource) -> Option<ResolvedCredential>;
 
     fn resolve_with_fallback(
@@ -260,6 +264,7 @@ impl CompositeCredentialResolver {
     }
 }
 
+impl sealed::Sealed for CompositeCredentialResolver {}
 impl CredentialResolver for CompositeCredentialResolver {
     fn resolve(&self, provider: &str, source: &CredentialSource) -> Option<ResolvedCredential> {
         match source {

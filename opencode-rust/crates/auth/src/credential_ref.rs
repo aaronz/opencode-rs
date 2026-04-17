@@ -11,6 +11,10 @@ use opencode_core::OpenCodeError;
 use std::path::PathBuf;
 use tracing::{error, info, warn};
 
+pub mod sealed {
+    pub trait Sealed {}
+}
+
 /// Credential reference types per FR-116.1 ~ FR-116.4
 #[derive(Debug, Clone)]
 pub enum CredentialRef {
@@ -101,7 +105,7 @@ pub enum CredentialType {
 }
 
 /// CredentialResolver trait for resolving CredentialRef to actual values
-pub trait CredentialResolver {
+pub trait CredentialResolver: sealed::Sealed {
     fn resolve(&self, reference: &CredentialRef) -> Result<String, CredentialResolutionError>;
 }
 
@@ -128,6 +132,7 @@ impl Default for DefaultCredentialResolver {
     }
 }
 
+impl sealed::Sealed for DefaultCredentialResolver {}
 impl CredentialResolver for DefaultCredentialResolver {
     fn resolve(&self, reference: &CredentialRef) -> Result<String, CredentialResolutionError> {
         match reference {

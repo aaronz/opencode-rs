@@ -6,14 +6,18 @@ use tracing::{debug, info};
 
 use crate::protocol::*;
 
-pub trait ToolHandler: Send + Sync {
+pub mod sealed {
+    pub trait Sealed {}
+}
+
+pub trait ToolHandler: Send + Sync + sealed::Sealed {
     fn name(&self) -> &str;
     fn description(&self) -> &str;
     fn input_schema(&self) -> Value;
     fn execute(&self, arguments: Value) -> Result<ToolResult, String>;
 }
 
-pub trait ResourceHandler: Send + Sync {
+pub trait ResourceHandler: Send + Sync + sealed::Sealed {
     fn uri(&self) -> &str;
     fn name(&self) -> &str;
     fn mime_type(&self) -> Option<&str>;

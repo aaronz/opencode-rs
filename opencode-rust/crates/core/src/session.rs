@@ -326,30 +326,35 @@ impl Session {
     }
 
     pub fn export_markdown(&self) -> Result<String, crate::OpenCodeError> {
-        let mut md = format!("# Session {}\n\n", self.id);
-
-        for msg in &self.messages {
-            let role_label = match msg.role {
-                Role::System => "**System**",
-                Role::User => "**User**",
-                Role::Assistant => "**Assistant**",
-            };
-            md.push_str(&format!(
-                "### {}\n\n{}\n\n",
-                role_label,
-                sanitize_content(&msg.content)
-            ));
-        }
-
-        Ok(md)
+        let messages_md: Vec<String> = self
+            .messages
+            .iter()
+            .map(|msg| {
+                let role_label = match msg.role {
+                    Role::System => "**System**",
+                    Role::User => "**User**",
+                    Role::Assistant => "**Assistant**",
+                };
+                format!(
+                    "### {}\n\n{}\n\n",
+                    role_label,
+                    sanitize_content(&msg.content)
+                )
+            })
+            .collect();
+        Ok(format!("# Session {}\n\n{}", self.id, messages_md.join("")))
     }
 
     pub fn sanitize_for_export(&self) -> Session {
-        let mut sanitized = self.clone();
-        for msg in &mut sanitized.messages {
-            msg.content = sanitize_content(&msg.content);
-        }
-        sanitized
+        let mut session = self.clone();
+        session.messages = std::mem::take(&mut session.messages)
+            .into_iter()
+            .map(|mut msg| {
+                msg.content = sanitize_content(&msg.content);
+                msg
+            })
+            .collect();
+        session
     }
 
     pub fn set_share_expiry(&mut self, expiry: Option<DateTime<Utc>>) {
@@ -665,10 +670,7 @@ impl Session {
 }
 
 fn sanitize_content(content: &str) -> String {
-    let mut result = content.to_string();
-
-    // Strip common API key patterns
-    let patterns = [
+    let api_key_patterns = [
         (r"sk-[a-zA-Z0-9]{20,}", "[REDACTED_API_KEY]"),
         (r"ghp_[a-zA-Z0-9]{36}", "[REDACTED_GITHUB_TOKEN]"),
         (r"xoxb-[a-zA-Z0-9-]+", "[REDACTED_SLACK_TOKEN]"),
@@ -679,14 +681,16 @@ fn sanitize_content(content: &str) -> String {
         ),
     ];
 
-    for (pattern, replacement) in &patterns {
-        if let Ok(re) = regex::Regex::new(pattern) {
-            result = re.replace_all(&result, *replacement).to_string();
-        }
-    }
+    let result =
+        api_key_patterns
+            .iter()
+            .fold(content.to_string(), |acc, (pattern, replacement)| {
+                regex::Regex::new(pattern)
+                    .map(|re| re.replace_all(&acc, *replacement).to_string())
+                    .unwrap_or(acc)
+            });
 
-    // Strip lines that look like credential assignments
-    result = result
+    let result = result
         .lines()
         .map(|line| {
             let lower = line.to_lowercase();
@@ -705,7 +709,6 @@ fn sanitize_content(content: &str) -> String {
         .collect::<Vec<_>>()
         .join("\n");
 
-    // Strip SQL injection patterns
     let sql_patterns = [
         r"(?i)\bDROP\s+TABLE\b",
         r"(?i)\bDROP\s+DATABASE\b",
@@ -719,21 +722,18 @@ fn sanitize_content(content: &str) -> String {
         r"'\s*OR\s+'1'\s*=\s*'1",
     ];
 
-    for pattern in &sql_patterns {
-        if let Ok(re) = regex::Regex::new(pattern) {
-            result = re.replace_all(&result, "[SQL_REDACTED]").to_string();
-        }
-    }
+    let result = sql_patterns.iter().fold(result, |acc, pattern| {
+        regex::Regex::new(pattern)
+            .map(|re| re.replace_all(&acc, "[SQL_REDACTED]").to_string())
+            .unwrap_or(acc)
+    });
 
-    // Escape HTML entities for XSS prevention
-    result = result
+    result
         .replace('&', "&amp;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")
         .replace('"', "&quot;")
-        .replace('\'', "&#x27;");
-
-    result
+        .replace('\'', "&#x27;")
 }
 
 #[cfg(test)]

@@ -548,7 +548,7 @@
       "priority": "P2",
       "title": "Extend repository pattern to all data access",
       "description": "Extend repository pattern to all data access layers for consistent data access abstraction.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify repository implementations",
         "AddIntegrationTest: ensure data access works through repository"
@@ -565,7 +565,7 @@
       "priority": "P2",
       "title": "Audit let mut usage in session.rs",
       "description": "Audit unnecessary let mut usage in crates/core/src/session.rs and refactor to immutable patterns where possible.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify session functionality unchanged",
         "RunTestSuite: ensure no regressions"
@@ -574,7 +574,7 @@
         "cargo test -p opencode-core -- session",
         "cargo clippy -p opencode-core -- -D warnings"
       ],
-      "impl_notes": "Use mutation through methods returning new values if possible",
+      "impl_notes": "Refactored export_markdown to use iterator collect+join instead of mutating string. Refactored sanitize_for_export to use std::mem::take and iterator instead of clone+mutate loop. Refactored sanitize_content (free function) to use fold() pattern for regex replacements instead of let mut result. All 147 session tests pass, clippy passes with no warnings.",
       "dependencies": []
     },
     {

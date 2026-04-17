@@ -87,7 +87,7 @@
 
 | Task ID | Description | Estimated | Status |
 |---------|-------------|-----------|--------|
-| T-032 | Audit let mut usage in session.rs | 1 day | Not Started |
+| T-032 | Audit let mut usage in session.rs | 1 day | ✅ Done |
 | T-033 | Add SAFETY comments to unsafe blocks | `crates/plugin/src/lib.rs:661` | 30 min | Not Started |
 | T-034 | Add SAFETY comments to unsafe blocks | `crates/tui/src/app.rs:4677,4690` | 30 min | Not Started |
 

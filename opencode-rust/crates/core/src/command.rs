@@ -7,6 +7,10 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
+pub mod sealed {
+    pub trait Sealed {}
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CommandDefinition {
     pub name: String,
@@ -219,7 +223,7 @@ impl CommandContext {
 }
 
 #[async_trait]
-pub trait Command: Send + Sync {
+pub trait Command: Send + Sync + sealed::Sealed {
     fn name(&self) -> &str;
     fn description(&self) -> &str;
     fn usage(&self) -> &str;
@@ -599,8 +603,9 @@ fn format_agents(config: &Config) -> String {
     lines.join("\n")
 }
 
-#[async_trait]
 #[allow(dead_code)]
+impl sealed::Sealed for HelpCommand {}
+#[async_trait]
 impl Command for HelpCommand {
     fn name(&self) -> &str {
         "help"
@@ -655,6 +660,7 @@ impl Command for HelpCommand {
 
 struct TestCommand;
 
+impl sealed::Sealed for TestCommand {}
 #[async_trait]
 #[allow(dead_code)]
 impl Command for TestCommand {
@@ -685,6 +691,7 @@ impl Command for TestCommand {
 
 struct DebugCommand;
 
+impl sealed::Sealed for DebugCommand {}
 #[async_trait]
 #[allow(dead_code)]
 impl Command for DebugCommand {
@@ -708,6 +715,7 @@ impl Command for DebugCommand {
 
 struct ClearCommand;
 
+impl sealed::Sealed for ClearCommand {}
 #[async_trait]
 #[allow(dead_code)]
 impl Command for ClearCommand {
@@ -738,6 +746,7 @@ impl Command for ClearCommand {
 
 struct ModelsCommand;
 
+impl sealed::Sealed for ModelsCommand {}
 #[async_trait]
 #[allow(dead_code)]
 impl Command for ModelsCommand {
@@ -764,6 +773,7 @@ impl Command for ModelsCommand {
 
 struct AgentsCommand;
 
+impl sealed::Sealed for AgentsCommand {}
 #[async_trait]
 #[allow(dead_code)]
 impl Command for AgentsCommand {
@@ -790,6 +800,7 @@ impl Command for AgentsCommand {
 
 struct ShareCommand;
 
+impl sealed::Sealed for ShareCommand {}
 #[async_trait]
 #[allow(dead_code)]
 impl Command for ShareCommand {
@@ -817,6 +828,7 @@ impl Command for ShareCommand {
 
 struct CompactCommand;
 
+impl sealed::Sealed for CompactCommand {}
 #[async_trait]
 #[allow(dead_code)]
 impl Command for CompactCommand {

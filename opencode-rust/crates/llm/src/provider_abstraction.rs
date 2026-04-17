@@ -9,6 +9,10 @@ use crate::lm_studio::LmStudioProvider;
 use crate::provider::{ChatMessage, ChatResponse, Model, Provider, StreamingCallback};
 use crate::{AnthropicProvider, OllamaProvider, OpenAiProvider};
 
+pub mod sealed {
+    pub trait Sealed {}
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ProviderIdentity {
     pub provider_type: String,
@@ -496,7 +500,7 @@ impl ProviderConfig {
     }
 }
 
-pub trait ProviderFactory: Send + Sync {
+pub trait ProviderFactory: Send + Sync + sealed::Sealed {
     fn name(&self) -> &str;
     fn create(&self, config: &ProviderConfig) -> Result<DynProvider, LlmError>;
     fn supports(&self, spec: &ProviderSpec) -> bool;
@@ -610,6 +614,7 @@ impl Default for ProviderManager {
 
 pub struct OpenAIProviderFactory;
 
+impl sealed::Sealed for OpenAIProviderFactory {}
 impl ProviderFactory for OpenAIProviderFactory {
     fn name(&self) -> &str {
         "openai"
@@ -649,6 +654,7 @@ impl ProviderFactory for OpenAIProviderFactory {
 
 pub struct AnthropicProviderFactory;
 
+impl sealed::Sealed for AnthropicProviderFactory {}
 impl ProviderFactory for AnthropicProviderFactory {
     fn name(&self) -> &str {
         "anthropic"
@@ -688,6 +694,7 @@ impl ProviderFactory for AnthropicProviderFactory {
 
 pub struct GoogleProviderFactory;
 
+impl sealed::Sealed for GoogleProviderFactory {}
 impl ProviderFactory for GoogleProviderFactory {
     fn name(&self) -> &str {
         "google"
@@ -727,6 +734,7 @@ impl ProviderFactory for GoogleProviderFactory {
 
 pub struct OllamaProviderFactory;
 
+impl sealed::Sealed for OllamaProviderFactory {}
 impl ProviderFactory for OllamaProviderFactory {
     fn name(&self) -> &str {
         "ollama"
@@ -755,6 +763,7 @@ impl ProviderFactory for OllamaProviderFactory {
 
 pub struct LmStudioProviderFactory;
 
+impl sealed::Sealed for LmStudioProviderFactory {}
 impl ProviderFactory for LmStudioProviderFactory {
     fn name(&self) -> &str {
         "lmstudio"
@@ -783,6 +792,7 @@ impl ProviderFactory for LmStudioProviderFactory {
 
 pub struct LocalInferenceProviderFactory;
 
+impl sealed::Sealed for LocalInferenceProviderFactory {}
 impl ProviderFactory for LocalInferenceProviderFactory {
     fn name(&self) -> &str {
         "local"
@@ -823,6 +833,7 @@ impl Default for DynamicProviderFactory {
     }
 }
 
+impl sealed::Sealed for DynamicProviderFactory {}
 impl ProviderFactory for DynamicProviderFactory {
     fn name(&self) -> &str {
         "dynamic"
@@ -1078,6 +1089,7 @@ mod tests {
     fn test_register_custom_factory() {
         struct CustomFactory;
 
+        impl sealed::Sealed for CustomFactory {}
         impl ProviderFactory for CustomFactory {
             fn name(&self) -> &str {
                 "custom"
