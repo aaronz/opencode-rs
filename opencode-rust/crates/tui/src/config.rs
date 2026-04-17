@@ -323,3 +323,181 @@ impl Default for Config {
         Self::default_config()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_config_default() {
+        let config = Config::default_config();
+        assert!(config.tui.is_some());
+        assert!(config.user.is_none());
+        assert!(config.providers.is_none());
+    }
+
+    #[test]
+    fn test_config_tui_config() {
+        let config = Config::default_config();
+        let tui_config = config.tui_config();
+        assert_eq!(tui_config.scroll_speed, 5);
+        assert_eq!(tui_config.scroll_acceleration, 0.5);
+        assert_eq!(tui_config.theme, "default");
+    }
+
+    #[test]
+    fn test_config_diff_style_auto() {
+        let config = Config::default_config();
+        assert!(matches!(config.diff_style(), DiffStyle::Auto));
+    }
+
+    #[test]
+    fn test_config_diff_style_side_by_side() {
+        let mut config = Config::default_config();
+        config.tui_config_mut().diff_style = "side-by-side".to_string();
+        assert!(matches!(config.diff_style(), DiffStyle::SideBySide));
+    }
+
+    #[test]
+    fn test_config_diff_style_unified() {
+        let mut config = Config::default_config();
+        config.tui_config_mut().diff_style = "unified".to_string();
+        assert!(matches!(config.diff_style(), DiffStyle::Unified));
+    }
+
+    #[test]
+    fn test_config_typewriter_speed() {
+        let config = Config::default_config();
+        assert_eq!(config.typewriter_speed(), 50);
+    }
+
+    #[test]
+    fn test_config_max_context_size() {
+        let config = Config::default_config();
+        assert_eq!(config.max_context_size(), 100000);
+    }
+
+    #[test]
+    fn test_config_keybinds_none() {
+        let config = Config::default_config();
+        assert!(config.keybinds().is_none());
+    }
+
+    #[test]
+    fn test_config_validate_keybinds_empty() {
+        let config = Config::default_config();
+        assert!(config.validate_keybinds().is_empty());
+    }
+
+    #[test]
+    fn test_custom_theme_validate_valid() {
+        let theme = CustomTheme {
+            name: "test".to_string(),
+            background: "#000000".to_string(),
+            foreground: "#ffffff".to_string(),
+            primary: "#ff0000".to_string(),
+            secondary: "#00ff00".to_string(),
+            accent: "#0000ff".to_string(),
+            error: "#ff0000".to_string(),
+            warning: "#ffff00".to_string(),
+            success: "#00ff00".to_string(),
+            muted: "#888888".to_string(),
+            border: "#cccccc".to_string(),
+        };
+        assert!(theme.validate().is_ok());
+    }
+
+    #[test]
+    fn test_custom_theme_validate_invalid_color_length() {
+        let theme = CustomTheme {
+            name: "test".to_string(),
+            background: "#000".to_string(),
+            foreground: "#ffffff".to_string(),
+            primary: "#ff0000".to_string(),
+            secondary: "#00ff00".to_string(),
+            accent: "#0000ff".to_string(),
+            error: "#ff0000".to_string(),
+            warning: "#ffff00".to_string(),
+            success: "#00ff00".to_string(),
+            muted: "#888888".to_string(),
+            border: "#cccccc".to_string(),
+        };
+        let result = theme.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("must be 6 hex digits"));
+    }
+
+    #[test]
+    fn test_custom_theme_validate_invalid_hex() {
+        let theme = CustomTheme {
+            name: "test".to_string(),
+            background: "#ggffff".to_string(),
+            foreground: "#ffffff".to_string(),
+            primary: "#ff0000".to_string(),
+            secondary: "#00ff00".to_string(),
+            accent: "#0000ff".to_string(),
+            error: "#ff0000".to_string(),
+            warning: "#ffff00".to_string(),
+            success: "#00ff00".to_string(),
+            muted: "#888888".to_string(),
+            border: "#cccccc".to_string(),
+        };
+        let result = theme.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Invalid hex color"));
+    }
+
+    #[test]
+    fn test_diff_style_default() {
+        assert!(matches!(DiffStyle::default(), DiffStyle::Auto));
+    }
+
+    #[test]
+    fn test_diff_style_equality() {
+        assert_eq!(DiffStyle::Auto, DiffStyle::Auto);
+        assert_eq!(DiffStyle::SideBySide, DiffStyle::SideBySide);
+        assert_eq!(DiffStyle::Unified, DiffStyle::Unified);
+        assert_ne!(DiffStyle::Auto, DiffStyle::SideBySide);
+    }
+
+    #[test]
+    fn test_config_with_tui() {
+        let mut config = Config::default_config();
+        let tui = TuiConfig {
+            scroll_speed: 10,
+            scroll_acceleration: 1.0,
+            theme: "dark".to_string(),
+            show_file_tree: true,
+            show_skills_panel: true,
+            diff_style: "side-by-side".to_string(),
+            typewriter_speed: 100,
+            max_context_size: 50000,
+            keybinds: None,
+            custom_themes: Vec::new(),
+        };
+        config.merge_tui_config(tui);
+        assert!(config.tui.is_some());
+        assert_eq!(config.tui_config().scroll_speed, 10);
+    }
+
+    #[test]
+    fn test_tui_config_creation() {
+        let tui = TuiConfig {
+            scroll_speed: 10,
+            scroll_acceleration: 1.0,
+            theme: "dark".to_string(),
+            show_file_tree: true,
+            show_skills_panel: true,
+            diff_style: "side-by-side".to_string(),
+            typewriter_speed: 100,
+            max_context_size: 50000,
+            keybinds: None,
+            custom_themes: Vec::new(),
+        };
+        assert_eq!(tui.scroll_speed, 10);
+        assert_eq!(tui.scroll_acceleration, 1.0);
+        assert_eq!(tui.theme, "dark");
+        assert!(tui.show_file_tree);
+        assert!(tui.show_skills_panel);
+    }
+}
