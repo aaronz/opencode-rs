@@ -1,5 +1,6 @@
 pub mod architecture_boundaries;
 pub mod config_ownership;
+pub mod doc_build;
 pub mod docsrs_metadata;
 pub mod route_conventions;
 pub mod test_layout;

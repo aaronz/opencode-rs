@@ -92,7 +92,7 @@
       "priority": "P1",
       "title": "Verify WebSocket streaming capability",
       "description": "Verify routes/ws.rs provides full bidirectional WebSocket streaming vs SSE. Compare ws.rs implementation against SSE implementation.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify WebSocket connection establishes and handles bidirectional messages",
         "AddIntegrationTest: verify WebSocket vs SSE streaming behavior difference"
@@ -109,7 +109,7 @@
       "priority": "P1",
       "title": "Add SDK documentation to CI",
       "description": "Add `cargo doc --no-deps` to CI pipeline for SDK documentation generation.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify CI runs cargo doc --no-deps without errors",
         "AddUnitTest: verify documentation builds for all public crates"
@@ -126,7 +126,7 @@
       "priority": "P2",
       "title": "Add similar-asserts dev dependency",
       "description": "Add `similar-asserts = \"1.5\"` to dev-dependencies in ratatui-testing/Cargo.toml for visual snapshot diffing.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify similar-asserts dependency resolves and compiles",
         "RunTestSuite: execute cargo test -p ratatui-testing to ensure no conflicts"
