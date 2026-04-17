@@ -86,8 +86,8 @@
 | Task ID | Description | Files | Status |
 |---------|-------------|-------|--------|
 | P1-036 | Verify `routes/ws.rs` WebSocket capability | server/src/routes/ws.rs | Not Started |
-| P1-037 | Compare ws module vs SSE functionality | server/src/routes/* | Not Started |
-| P1-038 | Document WebSocket streaming capabilities | documentation | Not Started |
+| P1-037 | Compare ws module vs SSE functionality | server/src/routes/* | ✅ Done |
+| P1-038 | Document WebSocket streaming capabilities | documentation | ✅ Done |
 
 ### FR-026: SDK Documentation CI
 

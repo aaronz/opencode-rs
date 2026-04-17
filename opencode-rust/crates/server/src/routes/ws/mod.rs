@@ -164,6 +164,29 @@ pub enum WsClientMessage {
 const WS_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(30);
 const WS_CLIENT_TIMEOUT: Duration = Duration::from_secs(120);
 
+/// WebSocket endpoint handler for real-time streaming.
+///
+/// ## URL Patterns
+///
+/// - `GET /ws` - Connect with default session
+/// - `GET /ws/{session_id}` - Connect to specific session
+/// - `GET /ws?session_id=xxx` - Connect to session via query param
+/// - `GET /ws?session_id=xxx&token=yyy` - Resume session with reconnection token
+///
+/// ## Response Headers
+///
+/// - `x-reconnect-token`: UUID token for reconnection support
+///
+/// ## Connection Lifecycle
+///
+/// 1. Validates reconnection token if provided
+/// 2. Registers connection with connection monitor
+/// 3. Performs WebSocket handshake
+/// 4. Registers client with session hub
+/// 5. Sends `Connected` message with session_id
+/// 6. Replays missed messages if resuming
+/// 7. Spawns tasks for heartbeat and event bus forwarding
+/// 8. Processes bidirectional messages until disconnect
 pub async fn ws_index(
     state: web::Data<ServerState>,
     req: HttpRequest,
@@ -522,6 +545,11 @@ fn event_to_stream_message(event: InternalEvent, session_id: &str) -> Option<Str
     }
 }
 
+/// Initializes WebSocket routes in the Actix Web service configuration.
+///
+/// Registers two routes:
+/// - `/{session_id}` - WebSocket with session ID in path
+/// - `` - WebSocket with session ID from query parameter or default
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.route("/{session_id}", web::get().to(ws_index));
     cfg.route("", web::get().to(ws_index));

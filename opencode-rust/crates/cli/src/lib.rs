@@ -2,6 +2,8 @@
 pub(crate) mod cmd;
 #[allow(dead_code)]
 pub(crate) mod output;
+#[allow(dead_code)]
+pub(crate) mod webview;
 
 #[cfg(test)]
 mod tests {

@@ -787,7 +787,7 @@
       "priority": "P1",
       "title": "Verify WebSocket capability in ws.rs",
       "description": "Verify crates/server/src/routes/ws.rs WebSocket capability and functionality",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify WebSocket connection handling",
         "AddIntegrationTest: verify WebSocket message streaming works"
@@ -804,7 +804,7 @@
       "priority": "P1",
       "title": "Compare WebSocket vs SSE functionality",
       "description": "Compare WebSocket module vs SSE functionality across server routes",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify both WS and SSE features are functional"
       ],
@@ -812,7 +812,7 @@
         "cargo test -p opencode-server --lib",
         "cargo clippy -p opencode-server -- -D warnings"
       ],
-      "impl_notes": "Document feature comparison for architecture clarity",
+      "impl_notes": "Created comparison document at iterations/src/P1-037_ws_vs_sse_comparison.md. Added regression tests: ws/mod.rs (test_ws_client_message_all_variants_serializable, test_ws_session_hub_register_and_broadcast, test_ws_session_hub_broadcast_all), sse.rs (test_sse_query_with_empty_session_id, test_sse_query_with_numeric_session_id, test_sse_message_request_special_characters, test_message_event_type_all_variants, test_event_to_stream_message_all_internal_event_types), and new test file tests/ws_sse_comparison.rs with 7 tests verifying both protocols share StreamMessage types, ReconnectionStore, and SessionHub. All 753 tests pass.",
       "dependencies": [
         "P1-036"
       ]
@@ -822,14 +822,14 @@
       "priority": "P1",
       "title": "Document WebSocket streaming capabilities",
       "description": "Document WebSocket streaming capabilities in documentation",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify documentation covers WebSocket streaming"
       ],
       "test_commands": [
         "cargo doc --no-deps --all-features"
       ],
-      "impl_notes": "Add comprehensive WebSocket documentation",
+      "impl_notes": "Added comprehensive WebSocket documentation to crates/server/src/routes/ws/mod.rs including module-level docs explaining features (bidirectional streaming, session management, heartbeat, reconnection), endpoint patterns, connection flow, message formats for both client-to-server and server-to-client, JavaScript example, and comparison with SSE. Also documented session_hub.rs with architecture and usage examples.",
       "dependencies": [
         "P1-037"
       ]
@@ -839,7 +839,7 @@
       "priority": "P1",
       "title": "Add cargo doc to CI",
       "description": "Add cargo doc --no-deps --all-features to CI pipeline",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: CI pipeline includes doc generation step"
       ],
