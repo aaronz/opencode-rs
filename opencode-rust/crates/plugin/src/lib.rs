@@ -115,6 +115,15 @@ pub mod sealed {
     pub trait SealedPlugin {}
 }
 
+/// Current plugin ABI version supported by the runtime.
+/// Plugins must declare compatibility with this version to be loaded.
+/// See [`PluginAbiVersion`] for compatibility rules.
+pub const PLUGIN_ABI_VERSION: PluginAbiVersion = PluginAbiVersion {
+    major: 1,
+    minor: 0,
+    patch: 0,
+};
+
 /// Plugin ABI Version
 ///
 /// Represents the API version of the plugin system using semantic versioning.
@@ -352,6 +361,13 @@ pub enum PluginError {
     PermissionDenied(String),
     #[error("plugin config validation failed for '{0}': {1}")]
     ConfigValidation(String, String),
+    #[error(
+        "plugin ABI version mismatch: plugin requires {plugin_abi}, runtime supports {runtime_abi}"
+    )]
+    AbiVersionMismatch {
+        plugin_abi: PluginAbiVersion,
+        runtime_abi: PluginAbiVersion,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]

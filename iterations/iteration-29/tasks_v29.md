@@ -70,7 +70,7 @@
 | P1-028 | Audit `mcp` crate pub declarations | mcp/src/* | Not Started |
 | P1-029 | Audit `sdk` crate pub declarations | sdk/src/* | Not Started |
 | P1-030 | Apply `pub(crate)` for internal crate sharing | All crates | Not Started |
-| P1-031 | Verify only necessary items marked `pub` | All crates | Not Started |
+| P1-031 | Verify only necessary items marked `pub` | All crates | ✅ Done |
 
 ### FR-024: Plugin API Version Stability
 

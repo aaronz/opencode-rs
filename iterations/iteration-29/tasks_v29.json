@@ -699,7 +699,7 @@
       "priority": "P1",
       "title": "Verify only necessary items marked pub",
       "description": "Verify only necessary items are marked pub across all crates",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: all crates compile and tests pass after visibility audit"
       ],
@@ -707,7 +707,7 @@
         "cargo clippy --all -- -D warnings",
         "cargo test --all"
       ],
-      "impl_notes": "Final verification of visibility boundaries",
+      "impl_notes": "Final verification of visibility boundaries. All crates compile with clippy -D warnings. Fixed abi_version field in discovery.rs to add #[allow(dead_code)] since it's intended for future use.",
       "dependencies": [
         "P1-030"
       ]

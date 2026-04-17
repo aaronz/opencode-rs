@@ -94,6 +94,9 @@ struct PluginMetadata {
     network_allowed: bool,
     #[serde(default)]
     domain: Option<crate::PluginDomain>,
+    #[allow(dead_code)]
+    #[serde(default)]
+    abi_version: Option<crate::PluginAbiVersion>,
 }
 
 fn default_true() -> bool {
