@@ -889,7 +889,7 @@
       "priority": "P2",
       "title": "Add SAFETY comment to plugin/src/lib.rs:661",
       "description": "Add SAFETY comment to crates/plugin/src/lib.rs:661 for the unsafe block",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify SAFETY comment exists and documents invariants"
       ],
@@ -937,7 +937,7 @@
       "priority": "P2",
       "title": "Audit all unsafe blocks for SAFETY comments",
       "description": "Audit all unsafe blocks across all crates for missing SAFETY comments",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: verify all unsafe blocks have SAFETY comments"
       ],
