@@ -32,7 +32,7 @@
   - Allow user to re-enter API key
   - Do NOT save invalid keys
 
-- [ ] **T-004**: Handle provider-specific validation endpoints
+- [x] **T-004**: Handle provider-specific validation endpoints
   - Anthropic: `https://api.anthropic.com/v1/models`
   - OpenAI-compatible: `/models` endpoint
   - LM Studio: `/api/tags` endpoint

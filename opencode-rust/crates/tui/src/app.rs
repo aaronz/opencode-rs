@@ -590,17 +590,31 @@ pub async fn validate_api_key(
             status_code: None,
         })?;
 
-    let (url, auth_header, is_anthropic) = match provider_id {
+    let (url, auth_header, is_anthropic, _is_lm_studio) = match provider_id {
         "anthropic" => (
             "https://api.anthropic.com/v1/models".to_string(),
             format!("Bearer {}", api_key),
             true,
+            false,
         ),
         "openai" => (
             "https://api.openai.com/v1/models".to_string(),
             format!("Bearer {}", api_key),
             false,
+            false,
         ),
+        "lmstudio" | "lm_studio" | "lm-studio" => {
+            let base_url = std::env::var("LMSTUDIO_BASE_URL")
+                .ok()
+                .or_else(|| std::env::var("OPENCODE_BASE_URL").ok())
+                .unwrap_or_else(|| "http://localhost:1234".to_string());
+            (
+                format!("{}/api/tags", base_url.trim_end_matches('/')),
+                format!("Bearer {}", api_key),
+                false,
+                true,
+            )
+        }
         _ => {
             let base_url = match std::env::var(
                 format!("{}_BASE_URL", provider_id.to_uppercase()).replace("-", "_"),
@@ -614,6 +628,7 @@ pub async fn validate_api_key(
             (
                 format!("{}/v1/models", base_url.trim_end_matches('/')),
                 format!("Bearer {}", api_key),
+                false,
                 false,
             )
         }

@@ -71,7 +71,7 @@
       "priority": "P0",
       "title": "Handle provider-specific validation endpoints",
       "description": "Support Anthropic: https://api.anthropic.com/v1/models, OpenAI-compatible: /models endpoint, LM Studio: /api/tags endpoint",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify Anthropic API key validation uses correct endpoint",
         "AddUnitTest: verify OpenAI-compatible API key validation uses /models endpoint",

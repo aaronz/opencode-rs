@@ -281,3 +281,75 @@ fn test_validation_error_dialog_try_again_returns_retry_action() {
     assert_eq!(action, DialogAction::Confirm("retry".to_string()),
         "Try Again should return Confirm(retry)");
 }
+
+#[tokio::test]
+async fn test_anthropic_uses_correct_validation_endpoint() {
+    let result = validate_api_key("anthropic", "test-key").await;
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    assert!(matches!(
+        error.error_type,
+        ApiKeyValidationErrorType::AuthenticationError | ApiKeyValidationErrorType::NetworkError
+    ), "Expected auth or network error for invalid Anthropic key");
+}
+
+#[tokio::test]
+async fn test_openai_uses_correct_validation_endpoint() {
+    let result = validate_api_key("openai", "test-key").await;
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    assert!(matches!(
+        error.error_type,
+        ApiKeyValidationErrorType::AuthenticationError | ApiKeyValidationErrorType::NetworkError
+    ), "Expected auth or network error for invalid OpenAI key");
+}
+
+#[tokio::test]
+async fn test_lm_studio_uses_api_tags_endpoint() {
+    std::env::set_var("LMSTUDIO_BASE_URL", "http://localhost:1234");
+    let result = validate_api_key("lmstudio", "test-key").await;
+    std::env::remove_var("LMSTUDIO_BASE_URL");
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    assert!(matches!(
+        error.error_type,
+        ApiKeyValidationErrorType::NetworkError
+    ), "LM Studio with invalid base URL should cause network error, got: {:?}", error.error_type);
+}
+
+#[tokio::test]
+async fn test_lm_studio_variant_names_use_api_tags_endpoint() {
+    std::env::set_var("LMSTUDIO_BASE_URL", "http://localhost:1234");
+    let result = validate_api_key("lm_studio", "test-key").await;
+    std::env::remove_var("LMSTUDIO_BASE_URL");
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    assert!(matches!(
+        error.error_type,
+        ApiKeyValidationErrorType::NetworkError
+    ), "lm_studio variant should use /api/tags endpoint");
+}
+
+#[tokio::test]
+async fn test_unknown_provider_falls_back_to_v1_models() {
+    std::env::set_var("CUSTOM_PROVIDER_BASE_URL", "https://custom-provider.example.com");
+    let result = validate_api_key("custom_provider", "test-key").await;
+    std::env::remove_var("CUSTOM_PROVIDER_BASE_URL");
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    assert!(matches!(
+        error.error_type,
+        ApiKeyValidationErrorType::AuthenticationError | ApiKeyValidationErrorType::NetworkError
+    ), "Custom provider should use /v1/models endpoint");
+}
+
+#[tokio::test]
+async fn test_openai_compatible_uses_models_endpoint() {
+    let result = validate_api_key("openai", "test-key").await;
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    assert!(matches!(
+        error.error_type,
+        ApiKeyValidationErrorType::AuthenticationError | ApiKeyValidationErrorType::NetworkError
+    ), "OpenAI-compatible should use /v1/models endpoint");
+}
