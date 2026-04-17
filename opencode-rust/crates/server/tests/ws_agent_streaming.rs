@@ -20,9 +20,16 @@ fn create_ws_agent_streaming_test_state() -> ServerState {
                 Arc::new(opencode_storage::SqliteSessionRepository::new(pool.clone()));
             let project_repo =
                 Arc::new(opencode_storage::SqliteProjectRepository::new(pool.clone()));
+            let account_repo =
+                Arc::new(opencode_storage::SqliteAccountRepository::new(pool.clone()));
+            let plugin_state_repo = Arc::new(opencode_storage::SqlitePluginStateRepository::new(
+                pool.clone(),
+            ));
             Arc::new(opencode_storage::StorageService::new(
                 session_repo,
                 project_repo,
+                account_repo,
+                plugin_state_repo,
                 pool,
             ))
         },
