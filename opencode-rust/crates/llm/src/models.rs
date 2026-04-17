@@ -348,8 +348,7 @@ impl ModelRegistry {
             .collect()
     }
 
-    pub fn get_next_available_provider(&self, failed_provider: &str) -> Option<String> {
-        let failed_provider = failed_provider.trim();
+    pub fn list_providers(&self) -> Vec<String> {
         let mut providers: Vec<String> = self
             .models
             .values()
@@ -358,8 +357,13 @@ impl ModelRegistry {
             .into_iter()
             .filter(|provider| self.is_provider_allowed(provider))
             .collect();
-
         providers.sort();
+        providers
+    }
+
+    pub fn get_next_available_provider(&self, failed_provider: &str) -> Option<String> {
+        let failed_provider = failed_provider.trim();
+        let providers = self.list_providers();
         providers
             .into_iter()
             .find(|provider| !provider.eq_ignore_ascii_case(failed_provider))

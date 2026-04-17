@@ -33,7 +33,22 @@ fn provider_name(id: &str) -> String {
     match id {
         "openai" => "OpenAI".to_string(),
         "anthropic" => "Anthropic".to_string(),
+        "google" => "Google".to_string(),
         "ollama" => "Ollama".to_string(),
+        "lmstudio" => "LM Studio".to_string(),
+        "azure" => "Azure".to_string(),
+        "openrouter" => "OpenRouter".to_string(),
+        "mistral" => "Mistral".to_string(),
+        "groq" => "Groq".to_string(),
+        "deepinfra" => "DeepInfra".to_string(),
+        "cerebras" => "Cerebras".to_string(),
+        "cohere" => "Cohere".to_string(),
+        "togetherai" => "Together AI".to_string(),
+        "perplexity" => "Perplexity".to_string(),
+        "xai" => "xAI".to_string(),
+        "huggingface" => "Hugging Face".to_string(),
+        "copilot" => "GitHub Copilot".to_string(),
+        "ai21" => "AI21".to_string(),
         other => {
             let mut chars = other.chars();
             match chars.next() {
@@ -91,8 +106,9 @@ fn provider_enabled(config: &Config, id: &str) -> bool {
 pub(crate) fn run(args: ProvidersArgs) {
     let config = load_config();
     let registry = ModelRegistry::default();
-    let providers = ["openai", "anthropic", "ollama"]
-        .into_iter()
+    let provider_ids = registry.list_providers();
+    let providers = provider_ids
+        .iter()
         .map(|id| {
             let enabled = provider_enabled(&config, id);
             ProviderRow {

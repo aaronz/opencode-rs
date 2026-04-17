@@ -28,7 +28,7 @@
       "priority": "P0",
       "title": "Implement API Key Input Dialog",
       "description": "Create ApiKeyInputDialog struct implementing Dialog trait. Mask input (show dots, not plain text). Add validation before saving. Wire into dialog flow: Provider Selection -> Auth Method (API Key) -> API Key Input -> Validate -> Save.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify dialog renders correctly with masked input",
         "AddUnitTest: verify input is masked (dots, not plain text)",
@@ -50,7 +50,7 @@
       "priority": "P0",
       "title": "Dynamic Provider Registry",
       "description": "Remove hardcoded ['openai', 'anthropic', 'ollama'] at line 94 in providers.rs. Read providers dynamically from ModelRegistry. Match provider list with ConnectProviderDialog (18 providers).",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify providers CLI lists all 18 providers",
         "AddRegressionTest: verify list matches TUI dialog options exactly",

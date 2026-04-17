@@ -50,20 +50,22 @@
 ---
 
 ### Task P0-3: FR-001 - Dynamic Provider Registry
-**Status:** TODO
+**Status:** ✅ Done
 **Priority:** P0
 **Files:**
 - `opencode-rust/crates/cli/src/cmd/providers.rs`
+- `opencode-rust/crates/llm/src/models.rs`
 
 **Changes:**
 1. Line 94: Remove hardcoded `["openai", "anthropic", "ollama"]`
 2. Read providers dynamically from `ModelRegistry`
 3. Match provider list with `ConnectProviderDialog` (18 providers)
+4. Added `list_providers()` method to `ModelRegistry`
 
 **Acceptance Criteria:**
-- [ ] `providers` CLI lists all 18 providers
-- [ ] List matches TUI dialog options
-- [ ] No duplicates or missing providers
+- [x] `providers` CLI lists all 18 providers
+- [x] List matches TUI dialog options
+- [x] No duplicates or missing providers
 
 ---
 
