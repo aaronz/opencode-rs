@@ -620,7 +620,7 @@
       "priority": "P1",
       "title": "Implement PowerShell completion generation",
       "description": "Implement opencode-rs completion powershell command",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify PowerShell completion generates valid script",
         "AddUnitTest: verify completion script includes all CLI commands"
