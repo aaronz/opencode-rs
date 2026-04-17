@@ -559,7 +559,7 @@
       "priority": "P1",
       "title": "Implement bash completion generation",
       "description": "Implement opencode-rs completion bash command",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify bash completion generates valid bash script",
         "AddUnitTest: verify completion script includes all CLI commands",
@@ -580,7 +580,7 @@
       "priority": "P1",
       "title": "Implement zsh completion generation",
       "description": "Implement opencode-rs completion zsh command",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify zsh completion generates valid zsh script",
         "AddUnitTest: verify completion script includes all CLI commands"
