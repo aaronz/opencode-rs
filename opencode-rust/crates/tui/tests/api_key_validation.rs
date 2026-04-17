@@ -151,3 +151,137 @@ fn test_input_is_disabled_during_validation() {
     app.mode = AppMode::ConnectProgress;
     assert_eq!(app.mode, AppMode::ConnectProgress, "ConnectProgress mode should disable normal input handling");
 }
+
+#[test]
+fn test_invalid_api_key_shows_error_dialog_to_user() {
+    let mut app = App::new();
+    app.pending_connect_provider = Some("openai".to_string();
+    app.pending_api_key_for_validation = Some("invalid-key".to_string());
+    app.validation_in_progress = true;
+    app.mode = AppMode::ConnectProgress;
+
+    app.simulate_validation_complete_for_testing(false, Some("Authentication failed: invalid API key".to_string()));
+
+    assert!(!app.validation_in_progress, "validation_in_progress should be cleared after validation fails");
+    assert_eq!(app.mode, AppMode::ConnectApiKeyError, "mode should be ConnectApiKeyError after validation failure");
+    assert!(app.validation_error_dialog.is_some(), "error dialog should be shown to user");
+    let error_dialog = app.validation_error_dialog.as_ref().unwrap();
+    let error_text = format!("{:?}", error_dialog);
+    assert!(error_text.contains("invalid API key") || error_text.contains("Authentication failed"),
+        "error message should be visible to user");
+}
+
+#[test]
+fn test_user_can_retry_after_validation_failure() {
+    let mut app = App::new();
+    app.pending_connect_provider = Some("openai".to_string());
+    app.pending_api_key_for_validation = Some("invalid-key".to_string());
+    app.validation_in_progress = true;
+    app.mode = AppMode::ConnectProgress;
+
+    app.simulate_validation_complete_for_testing(false, Some("Invalid API key".to_string()));
+
+    assert_eq!(app.mode, AppMode::ConnectApiKeyError);
+    assert!(app.validation_error_dialog.is_some());
+
+    use opencode_tui::dialogs::DialogAction;
+    if let Some(dialog) = app.validation_error_dialog.as_mut() {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let retry_action = dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert_eq!(retry_action, DialogAction::Confirm("retry".to_string()),
+            "Enter on Try Again should return Confirm(retry)");
+    }
+}
+
+#[test]
+fn test_invalid_keys_are_not_persisted_to_credential_store() {
+    let mut app = App::new();
+    app.pending_connect_provider = Some("openai".to_string());
+    app.pending_api_key_for_validation = Some("invalid-key-not-real".to_string());
+    app.validation_in_progress = true;
+    app.mode = AppMode::ConnectProgress;
+
+    app.simulate_validation_complete_for_testing(false, Some("Authentication failed".to_string()));
+
+    assert_eq!(app.mode, AppMode::ConnectApiKeyError);
+    assert!(app.pending_api_key_for_validation.is_none(),
+        "API key should be cleared from memory after validation failure");
+    assert!(app.validation_error_dialog.is_some(),
+        "error dialog should be shown instead of saving");
+}
+
+#[test]
+fn test_network_failure_shows_error_message_to_user() {
+    use opencode_tui::app::ApiKeyValidationErrorType;
+
+    let network_error = ApiKeyValidationError {
+        message: "Network error: connection timed out".to_string(),
+        error_type: ApiKeyValidationErrorType::NetworkError,
+        status_code: None,
+    };
+
+    let mut app = App::new();
+    app.pending_connect_provider = Some("openai".to_string());
+    app.pending_api_key_for_validation = Some("sk-test-key".to_string());
+    app.validation_in_progress = true;
+    app.mode = AppMode::ConnectProgress;
+
+    app.simulate_validation_complete_for_testing(false, Some(network_error.message.clone()));
+
+    assert_eq!(app.mode, AppMode::ConnectApiKeyError);
+    assert!(app.validation_error_dialog.is_some(),
+        "network failure should show error dialog to user");
+}
+
+#[test]
+fn test_validation_error_dialog_has_try_again_button() {
+    use opencode_tui::dialogs::ValidationErrorDialog;
+    use opencode_tui::theme::ThemeManager;
+
+    let mut theme_manager = ThemeManager::new();
+    let _ = theme_manager.load_from_config();
+    let theme = theme_manager.current().clone();
+
+    let dialog = ValidationErrorDialog::from_validation_error(
+        "Test error",
+        "OpenAI",
+        theme,
+    );
+
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use opencode_tui::dialogs::DialogAction;
+
+    let mut dialog = dialog;
+    let left_key = KeyEvent::new(KeyCode::Left, KeyModifiers::NONE);
+    dialog.handle_input(left_key);
+
+    let enter_key = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
+    let action = dialog.handle_input(enter_key);
+    assert_eq!(action, DialogAction::Close,
+        "Cancel selected should return Close");
+}
+
+#[test]
+fn test_validation_error_dialog_try_again_returns_retry_action() {
+    use opencode_tui::dialogs::ValidationErrorDialog;
+    use opencode_tui::theme::ThemeManager;
+
+    let mut theme_manager = ThemeManager::new();
+    let _ = theme_manager.load_from_config();
+    let theme = theme_manager.current().clone();
+
+    let dialog = ValidationErrorDialog::from_validation_error(
+        "Authentication failed",
+        "Anthropic",
+        theme,
+    );
+
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use opencode_tui::dialogs::DialogAction;
+
+    let mut dialog = dialog;
+    let enter_key = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
+    let action = dialog.handle_input(enter_key);
+    assert_eq!(action, DialogAction::Confirm("retry".to_string()),
+        "Try Again should return Confirm(retry)");
+}

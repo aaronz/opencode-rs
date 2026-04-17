@@ -58,7 +58,7 @@
       "priority": "P2",
       "title": "Remove dead code warnings",
       "description": "Two functions in `dialog_tester.rs` have `#[allow(dead_code)]` decorators but are not used anywhere: `assert_render_result` at line 92 and `assert_empty_state` at line 100. Either remove the functions if not needed, or integrate them into tests.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: ensure no #[allow(dead_code)] decorators remain in dialog_tester.rs",
         "AddRegressionTest: ensure all dialog tests still pass after removing or integrating dead functions",

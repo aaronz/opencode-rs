@@ -13,17 +13,15 @@ use ratatui::{
 pub struct ValidationErrorDialog {
     title: String,
     message: String,
-    provider_name: String,
     selected_try_again: bool,
     theme: Theme,
 }
 
 impl ValidationErrorDialog {
-    pub fn new(title: String, message: String, provider_name: String, theme: Theme) -> Self {
+    pub fn new(title: String, message: String, theme: Theme) -> Self {
         Self {
             title,
             message,
-            provider_name,
             selected_try_again: true,
             theme,
         }
@@ -40,7 +38,7 @@ impl ValidationErrorDialog {
             error_message,
             provider_name
         );
-        Self::new(title, message, provider_name.to_string(), theme)
+        Self::new(title, message, theme)
     }
 }
 

@@ -89,7 +89,6 @@ impl Default for DialogRenderTester {
     }
 }
 
-#[allow(dead_code)]
 pub fn assert_render_result(buffer: &ratatui::buffer::Buffer) {
     let has_border = DialogRenderTester::has_border(buffer);
     let has_content = DialogRenderTester::has_content(buffer);
@@ -97,7 +96,6 @@ pub fn assert_render_result(buffer: &ratatui::buffer::Buffer) {
     assert!(has_content, "Dialog should render with content");
 }
 
-#[allow(dead_code)]
 pub fn assert_empty_state(buffer: &ratatui::buffer::Buffer) {
     let has_border = DialogRenderTester::has_border(buffer);
     assert!(has_border, "Empty dialog should still render border");

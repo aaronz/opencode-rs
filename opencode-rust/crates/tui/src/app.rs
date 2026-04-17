@@ -341,6 +341,7 @@ pub enum AppMode {
     ConnectMethod,
     ConnectApiKey,
     ConnectProgress,
+    ConnectApiKeyError,
     ConnectModel,
     FileSelection,
     DirectorySelection,
@@ -471,6 +472,7 @@ pub struct App {
     pub connect_provider_dialog: ConnectProviderDialog,
     pub connect_method_dialog: Option<ConnectMethodDialog>,
     pub api_key_input_dialog: Option<ApiKeyInputDialog>,
+    pub validation_error_dialog: Option<ValidationErrorDialog>,
     pub connect_model_dialog: Option<ConnectModelDialog>,
     pub file_selection_dialog: FileSelectionDialog,
     pub directory_selection_dialog: DirectorySelectionDialog,
@@ -805,6 +807,7 @@ impl App {
             connect_provider_dialog: ConnectProviderDialog::new(theme.clone()),
             connect_method_dialog: None,
             api_key_input_dialog: None,
+            validation_error_dialog: None,
             connect_model_dialog: None,
             file_selection_dialog: FileSelectionDialog::new(theme.clone()),
             directory_selection_dialog: DirectorySelectionDialog::new(theme.clone()),
@@ -1595,6 +1598,7 @@ impl App {
                 AppMode::ConnectMethod => self.handle_connect_method_dialog(&mut terminal)?,
                 AppMode::ConnectApiKey => self.handle_api_key_input_dialog(&mut terminal)?,
                 AppMode::ConnectProgress => self.handle_connect_progress_dialog(&mut terminal)?,
+                AppMode::ConnectApiKeyError => self.handle_validation_error_dialog(&mut terminal)?,
                 AppMode::ConnectModel => self.handle_connect_model_dialog(&mut terminal)?,
                 AppMode::FileSelection => self.handle_file_selection_dialog(&mut terminal)?,
                 AppMode::DirectorySelection => {
@@ -1752,14 +1756,19 @@ impl App {
                                 self.mode = AppMode::Chat;
                             }
                         } else {
-                            self.add_message(
-                                format!(
-                                    "API key validation failed: {}",
-                                    error_message.unwrap_or_else(|| "Unknown error".to_string())
-                                ),
-                                false,
+                            let provider_id = self.pending_connect_provider.clone().unwrap_or_default();
+                            let provider_name = self.get_provider_name(&provider_id);
+                            let error_msg = error_message.unwrap_or_else(|| "Unknown error".to_string());
+                            tracing::error!(
+                                provider = %provider_id,
+                                error = %error_msg,
+                                "API key validation failed"
                             );
-                            self.mode = AppMode::Chat;
+                            let theme = self.theme_manager.current().clone();
+                            self.validation_error_dialog = Some(
+                                ValidationErrorDialog::from_validation_error(&error_msg, &provider_name, theme)
+                            );
+                            self.mode = AppMode::ConnectApiKeyError;
                         }
                         self.pending_api_key_for_validation = None;
                     }
@@ -3601,6 +3610,12 @@ OpenCode Agent Configuration
                     area,
                 );
             }
+            AppMode::ConnectApiKeyError => {
+                self.draw_chat(f);
+                if let Some(dialog) = self.validation_error_dialog.as_ref() {
+                    dialog.draw(f, f.area());
+                }
+            }
             AppMode::ConnectModel => {
                 self.draw_chat(f);
                 if let Some(dialog) = self.connect_model_dialog.as_ref() {
@@ -4778,6 +4793,31 @@ OpenCode Agent Configuration
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press && key.code == KeyCode::Esc {
                 self.mode = AppMode::Chat;
+            }
+        }
+        Ok(())
+    }
+
+    fn handle_validation_error_dialog(
+        &mut self,
+        _terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    ) -> io::Result<()> {
+        if let Event::Key(key) = event::read()? {
+            if key.kind == KeyEventKind::Press {
+                if let Some(dialog) = self.validation_error_dialog.as_mut() {
+                    let action = dialog.handle_input(key);
+                    match action {
+                        DialogAction::Close => {
+                            self.validation_error_dialog = None;
+                            self.mode = AppMode::Chat;
+                        }
+                        DialogAction::Confirm(value) if value == "retry" => {
+                            self.validation_error_dialog = None;
+                            self.start_api_key_input();
+                        }
+                        _ => {}
+                    }
+                }
             }
         }
         Ok(())

@@ -68,7 +68,7 @@ Add `similar-asserts = "1.5"` to `[dev-dependencies]` in Cargo.toml.
 
 ---
 
-### TASK-P2-002: Document DialogTester in PRD
+### TASK-P2-002: ✅ Done
 **Status:** ✅ Done
 **Priority:** P2
 **Issue ID:** GAP-003
@@ -144,7 +144,7 @@ Add FR-SNAP-001 section to PRD documenting the snapshot module API.
 | TASK-P1-001 | P1 | Fix PtySimulator read_output buffer drain | 15 min | ✅ Done |
 | TASK-P2-001 | P2 | Add similar-asserts dev-dependency | 1 min | PENDING |
 | TASK-P2-002 | P2 | Document DialogTester in PRD | 30 min | ✅ Done |
-| TASK-P2-003 | P2 | Remove dead code warnings | 5 min | PENDING |
+| TASK-P2-003 | P2 | Remove dead code warnings | 5 min | ✅ Done |
 | TASK-P2-004 | P2 | Document snapshot.rs in PRD | 10 min | PENDING |
 
 **Total Estimated Time:** 61 minutes
@@ -156,7 +156,7 @@ Add FR-SNAP-001 section to PRD documenting the snapshot module API.
 - [x] TASK-P1-001 completed and verified
 - [ ] TASK-P2-001 completed and verified
 - [x] TASK-P2-002 completed and verified
-- [ ] TASK-P2-003 completed and verified
+- [x] TASK-P2-003 completed and verified
 - [ ] TASK-P2-004 completed and verified
 - [ ] Full test suite passes: `cargo test -p ratatui-testing`
 - [ ] Clippy passes: `cargo clippy --all-targets --all-features -- -D warnings`
