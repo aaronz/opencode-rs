@@ -855,7 +855,7 @@
       "priority": "P1",
       "title": "Verify SDK doc comments are complete",
       "description": "Verify sdk/src/* doc comments are complete and public API is documented",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: cargo doc passes without warnings for sdk crate"
       ],
@@ -871,7 +871,7 @@
       "priority": "P1",
       "title": "Consider docs.rs publishing setup",
       "description": "Consider docs.rs publishing setup for SDK documentation",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: verify docs.rs metadata is correct in Cargo.toml"
       ],
@@ -889,7 +889,7 @@
       "priority": "P2",
       "title": "Add SAFETY comment to plugin/src/lib.rs:661",
       "description": "Add SAFETY comment to crates/plugin/src/lib.rs:661 for the unsafe block",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: verify SAFETY comment exists and documents invariants"
       ],
@@ -905,7 +905,7 @@
       "priority": "P2",
       "title": "Add SAFETY comments to tui/src/app.rs:4677, 4690",
       "description": "Add SAFETY comments to crates/tui/src/app.rs:4677 and 4690 for unsafe blocks",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: verify SAFETY comments exist and document invariants"
       ],
@@ -921,7 +921,7 @@
       "priority": "P2",
       "title": "Add SAFETY comments to validation.rs:237, 256",
       "description": "Add SAFETY comments to crates/server/src/routes/validation.rs:237 and 256 for unsafe blocks",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify SAFETY comments exist and document invariants"
       ],

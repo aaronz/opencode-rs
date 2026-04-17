@@ -250,9 +250,10 @@ impl NumberValidator<usize> {
     /// `ValidationErrors` outlives this `NumberValidator` and that no other
     /// code holds a mutable reference to it for the lifetime of this validator.
     pub(crate) fn max(self, max: usize) -> Self {
-        // SAFETY: Same invariants as `min` — the raw pointer was created from a
-        // valid `&mut ValidationErrors` in `NumberValidator::new`. The caller
-        // guarantees the referent is alive and not aliased for this validator's lifetime.
+        // SAFETY: The raw pointer was created from a valid `&mut ValidationErrors`
+        // in `NumberValidator::new`. The caller guarantees the referent lives long
+        // enough and no aliasing mutable references exist. The dereference produces
+        // a `&mut ValidationErrors` matching the original lifetime.
         unsafe {
             (&mut *self.errors).add_if(
                 self.value > max,
