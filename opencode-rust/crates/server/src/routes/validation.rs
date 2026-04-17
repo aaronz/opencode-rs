@@ -375,7 +375,11 @@ pub(crate) fn validate_session_id(id: &str) -> Result<uuid::Uuid, ValidationErro
     if errors.has_errors() {
         Err(errors)
     } else {
-        Ok(uuid::Uuid::parse_str(id).expect("validated UUID should parse correctly"))
+        uuid::Uuid::parse_str(id).map_err(|_| {
+            let mut errs = ValidationErrors::new();
+            errs.add(FieldError::format("session_id", "valid UUID"));
+            errs
+        })
     }
 }
 
@@ -1073,5 +1077,114 @@ mod tests {
         errors.add(FieldError::with_code("f2", "e2"));
         let display = format!("{}", errors);
         assert!(display.contains("2 errors"));
+    }
+
+    #[test]
+    fn test_validate_session_id_returns_validation_errors_on_invalid_input() {
+        let result = validate_session_id("not-a-valid-uuid");
+        assert!(result.is_err());
+        let errors = result.unwrap_err();
+        assert!(errors.has_errors());
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors.details[0].field, "session_id");
+    }
+
+    #[test]
+    fn test_validate_session_id_returns_uuid_on_valid_input() {
+        let result = validate_session_id("550e8400-e29b-41d4-a716-446655440000");
+        assert!(result.is_ok());
+        let uuid = result.unwrap();
+        assert_eq!(uuid.to_string(), "550e8400-e29b-41d4-a716-446655440000");
+    }
+
+    #[test]
+    fn test_validate_session_id_returns_error_for_empty_string() {
+        let result = validate_session_id("");
+        assert!(result.is_err());
+        let errors = result.unwrap_err();
+        assert!(errors.has_errors());
+    }
+
+    #[test]
+    fn test_validate_session_id_returns_error_for_partial_uuid() {
+        let result = validate_session_id("550e8400-e29b-41d4-a716");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_session_id_returns_error_for_malformed_uuid() {
+        let malformed = vec![
+            "gibberish",
+            "12345",
+            "ZZZZZZZZ-YYYY-XXXX-WWWW-VVVVVVVVVVVV",
+            "550e8400-e29b-41d4-a716-44665544000",
+            "550e8400-e29b-41d4-a716-4466554400000",
+            "not-a-uuid-at-all",
+            "uuid-with-extra-chars-at-end-550e8400-e29b-41d4-a716-446655440000",
+        ];
+        for input in malformed {
+            let result = validate_session_id(input);
+            assert!(result.is_err(), "Expected '{}' to be invalid UUID", input);
+        }
+    }
+
+    #[test]
+    fn test_validate_session_id_validates_all_valid_uuid_formats() {
+        let valid_uuids = vec![
+            "00000000-0000-0000-0000-000000000000",
+            "ffffffff-ffff-ffff-ffff-ffffffffffff",
+            "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+            "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+            "550e8400-e29b-41d4-a716-446655440000",
+        ];
+        for uuid_str in valid_uuids {
+            let result = validate_session_id(uuid_str);
+            assert!(result.is_ok(), "Expected '{}' to be valid UUID", uuid_str);
+        }
+    }
+
+    #[test]
+    fn test_validate_session_id_error_response_contains_proper_field_error() {
+        let result = validate_session_id("invalid-session");
+        assert!(result.is_err());
+        let errors = result.unwrap_err();
+        let response = errors.to_response();
+        assert_eq!(
+            response.status(),
+            actix_web::http::StatusCode::UNPROCESSABLE_ENTITY
+        );
+    }
+
+    #[test]
+    fn test_validate_message_index_returns_ok_for_valid_index() {
+        let result = validate_message_index(5, 10);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_message_index_returns_error_for_out_of_range() {
+        let result = validate_message_index(10, 10);
+        assert!(result.is_err());
+
+        let result = validate_message_index(15, 10);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_message_index_allows_zero_index() {
+        let result = validate_message_index(0, 10);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_message_index_handles_empty_collection() {
+        let result = validate_message_index(0, 0);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_message_index_returns_error_for_large_index_on_empty_collection() {
+        let result = validate_message_index(100, 0);
+        assert!(result.is_err());
     }
 }

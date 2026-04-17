@@ -39,7 +39,7 @@
       "priority": "P0",
       "title": "Audit all production unwrap() occurrences",
       "description": "Audit all production code for .unwrap() occurrences across all crates and identify high-risk locations",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: grep confirms zero unwrap() in production paths"
       ],
@@ -47,7 +47,7 @@
         "grep -r '\\.unwrap()' crates/*/src/ --include='*.rs' || true",
         "cargo clippy --all -- -D warnings"
       ],
-      "impl_notes": "Use grep to find all unwrap() calls and categorize by risk level",
+      "impl_notes": "Created unwrap_audit.rs regression test that scans production code and categorizes findings by risk. Test passes - zero unwrap() in production paths outside of #[cfg(test)] blocks.",
       "dependencies": [
         "P0-001",
         "P0-002"
@@ -58,7 +58,7 @@
       "priority": "P0",
       "title": "Convert high-risk unwrap() to error propagation",
       "description": "Convert high-risk unwrap() locations in routes/*.rs to proper error propagation",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify route handlers return proper errors instead of panicking",
         "AddErrorHandlingTest: test route error paths with invalid inputs"

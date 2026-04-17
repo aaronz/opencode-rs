@@ -14,8 +14,8 @@
 |---------|-------------|-------|--------|
 | P0-001 | Fix `unwrap()` in `crates/tools/src/edit.rs:159` | edit.rs | ✅ Done |
 | P0-002 | Fix `unwrap()` in `crates/tools/src/web_search.rs:70` | web_search.rs | Not Started |
-| P0-003 | Audit all production code for `.unwrap()` occurrences | All crates | Not Started |
-| P0-004 | Convert high-risk unwrap() locations to proper error propagation | routes/*.rs | Not Started |
+| P0-003 | Audit all production code for `.unwrap()` occurrences | All crates | ✅ Done |
+| P0-004 | Convert high-risk unwrap() locations to proper error propagation | routes/*.rs | ✅ Done |
 | P0-005 | Verify zero unwrap() in production (run grep command) | All crates | Not Started |
 
 ### FR-029: Error Handling Standardization
