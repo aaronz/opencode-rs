@@ -4718,6 +4718,7 @@ dependencies = [
  "pulldown-cmark",
  "ratatui 0.30.0",
  "regex",
+ "reqwest",
  "serde",
  "serde_json",
  "syntect",

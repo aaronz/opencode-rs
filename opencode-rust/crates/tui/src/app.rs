@@ -537,6 +537,177 @@ pub struct App {
     pub catalog_fetcher: ProviderCatalogFetcher,
 }
 
+#[derive(Debug)]
+pub struct ApiKeyValidationError {
+    pub message: String,
+    pub error_type: ApiKeyValidationErrorType,
+    pub status_code: Option<u16>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ApiKeyValidationErrorType {
+    EmptyKey,
+    NetworkError,
+    AuthenticationError,
+    PermissionError,
+    ServerError,
+    Timeout,
+    InvalidResponse,
+    Unknown,
+}
+
+impl std::fmt::Display for ApiKeyValidationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
+impl std::error::Error for ApiKeyValidationError {}
+
+pub async fn validate_api_key(
+    provider_id: &str,
+    api_key: &str,
+) -> Result<(), ApiKeyValidationError> {
+    if api_key.is_empty() {
+        return Err(ApiKeyValidationError {
+            message: "API key cannot be empty".to_string(),
+            error_type: ApiKeyValidationErrorType::EmptyKey,
+            status_code: None,
+        });
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| ApiKeyValidationError {
+            message: format!("Failed to create HTTP client: {}", e),
+            error_type: ApiKeyValidationErrorType::NetworkError,
+            status_code: None,
+        })?;
+
+    let (url, auth_header, is_anthropic) = match provider_id {
+        "anthropic" => (
+            "https://api.anthropic.com/v1/models".to_string(),
+            format!("Bearer {}", api_key),
+            true,
+        ),
+        "openai" => (
+            "https://api.openai.com/v1/models".to_string(),
+            format!("Bearer {}", api_key),
+            false,
+        ),
+        _ => {
+            let base_url = match std::env::var(
+                format!("{}_BASE_URL", provider_id.to_uppercase()).replace("-", "_"),
+            )
+            .ok()
+            .or_else(|| std::env::var("OPENCODE_BASE_URL").ok())
+            {
+                Some(url) => url,
+                None => "https://api.openai.com".to_string(),
+            };
+            (
+                format!("{}/v1/models", base_url.trim_end_matches('/')),
+                format!("Bearer {}", api_key),
+                false,
+            )
+        }
+    };
+
+    let response = client
+        .get(&url)
+        .header("Authorization", &auth_header)
+        .send()
+        .await
+        .map_err(|e| {
+            let error_type = if e.is_timeout() {
+                ApiKeyValidationErrorType::Timeout
+            } else {
+                ApiKeyValidationErrorType::NetworkError
+            };
+            ApiKeyValidationError {
+                message: format!("Network error: {}", e),
+                error_type,
+                status_code: None,
+            }
+        })?;
+
+    let status = response.status();
+
+    if status.is_success() {
+        Ok(())
+    } else if status.as_u16() == 401 || status.as_u16() == 403 {
+        let error_body = response.text().await.unwrap_or_default();
+        let error_message = if is_anthropic {
+            parse_anthropic_error(&error_body).unwrap_or_else(|| {
+                format!(
+                    "Authentication failed: invalid API key (HTTP {})",
+                    status.as_u16()
+                )
+            })
+        } else {
+            parse_openai_error(&error_body).unwrap_or_else(|| {
+                format!(
+                    "Authentication failed: invalid API key (HTTP {})",
+                    status.as_u16()
+                )
+            })
+        };
+        Err(ApiKeyValidationError {
+            message: error_message,
+            error_type: ApiKeyValidationErrorType::AuthenticationError,
+            status_code: Some(status.as_u16()),
+        })
+    } else if status.as_u16() >= 500 {
+        Err(ApiKeyValidationError {
+            message: format!(
+                "Server error (HTTP {}): please try again later",
+                status.as_u16()
+            ),
+            error_type: ApiKeyValidationErrorType::ServerError,
+            status_code: Some(status.as_u16()),
+        })
+    } else {
+        Err(ApiKeyValidationError {
+            message: format!("Request failed with HTTP {}", status.as_u16()),
+            error_type: ApiKeyValidationErrorType::Unknown,
+            status_code: Some(status.as_u16()),
+        })
+    }
+}
+
+fn parse_anthropic_error(body: &str) -> Option<String> {
+    serde_json::from_str::<serde_json::Value>(body)
+        .ok()
+        .and_then(|json| {
+            json.get("error")
+                .and_then(|error| error.get("message"))
+                .and_then(|msg| msg.as_str())
+                .map(|s| s.to_string())
+        })
+}
+
+fn parse_openai_error(body: &str) -> Option<String> {
+    serde_json::from_str::<serde_json::Value>(body)
+        .ok()
+        .and_then(|json| {
+            json.get("error")
+                .and_then(|error| error.get("message"))
+                .and_then(|msg| msg.as_str())
+                .map(|s| s.to_string())
+        })
+        .or_else(|| {
+            serde_json::from_str::<serde_json::Value>(body)
+                .ok()
+                .and_then(|json| {
+                    json.get("error")
+                        .and_then(|error| error.get("type"))
+                        .and_then(|msg| msg.as_str())
+                        .map(|s| format!("{} error", s))
+                })
+        })
+}
+
 impl App {
     pub fn new() -> Self {
         let mut timeline_state = ListState::default();

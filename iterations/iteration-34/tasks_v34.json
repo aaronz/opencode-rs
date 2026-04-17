@@ -1,0 +1,1319 @@
+{
+  "tasks": [
+    {
+      "id": "T-001",
+      "parent_id": "FR-012",
+      "priority": "P0",
+      "title": "Create validate_api_key() function",
+      "description": "Create validate_api_key() function in app.rs to make test API call to provider's /v1/models endpoint, handle different response structures (Anthropic vs OpenAI-compatible), and return validation result with error details if invalid",
+      "status": "in_progress",
+      "test_criteria": [
+        "AddUnitTest: verify validate_api_key returns Ok for valid Anthropic API key",
+        "AddUnitTest: verify validate_api_key returns Ok for valid OpenAI-compatible API key",
+        "AddUnitTest: verify validate_api_key returns Err for invalid API key with error details",
+        "AddUnitTest: verify validate_api_key handles network timeout errors gracefully",
+        "AddErrorHandlingTest: test validation with empty API key string"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui --test api_key_validation -- --nocapture",
+        "cargo clippy -p opencode-tui -- -D warnings"
+      ],
+      "impl_notes": "Use reqwest to make POST request to /v1/models with Authorization header. Check response status and structure. For Anthropic, check for specific error response fields.",
+      "dependencies": []
+    },
+    {
+      "id": "T-002",
+      "parent_id": "FR-012",
+      "priority": "P0",
+      "title": "Add loading state during API key validation",
+      "description": "Show 'Validating...' message in UI and disable input during validation to prevent double-submission",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify loading state is set during validation",
+        "AddUnitTest: verify input is disabled while validating",
+        "AddUnitTest: verify loading state clears after validation completes"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui --test api_key_validation -- --nocapture",
+        "cargo clippy -p opencode-tui -- -D warnings"
+      ],
+      "impl_notes": "Add validation_in_progress state to the app state struct. Use this to conditionally render loading indicator and disable buttons.",
+      "dependencies": [
+        "T-001"
+      ]
+    },
+    {
+      "id": "T-003",
+      "parent_id": "FR-012",
+      "priority": "P0",
+      "title": "Add error handling with retry option",
+      "description": "Display user-friendly error message on validation failure, allow user to re-enter API key, and do NOT save invalid keys",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify invalid API key shows error message to user",
+        "AddUnitTest: verify user can retry after validation failure",
+        "AddUnitTest: verify invalid keys are not persisted to credential store",
+        "AddErrorHandlingTest: test error message display for network failures"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui --test api_key_validation -- --nocapture",
+        "cargo clippy -p opencode-tui -- -D warnings"
+      ],
+      "impl_notes": "On validation failure, show error dialog with 'Try Again' button. Clear the invalid API key from memory. Log error details for debugging.",
+      "dependencies": [
+        "T-001",
+        "T-002"
+      ]
+    },
+    {
+      "id": "T-004",
+      "parent_id": "FR-012",
+      "priority": "P0",
+      "title": "Handle provider-specific validation endpoints",
+      "description": "Support Anthropic: https://api.anthropic.com/v1/models, OpenAI-compatible: /models endpoint, LM Studio: /api/tags endpoint",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify Anthropic API key validation uses correct endpoint",
+        "AddUnitTest: verify OpenAI-compatible API key validation uses /models endpoint",
+        "AddUnitTest: verify LM Studio API key validation uses /api/tags endpoint",
+        "AddUnitTest: verify unknown provider falls back to default /v1/models endpoint"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui --test api_key_validation -- --nocapture",
+        "cargo clippy -p opencode-tui -- -D warnings"
+      ],
+      "impl_notes": "Match on provider type to construct correct validation endpoint URL. Each provider may have different base_url settings.",
+      "dependencies": [
+        "T-001"
+      ]
+    },
+    {
+      "id": "T-005",
+      "parent_id": "FR-012",
+      "priority": "P0",
+      "title": "Add unit tests for API key validation",
+      "description": "Test valid API key acceptance, invalid API key rejection, and network error handling",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: test valid_api_key_acceptance returns success",
+        "AddUnitTest: test invalid_api_key_rejection returns error",
+        "AddUnitTest: test network_error_handling returns network error variant",
+        "RunTestSuite: execute all API key validation tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui --test api_key_validation",
+        "cargo test -p opencode-core",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Create mock HTTP server for testing different provider responses. Test both success and failure scenarios.",
+      "dependencies": [
+        "T-001",
+        "T-002",
+        "T-003",
+        "T-004"
+      ]
+    },
+    {
+      "id": "T-006",
+      "parent_id": "FR-013",
+      "priority": "P0",
+      "title": "Wire ConnectModelDialog after successful API key validation",
+      "description": "Transition from API key input to model selection dialog and pass validated credentials to model dialog",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify ConnectModelDialog is shown after successful validation",
+        "AddUnitTest: verify validated credentials are passed to model dialog",
+        "AddIntegrationTest: verify complete flow from API key to model selection"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui --test model_selection_flow",
+        "cargo clippy -p opencode-tui -- -D warnings"
+      ],
+      "impl_notes": "After validate_api_key returns Ok, transition app state to ShowConnectModelDialog. Pass provider config with validated credentials.",
+      "dependencies": [
+        "T-001",
+        "T-005"
+      ]
+    },
+    {
+      "id": "T-007",
+      "parent_id": "FR-013",
+      "priority": "P0",
+      "title": "Fetch available models from provider after validation",
+      "description": "Query provider's /v1/models endpoint after API key validation, filter models based on provider, and populate model list for dialog",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify models are fetched from Anthropic /v1/models",
+        "AddUnitTest: verify models are fetched from OpenAI-compatible /models",
+        "AddUnitTest: verify models are filtered correctly per provider",
+        "AddUnitTest: verify empty model list is handled gracefully"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui --test model_fetching",
+        "cargo clippy -p opencode-tui -- -D warnings"
+      ],
+      "impl_notes": "After successful API key validation, call provider's models endpoint. Parse response and filter to supported model IDs.",
+      "dependencies": [
+        "T-006"
+      ]
+    },
+    {
+      "id": "T-008",
+      "parent_id": "FR-013",
+      "priority": "P0",
+      "title": "Configure provider with selected model",
+      "description": "Store model selection with provider config, set as active provider/model, and return to Chat mode",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify selected model is stored in provider config",
+        "AddUnitTest: verify active provider is set after model selection",
+        "AddUnitTest: verify app transitions to Chat mode after selection",
+        "AddIntegrationTest: verify complete flow: validation -> model select -> chat"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui --test provider_configuration",
+        "cargo clippy -p opencode-tui -- -D warnings"
+      ],
+      "impl_notes": "After model selection, update provider config with selected model ID. Set as active provider. Transition to Chat mode.",
+      "dependencies": [
+        "T-007"
+      ]
+    },
+    {
+      "id": "T-009",
+      "parent_id": "FR-013",
+      "priority": "P0",
+      "title": "Fix hardcoded default model (TD-6)",
+      "description": "Remove gpt-4o as default for non-OpenAI providers and use selected model instead",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify non-OpenAI providers do not default to gpt-4o",
+        "AddUnitTest: verify selected model is used instead of hardcoded default"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Remove hardcoded gpt-4o from app.rs:972. Ensure provider's actual selected model is used.",
+      "dependencies": [
+        "T-008"
+      ]
+    },
+    {
+      "id": "T-010",
+      "parent_id": "FR-013",
+      "priority": "P0",
+      "title": "Add integration tests for complete API key flow",
+      "description": "Test full flow: provider selection -> API key -> validation -> model selection -> chat. Test error recovery on validation failure",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: test complete flow from provider selection to chat",
+        "AddIntegrationTest: test error recovery when validation fails",
+        "AddIntegrationTest: test user can retry after validation failure",
+        "RunTestSuite: execute all integration tests for API key flow"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests --test api_key_flow",
+        "cargo test -p opencode-integration-tests",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Create integration test that simulates full user flow with mock HTTP server. Test both success and failure paths.",
+      "dependencies": [
+        "T-005",
+        "T-006",
+        "T-007",
+        "T-008"
+      ]
+    },
+    {
+      "id": "T-011",
+      "parent_id": "FR-014",
+      "priority": "P1",
+      "title": "Connect GoogleOAuthService to TUI connect flow",
+      "description": "Wire GoogleOAuthService to handle_connect_method_confirm() and launch browser OAuth when 'browser' selected for Google",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify GoogleOAuthService is called when browser auth selected",
+        "AddUnitTest: verify browser OAuth flow is launched for Google",
+        "AddIntegrationTest: verify Google OAuth flow integrates with TUI"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui --test google_oauth_wiring",
+        "cargo clippy -p opencode-tui -- -D warnings"
+      ],
+      "impl_notes": "In handle_connect_method_confirm(), when Google + browser selected, call GoogleOAuthService::start_auth_flow()",
+      "dependencies": []
+    },
+    {
+      "id": "T-012",
+      "parent_id": "FR-014",
+      "priority": "P1",
+      "title": "Handle OAuth callback",
+      "description": "Receive OAuth callback in app, exchange code for tokens, and store credentials",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify OAuth callback is received correctly",
+        "AddUnitTest: verify code is exchanged for tokens",
+        "AddUnitTest: verify tokens are stored in credential store",
+        "AddErrorHandlingTest: test invalid callback handling"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui --test oauth_callback",
+        "cargo clippy -p opencode-tui -- -D warnings"
+      ],
+      "impl_notes": "Handle OAuth redirect to localhost callback. Exchange authorization code for access/refresh tokens. Store in credential store.",
+      "dependencies": [
+        "T-011"
+      ]
+    },
+    {
+      "id": "T-013",
+      "parent_id": "FR-014",
+      "priority": "P1",
+      "title": "Wire model selection after successful Google OAuth",
+      "description": "Proceed to ConnectModelDialog after Google OAuth completes successfully",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify ConnectModelDialog is shown after Google OAuth success",
+        "AddIntegrationTest: verify credentials are passed to model dialog"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui --test google_oauth_flow",
+        "cargo clippy -p opencode-tui -- -D warnings"
+      ],
+      "impl_notes": "After successful OAuth, transition to model selection dialog with validated credentials.",
+      "dependencies": [
+        "T-012"
+      ]
+    },
+    {
+      "id": "T-014",
+      "parent_id": "FR-014",
+      "priority": "P1",
+      "title": "Add integration tests for Google OAuth flow",
+      "description": "Test complete Google OAuth flow from provider selection through model selection",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: test complete Google OAuth flow",
+        "AddIntegrationTest: test error handling during OAuth",
+        "RunTestSuite: execute Google OAuth integration tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests --test google_oauth_flow",
+        "cargo test -p opencode-integration-tests",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Create integration test with mock OAuth server. Test success path and error recovery.",
+      "dependencies": [
+        "T-011",
+        "T-012",
+        "T-013"
+      ]
+    },
+    {
+      "id": "T-015",
+      "parent_id": "FR-015",
+      "priority": "P1",
+      "title": "Connect CopilotOAuthService to TUI connect flow",
+      "description": "Wire CopilotOAuthService to handle_connect_method_confirm() and launch device code flow when 'browser' selected for Copilot",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify CopilotOAuthService is called when device flow selected",
+        "AddUnitTest: verify device code flow is launched for Copilot",
+        "AddIntegrationTest: verify Copilot OAuth flow integrates with TUI"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui --test copilot_oauth_wiring",
+        "cargo clippy -p opencode-tui -- -D warnings"
+      ],
+      "impl_notes": "In handle_connect_method_confirm(), when Copilot + browser selected, call CopilotOAuthService::start_device_flow()",
+      "dependencies": []
+    },
+    {
+      "id": "T-016",
+      "parent_id": "FR-015",
+      "priority": "P1",
+      "title": "Handle device code flow",
+      "description": "Display device code to user, poll for token exchange, and store credentials",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify device code is displayed to user",
+        "AddUnitTest: verify polling for token exchange works correctly",
+        "AddUnitTest: verify tokens are stored after successful exchange",
+        "AddErrorHandlingTest: test device code timeout handling"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui --test device_code_flow",
+        "cargo clippy -p opencode-tui -- -D warnings"
+      ],
+      "impl_notes": "Display device code and URL. Start polling endpoint. On success, store tokens. Handle timeout/expiry.",
+      "dependencies": [
+        "T-015"
+      ]
+    },
+    {
+      "id": "T-017",
+      "parent_id": "FR-015",
+      "priority": "P1",
+      "title": "Wire model selection after successful Copilot OAuth",
+      "description": "Proceed to ConnectModelDialog after Copilot OAuth completes successfully",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify ConnectModelDialog is shown after Copilot OAuth success",
+        "AddIntegrationTest: verify credentials are passed to model dialog"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui --test copilot_oauth_flow",
+        "cargo clippy -p opencode-tui -- -D warnings"
+      ],
+      "impl_notes": "After successful OAuth, transition to model selection dialog with validated credentials.",
+      "dependencies": [
+        "T-016"
+      ]
+    },
+    {
+      "id": "T-018",
+      "parent_id": "FR-015",
+      "priority": "P1",
+      "title": "Add integration tests for Copilot OAuth flow",
+      "description": "Test complete Copilot OAuth flow from provider selection through model selection",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: test complete Copilot OAuth flow",
+        "AddIntegrationTest: test error handling during OAuth",
+        "RunTestSuite: execute Copilot OAuth integration tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests --test copilot_oauth_flow",
+        "cargo test -p opencode-integration-tests",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Create integration test with mock OAuth server. Test success path and error recovery.",
+      "dependencies": [
+        "T-015",
+        "T-016",
+        "T-017"
+      ]
+    },
+    {
+      "id": "T-019",
+      "parent_id": "FR-002",
+      "priority": "P1",
+      "title": "Add GitHub Copilot models",
+      "description": "Add github-copilot/* models to model catalog",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify github-copilot models are included in model list",
+        "AddRegressionTest: verify model count increases by Copilot models"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm --test model_catalog",
+        "cargo clippy -p opencode-llm -- -D warnings"
+      ],
+      "impl_notes": "Add GitHub Copilot model definitions to crates/llm/src/models.rs",
+      "dependencies": []
+    },
+    {
+      "id": "T-020",
+      "parent_id": "FR-002",
+      "priority": "P1",
+      "title": "Add OpenCode models",
+      "description": "Add opencode/gpt-5-nano, opencode/minimax-m2.5-free, opencode/nemotron-3-super-free models",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify all OpenCode models are included",
+        "AddRegressionTest: verify model count increases correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm --test model_catalog",
+        "cargo clippy -p opencode-llm -- -D warnings"
+      ],
+      "impl_notes": "Add OpenCode model definitions to crates/llm/src/models.rs with correct context lengths",
+      "dependencies": []
+    },
+    {
+      "id": "T-021",
+      "parent_id": "FR-002",
+      "priority": "P1",
+      "title": "Add Google internal models",
+      "description": "Add google/antigravity-* models to model catalog",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify google/antigravity models are included",
+        "AddRegressionTest: verify model count increases correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm --test model_catalog",
+        "cargo clippy -p opencode-llm -- -D warnings"
+      ],
+      "impl_notes": "Add Google internal model definitions to crates/llm/src/models.rs",
+      "dependencies": []
+    },
+    {
+      "id": "T-022",
+      "parent_id": "FR-002",
+      "priority": "P1",
+      "title": "Add Kimi models",
+      "description": "Add kimi/* models to model catalog",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify Kimi models are included",
+        "AddRegressionTest: verify model count increases correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm --test model_catalog",
+        "cargo clippy -p opencode-llm -- -D warnings"
+      ],
+      "impl_notes": "Add Kimi model definitions to crates/llm/src/models.rs",
+      "dependencies": []
+    },
+    {
+      "id": "T-023",
+      "parent_id": "FR-002",
+      "priority": "P1",
+      "title": "Add Z.AI models",
+      "description": "Add z.ai/* models to model catalog",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify Z.AI models are included",
+        "AddRegressionTest: verify model count increases correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm --test model_catalog",
+        "cargo clippy -p opencode-llm -- -D warnings"
+      ],
+      "impl_notes": "Add Z.AI model definitions to crates/llm/src/models.rs",
+      "dependencies": []
+    },
+    {
+      "id": "T-024",
+      "parent_id": "FR-002",
+      "priority": "P1",
+      "title": "Update model context lengths",
+      "description": "Ensure all models have correct context window sizes",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify all models have context_length > 0",
+        "AddUnitTest: verify context lengths match known provider specifications",
+        "AddRegressionTest: ensure no model has default/unset context length"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm --test model_context_lengths",
+        "cargo clippy -p opencode-llm -- -D warnings"
+      ],
+      "impl_notes": "Audit all model definitions and ensure context_window field is set correctly for each provider.",
+      "dependencies": [
+        "T-019",
+        "T-020",
+        "T-021",
+        "T-022",
+        "T-023"
+      ]
+    },
+    {
+      "id": "T-025",
+      "parent_id": "FR-002",
+      "priority": "P1",
+      "title": "Target 50+ models minimum",
+      "description": "Verify model count meets requirement of 50+ models",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify total model count >= 50",
+        "AddRegressionTest: verify model count does not decrease"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm --test model_count",
+        "cargo build --release -p opencode-llm"
+      ],
+      "impl_notes": "Count all models in model catalog and ensure at least 50 models exist. Current gap is 17 vs 89 (81%).",
+      "dependencies": [
+        "T-019",
+        "T-020",
+        "T-021",
+        "T-022",
+        "T-023",
+        "T-024"
+      ]
+    },
+    {
+      "id": "T-026",
+      "parent_id": "FR-003",
+      "priority": "P1",
+      "title": "Create completion command module",
+      "description": "Create crates/cli/src/cmd/completion.rs module",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify completion module exists and can be imported",
+        "AddRegressionTest: verify CLI builds with new module"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-cli",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Create new completion.rs file with module declaration and basic structure.",
+      "dependencies": []
+    },
+    {
+      "id": "T-027",
+      "parent_id": "FR-003",
+      "priority": "P1",
+      "title": "Implement bash completion generation",
+      "description": "Implement opencode-rs completion bash command",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify bash completion generates valid bash script",
+        "AddUnitTest: verify completion script includes all CLI commands",
+        "RunTestSuite: execute completion tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli --test completion",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Use clap's built-in shell completion generation. Output valid bash completion script.",
+      "dependencies": [
+        "T-026"
+      ]
+    },
+    {
+      "id": "T-028",
+      "parent_id": "FR-003",
+      "priority": "P1",
+      "title": "Implement zsh completion generation",
+      "description": "Implement opencode-rs completion zsh command",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify zsh completion generates valid zsh script",
+        "AddUnitTest: verify completion script includes all CLI commands"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli --test completion",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Use clap's built-in shell completion generation. Output valid zsh completion script.",
+      "dependencies": [
+        "T-026"
+      ]
+    },
+    {
+      "id": "T-029",
+      "parent_id": "FR-003",
+      "priority": "P1",
+      "title": "Implement fish completion generation",
+      "description": "Implement opencode-rs completion fish command",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify fish completion generates valid fish script",
+        "AddUnitTest: verify completion script includes all CLI commands"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli --test completion",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Use clap's built-in shell completion generation. Output valid fish completion script.",
+      "dependencies": [
+        "T-026"
+      ]
+    },
+    {
+      "id": "T-030",
+      "parent_id": "FR-003",
+      "priority": "P1",
+      "title": "Implement PowerShell completion generation",
+      "description": "Implement opencode-rs completion powershell command",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify PowerShell completion generates valid script",
+        "AddUnitTest: verify completion script includes all CLI commands"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli --test completion",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Use clap's built-in shell completion generation. Output valid PowerShell completion script.",
+      "dependencies": [
+        "T-026"
+      ]
+    },
+    {
+      "id": "T-031",
+      "parent_id": "FR-003",
+      "priority": "P1",
+      "title": "Register completion command in CLI",
+      "description": "Add completion command to crates/core/src/cli.rs",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify opencode completion bash works",
+        "AddIntegrationTest: verify opencode completion zsh works",
+        "RunTestSuite: verify CLI builds and all completions work"
+      ],
+      "test_commands": [
+        "cargo build --release -p opencode-cli",
+        "cargo test -p opencode-cli",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Add completion subcommand to Cli enum and wire to completion module.",
+      "dependencies": [
+        "T-027",
+        "T-028",
+        "T-029",
+        "T-030"
+      ]
+    },
+    {
+      "id": "T-032",
+      "parent_id": "FR-004",
+      "priority": "P1",
+      "title": "Create plugin command module",
+      "description": "Create crates/cli/src/cmd/plugin.rs module",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify plugin module exists and can be imported",
+        "AddRegressionTest: verify CLI builds with new module"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-cli",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Create new plugin.rs file with module declaration and basic structure.",
+      "dependencies": []
+    },
+    {
+      "id": "T-033",
+      "parent_id": "FR-004",
+      "priority": "P1",
+      "title": "Implement plugin install command",
+      "description": "Implement opencode plugin install <name> command to download and install plugin",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify plugin install downloads from registry",
+        "AddUnitTest: verify plugin is extracted and installed correctly",
+        "AddErrorHandlingTest: test invalid plugin name handling"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli --test plugin_install",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Download plugin from registry, extract to plugins directory, register in opencode.json.",
+      "dependencies": [
+        "T-032"
+      ]
+    },
+    {
+      "id": "T-034",
+      "parent_id": "FR-004",
+      "priority": "P1",
+      "title": "Implement plugin list command",
+      "description": "Implement opencode plugin list command to list installed plugins",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify plugin list shows installed plugins",
+        "AddUnitTest: verify plugin list shows correct plugin metadata"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli --test plugin_list",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Read plugin directory and display installed plugins with metadata.",
+      "dependencies": [
+        "T-032"
+      ]
+    },
+    {
+      "id": "T-035",
+      "parent_id": "FR-004",
+      "priority": "P1",
+      "title": "Implement plugin remove command",
+      "description": "Implement opencode plugin remove <name> command to uninstall plugin",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify plugin remove deletes plugin files",
+        "AddUnitTest: verify plugin remove updates opencode.json config",
+        "AddErrorHandlingTest: test removing non-existent plugin"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli --test plugin_remove",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Remove plugin files from plugins directory and update opencode.json.",
+      "dependencies": [
+        "T-032"
+      ]
+    },
+    {
+      "id": "T-036",
+      "parent_id": "FR-004",
+      "priority": "P1",
+      "title": "Implement plugin search command",
+      "description": "Implement opencode plugin search [query] command to search available plugins",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify plugin search returns matching plugins",
+        "AddUnitTest: verify plugin search with no query returns all plugins"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli --test plugin_search",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Query plugin registry API for available plugins. Display results with metadata.",
+      "dependencies": [
+        "T-032"
+      ]
+    },
+    {
+      "id": "T-037",
+      "parent_id": "FR-004",
+      "priority": "P1",
+      "title": "Persist plugins in opencode.json config",
+      "description": "Store plugin configuration in opencode.json",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify plugin config is saved to opencode.json",
+        "AddUnitTest: verify plugin config is loaded on startup",
+        "AddRegressionTest: verify existing config is not overwritten"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli --test plugin_persistence",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Add plugins array to opencode.json. Read/write using serde_json.",
+      "dependencies": [
+        "T-033",
+        "T-034",
+        "T-035"
+      ]
+    },
+    {
+      "id": "T-038",
+      "parent_id": "FR-004",
+      "priority": "P1",
+      "title": "Register plugin command in CLI",
+      "description": "Add plugin command to crates/core/src/cli.rs",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify opencode plugin install works",
+        "AddIntegrationTest: verify opencode plugin list works",
+        "RunTestSuite: verify CLI builds and plugin commands work"
+      ],
+      "test_commands": [
+        "cargo build --release -p opencode-cli",
+        "cargo test -p opencode-cli",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Add plugin subcommand to Cli enum with install/list/remove/search subcommands.",
+      "dependencies": [
+        "T-033",
+        "T-034",
+        "T-035",
+        "T-036",
+        "T-037"
+      ]
+    },
+    {
+      "id": "T-039",
+      "parent_id": "FR-016",
+      "priority": "P2",
+      "title": "Define AuthMethod enum",
+      "description": "Define AuthMethod enum with Browser, ApiKey, Local, DeviceFlow variants",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify AuthMethod enum has all required variants",
+        "AddUnitTest: verify AuthMethod can be serialized/deserialized"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm --test auth_method",
+        "cargo clippy -p opencode-llm -- -D warnings"
+      ],
+      "impl_notes": "Create AuthMethod enum in crates/llm/src/auth.rs with variants: Browser, ApiKey, Local, DeviceFlow",
+      "dependencies": []
+    },
+    {
+      "id": "T-040",
+      "parent_id": "FR-016",
+      "priority": "P2",
+      "title": "Create ProviderAuth trait",
+      "description": "Create ProviderAuth trait with fn supported_auth_methods(&self) -> Vec<AuthMethod>",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify ProviderAuth trait exists",
+        "AddUnitTest: verify supported_auth_methods returns correct auth methods",
+        "AddUnitTest: verify trait can be implemented by provider types"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm --test provider_auth_trait",
+        "cargo clippy -p opencode-llm -- -D warnings"
+      ],
+      "impl_notes": "Create ProviderAuth trait in crates/llm/src/auth.rs. Method returns Vec<AuthMethod>.",
+      "dependencies": [
+        "T-039"
+      ]
+    },
+    {
+      "id": "T-041",
+      "parent_id": "FR-016",
+      "priority": "P2",
+      "title": "Implement ProviderAuth on provider types",
+      "description": "Implement ProviderAuth trait on all provider types",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify AnthropicProvider implements ProviderAuth",
+        "AddUnitTest: verify OpenAIProvider implements ProviderAuth",
+        "AddUnitTest: verify all provider types implement ProviderAuth"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm --test provider_impl",
+        "cargo clippy -p opencode-llm -- -D warnings"
+      ],
+      "impl_notes": "Implement ProviderAuth for Anthropic, OpenAI, Gemini, Copilot, and other providers.",
+      "dependencies": [
+        "T-040"
+      ]
+    },
+    {
+      "id": "T-042",
+      "parent_id": "FR-016",
+      "priority": "P2",
+      "title": "Update ConnectMethodDialog to use trait",
+      "description": "Remove hardcoded OAUTH_ONLY_PROVIDERS list and use ProviderAuth trait instead",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify ConnectMethodDialog uses ProviderAuth trait",
+        "AddRegressionTest: verify OAUTH_ONLY_PROVIDERS list is removed",
+        "AddIntegrationTest: verify auth method selection works with trait"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui --test connect_method_dialog",
+        "cargo clippy -p opencode-tui -- -D warnings"
+      ],
+      "impl_notes": "Replace OAUTH_ONLY_PROVIDERS hardcoded list with dynamic query via ProviderAuth trait.",
+      "dependencies": [
+        "T-040",
+        "T-041"
+      ]
+    },
+    {
+      "id": "T-043",
+      "parent_id": "FR-016",
+      "priority": "P2",
+      "title": "Add tests for ProviderAuth trait",
+      "description": "Test ProviderAuth trait implementation on all provider types",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: test supported_auth_methods for each provider",
+        "AddRegressionTest: verify trait behavior is consistent",
+        "RunTestSuite: execute all ProviderAuth tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm --test provider_auth_tests",
+        "cargo test -p opencode-llm",
+        "cargo clippy -p opencode-llm -- -D warnings"
+      ],
+      "impl_notes": "Add comprehensive tests for ProviderAuth trait across all provider implementations.",
+      "dependencies": [
+        "T-040",
+        "T-041",
+        "T-042"
+      ]
+    },
+    {
+      "id": "T-044",
+      "parent_id": "FR-017",
+      "priority": "P2",
+      "title": "Add store_named() method",
+      "description": "Add store_named(provider_id, name, credential) method to credential store",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify store_named stores credential with name",
+        "AddUnitTest: verify store_named creates separate entry per name",
+        "AddErrorHandlingTest: test storing duplicate name overwrites"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --test credential_store",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Add store_named method that stores credentials with a named key per provider.",
+      "dependencies": []
+    },
+    {
+      "id": "T-045",
+      "parent_id": "FR-017",
+      "priority": "P2",
+      "title": "Add list_credentials() method",
+      "description": "Add list_credentials(provider_id) -> Vec<NamedCredential> method to credential store",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify list_credentials returns all stored credentials for provider",
+        "AddUnitTest: verify list_credentials returns empty vec for provider with no creds",
+        "AddRegressionTest: verify credential list is accurate"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --test credential_store",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Add list_credentials method that returns all named credentials for a provider.",
+      "dependencies": [
+        "T-044"
+      ]
+    },
+    {
+      "id": "T-046",
+      "parent_id": "FR-017",
+      "priority": "P2",
+      "title": "Add delete_named() method",
+      "description": "Add delete_named(provider_id, name) method to credential store",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify delete_named removes credential",
+        "AddUnitTest: verify delete_named returns error for non-existent name",
+        "AddErrorHandlingTest: test deleting already deleted credential"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --test credential_store",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Add delete_named method that removes a named credential for a provider.",
+      "dependencies": [
+        "T-044",
+        "T-045"
+      ]
+    },
+    {
+      "id": "T-047",
+      "parent_id": "FR-017",
+      "priority": "P2",
+      "title": "Update UI for credential management",
+      "description": "Allow switching between stored credentials in UI",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify UI shows list of stored credentials",
+        "AddIntegrationTest: verify user can switch between credentials",
+        "AddRegressionTest: verify credential selection persists"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui --test credential_management",
+        "cargo clippy -p opencode-tui -- -D warnings"
+      ],
+      "impl_notes": "Update ConnectMethodDialog to show list of stored credentials per provider. Allow selection.",
+      "dependencies": [
+        "T-044",
+        "T-045",
+        "T-046"
+      ]
+    },
+    {
+      "id": "T-048",
+      "parent_id": "FR-017",
+      "priority": "P2",
+      "title": "Add tests for multiple credentials",
+      "description": "Test multiple credentials storage, listing, selection, and deletion",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: test storing multiple credentials per provider",
+        "AddUnitTest: test listing credentials shows all stored",
+        "AddUnitTest: test deleting credential removes only that one",
+        "RunTestSuite: execute all multiple credentials tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --test multiple_credentials",
+        "cargo test -p opencode-core",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Comprehensive tests for multiple credentials functionality.",
+      "dependencies": [
+        "T-044",
+        "T-045",
+        "T-046",
+        "T-047"
+      ]
+    },
+    {
+      "id": "T-049",
+      "parent_id": "TD-5",
+      "priority": "P2",
+      "title": "Remove hardcoded OAUTH_ONLY_PROVIDERS in connect_method.rs:21",
+      "description": "Replace hardcoded OAUTH_ONLY_PROVIDERS list with dynamic capability query using ProviderAuth trait (FR-016)",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify OAUTH_ONLY_PROVIDERS is removed from connect_method.rs",
+        "AddRegressionTest: verify ProviderAuth trait is used instead",
+        "AddIntegrationTest: verify auth method detection works dynamically"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui --test connect_method_dialog",
+        "cargo clippy -p opencode-tui -- -D warnings"
+      ],
+      "impl_notes": "Remove OAUTH_ONLY_PROVIDERS constant and use ProviderAuth::supported_auth_methods() instead.",
+      "dependencies": [
+        "T-042"
+      ]
+    },
+    {
+      "id": "T-050",
+      "parent_id": "TD-6",
+      "priority": "P0",
+      "title": "Fix default model in app.rs:972",
+      "description": "Remove hardcoded gpt-4o default for non-OpenAI providers - covered by FR-013 (T-009)",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify gpt-4o is not used as default for non-OpenAI",
+        "AddUnitTest: verify selected model is used as active model"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "This is covered by FR-013 T-009. Remove hardcoded default and use selected model.",
+      "dependencies": [
+        "T-009"
+      ]
+    },
+    {
+      "id": "T-051",
+      "parent_id": "TD-7",
+      "priority": "P0",
+      "title": "Set base_url during API key save",
+      "description": "Set base_url during API key save - covered by FR-012",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify base_url is set when API key is saved",
+        "AddUnitTest: verify base_url is used in API calls"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui --test api_key_validation",
+        "cargo clippy -p opencode-tui -- -D warnings"
+      ],
+      "impl_notes": "This is covered by FR-012. Ensure base_url is properly set when saving API key credentials.",
+      "dependencies": [
+        "T-004"
+      ]
+    },
+    {
+      "id": "T-052",
+      "parent_id": "FR-012",
+      "priority": "P0",
+      "title": "API key validation tests (FR-012)",
+      "description": "Comprehensive unit tests for API key validation functionality",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: test valid API key acceptance",
+        "AddUnitTest: test invalid API key rejection",
+        "AddUnitTest: test network error handling",
+        "AddUnitTest: test provider-specific endpoint handling",
+        "RunTestSuite: execute all FR-012 tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui --test api_key_validation",
+        "cargo test -p opencode-tui",
+        "cargo clippy -p opencode-tui -- -D warnings"
+      ],
+      "impl_notes": "Comprehensive test suite for all API key validation scenarios.",
+      "dependencies": [
+        "T-001",
+        "T-002",
+        "T-003",
+        "T-004",
+        "T-005"
+      ]
+    },
+    {
+      "id": "T-053",
+      "parent_id": "FR-013",
+      "priority": "P0",
+      "title": "Model selection flow tests (FR-013)",
+      "description": "Comprehensive unit tests for model selection flow",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: test ConnectModelDialog wiring",
+        "AddUnitTest: test model fetching from provider",
+        "AddUnitTest: test provider configuration with selected model",
+        "AddUnitTest: test transition to Chat mode",
+        "RunTestSuite: execute all FR-013 tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui --test model_selection",
+        "cargo test -p opencode-tui",
+        "cargo clippy -p opencode-tui -- -D warnings"
+      ],
+      "impl_notes": "Comprehensive test suite for model selection flow.",
+      "dependencies": [
+        "T-006",
+        "T-007",
+        "T-008",
+        "T-009"
+      ]
+    },
+    {
+      "id": "T-054",
+      "parent_id": "FR-014",
+      "priority": "P1",
+      "title": "Google OAuth wiring tests (FR-014)",
+      "description": "Comprehensive unit tests for Google OAuth wiring",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: test GoogleOAuthService connection to TUI",
+        "AddUnitTest: test OAuth callback handling",
+        "AddUnitTest: test model selection after OAuth",
+        "RunTestSuite: execute all FR-014 tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui --test google_oauth",
+        "cargo test -p opencode-tui",
+        "cargo clippy -p opencode-tui -- -D warnings"
+      ],
+      "impl_notes": "Comprehensive test suite for Google OAuth wiring.",
+      "dependencies": [
+        "T-011",
+        "T-012",
+        "T-013",
+        "T-014"
+      ]
+    },
+    {
+      "id": "T-055",
+      "parent_id": "FR-015",
+      "priority": "P1",
+      "title": "Copilot OAuth wiring tests (FR-015)",
+      "description": "Comprehensive unit tests for Copilot OAuth wiring",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: test CopilotOAuthService connection to TUI",
+        "AddUnitTest: test device code flow handling",
+        "AddUnitTest: test model selection after OAuth",
+        "RunTestSuite: execute all FR-015 tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tui --test copilot_oauth",
+        "cargo test -p opencode-tui",
+        "cargo clippy -p opencode-tui -- -D warnings"
+      ],
+      "impl_notes": "Comprehensive test suite for Copilot OAuth wiring.",
+      "dependencies": [
+        "T-015",
+        "T-016",
+        "T-017",
+        "T-018"
+      ]
+    },
+    {
+      "id": "T-056",
+      "parent_id": "FR-016",
+      "priority": "P2",
+      "title": "ProviderAuth trait tests (FR-016)",
+      "description": "Comprehensive unit tests for ProviderAuth trait",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: test AuthMethod enum variants",
+        "AddUnitTest: test ProviderAuth trait methods",
+        "AddUnitTest: test implementation on all provider types",
+        "RunTestSuite: execute all FR-016 tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm --test provider_auth",
+        "cargo test -p opencode-llm",
+        "cargo clippy -p opencode-llm -- -D warnings"
+      ],
+      "impl_notes": "Comprehensive test suite for ProviderAuth trait.",
+      "dependencies": [
+        "T-039",
+        "T-040",
+        "T-041",
+        "T-042",
+        "T-043"
+      ]
+    },
+    {
+      "id": "T-057",
+      "parent_id": "FR-017",
+      "priority": "P2",
+      "title": "Multiple credentials tests (FR-017)",
+      "description": "Comprehensive unit tests for multiple credentials functionality",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: test store_named method",
+        "AddUnitTest: test list_credentials method",
+        "AddUnitTest: test delete_named method",
+        "AddUnitTest: test UI credential switching",
+        "RunTestSuite: execute all FR-017 tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --test multiple_credentials",
+        "cargo test -p opencode-core",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Comprehensive test suite for multiple credentials functionality.",
+      "dependencies": [
+        "T-044",
+        "T-045",
+        "T-046",
+        "T-047",
+        "T-048"
+      ]
+    },
+    {
+      "id": "T-058",
+      "parent_id": "FR-012",
+      "priority": "P0",
+      "title": "Complete API key flow integration test",
+      "description": "Integration test for complete API key flow: provider selection -> API key -> validation -> model selection -> chat",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: test full flow with valid API key",
+        "AddIntegrationTest: test full flow with invalid API key",
+        "AddIntegrationTest: test error recovery on validation failure",
+        "RunTestSuite: execute API key flow integration tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests --test api_key_flow",
+        "cargo test -p opencode-integration-tests",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "End-to-end integration test with mock HTTP server for the complete API key flow.",
+      "dependencies": [
+        "T-010"
+      ]
+    },
+    {
+      "id": "T-059",
+      "parent_id": "FR-014",
+      "priority": "P1",
+      "title": "Google OAuth flow integration test",
+      "description": "Integration test for complete Google OAuth flow",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: test full Google OAuth flow",
+        "AddIntegrationTest: test Google OAuth error recovery",
+        "RunTestSuite: execute Google OAuth integration tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests --test google_oauth_flow",
+        "cargo test -p opencode-integration-tests",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "End-to-end integration test with mock OAuth server for Google OAuth flow.",
+      "dependencies": [
+        "T-014"
+      ]
+    },
+    {
+      "id": "T-060",
+      "parent_id": "FR-015",
+      "priority": "P1",
+      "title": "Copilot OAuth flow integration test",
+      "description": "Integration test for complete Copilot OAuth flow",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: test full Copilot OAuth flow",
+        "AddIntegrationTest: test Copilot OAuth error recovery",
+        "RunTestSuite: execute Copilot OAuth integration tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-integration-tests --test copilot_oauth_flow",
+        "cargo test -p opencode-integration-tests",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "End-to-end integration test with mock OAuth server for Copilot OAuth flow.",
+      "dependencies": [
+        "T-018"
+      ]
+    }
+  ]
+}

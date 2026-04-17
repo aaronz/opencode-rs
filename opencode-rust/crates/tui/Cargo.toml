@@ -30,6 +30,8 @@ tokio-tungstenite = "0.26"
 tracing.workspace = true
 regex = "1"
 thiserror.workspace = true
+reqwest = { workspace = true, features = ["json"] }
 
 [dev-dependencies]
 tempfile.workspace = true
+reqwest = { workspace = true, features = ["json"] }
