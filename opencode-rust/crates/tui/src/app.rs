@@ -30,7 +30,7 @@ use opencode_core::{
 };
 use opencode_llm::{
     BrowserAuthModelInfo, OpenAiBrowserAuthService, OpenAiBrowserAuthStore, OpenAiBrowserSession,
-    OpenAiProvider, Provider, ProviderCatalogFetcher, ProviderConfig,
+    OpenAiProvider, Provider, ProviderCatalogFetcher, ProviderConfig, ProviderType,
 };
 use opencode_lsp::client::LspClient;
 use opencode_lsp::types::{Diagnostic, Location};
@@ -1515,8 +1515,17 @@ impl App {
         }
 
         let model = std::env::var("OPENCODE_MODEL")
-            .or_else(|_| std::env::var("OPENAI_MODEL"))
-            .unwrap_or_else(|_| "gpt-4o".to_string());
+            .ok()
+            .or_else(|| std::env::var("OPENAI_MODEL").ok())
+            .or_else(|| {
+                self.config.providers.as_ref().and_then(|providers| {
+                    providers.iter().find(|p| p.name == self.provider).and_then(|p| p.default_model.clone())
+                })
+            })
+            .unwrap_or_else(|| {
+                let provider_type = ProviderType::from_str(&self.provider);
+                provider_type.default_model().to_string()
+            });
 
         let resolved_model = match self.model_aliases.get(&model) {
             Some(alias) => alias.clone(),

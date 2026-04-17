@@ -2,6 +2,72 @@ use opencode_tui::{App, AppMode};
 use opencode_llm::BrowserAuthModelInfo;
 
 #[test]
+fn test_non_openai_provider_does_not_default_to_gpt4o() {
+    let mut app = App::new();
+
+    app.complete_api_key_auth_for_test(
+        "anthropic",
+        "sk-ant-api-key-12345",
+        vec![
+            BrowserAuthModelInfo { id: "claude-sonnet-4-20250514".to_string(), name: "Claude Sonnet 4".to_string() },
+            BrowserAuthModelInfo { id: "claude-haiku-3".to_string(), name: "Claude Haiku 3".to_string() },
+        ],
+    );
+
+    let result = app.confirm_model_for_api_key_auth_for_test("claude-sonnet-4-20250514");
+    assert!(result.is_ok(), "Model confirmation should succeed");
+
+    let providers = &app.config.providers;
+    assert!(providers.is_some(), "Providers should be set in config");
+
+    let provider = providers.as_ref()
+        .and_then(|p| p.iter().find(|p| p.name == "anthropic"));
+    assert!(provider.is_some(), "Anthropic provider should exist in config");
+
+    let provider = provider.unwrap();
+    let default_model = provider.default_model.as_ref().unwrap();
+    assert!(
+        default_model != "gpt-4o",
+        "Anthropic provider should not default to gpt-4o, got: {}",
+        default_model
+    );
+    assert_eq!(
+        default_model, "claude-sonnet-4-20250514",
+        "Anthropic provider should use selected model"
+    );
+}
+
+#[test]
+fn test_selected_model_is_used_instead_of_hardcoded_default() {
+    let mut app = App::new();
+
+    app.complete_api_key_auth_for_test(
+        "anthropic",
+        "sk-ant-api-key-12345",
+        vec![
+            BrowserAuthModelInfo { id: "claude-haiku-3".to_string(), name: "Claude Haiku 3".to_string() },
+        ],
+    );
+
+    let result = app.confirm_model_for_api_key_auth_for_test("claude-haiku-3");
+    assert!(result.is_ok(), "Model confirmation should succeed");
+
+    let providers = &app.config.providers;
+    assert!(providers.is_some(), "Providers should be set in config");
+
+    let provider = providers.as_ref()
+        .and_then(|p| p.iter().find(|p| p.name == "anthropic"));
+    assert!(provider.is_some(), "Anthropic provider should exist in config");
+
+    let provider = provider.unwrap();
+    assert_eq!(
+        provider.default_model.as_ref().unwrap(),
+        "claude-haiku-3",
+        "Selected model should be stored in provider config, not hardcoded default"
+    );
+}
+
+#[test]
 fn test_selected_model_is_stored_in_provider_config() {
     let mut app = App::new();
 

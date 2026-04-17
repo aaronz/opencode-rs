@@ -185,7 +185,7 @@
       "priority": "P0",
       "title": "Fix hardcoded default model (TD-6)",
       "description": "Remove gpt-4o as default for non-OpenAI providers and use selected model instead",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: verify non-OpenAI providers do not default to gpt-4o",
         "AddUnitTest: verify selected model is used instead of hardcoded default"
