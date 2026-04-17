@@ -149,7 +149,7 @@
       "priority": "P0",
       "title": "Run clippy to verify no error handling warnings",
       "description": "Run clippy across all crates to verify no error handling warnings remain",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "RunTestSuite: cargo clippy --all passes with zero warnings"
       ],
