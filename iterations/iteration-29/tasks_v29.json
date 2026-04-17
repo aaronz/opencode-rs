@@ -571,7 +571,7 @@
       "priority": "P1",
       "title": "Audit auth crate pub declarations",
       "description": "Audit auth crate pub declarations and ensure only necessary items are public",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify auth crate compiles with audited pub visibility"
       ],
@@ -579,7 +579,7 @@
         "cargo clippy -p opencode-auth -- -D warnings",
         "cargo test -p opencode-auth --lib"
       ],
-      "impl_notes": "Check each pub item is truly needed as public API",
+      "impl_notes": "Removed unnecessary re-exports: CredentialRef, CredentialResolutionError, CredentialResolver, CredentialStoreEntry, CredentialType, DefaultCredentialResolver, OAuthError, OAuthSession, OAuthSessionManager, AuthUrl, CodeVerifier, State. Kept only truly necessary public items: Credential, CredentialStore, AuthManager. OAuth types remain accessible via opencode_auth::oauth::*.",
       "dependencies": []
     },
     {
@@ -587,7 +587,7 @@
       "priority": "P1",
       "title": "Audit permission crate pub declarations",
       "description": "Audit permission crate pub declarations and ensure only necessary items are public",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify permission crate compiles with audited pub visibility"
       ],
@@ -635,7 +635,7 @@
       "priority": "P1",
       "title": "Audit mcp crate pub declarations",
       "description": "Audit mcp crate pub declarations and ensure only necessary items are public",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: verify mcp crate compiles with audited pub visibility"
       ],
