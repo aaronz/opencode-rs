@@ -4674,6 +4674,8 @@ mod tests {
     #[test]
     fn selecting_model_rebinds_provider_and_returns_to_chat() {
         let dir = tempfile::tempdir().unwrap();
+        // SAFETY: Setting environment variable in test context is safe as
+        // this test runs in isolation and no other threads access this var.
         unsafe {
             std::env::set_var("OPENCODE_DATA_DIR", dir.path());
         }
@@ -4687,6 +4689,8 @@ mod tests {
         assert_eq!(app.provider, "openai");
         assert!(app.llm_provider.is_some());
 
+        // SAFETY: Removing environment variable in test context is safe as
+        // this test runs in isolation and the var was set by this test.
         unsafe {
             std::env::remove_var("OPENCODE_DATA_DIR");
         }

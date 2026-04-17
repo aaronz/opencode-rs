@@ -599,7 +599,7 @@
       "priority": "P2",
       "title": "Add SAFETY comments to unsafe blocks",
       "description": "Add SAFETY comments to unsafe blocks in crates/tui/src/app.rs at lines 4677 and 4690.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify TUI app functionality unchanged",
         "RunTestSuite: execute TUI tests"
