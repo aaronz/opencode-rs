@@ -153,7 +153,7 @@
 - [x] **T-023**: Add Z.AI models
   - `z.ai/*` models
 
-- [ ] **T-024**: Update model context lengths
+- [x] **T-024**: Update model context lengths
   - Ensure all models have correct context window sizes
 
 - [ ] **T-025**: Target 50+ models minimum

@@ -491,7 +491,7 @@
       "priority": "P1",
       "title": "Update model context lengths",
       "description": "Ensure all models have correct context window sizes",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify all models have context_length > 0",
         "AddUnitTest: verify context lengths match known provider specifications",
@@ -516,7 +516,7 @@
       "priority": "P1",
       "title": "Target 50+ models minimum",
       "description": "Verify model count meets requirement of 50+ models",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify total model count >= 50",
         "AddRegressionTest: verify model count does not decrease"
