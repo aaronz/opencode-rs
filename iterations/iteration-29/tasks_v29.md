@@ -139,7 +139,7 @@
 | CI-001 | Add `cargo fmt --check` to CI | ✅ Done |
 | CI-002 | Fix clippy warnings in CI | ✅ Done |
 | CI-003 | Add `cargo test --lib` to CI | ✅ Done |
-| CI-004 | Add `cargo test --test '*'` to CI | Needed |
+| CI-004 | Add `cargo test --test '*'` to CI | ✅ Done |
 | CI-005 | Add `cargo build --release` to CI | ✅ Done |
 | CI-006 | Add `cargo llvm-cov --fail-under-lines 80` to CI | Needed |
 | CI-007 | Add `cargo audit` to CI | Needed |
