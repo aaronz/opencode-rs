@@ -42,7 +42,7 @@
       "priority": "P2",
       "title": "Document DialogRenderTester Extension",
       "description": "DialogRenderTester module exists but is not in the original PRD. Need to add FR-DIALOG-001 section to spec and update Module Status table.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify DialogRenderTester is exported in lib.rs",
         "AddUnitTest: verify DialogRenderTester has proper doc comments"

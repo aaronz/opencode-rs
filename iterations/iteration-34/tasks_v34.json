@@ -185,7 +185,7 @@
       "priority": "P0",
       "title": "Fix hardcoded default model (TD-6)",
       "description": "Remove gpt-4o as default for non-OpenAI providers and use selected model instead",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify non-OpenAI providers do not default to gpt-4o",
         "AddUnitTest: verify selected model is used instead of hardcoded default"
@@ -205,7 +205,7 @@
       "priority": "P0",
       "title": "Add integration tests for complete API key flow",
       "description": "Test full flow: provider selection -> API key -> validation -> model selection -> chat. Test error recovery on validation failure",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: test complete flow from provider selection to chat",
         "AddIntegrationTest: test error recovery when validation fails",

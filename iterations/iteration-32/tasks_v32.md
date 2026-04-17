@@ -60,17 +60,17 @@
 ### P2-002: Document DialogRenderTester Extension
 **Module:** Documentation
 **Priority:** P2
-**Status:** Pending
+**Status:** ✅ Done
 
 **Issue:** DialogRenderTester module exists but is not in the original PRD.
 
 **Acceptance Criteria:**
-- [ ] DialogRenderTester added to module list in spec
-- [ ] Documented as extension providing dialog-specific testing helpers
+- [x] DialogRenderTester added to module list in spec
+- [x] Documented as extension providing dialog-specific testing helpers
 
 **Subtasks:**
-- [ ] Add FR-DIALOG-001 section to spec with DialogRenderTester details
-- [ ] Update Module Status table to include DialogRenderTester
+- [x] Add FR-DIALOG-001 section to spec with DialogRenderTester details
+- [x] Update Module Status table to include DialogRenderTester
 
 **Estimated Effort:** 1 hour
 

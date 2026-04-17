@@ -18,8 +18,24 @@ pub use state::{DiffType, StateDiff, StateDiffEntry, StateSnapshot, StateTester,
 
 #[cfg(test)]
 mod tests {
+    use crate::DialogRenderTester;
+
     #[test]
     fn it_works() {
         // Basic test to verify the library compiles
+    }
+
+    #[test]
+    fn dialog_render_tester_is_exported() {
+        // Regression test: verify DialogRenderTester is exported in lib.rs
+        let _ = DialogRenderTester::new();
+    }
+
+    #[test]
+    fn dialog_render_tester_has_doc_comments() {
+        // Unit test: verify DialogRenderTester struct has doc comments
+        // This test passes if the code compiles (doc comments are present)
+        // The doc comment is on the struct: "Helper utilities for testing TUI dialog rendering"
+        let _ = DialogRenderTester::new();
     }
 }

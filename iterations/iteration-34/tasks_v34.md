@@ -71,7 +71,7 @@
   - Remove `gpt-4o` as default for non-OpenAI providers
   - Use selected model instead
 
-- [ ] **T-010**: Add integration tests for complete API key flow
+- [x] **T-010**: Add integration tests for complete API key flow
   - Test full flow: provider selection → API key → validation → model selection → chat
   - Test error recovery on validation failure
 
