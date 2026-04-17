@@ -178,3 +178,137 @@ fn verify_opencode_models_have_correct_attributes() {
     assert_eq!(model.max_tokens, 8192);
     assert_eq!(model.max_input_tokens, 131072);
 }
+
+#[test]
+fn verify_google_antigravity_models_included_in_model_list() {
+    let registry = ModelRegistry::new();
+    let models = registry.list();
+
+    let google_models: Vec<_> = models
+        .iter()
+        .filter(|m| m.provider == "google")
+        .map(|m| m.name.as_str())
+        .collect();
+
+    assert!(
+        !google_models.is_empty(),
+        "google models should be included in model list"
+    );
+
+    let expected_antigravity_models = vec![
+        "google/antigravity-1",
+        "google/antigravity-2",
+        "google/antigravity-3",
+        "google/antigravity-ultra",
+    ];
+
+    for model_name in expected_antigravity_models {
+        assert!(
+            google_models.contains(&model_name),
+            "Expected google model '{}' should be in the model list",
+            model_name
+        );
+    }
+}
+
+#[test]
+fn verify_google_antigravity_provider_in_providers_list() {
+    let registry = ModelRegistry::new();
+    let providers = registry.list_providers();
+
+    assert!(
+        providers.contains(&"google".to_string()),
+        "google should be in the providers list"
+    );
+}
+
+#[test]
+fn verify_google_antigravity_models_have_correct_attributes() {
+    let registry = ModelRegistry::new();
+
+    let antigravity1 = registry.get("google/antigravity-1");
+    assert!(
+        antigravity1.is_some(),
+        "google/antigravity-1 should exist"
+    );
+    let model = antigravity1.unwrap();
+    assert_eq!(model.provider, "google");
+    assert!(!model.supports_functions);
+    assert!(model.supports_vision);
+    assert!(model.supports_streaming);
+    assert_eq!(model.max_tokens, 8192);
+    assert_eq!(model.max_input_tokens, 1000000);
+
+    let antigravity2 = registry.get("google/antigravity-2");
+    assert!(
+        antigravity2.is_some(),
+        "google/antigravity-2 should exist"
+    );
+    let model = antigravity2.unwrap();
+    assert_eq!(model.provider, "google");
+    assert!(!model.supports_functions);
+    assert!(model.supports_vision);
+    assert!(model.supports_streaming);
+    assert_eq!(model.max_tokens, 16384);
+    assert_eq!(model.max_input_tokens, 2000000);
+
+    let antigravity3 = registry.get("google/antigravity-3");
+    assert!(
+        antigravity3.is_some(),
+        "google/antigravity-3 should exist"
+    );
+    let model = antigravity3.unwrap();
+    assert_eq!(model.provider, "google");
+    assert!(model.supports_functions);
+    assert!(model.supports_vision);
+    assert!(model.supports_streaming);
+    assert_eq!(model.max_tokens, 16384);
+    assert_eq!(model.max_input_tokens, 2000000);
+
+    let antigravity_ultra = registry.get("google/antigravity-ultra");
+    assert!(
+        antigravity_ultra.is_some(),
+        "google/antigravity-ultra should exist"
+    );
+    let model = antigravity_ultra.unwrap();
+    assert_eq!(model.provider, "google");
+    assert!(model.supports_functions);
+    assert!(model.supports_vision);
+    assert!(model.supports_streaming);
+    assert_eq!(model.max_tokens, 32768);
+    assert_eq!(model.max_input_tokens, 2000000);
+}
+
+#[test]
+fn verify_model_count_increases_by_google_antigravity_models() {
+    let registry = ModelRegistry::new();
+    let model_count = registry.list().len();
+
+    let google_antigravity_count = registry
+        .list_by_provider("google")
+        .len();
+
+    assert!(
+        model_count >= 50,
+        "Model catalog should contain at least 50 models, but only contains {}",
+        model_count
+    );
+
+    assert!(
+        google_antigravity_count >= 8,
+        "google should have at least 8 models (including gemini variants), but has {}",
+        google_antigravity_count
+    );
+
+    let antigravity_count = registry
+        .list_by_provider("google")
+        .iter()
+        .filter(|m| m.name.starts_with("google/antigravity"))
+        .count();
+
+    assert!(
+        antigravity_count >= 4,
+        "google should have at least 4 antigravity models, but has {}",
+        antigravity_count
+    );
+}

@@ -144,7 +144,7 @@
   - `opencode/minimax-m2.5-free`
   - `opencode/nemotron-3-super-free`
 
-- [ ] **T-021**: Add Google internal models
+- [x] **T-021**: Add Google internal models
   - `google/antigravity-*` models
 
 - [ ] **T-022**: Add Kimi models

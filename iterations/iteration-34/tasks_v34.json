@@ -419,7 +419,7 @@
       "priority": "P1",
       "title": "Add OpenCode models",
       "description": "Add opencode/gpt-5-nano, opencode/minimax-m2.5-free, opencode/nemotron-3-super-free models",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify all OpenCode models are included",
         "AddRegressionTest: verify model count increases correctly"
@@ -437,7 +437,7 @@
       "priority": "P1",
       "title": "Add Google internal models",
       "description": "Add google/antigravity-* models to model catalog",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify google/antigravity models are included",
         "AddRegressionTest: verify model count increases correctly"
