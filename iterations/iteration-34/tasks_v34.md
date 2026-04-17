@@ -147,10 +147,10 @@
 - [x] **T-021**: Add Google internal models
   - `google/antigravity-*` models
 
-- [ ] **T-022**: Add Kimi models
+- [x] **T-022**: Add Kimi models
   - `kimi/*` models
 
-- [ ] **T-023**: Add Z.AI models
+- [x] **T-023**: Add Z.AI models
   - `z.ai/*` models
 
 - [ ] **T-024**: Update model context lengths

@@ -455,7 +455,7 @@
       "priority": "P1",
       "title": "Add Kimi models",
       "description": "Add kimi/* models to model catalog",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify Kimi models are included",
         "AddRegressionTest: verify model count increases correctly"
@@ -473,7 +473,7 @@
       "priority": "P1",
       "title": "Add Z.AI models",
       "description": "Add z.ai/* models to model catalog",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify Z.AI models are included",
         "AddRegressionTest: verify model count increases correctly"
