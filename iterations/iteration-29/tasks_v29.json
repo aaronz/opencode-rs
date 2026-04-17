@@ -991,7 +991,7 @@
       "priority": "P2",
       "title": "Set up performance regression detection",
       "description": "Set up performance regression detection in CI pipeline",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: verify benchmark results are compared against baseline"
       ],
