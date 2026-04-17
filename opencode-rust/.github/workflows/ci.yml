@@ -39,6 +39,12 @@ jobs:
       - name: Run tests
         run: cargo test --all
 
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Coverage
+        run: cargo llvm-cov --all --fail-under-lines 80
+
   benchmarks:
     runs-on: ubuntu-latest
     steps:
