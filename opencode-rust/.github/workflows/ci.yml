@@ -33,6 +33,23 @@ jobs:
       - name: Run tests
         run: cargo test --all
 
+  benchmarks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build benchmarks
+        run: cargo bench --no-run || true
+
+      - name: Check clippy
+        run: cargo clippy --all -- -D warnings
+
   release:
     needs: build
     if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v'))

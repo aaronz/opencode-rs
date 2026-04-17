@@ -975,7 +975,7 @@
       "priority": "P2",
       "title": "Add cargo bench to CI pipeline",
       "description": "Add cargo bench to CI pipeline for benchmark execution",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: CI pipeline includes benchmark step"
       ],

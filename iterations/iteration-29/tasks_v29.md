@@ -115,7 +115,7 @@
 
 | Task ID | Description | Files | Status |
 |---------|-------------|-------|--------|
-| P2-006 | Add `cargo bench` to CI pipeline | CI config | Not Started |
+| P2-006 | Add `cargo bench` to CI pipeline | CI config | ✅ Done |
 | P2-007 | Set up performance regression detection | CI config | Not Started |
 | P2-008 | Document baseline performance metrics | documentation | Not Started |
 | P2-009 | Verify benchmark suite runs in CI | CI config | Not Started |

@@ -1,10 +1,19 @@
 use std::fs;
-use std::path::Path;
+use std::path::PathBuf;
+
+fn workspace_root() -> PathBuf {
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
+    PathBuf::from(manifest_dir).parent().unwrap().to_path_buf()
+}
 
 #[test]
 fn test_sdk_docsrs_metadata_exists() {
-    let sdk_cargo_toml = Path::new("crates/sdk/Cargo.toml");
-    let content = fs::read_to_string(sdk_cargo_toml).expect("Failed to read SDK Cargo.toml");
+    let root = workspace_root();
+    let sdk_cargo_toml = root.join("crates/sdk/Cargo.toml");
+    let content = fs::read_to_string(&sdk_cargo_toml).expect(&format!(
+        "Failed to read SDK Cargo.toml at {:?}",
+        sdk_cargo_toml
+    ));
 
     assert!(
         content.contains("documentation = "),
@@ -19,8 +28,12 @@ fn test_sdk_docsrs_metadata_exists() {
 
 #[test]
 fn test_sdk_has_description() {
-    let sdk_cargo_toml = Path::new("crates/sdk/Cargo.toml");
-    let content = fs::read_to_string(sdk_cargo_toml).expect("Failed to read SDK Cargo.toml");
+    let root = workspace_root();
+    let sdk_cargo_toml = root.join("crates/sdk/Cargo.toml");
+    let content = fs::read_to_string(&sdk_cargo_toml).expect(&format!(
+        "Failed to read SDK Cargo.toml at {:?}",
+        sdk_cargo_toml
+    ));
 
     assert!(
         content.contains("description = "),
@@ -30,8 +43,12 @@ fn test_sdk_has_description() {
 
 #[test]
 fn test_sdk_has_repository() {
-    let sdk_cargo_toml = Path::new("crates/sdk/Cargo.toml");
-    let content = fs::read_to_string(sdk_cargo_toml).expect("Failed to read SDK Cargo.toml");
+    let root = workspace_root();
+    let sdk_cargo_toml = root.join("crates/sdk/Cargo.toml");
+    let content = fs::read_to_string(&sdk_cargo_toml).expect(&format!(
+        "Failed to read SDK Cargo.toml at {:?}",
+        sdk_cargo_toml
+    ));
 
     assert!(
         content.contains("repository = "),
@@ -41,9 +58,10 @@ fn test_sdk_has_repository() {
 
 #[test]
 fn test_sdk_doc_builds_successfully() {
+    let root = workspace_root();
     let output = std::process::Command::new("cargo")
         .args(["doc", "--no-deps", "--all-features", "-p", "opencode-sdk"])
-        .current_dir(".")
+        .current_dir(&root)
         .output();
 
     assert!(output.is_ok(), "cargo doc should execute without error");
@@ -58,8 +76,10 @@ fn test_sdk_doc_builds_successfully() {
 
 #[test]
 fn test_sdk_has_lib_with_public_api() {
-    let sdk_lib_rs = Path::new("crates/sdk/src/lib.rs");
-    let content = fs::read_to_string(sdk_lib_rs).expect("Failed to read SDK lib.rs");
+    let root = workspace_root();
+    let sdk_lib_rs = root.join("crates/sdk/src/lib.rs");
+    let content = fs::read_to_string(&sdk_lib_rs)
+        .expect(&format!("Failed to read SDK lib.rs at {:?}", sdk_lib_rs));
 
     assert!(
         content.contains("pub use"),
