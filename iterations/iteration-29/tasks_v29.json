@@ -769,7 +769,7 @@
       "priority": "P1",
       "title": "Publish plugin API stability policy",
       "description": "Publish plugin API stability policy in documentation",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify stability policy documentation is accessible"
       ],
@@ -855,7 +855,7 @@
       "priority": "P1",
       "title": "Verify SDK doc comments are complete",
       "description": "Verify sdk/src/* doc comments are complete and public API is documented",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: cargo doc passes without warnings for sdk crate"
       ],
