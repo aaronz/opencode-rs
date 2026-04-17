@@ -1265,7 +1265,7 @@
       "priority": "P1",
       "title": "Add cargo bench to CI",
       "description": "Add cargo bench to CI for performance benchmark tracking",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: CI runs benchmarks and tracks performance"
       ],
@@ -1281,7 +1281,7 @@
       "priority": "P1",
       "title": "Add cargo doc --no-deps to CI",
       "description": "Add cargo doc --no-deps to CI to verify documentation builds",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: CI builds documentation successfully"
       ],

@@ -27,6 +27,9 @@ jobs:
       - name: Check clippy
         run: cargo clippy --all -- -D warnings
 
+      - name: Build documentation
+        run: cargo doc --no-deps --all-features
+
       - name: Cargo deny check
         run: cargo deny check || true
 

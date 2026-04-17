@@ -144,8 +144,8 @@
 | CI-006 | Add `cargo llvm-cov --fail-under-lines 80` to CI | ✅ Done |
 | CI-007 | Add `cargo audit` to CI | Needed |
 | CI-008 | Add `cargo deny check` to CI | ✅ Done |
-| CI-009 | Add `cargo bench` to CI | Needed |
-| CI-010 | Add `cargo doc --no-deps` to CI | Needed |
+| CI-009 | Add `cargo bench` to CI | ✅ Done |
+| CI-010 | Add `cargo doc --no-deps` to CI | ✅ Done |
 
 ---
 
