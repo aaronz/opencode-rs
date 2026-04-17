@@ -2,13 +2,19 @@ use std::sync::Arc;
 
 use crate::database::StoragePool;
 use crate::models::{AccountModel, ProjectModel};
-use crate::repository::{ProjectRepository, SessionRepository};
+use crate::repository::{
+    AccountRepository, PluginStateRepository, ProjectRepository, SessionRepository,
+};
 use opencode_core::{Message, OpenCodeError, Session, SessionInfo};
 use rusqlite::params;
 
 pub struct StorageService {
     session_repo: Arc<dyn SessionRepository>,
     project_repo: Arc<dyn ProjectRepository>,
+    #[allow(dead_code)]
+    account_repo: Arc<dyn AccountRepository>,
+    #[allow(dead_code)]
+    plugin_state_repo: Arc<dyn PluginStateRepository>,
     pool: StoragePool,
 }
 
@@ -16,11 +22,15 @@ impl StorageService {
     pub fn new(
         session_repo: Arc<dyn SessionRepository>,
         project_repo: Arc<dyn ProjectRepository>,
+        account_repo: Arc<dyn AccountRepository>,
+        plugin_state_repo: Arc<dyn PluginStateRepository>,
         pool: StoragePool,
     ) -> Self {
         Self {
             session_repo,
             project_repo,
+            account_repo,
+            plugin_state_repo,
             pool,
         }
     }
