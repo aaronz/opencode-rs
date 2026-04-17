@@ -1,12 +1,14 @@
 # TOML to JSONC Configuration Migration Guide
 
 **Date:** 2026-04-17
-**Status:** Complete
-**Related Tasks:** P2-010, P2-011, P2-012, P2-013
+**Status:** Complete (TOML support removed - see P2-014)
+**Related Tasks:** P2-010, P2-011, P2-012, P2-013, **P2-014**
 
 ---
 
 ## Overview
+
+> **IMPORTANT:** TOML configuration support has been completely removed as of P2-014. JSONC is now the only supported configuration format. If you still have a `config.toml` file, you must manually convert it to JSONC format.
 
 OpenCode RS has migrated from TOML configuration format to JSONC (JSON with Comments). This guide explains the migration process, automatic conversion behavior, and manual migration steps.
 
@@ -255,11 +257,13 @@ Common issues and solutions:
 
 ## Future Removal
 
-TOML support is planned for removal in v4.0. After the transition period:
+> **UPDATE (P2-014):** TOML support has been completely removed. The following was the planned removal that has now been completed:
 
-1. JSONC will be the only supported format
-2. Auto-conversion will no longer occur
-3. TOML files will be ignored
+1. ~~JSONC will be the only supported format~~
+2. ~~Auto-conversion will no longer occur~~
+3. ~~TOML files will be ignored~~ - TOML files are now rejected with an error
+
+If you have a `config.toml` file, you must manually convert it to `config.jsonc` format.
 
 ## References
 

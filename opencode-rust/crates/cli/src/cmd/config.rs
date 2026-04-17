@@ -186,22 +186,9 @@ pub(crate) fn run(args: ConfigArgs) {
     }
 
     if args.migrate {
-        let path = Config::config_path();
-        let toml_path = path.with_extension("toml");
-        if !toml_path.exists() {
-            eprintln!("No TOML config found at {}", toml_path.display());
-            std::process::exit(1);
-        }
-        match Config::migrate_toml_to_jsonc(&toml_path, args.remove) {
-            Ok(jsonc_path) => {
-                println!("Successfully migrated to {}", jsonc_path.display());
-            }
-            Err(e) => {
-                eprintln!("Migration failed: {}", e);
-                std::process::exit(1);
-            }
-        }
-        return;
+        eprintln!("TOML configuration format is no longer supported.");
+        eprintln!("Please manually convert your config.toml to config.jsonc format.");
+        std::process::exit(1);
     }
 
     let path = Config::config_path();

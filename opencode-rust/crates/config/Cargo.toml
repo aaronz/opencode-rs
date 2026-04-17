@@ -22,8 +22,8 @@ regex.workspace = true
 jsonc-parser.workspace = true
 glob = "0.3"
 globset = "0.4"
-toml = "0.8"
 jsonschema = "0.28"
+toml = "0.5"
 tracing.workspace = true
 
 [dev-dependencies]

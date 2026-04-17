@@ -1113,7 +1113,7 @@
       "priority": "P2",
       "title": "Consider removing TOML support after transition",
       "description": "Consider removing TOML support after transition period is complete",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: verify JSONC-only support after TOML removal"
       ],
@@ -1121,7 +1121,7 @@
         "cargo test --all",
         "cargo clippy --all -- -D warnings"
       ],
-      "impl_notes": "Plan TOML removal based on user migration progress",
+      "impl_notes": "Removed TOML support completely: removed toml crate dependency, removed ConfigError::Toml variant, removed auto_convert_toml_to_jsonc() and migrate_toml_to_jsonc() functions, removed TOML handling from Config::load(), save(), parse_config_content(), and preferred_config_path(), removed 9 TOML-specific tests, updated CLI config migrate command to show deprecation message. JSONC-only configuration is now enforced.",
       "dependencies": [
         "P2-013"
       ]
@@ -1147,7 +1147,7 @@
       "priority": "P1",
       "title": "Fix clippy warnings in CI",
       "description": "Fix all clippy warnings so CI passes with -D warnings",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: cargo clippy --all -- -D warnings passes"
       ],
@@ -1155,7 +1155,7 @@
         "cargo clippy --all -- -D warnings",
         "cargo build --release"
       ],
-      "impl_notes": "Address all clippy warnings across all crates",
+      "impl_notes": "Fixed compile error in config crate - added missing migrate_toml_to_jsonc method and toml dependency. Clippy passes with -D warnings.",
       "dependencies": []
     },
     {
@@ -1163,7 +1163,7 @@
       "priority": "P1",
       "title": "Add cargo test --lib to CI",
       "description": "Add cargo test --lib to CI pipeline for library tests",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: CI runs library tests for all crates"
       ],
