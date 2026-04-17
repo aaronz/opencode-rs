@@ -1,0 +1,1296 @@
+{
+  "tasks": [
+    {
+      "id": "P0-001",
+      "priority": "P0",
+      "title": "Fix unwrap() in edit.rs:159",
+      "description": "Fix the unwrap() call at crates/tools/src/edit.rs:159 that can panic on error paths",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify edit operation handles error cases gracefully without panic",
+        "AddErrorHandlingTest: test edit with invalid input returns proper error"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools --lib",
+        "cargo clippy -p opencode-tools -- -D warnings"
+      ],
+      "impl_notes": "Replace unwrap() with proper error propagation using ? operator or match",
+      "dependencies": []
+    },
+    {
+      "id": "P0-002",
+      "priority": "P0",
+      "title": "Fix unwrap() in web_search.rs:70",
+      "description": "Fix the unwrap() call at crates/tools/src/web_search.rs:70 that can panic on error paths",
+      "status": "in_progress",
+      "test_criteria": [
+        "AddUnitTest: verify web search handles network errors gracefully",
+        "AddErrorHandlingTest: test web search with unavailable service returns proper error"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools --lib",
+        "cargo clippy -p opencode-tools -- -D warnings"
+      ],
+      "impl_notes": "Replace unwrap() with proper error propagation",
+      "dependencies": []
+    },
+    {
+      "id": "P0-003",
+      "priority": "P0",
+      "title": "Audit all production unwrap() occurrences",
+      "description": "Audit all production code for .unwrap() occurrences across all crates and identify high-risk locations",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: grep confirms zero unwrap() in production paths"
+      ],
+      "test_commands": [
+        "grep -r '\\.unwrap()' crates/*/src/ --include='*.rs' || true",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Use grep to find all unwrap() calls and categorize by risk level",
+      "dependencies": [
+        "P0-001",
+        "P0-002"
+      ]
+    },
+    {
+      "id": "P0-004",
+      "priority": "P0",
+      "title": "Convert high-risk unwrap() to error propagation",
+      "description": "Convert high-risk unwrap() locations in routes/*.rs to proper error propagation",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify route handlers return proper errors instead of panicking",
+        "AddErrorHandlingTest: test route error paths with invalid inputs"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server --lib",
+        "cargo clippy -p opencode-server -- -D warnings"
+      ],
+      "impl_notes": "Focus on route handlers that can fail on edge cases",
+      "dependencies": [
+        "P0-003"
+      ]
+    },
+    {
+      "id": "P0-005",
+      "priority": "P0",
+      "title": "Verify zero unwrap() in production",
+      "description": "Run grep command to verify zero unwrap() occurrences in production code",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: grep command returns zero matches for unwrap() in production"
+      ],
+      "test_commands": [
+        "grep -r '\\.unwrap()' crates/*/src/ --include='*.rs' | grep -v 'test' | grep -v 'Test' || echo 'No unwrap() found'",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Final verification step after fixing all unwrap() occurrences",
+      "dependencies": [
+        "P0-004"
+      ]
+    },
+    {
+      "id": "P0-006",
+      "priority": "P0",
+      "title": "Convert routes String errors to thiserror",
+      "description": "Convert all String error types in crates/server/src/routes/ to use thiserror enum variants",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify route errors are typed enums not Strings",
+        "AddErrorHandlingTest: test error propagation from routes"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server --lib",
+        "cargo clippy -p opencode-server -- -D warnings"
+      ],
+      "impl_notes": "Define thiserror enum with proper error variants for each route module",
+      "dependencies": []
+    },
+    {
+      "id": "P0-007",
+      "priority": "P0",
+      "title": "Ensure library crates use thiserror",
+      "description": "Ensure all library crates use thiserror for typed errors instead of String or Box<dyn Error>",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify library crates have proper typed errors",
+        "RunTestSuite: cargo clippy passes on all library crates"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings",
+        "cargo test --lib"
+      ],
+      "impl_notes": "Audit each lib crate and convert String errors to thiserror",
+      "dependencies": [
+        "P0-006"
+      ]
+    },
+    {
+      "id": "P0-008",
+      "priority": "P0",
+      "title": "Verify application crates may use anyhow",
+      "description": "Verify application crates (cli, server) may use anyhow for flexible error context",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: verify application crates compile with anyhow usage"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-cli -- -D warnings",
+        "cargo clippy -p opencode-server -- -D warnings"
+      ],
+      "impl_notes": "Application crates can use anyhow for context-rich errors at boundaries",
+      "dependencies": [
+        "P0-007"
+      ]
+    },
+    {
+      "id": "P0-009",
+      "priority": "P0",
+      "title": "Run clippy to verify no error handling warnings",
+      "description": "Run clippy across all crates to verify no error handling warnings remain",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: cargo clippy --all passes with zero warnings"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings",
+        "cargo build --release"
+      ],
+      "impl_notes": "Final verification that error handling is standardized",
+      "dependencies": [
+        "P0-008"
+      ]
+    },
+    {
+      "id": "P1-001",
+      "priority": "P1",
+      "title": "Add cargo-llvm-cov to CI pipeline",
+      "description": "Add cargo-llvm-cov to CI configuration for code coverage reporting",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: CI pipeline includes llvm-cov step"
+      ],
+      "test_commands": [
+        "cargo llvm-cov --version || true",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Install cargo-llvm-cov in CI environment",
+      "dependencies": []
+    },
+    {
+      "id": "P1-002",
+      "priority": "P1",
+      "title": "Set --fail-under-lines 80 coverage threshold",
+      "description": "Set --fail-under-lines 80 coverage threshold in CI to enforce minimum coverage",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: CI fails if coverage drops below 80%"
+      ],
+      "test_commands": [
+        "cargo llvm-cov --fail-under-lines 80 --lib || true",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Configure the threshold in CI configuration file",
+      "dependencies": [
+        "P1-001"
+      ]
+    },
+    {
+      "id": "P1-003",
+      "priority": "P1",
+      "title": "Increase agent crate coverage to 80%",
+      "description": "Increase code coverage for agent crate from 45% to 80%+",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: cargo llvm-cov shows agent crate coverage >= 80%"
+      ],
+      "test_commands": [
+        "cargo llvm-cov -p opencode-agent --fail-under-lines 80 --lib"
+      ],
+      "impl_notes": "Add unit tests for uncovered modules in agent crate",
+      "dependencies": [
+        "P1-001",
+        "P1-002"
+      ]
+    },
+    {
+      "id": "P1-004",
+      "priority": "P1",
+      "title": "Increase server crate coverage to 80%",
+      "description": "Increase code coverage for server crate from 40% to 80%+",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: cargo llvm-cov shows server crate coverage >= 80%"
+      ],
+      "test_commands": [
+        "cargo llvm-cov -p opencode-server --fail-under-lines 80 --lib"
+      ],
+      "impl_notes": "Add unit tests for uncovered modules in server crate",
+      "dependencies": [
+        "P1-001",
+        "P1-002"
+      ]
+    },
+    {
+      "id": "P1-005",
+      "priority": "P1",
+      "title": "Increase tools crate coverage to 80%",
+      "description": "Increase code coverage for tools crate from 50% to 80%+",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: cargo llvm-cov shows tools crate coverage >= 80%"
+      ],
+      "test_commands": [
+        "cargo llvm-cov -p opencode-tools --fail-under-lines 80 --lib"
+      ],
+      "impl_notes": "Add unit tests for uncovered modules in tools crate",
+      "dependencies": [
+        "P1-001",
+        "P1-002"
+      ]
+    },
+    {
+      "id": "P1-006",
+      "priority": "P1",
+      "title": "Increase cli crate coverage to 80%",
+      "description": "Increase code coverage for cli crate from 50% to 80%+",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: cargo llvm-cov shows cli crate coverage >= 80%"
+      ],
+      "test_commands": [
+        "cargo llvm-cov -p opencode-cli --fail-under-lines 80 --lib"
+      ],
+      "impl_notes": "Add unit tests for uncovered modules in cli crate",
+      "dependencies": [
+        "P1-001",
+        "P1-002"
+      ]
+    },
+    {
+      "id": "P1-007",
+      "priority": "P1",
+      "title": "Increase llm crate coverage to 80%",
+      "description": "Increase code coverage for llm crate from 55% to 80%+",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: cargo llvm-cov shows llm crate coverage >= 80%"
+      ],
+      "test_commands": [
+        "cargo llvm-cov -p opencode-llm --fail-under-lines 80 --lib"
+      ],
+      "impl_notes": "Add unit tests for uncovered modules in llm crate",
+      "dependencies": [
+        "P1-001",
+        "P1-002"
+      ]
+    },
+    {
+      "id": "P1-008",
+      "priority": "P1",
+      "title": "Increase core crate coverage to 80%",
+      "description": "Increase code coverage for core crate from 60% to 80%+",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: cargo llvm-cov shows core crate coverage >= 80%"
+      ],
+      "test_commands": [
+        "cargo llvm-cov -p opencode-core --fail-under-lines 80 --lib"
+      ],
+      "impl_notes": "Add unit tests for uncovered modules in core crate",
+      "dependencies": [
+        "P1-001",
+        "P1-002"
+      ]
+    },
+    {
+      "id": "P1-009",
+      "priority": "P1",
+      "title": "Increase tui crate coverage to 80%",
+      "description": "Increase code coverage for tui crate from 60% to 80%+",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: cargo llvm-cov shows tui crate coverage >= 80%"
+      ],
+      "test_commands": [
+        "cargo llvm-cov -p opencode-tui --fail-under-lines 80 --lib"
+      ],
+      "impl_notes": "Add unit tests for uncovered modules in tui crate",
+      "dependencies": [
+        "P1-001",
+        "P1-002"
+      ]
+    },
+    {
+      "id": "P1-010",
+      "priority": "P1",
+      "title": "Increase storage crate coverage to 80%",
+      "description": "Increase code coverage for storage crate from 70% to 80%+",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: cargo llvm-cov shows storage crate coverage >= 80%"
+      ],
+      "test_commands": [
+        "cargo llvm-cov -p opencode-storage --fail-under-lines 80 --lib"
+      ],
+      "impl_notes": "Add unit tests for uncovered modules in storage crate",
+      "dependencies": [
+        "P1-001",
+        "P1-002"
+      ]
+    },
+    {
+      "id": "P1-011",
+      "priority": "P1",
+      "title": "Increase plugin crate coverage to 80%",
+      "description": "Increase code coverage for plugin crate from 70% to 80%+",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: cargo llvm-cov shows plugin crate coverage >= 80%"
+      ],
+      "test_commands": [
+        "cargo llvm-cov -p opencode-plugin --fail-under-lines 80 --lib"
+      ],
+      "impl_notes": "Add unit tests for uncovered modules in plugin crate",
+      "dependencies": [
+        "P1-001",
+        "P1-002"
+      ]
+    },
+    {
+      "id": "P1-012",
+      "priority": "P1",
+      "title": "Increase config crate coverage to 80%",
+      "description": "Increase code coverage for config crate from 70% to 80%+",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: cargo llvm-cov shows config crate coverage >= 80%"
+      ],
+      "test_commands": [
+        "cargo llvm-cov -p opencode-config --fail-under-lines 80 --lib"
+      ],
+      "impl_notes": "Add unit tests for uncovered modules in config crate",
+      "dependencies": [
+        "P1-001",
+        "P1-002"
+      ]
+    },
+    {
+      "id": "P1-013",
+      "priority": "P1",
+      "title": "Increase auth crate coverage to 80%",
+      "description": "Increase code coverage for auth crate from 75% to 80%+",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: cargo llvm-cov shows auth crate coverage >= 80%"
+      ],
+      "test_commands": [
+        "cargo llvm-cov -p opencode-auth --fail-under-lines 80 --lib"
+      ],
+      "impl_notes": "Add unit tests for uncovered modules in auth crate",
+      "dependencies": [
+        "P1-001",
+        "P1-002"
+      ]
+    },
+    {
+      "id": "P1-014",
+      "priority": "P1",
+      "title": "Verify coverage threshold passes in CI",
+      "description": "Verify coverage threshold passes in CI pipeline",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: cargo llvm-cov --fail-under-lines 80 passes on all crates"
+      ],
+      "test_commands": [
+        "cargo llvm-cov --fail-under-lines 80 --all",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Ensure CI will pass with all coverage thresholds met",
+      "dependencies": [
+        "P1-003",
+        "P1-004",
+        "P1-005",
+        "P1-006",
+        "P1-007",
+        "P1-008",
+        "P1-009",
+        "P1-010",
+        "P1-011",
+        "P1-012",
+        "P1-013"
+      ]
+    },
+    {
+      "id": "P1-015",
+      "priority": "P1",
+      "title": "Audit core crate pub declarations",
+      "description": "Audit core crate pub declarations and ensure only necessary items are public",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify core crate compiles with audited pub visibility"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-core -- -D warnings",
+        "cargo test -p opencode-core --lib"
+      ],
+      "impl_notes": "Check each pub item is truly needed as public API",
+      "dependencies": []
+    },
+    {
+      "id": "P1-016",
+      "priority": "P1",
+      "title": "Audit cli crate pub declarations",
+      "description": "Audit cli crate pub declarations and ensure only necessary items are public",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify cli crate compiles with audited pub visibility"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-cli -- -D warnings",
+        "cargo test -p opencode-cli --lib"
+      ],
+      "impl_notes": "Check each pub item is truly needed as public API",
+      "dependencies": []
+    },
+    {
+      "id": "P1-017",
+      "priority": "P1",
+      "title": "Audit llm crate pub declarations",
+      "description": "Audit llm crate pub declarations and ensure only necessary items are public",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify llm crate compiles with audited pub visibility"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-llm -- -D warnings",
+        "cargo test -p opencode-llm --lib"
+      ],
+      "impl_notes": "Check each pub item is truly needed as public API",
+      "dependencies": []
+    },
+    {
+      "id": "P1-018",
+      "priority": "P1",
+      "title": "Audit tools crate pub declarations",
+      "description": "Audit tools crate pub declarations and ensure only necessary items are public",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify tools crate compiles with audited pub visibility"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-tools -- -D warnings",
+        "cargo test -p opencode-tools --lib"
+      ],
+      "impl_notes": "Check each pub item is truly needed as public API",
+      "dependencies": []
+    },
+    {
+      "id": "P1-019",
+      "priority": "P1",
+      "title": "Audit agent crate pub declarations",
+      "description": "Audit agent crate pub declarations and ensure only necessary items are public",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify agent crate compiles with audited pub visibility"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-agent -- -D warnings",
+        "cargo test -p opencode-agent --lib"
+      ],
+      "impl_notes": "Check each pub item is truly needed as public API",
+      "dependencies": []
+    },
+    {
+      "id": "P1-020",
+      "priority": "P1",
+      "title": "Audit tui crate pub declarations",
+      "description": "Audit tui crate pub declarations and ensure only necessary items are public",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify tui crate compiles with audited pub visibility"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-tui -- -D warnings",
+        "cargo test -p opencode-tui --lib"
+      ],
+      "impl_notes": "Check each pub item is truly needed as public API",
+      "dependencies": []
+    },
+    {
+      "id": "P1-021",
+      "priority": "P1",
+      "title": "Audit lsp crate pub declarations",
+      "description": "Audit lsp crate pub declarations and ensure only necessary items are public",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify lsp crate compiles with audited pub visibility"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-lsp -- -D warnings",
+        "cargo test -p opencode-lsp --lib"
+      ],
+      "impl_notes": "Check each pub item is truly needed as public API",
+      "dependencies": []
+    },
+    {
+      "id": "P1-022",
+      "priority": "P1",
+      "title": "Audit storage crate pub declarations",
+      "description": "Audit storage crate pub declarations and ensure only necessary items are public",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify storage crate compiles with audited pub visibility"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-storage -- -D warnings",
+        "cargo test -p opencode-storage --lib"
+      ],
+      "impl_notes": "Check each pub item is truly needed as public API",
+      "dependencies": []
+    },
+    {
+      "id": "P1-023",
+      "priority": "P1",
+      "title": "Audit server crate pub declarations",
+      "description": "Audit server crate pub declarations and ensure only necessary items are public",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify server crate compiles with audited pub visibility"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-server -- -D warnings",
+        "cargo test -p opencode-server --lib"
+      ],
+      "impl_notes": "Check each pub item is truly needed as public API",
+      "dependencies": []
+    },
+    {
+      "id": "P1-024",
+      "priority": "P1",
+      "title": "Audit auth crate pub declarations",
+      "description": "Audit auth crate pub declarations and ensure only necessary items are public",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify auth crate compiles with audited pub visibility"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-auth -- -D warnings",
+        "cargo test -p opencode-auth --lib"
+      ],
+      "impl_notes": "Check each pub item is truly needed as public API",
+      "dependencies": []
+    },
+    {
+      "id": "P1-025",
+      "priority": "P1",
+      "title": "Audit permission crate pub declarations",
+      "description": "Audit permission crate pub declarations and ensure only necessary items are public",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify permission crate compiles with audited pub visibility"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-permission -- -D warnings",
+        "cargo test -p opencode-permission --lib"
+      ],
+      "impl_notes": "Check each pub item is truly needed as public API",
+      "dependencies": []
+    },
+    {
+      "id": "P1-026",
+      "priority": "P1",
+      "title": "Audit plugin crate pub declarations",
+      "description": "Audit plugin crate pub declarations and ensure only necessary items are public",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify plugin crate compiles with audited pub visibility"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-plugin -- -D warnings",
+        "cargo test -p opencode-plugin --lib"
+      ],
+      "impl_notes": "Check each pub item is truly needed as public API",
+      "dependencies": []
+    },
+    {
+      "id": "P1-027",
+      "priority": "P1",
+      "title": "Audit git crate pub declarations",
+      "description": "Audit git crate pub declarations and ensure only necessary items are public",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify git crate compiles with audited pub visibility"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-git -- -D warnings",
+        "cargo test -p opencode-git --lib"
+      ],
+      "impl_notes": "Check each pub item is truly needed as public API",
+      "dependencies": []
+    },
+    {
+      "id": "P1-028",
+      "priority": "P1",
+      "title": "Audit mcp crate pub declarations",
+      "description": "Audit mcp crate pub declarations and ensure only necessary items are public",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify mcp crate compiles with audited pub visibility"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-mcp -- -D warnings",
+        "cargo test -p opencode-mcp --lib"
+      ],
+      "impl_notes": "Check each pub item is truly needed as public API",
+      "dependencies": []
+    },
+    {
+      "id": "P1-029",
+      "priority": "P1",
+      "title": "Audit sdk crate pub declarations",
+      "description": "Audit sdk crate pub declarations and ensure only necessary items are public",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify sdk crate compiles with audited pub visibility"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-sdk -- -D warnings",
+        "cargo test -p opencode-sdk --lib"
+      ],
+      "impl_notes": "Check each pub item is truly needed as public API",
+      "dependencies": []
+    },
+    {
+      "id": "P1-030",
+      "priority": "P1",
+      "title": "Apply pub(crate) for internal crate sharing",
+      "description": "Apply pub(crate) visibility for items shared internally across a crate but not exposed publicly",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify internal items use pub(crate) where appropriate"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings",
+        "cargo build --release"
+      ],
+      "impl_notes": "Replace pub with pub(crate) for internal implementation details",
+      "dependencies": [
+        "P1-015",
+        "P1-016",
+        "P1-017",
+        "P1-018",
+        "P1-019",
+        "P1-020",
+        "P1-021",
+        "P1-022",
+        "P1-023",
+        "P1-024",
+        "P1-025",
+        "P1-026",
+        "P1-027",
+        "P1-028",
+        "P1-029"
+      ]
+    },
+    {
+      "id": "P1-031",
+      "priority": "P1",
+      "title": "Verify only necessary items marked pub",
+      "description": "Verify only necessary items are marked pub across all crates",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: all crates compile and tests pass after visibility audit"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings",
+        "cargo test --all"
+      ],
+      "impl_notes": "Final verification of visibility boundaries",
+      "dependencies": [
+        "P1-030"
+      ]
+    },
+    {
+      "id": "P1-032",
+      "priority": "P1",
+      "title": "Define plugin ABI version scheme",
+      "description": "Define plugin ABI version scheme (major.minor.patch) for plugin API stability",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify version parsing and comparison works correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin --lib",
+        "cargo clippy -p opencode-plugin -- -D warnings"
+      ],
+      "impl_notes": "Define version type with major.minor.patch components",
+      "dependencies": []
+    },
+    {
+      "id": "P1-033",
+      "priority": "P1",
+      "title": "Document breaking change policy for plugins",
+      "description": "Document breaking change policy for plugins including version increment rules",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify documentation exists for breaking change policy"
+      ],
+      "test_commands": [
+        "cargo doc -p opencode-plugin --no-deps"
+      ],
+      "impl_notes": "Create documentation for plugin API stability policy",
+      "dependencies": [
+        "P1-032"
+      ]
+    },
+    {
+      "id": "P1-034",
+      "priority": "P1",
+      "title": "Add version checks to plugin runtime",
+      "description": "Add version checks to plugin runtime to enforce ABI compatibility",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify version check rejects incompatible plugins",
+        "AddErrorHandlingTest: test version mismatch handling"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-plugin --lib",
+        "cargo clippy -p opencode-plugin -- -D warnings"
+      ],
+      "impl_notes": "Implement version check logic in plugin loading code",
+      "dependencies": [
+        "P1-032"
+      ]
+    },
+    {
+      "id": "P1-035",
+      "priority": "P1",
+      "title": "Publish plugin API stability policy",
+      "description": "Publish plugin API stability policy in documentation",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify stability policy documentation is accessible"
+      ],
+      "test_commands": [
+        "cargo doc --no-deps --all-features"
+      ],
+      "impl_notes": "Add documentation for plugin stability policy",
+      "dependencies": [
+        "P1-033",
+        "P1-034"
+      ]
+    },
+    {
+      "id": "P1-036",
+      "priority": "P1",
+      "title": "Verify WebSocket capability in ws.rs",
+      "description": "Verify crates/server/src/routes/ws.rs WebSocket capability and functionality",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify WebSocket connection handling",
+        "AddIntegrationTest: verify WebSocket message streaming works"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server --test ws",
+        "cargo clippy -p opencode-server -- -D warnings"
+      ],
+      "impl_notes": "Test WebSocket upgrade and message handling",
+      "dependencies": []
+    },
+    {
+      "id": "P1-037",
+      "priority": "P1",
+      "title": "Compare WebSocket vs SSE functionality",
+      "description": "Compare WebSocket module vs SSE functionality across server routes",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify both WS and SSE features are functional"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-server --lib",
+        "cargo clippy -p opencode-server -- -D warnings"
+      ],
+      "impl_notes": "Document feature comparison for architecture clarity",
+      "dependencies": [
+        "P1-036"
+      ]
+    },
+    {
+      "id": "P1-038",
+      "priority": "P1",
+      "title": "Document WebSocket streaming capabilities",
+      "description": "Document WebSocket streaming capabilities in documentation",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify documentation covers WebSocket streaming"
+      ],
+      "test_commands": [
+        "cargo doc --no-deps --all-features"
+      ],
+      "impl_notes": "Add comprehensive WebSocket documentation",
+      "dependencies": [
+        "P1-037"
+      ]
+    },
+    {
+      "id": "P1-039",
+      "priority": "P1",
+      "title": "Add cargo doc to CI",
+      "description": "Add cargo doc --no-deps --all-features to CI pipeline",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: CI pipeline includes doc generation step"
+      ],
+      "test_commands": [
+        "cargo doc --no-deps --all-features",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Ensure documentation builds in CI",
+      "dependencies": []
+    },
+    {
+      "id": "P1-040",
+      "priority": "P1",
+      "title": "Verify SDK doc comments are complete",
+      "description": "Verify sdk/src/* doc comments are complete and public API is documented",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: cargo doc passes without warnings for sdk crate"
+      ],
+      "test_commands": [
+        "cargo doc -p opencode-sdk --no-deps --all-features",
+        "cargo clippy -p opencode-sdk -- -D warnings"
+      ],
+      "impl_notes": "Audit all public items have doc comments",
+      "dependencies": []
+    },
+    {
+      "id": "P1-041",
+      "priority": "P1",
+      "title": "Consider docs.rs publishing setup",
+      "description": "Consider docs.rs publishing setup for SDK documentation",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify docs.rs metadata is correct in Cargo.toml"
+      ],
+      "test_commands": [
+        "cargo doc --no-deps --all-features",
+        "cargo build --release"
+      ],
+      "impl_notes": "Check docs.rs configuration in Cargo.toml files",
+      "dependencies": [
+        "P1-040"
+      ]
+    },
+    {
+      "id": "P2-001",
+      "priority": "P2",
+      "title": "Add SAFETY comment to plugin/src/lib.rs:661",
+      "description": "Add SAFETY comment to crates/plugin/src/lib.rs:661 for the unsafe block",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify SAFETY comment exists and documents invariants"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-plugin -- -D warnings",
+        "cargo test -p opencode-plugin --lib"
+      ],
+      "impl_notes": "Document memory safety invariants and requirements",
+      "dependencies": []
+    },
+    {
+      "id": "P2-002",
+      "priority": "P2",
+      "title": "Add SAFETY comments to tui/src/app.rs:4677, 4690",
+      "description": "Add SAFETY comments to crates/tui/src/app.rs:4677 and 4690 for unsafe blocks",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify SAFETY comments exist and document invariants"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-tui -- -D warnings",
+        "cargo test -p opencode-tui --lib"
+      ],
+      "impl_notes": "Document memory safety invariants for each unsafe block",
+      "dependencies": []
+    },
+    {
+      "id": "P2-003",
+      "priority": "P2",
+      "title": "Add SAFETY comments to validation.rs:237, 256",
+      "description": "Add SAFETY comments to crates/server/src/routes/validation.rs:237 and 256 for unsafe blocks",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify SAFETY comments exist and document invariants"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-server -- -D warnings",
+        "cargo test -p opencode-server --lib"
+      ],
+      "impl_notes": "Document memory safety invariants for each unsafe block",
+      "dependencies": []
+    },
+    {
+      "id": "P2-004",
+      "priority": "P2",
+      "title": "Audit all unsafe blocks for SAFETY comments",
+      "description": "Audit all unsafe blocks across all crates for missing SAFETY comments",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify all unsafe blocks have SAFETY comments"
+      ],
+      "test_commands": [
+        "grep -r 'unsafe' crates/*/src/ --include='*.rs' -A 5 | grep -v 'SAFETY' | grep -v 'test' | grep -v 'Test' || echo 'All unsafe blocks have SAFETY comments'",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Find all unsafe blocks and verify they have SAFETY documentation",
+      "dependencies": [
+        "P2-001",
+        "P2-002",
+        "P2-003"
+      ]
+    },
+    {
+      "id": "P2-005",
+      "priority": "P2",
+      "title": "Verify all unsafe blocks have proper documentation",
+      "description": "Verify all unsafe blocks have proper SAFETY documentation",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: grep confirms all unsafe blocks have SAFETY comments"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings",
+        "cargo build --release"
+      ],
+      "impl_notes": "Final verification step",
+      "dependencies": [
+        "P2-004"
+      ]
+    },
+    {
+      "id": "P2-006",
+      "priority": "P2",
+      "title": "Add cargo bench to CI pipeline",
+      "description": "Add cargo bench to CI pipeline for benchmark execution",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: CI pipeline includes benchmark step"
+      ],
+      "test_commands": [
+        "cargo bench --no-run || true",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Add benchmark execution to CI",
+      "dependencies": []
+    },
+    {
+      "id": "P2-007",
+      "priority": "P2",
+      "title": "Set up performance regression detection",
+      "description": "Set up performance regression detection in CI pipeline",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify benchmark results are compared against baseline"
+      ],
+      "test_commands": [
+        "cargo bench",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Compare benchmark results against stored baseline",
+      "dependencies": [
+        "P2-006"
+      ]
+    },
+    {
+      "id": "P2-008",
+      "priority": "P2",
+      "title": "Document baseline performance metrics",
+      "description": "Document baseline performance metrics for benchmark suite",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify baseline metrics are documented"
+      ],
+      "test_commands": [
+        "cargo bench"
+      ],
+      "impl_notes": "Create baseline metrics documentation",
+      "dependencies": [
+        "P2-007"
+      ]
+    },
+    {
+      "id": "P2-009",
+      "priority": "P2",
+      "title": "Verify benchmark suite runs in CI",
+      "description": "Verify benchmark suite runs successfully in CI",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: cargo bench executes successfully in CI"
+      ],
+      "test_commands": [
+        "cargo bench",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Ensure CI environment supports benchmark execution",
+      "dependencies": [
+        "P2-008"
+      ]
+    },
+    {
+      "id": "P2-010",
+      "priority": "P2",
+      "title": "Create TOML to JSONC migration tooling",
+      "description": "Create TOML to JSONC migration tooling for config format conversion",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify TOML parsing and JSONC output correctness"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-config --lib",
+        "cargo clippy -p opencode-config -- -D warnings"
+      ],
+      "impl_notes": "Implement conversion logic between TOML and JSONC formats",
+      "dependencies": []
+    },
+    {
+      "id": "P2-011",
+      "priority": "P2",
+      "title": "Implement auto-convert TOML to JSONC on load",
+      "description": "Implement auto-convert TOML to JSONC on config load for backward compatibility",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify TOML configs are auto-converted to JSONC on load"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-config --lib",
+        "cargo clippy -p opencode-config -- -D warnings"
+      ],
+      "impl_notes": "Auto-detect TOML format and convert to JSONC on load",
+      "dependencies": [
+        "P2-010"
+      ]
+    },
+    {
+      "id": "P2-012",
+      "priority": "P2",
+      "title": "Add deprecation warning for TOML format",
+      "description": "Add deprecation warning when TOML config format is loaded",
+      "status": "todo",
+      "test_criteria": [
+        "AddErrorHandlingTest: verify deprecation warning is shown for TOML configs"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-config --lib",
+        "cargo clippy -p opencode-config -- -D warnings"
+      ],
+      "impl_notes": "Log warning when TOML format is detected",
+      "dependencies": [
+        "P2-011"
+      ]
+    },
+    {
+      "id": "P2-013",
+      "priority": "P2",
+      "title": "Document TOML to JSONC migration steps",
+      "description": "Document TOML to JSONC migration steps for users",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: verify migration documentation is complete"
+      ],
+      "test_commands": [
+        "cargo doc --no-deps --all-features"
+      ],
+      "impl_notes": "Create migration guide documentation",
+      "dependencies": [
+        "P2-012"
+      ]
+    },
+    {
+      "id": "P2-014",
+      "priority": "P2",
+      "title": "Consider removing TOML support after transition",
+      "description": "Consider removing TOML support after transition period is complete",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: verify JSONC-only support after TOML removal"
+      ],
+      "test_commands": [
+        "cargo test --all",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Plan TOML removal based on user migration progress",
+      "dependencies": [
+        "P2-013"
+      ]
+    },
+    {
+      "id": "CI-001",
+      "priority": "P1",
+      "title": "Add cargo fmt --check to CI",
+      "description": "Add cargo fmt --check to CI pipeline for code formatting enforcement",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: CI fails if code is not properly formatted"
+      ],
+      "test_commands": [
+        "cargo fmt --all -- --check",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Add fmt check as early CI step",
+      "dependencies": []
+    },
+    {
+      "id": "CI-002",
+      "priority": "P1",
+      "title": "Fix clippy warnings in CI",
+      "description": "Fix all clippy warnings so CI passes with -D warnings",
+      "status": "todo",
+      "test_criteria": [
+        "RunTestSuite: cargo clippy --all -- -D warnings passes"
+      ],
+      "test_commands": [
+        "cargo clippy --all -- -D warnings",
+        "cargo build --release"
+      ],
+      "impl_notes": "Address all clippy warnings across all crates",
+      "dependencies": []
+    },
+    {
+      "id": "CI-003",
+      "priority": "P1",
+      "title": "Add cargo test --lib to CI",
+      "description": "Add cargo test --lib to CI pipeline for library tests",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: CI runs library tests for all crates"
+      ],
+      "test_commands": [
+        "cargo test --lib",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Ensure library tests run in CI",
+      "dependencies": []
+    },
+    {
+      "id": "CI-004",
+      "priority": "P1",
+      "title": "Add cargo test --test '*' to CI",
+      "description": "Add cargo test --test '*' to CI pipeline for integration tests",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: CI runs all integration tests"
+      ],
+      "test_commands": [
+        "cargo test --test '*'",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Ensure integration tests run in CI",
+      "dependencies": []
+    },
+    {
+      "id": "CI-005",
+      "priority": "P1",
+      "title": "Add cargo build --release to CI",
+      "description": "Add cargo build --release to CI pipeline to verify release builds",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: CI builds release successfully"
+      ],
+      "test_commands": [
+        "cargo build --release",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Verify release build compiles without errors",
+      "dependencies": []
+    },
+    {
+      "id": "CI-006",
+      "priority": "P1",
+      "title": "Add cargo llvm-cov to CI",
+      "description": "Add cargo llvm-cov --fail-under-lines 80 to CI for coverage enforcement",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: CI enforces 80% line coverage threshold"
+      ],
+      "test_commands": [
+        "cargo llvm-cov --fail-under-lines 80 --all",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Enforce coverage threshold in CI",
+      "dependencies": [
+        "CI-001",
+        "CI-002",
+        "CI-003",
+        "CI-004",
+        "CI-005"
+      ]
+    },
+    {
+      "id": "CI-007",
+      "priority": "P1",
+      "title": "Add cargo audit to CI",
+      "description": "Add cargo audit to CI pipeline for security vulnerability scanning",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: CI runs security audit on dependencies"
+      ],
+      "test_commands": [
+        "cargo audit || true",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Scan for known security vulnerabilities",
+      "dependencies": []
+    },
+    {
+      "id": "CI-008",
+      "priority": "P1",
+      "title": "Add cargo deny check to CI",
+      "description": "Add cargo deny check to CI for dependency license and sources verification",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: CI verifies dependency licenses and sources"
+      ],
+      "test_commands": [
+        "cargo deny check || true",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Check for problematic dependencies",
+      "dependencies": []
+    },
+    {
+      "id": "CI-009",
+      "priority": "P1",
+      "title": "Add cargo bench to CI",
+      "description": "Add cargo bench to CI for performance benchmark tracking",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: CI runs benchmarks and tracks performance"
+      ],
+      "test_commands": [
+        "cargo bench",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Track performance over time",
+      "dependencies": []
+    },
+    {
+      "id": "CI-010",
+      "priority": "P1",
+      "title": "Add cargo doc --no-deps to CI",
+      "description": "Add cargo doc --no-deps to CI to verify documentation builds",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: CI builds documentation successfully"
+      ],
+      "test_commands": [
+        "cargo doc --no-deps --all-features",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Ensure documentation builds without warnings",
+      "dependencies": []
+    }
+  ]
+}
