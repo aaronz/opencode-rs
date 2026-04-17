@@ -175,11 +175,13 @@ impl ProjectRepository for InMemoryProjectRepository {
 use crate::models::AccountModel;
 use crate::repository::AccountRepository;
 
+#[allow(dead_code)]
 pub(crate) struct InMemoryAccountRepository {
     accounts: Arc<Mutex<HashMap<String, AccountModel>>>,
 }
 
 impl InMemoryAccountRepository {
+    #[allow(dead_code)]
     pub(crate) fn new() -> Self {
         Self {
             accounts: Arc::new(Mutex::new(HashMap::new())),
@@ -268,11 +270,13 @@ impl AccountRepository for InMemoryAccountRepository {
 use crate::models::PluginStateModel;
 use crate::repository::PluginStateRepository;
 
+#[allow(dead_code)]
 pub(crate) struct InMemoryPluginStateRepository {
     states: Arc<Mutex<HashMap<String, PluginStateModel>>>,
 }
 
 impl InMemoryPluginStateRepository {
+    #[allow(dead_code)]
     pub(crate) fn new() -> Self {
         Self {
             states: Arc::new(Mutex::new(HashMap::new())),

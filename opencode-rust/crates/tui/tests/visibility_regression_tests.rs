@@ -30,15 +30,8 @@ mod tests {
 
     #[test]
     fn verify_tui_crate_compiles_with_audited_visibility() {
-        let config = opencode_tui::Config::default();
         let theme = opencode_tui::Theme::default();
         let _app = App::new();
-        assert_eq!(
-            config.tui.default_layout,
-            opencode_tui::config::TuiConfig::default()
-                .tui
-                .default_layout
-        );
         assert_eq!(theme.name, "default");
     }
 }

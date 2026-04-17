@@ -255,10 +255,8 @@ mod tests {
         use opencode_core::Config;
         use opencode_llm::ModelRegistry;
         use opencode_storage::database::StoragePool;
-        use opencode_storage::sqlite_repository::{
-            SqliteProjectRepository, SqliteSessionRepository,
-        };
         use opencode_storage::StorageService;
+        use opencode_storage::{SqliteProjectRepository, SqliteSessionRepository};
         use opencode_tools::ToolRegistry;
         use std::sync::Arc;
         use std::sync::RwLock;

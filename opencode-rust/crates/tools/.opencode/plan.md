@@ -1,3 +1,0 @@
-# Test Plan
-
-Some content
