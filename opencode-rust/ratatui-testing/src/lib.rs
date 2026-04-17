@@ -1,5 +1,3 @@
-#![allow(clippy::unwrap_used)]
-
 mod cli;
 mod dialog_tester;
 mod diff;
@@ -17,6 +15,7 @@ pub use snapshot::{load_snapshot, save_snapshot};
 pub use state::{DiffType, StateDiff, StateDiffEntry, StateSnapshot, StateTester, TerminalState};
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use crate::DialogRenderTester;
 

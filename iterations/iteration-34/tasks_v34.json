@@ -231,7 +231,7 @@
       "priority": "P1",
       "title": "Connect GoogleOAuthService to TUI connect flow",
       "description": "Wire GoogleOAuthService to handle_connect_method_confirm() and launch browser OAuth when 'browser' selected for Google",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify GoogleOAuthService is called when browser auth selected",
         "AddUnitTest: verify browser OAuth flow is launched for Google",

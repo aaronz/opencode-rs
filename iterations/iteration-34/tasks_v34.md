@@ -87,7 +87,7 @@
 
 #### Tasks:
 
-- [ ] **T-011**: Connect `GoogleOAuthService` to TUI connect flow
+- [x] **T-011**: Connect `GoogleOAuthService` to TUI connect flow
   - Wire to `handle_connect_method_confirm()`
   - Launch browser OAuth when "browser" selected for Google
 

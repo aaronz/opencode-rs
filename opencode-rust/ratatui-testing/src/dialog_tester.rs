@@ -17,8 +17,13 @@ impl DialogRenderTester {
     }
 
     /// Creates a new Terminal with the specified dimensions using TestBackend.
+    ///
+    /// # Panics
+    ///
+    /// Panics if terminal initialization fails (unlikely with TestBackend).
     pub fn terminal(width: u16, height: u16) -> Terminal<TestBackend> {
-        Terminal::new(Self::with_backend(width, height)).unwrap()
+        Terminal::new(Self::with_backend(width, height))
+            .expect("Failed to create terminal for dialog testing")
     }
 
     /// Checks if the buffer contains border characters (─ or │).

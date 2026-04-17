@@ -365,7 +365,7 @@ impl TestDsl {
             let rt = tokio::runtime::Builder::new_current_thread()
                 .enable_time()
                 .build()
-                .unwrap();
+                .expect("Failed to create tokio runtime in wait_for_async thread");
 
             rt.block_on(async {
                 while !triggered_clone.load(Ordering::SeqCst) {
@@ -805,12 +805,18 @@ fn parse_key_sequence(keys: &str) -> Result<Vec<KeyEvent>> {
             continue;
         }
 
-        let ch = remaining.chars().next().unwrap();
+        let ch = remaining
+            .chars()
+            .next()
+            .expect("parse_key_sequence: remaining was empty after trim check");
         remaining = &remaining[ch.len_utf8()..];
 
         if ch == '\\' {
             if !remaining.is_empty() {
-                let next = remaining.chars().next().unwrap();
+                let next = remaining
+                    .chars()
+                    .next()
+                    .expect("parse_key_sequence: escape sequence followed by empty string");
                 remaining = &remaining[next.len_utf8()..];
                 match next {
                     'n' => key_events.push(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)),
@@ -832,6 +838,7 @@ fn parse_key_sequence(keys: &str) -> Result<Vec<KeyEvent>> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use ratatui::text::Text;

@@ -59,7 +59,7 @@
       "priority": "P3",
       "title": "Review Global unwrap_used Allowance",
       "description": "#![allow(clippy::unwrap_used)] globally permits unwrap usage throughout the crate. Need to audit all unwrap usages and replace with proper error handling where feasible.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: cargo clippy --all-targets -- -W clippy::unwrap_used shows no new unwrap usages",
         "RunTestSuite: cargo test -p ratatui-testing passes after refactoring",

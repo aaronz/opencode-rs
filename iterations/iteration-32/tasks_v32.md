@@ -57,7 +57,7 @@
 
 ---
 
-### P2-002: Document DialogRenderTester Extension
+### P2-002: ✅ Done
 **Module:** Documentation
 **Priority:** P2
 **Status:** ✅ Done
@@ -186,7 +186,7 @@
 | P1-001 | Make Windows PTY Limitation Prominent | P1 | Pending | 2-3h |
 | P2-001 | Update PRD File Structure Docs | P2 | Pending | 1h |
 | P2-002 | Document DialogRenderTester Extension | P2 | Pending | 1h |
-| P3-001 | Review Global unwrap_used Allowance | P3 | Pending | 4-6h |
+| P3-001 | Review Global unwrap_used Allowance | P3 | ✅ Done | 4-6h |
 | P3-002 | Simplify Windows PTY Stub | P3 | Pending | 2-3h |
 | P3-003 | Extract parse_key_sequence Module | P3 | Pending | 2-3h |
 | P3-004 | Share Tokio Runtime in wait_for | P3 | Pending | 3-4h |

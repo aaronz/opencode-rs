@@ -294,6 +294,7 @@ impl Default for BufferDiff {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use ratatui::layout::Rect;

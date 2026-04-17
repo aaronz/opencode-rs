@@ -118,6 +118,7 @@ pub fn save_snapshot(name: &str, buffer: &Buffer) -> Result<()> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use ratatui::style::{Color, Modifier};
