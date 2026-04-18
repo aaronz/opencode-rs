@@ -28,6 +28,9 @@ A comprehensive testing framework for Rust TUI applications:
 ## Building
 
 ```bash
+# Build from project root (recommended)
+./build.sh
+
 # Build release
 cargo build --release
 
@@ -39,6 +42,14 @@ cargo test
 
 # Build with all features
 cargo build --all-features
+```
+
+### Build Script Options
+
+```bash
+./build.sh           # Release build (default)
+./build.sh --debug   # Debug build
+./build.sh --test    # Build + run tests
 ```
 
 ## Structure
