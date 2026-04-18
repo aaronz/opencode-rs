@@ -78,7 +78,7 @@
       "priority": "P3",
       "title": "Simplify Windows PTY Stub",
       "description": "105 lines of stub code for Windows could be simplified with macros to reduce boilerplate while ensuring consistent, helpful error messages.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: verify Windows stub still returns helpful error messages",
         "AddUnitTest: verify reduced line count with maintained functionality",
@@ -96,7 +96,7 @@
       "priority": "P3",
       "title": "Extract parse_key_sequence to Separate Module",
       "description": "parse_key_sequence is 95 lines and could be reused elsewhere. Extract to src/key_sequence.rs module.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify parse_key_sequence works correctly in extracted module",
         "AddRegressionTest: verify dsl.rs still uses parse_key_sequence after extraction",
@@ -115,7 +115,7 @@
       "priority": "P3",
       "title": "Share Tokio Runtime in wait_for Variants",
       "description": "Each wait method creates its own tokio runtime which is inefficient. Investigate why separate runtimes are used and either share a runtime or document why separate ones are necessary.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: verify all wait_for variants still function correctly",
         "AddUnitTest: verify shared runtime approach works for all wait methods",
@@ -133,7 +133,7 @@
       "priority": "P3",
       "title": "Consolidate Overlapping DialogTester Functionality",
       "description": "DialogTester partially overlaps with TestDsl buffer inspection methods. Identify overlapping methods and either consolidate or document distinct purposes clearly.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify overlapping methods have clear distinct purposes",
         "AddRegressionTest: verify DialogRenderTester and TestDsl buffer methods work correctly",
