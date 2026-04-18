@@ -243,7 +243,7 @@ Updated P0-06 status to: done
       "priority": "P1",
       "title": "Replace .unwrap() in crates/server/src/routes/",
       "description": "Replace all .unwrap() calls in crates/server/src/routes/*.rs (~100 occurrences) with proper error handling.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify no unwrap/expect calls remain in routes",
         "RunTestSuite: cargo clippy -p opencode-server -- -D warnings | grep unwrap",
@@ -264,7 +264,7 @@ Updated P0-06 status to: done
       "priority": "P1",
       "title": "Replace .unwrap() in crates/core/",
       "description": "Replace all .unwrap() calls in crates/core/src/*.rs (~50 occurrences) with proper error handling.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify no unwrap/expect calls remain in core",
         "RunTestSuite: cargo clippy -p opencode-core -- -D warnings | grep unwrap",
@@ -285,7 +285,7 @@ Updated P0-06 status to: done
       "priority": "P1",
       "title": "Verify zero .unwrap() with clippy",
       "description": "Final verification that production code contains zero .unwrap() or .expect() calls using clippy lint.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: cargo clippy --all -- -D warnings (should show zero unwrap violations)",
         "AddIntegrationTest: verify complete codebase passes clippy"
@@ -306,7 +306,7 @@ Updated P0-06 status to: done
       "priority": "P1",
       "title": "Add cargo-llvm-cov to CI pipeline",
       "description": "Add cargo-llvm-cov dependency and integrate coverage reporting into CI pipeline.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify cargo llvm-cov generates coverage report",
         "RunTestSuite: cargo llvm-cov --all --html (verify HTML report generates)"
@@ -325,7 +325,7 @@ Updated P0-06 status to: done
       "priority": "P1",
       "title": "Add coverage threshold cargo llvm-cov --fail-under-lines 80",
       "description": "Configure coverage threshold in CI to fail builds that drop below 80% line coverage.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify llvm-cov fails appropriately when coverage is below threshold",
         "RunTestSuite: cargo llvm-cov --all --fail-under-lines 80"
@@ -343,7 +343,7 @@ Updated P0-06 status to: done
       "priority": "P1",
       "title": "Increase crates/agent/ coverage from 45% to 80%",
       "description": "Add comprehensive tests to increase code coverage in crates/agent/ from 45% to 80% target.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify agent core functionality has adequate tests",
         "AddIntegrationTest: verify agent-LLM integration works correctly",
@@ -363,7 +363,7 @@ Updated P0-06 status to: done
       "priority": "P1",
       "title": "Increase crates/tools/ coverage from 50% to 80%",
       "description": "Add comprehensive tests to increase code coverage in crates/tools/ from 50% to 80% target.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify each tool has comprehensive unit tests",
         "AddErrorHandlingTest: test error scenarios for each tool",
@@ -383,7 +383,7 @@ Updated P0-06 status to: done
       "priority": "P2",
       "title": "Audit pub vs pub(crate) in crates/core/",
       "description": "Audit visibility modifiers in crates/core/src/lib.rs. Determine which public items should be pub(crate) for internal use.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify API surface is correctly scoped",
         "RunTestSuite: cargo test -p opencode-core --all",
@@ -401,7 +401,7 @@ Updated P0-06 status to: done
       "priority": "P2",
       "title": "Audit pub vs pub(crate) in crates/llm/",
       "description": "Audit visibility modifiers in crates/llm/src/lib.rs. Determine which public items should be pub(crate) for internal use.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify API surface is correctly scoped",
         "RunTestSuite: cargo test -p opencode-llm --all",
@@ -419,7 +419,7 @@ Updated P0-06 status to: done
       "priority": "P2",
       "title": "Audit pub vs pub(crate) in crates/storage/",
       "description": "Audit visibility modifiers in crates/storage/src/lib.rs. Determine which public items should be pub(crate) for internal use.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify API surface is correctly scoped",
         "RunTestSuite: cargo test -p opencode-storage --all",
@@ -437,7 +437,7 @@ Updated P0-06 status to: done
       "priority": "P2",
       "title": "Audit pub vs pub(crate) in crates/tools/",
       "description": "Audit visibility modifiers in crates/tools/src/lib.rs. Determine which public items should be pub(crate) for internal use.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify API surface is correctly scoped",
         "RunTestSuite: cargo test -p opencode-tools --all",
@@ -455,7 +455,7 @@ Updated P0-06 status to: done
       "priority": "P2",
       "title": "Audit pub vs pub(crate) in crates/server/",
       "description": "Audit visibility modifiers in crates/server/src/lib.rs. Determine which public items should be pub(crate) for internal use.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify API surface is correctly scoped",
         "RunTestSuite: cargo test -p opencode-server --all",
@@ -473,7 +473,7 @@ Updated P0-06 status to: done
       "priority": "P2",
       "title": "Add mockall dependency",
       "description": "Add mockall dependency to Cargo.toml for creating mock implementations of traits in tests.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify mockall compiles with test dependencies",
         "RunTestSuite: cargo build --tests"
@@ -490,7 +490,7 @@ Updated P0-06 status to: done
       "priority": "P2",
       "title": "Add mock implementations for LLMProvider trait",
       "description": "Create mock implementations of LLMProvider trait in tests/src/ using mockall for testing without real LLM calls.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify mock LLMProvider implements trait correctly",
         "AddIntegrationTest: verify tests can use mock instead of real provider",
@@ -510,7 +510,7 @@ Updated P0-06 status to: done
       "priority": "P2",
       "title": "Add mock implementations for Tool trait",
       "description": "Create mock implementations of Tool trait in tests/src/ using mockall for testing without real tool execution.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify mock Tool implements trait correctly",
         "AddIntegrationTest: verify tests can use mock tools",
@@ -530,7 +530,7 @@ Updated P0-06 status to: done
       "priority": "P2",
       "title": "Create route-specific error enums in crates/server/src/routes/",
       "description": "Create dedicated error enums for each route module instead of using generic errors.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify route-specific errors have proper variants",
         "AddErrorHandlingTest: ensure error handling covers all route scenarios",
@@ -550,7 +550,7 @@ Updated P0-06 status to: done
       "priority": "P2",
       "title": "Remove .unwrap() from route handlers",
       "description": "Remove all .unwrap() calls from crates/server/src/routes/run.rs using proper error handling.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify run.rs routes work correctly",
         "RunTestSuite: cargo clippy -p opencode-server -- -D warnings | grep unwrap",
@@ -570,7 +570,7 @@ Updated P0-06 status to: done
       "priority": "P2",
       "title": "Expand builder pattern to server routes",
       "description": "Apply builder pattern to server routes for consistent request handling.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify builder pattern compiles correctly",
         "AddIntegrationTest: verify routes with builder pattern handle requests",
@@ -591,7 +591,7 @@ Updated P0-06 status to: done
       "priority": "P2",
       "title": "Audit repository trait abstraction in crates/llm/",
       "description": "Audit repository trait abstractions in crates/llm/ and ensure consistent patterns.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify repository traits are properly abstracted",
         "AddIntegrationTest: verify repository implementations work correctly",
@@ -612,7 +612,7 @@ Updated P0-06 status to: done
       "priority": "P2",
       "title": "Add service layer to server routes",
       "description": "Add service layer abstraction between routes and business logic in crates/server/routes/.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify service layer compiles and works",
         "AddIntegrationTest: verify routes use service layer correctly",

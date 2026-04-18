@@ -640,7 +640,7 @@
       "priority": "P1",
       "title": "Register completion command in CLI",
       "description": "Add completion command to crates/core/src/cli.rs",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify opencode completion bash works",
         "AddIntegrationTest: verify opencode completion zsh works",
@@ -665,7 +665,7 @@
       "priority": "P1",
       "title": "Create plugin command module",
       "description": "Create crates/cli/src/cmd/plugin.rs module",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify plugin module exists and can be imported",
         "AddRegressionTest: verify CLI builds with new module"
@@ -683,7 +683,7 @@
       "priority": "P1",
       "title": "Implement plugin install command",
       "description": "Implement opencode plugin install <name> command to download and install plugin",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify plugin install downloads from registry",
         "AddUnitTest: verify plugin is extracted and installed correctly",
@@ -704,7 +704,7 @@
       "priority": "P1",
       "title": "Implement plugin list command",
       "description": "Implement opencode plugin list command to list installed plugins",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify plugin list shows installed plugins",
         "AddUnitTest: verify plugin list shows correct plugin metadata"
@@ -724,7 +724,7 @@
       "priority": "P1",
       "title": "Implement plugin remove command",
       "description": "Implement opencode plugin remove <name> command to uninstall plugin",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify plugin remove deletes plugin files",
         "AddUnitTest: verify plugin remove updates opencode.json config",
@@ -745,7 +745,7 @@
       "priority": "P1",
       "title": "Implement plugin search command",
       "description": "Implement opencode plugin search [query] command to search available plugins",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify plugin search returns matching plugins",
         "AddUnitTest: verify plugin search with no query returns all plugins"
@@ -765,7 +765,7 @@
       "priority": "P1",
       "title": "Persist plugins in opencode.json config",
       "description": "Store plugin configuration in opencode.json",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify plugin config is saved to opencode.json",
         "AddUnitTest: verify plugin config is loaded on startup",
@@ -788,7 +788,7 @@
       "priority": "P1",
       "title": "Register plugin command in CLI",
       "description": "Add plugin command to crates/core/src/cli.rs",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify opencode plugin install works",
         "AddIntegrationTest: verify opencode plugin list works",
@@ -814,7 +814,7 @@
       "priority": "P2",
       "title": "Define AuthMethod enum",
       "description": "Define AuthMethod enum with Browser, ApiKey, Local, DeviceFlow variants",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify AuthMethod enum has all required variants",
         "AddUnitTest: verify AuthMethod can be serialized/deserialized"
@@ -832,7 +832,7 @@
       "priority": "P2",
       "title": "Create ProviderAuth trait",
       "description": "Create ProviderAuth trait with fn supported_auth_methods(&self) -> Vec<AuthMethod>",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify ProviderAuth trait exists",
         "AddUnitTest: verify supported_auth_methods returns correct auth methods",
@@ -853,7 +853,7 @@
       "priority": "P2",
       "title": "Implement ProviderAuth on provider types",
       "description": "Implement ProviderAuth trait on all provider types",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify AnthropicProvider implements ProviderAuth",
         "AddUnitTest: verify OpenAIProvider implements ProviderAuth",
@@ -874,7 +874,7 @@
       "priority": "P2",
       "title": "Update ConnectMethodDialog to use trait",
       "description": "Remove hardcoded OAUTH_ONLY_PROVIDERS list and use ProviderAuth trait instead",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify ConnectMethodDialog uses ProviderAuth trait",
         "AddRegressionTest: verify OAUTH_ONLY_PROVIDERS list is removed",
@@ -896,7 +896,7 @@
       "priority": "P2",
       "title": "Add tests for ProviderAuth trait",
       "description": "Test ProviderAuth trait implementation on all provider types",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: test supported_auth_methods for each provider",
         "AddRegressionTest: verify trait behavior is consistent",
@@ -920,7 +920,7 @@
       "priority": "P2",
       "title": "Add store_named() method",
       "description": "Add store_named(provider_id, name, credential) method to credential store",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify store_named stores credential with name",
         "AddUnitTest: verify store_named creates separate entry per name",
@@ -939,7 +939,7 @@
       "priority": "P2",
       "title": "Add list_credentials() method",
       "description": "Add list_credentials(provider_id) -> Vec<NamedCredential> method to credential store",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify list_credentials returns all stored credentials for provider",
         "AddUnitTest: verify list_credentials returns empty vec for provider with no creds",
@@ -960,7 +960,7 @@
       "priority": "P2",
       "title": "Add delete_named() method",
       "description": "Add delete_named(provider_id, name) method to credential store",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify delete_named removes credential",
         "AddUnitTest: verify delete_named returns error for non-existent name",
@@ -982,7 +982,7 @@
       "priority": "P2",
       "title": "Update UI for credential management",
       "description": "Allow switching between stored credentials in UI",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify UI shows list of stored credentials",
         "AddIntegrationTest: verify user can switch between credentials",
@@ -1005,7 +1005,7 @@
       "priority": "P2",
       "title": "Add tests for multiple credentials",
       "description": "Test multiple credentials storage, listing, selection, and deletion",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: test storing multiple credentials per provider",
         "AddUnitTest: test listing credentials shows all stored",
@@ -1031,7 +1031,7 @@
       "priority": "P2",
       "title": "Remove hardcoded OAUTH_ONLY_PROVIDERS in connect_method.rs:21",
       "description": "Replace hardcoded OAUTH_ONLY_PROVIDERS list with dynamic capability query using ProviderAuth trait (FR-016)",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify OAUTH_ONLY_PROVIDERS is removed from connect_method.rs",
         "AddRegressionTest: verify ProviderAuth trait is used instead",
@@ -1052,7 +1052,7 @@
       "priority": "P0",
       "title": "Fix default model in app.rs:972",
       "description": "Remove hardcoded gpt-4o default for non-OpenAI providers - covered by FR-013 (T-009)",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify gpt-4o is not used as default for non-OpenAI",
         "AddUnitTest: verify selected model is used as active model"
@@ -1072,7 +1072,7 @@
       "priority": "P0",
       "title": "Set base_url during API key save",
       "description": "Set base_url during API key save - covered by FR-012",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: verify base_url is set when API key is saved",
         "AddUnitTest: verify base_url is used in API calls"
@@ -1092,7 +1092,7 @@
       "priority": "P0",
       "title": "API key validation tests (FR-012)",
       "description": "Comprehensive unit tests for API key validation functionality",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: test valid API key acceptance",
         "AddUnitTest: test invalid API key rejection",
@@ -1120,7 +1120,7 @@
       "priority": "P0",
       "title": "Model selection flow tests (FR-013)",
       "description": "Comprehensive unit tests for model selection flow",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: test ConnectModelDialog wiring",
         "AddUnitTest: test model fetching from provider",
@@ -1147,7 +1147,7 @@
       "priority": "P1",
       "title": "Google OAuth wiring tests (FR-014)",
       "description": "Comprehensive unit tests for Google OAuth wiring",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: test GoogleOAuthService connection to TUI",
         "AddUnitTest: test OAuth callback handling",
@@ -1173,7 +1173,7 @@
       "priority": "P1",
       "title": "Copilot OAuth wiring tests (FR-015)",
       "description": "Comprehensive unit tests for Copilot OAuth wiring",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: test CopilotOAuthService connection to TUI",
         "AddUnitTest: test device code flow handling",
@@ -1199,7 +1199,7 @@
       "priority": "P2",
       "title": "ProviderAuth trait tests (FR-016)",
       "description": "Comprehensive unit tests for ProviderAuth trait",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: test AuthMethod enum variants",
         "AddUnitTest: test ProviderAuth trait methods",
@@ -1226,7 +1226,7 @@
       "priority": "P2",
       "title": "Multiple credentials tests (FR-017)",
       "description": "Comprehensive unit tests for multiple credentials functionality",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: test store_named method",
         "AddUnitTest: test list_credentials method",
@@ -1254,7 +1254,7 @@
       "priority": "P0",
       "title": "Complete API key flow integration test",
       "description": "Integration test for complete API key flow: provider selection -> API key -> validation -> model selection -> chat",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: test full flow with valid API key",
         "AddIntegrationTest: test full flow with invalid API key",
@@ -1277,7 +1277,7 @@
       "priority": "P1",
       "title": "Google OAuth flow integration test",
       "description": "Integration test for complete Google OAuth flow",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: test full Google OAuth flow",
         "AddIntegrationTest: test Google OAuth error recovery",
@@ -1299,7 +1299,7 @@
       "priority": "P1",
       "title": "Copilot OAuth flow integration test",
       "description": "Integration test for complete Copilot OAuth flow",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: test full Copilot OAuth flow",
         "AddIntegrationTest: test Copilot OAuth error recovery",

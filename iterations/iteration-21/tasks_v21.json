@@ -179,7 +179,7 @@
       "priority": "P0",
       "title": "Add session state persistence",
       "description": "Add session state persistence after execution using SessionStore",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify session state is persisted after tool execution",
         "AddErrorHandlingTest: verify graceful handling when persistence fails"
@@ -234,7 +234,7 @@
       "priority": "P0",
       "title": "Create agent_execute_api_tests.rs",
       "description": "Create integration test file tests/src/agent_execute_api_tests.rs for execute API",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify test file compiles and runs",
         "AddRegressionTest: ensure test infrastructure is properly set up"
@@ -506,7 +506,7 @@
       "priority": "P0",
       "title": "Create ws_streaming_tests.rs",
       "description": "Create test file tests/src/ws_streaming_tests.rs for WebSocket streaming tests",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify test file compiles and infrastructure works"
       ],
@@ -540,7 +540,7 @@
       "priority": "P0",
       "title": "Add test: tool call events stream in real-time",
       "description": "Add integration test: tool call events stream in real-time via WebSocket",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify tool call events appear in WebSocket stream"
       ],
@@ -760,7 +760,7 @@
       "priority": "P1",
       "title": "Create status_endpoint_tests.rs",
       "description": "Create test file tests/src/status_endpoint_tests.rs",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify test file compiles and runs"
       ],
@@ -880,7 +880,7 @@
       "priority": "P1",
       "title": "Implement token-by-token SSE streaming",
       "description": "Implement token-by-token SSE streaming in run_prompt",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify SSE stream contains token events"
       ],
@@ -931,7 +931,7 @@
       "priority": "P1",
       "title": "Create streaming_response_tests.rs",
       "description": "Create test file tests/src/streaming_response_tests.rs",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify test file compiles and runs"
       ],
@@ -1408,7 +1408,7 @@
       "priority": "P2",
       "title": "Create security_tests.rs",
       "description": "Create tests/src/security_tests.rs for security test suite",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: ensure security test file compiles"
       ],
@@ -1491,7 +1491,7 @@
       "priority": "P2",
       "title": "Verify security tests pass",
       "description": "Verify all security tests pass",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: verify all security tests pass"
       ],
@@ -1508,7 +1508,7 @@
       "priority": "P0",
       "title": "Run full test suite",
       "description": "Run full test suite: cargo test --all-features",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: verify all tests pass with --all-features"
       ],
@@ -1532,7 +1532,7 @@
       "priority": "P0",
       "title": "Run clippy",
       "description": "Run clippy: cargo clippy --all-targets --all-features -- -D warnings",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: verify clippy passes with no warnings"
       ],
@@ -1549,7 +1549,7 @@
       "priority": "P0",
       "title": "Run formatting check",
       "description": "Run formatting: cargo fmt --all -- --check",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: verify formatting passes"
       ],
@@ -1566,7 +1566,7 @@
       "priority": "P0",
       "title": "Run doc tests",
       "description": "Run doc tests: cargo test --doc",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "RunTestSuite: verify doc tests pass"
       ],

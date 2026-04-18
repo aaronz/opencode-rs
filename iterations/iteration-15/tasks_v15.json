@@ -99,7 +99,7 @@
       "priority": "P1",
       "title": "Server/runtime and TUI plugin configs can be mixed",
       "description": "Add validation in config loading to separate plugin configs. Ensure opencode.json plugins stay in server/runtime domain. Ensure tui.json plugins stay in TUI domain.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify server/runtime plugins in opencode.json are accepted",
         "AddUnitTest: verify TUI plugins in tui.json are accepted",
@@ -164,7 +164,7 @@
       "priority": "P1",
       "title": "Missing create->fork->share->compact->revert integration test",
       "description": "Add integration test covering complete session lifecycle: Create session, Fork child session, Share session, Compact session, Revert to checkpoint. Verify session state integrity after each operation.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify session creation works correctly",
         "AddIntegrationTest: verify fork child session creates valid child",
@@ -187,7 +187,7 @@
       "priority": "P1",
       "title": "Desktop app not implemented (stubs only)",
       "description": "Implement desktop startup flow in crates/cli/. Integrate WebView for desktop shell. Implement desktop-specific configuration handling. Add desktop mode to CLI argument parsing.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify CLI argument parsing includes desktop mode",
         "AddUnitTest: verify desktop configuration loading works",
@@ -208,7 +208,7 @@
       "priority": "P1",
       "title": "Implement Web Server Mode",
       "description": "Implement full web server in crates/cli/src/cmd/web.rs. Add authentication protection to web endpoints. Implement session sharing between web and TUI modes. Add web-specific route handlers.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify web server endpoints are defined correctly",
         "AddUnitTest: verify authentication protection on web endpoints",
@@ -232,7 +232,7 @@
       "priority": "P1",
       "title": "ACP transport not implemented (event structs exist)",
       "description": "Implement ACP handshake mechanism. Implement ACP transport layer for editor communication. Add connection management for ACP clients. Integrate with server for ACP endpoint handling.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify ACP handshake mechanism completes successfully",
         "AddUnitTest: verify ACP transport layer sends/receives messages",
@@ -254,7 +254,7 @@
       "priority": "P1",
       "title": "Refactor Config Crate - crates/config/src/lib.rs is empty re-export",
       "description": "Move config logic from crates/core/src/config.rs to crates/config/. Ensure crates/config/ contains actual config implementation. Update imports in dependent crates. Verify config precedence and ownership still works.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify config logic resides in crates/config/ crate",
         "AddUnitTest: verify config precedence works correctly after refactor",
@@ -297,7 +297,7 @@
       "priority": "P2",
       "title": "TUI Input Model Tests - No tests for input model",
       "description": "Add tests for multiline input handling, input history navigation, and autocomplete triggering in TUI input model.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify multiline input handling works correctly",
         "AddUnitTest: verify input history navigation (up/down arrows)",
@@ -318,7 +318,7 @@
       "priority": "P2",
       "title": "TUI Sidebar Tests - No tests for sidebar visibility and content",
       "description": "Add tests for sidebar visibility toggle, file tree content, MCP/LSP status display, and diagnostics display.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify sidebar visibility toggle works",
         "AddUnitTest: verify file tree content displays correctly",
@@ -340,7 +340,7 @@
       "priority": "P2",
       "title": "Per-Agent Model Override Test - not explicitly tested",
       "description": "Add test for agent-specific model selection. Verify build agent uses default model. Verify model override affects only specified agent.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify agent-specific model selection works",
         "AddUnitTest: verify build agent uses default model",
@@ -360,7 +360,7 @@
       "priority": "P2",
       "title": "Route-Group Presence Tests - No integration tests for route groups",
       "description": "Add tests for session, config, provider, permission, and MCP route groups in server module.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify session route group handlers work",
         "AddIntegrationTest: verify config route group handlers work",
@@ -383,7 +383,7 @@
       "priority": "P2",
       "title": "API Negative Tests - No negative tests for unauthorized/malformed requests",
       "description": "Add tests for unauthorized access (missing auth token), invalid auth token, malformed request bodies, and invalid session/message IDs.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddErrorHandlingTest: verify unauthorized access returns 401 without auth token",
         "AddErrorHandlingTest: verify invalid auth token returns 401",
