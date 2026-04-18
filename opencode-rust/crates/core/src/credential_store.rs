@@ -25,6 +25,7 @@ pub struct EncryptedData {
 pub struct StoredCredential {
     pub id: String,
     pub provider_id: String,
+    pub name: Option<String>,
     pub encrypted_api_key: EncryptedData,
     pub created_at: DateTime<Utc>,
     pub expires_at: Option<DateTime<Utc>>,
@@ -142,14 +143,38 @@ pub fn store_credential(
     api_key: String,
     expires_at: Option<DateTime<Utc>>,
 ) -> Result<String, CryptoError> {
+    store_named(provider_id, api_key, None, expires_at)
+}
+
+pub fn store_named(
+    provider_id: String,
+    api_key: String,
+    name: Option<String>,
+    expires_at: Option<DateTime<Utc>>,
+) -> Result<String, CryptoError> {
     let key = get_encryption_key()?;
 
     let encrypted_api_key = encrypt_data(api_key.as_bytes(), key)?;
 
-    let credential_id = format!("cred-{}", uuid::Uuid::new_v4());
+    let credential_id = if let Some(ref n) = name {
+        format!("{}:{}", provider_id, n)
+    } else {
+        format!("cred-{}", uuid::Uuid::new_v4())
+    };
+
+    let existing_id = format!("{}:{}", provider_id, name.as_deref().unwrap_or("default"));
+    if name.is_some() {
+        let store = get_credential_store();
+        let mut store = store.lock().unwrap_or_else(|p| p.into_inner());
+        if store.contains_key(&existing_id) {
+            store.remove(&existing_id);
+        }
+    }
+
     let stored = StoredCredential {
         id: credential_id.clone(),
         provider_id,
+        name,
         encrypted_api_key,
         created_at: Utc::now(),
         expires_at,
@@ -264,6 +289,27 @@ pub fn list_credentials() -> Vec<String> {
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     store.keys().cloned().collect()
+}
+
+pub fn list_credentials_by_provider(provider_id: &str) -> Vec<(String, Option<String>)> {
+    let store = get_credential_store();
+    let store = store
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    store
+        .iter()
+        .filter(|(_, cred)| cred.provider_id == provider_id)
+        .map(|(id, cred)| (id.clone(), cred.name.clone()))
+        .collect()
+}
+
+pub fn delete_named(provider_id: &str, name: &str) -> bool {
+    let credential_id = format!("{}:{}", provider_id, name);
+    let store = get_credential_store();
+    let mut store = store
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    store.remove(&credential_id).is_some()
 }
 
 #[cfg(test)]
@@ -413,5 +459,103 @@ mod tests {
 
         let decrypted = decrypt_data(&deserialized, key).unwrap();
         assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn test_store_named_credential() {
+        init_test_key();
+
+        let cred_id = store_named(
+            "test-provider".to_string(),
+            "test-key".to_string(),
+            Some("work".to_string()),
+            None,
+        )
+        .unwrap();
+
+        assert!(cred_id.contains("test-provider"));
+        assert!(cred_id.contains("work"));
+    }
+
+    #[test]
+    fn test_list_credentials_by_provider() {
+        init_test_key();
+
+        let store = get_credential_store();
+        *store.lock().unwrap() = HashMap::new();
+
+        store_named(
+            "openai".to_string(),
+            "key1".to_string(),
+            Some("work".to_string()),
+            None,
+        )
+        .unwrap();
+        store_named(
+            "openai".to_string(),
+            "key2".to_string(),
+            Some("personal".to_string()),
+            None,
+        )
+        .unwrap();
+
+        let creds = list_credentials_by_provider("openai");
+        assert_eq!(creds.len(), 2);
+    }
+
+    #[test]
+    fn test_delete_named_credential() {
+        init_test_key();
+
+        let store = get_credential_store();
+        *store.lock().unwrap() = HashMap::new();
+
+        store_named(
+            "test-provider".to_string(),
+            "test-key".to_string(),
+            Some("temp".to_string()),
+            None,
+        )
+        .unwrap();
+
+        let deleted = delete_named("test-provider", "temp");
+        assert!(deleted);
+
+        let creds = list_credentials_by_provider("test-provider");
+        assert!(creds.is_empty());
+    }
+
+    #[test]
+    fn test_delete_nonexistent_named_credential() {
+        init_test_key();
+
+        let deleted = delete_named("nonexistent", "missing");
+        assert!(!deleted);
+    }
+
+    #[test]
+    fn test_store_named_overwrites_existing() {
+        init_test_key();
+
+        let store = get_credential_store();
+        *store.lock().unwrap() = HashMap::new();
+
+        let cred_id1 = store_named(
+            "test-provider".to_string(),
+            "old-key".to_string(),
+            Some("work".to_string()),
+            None,
+        )
+        .unwrap();
+
+        let cred_id2 = store_named(
+            "test-provider".to_string(),
+            "new-key".to_string(),
+            Some("work".to_string()),
+            None,
+        )
+        .unwrap();
+
+        assert_eq!(cred_id1, cred_id2);
     }
 }

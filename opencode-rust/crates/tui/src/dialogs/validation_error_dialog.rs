@@ -27,16 +27,11 @@ impl ValidationErrorDialog {
         }
     }
 
-    pub fn from_validation_error(
-        error_message: &str,
-        provider_name: &str,
-        theme: Theme,
-    ) -> Self {
+    pub fn from_validation_error(error_message: &str, provider_name: &str, theme: Theme) -> Self {
         let title = "API Key Validation Failed".to_string();
         let message = format!(
             "{}\n\nYour API key for {} was not accepted.\nPlease check your key and try again.",
-            error_message,
-            provider_name
+            error_message, provider_name
         );
         Self::new(title, message, theme)
     }

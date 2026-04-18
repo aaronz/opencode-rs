@@ -15,6 +15,40 @@ pub struct OAuthTokenResponse {
     pub scope: Option<String>,
 }
 
+/// Authentication methods supported by a provider
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum AuthMethod {
+    /// Browser-based OAuth flow (requires user interaction)
+    Browser,
+    /// Direct API key authentication
+    ApiKey,
+    /// Local endpoint with no authentication
+    Local,
+    /// Device code OAuth flow (for headless authentication)
+    DeviceFlow,
+}
+
+/// Trait for providers to advertise their supported authentication methods
+pub trait ProviderAuth {
+    fn supported_auth_methods(&self) -> Vec<AuthMethod>;
+}
+
+impl ProviderAuth for str {
+    fn supported_auth_methods(&self) -> Vec<AuthMethod> {
+        match self {
+            "google" | "copilot" => vec![AuthMethod::Browser, AuthMethod::DeviceFlow],
+            "anthropic" | "openai" => vec![AuthMethod::ApiKey, AuthMethod::Browser],
+            _ => vec![AuthMethod::ApiKey],
+        }
+    }
+}
+
+impl ProviderAuth for &str {
+    fn supported_auth_methods(&self) -> Vec<AuthMethod> {
+        (*self).supported_auth_methods()
+    }
+}
+
 /// OAuth session manager for handling token refresh
 pub struct OAuthSessionManager {
     client: reqwest::Client,

@@ -2,6 +2,7 @@ use crate::dialogs::sealed;
 use crate::dialogs::{Dialog, DialogAction};
 use crate::theme::Theme;
 use crossterm::event::{KeyCode, KeyEvent};
+use opencode_llm::auth::{AuthMethod, ProviderAuth};
 use ratatui::{
     layout::Rect,
     style::{Modifier, Style},
@@ -18,28 +19,36 @@ pub struct ConnectMethodDialog {
     show_feedback: bool,
 }
 
-const OAUTH_ONLY_PROVIDERS: [&str; 2] = ["google", "copilot"];
-
 impl ConnectMethodDialog {
     pub fn new(theme: Theme, provider_id: String) -> Self {
-        let is_oauth_only = OAUTH_ONLY_PROVIDERS.contains(&provider_id.as_str());
+        let auth_methods = provider_id.supported_auth_methods();
+        let supports_browser = auth_methods.contains(&AuthMethod::Browser)
+            || auth_methods.contains(&AuthMethod::DeviceFlow);
+        let supports_api_key = auth_methods.contains(&AuthMethod::ApiKey);
 
         let methods = if provider_id == "openai" {
             vec![
                 ("browser".to_string(), "Browser auth".to_string()),
                 ("api_key".to_string(), "API key".to_string()),
             ]
-        } else if is_oauth_only {
+        } else if !supports_api_key && !supports_browser {
             Vec::new()
         } else {
-            vec![("api_key".to_string(), "API key".to_string())]
+            let mut methods = Vec::new();
+            if supports_browser {
+                methods.push(("browser".to_string(), "Browser auth".to_string()));
+            }
+            if supports_api_key {
+                methods.push(("api_key".to_string(), "API key".to_string()));
+            }
+            methods
         };
 
         Self {
             selected_index: 0,
             methods,
             theme,
-            is_oauth_only,
+            is_oauth_only: !supports_api_key && supports_browser,
             show_feedback: false,
         }
     }
