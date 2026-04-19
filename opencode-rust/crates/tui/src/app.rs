@@ -1827,6 +1827,11 @@ impl App {
         );
     }
 
+    pub fn initiate_google_oauth_flow_for_test(&mut self) {
+        self.pending_connect_provider = Some("google".to_string());
+        self.handle_connect_method_confirm("browser".to_string());
+    }
+
     pub fn confirm_model_for_google_auth_for_test(&mut self, model_id: &str) -> Result<(), String> {
         self.handle_connect_model_confirm(model_id.to_string())
     }

@@ -87,3 +87,14 @@ fn test_google_oauth_provides_model_list() {
     assert!(app.connect_model_dialog.is_some());
     assert_eq!(app.pending_browser_models.len(), 3);
 }
+
+#[test]
+fn test_google_oauth_flow_launches_when_browser_selected() {
+    let mut app = App::new();
+
+    app.initiate_google_oauth_flow_for_test();
+
+    assert_eq!(app.mode, AppMode::ConnectProgress);
+    assert!(app.pending_connect_provider.is_some());
+    assert_eq!(app.pending_connect_provider.as_deref(), Some("google"));
+}
