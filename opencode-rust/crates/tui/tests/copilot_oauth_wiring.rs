@@ -1,5 +1,5 @@
-use opencode_tui::{App, AppMode};
 use opencode_llm::{BrowserAuthModelInfo, CopilotOAuthSession};
+use opencode_tui::{App, AppMode};
 
 #[test]
 fn test_copilot_oauth_completes_auth_and_shows_model_picker() {

@@ -1,5 +1,5 @@
-use opencode_auth::oauth::{DeviceCodeSession, OAuthError, OAuthFlow};
 use chrono::{Duration, Utc};
+use opencode_auth::oauth::{DeviceCodeSession, OAuthError, OAuthFlow};
 
 #[test]
 fn test_device_code_session_displays_user_code() {
@@ -8,7 +8,9 @@ fn test_device_code_session_displays_user_code() {
         device_code: "device-code-abc123".to_string(),
         user_code: "USER-1234".to_string(),
         verification_uri: "https://github.com/login/device".to_string(),
-        verification_uri_complete: Some("https://github.com/login/device/activate?code=USER-1234".to_string()),
+        verification_uri_complete: Some(
+            "https://github.com/login/device/activate?code=USER-1234".to_string(),
+        ),
         expires_at: Utc::now() + Duration::seconds(300),
         interval_secs: 5,
         created_at: Utc::now(),
@@ -25,14 +27,18 @@ fn test_device_code_session_displays_verification_uri() {
         device_code: "device-code-abc123".to_string(),
         user_code: "USER-1234".to_string(),
         verification_uri: "https://github.com/login/device".to_string(),
-        verification_uri_complete: Some("https://github.com/login/device/activate?code=USER-1234".to_string()),
+        verification_uri_complete: Some(
+            "https://github.com/login/device/activate?code=USER-1234".to_string(),
+        ),
         expires_at: Utc::now() + Duration::seconds(300),
         interval_secs: 5,
         created_at: Utc::now(),
     };
 
     assert!(!session.verification_uri.is_empty());
-    assert!(session.verification_uri.starts_with("https://github.com/login/device"));
+    assert!(session
+        .verification_uri
+        .starts_with("https://github.com/login/device"));
 }
 
 #[test]
@@ -42,7 +48,9 @@ fn test_device_code_session_includes_complete_uri_when_available() {
         device_code: "device-code-abc123".to_string(),
         user_code: "USER-1234".to_string(),
         verification_uri: "https://github.com/login/device".to_string(),
-        verification_uri_complete: Some("https://github.com/login/device/activate?code=USER-1234".to_string()),
+        verification_uri_complete: Some(
+            "https://github.com/login/device/activate?code=USER-1234".to_string(),
+        ),
         expires_at: Utc::now() + Duration::seconds(300),
         interval_secs: 5,
         created_at: Utc::now(),

@@ -1,5 +1,5 @@
-use opencode_tui::{App, AppMode};
 use opencode_llm::{BrowserAuthModelInfo, GoogleOAuthSession};
+use opencode_tui::{App, AppMode};
 
 #[test]
 fn test_google_oauth_completes_auth_and_shows_model_picker() {

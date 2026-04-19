@@ -1,6 +1,9 @@
-use opencode_llm::{GoogleOAuthCallback, GoogleOAuthRequest, GoogleOAuthService, GoogleOAuthSession, GoogleOAuthStore};
-use std::net::TcpListener;
+use opencode_llm::{
+    GoogleOAuthCallback, GoogleOAuthRequest, GoogleOAuthService, GoogleOAuthSession,
+    GoogleOAuthStore,
+};
 use std::io::{Read, Write};
+use std::net::TcpListener;
 use std::thread;
 
 struct GoogleLocalCallbackServer {
@@ -19,13 +22,13 @@ impl GoogleLocalCallbackServer {
             .and_then(|line| line.split_whitespace().nth(1))
             .ok_or_else(|| "Invalid OAuth callback request".to_string())?;
 
-        let port = self.listener.local_addr().map_err(|e| e.to_string())?.port();
-        let url = reqwest::Url::parse(&format!(
-            "http://127.0.0.1:{}{}",
-            port,
-            path
-        ))
-        .map_err(|e| e.to_string())?;
+        let port = self
+            .listener
+            .local_addr()
+            .map_err(|e| e.to_string())?
+            .port();
+        let url = reqwest::Url::parse(&format!("http://127.0.0.1:{}{}", port, path))
+            .map_err(|e| e.to_string())?;
 
         let code = url
             .query_pairs()
@@ -44,7 +47,9 @@ impl GoogleLocalCallbackServer {
             body.len(),
             body
         );
-        stream.write_all(response.as_bytes()).map_err(|e| e.to_string())?;
+        stream
+            .write_all(response.as_bytes())
+            .map_err(|e| e.to_string())?;
 
         Ok(GoogleOAuthCallback { code, state })
     }
@@ -56,17 +61,24 @@ fn run_callback_server_and_get_port() -> (GoogleLocalCallbackServer, GoogleOAuth
     let request = GoogleOAuthRequest {
         redirect_uri: format!("http://127.0.0.1:{}/auth/callback", port),
         state: "test-state-12345".to_string(),
-        code_verifier: "test-verifier-12345678901234567890123456789012345678901234567890123456".to_string(),
+        code_verifier: "test-verifier-12345678901234567890123456789012345678901234567890123456"
+            .to_string(),
     };
     let server = GoogleLocalCallbackServer { listener };
     (server, request, port)
 }
 
 fn send_mock_oauth_callback(port: u16, code: &str, state: &str) -> Result<(), String> {
-    let url = format!("http://127.0.0.1:{}/auth/callback?code={}&state={}", port, code, state);
+    let url = format!(
+        "http://127.0.0.1:{}/auth/callback?code={}&state={}",
+        port, code, state
+    );
     let response = reqwest::blocking::get(&url).map_err(|e| e.to_string())?;
     if response.status().as_u16() != 200 {
-        return Err(format!("Expected status 200, got {}", response.status().as_u16()));
+        return Err(format!(
+            "Expected status 200, got {}",
+            response.status().as_u16()
+        ));
     }
     Ok(())
 }
@@ -75,9 +87,7 @@ fn send_mock_oauth_callback(port: u16, code: &str, state: &str) -> Result<(), St
 fn test_oauth_callback_is_received_correctly() {
     let (server, request, port) = run_callback_server_and_get_port();
 
-    let handle = thread::spawn(move || {
-        server.wait_for_callback()
-    });
+    let handle = thread::spawn(move || server.wait_for_callback());
 
     send_mock_oauth_callback(port, "test-auth-code-abc123", &request.state).unwrap();
 
@@ -93,9 +103,7 @@ fn test_oauth_callback_extracts_code_and_state() {
     let (server, request, port) = run_callback_server_and_get_port();
     let expected_code = "my-oauth-authorization-code";
 
-    let handle = thread::spawn(move || {
-        server.wait_for_callback()
-    });
+    let handle = thread::spawn(move || server.wait_for_callback());
 
     send_mock_oauth_callback(port, expected_code, &request.state).unwrap();
 
@@ -112,7 +120,8 @@ fn test_oauth_code_exchange_state_mismatch_error() {
     let request = GoogleOAuthRequest {
         redirect_uri: "http://127.0.0.1:9999/auth/callback".to_string(),
         state: "exchange-test-state".to_string(),
-        code_verifier: "test-verifier-12345678901234567890123456789012345678901234567890123456".to_string(),
+        code_verifier: "test-verifier-12345678901234567890123456789012345678901234567890123456"
+            .to_string(),
     };
 
     let callback = GoogleOAuthCallback {
@@ -128,11 +137,12 @@ fn test_oauth_code_exchange_state_mismatch_error() {
 fn test_oauth_callback_missing_code_returns_error() {
     let (server, request, port) = run_callback_server_and_get_port();
 
-    let handle = thread::spawn(move || {
-        server.wait_for_callback()
-    });
+    let handle = thread::spawn(move || server.wait_for_callback());
 
-    let url = format!("http://127.0.0.1:{}/auth/callback?state={}", port, request.state);
+    let url = format!(
+        "http://127.0.0.1:{}/auth/callback?state={}",
+        port, request.state
+    );
     let _ = reqwest::blocking::get(&url);
 
     let result = handle.join().unwrap();
@@ -145,9 +155,7 @@ fn test_oauth_callback_missing_code_returns_error() {
 fn test_oauth_callback_missing_state_returns_error() {
     let (server, _request, port) = run_callback_server_and_get_port();
 
-    let handle = thread::spawn(move || {
-        server.wait_for_callback()
-    });
+    let handle = thread::spawn(move || server.wait_for_callback());
 
     let url = format!("http://127.0.0.1:{}/auth/callback?code=test-code", port);
     let _ = reqwest::blocking::get(&url);
@@ -174,7 +182,10 @@ fn test_oauth_tokens_stored_in_credential_store() {
     assert!(loaded.is_some());
     let loaded_session = loaded.unwrap();
     assert_eq!(loaded_session.access_token, "ya29.test-access-token");
-    assert_eq!(loaded_session.refresh_token, Some("1//test-refresh-token".to_string()));
+    assert_eq!(
+        loaded_session.refresh_token,
+        Some("1//test-refresh-token".to_string())
+    );
     assert_eq!(loaded_session.email, Some("testuser@gmail.com".to_string()));
 }
 
@@ -249,14 +260,11 @@ fn test_oauth_invalid_callback_server_request() {
 fn test_oauth_callback_server_sends_success_response() {
     let (server, request, port) = run_callback_server_and_get_port();
 
-    let handle = thread::spawn(move || {
-        server.wait_for_callback()
-    });
+    let handle = thread::spawn(move || server.wait_for_callback());
 
     let url = format!(
         "http://127.0.0.1:{}/auth/callback?code=test-code&state={}",
-        port,
-        request.state
+        port, request.state
     );
     let response = reqwest::blocking::get(&url).unwrap();
 

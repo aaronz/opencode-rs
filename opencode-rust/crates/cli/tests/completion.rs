@@ -34,12 +34,45 @@ fn test_bash_completion_includes_all_cli_commands() {
     let stdout = String::from_utf8_lossy(&output.stdout);
 
     let expected_commands = [
-        "run", "serve", "desktop", "account", "config", "agent", "bash",
-        "models", "providers", "mcp", "session", "list", "stats", "terminal",
-        "db", "github", "gitlab", "pr", "export", "import", "generate",
-        "web", "thread", "attach", "uninstall", "upgrade", "debug", "acp",
-        "workspace-serve", "palette", "shortcuts", "workspace", "ui",
-        "project", "files", "prompt", "quick", "tui", "completion",
+        "run",
+        "serve",
+        "desktop",
+        "account",
+        "config",
+        "agent",
+        "bash",
+        "models",
+        "providers",
+        "mcp",
+        "session",
+        "list",
+        "stats",
+        "terminal",
+        "db",
+        "github",
+        "gitlab",
+        "pr",
+        "export",
+        "import",
+        "generate",
+        "web",
+        "thread",
+        "attach",
+        "uninstall",
+        "upgrade",
+        "debug",
+        "acp",
+        "workspace-serve",
+        "palette",
+        "shortcuts",
+        "workspace",
+        "ui",
+        "project",
+        "files",
+        "prompt",
+        "quick",
+        "tui",
+        "completion",
     ];
 
     for cmd in expected_commands {
@@ -79,12 +112,45 @@ fn test_zsh_completion_includes_all_cli_commands() {
     let stdout = String::from_utf8_lossy(&output.stdout);
 
     let expected_commands = [
-        "run", "serve", "desktop", "account", "config", "agent", "bash",
-        "models", "providers", "mcp", "session", "list", "stats", "terminal",
-        "db", "github", "gitlab", "pr", "export", "import", "generate",
-        "web", "thread", "attach", "uninstall", "upgrade", "debug", "acp",
-        "workspace-serve", "palette", "shortcuts", "workspace", "ui",
-        "project", "files", "prompt", "quick", "tui", "completion",
+        "run",
+        "serve",
+        "desktop",
+        "account",
+        "config",
+        "agent",
+        "bash",
+        "models",
+        "providers",
+        "mcp",
+        "session",
+        "list",
+        "stats",
+        "terminal",
+        "db",
+        "github",
+        "gitlab",
+        "pr",
+        "export",
+        "import",
+        "generate",
+        "web",
+        "thread",
+        "attach",
+        "uninstall",
+        "upgrade",
+        "debug",
+        "acp",
+        "workspace-serve",
+        "palette",
+        "shortcuts",
+        "workspace",
+        "ui",
+        "project",
+        "files",
+        "prompt",
+        "quick",
+        "tui",
+        "completion",
     ];
 
     for cmd in expected_commands {
@@ -124,12 +190,45 @@ fn test_fish_completion_includes_all_cli_commands() {
     let stdout = String::from_utf8_lossy(&output.stdout);
 
     let expected_commands = [
-        "run", "serve", "desktop", "account", "config", "agent", "bash",
-        "models", "providers", "mcp", "session", "list", "stats", "terminal",
-        "db", "github", "gitlab", "pr", "export", "import", "generate",
-        "web", "thread", "attach", "uninstall", "upgrade", "debug", "acp",
-        "workspace-serve", "palette", "shortcuts", "workspace", "ui",
-        "project", "files", "prompt", "quick", "tui", "completion",
+        "run",
+        "serve",
+        "desktop",
+        "account",
+        "config",
+        "agent",
+        "bash",
+        "models",
+        "providers",
+        "mcp",
+        "session",
+        "list",
+        "stats",
+        "terminal",
+        "db",
+        "github",
+        "gitlab",
+        "pr",
+        "export",
+        "import",
+        "generate",
+        "web",
+        "thread",
+        "attach",
+        "uninstall",
+        "upgrade",
+        "debug",
+        "acp",
+        "workspace-serve",
+        "palette",
+        "shortcuts",
+        "workspace",
+        "ui",
+        "project",
+        "files",
+        "prompt",
+        "quick",
+        "tui",
+        "completion",
     ];
 
     for cmd in expected_commands {
@@ -146,7 +245,10 @@ fn test_powershell_completion_generates_valid_script() {
     let harness = TestHarness::setup();
     let output = harness.run_cli(&["completion", "powershell"]);
 
-    assert!(output.status.success(), "completion powershell should succeed");
+    assert!(
+        output.status.success(),
+        "completion powershell should succeed"
+    );
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
@@ -168,17 +270,53 @@ fn test_powershell_completion_includes_all_cli_commands() {
     let harness = TestHarness::setup();
     let output = harness.run_cli(&["completion", "powershell"]);
 
-    assert!(output.status.success(), "completion powershell should succeed");
+    assert!(
+        output.status.success(),
+        "completion powershell should succeed"
+    );
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
     let expected_commands = [
-        "run", "serve", "desktop", "account", "config", "agent", "bash",
-        "models", "providers", "mcp", "session", "list", "stats", "terminal",
-        "db", "github", "gitlab", "pr", "export", "import", "generate",
-        "web", "thread", "attach", "uninstall", "upgrade", "debug", "acp",
-        "workspace-serve", "palette", "shortcuts", "workspace", "ui",
-        "project", "files", "prompt", "quick", "tui", "completion",
+        "run",
+        "serve",
+        "desktop",
+        "account",
+        "config",
+        "agent",
+        "bash",
+        "models",
+        "providers",
+        "mcp",
+        "session",
+        "list",
+        "stats",
+        "terminal",
+        "db",
+        "github",
+        "gitlab",
+        "pr",
+        "export",
+        "import",
+        "generate",
+        "web",
+        "thread",
+        "attach",
+        "uninstall",
+        "upgrade",
+        "debug",
+        "acp",
+        "workspace-serve",
+        "palette",
+        "shortcuts",
+        "workspace",
+        "ui",
+        "project",
+        "files",
+        "prompt",
+        "quick",
+        "tui",
+        "completion",
     ];
 
     for cmd in expected_commands {
@@ -195,7 +333,10 @@ fn test_completion_bash_is_default() {
     let harness = TestHarness::setup();
     let output = harness.run_cli(&["completion"]);
 
-    assert!(output.status.success(), "completion without shell arg should succeed");
+    assert!(
+        output.status.success(),
+        "completion without shell arg should succeed"
+    );
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(

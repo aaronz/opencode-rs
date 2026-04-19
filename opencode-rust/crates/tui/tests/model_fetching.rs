@@ -1,5 +1,5 @@
-use opencode_tui::app::{parse_anthropic_models, parse_lm_studio_models, parse_openai_models};
 use opencode_llm::BrowserAuthModelInfo;
+use opencode_tui::app::{parse_anthropic_models, parse_lm_studio_models, parse_openai_models};
 
 #[test]
 fn test_parse_openai_models_success() {

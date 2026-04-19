@@ -71,10 +71,7 @@ fn verify_all_models_have_context_length_greater_than_zero() {
     let registry = ModelRegistry::new();
     let models = registry.list();
 
-    assert!(
-        !models.is_empty(),
-        "Model registry should not be empty"
-    );
+    assert!(!models.is_empty(), "Model registry should not be empty");
 
     let mut failures = Vec::new();
     for model in &models {
@@ -98,10 +95,7 @@ fn verify_all_models_have_max_tokens_greater_than_zero() {
     let registry = ModelRegistry::new();
     let models = registry.list();
 
-    assert!(
-        !models.is_empty(),
-        "Model registry should not be empty"
-    );
+    assert!(!models.is_empty(), "Model registry should not be empty");
 
     let mut failures = Vec::new();
     for model in &models {
@@ -136,10 +130,7 @@ fn verify_context_lengths_match_known_provider_specifications() {
                 }
             }
             None => {
-                failures.push(format!(
-                    "Model '{}' not found in registry",
-                    model_name
-                ));
+                failures.push(format!("Model '{}' not found in registry", model_name));
             }
         }
     }
