@@ -101,6 +101,9 @@ struct Cli {
     #[arg(long = "print-logs")]
     pub print_logs: bool,
 
+    #[arg(short = 'V', long = "verbose")]
+    pub verbose: bool,
+
     // Positional argument for project path
     #[arg(value_name = "PROJECT")]
     pub project: Option<PathBuf>,

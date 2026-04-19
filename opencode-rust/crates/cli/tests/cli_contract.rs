@@ -448,3 +448,301 @@ fn cli_contract_invalid_option_does_not_panic() {
         output.status
     );
 }
+
+#[test]
+fn cli_contract_config_show_exits_with_code_zero() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["config", "show"]);
+
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "config show should exit with code 0, got {:?}",
+        output.status.code()
+    );
+}
+
+#[test]
+fn cli_contract_config_show_output_goes_to_stdout_not_stderr() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["config", "show"]);
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(
+        !stdout.is_empty(),
+        "config show output should go to stdout, but stdout was empty"
+    );
+
+    assert!(
+        stderr.is_empty(),
+        "config show output should go to stdout, not stderr. stderr contained: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_contract_config_show_output_format_is_stable() {
+    let harness = TestHarness::setup();
+
+    let output1 = harness.run_cli(&["config", "show"]);
+    let output2 = harness.run_cli(&["config", "show"]);
+    let output3 = harness.run_cli(&["config", "show"]);
+
+    let stdout1 = String::from_utf8_lossy(&output1.stdout).trim().to_string();
+    let stdout2 = String::from_utf8_lossy(&output2.stdout).trim().to_string();
+    let stdout3 = String::from_utf8_lossy(&output3.stdout).trim().to_string();
+
+    assert_eq!(
+        stdout1, stdout2,
+        "config show output should be stable across runs. First: '{}', Second: '{}'",
+        stdout1, stdout2
+    );
+
+    assert_eq!(
+        stdout2, stdout3,
+        "config show output should be stable across runs. Second: '{}', Third: '{}'",
+        stdout2, stdout3
+    );
+}
+
+#[test]
+fn cli_contract_config_show_contains_config_path() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["config", "show"]);
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(
+        stdout.contains("Config path:"),
+        "config show output should contain 'Config path:', got: '{}'",
+        stdout
+    );
+}
+
+#[test]
+fn cli_contract_config_show_output_format_lines_consistent() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["config", "show"]);
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let line_count = stdout.lines().count();
+
+    assert!(
+        line_count >= 1,
+        "config show output should have at least 1 line, got {} lines: '{}'",
+        line_count,
+        stdout
+    );
+
+    let output2 = harness.run_cli(&["config", "show"]);
+    let stdout2 = String::from_utf8_lossy(&output2.stdout);
+    let line_count2 = stdout2.lines().count();
+
+    assert_eq!(
+        line_count, line_count2,
+        "config show output should have consistent line count across runs. First run: {} lines, Second run: {} lines",
+        line_count, line_count2
+    );
+}
+
+#[test]
+fn cli_contract_config_show_matches_opencode_cli_format() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["config", "show"]);
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(
+        stderr.is_empty(),
+        "config show should not output to stderr. stderr contained: {}",
+        stderr
+    );
+
+    assert!(
+        stdout.starts_with("Config path:"),
+        "config show output should start with 'Config path:'. Got: '{}'",
+        stdout
+    );
+
+    let lines: Vec<&str> = stdout.lines().collect();
+    for line in &lines {
+        assert!(
+            !line.contains("Invalid") && !line.contains("error") && !line.contains("Error"),
+            "config show should not contain error messages. Found line: '{}'",
+            line
+        );
+    }
+}
+
+#[test]
+fn cli_contract_config_exits_with_code_zero() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["config"]);
+
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "config (without subcommand) should exit with code 0, got {:?}",
+        output.status.code()
+    );
+}
+
+#[test]
+fn cli_contract_config_json_exits_with_code_zero() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["config", "--json"]);
+
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "config --json should exit with code 0, got {:?}",
+        output.status.code()
+    );
+}
+
+#[test]
+fn cli_contract_config_json_output_is_valid_json() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["config", "--json"]);
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(
+        stderr.is_empty(),
+        "config --json should not output to stderr. stderr contained: {}",
+        stderr
+    );
+
+    let trimmed = stdout.trim();
+    assert!(
+        trimmed.starts_with('{'),
+        "config --json output should be JSON object. Got: '{}'",
+        trimmed
+    );
+
+    let parse_result = serde_json::from_str::<serde_json::Value>(trimmed);
+    assert!(
+        parse_result.is_ok(),
+        "config --json output should be valid JSON. Parse error: {:?}. Output: '{}'",
+        parse_result.err(),
+        trimmed
+    );
+}
+
+#[test]
+fn cli_contract_verbose_help_exits_with_code_zero() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["--verbose", "--help"]);
+
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "--verbose --help should exit with code 0, got {:?}",
+        output.status.code()
+    );
+}
+
+#[test]
+fn cli_contract_verbose_help_output_goes_to_stdout_not_stderr() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["--verbose", "--help"]);
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(
+        !stdout.is_empty(),
+        "--verbose --help output should go to stdout, but stdout was empty"
+    );
+
+    assert!(
+        stderr.is_empty(),
+        "--verbose --help output should go to stdout, not stderr. stderr contained: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_contract_verbose_help_contains_expected_content() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["--verbose", "--help"]);
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(
+        stdout.contains("Usage:"),
+        "--verbose --help output should contain 'Usage:'"
+    );
+    assert!(
+        stdout.contains("Commands:"),
+        "--verbose --help output should contain 'Commands:'"
+    );
+    assert!(
+        stdout.contains("Options:"),
+        "--verbose --help output should contain 'Options:'"
+    );
+    assert!(
+        stdout.contains("-h, --help"),
+        "--verbose --help output should contain '-h, --help'"
+    );
+    assert!(
+        stdout.contains("opencode-rs"),
+        "--verbose --help output should contain 'opencode-rs'"
+    );
+}
+
+#[test]
+fn cli_contract_verbose_help_shows_verbose_flag_in_options() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["--verbose", "--help"]);
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(
+        stdout.contains("--verbose"),
+        "--verbose --help output should show the --verbose flag in Options"
+    );
+}
+
+#[test]
+fn cli_contract_verbose_help_matches_plain_help_output() {
+    let harness = TestHarness::setup();
+
+    let verbose_help_output = harness.run_cli(&["--verbose", "--help"]);
+    let plain_help_output = harness.run_cli(&["--help"]);
+
+    let verbose_stdout = String::from_utf8_lossy(&verbose_help_output.stdout);
+    let plain_stdout = String::from_utf8_lossy(&plain_help_output.stdout);
+
+    assert_eq!(
+        verbose_stdout, plain_stdout,
+        "--verbose --help output should match plain --help output. Verbose: '{}', Plain: '{}'",
+        verbose_stdout,
+        plain_stdout
+    );
+}
+
+#[test]
+fn cli_contract_verbose_flag_does_not_interfere_with_help() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["--verbose", "--help"]);
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(
+        stdout.contains("AI coding agent"),
+        "Help content should not be affected by verbose flag"
+    );
+    assert!(
+        stdout.contains("tui"),
+        "Help should show 'tui' command even with verbose flag"
+    );
+    assert!(
+        stdout.contains("-h, --help"),
+        "Help should still show help option with verbose flag"
+    );
+}

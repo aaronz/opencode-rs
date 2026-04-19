@@ -177,6 +177,21 @@ mod tests {
         assert!(args.models);
         assert!(args.providers);
     }
+
+    #[test]
+    fn test_config_args_with_show_value() {
+        let args = ConfigArgs {
+            json: 0,
+            keybinds: false,
+            models: false,
+            providers: false,
+            set: None,
+            migrate: false,
+            remove: false,
+            value: Some("show".to_string()),
+        };
+        assert_eq!(args.value.as_deref(), Some("show"));
+    }
 }
 
 pub(crate) fn run(args: ConfigArgs) {
@@ -225,8 +240,15 @@ pub(crate) fn run(args: ConfigArgs) {
         return;
     }
 
-    println!("Config path: {}", path.display());
-    if let Some(model) = config.model {
-        println!("Model: {}", model);
+    if args.value.as_deref() == Some("show") {
+        println!("Config path: {}", path.display());
+        if let Some(model) = config.model {
+            println!("Model: {}", model);
+        }
+    } else {
+        println!("Config path: {}", path.display());
+        if let Some(model) = config.model {
+            println!("Model: {}", model);
+        }
     }
 }
