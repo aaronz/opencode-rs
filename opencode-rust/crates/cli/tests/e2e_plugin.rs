@@ -9,7 +9,7 @@ fn test_plugin_install_persists_to_config() {
     let config_dir = harness.temp_dir.path().join("config");
     fs::create_dir_all(&config_dir).unwrap();
 
-    let config_path = config_dir.join("opencode.json");
+    let config_path = config_dir.join("config.json");
     fs::write(&config_path, "{}").unwrap();
 
     std::env::set_var("OPENCODE_CONFIG_DIR", config_dir.to_str().unwrap());
@@ -25,7 +25,9 @@ fn test_plugin_install_persists_to_config() {
     let config: serde_json::Value = serde_json::from_str(&config_content).unwrap();
     let plugins = config.get("plugin").and_then(|p| p.as_array());
     assert!(
-        plugins.map(|p| p.contains(&serde_json::json!("test-plugin"))).unwrap_or(false),
+        plugins
+            .map(|p| p.contains(&serde_json::json!("test-plugin")))
+            .unwrap_or(false),
         "plugin list should contain 'test-plugin' after install, got: {:?}",
         config
     );
@@ -39,11 +41,15 @@ fn test_plugin_list_shows_installed_plugins() {
     let config_dir = harness.temp_dir.path().join("config");
     fs::create_dir_all(&config_dir).unwrap();
 
-    let config_path = config_dir.join("opencode.json");
+    let config_path = config_dir.join("config.json");
     let config_content = serde_json::json!({
         "plugin": ["my-plugin", "other-plugin"]
     });
-    fs::write(&config_path, serde_json::to_string_pretty(&config_content).unwrap()).unwrap();
+    fs::write(
+        &config_path,
+        serde_json::to_string_pretty(&config_content).unwrap(),
+    )
+    .unwrap();
 
     std::env::set_var("OPENCODE_CONFIG_DIR", config_dir.to_str().unwrap());
 
@@ -69,11 +75,15 @@ fn test_plugin_remove_removes_from_config() {
     let config_dir = harness.temp_dir.path().join("config");
     fs::create_dir_all(&config_dir).unwrap();
 
-    let config_path = config_dir.join("opencode.json");
+    let config_path = config_dir.join("config.json");
     let initial_config = serde_json::json!({
         "plugin": ["plugin-to-remove", "keep-me"]
     });
-    fs::write(&config_path, serde_json::to_string_pretty(&initial_config).unwrap()).unwrap();
+    fs::write(
+        &config_path,
+        serde_json::to_string_pretty(&initial_config).unwrap(),
+    )
+    .unwrap();
 
     std::env::set_var("OPENCODE_CONFIG_DIR", config_dir.to_str().unwrap());
 
@@ -114,7 +124,11 @@ fn test_plugin_search_filters_by_query() {
         "version": "1.0.0",
         "description": "A plugin that is searchable"
     });
-    fs::write(plugin1_dir.join("plugin.json"), serde_json::to_string_pretty(&plugin1_meta).unwrap()).unwrap();
+    fs::write(
+        plugin1_dir.join("plugin.json"),
+        serde_json::to_string_pretty(&plugin1_meta).unwrap(),
+    )
+    .unwrap();
 
     let plugin2_dir = plugins_dir.join("other-plugin");
     fs::create_dir_all(&plugin2_dir).unwrap();
@@ -123,7 +137,11 @@ fn test_plugin_search_filters_by_query() {
         "version": "2.0.0",
         "description": "Another plugin"
     });
-    fs::write(plugin2_dir.join("plugin.json"), serde_json::to_string_pretty(&plugin2_meta).unwrap()).unwrap();
+    fs::write(
+        plugin2_dir.join("plugin.json"),
+        serde_json::to_string_pretty(&plugin2_meta).unwrap(),
+    )
+    .unwrap();
 
     let output = harness.run_cli(&["plugin", "search", "searchable"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -152,7 +170,11 @@ fn test_plugin_search_with_no_query_returns_all_discovered() {
         "version": "1.0.0",
         "description": "First plugin"
     });
-    fs::write(plugin1_dir.join("plugin.json"), serde_json::to_string_pretty(&plugin1_meta).unwrap()).unwrap();
+    fs::write(
+        plugin1_dir.join("plugin.json"),
+        serde_json::to_string_pretty(&plugin1_meta).unwrap(),
+    )
+    .unwrap();
 
     let plugin2_dir = plugins_dir.join("plugin-two");
     fs::create_dir_all(&plugin2_dir).unwrap();
@@ -161,7 +183,11 @@ fn test_plugin_search_with_no_query_returns_all_discovered() {
         "version": "2.0.0",
         "description": "Second plugin"
     });
-    fs::write(plugin2_dir.join("plugin.json"), serde_json::to_string_pretty(&plugin2_meta).unwrap()).unwrap();
+    fs::write(
+        plugin2_dir.join("plugin.json"),
+        serde_json::to_string_pretty(&plugin2_meta).unwrap(),
+    )
+    .unwrap();
 
     let output = harness.run_cli(&["plugin", "search"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -183,11 +209,15 @@ fn test_plugin_install_already_installed_fails() {
     let config_dir = harness.temp_dir.path().join("config");
     fs::create_dir_all(&config_dir).unwrap();
 
-    let config_path = config_dir.join("opencode.json");
+    let config_path = config_dir.join("config.json");
     let initial_config = serde_json::json!({
         "plugin": ["existing-plugin"]
     });
-    fs::write(&config_path, serde_json::to_string_pretty(&initial_config).unwrap()).unwrap();
+    fs::write(
+        &config_path,
+        serde_json::to_string_pretty(&initial_config).unwrap(),
+    )
+    .unwrap();
 
     std::env::set_var("OPENCODE_CONFIG_DIR", config_dir.to_str().unwrap());
 
@@ -198,7 +228,8 @@ fn test_plugin_install_already_installed_fails() {
     assert!(
         !output.status.success() || stdout.contains("already installed"),
         "installing already installed plugin should fail or show message. stdout: {}, stderr: {}",
-        stdout, stderr
+        stdout,
+        stderr
     );
 
     std::env::remove_var("OPENCODE_CONFIG_DIR");
@@ -210,7 +241,7 @@ fn test_plugin_remove_nonexistent_fails() {
     let config_dir = harness.temp_dir.path().join("config");
     fs::create_dir_all(&config_dir).unwrap();
 
-    let config_path = config_dir.join("opencode.json");
+    let config_path = config_dir.join("config.json");
     fs::write(&config_path, "{}").unwrap();
 
     std::env::set_var("OPENCODE_CONFIG_DIR", config_dir.to_str().unwrap());

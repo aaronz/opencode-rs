@@ -3,6 +3,7 @@ pub mod ai21;
 pub mod anthropic;
 pub mod auth;
 pub mod auth_layered;
+pub mod auth_method;
 pub mod azure;
 pub mod bedrock;
 pub mod gitlab;
@@ -48,6 +49,7 @@ pub use auth_layered::{
     GoogleOAuthCallback, GoogleOAuthRequest, GoogleOAuthService, GoogleOAuthSession,
     GoogleOAuthStore,
 };
+pub use auth_method::{get_provider_auth_methods, AuthMethod, ProviderAuth};
 pub use budget::{
     BudgetExceededError, BudgetLimit, BudgetTracker, ConversationBudgetState, RequestBudgetState,
     VariantCost,
