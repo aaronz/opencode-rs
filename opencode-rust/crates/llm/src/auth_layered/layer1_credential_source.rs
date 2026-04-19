@@ -127,10 +127,10 @@ impl CompositeCredentialResolver {
 
         if std::env::var("AWS_ACCESS_KEY_ID").is_ok() {
             metadata.insert("type".to_string(), "access_key".to_string());
-        } else if std::env::var("AWS_WEB_IDENTITY_TOKEN_FILE").is_ok() {
-            metadata.insert("type".to_string(), "oidc".to_string());
         } else if std::env::var("AWS_PROFILE").is_ok() {
             metadata.insert("type".to_string(), "profile".to_string());
+        } else if std::env::var("AWS_WEB_IDENTITY_TOKEN_FILE").is_ok() {
+            metadata.insert("type".to_string(), "oidc".to_string());
         } else {
             return None;
         }
