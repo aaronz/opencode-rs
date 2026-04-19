@@ -376,6 +376,16 @@ mod tests {
 
     static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+    fn lock_env_lock() -> std::sync::MutexGuard<'static, ()> {
+        match ENV_LOCK.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                tracing::warn!("ENV_LOCK was poisoned, recovering...");
+                poisoned.into_inner()
+            }
+        }
+    }
+
     #[test]
     fn fetch_schema_network_failure_is_graceful() {
         let result = fetch_schema("http://127.0.0.1:9/config.schema.json");
@@ -384,7 +394,7 @@ mod tests {
 
     #[test]
     fn cache_round_trip_works() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = lock_env_lock();
         let temp_dir = tempfile::tempdir().unwrap();
         std::env::set_var("OPENCODE_SCHEMA_CACHE_DIR", temp_dir.path());
 
@@ -399,7 +409,7 @@ mod tests {
 
     #[test]
     fn validation_errors_include_field_paths() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = lock_env_lock();
         let temp_dir = tempfile::tempdir().unwrap();
         std::env::set_var("OPENCODE_SCHEMA_CACHE_DIR", temp_dir.path());
 
@@ -431,7 +441,7 @@ mod tests {
 
     #[test]
     fn offline_mode_falls_back_cache_then_builtin() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = lock_env_lock();
         let temp_dir = tempfile::tempdir().unwrap();
         std::env::set_var("OPENCODE_SCHEMA_CACHE_DIR", temp_dir.path());
 
@@ -454,7 +464,13 @@ mod tests {
         assert!(!cached_result.valid);
 
         let cached_path = schema_cache_path(url);
-        std::fs::remove_file(cached_path).unwrap();
+        let _ = std::fs::remove_file(&cached_path).inspect_err(|e| {
+            tracing::warn!(
+                "failed to remove cached schema file {:?}: {}",
+                cached_path,
+                e
+            );
+        });
 
         let builtin_config = serde_json::json!({"$schema": url, "temperature": 4.2});
         let builtin_result = validate_json_schema(&builtin_config, "");
@@ -465,7 +481,7 @@ mod tests {
 
     #[test]
     fn invalid_schema_url_does_not_panic_or_fail_loading_semantics() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = lock_env_lock();
         let temp_dir = tempfile::tempdir().unwrap();
         std::env::set_var("OPENCODE_SCHEMA_CACHE_DIR", temp_dir.path());
 
