@@ -96,3 +96,113 @@ fn cli_contract_help_shows_tui_as_default_command() {
         "Help output should mention 'tui' as default command"
     );
 }
+
+#[test]
+fn cli_contract_version_exits_with_code_zero() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["--version"]);
+
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "--version should exit with code 0, got {:?}",
+        output.status.code()
+    );
+}
+
+#[test]
+fn cli_contract_version_output_goes_to_stdout_not_stderr() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["--version"]);
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(
+        !stdout.is_empty(),
+        "--version output should go to stdout, but stdout was empty"
+    );
+
+    assert!(
+        stderr.is_empty(),
+        "--version output should go to stdout, not stderr. stderr contained: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_contract_version_format_matches_expected_pattern() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["--version"]);
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(
+        stderr.is_empty(),
+        "--version should not output to stderr. stderr contained: {}",
+        stderr
+    );
+
+    let version_regex = regex::Regex::new(r"^opencode-rs \d+\.\d+\.\d+$").unwrap();
+    let trimmed = stdout.trim();
+    assert!(
+        version_regex.is_match(trimmed),
+        "Version output should match pattern 'opencode-rs X.Y.Z', got: '{}'",
+        trimmed
+    );
+}
+
+#[test]
+fn cli_contract_version_is_stable_across_runs() {
+    let harness = TestHarness::setup();
+
+    let output1 = harness.run_cli(&["--version"]);
+    let output2 = harness.run_cli(&["--version"]);
+    let output3 = harness.run_cli(&["--version"]);
+
+    let stdout1 = String::from_utf8_lossy(&output1.stdout).trim().to_string();
+    let stdout2 = String::from_utf8_lossy(&output2.stdout).trim().to_string();
+    let stdout3 = String::from_utf8_lossy(&output3.stdout).trim().to_string();
+
+    assert_eq!(
+        stdout1, stdout2,
+        "Version output should be stable across runs. First: '{}', Second: '{}'",
+        stdout1, stdout2
+    );
+
+    assert_eq!(
+        stdout2, stdout3,
+        "Version output should be stable across runs. Second: '{}', Third: '{}'",
+        stdout2, stdout3
+    );
+}
+
+#[test]
+fn cli_contract_version_contains_three_version_components() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["--version"]);
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let trimmed = stdout.trim();
+
+    let parts: Vec<&str> = trimmed.split_whitespace().collect();
+    assert_eq!(parts.len(), 2, "Version output should have 2 parts (name and version)");
+
+    let version_parts: Vec<&str> = parts[1].split('.').collect();
+    assert_eq!(
+        version_parts.len(),
+        3,
+        "Version should have 3 components (X.Y.Z), got: '{}'",
+        parts[1]
+    );
+
+    for (i, part) in version_parts.iter().enumerate() {
+        assert!(
+            part.parse::<u32>().is_ok(),
+            "Version component {} should be a number, got: '{}'",
+            i,
+            part
+        );
+    }
+}

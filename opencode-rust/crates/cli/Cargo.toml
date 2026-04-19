@@ -57,3 +57,4 @@ webkit2gtk = { version = "0.18", optional = true }
 
 [dev-dependencies]
 tempfile = "3"
+regex = "1"
