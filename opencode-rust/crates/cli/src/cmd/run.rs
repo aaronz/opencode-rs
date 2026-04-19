@@ -16,7 +16,7 @@ pub(crate) struct RunArgs {
     #[arg(short, long)]
     pub continue_session: Option<String>,
 
-    #[arg(short, long)]
+    #[arg(short = 'j', long)]
     pub attach: Option<String>,
 
     #[arg(short = 'y', long)]

@@ -22,7 +22,7 @@ pub(crate) struct WebArgs {
     #[arg(short, long)]
     pub port: Option<u16>,
 
-    #[arg(short, long)]
+    #[arg(short = 'n', long)]
     pub hostname: Option<String>,
 }
 

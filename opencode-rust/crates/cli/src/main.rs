@@ -184,7 +184,7 @@ enum Commands {
     Thread(ThreadArgs),
 
     #[command(about = "Attach to running session")]
-    Attach(AttachArgs),
+    Join(AttachArgs),
 
     #[command(about = "Uninstall opencode")]
     Uninstall(UninstallArgs),
@@ -312,7 +312,7 @@ fn main() -> ExitCode {
         Some(Commands::Generate(args)) => generate::run(args),
         Some(Commands::Web(args)) => web::run(args),
         Some(Commands::Thread(args)) => thread::run(args),
-        Some(Commands::Attach(args)) => attach::run(args),
+        Some(Commands::Join(args)) => attach::run(args),
         Some(Commands::Uninstall(args)) => uninstall::run(args),
         Some(Commands::Upgrade(args)) => upgrade::run(args),
         Some(Commands::Debug(args)) => debug::run(args),

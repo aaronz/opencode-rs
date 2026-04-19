@@ -10,8 +10,8 @@ pub(crate) struct AgentArgs {
 pub(crate) enum AgentAction {
     List,
     Run {
-        #[arg(short, long)]
-        agent: String,
+        #[arg(short = 'g', long)]
+        agent_name: String,
         #[arg(short, long)]
         prompt: String,
     },
@@ -36,7 +36,7 @@ mod tests {
     #[test]
     fn test_agent_action_run_fields() {
         let action = AgentAction::Run {
-            agent: "expert".to_string(),
+            agent_name: "expert".to_string(),
             prompt: "Fix the bug".to_string(),
         };
         assert!(matches!(action, AgentAction::Run { .. }));

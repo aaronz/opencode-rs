@@ -187,7 +187,11 @@ fn cli_contract_version_contains_three_version_components() {
     let trimmed = stdout.trim();
 
     let parts: Vec<&str> = trimmed.split_whitespace().collect();
-    assert_eq!(parts.len(), 2, "Version output should have 2 parts (name and version)");
+    assert_eq!(
+        parts.len(),
+        2,
+        "Version output should have 2 parts (name and version)"
+    );
 
     let version_parts: Vec<&str> = parts[1].split('.').collect();
     assert_eq!(
@@ -329,5 +333,118 @@ fn cli_contract_workspace_sessions_help_output_goes_to_stdout() {
         stderr.is_empty(),
         "workspace sessions --help output should go to stdout, not stderr. stderr contained: {}",
         stderr
+    );
+}
+
+#[test]
+fn cli_contract_invalid_option_exits_with_nonzero_code() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["--invalid-option"]);
+
+    let exit_code = output.status.code();
+    assert!(
+        exit_code == Some(1) || exit_code == Some(2),
+        "Invalid option should exit with code 1 or 2, got {:?}",
+        exit_code
+    );
+}
+
+#[test]
+fn cli_contract_invalid_option_error_message_format() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["--invalid-option"]);
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(
+        stderr.contains("unexpected argument") || stdout.contains("unexpected argument"),
+        "Error message should contain 'unexpected argument', got stderr: '{}', stdout: '{}'",
+        stderr,
+        stdout
+    );
+}
+
+#[test]
+fn cli_contract_invalid_option_shows_usage_tip() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["--invalid-option"]);
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(
+        stderr.contains("tip:") || stdout.contains("tip:"),
+        "Error message should contain 'tip:', got stderr: '{}', stdout: '{}'",
+        stderr,
+        stdout
+    );
+}
+
+#[test]
+fn cli_contract_invalid_option_shows_help_suggestion() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["--invalid-option"]);
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(
+        stderr.contains("--help") || stdout.contains("--help"),
+        "Error message should suggest --help, got stderr: '{}', stdout: '{}'",
+        stderr,
+        stdout
+    );
+}
+
+#[test]
+fn cli_contract_invalid_short_option_exits_with_nonzero_code() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["-z"]);
+
+    let exit_code = output.status.code();
+    assert!(
+        exit_code == Some(1) || exit_code == Some(2),
+        "Invalid short option should exit with code 1 or 2, got {:?}",
+        exit_code
+    );
+}
+
+#[test]
+fn cli_contract_invalid_option_various_patterns() {
+    let harness = TestHarness::setup();
+
+    let invalid_options = vec![
+        "--unknown-flag",
+        "--invalid",
+        "-x",
+        "-9",
+        "--foo",
+        "--bar-baz",
+    ];
+
+    for option in invalid_options {
+        let output = harness.run_cli(&[option]);
+        let exit_code = output.status.code();
+        assert!(
+            exit_code == Some(1) || exit_code == Some(2),
+            "Option '{}' should exit with code 1 or 2, got {:?}",
+            option,
+            exit_code
+        );
+    }
+}
+
+#[test]
+fn cli_contract_invalid_option_does_not_panic() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["--invalid-option"]);
+
+    assert!(
+        output.status.success()
+            || output.status.code() == Some(1)
+            || output.status.code() == Some(2),
+        "Invalid option should not cause a panic/signal, got status: {:?}",
+        output.status
     );
 }
