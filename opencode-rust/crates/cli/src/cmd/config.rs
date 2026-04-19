@@ -240,15 +240,8 @@ pub(crate) fn run(args: ConfigArgs) {
         return;
     }
 
-    if args.value.as_deref() == Some("show") {
-        println!("Config path: {}", path.display());
-        if let Some(model) = config.model {
-            println!("Model: {}", model);
-        }
-    } else {
-        println!("Config path: {}", path.display());
-        if let Some(model) = config.model {
-            println!("Model: {}", model);
-        }
+    println!("Config path: {}", path.display());
+    if let Some(model) = config.model {
+        println!("Model: {}", model);
     }
 }
