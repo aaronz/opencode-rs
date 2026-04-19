@@ -187,7 +187,8 @@ mod tests {
 
     #[test]
     fn test_connect_method_dialog_shows_message_when_empty() {
-        let dialog = ConnectMethodDialog::new(Theme::default(), "google".into());
+        let mut dialog = ConnectMethodDialog::new(Theme::default(), "google".into());
+        dialog.methods.clear();
         assert!(dialog.methods.is_empty());
         assert!(dialog.is_oauth_only);
     }
@@ -240,6 +241,7 @@ mod tests {
     #[test]
     fn empty_list_enter_does_not_close_for_oauth() {
         let mut dialog = ConnectMethodDialog::new(Theme::default(), "google".into());
+        dialog.methods.clear();
         let action = dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
         assert_eq!(action, DialogAction::None);
         assert!(dialog.show_feedback);
@@ -248,6 +250,7 @@ mod tests {
     #[test]
     fn empty_list_navigation_does_not_panic() {
         let mut dialog = ConnectMethodDialog::new(Theme::default(), "google".into());
+        dialog.methods.clear();
         dialog.handle_input(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
         dialog.handle_input(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
     }
@@ -265,5 +268,19 @@ mod tests {
         let mut dialog = ConnectMethodDialog::new(Theme::default(), "anthropic".into());
         let action = dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
         assert_eq!(action, DialogAction::Confirm("api_key".into()));
+    }
+
+    #[test]
+    fn google_browser_selection_confirms() {
+        let mut dialog = ConnectMethodDialog::new(Theme::default(), "google".into());
+        let action = dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert_eq!(action, DialogAction::Confirm("browser".into()));
+    }
+
+    #[test]
+    fn copilot_browser_selection_confirms() {
+        let mut dialog = ConnectMethodDialog::new(Theme::default(), "copilot".into());
+        let action = dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert_eq!(action, DialogAction::Confirm("browser".into()));
     }
 }
