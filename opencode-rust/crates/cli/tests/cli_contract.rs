@@ -721,8 +721,7 @@ fn cli_contract_verbose_help_matches_plain_help_output() {
     assert_eq!(
         verbose_stdout, plain_stdout,
         "--verbose --help output should match plain --help output. Verbose: '{}', Plain: '{}'",
-        verbose_stdout,
-        plain_stdout
+        verbose_stdout, plain_stdout
     );
 }
 
