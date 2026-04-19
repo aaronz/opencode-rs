@@ -206,3 +206,128 @@ fn cli_contract_version_contains_three_version_components() {
         );
     }
 }
+
+#[test]
+fn cli_contract_workspace_help_exits_with_code_zero() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["workspace", "--help"]);
+
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "workspace --help should exit with code 0, got {:?}",
+        output.status.code()
+    );
+}
+
+#[test]
+fn cli_contract_workspace_help_output_goes_to_stdout_not_stderr() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["workspace", "--help"]);
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(
+        !stdout.is_empty(),
+        "workspace --help output should go to stdout, but stdout was empty"
+    );
+
+    assert!(
+        stderr.is_empty(),
+        "workspace --help output should go to stdout, not stderr. stderr contained: {}",
+        stderr
+    );
+}
+
+#[test]
+fn cli_contract_workspace_help_output_matches_expected_format() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["workspace", "--help"]);
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(
+        stdout.contains("Usage:"),
+        "workspace --help output should contain 'Usage:'"
+    );
+    assert!(
+        stdout.contains("Commands:"),
+        "workspace --help output should contain 'Commands:'"
+    );
+    assert!(
+        stdout.contains("Options:"),
+        "workspace --help output should contain 'Options:'"
+    );
+    assert!(
+        stdout.contains("-h, --help"),
+        "workspace --help output should contain '-h, --help'"
+    );
+}
+
+#[test]
+fn cli_contract_workspace_help_shows_workspace_as_title() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["workspace", "--help"]);
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(
+        stdout.contains("workspace"),
+        "workspace --help output should mention 'workspace'"
+    );
+}
+
+#[test]
+fn cli_contract_workspace_help_shows_available_subcommands() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["workspace", "--help"]);
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(
+        stdout.contains("sessions"),
+        "workspace --help output should contain 'sessions' subcommand"
+    );
+    assert!(
+        stdout.contains("status"),
+        "workspace --help output should contain 'status' subcommand"
+    );
+    assert!(
+        stdout.contains("context"),
+        "workspace --help output should contain 'context' subcommand"
+    );
+}
+
+#[test]
+fn cli_contract_workspace_sessions_help_exits_with_code_zero() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["workspace", "sessions", "--help"]);
+
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "workspace sessions --help should exit with code 0, got {:?}",
+        output.status.code()
+    );
+}
+
+#[test]
+fn cli_contract_workspace_sessions_help_output_goes_to_stdout() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["workspace", "sessions", "--help"]);
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(
+        !stdout.is_empty(),
+        "workspace sessions --help output should go to stdout, but stdout was empty"
+    );
+
+    assert!(
+        stderr.is_empty(),
+        "workspace sessions --help output should go to stdout, not stderr. stderr contained: {}",
+        stderr
+    );
+}
