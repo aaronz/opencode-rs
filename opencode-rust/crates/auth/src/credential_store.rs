@@ -198,7 +198,10 @@ impl CredentialStore {
         Ok(key)
     }
 
-    fn save_all(&self, credentials: &HashMap<String, Vec<NamedCredential>>) -> Result<(), OpenCodeError> {
+    fn save_all(
+        &self,
+        credentials: &HashMap<String, Vec<NamedCredential>>,
+    ) -> Result<(), OpenCodeError> {
         if let Some(parent) = self.store_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -737,10 +740,7 @@ mod tests {
 
         store.store_named("test", "default", &cred2).unwrap();
         assert_eq!(store.list_credentials("test").unwrap().len(), 1);
-        assert_eq!(
-            store.load_named("test", "default").unwrap(),
-            Some(cred2)
-        );
+        assert_eq!(store.load_named("test", "default").unwrap(), Some(cred2));
     }
 
     #[test]

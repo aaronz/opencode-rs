@@ -122,6 +122,9 @@ mod tests {
             methods: vec![AuthMethod::Browser, AuthMethod::ApiKey],
         };
 
-        assert_eq!(provider.supported_auth_methods(), vec![AuthMethod::Browser, AuthMethod::ApiKey]);
+        assert_eq!(
+            provider.supported_auth_methods(),
+            vec![AuthMethod::Browser, AuthMethod::ApiKey]
+        );
     }
 }

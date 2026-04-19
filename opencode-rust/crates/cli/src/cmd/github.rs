@@ -7,6 +7,10 @@ const GITHUB_CLIENT_ID: &str = "Iv1.8a1f8c05dfd1c06e";
 const GITHUB_DEVICE_CODE_URL: &str = "https://github.com/login/device/code";
 const GITHUB_TOKEN_URL: &str = "https://github.com/login/oauth/access_token";
 
+fn get_api_base() -> String {
+    std::env::var("OPENCODE_GITHUB_API_BASE").unwrap_or_else(|_| GITHUB_API_BASE.to_string())
+}
+
 #[derive(Args, Debug)]
 pub(crate) struct GitHubArgs {
     #[command(subcommand)]
@@ -77,6 +81,67 @@ mod tests {
             branch: "main".to_string(),
         };
         assert!(matches!(action, GitHubAction::Install { .. }));
+    }
+
+    #[test]
+    fn test_github_action_repo_list() {
+        let action = GitHubAction::RepoList;
+        assert!(matches!(action, GitHubAction::RepoList));
+    }
+
+    #[test]
+    fn test_github_action_workflow() {
+        let action = GitHubAction::Workflow {
+            token: Some("test-token".to_string()),
+            owner: "testowner".to_string(),
+            repo: "testrepo".to_string(),
+            branch: "develop".to_string(),
+        };
+        assert!(matches!(action, GitHubAction::Workflow { .. }));
+        if let GitHubAction::Workflow {
+            token,
+            owner,
+            repo,
+            branch,
+        } = action
+        {
+            assert_eq!(token, Some("test-token".to_string()));
+            assert_eq!(owner, "testowner");
+            assert_eq!(repo, "testrepo");
+            assert_eq!(branch, "develop");
+        }
+    }
+
+    #[test]
+    fn test_parse_repo_owner_format() {
+        let repo_str = "owner/repo";
+        let parts: Vec<&str> = repo_str.split('/').collect();
+        assert_eq!(parts.len(), 2);
+        assert_eq!(parts[0], "owner");
+        assert_eq!(parts[1], "repo");
+    }
+
+    #[test]
+    fn test_parse_repo_with_org_format() {
+        let repo_str = "my-org/my-repo-name";
+        let parts: Vec<&str> = repo_str.split('/').collect();
+        assert_eq!(parts.len(), 2);
+        assert_eq!(parts[0], "my-org");
+        assert_eq!(parts[1], "my-repo-name");
+    }
+
+    #[test]
+    fn test_invalid_repo_format_no_slash() {
+        let repo_str = "invalid-repo";
+        let parts: Vec<&str> = repo_str.split('/').collect();
+        assert_ne!(parts.len(), 2);
+    }
+
+    #[test]
+    fn test_invalid_repo_format_too_many_slashes() {
+        let repo_str = "owner/repo/path";
+        let parts: Vec<&str> = repo_str.split('/').collect();
+        assert_eq!(parts.len(), 3);
     }
 }
 
@@ -219,7 +284,7 @@ fn run_repo_list() {
         std::process::exit(1);
     });
 
-    let client = GitHubClient::new(&token, GITHUB_API_BASE);
+    let client = GitHubClient::new(&token, &get_api_base());
 
     match client.list_repos("") {
         Ok(repos) => {
@@ -263,7 +328,7 @@ fn run_issue_list(repo: &str) {
         std::process::exit(1);
     });
 
-    let client = GitHubClient::new(&token, GITHUB_API_BASE);
+    let client = GitHubClient::new(&token, &get_api_base());
 
     match client.list_issues(owner, repo_name, "open") {
         Ok(issues) => {
