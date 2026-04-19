@@ -28,6 +28,12 @@ struct EncryptedPayload {
     salt: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NamedCredential {
+    pub name: String,
+    pub credential: Credential,
+}
+
 pub struct CredentialStore {
     store_path: PathBuf,
     key_path: PathBuf,
@@ -94,20 +100,78 @@ impl CredentialStore {
     }
 
     pub fn store(&self, provider_id: &str, credential: &Credential) -> Result<(), OpenCodeError> {
+        self.store_named(provider_id, "default", credential)
+    }
+
+    pub fn store_named(
+        &self,
+        provider_id: &str,
+        name: &str,
+        credential: &Credential,
+    ) -> Result<(), OpenCodeError> {
         let mut all = self.load_all()?;
-        all.insert(provider_id.to_string(), credential.clone());
+        let provider_creds = all.entry(provider_id.to_string()).or_insert_with(Vec::new);
+
+        if let Some(existing) = provider_creds.iter_mut().find(|c| c.name == name) {
+            existing.credential = credential.clone();
+        } else {
+            provider_creds.push(NamedCredential {
+                name: name.to_string(),
+                credential: credential.clone(),
+            });
+        }
+
         self.save_all(&all)
     }
 
     pub fn load(&self, provider_id: &str) -> Result<Option<Credential>, OpenCodeError> {
         let all = self.load_all()?;
-        Ok(all.get(provider_id).cloned())
+        Ok(all
+            .get(provider_id)
+            .and_then(|creds| creds.iter().find(|c| c.name == "default"))
+            .map(|c| c.credential.clone()))
+    }
+
+    pub fn load_named(
+        &self,
+        provider_id: &str,
+        name: &str,
+    ) -> Result<Option<Credential>, OpenCodeError> {
+        let all = self.load_all()?;
+        Ok(all
+            .get(provider_id)
+            .and_then(|creds| creds.iter().find(|c| c.name == name))
+            .map(|c| c.credential.clone()))
+    }
+
+    pub fn list_credentials(&self, provider_id: &str) -> Result<Vec<String>, OpenCodeError> {
+        let all = self.load_all()?;
+        Ok(all
+            .get(provider_id)
+            .map(|creds| creds.iter().map(|c| c.name.clone()).collect())
+            .unwrap_or_default())
     }
 
     pub fn delete(&self, provider_id: &str) -> Result<(), OpenCodeError> {
         let mut all = self.load_all()?;
         all.remove(provider_id);
         self.save_all(&all)
+    }
+
+    pub fn delete_named(&self, provider_id: &str, name: &str) -> Result<bool, OpenCodeError> {
+        let mut all = self.load_all()?;
+        let mut removed = false;
+
+        if let Some(creds) = all.get_mut(provider_id) {
+            let original_len = creds.len();
+            creds.retain(|c| c.name != name);
+            removed = original_len != creds.len();
+            if creds.is_empty() {
+                all.remove(provider_id);
+            }
+        }
+        self.save_all(&all)?;
+        Ok(removed)
     }
 
     fn derive_key(&self, salt: &[u8]) -> Result<[u8; ARGON2_KEY_LEN], OpenCodeError> {
@@ -134,7 +198,7 @@ impl CredentialStore {
         Ok(key)
     }
 
-    fn save_all(&self, credentials: &HashMap<String, Credential>) -> Result<(), OpenCodeError> {
+    fn save_all(&self, credentials: &HashMap<String, Vec<NamedCredential>>) -> Result<(), OpenCodeError> {
         if let Some(parent) = self.store_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -185,7 +249,7 @@ impl CredentialStore {
         Ok(())
     }
 
-    fn load_all(&self) -> Result<HashMap<String, Credential>, OpenCodeError> {
+    fn load_all(&self) -> Result<HashMap<String, Vec<NamedCredential>>, OpenCodeError> {
         if !self.store_path.exists() {
             return Ok(HashMap::new());
         }
@@ -495,5 +559,241 @@ mod tests {
         let loaded2 = store2.load("test").unwrap();
 
         assert_eq!(loaded1, loaded2);
+    }
+
+    #[test]
+    fn store_named_stores_multiple_credentials_per_provider() {
+        let tmp = tempfile::tempdir().unwrap();
+        let store = test_store(&tmp);
+
+        let cred1 = Credential {
+            api_key: "sk-key-1".to_string(),
+            base_url: None,
+            metadata: HashMap::new(),
+        };
+        let cred2 = Credential {
+            api_key: "sk-key-2".to_string(),
+            base_url: None,
+            metadata: HashMap::new(),
+        };
+        let cred3 = Credential {
+            api_key: "sk-key-3".to_string(),
+            base_url: None,
+            metadata: HashMap::new(),
+        };
+
+        store.store_named("anthropic", "work", &cred1).unwrap();
+        store.store_named("anthropic", "personal", &cred2).unwrap();
+        store.store_named("anthropic", "backup", &cred3).unwrap();
+
+        let names = store.list_credentials("anthropic").unwrap();
+        assert_eq!(names.len(), 3);
+        assert!(names.contains(&"work".to_string()));
+        assert!(names.contains(&"personal".to_string()));
+        assert!(names.contains(&"backup".to_string()));
+    }
+
+    #[test]
+    fn list_credentials_lists_all_stored_credentials_for_provider() {
+        let tmp = tempfile::tempdir().unwrap();
+        let store = test_store(&tmp);
+
+        store
+            .store_named(
+                "openai",
+                "primary",
+                &Credential {
+                    api_key: "sk-primary".to_string(),
+                    base_url: None,
+                    metadata: HashMap::new(),
+                },
+            )
+            .unwrap();
+        store
+            .store_named(
+                "openai",
+                "secondary",
+                &Credential {
+                    api_key: "sk-secondary".to_string(),
+                    base_url: None,
+                    metadata: HashMap::new(),
+                },
+            )
+            .unwrap();
+        store
+            .store_named(
+                "openai",
+                "tertiary",
+                &Credential {
+                    api_key: "sk-tertiary".to_string(),
+                    base_url: None,
+                    metadata: HashMap::new(),
+                },
+            )
+            .unwrap();
+
+        let names = store.list_credentials("openai").unwrap();
+        assert_eq!(names.len(), 3);
+        assert!(names.contains(&"primary".to_string()));
+        assert!(names.contains(&"secondary".to_string()));
+        assert!(names.contains(&"tertiary".to_string()));
+    }
+
+    #[test]
+    fn delete_named_removes_specific_named_credential() {
+        let tmp = tempfile::tempdir().unwrap();
+        let store = test_store(&tmp);
+
+        store
+            .store_named(
+                "github",
+                "token1",
+                &Credential {
+                    api_key: "ghp_token1".to_string(),
+                    base_url: None,
+                    metadata: HashMap::new(),
+                },
+            )
+            .unwrap();
+        store
+            .store_named(
+                "github",
+                "token2",
+                &Credential {
+                    api_key: "ghp_token2".to_string(),
+                    base_url: None,
+                    metadata: HashMap::new(),
+                },
+            )
+            .unwrap();
+
+        let deleted = store.delete_named("github", "token1").unwrap();
+        assert!(deleted);
+
+        let remaining = store.list_credentials("github").unwrap();
+        assert_eq!(remaining.len(), 1);
+        assert!(remaining.contains(&"token2".to_string()));
+
+        let loaded = store.load_named("github", "token1").unwrap();
+        assert_eq!(loaded, None);
+    }
+
+    #[test]
+    fn load_named_loads_specific_named_credential() {
+        let tmp = tempfile::tempdir().unwrap();
+        let store = test_store(&tmp);
+
+        let cred1 = Credential {
+            api_key: "sk-personal-key".to_string(),
+            base_url: Some("https://personal.example.com".to_string()),
+            metadata: HashMap::from([("env".to_string(), "personal".to_string())]),
+        };
+        let cred2 = Credential {
+            api_key: "sk-work-key".to_string(),
+            base_url: Some("https://work.example.com".to_string()),
+            metadata: HashMap::from([("env".to_string(), "work".to_string())]),
+        };
+
+        store.store_named("provider", "personal", &cred1).unwrap();
+        store.store_named("provider", "work", &cred2).unwrap();
+
+        let loaded_personal = store.load_named("provider", "personal").unwrap();
+        assert_eq!(loaded_personal, Some(cred1));
+
+        let loaded_work = store.load_named("provider", "work").unwrap();
+        assert_eq!(loaded_work, Some(cred2));
+    }
+
+    #[test]
+    fn delete_named_returns_false_for_nonexistent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let store = test_store(&tmp);
+
+        let deleted = store.delete_named("nonexistent", "name").unwrap();
+        assert!(!deleted);
+    }
+
+    #[test]
+    fn store_named_overwrites_existing_name() {
+        let tmp = tempfile::tempdir().unwrap();
+        let store = test_store(&tmp);
+
+        let cred1 = Credential {
+            api_key: "sk-old".to_string(),
+            base_url: None,
+            metadata: HashMap::new(),
+        };
+        let cred2 = Credential {
+            api_key: "sk-new".to_string(),
+            base_url: None,
+            metadata: HashMap::new(),
+        };
+
+        store.store_named("test", "default", &cred1).unwrap();
+        assert_eq!(
+            store.load_named("test", "default").unwrap(),
+            Some(cred1.clone())
+        );
+
+        store.store_named("test", "default", &cred2).unwrap();
+        assert_eq!(store.list_credentials("test").unwrap().len(), 1);
+        assert_eq!(
+            store.load_named("test", "default").unwrap(),
+            Some(cred2)
+        );
+    }
+
+    #[test]
+    fn store_uses_default_name() {
+        let tmp = tempfile::tempdir().unwrap();
+        let store = test_store(&tmp);
+
+        let cred = Credential {
+            api_key: "sk-default-test".to_string(),
+            base_url: None,
+            metadata: HashMap::new(),
+        };
+
+        store.store("anthropic", &cred).unwrap();
+
+        let names = store.list_credentials("anthropic").unwrap();
+        assert_eq!(names, vec!["default"]);
+
+        let loaded = store.load("anthropic").unwrap();
+        assert_eq!(loaded, Some(cred));
+    }
+
+    #[test]
+    fn delete_provider_removes_all_named_credentials() {
+        let tmp = tempfile::tempdir().unwrap();
+        let store = test_store(&tmp);
+
+        store
+            .store_named(
+                "openai",
+                "first",
+                &Credential {
+                    api_key: "sk-first".to_string(),
+                    base_url: None,
+                    metadata: HashMap::new(),
+                },
+            )
+            .unwrap();
+        store
+            .store_named(
+                "openai",
+                "second",
+                &Credential {
+                    api_key: "sk-second".to_string(),
+                    base_url: None,
+                    metadata: HashMap::new(),
+                },
+            )
+            .unwrap();
+
+        store.delete("openai").unwrap();
+
+        let names = store.list_credentials("openai").unwrap();
+        assert!(names.is_empty());
     }
 }
