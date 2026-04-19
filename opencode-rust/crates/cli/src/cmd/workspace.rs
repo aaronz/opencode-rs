@@ -84,6 +84,9 @@ pub(crate) struct WorkspaceArgs {
 
 #[derive(Subcommand, Debug)]
 pub(crate) enum WorkspaceAction {
+    #[command(about = "Initialize a new workspace")]
+    Init,
+
     #[command(about = "List workspace sessions")]
     Sessions {
         #[arg(long)]
@@ -198,6 +201,19 @@ mod workspace_tests {
 
 pub(crate) fn run(args: WorkspaceArgs) {
     match args.action {
+        Some(WorkspaceAction::Init) => {
+            println!("Initializing workspace...");
+            // Initialize workspace (create .opencode dir, config, etc.)
+            if let Ok(current_dir) = std::env::current_dir() {
+                let opencode_dir = current_dir.join(".opencode");
+                if std::fs::create_dir_all(&opencode_dir).is_ok() {
+                    println!("Workspace initialized at: {}", opencode_dir.display());
+                } else {
+                    eprintln!("Failed to create workspace directory");
+                    std::process::exit(1);
+                }
+            }
+        }
         Some(WorkspaceAction::Sessions { json }) => {
             let sessions = load_workspace_sessions();
             if json {

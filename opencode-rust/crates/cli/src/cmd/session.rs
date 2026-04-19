@@ -838,6 +838,18 @@ pub(crate) enum SessionAction {
         name: Option<String>,
     },
 
+    #[command(about = "Start a session")]
+    Start {
+        #[arg(short, long)]
+        name: Option<String>,
+    },
+
+    #[command(about = "Stop a session")]
+    Stop {
+        #[arg(short, long)]
+        id: Option<String>,
+    },
+
     #[command(about = "Delete a session")]
     Delete {
         #[arg(short, long)]
@@ -906,6 +918,23 @@ pub(crate) fn run(args: SessionArgs) {
     match args.action {
         Some(SessionAction::Create { name }) => {
             create_session(name, false);
+        }
+        Some(SessionAction::Start { name }) => {
+            // Start is same as create - just create and use it
+            create_session(name.clone(), false);
+            if let Some(name) = name {
+                println!("Session '{}' started", name);
+            }
+        }
+        Some(SessionAction::Stop { id }) => {
+            let id = id.or(args.id);
+            if let Some(id) = id.as_deref() {
+                delete_session(id);
+                println!("Session '{}' stopped", id);
+            } else {
+                eprintln!("Error: Session ID required for stop");
+                std::process::exit(1);
+            }
         }
         Some(SessionAction::Delete { id }) => {
             let id = id.or(args.id);

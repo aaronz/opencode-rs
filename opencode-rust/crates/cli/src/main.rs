@@ -66,6 +66,9 @@ struct Cli {
     #[arg(short = 'v', long = "version")]
     pub version: bool,
 
+    #[arg(short = 'V', long = "verbose", global = true)]
+    pub verbose: bool,
+
     #[arg(short = 'c', long = "continue")]
     pub continue_session: Option<String>,
 
