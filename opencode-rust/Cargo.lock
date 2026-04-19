@@ -4349,6 +4349,7 @@ dependencies = [
  "opencode-storage",
  "opencode-tools",
  "opencode-tui",
+ "regex",
  "reqwest",
  "serde",
  "serde_json",
