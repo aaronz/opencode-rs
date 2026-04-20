@@ -1,3 +1,4 @@
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use opencode_tui::dialogs::connect_provider::ConnectProviderDialog;
 use opencode_tui::dialogs::Dialog;
 use opencode_tui::theme::Theme;
@@ -47,4 +48,50 @@ fn test_connect_provider_dialog_renders_small_terminal() {
         has_border,
         "Small terminal should still render dialog border"
     );
+}
+
+#[test]
+fn test_connect_provider_dialog_scrolling_with_many_items() {
+    let backend = TestBackend::new(60, 12);
+    let mut terminal = Terminal::new(backend).unwrap();
+    let mut dialog = ConnectProviderDialog::new(Theme::default());
+
+    for _ in 0..18 {
+        dialog.handle_input(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+        terminal
+            .draw(|f: &mut Frame| {
+                dialog.draw(f, f.area());
+            })
+            .unwrap();
+    }
+
+    let action = dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    assert!(matches!(
+        action,
+        opencode_tui::dialogs::DialogAction::Confirm(_)
+    ));
+}
+
+#[test]
+fn test_connect_provider_dialog_renders_after_navigation_small_area() {
+    let backend = TestBackend::new(60, 8);
+    let mut terminal = Terminal::new(backend).unwrap();
+    let mut dialog = ConnectProviderDialog::new(Theme::default());
+
+    for _ in 0..10 {
+        dialog.handle_input(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    }
+
+    terminal
+        .draw(|f: &mut Frame| {
+            dialog.draw(f, f.area());
+        })
+        .unwrap();
+
+    let buffer = terminal.backend().buffer();
+    let has_border = buffer
+        .content
+        .iter()
+        .any(|cell| cell.symbol() == "─" || cell.symbol() == "│");
+    assert!(has_border, "Dialog should render with border in small area");
 }

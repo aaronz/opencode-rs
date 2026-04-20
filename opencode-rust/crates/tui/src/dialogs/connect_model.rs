@@ -7,7 +7,7 @@ use ratatui::{
     layout::Rect,
     style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
+    widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph},
     Frame,
 };
 
@@ -72,7 +72,9 @@ impl Dialog for ConnectModelDialog {
             })
             .collect();
 
-        f.render_widget(List::new(items), inner);
+        let mut state = ListState::default();
+        state.select(Some(self.selected_index));
+        f.render_stateful_widget(List::new(items), inner, &mut state);
     }
 
     fn handle_input(&mut self, key: KeyEvent) -> DialogAction {

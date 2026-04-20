@@ -6,7 +6,7 @@ use ratatui::{
     layout::Rect,
     style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, List, ListItem},
+    widgets::{Block, Borders, Clear, List, ListItem, ListState},
     Frame,
 };
 
@@ -88,7 +88,9 @@ impl Dialog for ConnectProviderDialog {
             })
             .collect();
 
-        f.render_widget(List::new(items), inner);
+        let mut state = ListState::default();
+        state.select(Some(self.selected_index));
+        f.render_stateful_widget(List::new(items), inner, &mut state);
     }
 
     fn handle_input(&mut self, key: KeyEvent) -> DialogAction {
