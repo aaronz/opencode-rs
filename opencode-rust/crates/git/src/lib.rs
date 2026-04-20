@@ -21,6 +21,7 @@ pub mod branch;
 pub mod checkout;
 pub mod merge;
 pub mod rebase;
+pub mod stash;
 pub mod github;
 pub mod gitlab;
 pub mod gitlab_ci;
@@ -52,6 +53,7 @@ pub use workflow::{
 
 pub use merge::{git_merge, MergeResult};
 pub use rebase::{git_rebase, git_rebase_abort, git_rebase_status, RebaseResult, RebaseStatus};
+pub use stash::{git_stash, git_stash_drop, git_stash_list, git_stash_pop, StashEntry};
 
 pub struct GitManager {
     repo: Repository,

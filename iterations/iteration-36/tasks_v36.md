@@ -156,11 +156,11 @@
   - [ ] `git_rebase_abort() -> Result<()>`
   - [ ] Handle conflicts
 
-- [ ] **T-G003-6:** Add stash operations
-  - [ ] `git_stash() -> Result<()>`
-  - [ ] `git_stash_pop() -> Result<()>`
-  - [ ] `git_stash_list() -> Result<Vec<StashEntry>>`
-  - [ ] `git_stash_drop(index: usize) -> Result<()>`
+- [x] **T-G003-6:** Add stash operations
+  - [x] `git_stash() -> Result<()>`
+  - [x] `git_stash_pop() -> Result<()>`
+  - [x] `git_stash_list() -> Result<Vec<StashEntry>>`
+  - [x] `git_stash_drop(index: usize) -> Result<()>`
 
 - [ ] **T-G003-7:** Add push/pull operations
   - [ ] `git_push(remote: Option<&str>) -> Result<PushResult>`

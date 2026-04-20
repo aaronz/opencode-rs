@@ -376,7 +376,7 @@
       "priority": "P2",
       "title": "Add rebase operations",
       "description": "Add git_rebase(branch: &str) -> Result<()>, git_rebase_abort() -> Result<()>, and handle conflicts.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify git_rebase performs rebase correctly",
         "AddUnitTest: verify git_rebase_abort cancels rebase and restores original state",
@@ -397,7 +397,7 @@
       "priority": "P2",
       "title": "Add stash operations",
       "description": "Add git_stash() -> Result<()>, git_stash_pop() -> Result<()>, git_stash_list() -> Result<Vec<StashEntry>>, git_stash_drop(index: usize) -> Result<()>.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify git_stash saves working directory state",
         "AddUnitTest: verify git_stash_pop restores stashed changes",
