@@ -6,6 +6,7 @@ use crate::catalog::types::{
     CatalogSource, CostInfo, LimitInfo, ModelCapabilities, ModelDescriptor, ModelStatus,
     ProviderCatalog, ProviderDescriptor,
 };
+use crate::gitlab::GitLabProvider;
 
 pub struct CatalogMerger {
     catalog: ProviderCatalog,
@@ -154,6 +155,50 @@ impl CatalogMerger {
         }
         for disabled_id in disabled {
             self.catalog.providers.remove(disabled_id);
+        }
+        self
+    }
+
+    pub async fn with_gitlab_providers(mut self, gitlab_providers: Vec<GitLabProvider>) -> Self {
+        for provider in gitlab_providers {
+            let models = match provider.discover_models().await {
+                Ok(m) => m,
+                Err(_) => continue,
+            };
+
+            let model_descriptors: BTreeMap<String, ModelDescriptor> = models
+                .into_iter()
+                .map(|m| {
+                    (
+                        m.id.clone(),
+                        ModelDescriptor {
+                            id: m.id.clone(),
+                            display_name: m.name.clone(),
+                            family: None,
+                            provider_id: "gitlab".to_string(),
+                            capabilities: ModelCapabilities::default(),
+                            cost: CostInfo::default(),
+                            limits: LimitInfo::default(),
+                            status: ModelStatus::Active,
+                        },
+                    )
+                })
+                .collect();
+
+            let provider_id = "gitlab".to_string();
+            self.catalog.providers.insert(
+                provider_id.clone(),
+                ProviderDescriptor {
+                    id: provider_id,
+                    display_name: "GitLab".to_string(),
+                    api_base_url: Some(provider.instance_url),
+                    docs_url: None,
+                    env_vars: vec![],
+                    npm_package: None,
+                    models: model_descriptors,
+                    source: CatalogSource::Local,
+                },
+            );
         }
         self
     }

@@ -164,7 +164,7 @@
 
 ---
 
-### FR-022: Amazon Bedrock Region Prefix Handling
+### FR-022: ✅ Done
 
 **Status:** ✅ Done
 **Priority:** P1
@@ -206,41 +206,41 @@
 
 ### FR-023: GitLab Duo Workflow Discovery
 
-**Status:** ❌ Not Implemented
+**Status:** ✅ Done
 **Priority:** P1
 **Module:** `gitlab.rs` (new)
 **Effort:** 3-4 days
 
 **Tasks:**
 
-- [ ] **T-023-1:** Create `crates/llm/src/gitlab.rs` module
-  - [ ] Define `GitLabProvider` struct with instance_url, token, client
-  - [ ] Implement `new()` constructor
-  - [ ] Implement `discover_models() -> Result<Vec<Model>>`
+- [x] **T-023-1:** Create `crates/llm/src/gitlab.rs` module
+  - [x] Define `GitLabProvider` struct with instance_url, token, client
+  - [x] Implement `new()` constructor
+  - [x] Implement `discover_models() -> Result<Vec<Model>>`
 
-- [ ] **T-023-2:** Implement AI Gateway discovery
-  - [ ] Fetch from `/api/v1/ai/models` endpoint
-  - [ ] Add `Authorization: Bearer {token}` header
-  - [ ] Parse response to OpenCode `Model` type
+- [x] **T-023-2:** Implement AI Gateway discovery
+  - [x] Fetch from `/api/v1/ai/models` endpoint
+  - [x] Add `Authorization: Bearer {token}` header
+  - [x] Parse response to OpenCode `Model` type
 
-- [ ] **T-023-3:** Implement feature flag handling
-  - [ ] `should_enable_gitlab_duo(feature_flags: &[String]) -> bool`
-  - [ ] Check for `gitlab_duo_workflow` flag
-  - [ ] Filter models based on feature flags
+- [x] **T-023-3:** Implement feature flag handling
+  - [x] `should_enable_gitlab_duo(feature_flags: &[String]) -> bool`
+  - [x] Check for `gitlab_duo_workflow` flag
+  - [x] Filter models based on feature flags
 
-- [ ] **T-023-4:** Add GitLab to catalog merger
-  - [ ] Update `crates/llm/src/catalog/merge.rs`
-  - [ ] Add GitLab provider to provider list
-  - [ ] Enable via config (`gitlab.instance_url`)
+- [x] **T-023-4:** Add GitLab to catalog merger
+  - [x] Update `crates/llm/src/catalog/merge.rs`
+  - [x] Add GitLab provider to provider list
+  - [x] Enable via config (`gitlab.instance_url`)
 
-- [ ] **T-023-5:** Export module in `lib.rs`
+- [x] **T-023-5:** Export module in `lib.rs`
 
 **Acceptance Criteria:**
-- [ ] GitLab AI model discovery implemented
-- [ ] AI Gateway header support
-- [ ] Feature flag handling
-- [ ] Duo Workflow model support
-- [ ] Integration with catalog merger
+- [x] GitLab AI model discovery implemented
+- [x] AI Gateway header support
+- [x] Feature flag handling
+- [x] Duo Workflow model support
+- [x] Integration with catalog merger
 
 ---
 

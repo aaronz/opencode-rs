@@ -115,7 +115,7 @@
       "priority": "P1",
       "title": "GitLab Duo Workflow Discovery",
       "description": "Create gitlab.rs module for GitLab AI Gateway model discovery. Implement GitLabProvider struct with instance_url, token, client. Fetch from /api/v1/ai/models endpoint with Bearer token. Implement should_enable_gitlab_duo() for feature flag checking. Integrate with catalog merger.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify GitLabProvider struct can be created with instance_url and token",
         "AddUnitTest: verify discover_models() returns Vec<Model> from AI Gateway",

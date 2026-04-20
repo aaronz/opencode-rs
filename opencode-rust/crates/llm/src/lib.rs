@@ -4,6 +4,7 @@ pub mod auth;
 pub mod auth_layered;
 pub mod azure;
 pub mod bedrock;
+pub mod gitlab;
 pub mod budget;
 pub mod catalog;
 pub mod cerebras;
@@ -53,6 +54,7 @@ pub use catalog::{
     merge_catalogs, CatalogSource, FetchError, ModelDescriptor, ModelStatus, ProviderCatalog,
     ProviderCatalogFetcher, ProviderDescriptor,
 };
+pub use gitlab::{GitLabDiscoveryError, GitLabProvider, should_enable_gitlab_duo};
 pub use error::{with_retry, LlmError, RetryConfig};
 pub use huggingface::HuggingFaceProvider;
 pub use lm_studio::LmStudioProvider;
