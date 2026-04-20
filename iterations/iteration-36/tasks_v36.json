@@ -740,7 +740,7 @@
       "priority": "P2",
       "title": "Update crates/sdk/Cargo.toml for crates.io publishing",
       "description": "Update SDK Cargo.toml with version, license, description, repository URL, documentation URL, keywords, and categories.",
-      "status": "todo",
+      "status": "manual_check",
       "test_criteria": [
         "AddUnitTest: verify Cargo.toml has all required publishing metadata",
         "RunTestSuite: cargo metadata -p opencode-sdk should show correct metadata"
@@ -759,7 +759,7 @@
       "priority": "P2",
       "title": "Update crates/sdk/README.md with publishing info",
       "description": "Add crates.io badge, docs.rs badge, Installation section, Quick Start example, and link to full documentation.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify README.md has crates.io badge",
         "AddUnitTest: verify README.md has docs.rs badge",

@@ -316,7 +316,7 @@
 
 **Tasks:**
 
-- [ ] **T-G007-1:** Update `crates/sdk/Cargo.toml`
+- [x] **T-G007-1:** Update `crates/sdk/Cargo.toml`
   - [ ] Add `version = "0.1.0"`
   - [ ] Add `license = "MIT"`
   - [ ] Add `description`
@@ -325,7 +325,7 @@
   - [ ] Add `keywords` and `categories`
   - [ ] Replace workspace deps with specific versions
 
-- [ ] **T-G007-2:** Update `crates/sdk/README.md`
+- [x] **T-G007-2:** Update `crates/sdk/README.md`
   - [ ] Add crates.io badge
   - [ ] Add docs.rs badge
   - [ ] Add Installation section
