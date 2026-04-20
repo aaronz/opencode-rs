@@ -474,6 +474,9 @@ pub struct ProviderOptions {
     #[serde(skip_serializing_if = "Option::is_none", rename = "awsEndpoint")]
     pub aws_endpoint: Option<String>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub headers: Option<HashMap<String, String>>,
+
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
     pub extra: Option<HashMap<String, serde_json::Value>>,
 }
@@ -501,6 +504,7 @@ impl std::fmt::Debug for ProviderOptions {
             .field("aws_region", &self.aws_region)
             .field("aws_profile", &self.aws_profile)
             .field("aws_endpoint", &self.aws_endpoint)
+            .field("headers", &self.headers)
             .field("extra", &self.extra)
             .finish()
     }

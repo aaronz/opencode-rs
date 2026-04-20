@@ -143,6 +143,7 @@ mod tests {
             model: "llama-3.1-70b-versatile".to_string(),
             api_key: "test-key".to_string(),
             temperature: 0.7,
+            headers: std::collections::HashMap::new(),
         };
         let provider = GroqProvider::new(config);
         assert_eq!(provider.provider_name(), "groq");
@@ -164,6 +165,7 @@ mod tests {
             model: "llama-3.1-70b-versatile".to_string(),
             api_key: "invalid-key".to_string(),
             temperature: 0.7,
+            headers: std::collections::HashMap::new(),
         };
         let provider = GroqProvider::new(config);
         let result = provider.complete("test prompt", None).await;

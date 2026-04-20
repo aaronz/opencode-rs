@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use opencode_core::{Message, OpenCodeError};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 pub mod sealed {
     pub trait Sealed {}
@@ -28,6 +29,8 @@ pub struct ProviderConfig {
     pub model: String,
     pub api_key: String,
     pub temperature: f32,
+    #[serde(default)]
+    pub headers: HashMap<String, String>,
 }
 
 impl ProviderConfig {
@@ -46,7 +49,8 @@ impl std::fmt::Debug for ProviderConfig {
         f.debug_struct("ProviderConfig")
             .field("model", &sanitized.model)
             .field("api_key", &sanitized.api_key)
-            .field("temperature", &sanitized.temperature)
+            .field("temperature", &self.temperature)
+            .field("headers", &self.headers)
             .finish()
     }
 }
@@ -57,6 +61,7 @@ impl Default for ProviderConfig {
             model: "gpt-4o".to_string(),
             api_key: String::new(),
             temperature: 0.7,
+            headers: HashMap::new(),
         }
     }
 }

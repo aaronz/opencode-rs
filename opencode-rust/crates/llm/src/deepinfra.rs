@@ -143,6 +143,7 @@ mod tests {
             model: "meta-llama/Llama-3.1-70B-Instruct".to_string(),
             api_key: "test-key".to_string(),
             temperature: 0.7,
+            headers: std::collections::HashMap::new(),
         };
         let provider = DeepInfraProvider::new(config);
         assert_eq!(provider.provider_name(), "deepinfra");
@@ -165,6 +166,7 @@ mod tests {
             model: "meta-llama/Llama-3.1-70B-Instruct".to_string(),
             api_key: "invalid-key".to_string(),
             temperature: 0.7,
+            headers: std::collections::HashMap::new(),
         };
         let provider = DeepInfraProvider::new(config);
         let result = provider.complete("test prompt", None).await;

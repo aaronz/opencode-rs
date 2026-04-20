@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 use crate::provider::sealed;
 use crate::provider::{Provider, StreamingCallback};
@@ -12,6 +13,7 @@ pub struct AnthropicProvider {
     api_key: String,
     model: String,
     thinking_budget: Option<AnthropicThinkingConfig>,
+    headers: HashMap<String, String>,
 }
 
 #[derive(Serialize)]
@@ -66,7 +68,13 @@ impl AnthropicProvider {
             api_key,
             model,
             thinking_budget: None,
+            headers: HashMap::new(),
         }
+    }
+
+    pub fn with_headers(mut self, headers: HashMap<String, String>) -> Self {
+        self.headers = headers;
+        self
     }
 
     pub fn with_thinking_budget(mut self, config: AnthropicThinkingConfig) -> Self {
@@ -109,13 +117,19 @@ impl Provider for AnthropicProvider {
             thinking,
         };
 
-        let response = self
+        let mut req = self
             .client
             .post("https://api.anthropic.com/v1/messages")
             .header("x-api-key", &self.api_key)
             .header("anthropic-version", "2023-06-01")
             .header("Content-Type", "application/json")
-            .json(&request)
+            .json(&request);
+
+        for (key, value) in &self.headers {
+            req = req.header(key, value);
+        }
+
+        let response = req
             .send()
             .await
             .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
@@ -173,13 +187,19 @@ impl Provider for AnthropicProvider {
             thinking,
         };
 
-        let response = self
+        let mut req = self
             .client
             .post("https://api.anthropic.com/v1/messages")
             .header("x-api-key", &self.api_key)
             .header("anthropic-version", "2023-06-01")
             .header("Content-Type", "application/json")
-            .json(&request)
+            .json(&request);
+
+        for (key, value) in &self.headers {
+            req = req.header(key, value);
+        }
+
+        let response = req
             .send()
             .await
             .map_err(|e| OpenCodeError::Llm(e.to_string()))?;

@@ -212,6 +212,7 @@ mod tests {
             model: "meta-llama/Llama-3.1-8B-Instruct".to_string(),
             api_key: "test-key".to_string(),
             temperature: 0.2,
+            headers: std::collections::HashMap::new(),
         })
     }
 

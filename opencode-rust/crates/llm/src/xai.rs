@@ -142,6 +142,7 @@ mod tests {
             model: "grok-2-1212".to_string(),
             api_key: "test-key".to_string(),
             temperature: 0.7,
+            headers: std::collections::HashMap::new(),
         };
         let provider = XaiProvider::new(config);
         assert_eq!(provider.provider_name(), "xai");
@@ -162,6 +163,7 @@ mod tests {
             model: "grok-2-1212".to_string(),
             api_key: "invalid-key".to_string(),
             temperature: 0.7,
+            headers: std::collections::HashMap::new(),
         };
         let provider = XaiProvider::new(config);
         let result: Result<String, _> = provider.complete("test prompt", None).await;

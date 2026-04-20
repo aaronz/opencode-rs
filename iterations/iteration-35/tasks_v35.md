@@ -348,7 +348,7 @@
 
 ---
 
-### FR-027: Alpha Model Filtering
+### FR-027: ✅ Done
 
 **Status:** ✅ Done
 **Priority:** P2

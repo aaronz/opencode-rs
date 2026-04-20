@@ -1,6 +1,7 @@
 use crate::provider::sealed;
 use crate::provider::{Model, Provider, ProviderConfig, StreamingCallback};
 use opencode_core::OpenCodeError;
+use std::collections::HashMap;
 use std::env;
 
 /// AWS region prefix extracted from model ID
@@ -98,6 +99,7 @@ impl BedrockProvider {
                 .or_else(|_| env::var("AWS_ACCESS_KEY_ID"))
                 .unwrap_or_default(),
             temperature: 0.7,
+            headers: HashMap::new(),
         };
 
         Some(Self::new(config, region))
@@ -253,11 +255,17 @@ impl BedrockProvider {
             "temperature": self.config.temperature,
         });
 
-        let response = client
+        let mut req = client
             .post(&runtime_url)
             .header("Authorization", format!("Bearer {}", token))
             .header("Content-Type", "application/json")
-            .json(&body)
+            .json(&body);
+
+        for (key, value) in &self.config.headers {
+            req = req.header(key, value);
+        }
+
+        let response = req
             .send()
             .await
             .map_err(|e| OpenCodeError::Llm(format!("Bedrock request failed: {}", e)))?;
@@ -332,6 +340,7 @@ mod tests {
                 model: "anthropic.claude-3-sonnet".to_string(),
                 api_key: "test-key".to_string(),
                 temperature: 0.7,
+                headers: HashMap::new(),
             },
             "us-east-1".to_string(),
         );

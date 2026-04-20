@@ -2,6 +2,7 @@ use crate::provider::sealed;
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::Mutex;
 
 use crate::provider::{Provider, StreamingCallback};
@@ -21,6 +22,7 @@ pub struct OpenAiProvider {
     model: String,
     auth_mode: OpenAiAuthMode,
     reasoning_effort: Option<String>,
+    headers: HashMap<String, String>,
 }
 
 enum OpenAiAuthMode {
@@ -147,7 +149,13 @@ impl OpenAiProvider {
             model,
             auth_mode: OpenAiAuthMode::ApiKey,
             reasoning_effort: None,
+            headers: HashMap::new(),
         }
+    }
+
+    pub fn with_headers(mut self, headers: HashMap<String, String>) -> Self {
+        self.headers = headers;
+        self
     }
 
     pub fn with_reasoning_effort(mut self, effort: String) -> Self {
@@ -170,6 +178,7 @@ impl OpenAiProvider {
                 store,
             },
             reasoning_effort: None,
+            headers: HashMap::new(),
         }
     }
 
@@ -284,6 +293,10 @@ impl OpenAiProvider {
             builder = builder.header("ChatGPT-Account-Id", account_id);
         }
 
+        for (key, value) in &self.headers {
+            builder = builder.header(key, value);
+        }
+
         let response = builder.send().await.map_err(|e| {
             OpenCodeError::Llm(format!("OpenAI browser auth request failed: {}", e))
         })?;
@@ -322,6 +335,10 @@ impl OpenAiProvider {
 
         if let Some(account_id) = account_id {
             request = request.header("ChatGPT-Account-Id", account_id);
+        }
+
+        for (key, value) in &self.headers {
+            request = request.header(key, value);
         }
 
         let response = request.send().await.map_err(|e| {
@@ -381,12 +398,18 @@ impl Provider for OpenAiProvider {
             reasoning,
         };
 
-        let response = self
+        let mut req = self
             .client
             .post(format!("{}/chat/completions", self.base_url))
             .header("Authorization", format!("Bearer {}", self.api_key))
             .header("Content-Type", "application/json")
-            .json(&request)
+            .json(&request);
+
+        for (key, value) in &self.headers {
+            req = req.header(key, value);
+        }
+
+        let response = req
             .send()
             .await
             .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
@@ -442,12 +465,18 @@ impl Provider for OpenAiProvider {
             reasoning,
         };
 
-        let response = self
+        let mut req = self
             .client
             .post(format!("{}/chat/completions", self.base_url))
             .header("Authorization", format!("Bearer {}", self.api_key))
             .header("Content-Type", "application/json")
-            .json(&request)
+            .json(&request);
+
+        for (key, value) in &self.headers {
+            req = req.header(key, value);
+        }
+
+        let response = req
             .send()
             .await
             .map_err(|e| OpenCodeError::Llm(e.to_string()))?;

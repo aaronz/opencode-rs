@@ -161,6 +161,7 @@ mod tests {
             model: "gpt-4o".to_string(),
             api_key: "test-key".to_string(),
             temperature: 0.7,
+            headers: std::collections::HashMap::new(),
         };
         let provider = CopilotProvider::new(config);
         assert_eq!(provider.provider_name(), "copilot");
@@ -181,6 +182,7 @@ mod tests {
             model: "gpt-4o".to_string(),
             api_key: "test-key".to_string(),
             temperature: 0.7,
+            headers: std::collections::HashMap::new(),
         };
         let provider = CopilotProvider::new(config);
         let result = provider.complete("test prompt", None).await;

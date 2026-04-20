@@ -1,111 +1,263 @@
-# PRD: effect Module
+# Module: effect
 
-## Module Overview
+## Overview
 
-**Module Name:** `effect`
-**Type:** Utility
-**Source:** `/packages/opencode/src/effect/`
+The `effect` module in `opencode-core` (`crates/core/src/effect.rs`) provides a lightweight `Effect<T>` monad for composing lazy async computations. It wraps a boxed future factory and supports `map`, `and_then`, `success`, and `failure` combinators.
 
-## Purpose
+**Crate**: `opencode-core`  
+**Source**: `crates/core/src/effect.rs`  
+**Status**: Fully implemented (101 lines)
 
-Effect-based functional programming utilities. Provides Effect monad for async operations with proper error handling, similar to ZIO in Scala.
+---
 
-## Functionality
+## Crate Layout
 
-### Core Features
-
-1. **Effect Monad**
-   - Composable async operations
-   - Error handling with typed errors
-   - Resource management
-   - Concurrent operations
-
-2. **Service Pattern**
-   - Dependency injection
-   - Layer composition
-   - Context management
-
-3. **Key Types**
-
-   ```typescript
-   // Effect - represents an async operation that may fail
-   type Effect<A, E, R> = (context: Context<R>) => Promise<A>
-
-   // Service - Effect-based service definition
-   class Service<Interface> {
-     readonly _tag: string
-     readonly [key: symbol]: Interface
-   }
-
-   // Layer - Effect-based dependency layer
-   type Layer<Out, E, In> = (context: Context<In>) => Effect<Context<Out>, E, never>
-   ```
-
-### Service Interface Pattern
-
-```typescript
-// Define service interface
-interface DatabaseService {
-  query(sql: string): Effect<Row[], Error, never>
-  execute(sql: string): Effect<void, Error, never>
-}
-
-// Implement service
-class DatabaseServiceImpl implements DatabaseService {
-  query(sql: string): Effect<Row[], Error, never> {
-    return Effect.gen(function* () {
-      const db = yield* Database
-      return db.query(sql)
-    })
-  }
-}
-
-// Create layer
-const DatabaseLayer = Layer.effect(
-  DatabaseService,
-  Effect.gen(function* () {
-    const db = yield* Effect.promise(() => new Database())
-    return new DatabaseServiceImpl(db)
-  })
-)
+```
+crates/core/src/
+└── effect.rs
 ```
 
-### Effect Operations
+**`crates/core/src/lib.rs`** exports:
+```rust
+pub mod effect;
+pub use effect::{Effect, EffectError, EffectFuture, EffectResult, EffectRunner};
+```
 
-| Operation | Description |
-|-----------|-------------|
-| `Effect.succeed` | Create successful effect |
-| `Effect.fail` | Create failed effect |
-| `Effect.gen` | Generator-based effect |
-| `Effect.promise` | Convert Promise to Effect |
-| `Effect.orDie` | Convert error to fatal |
-| `Effect.map` | Map success value |
-| `Effect.flatMap` | Chain effects |
+---
 
-## Dependencies
+## Core Types
 
-- `effect` - Effect library
+### Type Aliases
 
-## Acceptance Criteria
+```rust
+/// Result type for all Effect computations.
+pub type EffectResult<T> = Result<T, EffectError>;
 
-1. Effect operations work correctly
-2. Services are properly composed
-3. Errors are handled typed
-4. Resources are managed properly
+/// A pinned, boxed, Send-safe future.
+pub type EffectFuture<T> = Pin<Box<dyn Future<Output = EffectResult<T>> + Send>>;
 
-## Rust Implementation Guidance
+/// A boxed, once-callable closure producing an EffectFuture.
+pub type EffectRunner<T> = Box<dyn FnOnce() -> EffectFuture<T> + Send>;
+```
 
-The Rust equivalent should:
-- Use `tokio` for async runtime
-- Use `anyhow` for error handling
-- Use traits for service interfaces
-- Consider using `async_trait`
+### `EffectError`
+
+```rust
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum EffectError {
+    Generic(String),
+    Io(String),
+    Network(String),
+    Validation(String),
+    NotFound(String),
+    PermissionDenied(String),
+    Timeout(String),
+    Cancelled(String),
+}
+
+impl std::fmt::Display for EffectError { ... }
+impl std::error::Error for EffectError {}
+
+impl From<std::io::Error> for EffectError {
+    fn from(err: std::io::Error) -> Self { EffectError::Io(err.to_string()) }
+}
+
+impl From<serde_json::Error> for EffectError {
+    fn from(err: serde_json::Error) -> Self { EffectError::Generic(err.to_string()) }
+}
+```
+
+### `Effect<T>`
+
+```rust
+pub struct Effect<T> {
+    run: EffectRunner<T>,
+}
+```
+
+The inner `EffectRunner<T>` is a `Box<dyn FnOnce() -> EffectFuture<T> + Send>` — a lazy factory: the async computation is not started until `.run()` is called.
+
+---
+
+## Key Implementations
+
+```rust
+impl<T: Send + 'static> Effect<T> {
+    /// Construct from any async closure.
+    pub fn new<F, Fut>(f: F) -> Self
+    where
+        F: FnOnce() -> Fut + Send + 'static,
+        Fut: Future<Output = EffectResult<T>> + Send + 'static,
+    {
+        Self { run: Box::new(move || Box::pin(f())) }
+    }
+
+    /// Execute the effect and await the result.
+    pub async fn run(self) -> EffectResult<T> {
+        (self.run)().await
+    }
+
+    /// Transform the success value.
+    pub fn map<U: Send + 'static>(self, f: impl FnOnce(T) -> U + Send + 'static) -> Effect<U> {
+        Effect::new(move || async move {
+            match self.run().await {
+                Ok(val) => Ok(f(val)),
+                Err(e) => Err(e),
+            }
+        })
+    }
+
+    /// Chain effects: run self, then run f(value) if Ok.
+    pub fn and_then<U: Send + 'static>(
+        self,
+        f: impl FnOnce(T) -> Effect<U> + Send + 'static,
+    ) -> Effect<U> {
+        Effect::new(move || async move {
+            match self.run().await {
+                Ok(val) => f(val).run().await,
+                Err(e) => Err(e),
+            }
+        })
+    }
+
+    /// Construct an immediately-successful effect.
+    pub fn success(value: T) -> Self {
+        Effect::new(move || async move { Ok(value) })
+    }
+
+    /// Construct an immediately-failing effect.
+    pub fn failure(error: EffectError) -> Self {
+        Effect::new(move || async move { Err(error) })
+    }
+}
+```
+
+---
+
+## Usage Pattern
+
+```rust
+use opencode_core::effect::{Effect, EffectError};
+
+// Basic effect
+let effect = Effect::new(|| async {
+    let content = tokio::fs::read_to_string("file.txt").await
+        .map_err(EffectError::from)?;
+    Ok(content)
+});
+let result = effect.run().await;
+
+// Chaining
+let chained = Effect::new(|| async { Ok(42u32) })
+    .map(|n| n * 2)
+    .and_then(|n| Effect::new(move || async move { Ok(format!("result: {n}")) }));
+let result = chained.run().await;
+assert_eq!(result.unwrap(), "result: 84");
+
+// Immediate values
+let ok = Effect::success("hello").run().await;
+assert!(ok.is_ok());
+
+let err = Effect::<()>::failure(EffectError::NotFound("file".into())).run().await;
+assert!(err.is_err());
+
+// From std::io::Error
+let io_effect = Effect::new(|| async {
+    tokio::fs::read_to_string("nonexistent.txt").await
+        .map_err(EffectError::from)
+});
+match io_effect.run().await {
+    Err(EffectError::Io(msg)) => eprintln!("IO error: {}", msg),
+    _ => {}
+}
+```
+
+---
+
+## When to Use `Effect<T>` vs `async fn`
+
+| Use `Effect<T>` | Use plain `async fn` |
+|---|---|
+| Deferred/lazy computation | Immediate execution |
+| Composing pipelines with `map`/`and_then` | Simple sequential operations |
+| Passing computation as a value | Direct function calls |
+| Need `Send`-safe boxed futures | Inline async code |
+
+In practice, most of the codebase uses plain `async fn`. `Effect<T>` is provided as a functional composition utility for cases where you need to build computation pipelines as data.
+
+---
 
 ## Test Design
 
-### Unit Tests
-- `monad_composition`: Test chaining of successful and failing effects.
-- `service_injection`: Test that a service can be registered and accessed from context.
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-### Rust Specifics
-- In Rust, this usually maps to testing generic trait bounds and async result chaining. Test `Result<T, E>` combinators and custom context injection structs.
+    #[tokio::test]
+    async fn success_effect_returns_value() {
+        let e = Effect::success(42u32);
+        assert_eq!(e.run().await.unwrap(), 42);
+    }
+
+    #[tokio::test]
+    async fn failure_effect_returns_error() {
+        let e = Effect::<()>::failure(EffectError::Generic("oops".into()));
+        assert!(e.run().await.is_err());
+    }
+
+    #[tokio::test]
+    async fn map_transforms_ok_value() {
+        let e = Effect::success(10u32).map(|n| n * 3);
+        assert_eq!(e.run().await.unwrap(), 30);
+    }
+
+    #[tokio::test]
+    async fn map_propagates_error() {
+        let e = Effect::<u32>::failure(EffectError::Timeout("t".into()))
+            .map(|n| n + 1);
+        assert!(matches!(e.run().await, Err(EffectError::Timeout(_))));
+    }
+
+    #[tokio::test]
+    async fn and_then_chains_effects() {
+        let e = Effect::success(5u32)
+            .and_then(|n| Effect::success(n * 2));
+        assert_eq!(e.run().await.unwrap(), 10);
+    }
+
+    #[tokio::test]
+    async fn and_then_short_circuits_on_error() {
+        let e = Effect::<u32>::failure(EffectError::NotFound("x".into()))
+            .and_then(|_| Effect::success(42u32));
+        assert!(matches!(e.run().await, Err(EffectError::NotFound(_))));
+    }
+
+    #[tokio::test]
+    async fn effect_from_async_closure() {
+        let e = Effect::new(|| async { Ok(99u32) });
+        assert_eq!(e.run().await.unwrap(), 99);
+    }
+
+    #[test]
+    fn effect_error_display() {
+        assert!(EffectError::Generic("msg".into()).to_string().contains("Generic error"));
+        assert!(EffectError::Io("err".into()).to_string().contains("IO error"));
+        assert!(EffectError::NotFound("x".into()).to_string().contains("Not found"));
+    }
+
+    #[test]
+    fn io_error_converts_to_effect_error() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "file");
+        let effect_err = EffectError::from(io_err);
+        assert!(matches!(effect_err, EffectError::Io(_)));
+    }
+
+    #[test]
+    fn serde_error_converts_to_effect_error() {
+        let json_err = serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
+        let effect_err = EffectError::from(json_err);
+        assert!(matches!(effect_err, EffectError::Generic(_)));
+    }
+}
+```

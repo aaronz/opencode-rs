@@ -1,219 +1,241 @@
-# PRD: id Module
+# Module: id
 
-## Module Overview
+## Overview
 
-- **Module Name**: id
-- **Source Path**: `packages/opencode/src/id/id.ts`
-- **Type**: Utility
-- **Purpose**: Typed, prefixed, sortable unique identifier generation. All entity IDs in OpenCode use this module for consistent formatting, prefix validation, and sort-direction control.
+The `id` module in `opencode-core` (`crates/core/src/id.rs`) provides typed ID newtypes and a general-purpose ID generator. Typed IDs (`SessionId`, `UserId`, `ProjectId`) prevent accidental mixing at compile time.
 
----
-
-## Functionality
-
-### Core Features
-
-1. **Prefixed IDs** — All IDs have a short prefix derived from the entity type (e.g., `ses`, `msg`, `pty`)
-2. **Ascending IDs** — Timestamps encoded in ascending sort order (oldest first) — used for most entities
-3. **Descending IDs** — Timestamps encoded in descending sort order (newest first)
-4. **Monotonic Generation** — Same-millisecond IDs increment a counter to prevent collisions
-5. **Schema Validation** — Zod schema for each ID type (prefix-validated)
-6. **Fixed Length** — All IDs are 26 characters total (prefix + timestamp + random)
-7. **Base62 Encoding** — Random component uses `0-9A-Za-z` characters
-
-### Prefix Map
-
-```typescript
-const prefixes = {
-  event:      "evt",
-  session:    "ses",
-  message:    "msg",
-  permission: "per",
-  question:   "que",
-  user:       "usr",
-  part:       "prt",
-  pty:        "pty",
-  tool:       "tool",
-  workspace:  "wrk",
-  entry:      "ent",
-}
-```
+**Crate**: `opencode-core`  
+**Source**: `crates/core/src/id.rs`  
+**Status**: Fully implemented (342 lines)
 
 ---
 
-## API Surface
-
-```typescript
-// Schema for validating an ID (startsWith check)
-function schema(prefix: keyof typeof prefixes): ZodString
-
-// Generate ascending-sorted ID
-function ascending(prefix: keyof typeof prefixes, given?: string): string
-
-// Generate descending-sorted ID
-function descending(prefix: keyof typeof prefixes, given?: string): string
-
-// Low-level: create ID with explicit prefix string and direction
-function create(prefix: string, direction: "ascending" | "descending", timestamp?: number): string
-```
-
-### ID Format
+## Crate Layout
 
 ```
-<prefix><timestamp_component><counter><random>
-Total length: 26 characters
+crates/core/src/
+└── id.rs
 ```
 
-- Timestamp is encoded so that ascending IDs sort lexicographically oldest-first
-- Descending IDs invert the timestamp encoding for newest-first sort
-- Same-millisecond collision resistance via monotonic counter
+**`crates/core/src/lib.rs`** exports:
+```rust
+pub mod id;
+pub use id::{IdGenerator, IdParseError, ProjectId, SessionId, UserId};
+```
 
----
-
-## Dependencies
-
-- Node.js `crypto.randomBytes` — for base62 random component
-- No external dependencies
-
----
-
-## Acceptance Criteria
-
-- [ ] Generated IDs start with the correct prefix for each entity type
-- [ ] Ascending IDs sort lexicographically with oldest first
-- [ ] Descending IDs sort lexicographically with newest first
-- [ ] Two IDs generated in the same millisecond are distinct (monotonic counter)
-- [ ] `schema(prefix)` returns a Zod string validator that rejects wrong prefixes
-- [ ] `ascending(prefix, given)` returns `given` unchanged if it already has correct prefix
-- [ ] Throws if `given` has wrong prefix
-
----
-
-## Rust Implementation Guidance
-
-### Module: `crates/core/src/id.rs` or `crates/util/src/id.rs`
-
-### Key Crates
-
+**Deps**:
 ```toml
-ulid = "1"         # ULID for timestamp-based sortable IDs
-rand = "0.8"       # Random component
+uuid = { workspace = true, features = ["v4"] }
+thiserror = { workspace = true }
+chrono = { workspace = true }
 ```
 
-### Implementation Strategy
+---
 
-Use ULID (Universally Unique Lexicographically Sortable Identifier) as the base — it's 26 chars, base32, timestamp-prefixed, and monotonic. Then prepend the entity prefix.
+## Core Types
+
+### `IdGenerator`
 
 ```rust
-pub const PREFIXES: &[(&str, &str)] = &[
-    ("event",      "evt"),
-    ("session",    "ses"),
-    ("message",    "msg"),
-    ("permission", "per"),
-    ("question",   "que"),
-    ("user",       "usr"),
-    ("part",       "prt"),
-    ("pty",        "pty"),
-    ("tool",       "tool"),
-    ("workspace",  "wrk"),
-    ("entry",      "ent"),
-];
-
-pub struct IdGenerator {
-    last_ms: AtomicU64,
-    counter: AtomicU32,
-}
+pub struct IdGenerator;
 
 impl IdGenerator {
-    pub fn ascending(&self, prefix: &str) -> String {
-        let ts = self.next_timestamp();
-        let random = self.random_base62(20);
-        format!("{}{:013}{}", prefix, ts, random)
-    }
+    /// Full UUID v4 string: "550e8400-e29b-41d4-a716-446655440000"
+    pub fn new_uuid() -> String { Uuid::new_v4().to_string() }
 
-    pub fn descending(&self, prefix: &str) -> String {
-        let ts = self.next_timestamp();
-        let inverted = u64::MAX - ts;
-        let random = self.random_base62(20);
-        format!("{}{:013}{}", prefix, inverted, random)
-    }
+    /// First 8 chars of a UUID: "550e8400"
+    pub fn new_short() -> String { Uuid::new_v4().to_string()[..8].to_string() }
 
-    fn random_base62(&self, len: usize) -> String {
-        const CHARS: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-        let bytes: Vec<u8> = (0..len).map(|_| CHARS[rand::random::<u8>() as usize % 62]).collect();
-        String::from_utf8(bytes).unwrap()
+    /// "{unix_timestamp}-{8-char-uuid}": "1716000000-550e8400"
+    pub fn new_timestamped() -> String {
+        format!("{}-{}", chrono::Utc::now().timestamp(), &Uuid::new_v4().to_string()[..8])
     }
-}
-
-pub fn validate_prefix(id: &str, entity: &str) -> bool {
-    let prefix = PREFIXES.iter().find(|(e, _)| *e == entity).map(|(_, p)| *p);
-    prefix.map(|p| id.starts_with(p)).unwrap_or(false)
 }
 ```
 
-### Using ULID (simpler alternative)
+### `IdParseError`
 
 ```rust
-use ulid::Ulid;
-
-pub fn ascending(prefix: &str) -> String {
-    format!("{}{}", prefix, Ulid::new().to_string().to_lowercase())
+#[derive(Error, Debug)]
+pub enum IdParseError {
+    #[error("Invalid UUID format: {0}")]
+    InvalidUuid(#[from] uuid::Error),
+    #[error("Invalid integer format: {0}")]
+    InvalidInt(std::num::ParseIntError),
 }
+```
+
+### Typed ID Newtypes (macro-generated)
+
+Generated by the `define_id_newtype!` macro for each domain type:
+
+```rust
+// macro definition (internal):
+macro_rules! define_id_newtype {
+    ($name:ident, $prefix:expr) => {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        pub struct $name(pub Uuid);
+
+        impl $name {
+            pub fn new() -> Self { Self(Uuid::new_v4()) }
+            pub fn from_uuid(uuid: Uuid) -> Self { Self(uuid) }
+            pub fn as_uuid(&self) -> Uuid { self.0 }
+        }
+
+        impl Default for $name { fn default() -> Self { Self::new() } }
+
+        // Display: "{prefix}{uuid}" e.g. "session:550e8400-..."
+        impl std::fmt::Display for $name { ... }
+
+        // FromStr: accepts "session:550e..." OR bare UUID
+        impl FromStr for $name {
+            type Err = IdParseError;
+            fn from_str(s: &str) -> Result<Self, IdParseError> {
+                let s = s.strip_prefix($prefix).unwrap_or(s);
+                Ok(Self(Uuid::from_str(s)?))
+            }
+        }
+    };
+}
+
+// Instantiations:
+define_id_newtype!(SessionId, "session:");   // "session:uuid"
+define_id_newtype!(UserId,    "user:");      // "user:uuid"
+define_id_newtype!(ProjectId, "project:");  // "project:uuid"
+```
+
+**Type safety rule**: `SessionId`, `UserId`, `ProjectId` are distinct types. You cannot pass a `UserId` where a `SessionId` is expected — enforced at compile time.
+
+**Cross-prefix parsing is rejected**: Parsing a `"session:..."` string as `UserId` fails because the `"session:"` prefix is stripped but `"user:"` prefix is expected.
+
+---
+
+## Key Properties
+
+| Type | Display prefix | Example |
+|---|---|---|
+| `SessionId` | `session:` | `session:550e8400-e29b-41d4-a716-446655440000` |
+| `UserId` | `user:` | `user:550e8400-e29b-41d4-a716-446655440000` |
+| `ProjectId` | `project:` | `project:550e8400-e29b-41d4-a716-446655440000` |
+
+All are: `Copy`, `Clone`, `PartialEq`, `Eq`, `Hash`, `Debug`, `Display`, `FromStr`, `Default`.
+
+Note: **not `Serialize`/`Deserialize`** by default — if you need serde, add `#[derive(Serialize, Deserialize)]` or use the inner `Uuid` directly.
+
+---
+
+## Usage Patterns
+
+```rust
+use opencode_core::id::{IdGenerator, SessionId, UserId, ProjectId};
+
+// Generate IDs
+let session_id = SessionId::new();
+let user_id = UserId::new();
+let project_id = ProjectId::new();
+
+// Display (includes prefix)
+println!("{session_id}"); // "session:550e8400-..."
+
+// Parse from string (with or without prefix)
+let parsed: SessionId = "session:550e8400-e29b-41d4-a716-446655440000".parse().unwrap();
+let parsed2: SessionId = "550e8400-e29b-41d4-a716-446655440000".parse().unwrap(); // also works
+
+// Access inner UUID
+let uuid: uuid::Uuid = session_id.as_uuid();
+
+// Use as HashMap key (implements Hash + Eq)
+use std::collections::HashMap;
+let mut map: HashMap<SessionId, String> = HashMap::new();
+map.insert(session_id, "data".into());
+
+// IdGenerator for arbitrary IDs
+let short = IdGenerator::new_short();       // "550e8400"
+let timestamped = IdGenerator::new_timestamped(); // "1716000000-550e8400"
 ```
 
 ---
 
 ## Test Design
 
-### Unit Tests
-
 ```rust
-#[test]
-fn test_ascending_starts_with_prefix() {
-    let id = ascending("ses");
-    assert!(id.starts_with("ses"), "Expected ses prefix, got: {}", id);
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-#[test]
-fn test_ascending_sort_order() {
-    let id1 = ascending("msg");
-    std::thread::sleep(std::time::Duration::from_millis(1));
-    let id2 = ascending("msg");
-    assert!(id1 < id2, "id1={} should sort before id2={}", id1, id2);
-}
+    #[test]
+    fn new_uuid_is_36_chars() {
+        assert_eq!(IdGenerator::new_uuid().len(), 36);
+    }
 
-#[test]
-fn test_descending_sort_order() {
-    let id1 = descending("msg");
-    std::thread::sleep(std::time::Duration::from_millis(1));
-    let id2 = descending("msg");
-    assert!(id1 > id2, "Descending: id1={} should sort after id2={}", id1, id2);
-}
+    #[test]
+    fn new_short_is_8_chars() {
+        assert_eq!(IdGenerator::new_short().len(), 8);
+    }
 
-#[test]
-fn test_same_millisecond_ids_are_unique() {
-    // Generate many IDs rapidly
-    let ids: std::collections::HashSet<String> = (0..1000).map(|_| ascending("msg")).collect();
-    assert_eq!(ids.len(), 1000, "All IDs should be unique");
-}
+    #[test]
+    fn new_timestamped_contains_hyphen() {
+        assert!(IdGenerator::new_timestamped().contains('-'));
+    }
 
-#[test]
-fn test_validate_prefix_correct() {
-    let id = ascending("ses");
-    assert!(validate_prefix(&id, "session"));
-}
+    #[test]
+    fn session_id_display_has_prefix() {
+        let id = SessionId::new();
+        assert!(id.to_string().starts_with("session:"));
+        assert_eq!(id.to_string().len(), 8 + 36); // "session:" + uuid
+    }
 
-#[test]
-fn test_validate_prefix_wrong_prefix_fails() {
-    let id = "msg_notasession".to_string();
-    assert!(!validate_prefix(&id, "session"));
-}
+    #[test]
+    fn session_id_roundtrips_through_str() {
+        let id = SessionId::new();
+        let parsed: SessionId = id.to_string().parse().unwrap();
+        assert_eq!(id, parsed);
+    }
 
-#[test]
-fn test_given_id_returned_if_prefix_matches() {
-    let existing = "ses_existing_id_here".to_string();
-    // If function validates prefix and returns as-is
-    let result = ascending_or_given("ses", Some(&existing));
-    assert_eq!(result, existing);
+    #[test]
+    fn parse_bare_uuid_without_prefix() {
+        let id = SessionId::new();
+        let uuid_str = id.0.to_string();
+        let parsed: SessionId = uuid_str.parse().unwrap();
+        assert_eq!(id, parsed);
+    }
+
+    #[test]
+    fn cross_prefix_parsing_fails() {
+        let session_id = SessionId::new();
+        let session_str = session_id.to_string(); // "session:..."
+        // Cannot parse "session:..." as UserId
+        let result: Result<UserId, _> = session_str.parse();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn invalid_uuid_parse_fails() {
+        let result: Result<SessionId, _> = "not-a-uuid".parse();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn ids_are_copy() {
+        let id1 = SessionId::new();
+        let id2 = id1; // Copy, not move
+        assert_eq!(id1, id2);
+    }
+
+    #[test]
+    fn ids_are_unique() {
+        let id1 = SessionId::new();
+        let id2 = SessionId::new();
+        assert_ne!(id1, id2);
+    }
+
+    #[test]
+    fn ids_usable_as_hashmap_keys() {
+        use std::collections::HashMap;
+        let mut map = HashMap::new();
+        let id = SessionId::new();
+        map.insert(id, "value");
+        assert_eq!(map[&id], "value");
+    }
 }
 ```

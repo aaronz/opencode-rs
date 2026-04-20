@@ -148,6 +148,7 @@ mod tests {
             model: "meta-llama/Llama-3.3-70B-Instruct".to_string(),
             api_key: "test-key".to_string(),
             temperature: 0.7,
+            headers: std::collections::HashMap::new(),
         };
         let provider = TogetherAiProvider::new(config);
         assert_eq!(provider.provider_name(), "togetherai");
@@ -170,6 +171,7 @@ mod tests {
             model: "meta-llama/Llama-3.3-70B-Instruct".to_string(),
             api_key: "invalid-key".to_string(),
             temperature: 0.7,
+            headers: std::collections::HashMap::new(),
         };
         let provider = TogetherAiProvider::new(config);
         let result = provider.complete("test prompt", None).await;

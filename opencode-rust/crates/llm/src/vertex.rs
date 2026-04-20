@@ -25,6 +25,7 @@ impl VertexProvider {
             model: std::env::var("VERTEX_MODEL").unwrap_or_else(|_| "gemini-1.5-pro".to_string()),
             api_key: std::env::var("GOOGLE_APPLICATION_CREDENTIALS").unwrap_or_default(),
             temperature: 0.7,
+            headers: std::collections::HashMap::new(),
         };
         Some(Self::new(config, project_id, location))
     }
@@ -182,6 +183,7 @@ mod tests {
             model: "gemini-1.5-pro".to_string(),
             api_key: "test-key".to_string(),
             temperature: 0.7,
+            headers: std::collections::HashMap::new(),
         };
         let provider = VertexProvider::new(
             config,
@@ -210,6 +212,7 @@ mod tests {
             model: "gemini-1.5-pro".to_string(),
             api_key: "invalid-key".to_string(),
             temperature: 0.7,
+            headers: std::collections::HashMap::new(),
         };
         let provider = VertexProvider::new(
             config,

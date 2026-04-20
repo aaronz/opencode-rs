@@ -432,6 +432,7 @@ pub struct ProviderConfig {
     pub spec: ProviderSpec,
     pub reasoning_budget: Option<ReasoningBudget>,
     pub variant: Option<String>,
+    pub headers: HashMap<String, String>,
 }
 
 impl ProviderConfig {
@@ -440,6 +441,7 @@ impl ProviderConfig {
             spec,
             reasoning_budget: None,
             variant: None,
+            headers: HashMap::new(),
         }
     }
 
@@ -496,6 +498,7 @@ impl ProviderConfig {
             spec,
             reasoning_budget: identity.reasoning_budget,
             variant: identity.variant.clone(),
+            headers: HashMap::new(),
         })
     }
 }
@@ -623,7 +626,8 @@ impl ProviderFactory for OpenAIProviderFactory {
     fn create(&self, config: &ProviderConfig) -> Result<DynProvider, LlmError> {
         match &config.spec {
             ProviderSpec::OpenAI { api_key, model, .. } => {
-                let mut provider = OpenAiProvider::new(api_key.clone(), model.clone());
+                let mut provider = OpenAiProvider::new(api_key.clone(), model.clone())
+                    .with_headers(config.headers.clone());
 
                 if let Some(ProviderReasoningConfig::OpenAI {
                     reasoning_effort: Some(effort),
@@ -663,7 +667,8 @@ impl ProviderFactory for AnthropicProviderFactory {
     fn create(&self, config: &ProviderConfig) -> Result<DynProvider, LlmError> {
         match &config.spec {
             ProviderSpec::Anthropic { api_key, model, .. } => {
-                let mut provider = AnthropicProvider::new(api_key.clone(), model.clone());
+                let mut provider = AnthropicProvider::new(api_key.clone(), model.clone())
+                    .with_headers(config.headers.clone());
 
                 if let Some(ProviderReasoningConfig::Anthropic {
                     thinking: Some(thinking_config),

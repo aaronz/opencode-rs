@@ -1,236 +1,272 @@
-# PRD: bus Module
+# Module: bus
 
-## Module Overview
+## Overview
 
-- **Module Name**: bus
-- **Source Path**: `packages/opencode/src/bus/`
-- **Type**: Infrastructure Service
-- **Purpose**: In-process typed pub/sub event bus for loosely-coupled communication between modules, backed by Effect's `PubSub`. Also emits to the cross-process GlobalBus.
+The `bus` module lives in `opencode-core` (`crates/core/src/bus.rs`). It implements a process-wide broadcast event bus using `tokio::sync::broadcast`. Every subsystem (agent, server, TUI, storage, MCP) subscribes to `InternalEvent` variants to react to state changes without direct coupling.
 
----
-
-## Functionality
-
-### Core Features
-
-1. **Typed Event Definitions** — Each event has a `type` string and a Zod schema (`BusEvent.define`)
-2. **Per-type PubSubs** — Dedicated `PubSub` per event type for filtered subscriptions
-3. **Wildcard PubSub** — Single catch-all `PubSub` for subscribing to all events
-4. **Stream-based Subscriptions** — `subscribe()` returns an Effect `Stream`
-5. **Callback Subscriptions** — `subscribeCallback()` / `subscribeAllCallback()` for non-Effect consumers
-6. **Lifecycle Cleanup** — `InstanceDisposed` event is published before the PubSubs are shut down
-7. **GlobalBus Bridge** — Every publish also emits to the inter-process `GlobalBus`
-8. **Instance Scoping** — Each project instance gets its own independent bus state
-
-### Event Registry (`BusEvent`)
-
-```typescript
-BusEvent.define("session.created", z.object({ sessionID: z.string() }))
-BusEvent.define("pty.exited", z.object({ id: PtyID.zod, exitCode: z.number() }))
-// etc.
-```
+**Crate**: `opencode-core`  
+**Source**: `crates/core/src/bus.rs`  
+**Status**: Fully implemented (272 lines)
 
 ---
 
-## API Surface
+## Crate Layout
 
-### BusEvent (event definitions)
-
-```typescript
-type Definition = { type: string; properties: ZodType }
-
-function define<Type, Properties>(type: Type, properties: Properties): Definition
-function payloads(): ZodObject[]  // all registered event schemas
+```
+crates/core/src/
+└── bus.rs
 ```
 
-### Bus Service Interface
-
-```typescript
-interface Interface {
-  publish<D>(def: D, properties: z.output<D["properties"]>): Effect<void>
-  subscribe<D>(def: D): Stream<Payload<D>>
-  subscribeAll(): Stream<Payload>
-  subscribeCallback<D>(def: D, callback: (event: Payload<D>) => unknown): Effect<() => void>
-  subscribeAllCallback(callback: (event: any) => unknown): Effect<() => void>
-}
+**`crates/core/src/lib.rs`** exports:
+```rust
+pub mod bus;
+pub use bus::{EventBus, InternalEvent, SharedEventBus};
 ```
 
-### Standalone Functions (for non-Effect callers)
-
-```typescript
-async function publish<D>(def: D, properties: z.output<D["properties"]>): Promise<void>
-function subscribe<D>(def: D, callback: (event: Payload<D>) => unknown): () => void  // returns unsubscribe
-function subscribeAll(callback: (event: any) => unknown): () => void
-```
-
-### Event Payload Shape
-
-```typescript
-type Payload<D = Definition> = {
-  type: D["type"]
-  properties: z.infer<D["properties"]>
-}
-```
-
----
-
-## Data Structures
-
-### Internal State
-
-```typescript
-type State = {
-  wildcard: PubSub<Payload>
-  typed: Map<string, PubSub<Payload>>
-}
-```
-
-- One `wildcard` unbounded PubSub receives every published event
-- `typed` is a lazy map: PubSub is created on first subscription for a given type
-
-### Instance Disposal
-
-```typescript
-// Published before shutdown:
-InstanceDisposed = BusEvent.define("server.instance.disposed", z.object({ directory: z.string() }))
-```
-
----
-
-## Dependencies
-
-| Dependency | Purpose |
-|---|---|
-| `effect` | `PubSub`, `Stream`, `Layer`, `Scope` |
-| `bus/global` | Cross-process GlobalBus bridge |
-| `effect/instance-state` | Per-project-instance state scoping |
-
----
-
-## Acceptance Criteria
-
-- [ ] `publish()` delivers to per-type subscribers and wildcard subscribers
-- [ ] `subscribe()` returns a Stream that emits only matching event types
-- [ ] `subscribeAll()` returns a Stream of all events
-- [ ] Callbacks fire asynchronously; errors are caught and logged, not propagated
-- [ ] `InstanceDisposed` is published before PubSubs shut down
-- [ ] Multiple instances are fully isolated (different directories = different buses)
-- [ ] Standalone `publish`/`subscribe`/`subscribeAll` work outside Effect context
-- [ ] GlobalBus receives every published event
-
----
-
-## Rust Implementation Guidance
-
-### Crate: `crates/bus/`
-
-### Key Crates
-
+**Key deps** (`crates/core/Cargo.toml`):
 ```toml
-tokio = { features = ["full"] }
-tokio-stream = "0.1"
-broadcast = "tokio::sync::broadcast"  # or flume for multi-consumer
-serde_json = "1"
+tokio = { workspace = true, features = ["sync"] }
+serde = { workspace = true, features = ["derive"] }
 ```
 
-### Architecture
+---
+
+## Core Types
+
+### `InternalEvent`
 
 ```rust
-use tokio::sync::broadcast;
-
-pub struct BusService {
-    // Wildcard channel: all events
-    wildcard_tx: broadcast::Sender<BusPayload>,
-    // Per-type channels: lazy-created
-    typed: Arc<Mutex<HashMap<String, broadcast::Sender<BusPayload>>>>,
-    global_bus: Arc<GlobalBus>,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum InternalEvent {
+    // Session lifecycle
+    SessionStarted(String),
+    SessionEnded(String),
+    SessionForked { original_id: String, new_id: String, fork_point: usize },
+    SessionShared { session_id: String, share_url: String },
+    // Messages
+    MessageAdded { session_id: String, message_id: String },
+    MessageUpdated { session_id: String, message_id: String },
+    // Tool calls
+    ToolCallStarted { session_id: String, tool_name: String, call_id: String },
+    ToolCallEnded { session_id: String, call_id: String, success: bool },
+    ToolCallOutput { session_id: String, call_id: String, output: String },
+    // Agent
+    AgentStatusChanged { session_id: String, status: String },
+    AgentStarted { session_id: String, agent: String },
+    AgentStopped { session_id: String, agent: String },
+    // Provider / model
+    ProviderChanged { provider: String, model: String },
+    ModelChanged { model: String },
+    // Compaction
+    CompactionTriggered { session_id: String, pruned_count: usize },
+    CompactionCompleted { session_id: String, summary_inserted: bool },
+    // System
+    ConfigUpdated,
+    AuthChanged { user_id: Option<String> },
+    PermissionGranted { user_id: String, permission: String },
+    PermissionDenied { user_id: String, permission: String },
+    FileWatchEvent { path: String, kind: String },
+    LspDiagnosticsUpdated { path: String, count: usize },
+    ShellEnvChanged { key: String, value: String },
+    UiToastShow { message: String, level: String },
+    // Permission flow
+    PermissionAsked { session_id: String, request_id: String, permission: String },
+    PermissionReplied { session_id: String, request_id: String, granted: bool },
+    // Plugins / MCP
+    PluginLoaded { name: String },
+    PluginUnloaded { name: String },
+    McpServerConnected { name: String },
+    McpServerDisconnected { name: String },
+    AcpEventReceived { agent_id: String, event_type: String },
+    // Server
+    ServerStarted { port: u16 },
+    ServerStopped,
+    Error { source: String, message: String },
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct BusPayload {
-    pub event_type: String,
-    pub properties: serde_json::Value,
+impl InternalEvent {
+    /// Returns session_id for session-scoped events; None for global.
+    pub fn session_id(&self) -> Option<&str> { ... }
+}
+```
+
+### `EventBus` and `SharedEventBus`
+
+```rust
+pub struct EventBus {
+    tx: broadcast::Sender<InternalEvent>,
 }
 
-impl BusService {
-    pub async fn publish(&self, event_type: &str, properties: serde_json::Value) {
-        let payload = BusPayload { event_type: event_type.to_string(), properties };
+/// Type alias used everywhere — always wrap in Arc.
+pub type SharedEventBus = Arc<EventBus>;
+```
 
-        // Per-type delivery
-        let typed = self.typed.lock().unwrap();
-        if let Some(tx) = typed.get(event_type) {
-            let _ = tx.send(payload.clone());
+Channel capacity: **256** (hardcoded). Lagged receivers get `RecvError::Lagged(n)`.
+
+---
+
+## Key Implementations
+
+```rust
+impl EventBus {
+    pub fn new() -> Self {
+        let (tx, _) = broadcast::channel(256);
+        Self { tx }
+    }
+
+    /// Subscribe — late subscribers miss past events.
+    pub fn subscribe(&self) -> broadcast::Receiver<InternalEvent> {
+        self.tx.subscribe()
+    }
+
+    /// Publish — fire-and-forget; Ok(n) = number of receivers, ignored.
+    pub fn publish(&self, event: InternalEvent) {
+        let _ = self.tx.send(event);
+    }
+
+    pub fn subscriber_count(&self) -> usize {
+        self.tx.receiver_count()
+    }
+}
+
+impl Default for EventBus {
+    fn default() -> Self { Self::new() }
+}
+```
+
+---
+
+## Inter-crate Dependencies
+
+| Consumer | How it uses the bus |
+|---|---|
+| `opencode-server` | `SharedEventBus` in `ServerState`; publishes tool/agent events via SSE |
+| `opencode-agent` | Subscribes to `PermissionReplied`, publishes `AgentStarted/Stopped` |
+| `opencode-tui` | Subscribes to all events to update UI state in render loop |
+| `opencode-mcp` | Publishes `McpServerConnected/Disconnected` |
+| `opencode-storage` | May listen to `SessionStarted` to pre-create DB rows |
+
+**Pattern** — always pass `SharedEventBus` by `Arc::clone`:
+```rust
+// In app bootstrap:
+let bus: SharedEventBus = Arc::new(EventBus::new());
+
+// Pass to subsystems:
+let server_bus = Arc::clone(&bus);
+let agent_bus = Arc::clone(&bus);
+```
+
+---
+
+## Concurrency Pattern
+
+`tokio::sync::broadcast` — MPMC:
+- Publisher holds `Sender<T>` (Clone + Send + Sync)
+- Each subscriber gets its own `Receiver<T>` via `.subscribe()`
+- Always handle `RecvError::Lagged` in subscriber loops:
+
+```rust
+let mut rx = bus.subscribe();
+tokio::spawn(async move {
+    loop {
+        match rx.recv().await {
+            Ok(event) => handle(event).await,
+            Err(broadcast::error::RecvError::Lagged(n)) => {
+                tracing::warn!("bus: lagged {} events", n);
+            }
+            Err(broadcast::error::RecvError::Closed) => break,
         }
-        // Wildcard delivery
-        let _ = self.wildcard_tx.send(payload.clone());
-        // Cross-process
-        self.global_bus.emit("event", payload);
     }
-
-    pub fn subscribe(&self, event_type: &str) -> broadcast::Receiver<BusPayload> {
-        let mut typed = self.typed.lock().unwrap();
-        let tx = typed.entry(event_type.to_string())
-            .or_insert_with(|| broadcast::channel(1024).0);
-        tx.subscribe()
-    }
-
-    pub fn subscribe_all(&self) -> broadcast::Receiver<BusPayload> {
-        self.wildcard_tx.subscribe()
-    }
-}
+});
 ```
 
 ---
 
 ## Test Design
 
-### Unit Tests
+All tests live in `crates/core/src/bus.rs` under `#[cfg(test)]`:
 
 ```rust
-#[tokio::test]
-async fn test_publish_delivers_to_typed_subscriber() {
-    let bus = BusService::new_test();
-    let mut rx = bus.subscribe("session.created");
-    bus.publish("session.created", json!({"sessionID": "ses1"})).await;
-    let event = rx.recv().await.unwrap();
-    assert_eq!(event.event_type, "session.created");
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-#[tokio::test]
-async fn test_wildcard_receives_all_events() {
-    let bus = BusService::new_test();
-    let mut rx = bus.subscribe_all();
-    bus.publish("session.created", json!({})).await;
-    bus.publish("pty.exited", json!({})).await;
-    let e1 = rx.recv().await.unwrap();
-    let e2 = rx.recv().await.unwrap();
-    assert_eq!(e1.event_type, "session.created");
-    assert_eq!(e2.event_type, "pty.exited");
-}
+    #[test]
+    fn new_bus_has_no_subscribers() {
+        assert_eq!(EventBus::new().subscriber_count(), 0);
+    }
 
-#[tokio::test]
-async fn test_typed_subscriber_does_not_receive_other_events() {
-    let bus = BusService::new_test();
-    let mut rx = bus.subscribe("session.created");
-    bus.publish("pty.exited", json!({})).await; // different type
-    bus.publish("session.created", json!({})).await;
-    // First recv should be session.created, not pty.exited
-    let event = rx.recv().await.unwrap();
-    assert_eq!(event.event_type, "session.created");
-}
+    #[test]
+    fn publish_and_receive_sync() {
+        let bus = EventBus::new();
+        let mut rx = bus.subscribe();
+        bus.publish(InternalEvent::SessionStarted("s1".into()));
+        match rx.try_recv().unwrap() {
+            InternalEvent::SessionStarted(id) => assert_eq!(id, "s1"),
+            _ => panic!("wrong variant"),
+        }
+    }
 
-#[tokio::test]
-async fn test_instance_disposed_published_on_shutdown() {
-    let (bus, shutdown_tx) = BusService::new_with_shutdown();
-    let mut rx = bus.subscribe("server.instance.disposed");
-    shutdown_tx.send(()).unwrap();
-    let event = rx.recv().await.unwrap();
-    assert_eq!(event.event_type, "server.instance.disposed");
+    #[tokio::test]
+    async fn publish_and_receive_async() {
+        let bus = EventBus::new();
+        let mut rx = bus.subscribe();
+        bus.publish(InternalEvent::ServerStarted { port: 9000 });
+        match rx.recv().await.unwrap() {
+            InternalEvent::ServerStarted { port } => assert_eq!(port, 9000),
+            _ => panic!(),
+        }
+    }
+
+    #[test]
+    fn late_subscriber_misses_early_events() {
+        let bus = EventBus::new();
+        bus.publish(InternalEvent::SessionEnded("s1".into()));
+        let mut rx = bus.subscribe();
+        bus.publish(InternalEvent::SessionEnded("s2".into()));
+        match rx.try_recv().unwrap() {
+            InternalEvent::SessionEnded(id) => assert_eq!(id, "s2"),
+            _ => panic!(),
+        }
+    }
+
+    #[test]
+    fn session_id_returns_none_for_global_events() {
+        assert!(InternalEvent::ConfigUpdated.session_id().is_none());
+        assert!(InternalEvent::ServerStarted { port: 80 }.session_id().is_none());
+    }
+
+    #[test]
+    fn session_id_returns_some_for_session_events() {
+        let e = InternalEvent::SessionStarted("abc".into());
+        assert_eq!(e.session_id(), Some("abc"));
+    }
+
+    #[test]
+    fn multiple_subscribers_each_receive() {
+        let bus = EventBus::new();
+        let mut rx1 = bus.subscribe();
+        let mut rx2 = bus.subscribe();
+        bus.publish(InternalEvent::ConfigUpdated);
+        assert!(rx1.try_recv().is_ok());
+        assert!(rx2.try_recv().is_ok());
+    }
 }
 ```
 
-### Integration Tests (from TS patterns)
+---
 
-- `bus.test.ts`: Publish/subscribe across Effect layers
-- `bus-integration.test.ts`: Bus with real session/pty events flowing end-to-end
-- `bus-effect.test.ts`: Stream-based subscription inside Effect runtime
+## Adding New Events
+
+1. Add a new variant to `InternalEvent` with named fields
+2. Handle in the `session_id()` match arm if session-scoped
+3. Update subscribers in `opencode-server` SSE handler and TUI render loop
+4. Add a test in the `tests` module
+
+```rust
+// Example: adding a new event
+NewToolRegistered { tool_name: String, source: String },
+
+// In session_id():
+Self::NewToolRegistered { .. } => None,
+```

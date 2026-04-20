@@ -1597,6 +1597,7 @@ impl App {
                     model: model_id.clone(),
                     api_key: session.access_token.clone(),
                     temperature: 0.7,
+                    headers: std::collections::HashMap::new(),
                 }
             );
             self.llm_provider = Some(std::sync::Arc::new(copilot_provider));
@@ -1628,6 +1629,7 @@ impl App {
                 model: model_id.clone(),
                 api_key: api_key.clone(),
                 temperature: 0.7,
+                headers: std::collections::HashMap::new(),
             };
 
             self.llm_provider = match provider_id.as_str() {
@@ -1842,6 +1844,7 @@ impl App {
             model: resolved_model,
             api_key,
             temperature: 0.7,
+            headers: std::collections::HashMap::new(),
         };
 
         self.llm_provider = match self.provider.as_str() {

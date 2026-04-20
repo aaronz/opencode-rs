@@ -203,6 +203,7 @@ mod tests {
             model: "j2-ultra".to_string(),
             api_key: "test-key".to_string(),
             temperature: 0.5,
+            headers: std::collections::HashMap::new(),
         })
     }
 
