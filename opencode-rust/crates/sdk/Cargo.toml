@@ -50,6 +50,10 @@ path = "examples/async_session.rs"
 name = "tool_execution"
 path = "examples/tool_execution.rs"
 
+[[example]]
+name = "provider_config"
+path = "examples/provider_config.rs"
+
 [lib]
 name = "opencode_sdk"
 crate-type = ["rlib"]

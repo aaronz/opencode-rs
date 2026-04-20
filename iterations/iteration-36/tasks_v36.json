@@ -227,7 +227,7 @@
       "priority": "P1",
       "title": "Implement examples/provider_config.rs",
       "description": "Implement provider_config.rs example that configures OpenAI provider, configures Anthropic provider, configures Ollama provider, and shows environment variable setup.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify provider_config.rs compiles without errors",
         "AddIntegrationTest: verify provider configuration API works",

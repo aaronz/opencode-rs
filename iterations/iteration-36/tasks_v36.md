@@ -96,11 +96,11 @@
   - [ ] Execute Write tool
   - [ ] Handle tool result
 
-- [ ] **T-G002-5:** Implement `examples/provider_config.rs`
-  - [ ] Configure OpenAI provider
-  - [ ] Configure Anthropic provider
-  - [ ] Configure Ollama provider
-  - [ ] Show environment variable setup
+- [x] **T-G002-5:** Implement `examples/provider_config.rs`
+  - [x] Configure OpenAI provider
+  - [x] Configure Anthropic provider
+  - [x] Configure Ollama provider
+  - [x] Show environment variable setup
 
 - [ ] **T-G002-6:** Verify all examples compile
   - [ ] `cargo build --examples` succeeds
