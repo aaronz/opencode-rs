@@ -213,10 +213,10 @@
   - [ ] Wire up handlers
   - [ ] Update capability registration
 
-- [ ] **T-G004-5:** Add unit tests
-  - [ ] Test diagnostics publishing
-  - [ ] Test completion items
-  - [ ] Test reference finding
+- [x] **T-G004-5:** Add unit tests
+  - [x] Test diagnostics publishing
+  - [x] Test completion items
+  - [x] Test reference finding
 
 **Acceptance Criteria:**
 - [ ] Diagnostics available for open files
