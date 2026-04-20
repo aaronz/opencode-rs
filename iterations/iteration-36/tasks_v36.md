@@ -19,7 +19,7 @@
 
 **Tasks:**
 
-- [ ] **T-G001-1:** Create plugin directory structure
+- [x] **T-G001-1:** Create plugin directory structure ✅ Done
   - [ ] Create `plugins/` directory
   - [ ] Create `plugins/hello_world/` subdirectory
   - [ ] Create `plugins/hello_world/src/` subdirectory

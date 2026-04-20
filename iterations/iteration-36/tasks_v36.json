@@ -5,7 +5,7 @@
       "priority": "P1",
       "title": "Create plugin directory structure",
       "description": "Create plugins/ directory, plugins/hello_world/ subdirectory, and plugins/hello_world/src/ subdirectory for the hello_world WASM plugin example.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify plugins/ directory exists with correct structure",
         "AddIntegrationTest: verify plugins/hello_world/src/ directory is created",
