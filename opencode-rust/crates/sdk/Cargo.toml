@@ -42,6 +42,10 @@ path = "examples/basic.rs"
 name = "basic_usage"
 path = "examples/basic_usage.rs"
 
+[[example]]
+name = "async_session"
+path = "examples/async_session.rs"
+
 [lib]
 name = "opencode_sdk"
 crate-type = ["rlib"]

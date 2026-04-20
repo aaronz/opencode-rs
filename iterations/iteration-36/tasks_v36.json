@@ -187,7 +187,7 @@
       "priority": "P1",
       "title": "Implement examples/async_session.rs",
       "description": "Implement async_session.rs example that creates session with specific ID, saves session, resumes session, exports session to JSON, and imports session from JSON.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify async_session.rs compiles without errors",
         "AddIntegrationTest: verify session save/resume cycle works",
