@@ -34,15 +34,15 @@
   - [ ] `plugin_execute(command: *const u8, len: usize) -> i32` function
   - [ ] Basic tool registration example
 
-- [ ] **T-G001-4:** Create `plugins/hello_world/build.sh`
-  - [ ] Add shebang `#!/bin/bash`
-  - [ ] Build for `wasm32-wasi` target
-  - [ ] Output .wasm to `plugins/bin/`
+- [x] **T-G001-4:** Create `plugins/hello_world/build.sh` ✅ Done
+  - [x] Add shebang `#!/bin/bash`
+  - [x] Build for `wasm32-wasi` target
+  - [x] Output .wasm to `plugins/bin/`
 
-- [ ] **T-G001-5:** Create `scripts/build-plugins.sh`
-  - [ ] Build all plugins in `plugins/`
-  - [ ] Create output directory `plugins/bin/`
-  - [ ] Error handling for failed builds
+- [x] **T-G001-5:** Create `scripts/build-plugins.sh` ✅ Done
+  - [x] Build all plugins in `plugins/`
+  - [x] Create output directory `plugins/bin/`
+  - [x] Error handling for failed builds
 
 - [ ] **T-G001-6:** Update `crates/plugin/src/lib.rs`
   - [ ] Add plugin loader for local .wasm files
