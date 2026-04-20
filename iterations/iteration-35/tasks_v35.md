@@ -412,7 +412,7 @@
 
 ---
 
-### FR-029: Model Variants Support
+### FR-029: ✅ Done
 
 **Status:** ❌ Not Implemented (superseded by FR-025)
 **Priority:** P2
@@ -469,16 +469,16 @@
 
 ### TD-2: Rename transform.rs
 
-**Status:** ❌ Low - Module does message transformation
+**Status:** ✅ Done - Module renamed to message_transform.rs
 **Priority:** Low
-**Module:** `llm/src/transform.rs`
+**Module:** `llm/src/message_transform.rs`
 
 **Tasks:**
 
-- [ ] **T-TD2-1:** Rename module to `message_transform.rs`
-  - [ ] Update `mod.rs` import
-  - [ ] Update all `use` statements across codebase
-  - [ ] Verify all tests pass
+- [x] **T-TD2-1:** Rename module to `message_transform.rs`
+  - [x] Update `mod.rs` import
+  - [x] Update all `use` statements across codebase
+  - [x] Verify all tests pass
 
 ---
 

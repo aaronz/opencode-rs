@@ -30,7 +30,7 @@ pub mod provider_abstraction;
 pub mod provider_adapter;
 pub mod provider_filter;
 pub mod togetherai;
-pub mod transform;
+pub mod message_transform;
 pub mod vercel;
 pub mod vertex;
 pub mod xai;
@@ -81,4 +81,4 @@ pub use provider_adapter::{
     AnthropicAdapter, LocalEndpointAdapter, OpenAICompatibleAdapter, ProviderAdapter,
 };
 pub use provider_filter::ProviderFilter;
-pub use transform::{MessageTransform, TransformPipeline};
+pub use message_transform::{MessageTransform, TransformPipeline};
