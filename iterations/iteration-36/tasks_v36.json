@@ -292,7 +292,7 @@
       "priority": "P2",
       "title": "Add branch operations to crates/git/src/lib.rs",
       "description": "Add Branch variant to GitOperation enum and Checkout variant to GitOperation enum.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify Branch variant exists in GitOperation enum",
         "AddUnitTest: verify Checkout variant exists in GitOperation enum",
@@ -311,7 +311,7 @@
       "priority": "P2",
       "title": "Create crates/git/src/branch.rs",
       "description": "Create branch.rs with git_branch_list() -> Result<Vec<String>>, git_branch_create(name: &str) -> Result<()>, git_branch_delete(name: &str) -> Result<()> functions.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify git_branch_list returns list of branch names",
         "AddUnitTest: verify git_branch_create creates a new branch",

@@ -17,6 +17,7 @@ use git2::{DiffFormat, DiffOptions, Repository, StatusOptions};
 use opencode_core::OpenCodeError;
 use std::path::Path;
 
+pub mod branch;
 pub mod github;
 pub mod gitlab;
 pub mod gitlab_ci;
