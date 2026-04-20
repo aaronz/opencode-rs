@@ -18,6 +18,7 @@ use opencode_core::OpenCodeError;
 use std::path::Path;
 
 pub mod branch;
+pub mod checkout;
 pub mod github;
 pub mod gitlab;
 pub mod gitlab_ci;

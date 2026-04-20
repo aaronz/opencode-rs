@@ -311,7 +311,7 @@
       "priority": "P2",
       "title": "Create crates/git/src/branch.rs",
       "description": "Create branch.rs with git_branch_list() -> Result<Vec<String>>, git_branch_create(name: &str) -> Result<()>, git_branch_delete(name: &str) -> Result<()> functions.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify git_branch_list returns list of branch names",
         "AddUnitTest: verify git_branch_create creates a new branch",
@@ -334,7 +334,7 @@
       "priority": "P2",
       "title": "Create crates/git/src/checkout.rs",
       "description": "Create checkout.rs with git_checkout(branch: &str) -> Result<()> and git_checkout_create(name: &str) -> Result<()> functions.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify git_checkout switches branches correctly",
         "AddUnitTest: verify git_checkout_create creates and checks out new branch",
