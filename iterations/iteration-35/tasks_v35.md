@@ -467,7 +467,7 @@
 
 ---
 
-### TD-2: Rename transform.rs
+### TD-2: ✅ Done
 
 **Status:** ✅ Done - Module renamed to message_transform.rs
 **Priority:** Low
@@ -484,16 +484,16 @@
 
 ### TD-3: Add models-dev Prefix to Provider IDs
 
-**Status:** ⚠️ Medium - Provider ID conflicts possible
+**Status:** ✅ Done
 **Priority:** Medium
 **Module:** `fetcher.rs`
 
 **Tasks:**
 
-- [ ] **T-TD3-1:** Add prefix to provider IDs from models.dev
-  - [ ] Change `provider.id` to `format!("models-dev-{}", provider.id)`
-  - [ ] Update `ProviderCatalog` transformation
-  - [ ] Update tests
+- [x] **T-TD3-1:** Add prefix to provider IDs from models.dev
+  - [x] Change `provider.id` to `format!("models-dev-{}", provider.id)`
+  - [x] Update `ProviderCatalog` transformation
+  - [x] Update tests
 
 ---
 

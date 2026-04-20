@@ -25,8 +25,22 @@ pub fn get_snapshot() -> Option<SnapshotCatalog> {
 
 impl From<SnapshotCatalog> for ProviderCatalog {
     fn from(snapshot: SnapshotCatalog) -> Self {
+        let providers = snapshot
+            .providers
+            .into_iter()
+            .map(|(id, mut descriptor)| {
+                let prefixed_id = format!("models-dev-{}", id);
+                descriptor.id = prefixed_id.clone();
+                descriptor
+                    .models
+                    .iter_mut()
+                    .for_each(|(_, model)| model.provider_id = prefixed_id.clone());
+                (prefixed_id, descriptor)
+            })
+            .collect();
+
         ProviderCatalog {
-            providers: snapshot.providers,
+            providers,
             fetched_at: chrono::Utc::now(),
             source: CatalogSource::Local,
         }
@@ -129,10 +143,10 @@ mod tests {
 
         assert_eq!(catalog.source, CatalogSource::Local);
         assert_eq!(catalog.providers.len(), snapshot.providers.len());
-        assert!(catalog.providers.contains_key("openai"));
+        assert!(catalog.providers.contains_key("models-dev-openai"));
 
-        let provider = &catalog.providers["openai"];
-        assert_eq!(provider.id, "openai");
+        let provider = &catalog.providers["models-dev-openai"];
+        assert_eq!(provider.id, "models-dev-openai");
         assert_eq!(provider.display_name, "OpenAI");
         assert!(provider.models.contains_key("gpt-4o"));
     }
@@ -142,10 +156,10 @@ mod tests {
         let snapshot = make_test_snapshot();
         let catalog = ProviderCatalog::from(snapshot);
 
-        let model = &catalog.providers["openai"].models["gpt-4o"];
+        let model = &catalog.providers["models-dev-openai"].models["gpt-4o"];
         assert_eq!(model.id, "gpt-4o");
         assert_eq!(model.display_name, "GPT-4o");
-        assert_eq!(model.provider_id, "openai");
+        assert_eq!(model.provider_id, "models-dev-openai");
         assert!(model.capabilities.tool_call);
         assert!(model.capabilities.attachment);
         assert_eq!(model.cost.input, 0.0025);

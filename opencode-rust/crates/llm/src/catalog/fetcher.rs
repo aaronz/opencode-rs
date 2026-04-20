@@ -64,6 +64,12 @@ use crate::catalog::types::{
 
 const MODELS_DEV_URL: &str = "https://models.dev/api.json";
 const CACHE_TTL: Duration = Duration::from_secs(5 * 60);
+const MODELS_DEV_PREFIX: &str = "models-dev-";
+
+/// Adds the models.dev prefix to a provider ID to prevent conflicts with hardcoded providers.
+fn prefix_provider_id(id: &str) -> String {
+    format!("{}{}", MODELS_DEV_PREFIX, id)
+}
 
 pub struct ProviderCatalogFetcher {
     cache_path: PathBuf,
@@ -270,7 +276,10 @@ pub async fn force_refresh(&self) -> Result<ProviderCatalog, FetchError> {
     fn transform_to_catalog(&self, data: ModelsDevApiResponse) -> ProviderCatalog {
         let providers = data
             .into_iter()
-            .map(|(id, provider)| (id, self.transform_provider(provider)))
+            .map(|(id, provider)| {
+                let prefixed_id = prefix_provider_id(&id);
+                (prefixed_id, self.transform_provider(provider, &id))
+            })
             .collect();
 
         ProviderCatalog {
@@ -280,15 +289,16 @@ pub async fn force_refresh(&self) -> Result<ProviderCatalog, FetchError> {
         }
     }
 
-    fn transform_provider(&self, provider: ModelsDevProvider) -> ProviderDescriptor {
+    fn transform_provider(&self, provider: ModelsDevProvider, original_id: &str) -> ProviderDescriptor {
+        let prefixed_provider_id = prefix_provider_id(original_id);
         let models = provider
             .models
             .into_iter()
-            .map(|(id, model)| (id, self.transform_model(model, &provider.id)))
+            .map(|(id, model)| (id, self.transform_model(model, &prefixed_provider_id)))
             .collect();
 
         ProviderDescriptor {
-            id: provider.id,
+            id: prefixed_provider_id,
             display_name: provider.name,
             api_base_url: provider.api,
             docs_url: provider.doc,
@@ -498,7 +508,7 @@ mod tests {
         let data = create_test_models_dev_response();
         let catalog = fetcher.transform_to_catalog(data);
         assert_eq!(catalog.providers.len(), 1);
-        assert!(catalog.providers.contains_key("openai"));
+        assert!(catalog.providers.contains_key("models-dev-openai"));
         assert_eq!(catalog.source, CatalogSource::ModelsDev);
     }
 
@@ -514,8 +524,8 @@ mod tests {
             env: vec!["TEST_API_KEY".to_string()],
             models: BTreeMap::new(),
         };
-        let descriptor = fetcher.transform_provider(provider);
-        assert_eq!(descriptor.id, "test");
+        let descriptor = fetcher.transform_provider(provider, "test");
+        assert_eq!(descriptor.id, "models-dev-test");
         assert_eq!(descriptor.display_name, "Test Provider");
         assert_eq!(
             descriptor.api_base_url,
@@ -542,7 +552,7 @@ mod tests {
             env: vec![],
             models: BTreeMap::new(),
         };
-        let descriptor = fetcher.transform_provider(provider);
+        let descriptor = fetcher.transform_provider(provider, "test");
         assert_eq!(descriptor.api_base_url, None);
         assert_eq!(descriptor.docs_url, None);
         assert_eq!(descriptor.npm_package, None);
@@ -584,11 +594,11 @@ mod tests {
             experimental: None,
             status: Some("beta".to_string()),
         };
-        let descriptor = fetcher.transform_model(model, "openai");
+        let descriptor = fetcher.transform_model(model, "models-dev-openai");
         assert_eq!(descriptor.id, "gpt-4");
         assert_eq!(descriptor.display_name, "GPT-4");
         assert_eq!(descriptor.family, Some("GPT-4".to_string()));
-        assert_eq!(descriptor.provider_id, "openai");
+        assert_eq!(descriptor.provider_id, "models-dev-openai");
         assert!(descriptor.capabilities.attachment);
         assert!(descriptor.capabilities.reasoning);
         assert!(descriptor.capabilities.tool_call);

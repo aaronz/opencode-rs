@@ -186,13 +186,13 @@ mod tests {
     fn list_respects_provider_filter() {
         let mut registry = ModelRegistry::new();
         registry.set_provider_filter(ProviderFilter::new(
-            vec!["openai".to_string()],
-            vec!["openai".to_string(), "anthropic".to_string()],
+            vec!["models-dev-openai".to_string()],
+            vec!["models-dev-openai".to_string(), "models-dev-anthropic".to_string()],
         ));
 
         let providers: Vec<String> = registry.list().iter().map(|m| m.provider.clone()).collect();
 
-        assert!(providers.iter().all(|provider| provider == "anthropic"));
+        assert!(providers.iter().all(|provider| provider == "models-dev-anthropic"));
         assert!(!providers.is_empty());
     }
 
@@ -200,15 +200,15 @@ mod tests {
     fn get_next_available_skips_failed_and_disallowed_providers() {
         let mut registry = ModelRegistry::new();
         registry.set_provider_filter(ProviderFilter::new(
-            vec!["openai".to_string()],
-            vec!["openai".to_string(), "anthropic".to_string()],
+            vec!["models-dev-openai".to_string()],
+            vec!["models-dev-openai".to_string(), "models-dev-anthropic".to_string()],
         ));
 
         assert_eq!(
-            registry.get_next_available_provider("openai"),
-            Some("anthropic".to_string())
+            registry.get_next_available_provider("models-dev-openai"),
+            Some("models-dev-anthropic".to_string())
         );
-        assert_eq!(registry.get_next_available_provider("anthropic"), None);
+        assert_eq!(registry.get_next_available_provider("models-dev-anthropic"), None);
     }
 
     #[test]
@@ -307,21 +307,21 @@ mod tests {
         let providers = registry.list_providers();
 
         let expected_providers = vec![
-            "anthropic",
-            "azure",
-            "cerebras",
-            "cohere",
-            "deepinfra",
-            "github-copilot",
-            "google",
-            "groq",
-            "mistral",
-            "openai",
-            "opencode",
-            "openrouter",
-            "perplexity-agent",
-            "togetherai",
-            "xai",
+            "models-dev-anthropic",
+            "models-dev-azure",
+            "models-dev-cerebras",
+            "models-dev-cohere",
+            "models-dev-deepinfra",
+            "models-dev-github-copilot",
+            "models-dev-google",
+            "models-dev-groq",
+            "models-dev-mistral",
+            "models-dev-openai",
+            "models-dev-opencode",
+            "models-dev-openrouter",
+            "models-dev-perplexity-agent",
+            "models-dev-togetherai",
+            "models-dev-xai",
         ];
 
         for provider in expected_providers {
