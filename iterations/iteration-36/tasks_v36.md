@@ -360,22 +360,22 @@
   - [x] Create `docs/sdk-guide.md`
   - [x] Create `docs/plugin-dev.md`
 
-- [ ] **T-G008-2:** Write `docs/README.md`
-  - [ ] Documentation index
-  - [ ] Quick links to each section
-  - [ ] Link to API reference in crate docs
+- [x] **T-G008-2:** Write `docs/README.md`
+  - [x] Documentation index
+  - [x] Quick links to each section
+  - [x] Link to API reference in crate docs
 
-- [ ] **T-G008-3:** Write `docs/getting-started.md`
-  - [ ] Installation instructions
-  - [ ] Configuration guide
-  - [ ] First session walkthrough
-  - [ ] Basic commands
+- [x] **T-G008-3:** Write `docs/getting-started.md` ✅ Done
+  - [x] Installation instructions
+  - [x] Configuration guide
+  - [x] First session walkthrough
+  - [x] Basic commands
 
-- [ ] **T-G008-4:** Write `docs/sdk-guide.md`
-  - [ ] SDK overview
-  - [ ] Installation via Cargo
-  - [ ] Link to `crates/sdk/examples/`
-  - [ ] API reference links
+- [x] **T-G008-4:** Write `docs/sdk-guide.md` ✅ Done
+  - [x] SDK overview
+  - [x] Installation via Cargo
+  - [x] Link to `crates/sdk/examples/`
+  - [x] API reference links
 
 - [ ] **T-G008-5:** Write `docs/plugin-dev.md`
   - [ ] Plugin architecture overview

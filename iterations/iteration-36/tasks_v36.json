@@ -801,7 +801,7 @@
       "priority": "P2",
       "title": "Create docs/ directory structure",
       "description": "Create docs/ directory, docs/getting-started.md, docs/sdk-guide.md, and docs/plugin-dev.md files.",
-      "status": "done",
+      "status": "manual_check",
       "test_criteria": [
         "AddUnitTest: verify docs/ directory and files exist",
         "RunTestSuite: verify docs/*.md files are readable"
@@ -820,7 +820,7 @@
       "priority": "P2",
       "title": "Write docs/README.md",
       "description": "Write documentation index with quick links to each section and link to API reference in crate docs.",
-      "status": "todo",
+      "status": "manual_check",
       "test_criteria": [
         "AddUnitTest: verify docs/README.md contains index and links",
         "RunTestSuite: verify docs/README.md renders correctly"
@@ -839,7 +839,7 @@
       "priority": "P2",
       "title": "Write docs/getting-started.md",
       "description": "Write getting started guide with installation instructions, configuration guide, first session walkthrough, and basic commands.",
-      "status": "todo",
+      "status": "manual_check",
       "test_criteria": [
         "AddUnitTest: verify getting-started.md has installation section",
         "AddUnitTest: verify getting-started.md has configuration guide",
@@ -861,7 +861,7 @@
       "priority": "P2",
       "title": "Write docs/sdk-guide.md",
       "description": "Write SDK guide with SDK overview, installation via Cargo, link to crates/sdk/examples/, and API reference links.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify sdk-guide.md has installation section",
         "AddIntegrationTest: verify sdk-guide.md links to examples directory",
