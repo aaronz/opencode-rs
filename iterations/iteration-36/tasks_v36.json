@@ -526,7 +526,7 @@
       "priority": "P2",
       "title": "Update crates/lsp/src/lib.rs",
       "description": "Add new modules to lib.rs, wire up handlers, and update capability registration for diagnostics, completion, and references.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify new modules are properly exported",
         "AddIntegrationTest: verify handlers are wired to LSP protocol",
