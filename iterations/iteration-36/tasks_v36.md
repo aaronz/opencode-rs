@@ -196,7 +196,7 @@
   - [ ] `publish_diagnostics` handler
   - [ ] Wire up to LSP client
 
-- [ ] **T-G004-2:** Create `crates/lsp/src/completion.rs`
+- [x] **T-G004-2:** Create `crates/lsp/src/completion.rs`
   - [ ] `CompletionItem` struct
   - [ ] `completion` handler
   - [ ] Trigger character handling (`.`, `->`, `::`)

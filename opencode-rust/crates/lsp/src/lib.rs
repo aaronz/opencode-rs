@@ -1,6 +1,7 @@
 pub mod aggregator;
 pub mod builtin;
 pub mod client;
+pub mod completion;
 pub mod custom;
 pub mod diagnostics;
 pub mod error;
@@ -15,6 +16,12 @@ pub mod types;
 pub use aggregator::DiagnosticAggregator;
 pub use builtin::{BuiltInRegistry, BuiltInServer, BundledConfig, DetectionResult, PathIndicator};
 pub use client::LspClient;
+pub use completion::{
+    build_keyword_completion_items, build_method_completion_items, create_completion_item,
+    filter_completions_by_context, filter_completions_by_prefix, get_completions,
+    get_completion_trigger_character, handle_completion_trigger, CompletionParams,
+    CompletionResult, CompletionTriggerContext, CompletionTriggerKind,
+};
 pub use custom::{
     CustomLspServer, CustomRegistry, CustomServerConfig, RegisterError, ServerCapabilities,
 };

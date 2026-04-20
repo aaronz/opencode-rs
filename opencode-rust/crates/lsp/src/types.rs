@@ -60,4 +60,5 @@ pub struct CompletionItem {
     pub label: String,
     pub kind: Option<u32>,
     pub detail: Option<String>,
+    pub insert_text: Option<String>,
 }

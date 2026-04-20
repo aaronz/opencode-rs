@@ -465,7 +465,7 @@
       "priority": "P2",
       "title": "Create crates/lsp/src/diagnostics.rs",
       "description": "Create diagnostics.rs with Diagnostic struct (range, severity, message), publish_diagnostics handler, and wire up to LSP client.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify Diagnostic struct has required fields",
         "AddUnitTest: verify publish_diagnostics handler sends correct notifications",
@@ -484,7 +484,7 @@
       "priority": "P2",
       "title": "Create crates/lsp/src/completion.rs",
       "description": "Create completion.rs with CompletionItem struct, completion handler, trigger character handling (. -> ::), and context-aware filtering.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify CompletionItem struct has required fields",
         "AddUnitTest: verify completion triggers on . -> :: characters",
