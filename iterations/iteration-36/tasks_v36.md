@@ -354,11 +354,11 @@
 
 **Tasks:**
 
-- [ ] **T-G008-1:** Create `docs/` directory structure
-  - [ ] Create `docs/README.md`
-  - [ ] Create `docs/getting-started.md`
-  - [ ] Create `docs/sdk-guide.md`
-  - [ ] Create `docs/plugin-dev.md`
+- [x] **T-G008-1:** Create `docs/` directory structure
+  - [x] Create `docs/README.md`
+  - [x] Create `docs/getting-started.md`
+  - [x] Create `docs/sdk-guide.md`
+  - [x] Create `docs/plugin-dev.md`
 
 - [ ] **T-G008-2:** Write `docs/README.md`
   - [ ] Documentation index

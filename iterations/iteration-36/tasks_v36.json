@@ -801,7 +801,7 @@
       "priority": "P2",
       "title": "Create docs/ directory structure",
       "description": "Create docs/ directory, docs/getting-started.md, docs/sdk-guide.md, and docs/plugin-dev.md files.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify docs/ directory and files exist",
         "RunTestSuite: verify docs/*.md files are readable"
