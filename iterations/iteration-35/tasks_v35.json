@@ -72,7 +72,7 @@
       "priority": "P1",
       "title": "Dynamic Provider Loading",
       "description": "Create bundled_providers.rs with BUNDLED_PROVIDERS constant containing 20+ providers (@ai-sdk/anthropic, @ai-sdk/openai, @ai-sdk/amazon-bedrock, etc.). Implement provider factory pattern with lazy loading via once_cell::sync::Lazy. Integrate with provider registry for dynamic loading.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify BUNDLED_PROVIDERS contains 20+ provider entries",
         "AddUnitTest: verify BundledProvider struct has name, package, factory fields",

@@ -83,7 +83,7 @@
 
 ---
 
-### FR-018: Complete models.dev Integration
+### FR-018: ✅ Done
 
 **Status:** ⚠️ Partial (snapshot integration remaining)
 **Priority:** P0
