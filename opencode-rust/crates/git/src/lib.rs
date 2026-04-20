@@ -50,6 +50,16 @@ pub struct GitManager {
     repo: Repository,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GitOperation {
+    Status,
+    Diff,
+    Log,
+    Commit,
+    Branch,
+    Checkout,
+}
+
 impl GitManager {
     pub fn open<P: AsRef<Path>>(path: P) -> Result<Self, OpenCodeError> {
         let repo = Repository::discover(path)
@@ -97,5 +107,32 @@ impl GitManager {
         .map_err(|e| OpenCodeError::Tool(format!("Failed to print diff: {}", e)))?;
 
         Ok(result)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn git_operation_has_branch_variant() {
+        let op = GitOperation::Branch;
+        assert!(matches!(op, GitOperation::Branch));
+    }
+
+    #[test]
+    fn git_operation_has_checkout_variant() {
+        let op = GitOperation::Checkout;
+        assert!(matches!(op, GitOperation::Checkout));
+    }
+
+    #[test]
+    fn git_operation_all_variants() {
+        assert!(matches!(GitOperation::Status, GitOperation::Status));
+        assert!(matches!(GitOperation::Diff, GitOperation::Diff));
+        assert!(matches!(GitOperation::Log, GitOperation::Log));
+        assert!(matches!(GitOperation::Commit, GitOperation::Commit));
+        assert!(matches!(GitOperation::Branch, GitOperation::Branch));
+        assert!(matches!(GitOperation::Checkout, GitOperation::Checkout));
     }
 }

@@ -270,7 +270,7 @@
       "priority": "P1",
       "title": "Update crates/sdk/README.md",
       "description": "Update SDK README with badges (docs.rs, crates.io), Installation section, Quick Start section, and links to examples.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify README.md contains required sections",
         "AddIntegrationTest: verify badges link to correct URLs",
@@ -292,7 +292,7 @@
       "priority": "P2",
       "title": "Add branch operations to crates/git/src/lib.rs",
       "description": "Add Branch variant to GitOperation enum and Checkout variant to GitOperation enum.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify Branch variant exists in GitOperation enum",
         "AddUnitTest: verify Checkout variant exists in GitOperation enum",
