@@ -587,7 +587,7 @@
       "priority": "P2",
       "title": "Create opencode-benches/src/session_load.rs",
       "description": "Create benchmarks for session CRUD: bench_session_create, bench_session_save (SQLite), bench_session_resume (SQLite), bench_session_delete.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify session benchmark functions exist and compile",
         "RunTestSuite: cargo bench -p opencode-benches -- session_load --no-run should succeed"
@@ -605,7 +605,7 @@
       "priority": "P2",
       "title": "Create opencode-benches/src/llm_roundtrip.rs",
       "description": "Create LLM streaming benchmarks: bench_llm_first_token, bench_llm_full_response, bench_provider_openai, bench_provider_anthropic.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify LLM benchmark functions exist and compile",
         "RunTestSuite: cargo bench -p opencode-benches -- llm_roundtrip --no-run should succeed"

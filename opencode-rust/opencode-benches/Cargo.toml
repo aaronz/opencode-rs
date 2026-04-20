@@ -8,7 +8,9 @@ opencode-core = { path = "../crates/core" }
 opencode-tools = { path = "../crates/tools" }
 opencode-storage = { path = "../crates/storage" }
 opencode-plugin = { path = "../crates/plugin" }
+opencode-llm = { path = "../crates/llm" }
 criterion = "0.5"
+async-trait = "0.1"
 tokio = { version = "1.45", features = ["full"] }
 tempfile = "3"
 serde_json = "1"
@@ -45,3 +47,8 @@ path = "benches/config_and_token.rs"
 name = "jsonc_parsing"
 harness = false
 path = "benches/jsonc_parsing.rs"
+
+[[bench]]
+name = "llm_roundtrip"
+harness = false
+path = "benches/llm_roundtrip.rs"
