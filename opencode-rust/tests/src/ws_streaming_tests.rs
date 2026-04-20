@@ -1085,3 +1085,204 @@ async fn test_client_disconnect_no_crash() {
     server_handle.abort();
     server_handle2.abort();
 }
+
+#[tokio::test]
+async fn test_ws_memory_buffers_freed_after_streaming() {
+    let (ws_url, server_handle) = start_ws_test_server(0).await;
+
+    let ws_url_with_session = ws_url.replace("/test-session", "?session_id=mem-test");
+
+    let (mut ws, _) = tokio_tungstenite::connect_async(&ws_url_with_session)
+        .await
+        .expect("Should connect to WebSocket endpoint");
+
+    let connected_msg = ws.next().await;
+    assert!(connected_msg.is_some(), "Should receive connected message");
+    drop(connected_msg);
+
+    ws_close(&mut ws).await;
+    tokio::time::sleep(Duration::from_millis(50)).await;
+
+    let (mut ws2, _) = tokio_tungstenite::connect_async(&ws_url_with_session)
+        .await
+        .expect("Should reconnect after previous stream");
+    ws_close(&mut ws2).await;
+
+    server_handle.abort();
+}
+
+#[tokio::test]
+async fn test_ws_memory_no_growth_on_repeated_streams() {
+    let (ws_url, server_handle) = start_ws_test_server(0).await;
+
+    let iterations = 5;
+
+    for iteration in 0..iterations {
+        let session_id = format!("repeat-test-{}", iteration);
+        let url = ws_url.replace("/test-session", &format!("?session_id={}", session_id));
+
+        let (mut ws, _) = tokio_tungstenite::connect_async(&url)
+            .await
+            .expect("Should connect to WebSocket");
+
+        let connected_msg = ws.next().await;
+        assert!(connected_msg.is_some(), "Iteration {}: Should receive connected", iteration);
+        drop(connected_msg);
+
+        ws_close(&mut ws).await;
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+
+    server_handle.abort();
+}
+
+#[tokio::test]
+async fn test_ws_session_hub_no_memory_leak_on_register_unregister() {
+    let hub = SessionHub::new(256);
+
+    let session_id = "leak-test-session";
+
+    let mut receivers = Vec::new();
+    for i in 0..20 {
+        let receiver = hub.register_client(session_id, &format!("client-{}", i)).await;
+        receivers.push(receiver);
+    }
+
+    assert_eq!(hub.get_session_client_count(session_id).await, 20);
+
+    for i in 0..20 {
+        hub.unregister_client(session_id, &format!("client-{}", i)).await;
+    }
+
+    tokio::time::sleep(Duration::from_millis(10)).await;
+
+    drop(receivers);
+
+    assert_eq!(hub.get_session_client_count(session_id).await, 0);
+    assert_eq!(hub.total_client_count().await, 0);
+}
+
+#[tokio::test]
+async fn test_ws_reconnection_store_cleanup_on_repeated_records() {
+    let store = ReconnectionStore::new(10);
+    let session_id = "replay-cleanup-test";
+
+    for i in 0..50 {
+        store.record_message(
+            session_id,
+            StreamMessage::Message {
+                session_id: session_id.to_string(),
+                content: format!("message {}", i),
+                role: "user".to_string(),
+            },
+        );
+    }
+
+    let entries = store.replay_from(session_id, 0);
+    assert_eq!(entries.len(), 10, "Should respect replay limit of 10");
+
+    store.record_message(
+        session_id,
+        StreamMessage::Message {
+            session_id: session_id.to_string(),
+            content: "final message".to_string(),
+            role: "user".to_string(),
+        },
+    );
+
+    let entries_after = store.replay_from(session_id, 0);
+    assert_eq!(
+        entries_after.len(), 10,
+        "Should still respect limit after additional record"
+    );
+
+    let token = store.generate_token(session_id, None);
+    let validated = store.validate_token(session_id, &token);
+    assert!(validated.is_some());
+
+    let entries_from_seq = store.replay_from(session_id, 40);
+    assert!(entries_from_seq.len() <= 10, "Should return at most 10 entries");
+}
+
+#[tokio::test]
+async fn test_ws_connection_cleanup_on_disconnect() {
+    let (ws_url, server_handle) = start_ws_test_server(0).await;
+
+    let ws_url_with_session = ws_url.replace("/test-session", "?session_id=cleanup-test");
+
+    let (mut ws, _) = tokio_tungstenite::connect_async(&ws_url_with_session)
+        .await
+        .expect("Should connect to WebSocket endpoint");
+
+    let connected_msg = ws.next().await;
+    assert!(connected_msg.is_some(), "Should receive connected message");
+    drop(connected_msg);
+
+    drop(ws);
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    let (mut ws2, _) = tokio_tungstenite::connect_async(&ws_url_with_session)
+        .await
+        .expect("Should reconnect after disconnect");
+    ws_close(&mut ws2).await;
+
+    server_handle.abort();
+}
+
+#[tokio::test]
+async fn test_ws_multiple_clients_same_session_cleanup() {
+    let (ws_url, server_handle) = start_ws_test_server(0).await;
+    let ws_url_with_session = ws_url.replace("/test-session", "?session_id=multi-cleanup");
+
+    let clients_count = 3;
+    let mut clients = Vec::new();
+
+    for i in 0..clients_count {
+        let (mut ws, _) = tokio_tungstenite::connect_async(&ws_url_with_session)
+            .await
+            .expect(&format!("Should connect client {}", i));
+
+        let connected_msg = ws.next().await;
+        assert!(connected_msg.is_some(), "Client {}: Should receive connected", i);
+        drop(connected_msg);
+
+        clients.push(ws);
+    }
+
+    for mut ws in clients {
+        ws_close(&mut ws).await;
+    }
+
+    tokio::time::sleep(Duration::from_millis(50)).await;
+
+    let (mut ws_new, _) = tokio_tungstenite::connect_async(&ws_url_with_session)
+        .await
+        .expect("Should connect new client after cleanup");
+    ws_close(&mut ws_new).await;
+
+    server_handle.abort();
+}
+
+#[tokio::test]
+async fn test_ws_broadcast_channel_cleanup() {
+    let hub = SessionHub::new(256);
+    let session_id = "broadcast-cleanup-test";
+
+    let mut receivers = Vec::new();
+    for i in 0..10 {
+        let receiver = hub.register_client(session_id, &format!("client-{}", i)).await;
+        receivers.push(receiver);
+    }
+
+    hub.unregister_client(session_id, "client-0").await;
+    drop(receivers.remove(0));
+
+    assert_eq!(hub.get_session_client_count(session_id).await, 9);
+
+    for i in 1..10 {
+        hub.unregister_client(session_id, &format!("client-{}", i)).await;
+    }
+
+    assert_eq!(hub.get_session_client_count(session_id).await, 0);
+    assert_eq!(hub.total_client_count().await, 0);
+}

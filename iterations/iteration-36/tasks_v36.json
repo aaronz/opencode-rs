@@ -700,7 +700,7 @@
       "priority": "P2",
       "title": "Add memory leak detection for WebSocket",
       "description": "Verify buffers are freed after streaming. Ensure no growing allocations on repeated streams.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddErrorHandlingTest: verify buffers are freed after streaming completes",
         "AddRegressionTest: verify no memory growth on repeated stream operations",
