@@ -20,6 +20,7 @@ use std::path::Path;
 pub mod branch;
 pub mod checkout;
 pub mod merge;
+pub mod rebase;
 pub mod github;
 pub mod gitlab;
 pub mod gitlab_ci;
@@ -50,6 +51,7 @@ pub use workflow::{
 };
 
 pub use merge::{git_merge, MergeResult};
+pub use rebase::{git_rebase, git_rebase_abort, git_rebase_status, RebaseResult, RebaseStatus};
 
 pub struct GitManager {
     repo: Repository,

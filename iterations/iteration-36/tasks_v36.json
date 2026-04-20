@@ -376,7 +376,7 @@
       "priority": "P2",
       "title": "Add rebase operations",
       "description": "Add git_rebase(branch: &str) -> Result<()>, git_rebase_abort() -> Result<()>, and handle conflicts.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify git_rebase performs rebase correctly",
         "AddUnitTest: verify git_rebase_abort cancels rebase and restores original state",
