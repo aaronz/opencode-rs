@@ -11,6 +11,7 @@ pub mod launch;
 pub mod manager;
 pub mod mock;
 mod server;
+pub mod references;
 pub mod types;
 
 pub use aggregator::DiagnosticAggregator;
@@ -37,4 +38,8 @@ pub use language::Language;
 pub use launch::LaunchConfig;
 pub use manager::LspManager;
 pub use mock::MockLspServer;
+pub use references::{
+    filter_references_by_file, find_references_in_document, find_references_workspace,
+    get_declaration_location, ReferencesContext, ReferencesParams, ReferencesResult,
+};
 pub use types::{Diagnostic, Location, Severity, Symbol};

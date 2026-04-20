@@ -505,7 +505,7 @@
       "priority": "P2",
       "title": "Create crates/lsp/src/references.rs",
       "description": "Create references.rs with references handler, find all references to symbol, include declaration, and workspace-wide or document-only scope.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify references returns all locations for a symbol",
         "AddUnitTest: verify references includes declaration location",

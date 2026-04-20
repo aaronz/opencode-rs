@@ -202,11 +202,11 @@
   - [ ] Trigger character handling (`.`, `->`, `::`)
   - [ ] Context-aware filtering
 
-- [ ] **T-G004-3:** Create `crates/lsp/src/references.rs`
-  - [ ] `references` handler
-  - [ ] Find all references to symbol
-  - [ ] Include declaration
-  - [ ] Workspace-wide or document-only scope
+- [x] **T-G004-3:** Create `crates/lsp/src/references.rs`
+  - [x] `references` handler
+  - [x] Find all references to symbol
+  - [x] Include declaration
+  - [x] Workspace-wide or document-only scope
 
 - [ ] **T-G004-4:** Update `crates/lsp/src/lib.rs`
   - [ ] Add new modules to lib
