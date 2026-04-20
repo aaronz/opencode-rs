@@ -605,7 +605,7 @@
       "priority": "P2",
       "title": "Create opencode-benches/src/llm_roundtrip.rs",
       "description": "Create LLM streaming benchmarks: bench_llm_first_token, bench_llm_full_response, bench_provider_openai, bench_provider_anthropic.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify LLM benchmark functions exist and compile",
         "RunTestSuite: cargo bench -p opencode-benches -- llm_roundtrip --no-run should succeed"
@@ -623,7 +623,7 @@
       "priority": "P2",
       "title": "Update opencode-benches/src/lib.rs",
       "description": "Add new benchmark modules to lib.rs, add criterion measurements, and add report generation.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify all benchmark modules are included",
         "RunTestSuite: cargo bench -p opencode-benches -- --no-run should list all benchmarks"

@@ -1,7 +1,17 @@
+use criterion::Criterion;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
+
+mod session_load;
+mod session_operations;
+mod storage_operations;
+mod tool_execution;
+mod config_and_token;
+mod jsonc_parsing;
+mod llm_roundtrip;
+mod plugin_operations;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BenchmarkResult {
@@ -133,4 +143,206 @@ pub fn get_baseline_path() -> std::path::PathBuf {
         .join("benches")
         .join("baseline")
         .join("baseline.json")
+}
+
+pub fn default_criterion() -> Criterion {
+    Criterion::default()
+        .measurement_time(std::time::Duration::from_secs(5))
+        .sample_size(100)
+        .warm_up_time(std::time::Duration::from_secs(1))
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BenchmarkReport {
+    pub version: String,
+    pub generated_at: String,
+    pub total_benchmarks: usize,
+    pub groups: Vec<BenchmarkGroupReport>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BenchmarkGroupReport {
+    pub name: String,
+    pub benchmarks: Vec<BenchmarkSummary>,
+    pub total_time_ns: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BenchmarkSummary {
+    pub name: String,
+    pub mean_ns: f64,
+    pub std_dev_ns: f64,
+    pub p50_ns: f64,
+    pub p95_ns: f64,
+    pub p99_ns: f64,
+}
+
+impl BenchmarkReport {
+    pub fn from_baseline(baseline: &BenchmarkBaseline) -> Self {
+        let mut groups = Vec::new();
+        let mut total_benchmarks = 0;
+
+        for (group_name, results) in &baseline.results {
+            let benchmarks: Vec<BenchmarkSummary> = results
+                .iter()
+                .map(|r| BenchmarkSummary {
+                    name: r.name.clone(),
+                    mean_ns: r.mean_ns,
+                    std_dev_ns: r.std_dev_ns,
+                    p50_ns: r.median_ns,
+                    p95_ns: r.mean_ns * 1.96,
+                    p99_ns: r.mean_ns * 2.576,
+                })
+                .collect();
+
+            let total_time_ns: f64 = results.iter().map(|r| r.mean_ns).sum();
+
+            total_benchmarks += results.len();
+            groups.push(BenchmarkGroupReport {
+                name: group_name.clone(),
+                benchmarks,
+                total_time_ns,
+            });
+        }
+
+        Self {
+            version: baseline.version.clone(),
+            generated_at: chrono::Utc::now().to_rfc3339(),
+            total_benchmarks,
+            groups,
+        }
+    }
+
+    pub fn save(&self, path: &Path) -> std::io::Result<()> {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let content = serde_json::to_string_pretty(self)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+        fs::write(path, content)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_benchmark_result_detect_regression() {
+        let baseline = BenchmarkResult {
+            name: "test_bench".to_string(),
+            group: "test_group".to_string(),
+            mean_ns: 1000.0,
+            std_dev_ns: 50.0,
+            median_ns: 980.0,
+            min_ns: Some(900.0),
+            max_ns: Some(1100.0),
+            samples: 100,
+        };
+
+        let current = BenchmarkResult {
+            name: "test_bench".to_string(),
+            group: "test_group".to_string(),
+            mean_ns: 1200.0,
+            std_dev_ns: 60.0,
+            median_ns: 1180.0,
+            min_ns: Some(1000.0),
+            max_ns: Some(1400.0),
+            samples: 100,
+        };
+
+        let regression = baseline.detect_regression(&current);
+        assert!(regression.is_some());
+        let report = regression.unwrap();
+        assert_eq!(report.regression_percent, 20.0);
+        assert_eq!(report.severity, Severity::Moderate);
+    }
+
+    #[test]
+    fn test_benchmark_result_no_regression() {
+        let baseline = BenchmarkResult {
+            name: "test_bench".to_string(),
+            group: "test_group".to_string(),
+            mean_ns: 1000.0,
+            std_dev_ns: 50.0,
+            median_ns: 980.0,
+            min_ns: None,
+            max_ns: None,
+            samples: 100,
+        };
+
+        let current = BenchmarkResult {
+            name: "test_bench".to_string(),
+            group: "test_group".to_string(),
+            mean_ns: 1050.0,
+            std_dev_ns: 55.0,
+            median_ns: 1030.0,
+            min_ns: None,
+            max_ns: None,
+            samples: 100,
+        };
+
+        let regression = baseline.detect_regression(&current);
+        assert!(regression.is_none());
+    }
+
+    #[test]
+    fn test_benchmark_report_from_baseline() {
+        let mut baseline = BenchmarkBaseline::new();
+        baseline.add_result(
+            "test_group",
+            BenchmarkResult {
+                name: "bench1".to_string(),
+                group: "test_group".to_string(),
+                mean_ns: 1000.0,
+                std_dev_ns: 50.0,
+                median_ns: 980.0,
+                min_ns: None,
+                max_ns: None,
+                samples: 100,
+            },
+        );
+
+        let report = BenchmarkReport::from_baseline(&baseline);
+        assert_eq!(report.total_benchmarks, 1);
+        assert_eq!(report.groups.len(), 1);
+        assert_eq!(report.groups[0].benchmarks.len(), 1);
+    }
+
+    #[test]
+    fn test_baseline_compare() {
+        let mut baseline = BenchmarkBaseline::new();
+        baseline.add_result(
+            "test_group",
+            BenchmarkResult {
+                name: "bench1".to_string(),
+                group: "test_group".to_string(),
+                mean_ns: 1000.0,
+                std_dev_ns: 50.0,
+                median_ns: 980.0,
+                min_ns: None,
+                max_ns: None,
+                samples: 100,
+            },
+        );
+
+        let mut current = BenchmarkBaseline::new();
+        current.add_result(
+            "test_group",
+            BenchmarkResult {
+                name: "bench1".to_string(),
+                group: "test_group".to_string(),
+                mean_ns: 1300.0,
+                std_dev_ns: 60.0,
+                median_ns: 1280.0,
+                min_ns: None,
+                max_ns: None,
+                samples: 100,
+            },
+        );
+
+        let regressions = baseline.compare(&current);
+        assert_eq!(regressions.len(), 1);
+        assert_eq!(regressions[0].regression_percent, 30.0);
+    }
 }
