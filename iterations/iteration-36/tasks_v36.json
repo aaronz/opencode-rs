@@ -623,7 +623,7 @@
       "priority": "P2",
       "title": "Update opencode-benches/src/lib.rs",
       "description": "Add new benchmark modules to lib.rs, add criterion measurements, and add report generation.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify all benchmark modules are included",
         "RunTestSuite: cargo bench -p opencode-benches -- --no-run should list all benchmarks"
@@ -641,7 +641,7 @@
       "priority": "P2",
       "title": "Verify benchmarks run successfully",
       "description": "Run cargo bench to completion, verify report is generated, and ensure no panics or errors occur.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: ensure all benchmarks complete without panic",
         "AddRegressionTest: ensure benchmark report is generated",

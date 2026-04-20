@@ -259,10 +259,10 @@
   - [ ] Add criterion measurements
   - [ ] Add report generation
 
-- [ ] **T-G005-5:** Verify benchmarks run
-  - [ ] `cargo bench` completes
-  - [ ] Report generated
-  - [ ] No panics or errors
+- [x] **T-G005-5:** Verify benchmarks run
+  - [x] `cargo bench` completes
+  - [x] Report generated
+  - [x] No panics or errors
 
 **Acceptance Criteria:**
 - [ ] Tool execution benchmarks exist
