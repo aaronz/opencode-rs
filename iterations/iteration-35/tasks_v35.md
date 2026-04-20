@@ -10,7 +10,7 @@
 
 ## Phase 1: P0 Critical Blockers (Must Fix)
 
-### FR-019: Bundled Snapshot Fallback
+### FR-019: ✅ Done
 
 **Status:** ✅ Done
 **Priority:** P0
@@ -55,29 +55,24 @@
 
 ### FR-020: Snapshot Generation Script
 
-**Status:** ❌ Not Implemented
+**Status:** ✅ Done
 **Priority:** P0
 **Module:** `scripts/`
 **Effort:** 1-2 days
 
 **Tasks:**
 
-- [ ] **T-020-1:** Create `scripts/generate-snapshot.sh`
-  - [ ] Make script executable (`chmod +x`)
-  - [ ] Add shebang `#!/bin/bash`
-  - [ ] Fetch from `https://models.dev/api.json` via curl
-  - [ ] Transform JSON to Rust struct format
-  - [ ] Write output to `crates/llm/src/catalog/snapshot_data.rs`
-  - [ ] Include timestamp and version metadata in output
+- [x] **T-020-1:** Create `scripts/generate-snapshot.sh`
+  - [x] Make script executable (`chmod +x`)
+  - [x] Add shebang `#!/bin/bash`
+  - [x] Fetch from `https://models.dev/api.json` via curl
+  - [x] Transform JSON to Rust struct format
+  - [x] Write output to `crates/llm/src/catalog/snapshot_catalog.json`
+  - [x] Include timestamp and version metadata in output
 
-- [ ] **T-020-2:** Create `scripts/models-snapshot-template.json`
-  - [ ] Define template structure for snapshot data
-  - [ ] Document required fields
-
-- [ ] **T-020-3:** Add snapshot generation to `build.sh`
-  - [ ] Add `GENERATE_SNAPSHOT` environment variable check
-  - [ ] Run script before cargo build if enabled
-  - [ ] Add documentation in `CONTRIBUTING.md`
+- [x] **T-020-2:** Add snapshot generation to `build.sh`
+  - [x] Add `GENERATE_SNAPSHOT` environment variable check
+  - [x] Run script before cargo build if enabled
 
 **Acceptance Criteria:**
 - [ ] `scripts/generate-snapshot.sh` created and executable

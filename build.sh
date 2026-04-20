@@ -5,6 +5,9 @@ DEBUG=""
 TEST=""
 CARGO_BUILD_FLAGS="--release"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/opencode-rust" && pwd)"
+
 while [[ $# -gt 0 ]]; do
     case $1 in
         --debug)
@@ -24,7 +27,6 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/opencode-rust" && pwd)"
 cd "$PROJECT_DIR"
 
 echo "========================================"
@@ -33,6 +35,12 @@ echo "========================================"
 echo "Project: $PROJECT_DIR"
 echo "Build type: ${DEBUG:-release}"
 echo ""
+
+if [[ -n "$GENERATE_SNAPSHOT" ]]; then
+    echo "GENERATE_SNAPSHOT is set - running snapshot generation..."
+    bash "$SCRIPT_DIR/scripts/generate-snapshot.sh"
+    echo ""
+fi
 
 echo "Cleaning target folder..."
 rm -rf "$PROJECT_DIR/target"

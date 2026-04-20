@@ -29,7 +29,7 @@
       "priority": "P0",
       "title": "Snapshot Generation Script",
       "description": "Create scripts/generate-snapshot.sh to fetch models.dev API and generate Rust code for embedding. Script should fetch https://models.dev/api.json, transform JSON to Rust struct format, and write to crates/llm/src/catalog/snapshot_data.rs.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify script executes successfully and generates valid Rust code",
         "AddIntegrationTest: verify generated snapshot_data.rs compiles with cargo build",
