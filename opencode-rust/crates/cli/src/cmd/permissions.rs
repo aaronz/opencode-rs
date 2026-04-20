@@ -4,13 +4,13 @@ use clap::{Args, Subcommand};
 pub enum PermissionsAction {
     #[command(about = "Grant permission for a path")]
     Grant {
-        #[arg(short, long)]
+        #[arg(value_name = "PATH")]
         path: String,
     },
 
     #[command(about = "Revoke permission for a path")]
     Revoke {
-        #[arg(short, long)]
+        #[arg(value_name = "PATH")]
         path: String,
     },
 

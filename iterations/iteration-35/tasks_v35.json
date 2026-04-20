@@ -1,0 +1,329 @@
+{
+  "tasks": [
+    {
+      "id": "FR-019",
+      "priority": "P0",
+      "title": "Bundled Snapshot Fallback",
+      "description": "Create bundled snapshot fallback mechanism for offline mode. When network and disk cache are unavailable, the app should use a bundled snapshot of provider catalog to function. This includes creating snapshot.rs module, snapshot_data.rs with embedded provider data, and updating fetcher.rs fallback chain.",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify is_snapshot_available() returns true when snapshot exists",
+        "AddUnitTest: verify get_snapshot() returns Some(SnapshotCatalog) when snapshot data is present",
+        "AddUnitTest: verify From<SnapshotCatalog> for ProviderCatalog conversion works correctly",
+        "AddRegressionTest: ensure fetcher fallback chain: memory cache -> disk cache -> bundled snapshot -> empty catalog works in correct order",
+        "AddErrorHandlingTest: test snapshot loading handles corrupted/malformed data gracefully"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm --lib catalog::snapshot",
+        "cargo test -p opencode-llm --lib catalog::fetcher",
+        "cargo clippy -p opencode-llm -- -D warnings"
+      ],
+      "impl_notes": "SnapshotCatalog struct should mirror ProviderCatalog structure. snapshot_data.rs should use include_bytes!() for static embedding. Fallback chain order: memory -> network -> disk -> bundled snapshot -> empty.",
+      "dependencies": [
+        "FR-018",
+        "FR-020"
+      ]
+    },
+    {
+      "id": "FR-020",
+      "priority": "P0",
+      "title": "Snapshot Generation Script",
+      "description": "Create scripts/generate-snapshot.sh to fetch models.dev API and generate Rust code for embedding. Script should fetch https://models.dev/api.json, transform JSON to Rust struct format, and write to crates/llm/src/catalog/snapshot_data.rs.",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify script executes successfully and generates valid Rust code",
+        "AddIntegrationTest: verify generated snapshot_data.rs compiles with cargo build",
+        "AddRegressionTest: ensure build.sh runs snapshot generation when GENERATE_SNAPSHOT env var is set",
+        "RunTestSuite: execute scripts/generate-snapshot.sh and verify output file contains expected ProviderCatalog struct"
+      ],
+      "test_commands": [
+        "bash scripts/generate-snapshot.sh && cargo build -p opencode-llm",
+        "cargo clippy -p opencode-llm -- -D warnings",
+        "cargo test -p opencode-llm --lib catalog"
+      ],
+      "impl_notes": "Script must be executable (chmod +x). Should include timestamp and version metadata in generated output. Output format should be compatible with include_bytes!() macro.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-018",
+      "priority": "P0",
+      "title": "Complete models.dev Integration",
+      "description": "Verify and complete the fallback chain in fetcher.rs. Ensure clean fallback order: memory cache (5-min TTL) -> network fetch -> file cache (disk) -> bundled snapshot -> empty catalog. Update fetch_or_get_cached() with proper fallback documentation.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify memory cache is checked first with 5-min TTL",
+        "AddUnitTest: verify network fetch is attempted second on cache miss",
+        "AddUnitTest: verify file cache (disk) is used on network failure",
+        "AddRegressionTest: ensure no duplicate network requests when cache is valid",
+        "RunTestSuite: run all existing catalog tests to ensure fallback chain works"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm --lib catalog::fetcher",
+        "cargo clippy -p opencode-llm -- -D warnings",
+        "cargo test -p opencode-llm --lib"
+      ],
+      "impl_notes": "Clean fallback chain must be: memory -> network -> disk -> snapshot -> empty. Add clear comments documenting each stage. Verify all existing tests pass.",
+      "dependencies": [
+        "FR-019"
+      ]
+    },
+    {
+      "id": "FR-021",
+      "priority": "P1",
+      "title": "Dynamic Provider Loading",
+      "description": "Create bundled_providers.rs with BUNDLED_PROVIDERS constant containing 20+ providers (@ai-sdk/anthropic, @ai-sdk/openai, @ai-sdk/amazon-bedrock, etc.). Implement provider factory pattern with lazy loading via once_cell::sync::Lazy. Integrate with provider registry for dynamic loading.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify BUNDLED_PROVIDERS contains 20+ provider entries",
+        "AddUnitTest: verify BundledProvider struct has name, package, factory fields",
+        "AddUnitTest: verify lazy loading works correctly with once_cell::sync::Lazy",
+        "AddIntegrationTest: verify provider registry can load providers dynamically by name",
+        "AddRegressionTest: ensure existing provider selection UI works with new dynamic loading"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm --lib bundled_providers",
+        "cargo test -p opencode-llm --lib provider",
+        "cargo clippy -p opencode-llm -- -D warnings",
+        "cargo build -p opencode-llm"
+      ],
+      "impl_notes": "ProviderFactory type alias should be defined. Providers should use registry pattern for dynamic import. Lazy loading on first use to avoid upfront cost.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-022",
+      "priority": "P1",
+      "title": "Amazon Bedrock Region Prefix Handling",
+      "description": "Implement region prefix detection and endpoint mapping for Amazon Bedrock. Support prefixes: us.*, eu.*, jp.*, apac.*, au.* mapped to region codes. Implement get_region_prefix() and get_bedrock_endpoint() functions. Update BedrockProvider to route based on region.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify get_region_prefix() extracts correct prefix from model IDs (us.foo -> Some(\"us\"), eu.bar -> Some(\"eu\"))",
+        "AddUnitTest: verify get_bedrock_endpoint() returns correct URLs for US, EU, APAC regions",
+        "AddUnitTest: verify default endpoint is used when no region prefix is present",
+        "AddIntegrationTest: verify BedrockProvider routes requests to correct endpoint based on model ID prefix",
+        "AddErrorHandlingTest: test invalid region prefixes fall back to default endpoint"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm --lib bedrock",
+        "cargo clippy -p opencode-llm -- -D warnings",
+        "cargo build -p opencode-llm"
+      ],
+      "impl_notes": "Region endpoints: US=https://bedrock.us-east-1.amazonaws.com, EU=https://bedrock.eu-west-1.amazonaws.com, APAC=https://bedrock.ap-northeast-1.amazonaws.com. Default: US endpoint.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-023",
+      "priority": "P1",
+      "title": "GitLab Duo Workflow Discovery",
+      "description": "Create gitlab.rs module for GitLab AI Gateway model discovery. Implement GitLabProvider struct with instance_url, token, client. Fetch from /api/v1/ai/models endpoint with Bearer token. Implement should_enable_gitlab_duo() for feature flag checking. Integrate with catalog merger.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify GitLabProvider struct can be created with instance_url and token",
+        "AddUnitTest: verify discover_models() returns Vec<Model> from AI Gateway",
+        "AddUnitTest: verify should_enable_gitlab_duo() checks for gitlab_duo_workflow feature flag",
+        "AddIntegrationTest: verify GitLab provider integrates with catalog merger",
+        "AddErrorHandlingTest: test discovery handles missing/invalid tokens gracefully"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm --lib gitlab",
+        "cargo test -p opencode-llm --lib catalog::merge",
+        "cargo clippy -p opencode-llm -- -D warnings",
+        "cargo build -p opencode-llm"
+      ],
+      "impl_notes": "Authorization header format: Authorization: Bearer {token}. AI Gateway endpoint: /api/v1/ai/models. Feature flag: gitlab_duo_workflow.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-024",
+      "priority": "P1",
+      "title": "Cloudflare AI Gateway Provider",
+      "description": "Create ai_gateway.rs module for Cloudflare AI Gateway. Define AiGatewayProvider struct with account_id and client. Implement complete() method for inference. Route requests through https://gateway.ai.cloudflare.com/v1/{account_id}/openai.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify AiGatewayProvider can be created with account_id",
+        "AddUnitTest: verify complete() method forwards requests to AI Gateway URL",
+        "AddIntegrationTest: verify AI Gateway provider registers correctly with provider registry",
+        "AddRegressionTest: ensure AI Gateway integration works with existing completion flow"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm --lib ai_gateway",
+        "cargo test -p opencode-llm --lib provider",
+        "cargo clippy -p opencode-llm -- -D warnings",
+        "cargo build -p opencode-llm"
+      ],
+      "impl_notes": "Base URL format: https://gateway.ai.cloudflare.com/v1/{account_id}/openai. Handle response mapping to OpenCode completion response format.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-025",
+      "priority": "P1",
+      "title": "Experimental Modes Mapping",
+      "description": "Add ModelVariant struct with name and description fields. Add variants: Vec<ModelVariant> field to Model struct. Parse experimental.modes from models.dev in catalog merger. Update JSON serialization/deserialization and all Model::new() callers.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify ModelVariant struct serializes/deserializes correctly",
+        "AddUnitTest: verify Model struct has variants: Vec<ModelVariant> field",
+        "AddUnitTest: verify parse_experimental_modes() correctly maps models.dev experimental.modes to ModelVariant",
+        "AddIntegrationTest: verify variant parsing works in full catalog merge flow",
+        "AddRegressionTest: ensure all Model::new() callers are updated with variants field"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm --lib models",
+        "cargo test -p opencode-llm --lib catalog::merge",
+        "cargo clippy -p opencode-llm -- -D warnings",
+        "cargo build -p opencode-llm"
+      ],
+      "impl_notes": "ModelVariant should have Serialize, Deserialize, Debug, Clone derives. Handle None/empty variants gracefully in parsing.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-026",
+      "priority": "P2",
+      "title": "CLI --refresh Flag",
+      "description": "Add Refresh subcommand to CLI models command. Implement run_refresh() function that creates CatalogFetcher, calls force_refresh().await, and prints status. Add force_refresh() to CatalogFetcher that bypasses memory cache TTL and forces network fetch.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify Refresh subcommand is parsed correctly with clap derive",
+        "AddUnitTest: verify force_refresh() bypasses memory cache TTL check",
+        "AddIntegrationTest: verify run_refresh() executes force_refresh and displays result",
+        "AddRegressionTest: ensure existing CLI tests still pass after adding Refresh command",
+        "RunTestSuite: run cargo test -p opencode-cli to verify no regressions"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli --lib cmd::models",
+        "cargo clippy -p opencode-cli -- -D warnings",
+        "cargo build -p opencode-cli"
+      ],
+      "impl_notes": "force_refresh() should force network fetch and update disk cache. Display refresh status (success/error message).",
+      "dependencies": [
+        "FR-018"
+      ]
+    },
+    {
+      "id": "FR-027",
+      "priority": "P2",
+      "title": "Alpha Model Filtering",
+      "description": "Implement is_model_visible() function that checks model.status == ModelStatus::Alpha. If Alpha, check OPENCODE_ENABLE_EXPERIMENTAL_MODELS env var. Return true only if env var equals 'true'. Apply filter in ModelRegistry::list_models() and CatalogFetcher::load_models().",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify alpha models are hidden by default (env var not set)",
+        "AddUnitTest: verify alpha models are visible when OPENCODE_ENABLE_EXPERIMENTAL_MODELS='true'",
+        "AddUnitTest: verify non-alpha models are always visible regardless of env var",
+        "AddIntegrationTest: verify filtering works in ModelRegistry::list_models() and CatalogFetcher::load_models()",
+        "RunTestSuite: run all model-related tests to ensure filtering integrates correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm --lib models",
+        "cargo test -p opencode-llm --lib catalog",
+        "cargo clippy -p opencode-llm -- -D warnings"
+      ],
+      "impl_notes": "Alpha models should be filtered out at load time, not at display time. Integration with OPENCODE_ENABLE_EXPERIMENTAL_MODELS flag.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-028",
+      "priority": "P2",
+      "title": "Per-Provider Headers Configuration",
+      "description": "Add headers: Option<HashMap<String, String>> field to ProviderOptions. Update Serialize/Deserialize impls. Modify HTTP request construction to add headers to provider HTTP clients. Apply headers in BedrockProvider, OpenAIProvider, etc.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify ProviderOptions.headers serializes/deserializes correctly",
+        "AddUnitTest: verify headers are correctly merged with default headers in HTTP requests",
+        "AddIntegrationTest: verify headers are applied in BedrockProvider, OpenAIProvider, and other providers",
+        "AddRegressionTest: ensure existing provider configurations still work after adding headers field"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm --lib",
+        "cargo test -p opencode-config",
+        "cargo clippy -p opencode-llm -- -D warnings",
+        "cargo clippy -p opencode-config -- -D warnings"
+      ],
+      "impl_notes": "Headers should be merged with default headers, not replace them. Update config examples in opencode.json.example.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-029",
+      "priority": "P2",
+      "title": "Model Variants Support",
+      "description": "UI variant selection and propagation to provider at inference time. Update model picker dialog to show variant dropdown/selection. Store selected variant in session. Update CompletionRequest to include variant and propagate to provider implementations.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify variant selection is stored correctly in session",
+        "AddIntegrationTest: verify variant is passed to provider at inference time via CompletionRequest",
+        "AddIntegrationTest: verify model picker UI displays variant dropdown/selection",
+        "AddRegressionTest: ensure inference works correctly with and without variants selected"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm --lib models",
+        "cargo test -p opencode-tui",
+        "cargo clippy --all -- -D warnings",
+        "cargo build --release"
+      ],
+      "impl_notes": "Much of this is covered by FR-025. Verify FR-025 completion before implementing. Variant should flow from picker -> session -> CompletionRequest -> provider.",
+      "dependencies": [
+        "FR-025"
+      ]
+    },
+    {
+      "id": "TD-1",
+      "priority": "High",
+      "title": "Consolidate Dual Model Sources",
+      "description": "Audit hardcoded models vs catalog models. Identify duplicates/conflicts between hardcoded models in models.rs and models from catalog fetcher. Plan and implement consolidation approach (catalog as single source of truth preferred).",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify all models are now loaded from catalog (no duplicates with hardcoded)",
+        "AddIntegrationTest: verify model registry works correctly with catalog-only models",
+        "AddRegressionTest: ensure all existing model-dependent functionality works after consolidation",
+        "RunTestSuite: run full test suite to verify no regressions from consolidation"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm --lib models",
+        "cargo test -p opencode-llm --lib catalog",
+        "cargo test --all",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Option A (preferred): Migrate all to catalog. Option B: Keep hardcoded as fallback. Document decision and rationale.",
+      "dependencies": [
+        "FR-018"
+      ]
+    },
+    {
+      "id": "TD-2",
+      "priority": "Low",
+      "title": "Rename transform.rs to message_transform.rs",
+      "description": "Rename llm/src/transform.rs module to message_transform.rs. Update mod.rs import and all use statements across codebase. Verify all tests pass after rename.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: ensure all imports referencing transform module are updated to message_transform",
+        "RunTestSuite: run cargo test -p opencode-llm to verify no broken references after rename"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm --lib",
+        "cargo clippy -p opencode-llm -- -D warnings",
+        "cargo build -p opencode-llm"
+      ],
+      "impl_notes": "Module does message transformation, so message_transform.rs is more descriptive name.",
+      "dependencies": []
+    },
+    {
+      "id": "TD-3",
+      "priority": "Medium",
+      "title": "Add models-dev Prefix to Provider IDs",
+      "description": "Add prefix to provider IDs from models.dev: format!(\"models-dev-{}\", provider.id). Update ProviderCatalog transformation and tests to reflect the prefixed IDs.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify provider IDs from models.dev are prefixed with 'models-dev-'",
+        "AddIntegrationTest: verify provider registry correctly matches prefixed provider IDs",
+        "AddRegressionTest: ensure provider selection UI works correctly with prefixed IDs"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-llm --lib catalog",
+        "cargo test -p opencode-llm --lib provider",
+        "cargo clippy -p opencode-llm -- -D warnings"
+      ],
+      "impl_notes": "Prefix prevents ID conflicts with hardcoded providers. Format: 'models-dev-{original_id}'.",
+      "dependencies": [
+        "TD-1"
+      ]
+    }
+  ]
+}

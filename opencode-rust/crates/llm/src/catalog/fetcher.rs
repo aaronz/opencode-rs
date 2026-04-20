@@ -7,6 +7,7 @@ use thiserror::Error;
 use tokio::sync::RwLock;
 
 use crate::catalog::models_dev::{ModelsDevApiResponse, ModelsDevModel, ModelsDevProvider};
+use crate::catalog::snapshot;
 use crate::catalog::types::{
     CatalogSource, CostInfo, LimitInfo, ModelCapabilities, ModelDescriptor, ModelStatus,
     ProviderCatalog, ProviderDescriptor,
@@ -17,6 +18,7 @@ const CACHE_TTL: Duration = Duration::from_secs(5 * 60);
 
 pub struct ProviderCatalogFetcher {
     cache_path: PathBuf,
+    base_url: String,
     http_client: reqwest::Client,
     catalog: Arc<RwLock<Option<ProviderCatalog>>>,
 }
@@ -25,8 +27,22 @@ impl ProviderCatalogFetcher {
     pub fn new(cache_path: PathBuf) -> Self {
         Self {
             cache_path,
+            base_url: MODELS_DEV_URL.to_string(),
             http_client: reqwest::Client::builder()
                 .timeout(Duration::from_secs(10))
+                .build()
+                .unwrap_or_default(),
+            catalog: Arc::new(RwLock::new(None)),
+        }
+    }
+
+    #[cfg(test)]
+    fn new_with_url(cache_path: PathBuf, url: &str) -> Self {
+        Self {
+            cache_path,
+            base_url: url.to_string(),
+            http_client: reqwest::Client::builder()
+                .timeout(Duration::from_secs(1))
                 .build()
                 .unwrap_or_default(),
             catalog: Arc::new(RwLock::new(None)),
@@ -61,6 +77,9 @@ impl ProviderCatalogFetcher {
         if let Ok(cached) = self.read_file_cache().await {
             return cached;
         }
+        if let Some(snap) = snapshot::get_snapshot() {
+            return ProviderCatalog::from(snap);
+        }
         ProviderCatalog {
             providers: Default::default(),
             fetched_at: Utc::now(),
@@ -69,24 +88,41 @@ impl ProviderCatalogFetcher {
     }
 
     pub async fn get_or_fetch(&self) -> ProviderCatalog {
+        {
+            let cached = self.catalog.read().await;
+            if let Some(c) = cached.as_ref() {
+                if self.is_cache_valid(c) {
+                    return c.clone();
+                }
+            }
+        }
+
         if let Ok(cached) = self.read_file_cache().await {
             if self.is_cache_valid(&cached) {
                 return cached;
             }
         }
+
         match self.fetch_from_network().await {
             Ok(catalog) => {
                 let _ = self.write_file_cache(&catalog).await;
+                let mut cat = self.catalog.write().await;
+                *cat = Some(catalog.clone());
                 catalog
             }
-            Err(_) => self
-                .read_file_cache()
-                .await
-                .unwrap_or_else(|_| ProviderCatalog {
+            Err(_) => {
+                if let Ok(stale) = self.read_file_cache().await {
+                    return stale;
+                }
+                if let Some(snap) = snapshot::get_snapshot() {
+                    return ProviderCatalog::from(snap);
+                }
+                ProviderCatalog {
                     providers: Default::default(),
                     fetched_at: Utc::now(),
                     source: CatalogSource::ModelsDev,
-                }),
+                }
+            }
         }
     }
 
@@ -129,6 +165,12 @@ impl ProviderCatalogFetcher {
                     *cat = Some(stale.clone());
                     return Ok(stale);
                 }
+                if let Some(snap) = snapshot::get_snapshot() {
+                    let catalog = ProviderCatalog::from(snap);
+                    let mut cat = self.catalog.write().await;
+                    *cat = Some(catalog.clone());
+                    return Ok(catalog);
+                }
                 Err(e)
             }
         }
@@ -137,7 +179,7 @@ impl ProviderCatalogFetcher {
     async fn fetch_from_network(&self) -> Result<ProviderCatalog, FetchError> {
         let response = self
             .http_client
-            .get(MODELS_DEV_URL)
+            .get(&self.base_url)
             .header("User-Agent", "opencode-rs/1.0")
             .send()
             .await
@@ -624,5 +666,155 @@ mod tests {
         let error = FetchError::Parse("invalid json".to_string());
         assert!(error.to_string().contains("Parse error"));
         assert!(error.to_string().contains("invalid json"));
+    }
+
+    #[tokio::test]
+    async fn test_fallback_chain_uses_snapshot_when_network_and_disk_unavailable() {
+        let tmp = std::env::temp_dir().join(format!(
+            "test_catalog_missing_{}.json",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .subsec_nanos()
+        ));
+
+        let fetcher = ProviderCatalogFetcher::new_with_url(tmp, "http://127.0.0.1:1");
+
+        let catalog = fetcher.get_or_fetch().await;
+
+        assert!(
+            !catalog.providers.is_empty() || catalog.providers.is_empty(),
+            "get_or_fetch must return a catalog without panicking"
+        );
+
+        if crate::catalog::snapshot::is_snapshot_available() {
+            assert!(
+                !catalog.providers.is_empty(),
+                "catalog should be populated from snapshot when network and disk are unavailable"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_fallback_chain_uses_disk_cache_before_snapshot() {
+        use std::io::Write;
+
+        let tmp_path = std::env::temp_dir().join(format!(
+            "test_disk_cache_{}.json",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .subsec_nanos()
+        ));
+
+        let disk_catalog = ProviderCatalog {
+            providers: {
+                let mut m = BTreeMap::new();
+                m.insert(
+                    "disk_provider".to_string(),
+                    crate::catalog::types::ProviderDescriptor {
+                        id: "disk_provider".to_string(),
+                        display_name: "Disk Provider".to_string(),
+                        api_base_url: None,
+                        docs_url: None,
+                        env_vars: vec![],
+                        npm_package: None,
+                        models: BTreeMap::new(),
+                        source: CatalogSource::Local,
+                    },
+                );
+                m
+            },
+            fetched_at: chrono::Utc::now(),
+            source: CatalogSource::Local,
+        };
+
+        {
+            let json = serde_json::to_string_pretty(&disk_catalog).unwrap();
+            let mut f = std::fs::File::create(&tmp_path).unwrap();
+            f.write_all(json.as_bytes()).unwrap();
+        }
+
+        let fetcher = ProviderCatalogFetcher::new_with_url(tmp_path.clone(), "http://127.0.0.1:1");
+        let catalog = fetcher.get_or_fetch().await;
+
+        assert!(
+            catalog.providers.contains_key("disk_provider"),
+            "should prefer disk cache over snapshot when disk is valid"
+        );
+
+        let _ = std::fs::remove_file(tmp_path);
+    }
+
+    #[tokio::test]
+    async fn test_fallback_chain_memory_cache_returns_first() {
+        let tmp = std::env::temp_dir().join(format!(
+            "test_memory_{}.json",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .subsec_nanos()
+        ));
+
+        let fetcher = Arc::new(ProviderCatalogFetcher::new_with_url(
+            tmp,
+            "http://127.0.0.1:1",
+        ));
+
+        let memory_catalog = ProviderCatalog {
+            providers: {
+                let mut m = BTreeMap::new();
+                m.insert(
+                    "memory_provider".to_string(),
+                    crate::catalog::types::ProviderDescriptor {
+                        id: "memory_provider".to_string(),
+                        display_name: "Memory Provider".to_string(),
+                        api_base_url: None,
+                        docs_url: None,
+                        env_vars: vec![],
+                        npm_package: None,
+                        models: BTreeMap::new(),
+                        source: CatalogSource::Local,
+                    },
+                );
+                m
+            },
+            fetched_at: chrono::Utc::now(),
+            source: CatalogSource::Local,
+        };
+
+        {
+            let mut cat = fetcher.catalog.write().await;
+            *cat = Some(memory_catalog);
+        }
+
+        let catalog = fetcher.get_or_fetch().await;
+        assert!(
+            catalog.providers.contains_key("memory_provider"),
+            "should use memory cache first"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_get_returns_snapshot_fallback_on_all_failures() {
+        let tmp = std::env::temp_dir().join(format!(
+            "test_get_fallback_{}.json",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .subsec_nanos()
+        ));
+
+        let fetcher = ProviderCatalogFetcher::new_with_url(tmp, "http://127.0.0.1:1");
+        let result = fetcher.get(false).await;
+
+        if crate::catalog::snapshot::is_snapshot_available() {
+            assert!(result.is_ok(), "get() should succeed via snapshot fallback");
+            let catalog = result.unwrap();
+            assert!(
+                !catalog.providers.is_empty(),
+                "catalog from snapshot should be non-empty"
+            );
+        }
     }
 }

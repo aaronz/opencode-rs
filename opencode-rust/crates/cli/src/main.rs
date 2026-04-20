@@ -53,6 +53,7 @@ use opencode_plugin::PluginManager;
 use opencode_tui::App;
 use serde_json::json;
 use std::path::PathBuf;
+use std::process::ExitCode;
 
 #[derive(Parser)]
 #[command(name = "opencode-rs")]
@@ -270,12 +271,18 @@ pub struct TuiArgs {
     pub project: Option<PathBuf>,
 }
 
-fn main() {
-    let cli = Cli::parse();
+fn main() -> ExitCode {
+    let cli = match Cli::try_parse() {
+        Ok(cli) => cli,
+        Err(err) => {
+            eprintln!("{}", err);
+            return ExitCode::from(1);
+        }
+    };
 
     if cli.version {
         println!("opencode-rs 0.1.0");
-        return;
+        return ExitCode::SUCCESS;
     }
 
     init_plugins();
@@ -338,6 +345,7 @@ fn main() {
             });
         }
     }
+    ExitCode::SUCCESS
 }
 
 fn init_plugins() {

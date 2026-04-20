@@ -1,0 +1,271 @@
+{
+  "snapshot_version": "1",
+  "generated_at": "2026-01-01T00:00:00Z",
+  "providers": {
+    "anthropic": {
+      "id": "anthropic",
+      "display_name": "Anthropic",
+      "api_base_url": "https://api.anthropic.com",
+      "docs_url": "https://docs.anthropic.com",
+      "env_vars": ["ANTHROPIC_API_KEY"],
+      "npm_package": "@ai-sdk/anthropic",
+      "source": "ModelsDev",
+      "models": {
+        "claude-3-5-sonnet-20241022": {
+          "id": "claude-3-5-sonnet-20241022",
+          "display_name": "Claude 3.5 Sonnet",
+          "family": "Claude 3.5",
+          "provider_id": "anthropic",
+          "capabilities": {
+            "attachment": true,
+            "reasoning": false,
+            "tool_call": true,
+            "temperature": true,
+            "structured_output": false,
+            "interleaved": false,
+            "open_weights": false,
+            "input_modalities": ["text", "image"],
+            "output_modalities": ["text"]
+          },
+          "cost": {
+            "input": 0.003,
+            "output": 0.015,
+            "cache_read": 0.0003,
+            "cache_write": 0.00375
+          },
+          "limits": {
+            "context": 200000,
+            "input": null,
+            "output": 8192
+          },
+          "status": "Active"
+        },
+        "claude-3-7-sonnet-20250219": {
+          "id": "claude-3-7-sonnet-20250219",
+          "display_name": "Claude 3.7 Sonnet",
+          "family": "Claude 3.7",
+          "provider_id": "anthropic",
+          "capabilities": {
+            "attachment": true,
+            "reasoning": true,
+            "tool_call": true,
+            "temperature": true,
+            "structured_output": false,
+            "interleaved": true,
+            "open_weights": false,
+            "input_modalities": ["text", "image"],
+            "output_modalities": ["text"]
+          },
+          "cost": {
+            "input": 0.003,
+            "output": 0.015,
+            "cache_read": 0.0003,
+            "cache_write": 0.00375
+          },
+          "limits": {
+            "context": 200000,
+            "input": null,
+            "output": 128000
+          },
+          "status": "Active"
+        },
+        "claude-opus-4-5": {
+          "id": "claude-opus-4-5",
+          "display_name": "Claude Opus 4.5",
+          "family": "Claude 4",
+          "provider_id": "anthropic",
+          "capabilities": {
+            "attachment": true,
+            "reasoning": true,
+            "tool_call": true,
+            "temperature": true,
+            "structured_output": false,
+            "interleaved": false,
+            "open_weights": false,
+            "input_modalities": ["text", "image"],
+            "output_modalities": ["text"]
+          },
+          "cost": {
+            "input": 0.015,
+            "output": 0.075,
+            "cache_read": 0.0015,
+            "cache_write": 0.01875
+          },
+          "limits": {
+            "context": 200000,
+            "input": null,
+            "output": 32000
+          },
+          "status": "Alpha"
+        }
+      }
+    },
+    "openai": {
+      "id": "openai",
+      "display_name": "OpenAI",
+      "api_base_url": "https://api.openai.com/v1",
+      "docs_url": "https://platform.openai.com/docs",
+      "env_vars": ["OPENAI_API_KEY"],
+      "npm_package": "@ai-sdk/openai",
+      "source": "ModelsDev",
+      "models": {
+        "gpt-4o": {
+          "id": "gpt-4o",
+          "display_name": "GPT-4o",
+          "family": "GPT-4",
+          "provider_id": "openai",
+          "capabilities": {
+            "attachment": true,
+            "reasoning": false,
+            "tool_call": true,
+            "temperature": true,
+            "structured_output": true,
+            "interleaved": false,
+            "open_weights": false,
+            "input_modalities": ["text", "image"],
+            "output_modalities": ["text"]
+          },
+          "cost": {
+            "input": 0.0025,
+            "output": 0.01,
+            "cache_read": 0.00125,
+            "cache_write": 0.0
+          },
+          "limits": {
+            "context": 128000,
+            "input": null,
+            "output": 16384
+          },
+          "status": "Active"
+        },
+        "gpt-4o-mini": {
+          "id": "gpt-4o-mini",
+          "display_name": "GPT-4o Mini",
+          "family": "GPT-4",
+          "provider_id": "openai",
+          "capabilities": {
+            "attachment": true,
+            "reasoning": false,
+            "tool_call": true,
+            "temperature": true,
+            "structured_output": true,
+            "interleaved": false,
+            "open_weights": false,
+            "input_modalities": ["text", "image"],
+            "output_modalities": ["text"]
+          },
+          "cost": {
+            "input": 0.00015,
+            "output": 0.0006,
+            "cache_read": 0.000075,
+            "cache_write": 0.0
+          },
+          "limits": {
+            "context": 128000,
+            "input": null,
+            "output": 16384
+          },
+          "status": "Active"
+        },
+        "o3-mini": {
+          "id": "o3-mini",
+          "display_name": "o3 Mini",
+          "family": "o3",
+          "provider_id": "openai",
+          "capabilities": {
+            "attachment": false,
+            "reasoning": true,
+            "tool_call": true,
+            "temperature": false,
+            "structured_output": true,
+            "interleaved": false,
+            "open_weights": false,
+            "input_modalities": ["text"],
+            "output_modalities": ["text"]
+          },
+          "cost": {
+            "input": 0.0011,
+            "output": 0.0044,
+            "cache_read": 0.00055,
+            "cache_write": 0.0
+          },
+          "limits": {
+            "context": 200000,
+            "input": null,
+            "output": 100000
+          },
+          "status": "Active"
+        }
+      }
+    },
+    "google": {
+      "id": "google",
+      "display_name": "Google",
+      "api_base_url": "https://generativelanguage.googleapis.com",
+      "docs_url": "https://ai.google.dev/docs",
+      "env_vars": ["GOOGLE_API_KEY"],
+      "npm_package": "@ai-sdk/google",
+      "source": "ModelsDev",
+      "models": {
+        "gemini-2-5-pro": {
+          "id": "gemini-2-5-pro",
+          "display_name": "Gemini 2.5 Pro",
+          "family": "Gemini 2.5",
+          "provider_id": "google",
+          "capabilities": {
+            "attachment": true,
+            "reasoning": true,
+            "tool_call": true,
+            "temperature": true,
+            "structured_output": true,
+            "interleaved": false,
+            "open_weights": false,
+            "input_modalities": ["text", "image", "audio"],
+            "output_modalities": ["text"]
+          },
+          "cost": {
+            "input": 0.00125,
+            "output": 0.01,
+            "cache_read": 0.0,
+            "cache_write": 0.0
+          },
+          "limits": {
+            "context": 1048576,
+            "input": null,
+            "output": 65536
+          },
+          "status": "Active"
+        },
+        "gemini-2-0-flash": {
+          "id": "gemini-2-0-flash",
+          "display_name": "Gemini 2.0 Flash",
+          "family": "Gemini 2.0",
+          "provider_id": "google",
+          "capabilities": {
+            "attachment": true,
+            "reasoning": false,
+            "tool_call": true,
+            "temperature": true,
+            "structured_output": true,
+            "interleaved": false,
+            "open_weights": false,
+            "input_modalities": ["text", "image", "audio"],
+            "output_modalities": ["text"]
+          },
+          "cost": {
+            "input": 0.0001,
+            "output": 0.0004,
+            "cache_read": 0.0,
+            "cache_write": 0.0
+          },
+          "limits": {
+            "context": 1048576,
+            "input": null,
+            "output": 8192
+          },
+          "status": "Active"
+        }
+      }
+    }
+  }
+}

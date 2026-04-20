@@ -1,288 +1,217 @@
-# PRD-25: CLI Parity Fixes - Implementation Guide
+# PRD-25: CLI Parity Fixes
 
-**Date**: 2026-04-18
-
----
-
-## 问题 Summary
-
-| # | 问题 | 当前行为 | 期望行为 |
-|---|------|---------|---------|
-| 1 | 错误返回 exit 2 | exit 1 |
-| 2 | `--verbose` 不识别 | exit 0 |
-| 3 | session start 不识别 | 执行session start |
-| 4 | workspace init 不识别 | 执行workspace init |
-| 5 | permissions grant 不识别 | 执行permissions grant |
+**Updated**: 2026-04-20
+**Test Results**: 19/19 tests failing
 
 ---
 
-## Files to Modify
+## Test Results Summary
 
 ```
-opencode-rs/opencode-rust/crates/cli/src/main.rs  (主要)
-opencode-rs/opencode-rust/crates/cli/src/cmd/     (命令模块)
+CLI         : 6 fails (ExitCode: 3, OutputText: 3)
+Session     : 4 fails (ExitCode: 3, OutputText: 1)
+Workspace   : 5 fails (ExitCode: 5, OutputText: 0)
+Permissions: 4 fails (ExitCode: 4, OutputText: 0)
+─────────────────────────────────────────
+Total       : 19 fails
 ```
 
 ---
 
-## Current CLI Structure (main.rs)
+## Issue #1: Exit Code Wrong (Most Critical)
+
+**Pattern**: `legacy=Some(1), rust=Some(2)`
+
+**Root Cause**: clap 默认error exit code是2, 需要改成1
+
+**Fix**: 在main.rs设置error处理
+
+```rust
+// main.rs 开头添加
+use std::process::ExitCode;
+
+fn main() -> ExitCode {
+    // 错误处理逻辑
+    // 所有error情况用 process::exit(1)
+}
+```
+
+---
+
+## Issue #2: Verbose Flag Not Recognized
+
+**Test**: SMOKE-CLI-006 (`--verbose --help`)  
+**Result**: `legacy=0, rust=2`
+
+```
+error: unexpected argument '--verbose' found
+```
+
+**Fix**: main.rs 添加verbose flag
 
 ```rust
 #[derive(Parser)]
-#[command(name = "opencode-rs")]
 struct Cli {
-    // Global flags
-    #[arg(short = 'v', long = "version")]
-    pub version: bool,
-
-    #[command(subcommand)]
-    command: Option<Commands>,
+    #[arg(long = "verbose", global = true)]
+    verbose: bool,
+    // ...
 }
-
-#[derive(Subcommand, Debug)]
-enum Commands {
-    Run(RunArgs),
-    Serve(ServeArgs),
-    Session(SessionArgs),      // ← 当前: 不支持 start/stop/list
-    List(ListArgs),
-    // ... 其他
-}
-```
-
-问题: `SessionArgs` 是单一结构, 不支持子命令 (start/stop/list)
-
----
-
-## Fix 1: 错误返回 exit code 2 → 1
-
-**当前代码** (可能在哪里):
-```rust
-// 搜索 process::exit(2)
-std::process::exit(2);
-```
-
-**修改**: 找所有 error 情况用的 `exit(2)` 改为 `exit(1)`
-
-**验证**:
-```bash
-opencode-rs --invalid-option
-echo $?  # 应返回 1
 ```
 
 ---
 
-## Fix 2: 添加 `--verbose` flag
+## Issue #3: Session/workspace/permissions Commands Not Parsed
 
-**当前代码** (main.rs 第66行):
+**Pattern**: "unexpected argument 'start' found"
+
+**Test**: 
+- `session start` → exit 2
+- `workspace init` → exit 2
+- `permissions grant /path` → exit 2
+
+**Root Cause**: `session`、`workspace`、`permissions` 没有作为subcommand正确实现
+
+**Fix**: main.rs 修改命令结构
+
 ```rust
-#[arg(short = 'v', long = "version")]
-pub version: bool,
-```
-
-**修改**: 添加 verbose 作为全局flag
-```rust
-#[derive(Parser)]
-#[command(name = "opencode-rs")]
-struct Cli {
-    #[arg(short = 'v', long = "version")]
-    pub version: bool,
-
-    // 添加这个
-    #[arg(short = 'V', long = "verbose", global = true)]
-    pub verbose: bool,
-
-    #[command(subcommand)]
-    command: Option<Commands>,
-}
-```
-
-**验证**:
-```bash
-opencode-rs --verbose --help
-echo $?  # 应返回 0
-```
-
----
-
-## Fix 3: session 子命令
-
-**当前代码** (main.rs 第143行):
-```rust
-#[command(about = "Manage sessions")]
+// 当前错误的写法
 Session(SessionArgs),
+
+// 正确的写法 - 用enum
+#[derive(Subcommand)]
+enum SessionCommands {
+    Start(SessionStart),
+    Stop(SessionStop),
+    List(SessionList),
+    Status(SessionStatus),
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    Session(SessionCommands),  // 嵌套
+    Workspace(WorkspaceCommands),
+    Permissions(PermissionsCommands),
+}
 ```
 
-**修改1**: main.rs 添加 Session 子命令enum
+---
+
+## File Changes
+
+| File | Change |
+|------|--------|
+| `crates/cli/src/main.rs` | 1. error exit code 2→1 |
+| `crates/cli/src/main.rs` | 2. 添加 `--verbose` |
+| `crates/cli/src/main.rs` | 3. Session/workspace/permissions 改用嵌套Subcommand |
+
+---
+
+## Implementation Steps
+
+### Step 1: Fix Error Exit Code
+
 ```rust
+// 搜索 exit(2) 改为 exit(1)
+```
+
+### Step 2: Add Verbose Flag
+
+```rust
+// main.rs Cli struct添加
+#[arg(long = "verbose", global = true)]
+pub verbose: bool,
+```
+
+### Step 3: Fix Session Command
+
+```rust
+// main.rs 添加
 #[derive(Subcommand, Debug)]
 enum SessionCommands {
-    Start(session::SessionStart),
-    Stop(session::SessionStop),
-    List(session::SessionList),
-    Status(session::SessionStatus),
+    Start,
+    Stop,
+    List,
+    Status,
 }
 
+// 修改enum
 #[derive(Subcommand, Debug)]
 enum Commands {
-    // ... existing
-    Session(SessionCommands),  // 改为 Subcommand
+    Session(SessionCommands),
+    // 不要写作 Session(SessionArgs)
 }
 ```
 
-**修改2**: cmd/session.rs 添加子命令结构
-```rust
-use clap::Parser;
+### Step 4: Fix Workspace Command (same pattern)
 
-#[derive(Parser, Debug)]
-#[command(name = "session")]
-pub struct SessionStart {
-    // options like --continue, --fork, etc
-}
-
-#[derive(Parser, Debug)]
-#[command(name = "stop")]
-pub struct SessionStop {}
-
-#[derive(Parser, Debug)]
-#[command(name = "list")]
-pub struct SessionList {}
-
-#[derive(Parser, Debug)]
-#[command(name = "status")]
-pub struct SessionStatus {}
-```
-
-**Verification**:
-```bash
-opencode-rs session start
-# 不应再报 "unexpected argument 'start'"
-```
-
----
-
-## Fix 4: workspace 子命令
-
-**修改1**: main.rs
 ```rust
 #[derive(Subcommand, Debug)]
 enum WorkspaceCommands {
-    Init(workspace::WorkspaceInit),
-    Status(workspace::WorkspaceStatus),
-    List(workspace::WorkspaceList),
-    Cleanup(workspace::WorkspaceCleanup),
-    Config(workspace::WorkspaceConfig),
-}
-
-#[derive(Subcommand, Debug)]
-enum Commands {
-    // ...
-    Workspace(WorkspaceCommands),
+    Init,
+    Status,
+    List,
+    Cleanup,
+    Config,
 }
 ```
 
-**修改2**: cmd/workspace.rs
-```rust
-use clap::Parser;
+### Step 5: Fix Permissions Command
 
-#[derive(Parser, Debug)]
-#[command(name = "init")]
-pub struct WorkspaceInit {}
-
-#[derive(Parser, Debug)]
-#[command(name = "status")]
-pub struct WorkspaceStatus {}
-
-#[derive(Parser, Debug)]
-#[command(name = "list")]
-pub struct WorkspaceList {}
-
-#[derive(Parser, Debug)]
-#[command(name = "cleanup")]
-pub struct WorkspaceCleanup {}
-
-#[derive(Parser, Debug)]
-#[command(name = "config")]
-pub struct WorkspaceConfig {}
-```
-
----
-
-## Fix 5: permissions 子命令
-
-**修改1**: main.rs
 ```rust
 #[derive(Subcommand, Debug)]
 enum PermissionsCommands {
-    Grant(permissions::PermissionsGrant),
-    Revoke(permissions::PermissionsRevoke),
+    Grant { path: String },
+    Revoke { path: String },
 }
 
 #[derive(Subcommand, Debug)]
 enum FileCommands {
-    Read(files::FileRead),
-}
-
-#[derive(Subcommand, Debug)]
-enum Commands {
-    // ...
-    Permissions(Permissions::PermissionsCommands),
-    File(FileCommands),
-}
-```
-
-**修改2**: cmd/permissions.rs
-```rust
-#[derive(Parser, Debug)]
-pub struct PermissionsGrant {
-    pub path: String,
-}
-
-#[derive(Parser, Debug)]
-pub struct PermissionsRevoke {
-    pub path: String,
-}
-```
-
-**修改3**: cmd/files.rs
-```rust
-#[derive(Parser, Debug)]
-pub struct FileRead {
-    pub path: String,
+    Read { path: String },
 }
 ```
 
 ---
 
-## Build & Verify
+## Build & Test
 
 ```bash
 # Build
 cd ~/Documents/GitHub/opencode-rs
 ./build.sh
-
-# Copy to PATH
 cp target/release/opencode-rs ~/.opencode/bin/opencode-rs
 
-# Test individual commands
-opencode-rs session start
-opencode-rs workspace init
-opencode-rs permissions grant /path
+# Test individual fixes
+~/.opencode/bin/opencode-rs --invalid  # 应返回1
+~/.opencode/bin/opencode-rs --verbose --help  # 应返回0
+~/.opencode/bin/opencode-rs session start  # 应识别,不是"unexpected argument"
 
-# Run harness tests
+# Run full test
 cd ~/Documents/GitHub/opencode-harness
 cargo run -- run --task harness/tasks/cli
 ```
 
-**Expected Results**: Exit code mismatches resolved
-
 ---
 
-## Verification Commands
+## Expected Results After Fix
 
-| Test | Command | Expected Exit |
-|------|---------|---------------|
-| invalid option | `opencode-rs --invalid` | 1 |
-| verbose help | `opencode-rs --verbose --help` | 0 |
-| session start | `opencode-rs session start` | 1 (no active session) |
-| workspace init | `opencode-rs workspace init` | 1 or 0 |
-| permissions | `opencode-rs permissions grant /tmp` | 1 or 0 |
+| Test | Current | After Fix |
+|------|---------|----------|
+| CLI-001 --help | Output diff | Output diff (acceptable) |
+| CLI-002 --version | Output diff | Output diff (acceptable) |
+| CLI-003 workspace | exit 2 | exit 1 |
+| CLI-004 invalid | exit 2 | exit 1 ✅ |
+| CLI-005 config | exit 1 | exit 0 ✅ ALREADY WORKS |
+| CLI-006 verbose | exit 2 | exit 0 |
+| Session-001 start | exit 2 | exit 1 |
+| Session-002 stop | exit 2 | exit 1 |
+| Session-003 list | output | output (acceptable) |
+| Session-004 status | exit 2 | exit 1 |
+| Workspace-001 | exit 2 | exit 1 |
+| Workspace-002 | exit 2 | exit 1 |
+| Workspace-003 | exit 0 | exit 0 ✅ |
+| Workspace-004 | exit 2 | exit 1 |
+| Workspace-005 | exit 2 | exit 1 |
+| Perm-001 | exit 2 | exit 1 |
+| Perm-002 | exit 2 | exit 1 |
+| Perm-003 | exit 2 | exit 1 |
+| Perm-004 | exit 2 | exit 1 |
