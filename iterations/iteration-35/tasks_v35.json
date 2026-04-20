@@ -203,7 +203,7 @@
       "priority": "P2",
       "title": "Alpha Model Filtering",
       "description": "Implement is_model_visible() function that checks model.status == ModelStatus::Alpha. If Alpha, check OPENCODE_ENABLE_EXPERIMENTAL_MODELS env var. Return true only if env var equals 'true'. Apply filter in ModelRegistry::list_models() and CatalogFetcher::load_models().",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify alpha models are hidden by default (env var not set)",
         "AddUnitTest: verify alpha models are visible when OPENCODE_ENABLE_EXPERIMENTAL_MODELS='true'",

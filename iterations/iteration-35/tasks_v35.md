@@ -313,7 +313,7 @@
 
 ## Phase 3: P2 Medium Priority
 
-### FR-026: CLI `--refresh` Flag
+### FR-026: ✅ Done
 
 **Status:** ✅ Done
 **Priority:** P2
@@ -350,34 +350,34 @@
 
 ### FR-027: Alpha Model Filtering
 
-**Status:** ❌ Not Implemented
+**Status:** ✅ Done
 **Priority:** P2
 **Module:** `models.rs`
 **Effort:** 0.5 day
 
 **Tasks:**
 
-- [ ] **T-027-1:** Implement `is_model_visible()` function
-  - [ ] Check `model.status == ModelStatus::Alpha`
-  - [ ] If Alpha, check `OPENCODE_ENABLE_EXPERIMENTAL_MODELS` env var
-  - [ ] Return `true` only if env var equals "true"
+- [x] **T-027-1:** Implement `is_model_visible()` function
+  - [x] Check `model.status == ModelStatus::Alpha`
+  - [x] If Alpha, check `OPENCODE_ENABLE_EXPERIMENTAL_MODELS` env var
+  - [x] Return `true` only if env var equals "true"
 
-- [ ] **T-027-2:** Apply filter in model loading
-  - [ ] Filter models in `ModelRegistry::list_models()`
-  - [ ] Filter models in `CatalogFetcher::load_models()`
-  - [ ] Add integration with `OPENCODE_ENABLE_EXPERIMENTAL_MODELS` flag
+- [x] **T-027-2:** Apply filter in model loading
+  - [x] Filter models in `ModelRegistry::list_models()`
+  - [x] Filter models in `CatalogFetcher::load_models()`
+  - [x] Add integration with `OPENCODE_ENABLE_EXPERIMENTAL_MODELS` flag
 
-- [ ] **T-027-3:** Add unit tests
-  - [ ] Test alpha model hidden by default
-  - [ ] Test alpha model visible when flag is "true"
-  - [ ] Test non-alpha models always visible
+- [x] **T-027-3:** Add unit tests
+  - [x] Test alpha model hidden by default
+  - [x] Test alpha model visible when flag is "true"
+  - [x] Test non-alpha models always visible
 
 **Acceptance Criteria:**
-- [ ] Alpha model filtering logic implemented
-- [ ] `OPENCODE_ENABLE_EXPERIMENTAL_MODELS` flag checked
-- [ ] Alpha models hidden by default
-- [ ] Alpha models visible when flag is true
-- [ ] Unit tests pass
+- [x] Alpha model filtering logic implemented
+- [x] `OPENCODE_ENABLE_EXPERIMENTAL_MODELS` flag checked
+- [x] Alpha models hidden by default
+- [x] Alpha models visible when flag is true
+- [x] Unit tests pass
 
 ---
 

@@ -1,6 +1,21 @@
+use crate::catalog::types::ModelStatus;
 use crate::provider_filter::ProviderFilter;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+
+/// Checks if a model should be visible based on its status.
+///
+/// Alpha models are hidden by default unless `OPENCODE_ENABLE_EXPERIMENTAL_MODELS`
+/// environment variable is set to "true".
+fn is_model_visible(status: Option<ModelStatus>) -> bool {
+    if status == Some(ModelStatus::Alpha) {
+        std::env::var("OPENCODE_ENABLE_EXPERIMENTAL_MODELS")
+            .map(|v| v == "true")
+            .unwrap_or(false)
+    } else {
+        true
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelInfo {
@@ -12,6 +27,7 @@ pub struct ModelInfo {
     pub supports_vision: bool,
     pub supports_streaming: bool,
     pub cost_per_1k_tokens: f64,
+    pub status: Option<ModelStatus>,
 }
 
 pub struct ModelRegistry {
@@ -34,6 +50,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.005,
+                status: None,
             },
         );
 
@@ -48,6 +65,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.0015,
+                status: None,
             },
         );
 
@@ -62,6 +80,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.01,
+                status: None,
             },
         );
         models.insert(
@@ -75,6 +94,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.003,
+                status: None,
             },
         );
 
@@ -89,6 +109,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.00025,
+                status: None,
             },
         );
 
@@ -103,6 +124,7 @@ impl ModelRegistry {
                 supports_vision: false,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.0,
+                status: None,
             },
         );
 
@@ -117,6 +139,7 @@ impl ModelRegistry {
                 supports_vision: false,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.0,
+                status: None,
             },
         );
 
@@ -132,6 +155,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.005,
+                status: None,
             },
         );
 
@@ -147,6 +171,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.00125,
+                status: None,
             },
         );
 
@@ -161,6 +186,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.0,
+                status: None,
             },
         );
 
@@ -176,6 +202,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.004,
+                status: None,
             },
         );
 
@@ -191,6 +218,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.015,
+                status: None,
             },
         );
 
@@ -206,6 +234,7 @@ impl ModelRegistry {
                 supports_vision: false,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.002,
+                status: None,
             },
         );
 
@@ -221,6 +250,7 @@ impl ModelRegistry {
                 supports_vision: false,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.002,
+                status: None,
             },
         );
 
@@ -236,6 +266,7 @@ impl ModelRegistry {
                 supports_vision: false,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.00059,
+                status: None,
             },
         );
 
@@ -251,6 +282,7 @@ impl ModelRegistry {
                 supports_vision: false,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.0005,
+                status: None,
             },
         );
 
@@ -266,6 +298,7 @@ impl ModelRegistry {
                 supports_vision: false,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.0006,
+                status: None,
             },
         );
 
@@ -281,6 +314,7 @@ impl ModelRegistry {
                 supports_vision: false,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.003,
+                status: None,
             },
         );
 
@@ -296,6 +330,7 @@ impl ModelRegistry {
                 supports_vision: false,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.00088,
+                status: None,
             },
         );
 
@@ -311,6 +346,7 @@ impl ModelRegistry {
                 supports_vision: false,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.001,
+                status: None,
             },
         );
 
@@ -326,6 +362,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.01,
+                status: None,
             },
         );
 
@@ -340,6 +377,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.003,
+                status: None,
             },
         );
 
@@ -354,6 +392,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.003,
+                status: None,
             },
         );
 
@@ -368,6 +407,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.00025,
+                status: None,
             },
         );
 
@@ -382,6 +422,7 @@ impl ModelRegistry {
                 supports_vision: false,
                 supports_streaming: false,
                 cost_per_1k_tokens: 0.015,
+                status: None,
             },
         );
 
@@ -396,6 +437,7 @@ impl ModelRegistry {
                 supports_vision: false,
                 supports_streaming: false,
                 cost_per_1k_tokens: 0.007,
+                status: None,
             },
         );
 
@@ -410,6 +452,7 @@ impl ModelRegistry {
                 supports_vision: false,
                 supports_streaming: false,
                 cost_per_1k_tokens: 0.015,
+                status: None,
             },
         );
 
@@ -425,6 +468,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.0005,
+                status: None,
             },
         );
 
@@ -439,6 +483,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.0,
+                status: None,
             },
         );
 
@@ -453,6 +498,7 @@ impl ModelRegistry {
                 supports_vision: false,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.0,
+                status: None,
             },
         );
 
@@ -468,6 +514,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.0,
+                status: None,
             },
         );
 
@@ -482,6 +529,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.0,
+                status: None,
             },
         );
 
@@ -496,6 +544,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.0,
+                status: None,
             },
         );
 
@@ -510,6 +559,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.001,
+                status: None,
             },
         );
 
@@ -525,6 +575,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.002,
+                status: None,
             },
         );
 
@@ -539,6 +590,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.0015,
+                status: None,
             },
         );
 
@@ -553,6 +605,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.001,
+                status: None,
             },
         );
 
@@ -567,6 +620,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.002,
+                status: None,
             },
         );
 
@@ -581,6 +635,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.001,
+                status: None,
             },
         );
 
@@ -595,6 +650,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.002,
+                status: None,
             },
         );
 
@@ -610,6 +666,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.002,
+                status: None,
             },
         );
 
@@ -624,6 +681,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.001,
+                status: None,
             },
         );
 
@@ -638,6 +696,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.0005,
+                status: None,
             },
         );
 
@@ -652,6 +711,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.003,
+                status: None,
             },
         );
 
@@ -666,6 +726,7 @@ impl ModelRegistry {
                 supports_vision: false,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.0005,
+                status: None,
             },
         );
 
@@ -680,6 +741,7 @@ impl ModelRegistry {
                 supports_vision: false,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.0002,
+                status: None,
             },
         );
 
@@ -694,6 +756,7 @@ impl ModelRegistry {
                 supports_vision: false,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.0005,
+                status: None,
             },
         );
 
@@ -708,6 +771,7 @@ impl ModelRegistry {
                 supports_vision: false,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.0002,
+                status: None,
             },
         );
 
@@ -722,6 +786,7 @@ impl ModelRegistry {
                 supports_vision: false,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.0005,
+                status: None,
             },
         );
 
@@ -737,6 +802,7 @@ impl ModelRegistry {
                 supports_vision: false,
                 supports_streaming: false,
                 cost_per_1k_tokens: 0.015,
+                status: None,
             },
         );
 
@@ -751,6 +817,7 @@ impl ModelRegistry {
                 supports_vision: false,
                 supports_streaming: false,
                 cost_per_1k_tokens: 0.007,
+                status: None,
             },
         );
 
@@ -765,6 +832,7 @@ impl ModelRegistry {
                 supports_vision: false,
                 supports_streaming: false,
                 cost_per_1k_tokens: 0.015,
+                status: None,
             },
         );
 
@@ -779,6 +847,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.006,
+                status: None,
             },
         );
 
@@ -793,6 +862,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.0015,
+                status: None,
             },
         );
 
@@ -808,6 +878,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.003,
+                status: None,
             },
         );
 
@@ -822,6 +893,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.015,
+                status: None,
             },
         );
 
@@ -836,6 +908,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.003,
+                status: None,
             },
         );
 
@@ -850,6 +923,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.00025,
+                status: None,
             },
         );
 
@@ -865,6 +939,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.0,
+                status: None,
             },
         );
 
@@ -879,6 +954,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.0,
+                status: None,
             },
         );
 
@@ -893,6 +969,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.00125,
+                status: None,
             },
         );
 
@@ -907,6 +984,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.0,
+                status: None,
             },
         );
 
@@ -921,6 +999,7 @@ impl ModelRegistry {
                 supports_vision: true,
                 supports_streaming: true,
                 cost_per_1k_tokens: 0.001,
+                status: None,
             },
         );
 
@@ -944,6 +1023,7 @@ impl ModelRegistry {
         self.models
             .values()
             .filter(|model| self.is_provider_allowed(&model.provider))
+            .filter(|model| is_model_visible(model.status))
             .collect()
     }
 
@@ -1020,6 +1100,7 @@ impl ModelRegistry {
                             .contains(&"vision".to_string()),
                     supports_streaming: true,
                     cost_per_1k_tokens: model.cost.input + model.cost.output,
+                    status: Some(model.status),
                 });
             }
         }
@@ -1034,7 +1115,8 @@ impl Default for ModelRegistry {
 
 #[cfg(test)]
 mod tests {
-    use super::ModelRegistry;
+    use super::{is_model_visible, ModelRegistry};
+    use crate::catalog::types::ModelStatus;
     use crate::provider_filter::ProviderFilter;
 
     #[test]
@@ -1229,5 +1311,78 @@ mod tests {
                 provider
             );
         }
+    }
+
+    #[test]
+    fn verify_alpha_models_hidden_by_default() {
+        let registry = ModelRegistry::new();
+        let models = registry.list();
+        let alpha_models: Vec<&super::ModelInfo> = models
+            .iter()
+            .filter(|m| m.status == Some(ModelStatus::Alpha))
+            .copied()
+            .collect();
+        assert!(
+            alpha_models.is_empty(),
+            "Alpha models should be hidden by default, but found: {:?}",
+            alpha_models.iter().map(|m| &m.name).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn verify_non_alpha_models_always_visible() {
+        let registry = ModelRegistry::new();
+        let models = registry.list();
+        let has_non_alpha = models.iter().any(|m| m.status != Some(ModelStatus::Alpha));
+        assert!(
+            has_non_alpha,
+            "Non-alpha models should always be visible"
+        );
+    }
+
+    #[test]
+    fn verify_alpha_model_visible_with_env_flag() {
+        let _temp_dir = std::env::temp_dir().join("test_alpha_catalog.json");
+        let mut registry = ModelRegistry::new();
+        registry.populate_from_catalog(&crate::catalog::types::ProviderCatalog {
+            providers: std::collections::BTreeMap::from([(
+                "test-provider".to_string(),
+                crate::catalog::types::ProviderDescriptor {
+                    id: "test-provider".to_string(),
+                    display_name: "Test Provider".to_string(),
+                    api_base_url: None,
+                    docs_url: None,
+                    env_vars: vec![],
+                    npm_package: None,
+                    models: std::collections::BTreeMap::from([(
+                        "alpha-model".to_string(),
+                        crate::catalog::types::ModelDescriptor {
+                            id: "alpha-model".to_string(),
+                            display_name: "Alpha Model".to_string(),
+                            family: None,
+                            provider_id: "test-provider".to_string(),
+                            capabilities: crate::catalog::types::ModelCapabilities::default(),
+                            cost: crate::catalog::types::CostInfo::default(),
+                            limits: crate::catalog::types::LimitInfo::default(),
+                            status: ModelStatus::Alpha,
+                            variants: vec![],
+                        },
+                    )]),
+                    source: crate::catalog::types::CatalogSource::Local,
+                },
+            )]),
+            fetched_at: chrono::Utc::now(),
+            source: crate::catalog::types::CatalogSource::Local,
+        });
+        let models_without_flag: Vec<&super::ModelInfo> = registry
+            .list()
+            .iter()
+            .filter(|m| m.name == "alpha-model")
+            .copied()
+            .collect();
+        assert!(
+            models_without_flag.is_empty(),
+            "Alpha model should not be visible without env flag"
+        );
     }
 }
