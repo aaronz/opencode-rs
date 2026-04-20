@@ -13,9 +13,6 @@ categories = ["api-bindings", "development-tools"]
 
 [dependencies]
 # Core dependencies
-opencode-core = { workspace = true }
-opencode-storage = { workspace = true }
-opencode-llm = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -49,10 +46,6 @@ path = "examples/async_session.rs"
 [[example]]
 name = "tool_execution"
 path = "examples/tool_execution.rs"
-
-[[example]]
-name = "provider_config"
-path = "examples/provider_config.rs"
 
 [lib]
 name = "opencode_sdk"

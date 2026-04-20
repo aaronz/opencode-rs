@@ -43,13 +43,13 @@
 pub(crate) mod auth;
 pub(crate) mod client;
 pub(crate) mod error;
+pub(crate) mod message;
 pub(crate) mod session;
 pub mod tools;
 
 pub use auth::ApiKeyAuth;
 pub use client::{ClientBuilder, ClientConfig, OpenCodeClient};
 pub use error::{SdkError, SdkResult};
+pub use message::{Message, Role};
 pub use session::{SdkSession, SessionInfo};
 pub use tools::{ToolDefinition, ToolExecutor, ToolRegistry, ToolResult};
-
-pub use opencode_core::Message;

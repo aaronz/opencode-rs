@@ -782,7 +782,7 @@
       "priority": "P2",
       "title": "Verify dry-run publish succeeds",
       "description": "Run cargo publish --dry-run to verify publishing configuration is correct. Fix any warnings or errors.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: cargo publish --dry-run should complete without error",
         "AddRegressionTest: no warnings about missing metadata should appear",
