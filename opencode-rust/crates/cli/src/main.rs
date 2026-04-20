@@ -275,8 +275,7 @@ fn main() -> ExitCode {
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,
         Err(err) => {
-            eprintln!("{}", err);
-            return ExitCode::from(1);
+            err.exit();
         }
     };
 

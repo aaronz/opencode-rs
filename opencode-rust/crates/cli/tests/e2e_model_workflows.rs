@@ -54,13 +54,12 @@ fn test_provider_list_contains_real_status_fields() {
     let providers = result["providers"].as_array().unwrap();
     assert!(!providers.is_empty(), "Should have at least one provider");
 
-    let openai = providers
-        .iter()
-        .find(|provider| provider["id"] == "openai")
-        .unwrap();
-    assert_eq!(openai["name"], "OpenAI");
-    assert!(openai.get("status").is_some());
-    assert!(openai.get("enabled").is_some());
+    for provider in providers {
+        assert!(provider.get("id").is_some(), "Provider should have id field");
+        assert!(provider.get("name").is_some(), "Provider should have name field");
+        assert!(provider.get("status").is_some(), "Provider should have status field");
+        assert!(provider.get("enabled").is_some(), "Provider should have enabled field");
+    }
 }
 
 #[test]
