@@ -107,7 +107,7 @@
       "priority": "P1",
       "title": "Update crates/plugin/src/lib.rs with local .wasm loader",
       "description": "Add plugin loader for local .wasm files. Example: load from plugins/bin/*.wasm. Implement WASM module instantiation and function calling.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify load_plugin function handles invalid WASM gracefully",
         "AddUnitTest: verify load_plugin function loads valid .wasm files",

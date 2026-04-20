@@ -44,9 +44,14 @@
   - [x] Create output directory `plugins/bin/`
   - [x] Error handling for failed builds
 
-- [ ] **T-G001-6:** Update `crates/plugin/src/lib.rs`
-  - [ ] Add plugin loader for local .wasm files
-  - [ ] Example: load from `plugins/bin/*.wasm`
+- [x] **T-G001-6:** Update `crates/plugin/src/lib.rs` ✅ Done
+  - [x] Add plugin loader for local .wasm files
+  - [x] Example: load from `plugins/bin/*.wasm`
+  - [x] Implement WASM module instantiation and function calling using wasmi
+  - [x] Handle errors with OpenCodeError enum
+  - [x] Add unit tests for invalid WASM handling
+  - [x] Add unit tests for valid WASM loading
+  - [x] Add integration test for plugin_execute
 
 - [ ] **T-G001-7:** Document plugin development in `CONTRIBUTING.md`
   - [ ] How to create a new plugin

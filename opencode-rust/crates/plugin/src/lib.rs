@@ -94,6 +94,7 @@
 pub mod config;
 pub mod discovery;
 pub mod loader;
+pub mod local_wasm;
 pub mod registry;
 pub(crate) mod wasm_runtime;
 

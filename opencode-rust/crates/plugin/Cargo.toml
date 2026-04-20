@@ -13,6 +13,8 @@ tracing = { workspace = true }
 libloading = "0.8"
 wasmtime = "36"
 wasmtime-wasi = "36"
+wasmi = "0.13"
+wasmi_core = "0.13"
 tokio = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
@@ -23,3 +25,4 @@ indexmap = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"
+wat = "1"
