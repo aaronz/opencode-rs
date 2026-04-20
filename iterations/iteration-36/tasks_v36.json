@@ -883,7 +883,7 @@
       "priority": "P2",
       "title": "Write docs/plugin-dev.md",
       "description": "Write plugin development guide with WASM setup instructions, hello_world example walkthrough, building and loading plugins, and Plugin API reference.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify plugin-dev.md has architecture overview",
         "AddIntegrationTest: verify plugin-dev.md links to hello_world example",

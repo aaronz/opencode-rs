@@ -9,7 +9,24 @@ Plugins are compiled to WebAssembly (WASM) and run in a WASM runtime (wasmi). Ea
 - Hook into lifecycle events (session start/end, tool calls, messages)
 - Define permissions for filesystem and network access
 
-## Directory Structure
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      OpenCode RS                             │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
+│  │   Agent     │  │    Tools    │  │   Plugin System     │  │
+│  │             │  │             │  │  ┌───────────────┐  │  │
+│  │             │  │             │  │  │    wasmi      │  │  │
+│  └─────────────┘  └─────────────┘  │  │   Runtime     │  │  │
+│                                     │  └───────────────┘  │  │
+│                                     │  ┌───────────────┐  │  │
+│                                     │  │   Plugin      │  │  │
+│                                     │  │   WASM        │  │  │
+│                                     │  └───────────────┘  │  │
+│                                     └─────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Directory Structure
 
 ```
 plugins/
@@ -21,6 +38,27 @@ plugins/
 └── bin/                   # Compiled plugin binaries
     └── opencode_plugin_hello_world.wasm
 ```
+
+## WASM Setup
+
+### Prerequisites
+
+Install the WASM target for Rust:
+
+```bash
+rustup target add wasm32-wasip1
+```
+
+For Windows (wasm32-wasi target):
+```bash
+rustup target add wasm32-wasi
+```
+
+### Build Requirements
+
+The plugin system uses `wasmi` as the WASM runtime. Ensure you have:
+- Rust 1.70+
+- `wasm32-wasip1` (or `wasm32-wasi` on Windows) target installed
 
 ## Creating a New Plugin
 
@@ -150,35 +188,50 @@ Create a `*.plugin.json` file in your plugin directory:
 
 ### 4. Create Build Script
 
-Create `build.sh`:
+Create `build.sh` in your plugin directory:
 
 ```bash
 #!/bin/bash
 set -e
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 PLUGIN_NAME="opencode_plugin_my_plugin"
 OUTPUT_DIR="$PROJECT_DIR/plugins/bin"
 WASM_SOURCE="$SCRIPT_DIR/target/wasm32-wasip1/release/${PLUGIN_NAME}.wasm"
 WASM_DEST="$OUTPUT_DIR/${PLUGIN_NAME}.wasm"
+
 mkdir -p "$OUTPUT_DIR"
+
 cd "$SCRIPT_DIR"
 cargo build --target wasm32-wasip1 --release -p opencode-plugin-my-plugin
+
 cp "$WASM_SOURCE" "$WASM_DEST"
 echo "Built $WASM_DEST"
 ```
 
 ## Building Plugins
 
+### Using the Build Script
+
 ```bash
 cd plugins/hello_world
+chmod +x build.sh
 ./build.sh
 ```
 
-Or build manually:
+### Manual Build
 
 ```bash
 cargo build --target wasm32-wasip1 --release -p opencode-plugin-my-plugin
+```
+
+### Verify Build Output
+
+After building, verify the WASM binary exists:
+
+```bash
+ls -la target/wasm32-wasip1/release/opencode_plugin_my_plugin.wasm
 ```
 
 ## Loading Plugins
@@ -187,9 +240,58 @@ Plugins are discovered from two locations:
 - **Global**: `~/.config/opencode/plugins/`
 - **Project**: `./.opencode/plugins/` (project root)
 
+Place your plugin metadata (`.plugin.json`) and WASM binary in either location. The plugin system will automatically discover and load plugins on startup.
+
+## Plugin API Reference
+
+### Exported Functions
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `plugin_init` | `fn() -> i32` | Initializes the plugin. Returns 0 on success. Call once before any execute calls. |
+| `plugin_execute` | `fn(*const u8, usize) -> i32` | Executes a plugin action. Takes JSON command pointer and length. Returns 0 on success, negative on error. |
+
+### `plugin_init` Return Values
+
+| Value | Meaning |
+|-------|---------|
+| 0 | Success |
+| 1+ | Error code (plugin-specific) |
+
+### `plugin_execute` Return Values
+
+| Value | Meaning |
+|-------|---------|
+| 0 | Success |
+| -1 | Null command pointer or zero length |
+| -2 | Invalid JSON in command |
+| -3 | Unknown action |
+
+### PluginCommand Structure
+
+```json
+{
+    "action": "string",
+    "args": {}
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `action` | string | Action name (tool name or special command) |
+| `args` | object | JSON object with action arguments |
+
+### Special Actions
+
+| Action | Description |
+|--------|-------------|
+| `list_tools` | Returns list of registered tool definitions |
+| `<tool_name>` | Executes the specified tool |
+
 ## Lifecycle Hooks
 
-Plugins can implement lifecycle hooks:
+Plugins can implement lifecycle hooks (when using the Plugin trait):
+
 - `on_init()` - Called after `init()` during plugin startup
 - `on_start()` - Called when runtime starts or new session begins
 - `on_tool_call(tool_name, args, session_id)` - Called before each tool execution; return `Err` to block
@@ -207,3 +309,69 @@ Plugins can implement lifecycle hooks:
 | `AddContextSources` | Plugin can add context to agent requests |
 | `InterceptSensitiveRead` | Plugin can intercept file read operations |
 | `SendNotification` | Plugin can send notifications |
+
+## Hello World Example
+
+See the complete working example in [`plugins/hello_world/`](plugins/hello_world/):
+
+- **Source**: [`plugins/hello_world/src/lib.rs`](plugins/hello_world/src/lib.rs)
+- **Build script**: [`plugins/hello_world/build.sh`](plugins/hello_world/build.sh)
+- **Metadata**: [`plugins/hello_world/opencode-plugin-hello-world.plugin.json`](plugins/hello_world/)
+
+To build the hello_world plugin:
+
+```bash
+cd plugins/hello_world
+./build.sh
+```
+
+## Troubleshooting
+
+### "target wasm32-wasip1 not found"
+
+Install the WASM target:
+```bash
+rustup target add wasm32-wasip1
+```
+
+### "failed to run wasm32-wasip1 target"
+
+Ensure you have a WASM runtime installed (wasmtime recommended):
+```bash
+cargo install wasmtime
+```
+
+### Plugin not loading
+
+1. Check that the `.plugin.json` metadata file exists
+2. Verify the WASM binary is in `plugins/bin/`
+3. Ensure `enabled: true` in metadata
+4. Check that the binary name matches the `main` field in metadata
+
+### Build errors with serde_json
+
+Ensure you're using `no_std` compatible serde:
+```toml
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+serde_json = "1.0"
+```
+
+### Memory issues in WASM
+
+Use `static mut` sparingly. Consider using a state management pattern:
+```rust
+static mut STATE: Option<PluginState> = None;
+```
+
+### WASM runtime errors
+
+The plugin system uses `wasmi`. Ensure version compatibility:
+```toml
+wasmi = "0.31"
+```
+
+## Additional Resources
+
+- Plugin implementation: [`crates/plugin/src/lib.rs`](crates/plugin/src/lib.rs)
+- WASM runtime: [wasmi documentation](https://github.com/wasmi/wasmi)
+- WASM target: [Rust WASM Book](https://rustwasm.github.io/docs/book/)
