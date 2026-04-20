@@ -137,7 +137,7 @@
       "priority": "P1",
       "title": "Cloudflare AI Gateway Provider",
       "description": "Create ai_gateway.rs module for Cloudflare AI Gateway. Define AiGatewayProvider struct with account_id and client. Implement complete() method for inference. Route requests through https://gateway.ai.cloudflare.com/v1/{account_id}/openai.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify AiGatewayProvider can be created with account_id",
         "AddUnitTest: verify complete() method forwards requests to AI Gateway URL",

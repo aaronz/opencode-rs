@@ -1,3 +1,4 @@
+pub mod ai_gateway;
 pub mod ai21;
 pub mod anthropic;
 pub mod auth;
@@ -34,6 +35,7 @@ pub mod vercel;
 pub mod vertex;
 pub mod xai;
 
+pub use ai_gateway::AiGatewayProvider;
 pub use ai21::Ai21Provider;
 pub use anthropic::AnthropicProvider;
 pub use auth::{

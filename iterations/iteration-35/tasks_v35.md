@@ -204,7 +204,7 @@
 
 ---
 
-### FR-023: GitLab Duo Workflow Discovery
+### FR-023: ✅ Done
 
 **Status:** ✅ Done
 **Priority:** P1
@@ -246,33 +246,33 @@
 
 ### FR-024: Cloudflare AI Gateway Provider
 
-**Status:** ❌ Not Implemented
+**Status:** ✅ Done
 **Priority:** P1
 **Module:** `ai_gateway.rs` (new)
 **Effort:** 2-3 days
 
 **Tasks:**
 
-- [ ] **T-024-1:** Create `crates/llm/src/ai_gateway.rs` module
-  - [ ] Define `AiGatewayProvider` struct with account_id, client
-  - [ ] Implement `new(account_id: String) -> Self`
-  - [ ] Implement `complete()` method for inference
+- [x] **T-024-1:** Create `crates/llm/src/ai_gateway.rs` module
+  - [x] Define `AiGatewayProvider` struct with account_id, client
+  - [x] Implement `new(account_id: String) -> Self`
+  - [x] Implement `complete()` method for inference
 
-- [ ] **T-024-2:** Implement AI Gateway routing
-  - [ ] Base URL: `https://gateway.ai.cloudflare.com/v1/{account_id}/openai`
-  - [ ] Forward requests to AI Gateway
-  - [ ] Handle response mapping
+- [x] **T-024-2:** Implement AI Gateway routing
+  - [x] Base URL: `https://gateway.ai.cloudflare.com/v1/{account_id}/openai`
+  - [x] Forward requests to AI Gateway
+  - [x] Handle response mapping
 
-- [ ] **T-024-3:** Add provider to registry
-  - [ ] Update `provider.rs`
-  - [ ] Register `ai_gateway` provider
-  - [ ] Export in `lib.rs`
+- [x] **T-024-3:** Add provider to registry
+  - [x] Update `provider.rs`
+  - [x] Register `ai_gateway` provider
+  - [x] Export in `lib.rs`
 
 **Acceptance Criteria:**
-- [ ] AI Gateway provider registered
-- [ ] Provider/model URL mapping
-- [ ] Unified endpoint routing
-- [ ] Integration with provider selection
+- [x] AI Gateway provider registered
+- [x] Provider/model URL mapping
+- [x] Unified endpoint routing
+- [x] Integration with provider selection
 
 ---
 
