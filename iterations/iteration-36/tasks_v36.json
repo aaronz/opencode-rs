@@ -167,7 +167,7 @@
       "priority": "P1",
       "title": "Implement examples/basic_usage.rs",
       "description": "Implement basic_usage.rs example that creates a Client with Config, creates and executes a session, prints response, and handles errors.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify basic_usage.rs compiles without errors",
         "AddIntegrationTest: verify example creates Client and executes session",

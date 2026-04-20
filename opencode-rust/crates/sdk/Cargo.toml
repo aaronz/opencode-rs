@@ -38,6 +38,10 @@ tokio-test = "0.4"
 name = "basic"
 path = "examples/basic.rs"
 
+[[example]]
+name = "basic_usage"
+path = "examples/basic_usage.rs"
+
 [lib]
 name = "opencode_sdk"
 crate-type = ["rlib"]
