@@ -9,8 +9,8 @@ fn test_complete_api_key_to_model_selection_flow() {
         "openai",
         "sk-api-key-12345",
         vec![
-            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string() },
-            BrowserAuthModelInfo { id: "gpt-4o-mini".to_string(), name: "GPT-4o Mini".to_string() },
+            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
+            BrowserAuthModelInfo { id: "gpt-4o-mini".to_string(), name: "GPT-4o Mini".to_string(), variants: vec![] },
         ],
     );
 
@@ -35,8 +35,8 @@ fn test_api_key_validation_transitions_to_connect_model() {
     app.pending_api_key_for_validation = Some("sk-ant-valid-key".to_string());
 
     let models = vec![
-        BrowserAuthModelInfo { id: "claude-sonnet-4-20250514".to_string(), name: "Claude Sonnet 4".to_string() },
-        BrowserAuthModelInfo { id: "claude-haiku-3".to_string(), name: "Claude Haiku 3".to_string() },
+        BrowserAuthModelInfo { id: "claude-sonnet-4-20250514".to_string(), name: "Claude Sonnet 4".to_string(), variants: vec![] },
+        BrowserAuthModelInfo { id: "claude-haiku-3".to_string(), name: "Claude Haiku 3".to_string(), variants: vec![] },
     ];
     app.simulate_validation_complete_for_testing(true, None, Some(models.clone()));
 

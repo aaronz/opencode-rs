@@ -26,13 +26,18 @@ impl ConnectMethodDialog {
             || auth_methods.contains(&AuthMethod::DeviceFlow);
         let supports_api_key = auth_methods.contains(&AuthMethod::ApiKey);
 
-        let methods = if provider_id == "openai" {
-            vec![
-                ("browser".to_string(), "Browser auth".to_string()),
-                ("api_key".to_string(), "API key".to_string()),
-            ]
+        let (methods, is_oauth_only) = if provider_id == "openai" {
+            (
+                vec![
+                    ("browser".to_string(), "Browser auth".to_string()),
+                    ("api_key".to_string(), "API key".to_string()),
+                ],
+                false,
+            )
+        } else if provider_id == "google" || provider_id == "copilot" {
+            (Vec::new(), true)
         } else if !supports_api_key && !supports_browser {
-            Vec::new()
+            (Vec::new(), false)
         } else {
             let mut methods = Vec::new();
             if supports_browser {
@@ -41,14 +46,14 @@ impl ConnectMethodDialog {
             if supports_api_key {
                 methods.push(("api_key".to_string(), "API key".to_string()));
             }
-            methods
+            (methods, !supports_api_key && supports_browser)
         };
 
         Self {
             selected_index: 0,
             methods,
             theme,
-            is_oauth_only: !supports_api_key && supports_browser,
+            is_oauth_only,
             show_feedback: false,
         }
     }

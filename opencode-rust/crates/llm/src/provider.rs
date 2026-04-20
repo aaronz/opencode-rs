@@ -13,6 +13,8 @@ pub type StreamingCallback = Box<dyn FnMut(String) + Send>;
 pub struct Model {
     pub id: String,
     pub name: String,
+    #[serde(default)]
+    pub variants: Vec<crate::catalog::ModelVariant>,
 }
 
 impl Model {
@@ -20,7 +22,13 @@ impl Model {
         Self {
             id: id.to_string(),
             name: name.to_string(),
+            variants: Vec::new(),
         }
+    }
+
+    pub fn with_variants(mut self, variants: Vec<crate::catalog::ModelVariant>) -> Self {
+        self.variants = variants;
+        self
     }
 }
 

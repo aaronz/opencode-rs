@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use opencode_core::config::{ProviderConfig as CoreProviderConfig, ProviderOptions};
 use opencode_llm::{ModelRegistry, ProviderConfig, ProviderFilter};
 
@@ -69,6 +71,7 @@ fn api_key_sanitization_redacts_provider_api_keys() {
         model: "gpt-4o".to_string(),
         api_key: "super-secret-key".to_string(),
         temperature: 0.7,
+        headers: HashMap::new(),
     };
     let sanitized_llm = llm_provider_config.sanitize_for_logging();
     assert_eq!(sanitized_llm.api_key, "***REDACTED***");

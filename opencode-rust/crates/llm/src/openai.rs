@@ -83,10 +83,12 @@ struct StreamDelta {
     content: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct BrowserAuthModelInfo {
     pub id: String,
     pub name: String,
+    #[serde(default)]
+    pub variants: Vec<crate::catalog::ModelVariant>,
 }
 
 #[derive(Serialize)]
@@ -664,6 +666,7 @@ mod tests {
         let info = BrowserAuthModelInfo {
             id: "gpt-4".to_string(),
             name: "GPT-4".to_string(),
+            variants: vec![],
         };
         let json = serde_json::to_string(&info).unwrap();
         assert!(json.contains("gpt-4"));

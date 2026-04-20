@@ -224,7 +224,7 @@
       "priority": "P2",
       "title": "Per-Provider Headers Configuration",
       "description": "Add headers: Option<HashMap<String, String>> field to ProviderOptions. Update Serialize/Deserialize impls. Modify HTTP request construction to add headers to provider HTTP clients. Apply headers in BedrockProvider, OpenAIProvider, etc.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify ProviderOptions.headers serializes/deserializes correctly",
         "AddUnitTest: verify headers are correctly merged with default headers in HTTP requests",
@@ -245,7 +245,7 @@
       "priority": "P2",
       "title": "Model Variants Support",
       "description": "UI variant selection and propagation to provider at inference time. Update model picker dialog to show variant dropdown/selection. Store selected variant in session. Update CompletionRequest to include variant and propagate to provider implementations.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify variant selection is stored correctly in session",
         "AddIntegrationTest: verify variant is passed to provider at inference time via CompletionRequest",

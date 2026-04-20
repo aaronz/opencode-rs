@@ -1,172 +1,346 @@
-# PRD: control-plane Module
+# control-plane.md — Control Plane / ACP Module
 
 ## Module Overview
 
-- **Module Name**: control-plane
-- **Source Path**: `packages/opencode/src/control-plane/`
-- **Type**: Integration Service
-- **Purpose**: Client for the OpenCode control plane service — manages remote workspace configurations, workspace adaptors, SSE event streaming, and cross-workspace state routing.
+- **Crate**: `opencode-control-plane`
+- **Source**: `crates/control-plane/src/lib.rs`
+- **Status**: Fully implemented — PRD reflects actual Rust API
+- **Purpose**: Agent Communication Protocol (ACP) — secure peer-to-peer communication, handshake/negotiation, SSO/OIDC integration, connection pooling, workspace management, and event streaming between opencode instances.
 
 ---
 
-## Functionality
+## Crate Layout
 
-### Core Features
+```
+crates/control-plane/src/
+├── lib.rs              ← Public re-exports
+├── [various modules for ACP]
+```
 
-1. **Workspace Management** — CRUD for remote workspace records
-2. **Workspace Adaptors** — Pluggable adaptors for different workspace types (local, remote, cloud)
-3. **SSE Streaming** — Receives server-sent events from the control plane for real-time sync
-4. **Workspace Context** — Per-request workspace context for routing events to the right instance
-5. **SQL Tables** — Persists workspace records locally in SQLite
+**Key Cargo.toml dependencies**:
+```toml
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+tokio = { version = "1.45", features = ["full"] }
+reqwest = { version = "0.12" }
 
-### Workspace Adaptor Interface
+opencode-core = { path = "../core" }
+```
 
-```typescript
-type WorkspaceAdaptor = {
-  name: string
-  description: string
-  configure(info: WorkspaceInfo): WorkspaceInfo | Promise<WorkspaceInfo>
-  create(info: WorkspaceInfo, env: Record<string, string | undefined>, from?: WorkspaceInfo): Promise<void>
-  remove(info: WorkspaceInfo): Promise<void>
-  target(info: WorkspaceInfo): Target | Promise<Target>
+**Public exports**:
+```rust
+pub use acp::{
+    AcpAgentEvent, AcpEventStream, AcpEventType, SharedAcpStream,
+    EventBus, AcpHandshake, AcpHandshakeConfig, AcpHandshakeConfirmation,
+    AcpHandshakeManager, AcpHandshakeResponse, AcpOutgoingHandshake,
+    HandshakeState, Jwk, JwkClaims, Jwks, JwksError, JwksValidator,
+    SamlAssertion, SamlAuthnRequest, SamlAuthnRequestBuilder, SamlError,
+    SamlResponse, OidcState, SsoConfig, SsoManager, SsoProvider,
+    AcpConnectionManager, AcpConnectionState, AcpIncomingMessage,
+    AcpOutgoingMessage, AcpTransportClient, SharedConnectionManager,
+    WorkspaceManager,
+};
+```
+
+---
+
+## Core Types
+
+### ACP Event Stream
+
+```rust
+pub type SharedAcpStream = Arc<AcpEventStream>;
+
+pub struct AcpEventStream {
+    tx: broadcast::Sender<AcpAgentEvent>,
+    rx: broadcast::Receiver<AcpAgentEvent>,
 }
 
-type Target =
-  | { type: "local"; directory: string }
-  | { type: "remote"; url: string | URL; headers?: HeadersInit }
-```
+pub enum AcpEventType {
+    AgentEvent(AcpAgentEvent),
+    Heartbeat,
+    Disconnect,
+    Reconnect,
+}
 
----
-
-## API Surface
-
-### Types
-
-```typescript
-interface WorkspaceInfo {
-  id: WorkspaceID
-  type: string
-  name: string
-  branch: string | null
-  directory: string | null
-  extra: unknown | null
-  projectID: ProjectID
+pub struct AcpAgentEvent {
+    pub event_type: String,
+    pub session_id: Option<String>,
+    pub payload: serde_json::Value,
+    pub timestamp: DateTime<Utc>,
 }
 ```
 
-### WorkspaceContext
+### ACP Handshake
 
-```typescript
-// Per-request context injection
-WorkspaceContext.workspaceID: string | undefined
+```rust
+pub struct AcpHandshake {
+    pub config: AcpHandshakeConfig,
+    pub state: HandshakeState,
+}
+
+#[derive(Debug, Clone)]
+pub struct AcpHandshakeConfig {
+    pub server_id: String,
+    pub version: String,
+    pub capabilities: Vec<String>,
+    pub timeout: Duration,
+}
+
+pub enum HandshakeState {
+    Idle,
+    WaitingForResponse,
+    Completed,
+    Failed(String),
+}
+
+pub struct AcpHandshakeManager { ... }
+impl AcpHandshakeManager {
+    pub fn new(config: AcpHandshakeConfig) -> Self;
+    pub async fn initiate(&self) -> Result<AcpHandshakeResponse, AcpError>;
+    pub async fn accept(&self, incoming: AcpIncomingHandshake) -> Result<AcpHandshakeConfirmation, AcpError>;
+}
+
+pub struct AcpHandshakeResponse {
+    pub accepted: bool,
+    pub server_id: String,
+    pub session_key: Option<String>,
+    pub error: Option<String>,
+}
+
+pub struct AcpHandshakeConfirmation {
+    pub session_id: String,
+    pub capabilities: Vec<String>,
+    pub expires_at: DateTime<Utc>,
+}
+```
+
+### SSO / OIDC
+
+```rust
+pub struct SsoManager {
+    providers: HashMap<String, SsoProvider>,
+}
+
+pub struct SsoProvider {
+    pub name: String,
+    pub issuer: String,
+    pub client_id: String,
+    pub discovery_url: Option<String>,
+    pub jwks_uri: Option<String>,
+}
+
+impl SsoManager {
+    pub fn new() -> Self;
+    pub fn register_provider(&mut self, provider: SsoProvider) -> Result<(), SsoError>;
+    pub async fn authenticate(&self, provider_name: &str, token: &str) -> Result<OidcState, SsoError>;
+    pub fn get_jwks(&self, provider_name: &str) -> Result<Jwks, SsoError>;
+}
+
+pub struct OidcState {
+    pub sub: String,
+    pub email: Option<String>,
+    pub name: Option<String>,
+    pub access_token: String,
+    pub expires_at: DateTime<Utc>,
+}
+```
+
+### JWKS / JWT Validation
+
+```rust
+pub struct Jwk {
+    pub kty: String,
+    pub kid: Option<String>,
+    pub alg: Option<String>,
+    pub n: Option<String>,  // RSA modulus
+    pub e: Option<String>,  // RSA exponent
+    pub use_: Option<String>,
+}
+
+pub struct Jwks {
+    pub keys: Vec<Jwk>,
+}
+
+pub struct JwkClaims {
+    pub sub: String,
+    pub iss: String,
+    pub aud: String,
+    pub exp: DateTime<Utc>,
+    pub iat: DateTime<Utc>,
+    pub email: Option<String>,
+}
+
+pub struct JwksValidator { ... }
+impl JwksValidator {
+    pub fn new(jwks: Jwks) -> Self;
+    pub fn validate_token(&self, token: &str) -> Result<JwkClaims, JwksError>;
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum JwksError {
+    #[error("invalid token")]
+    InvalidToken,
+    #[error("token expired")]
+    Expired,
+    #[error("no matching key found")]
+    NoKeyFound,
+}
+```
+
+### SAML
+
+```rust
+pub struct SamlAuthnRequestBuilder { ... }
+impl SamlAuthnRequestBuilder {
+    pub fn new(issuer: &str, acs_url: &str) -> Self;
+    pub fn with_name_id_policy(&mut self, policy: &str) -> &mut Self;
+    pub fn build(&self) -> SamlAuthnRequest;
+}
+
+pub struct SamlAuthnRequest { ... }
+impl SamlAuthnRequest {
+    pub fn encoded(&self) -> String;
+}
+
+pub struct SamlResponse { ... }
+impl SamlResponse {
+    pub fn decode(encoded: &str) -> Result<Self, SamlError>;
+    pub fn assertions(&self) -> Vec<SamlAssertion>;
+}
+
+pub struct SamlAssertion {
+    pub subject: String,
+    pub session_index: Option<String>,
+    pub attributes: HashMap<String, String>,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum SamlError {
+    #[error("invalid SAML response")]
+    InvalidResponse,
+    #[error("signature verification failed")]
+    SignatureInvalid,
+    #[error("SAML error: {0}")]
+    Other(String),
+}
+```
+
+### Connection Management
+
+```rust
+pub type SharedConnectionManager = Arc<AcpConnectionManager>;
+
+pub struct AcpConnectionManager {
+    connections: RwLock<HashMap<String, AcpConnectionState>>,
+    transport: Arc<AcpTransportClient>,
+}
+
+pub struct AcpConnectionState {
+    pub peer_id: String,
+    pub established_at: DateTime<Utc>,
+    pub last_heartbeat: DateTime<Utc>,
+    pub status: ConnectionStatus,
+}
+
+pub enum ConnectionStatus {
+    Connected,
+    Disconnected,
+    Reconnecting,
+}
+
+pub struct AcpTransportClient {
+    client: reqwest::Client,
+}
+
+impl AcpTransportClient {
+    pub fn new() -> Self;
+    pub async fn send(&self, endpoint: &str, msg: AcpOutgoingMessage) -> Result<AcpIncomingMessage, AcpError>;
+}
+
+pub struct AcpOutgoingMessage {
+    pub to: String,
+    pub msg_type: String,
+    pub payload: serde_json::Value,
+}
+
+pub struct AcpIncomingMessage {
+    pub from: String,
+    pub msg_type: String,
+    pub payload: serde_json::Value,
+}
+```
+
+### Workspace Manager
+
+```rust
+pub struct WorkspaceManager {
+    workspaces: RwLock<HashMap<String, Workspace>>,
+}
+
+pub struct Workspace {
+    pub id: String,
+    pub name: String,
+    pub owner: String,
+    pub members: Vec<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+impl WorkspaceManager {
+    pub fn new() -> Self;
+    pub async fn create_workspace(&self, name: &str, owner: &str) -> Result<Workspace, AcpError>;
+    pub async fn get_workspace(&self, id: &str) -> Option<Workspace>;
+    pub async fn list_workspaces(&self, user: &str) -> Vec<Workspace>;
+    pub async fn add_member(&self, workspace_id: &str, user: &str) -> Result<(), AcpError>;
+}
 ```
 
 ---
 
-## Data Structures
+## Inter-Crate Dependencies
 
-### Database Tables (`workspace.sql.ts`)
-
-```sql
-CREATE TABLE workspace (
-  id         TEXT PRIMARY KEY,
-  type       TEXT NOT NULL,
-  name       TEXT NOT NULL,
-  branch     TEXT,
-  directory  TEXT,
-  extra      JSON,
-  project_id TEXT NOT NULL
-);
-```
-
----
-
-## Dependencies
-
-| Dependency | Purpose |
+| Dependant Crate | What it uses from `opencode-control-plane` |
 |---|---|
-| `storage` module | SQLite for workspace persistence |
-| `flag` module | `OPENCODE_EXPERIMENTAL_WORKSPACES` |
-| `bus` module | Event routing |
-| `project` module | Project context |
-| `effect/http` | SSE and REST API calls |
-
----
-
-## Acceptance Criteria
-
-- [ ] Workspace records are stored and retrieved from SQLite
-- [ ] Workspace adaptors can be registered and invoked
-- [ ] SSE stream connects and delivers events
-- [ ] `WorkspaceContext.workspaceID` is available per-request
-- [ ] `target()` returns local or remote target for the workspace
-- [ ] `create()` / `remove()` call through to the adaptor
-
----
-
-## Rust Implementation Guidance
-
-### Crate: `crates/control-plane/`
-
-```rust
-pub trait WorkspaceAdaptor: Send + Sync {
-    fn name(&self) -> &str;
-    fn description(&self) -> &str;
-    async fn configure(&self, info: WorkspaceInfo) -> Result<WorkspaceInfo>;
-    async fn create(&self, info: &WorkspaceInfo, env: &HashMap<String, String>) -> Result<()>;
-    async fn remove(&self, info: &WorkspaceInfo) -> Result<()>;
-    async fn target(&self, info: &WorkspaceInfo) -> Result<WorkspaceTarget>;
-}
-
-pub enum WorkspaceTarget {
-    Local { directory: PathBuf },
-    Remote { url: Url, headers: HashMap<String, String> },
-}
-
-pub struct ControlPlaneService {
-    db: Arc<Mutex<Connection>>,
-    http: reqwest::Client,
-    adaptors: HashMap<String, Box<dyn WorkspaceAdaptor>>,
-}
-```
-
-### SSE Client
-
-```rust
-use eventsource_client as es;
-
-impl ControlPlaneService {
-    pub async fn connect_sse(&self, url: &str) -> impl Stream<Item = SseEvent> {
-        es::Client::for_url(url).unwrap().build().stream()
-    }
-}
-```
+| `opencode-server` | `SharedAcpStream`, `AcpConnectionManager` in `ServerState` |
+| `opencode-core` | Event types for ACP event bus |
 
 ---
 
 ## Test Design
 
 ```rust
-#[tokio::test]
-async fn test_workspace_crud() {
-    let svc = ControlPlaneService::new_test();
-    let info = WorkspaceInfo { id: "wrk1".into(), type_: "local".into(), .. };
-    svc.create_workspace(&info).await.unwrap();
-    let fetched = svc.get_workspace("wrk1").await.unwrap();
-    assert_eq!(fetched.id, "wrk1");
-}
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_jwks_validator_validates_token() { ... }
 
-#[tokio::test]
-async fn test_sse_events_received() {
-    let mock = MockSseServer::start().await;
-    mock.push_event("event: sync\ndata: {}\n\n");
-    let svc = ControlPlaneService::new_test_sse(&mock.url());
-    let event = svc.next_event().await.unwrap();
-    assert_eq!(event.event_type, "sync");
+    #[test]
+    fn test_saml_authn_request_encoding() {
+        let req = SamlAuthnRequestBuilder::new("https://issuer.com", "https://acs.url")
+            .build();
+        let encoded = req.encoded();
+        assert!(!encoded.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_acp_event_stream_broadcast() {
+        let stream = AcpEventStream::new(256);
+        let event = AcpAgentEvent {
+            event_type: "session.started".into(),
+            session_id: Some("s1".into()),
+            payload: serde_json::json!({}),
+            timestamp: Utc::now(),
+        };
+        stream.broadcast(event).unwrap();
+    }
+
+    #[test]
+    fn test_handshake_state_transitions() {
+        let mut handshake = AcpHandshake::new(config);
+        assert_eq!(handshake.state, HandshakeState::Idle);
+        // ... transition tests
+    }
 }
 ```
-
-### Integration Tests (from TS patterns)
-
-- `control-plane/adaptors.test.ts`: Register adaptor → create → target
-- `control-plane/sse.test.ts`: SSE connection and event delivery

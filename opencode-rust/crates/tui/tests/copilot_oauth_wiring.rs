@@ -15,10 +15,12 @@ fn test_copilot_oauth_completes_auth_and_shows_model_picker() {
             BrowserAuthModelInfo {
                 id: "gpt-4o".to_string(),
                 name: "GPT-4o".to_string(),
+                variants: vec![],
             },
             BrowserAuthModelInfo {
                 id: "o1".to_string(),
                 name: "o1".to_string(),
+                variants: vec![],
             },
         ],
     );
@@ -56,14 +58,17 @@ fn test_copilot_oauth_provides_model_list() {
         BrowserAuthModelInfo {
             id: "gpt-4o".to_string(),
             name: "GPT-4o".to_string(),
+            variants: vec![],
         },
         BrowserAuthModelInfo {
             id: "o1".to_string(),
             name: "o1".to_string(),
+            variants: vec![],
         },
         BrowserAuthModelInfo {
             id: "o1-mini".to_string(),
             name: "o1 Mini".to_string(),
+            variants: vec![],
         },
     ];
 
@@ -94,10 +99,12 @@ fn test_copilot_oauth_flow_model_to_chat() {
             BrowserAuthModelInfo {
                 id: "gpt-4o".to_string(),
                 name: "GPT-4o".to_string(),
+                variants: vec![],
             },
             BrowserAuthModelInfo {
                 id: "o1".to_string(),
                 name: "o1".to_string(),
+                variants: vec![],
             },
         ],
     );

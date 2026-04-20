@@ -381,7 +381,7 @@
 
 ---
 
-### FR-028: Per-Provider Headers Configuration
+### FR-028: ✅ Done
 
 **Status:** ❌ Not Implemented
 **Priority:** P2

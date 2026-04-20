@@ -142,6 +142,7 @@ fn test_model_info_creation() {
         provider: "OpenAI".to_string(),
         is_paid: true,
         is_available: true,
+        variants: vec![],
     };
     assert_eq!(info.id, "gpt-4");
     assert_eq!(info.name, "GPT-4");
@@ -158,6 +159,7 @@ fn test_model_info_not_available() {
         provider: "OpenAI".to_string(),
         is_paid: true,
         is_available: false,
+        variants: vec![],
     };
     assert!(!info.is_available);
 }

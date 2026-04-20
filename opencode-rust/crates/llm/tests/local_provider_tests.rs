@@ -271,6 +271,7 @@ fn test_populate_from_catalog_adds_models() {
                         output: 8192,
                     },
                     status: ModelStatus::Active,
+                    variants: vec![],
                 },
             )]),
             source: CatalogSource::ModelsDev,

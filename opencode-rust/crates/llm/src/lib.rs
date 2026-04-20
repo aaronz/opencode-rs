@@ -53,8 +53,8 @@ pub use budget::{
     VariantCost,
 };
 pub use catalog::{
-    merge_catalogs, CatalogSource, FetchError, ModelDescriptor, ModelStatus, ProviderCatalog,
-    ProviderCatalogFetcher, ProviderDescriptor,
+    merge_catalogs, CatalogSource, FetchError, ModelDescriptor, ModelStatus, ModelVariant,
+    ProviderCatalog, ProviderCatalogFetcher, ProviderDescriptor,
 };
 pub use gitlab::{GitLabDiscoveryError, GitLabProvider, should_enable_gitlab_duo};
 pub use error::{with_retry, LlmError, RetryConfig};

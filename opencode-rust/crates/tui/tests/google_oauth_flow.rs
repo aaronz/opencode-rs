@@ -16,10 +16,12 @@ fn test_google_oauth_completes_auth_and_shows_model_picker() {
             BrowserAuthModelInfo {
                 id: "gemini-1.5-pro".to_string(),
                 name: "Gemini 1.5 Pro".to_string(),
+                variants: vec![],
             },
             BrowserAuthModelInfo {
                 id: "gemini-1.5-flash".to_string(),
                 name: "Gemini 1.5 Flash".to_string(),
+                variants: vec![],
             },
         ],
     );
@@ -58,14 +60,17 @@ fn test_google_oauth_provides_model_list() {
         BrowserAuthModelInfo {
             id: "gemini-2.0-flash".to_string(),
             name: "Gemini 2.0 Flash".to_string(),
+            variants: vec![],
         },
         BrowserAuthModelInfo {
             id: "gemini-1.5-pro".to_string(),
             name: "Gemini 1.5 Pro".to_string(),
+            variants: vec![],
         },
         BrowserAuthModelInfo {
             id: "gemini-1.5-flash".to_string(),
             name: "Gemini 1.5 Flash".to_string(),
+            variants: vec![],
         },
     ];
 

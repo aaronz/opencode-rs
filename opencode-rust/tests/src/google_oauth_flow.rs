@@ -15,9 +15,9 @@ fn test_complete_google_oauth_flow_provider_to_chat() {
             email: Some("test@gmail.com".to_string()),
         },
         vec![
-            BrowserAuthModelInfo { id: "gemini-1.5-pro".to_string(), name: "Gemini 1.5 Pro".to_string() },
-            BrowserAuthModelInfo { id: "gemini-1.5-flash".to_string(), name: "Gemini 1.5 Flash".to_string() },
-            BrowserAuthModelInfo { id: "gemini-2.0-flash".to_string(), name: "Gemini 2.0 Flash".to_string() },
+            BrowserAuthModelInfo { id: "gemini-1.5-pro".to_string(), name: "Gemini 1.5 Pro".to_string(), variants: vec![] },
+            BrowserAuthModelInfo { id: "gemini-1.5-flash".to_string(), name: "Gemini 1.5 Flash".to_string(), variants: vec![] },
+            BrowserAuthModelInfo { id: "gemini-2.0-flash".to_string(), name: "Gemini 2.0 Flash".to_string(), variants: vec![] },
         ],
     );
 
@@ -47,7 +47,7 @@ fn test_google_oauth_flow_with_flash_model() {
             email: Some("user@gmail.com".to_string()),
         },
         vec![
-            BrowserAuthModelInfo { id: "gemini-1.5-flash".to_string(), name: "Gemini 1.5 Flash".to_string() },
+            BrowserAuthModelInfo { id: "gemini-1.5-flash".to_string(), name: "Gemini 1.5 Flash".to_string(), variants: vec![] },
         ],
     );
 
@@ -73,7 +73,7 @@ fn test_google_oauth_session_stores_email() {
             email: Some("developer@google.com".to_string()),
         },
         vec![
-            BrowserAuthModelInfo { id: "gemini-1.5-pro".to_string(), name: "Gemini 1.5 Pro".to_string() },
+            BrowserAuthModelInfo { id: "gemini-1.5-pro".to_string(), name: "Gemini 1.5 Pro".to_string(), variants: vec![] },
         ],
     );
 
@@ -95,8 +95,8 @@ fn test_google_oauth_flow_model_selection_persists_across_dialog_close_open() {
             email: Some("test@gmail.com".to_string()),
         },
         vec![
-            BrowserAuthModelInfo { id: "gemini-1.5-pro".to_string(), name: "Gemini 1.5 Pro".to_string() },
-            BrowserAuthModelInfo { id: "gemini-1.5-flash".to_string(), name: "Gemini 1.5 Flash".to_string() },
+            BrowserAuthModelInfo { id: "gemini-1.5-pro".to_string(), name: "Gemini 1.5 Pro".to_string(), variants: vec![] },
+            BrowserAuthModelInfo { id: "gemini-1.5-flash".to_string(), name: "Gemini 1.5 Flash".to_string(), variants: vec![] },
         ],
     );
 
@@ -125,7 +125,7 @@ fn test_google_oauth_multiple_providers_sequence() {
             email: Some("google@example.com".to_string()),
         },
         vec![
-            BrowserAuthModelInfo { id: "gemini-1.5-pro".to_string(), name: "Gemini 1.5 Pro".to_string() },
+            BrowserAuthModelInfo { id: "gemini-1.5-pro".to_string(), name: "Gemini 1.5 Pro".to_string(), variants: vec![] },
         ],
     );
 
@@ -143,7 +143,7 @@ fn test_google_oauth_multiple_providers_sequence() {
             email: Some("another@gmail.com".to_string()),
         },
         vec![
-            BrowserAuthModelInfo { id: "gemini-2.0-flash".to_string(), name: "Gemini 2.0 Flash".to_string() },
+            BrowserAuthModelInfo { id: "gemini-2.0-flash".to_string(), name: "Gemini 2.0 Flash".to_string(), variants: vec![] },
         ],
     );
 
@@ -184,10 +184,10 @@ fn test_google_oauth_flow_with_multiple_gemini_models() {
     let mut app = App::new();
 
     let models = vec![
-        BrowserAuthModelInfo { id: "gemini-1.5-pro".to_string(), name: "Gemini 1.5 Pro".to_string() },
-        BrowserAuthModelInfo { id: "gemini-1.5-flash".to_string(), name: "Gemini 1.5 Flash".to_string() },
-        BrowserAuthModelInfo { id: "gemini-1.5-flash-8b".to_string(), name: "Gemini 1.5 Flash 8B".to_string() },
-        BrowserAuthModelInfo { id: "gemini-2.0-flash-exp".to_string(), name: "Gemini 2.0 Flash Experimental".to_string() },
+        BrowserAuthModelInfo { id: "gemini-1.5-pro".to_string(), name: "Gemini 1.5 Pro".to_string(), variants: vec![] },
+        BrowserAuthModelInfo { id: "gemini-1.5-flash".to_string(), name: "Gemini 1.5 Flash".to_string(), variants: vec![] },
+        BrowserAuthModelInfo { id: "gemini-1.5-flash-8b".to_string(), name: "Gemini 1.5 Flash 8B".to_string(), variants: vec![] },
+        BrowserAuthModelInfo { id: "gemini-2.0-flash-exp".to_string(), name: "Gemini 2.0 Flash Experimental".to_string(), variants: vec![] },
     ];
 
     app.complete_google_auth_for_test(
@@ -220,7 +220,7 @@ fn test_google_oauth_preserves_session_data_through_model_selection() {
             email: Some("preserve@test.com".to_string()),
         },
         vec![
-            BrowserAuthModelInfo { id: "gemini-1.5-pro".to_string(), name: "Gemini 1.5 Pro".to_string() },
+            BrowserAuthModelInfo { id: "gemini-1.5-pro".to_string(), name: "Gemini 1.5 Pro".to_string(), variants: vec![] },
         ],
     );
 
@@ -259,8 +259,8 @@ fn test_google_oauth_different_models_have_different_ids() {
     let mut app = App::new();
 
     let models = vec![
-        BrowserAuthModelInfo { id: "gemini-1.5-pro".to_string(), name: "Gemini 1.5 Pro".to_string() },
-        BrowserAuthModelInfo { id: "gemini-1.5-flash".to_string(), name: "Gemini 1.5 Flash".to_string() },
+        BrowserAuthModelInfo { id: "gemini-1.5-pro".to_string(), name: "Gemini 1.5 Pro".to_string(), variants: vec![] },
+        BrowserAuthModelInfo { id: "gemini-1.5-flash".to_string(), name: "Gemini 1.5 Flash".to_string(), variants: vec![] },
     ];
 
     app.complete_google_auth_for_test(
@@ -315,7 +315,7 @@ fn test_google_oauth_uses_correct_provider_name() {
             email: Some("test@gmail.com".to_string()),
         },
         vec![
-            BrowserAuthModelInfo { id: "gemini-pro".to_string(), name: "Gemini Pro".to_string() },
+            BrowserAuthModelInfo { id: "gemini-pro".to_string(), name: "Gemini Pro".to_string(), variants: vec![] },
         ],
     );
 
@@ -336,7 +336,7 @@ fn test_google_oauth_without_refresh_token() {
             email: None,
         },
         vec![
-            BrowserAuthModelInfo { id: "gemini-1.5-flash".to_string(), name: "Gemini 1.5 Flash".to_string() },
+            BrowserAuthModelInfo { id: "gemini-1.5-flash".to_string(), name: "Gemini 1.5 Flash".to_string(), variants: vec![] },
         ],
     );
 

@@ -149,7 +149,7 @@ impl Dialog for CredentialSelectDialog {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
     #[test]
     fn test_credential_dialog_renders_empty() {

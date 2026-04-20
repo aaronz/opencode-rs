@@ -42,7 +42,7 @@ pub struct ModelDescriptor {
 }
 
 /// Represents a model variant/mode (e.g., thinking mode, extended thinking).
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ModelVariant {
     pub name: String,
     pub description: Option<String>,

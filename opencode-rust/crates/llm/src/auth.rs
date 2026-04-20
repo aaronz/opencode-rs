@@ -36,8 +36,9 @@ pub trait ProviderAuth {
 impl ProviderAuth for str {
     fn supported_auth_methods(&self) -> Vec<AuthMethod> {
         match self {
-            "google" | "copilot" => vec![AuthMethod::Browser, AuthMethod::DeviceFlow],
-            "anthropic" | "openai" => vec![AuthMethod::ApiKey, AuthMethod::Browser],
+            "google" | "copilot" => Vec::new(),
+            "anthropic" => vec![AuthMethod::ApiKey],
+            "openai" => vec![AuthMethod::ApiKey, AuthMethod::Browser],
             _ => vec![AuthMethod::ApiKey],
         }
     }

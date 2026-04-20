@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use opencode_llm::{ModelRegistry, ProviderConfig, ProviderFilter};
 
 #[test]
@@ -20,6 +22,7 @@ fn test_provider_config_sanitize() {
         model: "gpt-4o".to_string(),
         api_key: "secret-key-123".to_string(),
         temperature: 0.7,
+        headers: HashMap::new(),
     };
     let sanitized = config.sanitize_for_logging();
     assert_eq!(sanitized.api_key, "***REDACTED***");
@@ -60,6 +63,7 @@ fn test_provider_config_display() {
         model: "test-model".to_string(),
         api_key: "key".to_string(),
         temperature: 0.5,
+        headers: HashMap::new(),
     };
     let display = format!("{config:?}");
     assert!(

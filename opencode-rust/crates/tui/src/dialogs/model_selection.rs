@@ -2,6 +2,7 @@ use crate::dialogs::sealed;
 use crate::dialogs::{Dialog, DialogAction};
 use crate::theme::Theme;
 use crossterm::event::{KeyCode, KeyEvent};
+use opencode_llm::ModelVariant;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
@@ -10,17 +11,27 @@ use ratatui::{
     Frame,
 };
 
+/// Model selection result containing model ID and optional variant
+#[derive(Debug, Clone, PartialEq)]
+pub struct ModelSelectionResult {
+    pub model_id: String,
+    pub variant: Option<ModelVariant>,
+}
+
 pub struct ModelInfo {
     pub id: String,
     pub name: String,
     pub provider: String,
     pub is_paid: bool,
     pub is_available: bool,
+    pub variants: Vec<ModelVariant>,
 }
 
 pub struct ModelSelectionDialog {
     models: Vec<ModelInfo>,
     selected_index: usize,
+    selected_variant_index: usize,
+    in_variant_selection: bool,
     filter: String,
     theme: Theme,
 }
@@ -30,6 +41,8 @@ impl ModelSelectionDialog {
         Self {
             models: Vec::new(),
             selected_index: 0,
+            selected_variant_index: 0,
+            in_variant_selection: false,
             filter: String::new(),
             theme,
         }
@@ -38,6 +51,8 @@ impl ModelSelectionDialog {
     pub fn set_models(&mut self, models: Vec<ModelInfo>) {
         self.models = models;
         self.selected_index = 0;
+        self.selected_variant_index = 0;
+        self.in_variant_selection = false;
         self.filter.clear();
     }
 
@@ -56,6 +71,11 @@ impl ModelSelectionDialog {
                         .contains(&self.filter.to_lowercase())
             })
             .collect()
+    }
+
+    fn selected_model(&self) -> Option<&ModelInfo> {
+        let filtered = self.filtered_models();
+        filtered.get(self.selected_index).copied()
     }
 }
 
@@ -110,6 +130,13 @@ impl Dialog for ModelSelectionDialog {
                 } else {
                     " (unavailable)"
                 };
+                let variant_hint = if model.variants.is_empty() {
+                    String::new()
+                } else if model.variants.len() == 1 {
+                    " [+variant]".to_string()
+                } else {
+                    format!(" [{} variants]", model.variants.len())
+                };
                 let style = if !model.is_available {
                     Style::default().fg(Color::DarkGray)
                 } else {
@@ -118,7 +145,7 @@ impl Dialog for ModelSelectionDialog {
 
                 ListItem::new(Line::from(vec![
                     Span::styled(
-                        format!("{} {}{}", model.name, model.provider, paid_marker),
+                        format!("{}{}{}{}", model.name, model.provider, paid_marker, variant_hint),
                         style,
                     ),
                     Span::styled(availability, Style::default().fg(Color::Red)),
@@ -139,38 +166,90 @@ impl Dialog for ModelSelectionDialog {
 
     fn handle_input(&mut self, key: KeyEvent) -> DialogAction {
         match key.code {
-            KeyCode::Esc => DialogAction::Close,
+            KeyCode::Esc => {
+                if self.in_variant_selection {
+                    self.in_variant_selection = false;
+                    DialogAction::None
+                } else {
+                    DialogAction::Close
+                }
+            }
             KeyCode::Enter => {
                 let filtered = self.filtered_models();
                 if filtered.is_empty() {
                     DialogAction::Close
                 } else if let Some(model) = filtered.get(self.selected_index) {
-                    DialogAction::Confirm(model.id.clone())
+                    if self.in_variant_selection && !model.variants.is_empty() {
+                        let variant = model.variants.get(self.selected_variant_index);
+                        DialogAction::ConfirmModelWithVariant {
+                            model_id: model.id.clone(),
+                            variant_name: variant.map(|v| v.name.clone()),
+                        }
+                    } else if model.variants.len() == 1 {
+                        DialogAction::ConfirmModelWithVariant {
+                            model_id: model.id.clone(),
+                            variant_name: Some(model.variants[0].name.clone()),
+                        }
+                    } else if model.variants.len() > 1 {
+                        self.in_variant_selection = true;
+                        self.selected_variant_index = 0;
+                        DialogAction::None
+                    } else {
+                        DialogAction::Confirm(model.id.clone())
+                    }
                 } else {
                     DialogAction::Close
                 }
             }
+            KeyCode::Tab => {
+                if let Some(model) = self.selected_model() {
+                    if !model.variants.is_empty() {
+                        self.in_variant_selection = !self.in_variant_selection;
+                        if self.in_variant_selection {
+                            self.selected_variant_index = 0;
+                        }
+                    }
+                }
+                DialogAction::None
+            }
             KeyCode::Up => {
-                if self.selected_index > 0 {
+                if self.in_variant_selection {
+                    if self.selected_variant_index > 0 {
+                        self.selected_variant_index -= 1;
+                    }
+                } else if self.selected_index > 0 {
                     self.selected_index -= 1;
                 }
                 DialogAction::None
             }
             KeyCode::Down => {
-                let max = self.filtered_models().len().saturating_sub(1);
-                if self.selected_index < max {
-                    self.selected_index += 1;
+                if self.in_variant_selection {
+                    if let Some(model) = self.selected_model() {
+                        let max = model.variants.len().saturating_sub(1);
+                        if self.selected_variant_index < max {
+                            self.selected_variant_index += 1;
+                        }
+                    }
+                } else {
+                    let max = self.filtered_models().len().saturating_sub(1);
+                    if self.selected_index < max {
+                        self.selected_index += 1;
+                    }
                 }
                 DialogAction::None
             }
             KeyCode::Char(c) => {
-                self.filter.push(c);
-                self.selected_index = 0;
+                if !self.in_variant_selection {
+                    self.filter.push(c);
+                    self.selected_index = 0;
+                }
                 DialogAction::None
             }
             KeyCode::Backspace => {
-                self.filter.pop();
-                self.selected_index = 0;
+                if !self.in_variant_selection {
+                    self.filter.pop();
+                    self.selected_index = 0;
+                }
                 DialogAction::None
             }
             _ => DialogAction::None,
@@ -190,6 +269,7 @@ mod tests {
             provider: provider.into(),
             is_paid: true,
             is_available: true,
+            variants: vec![],
         }
     }
 

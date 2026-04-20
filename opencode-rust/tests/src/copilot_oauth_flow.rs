@@ -14,9 +14,9 @@ fn test_complete_copilot_oauth_flow_provider_to_chat() {
             token_type: "Bearer".to_string(),
         },
         vec![
-            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string() },
-            BrowserAuthModelInfo { id: "o1".to_string(), name: "o1".to_string() },
-            BrowserAuthModelInfo { id: "o1-mini".to_string(), name: "o1 Mini".to_string() },
+            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
+            BrowserAuthModelInfo { id: "o1".to_string(), name: "o1".to_string(), variants: vec![] },
+            BrowserAuthModelInfo { id: "o1-mini".to_string(), name: "o1 Mini".to_string(), variants: vec![] },
         ],
     );
 
@@ -45,8 +45,8 @@ fn test_copilot_oauth_flow_with_o1_model() {
             token_type: "Bearer".to_string(),
         },
         vec![
-            BrowserAuthModelInfo { id: "o1-preview".to_string(), name: "o1 Preview".to_string() },
-            BrowserAuthModelInfo { id: "o1-mini".to_string(), name: "o1 Mini".to_string() },
+            BrowserAuthModelInfo { id: "o1-preview".to_string(), name: "o1 Preview".to_string(), variants: vec![] },
+            BrowserAuthModelInfo { id: "o1-mini".to_string(), name: "o1 Mini".to_string(), variants: vec![] },
         ],
     );
 
@@ -71,7 +71,7 @@ fn test_copilot_oauth_session_stores_token() {
             token_type: "Bearer".to_string(),
         },
         vec![
-            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string() },
+            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
         ],
     );
 
@@ -93,8 +93,8 @@ fn test_copilot_oauth_flow_model_selection_persists_across_dialog_close_open() {
             token_type: "Bearer".to_string(),
         },
         vec![
-            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string() },
-            BrowserAuthModelInfo { id: "o1".to_string(), name: "o1".to_string() },
+            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
+            BrowserAuthModelInfo { id: "o1".to_string(), name: "o1".to_string(), variants: vec![] },
         ],
     );
 
@@ -122,7 +122,7 @@ fn test_copilot_oauth_multiple_providers_sequence() {
             token_type: "Bearer".to_string(),
         },
         vec![
-            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string() },
+            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
         ],
     );
 
@@ -139,7 +139,7 @@ fn test_copilot_oauth_multiple_providers_sequence() {
             token_type: "Bearer".to_string(),
         },
         vec![
-            BrowserAuthModelInfo { id: "o1".to_string(), name: "o1".to_string() },
+            BrowserAuthModelInfo { id: "o1".to_string(), name: "o1".to_string(), variants: vec![] },
         ],
     );
 
@@ -178,10 +178,10 @@ fn test_copilot_oauth_flow_with_multiple_copilot_models() {
     let mut app = App::new();
 
     let models = vec![
-        BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string() },
-        BrowserAuthModelInfo { id: "o1-preview".to_string(), name: "o1 Preview".to_string() },
-        BrowserAuthModelInfo { id: "o1-mini".to_string(), name: "o1 Mini".to_string() },
-        BrowserAuthModelInfo { id: "claude-sonnet-4".to_string(), name: "Claude Sonnet 4".to_string() },
+        BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
+        BrowserAuthModelInfo { id: "o1-preview".to_string(), name: "o1 Preview".to_string(), variants: vec![] },
+        BrowserAuthModelInfo { id: "o1-mini".to_string(), name: "o1 Mini".to_string(), variants: vec![] },
+        BrowserAuthModelInfo { id: "claude-sonnet-4".to_string(), name: "Claude Sonnet 4".to_string(), variants: vec![] },
     ];
 
     app.complete_copilot_auth_for_test(
@@ -212,7 +212,7 @@ fn test_copilot_oauth_preserves_session_data_through_model_selection() {
             token_type: "Bearer".to_string(),
         },
         vec![
-            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string() },
+            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
         ],
     );
 
@@ -250,8 +250,8 @@ fn test_copilot_oauth_different_models_have_different_ids() {
     let mut app = App::new();
 
     let models = vec![
-        BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string() },
-        BrowserAuthModelInfo { id: "o1-preview".to_string(), name: "o1 Preview".to_string() },
+        BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
+        BrowserAuthModelInfo { id: "o1-preview".to_string(), name: "o1 Preview".to_string(), variants: vec![] },
     ];
 
     app.complete_copilot_auth_for_test(
@@ -306,7 +306,7 @@ fn test_copilot_oauth_uses_correct_provider_name() {
             token_type: "Bearer".to_string(),
         },
         vec![
-            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string() },
+            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
         ],
     );
 
@@ -326,7 +326,7 @@ fn test_copilot_oauth_token_type_preserved() {
             token_type: "macaroon".to_string(),
         },
         vec![
-            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string() },
+            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
         ],
     );
 
@@ -383,7 +383,7 @@ fn test_copilot_oauth_error_recovery_clears_pending_session() {
             token_type: "Bearer".to_string(),
         },
         vec![
-            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string() },
+            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
         ],
     );
 
@@ -422,7 +422,7 @@ fn test_copilot_oauth_bearer_token_type() {
             token_type: "Bearer".to_string(),
         },
         vec![
-            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string() },
+            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
         ],
     );
 
@@ -442,7 +442,7 @@ fn test_copilot_oauth_flow_unknown_model_still_creates_provider() {
             token_type: "Bearer".to_string(),
         },
         vec![
-            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string() },
+            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
         ],
     );
 

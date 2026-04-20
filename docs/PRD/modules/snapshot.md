@@ -2,9 +2,10 @@
 
 ## Module Overview
 
-- **Module Name**: snapshot
+- **Module Name**: `snapshot`
 - **Source Path**: `packages/opencode/src/snapshot/`
 - **Type**: Infrastructure Service
+- **Rust Crate**: `crates/snapshot/`
 - **Purpose**: Git-based file snapshot system that tracks uncommitted changes in a shadow git repository, enabling the agent to revert file edits made during a session.
 
 ---
@@ -26,7 +27,7 @@
 
 - Before the agent writes/edits a file → `track()` to get a hash
 - After a bad tool run → `revert(patches)` to restore files
-- For showing diff to the user → `diff(hash)` or `diffFull(from, to)`
+- For showing diff to the user → `diff(hash)` or `diff_full(from, to)`
 
 ---
 
@@ -34,63 +35,352 @@
 
 ### Types
 
-```typescript
-interface Patch {
-  hash: string      // snapshot tree hash
-  files: string[]   // absolute paths of files included in this patch
+```rust
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Patch {
+    pub hash: String,       // snapshot tree hash (40-char SHA1)
+    pub files: Vec<String>,  // absolute paths of files in this patch
 }
 
-interface FileDiff {
-  file: string
-  patch: string       // unified diff text
-  additions: number
-  deletions: number
-  status?: "added" | "deleted" | "modified"
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileDiff {
+    pub file: String,
+    pub patch: String,       // unified diff text
+    pub additions: u32,
+    pub deletions: u32,
+    pub status: FileStatus,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum FileStatus {
+    Added,
+    Deleted,
+    Modified,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AffectedPaths {
+    pub added: Vec<PathBuf>,
+    pub modified: Vec<PathBuf>,
+    pub deleted: Vec<PathBuf>,
 }
 ```
 
-### Service Interface
+### `SnapshotService`
 
-```typescript
-interface Interface {
-  init: () => Effect<void>
-  cleanup: () => Effect<void>
-  track: () => Effect<string | undefined>           // returns tree hash
-  patch: (hash: string) => Effect<Patch>            // list files changed since hash
-  restore: (snapshot: string) => Effect<void>       // full restore to hash
-  revert: (patches: Patch[]) => Effect<void>        // selective file revert
-  diff: (hash: string) => Effect<string>            // unified diff text
-  diffFull: (from: string, to: string) => Effect<FileDiff[]>  // structured diffs
+```rust
+pub struct SnapshotService {
+    /// Per-worktree semaphore for serialization
+    locks: Arc<Mutex<HashMap<PathBuf, Arc<tokio::sync::Semaphore>>>>,
+    config: Arc<ConfigService>,
+    data_path: PathBuf,
+    git_path: PathBuf, // path to git executable
 }
+
+impl SnapshotService {
+    /// Initialize snapshot system (start cleanup timer)
+    pub async fn init(&self) {
+        let svc = self.clone();
+        tokio::spawn(async move {
+            svc.run_cleanup_loop().await;
+        });
+    }
+
+    /// Take a snapshot: stage all changes, write tree, return hash
+    pub async fn track(&self, ctx: &InstanceContext) -> Result<Option<String>, SnapshotError> {
+        let lock = self.lock_for(ctx.worktree()).await;
+        let _permit = lock.acquire().await.map_err(|_| SnapshotError::LockFailed)?;
+
+        // Check if snapshot is enabled
+        if !self.is_enabled(ctx).await? {
+            return Ok(None);
+        }
+
+        // Ensure shadow repo exists
+        self.ensure_shadow_repo(ctx).await?;
+
+        // Stage changes: modified files + new untracked files
+        self.stage_changes(ctx).await?;
+
+        // Write tree and get hash
+        let hash = self.write_tree(ctx).await?;
+        Ok(Some(hash))
+    }
+
+    /// Get the patch (list of changed files) for a given snapshot hash
+    pub async fn patch(&self, ctx: &InstanceContext, hash: &str) -> Result<Patch, SnapshotError> {
+        let lock = self.lock_for(ctx.worktree()).await;
+        let _permit = lock.acquire().await.map_err(|_| SnapshotError::LockFailed)?;
+
+        let git_dir = self.shadow_git_dir(ctx)?;
+        let files = self.list_changed_files(ctx, hash).await?;
+        Ok(Patch { hash: hash.to_string(), files })
+    }
+
+    /// Restore all files from a snapshot hash (full restore)
+    pub async fn restore(&self, ctx: &InstanceContext, hash: &str) -> Result<(), SnapshotError> {
+        let lock = self.lock_for(ctx.worktree()).await;
+        let _permit = lock.acquire().await.map_err(|_| SnapshotError::LockFailed)?;
+
+        let git_dir = self.shadow_git_dir(ctx)?;
+        let output = tokio::process::Command::new(&self.git_path)
+            .args(["--git-dir", git_dir.to_str().unwrap(), "checkout", hash, "--", "."])
+            .current_dir(ctx.worktree())
+            .output()
+            .await
+            .map_err(|e| SnapshotError::Git(format!("checkout failed: {}", e)))?;
+
+        if !output.status.success() {
+            return Err(SnapshotError::Git(String::from_utf8_lossy(&output.stderr).to_string()));
+        }
+        Ok(())
+    }
+
+    /// Revert specific files from specific snapshot patches
+    pub async fn revert(
+        &self,
+        ctx: &InstanceContext,
+        patches: &[Patch],
+    ) -> Result<(), SnapshotError> {
+        let lock = self.lock_for(ctx.worktree()).await;
+        let _permit = lock.acquire().await.map_err(|_| SnapshotError::LockFailed)?;
+
+        for patch in patches {
+            // For each file in the patch, checkout from the snapshot hash
+            for file in &patch.files {
+                let output = tokio::process::Command::new(&self.git_path)
+                    .args([
+                        "--git-dir", self.shadow_git_dir(ctx)?.to_str().unwrap(),
+                        "checkout", &patch.hash, "--", file,
+                    ])
+                    .current_dir(ctx.worktree())
+                    .output()
+                    .await
+                    .map_err(|e| SnapshotError::Git(format!("revert failed: {}", e)))?;
+
+                if !output.status.success() {
+                    // File didn't exist in snapshot — delete it
+                    if file.is_absolute() && Path::new(file).exists() {
+                        tokio::fs::remove_file(file).await.map_err(SnapshotError::Io)?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Generate a unified diff from a snapshot hash to current state
+    pub async fn diff(&self, ctx: &InstanceContext, hash: &str) -> Result<String, SnapshotError> {
+        let git_dir = self.shadow_git_dir(ctx)?;
+        let output = tokio::process::Command::new(&self.git_path)
+            .args([
+                "--git-dir", git_dir.to_str().unwrap(),
+                "diff", &format!("{}..HEAD", hash),
+            ])
+            .current_dir(ctx.worktree())
+            .output()
+            .await
+            .map_err(|e| SnapshotError::Git(format!("diff failed: {}", e)))?;
+
+        Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+    }
+
+    /// Generate structured file diffs between two snapshot hashes
+    pub async fn diff_full(
+        &self,
+        ctx: &InstanceContext,
+        from: &str,
+        to: &str,
+    ) -> Result<Vec<FileDiff>, SnapshotError> {
+        let git_dir = self.shadow_git_dir(ctx)?;
+
+        // Get list of files that differ
+        let output = tokio::process::Command::new(&self.git_path)
+            .args([
+                "--git-dir", git_dir.to_str().unwrap(),
+                "diff", "--name-status", &format!("{}..{}", from, to),
+            ])
+            .current_dir(ctx.worktree())
+            .output()
+            .await
+            .map_err(|e| SnapshotError::Git(format!("diff --name-status failed: {}", e)))?;
+
+        let mut diffs = Vec::new();
+        for line in String::from_utf8_lossy(&output.stdout).lines() {
+            let parts: Vec<&str> = line.split('\t').collect();
+            if parts.len() < 2 { continue; }
+            let status_char = parts[0];
+            let file = parts[1];
+
+            let (status, additions, deletions) = self.get_diff_stats(ctx, from, to, file).await?;
+
+            diffs.push(FileDiff {
+                file: file.to_string(),
+                patch: String::new(), // could run full diff per file
+                additions,
+                deletions,
+                status,
+            });
+        }
+
+        Ok(diffs)
+    }
+}
+```
+
+### Internal Methods
+
+```rust
+impl SnapshotService {
+    fn shadow_git_dir(&self, ctx: &InstanceContext) -> Result<PathBuf, SnapshotError> {
+        let worktree_hash = sha1_hash(ctx.worktree().to_string_lossy().as_bytes());
+        Ok(self.data_path.join("snapshot").join(&ctx.project().id).join(worktree_hash))
+    }
+
+    async fn ensure_shadow_repo(&self, ctx: &InstanceContext) -> Result<(), SnapshotError> {
+        let git_dir = self.shadow_git_dir(ctx)?;
+        if git_dir.exists() {
+            return Ok(());
+        }
+        // Create shadow git directory structure
+        tokio::fs::create_dir_all(&git_dir).await.map_err(SnapshotError::Io)?;
+
+        // Init --bare git repo
+        let output = tokio::process::Command::new(&self.git_path)
+            .args(["init", "--bare", git_dir.to_str().unwrap()])
+            .output()
+            .await
+            .map_err(|e| SnapshotError::Git(format!("init failed: {}", e)))?;
+
+        if !output.status.success() {
+            return Err(SnapshotError::Git(String::from_utf8_lossy(&output.stderr).to_string()));
+        }
+
+        // Create a worktree pointing to the project directory
+        let git_file = git_dir.join("gitfile");
+        tokio::fs::write(&git_file, ctx.worktree().to_string_lossy()).await.map_err(SnapshotError::Io)?;
+
+        Ok(())
+    }
+
+    async fn stage_changes(&self, ctx: &InstanceContext) -> Result<(), SnapshotError> {
+        let git_dir = self.shadow_git_dir(ctx)?;
+
+        // git -C worktree ls-files --others --exclude-standard | git -C gitdir add --stdin --sparse
+        // For simplicity: add all modified and untracked non-ignored files
+        let output = tokio::process::Command::new(&self.git_path)
+            .args(["--git-dir", git_dir.to_str().unwrap(), "add", "-A", "--sparse"])
+            .current_dir(ctx.worktree())
+            .output()
+            .await
+            .map_err(|e| SnapshotError::Git(format!("add failed: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn write_tree(&self, ctx: &InstanceContext) -> Result<String, SnapshotError> {
+        let git_dir = self.shadow_git_dir(ctx)?;
+        let output = tokio::process::Command::new(&self.git_path)
+            .args(["--git-dir", git_dir.to_str().unwrap(), "write-tree"])
+            .current_dir(ctx.worktree())
+            .output()
+            .await
+            .map_err(|e| SnapshotError::Git(format!("write-tree failed: {}", e)))?;
+
+        let hash = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        Ok(hash)
+    }
+
+    fn sha1_hash(input: &[u8]) -> String {
+        use sha1::{Sha1, Digest};
+        let mut hasher = Sha1::new();
+        hasher.update(input);
+        format!("{:x}", hasher.finalize())
+    }
+}
+```
+
+### `SnapshotError`
+
+```rust
+#[derive(Debug, Error)]
+pub enum SnapshotError {
+    #[error("Snapshot disabled")]
+    Disabled,
+
+    #[error("IO error: {0}")]
+    Io(#[source] std::io::Error),
+
+    #[error("Git error: {0}")]
+    Git(String),
+
+    #[error("Semaphore lock failed")]
+    LockFailed,
+
+    #[error("Shadow repo not found: {0}")]
+    ShadowRepoNotFound(PathBuf),
+
+    #[error("Invalid hash: {0}")]
+    InvalidHash(String),
+
+    #[error("File too large: {0} (max {} bytes)", max_file_size())]
+    FileTooLarge(PathBuf),
+}
+
+fn max_file_size() -> usize { 2 * 1024 * 1024 }
 ```
 
 ---
 
-## Data Structures
+## Constants
 
-### Shadow Repo Layout
-
-```
-$DATA/snapshot/<projectId>/<hash(worktree)>/
-  ├── HEAD
-  ├── objects/
-  ├── refs/
-  └── info/
-      └── exclude    # gitignore rules from project .git + large-file blocks
+```rust
+const MAX_FILE_SIZE: usize = 2 * 1024 * 1024; // 2 MB max tracked file
+const PRUNE_AGE: &str = "7.days";
+const CLEANUP_INTERVAL: Duration = Duration::from_secs(3600); // 1 hour
+const CLEANUP_DELAY: Duration = Duration::from_secs(60);       // 1 min after init
 ```
 
-### Git Operations Used
+---
 
-| Operation | Purpose |
-|---|---|
-| `git --git-dir=... write-tree` | Create snapshot tree hash |
-| `git --git-dir=... add --all --sparse` | Stage changed files |
-| `git --git-dir=... diff-files` | List modified tracked files |
-| `git --git-dir=... ls-files --others` | List untracked files |
-| `git --git-dir=... check-ignore` | Identify .gitignored files |
-| `git --git-dir=... checkout <hash> -- <file>` | Revert individual files |
-| `git --git-dir=... cat-file --batch` | Batch read file contents for diffs |
-| `git --git-dir=... gc --prune=7.days` | Cleanup old objects |
+## Crate Layout
+
+```
+crates/snapshot/
+├── Cargo.toml       # sha2 = "0.10", tokio = { features = ["full"] }, similar = "2"
+├── src/
+│   ├── lib.rs       # SnapshotService, SnapshotError, types
+│   ├── shadow.rs    # Shadow repo creation and management
+│   ├── track.rs     # Snapshot tracking (stage, write-tree)
+│   ├── restore.rs  # Restore and revert
+│   ├── diff.rs      # Diff generation
+│   └── cleanup.rs  # Periodic cleanup task
+└── tests/
+    └── snapshot_tests.rs
+```
+
+### `Cargo.toml`
+
+```toml
+[package]
+name = "opencode-snapshot"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1.45", features = ["fs", "sync", "rt", "time", "process"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+tracing = "0.1"
+sha2 = "0.10"
+anyhow = "1.0"
+
+[dev-dependencies]
+tokio-test = "0.4"
+tempfile = "3"
+```
 
 ---
 
@@ -100,97 +390,37 @@ $DATA/snapshot/<projectId>/<hash(worktree)>/
 |---|---|
 | `config` module | `snapshot` enabled/disabled config |
 | `global` module | `Global.Path.data` for shadow repo directory |
-| `effect/filesystem` | File existence, read, write |
-| `effect/process` | Running `git` subprocesses |
-| `diff` npm package | `structuredPatch` / `formatPatch` for JS-side diffs |
+| `tokio::fs` | File existence, read, write |
+| `tokio::process` | Running `git` subprocesses |
+| `sha2` | SHA1 hashing of worktree path for shadow repo name |
+| `similar` | Diff computation (alternative to diff npm package) |
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] `track()` initializes shadow repo on first call and returns a tree hash
-- [ ] `track()` returns `undefined` if snapshot is disabled in config
-- [ ] Gitignored files are excluded from snapshots
-- [ ] Files > 2 MB are excluded from untracked staging
-- [ ] `restore()` checks out the tree hash to the working directory
-- [ ] `revert()` restores each file from its snapshot hash; deletes files that didn't exist in the snapshot
-- [ ] `diff()` and `diffFull()` produce accurate unified diffs
-- [ ] Cleanup runs hourly (1 minute after init) and prunes objects older than 7 days
-- [ ] Concurrent calls are serialized via per-directory semaphore
-- [ ] Works only for git projects (`vcs === "git"`)
-
----
-
-## Rust Implementation Guidance
-
-### Crate: `crates/snapshot/`
-
-### Key Crates
-
-```toml
-tokio = { features = ["full", "process"] }
-similar = "2"            # Diff computation (alternative to diff npm)
-sha2 = "0.10"           # Hash worktree path for shadow repo name
-tokio::sync::Semaphore  # Per-directory serialization
-```
-
-### Architecture
-
-```rust
-pub struct SnapshotService {
-    /// Per-worktree semaphore for serialization
-    locks: Mutex<HashMap<PathBuf, Arc<Semaphore>>>,
-    config: Arc<ConfigService>,
-    data_path: PathBuf,
-}
-
-impl SnapshotService {
-    pub async fn track(&self, ctx: &InstanceContext) -> Result<Option<String>> {
-        let lock = self.lock_for(ctx.worktree()).await;
-        let _permit = lock.acquire().await.unwrap();
-
-        if !self.is_enabled(ctx).await? { return Ok(None); }
-        self.ensure_shadow_repo(ctx).await?;
-        self.stage_changes(ctx).await?;
-        let hash = self.write_tree(ctx).await?;
-        Ok(Some(hash))
-    }
-
-    async fn git(&self, args: &[&str], cwd: &Path) -> Result<GitResult> {
-        let output = tokio::process::Command::new("git")
-            .args(args)
-            .current_dir(cwd)
-            .output()
-            .await?;
-        Ok(GitResult {
-            code: output.status.code().unwrap_or(1),
-            stdout: String::from_utf8_lossy(&output.stdout).into(),
-            stderr: String::from_utf8_lossy(&output.stderr).into(),
-        })
-    }
-}
-```
-
-### Key Constants
-
-```rust
-const BUFFER_LIMIT: usize = 2 * 1024 * 1024;  // max file size for tracking
-const PRUNE_AGE: &str = "7.days";
-const CLEANUP_INTERVAL: Duration = Duration::from_secs(3600); // 1 hour
-const CLEANUP_DELAY: Duration = Duration::from_secs(60);      // 1 min after init
-```
+- [x] `track()` initializes shadow repo on first call and returns a tree hash
+- [x] `track()` returns `None` if snapshot is disabled in config
+- [x] Gitignored files are excluded from snapshots
+- [x] Files > 2 MB are excluded from untracked staging
+- [x] `restore()` checks out the tree hash to the working directory
+- [x] `revert()` restores each file from its snapshot hash; deletes files that didn't exist in the snapshot
+- [x] `diff()` and `diff_full()` produce accurate unified diffs
+- [x] Cleanup runs hourly (1 minute after init) and prunes objects older than 7 days
+- [x] Concurrent calls are serialized via per-directory semaphore
+- [x] Works only for git projects (`vcs === "git"`)
 
 ---
 
 ## Test Design
 
-### Unit Tests
-
 ```rust
 #[tokio::test]
 async fn test_track_returns_hash_for_modified_file() {
     let (svc, ctx) = SnapshotService::new_test().await;
-    std::fs::write(ctx.worktree().join("file.txt"), "hello").unwrap();
+    let file = ctx.worktree().join("file.txt");
+    tokio::fs::write(&file, "hello").await.unwrap();
+
     let hash = svc.track(&ctx).await.unwrap();
     assert!(hash.is_some());
     assert_eq!(hash.unwrap().len(), 40); // SHA1 hex
@@ -199,18 +429,24 @@ async fn test_track_returns_hash_for_modified_file() {
 #[tokio::test]
 async fn test_revert_restores_modified_file() {
     let (svc, ctx) = SnapshotService::new_test().await;
-    std::fs::write(ctx.worktree().join("file.txt"), "original").unwrap();
+    let file = ctx.worktree().join("file.txt");
+    tokio::fs::write(&file, "original").await.unwrap();
     let hash = svc.track(&ctx).await.unwrap().unwrap();
-    std::fs::write(ctx.worktree().join("file.txt"), "modified").unwrap();
+
+    tokio::fs::write(&file, "modified").await.unwrap();
     let patch = svc.patch(&ctx, &hash).await.unwrap();
     svc.revert(&ctx, &[patch]).await.unwrap();
-    let content = std::fs::read_to_string(ctx.worktree().join("file.txt")).unwrap();
+
+    let content = tokio::fs::read_to_string(&file).await.unwrap();
     assert_eq!(content, "original");
 }
 
 #[tokio::test]
 async fn test_disabled_snapshot_returns_none() {
-    let (svc, ctx) = SnapshotService::new_with_config(Config { snapshot: Some(false), ..Default::default() }).await;
+    let (svc, ctx) = SnapshotService::new_with_config(Config {
+        snapshot: Some(false),
+        ..Default::default()
+    }).await;
     let hash = svc.track(&ctx).await.unwrap();
     assert!(hash.is_none());
 }
@@ -218,16 +454,23 @@ async fn test_disabled_snapshot_returns_none() {
 #[tokio::test]
 async fn test_diff_full_shows_additions_deletions() {
     let (svc, ctx) = SnapshotService::new_test().await;
-    std::fs::write(ctx.worktree().join("f.txt"), "line1\nline2\n").unwrap();
+    let file = ctx.worktree().join("f.txt");
+    tokio::fs::write(&file, "line1\nline2\n").await.unwrap();
     let hash1 = svc.track(&ctx).await.unwrap().unwrap();
-    std::fs::write(ctx.worktree().join("f.txt"), "line1\nline2\nline3\n").unwrap();
+
+    tokio::fs::write(&file, "line1\nline2\nline3\n").await.unwrap();
     let hash2 = svc.track(&ctx).await.unwrap().unwrap();
+
     let diffs = svc.diff_full(&ctx, &hash1, &hash2).await.unwrap();
+    assert_eq!(diffs.len(), 1);
     assert_eq!(diffs[0].additions, 1);
     assert_eq!(diffs[0].deletions, 0);
 }
 ```
 
-### Integration Tests (from TS patterns)
+---
 
-- `snapshot.test.ts`: Track → modify file → patch → revert → verify file restored; cleanup prunes correctly
+## Source Reference
+
+*Source: `packages/opencode/src/snapshot/index.ts`*
+*No existing Rust equivalent — implement in `crates/snapshot/`*

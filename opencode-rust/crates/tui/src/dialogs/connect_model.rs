@@ -114,6 +114,7 @@ mod tests {
         BrowserAuthModelInfo {
             id: id.into(),
             name: name.into(),
+            variants: vec![],
         }
     }
 

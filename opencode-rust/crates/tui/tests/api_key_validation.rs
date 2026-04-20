@@ -141,8 +141,8 @@ fn test_validation_in_progress_clears_after_validation_completes() {
     app.mode = AppMode::ConnectProgress;
 
     let models = Some(vec![
-        BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string() },
-        BrowserAuthModelInfo { id: "gpt-4o-mini".to_string(), name: "GPT-4o Mini".to_string() },
+        BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
+        BrowserAuthModelInfo { id: "gpt-4o-mini".to_string(), name: "GPT-4o Mini".to_string(), variants: vec![] },
     ]);
     app.simulate_validation_complete_for_testing(true, None, models);
 
@@ -372,8 +372,8 @@ fn test_connect_model_dialog_shown_after_successful_validation() {
     app.pending_api_key_for_validation = Some("sk-valid-key".to_string());
 
     let models = vec![
-        BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string() },
-        BrowserAuthModelInfo { id: "gpt-4o-mini".to_string(), name: "GPT-4o Mini".to_string() },
+        BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
+        BrowserAuthModelInfo { id: "gpt-4o-mini".to_string(), name: "GPT-4o Mini".to_string(), variants: vec![] },
     ];
     app.simulate_validation_complete_for_testing(true, None, Some(models));
 
@@ -391,8 +391,8 @@ fn test_validated_credentials_and_models_passed_to_dialog() {
     app.pending_api_key_for_validation = Some("sk-ant-valid-key".to_string());
 
     let models = vec![
-        BrowserAuthModelInfo { id: "claude-sonnet-4-20250514".to_string(), name: "Claude Sonnet 4".to_string() },
-        BrowserAuthModelInfo { id: "claude-haiku-3".to_string(), name: "Claude Haiku 3".to_string() },
+        BrowserAuthModelInfo { id: "claude-sonnet-4-20250514".to_string(), name: "Claude Sonnet 4".to_string(), variants: vec![] },
+        BrowserAuthModelInfo { id: "claude-haiku-3".to_string(), name: "Claude Haiku 3".to_string(), variants: vec![] },
     ];
     app.simulate_validation_complete_for_testing(true, None, Some(models.clone()));
 
@@ -407,7 +407,7 @@ fn test_model_selection_uses_api_key_auth_flow() {
     app.complete_api_key_auth_for_test(
         "openai",
         "sk-api-key-12345",
-        vec![BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string() }],
+        vec![BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] }],
     );
 
     assert_eq!(app.mode, AppMode::ConnectModel);

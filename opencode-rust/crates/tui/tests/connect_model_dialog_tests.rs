@@ -9,6 +9,7 @@ fn make_model(id: &str, name: &str) -> BrowserAuthModelInfo {
     BrowserAuthModelInfo {
         id: id.into(),
         name: name.into(),
+        variants: vec![],
     }
 }
 

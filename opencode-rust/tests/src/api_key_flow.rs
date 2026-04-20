@@ -11,9 +11,9 @@ fn test_complete_api_key_flow_provider_to_chat() {
         "openai",
         "sk-test-api-key-12345",
         vec![
-            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string() },
-            BrowserAuthModelInfo { id: "gpt-4o-mini".to_string(), name: "GPT-4o Mini".to_string() },
-            BrowserAuthModelInfo { id: "gpt-4-turbo".to_string(), name: "GPT-4 Turbo".to_string() },
+            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
+            BrowserAuthModelInfo { id: "gpt-4o-mini".to_string(), name: "GPT-4o Mini".to_string(), variants: vec![] },
+            BrowserAuthModelInfo { id: "gpt-4-turbo".to_string(), name: "GPT-4 Turbo".to_string(), variants: vec![] },
         ],
     );
 
@@ -39,9 +39,9 @@ fn test_api_key_flow_with_anthropic_provider() {
         "anthropic",
         "sk-ant-api-key-67890",
         vec![
-            BrowserAuthModelInfo { id: "claude-sonnet-4-20250514".to_string(), name: "Claude Sonnet 4".to_string() },
-            BrowserAuthModelInfo { id: "claude-opus-4-20250514".to_string(), name: "Claude Opus 4".to_string() },
-            BrowserAuthModelInfo { id: "claude-haiku-3".to_string(), name: "Claude Haiku 3".to_string() },
+            BrowserAuthModelInfo { id: "claude-sonnet-4-20250514".to_string(), name: "Claude Sonnet 4".to_string(), variants: vec![] },
+            BrowserAuthModelInfo { id: "claude-opus-4-20250514".to_string(), name: "Claude Opus 4".to_string(), variants: vec![] },
+            BrowserAuthModelInfo { id: "claude-haiku-3".to_string(), name: "Claude Haiku 3".to_string(), variants: vec![] },
         ],
     );
 
@@ -121,8 +121,8 @@ fn test_api_key_flow_successful_validation_transitions_correctly() {
     app.mode = AppMode::ConnectProgress;
 
     let models = vec![
-        BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string() },
-        BrowserAuthModelInfo { id: "gpt-4o-mini".to_string(), name: "GPT-4o Mini".to_string() },
+        BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
+        BrowserAuthModelInfo { id: "gpt-4o-mini".to_string(), name: "GPT-4o Mini".to_string(), variants: vec![] },
     ];
 
     app.simulate_validation_complete_for_testing(true, None, Some(models.clone()));
@@ -191,8 +191,8 @@ fn test_api_key_flow_model_selection_persists_across_dialog_close_open() {
         "openai",
         "sk-test-key-abc123",
         vec![
-            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string() },
-            BrowserAuthModelInfo { id: "gpt-4o-mini".to_string(), name: "GPT-4o Mini".to_string() },
+            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
+            BrowserAuthModelInfo { id: "gpt-4o-mini".to_string(), name: "GPT-4o Mini".to_string(), variants: vec![] },
         ],
     );
 
@@ -215,7 +215,7 @@ fn test_api_key_flow_different_providers_have_different_defaults() {
     app_openai.complete_api_key_auth_for_test(
         "openai",
         "sk-openai-key",
-        vec![BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string() }],
+        vec![BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] }],
     );
     let result_openai = app_openai.confirm_model_for_api_key_auth_for_test("gpt-4o");
     assert!(result_openai.is_ok());
@@ -225,7 +225,7 @@ fn test_api_key_flow_different_providers_have_different_defaults() {
     app_anthropic.complete_api_key_auth_for_test(
         "anthropic",
         "sk-ant-key",
-        vec![BrowserAuthModelInfo { id: "claude-sonnet-4-20250514".to_string(), name: "Claude Sonnet 4".to_string() }],
+        vec![BrowserAuthModelInfo { id: "claude-sonnet-4-20250514".to_string(), name: "Claude Sonnet 4".to_string(), variants: vec![] }],
     );
     let result_anthropic = app_anthropic.confirm_model_for_api_key_auth_for_test("claude-sonnet-4-20250514");
     assert!(result_anthropic.is_ok());
@@ -259,8 +259,8 @@ fn test_api_key_flow_multiple_providers_sequence() {
         "openai",
         "sk-openai-key",
         vec![
-            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string() },
-            BrowserAuthModelInfo { id: "gpt-4o-mini".to_string(), name: "GPT-4o Mini".to_string() },
+            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
+            BrowserAuthModelInfo { id: "gpt-4o-mini".to_string(), name: "GPT-4o Mini".to_string(), variants: vec![] },
         ],
     );
 
@@ -274,7 +274,7 @@ fn test_api_key_flow_multiple_providers_sequence() {
         "anthropic",
         "sk-ant-key",
         vec![
-            BrowserAuthModelInfo { id: "claude-sonnet-4-20250514".to_string(), name: "Claude Sonnet 4".to_string() },
+            BrowserAuthModelInfo { id: "claude-sonnet-4-20250514".to_string(), name: "Claude Sonnet 4".to_string(), variants: vec![] },
         ],
     );
 
@@ -335,7 +335,7 @@ fn test_api_key_flow_success_preserves_provider_throughout() {
     assert_eq!(app.pending_connect_provider, Some("openai".to_string()));
 
     let models = vec![
-        BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string() },
+        BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
     ];
 
     app.simulate_validation_complete_for_testing(true, None, Some(models));

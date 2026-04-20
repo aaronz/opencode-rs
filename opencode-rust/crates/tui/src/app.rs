@@ -879,6 +879,7 @@ pub fn parse_openai_models(body: &str) -> Vec<BrowserAuthModelInfo> {
                 .map(|m| BrowserAuthModelInfo {
                     id: m.id.clone(),
                     name: m.id,
+                    variants: vec![],
                 })
                 .collect()
         })
@@ -894,6 +895,7 @@ pub fn parse_anthropic_models(body: &str) -> Vec<BrowserAuthModelInfo> {
                 .map(|m| BrowserAuthModelInfo {
                     id: m.id.clone(),
                     name: m.id,
+                    variants: vec![],
                 })
                 .collect()
         })
@@ -919,6 +921,7 @@ pub fn parse_lm_studio_models(body: &str) -> Vec<BrowserAuthModelInfo> {
                 .map(|m| BrowserAuthModelInfo {
                     id: m.name.clone(),
                     name: m.name,
+                    variants: vec![],
                 })
                 .collect()
         })
@@ -1393,14 +1396,17 @@ impl App {
                 BrowserAuthModelInfo {
                     id: "gemini-2.0-flash".to_string(),
                     name: "Gemini 2.0 Flash".to_string(),
+                    variants: vec![],
                 },
                 BrowserAuthModelInfo {
                     id: "gemini-1.5-pro".to_string(),
                     name: "Gemini 1.5 Pro".to_string(),
+                    variants: vec![],
                 },
                 BrowserAuthModelInfo {
                     id: "gemini-1.5-flash".to_string(),
                     name: "Gemini 1.5 Flash".to_string(),
+                    variants: vec![],
                 },
             ];
 
@@ -1451,26 +1457,32 @@ impl App {
                 BrowserAuthModelInfo {
                     id: "gpt-4o".to_string(),
                     name: "GPT-4o".to_string(),
+                    variants: vec![],
                 },
                 BrowserAuthModelInfo {
                     id: "gpt-4o-mini".to_string(),
                     name: "GPT-4o Mini".to_string(),
+                    variants: vec![],
                 },
                 BrowserAuthModelInfo {
                     id: "o1".to_string(),
                     name: "o1".to_string(),
+                    variants: vec![],
                 },
                 BrowserAuthModelInfo {
                     id: "o1-mini".to_string(),
                     name: "o1 Mini".to_string(),
+                    variants: vec![],
                 },
                 BrowserAuthModelInfo {
                     id: "o1-preview".to_string(),
                     name: "o1 Preview".to_string(),
+                    variants: vec![],
                 },
                 BrowserAuthModelInfo {
                     id: "o3-mini".to_string(),
                     name: "o3 Mini".to_string(),
+                    variants: vec![],
                 },
             ];
 
@@ -1733,6 +1745,7 @@ impl App {
             vec![BrowserAuthModelInfo {
                 id: "gpt-4o".to_string(),
                 name: "GPT-4o".to_string(),
+                variants: vec![],
             }],
         );
     }
@@ -1753,6 +1766,7 @@ impl App {
             vec![BrowserAuthModelInfo {
                 id: "gpt-5.3-codex".to_string(),
                 name: "GPT-5.3 Codex".to_string(),
+                variants: vec![],
             }],
         );
     }
@@ -1788,6 +1802,7 @@ impl App {
             vec![BrowserAuthModelInfo {
                 id: "gemini-1.5-pro".to_string(),
                 name: "Gemini 1.5 Pro".to_string(),
+                variants: vec![],
             }],
         );
     }
@@ -1847,15 +1862,36 @@ impl App {
             headers: std::collections::HashMap::new(),
         };
 
+        let variant = std::env::var("OPENCODE_MODEL_VARIANT").ok();
+
+        let anthropic_thinking = variant.as_ref().and_then(|v| match v.to_lowercase().as_str() {
+            "low" => Some(opencode_llm::AnthropicThinkingConfig::Low),
+            "high" => Some(opencode_llm::AnthropicThinkingConfig::High),
+            "max" => Some(opencode_llm::AnthropicThinkingConfig::Max),
+            _ => None,
+        });
+
         self.llm_provider = match self.provider.as_str() {
-            "openai" => Some(std::sync::Arc::new(opencode_llm::OpenAiProvider::new(
-                config.api_key.clone(),
-                config.model.clone(),
-            ))),
-            "anthropic" => Some(std::sync::Arc::new(opencode_llm::AnthropicProvider::new(
-                config.api_key.clone(),
-                config.model.clone(),
-            ))),
+            "openai" => {
+                let mut provider = opencode_llm::OpenAiProvider::new(
+                    config.api_key.clone(),
+                    config.model.clone(),
+                );
+                if let Some(ref v) = variant {
+                    provider = provider.with_reasoning_effort(v.clone());
+                }
+                Some(std::sync::Arc::new(provider))
+            }
+            "anthropic" => {
+                let mut provider = opencode_llm::AnthropicProvider::new(
+                    config.api_key.clone(),
+                    config.model.clone(),
+                );
+                if let Some(config) = anthropic_thinking {
+                    provider = provider.with_thinking_budget(config);
+                }
+                Some(std::sync::Arc::new(provider))
+            }
             "ollama" => Some(std::sync::Arc::new(opencode_llm::OllamaProvider::new(
                 config.model.clone(),
                 stored_credential
@@ -1865,11 +1901,14 @@ impl App {
                     .or_else(|| Some("http://localhost:11434".to_string())),
             ))),
             _ => {
-                // Default to OpenAI
-                Some(std::sync::Arc::new(opencode_llm::OpenAiProvider::new(
+                let mut provider = opencode_llm::OpenAiProvider::new(
                     config.api_key.clone(),
                     config.model.clone(),
-                )))
+                );
+                if let Some(ref v) = variant {
+                    provider = provider.with_reasoning_effort(v.clone());
+                }
+                Some(std::sync::Arc::new(provider))
             }
         };
 
@@ -5326,6 +5365,23 @@ OpenCode Agent Configuration
                     DialogAction::Close => self.mode = AppMode::Chat,
                     DialogAction::Confirm(model_id) => {
                         self.add_message(format!("Selected model: {}", model_id), false);
+                        std::env::set_var("OPENCODE_MODEL", &model_id);
+                        std::env::remove_var("OPENCODE_MODEL_VARIANT");
+                        self.mode = AppMode::Chat;
+                    }
+                    DialogAction::ConfirmModelWithVariant { model_id, variant_name } => {
+                        let variant_msg = if let Some(v) = &variant_name {
+                            format!("Selected model: {} (variant: {})", model_id, v)
+                        } else {
+                            format!("Selected model: {}", model_id)
+                        };
+                        self.add_message(variant_msg, false);
+                        std::env::set_var("OPENCODE_MODEL", &model_id);
+                        if let Some(v) = variant_name {
+                            std::env::set_var("OPENCODE_MODEL_VARIANT", &v);
+                        } else {
+                            std::env::remove_var("OPENCODE_MODEL_VARIANT");
+                        }
                         self.mode = AppMode::Chat;
                     }
                     _ => {}
@@ -5348,6 +5404,7 @@ OpenCode Agent Configuration
                         provider: p.display_name.clone(),
                         is_paid: m.cost.input > 0.0 || m.cost.output > 0.0,
                         is_available: true,
+                        variants: m.variants.clone(),
                     })
                 })
                 .collect();
@@ -5717,6 +5774,7 @@ mod tests {
             vec![BrowserAuthModelInfo {
                 id: "gpt-5.3-codex".into(),
                 name: "GPT-5.3 Codex".into(),
+                variants: vec![],
             }],
         );
 

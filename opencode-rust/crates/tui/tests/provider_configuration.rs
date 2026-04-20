@@ -9,8 +9,8 @@ fn test_non_openai_provider_does_not_default_to_gpt4o() {
         "anthropic",
         "sk-ant-api-key-12345",
         vec![
-            BrowserAuthModelInfo { id: "claude-sonnet-4-20250514".to_string(), name: "Claude Sonnet 4".to_string() },
-            BrowserAuthModelInfo { id: "claude-haiku-3".to_string(), name: "Claude Haiku 3".to_string() },
+            BrowserAuthModelInfo { id: "claude-sonnet-4-20250514".to_string(), name: "Claude Sonnet 4".to_string(), variants: vec![] },
+            BrowserAuthModelInfo { id: "claude-haiku-3".to_string(), name: "Claude Haiku 3".to_string(), variants: vec![] },
         ],
     );
 
@@ -45,7 +45,7 @@ fn test_selected_model_is_used_instead_of_hardcoded_default() {
         "anthropic",
         "sk-ant-api-key-12345",
         vec![
-            BrowserAuthModelInfo { id: "claude-haiku-3".to_string(), name: "Claude Haiku 3".to_string() },
+            BrowserAuthModelInfo { id: "claude-haiku-3".to_string(), name: "Claude Haiku 3".to_string(), variants: vec![] },
         ],
     );
 
@@ -75,8 +75,8 @@ fn test_selected_model_is_stored_in_provider_config() {
         "openai",
         "sk-api-key-12345",
         vec![
-            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string() },
-            BrowserAuthModelInfo { id: "gpt-4o-mini".to_string(), name: "GPT-4o Mini".to_string() },
+            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
+            BrowserAuthModelInfo { id: "gpt-4o-mini".to_string(), name: "GPT-4o Mini".to_string(), variants: vec![] },
         ],
     );
 
@@ -106,8 +106,8 @@ fn test_active_provider_is_set_after_model_selection() {
         "anthropic",
         "sk-ant-api-key",
         vec![
-            BrowserAuthModelInfo { id: "claude-sonnet-4-20250514".to_string(), name: "Claude Sonnet 4".to_string() },
-            BrowserAuthModelInfo { id: "claude-haiku-3".to_string(), name: "Claude Haiku 3".to_string() },
+            BrowserAuthModelInfo { id: "claude-sonnet-4-20250514".to_string(), name: "Claude Sonnet 4".to_string(), variants: vec![] },
+            BrowserAuthModelInfo { id: "claude-haiku-3".to_string(), name: "Claude Haiku 3".to_string(), variants: vec![] },
         ],
     );
 
@@ -128,7 +128,7 @@ fn test_app_transitions_to_chat_mode_after_selection() {
         "openai",
         "sk-api-key-12345",
         vec![
-            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string() },
+            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
         ],
     );
 
@@ -153,8 +153,8 @@ fn test_complete_flow_validation_model_select_chat() {
     app.pending_api_key_for_validation = Some("sk-api-key-12345".to_string());
 
     let models = vec![
-        BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string() },
-        BrowserAuthModelInfo { id: "gpt-4o-mini".to_string(), name: "GPT-4o Mini".to_string() },
+        BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
+        BrowserAuthModelInfo { id: "gpt-4o-mini".to_string(), name: "GPT-4o Mini".to_string(), variants: vec![] },
     ];
     app.simulate_validation_complete_for_testing(true, None, Some(models.clone()));
 

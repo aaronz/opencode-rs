@@ -297,10 +297,12 @@ fn test_browser_auth_model_info_structure() {
     let model = BrowserAuthModelInfo {
         id: "test-model".to_string(),
         name: "Test Model".to_string(),
+        variants: vec![],
     };
 
     assert_eq!(model.id, "test-model");
     assert_eq!(model.name, "Test Model");
+    assert!(model.variants.is_empty());
 }
 
 #[test]
