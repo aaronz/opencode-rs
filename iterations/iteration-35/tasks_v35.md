@@ -276,7 +276,7 @@
 
 ---
 
-### FR-025: Experimental Modes Mapping
+### FR-025: ✅ Done
 
 **Status:** ✅ Done
 **Priority:** P1
@@ -315,7 +315,7 @@
 
 ### FR-026: CLI `--refresh` Flag
 
-**Status:** ❌ Not Implemented
+**Status:** ✅ Done
 **Priority:** P2
 **Module:** `cli/src/cmd/models.rs`
 **Effort:** 0.5 day

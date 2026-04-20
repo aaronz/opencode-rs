@@ -180,7 +180,7 @@
       "priority": "P2",
       "title": "CLI --refresh Flag",
       "description": "Add Refresh subcommand to CLI models command. Implement run_refresh() function that creates CatalogFetcher, calls force_refresh().await, and prints status. Add force_refresh() to CatalogFetcher that bypasses memory cache TTL and forces network fetch.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify Refresh subcommand is parsed correctly with clap derive",
         "AddUnitTest: verify force_refresh() bypasses memory cache TTL check",

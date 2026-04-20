@@ -1,10 +1,12 @@
 use clap::{Args, Subcommand};
 use opencode_core::Config;
+use opencode_llm::catalog::fetcher::ProviderCatalogFetcher;
 use opencode_llm::ModelRegistry;
 use serde::Serialize;
 use serde_json::json;
 use std::collections::BTreeSet;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 #[derive(Args, Debug)]
 pub(crate) struct ModelsArgs {
@@ -36,6 +38,7 @@ pub(crate) enum ModelsAction {
         #[arg(long)]
         list_hidden: bool,
     },
+    Refresh,
 }
 
 #[derive(Debug, Serialize)]
@@ -148,6 +151,7 @@ mod tests {
                 assert!(show.is_none());
                 assert!(!*list_hidden);
             }
+            ModelsAction::Refresh => panic!("Expected Visibility variant"),
         }
     }
 
@@ -168,6 +172,7 @@ mod tests {
                 assert_eq!(show.as_deref(), Some("gpt-4"));
                 assert!(!*list_hidden);
             }
+            ModelsAction::Refresh => panic!("Expected Visibility variant"),
         }
     }
 
@@ -188,6 +193,7 @@ mod tests {
                 assert!(show.is_none());
                 assert!(*list_hidden);
             }
+            ModelsAction::Refresh => panic!("Expected Visibility variant"),
         }
     }
 
@@ -264,6 +270,35 @@ fn load_config() -> Config {
     Config::load(&path).unwrap_or_default()
 }
 
+fn default_cache_path() -> PathBuf {
+    dirs::cache_dir()
+        .unwrap_or_else(std::env::temp_dir)
+        .join("opencode")
+        .join("models.json")
+}
+
+pub(crate) fn run_refresh() {
+    let cache_path = default_cache_path();
+    let fetcher = Arc::new(ProviderCatalogFetcher::new(cache_path));
+
+    let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
+    let result = rt.block_on(fetcher.force_refresh());
+
+    match result {
+        Ok(catalog) => {
+            println!("Refresh successful");
+            println!("Providers: {}", catalog.providers.len());
+            for (id, provider) in &catalog.providers {
+                println!("  {}: {} models", id, provider.models.len());
+            }
+        }
+        Err(e) => {
+            eprintln!("Refresh failed: {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
 pub(crate) fn run(args: ModelsArgs) {
     match args.action {
         Some(ModelsAction::Visibility {
@@ -288,6 +323,9 @@ pub(crate) fn run(args: ModelsArgs) {
             } else {
                 println!("Visibility action requires --hide, --show, or --list-hidden");
             }
+        }
+        Some(ModelsAction::Refresh) => {
+            run_refresh();
         }
         None => {
             if let Some(model_id) = args.switch.clone() {
