@@ -286,10 +286,10 @@
   - [ ] `test_ws_execute_stream()` - Execute with streaming
   - [ ] `test_ws_multiple_streams()` - Concurrent streams
 
-- [ ] **T-G006-2:** Implement edge case tests
-  - [ ] `test_ws_empty_response()` - Empty streaming response
-  - [ ] `test_ws_long_response()` - Very long streaming response
-  - [ ] `test_ws_connection_drop()` - Disconnect mid-stream
+- [x] **T-G006-2:** Implement edge case tests
+  - [x] `test_ws_empty_response()` - Empty streaming response
+  - [x] `test_ws_long_response()` - Very long streaming response
+  - [x] `test_ws_connection_drop()` - Disconnect mid-stream
 
 - [ ] **T-G006-3:** Add memory leak detection
   - [ ] Verify buffers are freed

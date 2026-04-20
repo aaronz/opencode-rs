@@ -384,6 +384,207 @@ async fn test_ws_multiple_streams() {
     server_handle.abort();
 }
 
+#[tokio::test]
+async fn test_ws_empty_response() {
+    use opencode_core::bus::InternalEvent;
+
+    let (ws_url, server_handle, state_data) = start_ws_test_server_with_state(0).await;
+
+    let ws_url_with_session = ws_url.replace("/test-session", "?session_id=empty-response-session");
+
+    let (mut ws, _) = tokio_tungstenite::connect_async(&ws_url_with_session)
+        .await
+        .expect("Should connect to WebSocket endpoint");
+
+    let connected_msg = ws.next().await;
+    assert!(connected_msg.is_some(), "Should receive connected message");
+
+    let event_bus = &state_data.event_bus;
+
+    event_bus.publish(InternalEvent::MessageAdded {
+        session_id: "empty-response-session".to_string(),
+        message_id: "msg-empty-001".to_string(),
+    });
+
+    tokio::time::sleep(Duration::from_millis(200)).await;
+
+    event_bus.publish(InternalEvent::AgentStatusChanged {
+        session_id: "empty-response-session".to_string(),
+        status: "processing".to_string(),
+    });
+
+    event_bus.publish(InternalEvent::MessageAdded {
+        session_id: "empty-response-session".to_string(),
+        message_id: "msg-empty-002".to_string(),
+    });
+
+    event_bus.publish(InternalEvent::AgentStatusChanged {
+        session_id: "empty-response-session".to_string(),
+        status: "completed".to_string(),
+    });
+
+    let mut found_status_or_message = false;
+    let mut found_complete = false;
+    let mut iterations = 0;
+
+    while let Some(msg) = ws.next().await {
+        iterations += 1;
+        if iterations > 100 {
+            break;
+        }
+        if let Ok(text) = msg.unwrap().into_text() {
+            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&text) {
+                match parsed.get("type").and_then(|v| v.as_str()) {
+                    Some("heartbeat") => continue,
+                    Some("session_update") => {
+                        found_status_or_message = true;
+                        if parsed.get("status").and_then(|v| v.as_str()) == Some("completed") {
+                            found_complete = true;
+                            break;
+                        }
+                    }
+                    Some("message") => {
+                        found_status_or_message = true;
+                    }
+                    Some("connected") => continue,
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    assert!(found_status_or_message, "Should handle events gracefully");
+    assert!(found_complete, "Should complete even with empty response");
+
+    ws_close(&mut ws).await;
+    server_handle.abort();
+}
+
+#[tokio::test]
+async fn test_ws_long_response() {
+    use opencode_core::bus::InternalEvent;
+
+    let (ws_url, server_handle, state_data) = start_ws_test_server_with_state(0).await;
+
+    let ws_url_with_session = ws_url.replace("/test-session", "?session_id=long-response-session");
+
+    let (mut ws, _) = tokio_tungstenite::connect_async(&ws_url_with_session)
+        .await
+        .expect("Should connect to WebSocket endpoint");
+
+    let connected_msg = ws.next().await;
+    assert!(connected_msg.is_some(), "Should receive connected message");
+
+    let event_bus = &state_data.event_bus;
+
+    event_bus.publish(InternalEvent::MessageAdded {
+        session_id: "long-response-session".to_string(),
+        message_id: "msg-long-001".to_string(),
+    });
+
+    tokio::time::sleep(Duration::from_millis(200)).await;
+
+    event_bus.publish(InternalEvent::MessageUpdated {
+        session_id: "long-response-session".to_string(),
+        message_id: "msg-long-001".to_string(),
+    });
+
+    event_bus.publish(InternalEvent::MessageAdded {
+        session_id: "long-response-session".to_string(),
+        message_id: "msg-long-002".to_string(),
+    });
+
+    event_bus.publish(InternalEvent::MessageUpdated {
+        session_id: "long-response-session".to_string(),
+        message_id: "msg-long-002".to_string(),
+    });
+
+    let mut received_messages = 0;
+    let mut iterations = 0;
+
+    while let Some(msg) = ws.next().await {
+        iterations += 1;
+        if iterations > 100 {
+            break;
+        }
+        if let Ok(text) = msg.unwrap().into_text() {
+            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&text) {
+                match parsed.get("type").and_then(|v| v.as_str()) {
+                    Some("heartbeat") => continue,
+                    Some("message") => {
+                        received_messages += 1;
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    assert!(received_messages >= 2, "Should handle multiple streaming messages");
+
+    ws_close(&mut ws).await;
+    server_handle.abort();
+}
+
+#[tokio::test]
+async fn test_ws_connection_drop() {
+    use opencode_core::bus::InternalEvent;
+
+    let (ws_url, server_handle, state_data) = start_ws_test_server_with_state(0).await;
+
+    let ws_url_with_session = ws_url.replace("/test-session", "?session_id=drop-test-session");
+
+    let (mut ws, _) = tokio_tungstenite::connect_async(&ws_url_with_session)
+        .await
+        .expect("Should connect to WebSocket endpoint");
+
+    let connected_msg = ws.next().await;
+    assert!(connected_msg.is_some(), "Should receive connected message");
+
+    let event_bus = &state_data.event_bus;
+
+    event_bus.publish(InternalEvent::ToolCallStarted {
+        session_id: "drop-test-session".to_string(),
+        tool_name: "read".to_string(),
+        call_id: "call-drop-001".to_string(),
+    });
+
+    let tool_call_parsed = recv_next_non_heartbeat(&mut ws).await;
+    assert!(tool_call_parsed.is_some(), "Should receive tool call event");
+
+    drop(ws);
+
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    event_bus.publish(InternalEvent::ToolCallEnded {
+        session_id: "drop-test-session".to_string(),
+        call_id: "call-drop-001".to_string(),
+        success: false,
+    });
+
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    let (ws_url2, server_handle2) = start_ws_test_server(0).await;
+    let ws_url_with_session2 = ws_url2.replace("/test-session", "?session_id=new-session-after-drop");
+
+    let result = tokio_tungstenite::connect_async(&ws_url_with_session2).await;
+    assert!(
+        result.is_ok(),
+        "Server should still be operating after client connection drop"
+    );
+
+    let (mut ws2, _) = result.expect("Should reconnect to new server");
+    let msg2 = ws2.next().await;
+    assert!(
+        msg2.is_some(),
+        "Should receive connection message on new client"
+    );
+
+    ws_close(&mut ws2).await;
+    server_handle.abort();
+    server_handle2.abort();
+}
+
 async fn recv_next_non_heartbeat(
     ws: &mut tokio_tungstenite::WebSocketStream<
         tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,

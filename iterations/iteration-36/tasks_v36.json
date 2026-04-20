@@ -680,7 +680,7 @@
       "priority": "P2",
       "title": "Implement WebSocket edge case tests",
       "description": "Create edge case tests: test_ws_empty_response, test_ws_long_response, test_ws_connection_drop.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddErrorHandlingTest: test_ws_empty_response handles empty streaming response",
         "AddErrorHandlingTest: test_ws_long_response handles very long streaming response",
