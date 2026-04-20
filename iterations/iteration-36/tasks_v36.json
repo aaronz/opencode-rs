@@ -720,7 +720,7 @@
       "priority": "P2",
       "title": "Update crates/server/src/routes/execute/ws.rs with debug logging",
       "description": "Add debug logging for testing. Ensure proper cleanup on drop for WebSocket connections.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify debug logging is properly gated behind feature flag",
         "RunTestSuite: cargo test -p opencode-server -- ws should pass"

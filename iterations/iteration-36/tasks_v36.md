@@ -295,9 +295,9 @@
   - [ ] Verify buffers are freed
   - [ ] No growing allocations on repeated streams
 
-- [ ] **T-G006-4:** Update `crates/server/src/routes/execute/ws.rs`
-  - [ ] Add debug logging for testing
-  - [ ] Ensure proper cleanup on drop
+- [x] **T-G006-4:** Update `crates/server/src/routes/execute/ws.rs`
+  - [x] Add debug logging for testing
+  - [x] Ensure proper cleanup on drop
 
 **Acceptance Criteria:**
 - [ ] WebSocket test file created

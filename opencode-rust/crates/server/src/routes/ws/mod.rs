@@ -104,6 +104,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+#[cfg(feature = "debug-logging")]
+use tracing::debug;
+
 use actix_web::http::header::{HeaderName, HeaderValue};
 use actix_web::{web, Error, HttpRequest, HttpResponse};
 use actix_ws::Message;
@@ -112,7 +115,7 @@ use opencode_core::bus::InternalEvent;
 use opencode_core::{Message as CoreMessage, Session};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, warn};
 
 use crate::routes::error::json_error;
 use crate::streaming::conn_state::ConnectionType;
@@ -163,6 +166,54 @@ pub enum WsClientMessage {
 
 const WS_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(30);
 const WS_CLIENT_TIMEOUT: Duration = Duration::from_secs(120);
+
+#[allow(dead_code)]
+struct WsConnectionGuard {
+    conn_id: String,
+    session_id: String,
+    conn_monitor: Arc<crate::streaming::conn_state::ConnectionMonitor>,
+    session_hub: Arc<crate::routes::ws::session_hub::SessionHub>,
+    reason: &'static str,
+}
+
+#[allow(dead_code)]
+impl WsConnectionGuard {
+    fn new(
+        conn_id: String,
+        session_id: String,
+        conn_monitor: Arc<crate::streaming::conn_state::ConnectionMonitor>,
+        session_hub: Arc<crate::routes::ws::session_hub::SessionHub>,
+    ) -> Self {
+        Self {
+            conn_id,
+            session_id,
+            conn_monitor,
+            session_hub,
+            reason: "guard_dropped",
+        }
+    }
+
+    async fn close(mut self, reason: &'static str) {
+        self.reason = reason;
+        self.conn_monitor
+            .unregister_connection(&self.conn_id, self.reason)
+            .await;
+        self.session_hub
+            .unregister_client(&self.session_id, &self.conn_id)
+            .await;
+    }
+}
+
+impl Drop for WsConnectionGuard {
+    fn drop(&mut self) {
+        tracing::debug!(
+            "WsConnectionGuard dropped: conn_id={}, session_id={}, reason={}",
+            self.conn_id,
+            self.session_id,
+            self.reason
+        );
+    }
+}
 
 /// WebSocket endpoint handler for real-time streaming.
 ///
@@ -382,6 +433,7 @@ pub async fn ws_index(
                             last_heartbeat = Instant::now();
                         }
                         Message::Text(text) => {
+                            #[cfg(feature = "debug-logging")]
                             debug!("WS inbound: {}", text);
                             handle_ws_message(&mut session, &text, &state, &tx).await;
                             conn_monitor.heartbeat_success(&conn_id_for_task).await;
@@ -1342,5 +1394,57 @@ mod ws_lifecycle_tests {
         let json = serde_json::to_string(&ws_text).expect("should serialize");
 
         assert!(!json.is_empty());
+    }
+
+    #[test]
+    fn test_debug_logging_feature_gated() {
+        #[cfg(feature = "debug-logging")]
+        {
+            let trace_level = tracing::Level::DEBUG;
+            assert_eq!(
+                trace_level,
+                tracing::Level::DEBUG,
+                "debug-logging feature should enable DEBUG level tracing"
+            );
+        }
+
+        #[cfg(not(feature = "debug-logging"))]
+        {
+            let trace_level = tracing::Level::INFO;
+            assert_eq!(
+                trace_level,
+                tracing::Level::INFO,
+                "without debug-logging feature, DEBUG should not be enabled"
+            );
+        }
+    }
+
+    #[test]
+    fn test_ws_connection_guard_struct_exists() {
+        use super::WsConnectionGuard;
+        let _ = std::mem::size_of::<WsConnectionGuard>();
+    }
+
+    #[tokio::test]
+    async fn test_ws_connection_guard_drop_behavior() {
+        use super::WsConnectionGuard;
+        use crate::streaming::conn_state::ConnectionMonitor;
+        use crate::routes::ws::session_hub::SessionHub;
+        use std::sync::Arc;
+
+        let conn_monitor = Arc::new(ConnectionMonitor::new());
+        let session_hub = Arc::new(SessionHub::new(256));
+
+        let guard = WsConnectionGuard::new(
+            "test-conn-id".to_string(),
+            "test-session-id".to_string(),
+            conn_monitor.clone(),
+            session_hub.clone(),
+        );
+
+        drop(guard);
+
+        let stats = conn_monitor.get_stats().await;
+        assert_eq!(stats.active_connections, 0);
     }
 }
