@@ -270,7 +270,7 @@
       "priority": "P1",
       "title": "Update crates/sdk/README.md",
       "description": "Update SDK README with badges (docs.rs, crates.io), Installation section, Quick Start section, and links to examples.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify README.md contains required sections",
         "AddIntegrationTest: verify badges link to correct URLs",
