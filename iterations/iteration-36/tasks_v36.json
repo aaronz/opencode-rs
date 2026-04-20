@@ -187,7 +187,7 @@
       "priority": "P1",
       "title": "Implement examples/async_session.rs",
       "description": "Implement async_session.rs example that creates session with specific ID, saves session, resumes session, exports session to JSON, and imports session from JSON.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify async_session.rs compiles without errors",
         "AddIntegrationTest: verify session save/resume cycle works",
@@ -207,7 +207,7 @@
       "priority": "P1",
       "title": "Implement examples/tool_execution.rs",
       "description": "Implement tool_execution.rs example that registers custom tool, executes Read tool, executes Write tool, and handles tool result.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify tool_execution.rs compiles without errors",
         "AddIntegrationTest: verify custom tool registration works",

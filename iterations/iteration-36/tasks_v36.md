@@ -90,7 +90,7 @@
   - [ ] Export session to JSON
   - [ ] Import session from JSON
 
-- [ ] **T-G002-4:** Implement `examples/tool_execution.rs`
+- [x] **T-G002-4:** Implement `examples/tool_execution.rs`
   - [ ] Register custom tool
   - [ ] Execute Read tool
   - [ ] Execute Write tool

@@ -188,6 +188,120 @@ impl Clone for ToolExecutor {
     }
 }
 
+/// Local tool registry for registering and executing custom tools.
+///
+/// # Example
+///
+/// ```rust
+/// use opencode_sdk::tools::{ToolRegistry, ToolDefinition, ToolParameter};
+///
+/// let mut registry = ToolRegistry::new();
+///
+/// registry.register_tool(
+///     "echo",
+///     "Echoes the input back",
+///     vec![ToolParameter {
+///         name: "message".to_string(),
+///         description: "Message to echo".to_string(),
+///         required: true,
+///         schema: serde_json::json!({"type": "string"}),
+///     }],
+///     |args| {
+///         let msg = args["message"].as_str().unwrap_or("");
+///         Ok(format!("Echo: {}", msg))
+///     }
+/// );
+///
+/// let result = registry.execute_tool("echo", serde_json::json!({"message": "Hello"}));
+/// assert!(result.is_success());
+/// ```
+#[derive(Default)]
+pub struct ToolRegistry {
+    definitions: std::collections::HashMap<String, ToolDefinition>,
+    executors: std::collections::HashMap<String, ToolExecutor>,
+}
+
+impl ToolRegistry {
+    /// Creates a new empty tool registry.
+    pub fn new() -> Self {
+        Self {
+            definitions: std::collections::HashMap::new(),
+            executors: std::collections::HashMap::new(),
+        }
+    }
+
+    /// Registers a custom tool with the given name, description, parameters, and executor.
+    pub fn register_tool<F>(&mut self, name: &str, description: &str, parameters: Vec<ToolParameter>, executor: F)
+    where
+        F: Fn(serde_json::Value) -> Result<String, String> + Send + Sync + 'static,
+    {
+        let def = ToolDefinition {
+            name: name.to_string(),
+            description: description.to_string(),
+            parameters,
+        };
+        let exec = ToolExecutor::new(executor);
+        self.definitions.insert(name.to_string(), def);
+        self.executors.insert(name.to_string(), exec);
+    }
+
+    /// Executes a registered tool with the given arguments.
+    ///
+    /// Returns a `ToolResult` indicating success or failure.
+    pub fn execute_tool(&self, name: &str, arguments: serde_json::Value) -> ToolResult {
+        let started_at = chrono::Utc::now();
+
+        match (self.definitions.get(name), self.executors.get(name)) {
+            (Some(def), Some(exec)) => {
+                match exec.execute(arguments) {
+                    Ok(result) => ToolResult {
+                        id: uuid::Uuid::new_v4(),
+                        tool_name: def.name.clone(),
+                        success: true,
+                        result: Some(result),
+                        error: None,
+                        started_at,
+                        completed_at: chrono::Utc::now(),
+                    },
+                    Err(e) => ToolResult {
+                        id: uuid::Uuid::new_v4(),
+                        tool_name: def.name.clone(),
+                        success: false,
+                        result: None,
+                        error: Some(e),
+                        started_at,
+                        completed_at: chrono::Utc::now(),
+                    },
+                }
+            }
+            _ => ToolResult {
+                id: uuid::Uuid::new_v4(),
+                tool_name: name.to_string(),
+                success: false,
+                result: None,
+                error: Some(format!("Tool not found: {}", name)),
+                started_at,
+                completed_at: chrono::Utc::now(),
+            },
+        }
+    }
+
+    /// Lists all registered tool names.
+    pub fn list_tools(&self) -> Vec<String> {
+        self.definitions.keys().cloned().collect()
+    }
+
+    /// Gets a tool definition by name.
+    pub fn get_tool(&self, name: &str) -> Option<&ToolDefinition> {
+        self.definitions.get(name)
+    }
+
+    /// Returns true if a tool with the given name is registered.
+    pub fn contains(&self, name: &str) -> bool {
+        self.definitions.contains_key(name)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

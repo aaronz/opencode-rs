@@ -50,6 +50,6 @@ pub use auth::ApiKeyAuth;
 pub use client::{ClientBuilder, ClientConfig, OpenCodeClient};
 pub use error::{SdkError, SdkResult};
 pub use session::{SdkSession, SessionInfo};
-pub use tools::{ToolDefinition, ToolExecutor, ToolResult};
+pub use tools::{ToolDefinition, ToolExecutor, ToolRegistry, ToolResult};
 
 pub use opencode_core::Message;
