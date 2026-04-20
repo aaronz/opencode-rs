@@ -44,7 +44,7 @@ impl ModelRegistry {
             for provider in catalog.providers.values() {
                 for model in provider.models.values() {
                     let model_key = model.id.clone();
-                    models.entry(model_key).or_insert_with(|| ModelInfo {
+                    let model_info = ModelInfo {
                         name: model.id.clone(),
                         provider: model.provider_id.clone(),
                         max_tokens: model.limits.output.max(1),
@@ -61,7 +61,8 @@ impl ModelRegistry {
                         supports_streaming: true,
                         cost_per_1k_tokens: model.cost.input + model.cost.output,
                         status: Some(model.status),
-                    });
+                    };
+                    models.insert(model_key, model_info);
                 }
             }
         }
@@ -147,26 +148,38 @@ impl ModelRegistry {
         for provider in catalog.providers.values() {
             for model in provider.models.values() {
                 let model_key = model.id.clone();
-                self.models.entry(model_key).or_insert_with(|| ModelInfo {
-                    name: model.id.clone(),
-                    provider: model.provider_id.clone(),
-                    max_tokens: model.limits.output.max(1),
-                    max_input_tokens: model.limits.context,
-                    supports_functions: model.capabilities.tool_call,
-                    supports_vision: model
-                        .capabilities
-                        .input_modalities
-                        .contains(&"image".to_string())
-                        || model
+                self.models.insert(
+                    model_key,
+                    ModelInfo {
+                        name: model.id.clone(),
+                        provider: model.provider_id.clone(),
+                        max_tokens: model.limits.output.max(1),
+                        max_input_tokens: model.limits.context,
+                        supports_functions: model.capabilities.tool_call,
+                        supports_vision: model
                             .capabilities
                             .input_modalities
-                            .contains(&"vision".to_string()),
-                    supports_streaming: true,
-                    cost_per_1k_tokens: model.cost.input + model.cost.output,
-                    status: Some(model.status),
-                });
+                            .contains(&"image".to_string())
+                            || model
+                                .capabilities
+                                .input_modalities
+                                .contains(&"vision".to_string()),
+                        supports_streaming: true,
+                        cost_per_1k_tokens: model.cost.input + model.cost.output,
+                        status: Some(model.status),
+                    },
+                );
             }
         }
+    }
+
+    pub fn from_catalog(catalog: crate::catalog::ProviderCatalog) -> Self {
+        let mut registry = Self {
+            models: HashMap::new(),
+            provider_filter: None,
+        };
+        registry.populate_from_catalog(&catalog);
+        registry
     }
 }
 
@@ -187,12 +200,17 @@ mod tests {
         let mut registry = ModelRegistry::new();
         registry.set_provider_filter(ProviderFilter::new(
             vec!["models-dev-openai".to_string()],
-            vec!["models-dev-openai".to_string(), "models-dev-anthropic".to_string()],
+            vec![
+                "models-dev-openai".to_string(),
+                "models-dev-anthropic".to_string(),
+            ],
         ));
 
         let providers: Vec<String> = registry.list().iter().map(|m| m.provider.clone()).collect();
 
-        assert!(providers.iter().all(|provider| provider == "models-dev-anthropic"));
+        assert!(providers
+            .iter()
+            .all(|provider| provider == "models-dev-anthropic"));
         assert!(!providers.is_empty());
     }
 
@@ -201,14 +219,20 @@ mod tests {
         let mut registry = ModelRegistry::new();
         registry.set_provider_filter(ProviderFilter::new(
             vec!["models-dev-openai".to_string()],
-            vec!["models-dev-openai".to_string(), "models-dev-anthropic".to_string()],
+            vec![
+                "models-dev-openai".to_string(),
+                "models-dev-anthropic".to_string(),
+            ],
         ));
 
         assert_eq!(
             registry.get_next_available_provider("models-dev-openai"),
             Some("models-dev-anthropic".to_string())
         );
-        assert_eq!(registry.get_next_available_provider("models-dev-anthropic"), None);
+        assert_eq!(
+            registry.get_next_available_provider("models-dev-anthropic"),
+            None
+        );
     }
 
     #[test]
@@ -355,10 +379,7 @@ mod tests {
         let registry = ModelRegistry::new();
         let models = registry.list();
         let has_non_alpha = models.iter().any(|m| m.status != Some(ModelStatus::Alpha));
-        assert!(
-            has_non_alpha,
-            "Non-alpha models should always be visible"
-        );
+        assert!(has_non_alpha, "Non-alpha models should always be visible");
     }
 
     #[test]

@@ -45,10 +45,10 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph},
     Frame, Terminal,
 };
+use serde::Deserialize;
 use std::io;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
-use serde::Deserialize;
 
 pub enum LlmEvent {
     Chunk(String),
@@ -1232,7 +1232,10 @@ impl App {
                     return;
                 }
             };
-            let result = runtime.block_on(crate::app::validate_api_key_and_fetch_models(&provider_id, &api_key));
+            let result = runtime.block_on(crate::app::validate_api_key_and_fetch_models(
+                &provider_id,
+                &api_key,
+            ));
             match result {
                 Ok(models) => {
                     let _ = tx.send(ConnectEvent::ValidationComplete {
@@ -1547,7 +1550,9 @@ impl App {
             std::env::set_var("OPENAI_MODEL", &model_id);
             std::env::set_var("OPENCODE_MODEL", &model_id);
             self.llm_provider = Some(std::sync::Arc::new(OpenAiProvider::new_browser_auth(
-                session, model_id.clone(), store,
+                session,
+                model_id.clone(),
+                store,
             )));
 
             let provider_config = crate::config::ProviderConfig {
@@ -1575,7 +1580,10 @@ impl App {
             std::env::set_var("GOOGLE_MODEL", &model_id);
             std::env::set_var("OPENCODE_MODEL", &model_id);
 
-            let google_provider = opencode_llm::google::GoogleProvider::new(session.access_token.clone(), model_id.clone());
+            let google_provider = opencode_llm::google::GoogleProvider::new(
+                session.access_token.clone(),
+                model_id.clone(),
+            );
             self.llm_provider = Some(std::sync::Arc::new(google_provider));
 
             let provider_config = crate::config::ProviderConfig {
@@ -1604,14 +1612,13 @@ impl App {
             std::env::set_var("COPILOT_MODEL", &model_id);
             std::env::set_var("OPENCODE_MODEL", &model_id);
 
-            let copilot_provider = opencode_llm::copilot::CopilotProvider::new(
-                opencode_llm::ProviderConfig {
+            let copilot_provider =
+                opencode_llm::copilot::CopilotProvider::new(opencode_llm::ProviderConfig {
                     model: model_id.clone(),
                     api_key: session.access_token.clone(),
                     temperature: 0.7,
                     headers: std::collections::HashMap::new(),
-                }
-            );
+                });
             self.llm_provider = Some(std::sync::Arc::new(copilot_provider));
 
             let provider_config = crate::config::ProviderConfig {
@@ -1634,7 +1641,10 @@ impl App {
         } else if let Some(api_key) = self.pending_api_key_for_provider.clone() {
             let provider_id = self.pending_connect_provider.clone().unwrap_or_default();
             self.provider = provider_id.clone();
-            std::env::set_var(format!("{}_MODEL", provider_id.to_uppercase().replace("-", "_")), &model_id);
+            std::env::set_var(
+                format!("{}_MODEL", provider_id.to_uppercase().replace("-", "_")),
+                &model_id,
+            );
             std::env::set_var("OPENCODE_MODEL", &model_id);
 
             let llm_config = opencode_llm::ProviderConfig {
@@ -1657,10 +1667,14 @@ impl App {
                     llm_config.model.clone(),
                     None,
                 ))),
-                "lmstudio" | "lm_studio" | "lm-studio" => Some(std::sync::Arc::new(opencode_llm::LmStudioProvider::new(
-                    llm_config.model.clone(),
-                    std::env::var("LMSTUDIO_BASE_URL").ok().or_else(|| std::env::var("OPENCODE_BASE_URL").ok()),
-                ))),
+                "lmstudio" | "lm_studio" | "lm-studio" => {
+                    Some(std::sync::Arc::new(opencode_llm::LmStudioProvider::new(
+                        llm_config.model.clone(),
+                        std::env::var("LMSTUDIO_BASE_URL")
+                            .ok()
+                            .or_else(|| std::env::var("OPENCODE_BASE_URL").ok()),
+                    )))
+                }
                 _ => Some(std::sync::Arc::new(opencode_llm::OpenAiProvider::new(
                     llm_config.api_key.clone(),
                     llm_config.model.clone(),
@@ -1750,7 +1764,10 @@ impl App {
         );
     }
 
-    pub fn confirm_model_for_copilot_auth_for_test(&mut self, model_id: &str) -> Result<(), String> {
+    pub fn confirm_model_for_copilot_auth_for_test(
+        &mut self,
+        model_id: &str,
+    ) -> Result<(), String> {
         self.handle_connect_model_confirm(model_id.to_string())
     }
 
@@ -1787,7 +1804,10 @@ impl App {
         self.mode = AppMode::ConnectModel;
     }
 
-    pub fn confirm_model_for_api_key_auth_for_test(&mut self, model_id: &str) -> Result<(), String> {
+    pub fn confirm_model_for_api_key_auth_for_test(
+        &mut self,
+        model_id: &str,
+    ) -> Result<(), String> {
         self.handle_connect_model_confirm(model_id.to_string())
     }
 
@@ -1833,7 +1853,10 @@ impl App {
             .or_else(|| std::env::var("OPENAI_MODEL").ok())
             .or_else(|| {
                 self.config.providers.as_ref().and_then(|providers| {
-                    providers.iter().find(|p| p.name == self.provider).and_then(|p| p.default_model.clone())
+                    providers
+                        .iter()
+                        .find(|p| p.name == self.provider)
+                        .and_then(|p| p.default_model.clone())
                 })
             })
             .unwrap_or_else(|| {
@@ -1864,19 +1887,19 @@ impl App {
 
         let variant = std::env::var("OPENCODE_MODEL_VARIANT").ok();
 
-        let anthropic_thinking = variant.as_ref().and_then(|v| match v.to_lowercase().as_str() {
-            "low" => Some(opencode_llm::AnthropicThinkingConfig::Low),
-            "high" => Some(opencode_llm::AnthropicThinkingConfig::High),
-            "max" => Some(opencode_llm::AnthropicThinkingConfig::Max),
-            _ => None,
-        });
+        let anthropic_thinking = variant
+            .as_ref()
+            .and_then(|v| match v.to_lowercase().as_str() {
+                "low" => Some(opencode_llm::AnthropicThinkingConfig::Low),
+                "high" => Some(opencode_llm::AnthropicThinkingConfig::High),
+                "max" => Some(opencode_llm::AnthropicThinkingConfig::Max),
+                _ => None,
+            });
 
         self.llm_provider = match self.provider.as_str() {
             "openai" => {
-                let mut provider = opencode_llm::OpenAiProvider::new(
-                    config.api_key.clone(),
-                    config.model.clone(),
-                );
+                let mut provider =
+                    opencode_llm::OpenAiProvider::new(config.api_key.clone(), config.model.clone());
                 if let Some(ref v) = variant {
                     provider = provider.with_reasoning_effort(v.clone());
                 }
@@ -1901,10 +1924,8 @@ impl App {
                     .or_else(|| Some("http://localhost:11434".to_string())),
             ))),
             _ => {
-                let mut provider = opencode_llm::OpenAiProvider::new(
-                    config.api_key.clone(),
-                    config.model.clone(),
-                );
+                let mut provider =
+                    opencode_llm::OpenAiProvider::new(config.api_key.clone(), config.model.clone());
                 if let Some(ref v) = variant {
                     provider = provider.with_reasoning_effort(v.clone());
                 }
@@ -2293,7 +2314,9 @@ impl App {
                 AppMode::ConnectMethod => self.handle_connect_method_dialog(&mut terminal)?,
                 AppMode::ConnectApiKey => self.handle_api_key_input_dialog(&mut terminal)?,
                 AppMode::ConnectProgress => self.handle_connect_progress_dialog(&mut terminal)?,
-                AppMode::ConnectApiKeyError => self.handle_validation_error_dialog(&mut terminal)?,
+                AppMode::ConnectApiKeyError => {
+                    self.handle_validation_error_dialog(&mut terminal)?
+                }
                 AppMode::ConnectModel => self.handle_connect_model_dialog(&mut terminal)?,
                 AppMode::FileSelection => self.handle_file_selection_dialog(&mut terminal)?,
                 AppMode::DirectorySelection => {
@@ -2401,7 +2424,12 @@ impl App {
         self.check_connect_events();
     }
 
-    pub fn simulate_validation_complete_for_testing(&mut self, success: bool, error_message: Option<String>, models: Option<Vec<BrowserAuthModelInfo>>) {
+    pub fn simulate_validation_complete_for_testing(
+        &mut self,
+        success: bool,
+        error_message: Option<String>,
+        models: Option<Vec<BrowserAuthModelInfo>>,
+    ) {
         let (tx, rx) = mpsc::channel();
         self.connect_rx = Some(rx);
         let _ = tx.send(ConnectEvent::ValidationComplete {
@@ -2440,10 +2468,15 @@ impl App {
                         self.add_message(format!("OpenAI connect failed: {}", error), false);
                         self.mode = AppMode::Chat;
                     }
-                    ConnectEvent::ValidationComplete { success, error_message, models } => {
+                    ConnectEvent::ValidationComplete {
+                        success,
+                        error_message,
+                        models,
+                    } => {
                         self.validation_in_progress = false;
                         if success {
-                            let provider_id = self.pending_connect_provider.clone().unwrap_or_default();
+                            let provider_id =
+                                self.pending_connect_provider.clone().unwrap_or_default();
                             self.add_message(
                                 format!(
                                     "API key validated successfully for {}",
@@ -2451,11 +2484,17 @@ impl App {
                                 ),
                                 false,
                             );
-                            if let Err(e) = self.save_api_key_credential(&provider_id, self.pending_api_key_for_validation.as_deref().unwrap_or("")) {
+                            if let Err(e) = self.save_api_key_credential(
+                                &provider_id,
+                                self.pending_api_key_for_validation.as_deref().unwrap_or(""),
+                            ) {
                                 self.add_message(format!("Failed to save API key: {}", e), false);
                                 self.mode = AppMode::Chat;
                             } else {
-                                let api_key = self.pending_api_key_for_validation.clone().unwrap_or_default();
+                                let api_key = self
+                                    .pending_api_key_for_validation
+                                    .clone()
+                                    .unwrap_or_default();
                                 self.pending_api_key_models = models.unwrap_or_default();
                                 self.pending_api_key_for_provider = Some(api_key);
                                 let theme = self.theme_manager.current().clone();
@@ -2466,18 +2505,23 @@ impl App {
                                 self.mode = AppMode::ConnectModel;
                             }
                         } else {
-                            let provider_id = self.pending_connect_provider.clone().unwrap_or_default();
+                            let provider_id =
+                                self.pending_connect_provider.clone().unwrap_or_default();
                             let provider_name = self.get_provider_name(&provider_id);
-                            let error_msg = error_message.unwrap_or_else(|| "Unknown error".to_string());
+                            let error_msg =
+                                error_message.unwrap_or_else(|| "Unknown error".to_string());
                             tracing::error!(
                                 provider = %provider_id,
                                 error = %error_msg,
                                 "API key validation failed"
                             );
                             let theme = self.theme_manager.current().clone();
-                            self.validation_error_dialog = Some(
-                                ValidationErrorDialog::from_validation_error(&error_msg, &provider_name, theme)
-                            );
+                            self.validation_error_dialog =
+                                Some(ValidationErrorDialog::from_validation_error(
+                                    &error_msg,
+                                    &provider_name,
+                                    theme,
+                                ));
                             self.mode = AppMode::ConnectApiKeyError;
                         }
                         self.pending_api_key_for_validation = None;
@@ -5369,7 +5413,10 @@ OpenCode Agent Configuration
                         std::env::remove_var("OPENCODE_MODEL_VARIANT");
                         self.mode = AppMode::Chat;
                     }
-                    DialogAction::ConfirmModelWithVariant { model_id, variant_name } => {
+                    DialogAction::ConfirmModelWithVariant {
+                        model_id,
+                        variant_name,
+                    } => {
                         let variant_msg = if let Some(v) = &variant_name {
                             format!("Selected model: {} (variant: {})", model_id, v)
                         } else {
@@ -5448,6 +5495,14 @@ OpenCode Agent Configuration
                 })
                 .collect();
             self.provider_management_dialog.set_providers(providers);
+
+            let connect_providers: Vec<(String, String)> = catalog
+                .providers
+                .values()
+                .map(|p: &ProviderDescriptor| (p.id.clone(), p.display_name.clone()))
+                .collect();
+            self.connect_provider_dialog
+                .set_providers(connect_providers);
         }
     }
 
