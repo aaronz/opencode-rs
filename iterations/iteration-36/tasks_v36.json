@@ -44,7 +44,7 @@
       "priority": "P1",
       "title": "Implement plugins/hello_world/src/lib.rs",
       "description": "Implement lib.rs with plugin_init() -> i32 function, plugin_execute(command: *const u8, len: usize) -> i32 function, and basic tool registration example.",
-      "status": "todo",
+      "status": "manual_check",
       "test_criteria": [
         "AddUnitTest: verify plugin_init returns valid initialization code",
         "AddUnitTest: verify plugin_execute handles null pointers correctly",
@@ -65,7 +65,7 @@
       "priority": "P1",
       "title": "Create plugins/hello_world/build.sh",
       "description": "Create build script with shebang #!/bin/bash that builds for wasm32-wasi target and outputs .wasm to plugins/bin/.",
-      "status": "todo",
+      "status": "manual_check",
       "test_criteria": [
         "AddUnitTest: verify build.sh has valid shebang",
         "AddIntegrationTest: verify build.sh produces .wasm in plugins/bin/",
@@ -86,7 +86,7 @@
       "priority": "P1",
       "title": "Create scripts/build-plugins.sh",
       "description": "Create scripts/build-plugins.sh that builds all plugins in plugins/ directory, creates plugins/bin/ output directory, and handles errors for failed builds.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify script handles missing plugins directory gracefully",
         "AddIntegrationTest: verify all plugins in plugins/ are built",
