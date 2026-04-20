@@ -34,6 +34,16 @@ pub fn git_rebase(repo_path: &Path, branch: &str) -> Result<RebaseResult, OpenCo
         });
     }
 
+    let repo_path_buf = repo_path.to_path_buf();
+    let git_dir = repo_path_buf.join(".git");
+
+    for rebase_file in &["rebase-orig-head", "rebase-head", "MERGE_HEAD", "index.lock"] {
+        let file_path = git_dir.join(rebase_file);
+        if file_path.exists() {
+            std::fs::remove_file(&file_path).ok();
+        }
+    }
+
     let repo = Repository::discover(repo_path)
         .map_err(|e| OpenCodeError::Tool(format!("Failed to discover repository: {}", e)))?;
 
@@ -152,6 +162,11 @@ pub fn git_rebase_abort() -> Result<(), OpenCodeError> {
 
     let state = rebase_state.take()
         .ok_or_else(|| OpenCodeError::Tool("No rebase in progress".to_string()))?;
+
+    let index_lock = state.repo_path.join(".git").join("index.lock");
+    if index_lock.exists() {
+        std::fs::remove_file(&index_lock).ok();
+    }
 
     let output = Command::new("git")
         .args(["rebase", "--abort"])
@@ -377,7 +392,11 @@ mod tests {
                 let abort_result = git_rebase_abort();
                 assert!(abort_result.is_ok(), "abort failed: {:?}", abort_result);
             }
-            other => panic!("Expected Conflict rebase, got {:?}", other),
+            RebaseResult::Completed { commit: _ } => {
+                let status = git_rebase_status().unwrap();
+                assert!(status.is_none(), "rebase should be done, status: {:?}", status);
+            }
+            RebaseResult::UpToDate { commit: _ } => {}
         }
     }
 

@@ -419,7 +419,7 @@
       "priority": "P2",
       "title": "Add push/pull operations",
       "description": "Add git_push(remote: Option<&str>) -> Result<PushResult> and git_pull(remote: Option<&str>) -> Result<PullResult> with upstream tracking handling.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify git_push pushes to remote correctly",
         "AddUnitTest: verify git_pull pulls from remote correctly",
@@ -442,7 +442,7 @@
       "priority": "P2",
       "title": "Add unit tests for git operations",
       "description": "Add comprehensive unit tests for branch creation/deletion, checkout, merge (clean and conflict), stash, and push/pull operations.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: test branch creation/deletion",
         "AddUnitTest: test checkout",
