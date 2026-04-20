@@ -661,7 +661,7 @@
       "priority": "P2",
       "title": "Create tests/integration/test_websocket.rs",
       "description": "Create integration tests: test_ws_connect (basic connection), test_ws_execute_stream (execute with streaming), test_ws_multiple_streams (concurrent streams).",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: test_ws_connect verifies WebSocket connection establishes",
         "AddIntegrationTest: test_ws_execute_stream verifies streaming execution works",

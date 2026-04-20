@@ -30,3 +30,6 @@ pub mod tool_registry_audit_tests;
 
 #[cfg(test)]
 pub mod ws_streaming_tests;
+
+#[cfg(test)]
+pub mod test_websocket;
