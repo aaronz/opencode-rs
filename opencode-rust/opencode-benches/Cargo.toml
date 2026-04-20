@@ -17,6 +17,11 @@ jsonc-parser = { version = "0.32", features = ["serde"] }
 chrono = "0.4"
 
 [[bench]]
+name = "session_load"
+harness = false
+path = "benches/session_load.rs"
+
+[[bench]]
 name = "session_operations"
 harness = false
 path = "benches/session_operations.rs"

@@ -570,7 +570,7 @@
       "priority": "P2",
       "title": "Create opencode-benches/src/tool_execution.rs",
       "description": "Create benchmarks for tool execution: bench_read_small_file (< 1KB), bench_read_large_file (> 1MB), bench_write_file (1KB), bench_grep (1000-line file), bench_glob (100 files).",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify benchmark functions exist and compile",
         "RunTestSuite: cargo bench -p opencode-benches -- tool_execution should run"
@@ -587,7 +587,7 @@
       "priority": "P2",
       "title": "Create opencode-benches/src/session_load.rs",
       "description": "Create benchmarks for session CRUD: bench_session_create, bench_session_save (SQLite), bench_session_resume (SQLite), bench_session_delete.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify session benchmark functions exist and compile",
         "RunTestSuite: cargo bench -p opencode-benches -- session_load --no-run should succeed"

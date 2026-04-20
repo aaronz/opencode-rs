@@ -7,7 +7,7 @@ pub mod migration;
 pub mod models;
 pub mod repository;
 pub mod service;
-pub(crate) mod sqlite_repository;
+pub mod sqlite_repository;
 
 #[cfg(test)]
 mod crash_recovery_tests;
