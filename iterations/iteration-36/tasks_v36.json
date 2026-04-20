@@ -129,7 +129,7 @@
       "priority": "P1",
       "title": "Document plugin development in CONTRIBUTING.md",
       "description": "Add plugin development documentation to CONTRIBUTING.md including how to create a new plugin, how to build and load plugins, and Plugin API reference.",
-      "status": "todo",
+      "status": "manual_check",
       "test_criteria": [
         "AddUnitTest: verify CONTRIBUTING.md contains plugin development section",
         "AddIntegrationTest: verify plugin documentation links work",
@@ -149,7 +149,7 @@
       "priority": "P1",
       "title": "Create crates/sdk/examples/ directory",
       "description": "Create the examples directory for SDK usage examples.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify examples/ directory exists",
         "AddIntegrationTest: verify examples are discoverable by cargo",

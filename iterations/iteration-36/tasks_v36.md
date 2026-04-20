@@ -53,7 +53,7 @@
   - [x] Add unit tests for valid WASM loading
   - [x] Add integration test for plugin_execute
 
-- [ ] **T-G001-7:** Document plugin development in `CONTRIBUTING.md`
+- [x] **T-G001-7:** Document plugin development in `CONTRIBUTING.md`
   - [ ] How to create a new plugin
   - [ ] How to build and load plugins
   - [ ] Plugin API reference
@@ -75,7 +75,7 @@
 
 **Tasks:**
 
-- [ ] **T-G002-1:** Create `crates/sdk/examples/` directory
+- [x] **T-G002-1:** Create `crates/sdk/examples/` directory
 
 - [ ] **T-G002-2:** Implement `examples/basic_usage.rs`
   - [ ] Create Client with Config
