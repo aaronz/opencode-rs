@@ -103,6 +103,7 @@ impl CatalogMerger {
                         cost: CostInfo::default(),
                         limits: LimitInfo::default(),
                         status: ModelStatus::Active,
+                        variants: vec![],
                     },
                 );
             }
@@ -180,6 +181,7 @@ impl CatalogMerger {
                             cost: CostInfo::default(),
                             limits: LimitInfo::default(),
                             status: ModelStatus::Active,
+                            variants: vec![],
                         },
                     )
                 })
@@ -276,6 +278,7 @@ mod tests {
             cost: CostInfo::default(),
             limits: LimitInfo::default(),
             status: ModelStatus::Active,
+            variants: vec![],
         }
     }
 

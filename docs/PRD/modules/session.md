@@ -141,3 +141,18 @@ The Rust equivalent should:
 - Implement message queue with proper ordering
 - Consider using serde for serialization
 - Handle large context windows efficiently
+
+## Test Design
+
+### Unit Tests
+- `prompt_generation`: Validate that `toPrompt()` produces the exact expected string formats for various message sequences.
+- `compaction_logic`: Provide a dummy session exceeding limits and ensure compaction (summarization + pruning) correctly reduces token count without losing system messages.
+- `message_v2_parsing`: Test parsing/serialization of messages with metadata and attachments.
+
+### Integration Tests
+- `session_persistence`: Save a session, reload it from SQLite, and assert structural equality.
+- `retry_mechanisms`: Mock an LLM provider that fails with 429/5xx errors and verify exponential backoff is triggered correctly.
+
+### Rust Specifics
+- Test Serialization/Deserialization with `serde_json::to_string` and `from_str`.
+- Use `insta` crate for snapshot testing of complex prompts.

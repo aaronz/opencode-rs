@@ -98,3 +98,16 @@ The Rust equivalent should:
 - Use `tokio` for async operations
 - Implement proper server management
 - Consider using `serde` for JSON-RPC
+
+## Test Design
+
+### Unit Tests
+- `protocol_parsing`: Test serialization/deserialization of LSP messages (JSON-RPC).
+- `lifecycle_management`: Test initialize, initialized, and shutdown sequence messages.
+
+### Integration Tests
+- `dummy_lsp_server`: Spawn a mock script that replies to standard LSP requests and verify the client processes goto-definition and hover responses correctly.
+
+### Rust Specifics
+- Use `lsp-types` to validate structure.
+- Test async bidirectional channels (`tokio::sync::mpsc`) extensively.

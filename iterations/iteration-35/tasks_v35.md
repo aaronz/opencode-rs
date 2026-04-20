@@ -244,7 +244,7 @@
 
 ---
 
-### FR-024: Cloudflare AI Gateway Provider
+### FR-024: ✅ Done
 
 **Status:** ✅ Done
 **Priority:** P1
@@ -278,36 +278,36 @@
 
 ### FR-025: Experimental Modes Mapping
 
-**Status:** ❌ Not Implemented
+**Status:** ✅ Done
 **Priority:** P1
 **Module:** `models.rs`
 **Effort:** 1-2 days
 
 **Tasks:**
 
-- [ ] **T-025-1:** Add `ModelVariant` struct
-  - [ ] Fields: `name: String`, `description: Option<String>`
-  - [ ] Add Serialize, Deserialize, Debug, Clone derives
+- [x] **T-025-1:** Add `ModelVariant` struct
+  - [x] Fields: `name: String`, `description: Option<String>`
+  - [x] Add Serialize, Deserialize, Debug, Clone derives
 
-- [ ] **T-025-2:** Add `variants` field to `Model` struct
-  - [ ] `variants: Vec<ModelVariant>`
-  - [ ] Update JSON serialization/deserialization
-  - [ ] Update all `Model::new()` callers
+- [x] **T-025-2:** Add `variants` field to `Model` struct
+  - [x] `variants: Vec<ModelVariant>`
+  - [x] Update JSON serialization/deserialization
+  - [x] Update all `Model::new()` callers
 
-- [ ] **T-025-3:** Parse `experimental.modes` in catalog merger
-  - [ ] Add `parse_experimental_modes()` function
-  - [ ] Map from `models_dev::Model` to `Model` with variants
-  - [ ] Handle None/empty variants
+- [x] **T-025-3:** Parse `experimental.modes` in catalog merger
+  - [x] Add `parse_experimental_modes()` function
+  - [x] Map from `models_dev::Model` to `Model` with variants
+  - [x] Handle None/empty variants
 
 - [ ] **T-025-4:** Update TUI model picker (if needed)
   - [ ] Show variant selection UI
   - [ ] Pass selected variant to inference
 
 **Acceptance Criteria:**
-- [ ] `variants: Vec<ModelVariant>` field in Model struct
-- [ ] Experimental modes parsed from models.dev
+- [x] `variants: Vec<ModelVariant>` field in Model struct
+- [x] Experimental modes parsed from models.dev
 - [ ] Mode variant selection in model picker
-- [ ] Unit tests for variant parsing
+- [x] Unit tests for variant parsing
 
 ---
 

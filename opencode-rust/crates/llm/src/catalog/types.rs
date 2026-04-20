@@ -37,6 +37,15 @@ pub struct ModelDescriptor {
     pub cost: CostInfo,
     pub limits: LimitInfo,
     pub status: ModelStatus,
+    #[serde(default)]
+    pub variants: Vec<ModelVariant>,
+}
+
+/// Represents a model variant/mode (e.g., thinking mode, extended thinking).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ModelVariant {
+    pub name: String,
+    pub description: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -73,4 +82,108 @@ pub enum ModelStatus {
     Beta,
     Alpha,
     Deprecated,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_model_variant_serialize_deserialize() {
+        let variant = ModelVariant {
+            name: "thinking".to_string(),
+            description: Some("Extended thinking mode".to_string()),
+        };
+
+        let json = serde_json::to_string(&variant).unwrap();
+        let deserialized: ModelVariant = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(variant, deserialized);
+    }
+
+    #[test]
+    fn test_model_variant_without_description() {
+        let variant = ModelVariant {
+            name: "extended".to_string(),
+            description: None,
+        };
+
+        let json = serde_json::to_string(&variant).unwrap();
+        let deserialized: ModelVariant = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(variant, deserialized);
+        assert_eq!(deserialized.name, "extended");
+        assert!(deserialized.description.is_none());
+    }
+
+    #[test]
+    fn test_model_descriptor_with_variants() {
+        let descriptor = ModelDescriptor {
+            id: "gpt-4o".to_string(),
+            display_name: "GPT-4o".to_string(),
+            family: Some("GPT-4".to_string()),
+            provider_id: "openai".to_string(),
+            capabilities: ModelCapabilities::default(),
+            cost: CostInfo::default(),
+            limits: LimitInfo::default(),
+            status: ModelStatus::Active,
+            variants: vec![
+                ModelVariant {
+                    name: "thinking".to_string(),
+                    description: Some("Extended thinking".to_string()),
+                },
+                ModelVariant {
+                    name: "preview".to_string(),
+                    description: None,
+                },
+            ],
+        };
+
+        let json = serde_json::to_string(&descriptor).unwrap();
+        let deserialized: ModelDescriptor = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(descriptor.id, deserialized.id);
+        assert_eq!(descriptor.variants.len(), 2);
+        assert_eq!(descriptor.variants[0].name, "thinking");
+        assert_eq!(descriptor.variants[1].name, "preview");
+    }
+
+    #[test]
+    fn test_model_descriptor_empty_variants() {
+        let descriptor = ModelDescriptor {
+            id: "gpt-4o".to_string(),
+            display_name: "GPT-4o".to_string(),
+            family: None,
+            provider_id: "openai".to_string(),
+            capabilities: ModelCapabilities::default(),
+            cost: CostInfo::default(),
+            limits: LimitInfo::default(),
+            status: ModelStatus::Active,
+            variants: vec![],
+        };
+
+        let json = serde_json::to_string(&descriptor).unwrap();
+        let deserialized: ModelDescriptor = serde_json::from_str(&json).unwrap();
+
+        assert!(deserialized.variants.is_empty());
+    }
+
+    #[test]
+    fn test_model_variant_equality() {
+        let variant1 = ModelVariant {
+            name: "test".to_string(),
+            description: Some("desc".to_string()),
+        };
+        let variant2 = ModelVariant {
+            name: "test".to_string(),
+            description: Some("desc".to_string()),
+        };
+        let variant3 = ModelVariant {
+            name: "different".to_string(),
+            description: Some("desc".to_string()),
+        };
+
+        assert_eq!(variant1, variant2);
+        assert_ne!(variant1, variant3);
+    }
 }

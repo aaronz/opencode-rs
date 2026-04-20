@@ -77,3 +77,16 @@ The Rust equivalent should:
 - Define plugin trait for hooks
 - Use `serde` for config
 - Implement proper error isolation
+
+## Test Design
+
+### Unit Tests
+- `hook_execution`: Mock plugins and verify that `config`, `provider`, and `tool` hooks are called in the correct order.
+- `error_isolation`: Ensure that a panicking or erroring plugin does not crash the core application.
+
+### Integration Tests
+- `dylib_loading`: Compile a dummy plugin to a `.so`/`.dylib`, load it dynamically, and verify hook execution.
+
+### Rust Specifics
+- Test FFI boundaries and  safety carefully.
+- Alternatively, if plugins are WASM, test WASM host execution via `wasmtime`.

@@ -99,3 +99,16 @@ The Rust equivalent should:
 - Implement proper state machines for agent loop
 - Use channel-based communication for tool execution
 - Consider using `Effect` pattern or similar for error handling
+
+## Test Design
+
+### Unit Tests
+- `agent_loop`: Mock the LLM provider and Tool Registry to verify the agent's state machine handles tool calls, stop signals, and user responses correctly.
+- `context_truncation`: Verify that the agent correctly triggers session compaction when context limits are reached.
+
+### Integration Tests
+- `end_to_end_agent`: Run the agent with a mock server or local dummy LLM and real basic tools (e.g., read/write file in a temp directory) to ensure full loop resolution.
+
+### Rust Specifics
+- Use `mockall` to mock the `Session`, `ToolRegistry`, and `LLMProvider` traits.
+- Use `tokio::test` for testing async agent loops.

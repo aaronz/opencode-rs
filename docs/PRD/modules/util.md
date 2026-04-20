@@ -81,3 +81,13 @@ The Rust equivalent should:
 - Use `thiserror` for error types
 - Use `tokio::fs` for filesystem
 - Use standard library helpers
+
+## Test Design
+
+### Unit Tests
+- `logging`: Test log level filtering and format.
+- `error_formatting`: Test conversion of nested errors into structured `NamedError` equivalents.
+
+### Rust Specifics
+- Test `tracing` output using `tracing-test` or capturing subscribers.
+- Test error trait implementations using `anyhow`.

@@ -32,3 +32,11 @@ The Rust equivalent should:
 - Use `git2` crate for Git operations
 - Use `tokio` for async when needed
 - Handle errors properly
+
+## Test Design
+
+### Integration Tests
+- `repo_operations`: Initialize a temp git repo, make a commit, and use the module to read branches and status.
+
+### Rust Specifics
+- Use the `git2` crate testing patterns on local `tempfile` directories.

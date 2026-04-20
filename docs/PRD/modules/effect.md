@@ -100,3 +100,12 @@ The Rust equivalent should:
 - Use `anyhow` for error handling
 - Use traits for service interfaces
 - Consider using `async_trait`
+
+## Test Design
+
+### Unit Tests
+- `monad_composition`: Test chaining of successful and failing effects.
+- `service_injection`: Test that a service can be registered and accessed from context.
+
+### Rust Specifics
+- In Rust, this usually maps to testing generic trait bounds and async result chaining. Test `Result<T, E>` combinators and custom context injection structs.

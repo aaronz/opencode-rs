@@ -158,7 +158,7 @@
       "priority": "P1",
       "title": "Experimental Modes Mapping",
       "description": "Add ModelVariant struct with name and description fields. Add variants: Vec<ModelVariant> field to Model struct. Parse experimental.modes from models.dev in catalog merger. Update JSON serialization/deserialization and all Model::new() callers.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify ModelVariant struct serializes/deserializes correctly",
         "AddUnitTest: verify Model struct has variants: Vec<ModelVariant> field",

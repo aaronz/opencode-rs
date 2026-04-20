@@ -214,3 +214,15 @@ Remaining utility modules with simpler functionality.
 - User prompts
 - Option handling
 - Response parsing
+
+## Test Design
+
+### Unit & Integration Tests (General)
+- `pty`: Test pseudo-terminal stdout capturing and window resize events (requires OS-specific mock configurations).
+- `sync`: Test deadlocks and race conditions using concurrent async tasks.
+- `snapshot`: Test serialization of state to JSON and restoration.
+- `shell`: Test parsing and execution of simple shell commands and exit code mapping.
+
+### Rust Specifics
+- For `pty`, test with `portable-pty`.
+- For `sync`, use `tokio::sync` primitives and test with `tokio::spawn` multi-threading assertions.

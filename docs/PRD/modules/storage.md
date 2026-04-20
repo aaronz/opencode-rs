@@ -137,3 +137,17 @@ The Rust equivalent should:
 - Implement migration system similar to JSON migration
 - Use proper async/await patterns
 - Consider using `serde` for serialization
+
+## Test Design
+
+### Unit Tests
+- `sql_generation`: Validate that queries for session fetching, message insertion, and auth updates produce expected SQL.
+- `migration_logic`: Test that migrations apply sequentially and fail safely on malformed updates.
+
+### Integration Tests
+- `sqlite_crud`: Create an in-memory SQLite database, apply migrations, and run full CRUD cycles for sessions, messages, and settings.
+- `persistence_check`: Write to a file-backed SQLite database, close the connection, reopen it, and verify data integrity.
+
+### Rust Specifics
+- Use `rusqlite` with in-memory databases (`sqlite::memory:`) for fast, isolated tests.
+- Use `tempfile` to test file-backed SQLite databases.

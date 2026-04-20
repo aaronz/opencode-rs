@@ -47,3 +47,11 @@ The Rust equivalent should:
 - Use `std::env` for environment variables
 - Use `bool` for boolean flags
 - Provide default values
+
+## Test Design
+
+### Unit Tests
+- `flag_resolution`: Test parsing strings like "1", "true", "0", "false" into boolean flags.
+
+### Rust Specifics
+- Use `temp_env` to mock environment variables for test isolation.

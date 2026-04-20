@@ -32,3 +32,12 @@ The Rust equivalent should:
 - Use `tokio::fs` for async operations
 - Use `notify` for file watching
 - Handle paths safely
+
+## Test Design
+
+### Unit Tests
+- `path_normalization`: Test relative, absolute, and escaped path normalization.
+- `file_watching`: Test debounce logic for rapid file changes.
+
+### Rust Specifics
+- Test using `notify` crate in an isolated async task using `tempfile`.

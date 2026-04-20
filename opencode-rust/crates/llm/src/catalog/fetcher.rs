@@ -59,7 +59,7 @@ use crate::catalog::models_dev::{ModelsDevApiResponse, ModelsDevModel, ModelsDev
 use crate::catalog::snapshot;
 use crate::catalog::types::{
     CatalogSource, CostInfo, LimitInfo, ModelCapabilities, ModelDescriptor, ModelStatus,
-    ProviderCatalog, ProviderDescriptor,
+    ModelVariant, ProviderCatalog, ProviderDescriptor,
 };
 
 const MODELS_DEV_URL: &str = "https://models.dev/api.json";
@@ -325,6 +325,8 @@ impl ProviderCatalogFetcher {
             _ => ModelStatus::Active,
         };
 
+        let variants = self.parse_experimental_modes(&model.experimental);
+
         ModelDescriptor {
             id: model.id,
             display_name: model.name,
@@ -334,7 +336,37 @@ impl ProviderCatalogFetcher {
             cost,
             limits,
             status,
+            variants,
         }
+    }
+
+    fn parse_experimental_modes(&self, experimental: &Option<serde_json::Value>) -> Vec<ModelVariant> {
+        let Some(value) = experimental else {
+            return vec![];
+        };
+
+        let obj = match value.as_object() {
+            Some(obj) => obj,
+            None => return vec![],
+        };
+
+        let modes = match obj.get("modes") {
+            Some(serde_json::Value::Array(arr)) => arr,
+            _ => return vec![],
+        };
+
+        modes
+            .iter()
+            .filter_map(|mode| {
+                let obj = mode.as_object()?;
+                let name = obj.get("name")?.as_str()?.to_string();
+                let description = obj
+                    .get("description")
+                    .and_then(|d| d.as_str())
+                    .map(String::from);
+                Some(ModelVariant { name, description })
+            })
+            .collect()
     }
 
     fn is_cache_valid(&self, catalog: &ProviderCatalog) -> bool {
@@ -1111,5 +1143,139 @@ mod tests {
             catalog3.providers.len(),
             "Third call should return same size as second"
         );
+    }
+
+    #[test]
+    fn test_parse_experimental_modes_with_valid_modes() {
+        let fetcher = create_test_fetcher();
+        let json_value = serde_json::json!({
+            "modes": [
+                {
+                    "name": "thinking",
+                    "description": "Extended thinking mode"
+                },
+                {
+                    "name": "preview",
+                    "description": "Preview mode"
+                }
+            ]
+        });
+
+        let variants = fetcher.parse_experimental_modes(&Some(json_value));
+
+        assert_eq!(variants.len(), 2);
+        assert_eq!(variants[0].name, "thinking");
+        assert_eq!(variants[0].description, Some("Extended thinking mode".to_string()));
+        assert_eq!(variants[1].name, "preview");
+        assert_eq!(variants[1].description, Some("Preview mode".to_string()));
+    }
+
+    #[test]
+    fn test_parse_experimental_modes_with_none() {
+        let fetcher = create_test_fetcher();
+        let variants = fetcher.parse_experimental_modes(&None);
+
+        assert!(variants.is_empty());
+    }
+
+    #[test]
+    fn test_parse_experimental_modes_with_empty_object() {
+        let fetcher = create_test_fetcher();
+        let variants = fetcher.parse_experimental_modes(&Some(serde_json::json!({})));
+
+        assert!(variants.is_empty());
+    }
+
+    #[test]
+    fn test_parse_experimental_modes_with_no_modes_field() {
+        let fetcher = create_test_fetcher();
+        let variants = fetcher.parse_experimental_modes(&Some(serde_json::json!({"other": "field"})));
+
+        assert!(variants.is_empty());
+    }
+
+    #[test]
+    fn test_parse_experimental_modes_with_invalid_modes_array() {
+        let fetcher = create_test_fetcher();
+        let variants = fetcher.parse_experimental_modes(&Some(serde_json::json!({
+            "modes": "not an array"
+        })));
+
+        assert!(variants.is_empty());
+    }
+
+    #[test]
+    fn test_parse_experimental_modes_with_modes_missing_name() {
+        let fetcher = create_test_fetcher();
+        let json_value = serde_json::json!({
+            "modes": [
+                {
+                    "description": "Has description but no name"
+                }
+            ]
+        });
+
+        let variants = fetcher.parse_experimental_modes(&Some(json_value));
+
+        assert!(variants.is_empty());
+    }
+
+    #[test]
+    fn test_parse_experimental_modes_with_partial_valid_modes() {
+        let fetcher = create_test_fetcher();
+        let json_value = serde_json::json!({
+            "modes": [
+                {
+                    "name": "valid-mode",
+                    "description": "A valid mode"
+                },
+                {
+                    "description": "Invalid - no name"
+                },
+                {
+                    "name": "another-valid"
+                }
+            ]
+        });
+
+        let variants = fetcher.parse_experimental_modes(&Some(json_value));
+
+        assert_eq!(variants.len(), 2);
+        assert_eq!(variants[0].name, "valid-mode");
+        assert_eq!(variants[1].name, "another-valid");
+        assert!(variants[1].description.is_none());
+    }
+
+    #[test]
+    fn test_transform_model_includes_variants() {
+        let fetcher = create_test_fetcher();
+        let model = ModelsDevModel {
+            id: "test-model".to_string(),
+            name: "Test Model".to_string(),
+            family: Some("test".to_string()),
+            release_date: None,
+            attachment: false,
+            reasoning: true,
+            temperature: Some(true),
+            tool_call: true,
+            modalities: None,
+            open_weights: false,
+            interleaved: None,
+            cost: None,
+            limit: None,
+            experimental: Some(serde_json::json!({
+                "modes": [
+                    {"name": "thinking", "description": "Thinking mode"},
+                    {"name": "extended", "description": "Extended mode"}
+                ]
+            })),
+            status: Some("active".to_string()),
+        };
+
+        let descriptor = fetcher.transform_model(model, "test-provider");
+
+        assert_eq!(descriptor.variants.len(), 2);
+        assert_eq!(descriptor.variants[0].name, "thinking");
+        assert_eq!(descriptor.variants[1].name, "extended");
     }
 }

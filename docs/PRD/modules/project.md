@@ -60,3 +60,14 @@ The Rust equivalent should:
 - Use filesystem operations
 - Parse project files
 - Use `serde` for config parsing
+
+## Test Design
+
+### Unit Tests
+- `type_detection`: Pass mock directory structures (e.g., presence of `package.json`, `Cargo.toml`) and verify the correct project type is returned.
+
+### Integration Tests
+- `workspace_parsing`: Point the module at real monorepo structures to verify accurate root resolution.
+
+### Rust Specifics
+- Use `tempfile` and `std::fs::create_dir_all` to scaffold mock project trees for tests.

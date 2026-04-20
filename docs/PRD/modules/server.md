@@ -124,3 +124,17 @@ The Rust equivalent should:
 - Use `tokio` for async runtime
 - Implement proper error handling
 - Consider using `serde` for JSON
+
+## Test Design
+
+### Unit Tests
+- `route_handlers`: Test individual handler functions directly bypassing the HTTP server wrapper.
+- `middleware`: Test rate limiting, auth, and CORS headers via request/response mocking.
+
+### Integration Tests
+- `http_server`: Start the server on a random open port and make actual HTTP requests (GET /health, POST /session) using a client like `reqwest`.
+- `proxy_routing`: Test proxy behavior with a mock downstream server.
+
+### Rust Specifics
+- If using `axum`, use `axum::test_helpers` or `tower::ServiceExt` to test routes without binding to a network port.
+- Use `reqwest` for end-to-end server integration tests.

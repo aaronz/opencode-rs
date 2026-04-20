@@ -112,3 +112,16 @@ The Rust equivalent should:
 - Use `zod` or custom validation
 - Use `dirs` for home directory
 - Use `env` for environment variables
+
+## Test Design
+
+### Unit Tests
+- `config_parsing`: Test parsing `opencode.json` defaults, overrides, and malformed files.
+- `precedence_logic`: Verify that environment variables > local config > global config > defaults.
+
+### Integration Tests
+- `file_loading`: Create temporary configuration files and verify the module loads and merges them correctly.
+
+### Rust Specifics
+- Use `figment` or `config` crates and test their merge capabilities.
+- Use `temp_env` crate to safely test environment variable overrides in isolation.

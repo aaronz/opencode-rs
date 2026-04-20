@@ -198,3 +198,17 @@ The Rust equivalent should:
 - Use `tokio` for async operations
 - Consider using `async-trait` for trait methods
 - Implement proper error types
+
+## Test Design
+
+### Unit Tests
+- `model_transformation`: Test parsing of models.dev JSON output into OpenCode's internal `Model` structs.
+- `custom_loaders`: Specifically test the AWS Bedrock region prefixing logic (`us.*`, `eu.*`) and Cloudflare Gateway routing based on mock configuration.
+
+### Integration Tests
+- `dynamic_discovery`: Mock the `https://models.dev/api.json` endpoint using `wiremock` and verify the module fetches, caches, and parses models.
+- `fallback_snapshot`: Test that the provider falls back to the bundled snapshot if the network request fails.
+
+### Rust Specifics
+- Use `wiremock` or `httptest` to simulate the models.dev HTTP API.
+- Test JSON parsing strictly using `serde_json`.

@@ -142,3 +142,17 @@ The Rust equivalent should:
 - Implement subcommands for each command
 - Use `anyhow` for error handling
 - Consider using `tracing` for logging
+
+## Test Design
+
+### Unit Tests
+- `argument_parsing`: Test `clap` configurations to ensure subcommands (`run`, `models`, `serve`, etc.) route correctly.
+- `flag_overrides`: Test that CLI flags correctly override matching `opencode.json` or environment variable settings.
+
+### Integration Tests
+- `cli_execution`: Execute the compiled binary (or use `assert_cmd`) with basic flags (e.g., `--help`, `--version`) to verify output and exit codes.
+- `db_migration_trigger`: Simulate a first run to ensure database migration logs/logic are triggered.
+
+### Rust Specifics
+- Use the `assert_cmd` crate to spawn the CLI process and assert on `stdout`, `stderr`, and exit codes.
+- Use `rexpect` for testing expected terminal interactions.

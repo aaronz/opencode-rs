@@ -41,3 +41,11 @@ The Rust equivalent should:
 - Use `std::env` for reading
 - Consider process-level only setting
 - Use proper error handling
+
+## Test Design
+
+### Unit Tests
+- `env_overrides`: Test safe fetching of variables with fallbacks.
+
+### Rust Specifics
+- Test thread-safe environment variable reads (avoiding `std::env::set_var` in multi-threaded tests).

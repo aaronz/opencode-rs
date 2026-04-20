@@ -84,3 +84,16 @@ The Rust equivalent should:
 - Use `keyring` or `secret_service` for secure storage
 - Implement OAuth 2.0 flow
 - Use proper error handling
+
+## Test Design
+
+### Unit Tests
+- `credential_encryption`: Test that keys are securely encrypted before storage and correctly decrypted.
+- `oauth_flow`: Test token refresh logic calculation based on expiry times.
+
+### Integration Tests
+- `keyring_integration`: Test saving to and fetching from the OS keyring (may require mocking in CI environments).
+
+### Rust Specifics
+- Use `keyring-rs` mock features if available, or fallback to file-based mocks in CI.
+- Use `chrono` or `time` crates with mockable clocks to test expiry logic.

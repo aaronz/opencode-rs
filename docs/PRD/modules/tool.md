@@ -164,3 +164,17 @@ The Rust equivalent should:
 - Use serde for parameter validation
 - Consider using `async_trait`
 - Implement proper error types
+
+## Test Design
+
+### Unit Tests
+- `bash_tool`: Mock process execution to verify argument formatting and timeout enforcement.
+- `edit_tool`: Test partial replacement, invalid oldString detection, and multiple occurrence failures on in-memory strings.
+- `read/write_tool`: Use in-memory filesystems or `tempfile` to ensure read limits, offsets, and writes work.
+
+### Integration Tests
+- `tool_registry`: Register multiple tools, pass a JSON-RPC-style invocation map, and ensure the correct tool executes and returns the schema-compliant result.
+
+### Rust Specifics
+- Use `tempfile` crate for isolated file system testing.
+- Test asynchronous shell execution boundaries handling stdout/stderr capturing efficiently using `tokio::process::Command`.

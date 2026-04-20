@@ -44,3 +44,11 @@ The Rust equivalent should:
 - Use `dirs` crate for path resolution
 - Use `std::env` for environment
 - Use platform-specific code when needed
+
+## Test Design
+
+### Unit Tests
+- `path_resolution`: Test fallback paths for different OS targets (Windows, macOS, Linux).
+
+### Rust Specifics
+- Test via conditional compilation (`#[cfg(target_os = windows)]`) or path mocking.

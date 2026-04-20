@@ -90,3 +90,16 @@ The Rust equivalent should:
 - Use `tokio` for async I/O
 - Consider using `serde` for serialization
 - Implement proper error handling
+
+## Test Design
+
+### Unit Tests
+- `json_rpc_client`: Test request ID generation, response matching, and timeout handling.
+- `tool_parsing`: Validate that MCP Tool schemas properly map to the internal Tool interface.
+
+### Integration Tests
+- `mcp_server_execution`: Spawn a simple Python or Node script acting as an MCP server over stdio and test `listTools` and `executeTool`.
+
+### Rust Specifics
+- Use `tokio::process::Command` with `Stdio::piped()` to test stdio MCP server interaction.
+- Use `serde_json` to assert exact payload shapes.

@@ -73,6 +73,7 @@ mod tests {
                     output: 16384,
                 },
                 status: ModelStatus::Active,
+                variants: vec![],
             },
         );
 

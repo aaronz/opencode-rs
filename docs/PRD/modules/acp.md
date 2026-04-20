@@ -62,3 +62,16 @@ The Rust equivalent should:
 - Use `reqwest` for HTTP
 - Use `tokio` for async
 - Implement proper JSON handling
+
+## Test Design
+
+### Unit Tests
+- `protocol_messages`: Verify formatting of handshake, ack, and status messages.
+- `state_machine`: Test the transition from disconnected -> handshaking -> connected.
+
+### Integration Tests
+- `local_agent_communication`: Spin up two instances of the ACP server locally and test end-to-end handshake and message passing.
+
+### Rust Specifics
+- Use `tokio::net::TcpStream` or IPC sockets for integration testing.
+- Test task cancellation on disconnect.
