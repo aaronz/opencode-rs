@@ -247,7 +247,7 @@
       "priority": "P1",
       "title": "Verify all examples compile",
       "description": "Verify all examples compile with cargo build --examples. Fix any compilation errors. Add examples to Cargo.toml manifest.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify each example file compiles individually",
         "AddIntegrationTest: verify all examples build together",
