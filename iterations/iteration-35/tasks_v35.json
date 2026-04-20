@@ -72,7 +72,7 @@
       "priority": "P1",
       "title": "Dynamic Provider Loading",
       "description": "Create bundled_providers.rs with BUNDLED_PROVIDERS constant containing 20+ providers (@ai-sdk/anthropic, @ai-sdk/openai, @ai-sdk/amazon-bedrock, etc.). Implement provider factory pattern with lazy loading via once_cell::sync::Lazy. Integrate with provider registry for dynamic loading.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify BUNDLED_PROVIDERS contains 20+ provider entries",
         "AddUnitTest: verify BundledProvider struct has name, package, factory fields",
@@ -94,7 +94,7 @@
       "priority": "P1",
       "title": "Amazon Bedrock Region Prefix Handling",
       "description": "Implement region prefix detection and endpoint mapping for Amazon Bedrock. Support prefixes: us.*, eu.*, jp.*, apac.*, au.* mapped to region codes. Implement get_region_prefix() and get_bedrock_endpoint() functions. Update BedrockProvider to route based on region.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify get_region_prefix() extracts correct prefix from model IDs (us.foo -> Some(\"us\"), eu.bar -> Some(\"eu\"))",
         "AddUnitTest: verify get_bedrock_endpoint() returns correct URLs for US, EU, APAC regions",

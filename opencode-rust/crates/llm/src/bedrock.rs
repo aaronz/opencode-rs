@@ -3,8 +3,81 @@ use crate::provider::{Model, Provider, ProviderConfig, StreamingCallback};
 use opencode_core::OpenCodeError;
 use std::env;
 
+/// AWS region prefix extracted from model ID
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RegionPrefix {
+    Us,
+    Eu,
+    Apac,
+    Au,
+    Jp,
+}
+
+impl RegionPrefix {
+    /// Returns the Bedrock endpoint URL for this region
+    pub fn endpoint(&self) -> &'static str {
+        match self {
+            RegionPrefix::Us => "https://bedrock.us-east-1.amazonaws.com",
+            RegionPrefix::Eu => "https://bedrock.eu-west-1.amazonaws.com",
+            RegionPrefix::Apac | RegionPrefix::Au | RegionPrefix::Jp => {
+                "https://bedrock.ap-northeast-1.amazonaws.com"
+            }
+        }
+    }
+}
+
+/// Known region prefixes
+const REGION_PREFIXES: &[&str] = &["us", "eu", "jp", "apac", "au"];
+
+/// Extracts the region prefix from a Bedrock model ID.
+///
+/// The model ID format is typically: `{provider}.{model}` or `{region}.{provider}.{model}`
+/// where the region prefix is the first dot-separated component.
+///
+/// # Examples
+/// ```
+/// assert_eq!(get_region_prefix("us.amazon.nova-pro"), Some("us"));
+/// assert_eq!(get_region_prefix("eu.claude-3-sonnet"), Some("eu"));
+/// assert_eq!(get_region_prefix("anthropic.claude-3-sonnet"), None);
+/// ```
+pub fn get_region_prefix(model_id: &str) -> Option<&str> {
+    let prefix = model_id.split('.').next()?;
+    if REGION_PREFIXES.contains(&prefix) {
+        Some(prefix)
+    } else {
+        None
+    }
+}
+
+/// Returns the Bedrock endpoint URL for a given model ID based on its region prefix.
+///
+/// If the model ID has a recognized region prefix (us, eu, jp, apac, au), returns
+/// the appropriate regional endpoint. Otherwise, returns the default US endpoint.
+///
+/// # Examples
+/// ```
+/// assert_eq!(get_bedrock_endpoint("us.amazon.nova-pro"),
+///            "https://bedrock.us-east-1.amazonaws.com");
+/// assert_eq!(get_bedrock_endpoint("eu.claude-3-sonnet"),
+///            "https://bedrock.eu-west-1.amazonaws.com");
+/// assert_eq!(get_bedrock_endpoint("anthropic.claude-3-sonnet"),
+///            "https://bedrock.us-east-1.amazonaws.com"); // default
+/// ```
+pub fn get_bedrock_endpoint(model_id: &str) -> &'static str {
+    let prefix = get_region_prefix(model_id);
+    match prefix {
+        Some("eu") => RegionPrefix::Eu.endpoint(),
+        Some("jp") | Some("apac") | Some("au") => RegionPrefix::Apac.endpoint(),
+        _ => RegionPrefix::Us.endpoint(),
+    }
+}
+
+/// Default Bedrock endpoint (US)
+pub const DEFAULT_BEDROCK_ENDPOINT: &str = "https://bedrock.us-east-1.amazonaws.com";
+
 pub struct BedrockProvider {
     config: ProviderConfig,
+    #[allow(dead_code)]
     region: String,
 }
 
@@ -167,9 +240,11 @@ impl BedrockProvider {
         prompt: &str,
     ) -> Result<String, OpenCodeError> {
         let client = reqwest::Client::new();
-        let url = format!(
-            "https://bedrock-runtime.{}.amazonaws.com/model/{}/invoke",
-            self.region, self.config.model
+        let endpoint = get_bedrock_endpoint(&self.config.model);
+        let runtime_url = format!(
+            "{}/model/{}/invoke",
+            endpoint.replace("https://bedrock", "https://bedrock-runtime"),
+            self.config.model
         );
 
         let body = serde_json::json!({
@@ -179,7 +254,7 @@ impl BedrockProvider {
         });
 
         let response = client
-            .post(&url)
+            .post(&runtime_url)
             .header("Authorization", format!("Bearer {}", token))
             .header("Content-Type", "application/json")
             .json(&body)
@@ -294,9 +369,11 @@ mod tests {
         let old_token = env::var("AWS_BEARER_TOKEN_BEDROCK").ok();
         let old_access = env::var("AWS_ACCESS_KEY_ID").ok();
         let old_secret = env::var("AWS_SECRET_ACCESS_KEY").ok();
+        let old_session = env::var("AWS_SESSION_TOKEN").ok();
         env::remove_var("AWS_BEARER_TOKEN_BEDROCK");
         env::set_var("AWS_ACCESS_KEY_ID", "AKIA456");
         env::set_var("AWS_SECRET_ACCESS_KEY", "secret456");
+        env::remove_var("AWS_SESSION_TOKEN");
 
         let provider = BedrockProvider::new(ProviderConfig::default(), "us-east-1".to_string());
         let creds = provider.resolve_credentials().unwrap();
@@ -316,6 +393,11 @@ mod tests {
             env::set_var("AWS_SECRET_ACCESS_KEY", old);
         } else {
             env::remove_var("AWS_SECRET_ACCESS_KEY");
+        }
+        if let Some(old) = old_session {
+            env::set_var("AWS_SESSION_TOKEN", old);
+        } else {
+            env::remove_var("AWS_SESSION_TOKEN");
         }
     }
 
@@ -424,12 +506,14 @@ mod tests {
         let old_profile = env::var("AWS_PROFILE").ok();
         let old_web_identity = env::var("AWS_WEB_IDENTITY_TOKEN_FILE").ok();
         let old_role = env::var("AWS_ROLE_ARN").ok();
+        let old_session = env::var("AWS_SESSION_TOKEN").ok();
         env::remove_var("AWS_BEARER_TOKEN_BEDROCK");
         env::remove_var("AWS_ACCESS_KEY_ID");
         env::remove_var("AWS_SECRET_ACCESS_KEY");
         env::remove_var("AWS_PROFILE");
         env::remove_var("AWS_WEB_IDENTITY_TOKEN_FILE");
         env::remove_var("AWS_ROLE_ARN");
+        env::remove_var("AWS_SESSION_TOKEN");
 
         let provider = BedrockProvider::new(ProviderConfig::default(), "us-east-1".to_string());
         let result = provider.resolve_credentials();
@@ -452,6 +536,9 @@ mod tests {
         }
         if let Some(old) = old_role {
             env::set_var("AWS_ROLE_ARN", old);
+        }
+        if let Some(old) = old_session {
+            env::set_var("AWS_SESSION_TOKEN", old);
         }
     }
 
@@ -523,5 +610,87 @@ mod tests {
         assert!(model_ids.contains(&"anthropic.claude-3-5-sonnet-20241022-v2:0"));
         assert!(model_ids.contains(&"anthropic.claude-3-sonnet-20240229-v1:0"));
         assert!(model_ids.contains(&"meta.llama3-70b-instruct-v1:0"));
+    }
+
+    #[test]
+    fn test_get_region_prefix_us() {
+        assert_eq!(get_region_prefix("us.amazon.nova-pro"), Some("us"));
+        assert_eq!(get_region_prefix("us.anthropic.claude-3-sonnet"), Some("us"));
+        assert_eq!(get_region_prefix("us.foo.bar.baz"), Some("us"));
+    }
+
+    #[test]
+    fn test_get_region_prefix_eu() {
+        assert_eq!(get_region_prefix("eu.claude-3-sonnet"), Some("eu"));
+        assert_eq!(get_region_prefix("eu.amazon.nova-micro"), Some("eu"));
+        assert_eq!(get_region_prefix("eu.deepseek.v3"), Some("eu"));
+    }
+
+    #[test]
+    fn test_get_region_prefix_apac() {
+        assert_eq!(get_region_prefix("apac.amazon.nova-lite"), Some("apac"));
+        assert_eq!(get_region_prefix("apac.anthropic.claude-3-haiku"), Some("apac"));
+    }
+
+    #[test]
+    fn test_get_region_prefix_au() {
+        assert_eq!(get_region_prefix("au.amazon.nova-pro"), Some("au"));
+        assert_eq!(get_region_prefix("au.claude-3-sonnet"), Some("au"));
+    }
+
+    #[test]
+    fn test_get_region_prefix_jp() {
+        assert_eq!(get_region_prefix("jp.amazon.nova-pro"), Some("jp"));
+        assert_eq!(get_region_prefix("jp.anthropic.claude-3-sonnet"), Some("jp"));
+    }
+
+    #[test]
+    fn test_get_region_prefix_no_prefix() {
+        assert_eq!(get_region_prefix("anthropic.claude-3-sonnet-20240229-v1:0"), None);
+        assert_eq!(get_region_prefix("meta.llama3-70b-instruct-v1:0"), None);
+        assert_eq!(get_region_prefix("amazon.titan-text-express-v1"), None);
+        assert_eq!(get_region_prefix("mistral.mistral-large-2402-v1:0"), None);
+    }
+
+    #[test]
+    fn test_get_bedrock_endpoint_us() {
+        assert_eq!(get_bedrock_endpoint("us.amazon.nova-pro"), "https://bedrock.us-east-1.amazonaws.com");
+        assert_eq!(get_bedrock_endpoint("us.anthropic.claude-3-sonnet"), "https://bedrock.us-east-1.amazonaws.com");
+    }
+
+    #[test]
+    fn test_get_bedrock_endpoint_eu() {
+        assert_eq!(get_bedrock_endpoint("eu.claude-3-sonnet"), "https://bedrock.eu-west-1.amazonaws.com");
+        assert_eq!(get_bedrock_endpoint("eu.amazon.nova-micro"), "https://bedrock.eu-west-1.amazonaws.com");
+    }
+
+    #[test]
+    fn test_get_bedrock_endpoint_apac() {
+        assert_eq!(get_bedrock_endpoint("apac.amazon.nova-lite"), "https://bedrock.ap-northeast-1.amazonaws.com");
+        assert_eq!(get_bedrock_endpoint("jp.amazon.nova-pro"), "https://bedrock.ap-northeast-1.amazonaws.com");
+        assert_eq!(get_bedrock_endpoint("au.amazon.nova-pro"), "https://bedrock.ap-northeast-1.amazonaws.com");
+    }
+
+    #[test]
+    fn test_get_bedrock_endpoint_default() {
+        assert_eq!(get_bedrock_endpoint("anthropic.claude-3-sonnet-20240229-v1:0"), "https://bedrock.us-east-1.amazonaws.com");
+        assert_eq!(get_bedrock_endpoint("meta.llama3-70b-instruct-v1:0"), "https://bedrock.us-east-1.amazonaws.com");
+        assert_eq!(get_bedrock_endpoint("amazon.titan-text-express-v1"), "https://bedrock.us-east-1.amazonaws.com");
+    }
+
+    #[test]
+    fn test_region_prefix_endpoint_consistency() {
+        for prefix in ["us", "eu", "jp", "apac", "au"] {
+            let model_id = format!("{}.provider.model", prefix);
+            let endpoint = get_bedrock_endpoint(&model_id);
+            assert!(endpoint.starts_with("https://bedrock."), "Endpoint should start with https://bedrock. for prefix {}", prefix);
+        }
+    }
+
+    #[test]
+    fn test_invalid_region_prefix_falls_back_to_default() {
+        assert_eq!(get_bedrock_endpoint("invalid.amazon.model"), "https://bedrock.us-east-1.amazonaws.com");
+        assert_eq!(get_bedrock_endpoint("us-west-2.amazon.model"), "https://bedrock.us-east-1.amazonaws.com");
+        assert_eq!(get_bedrock_endpoint("foo.bar.baz"), "https://bedrock.us-east-1.amazonaws.com");
     }
 }

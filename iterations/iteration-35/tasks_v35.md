@@ -113,7 +113,7 @@
 
 ## Phase 2: P1 High Priority
 
-### FR-021: Dynamic Provider Loading
+### FR-021: ✅ Done
 
 **Status:** ❌ Not Implemented
 **Priority:** P1
@@ -166,41 +166,41 @@
 
 ### FR-022: Amazon Bedrock Region Prefix Handling
 
-**Status:** ⚠️ Partial (basic implementation exists)
+**Status:** ✅ Done
 **Priority:** P1
 **Module:** `bedrock.rs`
 **Effort:** 2-3 days
 
 **Tasks:**
 
-- [ ] **T-022-1:** Implement region prefix detection function
-  - [ ] `get_region_prefix(model_id: &str) -> Option<&str>`
-  - [ ] Support prefixes: `us.*`, `eu.*`, `jp.*`, `apac.*`, `au.*`
-  - [ ] Map to region codes: `us`, `eu`, `apac`
+- [x] **T-022-1:** Implement region prefix detection function
+  - [x] `get_region_prefix(model_id: &str) -> Option<&str>`
+  - [x] Support prefixes: `us.*`, `eu.*`, `jp.*`, `apac.*`, `au.*`
+  - [x] Map to region codes: `us`, `eu`, `apac`
 
-- [ ] **T-022-2:** Implement region endpoint mapping
-  - [ ] `get_bedrock_endpoint(region: &str) -> String`
-  - [ ] US endpoint: `https://bedrock.us-east-1.amazonaws.com`
-  - [ ] EU endpoint: `https://bedrock.eu-west-1.amazonaws.com`
-  - [ ] APAC endpoint: `https://bedrock.ap-northeast-1.amazonaws.com`
-  - [ ] Default endpoint: `https://bedrock.us-east-1.amazonaws.com`
+- [x] **T-022-2:** Implement region endpoint mapping
+  - [x] `get_bedrock_endpoint(region: &str) -> String`
+  - [x] US endpoint: `https://bedrock.us-east-1.amazonaws.com`
+  - [x] EU endpoint: `https://bedrock.eu-west-1.amazonaws.com`
+  - [x] APAC endpoint: `https://bedrock.ap-northeast-1.amazonaws.com`
+  - [x] Default endpoint: `https://bedrock.us-east-1.amazonaws.com`
 
-- [ ] **T-022-3:** Update BedrockProvider to use region routing
-  - [ ] Extract region from model ID prefix
-  - [ ] Route to appropriate endpoint
-  - [ ] Fallback to default region if no prefix
+- [x] **T-022-3:** Update BedrockProvider to use region routing
+  - [x] Extract region from model ID prefix
+  - [x] Route to appropriate endpoint
+  - [x] Fallback to default region if no prefix
 
-- [ ] **T-022-4:** Add unit tests for region handling
-  - [ ] Test `get_region_prefix()` with various model IDs
-  - [ ] Test `get_bedrock_endpoint()` returns correct URLs
-  - [ ] Test default fallback
+- [x] **T-022-4:** Add unit tests for region handling
+  - [x] Test `get_region_prefix()` with various model IDs
+  - [x] Test `get_bedrock_endpoint()` returns correct URLs
+  - [x] Test default fallback
 
 **Acceptance Criteria:**
-- [ ] Region prefix detection function implemented
-- [ ] Endpoint routing based on region
-- [ ] US/EU/APAC region support
-- [ ] Fallback to default region if no prefix
-- [ ] Unit tests pass
+- [x] Region prefix detection function implemented
+- [x] Endpoint routing based on region
+- [x] US/EU/APAC region support
+- [x] Fallback to default region if no prefix
+- [x] Unit tests pass
 
 ---
 
