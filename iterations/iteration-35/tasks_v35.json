@@ -49,7 +49,7 @@
       "priority": "P0",
       "title": "Complete models.dev Integration",
       "description": "Verify and complete the fallback chain in fetcher.rs. Ensure clean fallback order: memory cache (5-min TTL) -> network fetch -> file cache (disk) -> bundled snapshot -> empty catalog. Update fetch_or_get_cached() with proper fallback documentation.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify memory cache is checked first with 5-min TTL",
         "AddUnitTest: verify network fetch is attempted second on cache miss",

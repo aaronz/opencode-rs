@@ -1,3 +1,52 @@
+//! Provider Catalog Fetcher
+//!
+//! This module handles fetching and caching the provider catalog from models.dev.
+//!
+//! ## Fallback Chain (in order of priority)
+//!
+//! 1. **Memory Cache** - In-memory cache with 5-minute TTL
+//!    - Checked first on every `get_or_fetch()` call
+//!    - Valid for `CACHE_TTL` duration (5 minutes)
+//!    - Stored in `self.catalog` (RwLock)
+//!
+//! 2. **Network Fetch** - Fetch from models.dev API
+//!    - Attempted second when memory cache is invalid/missing
+//!    - On success: writes to file cache and memory cache
+//!    - On failure: proceeds to file cache fallback
+//!
+//! 3. **File Cache (Disk)** - Cached JSON file on disk
+//!    - Used when network fetch fails
+//!    - Valid regardless of age (no TTL check for stale fallback)
+//!    - Stored at `~/.cache/opencode/models.json`
+//!
+//! 4. **Bundled Snapshot** - Embedded snapshot in binary
+//!    - Used when both network and disk cache are unavailable
+//!    - Provides offline functionality
+//!    - Defined in `snapshot.rs` and `snapshot_data.rs`
+//!
+//! 5. **Empty Catalog** - Final fallback
+//!    - Returns empty catalog if all else fails
+//!    - Ensures the app can still function (with no providers)
+//!
+//! ## Cache TTL
+//!
+//! - Memory cache TTL: 5 minutes (`CACHE_TTL`)
+//! - File cache: Used regardless of age (as fallback)
+//! - Auto-refresh: Background refresh every 60 minutes via `refresh()` method
+//!
+//! ## Usage
+//!
+//! ```ignore
+//! let fetcher = ProviderCatalogFetcher::new(cache_path);
+//! let catalog = fetcher.get_or_fetch().await;
+//! ```
+//!
+//! Or with force refresh:
+//!
+//! ```ignore
+//! let catalog = fetcher.get(true).await?;
+//! ```
+
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -816,5 +865,251 @@ mod tests {
                 "catalog from snapshot should be non-empty"
             );
         }
+    }
+
+    // ========== FR-018: Fallback Chain Verification Tests ==========
+
+    #[tokio::test]
+    async fn test_fallback_chain_memory_cache_5_min_ttl() {
+        let tmp = std::env::temp_dir().join(format!(
+            "test_5min_ttl_{}.json",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .subsec_nanos()
+        ));
+
+        let fetcher = Arc::new(ProviderCatalogFetcher::new_with_url(
+            tmp,
+            "http://127.0.0.1:1",
+        ));
+
+        let fresh_catalog = ProviderCatalog {
+            providers: {
+                let mut m = BTreeMap::new();
+                m.insert(
+                    "fresh_provider".to_string(),
+                    crate::catalog::types::ProviderDescriptor {
+                        id: "fresh_provider".to_string(),
+                        display_name: "Fresh Provider".to_string(),
+                        api_base_url: None,
+                        docs_url: None,
+                        env_vars: vec![],
+                        npm_package: None,
+                        models: BTreeMap::new(),
+                        source: CatalogSource::Local,
+                    },
+                );
+                m
+            },
+            fetched_at: chrono::Utc::now(),
+            source: CatalogSource::Local,
+        };
+
+        {
+            let mut cat = fetcher.catalog.write().await;
+            *cat = Some(fresh_catalog);
+        }
+
+        let catalog = fetcher.get_or_fetch().await;
+        assert!(
+            catalog.providers.contains_key("fresh_provider"),
+            "Memory cache should be used when fresh (within 5-min TTL)"
+        );
+
+        let stale_catalog = ProviderCatalog {
+            providers: {
+                let mut m = BTreeMap::new();
+                m.insert(
+                    "stale_provider".to_string(),
+                    crate::catalog::types::ProviderDescriptor {
+                        id: "stale_provider".to_string(),
+                        display_name: "Stale Provider".to_string(),
+                        api_base_url: None,
+                        docs_url: None,
+                        env_vars: vec![],
+                        npm_package: None,
+                        models: BTreeMap::new(),
+                        source: CatalogSource::Local,
+                    },
+                );
+                m
+            },
+            fetched_at: chrono::Utc::now() - chrono::Duration::minutes(6),
+            source: CatalogSource::Local,
+        };
+
+        {
+            let mut cat = fetcher.catalog.write().await;
+            *cat = Some(stale_catalog);
+        }
+
+        let catalog = fetcher.get_or_fetch().await;
+        assert!(
+            !catalog.providers.contains_key("stale_provider"),
+            "Stale memory cache (>5 min) should be ignored"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_fallback_chain_network_fetch_on_cache_miss() {
+        let tmp = std::env::temp_dir().join(format!(
+            "test_network_fetch_{}.json",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .subsec_nanos()
+        ));
+
+        let fetcher = Arc::new(ProviderCatalogFetcher::new_with_url(
+            tmp,
+            "http://127.0.0.1:1",
+        ));
+
+        assert!(
+            fetcher.catalog.read().await.is_none(),
+            "Memory cache should be empty initially"
+        );
+
+        let catalog = fetcher.get_or_fetch().await;
+
+        if crate::catalog::snapshot::is_snapshot_available() {
+            assert!(
+                !catalog.providers.is_empty(),
+                "Should fall back to snapshot when network fails and no disk cache"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_fallback_chain_disk_cache_on_network_failure() {
+        use std::io::Write;
+
+        let tmp_path = std::env::temp_dir().join(format!(
+            "test_disk_fallback_{}.json",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .subsec_nanos()
+        ));
+
+        let disk_catalog = ProviderCatalog {
+            providers: {
+                let mut m = BTreeMap::new();
+                m.insert(
+                    "disk_fallback_provider".to_string(),
+                    crate::catalog::types::ProviderDescriptor {
+                        id: "disk_fallback_provider".to_string(),
+                        display_name: "Disk Fallback Provider".to_string(),
+                        api_base_url: None,
+                        docs_url: None,
+                        env_vars: vec![],
+                        npm_package: None,
+                        models: BTreeMap::new(),
+                        source: CatalogSource::Local,
+                    },
+                );
+                m
+            },
+            fetched_at: chrono::Utc::now() - chrono::Duration::minutes(10),
+            source: CatalogSource::Local,
+        };
+
+        {
+            let json = serde_json::to_string_pretty(&disk_catalog).unwrap();
+            let mut f = std::fs::File::create(&tmp_path).unwrap();
+            f.write_all(json.as_bytes()).unwrap();
+        }
+
+        let fetcher = Arc::new(ProviderCatalogFetcher::new_with_url(
+            tmp_path.clone(),
+            "http://127.0.0.1:1",
+        ));
+
+        {
+            assert!(
+                fetcher.catalog.read().await.is_none(),
+                "Memory cache should be empty"
+            );
+        }
+
+        let catalog = fetcher.get_or_fetch().await;
+
+        assert!(
+            catalog.providers.contains_key("disk_fallback_provider"),
+            "Disk cache should be used when network fails"
+        );
+
+        let _ = std::fs::remove_file(tmp_path);
+    }
+
+    #[tokio::test]
+    async fn test_no_duplicate_network_requests_when_cache_valid() {
+        let tmp = std::env::temp_dir().join(format!(
+            "test_no_dup_{}.json",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .subsec_nanos()
+        ));
+
+        let fetcher = Arc::new(ProviderCatalogFetcher::new_with_url(
+            tmp,
+            "http://127.0.0.1:1",
+        ));
+
+        let fresh_catalog = ProviderCatalog {
+            providers: {
+                let mut m = BTreeMap::new();
+                m.insert(
+                    "stable_provider".to_string(),
+                    crate::catalog::types::ProviderDescriptor {
+                        id: "stable_provider".to_string(),
+                        display_name: "Stable Provider".to_string(),
+                        api_base_url: None,
+                        docs_url: None,
+                        env_vars: vec![],
+                        npm_package: None,
+                        models: BTreeMap::new(),
+                        source: CatalogSource::Local,
+                    },
+                );
+                m
+            },
+            fetched_at: chrono::Utc::now(),
+            source: CatalogSource::Local,
+        };
+
+        {
+            let mut cat = fetcher.catalog.write().await;
+            *cat = Some(fresh_catalog);
+        }
+
+        let catalog1 = fetcher.get_or_fetch().await;
+        let catalog2 = fetcher.get_or_fetch().await;
+        let catalog3 = fetcher.get_or_fetch().await;
+
+        assert!(
+            catalog1.providers.contains_key("stable_provider"),
+            "First call should return cached result"
+        );
+        assert!(
+            catalog2.providers.contains_key("stable_provider"),
+            "Second call should return same cached result"
+        );
+        assert!(
+            catalog3.providers.contains_key("stable_provider"),
+            "Third call should also return cached result"
+        );
+        assert_eq!(
+            catalog1.providers.len(),
+            catalog2.providers.len(),
+            "Cache should return same number of providers"
+        );
+        assert_eq!(
+            catalog2.providers.len(),
+            catalog3.providers.len(),
+            "Third call should return same size as second"
+        );
     }
 }

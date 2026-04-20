@@ -53,7 +53,7 @@
 
 ---
 
-### FR-020: Snapshot Generation Script
+### FR-020: ✅ Done
 
 **Status:** ✅ Done
 **Priority:** P0
