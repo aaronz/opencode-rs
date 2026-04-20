@@ -442,7 +442,7 @@
       "priority": "P2",
       "title": "Add unit tests for git operations",
       "description": "Add comprehensive unit tests for branch creation/deletion, checkout, merge (clean and conflict), stash, and push/pull operations.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: test branch creation/deletion",
         "AddUnitTest: test checkout",
@@ -465,7 +465,7 @@
       "priority": "P2",
       "title": "Create crates/lsp/src/diagnostics.rs",
       "description": "Create diagnostics.rs with Diagnostic struct (range, severity, message), publish_diagnostics handler, and wire up to LSP client.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify Diagnostic struct has required fields",
         "AddUnitTest: verify publish_diagnostics handler sends correct notifications",

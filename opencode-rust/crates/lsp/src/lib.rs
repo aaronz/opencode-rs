@@ -2,6 +2,7 @@ pub mod aggregator;
 pub mod builtin;
 pub mod client;
 pub mod custom;
+pub mod diagnostics;
 pub mod error;
 pub mod experimental;
 pub mod language;
@@ -16,6 +17,10 @@ pub use builtin::{BuiltInRegistry, BuiltInServer, BundledConfig, DetectionResult
 pub use client::LspClient;
 pub use custom::{
     CustomLspServer, CustomRegistry, CustomServerConfig, RegisterError, ServerCapabilities,
+};
+pub use diagnostics::{
+    filter_diagnostics_by_file, filter_diagnostics_by_severity, handle_publish_diagnostics,
+   DiagnosticSeverity, PublishDiagnosticsParams,
 };
 pub use error::{
     CrashCause, FailureHandlingConfig, LspError, ProtocolViolationType, UnhealthyReason,
