@@ -136,6 +136,27 @@ impl ProviderCatalogFetcher {
         }
     }
 
+pub async fn force_refresh(&self) -> Result<ProviderCatalog, FetchError> {
+        {
+            let mut cat = self.catalog.write().await;
+            *cat = None;
+        }
+
+        match self.fetch_from_network().await {
+            Ok(catalog) => {
+                if let Err(e) = self.write_file_cache(&catalog).await {
+                    tracing::warn!("Failed to write catalog cache: {}", e);
+                }
+                {
+                    let mut cat = self.catalog.write().await;
+                    *cat = Some(catalog.clone());
+                }
+                Ok(catalog)
+            }
+            Err(e) => Err(e),
+        }
+    }
+
     pub async fn get_or_fetch(&self) -> ProviderCatalog {
         {
             let cached = self.catalog.read().await;
