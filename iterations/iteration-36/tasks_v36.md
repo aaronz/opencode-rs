@@ -146,10 +146,10 @@
   - [ ] `git_checkout(branch: &str) -> Result<()>`
   - [ ] `git_checkout_create(name: &str) -> Result<()>`
 
-- [ ] **T-G003-4:** Add merge operations
-  - [ ] `git_merge(branch: &str) -> Result<MergeResult>`
-  - [ ] Handle clean merge
-  - [ ] Handle conflicts (return conflict info)
+- [x] **T-G003-4:** Add merge operations
+  - [x] `git_merge(branch: &str) -> Result<MergeResult>`
+  - [x] Handle clean merge
+  - [x] Handle conflicts (return conflict info)
 
 - [ ] **T-G003-5:** Add rebase operations
   - [ ] `git_rebase(branch: &str) -> Result<()>`

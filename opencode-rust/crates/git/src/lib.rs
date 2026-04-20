@@ -19,6 +19,7 @@ use std::path::Path;
 
 pub mod branch;
 pub mod checkout;
+pub mod merge;
 pub mod github;
 pub mod gitlab;
 pub mod gitlab_ci;
@@ -47,6 +48,8 @@ pub use workflow::{
     get_workflow_template, setup_github_workflow, GitHubAppClient, GitHubError as AppError,
     SecretRequirement, SetupResult, WorkflowTemplate,
 };
+
+pub use merge::{git_merge, MergeResult};
 
 pub struct GitManager {
     repo: Repository,
