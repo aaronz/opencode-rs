@@ -15,24 +15,60 @@ fn test_complete_google_oauth_flow_provider_to_chat() {
             email: Some("test@gmail.com".to_string()),
         },
         vec![
-            BrowserAuthModelInfo { id: "gemini-1.5-pro".to_string(), name: "Gemini 1.5 Pro".to_string(), variants: vec![] },
-            BrowserAuthModelInfo { id: "gemini-1.5-flash".to_string(), name: "Gemini 1.5 Flash".to_string(), variants: vec![] },
-            BrowserAuthModelInfo { id: "gemini-2.0-flash".to_string(), name: "Gemini 2.0 Flash".to_string(), variants: vec![] },
+            BrowserAuthModelInfo {
+                id: "gemini-1.5-pro".to_string(),
+                name: "Gemini 1.5 Pro".to_string(),
+                variants: vec![],
+            },
+            BrowserAuthModelInfo {
+                id: "gemini-1.5-flash".to_string(),
+                name: "Gemini 1.5 Flash".to_string(),
+                variants: vec![],
+            },
+            BrowserAuthModelInfo {
+                id: "gemini-2.0-flash".to_string(),
+                name: "Gemini 2.0 Flash".to_string(),
+                variants: vec![],
+            },
         ],
     );
 
-    assert_eq!(app.mode, AppMode::ConnectModel, "Should transition to ConnectModel after OAuth");
-    assert!(app.connect_model_dialog.is_some(), "Model selection dialog should be shown");
-    assert!(app.pending_google_session.is_some(), "Google session should be stored pending");
-    assert_eq!(app.pending_browser_models.len(), 3, "Should have 3 models available");
+    assert_eq!(
+        app.mode,
+        AppMode::ConnectModel,
+        "Should transition to ConnectModel after OAuth"
+    );
+    assert!(
+        app.connect_model_dialog.is_some(),
+        "Model selection dialog should be shown"
+    );
+    assert!(
+        app.pending_google_session.is_some(),
+        "Google session should be stored pending"
+    );
+    assert_eq!(
+        app.pending_browser_models.len(),
+        3,
+        "Should have 3 models available"
+    );
 
     let result = app.confirm_model_for_google_auth_for_test("gemini-1.5-pro");
     assert!(result.is_ok(), "Model selection should succeed");
 
     assert_eq!(app.provider, "google", "Provider should be set to google");
-    assert_eq!(app.mode, AppMode::Chat, "Should return to Chat mode after model selection");
-    assert!(app.connect_model_dialog.is_none(), "Dialog should be cleared");
-    assert!(app.pending_google_session.is_none(), "Pending Google session should be consumed");
+    assert_eq!(
+        app.mode,
+        AppMode::Chat,
+        "Should return to Chat mode after model selection"
+    );
+    assert!(
+        app.connect_model_dialog.is_none(),
+        "Dialog should be cleared"
+    );
+    assert!(
+        app.pending_google_session.is_none(),
+        "Pending Google session should be consumed"
+    );
 }
 
 #[test]
@@ -46,9 +82,11 @@ fn test_google_oauth_flow_with_flash_model() {
             expires_at_epoch_ms: chrono::Utc::now().timestamp_millis() + 3600000,
             email: Some("user@gmail.com".to_string()),
         },
-        vec![
-            BrowserAuthModelInfo { id: "gemini-1.5-flash".to_string(), name: "Gemini 1.5 Flash".to_string(), variants: vec![] },
-        ],
+        vec![BrowserAuthModelInfo {
+            id: "gemini-1.5-flash".to_string(),
+            name: "Gemini 1.5 Flash".to_string(),
+            variants: vec![],
+        }],
     );
 
     assert_eq!(app.mode, AppMode::ConnectModel);
@@ -72,9 +110,11 @@ fn test_google_oauth_session_stores_email() {
             expires_at_epoch_ms: chrono::Utc::now().timestamp_millis() + 3600000,
             email: Some("developer@google.com".to_string()),
         },
-        vec![
-            BrowserAuthModelInfo { id: "gemini-1.5-pro".to_string(), name: "Gemini 1.5 Pro".to_string(), variants: vec![] },
-        ],
+        vec![BrowserAuthModelInfo {
+            id: "gemini-1.5-pro".to_string(),
+            name: "Gemini 1.5 Pro".to_string(),
+            variants: vec![],
+        }],
     );
 
     assert!(app.pending_google_session.is_some());
@@ -95,8 +135,16 @@ fn test_google_oauth_flow_model_selection_persists_across_dialog_close_open() {
             email: Some("test@gmail.com".to_string()),
         },
         vec![
-            BrowserAuthModelInfo { id: "gemini-1.5-pro".to_string(), name: "Gemini 1.5 Pro".to_string(), variants: vec![] },
-            BrowserAuthModelInfo { id: "gemini-1.5-flash".to_string(), name: "Gemini 1.5 Flash".to_string(), variants: vec![] },
+            BrowserAuthModelInfo {
+                id: "gemini-1.5-pro".to_string(),
+                name: "Gemini 1.5 Pro".to_string(),
+                variants: vec![],
+            },
+            BrowserAuthModelInfo {
+                id: "gemini-1.5-flash".to_string(),
+                name: "Gemini 1.5 Flash".to_string(),
+                variants: vec![],
+            },
         ],
     );
 
@@ -110,7 +158,10 @@ fn test_google_oauth_flow_model_selection_persists_across_dialog_close_open() {
     ));
 
     let restored_count = app.pending_browser_models.len();
-    assert_eq!(model_count, restored_count, "Models should be preserved when dialog is recreated");
+    assert_eq!(
+        model_count, restored_count,
+        "Models should be preserved when dialog is recreated"
+    );
 }
 
 #[test]
@@ -124,9 +175,11 @@ fn test_google_oauth_multiple_providers_sequence() {
             expires_at_epoch_ms: chrono::Utc::now().timestamp_millis() + 3600000,
             email: Some("google@example.com".to_string()),
         },
-        vec![
-            BrowserAuthModelInfo { id: "gemini-1.5-pro".to_string(), name: "Gemini 1.5 Pro".to_string(), variants: vec![] },
-        ],
+        vec![BrowserAuthModelInfo {
+            id: "gemini-1.5-pro".to_string(),
+            name: "Gemini 1.5 Pro".to_string(),
+            variants: vec![],
+        }],
     );
 
     assert_eq!(app.mode, AppMode::ConnectModel);
@@ -142,16 +195,21 @@ fn test_google_oauth_multiple_providers_sequence() {
             expires_at_epoch_ms: chrono::Utc::now().timestamp_millis() + 3600000,
             email: Some("another@gmail.com".to_string()),
         },
-        vec![
-            BrowserAuthModelInfo { id: "gemini-2.0-flash".to_string(), name: "Gemini 2.0 Flash".to_string(), variants: vec![] },
-        ],
+        vec![BrowserAuthModelInfo {
+            id: "gemini-2.0-flash".to_string(),
+            name: "Gemini 2.0 Flash".to_string(),
+            variants: vec![],
+        }],
     );
 
     assert_eq!(app.mode, AppMode::ConnectModel);
 
     let result2 = app.confirm_model_for_google_auth_for_test("gemini-2.0-flash");
     if result2.is_ok() {
-        assert_eq!(app.provider, "google", "Provider should be updated after successful confirm");
+        assert_eq!(
+            app.provider, "google",
+            "Provider should be updated after successful confirm"
+        );
     }
 }
 
@@ -164,7 +222,10 @@ fn test_google_oauth_expired_session_detected() {
         email: Some("expired@gmail.com".to_string()),
     };
 
-    assert!(session.is_expired(), "Session with past expiry time should be detected as expired");
+    assert!(
+        session.is_expired(),
+        "Session with past expiry time should be detected as expired"
+    );
 }
 
 #[test]
@@ -176,7 +237,10 @@ fn test_google_oauth_valid_session_not_expired() {
         email: Some("valid@gmail.com".to_string()),
     };
 
-    assert!(!session.is_expired(), "Session with future expiry time should not be expired");
+    assert!(
+        !session.is_expired(),
+        "Session with future expiry time should not be expired"
+    );
 }
 
 #[test]
@@ -184,10 +248,26 @@ fn test_google_oauth_flow_with_multiple_gemini_models() {
     let mut app = App::new();
 
     let models = vec![
-        BrowserAuthModelInfo { id: "gemini-1.5-pro".to_string(), name: "Gemini 1.5 Pro".to_string(), variants: vec![] },
-        BrowserAuthModelInfo { id: "gemini-1.5-flash".to_string(), name: "Gemini 1.5 Flash".to_string(), variants: vec![] },
-        BrowserAuthModelInfo { id: "gemini-1.5-flash-8b".to_string(), name: "Gemini 1.5 Flash 8B".to_string(), variants: vec![] },
-        BrowserAuthModelInfo { id: "gemini-2.0-flash-exp".to_string(), name: "Gemini 2.0 Flash Experimental".to_string(), variants: vec![] },
+        BrowserAuthModelInfo {
+            id: "gemini-1.5-pro".to_string(),
+            name: "Gemini 1.5 Pro".to_string(),
+            variants: vec![],
+        },
+        BrowserAuthModelInfo {
+            id: "gemini-1.5-flash".to_string(),
+            name: "Gemini 1.5 Flash".to_string(),
+            variants: vec![],
+        },
+        BrowserAuthModelInfo {
+            id: "gemini-1.5-flash-8b".to_string(),
+            name: "Gemini 1.5 Flash 8B".to_string(),
+            variants: vec![],
+        },
+        BrowserAuthModelInfo {
+            id: "gemini-2.0-flash-exp".to_string(),
+            name: "Gemini 2.0 Flash Experimental".to_string(),
+            variants: vec![],
+        },
     ];
 
     app.complete_google_auth_for_test(
@@ -201,7 +281,11 @@ fn test_google_oauth_flow_with_multiple_gemini_models() {
     );
 
     assert_eq!(app.mode, AppMode::ConnectModel);
-    assert_eq!(app.pending_browser_models.len(), 4, "Should have 4 models available");
+    assert_eq!(
+        app.pending_browser_models.len(),
+        4,
+        "Should have 4 models available"
+    );
 
     let result = app.confirm_model_for_google_auth_for_test("gemini-2.0-flash-exp");
     assert!(result.is_ok());
@@ -219,20 +303,28 @@ fn test_google_oauth_preserves_session_data_through_model_selection() {
             expires_at_epoch_ms: chrono::Utc::now().timestamp_millis() + 3600000,
             email: Some("preserve@test.com".to_string()),
         },
-        vec![
-            BrowserAuthModelInfo { id: "gemini-1.5-pro".to_string(), name: "Gemini 1.5 Pro".to_string(), variants: vec![] },
-        ],
+        vec![BrowserAuthModelInfo {
+            id: "gemini-1.5-pro".to_string(),
+            name: "Gemini 1.5 Pro".to_string(),
+            variants: vec![],
+        }],
     );
 
     let original_session = app.pending_google_session.clone();
 
     assert!(original_session.is_some());
-    assert_eq!(original_session.as_ref().unwrap().access_token, "preserved_token");
+    assert_eq!(
+        original_session.as_ref().unwrap().access_token,
+        "preserved_token"
+    );
 
     let result = app.confirm_model_for_google_auth_for_test("gemini-1.5-pro");
     assert!(result.is_ok());
 
-    assert!(app.pending_google_session.is_none(), "Session should be consumed after model confirm");
+    assert!(
+        app.pending_google_session.is_none(),
+        "Session should be consumed after model confirm"
+    );
 }
 
 #[test]
@@ -249,9 +341,16 @@ fn test_google_oauth_flow_empty_models_still_transitions() {
         vec![],
     );
 
-    assert_eq!(app.mode, AppMode::ConnectModel, "Should still transition to ConnectModel even with empty models");
+    assert_eq!(
+        app.mode,
+        AppMode::ConnectModel,
+        "Should still transition to ConnectModel even with empty models"
+    );
     assert!(app.connect_model_dialog.is_some());
-    assert!(app.pending_browser_models.is_empty(), "Models list should be empty");
+    assert!(
+        app.pending_browser_models.is_empty(),
+        "Models list should be empty"
+    );
 }
 
 #[test]
@@ -259,8 +358,16 @@ fn test_google_oauth_different_models_have_different_ids() {
     let mut app = App::new();
 
     let models = vec![
-        BrowserAuthModelInfo { id: "gemini-1.5-pro".to_string(), name: "Gemini 1.5 Pro".to_string(), variants: vec![] },
-        BrowserAuthModelInfo { id: "gemini-1.5-flash".to_string(), name: "Gemini 1.5 Flash".to_string(), variants: vec![] },
+        BrowserAuthModelInfo {
+            id: "gemini-1.5-pro".to_string(),
+            name: "Gemini 1.5 Pro".to_string(),
+            variants: vec![],
+        },
+        BrowserAuthModelInfo {
+            id: "gemini-1.5-flash".to_string(),
+            name: "Gemini 1.5 Flash".to_string(),
+            variants: vec![],
+        },
     ];
 
     app.complete_google_auth_for_test(
@@ -273,7 +380,11 @@ fn test_google_oauth_different_models_have_different_ids() {
         models,
     );
 
-    let model_ids: Vec<String> = app.pending_browser_models.iter().map(|m| m.id.clone()).collect();
+    let model_ids: Vec<String> = app
+        .pending_browser_models
+        .iter()
+        .map(|m| m.id.clone())
+        .collect();
     assert!(model_ids.contains(&"gemini-1.5-pro".to_string()));
     assert!(model_ids.contains(&"gemini-1.5-flash".to_string()));
     assert_eq!(model_ids.len(), 2, "Should have exactly 2 unique model IDs");
@@ -292,7 +403,7 @@ async fn test_google_oauth_mock_server_token_endpoint() {
             "refresh_token": "mock_refresh_token",
             "expires_in": 3600,
             "token_type": "Bearer"
-        }"#
+        }"#,
     );
 
     let base_url = server.url("");
@@ -314,14 +425,19 @@ fn test_google_oauth_uses_correct_provider_name() {
             expires_at_epoch_ms: chrono::Utc::now().timestamp_millis() + 3600000,
             email: Some("test@gmail.com".to_string()),
         },
-        vec![
-            BrowserAuthModelInfo { id: "gemini-pro".to_string(), name: "Gemini Pro".to_string(), variants: vec![] },
-        ],
+        vec![BrowserAuthModelInfo {
+            id: "gemini-pro".to_string(),
+            name: "Gemini Pro".to_string(),
+            variants: vec![],
+        }],
     );
 
     let result = app.confirm_model_for_google_auth_for_test("gemini-pro");
     assert!(result.is_ok());
-    assert_eq!(app.provider, "google", "Provider should be 'google', not 'google-oauth' or other variant");
+    assert_eq!(
+        app.provider, "google",
+        "Provider should be 'google', not 'google-oauth' or other variant"
+    );
 }
 
 #[test]
@@ -335,13 +451,20 @@ fn test_google_oauth_without_refresh_token() {
             expires_at_epoch_ms: chrono::Utc::now().timestamp_millis() + 3600000,
             email: None,
         },
-        vec![
-            BrowserAuthModelInfo { id: "gemini-1.5-flash".to_string(), name: "Gemini 1.5 Flash".to_string(), variants: vec![] },
-        ],
+        vec![BrowserAuthModelInfo {
+            id: "gemini-1.5-flash".to_string(),
+            name: "Gemini 1.5 Flash".to_string(),
+            variants: vec![],
+        }],
     );
 
     assert!(app.pending_google_session.is_some());
-    assert!(app.pending_google_session.as_ref().unwrap().refresh_token.is_none());
+    assert!(app
+        .pending_google_session
+        .as_ref()
+        .unwrap()
+        .refresh_token
+        .is_none());
 
     let result = app.confirm_model_for_google_auth_for_test("gemini-1.5-flash");
     assert!(result.is_ok());

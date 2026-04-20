@@ -99,14 +99,17 @@ mod tests {
         let repo = Repository::init(temp_dir.path()).unwrap();
 
         let signature = repo.signature().unwrap();
-        let tree_id = repo
-            .index()
-            .unwrap()
-            .write_tree()
-            .unwrap();
+        let tree_id = repo.index().unwrap().write_tree().unwrap();
         let tree = repo.find_tree(tree_id).unwrap();
-        repo.commit(Some("HEAD"), &signature, &signature, "Initial commit", &tree, &[])
-            .unwrap();
+        repo.commit(
+            Some("HEAD"),
+            &signature,
+            &signature,
+            "Initial commit",
+            &tree,
+            &[],
+        )
+        .unwrap();
 
         temp_dir
     }

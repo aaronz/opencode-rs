@@ -33,7 +33,9 @@ pub fn git_checkout(repo_path: &Path, branch: &str) -> Result<(), OpenCodeError>
         .map_err(|e| OpenCodeError::Tool(format!("Failed to set HEAD to '{}': {}", branch, e)))?;
 
     repo.checkout_head(Some(&mut git2::build::CheckoutBuilder::new()))
-        .map_err(|e| OpenCodeError::Tool(format!("Failed to checkout branch '{}': {}", branch, e)))?;
+        .map_err(|e| {
+            OpenCodeError::Tool(format!("Failed to checkout branch '{}': {}", branch, e))
+        })?;
 
     Ok(())
 }
@@ -85,10 +87,9 @@ pub fn git_checkout_create(repo_path: &Path, name: &str) -> Result<(), OpenCodeE
         .map_err(|e| OpenCodeError::Tool(format!("Failed to set HEAD to '{}': {}", name, e)))?;
 
     repo.checkout_head(Some(&mut git2::build::CheckoutBuilder::new()))
-        .map_err(|e| OpenCodeError::Tool(format!(
-            "Failed to checkout new branch '{}': {}",
-            name, e
-        )))?;
+        .map_err(|e| {
+            OpenCodeError::Tool(format!("Failed to checkout new branch '{}': {}", name, e))
+        })?;
 
     Ok(())
 }
@@ -109,9 +110,9 @@ pub fn git_checkout_file(
         .map_err(|e| OpenCodeError::Tool(format!("Failed to discover repository: {}", e)))?;
 
     let commit = if let Some(rev) = revision {
-        let reference = repo
-            .resolve_reference_from_short_name(rev)
-            .map_err(|e| OpenCodeError::Tool(format!("Failed to resolve revision '{}': {}", rev, e)))?;
+        let reference = repo.resolve_reference_from_short_name(rev).map_err(|e| {
+            OpenCodeError::Tool(format!("Failed to resolve revision '{}': {}", rev, e))
+        })?;
         reference
             .peel_to_commit()
             .map_err(|e| OpenCodeError::Tool(format!("Failed to peel to commit: {}", e)))?
@@ -128,10 +129,9 @@ pub fn git_checkout_file(
 
     let entry = tree
         .get_path(std::path::Path::new(file_path))
-        .map_err(|e| OpenCodeError::Tool(format!(
-            "File '{}' not found in revision: {}",
-            file_path, e
-        )))?;
+        .map_err(|e| {
+            OpenCodeError::Tool(format!("File '{}' not found in revision: {}", file_path, e))
+        })?;
 
     let blob = repo
         .find_blob(entry.id())
@@ -155,8 +155,15 @@ mod tests {
         let signature = repo.signature().unwrap();
         let tree_id = repo.index().unwrap().write_tree().unwrap();
         let tree = repo.find_tree(tree_id).unwrap();
-        repo.commit(Some("HEAD"), &signature, &signature, "Initial commit", &tree, &[])
-            .unwrap();
+        repo.commit(
+            Some("HEAD"),
+            &signature,
+            &signature,
+            "Initial commit",
+            &tree,
+            &[],
+        )
+        .unwrap();
 
         temp_dir
     }

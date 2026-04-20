@@ -50,9 +50,7 @@ pub struct PublishDiagnosticsParams {
     pub diagnostics: Vec<Diagnostic>,
 }
 
-pub fn handle_publish_diagnostics(
-    params: &PublishDiagnosticsParams,
-) -> Vec<Diagnostic> {
+pub fn handle_publish_diagnostics(params: &PublishDiagnosticsParams) -> Vec<Diagnostic> {
     params.diagnostics.clone()
 }
 
@@ -67,10 +65,7 @@ pub fn filter_diagnostics_by_severity(
         .collect()
 }
 
-pub fn filter_diagnostics_by_file(
-    diagnostics: &[Diagnostic],
-    file_path: &str,
-) -> Vec<Diagnostic> {
+pub fn filter_diagnostics_by_file(diagnostics: &[Diagnostic], file_path: &str) -> Vec<Diagnostic> {
     diagnostics
         .iter()
         .filter(|d| d.file_path.as_deref() == Some(file_path))
@@ -88,8 +83,14 @@ mod tests {
             severity: Severity::Error,
             message: "test error".to_string(),
             range: Range {
-                start: Position { line: 1, character: 2 },
-                end: Position { line: 1, character: 10 },
+                start: Position {
+                    line: 1,
+                    character: 2,
+                },
+                end: Position {
+                    line: 1,
+                    character: 10,
+                },
             },
             source: Some("test".to_string()),
             file_path: Some("/test/file.rs".to_string()),
@@ -168,8 +169,14 @@ mod tests {
                 severity: Severity::Error,
                 message: "error 1".to_string(),
                 range: Range {
-                    start: Position { line: 0, character: 0 },
-                    end: Position { line: 0, character: 5 },
+                    start: Position {
+                        line: 0,
+                        character: 0,
+                    },
+                    end: Position {
+                        line: 0,
+                        character: 5,
+                    },
                 },
                 source: None,
                 file_path: None,
@@ -178,8 +185,14 @@ mod tests {
                 severity: Severity::Warning,
                 message: "warning 1".to_string(),
                 range: Range {
-                    start: Position { line: 1, character: 0 },
-                    end: Position { line: 1, character: 5 },
+                    start: Position {
+                        line: 1,
+                        character: 0,
+                    },
+                    end: Position {
+                        line: 1,
+                        character: 5,
+                    },
                 },
                 source: None,
                 file_path: None,
@@ -209,8 +222,14 @@ mod tests {
             severity: Severity::Error,
             message: "added later".to_string(),
             range: Range {
-                start: Position { line: 0, character: 0 },
-                end: Position { line: 0, character: 5 },
+                start: Position {
+                    line: 0,
+                    character: 0,
+                },
+                end: Position {
+                    line: 0,
+                    character: 5,
+                },
             },
             source: None,
             file_path: None,
@@ -227,8 +246,14 @@ mod tests {
                 severity: Severity::Error,
                 message: "error 1".to_string(),
                 range: Range {
-                    start: Position { line: 0, character: 0 },
-                    end: Position { line: 0, character: 5 },
+                    start: Position {
+                        line: 0,
+                        character: 0,
+                    },
+                    end: Position {
+                        line: 0,
+                        character: 5,
+                    },
                 },
                 source: None,
                 file_path: None,
@@ -237,8 +262,14 @@ mod tests {
                 severity: Severity::Warning,
                 message: "warning 1".to_string(),
                 range: Range {
-                    start: Position { line: 1, character: 0 },
-                    end: Position { line: 1, character: 5 },
+                    start: Position {
+                        line: 1,
+                        character: 0,
+                    },
+                    end: Position {
+                        line: 1,
+                        character: 5,
+                    },
                 },
                 source: None,
                 file_path: None,
@@ -247,8 +278,14 @@ mod tests {
                 severity: Severity::Error,
                 message: "error 2".to_string(),
                 range: Range {
-                    start: Position { line: 2, character: 0 },
-                    end: Position { line: 2, character: 5 },
+                    start: Position {
+                        line: 2,
+                        character: 0,
+                    },
+                    end: Position {
+                        line: 2,
+                        character: 5,
+                    },
                 },
                 source: None,
                 file_path: None,
@@ -272,8 +309,14 @@ mod tests {
                 severity: Severity::Error,
                 message: "error in file1".to_string(),
                 range: Range {
-                    start: Position { line: 0, character: 0 },
-                    end: Position { line: 0, character: 5 },
+                    start: Position {
+                        line: 0,
+                        character: 0,
+                    },
+                    end: Position {
+                        line: 0,
+                        character: 5,
+                    },
                 },
                 source: None,
                 file_path: Some("/path/file1.rs".to_string()),
@@ -282,8 +325,14 @@ mod tests {
                 severity: Severity::Error,
                 message: "error in file2".to_string(),
                 range: Range {
-                    start: Position { line: 1, character: 0 },
-                    end: Position { line: 1, character: 5 },
+                    start: Position {
+                        line: 1,
+                        character: 0,
+                    },
+                    end: Position {
+                        line: 1,
+                        character: 5,
+                    },
                 },
                 source: None,
                 file_path: Some("/path/file2.rs".to_string()),
@@ -292,8 +341,14 @@ mod tests {
                 severity: Severity::Warning,
                 message: "warning in file1".to_string(),
                 range: Range {
-                    start: Position { line: 2, character: 0 },
-                    end: Position { line: 2, character: 5 },
+                    start: Position {
+                        line: 2,
+                        character: 0,
+                    },
+                    end: Position {
+                        line: 2,
+                        character: 5,
+                    },
                 },
                 source: None,
                 file_path: Some("/path/file1.rs".to_string()),
@@ -330,7 +385,10 @@ mod tests {
 
     #[test]
     fn test_position_uses_line_and_column() {
-        let pos = Position { line: 10, character: 5 };
+        let pos = Position {
+            line: 10,
+            character: 5,
+        };
         assert_eq!(pos.line, 10);
         assert_eq!(pos.character, 5);
     }
@@ -338,8 +396,14 @@ mod tests {
     #[test]
     fn test_range_uses_start_and_end() {
         let range = Range {
-            start: Position { line: 1, character: 2 },
-            end: Position { line: 3, character: 4 },
+            start: Position {
+                line: 1,
+                character: 2,
+            },
+            end: Position {
+                line: 3,
+                character: 4,
+            },
         };
         assert_eq!(range.start.line, 1);
         assert_eq!(range.start.character, 2);
@@ -353,8 +417,14 @@ mod tests {
             severity: Severity::Error,
             message: "test".to_string(),
             range: Range {
-                start: Position { line: 0, character: 0 },
-                end: Position { line: 0, character: 5 },
+                start: Position {
+                    line: 0,
+                    character: 0,
+                },
+                end: Position {
+                    line: 0,
+                    character: 5,
+                },
             },
             source: Some("test".to_string()),
             file_path: Some("/test.rs".to_string()),

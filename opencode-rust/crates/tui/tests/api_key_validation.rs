@@ -24,10 +24,15 @@ async fn test_validate_api_key_anthropic_invalid_key_returns_auth_error() {
     let result = validate_api_key("anthropic", "invalid-key-not-real").await;
     assert!(result.is_err());
     let error = result.unwrap_err();
-    assert_eq!(error.error_type, ApiKeyValidationErrorType::AuthenticationError);
-    assert!(error.message.to_lowercase().contains("authentication")
-        || error.message.to_lowercase().contains("invalid")
-        || error.message.to_lowercase().contains("api key"));
+    assert_eq!(
+        error.error_type,
+        ApiKeyValidationErrorType::AuthenticationError
+    );
+    assert!(
+        error.message.to_lowercase().contains("authentication")
+            || error.message.to_lowercase().contains("invalid")
+            || error.message.to_lowercase().contains("api key")
+    );
 }
 
 #[tokio::test]
@@ -35,10 +40,15 @@ async fn test_validate_api_key_openai_invalid_key_returns_auth_error() {
     let result = validate_api_key("openai", "invalid-key-not-real").await;
     assert!(result.is_err());
     let error = result.unwrap_err();
-    assert_eq!(error.error_type, ApiKeyValidationErrorType::AuthenticationError);
-    assert!(error.message.to_lowercase().contains("authentication")
-        || error.message.to_lowercase().contains("invalid")
-        || error.message.to_lowercase().contains("api key"));
+    assert_eq!(
+        error.error_type,
+        ApiKeyValidationErrorType::AuthenticationError
+    );
+    assert!(
+        error.message.to_lowercase().contains("authentication")
+            || error.message.to_lowercase().contains("invalid")
+            || error.message.to_lowercase().contains("api key")
+    );
 }
 
 #[tokio::test]
@@ -91,14 +101,20 @@ async fn test_validate_api_key_error_types_are_correct() {
         error_type: ApiKeyValidationErrorType::NetworkError,
         status_code: None,
     };
-    assert_eq!(network_error.error_type, ApiKeyValidationErrorType::NetworkError);
+    assert_eq!(
+        network_error.error_type,
+        ApiKeyValidationErrorType::NetworkError
+    );
 
     let auth_error = ApiKeyValidationError {
         message: "auth".to_string(),
         error_type: ApiKeyValidationErrorType::AuthenticationError,
         status_code: Some(401),
     };
-    assert_eq!(auth_error.error_type, ApiKeyValidationErrorType::AuthenticationError);
+    assert_eq!(
+        auth_error.error_type,
+        ApiKeyValidationErrorType::AuthenticationError
+    );
 
     let timeout_error = ApiKeyValidationError {
         message: "timeout".to_string(),
@@ -112,13 +128,19 @@ async fn test_validate_api_key_error_types_are_correct() {
         error_type: ApiKeyValidationErrorType::ServerError,
         status_code: Some(500),
     };
-    assert_eq!(server_error.error_type, ApiKeyValidationErrorType::ServerError);
+    assert_eq!(
+        server_error.error_type,
+        ApiKeyValidationErrorType::ServerError
+    );
 }
 
 #[test]
 fn test_validation_in_progress_initial_state_is_false() {
     let app = App::new();
-    assert!(!app.validation_in_progress, "validation_in_progress should be false initially");
+    assert!(
+        !app.validation_in_progress,
+        "validation_in_progress should be false initially"
+    );
 }
 
 #[test]
@@ -128,8 +150,15 @@ fn test_validation_in_progress_set_during_validation() {
     app.pending_api_key_for_validation = Some("sk-test-api-key-12345".to_string());
     app.validation_in_progress = true;
     app.mode = AppMode::ConnectProgress;
-    assert!(app.validation_in_progress, "validation_in_progress should be true during validation");
-    assert_eq!(app.mode, AppMode::ConnectProgress, "mode should be ConnectProgress during validation");
+    assert!(
+        app.validation_in_progress,
+        "validation_in_progress should be true during validation"
+    );
+    assert_eq!(
+        app.mode,
+        AppMode::ConnectProgress,
+        "mode should be ConnectProgress during validation"
+    );
 }
 
 #[test]
@@ -141,14 +170,32 @@ fn test_validation_in_progress_clears_after_validation_completes() {
     app.mode = AppMode::ConnectProgress;
 
     let models = Some(vec![
-        BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
-        BrowserAuthModelInfo { id: "gpt-4o-mini".to_string(), name: "GPT-4o Mini".to_string(), variants: vec![] },
+        BrowserAuthModelInfo {
+            id: "gpt-4o".to_string(),
+            name: "GPT-4o".to_string(),
+            variants: vec![],
+        },
+        BrowserAuthModelInfo {
+            id: "gpt-4o-mini".to_string(),
+            name: "GPT-4o Mini".to_string(),
+            variants: vec![],
+        },
     ]);
     app.simulate_validation_complete_for_testing(true, None, models);
 
-    assert!(!app.validation_in_progress, "validation_in_progress should be cleared after validation completes");
-    assert_eq!(app.mode, AppMode::ConnectModel, "mode should be ConnectModel after successful validation to show model selection");
-    assert!(app.connect_model_dialog.is_some(), "model dialog should be shown after successful validation");
+    assert!(
+        !app.validation_in_progress,
+        "validation_in_progress should be cleared after validation completes"
+    );
+    assert_eq!(
+        app.mode,
+        AppMode::ConnectModel,
+        "mode should be ConnectModel after successful validation to show model selection"
+    );
+    assert!(
+        app.connect_model_dialog.is_some(),
+        "model dialog should be shown after successful validation"
+    );
 }
 
 #[test]
@@ -156,7 +203,11 @@ fn test_input_is_disabled_during_validation() {
     let mut app = App::new();
     app.validation_in_progress = true;
     app.mode = AppMode::ConnectProgress;
-    assert_eq!(app.mode, AppMode::ConnectProgress, "ConnectProgress mode should disable normal input handling");
+    assert_eq!(
+        app.mode,
+        AppMode::ConnectProgress,
+        "ConnectProgress mode should disable normal input handling"
+    );
 }
 
 #[test]
@@ -167,11 +218,25 @@ fn test_invalid_api_key_shows_error_dialog_to_user() {
     app.validation_in_progress = true;
     app.mode = AppMode::ConnectProgress;
 
-    app.simulate_validation_complete_for_testing(false, Some("Authentication failed: invalid API key".to_string()), None);
+    app.simulate_validation_complete_for_testing(
+        false,
+        Some("Authentication failed: invalid API key".to_string()),
+        None,
+    );
 
-    assert!(!app.validation_in_progress, "validation_in_progress should be cleared after validation fails");
-    assert_eq!(app.mode, AppMode::ConnectApiKeyError, "mode should be ConnectApiKeyError after validation failure");
-    assert!(app.validation_error_dialog.is_some(), "error dialog should be shown to user");
+    assert!(
+        !app.validation_in_progress,
+        "validation_in_progress should be cleared after validation fails"
+    );
+    assert_eq!(
+        app.mode,
+        AppMode::ConnectApiKeyError,
+        "mode should be ConnectApiKeyError after validation failure"
+    );
+    assert!(
+        app.validation_error_dialog.is_some(),
+        "error dialog should be shown to user"
+    );
 }
 
 #[test]
@@ -191,8 +256,11 @@ fn test_user_can_retry_after_validation_failure() {
     if let Some(dialog) = app.validation_error_dialog.as_mut() {
         use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
         let retry_action = dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
-        assert_eq!(retry_action, DialogAction::Confirm("retry".to_string()),
-            "Enter on Try Again should return Confirm(retry)");
+        assert_eq!(
+            retry_action,
+            DialogAction::Confirm("retry".to_string()),
+            "Enter on Try Again should return Confirm(retry)"
+        );
     }
 }
 
@@ -204,13 +272,21 @@ fn test_invalid_keys_are_not_persisted_to_credential_store() {
     app.validation_in_progress = true;
     app.mode = AppMode::ConnectProgress;
 
-    app.simulate_validation_complete_for_testing(false, Some("Authentication failed".to_string()), None);
+    app.simulate_validation_complete_for_testing(
+        false,
+        Some("Authentication failed".to_string()),
+        None,
+    );
 
     assert_eq!(app.mode, AppMode::ConnectApiKeyError);
-    assert!(app.pending_api_key_for_validation.is_none(),
-        "API key should be cleared from memory after validation failure");
-    assert!(app.validation_error_dialog.is_some(),
-        "error dialog should be shown instead of saving");
+    assert!(
+        app.pending_api_key_for_validation.is_none(),
+        "API key should be cleared from memory after validation failure"
+    );
+    assert!(
+        app.validation_error_dialog.is_some(),
+        "error dialog should be shown instead of saving"
+    );
 }
 
 #[test]
@@ -232,8 +308,10 @@ fn test_network_failure_shows_error_message_to_user() {
     app.simulate_validation_complete_for_testing(false, Some(network_error.message.clone()), None);
 
     assert_eq!(app.mode, AppMode::ConnectApiKeyError);
-    assert!(app.validation_error_dialog.is_some(),
-        "network failure should show error dialog to user");
+    assert!(
+        app.validation_error_dialog.is_some(),
+        "network failure should show error dialog to user"
+    );
 }
 
 #[test]
@@ -245,11 +323,7 @@ fn test_validation_error_dialog_has_try_again_button() {
     let _ = theme_manager.load_from_config();
     let theme = theme_manager.current().clone();
 
-    let dialog = ValidationErrorDialog::from_validation_error(
-        "Test error",
-        "OpenAI",
-        theme,
-    );
+    let dialog = ValidationErrorDialog::from_validation_error("Test error", "OpenAI", theme);
 
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     use opencode_tui::dialogs::DialogAction;
@@ -260,8 +334,11 @@ fn test_validation_error_dialog_has_try_again_button() {
 
     let enter_key = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
     let action = dialog.handle_input(enter_key);
-    assert_eq!(action, DialogAction::Close,
-        "Cancel selected should return Close");
+    assert_eq!(
+        action,
+        DialogAction::Close,
+        "Cancel selected should return Close"
+    );
 }
 
 #[test]
@@ -273,11 +350,8 @@ fn test_validation_error_dialog_try_again_returns_retry_action() {
     let _ = theme_manager.load_from_config();
     let theme = theme_manager.current().clone();
 
-    let dialog = ValidationErrorDialog::from_validation_error(
-        "Authentication failed",
-        "Anthropic",
-        theme,
-    );
+    let dialog =
+        ValidationErrorDialog::from_validation_error("Authentication failed", "Anthropic", theme);
 
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     use opencode_tui::dialogs::DialogAction;
@@ -285,8 +359,11 @@ fn test_validation_error_dialog_try_again_returns_retry_action() {
     let mut dialog = dialog;
     let enter_key = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
     let action = dialog.handle_input(enter_key);
-    assert_eq!(action, DialogAction::Confirm("retry".to_string()),
-        "Try Again should return Confirm(retry)");
+    assert_eq!(
+        action,
+        DialogAction::Confirm("retry".to_string()),
+        "Try Again should return Confirm(retry)"
+    );
 }
 
 #[tokio::test]
@@ -294,10 +371,14 @@ async fn test_anthropic_uses_correct_validation_endpoint() {
     let result = validate_api_key("anthropic", "test-key").await;
     assert!(result.is_err());
     let error = result.unwrap_err();
-    assert!(matches!(
-        error.error_type,
-        ApiKeyValidationErrorType::AuthenticationError | ApiKeyValidationErrorType::NetworkError
-    ), "Expected auth or network error for invalid Anthropic key");
+    assert!(
+        matches!(
+            error.error_type,
+            ApiKeyValidationErrorType::AuthenticationError
+                | ApiKeyValidationErrorType::NetworkError
+        ),
+        "Expected auth or network error for invalid Anthropic key"
+    );
 }
 
 #[tokio::test]
@@ -305,10 +386,14 @@ async fn test_openai_uses_correct_validation_endpoint() {
     let result = validate_api_key("openai", "test-key").await;
     assert!(result.is_err());
     let error = result.unwrap_err();
-    assert!(matches!(
-        error.error_type,
-        ApiKeyValidationErrorType::AuthenticationError | ApiKeyValidationErrorType::NetworkError
-    ), "Expected auth or network error for invalid OpenAI key");
+    assert!(
+        matches!(
+            error.error_type,
+            ApiKeyValidationErrorType::AuthenticationError
+                | ApiKeyValidationErrorType::NetworkError
+        ),
+        "Expected auth or network error for invalid OpenAI key"
+    );
 }
 
 #[tokio::test]
@@ -318,10 +403,11 @@ async fn test_lm_studio_uses_api_tags_endpoint() {
     std::env::remove_var("LMSTUDIO_BASE_URL");
     assert!(result.is_err());
     let error = result.unwrap_err();
-    assert!(matches!(
-        error.error_type,
-        ApiKeyValidationErrorType::NetworkError
-    ), "LM Studio with invalid base URL should cause network error, got: {:?}", error.error_type);
+    assert!(
+        matches!(error.error_type, ApiKeyValidationErrorType::NetworkError),
+        "LM Studio with invalid base URL should cause network error, got: {:?}",
+        error.error_type
+    );
 }
 
 #[tokio::test]
@@ -331,23 +417,30 @@ async fn test_lm_studio_variant_names_use_api_tags_endpoint() {
     std::env::remove_var("LMSTUDIO_BASE_URL");
     assert!(result.is_err());
     let error = result.unwrap_err();
-    assert!(matches!(
-        error.error_type,
-        ApiKeyValidationErrorType::NetworkError
-    ), "lm_studio variant should use /api/tags endpoint");
+    assert!(
+        matches!(error.error_type, ApiKeyValidationErrorType::NetworkError),
+        "lm_studio variant should use /api/tags endpoint"
+    );
 }
 
 #[tokio::test]
 async fn test_unknown_provider_falls_back_to_v1_models() {
-    std::env::set_var("CUSTOM_PROVIDER_BASE_URL", "https://custom-provider.example.com");
+    std::env::set_var(
+        "CUSTOM_PROVIDER_BASE_URL",
+        "https://custom-provider.example.com",
+    );
     let result = validate_api_key("custom_provider", "test-key").await;
     std::env::remove_var("CUSTOM_PROVIDER_BASE_URL");
     assert!(result.is_err());
     let error = result.unwrap_err();
-    assert!(matches!(
-        error.error_type,
-        ApiKeyValidationErrorType::AuthenticationError | ApiKeyValidationErrorType::NetworkError
-    ), "Custom provider should use /v1/models endpoint");
+    assert!(
+        matches!(
+            error.error_type,
+            ApiKeyValidationErrorType::AuthenticationError
+                | ApiKeyValidationErrorType::NetworkError
+        ),
+        "Custom provider should use /v1/models endpoint"
+    );
 }
 
 #[tokio::test]
@@ -355,10 +448,14 @@ async fn test_openai_compatible_uses_models_endpoint() {
     let result = validate_api_key("openai", "test-key").await;
     assert!(result.is_err());
     let error = result.unwrap_err();
-    assert!(matches!(
-        error.error_type,
-        ApiKeyValidationErrorType::AuthenticationError | ApiKeyValidationErrorType::NetworkError
-    ), "OpenAI-compatible should use /v1/models endpoint");
+    assert!(
+        matches!(
+            error.error_type,
+            ApiKeyValidationErrorType::AuthenticationError
+                | ApiKeyValidationErrorType::NetworkError
+        ),
+        "OpenAI-compatible should use /v1/models endpoint"
+    );
 }
 
 use opencode_llm::BrowserAuthModelInfo;
@@ -372,14 +469,32 @@ fn test_connect_model_dialog_shown_after_successful_validation() {
     app.pending_api_key_for_validation = Some("sk-valid-key".to_string());
 
     let models = vec![
-        BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
-        BrowserAuthModelInfo { id: "gpt-4o-mini".to_string(), name: "GPT-4o Mini".to_string(), variants: vec![] },
+        BrowserAuthModelInfo {
+            id: "gpt-4o".to_string(),
+            name: "GPT-4o".to_string(),
+            variants: vec![],
+        },
+        BrowserAuthModelInfo {
+            id: "gpt-4o-mini".to_string(),
+            name: "GPT-4o Mini".to_string(),
+            variants: vec![],
+        },
     ];
     app.simulate_validation_complete_for_testing(true, None, Some(models));
 
-    assert_eq!(app.mode, AppMode::ConnectModel, "Mode should be ConnectModel after successful validation");
-    assert!(app.connect_model_dialog.is_some(), "ConnectModelDialog should be shown after successful validation");
-    assert!(!app.validation_in_progress, "validation_in_progress should be cleared");
+    assert_eq!(
+        app.mode,
+        AppMode::ConnectModel,
+        "Mode should be ConnectModel after successful validation"
+    );
+    assert!(
+        app.connect_model_dialog.is_some(),
+        "ConnectModelDialog should be shown after successful validation"
+    );
+    assert!(
+        !app.validation_in_progress,
+        "validation_in_progress should be cleared"
+    );
 }
 
 #[test]
@@ -391,14 +506,33 @@ fn test_validated_credentials_and_models_passed_to_dialog() {
     app.pending_api_key_for_validation = Some("sk-ant-valid-key".to_string());
 
     let models = vec![
-        BrowserAuthModelInfo { id: "claude-sonnet-4-20250514".to_string(), name: "Claude Sonnet 4".to_string(), variants: vec![] },
-        BrowserAuthModelInfo { id: "claude-haiku-3".to_string(), name: "Claude Haiku 3".to_string(), variants: vec![] },
+        BrowserAuthModelInfo {
+            id: "claude-sonnet-4-20250514".to_string(),
+            name: "Claude Sonnet 4".to_string(),
+            variants: vec![],
+        },
+        BrowserAuthModelInfo {
+            id: "claude-haiku-3".to_string(),
+            name: "Claude Haiku 3".to_string(),
+            variants: vec![],
+        },
     ];
     app.simulate_validation_complete_for_testing(true, None, Some(models.clone()));
 
-    assert_eq!(app.mode, AppMode::ConnectModel, "Mode should be ConnectModel");
-    assert_eq!(app.pending_api_key_models, models, "Validated models should be stored in pending_api_key_models");
-    assert_eq!(app.pending_api_key_for_provider, Some("sk-ant-valid-key".to_string()), "API key should be preserved for provider setup");
+    assert_eq!(
+        app.mode,
+        AppMode::ConnectModel,
+        "Mode should be ConnectModel"
+    );
+    assert_eq!(
+        app.pending_api_key_models, models,
+        "Validated models should be stored in pending_api_key_models"
+    );
+    assert_eq!(
+        app.pending_api_key_for_provider,
+        Some("sk-ant-valid-key".to_string()),
+        "API key should be preserved for provider setup"
+    );
 }
 
 #[test]
@@ -407,17 +541,37 @@ fn test_model_selection_uses_api_key_auth_flow() {
     app.complete_api_key_auth_for_test(
         "openai",
         "sk-api-key-12345",
-        vec![BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] }],
+        vec![BrowserAuthModelInfo {
+            id: "gpt-4o".to_string(),
+            name: "GPT-4o".to_string(),
+            variants: vec![],
+        }],
     );
 
     assert_eq!(app.mode, AppMode::ConnectModel);
-    assert!(app.connect_model_dialog.is_some(), "Model dialog should be shown");
+    assert!(
+        app.connect_model_dialog.is_some(),
+        "Model dialog should be shown"
+    );
 
     let result = app.confirm_model_for_api_key_auth_for_test("gpt-4o");
-    assert!(result.is_ok(), "Model confirmation should succeed with API key auth");
+    assert!(
+        result.is_ok(),
+        "Model confirmation should succeed with API key auth"
+    );
 
     assert_eq!(app.provider, "openai", "Provider should be set correctly");
-    assert_eq!(app.mode, AppMode::Chat, "Should return to Chat mode after model selection");
-    assert!(app.connect_model_dialog.is_none(), "Dialog should be cleared after selection");
-    assert!(app.pending_api_key_for_provider.is_none(), "Pending API key should be cleared");
+    assert_eq!(
+        app.mode,
+        AppMode::Chat,
+        "Should return to Chat mode after model selection"
+    );
+    assert!(
+        app.connect_model_dialog.is_none(),
+        "Dialog should be cleared after selection"
+    );
+    assert!(
+        app.pending_api_key_for_provider.is_none(),
+        "Pending API key should be cleared"
+    );
 }

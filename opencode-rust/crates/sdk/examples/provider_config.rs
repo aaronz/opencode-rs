@@ -30,8 +30,8 @@ fn example_openai_config() -> Result<(), Box<dyn std::error::Error>> {
     println!("1. OpenAI Provider Configuration");
     println!("----------------------------------");
 
-    let api_key = std::env::var("OPENAI_API_KEY")
-        .unwrap_or_else(|_| "sk-your-openai-api-key".to_string());
+    let api_key =
+        std::env::var("OPENAI_API_KEY").unwrap_or_else(|_| "sk-your-openai-api-key".to_string());
 
     let config = ProviderConfig {
         model: "gpt-4o".to_string(),
@@ -43,9 +43,23 @@ fn example_openai_config() -> Result<(), Box<dyn std::error::Error>> {
     let provider = OpenAiProvider::new(api_key, config.model.clone());
     println!("  Model: {}", config.model);
     println!("  Temperature: {}", config.temperature);
-    println!("  API Key: {}", if config.api_key.is_empty() { "not set" } else { "***" });
+    println!(
+        "  API Key: {}",
+        if config.api_key.is_empty() {
+            "not set"
+        } else {
+            "***"
+        }
+    );
     println!("  Provider name: {}", provider.provider_name());
-    println!("  Available models: {:?}", provider.get_models().iter().map(|m| m.id.clone()).collect::<Vec<_>>());
+    println!(
+        "  Available models: {:?}",
+        provider
+            .get_models()
+            .iter()
+            .map(|m| m.id.clone())
+            .collect::<Vec<_>>()
+    );
 
     println!("  Environment variables:");
     println!("    OPENAI_API_KEY=<your-api-key>");
@@ -72,7 +86,14 @@ fn example_anthropic_config() -> Result<(), Box<dyn std::error::Error>> {
     println!("  Model: {}", config.model);
     println!("  Temperature: {}", config.temperature);
     println!("  Provider name: {}", provider.provider_name());
-    println!("  Available models: {:?}", provider.get_models().iter().map(|m| m.id.clone()).collect::<Vec<_>>());
+    println!(
+        "  Available models: {:?}",
+        provider
+            .get_models()
+            .iter()
+            .map(|m| m.id.clone())
+            .collect::<Vec<_>>()
+    );
 
     println!("  Environment variables:");
     println!("    ANTHROPIC_API_KEY=<your-api-key>");
@@ -85,8 +106,8 @@ fn example_ollama_config() -> Result<(), Box<dyn std::error::Error>> {
     println!("3. Ollama Provider Configuration (Local)");
     println!("---------------------------------------");
 
-    let base_url = std::env::var("OLLAMA_BASE_URL")
-        .unwrap_or_else(|_| "http://localhost:11434".to_string());
+    let base_url =
+        std::env::var("OLLAMA_BASE_URL").unwrap_or_else(|_| "http://localhost:11434".to_string());
 
     let config = ProviderConfig {
         model: "llama2".to_string(),
@@ -100,7 +121,14 @@ fn example_ollama_config() -> Result<(), Box<dyn std::error::Error>> {
     println!("  Temperature: {}", config.temperature);
     println!("  Base URL: {}", base_url);
     println!("  Provider name: {}", provider.provider_name());
-    println!("  Available models: {:?}", provider.get_models().iter().map(|m| m.id.clone()).collect::<Vec<_>>());
+    println!(
+        "  Available models: {:?}",
+        provider
+            .get_models()
+            .iter()
+            .map(|m| m.id.clone())
+            .collect::<Vec<_>>()
+    );
 
     println!("  Environment variables:");
     println!("    OLLAMA_BASE_URL=http://localhost:11434 (default)");
@@ -130,14 +158,14 @@ fn example_env_var_configuration() -> Result<(), Box<dyn std::error::Error>> {
     println!("  ```");
     println!();
 
-    let active_provider = std::env::var("OPENCODE_LLM_PROVIDER")
-        .unwrap_or_else(|_| "openai".to_string());
+    let active_provider =
+        std::env::var("OPENCODE_LLM_PROVIDER").unwrap_or_else(|_| "openai".to_string());
     println!("  Active provider: {}", active_provider);
 
     let openai_key = std::env::var("OPENAI_API_KEY").ok();
     let anthropic_key = std::env::var("ANTHROPIC_API_KEY").ok();
-    let ollama_url = std::env::var("OLLAMA_BASE_URL")
-        .unwrap_or_else(|_| "http://localhost:11434".to_string());
+    let ollama_url =
+        std::env::var("OLLAMA_BASE_URL").unwrap_or_else(|_| "http://localhost:11434".to_string());
 
     println!("  Configured providers:");
     if openai_key.is_some() {

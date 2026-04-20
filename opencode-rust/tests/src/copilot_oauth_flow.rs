@@ -1,6 +1,9 @@
 mod common;
 use common::MockServer;
-use opencode_llm::{BrowserAuthModelInfo, CopilotOAuthCallback, CopilotOAuthRequest, CopilotOAuthSession, CopilotOAuthService};
+use opencode_llm::{
+    BrowserAuthModelInfo, CopilotOAuthCallback, CopilotOAuthRequest, CopilotOAuthService,
+    CopilotOAuthSession,
+};
 use opencode_tui::{App, AppMode};
 
 #[test]
@@ -14,24 +17,60 @@ fn test_complete_copilot_oauth_flow_provider_to_chat() {
             token_type: "Bearer".to_string(),
         },
         vec![
-            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
-            BrowserAuthModelInfo { id: "o1".to_string(), name: "o1".to_string(), variants: vec![] },
-            BrowserAuthModelInfo { id: "o1-mini".to_string(), name: "o1 Mini".to_string(), variants: vec![] },
+            BrowserAuthModelInfo {
+                id: "gpt-4o".to_string(),
+                name: "GPT-4o".to_string(),
+                variants: vec![],
+            },
+            BrowserAuthModelInfo {
+                id: "o1".to_string(),
+                name: "o1".to_string(),
+                variants: vec![],
+            },
+            BrowserAuthModelInfo {
+                id: "o1-mini".to_string(),
+                name: "o1 Mini".to_string(),
+                variants: vec![],
+            },
         ],
     );
 
-    assert_eq!(app.mode, AppMode::ConnectModel, "Should transition to ConnectModel after OAuth");
-    assert!(app.connect_model_dialog.is_some(), "Model selection dialog should be shown");
-    assert!(app.pending_copilot_session.is_some(), "Copilot session should be stored pending");
-    assert_eq!(app.pending_browser_models.len(), 3, "Should have 3 models available");
+    assert_eq!(
+        app.mode,
+        AppMode::ConnectModel,
+        "Should transition to ConnectModel after OAuth"
+    );
+    assert!(
+        app.connect_model_dialog.is_some(),
+        "Model selection dialog should be shown"
+    );
+    assert!(
+        app.pending_copilot_session.is_some(),
+        "Copilot session should be stored pending"
+    );
+    assert_eq!(
+        app.pending_browser_models.len(),
+        3,
+        "Should have 3 models available"
+    );
 
     let result = app.confirm_model_for_copilot_auth_for_test("gpt-4o");
     assert!(result.is_ok(), "Model selection should succeed");
 
     assert_eq!(app.provider, "copilot", "Provider should be set to copilot");
-    assert_eq!(app.mode, AppMode::Chat, "Should return to Chat mode after model selection");
-    assert!(app.connect_model_dialog.is_none(), "Dialog should be cleared");
-    assert!(app.pending_copilot_session.is_none(), "Pending Copilot session should be consumed");
+    assert_eq!(
+        app.mode,
+        AppMode::Chat,
+        "Should return to Chat mode after model selection"
+    );
+    assert!(
+        app.connect_model_dialog.is_none(),
+        "Dialog should be cleared"
+    );
+    assert!(
+        app.pending_copilot_session.is_none(),
+        "Pending Copilot session should be consumed"
+    );
 }
 
 #[test]
@@ -45,8 +84,16 @@ fn test_copilot_oauth_flow_with_o1_model() {
             token_type: "Bearer".to_string(),
         },
         vec![
-            BrowserAuthModelInfo { id: "o1-preview".to_string(), name: "o1 Preview".to_string(), variants: vec![] },
-            BrowserAuthModelInfo { id: "o1-mini".to_string(), name: "o1 Mini".to_string(), variants: vec![] },
+            BrowserAuthModelInfo {
+                id: "o1-preview".to_string(),
+                name: "o1 Preview".to_string(),
+                variants: vec![],
+            },
+            BrowserAuthModelInfo {
+                id: "o1-mini".to_string(),
+                name: "o1 Mini".to_string(),
+                variants: vec![],
+            },
         ],
     );
 
@@ -70,9 +117,11 @@ fn test_copilot_oauth_session_stores_token() {
             expires_at_epoch_ms: chrono::Utc::now().timestamp_millis() + 3600000,
             token_type: "Bearer".to_string(),
         },
-        vec![
-            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
-        ],
+        vec![BrowserAuthModelInfo {
+            id: "gpt-4o".to_string(),
+            name: "GPT-4o".to_string(),
+            variants: vec![],
+        }],
     );
 
     assert!(app.pending_copilot_session.is_some());
@@ -93,8 +142,16 @@ fn test_copilot_oauth_flow_model_selection_persists_across_dialog_close_open() {
             token_type: "Bearer".to_string(),
         },
         vec![
-            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
-            BrowserAuthModelInfo { id: "o1".to_string(), name: "o1".to_string(), variants: vec![] },
+            BrowserAuthModelInfo {
+                id: "gpt-4o".to_string(),
+                name: "GPT-4o".to_string(),
+                variants: vec![],
+            },
+            BrowserAuthModelInfo {
+                id: "o1".to_string(),
+                name: "o1".to_string(),
+                variants: vec![],
+            },
         ],
     );
 
@@ -108,7 +165,10 @@ fn test_copilot_oauth_flow_model_selection_persists_across_dialog_close_open() {
     ));
 
     let restored_count = app.pending_browser_models.len();
-    assert_eq!(model_count, restored_count, "Models should be preserved when dialog is recreated");
+    assert_eq!(
+        model_count, restored_count,
+        "Models should be preserved when dialog is recreated"
+    );
 }
 
 #[test]
@@ -121,9 +181,11 @@ fn test_copilot_oauth_multiple_providers_sequence() {
             expires_at_epoch_ms: chrono::Utc::now().timestamp_millis() + 3600000,
             token_type: "Bearer".to_string(),
         },
-        vec![
-            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
-        ],
+        vec![BrowserAuthModelInfo {
+            id: "gpt-4o".to_string(),
+            name: "GPT-4o".to_string(),
+            variants: vec![],
+        }],
     );
 
     assert_eq!(app.mode, AppMode::ConnectModel);
@@ -138,16 +200,21 @@ fn test_copilot_oauth_multiple_providers_sequence() {
             expires_at_epoch_ms: chrono::Utc::now().timestamp_millis() + 3600000,
             token_type: "Bearer".to_string(),
         },
-        vec![
-            BrowserAuthModelInfo { id: "o1".to_string(), name: "o1".to_string(), variants: vec![] },
-        ],
+        vec![BrowserAuthModelInfo {
+            id: "o1".to_string(),
+            name: "o1".to_string(),
+            variants: vec![],
+        }],
     );
 
     assert_eq!(app.mode, AppMode::ConnectModel);
 
     let result2 = app.confirm_model_for_copilot_auth_for_test("o1");
     if result2.is_ok() {
-        assert_eq!(app.provider, "copilot", "Provider should be updated after successful confirm");
+        assert_eq!(
+            app.provider, "copilot",
+            "Provider should be updated after successful confirm"
+        );
     }
 }
 
@@ -159,7 +226,10 @@ fn test_copilot_oauth_expired_session_detected() {
         token_type: "Bearer".to_string(),
     };
 
-    assert!(session.is_expired(), "Session with past expiry time should be detected as expired");
+    assert!(
+        session.is_expired(),
+        "Session with past expiry time should be detected as expired"
+    );
 }
 
 #[test]
@@ -170,7 +240,10 @@ fn test_copilot_oauth_valid_session_not_expired() {
         token_type: "Bearer".to_string(),
     };
 
-    assert!(!session.is_expired(), "Session with future expiry time should not be expired");
+    assert!(
+        !session.is_expired(),
+        "Session with future expiry time should not be expired"
+    );
 }
 
 #[test]
@@ -178,10 +251,26 @@ fn test_copilot_oauth_flow_with_multiple_copilot_models() {
     let mut app = App::new();
 
     let models = vec![
-        BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
-        BrowserAuthModelInfo { id: "o1-preview".to_string(), name: "o1 Preview".to_string(), variants: vec![] },
-        BrowserAuthModelInfo { id: "o1-mini".to_string(), name: "o1 Mini".to_string(), variants: vec![] },
-        BrowserAuthModelInfo { id: "claude-sonnet-4".to_string(), name: "Claude Sonnet 4".to_string(), variants: vec![] },
+        BrowserAuthModelInfo {
+            id: "gpt-4o".to_string(),
+            name: "GPT-4o".to_string(),
+            variants: vec![],
+        },
+        BrowserAuthModelInfo {
+            id: "o1-preview".to_string(),
+            name: "o1 Preview".to_string(),
+            variants: vec![],
+        },
+        BrowserAuthModelInfo {
+            id: "o1-mini".to_string(),
+            name: "o1 Mini".to_string(),
+            variants: vec![],
+        },
+        BrowserAuthModelInfo {
+            id: "claude-sonnet-4".to_string(),
+            name: "Claude Sonnet 4".to_string(),
+            variants: vec![],
+        },
     ];
 
     app.complete_copilot_auth_for_test(
@@ -194,7 +283,11 @@ fn test_copilot_oauth_flow_with_multiple_copilot_models() {
     );
 
     assert_eq!(app.mode, AppMode::ConnectModel);
-    assert_eq!(app.pending_browser_models.len(), 4, "Should have 4 models available");
+    assert_eq!(
+        app.pending_browser_models.len(),
+        4,
+        "Should have 4 models available"
+    );
 
     let result = app.confirm_model_for_copilot_auth_for_test("o1-mini");
     assert!(result.is_ok());
@@ -211,20 +304,28 @@ fn test_copilot_oauth_preserves_session_data_through_model_selection() {
             expires_at_epoch_ms: chrono::Utc::now().timestamp_millis() + 3600000,
             token_type: "Bearer".to_string(),
         },
-        vec![
-            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
-        ],
+        vec![BrowserAuthModelInfo {
+            id: "gpt-4o".to_string(),
+            name: "GPT-4o".to_string(),
+            variants: vec![],
+        }],
     );
 
     let original_session = app.pending_copilot_session.clone();
 
     assert!(original_session.is_some());
-    assert_eq!(original_session.as_ref().unwrap().access_token, "preserved_token");
+    assert_eq!(
+        original_session.as_ref().unwrap().access_token,
+        "preserved_token"
+    );
 
     let result = app.confirm_model_for_copilot_auth_for_test("gpt-4o");
     assert!(result.is_ok());
 
-    assert!(app.pending_copilot_session.is_none(), "Session should be consumed after model confirm");
+    assert!(
+        app.pending_copilot_session.is_none(),
+        "Session should be consumed after model confirm"
+    );
 }
 
 #[test]
@@ -240,9 +341,16 @@ fn test_copilot_oauth_flow_empty_models_still_transitions() {
         vec![],
     );
 
-    assert_eq!(app.mode, AppMode::ConnectModel, "Should still transition to ConnectModel even with empty models");
+    assert_eq!(
+        app.mode,
+        AppMode::ConnectModel,
+        "Should still transition to ConnectModel even with empty models"
+    );
     assert!(app.connect_model_dialog.is_some());
-    assert!(app.pending_browser_models.is_empty(), "Models list should be empty");
+    assert!(
+        app.pending_browser_models.is_empty(),
+        "Models list should be empty"
+    );
 }
 
 #[test]
@@ -250,8 +358,16 @@ fn test_copilot_oauth_different_models_have_different_ids() {
     let mut app = App::new();
 
     let models = vec![
-        BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
-        BrowserAuthModelInfo { id: "o1-preview".to_string(), name: "o1 Preview".to_string(), variants: vec![] },
+        BrowserAuthModelInfo {
+            id: "gpt-4o".to_string(),
+            name: "GPT-4o".to_string(),
+            variants: vec![],
+        },
+        BrowserAuthModelInfo {
+            id: "o1-preview".to_string(),
+            name: "o1 Preview".to_string(),
+            variants: vec![],
+        },
     ];
 
     app.complete_copilot_auth_for_test(
@@ -263,7 +379,11 @@ fn test_copilot_oauth_different_models_have_different_ids() {
         models,
     );
 
-    let model_ids: Vec<String> = app.pending_browser_models.iter().map(|m| m.id.clone()).collect();
+    let model_ids: Vec<String> = app
+        .pending_browser_models
+        .iter()
+        .map(|m| m.id.clone())
+        .collect();
     assert!(model_ids.contains(&"gpt-4o".to_string()));
     assert!(model_ids.contains(&"o1-preview".to_string()));
     assert_eq!(model_ids.len(), 2, "Should have exactly 2 unique model IDs");
@@ -277,7 +397,7 @@ fn test_copilot_oauth_token_exchange_with_mock_server() {
         "POST",
         "/login/oauth/access_token",
         200,
-        "access_token=gho_testtoken123&token_type=Bearer"
+        "access_token=gho_testtoken123&token_type=Bearer",
     );
 
     let service = CopilotOAuthService::new();
@@ -292,7 +412,10 @@ fn test_copilot_oauth_token_exchange_with_mock_server() {
     };
 
     let result = service.exchange_code(callback, &request);
-    assert!(result.is_ok() || result.is_err(), "Token exchange should complete");
+    assert!(
+        result.is_ok() || result.is_err(),
+        "Token exchange should complete"
+    );
 }
 
 #[test]
@@ -305,14 +428,19 @@ fn test_copilot_oauth_uses_correct_provider_name() {
             expires_at_epoch_ms: chrono::Utc::now().timestamp_millis() + 3600000,
             token_type: "Bearer".to_string(),
         },
-        vec![
-            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
-        ],
+        vec![BrowserAuthModelInfo {
+            id: "gpt-4o".to_string(),
+            name: "GPT-4o".to_string(),
+            variants: vec![],
+        }],
     );
 
     let result = app.confirm_model_for_copilot_auth_for_test("gpt-4o");
     assert!(result.is_ok());
-    assert_eq!(app.provider, "copilot", "Provider should be 'copilot', not 'github-copilot' or other variant");
+    assert_eq!(
+        app.provider, "copilot",
+        "Provider should be 'copilot', not 'github-copilot' or other variant"
+    );
 }
 
 #[test]
@@ -325,13 +453,18 @@ fn test_copilot_oauth_token_type_preserved() {
             expires_at_epoch_ms: chrono::Utc::now().timestamp_millis() + 3600000,
             token_type: "macaroon".to_string(),
         },
-        vec![
-            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
-        ],
+        vec![BrowserAuthModelInfo {
+            id: "gpt-4o".to_string(),
+            name: "GPT-4o".to_string(),
+            variants: vec![],
+        }],
     );
 
     assert!(app.pending_copilot_session.is_some());
-    assert_eq!(app.pending_copilot_session.as_ref().unwrap().token_type, "macaroon");
+    assert_eq!(
+        app.pending_copilot_session.as_ref().unwrap().token_type,
+        "macaroon"
+    );
 
     let result = app.confirm_model_for_copilot_auth_for_test("gpt-4o");
     assert!(result.is_ok());
@@ -382,16 +515,21 @@ fn test_copilot_oauth_error_recovery_clears_pending_session() {
             expires_at_epoch_ms: chrono::Utc::now().timestamp_millis() + 3600000,
             token_type: "Bearer".to_string(),
         },
-        vec![
-            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
-        ],
+        vec![BrowserAuthModelInfo {
+            id: "gpt-4o".to_string(),
+            name: "GPT-4o".to_string(),
+            variants: vec![],
+        }],
     );
 
     assert!(app.pending_copilot_session.is_some());
 
     app.pending_copilot_session = None;
 
-    assert!(app.pending_copilot_session.is_none(), "Pending session should be cleared after error");
+    assert!(
+        app.pending_copilot_session.is_none(),
+        "Pending session should be cleared after error"
+    );
     assert_eq!(app.mode, AppMode::ConnectModel);
 }
 
@@ -421,9 +559,11 @@ fn test_copilot_oauth_bearer_token_type() {
             expires_at_epoch_ms: chrono::Utc::now().timestamp_millis() + 3600000,
             token_type: "Bearer".to_string(),
         },
-        vec![
-            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
-        ],
+        vec![BrowserAuthModelInfo {
+            id: "gpt-4o".to_string(),
+            name: "GPT-4o".to_string(),
+            variants: vec![],
+        }],
     );
 
     let session = app.pending_copilot_session.clone().unwrap();
@@ -441,13 +581,18 @@ fn test_copilot_oauth_flow_unknown_model_still_creates_provider() {
             expires_at_epoch_ms: chrono::Utc::now().timestamp_millis() + 3600000,
             token_type: "Bearer".to_string(),
         },
-        vec![
-            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
-        ],
+        vec![BrowserAuthModelInfo {
+            id: "gpt-4o".to_string(),
+            name: "GPT-4o".to_string(),
+            variants: vec![],
+        }],
     );
 
     let result = app.confirm_model_for_copilot_auth_for_test("unknown-model");
-    assert!(result.is_ok(), "Confirming any model should succeed even if not in pending list");
+    assert!(
+        result.is_ok(),
+        "Confirming any model should succeed even if not in pending list"
+    );
     assert_eq!(app.provider, "copilot");
 }
 
@@ -465,5 +610,8 @@ fn test_copilot_oauth_token_exchange_runs_in_blocking_context() {
     };
 
     let result = service.exchange_code(callback, &request);
-    assert!(result.is_err(), "State mismatch should produce an error even without server");
+    assert!(
+        result.is_err(),
+        "State mismatch should produce an error even without server"
+    );
 }

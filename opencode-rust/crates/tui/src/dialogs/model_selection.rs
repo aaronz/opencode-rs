@@ -145,7 +145,10 @@ impl Dialog for ModelSelectionDialog {
 
                 ListItem::new(Line::from(vec![
                     Span::styled(
-                        format!("{}{}{}{}", model.name, model.provider, paid_marker, variant_hint),
+                        format!(
+                            "{}{}{}{}",
+                            model.name, model.provider, paid_marker, variant_hint
+                        ),
                         style,
                     ),
                     Span::styled(availability, Style::default().fg(Color::Red)),

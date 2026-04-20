@@ -223,82 +223,82 @@ fn test_dynamic_factory_supports_always_returns_true() {
 }
 
 #[test]
-    fn test_populate_from_catalog_adds_models() {
-        use opencode_llm::catalog::{
-            CatalogSource, CostInfo, LimitInfo, ModelCapabilities, ModelDescriptor, ModelStatus,
-            ProviderCatalog, ProviderDescriptor,
-        };
-        use opencode_llm::models::ModelRegistry;
-        use std::collections::BTreeMap;
+fn test_populate_from_catalog_adds_models() {
+    use opencode_llm::catalog::{
+        CatalogSource, CostInfo, LimitInfo, ModelCapabilities, ModelDescriptor, ModelStatus,
+        ProviderCatalog, ProviderDescriptor,
+    };
+    use opencode_llm::models::ModelRegistry;
+    use std::collections::BTreeMap;
 
-        let mut providers = BTreeMap::new();
-        providers.insert(
-            "newtest".to_string(),
-            ProviderDescriptor {
-                id: "newtest".to_string(),
-                display_name: "New Test Provider".to_string(),
-                api_base_url: Some("https://api.newtest.com/v1".to_string()),
-                docs_url: None,
-                env_vars: vec![],
-                npm_package: None,
-                models: BTreeMap::from([(
-                    "test-model".to_string(),
-                    ModelDescriptor {
-                        id: "test-model".to_string(),
-                        display_name: "Test Model".to_string(),
-                        family: Some("Test".to_string()),
-                        provider_id: "newtest".to_string(),
-                        capabilities: ModelCapabilities {
-                            attachment: false,
-                            reasoning: true,
-                            tool_call: false,
-                            temperature: true,
-                            structured_output: false,
-                            interleaved: false,
-                            open_weights: false,
-                            input_modalities: vec!["text".to_string()],
-                            output_modalities: vec!["text".to_string()],
-                        },
-                        cost: CostInfo {
-                            input: 0.0,
-                            output: 0.0,
-                            cache_read: 0.0,
-                            cache_write: 0.0,
-                        },
-                        limits: LimitInfo {
-                            context: 1000000,
-                            input: None,
-                            output: 8192,
-                        },
-                        status: ModelStatus::Active,
-                        variants: vec![],
+    let mut providers = BTreeMap::new();
+    providers.insert(
+        "newtest".to_string(),
+        ProviderDescriptor {
+            id: "newtest".to_string(),
+            display_name: "New Test Provider".to_string(),
+            api_base_url: Some("https://api.newtest.com/v1".to_string()),
+            docs_url: None,
+            env_vars: vec![],
+            npm_package: None,
+            models: BTreeMap::from([(
+                "test-model".to_string(),
+                ModelDescriptor {
+                    id: "test-model".to_string(),
+                    display_name: "Test Model".to_string(),
+                    family: Some("Test".to_string()),
+                    provider_id: "newtest".to_string(),
+                    capabilities: ModelCapabilities {
+                        attachment: false,
+                        reasoning: true,
+                        tool_call: false,
+                        temperature: true,
+                        structured_output: false,
+                        interleaved: false,
+                        open_weights: false,
+                        input_modalities: vec!["text".to_string()],
+                        output_modalities: vec!["text".to_string()],
                     },
-                )]),
-                source: CatalogSource::ModelsDev,
-            },
-        );
-
-        let catalog = ProviderCatalog {
-            providers,
-            fetched_at: chrono::Utc::now(),
+                    cost: CostInfo {
+                        input: 0.0,
+                        output: 0.0,
+                        cache_read: 0.0,
+                        cache_write: 0.0,
+                    },
+                    limits: LimitInfo {
+                        context: 1000000,
+                        input: None,
+                        output: 8192,
+                    },
+                    status: ModelStatus::Active,
+                    variants: vec![],
+                },
+            )]),
             source: CatalogSource::ModelsDev,
-        };
+        },
+    );
 
-        let mut registry = ModelRegistry::new();
-        let initial_count = registry.list().len();
+    let catalog = ProviderCatalog {
+        providers,
+        fetched_at: chrono::Utc::now(),
+        source: CatalogSource::ModelsDev,
+    };
 
-        registry.populate_from_catalog(&catalog);
+    let mut registry = ModelRegistry::new();
+    let initial_count = registry.list().len();
 
-        let models = registry.list();
-        assert!(
-            models.len() >= initial_count,
-            "Model count should not decrease after populate_from_catalog"
-        );
-        assert!(registry.get("test-model").is_some());
-        let test_model = registry.get("test-model").unwrap();
-        assert_eq!(test_model.provider, "newtest");
-        assert!(test_model.supports_streaming);
-    }
+    registry.populate_from_catalog(&catalog);
+
+    let models = registry.list();
+    assert!(
+        models.len() >= initial_count,
+        "Model count should not decrease after populate_from_catalog"
+    );
+    assert!(registry.get("test-model").is_some());
+    let test_model = registry.get("test-model").unwrap();
+    assert_eq!(test_model.provider, "newtest");
+    assert!(test_model.supports_streaming);
+}
 
 #[test]
 fn test_populate_from_catalog_preserves_existing_models() {

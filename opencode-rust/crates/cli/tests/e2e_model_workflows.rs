@@ -55,10 +55,22 @@ fn test_provider_list_contains_real_status_fields() {
     assert!(!providers.is_empty(), "Should have at least one provider");
 
     for provider in providers {
-        assert!(provider.get("id").is_some(), "Provider should have id field");
-        assert!(provider.get("name").is_some(), "Provider should have name field");
-        assert!(provider.get("status").is_some(), "Provider should have status field");
-        assert!(provider.get("enabled").is_some(), "Provider should have enabled field");
+        assert!(
+            provider.get("id").is_some(),
+            "Provider should have id field"
+        );
+        assert!(
+            provider.get("name").is_some(),
+            "Provider should have name field"
+        );
+        assert!(
+            provider.get("status").is_some(),
+            "Provider should have status field"
+        );
+        assert!(
+            provider.get("enabled").is_some(),
+            "Provider should have enabled field"
+        );
     }
 }
 

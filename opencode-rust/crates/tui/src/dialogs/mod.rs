@@ -58,7 +58,10 @@ pub enum DialogAction {
     Close,
     Confirm(String),
     ConfirmMultiple(Vec<String>),
-    ConfirmModelWithVariant { model_id: String, variant_name: Option<String> },
+    ConfirmModelWithVariant {
+        model_id: String,
+        variant_name: Option<String>,
+    },
     Navigate(String),
 }
 

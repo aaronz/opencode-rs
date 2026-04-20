@@ -1,5 +1,5 @@
-use opencode_tui::{App, AppMode};
 use opencode_llm::BrowserAuthModelInfo;
+use opencode_tui::{App, AppMode};
 
 #[test]
 fn test_non_openai_provider_does_not_default_to_gpt4o() {
@@ -9,8 +9,16 @@ fn test_non_openai_provider_does_not_default_to_gpt4o() {
         "anthropic",
         "sk-ant-api-key-12345",
         vec![
-            BrowserAuthModelInfo { id: "claude-sonnet-4-20250514".to_string(), name: "Claude Sonnet 4".to_string(), variants: vec![] },
-            BrowserAuthModelInfo { id: "claude-haiku-3".to_string(), name: "Claude Haiku 3".to_string(), variants: vec![] },
+            BrowserAuthModelInfo {
+                id: "claude-sonnet-4-20250514".to_string(),
+                name: "Claude Sonnet 4".to_string(),
+                variants: vec![],
+            },
+            BrowserAuthModelInfo {
+                id: "claude-haiku-3".to_string(),
+                name: "Claude Haiku 3".to_string(),
+                variants: vec![],
+            },
         ],
     );
 
@@ -20,9 +28,13 @@ fn test_non_openai_provider_does_not_default_to_gpt4o() {
     let providers = &app.config.providers;
     assert!(providers.is_some(), "Providers should be set in config");
 
-    let provider = providers.as_ref()
+    let provider = providers
+        .as_ref()
         .and_then(|p| p.iter().find(|p| p.name == "anthropic"));
-    assert!(provider.is_some(), "Anthropic provider should exist in config");
+    assert!(
+        provider.is_some(),
+        "Anthropic provider should exist in config"
+    );
 
     let provider = provider.unwrap();
     let default_model = provider.default_model.as_ref().unwrap();
@@ -44,9 +56,11 @@ fn test_selected_model_is_used_instead_of_hardcoded_default() {
     app.complete_api_key_auth_for_test(
         "anthropic",
         "sk-ant-api-key-12345",
-        vec![
-            BrowserAuthModelInfo { id: "claude-haiku-3".to_string(), name: "Claude Haiku 3".to_string(), variants: vec![] },
-        ],
+        vec![BrowserAuthModelInfo {
+            id: "claude-haiku-3".to_string(),
+            name: "Claude Haiku 3".to_string(),
+            variants: vec![],
+        }],
     );
 
     let result = app.confirm_model_for_api_key_auth_for_test("claude-haiku-3");
@@ -55,9 +69,13 @@ fn test_selected_model_is_used_instead_of_hardcoded_default() {
     let providers = &app.config.providers;
     assert!(providers.is_some(), "Providers should be set in config");
 
-    let provider = providers.as_ref()
+    let provider = providers
+        .as_ref()
         .and_then(|p| p.iter().find(|p| p.name == "anthropic"));
-    assert!(provider.is_some(), "Anthropic provider should exist in config");
+    assert!(
+        provider.is_some(),
+        "Anthropic provider should exist in config"
+    );
 
     let provider = provider.unwrap();
     assert_eq!(
@@ -75,8 +93,16 @@ fn test_selected_model_is_stored_in_provider_config() {
         "openai",
         "sk-api-key-12345",
         vec![
-            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
-            BrowserAuthModelInfo { id: "gpt-4o-mini".to_string(), name: "GPT-4o Mini".to_string(), variants: vec![] },
+            BrowserAuthModelInfo {
+                id: "gpt-4o".to_string(),
+                name: "GPT-4o".to_string(),
+                variants: vec![],
+            },
+            BrowserAuthModelInfo {
+                id: "gpt-4o-mini".to_string(),
+                name: "GPT-4o Mini".to_string(),
+                variants: vec![],
+            },
         ],
     );
 
@@ -86,7 +112,8 @@ fn test_selected_model_is_stored_in_provider_config() {
     let providers = &app.config.providers;
     assert!(providers.is_some(), "Providers should be set in config");
 
-    let provider = providers.as_ref()
+    let provider = providers
+        .as_ref()
         .and_then(|p| p.iter().find(|p| p.name == "openai"));
     assert!(provider.is_some(), "OpenAI provider should exist in config");
 
@@ -106,8 +133,16 @@ fn test_active_provider_is_set_after_model_selection() {
         "anthropic",
         "sk-ant-api-key",
         vec![
-            BrowserAuthModelInfo { id: "claude-sonnet-4-20250514".to_string(), name: "Claude Sonnet 4".to_string(), variants: vec![] },
-            BrowserAuthModelInfo { id: "claude-haiku-3".to_string(), name: "Claude Haiku 3".to_string(), variants: vec![] },
+            BrowserAuthModelInfo {
+                id: "claude-sonnet-4-20250514".to_string(),
+                name: "Claude Sonnet 4".to_string(),
+                variants: vec![],
+            },
+            BrowserAuthModelInfo {
+                id: "claude-haiku-3".to_string(),
+                name: "Claude Haiku 3".to_string(),
+                variants: vec![],
+            },
         ],
     );
 
@@ -127,9 +162,11 @@ fn test_app_transitions_to_chat_mode_after_selection() {
     app.complete_api_key_auth_for_test(
         "openai",
         "sk-api-key-12345",
-        vec![
-            BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
-        ],
+        vec![BrowserAuthModelInfo {
+            id: "gpt-4o".to_string(),
+            name: "GPT-4o".to_string(),
+            variants: vec![],
+        }],
     );
 
     assert_eq!(app.mode, AppMode::ConnectModel);
@@ -138,7 +175,8 @@ fn test_app_transitions_to_chat_mode_after_selection() {
     assert!(result.is_ok(), "Model confirmation should succeed");
 
     assert_eq!(
-        app.mode, AppMode::Chat,
+        app.mode,
+        AppMode::Chat,
         "App should transition to Chat mode after model selection"
     );
 }
@@ -153,13 +191,22 @@ fn test_complete_flow_validation_model_select_chat() {
     app.pending_api_key_for_validation = Some("sk-api-key-12345".to_string());
 
     let models = vec![
-        BrowserAuthModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), variants: vec![] },
-        BrowserAuthModelInfo { id: "gpt-4o-mini".to_string(), name: "GPT-4o Mini".to_string(), variants: vec![] },
+        BrowserAuthModelInfo {
+            id: "gpt-4o".to_string(),
+            name: "GPT-4o".to_string(),
+            variants: vec![],
+        },
+        BrowserAuthModelInfo {
+            id: "gpt-4o-mini".to_string(),
+            name: "GPT-4o Mini".to_string(),
+            variants: vec![],
+        },
     ];
     app.simulate_validation_complete_for_testing(true, None, Some(models.clone()));
 
     assert_eq!(
-        app.mode, AppMode::ConnectModel,
+        app.mode,
+        AppMode::ConnectModel,
         "After validation: mode should be ConnectModel"
     );
     assert!(
@@ -179,7 +226,8 @@ fn test_complete_flow_validation_model_select_chat() {
         "After model selection: provider should be set"
     );
     assert_eq!(
-        app.mode, AppMode::Chat,
+        app.mode,
+        AppMode::Chat,
         "After model selection: mode should be Chat"
     );
     assert!(
@@ -187,10 +235,17 @@ fn test_complete_flow_validation_model_select_chat() {
         "After model selection: dialog should be closed"
     );
     let providers = &app.config.providers;
-    assert!(providers.is_some(), "After model selection: providers should be set");
-    let provider = providers.as_ref()
+    assert!(
+        providers.is_some(),
+        "After model selection: providers should be set"
+    );
+    let provider = providers
+        .as_ref()
         .and_then(|p| p.iter().find(|p| p.name == "openai"));
-    assert!(provider.is_some(), "After model selection: openai provider should exist");
+    assert!(
+        provider.is_some(),
+        "After model selection: openai provider should exist"
+    );
     assert_eq!(
         provider.unwrap().default_model.as_ref().unwrap(),
         "gpt-4o",

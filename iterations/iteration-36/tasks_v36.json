@@ -570,7 +570,7 @@
       "priority": "P2",
       "title": "Create opencode-benches/src/tool_execution.rs",
       "description": "Create benchmarks for tool execution: bench_read_small_file (< 1KB), bench_read_large_file (> 1MB), bench_write_file (1KB), bench_grep (1000-line file), bench_glob (100 files).",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify benchmark functions exist and compile",
         "RunTestSuite: cargo bench -p opencode-benches -- tool_execution should run"

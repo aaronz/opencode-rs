@@ -4,15 +4,9 @@ use std::path::Path;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MergeResult {
-    Clean {
-        commit: String,
-    },
-    UpToDate {
-        commit: String,
-    },
-    Conflict {
-        conflicted_files: Vec<String>,
-    },
+    Clean { commit: String },
+    UpToDate { commit: String },
+    Conflict { conflicted_files: Vec<String> },
 }
 
 fn path_to_string(path: Vec<u8>) -> String {
@@ -51,8 +45,12 @@ pub fn git_merge(repo_path: &Path, branch: &str) -> Result<MergeResult, OpenCode
 
     drop(branch_annotated);
 
-    let head = repo.head().map_err(|e| OpenCodeError::Tool(format!("Failed to get HEAD: {}", e)))?;
-    let head_commit = head.peel_to_commit().map_err(|e| OpenCodeError::Tool(format!("Failed to peel to commit: {}", e)))?;
+    let head = repo
+        .head()
+        .map_err(|e| OpenCodeError::Tool(format!("Failed to get HEAD: {}", e)))?;
+    let head_commit = head
+        .peel_to_commit()
+        .map_err(|e| OpenCodeError::Tool(format!("Failed to peel to commit: {}", e)))?;
     let head_oid = head_commit.id();
 
     drop(head);
@@ -77,7 +75,9 @@ pub fn git_merge(repo_path: &Path, branch: &str) -> Result<MergeResult, OpenCode
         });
     }
 
-    let branch_commit = repo.find_commit(branch_oid).map_err(|e| OpenCodeError::Tool(format!("Failed to find branch commit: {}", e)))?;
+    let branch_commit = repo
+        .find_commit(branch_oid)
+        .map_err(|e| OpenCodeError::Tool(format!("Failed to find branch commit: {}", e)))?;
 
     let signature = repo
         .signature()
@@ -92,8 +92,12 @@ pub fn git_merge(repo_path: &Path, branch: &str) -> Result<MergeResult, OpenCode
 
     if merge_index.has_conflicts() {
         let mut conflicted_files = Vec::new();
-        for conflict_result in merge_index.conflicts().map_err(|e| OpenCodeError::Tool(format!("Failed to get conflicts: {}", e)))? {
-            let conflict = conflict_result.map_err(|e| OpenCodeError::Tool(format!("Failed to get conflict entry: {}", e)))?;
+        for conflict_result in merge_index
+            .conflicts()
+            .map_err(|e| OpenCodeError::Tool(format!("Failed to get conflicts: {}", e)))?
+        {
+            let conflict = conflict_result
+                .map_err(|e| OpenCodeError::Tool(format!("Failed to get conflict entry: {}", e)))?;
             if let Some(path) = conflict.ancestor {
                 conflicted_files.push(path_to_string(path.path));
             }
@@ -107,19 +111,25 @@ pub fn git_merge(repo_path: &Path, branch: &str) -> Result<MergeResult, OpenCode
 
         repo.cleanup_state().ok();
 
-        return Ok(MergeResult::Conflict {
-            conflicted_files,
-        });
+        return Ok(MergeResult::Conflict { conflicted_files });
     }
 
     let tree_oid = merge_index
         .write_tree_to(&repo)
         .map_err(|e| OpenCodeError::Tool(format!("Failed to write merge tree: {}", e)))?;
 
-    let tree = repo.find_tree(tree_oid).map_err(|e| OpenCodeError::Tool(format!("Failed to find tree: {}", e)))?;
+    let tree = repo
+        .find_tree(tree_oid)
+        .map_err(|e| OpenCodeError::Tool(format!("Failed to find tree: {}", e)))?;
 
-    let branch_commit_for_parent = repo.find_commit(branch_oid).map_err(|e| OpenCodeError::Tool(format!("Failed to find branch commit: {}", e)))?;
-    let head_commit_for_parent = repo.head().map_err(|e| OpenCodeError::Tool(format!("Failed to get HEAD: {}", e)))?.peel_to_commit().map_err(|e| OpenCodeError::Tool(format!("Failed to peel to commit: {}", e)))?;
+    let branch_commit_for_parent = repo
+        .find_commit(branch_oid)
+        .map_err(|e| OpenCodeError::Tool(format!("Failed to find branch commit: {}", e)))?;
+    let head_commit_for_parent = repo
+        .head()
+        .map_err(|e| OpenCodeError::Tool(format!("Failed to get HEAD: {}", e)))?
+        .peel_to_commit()
+        .map_err(|e| OpenCodeError::Tool(format!("Failed to peel to commit: {}", e)))?;
 
     let commit_oid = repo
         .commit(
@@ -149,13 +159,26 @@ mod tests {
         let signature = repo.signature().unwrap();
         let tree_id = repo.index().unwrap().write_tree().unwrap();
         let tree = repo.find_tree(tree_id).unwrap();
-        repo.commit(Some("HEAD"), &signature, &signature, "Initial commit", &tree, &[])
-            .unwrap();
+        repo.commit(
+            Some("HEAD"),
+            &signature,
+            &signature,
+            "Initial commit",
+            &tree,
+            &[],
+        )
+        .unwrap();
 
         temp_dir
     }
 
-    fn create_test_branch(repo: &Repository, branch_name: &str, parent: &git2::Commit, file_name: &str, content: &str) -> git2::Oid {
+    fn create_test_branch(
+        repo: &Repository,
+        branch_name: &str,
+        parent: &git2::Commit,
+        file_name: &str,
+        content: &str,
+    ) -> git2::Oid {
         let file_path = repo.path().parent().unwrap().join(file_name);
         std::fs::write(file_path, content).unwrap();
 
@@ -183,7 +206,13 @@ mod tests {
 
         let head = repo.head().unwrap().peel_to_commit().unwrap();
         drop(head);
-        create_test_branch(&repo, "feature", &repo.head().unwrap().peel_to_commit().unwrap(), "feature.txt", "feature content");
+        create_test_branch(
+            &repo,
+            "feature",
+            &repo.head().unwrap().peel_to_commit().unwrap(),
+            "feature.txt",
+            "feature content",
+        );
 
         repo.set_head("refs/heads/master").unwrap();
         let mut checkout = git2::build::CheckoutBuilder::new();
@@ -210,7 +239,13 @@ mod tests {
         let master_oid = master_branch.get().target().unwrap();
         let base_commit = repo.find_commit(master_oid).unwrap();
 
-        create_test_branch(&repo, "feature", &base_commit, "feature.txt", "feature content");
+        create_test_branch(
+            &repo,
+            "feature",
+            &base_commit,
+            "feature.txt",
+            "feature content",
+        );
 
         drop(master_branch);
         drop(base_commit);
@@ -258,15 +293,16 @@ mod tests {
         let tree = repo.find_tree(tree_id).unwrap();
         drop(tree_id);
         let signature = repo.signature().unwrap();
-        let commit1_oid = repo.commit(
-            Some("HEAD"),
-            &signature,
-            &signature,
-            "Add original test.txt",
-            &tree,
-            &[&head],
-        )
-        .unwrap();
+        let commit1_oid = repo
+            .commit(
+                Some("HEAD"),
+                &signature,
+                &signature,
+                "Add original test.txt",
+                &tree,
+                &[&head],
+            )
+            .unwrap();
 
         drop(tree);
         let commit1 = repo.find_commit(commit1_oid).unwrap();

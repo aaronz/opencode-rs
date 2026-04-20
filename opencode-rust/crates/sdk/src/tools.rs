@@ -231,8 +231,13 @@ impl ToolRegistry {
     }
 
     /// Registers a custom tool with the given name, description, parameters, and executor.
-    pub fn register_tool<F>(&mut self, name: &str, description: &str, parameters: Vec<ToolParameter>, executor: F)
-    where
+    pub fn register_tool<F>(
+        &mut self,
+        name: &str,
+        description: &str,
+        parameters: Vec<ToolParameter>,
+        executor: F,
+    ) where
         F: Fn(serde_json::Value) -> Result<String, String> + Send + Sync + 'static,
     {
         let def = ToolDefinition {
@@ -252,28 +257,26 @@ impl ToolRegistry {
         let started_at = chrono::Utc::now();
 
         match (self.definitions.get(name), self.executors.get(name)) {
-            (Some(def), Some(exec)) => {
-                match exec.execute(arguments) {
-                    Ok(result) => ToolResult {
-                        id: uuid::Uuid::new_v4(),
-                        tool_name: def.name.clone(),
-                        success: true,
-                        result: Some(result),
-                        error: None,
-                        started_at,
-                        completed_at: chrono::Utc::now(),
-                    },
-                    Err(e) => ToolResult {
-                        id: uuid::Uuid::new_v4(),
-                        tool_name: def.name.clone(),
-                        success: false,
-                        result: None,
-                        error: Some(e),
-                        started_at,
-                        completed_at: chrono::Utc::now(),
-                    },
-                }
-            }
+            (Some(def), Some(exec)) => match exec.execute(arguments) {
+                Ok(result) => ToolResult {
+                    id: uuid::Uuid::new_v4(),
+                    tool_name: def.name.clone(),
+                    success: true,
+                    result: Some(result),
+                    error: None,
+                    started_at,
+                    completed_at: chrono::Utc::now(),
+                },
+                Err(e) => ToolResult {
+                    id: uuid::Uuid::new_v4(),
+                    tool_name: def.name.clone(),
+                    success: false,
+                    result: None,
+                    error: Some(e),
+                    started_at,
+                    completed_at: chrono::Utc::now(),
+                },
+            },
             _ => ToolResult {
                 id: uuid::Uuid::new_v4(),
                 tool_name: name.to_string(),

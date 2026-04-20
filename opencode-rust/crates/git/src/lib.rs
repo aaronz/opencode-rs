@@ -19,13 +19,13 @@ use std::path::Path;
 
 pub mod branch;
 pub mod checkout;
+pub mod github;
+pub mod gitlab;
+pub mod gitlab_ci;
 pub mod merge;
 pub mod push_pull;
 pub mod rebase;
 pub mod stash;
-pub mod github;
-pub mod gitlab;
-pub mod gitlab_ci;
 #[deprecated(
     since = "0.1.0",
     note = "GitLab Duo is experimental and environment-dependent. API may change in future releases."

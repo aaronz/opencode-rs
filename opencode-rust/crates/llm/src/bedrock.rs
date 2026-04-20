@@ -624,7 +624,10 @@ mod tests {
     #[test]
     fn test_get_region_prefix_us() {
         assert_eq!(get_region_prefix("us.amazon.nova-pro"), Some("us"));
-        assert_eq!(get_region_prefix("us.anthropic.claude-3-sonnet"), Some("us"));
+        assert_eq!(
+            get_region_prefix("us.anthropic.claude-3-sonnet"),
+            Some("us")
+        );
         assert_eq!(get_region_prefix("us.foo.bar.baz"), Some("us"));
     }
 
@@ -638,7 +641,10 @@ mod tests {
     #[test]
     fn test_get_region_prefix_apac() {
         assert_eq!(get_region_prefix("apac.amazon.nova-lite"), Some("apac"));
-        assert_eq!(get_region_prefix("apac.anthropic.claude-3-haiku"), Some("apac"));
+        assert_eq!(
+            get_region_prefix("apac.anthropic.claude-3-haiku"),
+            Some("apac")
+        );
     }
 
     #[test]
@@ -650,12 +656,18 @@ mod tests {
     #[test]
     fn test_get_region_prefix_jp() {
         assert_eq!(get_region_prefix("jp.amazon.nova-pro"), Some("jp"));
-        assert_eq!(get_region_prefix("jp.anthropic.claude-3-sonnet"), Some("jp"));
+        assert_eq!(
+            get_region_prefix("jp.anthropic.claude-3-sonnet"),
+            Some("jp")
+        );
     }
 
     #[test]
     fn test_get_region_prefix_no_prefix() {
-        assert_eq!(get_region_prefix("anthropic.claude-3-sonnet-20240229-v1:0"), None);
+        assert_eq!(
+            get_region_prefix("anthropic.claude-3-sonnet-20240229-v1:0"),
+            None
+        );
         assert_eq!(get_region_prefix("meta.llama3-70b-instruct-v1:0"), None);
         assert_eq!(get_region_prefix("amazon.titan-text-express-v1"), None);
         assert_eq!(get_region_prefix("mistral.mistral-large-2402-v1:0"), None);
@@ -663,28 +675,58 @@ mod tests {
 
     #[test]
     fn test_get_bedrock_endpoint_us() {
-        assert_eq!(get_bedrock_endpoint("us.amazon.nova-pro"), "https://bedrock.us-east-1.amazonaws.com");
-        assert_eq!(get_bedrock_endpoint("us.anthropic.claude-3-sonnet"), "https://bedrock.us-east-1.amazonaws.com");
+        assert_eq!(
+            get_bedrock_endpoint("us.amazon.nova-pro"),
+            "https://bedrock.us-east-1.amazonaws.com"
+        );
+        assert_eq!(
+            get_bedrock_endpoint("us.anthropic.claude-3-sonnet"),
+            "https://bedrock.us-east-1.amazonaws.com"
+        );
     }
 
     #[test]
     fn test_get_bedrock_endpoint_eu() {
-        assert_eq!(get_bedrock_endpoint("eu.claude-3-sonnet"), "https://bedrock.eu-west-1.amazonaws.com");
-        assert_eq!(get_bedrock_endpoint("eu.amazon.nova-micro"), "https://bedrock.eu-west-1.amazonaws.com");
+        assert_eq!(
+            get_bedrock_endpoint("eu.claude-3-sonnet"),
+            "https://bedrock.eu-west-1.amazonaws.com"
+        );
+        assert_eq!(
+            get_bedrock_endpoint("eu.amazon.nova-micro"),
+            "https://bedrock.eu-west-1.amazonaws.com"
+        );
     }
 
     #[test]
     fn test_get_bedrock_endpoint_apac() {
-        assert_eq!(get_bedrock_endpoint("apac.amazon.nova-lite"), "https://bedrock.ap-northeast-1.amazonaws.com");
-        assert_eq!(get_bedrock_endpoint("jp.amazon.nova-pro"), "https://bedrock.ap-northeast-1.amazonaws.com");
-        assert_eq!(get_bedrock_endpoint("au.amazon.nova-pro"), "https://bedrock.ap-northeast-1.amazonaws.com");
+        assert_eq!(
+            get_bedrock_endpoint("apac.amazon.nova-lite"),
+            "https://bedrock.ap-northeast-1.amazonaws.com"
+        );
+        assert_eq!(
+            get_bedrock_endpoint("jp.amazon.nova-pro"),
+            "https://bedrock.ap-northeast-1.amazonaws.com"
+        );
+        assert_eq!(
+            get_bedrock_endpoint("au.amazon.nova-pro"),
+            "https://bedrock.ap-northeast-1.amazonaws.com"
+        );
     }
 
     #[test]
     fn test_get_bedrock_endpoint_default() {
-        assert_eq!(get_bedrock_endpoint("anthropic.claude-3-sonnet-20240229-v1:0"), "https://bedrock.us-east-1.amazonaws.com");
-        assert_eq!(get_bedrock_endpoint("meta.llama3-70b-instruct-v1:0"), "https://bedrock.us-east-1.amazonaws.com");
-        assert_eq!(get_bedrock_endpoint("amazon.titan-text-express-v1"), "https://bedrock.us-east-1.amazonaws.com");
+        assert_eq!(
+            get_bedrock_endpoint("anthropic.claude-3-sonnet-20240229-v1:0"),
+            "https://bedrock.us-east-1.amazonaws.com"
+        );
+        assert_eq!(
+            get_bedrock_endpoint("meta.llama3-70b-instruct-v1:0"),
+            "https://bedrock.us-east-1.amazonaws.com"
+        );
+        assert_eq!(
+            get_bedrock_endpoint("amazon.titan-text-express-v1"),
+            "https://bedrock.us-east-1.amazonaws.com"
+        );
     }
 
     #[test]
@@ -692,14 +734,27 @@ mod tests {
         for prefix in ["us", "eu", "jp", "apac", "au"] {
             let model_id = format!("{}.provider.model", prefix);
             let endpoint = get_bedrock_endpoint(&model_id);
-            assert!(endpoint.starts_with("https://bedrock."), "Endpoint should start with https://bedrock. for prefix {}", prefix);
+            assert!(
+                endpoint.starts_with("https://bedrock."),
+                "Endpoint should start with https://bedrock. for prefix {}",
+                prefix
+            );
         }
     }
 
     #[test]
     fn test_invalid_region_prefix_falls_back_to_default() {
-        assert_eq!(get_bedrock_endpoint("invalid.amazon.model"), "https://bedrock.us-east-1.amazonaws.com");
-        assert_eq!(get_bedrock_endpoint("us-west-2.amazon.model"), "https://bedrock.us-east-1.amazonaws.com");
-        assert_eq!(get_bedrock_endpoint("foo.bar.baz"), "https://bedrock.us-east-1.amazonaws.com");
+        assert_eq!(
+            get_bedrock_endpoint("invalid.amazon.model"),
+            "https://bedrock.us-east-1.amazonaws.com"
+        );
+        assert_eq!(
+            get_bedrock_endpoint("us-west-2.amazon.model"),
+            "https://bedrock.us-east-1.amazonaws.com"
+        );
+        assert_eq!(
+            get_bedrock_endpoint("foo.bar.baz"),
+            "https://bedrock.us-east-1.amazonaws.com"
+        );
     }
 }

@@ -13,7 +13,7 @@ mod edit;
 mod external_directory;
 mod file_tools;
 mod git_tools;
-mod glob;
+pub mod glob;
 pub mod grep_tool;
 mod grep_tool_test;
 mod invalid;

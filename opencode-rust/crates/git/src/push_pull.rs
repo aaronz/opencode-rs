@@ -1,4 +1,4 @@
-use git2::{Repository};
+use git2::Repository;
 use opencode_core::OpenCodeError;
 use std::path::Path;
 
@@ -63,7 +63,8 @@ pub fn git_push(repo_path: &Path, remote: Option<&str>) -> Result<PushResult, Op
         .push(&[&refspec], Some(&mut callbacks))
         .map_err(|e| {
             let msg = e.message();
-            if msg.contains("authentication") || msg.contains("auth") || msg.contains("credential") {
+            if msg.contains("authentication") || msg.contains("auth") || msg.contains("credential")
+            {
                 OpenCodeError::ProviderAuthFailed(format!(
                     "Authentication failed for remote '{}': {}",
                     remote_name, msg
@@ -89,7 +90,11 @@ pub fn git_push(repo_path: &Path, remote: Option<&str>) -> Result<PushResult, Op
     })
 }
 
-pub fn git_pull(repo_path: &Path, remote: Option<&str>, branch: Option<&str>) -> Result<PullResult, OpenCodeError> {
+pub fn git_pull(
+    repo_path: &Path,
+    remote: Option<&str>,
+    branch: Option<&str>,
+) -> Result<PullResult, OpenCodeError> {
     let repo = Repository::discover(repo_path)
         .map_err(|e| OpenCodeError::Tool(format!("Failed to discover repository: {}", e)))?;
 
@@ -129,7 +134,8 @@ pub fn git_pull(repo_path: &Path, remote: Option<&str>, branch: Option<&str>) ->
         .fetch(&[&fetch_refspec], Some(&mut fetch_options), None)
         .map_err(|e| {
             let msg = e.message();
-            if msg.contains("authentication") || msg.contains("auth") || msg.contains("credential") {
+            if msg.contains("authentication") || msg.contains("auth") || msg.contains("credential")
+            {
                 OpenCodeError::ProviderAuthFailed(format!(
                     "Authentication failed for remote '{}': {}",
                     remote_name, msg
@@ -147,8 +153,11 @@ pub fn git_pull(repo_path: &Path, remote: Option<&str>, branch: Option<&str>) ->
         .peel_to_commit()
         .map_err(|e| OpenCodeError::Tool(format!("Failed to peel FETCH_HEAD to commit: {}", e)))?;
 
-    let head = repo.head().map_err(|e| OpenCodeError::Tool(format!("Failed to get HEAD: {}", e)))?;
-    let head_commit = head.peel_to_commit()
+    let head = repo
+        .head()
+        .map_err(|e| OpenCodeError::Tool(format!("Failed to get HEAD: {}", e)))?;
+    let head_commit = head
+        .peel_to_commit()
         .map_err(|e| OpenCodeError::Tool(format!("Failed to peel HEAD to commit: {}", e)))?;
 
     if fetch_commit.id() == head_commit.id() {
@@ -221,10 +230,12 @@ pub fn git_pull(repo_path: &Path, remote: Option<&str>, branch: Option<&str>) ->
         .write_tree_to(&repo)
         .map_err(|e| OpenCodeError::Tool(format!("Failed to write merge tree: {}", e)))?;
 
-    let tree = repo.find_tree(tree_oid)
+    let tree = repo
+        .find_tree(tree_oid)
         .map_err(|e| OpenCodeError::Tool(format!("Failed to find tree: {}", e)))?;
 
-    let fetch_commit_for_parent = repo.find_commit(fetch_commit.id())
+    let fetch_commit_for_parent = repo
+        .find_commit(fetch_commit.id())
         .map_err(|e| OpenCodeError::Tool(format!("Failed to find fetch commit: {}", e)))?;
 
     let commit_oid = repo
@@ -232,7 +243,10 @@ pub fn git_pull(repo_path: &Path, remote: Option<&str>, branch: Option<&str>) ->
             Some("HEAD"),
             &signature,
             &signature,
-            &format!("Merge branch '{}' of {} into {}", branch_name, remote_name, branch_name),
+            &format!(
+                "Merge branch '{}' of {} into {}",
+                branch_name, remote_name, branch_name
+            ),
             &tree,
             &[&head_commit, &fetch_commit_for_parent],
         )

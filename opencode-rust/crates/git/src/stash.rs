@@ -20,7 +20,10 @@ pub fn git_stash(repo_path: &Path) -> Result<(), OpenCodeError> {
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         if !stderr.contains("No local changes to save") {
-            return Err(OpenCodeError::Tool(format!("Failed to stash changes: {}", stderr)));
+            return Err(OpenCodeError::Tool(format!(
+                "Failed to stash changes: {}",
+                stderr
+            )));
         }
     }
 
@@ -36,7 +39,10 @@ pub fn git_stash_pop(repo_path: &Path) -> Result<(), OpenCodeError> {
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(OpenCodeError::Tool(format!("Failed to stash pop: {}", stderr)));
+        return Err(OpenCodeError::Tool(format!(
+            "Failed to stash pop: {}",
+            stderr
+        )));
     }
 
     Ok(())
@@ -51,7 +57,10 @@ pub fn git_stash_list(repo_path: &Path) -> Result<Vec<StashEntry>, OpenCodeError
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(OpenCodeError::Tool(format!("Failed to list stash: {}", stderr)));
+        return Err(OpenCodeError::Tool(format!(
+            "Failed to list stash: {}",
+            stderr
+        )));
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -89,7 +98,10 @@ pub fn git_stash_drop(repo_path: &Path, index: usize) -> Result<(), OpenCodeErro
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(OpenCodeError::Tool(format!("Failed to drop stash: {}", stderr)));
+        return Err(OpenCodeError::Tool(format!(
+            "Failed to drop stash: {}",
+            stderr
+        )));
     }
 
     Ok(())
@@ -108,8 +120,15 @@ mod tests {
         let signature = repo.signature().unwrap();
         let tree_id = repo.index().unwrap().write_tree().unwrap();
         let tree = repo.find_tree(tree_id).unwrap();
-        repo.commit(Some("HEAD"), &signature, &signature, "Initial commit", &tree, &[])
-            .unwrap();
+        repo.commit(
+            Some("HEAD"),
+            &signature,
+            &signature,
+            "Initial commit",
+            &tree,
+            &[],
+        )
+        .unwrap();
 
         temp_dir
     }

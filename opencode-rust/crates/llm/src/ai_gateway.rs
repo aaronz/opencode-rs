@@ -15,10 +15,7 @@ pub struct AiGatewayProvider {
 impl AiGatewayProvider {
     /// Create a new AI Gateway provider with the specified account ID and API key.
     pub fn new(account_id: String, api_key: String, model: String) -> Self {
-        let base_url = format!(
-            "https://gateway.ai.cloudflare.com/v1/{}/openai",
-            account_id
-        );
+        let base_url = format!("https://gateway.ai.cloudflare.com/v1/{}/openai", account_id);
         Self {
             account_id,
             api_key,
@@ -48,7 +45,11 @@ impl sealed::Sealed for AiGatewayProvider {}
 
 #[async_trait::async_trait]
 impl Provider for AiGatewayProvider {
-    async fn complete(&self, prompt: &str, _context: Option<&str>) -> Result<String, OpenCodeError> {
+    async fn complete(
+        &self,
+        prompt: &str,
+        _context: Option<&str>,
+    ) -> Result<String, OpenCodeError> {
         let messages = vec![serde_json::json!({
             "role": "user",
             "content": prompt
@@ -141,14 +142,18 @@ impl Provider for AiGatewayProvider {
                             return Ok(());
                         }
                         if let Ok(chunk) = serde_json::from_str::<serde_json::Value>(data) {
-                            if let Some(content) = chunk["choices"][0]["delta"]["content"].as_str() {
+                            if let Some(content) = chunk["choices"][0]["delta"]["content"].as_str()
+                            {
                                 callback(content.to_string());
                             }
                         }
                     }
                 }
                 Err(e) => {
-                    return Err(OpenCodeError::Llm(format!("AI Gateway stream error: {}", e)));
+                    return Err(OpenCodeError::Llm(format!(
+                        "AI Gateway stream error: {}",
+                        e
+                    )));
                 }
             }
         }
@@ -221,10 +226,7 @@ mod tests {
             "model".to_string(),
         );
 
-        let expected_url = format!(
-            "https://gateway.ai.cloudflare.com/v1/{}/openai",
-            account_id
-        );
+        let expected_url = format!("https://gateway.ai.cloudflare.com/v1/{}/openai", account_id);
         assert_eq!(provider.base_url(), expected_url);
     }
 

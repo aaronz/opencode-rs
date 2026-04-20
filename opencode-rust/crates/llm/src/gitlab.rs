@@ -48,7 +48,11 @@ impl GitLabProvider {
             return Err(GitLabDiscoveryError::MissingToken);
         }
 
-        let url = format!("{}{}", self.instance_url.trim_end_matches('/'), AI_GATEWAY_MODELS_PATH);
+        let url = format!(
+            "{}{}",
+            self.instance_url.trim_end_matches('/'),
+            AI_GATEWAY_MODELS_PATH
+        );
 
         let response = self
             .client
@@ -85,9 +89,7 @@ impl GitLabProvider {
 }
 
 pub fn should_enable_gitlab_duo(feature_flags: &[String]) -> bool {
-    feature_flags
-        .iter()
-        .any(|f| f == GITLAB_DUO_WORKFLOW_FLAG)
+    feature_flags.iter().any(|f| f == GITLAB_DUO_WORKFLOW_FLAG)
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -167,10 +169,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_discover_models_returns_error_for_empty_token() {
-        let provider = GitLabProvider::new(
-            "https://gitlab.example.com".to_string(),
-            "".to_string(),
-        );
+        let provider =
+            GitLabProvider::new("https://gitlab.example.com".to_string(), "".to_string());
 
         let result = provider.discover_models().await;
         assert!(result.is_err());

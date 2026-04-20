@@ -38,10 +38,8 @@ async fn main() -> Result<()> {
     println!("   Registered tools: {:?}\n", registry.list_tools());
 
     println!("2. Executing the custom 'echo' tool...");
-    let echo_result = registry.execute_tool(
-        "echo",
-        serde_json::json!({ "message": "Hello, OpenCode!" }),
-    );
+    let echo_result =
+        registry.execute_tool("echo", serde_json::json!({ "message": "Hello, OpenCode!" }));
     handle_tool_result("echo", &echo_result);
 
     println!("3. Executing 'echo' tool with missing parameter...");
@@ -49,22 +47,18 @@ async fn main() -> Result<()> {
     handle_tool_result("echo", &echo_error);
 
     println!("\n4. Executing 'echo' tool with wrong name (tool not found)...");
-    let not_found_result = registry.execute_tool(
-        "nonexistent",
-        serde_json::json!({ "message": "test" }),
-    );
+    let not_found_result =
+        registry.execute_tool("nonexistent", serde_json::json!({ "message": "test" }));
     handle_tool_result("nonexistent", &not_found_result);
 
     println!("\n5. Simulating Read tool execution (local filesystem)...");
     let test_file = "/tmp/opencode_sdk_test_read.txt";
-    std::fs::write(test_file, "Hello from OpenCode SDK!")
-        .context("Failed to write test file")?;
+    std::fs::write(test_file, "Hello from OpenCode SDK!").context("Failed to write test file")?;
     let read_executor = opencode_sdk::ToolExecutor::new(|args| {
         let file_path = args["file_path"]
             .as_str()
             .ok_or("Missing required parameter: file_path")?;
-        std::fs::read_to_string(file_path)
-            .map_err(|e| format!("Failed to read file: {}", e))
+        std::fs::read_to_string(file_path).map_err(|e| format!("Failed to read file: {}", e))
     });
     match read_executor.execute(serde_json::json!({ "file_path": test_file })) {
         Ok(content) => println!("   Read result: {}", content.trim()),
@@ -79,8 +73,7 @@ async fn main() -> Result<()> {
         let content = args["content"]
             .as_str()
             .ok_or("Missing required parameter: content")?;
-        std::fs::write(file_path, content)
-            .map_err(|e| format!("Failed to write file: {}", e))?;
+        std::fs::write(file_path, content).map_err(|e| format!("Failed to write file: {}", e))?;
         Ok(format!("Successfully wrote to {}", file_path))
     });
     let output_file = "/tmp/opencode_sdk_test_write.txt";
@@ -114,11 +107,17 @@ async fn main() -> Result<()> {
                     println!("   Result: {}", content);
                 }
             } else {
-                println!("   Error: {}", result.error.as_deref().unwrap_or("Unknown error"));
+                println!(
+                    "   Error: {}",
+                    result.error.as_deref().unwrap_or("Unknown error")
+                );
             }
         }
         Err(e) => {
-            println!("   Tool execution via API failed (expected if server not running): {}", e);
+            println!(
+                "   Tool execution via API failed (expected if server not running): {}",
+                e
+            );
         }
     }
 

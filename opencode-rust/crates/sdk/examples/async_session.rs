@@ -51,7 +51,10 @@ async fn main() -> Result<()> {
     println!("Client created successfully!\n");
 
     let specific_id = Uuid::new_v4();
-    println!("1. Creating a new local session with specific ID: {}", specific_id);
+    println!(
+        "1. Creating a new local session with specific ID: {}",
+        specific_id
+    );
 
     client
         .create_local_session(Some("Hello, I need help with a task."))
@@ -85,7 +88,10 @@ async fn main() -> Result<()> {
         .context("Failed to get resumed session")?
         .context("No session found")?;
 
-    println!("   Resumed session has {} messages", resumed_session.messages.len());
+    println!(
+        "   Resumed session has {} messages",
+        resumed_session.messages.len()
+    );
     for (i, msg) in resumed_session.messages.iter().enumerate() {
         println!("   [{}] {}: {}", i, msg.role, msg.content);
     }

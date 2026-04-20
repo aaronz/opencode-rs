@@ -142,7 +142,7 @@ impl ProviderCatalogFetcher {
         }
     }
 
-pub async fn force_refresh(&self) -> Result<ProviderCatalog, FetchError> {
+    pub async fn force_refresh(&self) -> Result<ProviderCatalog, FetchError> {
         {
             let mut cat = self.catalog.write().await;
             *cat = None;
@@ -289,7 +289,11 @@ pub async fn force_refresh(&self) -> Result<ProviderCatalog, FetchError> {
         }
     }
 
-    fn transform_provider(&self, provider: ModelsDevProvider, original_id: &str) -> ProviderDescriptor {
+    fn transform_provider(
+        &self,
+        provider: ModelsDevProvider,
+        original_id: &str,
+    ) -> ProviderDescriptor {
         let prefixed_provider_id = prefix_provider_id(original_id);
         let models = provider
             .models
@@ -371,7 +375,10 @@ pub async fn force_refresh(&self) -> Result<ProviderCatalog, FetchError> {
         }
     }
 
-    fn parse_experimental_modes(&self, experimental: &Option<serde_json::Value>) -> Vec<ModelVariant> {
+    fn parse_experimental_modes(
+        &self,
+        experimental: &Option<serde_json::Value>,
+    ) -> Vec<ModelVariant> {
         let Some(value) = experimental else {
             return vec![];
         };
@@ -1196,7 +1203,10 @@ mod tests {
 
         assert_eq!(variants.len(), 2);
         assert_eq!(variants[0].name, "thinking");
-        assert_eq!(variants[0].description, Some("Extended thinking mode".to_string()));
+        assert_eq!(
+            variants[0].description,
+            Some("Extended thinking mode".to_string())
+        );
         assert_eq!(variants[1].name, "preview");
         assert_eq!(variants[1].description, Some("Preview mode".to_string()));
     }
@@ -1220,7 +1230,8 @@ mod tests {
     #[test]
     fn test_parse_experimental_modes_with_no_modes_field() {
         let fetcher = create_test_fetcher();
-        let variants = fetcher.parse_experimental_modes(&Some(serde_json::json!({"other": "field"})));
+        let variants =
+            fetcher.parse_experimental_modes(&Some(serde_json::json!({"other": "field"})));
 
         assert!(variants.is_empty());
     }

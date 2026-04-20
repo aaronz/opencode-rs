@@ -107,11 +107,15 @@ pub fn filter_completions_by_context(
     }
 }
 
-pub fn get_completion_trigger_character(context: Option<&CompletionTriggerContext>) -> Option<char> {
+pub fn get_completion_trigger_character(
+    context: Option<&CompletionTriggerContext>,
+) -> Option<char> {
     context.and_then(|c| c.trigger_character)
 }
 
-pub fn handle_completion_trigger(context: Option<CompletionTriggerContext>) -> CompletionTriggerKind {
+pub fn handle_completion_trigger(
+    context: Option<CompletionTriggerContext>,
+) -> CompletionTriggerKind {
     context
         .map(|c| c.trigger_kind)
         .unwrap_or(CompletionTriggerKind::Invoked)
@@ -341,10 +345,8 @@ mod tests {
 
     #[test]
     fn test_completion_trigger_context_dot() {
-        let context = CompletionTriggerContext::new(
-            CompletionTriggerKind::TriggerCharacter,
-            Some('.'),
-        );
+        let context =
+            CompletionTriggerContext::new(CompletionTriggerKind::TriggerCharacter, Some('.'));
 
         assert!(context.is_triggered_by_dot());
         assert!(!context.is_triggered_by_double_colon());
@@ -353,10 +355,8 @@ mod tests {
 
     #[test]
     fn test_completion_trigger_context_double_colon() {
-        let context = CompletionTriggerContext::new(
-            CompletionTriggerKind::TriggerCharacter,
-            Some(':'),
-        );
+        let context =
+            CompletionTriggerContext::new(CompletionTriggerKind::TriggerCharacter, Some(':'));
 
         assert!(!context.is_triggered_by_dot());
         assert!(context.is_triggered_by_double_colon());
@@ -413,10 +413,8 @@ mod tests {
 
     #[test]
     fn test_filter_completions_by_context_method() {
-        let context = CompletionTriggerContext::new(
-            CompletionTriggerKind::TriggerCharacter,
-            Some('.'),
-        );
+        let context =
+            CompletionTriggerContext::new(CompletionTriggerKind::TriggerCharacter, Some('.'));
 
         let items = vec![
             create_completion_item("clone", Some(1), None, None),
@@ -430,16 +428,15 @@ mod tests {
 
         assert_eq!(filtered.len(), 4);
         assert!(filtered.iter().all(|i| {
-            i.label.starts_with(|c: char| c.is_lowercase()) || i.label.starts_with("self") || i.label.starts_with("Self")
+            i.label.starts_with(|c: char| c.is_lowercase())
+                || i.label.starts_with("self")
+                || i.label.starts_with("Self")
         }));
     }
 
     #[test]
     fn test_filter_completions_by_context_non_method() {
-        let context = CompletionTriggerContext::new(
-            CompletionTriggerKind::Invoked,
-            None,
-        );
+        let context = CompletionTriggerContext::new(CompletionTriggerKind::Invoked, None);
 
         let items = vec![
             create_completion_item("clone", Some(1), None, None),
@@ -453,10 +450,8 @@ mod tests {
 
     #[test]
     fn test_get_completion_trigger_character() {
-        let context = CompletionTriggerContext::new(
-            CompletionTriggerKind::TriggerCharacter,
-            Some('.'),
-        );
+        let context =
+            CompletionTriggerContext::new(CompletionTriggerKind::TriggerCharacter, Some('.'));
 
         let char = get_completion_trigger_character(Some(&context));
         assert_eq!(char, Some('.'));
@@ -467,10 +462,8 @@ mod tests {
 
     #[test]
     fn test_handle_completion_trigger() {
-        let context = CompletionTriggerContext::new(
-            CompletionTriggerKind::TriggerCharacter,
-            Some('.'),
-        );
+        let context =
+            CompletionTriggerContext::new(CompletionTriggerKind::TriggerCharacter, Some('.'));
 
         let trigger = handle_completion_trigger(Some(context));
         assert_eq!(trigger, CompletionTriggerKind::TriggerCharacter);
@@ -506,7 +499,10 @@ mod tests {
     fn test_get_completions_with_trigger() {
         let params = CompletionParams {
             uri: "file:///test.rs".to_string(),
-            position: Position { line: 0, character: 5 },
+            position: Position {
+                line: 0,
+                character: 5,
+            },
             context: Some(CompletionTriggerContext::new(
                 CompletionTriggerKind::TriggerCharacter,
                 Some('.'),
@@ -527,7 +523,10 @@ mod tests {
     fn test_get_completions_without_trigger() {
         let params = CompletionParams {
             uri: "file:///test.rs".to_string(),
-            position: Position { line: 0, character: 5 },
+            position: Position {
+                line: 0,
+                character: 5,
+            },
             context: None,
         };
 

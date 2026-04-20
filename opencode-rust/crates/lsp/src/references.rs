@@ -24,7 +24,9 @@ impl Default for ReferencesContext {
 
 impl ReferencesContext {
     pub fn new(include_declaration: bool) -> Self {
-        Self { include_declaration }
+        Self {
+            include_declaration,
+        }
     }
 }
 
@@ -103,10 +105,7 @@ pub fn find_references_workspace(
     all_locations
 }
 
-pub fn filter_references_by_file(
-    locations: &[Location],
-    uri: &str,
-) -> Vec<Location> {
+pub fn filter_references_by_file(locations: &[Location], uri: &str) -> Vec<Location> {
     locations
         .iter()
         .filter(|loc| loc.uri == uri)
@@ -159,7 +158,10 @@ mod tests {
     fn test_references_params_default_context() {
         let params = ReferencesParams {
             uri: "file:///test.rs".to_string(),
-            position: Position { line: 0, character: 0 },
+            position: Position {
+                line: 0,
+                character: 0,
+            },
             context: ReferencesContext::default(),
         };
 
@@ -179,15 +181,27 @@ mod tests {
             Location {
                 uri: "file:///test.rs".to_string(),
                 range: Range {
-                    start: Position { line: 0, character: 0 },
-                    end: Position { line: 0, character: 3 },
+                    start: Position {
+                        line: 0,
+                        character: 0,
+                    },
+                    end: Position {
+                        line: 0,
+                        character: 3,
+                    },
                 },
             },
             Location {
                 uri: "file:///test.rs".to_string(),
                 range: Range {
-                    start: Position { line: 1, character: 5 },
-                    end: Position { line: 1, character: 8 },
+                    start: Position {
+                        line: 1,
+                        character: 5,
+                    },
+                    end: Position {
+                        line: 1,
+                        character: 8,
+                    },
                 },
             },
         ];
@@ -252,9 +266,16 @@ fn baz() {
     #[test]
     fn test_find_references_workspace_multiple_files() {
         let sources = vec![
-            ("file:///test1.rs".to_string(), "fn my_func() {}\n\
-fn bar() { my_func(); }".to_string()),
-            ("file:///test2.rs".to_string(), "fn baz() { my_func(); }".to_string()),
+            (
+                "file:///test1.rs".to_string(),
+                "fn my_func() {}\n\
+fn bar() { my_func(); }"
+                    .to_string(),
+            ),
+            (
+                "file:///test2.rs".to_string(),
+                "fn baz() { my_func(); }".to_string(),
+            ),
         ];
 
         let locations = find_references_workspace(&sources, "my_func", true);
@@ -265,9 +286,16 @@ fn bar() { my_func(); }".to_string()),
     #[test]
     fn test_find_references_workspace_excludes_declaration() {
         let sources = vec![
-            ("file:///test1.rs".to_string(), "fn my_func() {}\n\
-fn bar() { my_func(); }".to_string()),
-            ("file:///test2.rs".to_string(), "fn baz() { my_func(); }".to_string()),
+            (
+                "file:///test1.rs".to_string(),
+                "fn my_func() {}\n\
+fn bar() { my_func(); }"
+                    .to_string(),
+            ),
+            (
+                "file:///test2.rs".to_string(),
+                "fn baz() { my_func(); }".to_string(),
+            ),
         ];
 
         let locations = find_references_workspace(&sources, "my_func", false);
@@ -281,22 +309,40 @@ fn bar() { my_func(); }".to_string()),
             Location {
                 uri: "file:///test1.rs".to_string(),
                 range: Range {
-                    start: Position { line: 0, character: 0 },
-                    end: Position { line: 0, character: 3 },
+                    start: Position {
+                        line: 0,
+                        character: 0,
+                    },
+                    end: Position {
+                        line: 0,
+                        character: 3,
+                    },
                 },
             },
             Location {
                 uri: "file:///test2.rs".to_string(),
                 range: Range {
-                    start: Position { line: 1, character: 5 },
-                    end: Position { line: 1, character: 8 },
+                    start: Position {
+                        line: 1,
+                        character: 5,
+                    },
+                    end: Position {
+                        line: 1,
+                        character: 8,
+                    },
                 },
             },
             Location {
                 uri: "file:///test1.rs".to_string(),
                 range: Range {
-                    start: Position { line: 2, character: 10 },
-                    end: Position { line: 2, character: 13 },
+                    start: Position {
+                        line: 2,
+                        character: 10,
+                    },
+                    end: Position {
+                        line: 2,
+                        character: 13,
+                    },
                 },
             },
         ];
@@ -310,15 +356,19 @@ fn bar() { my_func(); }".to_string()),
 
     #[test]
     fn test_filter_references_by_file_no_match() {
-        let locations = vec![
-            Location {
-                uri: "file:///test1.rs".to_string(),
-                range: Range {
-                    start: Position { line: 0, character: 0 },
-                    end: Position { line: 0, character: 3 },
+        let locations = vec![Location {
+            uri: "file:///test1.rs".to_string(),
+            range: Range {
+                start: Position {
+                    line: 0,
+                    character: 0,
+                },
+                end: Position {
+                    line: 0,
+                    character: 3,
                 },
             },
-        ];
+        }];
 
         let filtered = filter_references_by_file(&locations, "file:///test999.rs");
         assert!(filtered.is_empty());
@@ -365,7 +415,10 @@ impl MyStruct {
     fn test_references_params_with_explicit_context() {
         let params = ReferencesParams {
             uri: "file:///test.rs".to_string(),
-            position: Position { line: 5, character: 10 },
+            position: Position {
+                line: 5,
+                character: 10,
+            },
             context: ReferencesContext::new(false),
         };
 
@@ -379,8 +432,14 @@ impl MyStruct {
         let location = Location {
             uri: "file:///test.rs".to_string(),
             range: Range {
-                start: Position { line: 10, character: 5 },
-                end: Position { line: 10, character: 15 },
+                start: Position {
+                    line: 10,
+                    character: 5,
+                },
+                end: Position {
+                    line: 10,
+                    character: 15,
+                },
             },
         };
 
