@@ -76,7 +76,7 @@
   - Support debouncing
   - Return WatchId string
 
-- [ ] **T-011**: Implement `unwatch()` method
+- [x] **T-011**: Implement `unwatch()` method
   - Stop watcher by watch_id
   - Remove from registry
   - Return FileError::WatchNotFound if not found

@@ -117,13 +117,18 @@ impl FileService {
     }
 
     pub async fn unwatch(&self, watch_id: &str) -> Result<(), FileError> {
-        let mut handles = self.watch_handles.lock().await;
-        let watcher_arc = handles
-            .remove(watch_id)
-            .ok_or_else(|| FileError::WatchNotFound(watch_id.to_string()))?;
+        let watcher_arc = {
+            let mut handles = self.watch_handles.lock().await;
+            handles
+                .remove(watch_id)
+                .ok_or_else(|| FileError::WatchNotFound(watch_id.to_string()))?
+        };
 
-        let mut guard = watcher_arc.lock().unwrap();
-        guard.take();
+        let watcher = {
+            let mut guard = watcher_arc.lock().unwrap();
+            guard.take()
+        };
+        drop(watcher);
 
         Ok(())
     }

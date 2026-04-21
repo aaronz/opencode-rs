@@ -780,3 +780,46 @@ async fn test_copy_dir_not_a_directory_error() {
         _ => panic!("Expected FileError::NotADirectory"),
     }
 }
+
+#[tokio::test]
+async fn test_unwatch_removes_watcher_from_registry() {
+    let svc = FileService::new();
+    let tmp = TempDir::new().unwrap();
+    let file = tmp.path().join("watched.txt");
+    std::fs::write(&file, "v1").unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(300));
+
+    let (tx, _rx) = tokio::sync::mpsc::channel(1);
+    let watch_id = svc
+        .watch(tmp.path(), 100, move |_p| {
+            let _ = tx.clone().blocking_send(());
+        })
+        .await
+        .unwrap();
+
+    let result = svc.unwatch(&watch_id).await;
+    assert!(result.is_ok(), "unwatch should succeed for valid watch_id");
+
+    let result_invalid = svc.unwatch(&watch_id).await;
+    assert!(
+        result_invalid.is_err(),
+        "second unwatch should fail since watcher was removed"
+    );
+    match result_invalid.unwrap_err() {
+        FileError::WatchNotFound(id) => assert_eq!(id, watch_id),
+        _ => panic!("Expected FileError::WatchNotFound"),
+    }
+}
+
+#[tokio::test]
+async fn test_unwatch_invalid_watch_id_returns_error() {
+    let svc = FileService::new();
+    let invalid_id = "nonexistent-watch-id-12345";
+
+    let result = svc.unwatch(invalid_id).await;
+    assert!(result.is_err(), "unwatch should fail for invalid watch_id");
+    match result.unwrap_err() {
+        FileError::WatchNotFound(id) => assert_eq!(id, invalid_id),
+        _ => panic!("Expected FileError::WatchNotFound"),
+    }
+}
