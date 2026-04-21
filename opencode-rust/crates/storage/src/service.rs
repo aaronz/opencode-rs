@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::compaction::CompactionManager;
@@ -6,7 +7,8 @@ use crate::error::StorageError;
 use crate::models::{AccountModel, ProjectModel};
 use crate::repository::{ProjectRepository, SessionRepository};
 use opencode_core::{
-    compaction::CompactionResult, Message, OpenCodeError, Session, SessionInfo,
+    crash_recovery::CrashRecovery, compaction::CompactionResult, Message, OpenCodeError, Session,
+    SessionInfo,
 };
 use rusqlite::params;
 
@@ -15,6 +17,7 @@ pub struct StorageService {
     project_repo: Arc<dyn ProjectRepository>,
     pool: StoragePool,
     compaction_manager: Option<CompactionManager>,
+    crash_recovery: CrashRecovery,
 }
 
 impl StorageService {
@@ -28,11 +31,17 @@ impl StorageService {
             project_repo,
             pool,
             compaction_manager: None,
+            crash_recovery: CrashRecovery::new(),
         }
     }
 
     pub fn with_compaction_manager(mut self, manager: CompactionManager) -> Self {
         self.compaction_manager = Some(manager);
+        self
+    }
+
+    pub fn with_crash_recovery_dump_dir(mut self, dump_dir: PathBuf) -> Self {
+        self.crash_recovery = CrashRecovery::new().with_dump_dir(dump_dir);
         self
     }
 
@@ -298,6 +307,13 @@ impl StorageService {
             .map_err(|e| StorageError::Internal(format!("Compaction failed: {}", e)))?;
 
         Ok(result.compaction_result)
+    }
+
+    pub async fn recover_session(&self, id: &str) -> Result<Session, StorageError> {
+        self.crash_recovery
+            .recover_session_latest(id)
+            .map_err(|e| StorageError::Internal(format!("Recovery error: {}", e)))?
+            .ok_or_else(|| StorageError::SessionNotFound(id.to_string()))
     }
 }
 
@@ -822,6 +838,113 @@ mod tests {
 
         let result = service.compact_session("invalid-uuid-format").await;
         assert!(result.is_err());
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_recover_session_returns_ok_for_recoverable_session() {
+        use opencode_core::crash_recovery::CrashRecovery;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let crash_dir = temp_dir.path().join("crashes");
+        let service = StorageService::new(session_repo, project_repo, pool)
+            .with_crash_recovery_dump_dir(crash_dir.clone());
+
+        let session = create_test_session();
+        let session_id = session.id.to_string();
+
+        let crash_recovery = CrashRecovery::new()
+            .with_dump_dir(crash_dir);
+        crash_recovery.set_active_session(session);
+        crash_recovery.save_crash_dump(Some("test panic".to_string()), None).unwrap();
+
+        let result = service.recover_session(&session_id).await;
+        assert!(result.is_ok());
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_recover_session_returns_not_found_error_for_non_existent_session() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let service = StorageService::new(session_repo, project_repo, pool);
+
+        let result = service.recover_session("non-existent-session-id").await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(matches!(err, StorageError::SessionNotFound(_)));
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_recover_session_delegates_to_crash_recovery_correctly() {
+        use opencode_core::crash_recovery::CrashRecovery;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let crash_dir = temp_dir.path().join("crashes");
+        let service = StorageService::new(session_repo, project_repo, pool)
+            .with_crash_recovery_dump_dir(crash_dir.clone());
+
+        let mut session = create_test_session();
+        session.add_message(Message::user("Message before crash".to_string()));
+        let session_id = session.id.to_string();
+
+        let crash_recovery = CrashRecovery::new()
+            .with_dump_dir(crash_dir);
+        crash_recovery.set_active_session(session);
+        crash_recovery.save_crash_dump(Some("panic".to_string()), None).unwrap();
+
+        let result = service.recover_session(&session_id).await;
+        assert!(result.is_ok());
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_recover_session_error_handling_for_corrupted_session_data() {
+        use opencode_core::crash_recovery::CrashRecovery;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let crash_dir = temp_dir.path().join("crashes");
+        let service = StorageService::new(session_repo, project_repo, pool)
+            .with_crash_recovery_dump_dir(crash_dir.clone());
+
+        let mut session = Session::new();
+        session.id = uuid::Uuid::parse_str("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb").unwrap();
+
+        let crash_recovery = CrashRecovery::new()
+            .with_dump_dir(crash_dir);
+        crash_recovery.set_active_session(session);
+        crash_recovery.save_crash_dump(Some("panic".to_string()), None).unwrap();
+
+        let result = service.recover_session("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb").await;
+        assert!(result.is_ok());
 
         drop(temp_dir);
     }

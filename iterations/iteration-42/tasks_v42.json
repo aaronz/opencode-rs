@@ -90,7 +90,7 @@
       "priority": "P1",
       "title": "Add recover_session to StorageService",
       "description": "Add recover_session(id: &str) -> Result<Session, StorageError> method to StorageService that delegates to CrashRecovery::restore().",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify recover_session returns Ok(Session) for recoverable session",
         "AddUnitTest: verify recover_session returns NotFound error for non-existent session",
