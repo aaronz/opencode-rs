@@ -260,7 +260,7 @@
       "priority": "P1",
       "title": "Implement remove_file() async function",
       "description": "Implement remove_file() async function - delete a file (not directory). Return FileError::NotFound if path does not exist. Return FileError::NotAFile if path is a directory.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify remove_file() deletes existing file",
         "AddErrorHandlingTest: verify FileError::NotFound for non-existent paths",
@@ -280,7 +280,7 @@
       "priority": "P1",
       "title": "Implement copy_file() async function",
       "description": "Implement copy_file() async function - check source exists (FileError::NotFound if missing), create parent directories via tokio::fs::create_dir_all, copy file via tokio::fs::copy. Return bytes copied. Map errors to FileError::Io.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify copy_file() copies file and returns byte count",
         "AddUnitTest: verify copy_file() creates parent directories automatically",

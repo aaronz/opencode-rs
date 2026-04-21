@@ -636,3 +636,46 @@ async fn test_remove_file_not_a_file_error() {
         _ => panic!("Expected FileError::NotAFile"),
     }
 }
+
+#[tokio::test]
+async fn test_copy_file_copies_file_and_returns_byte_count() {
+    let svc = FileService::new();
+    let tmp = TempDir::new().unwrap();
+    let src = tmp.path().join("source.txt");
+    let dst = tmp.path().join("dest.txt");
+    tokio::fs::write(&src, "hello world").await.unwrap();
+
+    let bytes = svc.copy_file(&src, &dst).await.unwrap();
+    assert_eq!(bytes, 11);
+    assert!(dst.exists());
+    let content = tokio::fs::read_to_string(&dst).await.unwrap();
+    assert_eq!(content, "hello world");
+}
+
+#[tokio::test]
+async fn test_copy_file_creates_parent_dirs() {
+    let svc = FileService::new();
+    let tmp = TempDir::new().unwrap();
+    let src = tmp.path().join("src.txt");
+    let dst = tmp.path().join("deep").join("nested").join("dst.txt");
+    tokio::fs::write(&src, "content").await.unwrap();
+
+    let n = svc.copy_file(&src, &dst).await.unwrap();
+    assert_eq!(n, 7);
+    assert!(dst.exists());
+}
+
+#[tokio::test]
+async fn test_copy_file_not_found_error() {
+    let svc = FileService::new();
+    let tmp = TempDir::new().unwrap();
+    let missing = tmp.path().join("nonexistent.txt");
+    let dst = tmp.path().join("dest.txt");
+
+    let result = svc.copy_file(&missing, &dst).await;
+    assert!(result.is_err(), "copy_file should return error for missing source");
+    match result.unwrap_err() {
+        FileError::NotFound(p) => assert_eq!(p, missing),
+        _ => panic!("Expected FileError::NotFound"),
+    }
+}
