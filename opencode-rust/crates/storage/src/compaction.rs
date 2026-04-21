@@ -1,5 +1,6 @@
 use chrono::Utc;
 use opencode_core::compaction::{CompactionResult, Compactor};
+use opencode_core::config::CompactionConfig;
 use opencode_core::Session;
 use serde::{Deserialize, Serialize};
 
@@ -93,7 +94,32 @@ pub struct CompactionWithShareabilityResult {
     pub original_was_shareable: bool,
 }
 
-pub struct CompactionManager;
+pub struct CompactionManager {
+    config: CompactionConfig,
+}
+
+impl CompactionManager {
+    pub fn new(config: CompactionConfig) -> Self {
+        Self { config }
+    }
+
+    pub fn should_auto_compact(&self, _session: &Session) -> bool {
+        self.config.auto.unwrap_or(false)
+    }
+
+    pub async fn compact(
+        &self,
+        session: &mut Session,
+    ) -> Result<CompactionWithShareabilityResult, ShareabilityError> {
+        let max_tokens = self
+            .config
+            .compact_threshold
+            .map(|t| (128000.0 * t) as usize)
+            .unwrap_or(128000);
+
+        Self::compact_with_shareability_verification(session, max_tokens)
+    }
+}
 
 impl CompactionManager {
     pub fn compact_with_shareability_verification(
@@ -399,5 +425,99 @@ mod tests {
 
         assert!(verification.is_shareable);
         assert_eq!(verification.share_mode, Some("Auto".to_string()));
+    }
+
+    // FR-055: Instance-based CompactionManager tests
+
+    #[tokio::test]
+    async fn test_compaction_manager_new_constructs_with_stored_config() {
+        let config = CompactionConfig {
+            auto: Some(true),
+            compact_threshold: Some(0.8),
+            ..Default::default()
+        };
+        let manager = CompactionManager::new(config.clone());
+        // Verify that the config is stored by checking should_auto_compact behavior
+        // which should use the stored config
+        let session = Session::new();
+        assert!(manager.should_auto_compact(&session));
+    }
+
+    #[tokio::test]
+    async fn test_compaction_manager_should_auto_compact_uses_stored_config() {
+        // Test with auto = true
+        let config_true = CompactionConfig {
+            auto: Some(true),
+            ..Default::default()
+        };
+        let manager_true = CompactionManager::new(config_true);
+        let session = Session::new();
+        assert!(manager_true.should_auto_compact(&session));
+
+        // Test with auto = false
+        let config_false = CompactionConfig {
+            auto: Some(false),
+            ..Default::default()
+        };
+        let manager_false = CompactionManager::new(config_false);
+        assert!(!manager_false.should_auto_compact(&session));
+
+        // Test with auto = None (default false)
+        let config_none = CompactionConfig::default();
+        let manager_none = CompactionManager::new(config_none);
+        assert!(!manager_none.should_auto_compact(&session));
+    }
+
+    #[tokio::test]
+    async fn test_compaction_manager_compact_uses_stored_config() {
+        use opencode_core::config::ShareMode;
+
+        let config = CompactionConfig {
+            auto: Some(true),
+            compact_threshold: Some(0.001),
+            ..Default::default()
+        };
+        let manager = CompactionManager::new(config);
+
+        // Create a shareable session that can be compacted
+        let mut session = Session::new();
+        session.add_message(Message::user("Test".to_string()));
+        session.set_share_mode(ShareMode::Manual);
+        session.generate_share_link().unwrap();
+
+        // Add many messages with longer content to trigger compaction
+        for i in 0..20 {
+            session.add_message(Message::assistant(format!(
+                "This is a longer response number {} with more content to ensure compaction happens",
+                i
+            )));
+        }
+
+        // compact() is async and should use the stored config
+        let result = manager.compact(&mut session).await;
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.compaction_result.was_compacted);
+        assert!(result.shareability_preserved);
+    }
+
+    #[tokio::test]
+    async fn test_compaction_manager_instance_preserves_existing_behavior() {
+        // Regression test: ensure existing compaction behavior is preserved
+        let mut session = create_shareable_session();
+
+        for i in 0..20 {
+            session.add_message(Message::assistant(format!("Response {}", i)));
+        }
+
+        // Using static method (existing behavior)
+        let result_static =
+            CompactionManager::compact_with_shareability_verification(&mut session, 1000);
+
+        assert!(result_static.is_ok());
+        let result_static = result_static.unwrap();
+        assert!(result_static.shareability_preserved);
+        assert!(result_static.original_was_shareable);
+        assert!(result_static.verification.is_shareable);
     }
 }

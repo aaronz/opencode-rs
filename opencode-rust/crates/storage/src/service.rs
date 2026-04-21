@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::compaction::CompactionManager;
 use crate::database::StoragePool;
 use crate::models::{AccountModel, ProjectModel};
 use crate::repository::{ProjectRepository, SessionRepository};
@@ -10,6 +11,7 @@ pub struct StorageService {
     session_repo: Arc<dyn SessionRepository>,
     project_repo: Arc<dyn ProjectRepository>,
     pool: StoragePool,
+    compaction_manager: Option<CompactionManager>,
 }
 
 impl StorageService {
@@ -22,7 +24,13 @@ impl StorageService {
             session_repo,
             project_repo,
             pool,
+            compaction_manager: None,
         }
+    }
+
+    pub fn with_compaction_manager(mut self, manager: CompactionManager) -> Self {
+        self.compaction_manager = Some(manager);
+        self
     }
 
     pub async fn save_session(&self, session: &Session) -> Result<(), OpenCodeError> {

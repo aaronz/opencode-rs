@@ -1,0 +1,230 @@
+{
+  "tasks": [
+    {
+      "id": "FR-055",
+      "priority": "P0",
+      "title": "CompactionManager Instance-Based Design",
+      "description": "Restructure CompactionManager to use instance-based design instead of static methods. Store CompactionConfig in struct instance and update StorageService to store Option<CompactionManager>.",
+      "status": "in_progress",
+      "test_criteria": [
+        "AddUnitTest: verify CompactionManager::new(config) constructs with stored config",
+        "AddUnitTest: verify should_auto_compact() uses stored config instance",
+        "AddUnitTest: verify compact() uses stored config instance",
+        "AddUnitTest: verify StorageService stores Option<CompactionManager> instead of static methods",
+        "AddRegressionTest: ensure existing compaction behavior preserved after refactor",
+        "RunTestSuite: cargo test -p opencode-storage"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-storage --lib -- compaction",
+        "cargo build -p opencode-storage",
+        "cargo clippy -p opencode-storage -- -D warnings"
+      ],
+      "impl_notes": "Extract static methods into instance methods. Add new() constructor that takes CompactionConfig. Update StorageService to hold Option<CompactionManager> field.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-046",
+      "priority": "P1",
+      "title": "Add compact_session to StorageService",
+      "description": "Add compact_session(id: &str) -> Result<CompactionResult, StorageError> method to StorageService that delegates to CompactionManager::compact().",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify compact_session returns Ok(CompactionResult) for existing session",
+        "AddUnitTest: verify compact_session returns NotFound error for non-existent session",
+        "AddIntegrationTest: verify compact_session delegates correctly to CompactionManager::compact",
+        "AddErrorHandlingTest: verify error propagation for invalid session IDs"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-storage --lib -- compact_session",
+        "cargo build -p opencode-storage",
+        "cargo clippy -p opencode-storage -- -D warnings"
+      ],
+      "impl_notes": "Method should call self.compaction_manager.as_ref().and_then(|cm| cm.compact(session)). Return StorageError::NotFound if session doesn't exist.",
+      "dependencies": [
+        "FR-055"
+      ]
+    },
+    {
+      "id": "FR-047",
+      "priority": "P1",
+      "title": "Add load_project(id) Method",
+      "description": "Add load_project(id: &str) -> Result<Option<ProjectModel>, StorageError> method to StorageService. Returns Some(ProjectModel) if found, None if not found.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify load_project returns Some(ProjectModel) for existing project UUID",
+        "AddUnitTest: verify load_project returns None for non-existent project UUID",
+        "AddUnitTest: verify load_project handles UUID string format correctly",
+        "AddErrorHandlingTest: verify error handling for malformed UUID strings"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-storage --lib -- load_project",
+        "cargo build -p opencode-storage",
+        "cargo clippy -p opencode-storage -- -D warnings"
+      ],
+      "impl_notes": "Parse id as UUID, query repository for project. Return Ok(None) if not found, Ok(Some(model)) if found.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-051",
+      "priority": "P1",
+      "title": "Add exists() to SessionRepository",
+      "description": "Add exists(&self, id: &str) -> Result<bool, StorageError> method to SessionRepository trait and implement for SqliteSessionRepository and InMemorySessionRepository.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify SqliteSessionRepository::exists returns true for existing session",
+        "AddUnitTest: verify SqliteSessionRepository::exists returns false for non-existent session",
+        "AddUnitTest: verify InMemorySessionRepository::exists returns true for existing session",
+        "AddUnitTest: verify InMemorySessionRepository::exists returns false for non-existent session",
+        "AddRegressionTest: ensure exists() does not interfere with other repository operations"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-storage --lib -- exists",
+        "cargo build -p opencode-storage",
+        "cargo clippy -p opencode-storage -- -D warnings"
+      ],
+      "impl_notes": "Add method to SessionRepository trait. Sqlite implementation: SELECT EXISTS(...). InMemory implementation: self.sessions.contains_key(id).",
+      "dependencies": []
+    },
+    {
+      "id": "FR-049",
+      "priority": "P1",
+      "title": "Add recover_session to StorageService",
+      "description": "Add recover_session(id: &str) -> Result<Session, StorageError> method to StorageService that delegates to CrashRecovery::restore().",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify recover_session returns Ok(Session) for recoverable session",
+        "AddUnitTest: verify recover_session returns NotFound error for non-existent session",
+        "AddIntegrationTest: verify recover_session delegates to CrashRecovery::restore correctly",
+        "AddErrorHandlingTest: verify error handling for corrupted session data"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-storage --lib -- recover_session",
+        "cargo build -p opencode-storage",
+        "cargo clippy -p opencode-storage -- -D warnings"
+      ],
+      "impl_notes": "Method should call CrashRecovery::restore() with the session id. Return StorageError::NotFound if session doesn't exist.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-045/FR-048",
+      "priority": "P1",
+      "title": "Pagination Verification",
+      "description": "Verify that list_sessions(limit, offset) and list_projects(limit, offset) work correctly. Empty results should return empty vector, not error.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify list_sessions returns correct items within limit/offset range",
+        "AddUnitTest: verify list_sessions returns empty Vec when no sessions exist",
+        "AddUnitTest: verify list_projects returns correct items within limit/offset range",
+        "AddUnitTest: verify list_projects returns empty Vec when no projects exist",
+        "AddIntegrationTest: verify pagination consistency across multiple calls",
+        "AddErrorHandlingTest: verify handling of invalid limit/offset values"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-storage --lib -- list_sessions",
+        "cargo test -p opencode-storage --lib -- list_projects",
+        "cargo build -p opencode-storage",
+        "cargo clippy -p opencode-storage -- -D warnings"
+      ],
+      "impl_notes": "Ensure pagination queries use LIMIT and OFFSET correctly in SQL. Return empty Vec (not error) when no results found.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-042",
+      "priority": "P2",
+      "title": "Add Migration Error Variant",
+      "description": "Add StorageError::Migration(String) variant to error.rs for handling database migration errors.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify StorageError::Migration formats error message correctly",
+        "AddUnitTest: verify Migration variant implements std::error::Error",
+        "AddErrorHandlingTest: verify Migration errors propagate correctly through Service/Repository layers"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-storage --lib -- error",
+        "cargo build -p opencode-storage",
+        "cargo clippy -p opencode-storage -- -D warnings"
+      ],
+      "impl_notes": "Add #[error(\"Migration error: {0}\")] variant to StorageError enum.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-043",
+      "priority": "P2",
+      "title": "Add SessionLocked Error Variant",
+      "description": "Add StorageError::SessionLocked(String) variant to error.rs for handling session lock errors.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify StorageError::SessionLocked formats error message correctly",
+        "AddUnitTest: verify SessionLocked variant implements std::error::Error",
+        "AddErrorHandlingTest: verify SessionLocked errors are returned when session is locked"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-storage --lib -- error",
+        "cargo build -p opencode-storage",
+        "cargo clippy -p opencode-storage -- -D warnings"
+      ],
+      "impl_notes": "Add #[error(\"Session locked: {0}\")] variant to StorageError enum.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-044",
+      "priority": "P2",
+      "title": "Add Recovery Error Variant",
+      "description": "Add StorageError::Recovery(String) variant to error.rs for handling crash recovery errors.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify StorageError::Recovery formats error message correctly",
+        "AddUnitTest: verify Recovery variant implements std::error::Error",
+        "AddErrorHandlingTest: verify Recovery errors propagate correctly from CrashRecovery"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-storage --lib -- error",
+        "cargo build -p opencode-storage",
+        "cargo clippy -p opencode-storage -- -D warnings"
+      ],
+      "impl_notes": "Add #[error(\"Recovery error: {0}\")] variant to StorageError enum.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-050",
+      "priority": "P2",
+      "title": "Add list_incomplete_sessions",
+      "description": "Add list_incomplete_sessions() -> Result<Vec<Uuid>, StorageError> method to StorageService that returns Vec of incomplete session IDs.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify list_incomplete_sessions returns Vec of incomplete session UUIDs",
+        "AddUnitTest: verify list_incomplete_sessions returns empty Vec when no incomplete sessions exist",
+        "AddIntegrationTest: verify incomplete sessions are correctly identified from session state",
+        "RunTestSuite: execute all related tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-storage --lib -- list_incomplete_sessions",
+        "cargo build -p opencode-storage",
+        "cargo clippy -p opencode-storage -- -D warnings"
+      ],
+      "impl_notes": "Query repository for sessions where is_complete = false. Return Uuid list.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-052",
+      "priority": "P2",
+      "title": "Implement list_by_project",
+      "description": "Add list_by_project(project_path: &str) method to SessionRepository trait and implementations to filter sessions by project.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify SqliteSessionRepository::list_by_project returns only sessions for given project",
+        "AddUnitTest: verify InMemorySessionRepository::list_by_project returns only sessions for given project",
+        "AddUnitTest: verify list_by_project returns empty Vec for project with no sessions (not error)",
+        "AddUnitTest: verify list_by_project correctly filters by project_path string",
+        "AddRegressionTest: ensure list_by_project does not affect other repository operations"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-storage --lib -- list_by_project",
+        "cargo build -p opencode-storage",
+        "cargo clippy -p opencode-storage -- -D warnings"
+      ],
+      "impl_notes": "Add method to SessionRepository trait. Sqlite: WHERE project_path = ?. InMemory: filter sessions HashMap by project_path field.",
+      "dependencies": []
+    }
+  ]
+}

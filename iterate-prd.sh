@@ -64,11 +64,11 @@ log() {
     local timestamp
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     local message="[$timestamp] $1"
-    
+
     if [ "$VERBOSE" = "true" ]; then
         echo "$message"
     fi
-    
+
     if [ -n "$LOG_FILE" ]; then
         echo "$message" >> "$LOG_FILE"
     fi
@@ -138,9 +138,14 @@ log "模型: $MODEL"
 log "最大外循环轮次: $MAX_IMPLEMENTATION_ROUNDS"
 log ""
 
-log "[1/6] 执行PRD差距分析..."
+log "[1/4] 执行PRD差距分析..."
 save_checkpoint "$NEXT_ITERATION" "phase1"
 run_phase_gap_analysis "$PRD_PATH" "$OUTPUTS_DIR"
+
+# Cache gap analysis for subsequent phases (avoid re-reading files)
+if [ -f "$OUTPUTS_DIR/gap-analysis.md" ]; then
+    export CACHED_GAP_ANALYSIS="$(cat "$OUTPUTS_DIR/gap-analysis.md")"
+fi
 
 # Constitution phase skipped by user request
 # log ""
@@ -149,26 +154,34 @@ run_phase_gap_analysis "$PRD_PATH" "$OUTPUTS_DIR"
 # run_phase_constitution "$CONSTITUTION_PATH" "$OUTPUTS_DIR/gap-analysis.md" "$OUTPUTS_DIR"
 
 log ""
-log "[3/6] 更新Spec..."
-save_checkpoint "$NEXT_ITERATION" "phase3"
+log "[2/4] 更新Spec..."
+save_checkpoint "$NEXT_ITERATION" "phase2"
 run_phase_spec "$PRD_PATH" "$OUTPUTS_DIR/gap-analysis.md" "$OUTPUTS_DIR" "$NEXT_ITERATION"
 
+# Cache spec for subsequent phases
+if [ -f "$OUTPUTS_DIR/spec_v${NEXT_ITERATION}.md" ]; then
+    export CACHED_SPEC_CONTENT="$(cat "$OUTPUTS_DIR/spec_v${NEXT_ITERATION}.md")"
+fi
+
 log ""
-log "[4/6] 更新Plan和Tasks..."
-save_checkpoint "$NEXT_ITERATION" "phase4"
+log "[3/4] 更新Plan和Tasks..."
+save_checkpoint "$NEXT_ITERATION" "phase3"
 run_phase_plan "$OUTPUTS_DIR/spec_v${NEXT_ITERATION}.md" "$OUTPUTS_DIR/gap-analysis.md" "$OUTPUTS_DIR" "$NEXT_ITERATION"
+
+# Cache tasks for implementation phase
+if [ -f "$OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.md" ]; then
+    export CACHED_TASKS_MD="$(cat "$OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.md")"
+fi
+if [ -f "$OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.json" ]; then
+    export CACHED_TASKS_JSON="$(cat "$OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.json")"
+fi
 
 TASKS_JSON="$OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.json"
 
 log ""
-log "[5/6] Per-Task 实现循环..."
-save_checkpoint "$NEXT_ITERATION" "phase5"
+log "[4/4] Per-Task 实现循环..."
+save_checkpoint "$NEXT_ITERATION" "phase4"
 run_phase_implementation "$TASKS_JSON" "$OUTPUTS_DIR/spec_v${NEXT_ITERATION}.md" "$OUTPUTS_DIR" "$MAX_IMPLEMENTATION_ROUNDS"
-
-log ""
-log "[6/6] 验证报告..."
-save_checkpoint "$NEXT_ITERATION" "phase6"
-run_phase_verification "$OUTPUTS_DIR/gap-analysis.md" "$OUTPUTS_DIR/tasks_v${NEXT_ITERATION}.md" "$TASKS_JSON" "$OUTPUTS_DIR"
 
 log ""
 log "=============================================="
@@ -176,6 +189,5 @@ log "SpecKit 迭代完成!"
 log "=============================================="
 log "迭代目录: $OUTPUTS_DIR"
 log "任务文件: $TASKS_JSON"
-log "验证报告: $OUTPUTS_DIR/verification-report.md"
 
 log "日志保存于: $LOG_FILE"

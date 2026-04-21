@@ -8,6 +8,29 @@ EXPORT_SESSIONS="${EXPORT_SESSIONS:-true}"
 
 mkdir -p "$SESSION_EXPORT_DIR"
 
+# Content caching to avoid re-reading files in prompts
+# Usage: cache_file "VARIABLE_NAME" "/path/to/file"
+cache_file() {
+    local var_name="$1"
+    local file_path="$2"
+    if [ -f "$file_path" ] && [ -s "$file_path" ]; then
+        eval "${var_name}=\$(cat \"$file_path\")"
+    else
+        eval "${var_name}="
+    fi
+}
+
+# Batch cache multiple files at once
+# Usage: cache_files GAP_ANALYSIS="$gap_file" SPEC="$spec_file" ...
+cache_files() {
+    while [ $# -gt 0 ]; do
+        local var_name="${1%%=*}"
+        local file_path="${1#*=}"
+        cache_file "$var_name" "$file_path"
+        shift
+    done
+}
+
 check_file() {
     if [ ! -f "$1" ]; then
         echo "❌ 文件缺失: $1"
@@ -144,24 +167,11 @@ run_opencode_with_session_export() {
     local prompt="$1"
     local export_file="${2:-}"
     local model="${3:-$MODEL}"
-    
-    local timestamp
-    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
     local temp_output
     temp_output=$(mktemp)
 
     opencode run -m "$model" --dangerously-skip-permissions "$prompt" --format json 2>&1 > "$temp_output" || true
-
-    if [ -f "$temp_output" ] && [ -s "$temp_output" ]; then
-        local session_id
-        session_id=$(grep -oE '"sessionID":"[^"]+"' "$temp_output" | head -1 | sed 's/"sessionID":"//;s/"$//')
-
-        if [ -n "$session_id" ] && [ -n "$export_file" ]; then
-            echo "📦 导出Session: $session_id -> $export_file"
-            opencode export "$session_id" > "$export_file" 2>/dev/null || true
-        fi
-    fi
 
     rm -f "$temp_output"
 }

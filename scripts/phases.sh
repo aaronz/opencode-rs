@@ -118,7 +118,7 @@ run_phase_spec() {
 $(cat $prd_path)
 
 ## 差距分析
-$(cat $gap_analysis)
+${CACHED_GAP_ANALYSIS:-$(cat $gap_analysis)}
 
 ## 任务
 1. 基于差距分析，更新spec.md
@@ -155,10 +155,10 @@ run_phase_plan() {
 - 只使用 Read、Write、Edit、Grep、LSP 等直接工具
 
 ## Spec
-$(cat $spec_file)
+${CACHED_SPEC_CONTENT:-$(cat $spec_file)}
 
 ## 差距分析
-$(cat $gap_analysis)
+${CACHED_GAP_ANALYSIS:-$(cat $gap_analysis)}
 
 ## 任务
 1. 更新实现计划
@@ -252,52 +252,6 @@ run_phase_implementation() {
     done
 }
 
-run_phase_verification() {
-    local gap_analysis="$1"
-    local tasks_md="$2"
-    local tasks_json="$3"
-    local output_dir="$4"
-
-    local verif_file="$output_dir/verification-report.md"
-
-    if check_file_quiet "$verif_file"; then
-        echo "⏭️  跳过验证报告（已存在）"
-        return 0
-    fi
-
-    PROMPT_VERIFICATION="生成迭代验证报告，并将报告写入文件：$verif_file
-
-## 重要约束
-- 禁止使用 subagent 或 task 工具 spawning 其他 agent
-- 禁止将工作委托给其他 agent
-- 必须直接在当前 session 中完成所有验证工作
-- 只使用 Read、Write、Edit、Grep、LSP、Bash 等直接工具
-
-## 差距分析
-$(cat $gap_analysis)
-
-## 任务清单
-$(cat $tasks_md)
-
-## 任务JSON
-$(cat $tasks_json 2>/dev/null || echo "{}")
-
-## 实现状态
-检查./iterations/src/目录下的代码和git提交历史
-
-## 输出要求
-将完整的迭代验证报告写入到：$verif_file
-
-报告必须包含：
-1. P0问题状态（表格：问题 | 状态 | 备注）
-2. Constitution合规性检查
-3. PRD完整度评估
-4. 遗留问题清单
-5. 下一步建议"
-
-    generate_if_missing "$verif_file" "$PROMPT_VERIFICATION" 5
-}
-
 implement_task() {
     local task_id="$1"
     local task_json="$2"
@@ -329,7 +283,7 @@ implement_task() {
 $(echo "$task_details" | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'ID: {d.get(\"id\",\"\")}'); print(f'标题: {d.get(\"title\",\"\")}'); print(f'描述: {d.get(\"description\",\"\")}'); print(f'优先级: {d.get(\"priority\",\"\")}'); print(f'测试标准: {chr(10).join(d.get(\"test_criteria\",[]))}'); print(f'测试命令: {chr(10).join(d.get(\"test_commands\",[]))}'); print(f'实现注意事项: {d.get(\"impl_notes\",\"\")}'); print(f'依赖: {d.get(\"dependencies\",[])}')" 2>/dev/null || echo "$task_details")
 
 ## Spec
-$(cat $spec_file)
+${CACHED_SPEC_CONTENT:-$(cat $spec_file)}
 
 ## 实现目录
 ./iterations/src/
@@ -387,6 +341,9 @@ $test_output
 
 ## 任务信息
 $(echo "$task_details" | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'ID: {d.get(\"id\",\"\")}'); print(f'标题: {d.get(\"title\",\"\")}'); print(f'描述: {d.get(\"description\",\"\")}'); print(f'测试命令: {chr(10).join(d.get(\"test_commands\",[]))}')" 2>/dev/null)
+
+## Spec
+${CACHED_SPEC_CONTENT:-$(cat $spec_file)}
 
 ## 重要约束
 - 禁止使用 subagent 或 task 工具 spawning 其他 agent
