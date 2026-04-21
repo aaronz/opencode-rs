@@ -23,15 +23,15 @@
 
 ## P1 Tasks (High Priority)
 
-### [ ] FR-046: Add compact_session to StorageService
+### [x] FR-046: Add compact_session to StorageService
 **Priority**: P1
 **Module**: `crates/storage/src/service.rs`
 **Dependencies**: FR-055
 
 **Acceptance Criteria**:
-- [ ] `compact_session(id: &str) -> Result<CompactionResult, StorageError>` method exists
-- [ ] Method delegates to `CompactionManager::compact()`
-- [ ] Returns `NotFound` error for non-existent sessions
+- [x] `compact_session(id: &str) -> Result<CompactionResult, StorageError>` method exists
+- [x] Method delegates to `CompactionManager::compact()`
+- [x] Returns `NotFound` error for non-existent sessions
 
 ---
 

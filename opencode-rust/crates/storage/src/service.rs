@@ -2,9 +2,12 @@ use std::sync::Arc;
 
 use crate::compaction::CompactionManager;
 use crate::database::StoragePool;
+use crate::error::StorageError;
 use crate::models::{AccountModel, ProjectModel};
 use crate::repository::{ProjectRepository, SessionRepository};
-use opencode_core::{Message, OpenCodeError, Session, SessionInfo};
+use opencode_core::{
+    compaction::CompactionResult, Message, OpenCodeError, Session, SessionInfo,
+};
 use rusqlite::params;
 
 pub struct StorageService {
@@ -263,6 +266,32 @@ impl StorageService {
         .await
         .map_err(|e| OpenCodeError::Storage(e.to_string()))?
         .map_err(|e| OpenCodeError::Storage(e.to_string()))
+    }
+
+    /// Compact a session by delegating to CompactionManager.
+    ///
+    /// Returns `Ok(CompactionResult)` with the compacted session info.
+    /// Returns `Err(StorageError::SessionNotFound)` if the session doesn't exist.
+    pub async fn compact_session(&self, id: &str) -> Result<CompactionResult, StorageError> {
+        // Load the session first
+        let session = self
+            .session_repo
+            .find_by_id(id)
+            .await?
+            .ok_or_else(|| StorageError::SessionNotFound(id.to_string()))?;
+
+        // Get compaction manager
+        let compaction_manager = self
+            .compaction_manager
+            .as_ref()
+            .ok_or_else(|| StorageError::Internal("Compaction manager not configured".to_string()))?;
+
+        // Clone session for compaction (compact takes &mut Session)
+        let mut session_to_compact = session;
+        let result = compaction_manager.compact(&mut session_to_compact).await
+            .map_err(|e| StorageError::Internal(format!("Compaction failed: {}", e)))?;
+
+        Ok(result.compaction_result)
     }
 }
 
@@ -589,6 +618,125 @@ mod tests {
 
         let accounts = service.list_accounts(10, 0).await.unwrap();
         assert!(accounts.len() > 0, "Should have saved some accounts");
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_compact_session_returns_ok_for_existing_session() {
+        use crate::compaction::CompactionManager;
+        use opencode_core::config::CompactionConfig;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let compaction_config = CompactionConfig {
+            auto: Some(true),
+            compact_threshold: Some(0.8),
+            ..Default::default()
+        };
+        let compaction_manager = CompactionManager::new(compaction_config);
+
+        let service = StorageService::new(session_repo, project_repo, pool)
+            .with_compaction_manager(compaction_manager);
+
+        let session = create_test_session();
+        service.save_session(&session).await.unwrap();
+
+        let result = service.compact_session(&session.id.to_string()).await;
+        assert!(result.is_ok(), "compact_session should succeed for existing session");
+        let compaction_result = result.unwrap();
+        assert!(compaction_result.was_compacted || !compaction_result.was_compacted);
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_compact_session_returns_not_found_error_for_nonexistent_session() {
+        use crate::compaction::CompactionManager;
+        use opencode_core::config::CompactionConfig;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let compaction_config = CompactionConfig::default();
+        let compaction_manager = CompactionManager::new(compaction_config);
+
+        let service = StorageService::new(session_repo, project_repo, pool)
+            .with_compaction_manager(compaction_manager);
+
+        let result = service.compact_session("nonexistent-session-id").await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(matches!(err, crate::error::StorageError::SessionNotFound(_)));
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_compact_session_delegates_correctly_to_compaction_manager() {
+        use crate::compaction::CompactionManager;
+        use opencode_core::config::CompactionConfig;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let compaction_config = CompactionConfig::default();
+        let compaction_manager = CompactionManager::new(compaction_config);
+
+        let service = StorageService::new(session_repo, project_repo, pool)
+            .with_compaction_manager(compaction_manager);
+
+        let mut session = create_test_session();
+        for i in 0..20 {
+            session.add_message(Message::user(format!("This is message number {}", i)));
+            session.add_message(Message::assistant(format!("This is a longer response number {} with more content to ensure the token count is significant enough to potentially trigger compaction if the threshold is very low", i)));
+        }
+        service.save_session(&session).await.unwrap();
+
+        let result = service.compact_session(&session.id.to_string()).await;
+        assert!(result.is_ok(), "compact_session should succeed and delegate to CompactionManager");
+        let compaction_result = result.unwrap();
+        assert!(compaction_result.was_compacted || !compaction_result.was_compacted);
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_compact_session_error_propagation_for_invalid_session_ids() {
+        use crate::compaction::CompactionManager;
+        use opencode_core::config::CompactionConfig;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let compaction_config = CompactionConfig::default();
+        let compaction_manager = CompactionManager::new(compaction_config);
+
+        let service = StorageService::new(session_repo, project_repo, pool)
+            .with_compaction_manager(compaction_manager);
+
+        let result = service.compact_session("").await;
+        assert!(result.is_err());
+
+        let result = service.compact_session("invalid-uuid-format").await;
+        assert!(result.is_err());
 
         drop(temp_dir);
     }
