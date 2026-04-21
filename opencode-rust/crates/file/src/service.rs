@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
-use tokio::sync::mpsc;
 use tokio::sync::Mutex as TokioMutex;
 
 pub struct FileService {
@@ -25,19 +24,67 @@ impl FileService {
         &self,
         path: &Path,
         debounce_ms: u64,
-        callback: impl Fn(PathBuf) + Clone + Send + 'static,
+        callback: impl Fn(PathBuf) + Clone + Send + Sync + 'static,
     ) -> Result<String, FileError> {
         let watch_id = uuid::Uuid::new_v4().to_string();
-        let pending: Arc<TokioMutex<HashMap<PathBuf, u64>>> =
-            Arc::new(TokioMutex::new(HashMap::new()));
+        let pending: Arc<StdMutex<HashMap<PathBuf, u64>>> =
+            Arc::new(StdMutex::new(HashMap::new()));
         let pending_clone = pending.clone();
         let delay = Duration::from_millis(debounce_ms);
         let path_owned = path.to_path_buf();
 
-        let (tx, mut rx) = mpsc::channel::<PathBuf>(100);
-        let tx_clone = tx.clone();
+        let callback: Arc<dyn Fn(PathBuf) + Send + Sync + 'static> = Arc::new(callback);
+        let callback_clone = callback.clone();
 
-        let handle = tokio::runtime::Handle::current();
+        let (tx, rx) = std::sync::mpsc::channel::<PathBuf>();
+
+        std::thread::spawn(move || {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(async move {
+                while let Ok(path) = rx.recv() {
+                    let pending = pending_clone.clone();
+                    let delay = delay;
+                    let callback = callback_clone.clone();
+                    let path_clone = path.clone();
+
+                    tokio::spawn(async move {
+                        let seq = {
+                            let mut guard = pending.lock().unwrap();
+                            let counter = guard.entry(path_clone.clone()).or_insert(0);
+                            *counter += 1;
+                            *counter
+                        };
+
+                        let pending2 = pending.clone();
+                        let callback = callback.clone();
+
+                        tokio::spawn(async move {
+                            tokio::time::sleep(delay).await;
+
+                            let should_call = {
+                                let mut guard = pending2.lock().unwrap();
+                                if let Some(counter) = guard.get(&path_clone) {
+                                    if *counter == seq {
+                                        guard.remove(&path_clone);
+                                        true
+                                    } else {
+                                        guard.remove(&path_clone);
+                                        false
+                                    }
+                                } else {
+                                    false
+                                }
+                            };
+
+                            if should_call {
+                                callback(path_clone);
+                            }
+                        });
+                    });
+                }
+            });
+        });
+
         let _watcher = RecommendedWatcher::new(
             move |res: Result<Event, notify::Error>| {
                 if let Ok(event) = res {
@@ -46,11 +93,9 @@ impl FileService {
                         EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
                     ) {
                         for p in event.paths {
-                            let tx = tx_clone.clone();
-                            let path = p;
-                            handle.spawn(async move {
-                                let _ = tx.send(path).await;
-                            });
+                            if tx.send(p).is_err() {
+                                return;
+                            }
                         }
                     }
                 }
@@ -58,47 +103,6 @@ impl FileService {
             notify::Config::default(),
         )
         .map_err(|e| FileError::Watch(e.to_string()))?;
-
-        let callback_clone = callback.clone();
-        tokio::spawn(async move {
-            while let Some(path) = rx.recv().await {
-                let pending2 = pending_clone.clone();
-                let delay = delay;
-                let callback = callback_clone.clone();
-                let path_clone = path.clone();
-
-                let seq = {
-                    let mut guard = pending2.lock().await;
-                    let counter = guard.entry(path.clone()).or_insert(0);
-                    *counter += 1;
-                    *counter
-                };
-
-                let pending3 = pending2.clone();
-                tokio::spawn(async move {
-                    tokio::time::sleep(delay).await;
-
-                    let should_call = {
-                        let mut guard = pending3.lock().await;
-                        if let Some(counter) = guard.get(&path_clone) {
-                            if *counter == seq {
-                                guard.remove(&path_clone);
-                                true
-                            } else {
-                                guard.remove(&path_clone);
-                                false
-                            }
-                        } else {
-                            false
-                        }
-                    };
-
-                    if should_call {
-                        callback(path_clone);
-                    }
-                });
-            }
-        });
 
         let mut watcher = _watcher;
         watcher
