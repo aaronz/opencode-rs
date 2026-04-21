@@ -120,9 +120,8 @@
 
 ### Phase 6: Testing
 
-- [ ] **T-017**: Write unit test `test_watch_fires_callback_on_file_change` ⚠️ BLOCKED by T-010
+- [x] **T-017**: Write unit test `test_watch_fires_callback_on_file_change` ✅ Done
   - Verify watch() registers watcher and callback fires on file change
-  - Test EXISTS but HANGS - implementation incomplete
 
 - [ ] **T-018**: Write unit test `test_debouncer_merges_rapid_events`
   - Verify multiple rapid events collapse to single callback

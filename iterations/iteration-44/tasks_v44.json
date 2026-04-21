@@ -181,7 +181,7 @@
       "priority": "P0",
       "title": "Implement watch() method on FileService",
       "description": "Implement watch() method on FileService - use notify::RecommendedWatcher, generate unique watch_id string, store watcher in registry, support debouncing. Return WatchId string.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify watch() registers watcher and returns unique watch_id",
         "AddUnitTest: verify callback fires when watched file changes",
@@ -320,7 +320,7 @@
       "priority": "P1",
       "title": "Write unit test test_watch_fires_callback_on_file_change",
       "description": "Write unit test test_watch_fires_callback_on_file_change - verify watch() registers watcher and callback fires on file change",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify watch() registers watcher successfully",
         "AddIntegrationTest: verify callback is invoked when watched file changes"
