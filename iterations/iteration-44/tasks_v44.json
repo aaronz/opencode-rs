@@ -357,7 +357,7 @@
       "priority": "P1",
       "title": "Write unit test test_copy_file_creates_parent_dirs",
       "description": "Write unit test test_copy_file_creates_parent_dirs - verify copy_file() creates parent directories and returns byte count",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify copy_file() creates nested parent directories",
         "AddUnitTest: verify correct byte count is returned"
