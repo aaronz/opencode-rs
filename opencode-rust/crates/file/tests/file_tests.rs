@@ -1,6 +1,7 @@
-use opencode_file::{FileError, FileService, Normalizer};
+use opencode_file::{Debouncer, FileError, FileService, Normalizer};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 use tempfile::TempDir;
 
 #[test]
@@ -376,20 +377,16 @@ fn test_normalize_path_platform_aware() {
 
 #[test]
 fn test_normalize_path_consistent_across_calls() {
-    let original_cwd = std::env::current_dir().unwrap();
     let svc = FileService::new();
     let tmp = TempDir::new().unwrap();
-    std::env::set_current_dir(tmp.path()).unwrap();
 
-    let input = Path::new("./foo/./bar/../baz");
-    let result1 = svc.normalize_path(input);
-    let result2 = svc.normalize_path(input);
+    let input = tmp.path().join("foo/./bar/../baz");
+    let result1 = svc.normalize_path(&input);
+    let result2 = svc.normalize_path(&input);
     assert_eq!(
         result1, result2,
         "normalize_path should return consistent results"
     );
-
-    std::env::set_current_dir(original_cwd).unwrap();
 }
 
 #[test]
@@ -419,4 +416,147 @@ fn test_normalize_path_excess_parent_components() {
     assert_eq!(result, Path::new("/a/d"));
 
     std::env::set_current_dir(original_cwd).unwrap();
+}
+
+#[test]
+fn test_debouncer_instantiation_with_delay() {
+    let delay = std::time::Duration::from_millis(100);
+    let debouncer = Debouncer::new(delay);
+    assert_eq!(debouncer.delay(), delay);
+}
+
+#[tokio::test]
+async fn test_debouncer_queue_collapses_rapid_events() {
+    let debounce = std::time::Duration::from_millis(50);
+    let debouncer = Debouncer::new(debounce);
+    let count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let count2 = count.clone();
+
+    debouncer
+        .queue(PathBuf::from("a.txt"), move || {
+            count2.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        })
+        .await;
+
+    let count3 = count.clone();
+    debouncer
+        .queue(PathBuf::from("a.txt"), move || {
+            count3.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        })
+        .await;
+
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    let final_count = count.load(std::sync::atomic::Ordering::SeqCst);
+    assert_eq!(
+        final_count, 1,
+        "Expected 1 callback but got {} - rapid events should be collapsed",
+        final_count
+    );
+}
+
+#[tokio::test]
+async fn test_debouncer_merges_rapid_events() {
+    let debounce = Duration::from_millis(100);
+    let debouncer = Debouncer::new(debounce);
+    let count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let count2 = count.clone();
+
+    debouncer
+        .queue(PathBuf::from("a.txt"), move || {
+            count2.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        })
+        .await;
+
+    let count3 = count.clone();
+    debouncer
+        .queue(PathBuf::from("a.txt"), move || {
+            count3.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        })
+        .await;
+
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let final_count = count.load(std::sync::atomic::Ordering::SeqCst);
+    assert_eq!(
+        final_count, 1,
+        "Expected 1 callback but got {}",
+        final_count
+    );
+}
+
+#[tokio::test]
+async fn test_watch_fires_callback_on_file_change() {
+    let svc = FileService::new();
+    let tmp = TempDir::new().unwrap();
+    let file = tmp.path().join("watched.txt");
+    tokio::fs::write(&file, "v1").await.unwrap();
+
+    let (tx, mut rx) = tokio::sync::mpsc::channel(1);
+    let tx_clone = tx.clone();
+    let watch_id = svc
+        .watch(tmp.path(), 50, move |p| {
+            let _ = tx_clone.blocking_send(p);
+        })
+        .await
+        .unwrap();
+
+    tokio::fs::write(&file, "v2").await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+
+    let changed = rx.recv().await.unwrap();
+    assert!(changed.ends_with("watched.txt"));
+
+    svc.unwatch(&watch_id).await.unwrap();
+}
+
+#[tokio::test]
+async fn test_watch_returns_unique_watch_id() {
+    let svc = FileService::new();
+    let tmp = TempDir::new().unwrap();
+    let file = tmp.path().join("watched.txt");
+    tokio::fs::write(&file, "content").await.unwrap();
+
+    let (tx, _rx) = tokio::sync::mpsc::channel(1);
+    let watch_id1 = svc
+        .watch(tmp.path(), 50, move |_p| {
+            let _ = tx.clone().blocking_send(());
+        })
+        .await
+        .unwrap();
+
+    let (tx2, _rx2) = tokio::sync::mpsc::channel(1);
+    let watch_id2 = svc
+        .watch(tmp.path(), 50, move |_p| {
+            let _ = tx2.clone().blocking_send(());
+        })
+        .await
+        .unwrap();
+
+    assert_ne!(watch_id1, watch_id2, "Each watch should return a unique ID");
+}
+
+#[tokio::test]
+async fn test_exists_returns_bool() {
+    let svc = FileService::new();
+    let tmp = TempDir::new().unwrap();
+    let file = tmp.path().join("exists.txt");
+    tokio::fs::write(&file, "content").await.unwrap();
+
+    assert!(svc.exists(&file).await, "exists() should return true for existing file");
+    assert!(
+        !svc.exists(&tmp.path().join("nonexistent.txt")).await,
+        "exists() should return false for non-existent path"
+    );
+}
+
+#[tokio::test]
+async fn test_exists_does_not_throw_error_on_missing_path() {
+    let svc = FileService::new();
+    let tmp = TempDir::new().unwrap();
+    let missing_path = tmp.path().join("this_file_does_not_exist.txt");
+
+    let result = tokio::fs::metadata(&missing_path).await;
+    assert!(result.is_err(), "metadata() should return error for missing path");
+
+    let exists_result = svc.exists(&missing_path).await;
+    assert!(!exists_result, "exists() should return false, not throw error");
 }

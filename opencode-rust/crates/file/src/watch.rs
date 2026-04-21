@@ -20,6 +20,10 @@ impl Debouncer {
         }
     }
 
+    pub fn delay(&self) -> Duration {
+        self.delay
+    }
+
     pub async fn queue<F>(&self, path: PathBuf, callback: F)
     where
         F: FnOnce() + Send + 'static,

@@ -171,7 +171,28 @@ run_opencode_with_session_export() {
     local temp_output
     temp_output=$(mktemp)
 
-    opencode run -m "$model" --dangerously-skip-permissions "$prompt" --format json 2>&1 > "$temp_output" || true
+    local start_time
+    start_time=$(date +%s)
+    echo "[DEBUG] $(date '+%Y-%m-%d %H:%M:%S') | run_opencode_with_session_export 开始 | model=$model"
+
+    local opencode_exit_code=0
+    local opencode_output
+
+    opencode_output=$(timeout 300 opencode run -m "$model" --dangerously-skip-permissions "$prompt" --format json 2>&1) || opencode_exit_code=$?
+
+    local elapsed=$(( $(date +%s) - start_time ))
+    echo "[DEBUG] $(date '+%Y-%m-%d %H:%M:%S') | opencode 完成 | elapsed=${elapsed}s | exit_code=$opencode_exit_code"
+
+    if [ -n "$export_file" ]; then
+        echo "$opencode_output" > "$export_file"
+        echo "[DEBUG] 已导出到: $export_file"
+    fi
+
+    if [ $opencode_exit_code -eq 124 ]; then
+        echo "⚠️  opencode 超时 (5分钟)，继续执行"
+    elif [ $opencode_exit_code -ne 0 ]; then
+        echo "⚠️  opencode 异常退出: exit_code=$opencode_exit_code"
+    fi
 
     rm -f "$temp_output"
 }

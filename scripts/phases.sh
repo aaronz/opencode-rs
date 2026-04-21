@@ -19,6 +19,8 @@ run_phase_gap_analysis() {
 - 禁止将工作委托给其他 agent
 - 必须直接在当前 session 中完成所有分析工作
 - 只使用 Read、Write、Edit、Grep、LSP 等直接工具
+- 禁止向用户提问或请求确认，必须独立做出最佳判断并继续执行
+- 如遇不确定情况，使用你自己的最佳判断，无需等待用户输入
 
 ## PRD
 $(cat $prd_path)
@@ -75,6 +77,8 @@ run_phase_constitution() {
 - 禁止将工作委托给其他 agent
 - 必须直接在当前 session 中完成所有分析工作
 - 只使用 Read、Write、Edit、Grep、LSP 等直接工具
+- 禁止向用户提问或请求确认，必须独立做出最佳判断并继续执行
+- 如遇不确定情况，使用你自己的最佳判断，无需等待用户输入
 
 ## Constitution
 $(cat $constitution_path 2>/dev/null || echo "Constitution不存在")
@@ -113,6 +117,8 @@ run_phase_spec() {
 - 禁止将工作委托给其他 agent
 - 必须直接在当前 session 中完成所有分析工作
 - 只使用 Read、Write、Edit、Grep、LSP 等直接工具
+- 禁止向用户提问或请求确认，必须独立做出最佳判断并继续执行
+- 如遇不确定情况，使用你自己的最佳判断，无需等待用户输入
 
 ## PRD
 $(cat $prd_path)
@@ -153,6 +159,8 @@ run_phase_plan() {
 - 禁止将工作委托给其他 agent
 - 必须直接在当前 session 中完成所有分析工作
 - 只使用 Read、Write、Edit、Grep、LSP 等直接工具
+- 禁止向用户提问或请求确认，必须独立做出最佳判断并继续执行
+- 如遇不确定情况，使用你自己的最佳判断，无需等待用户输入
 
 ## Spec
 ${CACHED_SPEC_CONTENT:-$(cat $spec_file)}
