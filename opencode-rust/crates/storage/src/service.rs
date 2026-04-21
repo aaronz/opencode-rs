@@ -106,6 +106,12 @@ impl StorageService {
             .map_err(OpenCodeError::from)
     }
 
+    pub async fn load_project(&self, id: &str) -> Result<Option<ProjectModel>, StorageError> {
+        self.project_repo
+            .find_by_id(id)
+            .await
+    }
+
     pub async fn load_project_by_path(
         &self,
         path: &str,
@@ -710,6 +716,85 @@ mod tests {
         assert!(result.is_ok(), "compact_session should succeed and delegate to CompactionManager");
         let compaction_result = result.unwrap();
         assert!(compaction_result.was_compacted || !compaction_result.was_compacted);
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_load_project_returns_some_for_existing_project() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let service = StorageService::new(session_repo, project_repo, pool);
+        let project = create_test_project();
+
+        service.save_project(&project).await.unwrap();
+
+        let loaded = service.load_project(&project.id).await.unwrap();
+        assert!(loaded.is_some());
+        assert_eq!(loaded.unwrap().id, project.id);
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_load_project_returns_none_for_nonexistent_project() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let service = StorageService::new(session_repo, project_repo, pool);
+
+        let loaded = service.load_project("nonexistent-id").await.unwrap();
+        assert!(loaded.is_none());
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_load_project_handles_uuid_format_correctly() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let service = StorageService::new(session_repo, project_repo, pool);
+        let project = create_test_project();
+
+        service.save_project(&project).await.unwrap();
+
+        // Test with stringified UUID
+        let uuid_string = project.id.to_string();
+        let loaded = service.load_project(&uuid_string).await.unwrap();
+        assert!(loaded.is_some());
+        assert_eq!(loaded.unwrap().id, project.id);
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_load_project_error_handling_for_malformed_uuid() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let service = StorageService::new(session_repo, project_repo, pool);
+
+        // Malformed UUID should return None, not error - the repository handles this gracefully
+        let loaded = service.load_project("not-a-valid-uuid").await.unwrap();
+        assert!(loaded.is_none());
 
         drop(temp_dir);
     }

@@ -35,16 +35,22 @@
 
 ---
 
-### [ ] FR-047: Add load_project(id) Method
+### [x] FR-047: Add load_project(id) Method
 **Priority**: P1
 **Module**: `crates/storage/src/service.rs`
 **Dependencies**: None
 
 **Acceptance Criteria**:
-- [ ] `load_project(id: &str) -> Result<Option<ProjectModel>, StorageError>` method exists
-- [ ] Returns `Some(ProjectModel)` if found
-- [ ] Returns `None` if not found
-- [ ] Works with UUID string format
+- [x] `load_project(id: &str) -> Result<Option<ProjectModel>, StorageError>` method exists
+- [x] Returns `Some(ProjectModel)` if found
+- [x] Returns `None` if not found
+- [x] Works with UUID string format
+
+**Tests Added**:
+- `test_load_project_returns_some_for_existing_project`
+- `test_load_project_returns_none_for_nonexistent_project`
+- `test_load_project_handles_uuid_format_correctly`
+- `test_load_project_error_handling_for_malformed_uuid`
 
 ---
 

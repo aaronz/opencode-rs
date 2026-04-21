@@ -49,7 +49,7 @@
       "priority": "P1",
       "title": "Add load_project(id) Method",
       "description": "Add load_project(id: &str) -> Result<Option<ProjectModel>, StorageError> method to StorageService. Returns Some(ProjectModel) if found, None if not found.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify load_project returns Some(ProjectModel) for existing project UUID",
         "AddUnitTest: verify load_project returns None for non-existent project UUID",
