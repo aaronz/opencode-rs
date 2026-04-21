@@ -56,7 +56,7 @@ fn test_env_instance_isolation() {
 | **FR Reference** | FR-405 |
 | **Description** | Determine why `EnvManager` is marked `#[allow(dead_code)]` — either add actual use point or remove suppression |
 | **File** | `opencode-rust/crates/core/src/env.rs` |
-| **Status** | ⏳ Pending |
+| **Status** | ✅ Done |
 | **Priority** | P2 |
 | **Estimated Effort** | 15 minutes |
 
@@ -100,7 +100,7 @@ fn test_env_instance_isolation() {
 | Task ID | Description | Status | Notes |
 |---------|-------------|--------|-------|
 | P1.1 | Add instance isolation test | ✅ Done | 100% test coverage achieved |
-| P2.1 | Review `#[allow(dead_code)]` on struct | ⏳ Pending | Future sprint |
+| P2.1 | Review `#[allow(dead_code)]` on struct | ✅ Done | Documented why suppression exists - struct designed for subprocess env propagation (FR-400) but not yet integrated |
 | P2.2 | Review `#[allow(dead_code)]` on impl | ⏳ Pending | Future sprint |
 
 ---

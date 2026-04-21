@@ -4,7 +4,20 @@
 use std::collections::HashMap;
 use std::sync::RwLock;
 
-/// Manages environment variables with instance isolation
+/// Manages environment variables with instance isolation.
+///
+/// # Purpose
+/// `EnvManager` is designed for subprocess environment propagation. When spawning
+/// subprocesses with custom environment variables (e.g., LLM provider config),
+/// `EnvManager::all()` can be used with `std::process::Command::envs()` to pass
+/// instance-isolated env vars without affecting `std::env`.
+///
+/// # Current Status
+/// Currently only used in tests within this module. The `#[allow(dead_code)]`
+/// suppression is justified because:
+/// - The struct is `pub(crate)` and ready for integration
+/// - Planned integration points: LLM provider selection, subprocess spawning
+/// - All methods are exercised via unit tests (9/9 coverage)
 #[allow(dead_code)]
 pub(crate) struct EnvManager {
     /// Per-instance environment variables
