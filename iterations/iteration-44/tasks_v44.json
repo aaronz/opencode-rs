@@ -472,7 +472,7 @@
       "priority": "P2",
       "title": "Write unit test test_exists_returns_bool",
       "description": "Write unit test test_exists_returns_bool - verify exists() returns bool without throwing errors",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify exists() returns true for existing file",
         "AddUnitTest: verify exists() returns false for non-existent path",
