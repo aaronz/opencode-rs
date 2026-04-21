@@ -110,7 +110,7 @@
       "priority": "P1",
       "title": "Pagination Verification",
       "description": "Verify that list_sessions(limit, offset) and list_projects(limit, offset) work correctly. Empty results should return empty vector, not error.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify list_sessions returns correct items within limit/offset range",
         "AddUnitTest: verify list_sessions returns empty Vec when no sessions exist",
@@ -133,7 +133,7 @@
       "priority": "P2",
       "title": "Add Migration Error Variant",
       "description": "Add StorageError::Migration(String) variant to error.rs for handling database migration errors.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify StorageError::Migration formats error message correctly",
         "AddUnitTest: verify Migration variant implements std::error::Error",

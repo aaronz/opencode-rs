@@ -8,6 +8,8 @@
 //! - 55xx: Serialization errors
 //! - 59xx: Internal storage errors
 
+//! - 56xx: Migration errors
+
 use thiserror::Error;
 
 /// Structured storage error type with specific variants for different failure modes.
@@ -52,6 +54,10 @@ pub enum StorageError {
     #[error("deserialization error: {0}")]
     Deserialization(String),
 
+    // --- Migration errors (56xx) ---
+    #[error("migration error: {0}")]
+    Migration(String),
+
     // --- Internal errors (59xx) ---
     #[error("internal storage error: {0}")]
     Internal(String),
@@ -72,6 +78,7 @@ impl StorageError {
             Self::PoolError(_) => 5402,
             Self::Serialization(_) => 5501,
             Self::Deserialization(_) => 5502,
+            Self::Migration(_) => 5601,
             Self::Internal(_) => 5901,
         }
     }
@@ -188,6 +195,7 @@ mod tests {
         assert_eq!(StorageError::PoolError("test".into()).code(), 5402);
         assert_eq!(StorageError::Serialization("test".into()).code(), 5501);
         assert_eq!(StorageError::Deserialization("test".into()).code(), 5502);
+        assert_eq!(StorageError::Migration("test".into()).code(), 5601);
         assert_eq!(StorageError::Internal("test".into()).code(), 5901);
     }
 
@@ -234,6 +242,10 @@ mod tests {
             (
                 StorageError::Deserialization("test".into()),
                 "deserialization error",
+            ),
+            (
+                StorageError::Migration("test".into()),
+                "migration error",
             ),
             (
                 StorageError::Internal("test".into()),
@@ -291,5 +303,33 @@ mod tests {
             StorageError::Database(_) => {}
             other => panic!("expected Database variant, got {:?}", other),
         }
+    }
+
+    // FR-042: Migration error variant tests
+    #[test]
+    fn test_migration_error_format() {
+        let err = StorageError::Migration("schema version mismatch".into());
+        let display = err.to_string();
+        assert!(display.contains("migration error"));
+        assert!(display.contains("schema version mismatch"));
+    }
+
+    #[test]
+    fn test_migration_error_code() {
+        let err = StorageError::Migration("test".into());
+        assert_eq!(err.code(), 5601);
+    }
+
+    #[test]
+    fn test_migration_error_implements_std_error() {
+        fn assert_error<T: std::error::Error>() {}
+        assert_error::<StorageError>();
+    }
+
+    #[test]
+    fn test_migration_error_source() {
+        let err = StorageError::Migration("test migration failure".into());
+        let error_string = err.to_string();
+        assert!(error_string.contains("test migration failure"));
     }
 }
