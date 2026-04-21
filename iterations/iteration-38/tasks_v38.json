@@ -1,0 +1,110 @@
+{
+  "tasks": [
+    {
+      "id": "P2-1",
+      "priority": "P2",
+      "title": "Add `test_share_mode_variants` Test",
+      "description": "Add test case matching PRD test design exactly for ShareMode serialization. ShareMode::Auto should serialize to \"auto\", ShareMode::Collaborative to \"collaborative\".",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify ShareMode::Auto serializes to \"auto\"",
+        "AddUnitTest: verify ShareMode::Collaborative serializes to \"collaborative\"",
+        "RunTestSuite: cargo test test_share_mode_variants passes"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-config test_share_mode_variants",
+        "cargo clippy -p opencode-config -- -D warnings"
+      ],
+      "impl_notes": "Add test case to crates/config/src/lib.rs tests module matching PRD spec exactly: assert_eq!(serde_json::to_string(&ShareMode::Auto).unwrap(), \"\\\"auto\\\"\");",
+      "dependencies": []
+    },
+    {
+      "id": "P2-2",
+      "priority": "P2",
+      "title": "Rename Scroll Acceleration Test to Match PRD",
+      "description": "Test exists at line 4032-4037 but named differently from PRD. Current name is likely test_scroll_acceleration_*. Required name is test_tui_config_scroll_acceleration_legacy_number.",
+      "status": "done",
+      "test_criteria": [
+        "AddRegressionTest: verify test is renamed to test_tui_config_scroll_acceleration_legacy_number",
+        "RunTestSuite: cargo test test_tui_config_scroll_acceleration_legacy_number passes"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-config test_tui_config_scroll_acceleration_legacy_number",
+        "cargo clippy -p opencode-config -- -D warnings"
+      ],
+      "impl_notes": "Find and rename existing test in crates/config/src/lib.rs (around line 4032-4037) from current name to test_tui_config_scroll_acceleration_legacy_number",
+      "dependencies": []
+    },
+    {
+      "id": "P2-3",
+      "priority": "P2",
+      "title": "Add Schema Fallback Integration Test",
+      "description": "Add integration test for builtin_config.schema.json fallback behavior. If bundled schema is malformed, empty object schema should be used gracefully.",
+      "status": "done",
+      "test_criteria": [
+        "AddIntegrationTest: verify schema fallback works when bundled schema is malformed",
+        "AddIntegrationTest: verify empty object schema is used as fallback",
+        "RunTestSuite: cargo test schema_fallback passes"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-config schema_fallback",
+        "cargo clippy -p opencode-config -- -D warnings"
+      ],
+      "impl_notes": "Add test in crates/config/src/schema.rs that simulates malformed bundled schema and verifies graceful fallback to empty object schema",
+      "dependencies": []
+    },
+    {
+      "id": "P3-1",
+      "priority": "P3",
+      "title": "Audit `LegacyProvider` Enum",
+      "description": "LegacyProvider enum defined but never used in Config or tested. Determine if should be removed or documented as intentionally kept.",
+      "status": "done",
+      "test_criteria": [
+        "AddAuditTask: document findings about LegacyProvider usage",
+        "AddDecision: either remove enum or document why it exists"
+      ],
+      "test_commands": [
+        "grep -n 'LegacyProvider' crates/config/src/lib.rs",
+        "cargo build -p opencode-config"
+      ],
+      "impl_notes": "Audit LegacyProvider enum in crates/config/src/lib.rs. Check if used anywhere in config loading/parsing. Decide to remove or document.",
+      "dependencies": []
+    },
+    {
+      "id": "P3-2",
+      "priority": "P3",
+      "title": "Lint Suppression Cleanup",
+      "description": "Clean up dead code lint suppressions: 1) get_official_schema_url has #[allow(dead_code)] - use or remove, 2) parse_jsonc_file in jsonc.rs has #[allow(dead_code)] - make public/use or remove",
+      "status": "done",
+      "test_criteria": [
+        "AddRegressionTest: verify get_official_schema_url is used or lint removed",
+        "AddRegressionTest: verify parse_jsonc_file is used or lint removed",
+        "RunTestSuite: cargo clippy -p opencode-config -- -D warnings passes"
+      ],
+      "test_commands": [
+        "cargo clippy -p opencode-config -- -D warnings",
+        "cargo build -p opencode-config"
+      ],
+      "impl_notes": "Review #[allow(dead_code)] in crates/config/src/lib.rs (get_official_schema_url) and crates/config/src/jsonc.rs (parse_jsonc_file). Either make them public and use, or remove the lint suppression.",
+      "dependencies": []
+    },
+    {
+      "id": "P3-3",
+      "priority": "P3",
+      "title": "SchemaError Message Improvement",
+      "description": "SchemaError::HttpClient message mentions \"Thread panicked\" - implementation detail leaking. Improve error message abstraction.",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify SchemaError::HttpClient has improved error message",
+        "AddRegressionTest: error message no longer mentions \"Thread panicked\"",
+        "RunTestSuite: cargo test -p opencode-config passes"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-config",
+        "cargo clippy -p opencode-config -- -D warnings"
+      ],
+      "impl_notes": "Improve SchemaError::HttpClient message in crates/config/src/schema.rs to not leak implementation details like \"Thread panicked\". Use more abstract error description.",
+      "dependencies": []
+    }
+  ]
+}

@@ -4029,7 +4029,7 @@ mod tests {
     }
 
     #[test]
-    fn test_scroll_acceleration_deserialize_legacy() {
+    fn test_tui_config_scroll_acceleration_legacy_number() {
         let json = serde_json::json!(1.5);
         let config: ScrollAccelerationConfig = serde_json::from_value(json).unwrap();
         assert!(config.enabled);
@@ -4117,6 +4117,15 @@ mod tests {
         let json = serde_json::json!("debug");
         let level: LogLevel = serde_json::from_value(json).unwrap();
         assert!(matches!(level, LogLevel::Debug));
+    }
+
+    #[test]
+    fn test_share_mode_variants() {
+        assert_eq!(serde_json::to_string(&ShareMode::Auto).unwrap(), "\"auto\"");
+        assert_eq!(
+            serde_json::to_string(&ShareMode::Collaborative).unwrap(),
+            "\"collaborative\""
+        );
     }
 
     #[test]
