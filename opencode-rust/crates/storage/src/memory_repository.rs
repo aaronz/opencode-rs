@@ -10,13 +10,21 @@ use crate::repository::{sealed, ProjectRepository, SessionRepository};
 
 pub struct InMemorySessionRepository {
     sessions: Arc<Mutex<HashMap<String, Session>>>,
+    project_paths: Arc<Mutex<HashMap<String, String>>>,
 }
 
 impl InMemorySessionRepository {
     pub fn new() -> Self {
         Self {
             sessions: Arc::new(Mutex::new(HashMap::new())),
+            project_paths: Arc::new(Mutex::new(HashMap::new())),
         }
+    }
+
+    #[allow(dead_code)]
+    pub fn set_project_path(&self, session_id: &str, project_path: &str) {
+        let mut paths = self.project_paths.lock().unwrap_or_else(|poison| poison.into_inner());
+        paths.insert(session_id.to_string(), project_path.to_string());
     }
 }
 
@@ -81,6 +89,8 @@ impl SessionRepository for InMemorySessionRepository {
             .lock()
             .unwrap_or_else(|poison| poison.into_inner());
         sessions.remove(id);
+        let mut project_paths = self.project_paths.lock().unwrap_or_else(|poison| poison.into_inner());
+        project_paths.remove(id);
         Ok(())
     }
 
@@ -98,6 +108,44 @@ impl SessionRepository for InMemorySessionRepository {
             .lock()
             .unwrap_or_else(|poison| poison.into_inner());
         Ok(sessions.contains_key(id))
+    }
+
+    async fn list_by_project(
+        &self,
+        project_path: &str,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<SessionInfo>, StorageError> {
+        let session_ids: Vec<String> = {
+            let project_paths = self.project_paths.lock().unwrap_or_else(|poison| poison.into_inner());
+            project_paths
+                .iter()
+                .filter(|(_, path)| *path == project_path)
+                .map(|(id, _)| id.clone())
+                .collect()
+        };
+
+        let sessions = self.sessions.lock().unwrap_or_else(|poison| poison.into_inner());
+        let mut filtered: Vec<_> = session_ids
+            .iter()
+            .filter_map(|id| sessions.get(id).cloned())
+            .collect();
+        filtered.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+        let filtered: Vec<_> = filtered.into_iter().skip(offset).take(limit).collect();
+        Ok(filtered
+            .into_iter()
+            .map(|s| SessionInfo {
+                id: s.id,
+                created_at: s.created_at,
+                updated_at: s.updated_at,
+                message_count: s.messages.len(),
+                preview: s
+                    .messages
+                    .last()
+                    .map(|m| m.content.chars().take(50).collect())
+                    .unwrap_or_default(),
+            })
+            .collect())
     }
 }
 
@@ -559,5 +607,117 @@ mod session_repository_exists_tests {
 
         // Verify exists returns false after delete
         assert!(!repo.exists(&id).await.unwrap());
+    }
+}
+
+#[cfg(test)]
+mod session_repository_list_by_project_tests {
+    use super::*;
+    use opencode_core::Session;
+    use uuid::Uuid;
+
+    #[tokio::test]
+    async fn test_in_memory_list_by_project_returns_sessions_for_given_project() {
+        let repo = InMemorySessionRepository::new();
+
+        let session1 = Session::default();
+        let session2 = Session::default();
+        let session3 = Session::default();
+
+        repo.save(&session1).await.unwrap();
+        repo.save(&session2).await.unwrap();
+        repo.save(&session3).await.unwrap();
+
+        repo.set_project_path(&session1.id.to_string(), "/path/to/project1");
+        repo.set_project_path(&session2.id.to_string(), "/path/to/project1");
+        repo.set_project_path(&session3.id.to_string(), "/path/to/project2");
+
+        let project1_sessions = repo
+            .list_by_project("/path/to/project1", 10, 0)
+            .await
+            .unwrap();
+        assert_eq!(project1_sessions.len(), 2);
+        let project1_ids: Vec<_> = project1_sessions.iter().map(|s| s.id).collect();
+        assert!(project1_ids.contains(&session1.id));
+        assert!(project1_ids.contains(&session2.id));
+        assert!(!project1_ids.contains(&session3.id));
+
+        let project2_sessions = repo
+            .list_by_project("/path/to/project2", 10, 0)
+            .await
+            .unwrap();
+        assert_eq!(project2_sessions.len(), 1);
+        assert_eq!(project2_sessions[0].id, session3.id);
+    }
+
+    #[tokio::test]
+    async fn test_in_memory_list_by_project_returns_empty_for_nonexistent_project() {
+        let repo = InMemorySessionRepository::new();
+        let session = Session::default();
+
+        repo.save(&session).await.unwrap();
+        repo.set_project_path(&session.id.to_string(), "/path/to/project1");
+
+        let result = repo
+            .list_by_project("/nonexistent/project", 10, 0)
+            .await
+            .unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_in_memory_list_by_project_with_pagination() {
+        let repo = InMemorySessionRepository::new();
+
+        for _ in 0..5 {
+            let session = Session::default();
+            repo.save(&session).await.unwrap();
+            repo.set_project_path(&session.id.to_string(), "/path/to/project1");
+        }
+
+        let page1 = repo
+            .list_by_project("/path/to/project1", 2, 0)
+            .await
+            .unwrap();
+        assert_eq!(page1.len(), 2);
+
+        let page2 = repo
+            .list_by_project("/path/to/project1", 2, 2)
+            .await
+            .unwrap();
+        assert_eq!(page2.len(), 2);
+
+        let page3 = repo
+            .list_by_project("/path/to/project1", 2, 4)
+            .await
+            .unwrap();
+        assert_eq!(page3.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_in_memory_list_by_project_does_not_affect_other_operations() {
+        let repo = InMemorySessionRepository::new();
+        let session = Session::default();
+
+        repo.save(&session).await.unwrap();
+        let id = session.id.to_string();
+
+        repo.set_project_path(&id, "/path/to/project1");
+
+        assert!(repo.exists(&id).await.unwrap());
+        let found = repo.find_by_id(&id).await.unwrap();
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().id, session.id);
+
+        let count_before = repo.count().await.unwrap();
+        let list_result = repo.list_by_project("/path/to/project1", 10, 0).await.unwrap();
+        let count_after = repo.count().await.unwrap();
+        assert_eq!(count_before, count_after);
+        assert_eq!(list_result.len(), 1);
+
+        repo.delete(&id).await.unwrap();
+        assert!(!repo.exists(&id).await.unwrap());
+        let list_after_delete = repo.list_by_project("/path/to/project1", 10, 0).await.unwrap();
+        assert!(list_after_delete.is_empty());
     }
 }

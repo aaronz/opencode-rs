@@ -118,6 +118,23 @@ impl MigrationManager {
                     "INSERT INTO schema_migrations (version) VALUES (?)",
                     params![version],
                 )?;
+            } else if version == 3 {
+                let column_exists: bool = c.query_row(
+                    "SELECT COUNT(*) FROM pragma_table_info('sessions') WHERE name = 'project_path'",
+                    [],
+                    |row| row.get::<_, i32>(0),
+                )? > 0;
+                if !column_exists {
+                    c.execute(
+                        "ALTER TABLE sessions ADD COLUMN project_path TEXT",
+                        [],
+                    )?;
+                }
+
+                c.execute(
+                    "INSERT INTO schema_migrations (version) VALUES (?)",
+                    params![version],
+                )?;
             }
             Ok(())
         })
@@ -138,8 +155,8 @@ mod tests {
         let db_path = temp_dir.path().join("test.db");
         let pool = StoragePool::new(&db_path).unwrap();
 
-        let manager = MigrationManager::new(pool, 2);
-        assert_eq!(manager.current_version, 2);
+        let manager = MigrationManager::new(pool, 3);
+        assert_eq!(manager.current_version, 3);
 
         drop(temp_dir);
     }
@@ -150,7 +167,7 @@ mod tests {
         let db_path = temp_dir.path().join("test.db");
         let pool = StoragePool::new(&db_path).unwrap();
 
-        let manager = MigrationManager::new(pool.clone(), 2);
+        let manager = MigrationManager::new(pool.clone(), 3);
         manager.migrate().await.unwrap();
 
         let conn = pool.get().await.unwrap();
@@ -185,7 +202,7 @@ mod tests {
         let db_path = temp_dir.path().join("test.db");
         let pool = StoragePool::new(&db_path).unwrap();
 
-        let manager = MigrationManager::new(pool.clone(), 2);
+        let manager = MigrationManager::new(pool.clone(), 3);
 
         manager.migrate().await.unwrap();
         manager.migrate().await.unwrap();
@@ -200,7 +217,7 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
-        assert_eq!(version, 2);
+        assert_eq!(version, 3);
 
         drop(temp_dir);
     }

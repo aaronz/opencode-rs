@@ -210,7 +210,7 @@
       "priority": "P2",
       "title": "Implement list_by_project",
       "description": "Add list_by_project(project_path: &str) method to SessionRepository trait and implementations to filter sessions by project.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify SqliteSessionRepository::list_by_project returns only sessions for given project",
         "AddUnitTest: verify InMemorySessionRepository::list_by_project returns only sessions for given project",

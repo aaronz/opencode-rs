@@ -621,7 +621,7 @@ mod tests {
 
         let service = StorageService::new(session_repo, project_repo, pool.clone());
 
-        let manager = MigrationManager::new(pool, 2);
+        let manager = MigrationManager::new(pool, 3);
         manager.migrate().await.unwrap();
 
         let account = create_test_account();
@@ -641,7 +641,7 @@ mod tests {
         let db_path = temp_dir.path().join("test.db");
         let pool = StoragePool::new(&db_path).unwrap();
 
-        let manager = MigrationManager::new(pool.clone(), 2);
+        let manager = MigrationManager::new(pool.clone(), 3);
         manager.migrate().await.unwrap();
 
         let session_repo = Arc::new(InMemorySessionRepository::new());

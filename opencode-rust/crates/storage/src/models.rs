@@ -298,6 +298,7 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             data: "invalid json".to_string(),
+            project_path: None,
         };
 
         let result = Session::try_from(model);
@@ -394,6 +395,8 @@ pub struct SessionModel {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub data: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project_path: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -426,6 +429,7 @@ impl From<Session> for SessionModel {
             created_at: session.created_at,
             updated_at: session.updated_at,
             data: serde_json::to_string(&session).unwrap_or_default(),
+            project_path: None,
         }
     }
 }
