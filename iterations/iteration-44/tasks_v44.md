@@ -45,7 +45,7 @@
   - No filesystem access
   - Example: `/a/b/../c/./d` → `/a/c/d`
 
-- [ ] **T-006**: Implement `resolve_path(base, relative)` function
+- [x] **T-006**: Implement `resolve_path(base, relative)` function
   - Resolve relative against base
   - Make absolute
   - Does NOT resolve symlinks

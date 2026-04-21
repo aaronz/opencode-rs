@@ -79,7 +79,7 @@
       "priority": "P0",
       "title": "Implement normalize() function - collapse dot components",
       "description": "Implement normalize() function in crates/file/src/normalize.rs - collapse . components, handle .., fix separators. No filesystem access. Example: /a/b/../c/./d \u2192 /a/c/d",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify normalize() collapses dot components (/a/b/./c \u2192 /a/b/c)",
         "AddUnitTest: verify normalize() handles parent directory references (/a/b/../c \u2192 /a/c)",
@@ -100,7 +100,7 @@
       "priority": "P0",
       "title": "Implement resolve_path(base, relative) function",
       "description": "Implement resolve_path(base, relative) function - resolve relative path against base, make absolute. Does NOT resolve symlinks. Return absolute normalized path.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify resolve_path handles simple relative paths (./foo \u2192 /base/foo)",
         "AddUnitTest: verify resolve_path handles parent references in relative (../foo \u2192 /parent/foo)",

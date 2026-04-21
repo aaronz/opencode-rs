@@ -1,6 +1,5 @@
-use opencode_file::FileError;
-use opencode_file::FileService;
-use std::path::PathBuf;
+use opencode_file::{FileError, FileService, Normalizer};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tempfile::TempDir;
 
@@ -112,4 +111,129 @@ fn test_file_service_thread_safety() {
     let from_thread = handle.join().unwrap();
     assert!(result);
     assert!(from_thread);
+}
+
+#[test]
+fn test_resolve_path_simple_relative() {
+    let svc = FileService::new();
+    let base = Path::new("/base");
+    let relative = Path::new("./foo");
+    let resolved = svc.resolve_path(base, relative);
+    assert_eq!(resolved, Path::new("/base/foo"));
+}
+
+#[test]
+fn test_resolve_path_parent_reference() {
+    let svc = FileService::new();
+    let base = Path::new("/parent/bar");
+    let relative = Path::new("../foo");
+    let resolved = svc.resolve_path(base, relative);
+    assert_eq!(resolved, Path::new("/parent/foo"));
+}
+
+#[test]
+fn test_resolve_path_already_absolute() {
+    let svc = FileService::new();
+    let base = Path::new("/foo/bar");
+    let absolute = Path::new("/baz/qux");
+    let resolved = svc.resolve_path(base, absolute);
+    assert_eq!(resolved, Path::new("/baz/qux"));
+}
+
+#[test]
+fn test_resolve_path_various_base_formats() {
+    let svc = FileService::new();
+
+    let base = Path::new("/a/b/c");
+    let relative = Path::new("./d");
+    let resolved = svc.resolve_path(base, relative);
+    assert_eq!(resolved, Path::new("/a/b/c/d"));
+
+    let base = Path::new("/a/b/c");
+    let relative = Path::new("../d");
+    let resolved = svc.resolve_path(base, relative);
+    assert_eq!(resolved, Path::new("/a/b/d"));
+
+    let base = Path::new("/a/b/c");
+    let relative = Path::new("../../d");
+    let resolved = svc.resolve_path(base, relative);
+    assert_eq!(resolved, Path::new("/a/d"));
+
+    let base = Path::new("/a/b/c");
+    let relative = Path::new(".");
+    let resolved = svc.resolve_path(base, relative);
+    assert_eq!(resolved, Path::new("/a/b/c"));
+}
+
+#[test]
+fn test_resolve_path_relative() {
+    let svc = FileService::new();
+
+    let base = Path::new("/base");
+    let relative = Path::new("./foo");
+    let resolved = svc.resolve_path(base, relative);
+    assert_eq!(resolved, Path::new("/base/foo"));
+
+    let base = Path::new("/parent/bar");
+    let relative = Path::new("../foo");
+    let resolved = svc.resolve_path(base, relative);
+    assert_eq!(resolved, Path::new("/parent/foo"));
+
+    let base = Path::new("/foo/bar");
+    let absolute = Path::new("/baz/qux");
+    let resolved = svc.resolve_path(base, absolute);
+    assert_eq!(resolved, Path::new("/baz/qux"));
+}
+
+#[test]
+fn test_normalize_collapse_dots() {
+    let svc = FileService::new();
+    let p = svc.normalize(Path::new("/a/b/./c"));
+    assert_eq!(p, Path::new("/a/b/c"));
+}
+
+#[test]
+fn test_normalize_handles_parent_directory() {
+    let svc = FileService::new();
+    let p = svc.normalize(Path::new("/a/b/../c"));
+    assert_eq!(p, Path::new("/a/c"));
+}
+
+#[test]
+fn test_normalize_fixes_separators() {
+    let svc = FileService::new();
+    let p = svc.normalize(Path::new("a/b\\c/d"));
+    if cfg!(windows) {
+        assert!(p.as_os_str().to_string_lossy().contains('\\'));
+    } else {
+        assert!(p.as_os_str().to_string_lossy().contains('/'));
+    }
+}
+
+#[test]
+fn test_normalize_edge_case_excess_parent_components() {
+    let svc = FileService::new();
+    let p = svc.normalize(Path::new("/a/b/c/../../d"));
+    assert_eq!(p, Path::new("/a/d"));
+}
+
+#[test]
+fn test_normalizer_collapse_dots() {
+    let normalizer = Normalizer::new();
+    let p = normalizer.normalize(Path::new("/a/b/./c/./d"));
+    assert_eq!(p, Path::new("/a/b/c/d"));
+}
+
+#[test]
+fn test_normalizer_handles_parent_directory() {
+    let normalizer = Normalizer::new();
+    let p = normalizer.normalize(Path::new("/a/b/c/../d"));
+    assert_eq!(p, Path::new("/a/b/d"));
+}
+
+#[test]
+fn test_normalizer_excess_parent_components() {
+    let normalizer = Normalizer::new();
+    let p = normalizer.normalize(Path::new("/a/b/../../c"));
+    assert_eq!(p, Path::new("/c"));
 }
