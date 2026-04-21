@@ -1,0 +1,78 @@
+{
+  "tasks": [
+    {
+      "id": "FR-374-P0.1",
+      "priority": "P0",
+      "title": "Fix GlobalState visibility in lib.rs",
+      "description": "Change pub(crate) to pub for GlobalState re-export in lib.rs:178 to allow external crates to import use opencode_core::GlobalState;",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify external crate can import GlobalState via use opencode_core::GlobalState",
+        "AddRegressionTest: ensure cargo build -p opencode-core succeeds after visibility change"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-core",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Change pub(crate) use global::GlobalState; to pub use global::GlobalState; at lib.rs:178",
+      "dependencies": []
+    },
+    {
+      "id": "FR-374-P1.1",
+      "priority": "P1",
+      "title": "Add subscriber_count() method to GlobalState",
+      "description": "Add public subscriber_count() method to GlobalState that delegates to event_bus.subscriber_count(). Should be added after line 19 in global.rs.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify subscriber_count() returns correct count from event_bus",
+        "AddUnitTest: verify method is callable from test context"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-core",
+        "cargo test -p opencode-core -- --nocapture"
+      ],
+      "impl_notes": "Add pub fn subscriber_count(&self) -> usize { self.event_bus.subscriber_count() } after line 19",
+      "dependencies": []
+    },
+    {
+      "id": "FR-374-P0.2",
+      "priority": "P0",
+      "title": "Add comprehensive test module to global.rs",
+      "description": "Add #[cfg(test)] mod tests with 5 unit tests covering: new GlobalState has no session, event_bus initialized, config accessible, can set current session, event_bus is Arc clonable and functional",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: new_global_state_has_no_session - assert state.current_session.is_none()",
+        "AddUnitTest: event_bus_is_initialized - assert event_bus.subscriber_count() == 0",
+        "AddUnitTest: config_is_accessible - verify state.config is accessible",
+        "AddUnitTest: can_set_current_session - set session and assert is_some()",
+        "AddUnitTest: event_bus_is_arc_clonable - clone Arc, subscribe, publish InternalEvent::ConfigUpdated, verify recv works",
+        "RunTestSuite: all 5 tests pass with cargo test -p opencode-core"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core -- --nocapture",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Add test module after line 20. Tests use Config::default(), Session::new(), Arc::clone, InternalEvent::ConfigUpdated. All dependencies verified to exist.",
+      "dependencies": [
+        "FR-374-P1.1"
+      ]
+    },
+    {
+      "id": "FR-374-P2.1",
+      "priority": "P2",
+      "title": "Add documentation comments to global.rs",
+      "description": "Add module-level documentation and struct-level documentation to global.rs. Module docs explain GlobalState is a global state container for CLI/TUI runtime serving as DI container. Struct docs describe it owns Config, EventBus, and optional Session.",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: cargo doc --no-deps -p opencode-core generates documentation without errors",
+        "AddRegressionTest: documentation contains module and struct docs"
+      ],
+      "test_commands": [
+        "cargo doc --no-deps -p opencode-core",
+        "cargo build -p opencode-core"
+      ],
+      "impl_notes": "Add //! module docs before line 1 and /// struct docs before line 6. Include example in module docs.",
+      "dependencies": []
+    }
+  ]
+}

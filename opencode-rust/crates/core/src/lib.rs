@@ -175,7 +175,7 @@ pub(crate) use format::FormatUtils;
 pub(crate) use formatter::{FormatterEngine, FormatterError};
 
 // global
-pub(crate) use global::GlobalState;
+pub use global::GlobalState;
 
 // id
 pub(crate) use id::{IdGenerator, IdParseError, ProjectId, SessionId, UserId};

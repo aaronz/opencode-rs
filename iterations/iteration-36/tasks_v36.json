@@ -65,7 +65,7 @@
       "priority": "P1",
       "title": "Create plugins/hello_world/build.sh",
       "description": "Create build script with shebang #!/bin/bash that builds for wasm32-wasip1 target and outputs .wasm to plugins/bin/.",
-      "status": "manual_check",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify build.sh has valid shebang",
         "AddIntegrationTest: verify build.sh produces .wasm in plugins/bin/",
@@ -129,7 +129,7 @@
       "priority": "P1",
       "title": "Document plugin development in CONTRIBUTING.md",
       "description": "Add plugin development documentation to CONTRIBUTING.md including how to create a new plugin, how to build and load plugins, and Plugin API reference.",
-      "status": "manual_check",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify CONTRIBUTING.md contains plugin development section",
         "AddIntegrationTest: verify plugin documentation links work",
@@ -740,7 +740,7 @@
       "priority": "P2",
       "title": "Update crates/sdk/Cargo.toml for crates.io publishing",
       "description": "Update SDK Cargo.toml with version, license, description, repository URL, documentation URL, keywords, and categories.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify Cargo.toml has all required publishing metadata",
         "RunTestSuite: cargo metadata -p opencode-sdk should show correct metadata"
@@ -801,7 +801,7 @@
       "priority": "P2",
       "title": "Create docs/ directory structure",
       "description": "Create docs/ directory, docs/getting-started.md, docs/sdk-guide.md, and docs/plugin-dev.md files.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify docs/ directory and files exist",
         "RunTestSuite: verify docs/*.md files are readable"
@@ -820,7 +820,7 @@
       "priority": "P2",
       "title": "Write docs/README.md",
       "description": "Write documentation index with quick links to each section and link to API reference in crate docs.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify docs/README.md contains index and links",
         "RunTestSuite: verify docs/README.md renders correctly"
@@ -839,7 +839,7 @@
       "priority": "P2",
       "title": "Write docs/getting-started.md",
       "description": "Write getting started guide with installation instructions, configuration guide, first session walkthrough, and basic commands.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify getting-started.md has installation section",
         "AddUnitTest: verify getting-started.md has configuration guide",
@@ -906,7 +906,7 @@
       "priority": "P2",
       "title": "Update crate READMEs with cross-links",
       "description": "Update crates/sdk/README.md to link to docs/sdk-guide.md, crates/plugin/README.md to link to docs/plugin-dev.md, and root README.md to link to docs/.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify sdk README links to sdk-guide.md",
         "AddUnitTest: verify plugin README links to plugin-dev.md",
