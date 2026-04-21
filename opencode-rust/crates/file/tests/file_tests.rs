@@ -197,8 +197,27 @@ fn test_resolve_path_relative() {
 #[test]
 fn test_normalize_collapse_dots() {
     let svc = FileService::new();
+
     let p = svc.normalize(Path::new("/a/b/./c"));
     assert_eq!(p, Path::new("/a/b/c"));
+
+    let p = svc.normalize(Path::new("/a/b/../c/./d"));
+    assert_eq!(p, Path::new("/a/c/d"));
+
+    let p = svc.normalize(Path::new("/a/./b/./c"));
+    assert_eq!(p, Path::new("/a/b/c"));
+
+    let p = svc.normalize(Path::new("/a/b/c/../d"));
+    assert_eq!(p, Path::new("/a/b/d"));
+
+    let p = svc.normalize(Path::new("/a/b/c/../../d"));
+    assert_eq!(p, Path::new("/a/d"));
+
+    let p = svc.normalize(Path::new("./a/b/../c"));
+    assert_eq!(p, Path::new("a/c"));
+
+    let p = svc.normalize(Path::new("/a/../b/../c"));
+    assert_eq!(p, Path::new("/c"));
 }
 
 #[test]
@@ -485,35 +504,24 @@ async fn test_debouncer_merges_rapid_events() {
 
 #[tokio::test]
 async fn test_watch_fires_callback_on_file_change() {
-    use std::io::{self, Write};
-
-    let stdout = io::stdout();
-    let mut handle = stdout.lock();
-
     let svc = FileService::new();
     let tmp = TempDir::new().unwrap();
     let file = tmp.path().join("watched.txt");
     tokio::fs::write(&file, "v1").await.unwrap();
 
-    writeln!(handle, "[DEBUG] Created temp file with v1").unwrap();
     let (tx, mut rx) = tokio::sync::mpsc::channel(1);
     let tx_clone = tx.clone();
-    writeln!(handle, "[DEBUG] About to call watch()").unwrap();
     let watch_id = svc
         .watch(tmp.path(), 50, move |p| {
             let _ = tx_clone.blocking_send(p);
         })
         .await
         .unwrap();
-    writeln!(handle, "[DEBUG] Watch started with id: {}", watch_id).unwrap();
 
     tokio::fs::write(&file, "v2").await.unwrap();
-    writeln!(handle, "[DEBUG] Wrote v2 to file").unwrap();
-    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-    writeln!(handle, "[DEBUG] Sleep completed, trying to receive").unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(150)).await;
 
     let changed = rx.recv().await.unwrap();
-    writeln!(handle, "[DEBUG] Received path: {:?}", changed).unwrap();
     assert!(changed.ends_with("watched.txt"));
 
     svc.unwatch(&watch_id).await.unwrap();

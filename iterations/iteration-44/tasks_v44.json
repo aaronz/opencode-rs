@@ -372,7 +372,7 @@
       ]
     },
     {
-"id": "T-020",
+      "id": "T-020",
       "priority": "P1",
       "title": "Write unit test test_copy_dir_recursive",
       "status": "done",
@@ -394,7 +394,7 @@
       "priority": "P1",
       "title": "Write unit test test_normalize_collapse_dots",
       "description": "Write unit test test_normalize_collapse_dots - verify normalize() collapses dot components",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify normalize() collapses . components (/a/b/./c \u2192 /a/b/c)",
         "AddUnitTest: verify normalize() handles multiple consecutive dots"

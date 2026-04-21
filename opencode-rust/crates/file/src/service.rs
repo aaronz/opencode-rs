@@ -27,34 +27,29 @@ impl FileService {
         debounce_ms: u64,
         callback: impl Fn(PathBuf) + Clone + Send + 'static,
     ) -> Result<String, FileError> {
-        println!("[DEBUG watch] Starting watch for path: {:?}", path);
         let watch_id = uuid::Uuid::new_v4().to_string();
         let pending: Arc<TokioMutex<HashMap<PathBuf, u64>>> =
             Arc::new(TokioMutex::new(HashMap::new()));
         let pending_clone = pending.clone();
         let delay = Duration::from_millis(debounce_ms);
         let path_owned = path.to_path_buf();
-        println!("[DEBUG watch] Created watch_id: {}", watch_id);
 
         let (tx, mut rx) = mpsc::channel::<PathBuf>(100);
         let tx_clone = tx.clone();
-        println!("[DEBUG watch] Created channel");
 
+        let handle = tokio::runtime::Handle::current();
         let _watcher = RecommendedWatcher::new(
             move |res: Result<Event, notify::Error>| {
-                println!("[DEBUG watch] Notify callback fired with res: {:?}", res);
                 if let Ok(event) = res {
-                    println!("[DEBUG watch] Event kind: {:?}", event.kind);
                     if matches!(
                         event.kind,
                         EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
                     ) {
                         for p in event.paths {
-                            println!("[DEBUG watch] Notifying path: {:?}", p);
                             let tx = tx_clone.clone();
-                            let _ = std::thread::spawn(move || {
-                                println!("[DEBUG watch] Thread spawning to send path");
-                                let _ = tx.blocking_send(p);
+                            let path = p;
+                            handle.spawn(async move {
+                                let _ = tx.send(path).await;
                             });
                         }
                     }
@@ -63,14 +58,10 @@ impl FileService {
             notify::Config::default(),
         )
         .map_err(|e| FileError::Watch(e.to_string()))?;
-        println!("[DEBUG watch] Created RecommendedWatcher");
 
         let callback_clone = callback.clone();
-        println!("[DEBUG watch] About to spawn async task");
         tokio::spawn(async move {
-            println!("[DEBUG watch] Async task started");
             while let Some(path) = rx.recv().await {
-                println!("[DEBUG watch] Received path from channel: {:?}", path);
                 let pending2 = pending_clone.clone();
                 let delay = delay;
                 let callback = callback_clone.clone();
@@ -107,21 +98,16 @@ impl FileService {
                     }
                 });
             }
-            println!("[DEBUG watch] Async task ending (channel closed)");
         });
-        println!("[DEBUG watch] Spawned async task");
 
         let mut watcher = _watcher;
-        println!("[DEBUG watch] About to call watcher.watch()");
         watcher
             .watch(&path_owned, RecursiveMode::Recursive)
             .map_err(|e| FileError::Watch(e.to_string()))?;
-        println!("[DEBUG watch] watcher.watch() returned");
 
         let watcher_arc = Arc::new(StdMutex::new(Some(watcher)));
         let mut handles = self.watch_handles.lock().await;
         handles.insert(watch_id.clone(), watcher_arc);
-        println!("[DEBUG watch] Stored watcher in handles");
 
         Ok(watch_id)
     }
