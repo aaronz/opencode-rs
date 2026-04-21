@@ -51,7 +51,7 @@ pub fn storage_benches(c: &mut Criterion) {
             let count = session
                 .messages
                 .iter()
-                .filter(|m| m.content.len() > 0)
+                .filter(|m| !m.content.is_empty())
                 .count();
             black_box(count)
         });
@@ -70,7 +70,7 @@ pub fn storage_benches(c: &mut Criterion) {
                 .messages
                 .iter()
                 .rev()
-                .filter(|m| m.content.len() > 0)
+                .filter(|m| !m.content.is_empty())
                 .count();
             black_box(count)
         });

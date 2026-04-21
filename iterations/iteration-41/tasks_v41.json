@@ -1,0 +1,1144 @@
+{
+  "tasks": [
+    {
+      "id": "P0-1",
+      "priority": "P0",
+      "title": "Create crates/util/ directory structure",
+      "description": "Create the directory structure for the opencode-util crate including src/ and tests/ directories with all required module files (logging.rs, error.rs, retry.rs, fs.rs, helpers.rs) and tests/util_tests.rs",
+      "status": "done",
+      "test_criteria": [
+        "AddRegressionTest: verify directory structure exists after creation",
+        "AddUnitTest: verify all required files are created"
+      ],
+      "test_commands": [
+        "test -d crates/util/src && test -f crates/util/src/lib.rs && test -f crates/util/src/logging.rs && test -f crates/util/src/error.rs && test -f crates/util/src/retry.rs && test -f crates/util/src/fs.rs && test -f crates/util/src/helpers.rs && echo 'Directory structure valid'"
+      ],
+      "impl_notes": "Create all directories and placeholder files as specified in the module structure",
+      "dependencies": []
+    },
+    {
+      "id": "P0-2",
+      "priority": "P0",
+      "title": "Update workspace Cargo.toml",
+      "description": "Add opencode-util crate to workspace members, add opencode-util to workspace.dependencies, add tracing-appender dependency, and update tracing-subscriber with json and env-filter features",
+      "status": "done",
+      "test_criteria": [
+        "AddRegressionTest: verify workspace compiles with new crate",
+        "AddUnitTest: verify Cargo.toml has correct entries"
+      ],
+      "test_commands": [
+        "cargo check --workspace"
+      ],
+      "impl_notes": "Must add 'crates/util' to members array, opencode-util to workspace.dependencies, tracing-appender = '0.2', and update tracing-subscriber features",
+      "dependencies": [
+        "P0-1"
+      ]
+    },
+    {
+      "id": "P0-3",
+      "priority": "P0",
+      "title": "Create crates/util/Cargo.toml",
+      "description": "Create Cargo.toml for opencode-util with all required dependencies: tokio, tracing, tracing-appender, tracing-subscriber, thiserror, serde, serde_json, rand, anyhow, walkdir, and dev-dependencies tempfile and tokio-test",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify Cargo.toml parses correctly",
+        "AddRegressionTest: verify crate builds with dependencies"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-util"
+      ],
+      "impl_notes": "Use exact versions as specified in the task specification",
+      "dependencies": [
+        "P0-1"
+      ]
+    },
+    {
+      "id": "P0-4",
+      "priority": "P0",
+      "title": "Create crates/util/src/lib.rs with re-exports",
+      "description": "Create lib.rs with module declarations and re-exports for Logger, LogLevel, Rotation, log_file_path, NamedError, WithContext, Context, RetryConfig, retry, atomic_write, read_json, write_json, ensure_dir, Lazy, with_timeout, wait_for, retry_until, and iife! macro",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify lib.rs compiles",
+        "AddRegressionTest: verify all re-exports are accessible"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-util"
+      ],
+      "impl_notes": "Follow the exact re-export structure specified",
+      "dependencies": [
+        "P0-3"
+      ]
+    },
+    {
+      "id": "P0-5",
+      "priority": "P0",
+      "title": "Implement LogLevel enum (FR-422)",
+      "description": "Implement LogLevel enum with Debug, Info, Warn, Error variants. Must derive Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize. Must use #[serde(rename_all = 'lowercase')]",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify LogLevel variants exist",
+        "AddUnitTest: verify LogLevel Serializes to lowercase strings",
+        "AddUnitTest: verify LogLevel Deserializes from lowercase strings",
+        "AddUnitTest: verify LogLevel derives Clone, Copy, Debug, PartialEq, Eq"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --lib -- logging",
+        "cargo build -p opencode-util"
+      ],
+      "impl_notes": "Use serde derive macros and rename_all = 'lowercase' attribute",
+      "dependencies": [
+        "P0-4"
+      ]
+    },
+    {
+      "id": "P0-6",
+      "priority": "P0",
+      "title": "Implement Logger struct with fluent API (FR-423-428)",
+      "description": "Implement Logger struct with fields: level (LogLevel), file_path (Option<PathBuf>), console (bool). Must implement fluent API: with_level(), with_file(), with_no_console(), and init() method. init() must return Result<(), SetLoggerError>",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify Logger::with_level() creates Logger with specified level",
+        "AddUnitTest: verify Logger::with_file() sets file_path",
+        "AddUnitTest: verify Logger::with_no_console() disables console output",
+        "AddUnitTest: verify Logger::init() initializes tracing subscriber",
+        "AddErrorHandlingTest: verify init() returns SetLoggerError on multiple init attempts"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --lib -- logger",
+        "cargo build -p opencode-util"
+      ],
+      "impl_notes": "Use tracing-subscriber with appropriate fmt layer. Ensure file rotation works if P2-1 is implemented",
+      "dependencies": [
+        "P0-5"
+      ]
+    },
+    {
+      "id": "P0-7",
+      "priority": "P0",
+      "title": "Implement NamedError struct (FR-431)",
+      "description": "Implement NamedError struct with fields: name (String), code (Option<String>), message (String), data (Option<serde_json::Value>). Must derive Debug, Clone, Error. Must implement new(), with_code(), with_data(), kind() methods. Must implement Display trait",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify NamedError::new() creates error with name and message",
+        "AddUnitTest: verify NamedError::with_code() adds code field",
+        "AddUnitTest: verify NamedError::with_data() adds data field",
+        "AddUnitTest: verify NamedError::kind() returns name",
+        "AddUnitTest: verify NamedError Display shows 'name: message' format",
+        "AddUnitTest: verify NamedError implements Error trait"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --lib -- named_error",
+        "cargo build -p opencode-util"
+      ],
+      "impl_notes": "Use thiserror for Error derive. Ensure Serialize/Deserialize derives work correctly",
+      "dependencies": [
+        "P0-4"
+      ]
+    },
+    {
+      "id": "P1-1",
+      "priority": "P1",
+      "title": "Implement From<std::io::Error> for NamedError (FR-432)",
+      "description": "Implement From trait to convert std::io::Error into NamedError with name='io' and message from error description",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify io::Error converts to NamedError with name='io'",
+        "AddUnitTest: verify error message is preserved in conversion",
+        "AddUnitTest: verify error chain is preserved"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --lib -- from_io",
+        "cargo build -p opencode-util"
+      ],
+      "impl_notes": "Use io::Error to_string() for message",
+      "dependencies": [
+        "P0-7"
+      ]
+    },
+    {
+      "id": "P1-2",
+      "priority": "P1",
+      "title": "Implement From<reqwest::Error> for NamedError (FR-433)",
+      "description": "Implement From trait to convert reqwest::Error into NamedError with name='reqwest' and message from error description",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify reqwest::Error converts to NamedError with name='reqwest'",
+        "AddUnitTest: verify error message is preserved in conversion",
+        "AddUnitTest: verify url is accessible if present"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --lib -- from_reqwest",
+        "cargo build -p opencode-util"
+      ],
+      "impl_notes": "Use reqwest error to_string() for message",
+      "dependencies": [
+        "P0-7"
+      ]
+    },
+    {
+      "id": "P1-3",
+      "priority": "P1",
+      "title": "Implement WithContext<E> wrapper (FR-434)",
+      "description": "Implement WithContext<E> wrapper struct that wraps an inner error E and a NamedError context. Must implement Deref to access inner error, Display that shows context message, and Error trait",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify WithContext wraps inner error",
+        "AddUnitTest: verify WithContext derefs to inner error",
+        "AddUnitTest: verify WithContext Display shows context message",
+        "AddUnitTest: verify WithContext implements Error trait"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --lib -- with_context",
+        "cargo build -p opencode-util"
+      ],
+      "impl_notes": "Use std::error::Error and Deref trait",
+      "dependencies": [
+        "P1-1"
+      ]
+    },
+    {
+      "id": "P1-4",
+      "priority": "P1",
+      "title": "Implement Context trait (FR-435)",
+      "description": "Implement Context trait with context() method that takes any error and wraps it with a NamedError. Should be implemented for std::io::Error and other error types",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify context() method on io::Error returns WithContext",
+        "AddUnitTest: verify context() method adds NamedError context",
+        "AddUnitTest: verify Context trait works with multiple error types"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --lib -- context_trait",
+        "cargo build -p opencode-util"
+      ],
+      "impl_notes": "Implement as extension trait for std::error::Error",
+      "dependencies": [
+        "P1-3"
+      ]
+    },
+    {
+      "id": "P1-5",
+      "priority": "P1",
+      "title": "Implement RetryConfig struct (FR-437)",
+      "description": "Implement RetryConfig struct with fields: max_attempts (u32), base_delay (Duration), max_delay (Duration), jitter (bool). Must implement Default with sensible defaults (3 attempts, 100ms base, 30s max, jitter enabled)",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify RetryConfig::default() creates config with sensible defaults",
+        "AddUnitTest: verify RetryConfig fields are accessible",
+        "AddUnitTest: verify custom RetryConfig can be created"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --lib -- retry_config",
+        "cargo build -p opencode-util"
+      ],
+      "impl_notes": "Use Duration from std::time",
+      "dependencies": [
+        "P0-4"
+      ]
+    },
+    {
+      "id": "P1-6",
+      "priority": "P1",
+      "title": "Implement retry() function (FR-438)",
+      "description": "Implement retry() async function that takes an async operation and RetryConfig, executes operation up to max_attempts times with exponential backoff and optional jitter, returns Result of inner type or last error",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify retry succeeds on first attempt when operation succeeds",
+        "AddUnitTest: verify retry retries on failure and eventually succeeds",
+        "AddUnitTest: verify retry returns error after max_attempts",
+        "AddUnitTest: verify retry applies exponential backoff",
+        "AddUnitTest: verify retry applies jitter when configured"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --lib -- retry",
+        "cargo build -p opencode-util"
+      ],
+      "impl_notes": "Use rand for jitter. Implement proper backoff calculation",
+      "dependencies": [
+        "P1-5"
+      ]
+    },
+    {
+      "id": "P1-7",
+      "priority": "P1",
+      "title": "Implement read_to_string() (FR-441)",
+      "description": "Implement async read_to_string() function that reads file contents to String using tokio::fs",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify read_to_string reads file contents",
+        "AddErrorHandlingTest: verify read_to_string returns error for non-existent file",
+        "AddErrorHandlingTest: verify read_to_string handles permission errors"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --lib -- read_to_string",
+        "cargo build -p opencode-util"
+      ],
+      "impl_notes": "Use tokio::fs::read_to_string",
+      "dependencies": [
+        "P0-4"
+      ]
+    },
+    {
+      "id": "P1-8",
+      "priority": "P1",
+      "title": "Implement write() (FR-442)",
+      "description": "Implement async write() function that writes String contents to file using tokio::fs",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify write creates new file with content",
+        "AddUnitTest: verify write overwrites existing file",
+        "AddErrorHandlingTest: verify write handles directory not found errors"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --lib -- fs_write",
+        "cargo build -p opencode-util"
+      ],
+      "impl_notes": "Use tokio::fs::write",
+      "dependencies": [
+        "P1-7"
+      ]
+    },
+    {
+      "id": "P1-9",
+      "priority": "P1",
+      "title": "Implement atomic_write() (FR-443)",
+      "description": "Implement atomic_write() that writes content to temp file first, then renames to target path for atomicity. Must use tempfile or similar for staging",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify atomic_write creates file atomically",
+        "AddRegressionTest: verify atomic_write does not leave partial files on failure",
+        "AddErrorHandlingTest: verify atomic_write handles rename errors"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --lib -- atomic_write",
+        "cargo build -p opencode-util"
+      ],
+      "impl_notes": "Write to temp file in same directory, then rename for atomicity",
+      "dependencies": [
+        "P1-8"
+      ]
+    },
+    {
+      "id": "P1-10",
+      "priority": "P1",
+      "title": "Implement ensure_dir() (FR-444)",
+      "description": "Implement ensure_dir() async function that creates directory and all parent directories if they don't exist",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify ensure_dir creates directory",
+        "AddUnitTest: verify ensure_dir creates parent directories recursively",
+        "AddUnitTest: verify ensure_dir succeeds if directory already exists"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --lib -- ensure_dir",
+        "cargo build -p opencode-util"
+      ],
+      "impl_notes": "Use tokio::fs::create_dir_all",
+      "dependencies": [
+        "P1-7"
+      ]
+    },
+    {
+      "id": "P1-11",
+      "priority": "P1",
+      "title": "Implement read_json() (FR-445)",
+      "description": "Implement read_json<T: Deserialize>() async function that reads file and deserializes JSON content to specified type using NamedError for error handling",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify read_json deserializes valid JSON",
+        "AddErrorHandlingTest: verify read_json returns NamedError for invalid JSON",
+        "AddErrorHandlingTest: verify read_json returns NamedError for missing file"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --lib -- read_json",
+        "cargo build -p opencode-util"
+      ],
+      "impl_notes": "Use serde_json::from_reader with error conversion",
+      "dependencies": [
+        "P0-7",
+        "P1-7"
+      ]
+    },
+    {
+      "id": "P1-12",
+      "priority": "P1",
+      "title": "Implement write_json() (FR-446)",
+      "description": "Implement write_json<T: Serialize>() async function that serializes value to JSON and writes to file with pretty formatting using NamedError for error handling",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify write_json serializes and writes valid JSON",
+        "AddUnitTest: verify write_json output is pretty formatted",
+        "AddErrorHandlingTest: verify write_json returns NamedError on serialization error"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --lib -- write_json",
+        "cargo build -p opencode-util"
+      ],
+      "impl_notes": "Use serde_json::to_string_pretty and atomic_write",
+      "dependencies": [
+        "P0-7",
+        "P1-8"
+      ]
+    },
+    {
+      "id": "P1-13",
+      "priority": "P1",
+      "title": "Implement Rotation struct (FR-423)",
+      "description": "Implement Rotation struct for log file rotation configuration. Should support options like None, Daily, Hourly, or size-based rotation",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify Rotation::none() disables rotation",
+        "AddUnitTest: verify Rotation::daily() creates daily rotation config",
+        "AddUnitTest: verify Rotation fields are accessible"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --lib -- rotation",
+        "cargo build -p opencode-util"
+      ],
+      "impl_notes": "Should integrate with tracing-appender for actual rotation",
+      "dependencies": [
+        "P0-5"
+      ]
+    },
+    {
+      "id": "P1-14",
+      "priority": "P1",
+      "title": "Implement log_file_path() (FR-429)",
+      "description": "Implement log_file_path() function that returns PathBuf for log file location, accepting rotation configuration and computing appropriate filename with date/time suffixes",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify log_file_path returns valid PathBuf",
+        "AddUnitTest: verify log_file_path includes rotation timestamp when configured",
+        "AddUnitTest: verify log_file_path handles different rotation modes"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --lib -- log_file_path",
+        "cargo build -p opencode-util"
+      ],
+      "impl_notes": "Use chrono for timestamp formatting",
+      "dependencies": [
+        "P0-6"
+      ]
+    },
+    {
+      "id": "P1-15",
+      "priority": "P1",
+      "title": "Add tracing-appender dependency",
+      "description": "Add tracing-appender = '0.2' to workspace dependencies in Cargo.toml",
+      "status": "done",
+      "test_criteria": [
+        "AddRegressionTest: verify tracing-appender dependency is present",
+        "AddRegressionTest: verify workspace compiles"
+      ],
+      "test_commands": [
+        "cargo check --workspace"
+      ],
+      "impl_notes": "Already specified in P0-2, ensure it's present",
+      "dependencies": [
+        "P0-2"
+      ]
+    },
+    {
+      "id": "P1-16",
+      "priority": "P1",
+      "title": "Error tests (8 tests) (FR-461.1-461.8)",
+      "description": "Implement all error module tests: test_named_error_display, test_named_error_with_code, test_named_error_with_data, test_named_error_serde, test_named_error_from_io_error, test_named_error_from_reqwest_error, test_with_context_display, test_context_trait_extension",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: FR-461.1 test_named_error_display - verify Display format is 'name: message'",
+        "AddUnitTest: FR-461.2 test_named_error_with_code - verify with_code() sets code field",
+        "AddUnitTest: FR-461.3 test_named_error_with_data - verify with_data() sets data field",
+        "AddUnitTest: FR-461.4 test_named_error_serde - verify NamedError serializes/deserializes correctly",
+        "AddUnitTest: FR-461.5 test_named_error_from_io_error - verify io::Error to NamedError conversion",
+        "AddUnitTest: FR-461.6 test_named_error_from_reqwest_error - verify reqwest::Error to NamedError conversion",
+        "AddUnitTest: FR-461.7 test_with_context_display - verify WithContext Display shows context",
+        "AddUnitTest: FR-461.8 test_context_trait_extension - verify Context trait provides context() method"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests -- error"
+      ],
+      "impl_notes": "Tests should be in tests/util_tests.rs",
+      "dependencies": [
+        "P1-1",
+        "P1-2",
+        "P1-3",
+        "P1-4"
+      ]
+    },
+    {
+      "id": "P1-17",
+      "priority": "P1",
+      "title": "Retry tests (5 tests) (FR-461.9-461.13)",
+      "description": "Implement all retry module tests: test_retry_config_default, test_retry_succeeds_on_first_attempt, test_retry_retries_on_failure, test_retry_returns_err_after_max_attempts, test_retry_with_jitter",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: FR-461.9 test_retry_config_default - verify RetryConfig has correct defaults",
+        "AddUnitTest: FR-461.10 test_retry_succeeds_on_first_attempt - verify retry succeeds immediately on first try",
+        "AddUnitTest: FR-461.11 test_retry_retries_on_failure - verify retry retries failed operations",
+        "AddUnitTest: FR-461.12 test_retry_returns_err_after_max_attempts - verify retry returns error after max attempts",
+        "AddUnitTest: FR-461.13 test_retry_with_jitter - verify retry applies jitter to delays"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests -- retry"
+      ],
+      "impl_notes": "Tests should be in tests/util_tests.rs",
+      "dependencies": [
+        "P1-5",
+        "P1-6"
+      ]
+    },
+    {
+      "id": "P1-18",
+      "priority": "P1",
+      "title": "FS tests (4 tests) (FR-461.14-461.17)",
+      "description": "Implement all fs module tests: test_atomic_write, test_read_json, test_write_json, test_ensure_dir",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: FR-461.14 test_atomic_write - verify atomic_write creates file atomically without partial writes",
+        "AddUnitTest: FR-461.15 test_read_json - verify read_json deserializes JSON and handles errors",
+        "AddUnitTest: FR-461.16 test_write_json - verify write_json serializes to pretty JSON",
+        "AddUnitTest: FR-461.17 test_ensure_dir - verify ensure_dir creates directories recursively"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests -- fs"
+      ],
+      "impl_notes": "Tests should be in tests/util_tests.rs",
+      "dependencies": [
+        "P1-9",
+        "P1-11",
+        "P1-12",
+        "P1-10"
+      ]
+    },
+    {
+      "id": "P2-1",
+      "priority": "P2",
+      "title": "Implement log file rotation with Rotation (FR-423)",
+      "description": "Implement actual log file rotation using Rotation struct and tracing-appender. Support daily and size-based rotation",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify rotation creates new file at rotation boundary",
+        "AddUnitTest: verify rotation handles daily rotation correctly",
+        "AddIntegrationTest: verify Logger works with Rotation"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --lib -- rotation",
+        "cargo build -p opencode-util"
+      ],
+      "impl_notes": "Use tracing-appender::rolling",
+      "dependencies": [
+        "P1-13"
+      ]
+    },
+    {
+      "id": "P2-2",
+      "priority": "P2",
+      "title": "Add json and env-filter features to tracing-subscriber",
+      "description": "Update tracing-subscriber in workspace dependencies to include features = ['json', 'env-filter']",
+      "status": "done",
+      "test_criteria": [
+        "AddRegressionTest: verify tracing-subscriber has json and env-filter features",
+        "AddRegressionTest: verify workspace compiles"
+      ],
+      "test_commands": [
+        "cargo check --workspace"
+      ],
+      "impl_notes": "Already specified in P0-2, ensure features are present",
+      "dependencies": [
+        "P0-2"
+      ]
+    },
+    {
+      "id": "P2-3",
+      "priority": "P2",
+      "title": "Implement Lazy<T> struct (FR-448)",
+      "description": "Implement Lazy<T> struct for lazily initialized values. Must be thread-safe (Sync + Send), initialize only once using Once, and provide get_or_init() method",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify Lazy<T> is Send + Sync",
+        "AddUnitTest: verify Lazy<T> initializes only once",
+        "AddUnitTest: verify Lazy<T> get_or_init() returns reference to value",
+        "AddUnitTest: verify Lazy<T> can be used in static context"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --lib -- lazy",
+        "cargo build -p opencode-util"
+      ],
+      "impl_notes": "Use std::sync::Once or once_cell::sync::Lazy",
+      "dependencies": [
+        "P0-4"
+      ]
+    },
+    {
+      "id": "P2-4",
+      "priority": "P2",
+      "title": "Implement iife! macro (FR-449)",
+      "description": "Implement iife! macro for immediately invoked function expressions. Macro should accept a closure and execute it immediately, returning the result",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify iife! macro executes closure immediately",
+        "AddUnitTest: verify iife! macro returns closure result",
+        "AddUnitTest: verify iife! macro works with different return types"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --lib -- iife",
+        "cargo build -p opencode-util"
+      ],
+      "impl_notes": "Use macro_rules! for declarative macro",
+      "dependencies": [
+        "P2-3"
+      ]
+    },
+    {
+      "id": "P2-5",
+      "priority": "P2",
+      "title": "Implement with_timeout() (FR-450)",
+      "description": "Implement with_timeout() async function that executes future with a timeout, returning Result<T, Elapsed> on timeout using tokio::time::timeout",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify with_timeout() returns value when future completes within timeout",
+        "AddUnitTest: verify with_timeout() returns Elapsed when future exceeds timeout",
+        "AddUnitTest: verify with_timeout() works with different Duration values"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --lib -- with_timeout",
+        "cargo build -p opencode-util"
+      ],
+      "impl_notes": "Use tokio::time::timeout",
+      "dependencies": [
+        "P2-3"
+      ]
+    },
+    {
+      "id": "P2-6",
+      "priority": "P2",
+      "title": "Implement wait_for() (FR-451)",
+      "description": "Implement wait_for() async function that waits for a condition to become true, checking periodically with specified interval, returning when condition is met or timeout is exceeded",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify wait_for() returns when condition becomes true",
+        "AddUnitTest: verify wait_for() returns error when timeout exceeded",
+        "AddUnitTest: verify wait_for() checks condition at correct intervals"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --lib -- wait_for",
+        "cargo build -p opencode-util"
+      ],
+      "impl_notes": "Use interval checking with tokio::time::interval",
+      "dependencies": [
+        "P2-5"
+      ]
+    },
+    {
+      "id": "P2-7",
+      "priority": "P2",
+      "title": "Implement retry_until() (FR-452)",
+      "description": "Implement retry_until() async function that retries an operation until a condition is met or max attempts is reached",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify retry_until() stops when condition is met",
+        "AddUnitTest: verify retry_until() returns error when max attempts reached",
+        "AddIntegrationTest: verify retry_until() works with wait_for()"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --lib -- retry_until",
+        "cargo build -p opencode-util"
+      ],
+      "impl_notes": "Combine retry logic with condition checking",
+      "dependencies": [
+        "P2-6"
+      ]
+    },
+    {
+      "id": "P2-8",
+      "priority": "P2",
+      "title": "Helper tests (7 tests) (FR-461.18-461.24)",
+      "description": "Implement all helper module tests: test_lazy_thread_safe, test_lazy_initializes_once, test_iife_macro, test_with_timeout_fires, test_with_timeout_success, test_wait_for_success, test_wait_for_timeout",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: FR-461.18 test_lazy_thread_safe - verify Lazy<T> is thread-safe",
+        "AddUnitTest: FR-461.19 test_lazy_initializes_once - verify Lazy<T> initializes only once",
+        "AddUnitTest: FR-461.20 test_iife_macro - verify iife! macro works correctly",
+        "AddUnitTest: FR-461.21 test_with_timeout_fires - verify with_timeout returns error on timeout",
+        "AddUnitTest: FR-461.22 test_with_timeout_success - verify with_timeout returns value on success",
+        "AddUnitTest: FR-461.23 test_wait_for_success - verify wait_for succeeds when condition met",
+        "AddUnitTest: FR-461.24 test_wait_for_timeout - verify wait_for returns error on timeout"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests -- helpers"
+      ],
+      "impl_notes": "Tests should be in tests/util_tests.rs",
+      "dependencies": [
+        "P2-3",
+        "P2-4",
+        "P2-5",
+        "P2-6"
+      ]
+    },
+    {
+      "id": "P2-9",
+      "priority": "P2",
+      "title": "Logging tests (1 test) (FR-461.25)",
+      "description": "Implement logging module tests: test_log_level_serde",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: FR-461.25 test_log_level_serde - verify LogLevel serializes/deserializes correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests -- log_level"
+      ],
+      "impl_notes": "Test should be in tests/util_tests.rs",
+      "dependencies": [
+        "P0-5"
+      ]
+    },
+    {
+      "id": "FR-461.1",
+      "priority": "P1",
+      "title": "test_named_error_display",
+      "description": "Test that NamedError Display implementation returns 'name: message' format",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify NamedError displays as 'name: message'"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests test_named_error_display"
+      ],
+      "impl_notes": "Part of error module test suite",
+      "dependencies": [
+        "P0-7"
+      ]
+    },
+    {
+      "id": "FR-461.2",
+      "priority": "P1",
+      "title": "test_named_error_with_code",
+      "description": "Test that NamedError::with_code() correctly sets the code field",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify with_code() sets code field that can be accessed"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests test_named_error_with_code"
+      ],
+      "impl_notes": "Part of error module test suite",
+      "dependencies": [
+        "P0-7"
+      ]
+    },
+    {
+      "id": "FR-461.3",
+      "priority": "P1",
+      "title": "test_named_error_with_data",
+      "description": "Test that NamedError::with_data() correctly sets the data field",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify with_data() sets data field with JSON value"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests test_named_error_with_data"
+      ],
+      "impl_notes": "Part of error module test suite",
+      "dependencies": [
+        "P0-7"
+      ]
+    },
+    {
+      "id": "FR-461.4",
+      "priority": "P1",
+      "title": "test_named_error_serde",
+      "description": "Test that NamedError correctly serializes and deserializes to/from JSON",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify NamedError serializes to JSON with all fields",
+        "AddUnitTest: verify NamedError deserializes from JSON correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests test_named_error_serde"
+      ],
+      "impl_notes": "Part of error module test suite",
+      "dependencies": [
+        "P0-7"
+      ]
+    },
+    {
+      "id": "FR-461.5",
+      "priority": "P1",
+      "title": "test_named_error_from_io_error",
+      "description": "Test that std::io::Error converts to NamedError with name='io'",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify io::Error converts to NamedError with name='io'",
+        "AddUnitTest: verify message is preserved from io::Error"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests test_named_error_from_io_error"
+      ],
+      "impl_notes": "Part of error module test suite",
+      "dependencies": [
+        "P1-1"
+      ]
+    },
+    {
+      "id": "FR-461.6",
+      "priority": "P1",
+      "title": "test_named_error_from_reqwest_error",
+      "description": "Test that reqwest::Error converts to NamedError with name='reqwest'",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify reqwest::Error converts to NamedError with name='reqwest'",
+        "AddUnitTest: verify message is preserved from reqwest::Error"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests test_named_error_from_reqwest_error"
+      ],
+      "impl_notes": "Part of error module test suite",
+      "dependencies": [
+        "P1-2"
+      ]
+    },
+    {
+      "id": "FR-461.7",
+      "priority": "P1",
+      "title": "test_with_context_display",
+      "description": "Test that WithContext Display implementation shows context message",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify WithContext displays context message"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests test_with_context_display"
+      ],
+      "impl_notes": "Part of error module test suite",
+      "dependencies": [
+        "P1-3"
+      ]
+    },
+    {
+      "id": "FR-461.8",
+      "priority": "P1",
+      "title": "test_context_trait_extension",
+      "description": "Test that Context trait provides context() extension method",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify context() method wraps error with NamedError",
+        "AddUnitTest: verify context() method is available on error types"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests test_context_trait_extension"
+      ],
+      "impl_notes": "Part of error module test suite",
+      "dependencies": [
+        "P1-4"
+      ]
+    },
+    {
+      "id": "FR-461.9",
+      "priority": "P1",
+      "title": "test_retry_config_default",
+      "description": "Test that RetryConfig has correct default values",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify RetryConfig::default() returns 3 max_attempts",
+        "AddUnitTest: verify RetryConfig::default() has 100ms base_delay",
+        "AddUnitTest: verify RetryConfig::default() has jitter enabled"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests test_retry_config_default"
+      ],
+      "impl_notes": "Part of retry module test suite",
+      "dependencies": [
+        "P1-5"
+      ]
+    },
+    {
+      "id": "FR-461.10",
+      "priority": "P1",
+      "title": "test_retry_succeeds_on_first_attempt",
+      "description": "Test that retry succeeds immediately when operation succeeds on first try",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify retry returns Ok value on first attempt",
+        "AddUnitTest: verify no unnecessary delays on immediate success"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests test_retry_succeeds_on_first_attempt"
+      ],
+      "impl_notes": "Part of retry module test suite",
+      "dependencies": [
+        "P1-6"
+      ]
+    },
+    {
+      "id": "FR-461.11",
+      "priority": "P1",
+      "title": "test_retry_retries_on_failure",
+      "description": "Test that retry retries failed operations and eventually succeeds",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify retry attempts multiple times on failure",
+        "AddUnitTest: verify retry succeeds after initial failures"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests test_retry_retries_on_failure"
+      ],
+      "impl_notes": "Part of retry module test suite",
+      "dependencies": [
+        "P1-6"
+      ]
+    },
+    {
+      "id": "FR-461.12",
+      "priority": "P1",
+      "title": "test_retry_returns_err_after_max_attempts",
+      "description": "Test that retry returns error after exhausting all max_attempts",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify retry returns Err after max_attempts exhausted",
+        "AddUnitTest: verify final error is the last error encountered"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests test_retry_returns_err_after_max_attempts"
+      ],
+      "impl_notes": "Part of retry module test suite",
+      "dependencies": [
+        "P1-6"
+      ]
+    },
+    {
+      "id": "FR-461.13",
+      "priority": "P1",
+      "title": "test_retry_with_jitter",
+      "description": "Test that retry applies jitter to delays when configured",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify retry delays vary with jitter enabled",
+        "AddUnitTest: verify retry delays are consistent with jitter disabled"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests test_retry_with_jitter"
+      ],
+      "impl_notes": "Part of retry module test suite",
+      "dependencies": [
+        "P1-6"
+      ]
+    },
+    {
+      "id": "FR-461.14",
+      "priority": "P1",
+      "title": "test_atomic_write",
+      "description": "Test that atomic_write creates file atomically without partial writes",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify atomic_write creates file with correct content",
+        "AddUnitTest: verify no partial file exists after failed write"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests test_atomic_write"
+      ],
+      "impl_notes": "Part of fs module test suite",
+      "dependencies": [
+        "P1-9"
+      ]
+    },
+    {
+      "id": "FR-461.15",
+      "priority": "P1",
+      "title": "test_read_json",
+      "description": "Test that read_json correctly deserializes JSON file content",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify read_json deserializes valid JSON to type",
+        "AddErrorHandlingTest: verify read_json returns error for invalid JSON"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests test_read_json"
+      ],
+      "impl_notes": "Part of fs module test suite",
+      "dependencies": [
+        "P1-11"
+      ]
+    },
+    {
+      "id": "FR-461.16",
+      "priority": "P1",
+      "title": "test_write_json",
+      "description": "Test that write_json correctly serializes value to pretty JSON",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify write_json creates valid JSON file",
+        "AddUnitTest: verify write_json output is pretty formatted"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests test_write_json"
+      ],
+      "impl_notes": "Part of fs module test suite",
+      "dependencies": [
+        "P1-12"
+      ]
+    },
+    {
+      "id": "FR-461.17",
+      "priority": "P1",
+      "title": "test_ensure_dir",
+      "description": "Test that ensure_dir creates directories recursively",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify ensure_dir creates single directory",
+        "AddUnitTest: verify ensure_dir creates nested directories"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests test_ensure_dir"
+      ],
+      "impl_notes": "Part of fs module test suite",
+      "dependencies": [
+        "P1-10"
+      ]
+    },
+    {
+      "id": "FR-461.18",
+      "priority": "P2",
+      "title": "test_lazy_thread_safe",
+      "description": "Test that Lazy<T> is thread-safe (Send + Sync)",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify Lazy<T> implements Send",
+        "AddUnitTest: verify Lazy<T> implements Sync"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests test_lazy_thread_safe"
+      ],
+      "impl_notes": "Part of helpers module test suite",
+      "dependencies": [
+        "P2-3"
+      ]
+    },
+    {
+      "id": "FR-461.19",
+      "priority": "P2",
+      "title": "test_lazy_initializes_once",
+      "description": "Test that Lazy<T> initializes only once even with concurrent access",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify initialization happens exactly once",
+        "AddUnitTest: verify concurrent access returns same value"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests test_lazy_initializes_once"
+      ],
+      "impl_notes": "Part of helpers module test suite",
+      "dependencies": [
+        "P2-3"
+      ]
+    },
+    {
+      "id": "FR-461.20",
+      "priority": "P2",
+      "title": "test_iife_macro",
+      "description": "Test that iife! macro executes closure immediately and returns result",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify iife! executes immediately",
+        "AddUnitTest: verify iife! returns closure result"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests test_iife_macro"
+      ],
+      "impl_notes": "Part of helpers module test suite",
+      "dependencies": [
+        "P2-4"
+      ]
+    },
+    {
+      "id": "FR-461.21",
+      "priority": "P2",
+      "title": "test_with_timeout_fires",
+      "description": "Test that with_timeout returns Elapsed when timeout is exceeded",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify with_timeout returns Elapsed after duration",
+        "AddUnitTest: verify future is cancelled after timeout"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests test_with_timeout_fires"
+      ],
+      "impl_notes": "Part of helpers module test suite",
+      "dependencies": [
+        "P2-5"
+      ]
+    },
+    {
+      "id": "FR-461.22",
+      "priority": "P2",
+      "title": "test_with_timeout_success",
+      "description": "Test that with_timeout returns value when future completes within timeout",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify with_timeout returns Ok(value) on success",
+        "AddUnitTest: verify no timeout error when future completes quickly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests test_with_timeout_success"
+      ],
+      "impl_notes": "Part of helpers module test suite",
+      "dependencies": [
+        "P2-5"
+      ]
+    },
+    {
+      "id": "FR-461.23",
+      "priority": "P2",
+      "title": "test_wait_for_success",
+      "description": "Test that wait_for succeeds when condition becomes true",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify wait_for returns Ok when condition met",
+        "AddUnitTest: verify wait_for checks condition at intervals"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests test_wait_for_success"
+      ],
+      "impl_notes": "Part of helpers module test suite",
+      "dependencies": [
+        "P2-6"
+      ]
+    },
+    {
+      "id": "FR-461.24",
+      "priority": "P2",
+      "title": "test_wait_for_timeout",
+      "description": "Test that wait_for returns error when timeout is exceeded",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify wait_for returns error when condition never met",
+        "AddUnitTest: verify wait_for respects max_duration"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests test_wait_for_timeout"
+      ],
+      "impl_notes": "Part of helpers module test suite",
+      "dependencies": [
+        "P2-6"
+      ]
+    },
+    {
+      "id": "FR-461.25",
+      "priority": "P2",
+      "title": "test_log_level_serde",
+      "description": "Test that LogLevel serializes to lowercase and deserializes from lowercase",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify LogLevel serializes to lowercase string",
+        "AddUnitTest: verify LogLevel deserializes from lowercase string"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-util --test util_tests test_log_level_serde"
+      ],
+      "impl_notes": "Part of logging module test suite",
+      "dependencies": [
+        "P0-5"
+      ]
+    }
+  ]
+}

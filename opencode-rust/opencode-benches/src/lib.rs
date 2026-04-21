@@ -1,17 +1,19 @@
+#![allow(dead_code)]
+
 use criterion::Criterion;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-mod session_load;
-mod session_operations;
-mod storage_operations;
-mod tool_execution;
 mod config_and_token;
 mod jsonc_parsing;
 mod llm_roundtrip;
 mod plugin_operations;
+mod session_load;
+mod session_operations;
+mod storage_operations;
+mod tool_execution;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BenchmarkResult {
