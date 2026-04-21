@@ -26,6 +26,9 @@ pub enum StorageError {
     #[error("session expired: {0}")]
     SessionExpired(String),
 
+    #[error("Session locked: {0}")]
+    SessionLocked(String),
+
     // --- Project errors (52xx) ---
     #[error("project not found: {0}")]
     ProjectNotFound(String),
@@ -70,6 +73,7 @@ impl StorageError {
             Self::SessionNotFound(_) => 5101,
             Self::SessionCorrupted(_) => 5102,
             Self::SessionExpired(_) => 5103,
+            Self::SessionLocked(_) => 5104,
             Self::ProjectNotFound(_) => 5201,
             Self::ProjectCorrupted(_) => 5202,
             Self::AccountNotFound(_) => 5301,
@@ -187,6 +191,7 @@ mod tests {
         assert_eq!(StorageError::SessionNotFound("test".into()).code(), 5101);
         assert_eq!(StorageError::SessionCorrupted("test".into()).code(), 5102);
         assert_eq!(StorageError::SessionExpired("test".into()).code(), 5103);
+        assert_eq!(StorageError::SessionLocked("test".into()).code(), 5104);
         assert_eq!(StorageError::ProjectNotFound("test".into()).code(), 5201);
         assert_eq!(StorageError::ProjectCorrupted("test".into()).code(), 5202);
         assert_eq!(StorageError::AccountNotFound("test".into()).code(), 5301);
@@ -213,6 +218,10 @@ mod tests {
             (
                 StorageError::SessionExpired("test".into()),
                 "session expired",
+            ),
+            (
+                StorageError::SessionLocked("test".into()),
+                "Session locked",
             ),
             (
                 StorageError::ProjectNotFound("test".into()),
@@ -331,5 +340,35 @@ mod tests {
         let err = StorageError::Migration("test migration failure".into());
         let error_string = err.to_string();
         assert!(error_string.contains("test migration failure"));
+    }
+
+    // FR-043: SessionLocked error variant tests
+    #[test]
+    fn test_session_locked_error_format() {
+        let err = StorageError::SessionLocked("session-123".into());
+        let display = err.to_string();
+        assert!(display.contains("Session locked"));
+        assert!(display.contains("session-123"));
+    }
+
+    #[test]
+    fn test_session_locked_error_code() {
+        let err = StorageError::SessionLocked("test".into());
+        assert_eq!(err.code(), 5104);
+    }
+
+    #[test]
+    fn test_session_locked_error_implements_std_error() {
+        fn assert_error<T: std::error::Error>() {}
+        assert_error::<StorageError>();
+    }
+
+    #[test]
+    fn test_session_locked_error_message_content() {
+        let session_id = "abc-123-def-456";
+        let err = StorageError::SessionLocked(session_id.into());
+        let error_string = err.to_string();
+        assert!(error_string.contains(session_id));
+        assert!(error_string.contains("Session locked"));
     }
 }

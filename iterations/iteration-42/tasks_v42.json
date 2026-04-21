@@ -133,7 +133,7 @@
       "priority": "P2",
       "title": "Add Migration Error Variant",
       "description": "Add StorageError::Migration(String) variant to error.rs for handling database migration errors.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify StorageError::Migration formats error message correctly",
         "AddUnitTest: verify Migration variant implements std::error::Error",
@@ -152,7 +152,7 @@
       "priority": "P2",
       "title": "Add SessionLocked Error Variant",
       "description": "Add StorageError::SessionLocked(String) variant to error.rs for handling session lock errors.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify StorageError::SessionLocked formats error message correctly",
         "AddUnitTest: verify SessionLocked variant implements std::error::Error",
