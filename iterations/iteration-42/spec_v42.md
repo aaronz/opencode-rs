@@ -659,7 +659,7 @@ async fn storage_example() -> Result<(), StorageError> {
 | `list_incomplete_sessions` not in StorageService | FR-050 | P2 | To be implemented |
 | `Migration` error variant not in StorageError | FR-042 | P2 | To be implemented |
 | `SessionLocked` error variant not in StorageError | FR-043 | P2 | To be implemented |
-| `Recovery` error variant not in StorageError | FR-044 | P2 | To be implemented |
+| `Recovery` error variant not in StorageError | FR-044 | P2 | ✅ Done |
 | `load_session` uses `&str` instead of `Uuid` | - | P2 | By design |
 | `list_by_project` is stub implementation | FR-052 | P2 | To be implemented |
 | CompactionManager constructor mismatch | FR-055 | P0 | To be implemented |

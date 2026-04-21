@@ -115,14 +115,14 @@
 
 ---
 
-### [ ] FR-044: Add Recovery Error Variant
+### [x] FR-044: Add Recovery Error Variant ✅ Done
 **Priority**: P2
 **Module**: `crates/storage/src/error.rs`
 **Dependencies**: None
 
 **Acceptance Criteria**:
-- [ ] `StorageError::Recovery(String)` variant exists
-- [ ] Error message correctly formats recovery errors
+- [x] `StorageError::Recovery(String)` variant exists
+- [x] Error message correctly formats recovery errors
 
 ---
 

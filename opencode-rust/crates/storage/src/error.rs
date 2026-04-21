@@ -9,6 +9,7 @@
 //! - 59xx: Internal storage errors
 
 //! - 56xx: Migration errors
+//! - 57xx: Recovery errors
 
 use thiserror::Error;
 
@@ -61,6 +62,10 @@ pub enum StorageError {
     #[error("migration error: {0}")]
     Migration(String),
 
+    // --- Recovery errors (57xx) ---
+    #[error("Recovery error: {0}")]
+    Recovery(String),
+
     // --- Internal errors (59xx) ---
     #[error("internal storage error: {0}")]
     Internal(String),
@@ -83,6 +88,7 @@ impl StorageError {
             Self::Serialization(_) => 5501,
             Self::Deserialization(_) => 5502,
             Self::Migration(_) => 5601,
+            Self::Recovery(_) => 5701,
             Self::Internal(_) => 5901,
         }
     }
@@ -201,6 +207,7 @@ mod tests {
         assert_eq!(StorageError::Serialization("test".into()).code(), 5501);
         assert_eq!(StorageError::Deserialization("test".into()).code(), 5502);
         assert_eq!(StorageError::Migration("test".into()).code(), 5601);
+        assert_eq!(StorageError::Recovery("test".into()).code(), 5701);
         assert_eq!(StorageError::Internal("test".into()).code(), 5901);
     }
 
@@ -255,6 +262,10 @@ mod tests {
             (
                 StorageError::Migration("test".into()),
                 "migration error",
+            ),
+            (
+                StorageError::Recovery("test".into()),
+                "Recovery error",
             ),
             (
                 StorageError::Internal("test".into()),
@@ -370,5 +381,34 @@ mod tests {
         let error_string = err.to_string();
         assert!(error_string.contains(session_id));
         assert!(error_string.contains("Session locked"));
+    }
+
+    // FR-044: Recovery error variant tests
+    #[test]
+    fn test_recovery_error_format() {
+        let err = StorageError::Recovery("session-123".into());
+        let display = err.to_string();
+        assert!(display.contains("Recovery error"));
+        assert!(display.contains("session-123"));
+    }
+
+    #[test]
+    fn test_recovery_error_code() {
+        let err = StorageError::Recovery("test".into());
+        assert_eq!(err.code(), 5701);
+    }
+
+    #[test]
+    fn test_recovery_error_implements_std_error() {
+        fn assert_error<T: std::error::Error>() {}
+        assert_error::<StorageError>();
+    }
+
+    #[test]
+    fn test_recovery_error_message_content() {
+        let err = StorageError::Recovery("crash recovery failed".into());
+        let error_string = err.to_string();
+        assert!(error_string.contains("crash recovery failed"));
+        assert!(error_string.contains("Recovery error"));
     }
 }
