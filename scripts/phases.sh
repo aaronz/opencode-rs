@@ -234,7 +234,7 @@ run_phase_implementation() {
             break
         fi
 
-        if [ "$todo_count" -eq 0 ]; then
+        if [ "$todo_count" -eq 0 ] && [ "$remaining_p0_p1" -eq 0 ]; then
             echo "没有待办任务了"
             break
         fi

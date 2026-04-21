@@ -320,7 +320,7 @@
       "priority": "P1",
       "title": "Write unit test test_watch_fires_callback_on_file_change",
       "description": "Write unit test test_watch_fires_callback_on_file_change - verify watch() registers watcher and callback fires on file change",
-      "status": "blocked",
+      "status": "todo",
       "test_criteria": [
         "AddIntegrationTest: verify watch() registers watcher successfully",
         "AddIntegrationTest: verify callback is invoked when watched file changes"

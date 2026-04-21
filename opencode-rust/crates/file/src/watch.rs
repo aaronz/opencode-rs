@@ -60,6 +60,16 @@ impl Debouncer {
     }
 }
 
+impl Clone for Debouncer {
+    fn clone(&self) -> Self {
+        Self {
+            delay: self.delay,
+            pending: self.pending.clone(),
+            counter: self.counter.clone(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

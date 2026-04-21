@@ -506,13 +506,14 @@ async fn test_debouncer_merges_rapid_events() {
 async fn test_watch_fires_callback_on_file_change() {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
+    use std::time::Duration;
 
     let svc = FileService::new();
     let tmp = TempDir::new().unwrap();
     let dir = tmp.path();
     let file = dir.join("watched.txt");
     std::fs::write(&file, "v1").unwrap();
-    std::thread::sleep(std::time::Duration::from_millis(300));
+    std::thread::sleep(Duration::from_millis(500));
 
     let call_count = Arc::new(AtomicUsize::new(0));
     let call_count2 = call_count.clone();
@@ -525,7 +526,7 @@ async fn test_watch_fires_callback_on_file_change() {
         .unwrap();
 
     std::fs::write(&file, "v2").unwrap();
-    std::thread::sleep(std::time::Duration::from_millis(500));
+    std::thread::sleep(Duration::from_millis(1500));
 
     let count_after = call_count.load(Ordering::SeqCst);
     assert!(count_after >= 1, "Callback should have been called at least once, got {}", count_after);

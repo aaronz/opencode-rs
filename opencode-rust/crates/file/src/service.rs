@@ -1,5 +1,6 @@
 use crate::error::FileError;
 use crate::normalize::Normalizer;
+use crate::watch::Debouncer;
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -27,14 +28,14 @@ impl FileService {
         callback: impl Fn(PathBuf) + Clone + Send + Sync + 'static,
     ) -> Result<String, FileError> {
         let watch_id = uuid::Uuid::new_v4().to_string();
-        let pending: Arc<StdMutex<HashMap<PathBuf, u64>>> =
-            Arc::new(StdMutex::new(HashMap::new()));
-        let pending_clone = pending.clone();
         let delay = Duration::from_millis(debounce_ms);
         let path_owned = path.to_path_buf();
 
         let callback: Arc<dyn Fn(PathBuf) + Send + Sync + 'static> = Arc::new(callback);
         let callback_clone = callback.clone();
+
+        let debouncer = Debouncer::new(delay);
+        let debouncer_clone = debouncer.clone();
 
         let (tx, rx) = std::sync::mpsc::channel::<PathBuf>();
 
@@ -42,50 +43,18 @@ impl FileService {
             let rt = tokio::runtime::Runtime::new().unwrap();
             rt.block_on(async move {
                 while let Ok(path) = rx.recv() {
-                    let pending = pending_clone.clone();
-                    let delay = delay;
+                    let debouncer = debouncer_clone.clone();
                     let callback = callback_clone.clone();
                     let path_clone = path.clone();
 
-                    tokio::spawn(async move {
-                        let seq = {
-                            let mut guard = pending.lock().unwrap();
-                            let counter = guard.entry(path_clone.clone()).or_insert(0);
-                            *counter += 1;
-                            *counter
-                        };
-
-                        let pending2 = pending.clone();
-                        let callback = callback.clone();
-
-                        tokio::spawn(async move {
-                            tokio::time::sleep(delay).await;
-
-                            let should_call = {
-                                let mut guard = pending2.lock().unwrap();
-                                if let Some(counter) = guard.get(&path_clone) {
-                                    if *counter == seq {
-                                        guard.remove(&path_clone);
-                                        true
-                                    } else {
-                                        guard.remove(&path_clone);
-                                        false
-                                    }
-                                } else {
-                                    false
-                                }
-                            };
-
-                            if should_call {
-                                callback(path_clone);
-                            }
-                        });
-                    });
+                    debouncer.queue(path_clone, move || {
+                        callback(path);
+                    }).await;
                 }
             });
         });
 
-        let _watcher = RecommendedWatcher::new(
+        let watcher = RecommendedWatcher::new(
             move |res: Result<Event, notify::Error>| {
                 if let Ok(event) = res {
                     if matches!(
@@ -104,7 +73,7 @@ impl FileService {
         )
         .map_err(|e| FileError::Watch(e.to_string()))?;
 
-        let mut watcher = _watcher;
+        let mut watcher = watcher;
         watcher
             .watch(&path_owned, RecursiveMode::Recursive)
             .map_err(|e| FileError::Watch(e.to_string()))?;
