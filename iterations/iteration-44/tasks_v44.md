@@ -129,7 +129,7 @@
 - [ ] **T-019**: Write unit test `test_copy_file_creates_parent_dirs`
   - Verify copy_file() creates parent directories and returns byte count
 
-- [ ] **T-020**: Write unit test `test_copy_dir_recursive`
+- [x] **T-020**: Write unit test `test_copy_dir_recursive`
   - Verify copy_dir() recursively copies directory tree
 
 - [ ] **T-021**: Write unit test `test_normalize_collapse_dots`

@@ -357,7 +357,7 @@
       "priority": "P1",
       "title": "Write unit test test_copy_file_creates_parent_dirs",
       "description": "Write unit test test_copy_file_creates_parent_dirs - verify copy_file() creates parent directories and returns byte count",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify copy_file() creates nested parent directories",
         "AddUnitTest: verify correct byte count is returned"
@@ -372,11 +372,10 @@
       ]
     },
     {
-      "id": "T-020",
+"id": "T-020",
       "priority": "P1",
       "title": "Write unit test test_copy_dir_recursive",
-      "description": "Write unit test test_copy_dir_recursive - verify copy_dir() recursively copies directory tree",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify copy_dir() copies all nested files and subdirectories",
         "AddUnitTest: verify directory structure is preserved"

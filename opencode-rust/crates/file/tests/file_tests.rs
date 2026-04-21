@@ -485,24 +485,35 @@ async fn test_debouncer_merges_rapid_events() {
 
 #[tokio::test]
 async fn test_watch_fires_callback_on_file_change() {
+    use std::io::{self, Write};
+
+    let stdout = io::stdout();
+    let mut handle = stdout.lock();
+
     let svc = FileService::new();
     let tmp = TempDir::new().unwrap();
     let file = tmp.path().join("watched.txt");
     tokio::fs::write(&file, "v1").await.unwrap();
 
+    writeln!(handle, "[DEBUG] Created temp file with v1").unwrap();
     let (tx, mut rx) = tokio::sync::mpsc::channel(1);
     let tx_clone = tx.clone();
+    writeln!(handle, "[DEBUG] About to call watch()").unwrap();
     let watch_id = svc
         .watch(tmp.path(), 50, move |p| {
             let _ = tx_clone.blocking_send(p);
         })
         .await
         .unwrap();
+    writeln!(handle, "[DEBUG] Watch started with id: {}", watch_id).unwrap();
 
     tokio::fs::write(&file, "v2").await.unwrap();
-    tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+    writeln!(handle, "[DEBUG] Wrote v2 to file").unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    writeln!(handle, "[DEBUG] Sleep completed, trying to receive").unwrap();
 
     let changed = rx.recv().await.unwrap();
+    writeln!(handle, "[DEBUG] Received path: {:?}", changed).unwrap();
     assert!(changed.ends_with("watched.txt"));
 
     svc.unwatch(&watch_id).await.unwrap();
