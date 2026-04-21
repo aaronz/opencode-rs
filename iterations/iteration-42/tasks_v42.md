@@ -79,15 +79,15 @@
 
 ---
 
-### [ ] FR-045/FR-048: Pagination Verification
+### [x] FR-045/FR-048: Pagination Verification
 **Priority**: P1
 **Module**: `crates/storage/src/service.rs`
 **Dependencies**: None
 
 **Acceptance Criteria**:
-- [ ] `list_sessions(limit, offset)` works correctly
-- [ ] `list_projects(limit, offset)` works correctly
-- [ ] Empty results return empty vector, not error
+- [x] `list_sessions(limit, offset)` works correctly
+- [x] `list_projects(limit, offset)` works correctly
+- [x] Empty results return empty vector, not error
 
 ---
 

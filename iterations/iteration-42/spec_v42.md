@@ -663,7 +663,7 @@ async fn storage_example() -> Result<(), StorageError> {
 | `load_session` uses `&str` instead of `Uuid` | - | P2 | By design |
 | `list_by_project` is stub implementation | FR-052 | P2 | To be implemented |
 | CompactionManager constructor mismatch | FR-055 | P0 | To be implemented |
-| Pagination support | FR-045, FR-048 | P1 | To be implemented |
+| Pagination support | FR-045, FR-048 | P1 | ✅ Done |
 
 ---
 

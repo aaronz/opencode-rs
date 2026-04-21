@@ -948,4 +948,347 @@ mod tests {
 
         drop(temp_dir);
     }
+
+    // =========================================================================
+    // FR-045/FR-048 Pagination Verification Tests
+    // =========================================================================
+
+    #[tokio::test]
+    async fn test_list_sessions_returns_empty_vec_when_no_sessions_exist() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let service = StorageService::new(session_repo, project_repo, pool);
+
+        // Should return empty Vec, not error
+        let sessions = service.list_sessions(10, 0).await.unwrap();
+        assert!(sessions.is_empty(), "Expected empty Vec when no sessions exist");
+
+        let sessions = service.list_sessions(100, 0).await.unwrap();
+        assert!(sessions.is_empty(), "Expected empty Vec with larger limit");
+
+        let sessions = service.list_sessions(10, 100).await.unwrap();
+        assert!(sessions.is_empty(), "Expected empty Vec with offset beyond range");
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_list_sessions_returns_correct_items_within_limit_offset_range() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let service = StorageService::new(session_repo, project_repo, pool);
+
+        // Create 10 sessions
+        for i in 0..10 {
+            let mut session = create_test_session();
+            session.add_message(Message::user(format!("Message {}", i)));
+            service.save_session(&session).await.unwrap();
+        }
+
+        // Test limit
+        let sessions = service.list_sessions(3, 0).await.unwrap();
+        assert_eq!(sessions.len(), 3, "Should return at most limit items");
+
+        let sessions = service.list_sessions(100, 0).await.unwrap();
+        assert_eq!(sessions.len(), 10, "Should return all 10 sessions when limit >= total");
+
+        // Test offset
+        let sessions = service.list_sessions(10, 5).await.unwrap();
+        assert_eq!(sessions.len(), 5, "Should return 5 items when offset is 5 and total is 10");
+
+        let sessions = service.list_sessions(10, 10).await.unwrap();
+        assert_eq!(sessions.len(), 0, "Should return 0 items when offset equals total count");
+
+        // Test limit and offset together
+        let sessions = service.list_sessions(3, 2).await.unwrap();
+        assert_eq!(sessions.len(), 3, "Should return 3 items starting from offset 2");
+
+        let sessions = service.list_sessions(3, 8).await.unwrap();
+        assert_eq!(sessions.len(), 2, "Should return 2 items when only 2 remain after offset");
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_list_projects_returns_empty_vec_when_no_projects_exist() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let service = StorageService::new(session_repo, project_repo, pool);
+
+        // Should return empty Vec, not error
+        let projects = service.list_projects(10, 0).await.unwrap();
+        assert!(projects.is_empty(), "Expected empty Vec when no projects exist");
+
+        let projects = service.list_projects(100, 0).await.unwrap();
+        assert!(projects.is_empty(), "Expected empty Vec with larger limit");
+
+        let projects = service.list_projects(10, 100).await.unwrap();
+        assert!(projects.is_empty(), "Expected empty Vec with offset beyond range");
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_list_projects_returns_correct_items_within_limit_offset_range() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let service = StorageService::new(session_repo, project_repo, pool);
+
+        // Create 10 projects
+        for i in 0..10 {
+            let mut project = create_test_project();
+            project.path = format!("/tmp/test_project_{}", i);
+            project.name = Some(format!("Test Project {}", i));
+            service.save_project(&project).await.unwrap();
+        }
+
+        // Test limit
+        let projects = service.list_projects(3, 0).await.unwrap();
+        assert_eq!(projects.len(), 3, "Should return at most limit items");
+
+        let projects = service.list_projects(100, 0).await.unwrap();
+        assert_eq!(projects.len(), 10, "Should return all 10 projects when limit >= total");
+
+        // Test offset
+        let projects = service.list_projects(10, 5).await.unwrap();
+        assert_eq!(projects.len(), 5, "Should return 5 items when offset is 5 and total is 10");
+
+        let projects = service.list_projects(10, 10).await.unwrap();
+        assert_eq!(projects.len(), 0, "Should return 0 items when offset equals total count");
+
+        // Test limit and offset together
+        let projects = service.list_projects(3, 2).await.unwrap();
+        assert_eq!(projects.len(), 3, "Should return 3 items starting from offset 2");
+
+        let projects = service.list_projects(3, 8).await.unwrap();
+        assert_eq!(projects.len(), 2, "Should return 2 items when only 2 remain after offset");
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_pagination_consistency_across_multiple_calls() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let service = StorageService::new(session_repo, project_repo, pool);
+
+        // Create 10 sessions
+        for i in 0..10 {
+            let mut session = create_test_session();
+            session.add_message(Message::user(format!("Message {}", i)));
+            service.save_session(&session).await.unwrap();
+        }
+
+        // First call - get first page
+        let page1 = service.list_sessions(5, 0).await.unwrap();
+        assert_eq!(page1.len(), 5);
+
+        // Second call - get second page
+        let page2 = service.list_sessions(5, 5).await.unwrap();
+        assert_eq!(page2.len(), 5);
+
+        // Combined pages should have all items
+        let all = service.list_sessions(10, 0).await.unwrap();
+        assert_eq!(all.len(), 10);
+
+        // Verify no overlap between pages
+        let page1_ids: Vec<_> = page1.iter().map(|s| s.id).collect();
+        let page2_ids: Vec<_> = page2.iter().map(|s| s.id).collect();
+        for id1 in &page1_ids {
+            for id2 in &page2_ids {
+                assert_ne!(id1, id2, "Pages should not overlap");
+            }
+        }
+
+        // Verify all items are accounted for
+        let mut all_ids: Vec<_> = page1_ids.clone();
+        all_ids.extend(page2_ids);
+        assert_eq!(all_ids.len(), 10, "All 10 sessions should be accounted for across pages");
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_list_sessions_handles_invalid_limit_offset_values() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let service = StorageService::new(session_repo, project_repo, pool);
+
+        // Create 5 sessions
+        for i in 0..5 {
+            let session = create_test_session();
+            service.save_session(&session).await.unwrap();
+        }
+
+        // Zero limit should return empty
+        let sessions = service.list_sessions(0, 0).await.unwrap();
+        assert_eq!(sessions.len(), 0, "Zero limit should return empty Vec");
+
+        // Very large offset should return empty
+        let sessions = service.list_sessions(10, 1000).await.unwrap();
+        assert!(sessions.is_empty(), "Offset beyond total should return empty Vec");
+
+        // Zero offset should work normally
+        let sessions = service.list_sessions(10, 0).await.unwrap();
+        assert_eq!(sessions.len(), 5, "Zero offset should work normally");
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_list_projects_handles_invalid_limit_offset_values() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let service = StorageService::new(session_repo, project_repo, pool);
+
+        // Create 5 projects
+        for i in 0..5 {
+            let mut project = create_test_project();
+            project.path = format!("/tmp/test_project_{}", i);
+            service.save_project(&project).await.unwrap();
+        }
+
+        // Zero limit should return empty
+        let projects = service.list_projects(0, 0).await.unwrap();
+        assert_eq!(projects.len(), 0, "Zero limit should return empty Vec");
+
+        // Very large offset should return empty
+        let projects = service.list_projects(10, 1000).await.unwrap();
+        assert!(projects.is_empty(), "Offset beyond total should return empty Vec");
+
+        // Zero offset should work normally
+        let projects = service.list_projects(10, 0).await.unwrap();
+        assert_eq!(projects.len(), 5, "Zero offset should work normally");
+
+        drop(temp_dir);
+    }
+}
+
+#[cfg(test)]
+mod session_repository_pagination_tests {
+    use super::*;
+    use crate::memory_repository::InMemorySessionRepository;
+    use opencode_core::Session;
+
+    fn create_test_session_for_pagination() -> Session {
+        let mut session = Session::new();
+        session.add_message(Message::user("Test message".to_string()));
+        session
+    }
+
+    #[tokio::test]
+    async fn test_in_memory_session_repository_list_pagination() {
+        let repo = InMemorySessionRepository::new();
+
+        // Create 10 sessions
+        for i in 0..10 {
+            let session = create_test_session_for_pagination();
+            repo.save(&session).await.unwrap();
+        }
+
+        // Test limit
+        let sessions = repo.find_all(3, 0).await.unwrap();
+        assert_eq!(sessions.len(), 3);
+
+        // Test offset
+        let sessions = repo.find_all(10, 5).await.unwrap();
+        assert_eq!(sessions.len(), 5);
+
+        // Test empty result
+        let sessions = repo.find_all(10, 100).await.unwrap();
+        assert!(sessions.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_in_memory_session_repository_list_empty() {
+        let repo = InMemorySessionRepository::new();
+
+        let sessions = repo.find_all(10, 0).await.unwrap();
+        assert!(sessions.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod project_repository_pagination_tests {
+    use super::*;
+    use crate::memory_repository::InMemoryProjectRepository;
+    use chrono::Utc;
+    use uuid::Uuid;
+
+    fn create_test_project_for_pagination(path: &str) -> ProjectModel {
+        ProjectModel {
+            id: Uuid::new_v4().to_string(),
+            path: path.to_string(),
+            name: Some("Test Project".to_string()),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            data: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_in_memory_project_repository_list_pagination() {
+        let repo = InMemoryProjectRepository::new();
+
+        // Create 10 projects
+        for i in 0..10 {
+            let project = create_test_project_for_pagination(&format!("/tmp/test_project_{}", i));
+            repo.save(&project).await.unwrap();
+        }
+
+        // Test limit
+        let projects = repo.find_all(3, 0).await.unwrap();
+        assert_eq!(projects.len(), 3);
+
+        // Test offset
+        let projects = repo.find_all(10, 5).await.unwrap();
+        assert_eq!(projects.len(), 5);
+
+        // Test empty result
+        let projects = repo.find_all(10, 100).await.unwrap();
+        assert!(projects.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_in_memory_project_repository_list_empty() {
+        let repo = InMemoryProjectRepository::new();
+
+        let projects = repo.find_all(10, 0).await.unwrap();
+        assert!(projects.is_empty());
+    }
 }
