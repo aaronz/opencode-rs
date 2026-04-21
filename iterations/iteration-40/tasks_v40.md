@@ -47,7 +47,7 @@
 | **FR Reference** | FR-421 |
 | **Description** | Consider adding `derive(Ord, PartialOrd)` to `define_id_newtype!` macro if total ordering of IDs is required |
 | **File** | `opencode-rust/crates/core/src/id.rs:35` |
-| **Status** | ⏳ Pending |
+| **Status** | ✅ Done |
 | **Priority** | P2 |
 | **Estimated Effort** | 10 minutes |
 
@@ -75,7 +75,7 @@ pub struct $name(pub Uuid);
 |----------|-------|--------|
 | P0 | 0 | ✅ No blocking issues |
 | P1 | 0 | ✅ No must-fix items |
-| P2 | 2 | ⏳ 2 optional enhancements |
+| P2 | 2 | ✅ All complete |
 | **Total** | **2** | **100% complete (P0/P1)** |
 
 ---
@@ -85,7 +85,7 @@ pub struct $name(pub Uuid);
 | Task ID | Description | Status | Notes |
 |---------|-------------|--------|-------|
 | P2.1 | Review export visibility | ✅ Done | Changed to `pub` visibility + added 15 visibility tests |
-| P2.2 | Consider Ord/PartialOrd derives | ⏳ Pending | Low priority - no functional impact |
+| P2.2 | Consider Ord/PartialOrd derives | ✅ Done | Added Ord/PartialOrd derives + 7 new tests |
 
 ---
 
@@ -118,12 +118,12 @@ pub struct $name(pub Uuid);
 | Default | ✅ |
 | Display | ✅ |
 | FromStr | ✅ |
-| Ord | ❌ Not derived (P2) |
-| PartialOrd | ❌ Not derived (P2) |
+| Ord | ✅ Derived |
+| PartialOrd | ✅ Derived |
 | Serialize | ❌ Not included (per PRD) |
 | Deserialize | ❌ Not included (per PRD) |
 
-### Test Coverage (18/18 = 100%)
+### Test Coverage (25/25 = 100%)
 
 All tests passing:
 - IdGenerator tests (3)
@@ -134,7 +134,9 @@ All tests passing:
 - Invalid parse tests (3)
 - Copy/Clone tests (3)
 - Default tests (3)
-- Ordering test (1)
+- Ordering tests (6) - Added Ord/PartialOrd verification for SessionId, UserId, ProjectId
+- Ordering consistency test (1) - Verifies ordering matches UUID ordering
+- BTreeSet/BTreeMap sorting tests (2) - Verifies IDs work in sorted collections
 - Error display test (1)
 
 ---

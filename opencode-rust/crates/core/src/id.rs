@@ -32,7 +32,7 @@ pub enum IdParseError {
 
 macro_rules! define_id_newtype {
     ($name:ident, $prefix:expr) => {
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
         pub struct $name(pub Uuid);
 
         impl $name {
@@ -330,7 +330,77 @@ mod tests {
     fn test_session_id_ordering() {
         let id1 = SessionId::new();
         let id2 = SessionId::new();
-        let _ord = id1.0.cmp(&id2.0);
+        // Direct Ord comparison (now that Ord is derived)
+        let _ord = id1.cmp(&id2);
+        // Also verify PartialOrd works
+        assert!(id1 <= id2 || id1 >= id2);
+    }
+
+    #[test]
+    fn test_user_id_ordering() {
+        let id1 = UserId::new();
+        let id2 = UserId::new();
+        let _ord = id1.cmp(&id2);
+        assert!(id1 <= id2 || id1 >= id2);
+    }
+
+    #[test]
+    fn test_project_id_ordering() {
+        let id1 = ProjectId::new();
+        let id2 = ProjectId::new();
+        let _ord = id1.cmp(&id2);
+        assert!(id1 <= id2 || id1 >= id2);
+    }
+
+    #[test]
+    fn test_session_id_ordering_consistent_with_uuid() {
+        let id1 = SessionId::new();
+        let id2 = SessionId::new();
+        // Ordering should be consistent with underlying UUID ordering
+        let id_order = id1.cmp(&id2);
+        let uuid_order = id1.0.cmp(&id2.0);
+        assert_eq!(id_order, uuid_order);
+    }
+
+    #[test]
+    fn test_ids_sortable_in_btree_set() {
+        use std::collections::BTreeSet;
+        let id1 = SessionId::new();
+        let id2 = SessionId::new();
+        let id3 = SessionId::new();
+
+        let mut set: BTreeSet<SessionId> = BTreeSet::new();
+        set.insert(id3);
+        set.insert(id1.clone());
+        set.insert(id2.clone());
+
+        // Should be sortable without custom comparator
+        let mut iter = set.iter();
+        let first = iter.next().unwrap();
+        let second = iter.next().unwrap();
+        let third = iter.next().unwrap();
+        assert!(first <= second && second <= third);
+    }
+
+    #[test]
+    fn test_ids_sortable_in_btree_map() {
+        use std::collections::BTreeMap;
+        let id1 = SessionId::new();
+        let id2 = SessionId::new();
+        let id3 = SessionId::new();
+
+        let mut map: BTreeMap<SessionId, String> = BTreeMap::new();
+        map.insert(id3.clone(), "third".to_string());
+        map.insert(id1.clone(), "first".to_string());
+        map.insert(id2.clone(), "second".to_string());
+
+        // Keys should be stored in sorted order in BTreeMap
+        let mut iter = map.keys();
+        let first = *iter.next().unwrap();
+        let second = *iter.next().unwrap();
+        let third = *iter.next().unwrap();
+        // Verify the IDs are in sorted order (consistent with Ord)
+        assert!(first < second && second < third);
     }
 
     #[test]

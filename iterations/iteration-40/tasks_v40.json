@@ -25,7 +25,7 @@
       "priority": "P2",
       "title": "Consider Adding Ord/PartialOrd Derives",
       "description": "Consider adding `derive(Ord, PartialOrd)` to `define_id_newtype!` macro if total ordering of IDs is required. Current derives: `#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]`. Potential change: `#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]`",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify Id types can be compared using Ord/PartialOrd",
         "AddUnitTest: verify IDs can be sorted in BTreeMap/BTreeSet without custom comparator",
