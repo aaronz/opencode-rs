@@ -148,11 +148,9 @@ impl Dialog for ApiKeyInputDialog {
             self.input.chars().nth(self.cursor_position).unwrap_or(' ')
         };
 
-        let masked_len = self.masked_text().len();
-        let before_cursor_len = self.cursor_position.min(masked_len);
-
-        let before_cursor_text = &self.masked_text()[..before_cursor_len];
-        let after_cursor_text = &self.masked_text()[before_cursor_len..];
+        let masked = self.masked_text();
+        let before_cursor_text: String = masked.chars().take(self.cursor_position).collect();
+        let after_cursor_text: String = masked.chars().skip(self.cursor_position).collect();
 
         let input_line = Line::from(vec![
             Span::styled(before_cursor_text, text_style),

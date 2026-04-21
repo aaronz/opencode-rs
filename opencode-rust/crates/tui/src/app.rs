@@ -1275,6 +1275,8 @@ impl App {
             "huggingface" => "Hugging Face".to_string(),
             "copilot" => "GitHub Copilot".to_string(),
             "ai21" => "AI21".to_string(),
+            "minimax" => "MiniMax".to_string(),
+            "qwen" => "Qwen".to_string(),
             _ => provider_id.to_string(),
         }
     }
@@ -5553,7 +5555,7 @@ OpenCode Agent Configuration
         &mut self,
         _terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     ) -> io::Result<()> {
-        if let Event::Key(key) = event::read()? {
+        if let Ok(Event::Key(key)) = event::read() {
             if key.kind == KeyEventKind::Press {
                 if let Some(dialog) = self.api_key_input_dialog.as_mut() {
                     let action = dialog.handle_input(key);

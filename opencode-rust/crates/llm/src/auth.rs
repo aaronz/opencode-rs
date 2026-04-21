@@ -348,6 +348,8 @@ impl CredentialStore {
             ("COHERE_API_KEY", "cohere"),
             ("TOGETHER_API_KEY", "togetherai"),
             ("PERPLEXITY_API_KEY", "perplexity"),
+            ("MINIMAX_API_KEY", "minimax"),
+            ("QWEN_API_KEY", "qwen"),
         ];
 
         for (env_var, provider) in env_vars {

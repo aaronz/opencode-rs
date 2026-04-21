@@ -50,6 +50,8 @@ impl ConnectProviderDialog {
             ("huggingface".to_string(), "Hugging Face".to_string()),
             ("copilot".to_string(), "GitHub Copilot".to_string()),
             ("ai21".to_string(), "AI21".to_string()),
+            ("minimax".to_string(), "MiniMax".to_string()),
+            ("qwen".to_string(), "Qwen".to_string()),
         ]
     }
 }

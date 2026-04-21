@@ -1,24 +1,30 @@
 use crate::provider::sealed;
-use crate::provider::{Model, Provider, ProviderConfig, StreamingCallback};
+use crate::provider::{Model, Provider, StreamingCallback};
 use opencode_core::OpenCodeError;
 
-pub struct CerebrasProvider {
-    config: ProviderConfig,
+pub struct MiniMaxProvider {
+    api_key: String,
+    model: String,
+    temperature: f32,
 }
 
-impl CerebrasProvider {
-    pub fn new(config: ProviderConfig) -> Self {
-        Self { config }
+impl MiniMaxProvider {
+    pub fn new(api_key: String, model: String) -> Self {
+        Self {
+            api_key,
+            model,
+            temperature: 0.7,
+        }
     }
 }
 
-impl sealed::Sealed for CerebrasProvider {}
+impl sealed::Sealed for MiniMaxProvider {}
 
 #[async_trait::async_trait]
-impl Provider for CerebrasProvider {
+impl Provider for MiniMaxProvider {
     async fn complete(&self, prompt: &str, context: Option<&str>) -> Result<String, OpenCodeError> {
         let client = reqwest::Client::new();
-        let url = "https://api.cerebras.ai/v1/chat/completions";
+        let url = "https://api.minimax.io/v1/chat/completions";
 
         let messages = if let Some(ctx) = context {
             vec![
@@ -30,14 +36,14 @@ impl Provider for CerebrasProvider {
         };
 
         let body = serde_json::json!({
-            "model": self.config.model,
+            "model": self.model,
             "messages": messages,
-            "temperature": self.config.temperature,
+            "temperature": self.temperature,
         });
 
         let response = client
             .post(url)
-            .header("Authorization", format!("Bearer {}", self.config.api_key))
+            .header("Authorization", format!("Bearer {}", self.api_key))
             .header("Content-Type", "application/json")
             .json(&body)
             .send()
@@ -51,7 +57,7 @@ impl Provider for CerebrasProvider {
         result["choices"][0]["message"]["content"]
             .as_str()
             .map(|s| s.to_string())
-            .ok_or_else(|| OpenCodeError::Llm("Invalid Cerebras response".to_string()))
+            .ok_or_else(|| OpenCodeError::Llm("Invalid MiniMax response".to_string()))
     }
 
     async fn complete_streaming(
@@ -60,20 +66,20 @@ impl Provider for CerebrasProvider {
         mut callback: StreamingCallback,
     ) -> Result<(), OpenCodeError> {
         let client = reqwest::Client::new();
-        let url = "https://api.cerebras.ai/v1/chat/completions";
+        let url = "https://api.minimax.io/v1/chat/completions";
 
         let body = serde_json::json!({
-            "model": self.config.model,
+            "model": self.model,
             "messages": [
                 {"role": "user", "content": prompt}
             ],
-            "temperature": self.config.temperature,
+            "temperature": self.temperature,
             "stream": true,
         });
 
         let response = client
             .post(url)
-            .header("Authorization", format!("Bearer {}", self.config.api_key))
+            .header("Authorization", format!("Bearer {}", self.api_key))
             .header("Content-Type", "application/json")
             .json(&body)
             .send()
@@ -84,7 +90,7 @@ impl Provider for CerebrasProvider {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
             return Err(OpenCodeError::Llm(format!(
-                "Cerebras API error {}: {}",
+                "MiniMax API error {}: {}",
                 status, error_text
             )));
         }
@@ -112,7 +118,7 @@ impl Provider for CerebrasProvider {
                         }
                     }
                 }
-                Err(e) => return Err(OpenCodeError::Llm(format!("Cerebras stream error: {}", e))),
+                Err(e) => return Err(OpenCodeError::Llm(format!("MiniMax stream error: {}", e))),
             }
         }
 
@@ -120,11 +126,16 @@ impl Provider for CerebrasProvider {
     }
 
     fn get_models(&self) -> Vec<Model> {
-        vec![Model::new("llama-3.3-70b", "Llama 3.3 70B")]
+        vec![
+            Model::new("MiniMax-M2.7", "MiniMax M2.7"),
+            Model::new("MiniMax-M2.7-highspeed", "MiniMax M2.7 HighSpeed"),
+            Model::new("MiniMax-M2.5", "MiniMax M2.5"),
+            Model::new("MiniMax-M2.5-highspeed", "MiniMax M2.5 HighSpeed"),
+        ]
     }
 
     fn provider_name(&self) -> &str {
-        "cerebras"
+        "minimax"
     }
 }
 
@@ -133,36 +144,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_cerebras_provider_new() {
-        let config = ProviderConfig {
-            model: "llama-3.3-70b".to_string(),
-            api_key: "test-key".to_string(),
-            temperature: 0.7,
-            headers: std::collections::HashMap::new(),
-        };
-        let provider = CerebrasProvider::new(config);
-        assert_eq!(provider.provider_name(), "cerebras");
+    fn test_minimax_provider_new() {
+        let provider = MiniMaxProvider::new("test-key".to_string(), "MiniMax-M2.7".to_string());
+        assert_eq!(provider.provider_name(), "minimax");
     }
 
     #[test]
-    fn test_cerebras_provider_get_models() {
-        let config = ProviderConfig::default();
-        let provider = CerebrasProvider::new(config);
+    fn test_minimax_provider_get_models() {
+        let provider = MiniMaxProvider::new("test-key".to_string(), "MiniMax-M2.7".to_string());
         let models = provider.get_models();
         assert!(!models.is_empty());
-        assert!(models.iter().any(|m| m.id == "llama-3.3-70b"));
-    }
-
-    #[tokio::test]
-    async fn test_cerebras_complete_returns_error_without_api_key() {
-        let config = ProviderConfig {
-            model: "llama-3.3-70b".to_string(),
-            api_key: "invalid-key".to_string(),
-            temperature: 0.7,
-            headers: std::collections::HashMap::new(),
-        };
-        let provider = CerebrasProvider::new(config);
-        let result = provider.complete("test prompt", None).await;
-        assert!(result.is_err());
+        assert!(models.iter().any(|m| m.id == "MiniMax-M2.7"));
     }
 }

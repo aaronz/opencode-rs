@@ -285,6 +285,10 @@ pub enum ProviderSpec {
     Mistral { api_key: String, model: String },
     #[serde(rename = "groq")]
     Groq { api_key: String, model: String },
+    #[serde(rename = "minimax")]
+    MiniMax { api_key: String, model: String },
+    #[serde(rename = "qwen")]
+    Qwen { api_key: String, model: String },
 }
 
 impl ProviderSpec {
@@ -300,6 +304,8 @@ impl ProviderSpec {
             Self::OpenRouter { .. } => "openrouter",
             Self::Mistral { .. } => "mistral",
             Self::Groq { .. } => "groq",
+            Self::MiniMax { .. } => "minimax",
+            Self::Qwen { .. } => "qwen",
         }
     }
 
@@ -315,6 +321,8 @@ impl ProviderSpec {
             Self::OpenRouter { model, .. } => model,
             Self::Mistral { model, .. } => model,
             Self::Groq { model, .. } => model,
+            Self::MiniMax { model, .. } => model,
+            Self::Qwen { model, .. } => model,
         }
     }
 }
@@ -531,6 +539,8 @@ impl ProviderManager {
         self.register_factory(Box::new(OllamaProviderFactory));
         self.register_factory(Box::new(LmStudioProviderFactory));
         self.register_factory(Box::new(LocalInferenceProviderFactory));
+        self.register_factory(Box::new(MiniMaxProviderFactory));
+        self.register_factory(Box::new(QwenProviderFactory));
     }
 
     pub fn register_factory(&mut self, factory: Box<dyn ProviderFactory>) {
@@ -824,6 +834,64 @@ impl ProviderFactory for LocalInferenceProviderFactory {
     }
 }
 
+pub struct MiniMaxProviderFactory;
+
+impl sealed::Sealed for MiniMaxProviderFactory {}
+impl ProviderFactory for MiniMaxProviderFactory {
+    fn name(&self) -> &str {
+        "minimax"
+    }
+
+    fn create(&self, config: &ProviderConfig) -> Result<DynProvider, LlmError> {
+        match &config.spec {
+            ProviderSpec::MiniMax { api_key, model } => {
+                let provider = crate::minimax::MiniMaxProvider::new(api_key.clone(), model.clone());
+                let mut identity = ProviderIdentity::new("minimax", Some(model));
+                identity.reasoning_budget = config.reasoning_budget;
+                identity.variant = config.variant.clone();
+                Ok(DynProvider::with_identity(provider, identity))
+            }
+            _ => Err(LlmError::Provider(format!(
+                "MiniMax factory cannot create provider from {:?}",
+                config.spec
+            ))),
+        }
+    }
+
+    fn supports(&self, spec: &ProviderSpec) -> bool {
+        matches!(spec, ProviderSpec::MiniMax { .. })
+    }
+}
+
+pub struct QwenProviderFactory;
+
+impl sealed::Sealed for QwenProviderFactory {}
+impl ProviderFactory for QwenProviderFactory {
+    fn name(&self) -> &str {
+        "qwen"
+    }
+
+    fn create(&self, config: &ProviderConfig) -> Result<DynProvider, LlmError> {
+        match &config.spec {
+            ProviderSpec::Qwen { api_key, model } => {
+                let provider = crate::qwen::QwenProvider::new(api_key.clone(), model.clone());
+                let mut identity = ProviderIdentity::new("qwen", Some(model));
+                identity.reasoning_budget = config.reasoning_budget;
+                identity.variant = config.variant.clone();
+                Ok(DynProvider::with_identity(provider, identity))
+            }
+            _ => Err(LlmError::Provider(format!(
+                "Qwen factory cannot create provider from {:?}",
+                config.spec
+            ))),
+        }
+    }
+
+    fn supports(&self, spec: &ProviderSpec) -> bool {
+        matches!(spec, ProviderSpec::Qwen { .. })
+    }
+}
+
 pub struct DynamicProviderFactory;
 
 impl DynamicProviderFactory {
@@ -869,6 +937,8 @@ impl ProviderFactory for DynamicProviderFactory {
                 .unwrap_or_else(|| "https://openrouter.ai/api/v1".to_string()),
             ProviderSpec::Mistral { .. } => "https://api.mistral.ai".to_string(),
             ProviderSpec::Groq { .. } => "https://api.groq.com".to_string(),
+            ProviderSpec::MiniMax { .. } => "https://api.minimax.io/v1".to_string(),
+            ProviderSpec::Qwen { .. } => "https://dashscope.aliyuncs.com/api/v1".to_string(),
         };
 
         let adapter = crate::provider_adapter::OpenAICompatibleAdapter::new(

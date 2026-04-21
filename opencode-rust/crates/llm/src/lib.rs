@@ -19,6 +19,7 @@ pub mod groq;
 pub mod huggingface;
 pub mod lm_studio;
 pub mod message_transform;
+pub mod minimax;
 pub mod mistral;
 pub mod model_selection;
 pub mod models;
@@ -31,6 +32,7 @@ pub mod provider;
 pub mod provider_abstraction;
 pub mod provider_adapter;
 pub mod provider_filter;
+pub mod qwen;
 pub mod togetherai;
 pub mod vercel;
 pub mod vertex;
@@ -63,6 +65,7 @@ pub use gitlab::{should_enable_gitlab_duo, GitLabDiscoveryError, GitLabProvider}
 pub use huggingface::HuggingFaceProvider;
 pub use lm_studio::LmStudioProvider;
 pub use message_transform::{MessageTransform, TransformPipeline};
+pub use minimax::MiniMaxProvider;
 pub use model_selection::{ModelSelection, ProviderType, UserModelConfig};
 pub use models::ModelRegistry;
 pub use ollama::OllamaProvider;
@@ -84,3 +87,4 @@ pub use provider_adapter::{
     AnthropicAdapter, LocalEndpointAdapter, OpenAICompatibleAdapter, ProviderAdapter,
 };
 pub use provider_filter::ProviderFilter;
+pub use qwen::QwenProvider;
