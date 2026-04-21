@@ -120,7 +120,7 @@
       "priority": "P0",
       "title": "Implement canonicalize() async function",
       "description": "Implement canonicalize() async function - resolve symlinks, make absolute, requires path to exist. Return FileError::Io on failure. Uses tokio::fs::symlink_metadata and path methods.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify canonicalize() resolves symlinks correctly",
         "AddUnitTest: verify canonicalize() makes path absolute",
