@@ -220,7 +220,7 @@
       "priority": "P1",
       "title": "Implement exists() async function",
       "description": "Implement exists() async function - fast existence check. Return true if path exists, false otherwise. No error on missing path.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify exists() returns true for existing file",
         "AddUnitTest: verify exists() returns false for non-existent path",
@@ -240,7 +240,7 @@
       "priority": "P1",
       "title": "Implement create_dir_all() async function",
       "description": "Implement create_dir_all() async function - recursive directory creation like mkdir -p. Use tokio::fs::create_dir_all. Return success or FileError::Io.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify create_dir_all() creates nested directories",
         "AddUnitTest: verify create_dir_all() succeeds silently if directories exist",

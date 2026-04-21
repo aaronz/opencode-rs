@@ -1,7 +1,10 @@
 #!/bin/bash
 
+ts_echo() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
+}
+
 DEFAULT_MODEL="minimax-cn/MiniMax-M2.7"
-MODEL="${MODEL:-$DEFAULT_MODEL}"
 
 SESSION_EXPORT_DIR="${SESSION_EXPORT_DIR:-sessions}"
 EXPORT_SESSIONS="${EXPORT_SESSIONS:-true}"
@@ -40,7 +43,7 @@ check_file() {
         echo "❌ 文件无效（内容过少）: $1"
         return 1
     fi
-    echo "✅ 文件存在: $1 ($(wc -c < "$1") bytes)"
+    ts_echo "✅ 文件存在: $1 ($(wc -c < "$1") bytes)"
     return 0
 }
 
@@ -88,7 +91,7 @@ generate_if_missing() {
         echo "⏭️  跳过（已存在）: $file"
         return 0
     fi
-    echo "📝 生成文件: $file"
+    ts_echo "📝 生成文件: $file"
     rerun_if_missing "$file" "$prompt" "$max_retries"
 }
 
@@ -98,8 +101,8 @@ run_phase() {
     local prompt="$3"
     local max_retries=${4:-5}
 
-    echo ""
-    echo "[$phase_name]"
+    ts_echo ""
+    ts_echo "[$phase_name]"
 
     if check_file_quiet "$output_file"; then
         echo "⏭️  跳过（已存在）: $output_file"
@@ -122,9 +125,9 @@ save_checkpoint() {
     local phase="$2"
     local checkpoint_file="${3:-$OUTPUTS_DIR/.checkpoint}"
 
-    echo "iteration=$iteration" > "$checkpoint_file"
-    echo "phase=$phase" >> "$checkpoint_file"
-    echo "timestamp=$(date +%s)" >> "$checkpoint_file"
+    ts_echo "iteration=$iteration" > "$checkpoint_file"
+    ts_echo "phase=$phase" >> "$checkpoint_file"
+    ts_echo "timestamp=$(date +%s)" >> "$checkpoint_file"
 }
 
 load_checkpoint() {
@@ -141,7 +144,7 @@ load_checkpoint() {
         esac
     done < "$checkpoint_file"
 
-    echo "从检查点恢复: iteration=$CURRENT_ITERATION, phase=$CURRENT_PHASE"
+    ts_echo "从检查点恢复: iteration=$CURRENT_ITERATION, phase=$CURRENT_PHASE"
     return 0
 }
 
@@ -173,25 +176,25 @@ run_opencode_with_session_export() {
 
     local start_time
     start_time=$(date +%s)
-    echo "[DEBUG] $(date '+%Y-%m-%d %H:%M:%S') | run_opencode_with_session_export 开始 | model=$model"
+    ts_echo "[DEBUG] run_opencode_with_session_export 开始 | model=$model"
 
     local opencode_exit_code=0
     local opencode_output
 
-    opencode_output=$(timeout 300 opencode run -m "$model" --dangerously-skip-permissions "$prompt" --format json 2>&1) || opencode_exit_code=$?
+    opencode_output=$(timeout 600 opencode run -m "$model" --dangerously-skip-permissions "$prompt" --format json 2>&1) || opencode_exit_code=$?
 
     local elapsed=$(( $(date +%s) - start_time ))
-    echo "[DEBUG] $(date '+%Y-%m-%d %H:%M:%S') | opencode 完成 | elapsed=${elapsed}s | exit_code=$opencode_exit_code"
+    ts_echo "[DEBUG] opencode 完成 | elapsed=${elapsed}s | exit_code=$opencode_exit_code"
 
     if [ -n "$export_file" ]; then
         echo "$opencode_output" > "$export_file"
-        echo "[DEBUG] 已导出到: $export_file"
+        ts_echo "[DEBUG] 已导出到: $export_file"
     fi
 
     if [ $opencode_exit_code -eq 124 ]; then
-        echo "⚠️  opencode 超时 (5分钟)，继续执行"
+        ts_echo "⚠️  opencode 超时 (10分钟)，继续执行"
     elif [ $opencode_exit_code -ne 0 ]; then
-        echo "⚠️  opencode 异常退出: exit_code=$opencode_exit_code"
+        ts_echo "⚠️  opencode 异常退出: exit_code=$opencode_exit_code"
     fi
 
     rm -f "$temp_output"
@@ -206,6 +209,6 @@ export_session_by_id() {
         return 1
     fi
 
-    echo "📦 导出Session: $session_id -> $export_file"
+    ts_echo "📦 导出Session: $session_id -> $export_file"
     opencode export "$session_id" > "$export_file" 2>/dev/null && echo "✅ 导出成功: $export_file" || echo "⚠️  导出失败"
 }

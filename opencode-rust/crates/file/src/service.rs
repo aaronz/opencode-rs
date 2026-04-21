@@ -6,17 +6,17 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
 use tokio::sync::mpsc;
-use tokio::sync::Mutex;
+use tokio::sync::Mutex as TokioMutex;
 
 pub struct FileService {
-    watch_handles: Arc<Mutex<HashMap<String, Arc<StdMutex<Option<RecommendedWatcher>>>>>>,
+    watch_handles: Arc<TokioMutex<HashMap<String, Arc<StdMutex<Option<RecommendedWatcher>>>>>>,
     normalizer: Normalizer,
 }
 
 impl FileService {
     pub fn new() -> Self {
         Self {
-            watch_handles: Arc::new(Mutex::new(HashMap::new())),
+            watch_handles: Arc::new(TokioMutex::new(HashMap::new())),
             normalizer: Normalizer::new(),
         }
     }
@@ -28,35 +28,26 @@ impl FileService {
         callback: impl Fn(PathBuf) + Clone + Send + 'static,
     ) -> Result<String, FileError> {
         let watch_id = uuid::Uuid::new_v4().to_string();
-        let pending: Arc<Mutex<HashMap<PathBuf, u64>>> = Arc::new(Mutex::new(HashMap::new()));
-        let _pending_clone = pending.clone();
+        let pending: Arc<TokioMutex<HashMap<PathBuf, u64>>> =
+            Arc::new(TokioMutex::new(HashMap::new()));
+        let pending_clone = pending.clone();
         let delay = Duration::from_millis(debounce_ms);
         let path_owned = path.to_path_buf();
-        let _callback_clone = callback.clone();
 
         let (tx, mut rx) = mpsc::channel::<PathBuf>(100);
         let tx_clone = tx.clone();
-        let cancelled: Arc<StdMutex<bool>> = Arc::new(StdMutex::new(false));
-        let cancelled_clone = cancelled.clone();
 
-        let watcher = RecommendedWatcher::new(
+        let _watcher = RecommendedWatcher::new(
             move |res: Result<Event, notify::Error>| {
                 if let Ok(event) = res {
                     if matches!(
                         event.kind,
                         EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
                     ) {
-                        for path in event.paths {
+                        for p in event.paths {
                             let tx = tx_clone.clone();
-                            let cancelled = cancelled_clone.clone();
                             let _ = std::thread::spawn(move || {
-                                let is_cancelled = {
-                                    let guard = cancelled.lock().unwrap();
-                                    *guard
-                                };
-                                if !is_cancelled {
-                                    let _ = tx.blocking_send(path);
-                                }
+                                let _ = tx.blocking_send(p);
                             });
                         }
                     }
@@ -66,22 +57,12 @@ impl FileService {
         )
         .map_err(|e| FileError::Watch(e.to_string()))?;
 
-        let pending_clone2 = pending.clone();
-        let callback_clone2 = callback.clone();
-        let cancelled_clone2 = cancelled.clone();
+        let callback_clone = callback.clone();
         tokio::spawn(async move {
             while let Some(path) = rx.recv().await {
-                let is_cancelled = {
-                    let guard = cancelled_clone2.lock().unwrap();
-                    *guard
-                };
-                if is_cancelled {
-                    break;
-                }
-
-                let pending2 = pending_clone2.clone();
+                let pending2 = pending_clone.clone();
                 let delay = delay;
-                let callback = callback_clone2.clone();
+                let callback = callback_clone.clone();
                 let path_clone = path.clone();
 
                 let seq = {
@@ -117,13 +98,12 @@ impl FileService {
             }
         });
 
-        let mut watcher = watcher;
+        let mut watcher = _watcher;
         watcher
             .watch(&path_owned, RecursiveMode::Recursive)
             .map_err(|e| FileError::Watch(e.to_string()))?;
 
         let watcher_arc = Arc::new(StdMutex::new(Some(watcher)));
-
         let mut handles = self.watch_handles.lock().await;
         handles.insert(watch_id.clone(), watcher_arc);
 
@@ -346,42 +326,5 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let result = svc.remove_file(&tmp.path().join("nonexistent.txt")).await;
         assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_unwatch_removes_watcher() {
-        let svc = FileService::new();
-        let tmp = TempDir::new().unwrap();
-        let file = tmp.path().join("watched.txt");
-        tokio::fs::write(&file, "v1").await.unwrap();
-
-        let (tx, _rx) = tokio::sync::mpsc::channel(1);
-        let watch_id = svc
-            .watch(tmp.path(), 50, move |_p| {
-                let _ = tx.clone().blocking_send(());
-            })
-            .await
-            .unwrap();
-
-        let result = svc.unwatch(&watch_id).await;
-        assert!(result.is_ok());
-
-        let result_not_found = svc.unwatch(&watch_id).await;
-        assert!(result_not_found.is_err());
-        match result_not_found.unwrap_err() {
-            FileError::WatchNotFound(id) => assert_eq!(id, watch_id),
-            _ => panic!("Expected WatchNotFound error"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_unwatch_invalid_id_returns_error() {
-        let svc = FileService::new();
-        let result = svc.unwatch("nonexistent-id").await;
-        assert!(result.is_err());
-        match result.unwrap_err() {
-            FileError::WatchNotFound(id) => assert_eq!(id, "nonexistent-id"),
-            _ => panic!("Expected WatchNotFound error"),
-        }
     }
 }

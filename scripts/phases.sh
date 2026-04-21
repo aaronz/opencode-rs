@@ -1,5 +1,9 @@
 #!/bin/bash
 
+ts_echo() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
+}
+
 run_phase_gap_analysis() {
     local prd_path="$1"
     local output_dir="$2"
@@ -19,6 +23,8 @@ run_phase_gap_analysis() {
 - 禁止将工作委托给其他 agent
 - 必须直接在当前 session 中完成所有分析工作
 - 只使用 Read、Write、Edit、Grep、LSP 等直接工具
+- 禁止向用户提问或请求确认，必须独立做出最佳判断并继续执行
+- 如遇不确定情况，使用你自己的最佳判断，无需等待用户输入
 - 禁止向用户提问或请求确认，必须独立做出最佳判断并继续执行
 - 如遇不确定情况，使用你自己的最佳判断，无需等待用户输入
 
@@ -79,6 +85,8 @@ run_phase_constitution() {
 - 只使用 Read、Write、Edit、Grep、LSP 等直接工具
 - 禁止向用户提问或请求确认，必须独立做出最佳判断并继续执行
 - 如遇不确定情况，使用你自己的最佳判断，无需等待用户输入
+- 禁止向用户提问或请求确认，必须独立做出最佳判断并继续执行
+- 如遇不确定情况，使用你自己的最佳判断，无需等待用户输入
 
 ## Constitution
 $(cat $constitution_path 2>/dev/null || echo "Constitution不存在")
@@ -117,6 +125,8 @@ run_phase_spec() {
 - 禁止将工作委托给其他 agent
 - 必须直接在当前 session 中完成所有分析工作
 - 只使用 Read、Write、Edit、Grep、LSP 等直接工具
+- 禁止向用户提问或请求确认，必须独立做出最佳判断并继续执行
+- 如遇不确定情况，使用你自己的最佳判断，无需等待用户输入
 - 禁止向用户提问或请求确认，必须独立做出最佳判断并继续执行
 - 如遇不确定情况，使用你自己的最佳判断，无需等待用户输入
 
@@ -159,6 +169,8 @@ run_phase_plan() {
 - 禁止将工作委托给其他 agent
 - 必须直接在当前 session 中完成所有分析工作
 - 只使用 Read、Write、Edit、Grep、LSP 等直接工具
+- 禁止向用户提问或请求确认，必须独立做出最佳判断并继续执行
+- 如遇不确定情况，使用你自己的最佳判断，无需等待用户输入
 - 禁止向用户提问或请求确认，必须独立做出最佳判断并继续执行
 - 如遇不确定情况，使用你自己的最佳判断，无需等待用户输入
 
@@ -265,19 +277,19 @@ implement_task() {
     local task_json="$2"
     local spec_file="$3"
 
-    echo ""
-    echo "----------------------------------------------"
-    echo "🎯 实现任务: $task_id"
-    echo "----------------------------------------------"
+    ts_echo ""
+    ts_echo "----------------------------------------------"
+    ts_echo "🎯 实现任务: $task_id"
+    ts_echo "----------------------------------------------"
 
     local task_details=$(get_task_details "$task_json" "$task_id")
-    echo "任务详情:"
-    echo "$task_details" | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'标题: {d.get(\"title\",\"\")}'); print(f'优先级: {d.get(\"priority\",\"\")}'); print(f'测试标准: {d.get(\"test_criteria\",\"\")}')" 2>/dev/null || echo "$task_details"
+    ts_echo "任务详情:"
+    ts_echo "$task_details" | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'标题: {d.get(\"title\",\"\")}'); print(f'优先级: {d.get(\"priority\",\"\")}'); print(f'测试标准: {d.get(\"test_criteria\",\"\")}')" 2>/dev/null || echo "$task_details"
 
     update_task_status "$task_json" "$task_id" "in_progress"
 
-    echo ""
-    echo "开始实现..."
+    ts_echo ""
+    ts_echo "开始实现..."
 
     local prompt="实现任务：$task_id
 
@@ -314,8 +326,8 @@ ${CACHED_SPEC_CONTENT:-$(cat $spec_file)}
 
     run_opencode_with_session_export "$prompt" "$SESSION_EXPORT_DIR/task_${task_id}.json" "$MODEL"
 
-    echo ""
-    echo "验证实现..."
+    ts_echo ""
+    ts_echo "验证实现..."
 
     local test_passed=true
     local test_output=""
@@ -408,6 +420,6 @@ ${CACHED_SPEC_CONTENT:-$(cat $spec_file)}
         sed -i '' "s/^### $task_id:.*/### $task_id: ✅ Done/" "$task_file" 2>/dev/null || true
     fi
 
-    echo ""
-    echo "任务 $task_id 完成"
+    ts_echo ""
+    ts_echo "任务 $task_id 完成"
 }

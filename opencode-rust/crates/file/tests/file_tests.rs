@@ -560,3 +560,36 @@ async fn test_exists_does_not_throw_error_on_missing_path() {
     let exists_result = svc.exists(&missing_path).await;
     assert!(!exists_result, "exists() should return false, not throw error");
 }
+
+#[tokio::test]
+async fn test_create_dir_all_async_creates_nested_directories() {
+    let svc = FileService::new();
+    let tmp = TempDir::new().unwrap();
+    let path = tmp.path().join("nested").join("deeply").join("dir");
+
+    svc.create_dir_all(&path).await.unwrap();
+    assert!(path.exists(), "create_dir_all should create nested directories");
+    assert!(path.is_dir(), "created path should be a directory");
+}
+
+#[tokio::test]
+async fn test_create_dir_all_async_succeeds_silently_if_exists() {
+    let svc = FileService::new();
+    let tmp = TempDir::new().unwrap();
+    let path = tmp.path().join("already").join("exists");
+
+    tokio::fs::create_dir_all(&path).await.unwrap();
+    let result = svc.create_dir_all(&path).await;
+    assert!(result.is_ok(), "create_dir_all should succeed silently if directory exists");
+}
+
+#[tokio::test]
+async fn test_create_dir_all_async_permission_error() {
+    let svc = FileService::new();
+    let result = svc.create_dir_all(Path::new("/nonexistent/root/deep/path")).await;
+    assert!(result.is_err(), "create_dir_all should return error for permission denied");
+    match result.unwrap_err() {
+        FileError::Io { .. } => {}
+        _ => panic!("Expected FileError::Io for permission errors"),
+    }
+}
