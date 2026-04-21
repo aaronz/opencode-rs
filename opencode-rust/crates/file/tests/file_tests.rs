@@ -679,3 +679,79 @@ async fn test_copy_file_not_found_error() {
         _ => panic!("Expected FileError::NotFound"),
     }
 }
+
+#[tokio::test]
+async fn test_copy_dir_recursive() {
+    let svc = FileService::new();
+    let tmp = TempDir::new().unwrap();
+    let src = tmp.path().join("source");
+    let dst = tmp.path().join("dest");
+
+    tokio::fs::create_dir_all(&src).await.unwrap();
+    tokio::fs::write(src.join("file1.txt"), "content1").await.unwrap();
+    tokio::fs::write(src.join("file2.txt"), "content2").await.unwrap();
+    tokio::fs::create_dir_all(src.join("subdir")).await.unwrap();
+    tokio::fs::write(src.join("subdir").join("file3.txt"), "content3")
+        .await
+        .unwrap();
+
+    let n = svc.copy_dir(&src, &dst).await.unwrap();
+    assert!(n > 0, "Should copy some bytes");
+    assert!(dst.join("file1.txt").exists(), "file1.txt should exist in dest");
+    assert!(dst.join("file2.txt").exists(), "file2.txt should exist in dest");
+    assert!(
+        dst.join("subdir").join("file3.txt").exists(),
+        "subdir/file3.txt should exist in dest"
+    );
+
+    let content1 = tokio::fs::read_to_string(dst.join("file1.txt"))
+        .await
+        .unwrap();
+    assert_eq!(content1, "content1");
+}
+
+#[tokio::test]
+async fn test_copy_dir_preserves_directory_structure() {
+    let svc = FileService::new();
+    let tmp = TempDir::new().unwrap();
+    let src = tmp.path().join("source");
+    let dst = tmp.path().join("dest");
+
+    tokio::fs::create_dir_all(src.join("a/b/c")).await.unwrap();
+    tokio::fs::write(src.join("a/file.txt"), "a").await.unwrap();
+    tokio::fs::write(src.join("a/b/file.txt"), "b").await.unwrap();
+    tokio::fs::write(src.join("a/b/c/file.txt"), "c").await.unwrap();
+
+    svc.copy_dir(&src, &dst).await.unwrap();
+
+    assert!(dst.join("a").is_dir(), "a should be a directory");
+    assert!(dst.join("a/b").is_dir(), "a/b should be a directory");
+    assert!(dst.join("a/b/c").is_dir(), "a/b/c should be a directory");
+    assert!(
+        dst.join("a/file.txt").is_file(),
+        "a/file.txt should be a file"
+    );
+    assert!(
+        dst.join("a/b/file.txt").is_file(),
+        "a/b/file.txt should be a file"
+    );
+    assert!(
+        dst.join("a/b/c/file.txt").is_file(),
+        "a/b/c/file.txt should be a file"
+    );
+}
+
+#[tokio::test]
+async fn test_copy_dir_not_a_directory_error() {
+    let svc = FileService::new();
+    let tmp = TempDir::new().unwrap();
+    let file = tmp.path().join("a_file.txt");
+    tokio::fs::write(&file, "content").await.unwrap();
+
+    let result = svc.copy_dir(&file, &tmp.path().join("dest")).await;
+    assert!(result.is_err(), "copy_dir should return error for file source");
+    match result.unwrap_err() {
+        FileError::NotADirectory(p) => assert_eq!(p, file),
+        _ => panic!("Expected FileError::NotADirectory"),
+    }
+}
