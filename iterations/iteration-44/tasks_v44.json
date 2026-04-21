@@ -339,7 +339,7 @@
       "priority": "P1",
       "title": "Write unit test test_debouncer_merges_rapid_events",
       "description": "Write unit test test_debouncer_merges_rapid_events - verify multiple rapid events collapse to single callback",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify multiple rapid events on same path collapse to single callback"
       ],
