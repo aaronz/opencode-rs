@@ -62,7 +62,7 @@
       "priority": "P2",
       "title": "Add documentation comments to global.rs",
       "description": "Add module-level documentation and struct-level documentation to global.rs. Module docs explain GlobalState is a global state container for CLI/TUI runtime serving as DI container. Struct docs describe it owns Config, EventBus, and optional Session.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: cargo doc --no-deps -p opencode-core generates documentation without errors",
         "AddRegressionTest: documentation contains module and struct docs"
