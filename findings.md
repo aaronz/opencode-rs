@@ -1,8 +1,7 @@
 # findings.md
 
 ## Current findings
-- docs/PRD 目前包含 01-21，共 21 份文档。
-- 当前迭代工作焦点仍在 iteration-21，对应 PRD 21《rust code refactor》相关收尾与验证。
-- 历史上已经明确过一条执行顺序：06 → 01 → 02 → 03 → 10 → 07 → 08 → 04 → 05 → 11 → 09 → 12 → 14 → 13 → 15 → 20 → 16/17/18/19。
-- 这个顺序本质上是：先基础设施和核心系统，再 API / 插件 / 配置 / TUI，再测试与重构收尾。
-- 当前用户问“后续迭代的 PRD 计划”，最有价值的是给出 iteration-21 之后剩余 PRD 的收束顺序，而不是重复已完成部分。
+- 现有定时器已经改为以 tasks_vN.json 的 not-done 状态判断 iteration 是否完成。
+- modules 顺序文件已创建：docs/PRD/modules/ITERATION_ORDER.md。
+- 还缺两块：自动启动下一个 module iteration，以及定时 push。
+- 当前 iteration-36 的恢复中出现 wasm target 相关失败，说明具体任务实现本身仍可能卡在环境或代码问题，而不是调度器问题。

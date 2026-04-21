@@ -26,17 +26,17 @@
 
 - [x] **T-G001-2:** Create `plugins/hello_world/Cargo.toml` ✅ Done
   - [ ] Package name: `opencode-plugin-hello-world`
-  - [ ] WASM target: `wasm32-wasi`
+  - [ ] WASM target: `wasm32-wasip1`
   - [ ] Dependencies: `wasmi`, `serde`, `serde_json`
 
-- [ ] **T-G001-3:** Implement `plugins/hello_world/src/lib.rs`
-  - [ ] `plugin_init() -> i32` function
-  - [ ] `plugin_execute(command: *const u8, len: usize) -> i32` function
-  - [ ] Basic tool registration example
+- [x] **T-G001-3:** Implement `plugins/hello_world/src/lib.rs` ✅ Done
+  - [x] `plugin_init() -> i32` function
+  - [x] `plugin_execute(command: *const u8, len: usize) -> i32` function
+  - [x] Basic tool registration example
 
 - [x] **T-G001-4:** Create `plugins/hello_world/build.sh` ✅ Done
   - [x] Add shebang `#!/bin/bash`
-  - [x] Build for `wasm32-wasi` target
+  - [x] Build for `wasm32-wasip1` target
   - [x] Output .wasm to `plugins/bin/`
 
 - [x] **T-G001-5:** Create `scripts/build-plugins.sh` ✅ Done

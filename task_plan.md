@@ -1,17 +1,20 @@
 # task_plan.md
 
 ## Goal
-为 opencode-rs 制定后续 PRD 迭代计划，基于当前已完成/在做的 iteration-21 状态，给出务实的后续执行顺序、每轮目标与风险说明。
+把 opencode-rs 的定时迭代任务补成可持续运行的自动流水线，包括严格的 modules 顺序、卡住检测、进展汇报、自动推进到下一个 module，以及定时 push。
 
 ## Phases
-- [in_progress] Phase 1: 盘点当前 PRD 与迭代状态
-- [pending] Phase 2: 识别 iteration-21 之后最合理的 PRD 顺序
-- [pending] Phase 3: 输出后续迭代计划与建议
+- [in_progress] Phase 1: 审视当前定时脚本与仓库状态
+- [pending] Phase 2: 补自动推进下一个 module iteration
+- [pending] Phase 3: 补定时 push 逻辑
+- [pending] Phase 4: 验证 launchd 与脚本行为
 
 ## Notes
-- 用户问的是“后续迭代的 prd 计划”，重点是顺序和策略，不是重新做全量分析。
-- 需要结合此前 iteration-21 结果、已有 PRD 编号、以及之前已经确定过的依赖顺序。
-- 计划应偏务实，避免空泛 roadmap。
+- 用户已明确不需要 verification-report 作为完成条件。
+- 卡住判断基于仓库文件最近更新时间，阈值 20 分钟。
+- 每次定时触发都要给用户发进展汇报。
+- 需要把 modules 顺序真正用于自动执行，而不是只写文档。
 
 ## Errors Encountered
-- 无
+- 旧 LaunchAgent 指向 /tmp 脚本，已失效。
+- repo 在 Documents 下，launchd 直接执行脚本会遇到 macOS 权限问题，已改为 ~/.openclaw/cron 入口。

@@ -75,4 +75,4 @@ ratatui-testing/
 
 - [AGENTS.md](./AGENTS.md) - AI agent instructions
 - [PRD.md](./docs/PRD.md) - Product requirements
-- [docs/](./docs/) - Design and analysis documents
+- [docs/](docs/) - Design and analysis documents

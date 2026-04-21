@@ -49,6 +49,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 | 7xxx  | Validation |
 | 9xxx  | Internal |
 
+## Documentation
+
+- [SDK Guide](../../docs/sdk-guide.md) - Comprehensive guide to using the SDK
+
 ## License
 
 MIT

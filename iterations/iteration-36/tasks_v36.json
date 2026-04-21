@@ -22,17 +22,17 @@
       "id": "T-G001-2",
       "priority": "P1",
       "title": "Create plugins/hello_world/Cargo.toml",
-      "description": "Create Cargo.toml for hello_world plugin with package name 'opencode-plugin-hello-world', WASM target 'wasm32-wasi', and dependencies: wasmi, serde, serde_json.",
+      "description": "Create Cargo.toml for hello_world plugin with package name 'opencode-plugin-hello-world', WASM target 'wasm32-wasip1', and dependencies: wasmi, serde, serde_json.",
       "status": "done",
       "test_criteria": [
         "AddUnitTest: verify Cargo.toml parses correctly with required fields",
-        "AddIntegrationTest: verify wasm32-wasi target is configured",
+        "AddIntegrationTest: verify wasm32-wasip1 target is configured",
         "RunTestSuite: cargo metadata should succeed for the plugin crate"
       ],
       "test_commands": [
         "cat plugins/hello_world/Cargo.toml | grep -q 'name = \"opencode-plugin-hello-world\"'",
-        "cat plugins/hello_world/Cargo.toml | grep -q 'wasm32-wasi'",
-        "rustup target list --installed | grep -q wasm32-wasi || rustup target add wasm32-wasi"
+        "cat plugins/hello_world/Cargo.toml | grep -q 'wasm32-wasip1'",
+        "rustup target list --installed | grep -q wasm32-wasip1 || rustup target add wasm32-wasip1"
       ],
       "impl_notes": "Package name must be 'opencode-plugin-hello-world'. Use wasmi for WASM runtime. Edition 2021.",
       "dependencies": [
@@ -44,15 +44,15 @@
       "priority": "P1",
       "title": "Implement plugins/hello_world/src/lib.rs",
       "description": "Implement lib.rs with plugin_init() -> i32 function, plugin_execute(command: *const u8, len: usize) -> i32 function, and basic tool registration example.",
-      "status": "manual_check",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify plugin_init returns valid initialization code",
         "AddUnitTest: verify plugin_execute handles null pointers correctly",
         "AddIntegrationTest: verify WASM module exports required functions",
-        "RunTestSuite: cargo build --target wasm32-wasi should produce valid .wasm"
+        "RunTestSuite: cargo build --target wasm32-wasip1 should produce valid .wasm"
       ],
       "test_commands": [
-        "cargo build --target wasm32-wasi -p opencode-plugin-hello-world 2>&1 | head -50",
+        "cargo build --target wasm32-wasip1 -p opencode-plugin-hello-world 2>&1 | head -50",
         "test -f plugins/bin/opencode_plugin_hello_world.wasm && echo 'WASM output exists'"
       ],
       "impl_notes": "plugin_init should return 0 for success. plugin_execute should parse command JSON and return result code. Export functions with WASM ABI.",
@@ -64,7 +64,7 @@
       "id": "T-G001-4",
       "priority": "P1",
       "title": "Create plugins/hello_world/build.sh",
-      "description": "Create build script with shebang #!/bin/bash that builds for wasm32-wasi target and outputs .wasm to plugins/bin/.",
+      "description": "Create build script with shebang #!/bin/bash that builds for wasm32-wasip1 target and outputs .wasm to plugins/bin/.",
       "status": "manual_check",
       "test_criteria": [
         "AddUnitTest: verify build.sh has valid shebang",
@@ -76,7 +76,7 @@
         "head -1 plugins/hello_world/build.sh | grep -q '#!/bin/bash'",
         "./plugins/hello_world/build.sh && test -f plugins/bin/opencode_plugin_hello_world.wasm"
       ],
-      "impl_notes": "Script should create plugins/bin/ directory if not exists. Use cargo build --target wasm32-wasi.",
+      "impl_notes": "Script should create plugins/bin/ directory if not exists. Use cargo build --target wasm32-wasip1.",
       "dependencies": [
         "T-G001-3"
       ]
@@ -740,7 +740,7 @@
       "priority": "P2",
       "title": "Update crates/sdk/Cargo.toml for crates.io publishing",
       "description": "Update SDK Cargo.toml with version, license, description, repository URL, documentation URL, keywords, and categories.",
-      "status": "manual_check",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify Cargo.toml has all required publishing metadata",
         "RunTestSuite: cargo metadata -p opencode-sdk should show correct metadata"
@@ -801,7 +801,7 @@
       "priority": "P2",
       "title": "Create docs/ directory structure",
       "description": "Create docs/ directory, docs/getting-started.md, docs/sdk-guide.md, and docs/plugin-dev.md files.",
-      "status": "manual_check",
+      "status": "todo",
       "test_criteria": [
         "AddUnitTest: verify docs/ directory and files exist",
         "RunTestSuite: verify docs/*.md files are readable"
@@ -820,7 +820,7 @@
       "priority": "P2",
       "title": "Write docs/README.md",
       "description": "Write documentation index with quick links to each section and link to API reference in crate docs.",
-      "status": "manual_check",
+      "status": "todo",
       "test_criteria": [
         "AddUnitTest: verify docs/README.md contains index and links",
         "RunTestSuite: verify docs/README.md renders correctly"
@@ -839,7 +839,7 @@
       "priority": "P2",
       "title": "Write docs/getting-started.md",
       "description": "Write getting started guide with installation instructions, configuration guide, first session walkthrough, and basic commands.",
-      "status": "manual_check",
+      "status": "todo",
       "test_criteria": [
         "AddUnitTest: verify getting-started.md has installation section",
         "AddUnitTest: verify getting-started.md has configuration guide",
@@ -892,7 +892,7 @@
       ],
       "test_commands": [
         "grep -q 'hello_world\\|hello-world' docs/plugin-dev.md",
-        "grep -q 'wasm32-wasi' docs/plugin-dev.md",
+        "grep -q 'wasm32-wasip1' docs/plugin-dev.md",
         "test -d plugins/hello_world"
       ],
       "impl_notes": "Document plugin_init and plugin_execute API. Show build script example. Include troubleshooting section.",

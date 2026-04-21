@@ -124,29 +124,27 @@ mod tests {
 
     #[test]
     fn test_plugin_execute_with_null_pointer() {
-        let result = unsafe { plugin_execute(ptr::null(), 0) };
+        let result = plugin_execute(ptr::null(), 0);
         assert_eq!(result, -1, "plugin_execute should return -1 for null pointer");
     }
 
     #[test]
     fn test_plugin_execute_with_null_pointer_only() {
-        let result = unsafe { plugin_execute(ptr::null(), 100) };
+        let result = plugin_execute(ptr::null(), 100);
         assert_eq!(result, -1, "plugin_execute should return -1 for null command pointer");
     }
 
     #[test]
     fn test_plugin_execute_with_zero_length() {
         let dummy_ptr: *const u8 = 0x1 as *const u8;
-        let result = unsafe { plugin_execute(dummy_ptr, 0) };
+        let result = plugin_execute(dummy_ptr, 0);
         assert_eq!(result, -1, "plugin_execute should return -1 for zero length");
     }
 
     #[test]
     fn test_plugin_execute_with_invalid_json() {
         let invalid_json = b"not valid json";
-        let result = unsafe {
-            plugin_execute(invalid_json.as_ptr(), invalid_json.len())
-        };
+        let result = plugin_execute(invalid_json.as_ptr(), invalid_json.len());
         assert_eq!(result, -2, "plugin_execute should return -2 for invalid JSON");
     }
 
@@ -157,7 +155,7 @@ mod tests {
             args: serde_json::json!({"name": "Test"}),
         };
         let json = serde_json::to_vec(&cmd).unwrap();
-        let result = unsafe { plugin_execute(json.as_ptr(), json.len()) };
+        let result = plugin_execute(json.as_ptr(), json.len());
         assert_eq!(result, 0, "hello_world action should return 0");
     }
 
@@ -168,7 +166,7 @@ mod tests {
             args: serde_json::json!({"message": "Hello"}),
         };
         let json = serde_json::to_vec(&cmd).unwrap();
-        let result = unsafe { plugin_execute(json.as_ptr(), json.len()) };
+        let result = plugin_execute(json.as_ptr(), json.len());
         assert_eq!(result, 0, "echo action should return 0");
     }
 
@@ -179,7 +177,7 @@ mod tests {
             args: serde_json::json!({}),
         };
         let json = serde_json::to_vec(&cmd).unwrap();
-        let result = unsafe { plugin_execute(json.as_ptr(), json.len()) };
+        let result = plugin_execute(json.as_ptr(), json.len());
         assert_eq!(result, -3, "unknown action should return -3");
     }
 
