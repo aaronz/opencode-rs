@@ -310,3 +310,116 @@ mod tests {
         assert!(output.contains("[REDACTED]"));
     }
 }
+
+#[cfg(test)]
+mod id_visibility_tests {
+    use opencode_core::{IdGenerator, IdParseError, ProjectId, SessionId, UserId};
+    use std::str::FromStr;
+
+    #[test]
+    fn test_id_generator_public_access() {
+        let uuid = IdGenerator::new_uuid();
+        assert_eq!(uuid.len(), 36);
+    }
+
+    #[test]
+    fn test_id_generator_short_public_access() {
+        let short = IdGenerator::new_short();
+        assert_eq!(short.len(), 8);
+    }
+
+    #[test]
+    fn test_id_generator_timestamped_public_access() {
+        let timestamped = IdGenerator::new_timestamped();
+        assert!(timestamped.contains('-'));
+    }
+
+    #[test]
+    fn test_session_id_public_re_export() {
+        let session_id = SessionId::new();
+        assert!(!session_id.to_string().is_empty());
+        assert!(session_id.to_string().starts_with("session:"));
+    }
+
+    #[test]
+    fn test_user_id_public_re_export() {
+        let user_id = UserId::new();
+        assert!(!user_id.to_string().is_empty());
+        assert!(user_id.to_string().starts_with("user:"));
+    }
+
+    #[test]
+    fn test_project_id_public_re_export() {
+        let project_id = ProjectId::new();
+        assert!(!project_id.to_string().is_empty());
+        assert!(project_id.to_string().starts_with("project:"));
+    }
+
+    #[test]
+    fn test_session_id_roundtrip_public() {
+        let session_id = SessionId::new();
+        let parsed: SessionId = session_id.to_string().parse().unwrap();
+        assert_eq!(session_id, parsed);
+    }
+
+    #[test]
+    fn test_user_id_roundtrip_public() {
+        let user_id = UserId::new();
+        let parsed: UserId = user_id.to_string().parse().unwrap();
+        assert_eq!(user_id, parsed);
+    }
+
+    #[test]
+    fn test_project_id_roundtrip_public() {
+        let project_id = ProjectId::new();
+        let parsed: ProjectId = project_id.to_string().parse().unwrap();
+        assert_eq!(project_id, parsed);
+    }
+
+    #[test]
+    fn test_id_parse_error_public_access() {
+        let result: Result<SessionId, IdParseError> = "invalid-uuid".parse();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_cross_prefix_rejected_public() {
+        let session_id = SessionId::new();
+        let result: Result<UserId, IdParseError> = session_id.to_string().parse();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_id_types_implement_send() {
+        fn assert_send<T: Send>() {}
+        assert_send::<SessionId>();
+        assert_send::<UserId>();
+        assert_send::<ProjectId>();
+    }
+
+    #[test]
+    fn test_id_types_implement_sync() {
+        fn assert_sync<T: Sync>() {}
+        assert_sync::<SessionId>();
+        assert_sync::<UserId>();
+        assert_sync::<ProjectId>();
+    }
+
+    #[test]
+    fn test_session_id_default_public() {
+        let id: SessionId = Default::default();
+        assert!(!id.to_string().is_empty());
+    }
+
+    #[test]
+    fn test_user_id_default_public() {
+        let id: UserId = Default::default();
+        assert!(!id.to_string().is_empty());
+    }
+
+    #[test]
+    fn test_project_id_default_public() {
+        let id: ProjectId = Default::default();
+        assert!(!id.to_string().is_empty());
+    }
+}

@@ -1,0 +1,45 @@
+{
+  "tasks": [
+    {
+      "id": "P2.1",
+      "priority": "P2",
+      "title": "Review Export Visibility",
+      "description": "Review whether `pub(crate)` visibility should be changed to `pub` for external crate access. Current: `pub(crate) use id::{IdGenerator, IdParseError, ProjectId, SessionId, UserId};`. Potential change: `pub use id::{IdGenerator, IdParseError, ProjectId, SessionId, UserId};`",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify external crates can access Id types when visibility is pub",
+        "AddIntegrationTest: verify opencode-core exports are available to downstream crates",
+        "AddRegressionTest: ensure no compilation errors in dependent crates after visibility change"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib",
+        "cargo test -p opencode-core --test '*'",
+        "cargo build -p opencode-core --release",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Decision criteria: If opencode-core types need to be accessed by external crates \u2192 change to pub. If types are intentionally internal \u2192 keep pub(crate). Low priority - internal usage works fine.",
+      "dependencies": []
+    },
+    {
+      "id": "P2.2",
+      "priority": "P2",
+      "title": "Consider Adding Ord/PartialOrd Derives",
+      "description": "Consider adding `derive(Ord, PartialOrd)` to `define_id_newtype!` macro if total ordering of IDs is required. Current derives: `#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]`. Potential change: `#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]`",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify Id types can be compared using Ord/PartialOrd",
+        "AddUnitTest: verify IDs can be sorted in BTreeMap/BTreeSet without custom comparator",
+        "AddRegressionTest: ensure existing tests (18/18) still pass after adding derives",
+        "AddErrorHandlingTest: verify ordering is consistent with UUID ordering"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib -- id",
+        "cargo test -p opencode-core --test '*'",
+        "cargo build -p opencode-core --release",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Decision criteria: If IDs need to be sorted (e.g., in BTreeMap without custom comparator) \u2192 add derives. Current workaround: `id1.0.cmp(&id2.0)` works without derives. No functional impact - low priority.",
+      "dependencies": []
+    }
+  ]
+}
