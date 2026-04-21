@@ -16,18 +16,20 @@ impl SqliteSessionRepository {
     }
 
     #[allow(dead_code)]
-    pub async fn set_project_path(&self, session_id: &str, project_path: &str) -> Result<(), StorageError> {
+    pub async fn set_project_path(
+        &self,
+        session_id: &str,
+        project_path: &str,
+    ) -> Result<(), StorageError> {
         let conn = self.pool.get().await.map_err(StorageError::from)?;
         let id_str = session_id.to_string();
         let path_str = project_path.to_string();
-        conn.execute(
-            move |c| {
-                c.execute(
-                    "UPDATE sessions SET project_path = ?1 WHERE id = ?2",
-                    params![path_str, id_str],
-                )
-            },
-        )
+        conn.execute(move |c| {
+            c.execute(
+                "UPDATE sessions SET project_path = ?1 WHERE id = ?2",
+                params![path_str, id_str],
+            )
+        })
         .await
         .map_err(StorageError::from)??;
         Ok(())
@@ -190,15 +192,16 @@ impl SessionRepository for SqliteSessionRepository {
                      WHERE project_path = ?1
                      ORDER BY updated_at DESC LIMIT ?2 OFFSET ?3",
                 )?;
-                let rows = stmt.query_map(params![path_str, limit as i32, offset as i32], |row| {
-                    Ok(SessionModel {
-                        id: row.get(0)?,
-                        created_at: row.get::<_, String>(1)?.parse().unwrap_or_default(),
-                        updated_at: row.get::<_, String>(2)?.parse().unwrap_or_default(),
-                        data: row.get(3)?,
-                        project_path: row.get(4)?,
-                    })
-                })?;
+                let rows =
+                    stmt.query_map(params![path_str, limit as i32, offset as i32], |row| {
+                        Ok(SessionModel {
+                            id: row.get(0)?,
+                            created_at: row.get::<_, String>(1)?.parse().unwrap_or_default(),
+                            updated_at: row.get::<_, String>(2)?.parse().unwrap_or_default(),
+                            data: row.get(3)?,
+                            project_path: row.get(4)?,
+                        })
+                    })?;
                 let mut results = Vec::new();
                 for row in rows {
                     results.push(row?);
@@ -652,7 +655,10 @@ mod session_repository_exists_tests {
     #[tokio::test]
     async fn test_sqlite_session_exists_returns_true_for_existing_session() {
         let (pool, _temp_dir) = create_temp_db();
-        MigrationManager::new(pool.clone(), 3).migrate().await.unwrap();
+        MigrationManager::new(pool.clone(), 3)
+            .migrate()
+            .await
+            .unwrap();
         let repo = SqliteSessionRepository::new(pool);
         let session = Session::default();
 
@@ -665,7 +671,10 @@ mod session_repository_exists_tests {
     #[tokio::test]
     async fn test_sqlite_session_exists_returns_false_for_non_existent_session() {
         let (pool, _temp_dir) = create_temp_db();
-        MigrationManager::new(pool.clone(), 3).migrate().await.unwrap();
+        MigrationManager::new(pool.clone(), 3)
+            .migrate()
+            .await
+            .unwrap();
         let repo = SqliteSessionRepository::new(pool);
         let non_existent_id = Uuid::new_v4().to_string();
 
@@ -675,7 +684,10 @@ mod session_repository_exists_tests {
     #[tokio::test]
     async fn test_sqlite_session_exists_does_not_interfere_with_other_operations() {
         let (pool, _temp_dir) = create_temp_db();
-        MigrationManager::new(pool.clone(), 3).migrate().await.unwrap();
+        MigrationManager::new(pool.clone(), 3)
+            .migrate()
+            .await
+            .unwrap();
         let repo = SqliteSessionRepository::new(pool);
         let session = Session::default();
 
@@ -720,7 +732,10 @@ mod session_repository_list_by_project_tests {
     #[tokio::test]
     async fn test_sqlite_list_by_project_returns_sessions_for_given_project() {
         let (pool, _temp_dir) = create_temp_db();
-        MigrationManager::new(pool.clone(), 3).migrate().await.unwrap();
+        MigrationManager::new(pool.clone(), 3)
+            .migrate()
+            .await
+            .unwrap();
         let repo = SqliteSessionRepository::new(pool);
 
         let session1 = Session::default();
@@ -762,7 +777,10 @@ mod session_repository_list_by_project_tests {
     #[tokio::test]
     async fn test_sqlite_list_by_project_returns_empty_for_nonexistent_project() {
         let (pool, _temp_dir) = create_temp_db();
-        MigrationManager::new(pool.clone(), 3).migrate().await.unwrap();
+        MigrationManager::new(pool.clone(), 3)
+            .migrate()
+            .await
+            .unwrap();
         let repo = SqliteSessionRepository::new(pool);
         let session = Session::default();
 
@@ -781,7 +799,10 @@ mod session_repository_list_by_project_tests {
     #[tokio::test]
     async fn test_sqlite_list_by_project_with_pagination() {
         let (pool, _temp_dir) = create_temp_db();
-        MigrationManager::new(pool.clone(), 3).migrate().await.unwrap();
+        MigrationManager::new(pool.clone(), 3)
+            .migrate()
+            .await
+            .unwrap();
         let repo = SqliteSessionRepository::new(pool);
 
         for i in 0..5 {
@@ -814,7 +835,10 @@ mod session_repository_list_by_project_tests {
     #[tokio::test]
     async fn test_sqlite_list_by_project_does_not_affect_other_operations() {
         let (pool, _temp_dir) = create_temp_db();
-        MigrationManager::new(pool.clone(), 3).migrate().await.unwrap();
+        MigrationManager::new(pool.clone(), 3)
+            .migrate()
+            .await
+            .unwrap();
         let repo = SqliteSessionRepository::new(pool);
 
         let session = Session::default();
@@ -831,14 +855,20 @@ mod session_repository_list_by_project_tests {
         assert_eq!(found.unwrap().id, session.id);
 
         let count_before = repo.count().await.unwrap();
-        let list_result = repo.list_by_project("/path/to/project1", 10, 0).await.unwrap();
+        let list_result = repo
+            .list_by_project("/path/to/project1", 10, 0)
+            .await
+            .unwrap();
         let count_after = repo.count().await.unwrap();
         assert_eq!(count_before, count_after);
         assert_eq!(list_result.len(), 1);
 
         repo.delete(&id).await.unwrap();
         assert!(!repo.exists(&id).await.unwrap());
-        let list_after_delete = repo.list_by_project("/path/to/project1", 10, 0).await.unwrap();
+        let list_after_delete = repo
+            .list_by_project("/path/to/project1", 10, 0)
+            .await
+            .unwrap();
         assert!(list_after_delete.is_empty());
     }
 }

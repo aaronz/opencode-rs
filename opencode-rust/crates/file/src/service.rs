@@ -102,13 +102,12 @@ impl FileService {
         }
 
         if let Some(parent) = to.parent() {
-            tokio::fs::create_dir_all(parent).await.map_err(|e| FileError::Io {
-                context: format!(
-                    "Failed to create parent directory for {}",
-                    to.display()
-                ),
-                source: Arc::new(e),
-            })?;
+            tokio::fs::create_dir_all(parent)
+                .await
+                .map_err(|e| FileError::Io {
+                    context: format!("Failed to create parent directory for {}", to.display()),
+                    source: Arc::new(e),
+                })?;
         }
 
         let bytes = tokio::fs::copy(from, to).await.map_err(|e| FileError::Io {
@@ -143,31 +142,34 @@ impl FileService {
             let dest_path = to.join(relative_path);
 
             if source_path.is_dir() {
-                tokio::fs::create_dir_all(&dest_path).await.map_err(|e| FileError::Io {
-                    context: format!("Failed to create directory {}", dest_path.display()),
-                    source: Arc::new(e),
-                })?;
-            } else {
-                if let Some(parent) = dest_path.parent() {
-                    tokio::fs::create_dir_all(parent).await.map_err(|e| FileError::Io {
-                        context: format!(
-                            "Failed to create parent directory for {}",
-                            dest_path.display()
-                        ),
+                tokio::fs::create_dir_all(&dest_path)
+                    .await
+                    .map_err(|e| FileError::Io {
+                        context: format!("Failed to create directory {}", dest_path.display()),
                         source: Arc::new(e),
                     })?;
-                }
-                let bytes =
-                    tokio::fs::copy(source_path, &dest_path)
+            } else {
+                if let Some(parent) = dest_path.parent() {
+                    tokio::fs::create_dir_all(parent)
                         .await
                         .map_err(|e| FileError::Io {
                             context: format!(
-                                "Failed to copy {} to {}",
-                                source_path.display(),
+                                "Failed to create parent directory for {}",
                                 dest_path.display()
                             ),
                             source: Arc::new(e),
                         })?;
+                }
+                let bytes = tokio::fs::copy(source_path, &dest_path)
+                    .await
+                    .map_err(|e| FileError::Io {
+                        context: format!(
+                            "Failed to copy {} to {}",
+                            source_path.display(),
+                            dest_path.display()
+                        ),
+                        source: Arc::new(e),
+                    })?;
                 total_bytes += bytes;
             }
         }
@@ -206,7 +208,13 @@ impl FileService {
     }
 
     pub fn normalize_path(&self, path: &Path) -> PathBuf {
-        self.normalizer.normalize(path)
+        let normalized = self.normalizer.normalize(path);
+        if normalized.is_absolute() {
+            normalized
+        } else {
+            let cwd = std::env::current_dir().unwrap_or_default();
+            self.normalizer.normalize(&cwd.join(&normalized))
+        }
     }
 
     pub async fn canonicalize(&self, path: &Path) -> Result<PathBuf, FileError> {
@@ -243,11 +251,7 @@ mod tests {
         let svc = FileService::new();
         let tmp = TempDir::new().unwrap();
         let src = tmp.path().join("src.txt");
-        let dst = tmp
-            .path()
-            .join("deep")
-            .join("nested")
-            .join("dst.txt");
+        let dst = tmp.path().join("deep").join("nested").join("dst.txt");
         tokio::fs::write(&src, "content").await.unwrap();
 
         let n = svc.copy_file(&src, &dst).await.unwrap();

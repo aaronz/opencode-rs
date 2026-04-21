@@ -56,7 +56,7 @@
   - Requires path to exist
   - Return FileError::Io on failure
 
-- [ ] **T-008**: Implement `normalize_path()` public API
+- [x] **T-008**: Implement `normalize_path()` public API ✅ Done
   - Combine normalization strategies
   - Platform-aware
   - Produce consistent absolute paths

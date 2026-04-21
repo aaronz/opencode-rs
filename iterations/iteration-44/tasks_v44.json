@@ -141,7 +141,7 @@
       "priority": "P0",
       "title": "Implement normalize_path() public API",
       "description": "Implement normalize_path() public API - combines normalization strategies, platform-aware, produces consistent absolute paths. This is the main public entry point for path normalization.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify normalize_path() returns consistent absolute paths",
         "AddUnitTest: verify normalize_path() is platform-aware",

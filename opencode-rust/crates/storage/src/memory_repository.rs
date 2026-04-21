@@ -23,7 +23,10 @@ impl InMemorySessionRepository {
 
     #[allow(dead_code)]
     pub fn set_project_path(&self, session_id: &str, project_path: &str) {
-        let mut paths = self.project_paths.lock().unwrap_or_else(|poison| poison.into_inner());
+        let mut paths = self
+            .project_paths
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
         paths.insert(session_id.to_string(), project_path.to_string());
     }
 }
@@ -89,7 +92,10 @@ impl SessionRepository for InMemorySessionRepository {
             .lock()
             .unwrap_or_else(|poison| poison.into_inner());
         sessions.remove(id);
-        let mut project_paths = self.project_paths.lock().unwrap_or_else(|poison| poison.into_inner());
+        let mut project_paths = self
+            .project_paths
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
         project_paths.remove(id);
         Ok(())
     }
@@ -117,7 +123,10 @@ impl SessionRepository for InMemorySessionRepository {
         offset: usize,
     ) -> Result<Vec<SessionInfo>, StorageError> {
         let session_ids: Vec<String> = {
-            let project_paths = self.project_paths.lock().unwrap_or_else(|poison| poison.into_inner());
+            let project_paths = self
+                .project_paths
+                .lock()
+                .unwrap_or_else(|poison| poison.into_inner());
             project_paths
                 .iter()
                 .filter(|(_, path)| *path == project_path)
@@ -125,7 +134,10 @@ impl SessionRepository for InMemorySessionRepository {
                 .collect()
         };
 
-        let sessions = self.sessions.lock().unwrap_or_else(|poison| poison.into_inner());
+        let sessions = self
+            .sessions
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
         let mut filtered: Vec<_> = session_ids
             .iter()
             .filter_map(|id| sessions.get(id).cloned())
@@ -710,14 +722,20 @@ mod session_repository_list_by_project_tests {
         assert_eq!(found.unwrap().id, session.id);
 
         let count_before = repo.count().await.unwrap();
-        let list_result = repo.list_by_project("/path/to/project1", 10, 0).await.unwrap();
+        let list_result = repo
+            .list_by_project("/path/to/project1", 10, 0)
+            .await
+            .unwrap();
         let count_after = repo.count().await.unwrap();
         assert_eq!(count_before, count_after);
         assert_eq!(list_result.len(), 1);
 
         repo.delete(&id).await.unwrap();
         assert!(!repo.exists(&id).await.unwrap());
-        let list_after_delete = repo.list_by_project("/path/to/project1", 10, 0).await.unwrap();
+        let list_after_delete = repo
+            .list_by_project("/path/to/project1", 10, 0)
+            .await
+            .unwrap();
         assert!(list_after_delete.is_empty());
     }
 }

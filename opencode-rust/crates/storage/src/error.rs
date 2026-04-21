@@ -226,10 +226,7 @@ mod tests {
                 StorageError::SessionExpired("test".into()),
                 "session expired",
             ),
-            (
-                StorageError::SessionLocked("test".into()),
-                "Session locked",
-            ),
+            (StorageError::SessionLocked("test".into()), "Session locked"),
             (
                 StorageError::ProjectNotFound("test".into()),
                 "project not found",
@@ -259,14 +256,8 @@ mod tests {
                 StorageError::Deserialization("test".into()),
                 "deserialization error",
             ),
-            (
-                StorageError::Migration("test".into()),
-                "migration error",
-            ),
-            (
-                StorageError::Recovery("test".into()),
-                "Recovery error",
-            ),
+            (StorageError::Migration("test".into()), "migration error"),
+            (StorageError::Recovery("test".into()), "Recovery error"),
             (
                 StorageError::Internal("test".into()),
                 "internal storage error",

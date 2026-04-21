@@ -27,7 +27,10 @@ fn test_file_error_variants() {
 
     let watch_err = FileError::Watch(String::from("Failed to start watcher"));
     assert!(watch_err.to_string().contains("Watch error"));
-    assert_eq!(watch_err.to_string(), "Watch error: Failed to start watcher");
+    assert_eq!(
+        watch_err.to_string(),
+        "Watch error: Failed to start watcher"
+    );
 
     let watch_not_found = FileError::WatchNotFound(String::from("abc123"));
     assert!(watch_not_found.to_string().contains("Watch not found"));
@@ -35,7 +38,10 @@ fn test_file_error_variants() {
 
     let path_too_long = FileError::PathTooLong(PathBuf::from("/very/long/path/that/exceeds/max"));
     assert!(path_too_long.to_string().contains("Path too long"));
-    assert_eq!(path_too_long.to_string(), "Path too long: /very/long/path/that/exceeds/max");
+    assert_eq!(
+        path_too_long.to_string(),
+        "Path too long: /very/long/path/that/exceeds/max"
+    );
 }
 
 #[test]
@@ -85,7 +91,9 @@ fn test_file_error_different_variants_are_different() {
 #[test]
 fn test_file_service_creation() {
     let svc = FileService::new();
-    assert!(svc.normalize_path(PathBuf::from("/a/b").as_path()).is_absolute());
+    assert!(svc
+        .normalize_path(PathBuf::from("/a/b").as_path())
+        .is_absolute());
 }
 
 #[test]
@@ -236,4 +244,179 @@ fn test_normalizer_excess_parent_components() {
     let normalizer = Normalizer::new();
     let p = normalizer.normalize(Path::new("/a/b/../../c"));
     assert_eq!(p, Path::new("/c"));
+}
+
+#[tokio::test]
+async fn test_canonicalize_resolves_symlinks() {
+    let svc = FileService::new();
+    let tmp = TempDir::new().unwrap();
+    let real_file = tmp.path().join("real.txt");
+    tokio::fs::write(&real_file, "content").await.unwrap();
+    let symlink = tmp.path().join("link.txt");
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(&real_file, &symlink).unwrap();
+    #[cfg(windows)]
+    std::os::windows::fs::symlink_file(&real_file, &symlink).unwrap();
+
+    let canonical = svc.canonicalize(&symlink).await.unwrap();
+    let real_canonical = svc.canonicalize(&real_file).await.unwrap();
+    assert_eq!(canonical, real_canonical);
+}
+
+#[tokio::test]
+async fn test_canonicalize_makes_path_absolute() {
+    let svc = FileService::new();
+    let tmp = TempDir::new().unwrap();
+    let file = tmp.path().join("test.txt");
+    tokio::fs::write(&file, "content").await.unwrap();
+
+    let canonical = svc.canonicalize(&file).await.unwrap();
+    assert!(canonical.is_absolute());
+}
+
+#[tokio::test]
+async fn test_canonicalize_nonexistent_path_returns_error() {
+    let svc = FileService::new();
+    let result = svc
+        .canonicalize(Path::new("/nonexistent/path/that/does/not/exist"))
+        .await;
+    assert!(result.is_err());
+    match result.unwrap_err() {
+        FileError::Io { .. } => {}
+        _ => panic!("Expected FileError::Io"),
+    }
+}
+
+#[tokio::test]
+async fn test_canonicalize_broken_symlink() {
+    let svc = FileService::new();
+    let tmp = TempDir::new().unwrap();
+    let broken_symlink = tmp.path().join("broken.txt");
+    #[cfg(unix)]
+    std::os::unix::fs::symlink("/nonexistent/target", &broken_symlink).unwrap();
+    #[cfg(windows)]
+    std::os::windows::fs::symlink_file("/nonexistent/target", &broken_symlink).unwrap();
+
+    let result = svc.canonicalize(&broken_symlink).await;
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_normalize_path_returns_absolute_paths() {
+    let svc = FileService::new();
+
+    let absolute_input = Path::new("/a/b/c");
+    let result = svc.normalize_path(absolute_input);
+    assert!(
+        result.is_absolute(),
+        "Absolute input should remain absolute"
+    );
+    assert_eq!(result, Path::new("/a/b/c"));
+}
+
+#[test]
+fn test_normalize_path_handles_relative_input() {
+    let original_cwd = std::env::current_dir().unwrap();
+    let svc = FileService::new();
+    let tmp = TempDir::new().unwrap();
+    std::env::set_current_dir(tmp.path()).unwrap();
+
+    let relative_input = Path::new("./foo/bar");
+    let result = svc.normalize_path(relative_input);
+    assert!(
+        result.is_absolute(),
+        "Relative input should become absolute"
+    );
+    assert!(
+        result.to_string_lossy().ends_with("foo/bar"),
+        "Should resolve to foo/bar under cwd"
+    );
+
+    std::env::set_current_dir(original_cwd).unwrap();
+}
+
+#[test]
+fn test_normalize_path_collapses_dots() {
+    let original_cwd = std::env::current_dir().unwrap();
+    let svc = FileService::new();
+    let tmp = TempDir::new().unwrap();
+    std::env::set_current_dir(tmp.path()).unwrap();
+
+    let input = Path::new("/a/b/../c/./d");
+    let result = svc.normalize_path(input);
+    assert_eq!(result, Path::new("/a/c/d"));
+
+    std::env::set_current_dir(original_cwd).unwrap();
+}
+
+#[test]
+fn test_normalize_path_platform_aware() {
+    let svc = FileService::new();
+
+    #[cfg(unix)]
+    {
+        let input = Path::new("/a/b/c");
+        let result = svc.normalize_path(input);
+        assert!(
+            result.to_string_lossy().contains('/'),
+            "Unix paths should use forward slash"
+        );
+    }
+
+    #[cfg(windows)]
+    {
+        let input = Path::new("C:\\a\\b\\c");
+        let result = svc.normalize_path(input);
+        assert!(
+            result.is_absolute(),
+            "Windows absolute paths should be recognized"
+        );
+    }
+}
+
+#[test]
+fn test_normalize_path_consistent_across_calls() {
+    let original_cwd = std::env::current_dir().unwrap();
+    let svc = FileService::new();
+    let tmp = TempDir::new().unwrap();
+    std::env::set_current_dir(tmp.path()).unwrap();
+
+    let input = Path::new("./foo/./bar/../baz");
+    let result1 = svc.normalize_path(input);
+    let result2 = svc.normalize_path(input);
+    assert_eq!(
+        result1, result2,
+        "normalize_path should return consistent results"
+    );
+
+    std::env::set_current_dir(original_cwd).unwrap();
+}
+
+#[test]
+fn test_normalize_path_with_parent_directory() {
+    let svc = FileService::new();
+    let tmp = TempDir::new().unwrap();
+    std::env::set_current_dir(tmp.path()).unwrap();
+
+    let input = Path::new("./foo/bar/../baz");
+    let result = svc.normalize_path(input);
+    assert!(result.is_absolute());
+    assert!(
+        result.to_string_lossy().ends_with("foo/baz"),
+        "Should resolve .. correctly"
+    );
+}
+
+#[test]
+fn test_normalize_path_excess_parent_components() {
+    let original_cwd = std::env::current_dir().unwrap();
+    let svc = FileService::new();
+    let tmp = TempDir::new().unwrap();
+    std::env::set_current_dir(tmp.path()).unwrap();
+
+    let input = Path::new("/a/b/c/../../d");
+    let result = svc.normalize_path(input);
+    assert_eq!(result, Path::new("/a/d"));
+
+    std::env::set_current_dir(original_cwd).unwrap();
 }

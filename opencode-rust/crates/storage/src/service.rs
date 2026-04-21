@@ -7,7 +7,7 @@ use crate::error::StorageError;
 use crate::models::{AccountModel, ProjectModel};
 use crate::repository::{ProjectRepository, SessionRepository};
 use opencode_core::{
-    crash_recovery::CrashRecovery, compaction::CompactionResult, Message, OpenCodeError, Session,
+    compaction::CompactionResult, crash_recovery::CrashRecovery, Message, OpenCodeError, Session,
     SessionInfo,
 };
 use rusqlite::params;
@@ -116,9 +116,7 @@ impl StorageService {
     }
 
     pub async fn load_project(&self, id: &str) -> Result<Option<ProjectModel>, StorageError> {
-        self.project_repo
-            .find_by_id(id)
-            .await
+        self.project_repo.find_by_id(id).await
     }
 
     pub async fn load_project_by_path(
@@ -296,14 +294,15 @@ impl StorageService {
             .ok_or_else(|| StorageError::SessionNotFound(id.to_string()))?;
 
         // Get compaction manager
-        let compaction_manager = self
-            .compaction_manager
-            .as_ref()
-            .ok_or_else(|| StorageError::Internal("Compaction manager not configured".to_string()))?;
+        let compaction_manager = self.compaction_manager.as_ref().ok_or_else(|| {
+            StorageError::Internal("Compaction manager not configured".to_string())
+        })?;
 
         // Clone session for compaction (compact takes &mut Session)
         let mut session_to_compact = session;
-        let result = compaction_manager.compact(&mut session_to_compact).await
+        let result = compaction_manager
+            .compact(&mut session_to_compact)
+            .await
             .map_err(|e| StorageError::Internal(format!("Compaction failed: {}", e)))?;
 
         Ok(result.compaction_result)
@@ -687,7 +686,10 @@ mod tests {
         service.save_session(&session).await.unwrap();
 
         let result = service.compact_session(&session.id.to_string()).await;
-        assert!(result.is_ok(), "compact_session should succeed for existing session");
+        assert!(
+            result.is_ok(),
+            "compact_session should succeed for existing session"
+        );
         let compaction_result = result.unwrap();
         assert!(compaction_result.was_compacted || !compaction_result.was_compacted);
 
@@ -715,7 +717,10 @@ mod tests {
         let result = service.compact_session("nonexistent-session-id").await;
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(matches!(err, crate::error::StorageError::SessionNotFound(_)));
+        assert!(matches!(
+            err,
+            crate::error::StorageError::SessionNotFound(_)
+        ));
 
         drop(temp_dir);
     }
@@ -746,7 +751,10 @@ mod tests {
         service.save_session(&session).await.unwrap();
 
         let result = service.compact_session(&session.id.to_string()).await;
-        assert!(result.is_ok(), "compact_session should succeed and delegate to CompactionManager");
+        assert!(
+            result.is_ok(),
+            "compact_session should succeed and delegate to CompactionManager"
+        );
         let compaction_result = result.unwrap();
         assert!(compaction_result.was_compacted || !compaction_result.was_compacted);
 
@@ -877,10 +885,11 @@ mod tests {
         let session = create_test_session();
         let session_id = session.id.to_string();
 
-        let crash_recovery = CrashRecovery::new()
-            .with_dump_dir(crash_dir);
+        let crash_recovery = CrashRecovery::new().with_dump_dir(crash_dir);
         crash_recovery.set_active_session(session);
-        crash_recovery.save_crash_dump(Some("test panic".to_string()), None).unwrap();
+        crash_recovery
+            .save_crash_dump(Some("test panic".to_string()), None)
+            .unwrap();
 
         let result = service.recover_session(&session_id).await;
         assert!(result.is_ok());
@@ -926,10 +935,11 @@ mod tests {
         session.add_message(Message::user("Message before crash".to_string()));
         let session_id = session.id.to_string();
 
-        let crash_recovery = CrashRecovery::new()
-            .with_dump_dir(crash_dir);
+        let crash_recovery = CrashRecovery::new().with_dump_dir(crash_dir);
         crash_recovery.set_active_session(session);
-        crash_recovery.save_crash_dump(Some("panic".to_string()), None).unwrap();
+        crash_recovery
+            .save_crash_dump(Some("panic".to_string()), None)
+            .unwrap();
 
         let result = service.recover_session(&session_id).await;
         assert!(result.is_ok());
@@ -955,12 +965,15 @@ mod tests {
         let mut session = Session::new();
         session.id = uuid::Uuid::parse_str("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb").unwrap();
 
-        let crash_recovery = CrashRecovery::new()
-            .with_dump_dir(crash_dir);
+        let crash_recovery = CrashRecovery::new().with_dump_dir(crash_dir);
         crash_recovery.set_active_session(session);
-        crash_recovery.save_crash_dump(Some("panic".to_string()), None).unwrap();
+        crash_recovery
+            .save_crash_dump(Some("panic".to_string()), None)
+            .unwrap();
 
-        let result = service.recover_session("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb").await;
+        let result = service
+            .recover_session("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+            .await;
         assert!(result.is_ok());
 
         drop(temp_dir);
@@ -983,13 +996,19 @@ mod tests {
 
         // Should return empty Vec, not error
         let sessions = service.list_sessions(10, 0).await.unwrap();
-        assert!(sessions.is_empty(), "Expected empty Vec when no sessions exist");
+        assert!(
+            sessions.is_empty(),
+            "Expected empty Vec when no sessions exist"
+        );
 
         let sessions = service.list_sessions(100, 0).await.unwrap();
         assert!(sessions.is_empty(), "Expected empty Vec with larger limit");
 
         let sessions = service.list_sessions(10, 100).await.unwrap();
-        assert!(sessions.is_empty(), "Expected empty Vec with offset beyond range");
+        assert!(
+            sessions.is_empty(),
+            "Expected empty Vec with offset beyond range"
+        );
 
         drop(temp_dir);
     }
@@ -1017,21 +1036,41 @@ mod tests {
         assert_eq!(sessions.len(), 3, "Should return at most limit items");
 
         let sessions = service.list_sessions(100, 0).await.unwrap();
-        assert_eq!(sessions.len(), 10, "Should return all 10 sessions when limit >= total");
+        assert_eq!(
+            sessions.len(),
+            10,
+            "Should return all 10 sessions when limit >= total"
+        );
 
         // Test offset
         let sessions = service.list_sessions(10, 5).await.unwrap();
-        assert_eq!(sessions.len(), 5, "Should return 5 items when offset is 5 and total is 10");
+        assert_eq!(
+            sessions.len(),
+            5,
+            "Should return 5 items when offset is 5 and total is 10"
+        );
 
         let sessions = service.list_sessions(10, 10).await.unwrap();
-        assert_eq!(sessions.len(), 0, "Should return 0 items when offset equals total count");
+        assert_eq!(
+            sessions.len(),
+            0,
+            "Should return 0 items when offset equals total count"
+        );
 
         // Test limit and offset together
         let sessions = service.list_sessions(3, 2).await.unwrap();
-        assert_eq!(sessions.len(), 3, "Should return 3 items starting from offset 2");
+        assert_eq!(
+            sessions.len(),
+            3,
+            "Should return 3 items starting from offset 2"
+        );
 
         let sessions = service.list_sessions(3, 8).await.unwrap();
-        assert_eq!(sessions.len(), 2, "Should return 2 items when only 2 remain after offset");
+        assert_eq!(
+            sessions.len(),
+            2,
+            "Should return 2 items when only 2 remain after offset"
+        );
 
         drop(temp_dir);
     }
@@ -1049,13 +1088,19 @@ mod tests {
 
         // Should return empty Vec, not error
         let projects = service.list_projects(10, 0).await.unwrap();
-        assert!(projects.is_empty(), "Expected empty Vec when no projects exist");
+        assert!(
+            projects.is_empty(),
+            "Expected empty Vec when no projects exist"
+        );
 
         let projects = service.list_projects(100, 0).await.unwrap();
         assert!(projects.is_empty(), "Expected empty Vec with larger limit");
 
         let projects = service.list_projects(10, 100).await.unwrap();
-        assert!(projects.is_empty(), "Expected empty Vec with offset beyond range");
+        assert!(
+            projects.is_empty(),
+            "Expected empty Vec with offset beyond range"
+        );
 
         drop(temp_dir);
     }
@@ -1084,21 +1129,41 @@ mod tests {
         assert_eq!(projects.len(), 3, "Should return at most limit items");
 
         let projects = service.list_projects(100, 0).await.unwrap();
-        assert_eq!(projects.len(), 10, "Should return all 10 projects when limit >= total");
+        assert_eq!(
+            projects.len(),
+            10,
+            "Should return all 10 projects when limit >= total"
+        );
 
         // Test offset
         let projects = service.list_projects(10, 5).await.unwrap();
-        assert_eq!(projects.len(), 5, "Should return 5 items when offset is 5 and total is 10");
+        assert_eq!(
+            projects.len(),
+            5,
+            "Should return 5 items when offset is 5 and total is 10"
+        );
 
         let projects = service.list_projects(10, 10).await.unwrap();
-        assert_eq!(projects.len(), 0, "Should return 0 items when offset equals total count");
+        assert_eq!(
+            projects.len(),
+            0,
+            "Should return 0 items when offset equals total count"
+        );
 
         // Test limit and offset together
         let projects = service.list_projects(3, 2).await.unwrap();
-        assert_eq!(projects.len(), 3, "Should return 3 items starting from offset 2");
+        assert_eq!(
+            projects.len(),
+            3,
+            "Should return 3 items starting from offset 2"
+        );
 
         let projects = service.list_projects(3, 8).await.unwrap();
-        assert_eq!(projects.len(), 2, "Should return 2 items when only 2 remain after offset");
+        assert_eq!(
+            projects.len(),
+            2,
+            "Should return 2 items when only 2 remain after offset"
+        );
 
         drop(temp_dir);
     }
@@ -1145,7 +1210,11 @@ mod tests {
         // Verify all items are accounted for
         let mut all_ids: Vec<_> = page1_ids.clone();
         all_ids.extend(page2_ids);
-        assert_eq!(all_ids.len(), 10, "All 10 sessions should be accounted for across pages");
+        assert_eq!(
+            all_ids.len(),
+            10,
+            "All 10 sessions should be accounted for across pages"
+        );
 
         drop(temp_dir);
     }
@@ -1173,7 +1242,10 @@ mod tests {
 
         // Very large offset should return empty
         let sessions = service.list_sessions(10, 1000).await.unwrap();
-        assert!(sessions.is_empty(), "Offset beyond total should return empty Vec");
+        assert!(
+            sessions.is_empty(),
+            "Offset beyond total should return empty Vec"
+        );
 
         // Zero offset should work normally
         let sessions = service.list_sessions(10, 0).await.unwrap();
@@ -1206,7 +1278,10 @@ mod tests {
 
         // Very large offset should return empty
         let projects = service.list_projects(10, 1000).await.unwrap();
-        assert!(projects.is_empty(), "Offset beyond total should return empty Vec");
+        assert!(
+            projects.is_empty(),
+            "Offset beyond total should return empty Vec"
+        );
 
         // Zero offset should work normally
         let projects = service.list_projects(10, 0).await.unwrap();
@@ -1233,7 +1308,10 @@ mod tests {
             .with_crash_recovery_dump_dir(crash_dir);
 
         let incomplete = service.list_incomplete_sessions().await.unwrap();
-        assert!(incomplete.is_empty(), "Expected empty Vec when no incomplete sessions exist");
+        assert!(
+            incomplete.is_empty(),
+            "Expected empty Vec when no incomplete sessions exist"
+        );
 
         drop(temp_dir);
     }
@@ -1261,12 +1339,16 @@ mod tests {
         let mut session1 = create_test_session();
         session1.id = session1_id;
         crash_recovery.set_active_session(session1);
-        crash_recovery.save_crash_dump(Some("panic 1".to_string()), None).unwrap();
+        crash_recovery
+            .save_crash_dump(Some("panic 1".to_string()), None)
+            .unwrap();
 
         let mut session2 = create_test_session();
         session2.id = session2_id;
         crash_recovery.set_active_session(session2);
-        crash_recovery.save_crash_dump(Some("panic 2".to_string()), None).unwrap();
+        crash_recovery
+            .save_crash_dump(Some("panic 2".to_string()), None)
+            .unwrap();
 
         let incomplete = service.list_incomplete_sessions().await.unwrap();
         assert_eq!(incomplete.len(), 2);
@@ -1298,16 +1380,24 @@ mod tests {
         let mut session = create_test_session();
         session.id = session_id;
         crash_recovery.set_active_session(session);
-        crash_recovery.save_crash_dump(Some("panic 1".to_string()), None).unwrap();
+        crash_recovery
+            .save_crash_dump(Some("panic 1".to_string()), None)
+            .unwrap();
 
         let mut session2 = create_test_session();
         session2.id = session_id;
         crash_recovery.set_active_session(session2);
         std::thread::sleep(std::time::Duration::from_millis(10));
-        crash_recovery.save_crash_dump(Some("panic 2".to_string()), None).unwrap();
+        crash_recovery
+            .save_crash_dump(Some("panic 2".to_string()), None)
+            .unwrap();
 
         let incomplete = service.list_incomplete_sessions().await.unwrap();
-        assert_eq!(incomplete.len(), 1, "Should deduplicate same session with multiple crashes");
+        assert_eq!(
+            incomplete.len(),
+            1,
+            "Should deduplicate same session with multiple crashes"
+        );
         assert!(incomplete.contains(&session_id));
 
         drop(temp_dir);
