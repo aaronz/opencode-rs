@@ -120,8 +120,9 @@
 
 ### Phase 6: Testing
 
-- [ ] **T-017**: Write unit test `test_watch_fires_callback_on_file_change`
+- [ ] **T-017**: Write unit test `test_watch_fires_callback_on_file_change` ⚠️ BLOCKED by T-010
   - Verify watch() registers watcher and callback fires on file change
+  - Test EXISTS but HANGS - implementation incomplete
 
 - [ ] **T-018**: Write unit test `test_debouncer_merges_rapid_events`
   - Verify multiple rapid events collapse to single callback
@@ -147,7 +148,7 @@
 - [x] **T-023**: Write unit test `test_resolve_path_relative`
   - Verify resolve_path() handles relative paths correctly
 
-- [ ] **T-024**: Write unit test `test_create_dir_all_async`
+- [x] **T-024**: Write unit test `test_create_dir_all_async`
   - Verify create_dir_all() creates nested directories
 
 - [ ] **T-025**: Write unit test `test_exists_returns_bool`
