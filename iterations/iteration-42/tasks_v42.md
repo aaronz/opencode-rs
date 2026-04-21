@@ -54,7 +54,7 @@
 
 ---
 
-### [ ] FR-051: Add exists() to SessionRepository
+### [x] FR-051: Add exists() to SessionRepository
 **Priority**: P1
 **Module**: `crates/storage/src/repository.rs`, `sqlite_repository.rs`, `memory_repository.rs`
 **Dependencies**: None

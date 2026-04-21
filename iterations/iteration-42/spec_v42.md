@@ -654,7 +654,7 @@ async fn storage_example() -> Result<(), StorageError> {
 |----------|-----------|----------|--------|
 | `compact_session` not in StorageService | FR-046 | P1 | To be implemented |
 | `load_project(id)` not available | FR-047 | P1 | To be implemented |
-| `exists()` method missing from SessionRepository | FR-051 | P1 | To be implemented |
+| `exists()` method missing from SessionRepository | FR-051 | P1 | ✅ Done |
 | `recover_session` not in StorageService | FR-049 | P1 | To be implemented |
 | `list_incomplete_sessions` not in StorageService | FR-050 | P2 | To be implemented |
 | `Migration` error variant not in StorageError | FR-042 | P2 | To be implemented |

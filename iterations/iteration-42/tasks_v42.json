@@ -69,7 +69,7 @@
       "priority": "P1",
       "title": "Add exists() to SessionRepository",
       "description": "Add exists(&self, id: &str) -> Result<bool, StorageError> method to SessionRepository trait and implement for SqliteSessionRepository and InMemorySessionRepository.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify SqliteSessionRepository::exists returns true for existing session",
         "AddUnitTest: verify SqliteSessionRepository::exists returns false for non-existent session",

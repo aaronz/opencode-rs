@@ -91,6 +91,14 @@ impl SessionRepository for InMemorySessionRepository {
             .unwrap_or_else(|poison| poison.into_inner());
         Ok(sessions.len())
     }
+
+    async fn exists(&self, id: &str) -> Result<bool, StorageError> {
+        let sessions = self
+            .sessions
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        Ok(sessions.contains_key(id))
+    }
 }
 
 pub struct InMemoryProjectRepository {
@@ -491,5 +499,65 @@ mod plugin_state_repository_tests {
     async fn test_plugin_state_not_found() {
         let repo = InMemoryPluginStateRepository::new();
         assert!(repo.find_by_id("nonexistent").await.unwrap().is_none());
+    }
+}
+
+#[cfg(test)]
+mod session_repository_exists_tests {
+    use super::*;
+    use opencode_core::Session;
+    use uuid::Uuid;
+
+    #[tokio::test]
+    async fn test_in_memory_session_exists_returns_true_for_existing_session() {
+        let repo = InMemorySessionRepository::new();
+        let session = Session::default();
+
+        repo.save(&session).await.unwrap();
+
+        let id = session.id.to_string();
+        assert!(repo.exists(&id).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_in_memory_session_exists_returns_false_for_non_existent_session() {
+        let repo = InMemorySessionRepository::new();
+        let non_existent_id = Uuid::new_v4().to_string();
+
+        assert!(!repo.exists(&non_existent_id).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_in_memory_session_exists_does_not_interfere_with_other_operations() {
+        let repo = InMemorySessionRepository::new();
+        let session = Session::default();
+
+        // Save a session
+        repo.save(&session).await.unwrap();
+
+        // Verify exists returns true
+        let id = session.id.to_string();
+        assert!(repo.exists(&id).await.unwrap());
+
+        // Verify find_by_id still works
+        let found = repo.find_by_id(&id).await.unwrap();
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().id, session.id);
+
+        // Verify count still works
+        assert_eq!(repo.count().await.unwrap(), 1);
+
+        // Verify list still works
+        let sessions = repo.find_all(10, 0).await.unwrap();
+        assert_eq!(sessions.len(), 1);
+
+        // Verify exists still returns correct value after other operations
+        assert!(repo.exists(&id).await.unwrap());
+
+        // Verify delete works
+        repo.delete(&id).await.unwrap();
+
+        // Verify exists returns false after delete
+        assert!(!repo.exists(&id).await.unwrap());
     }
 }

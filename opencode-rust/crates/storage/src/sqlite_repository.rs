@@ -140,6 +140,19 @@ impl SessionRepository for SqliteSessionRepository {
             .map_err(StorageError::from)??;
         Ok(count as usize)
     }
+
+    async fn exists(&self, id: &str) -> Result<bool, StorageError> {
+        let conn = self.pool.get().await.map_err(StorageError::from)?;
+        let id_str = id.to_string();
+        let exists: bool = conn
+            .execute(move |c| {
+                let mut stmt = c.prepare("SELECT EXISTS(SELECT 1 FROM sessions WHERE id = ?1)")?;
+                stmt.query_row(params![id_str], |row| row.get(0))
+            })
+            .await
+            .map_err(StorageError::from)??;
+        Ok(exists)
+    }
 }
 
 use crate::models::ProjectModel;
@@ -546,5 +559,70 @@ impl PluginStateRepository for SqlitePluginStateRepository {
         .await
         .map_err(StorageError::from)??;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod session_repository_exists_tests {
+    use super::*;
+    use crate::database::StoragePool;
+    use crate::MigrationManager;
+    use opencode_core::Session;
+    use uuid::Uuid;
+
+    fn create_temp_db() -> StoragePool {
+        StoragePool::new("sqlite::memory:").expect("Failed to create temp database")
+    }
+
+    #[tokio::test]
+    async fn test_sqlite_session_exists_returns_true_for_existing_session() {
+        let pool = create_temp_db();
+        MigrationManager::new(pool.clone(), 2).migrate().await.unwrap();
+        let repo = SqliteSessionRepository::new(pool);
+        let session = Session::default();
+
+        repo.save(&session).await.unwrap();
+
+        let id = session.id.to_string();
+        assert!(repo.exists(&id).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_sqlite_session_exists_returns_false_for_non_existent_session() {
+        let pool = create_temp_db();
+        MigrationManager::new(pool.clone(), 2).migrate().await.unwrap();
+        let repo = SqliteSessionRepository::new(pool);
+        let non_existent_id = Uuid::new_v4().to_string();
+
+        assert!(!repo.exists(&non_existent_id).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_sqlite_session_exists_does_not_interfere_with_other_operations() {
+        let pool = create_temp_db();
+        MigrationManager::new(pool.clone(), 2).migrate().await.unwrap();
+        let repo = SqliteSessionRepository::new(pool);
+        let session = Session::default();
+
+        repo.save(&session).await.unwrap();
+
+        let id = session.id.to_string();
+        assert!(repo.exists(&id).await.unwrap());
+
+        let found = repo.find_by_id(&id).await.unwrap();
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().id, session.id);
+
+        let before_count = repo.count().await.unwrap();
+
+        let sessions = repo.find_all(10, 0).await.unwrap();
+        assert!(!sessions.is_empty());
+
+        assert!(repo.exists(&id).await.unwrap());
+
+        repo.delete(&id).await.unwrap();
+
+        assert!(!repo.exists(&id).await.unwrap());
+        assert_eq!(repo.count().await.unwrap(), before_count - 1);
     }
 }

@@ -25,6 +25,7 @@ pub trait SessionRepository: Send + Sync + sealed::Sealed {
         Ok(Vec::new())
     }
     async fn count(&self) -> Result<usize, StorageError>;
+    async fn exists(&self, id: &str) -> Result<bool, StorageError>;
 }
 
 #[async_trait]
