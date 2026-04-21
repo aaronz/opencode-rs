@@ -36,7 +36,7 @@
   - WatchNotFound(String)
   - PathTooLong(PathBuf)
 
-- [ ] **T-004**: Implement `FileService` struct with watcher registry
+- [x] **T-004**: Implement `FileService` struct with watcher registry
   - `watch_handles: Arc<Mutex<HashMap<String, notify::RecommendedWatcher>>>`
 
 ### Phase 2: Path Normalization

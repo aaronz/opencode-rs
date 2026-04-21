@@ -22,7 +22,7 @@
       "priority": "P0",
       "title": "Create crates/file/src/lib.rs with module declarations and public exports",
       "description": "Create crates/file/src/lib.rs with module declarations (error, service, normalize, watch, copy) and public exports for all public types and functions",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: ensure lib.rs compiles and exports are accessible",
         "RunTestSuite: cargo check -p opencode-file"
@@ -60,7 +60,7 @@
       "priority": "P0",
       "title": "Implement FileService struct with watcher registry",
       "description": "Implement FileService struct with watcher registry: watch_handles: Arc<Mutex<HashMap<String, notify::RecommendedWatcher>>>. Include new() constructor and internal methods.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify FileService can be instantiated with new()",
         "AddErrorHandlingTest: test thread-safety of watch_handles registry"
@@ -79,7 +79,7 @@
       "priority": "P0",
       "title": "Implement normalize() function - collapse dot components",
       "description": "Implement normalize() function in crates/file/src/normalize.rs - collapse . components, handle .., fix separators. No filesystem access. Example: /a/b/../c/./d \u2192 /a/c/d",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify normalize() collapses dot components (/a/b/./c \u2192 /a/b/c)",
         "AddUnitTest: verify normalize() handles parent directory references (/a/b/../c \u2192 /a/c)",
