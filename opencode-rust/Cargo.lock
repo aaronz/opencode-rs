@@ -2062,6 +2062,18 @@ dependencies = [
 
 [[package]]
 name = "filedescriptor"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08f0c21550f7dab3f61284df9ad7fbd094c667daa33fac908e90e168cb0ff9b7"
+dependencies = [
+ "anyhow",
+ "libc",
+ "thiserror 1.0.69",
+ "winapi",
+]
+
+[[package]]
+name = "filedescriptor"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e40758ed24c9b2eeb76c35fb0aebc66c626084edd827e07e1552279814c6682d"
@@ -4454,6 +4466,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "opencode-file"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "filedescriptor 0.6.0",
+ "notify",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-test",
+ "tracing",
+ "walkdir",
+]
+
+[[package]]
 name = "opencode-git"
 version = "0.1.0"
 dependencies = [
@@ -5172,7 +5201,7 @@ dependencies = [
  "anyhow",
  "bitflags 1.3.2",
  "downcast-rs",
- "filedescriptor",
+ "filedescriptor 0.8.3",
  "lazy_static",
  "libc",
  "log",

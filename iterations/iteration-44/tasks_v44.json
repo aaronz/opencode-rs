@@ -1,0 +1,510 @@
+{
+  "tasks": [
+    {
+      "id": "T-001",
+      "priority": "P0",
+      "title": "Create crates/file/Cargo.toml with all dependencies",
+      "description": "Create crates/file/Cargo.toml with all required dependencies including: notify = \"6\", tokio with fs, sync, rt, time features, walkdir = \"2\", filedescriptor = \"0.6\", thiserror = \"2.0\", tracing, anyhow, tempfile (dev), tokio-test (dev)",
+      "status": "done",
+      "test_criteria": [
+        "AddRegressionTest: ensure Cargo.toml parses correctly with cargo metadata",
+        "AddErrorHandlingTest: verify all dependency versions are valid and resolvable"
+      ],
+      "test_commands": [
+        "cargo metadata --manifest-path crates/file/Cargo.toml --format-version 1",
+        "cargo check --manifest-path crates/file/Cargo.toml"
+      ],
+      "impl_notes": "Use edition = \"2021\", follow existing crate patterns in workspace",
+      "dependencies": []
+    },
+    {
+      "id": "T-002",
+      "priority": "P0",
+      "title": "Create crates/file/src/lib.rs with module declarations and public exports",
+      "description": "Create crates/file/src/lib.rs with module declarations (error, service, normalize, watch, copy) and public exports for all public types and functions",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: ensure lib.rs compiles and exports are accessible",
+        "RunTestSuite: cargo check -p opencode-file"
+      ],
+      "test_commands": [
+        "cargo check -p opencode-file",
+        "cargo build --release -p opencode-file"
+      ],
+      "impl_notes": "Declare all modules pub mod xxx; and re-export public types",
+      "dependencies": [
+        "T-001"
+      ]
+    },
+    {
+      "id": "T-003",
+      "priority": "P0",
+      "title": "Implement FileError enum with 7 variants",
+      "description": "Implement FileError enum in crates/file/src/error.rs with 7 variants: NotFound(PathBuf), NotAFile(PathBuf), NotADirectory(PathBuf), Io { context: String, source: std::io::Error }, Watch(String), WatchNotFound(String), PathTooLong(PathBuf). Use thiserror = \"2.0\" derive macros.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify each FileError variant can be constructed and displayed",
+        "AddErrorHandlingTest: test error propagation and Display formatting"
+      ],
+      "test_commands": [
+        "cargo check -p opencode-file",
+        "cargo test -p opencode-file --test file_tests -- test_file_error_variants"
+      ],
+      "impl_notes": "Use #[derive(Error, Debug)] with thiserror, implement From<std::io::Error> for FileError::Io",
+      "dependencies": [
+        "T-002"
+      ]
+    },
+    {
+      "id": "T-004",
+      "priority": "P0",
+      "title": "Implement FileService struct with watcher registry",
+      "description": "Implement FileService struct with watcher registry: watch_handles: Arc<Mutex<HashMap<String, notify::RecommendedWatcher>>>. Include new() constructor and internal methods.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify FileService can be instantiated with new()",
+        "AddErrorHandlingTest: test thread-safety of watch_handles registry"
+      ],
+      "test_commands": [
+        "cargo check -p opencode-file",
+        "cargo test -p opencode-file --test file_tests -- test_file_service_creation"
+      ],
+      "impl_notes": "FileService should manage watcher lifecycle, store watchers by watch_id string",
+      "dependencies": [
+        "T-003"
+      ]
+    },
+    {
+      "id": "T-005",
+      "priority": "P0",
+      "title": "Implement normalize() function - collapse dot components",
+      "description": "Implement normalize() function in crates/file/src/normalize.rs - collapse . components, handle .., fix separators. No filesystem access. Example: /a/b/../c/./d \u2192 /a/c/d",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify normalize() collapses dot components (/a/b/./c \u2192 /a/b/c)",
+        "AddUnitTest: verify normalize() handles parent directory references (/a/b/../c \u2192 /a/c)",
+        "AddUnitTest: verify normalize() fixes separators (handling platform differences)",
+        "AddErrorHandlingTest: test edge cases like excess .. components"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-file --test file_tests -- test_normalize_collapse_dots",
+        "cargo clippy -p opencode-file -- -D warnings"
+      ],
+      "impl_notes": "Pure function, no I/O. Handle both / and \\ separators. Return PathBuf.",
+      "dependencies": [
+        "T-004"
+      ]
+    },
+    {
+      "id": "T-006",
+      "priority": "P0",
+      "title": "Implement resolve_path(base, relative) function",
+      "description": "Implement resolve_path(base, relative) function - resolve relative path against base, make absolute. Does NOT resolve symlinks. Return absolute normalized path.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify resolve_path handles simple relative paths (./foo \u2192 /base/foo)",
+        "AddUnitTest: verify resolve_path handles parent references in relative (../foo \u2192 /parent/foo)",
+        "AddErrorHandlingTest: test resolve_path with various base path formats"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-file --test file_tests -- test_resolve_path_relative",
+        "cargo clippy -p opencode-file -- -D warnings"
+      ],
+      "impl_notes": "Combines base with relative, then normalizes. Does not access filesystem.",
+      "dependencies": [
+        "T-005"
+      ]
+    },
+    {
+      "id": "T-007",
+      "priority": "P0",
+      "title": "Implement canonicalize() async function",
+      "description": "Implement canonicalize() async function - resolve symlinks, make absolute, requires path to exist. Return FileError::Io on failure. Uses tokio::fs::symlink_metadata and path methods.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify canonicalize() resolves symlinks correctly",
+        "AddUnitTest: verify canonicalize() makes path absolute",
+        "AddErrorHandlingTest: verify FileError::Io is returned for non-existent paths",
+        "AddRegressionTest: ensure canonicalize works with broken symlinks"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-file --test file_tests -- test_canonicalize_resolves_symlinks",
+        "cargo clippy -p opencode-file -- -D warnings"
+      ],
+      "impl_notes": "Async function, uses tokio::fs functions. Requires path to exist.",
+      "dependencies": [
+        "T-006"
+      ]
+    },
+    {
+      "id": "T-008",
+      "priority": "P0",
+      "title": "Implement normalize_path() public API",
+      "description": "Implement normalize_path() public API - combines normalization strategies, platform-aware, produces consistent absolute paths. This is the main public entry point for path normalization.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify normalize_path() returns consistent absolute paths",
+        "AddUnitTest: verify normalize_path() is platform-aware",
+        "RunTestSuite: cargo test -p opencode-file normalize"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-file --test file_tests -- normalize",
+        "cargo build --release -p opencode-file"
+      ],
+      "impl_notes": "Should handle both relative and absolute inputs, always return absolute normalized path",
+      "dependencies": [
+        "T-007"
+      ]
+    },
+    {
+      "id": "T-009",
+      "priority": "P0",
+      "title": "Implement Debouncer struct for event collapsing",
+      "description": "Implement Debouncer struct with delay: Duration, pending: Arc<Mutex<HashMap<PathBuf, tokio::time::Sleep>>>, queue() method to collapse rapid events. Thread-safe via Arc<Mutex<...>>.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify Debouncer can be instantiated with delay",
+        "AddUnitTest: verify Debouncer::queue() collapses rapid events for same path",
+        "AddErrorHandlingTest: test thread-safety with concurrent access"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-file --test file_tests -- test_debouncer_merges_rapid_events",
+        "cargo clippy -p opencode-file -- -D warnings"
+      ],
+      "impl_notes": "Debouncer should cancel previous pending sleep for same path when new event arrives",
+      "dependencies": [
+        "T-008"
+      ]
+    },
+    {
+      "id": "T-010",
+      "priority": "P0",
+      "title": "Implement watch() method on FileService",
+      "description": "Implement watch() method on FileService - use notify::RecommendedWatcher, generate unique watch_id string, store watcher in registry, support debouncing. Return WatchId string.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify watch() registers watcher and returns unique watch_id",
+        "AddUnitTest: verify callback fires when watched file changes",
+        "AddIntegrationTest: verify debouncing works with rapid file changes"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-file --test file_tests -- test_watch_fires_callback_on_file_change",
+        "cargo clippy -p opencode-file -- -D warnings"
+      ],
+      "impl_notes": "Use notify::RecommendedWatcher, store in watch_handles HashMap by watch_id",
+      "dependencies": [
+        "T-009"
+      ]
+    },
+    {
+      "id": "T-011",
+      "priority": "P0",
+      "title": "Implement unwatch() method on FileService",
+      "description": "Implement unwatch() method on FileService - stop watcher by watch_id, remove from registry. Return FileError::WatchNotFound if not found.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify unwatch() removes watcher from registry",
+        "AddErrorHandlingTest: verify FileError::WatchNotFound returned for invalid watch_id"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-file --test file_tests -- test_unwatch",
+        "cargo clippy -p opencode-file -- -D warnings"
+      ],
+      "impl_notes": "Should call watcher.watcher().stop() before removing from HashMap",
+      "dependencies": [
+        "T-010"
+      ]
+    },
+    {
+      "id": "T-012",
+      "priority": "P1",
+      "title": "Implement exists() async function",
+      "description": "Implement exists() async function - fast existence check. Return true if path exists, false otherwise. No error on missing path.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify exists() returns true for existing file",
+        "AddUnitTest: verify exists() returns false for non-existent path",
+        "AddErrorHandlingTest: test exists() does not throw error on missing path"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-file --test file_tests -- test_exists_returns_bool",
+        "cargo clippy -p opencode-file -- -D warnings"
+      ],
+      "impl_notes": "Use tokio::fs::metadata or similar, catch error and return false",
+      "dependencies": [
+        "T-011"
+      ]
+    },
+    {
+      "id": "T-013",
+      "priority": "P1",
+      "title": "Implement create_dir_all() async function",
+      "description": "Implement create_dir_all() async function - recursive directory creation like mkdir -p. Use tokio::fs::create_dir_all. Return success or FileError::Io.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify create_dir_all() creates nested directories",
+        "AddUnitTest: verify create_dir_all() succeeds silently if directories exist",
+        "AddErrorHandlingTest: verify FileError::Io returned on permission errors"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-file --test file_tests -- test_create_dir_all_async",
+        "cargo clippy -p opencode-file -- -D warnings"
+      ],
+      "impl_notes": "Use tokio::fs::create_dir_all, map io::Error to FileError::Io",
+      "dependencies": [
+        "T-012"
+      ]
+    },
+    {
+      "id": "T-014",
+      "priority": "P1",
+      "title": "Implement remove_file() async function",
+      "description": "Implement remove_file() async function - delete a file (not directory). Return FileError::NotFound if path does not exist. Return FileError::NotAFile if path is a directory.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify remove_file() deletes existing file",
+        "AddErrorHandlingTest: verify FileError::NotFound for non-existent paths",
+        "AddErrorHandlingTest: verify FileError::NotAFile when path is a directory"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-file --test file_tests -- test_remove_file_not_found",
+        "cargo clippy -p opencode-file -- -D warnings"
+      ],
+      "impl_notes": "Check if path exists first, then check if it's a file (not directory)",
+      "dependencies": [
+        "T-013"
+      ]
+    },
+    {
+      "id": "T-015",
+      "priority": "P1",
+      "title": "Implement copy_file() async function",
+      "description": "Implement copy_file() async function - check source exists (FileError::NotFound if missing), create parent directories via tokio::fs::create_dir_all, copy file via tokio::fs::copy. Return bytes copied. Map errors to FileError::Io.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify copy_file() copies file and returns byte count",
+        "AddUnitTest: verify copy_file() creates parent directories automatically",
+        "AddErrorHandlingTest: verify FileError::NotFound for missing source"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-file --test file_tests -- test_copy_file_creates_parent_dirs",
+        "cargo clippy -p opencode-file -- -D warnings"
+      ],
+      "impl_notes": "Use tokio::fs::copy for actual copy, create parent dirs first",
+      "dependencies": [
+        "T-014"
+      ]
+    },
+    {
+      "id": "T-016",
+      "priority": "P1",
+      "title": "Implement copy_dir() async function",
+      "description": "Implement copy_dir() async function - use walkdir::WalkDir for recursive traversal, preserve directory structure, copy all files respecting permissions. Return total bytes copied. Return FileError::NotADirectory if source is not a directory.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify copy_dir() recursively copies directory tree",
+        "AddUnitTest: verify copy_dir() preserves directory structure",
+        "AddErrorHandlingTest: verify FileError::NotADirectory when source is a file"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-file --test file_tests -- test_copy_dir_recursive",
+        "cargo clippy -p opencode-file -- -D warnings"
+      ],
+      "impl_notes": "Use WalkDir::new().into_iter(), skip directories, copy files preserving structure",
+      "dependencies": [
+        "T-015"
+      ]
+    },
+    {
+      "id": "T-017",
+      "priority": "P1",
+      "title": "Write unit test test_watch_fires_callback_on_file_change",
+      "description": "Write unit test test_watch_fires_callback_on_file_change - verify watch() registers watcher and callback fires on file change",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify watch() registers watcher successfully",
+        "AddIntegrationTest: verify callback is invoked when watched file changes"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-file --test file_tests -- test_watch_fires_callback_on_file_change",
+        "cargo clippy -p opencode-file -- -D warnings"
+      ],
+      "impl_notes": "Create temp file, watch it, modify file, verify callback fired with correct path",
+      "dependencies": [
+        "T-016"
+      ]
+    },
+    {
+      "id": "T-018",
+      "priority": "P1",
+      "title": "Write unit test test_debouncer_merges_rapid_events",
+      "description": "Write unit test test_debouncer_merges_rapid_events - verify multiple rapid events collapse to single callback",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify multiple rapid events on same path collapse to single callback"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-file --test file_tests -- test_debouncer_merges_rapid_events",
+        "cargo clippy -p opencode-file -- -D warnings"
+      ],
+      "impl_notes": "Simulate rapid events (within delay window), verify only one callback invocation",
+      "dependencies": [
+        "T-017"
+      ]
+    },
+    {
+      "id": "T-019",
+      "priority": "P1",
+      "title": "Write unit test test_copy_file_creates_parent_dirs",
+      "description": "Write unit test test_copy_file_creates_parent_dirs - verify copy_file() creates parent directories and returns byte count",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify copy_file() creates nested parent directories",
+        "AddUnitTest: verify correct byte count is returned"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-file --test file_tests -- test_copy_file_creates_parent_dirs",
+        "cargo clippy -p opencode-file -- -D warnings"
+      ],
+      "impl_notes": "Copy to path like /tmp/test/nested/deep/file.txt, verify directories created",
+      "dependencies": [
+        "T-018"
+      ]
+    },
+    {
+      "id": "T-020",
+      "priority": "P1",
+      "title": "Write unit test test_copy_dir_recursive",
+      "description": "Write unit test test_copy_dir_recursive - verify copy_dir() recursively copies directory tree",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify copy_dir() copies all nested files and subdirectories",
+        "AddUnitTest: verify directory structure is preserved"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-file --test file_tests -- test_copy_dir_recursive",
+        "cargo clippy -p opencode-file -- -D warnings"
+      ],
+      "impl_notes": "Create source tree with nested dirs/files, copy, verify structure matches",
+      "dependencies": [
+        "T-019"
+      ]
+    },
+    {
+      "id": "T-021",
+      "priority": "P1",
+      "title": "Write unit test test_normalize_collapse_dots",
+      "description": "Write unit test test_normalize_collapse_dots - verify normalize() collapses dot components",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify normalize() collapses . components (/a/b/./c \u2192 /a/b/c)",
+        "AddUnitTest: verify normalize() handles multiple consecutive dots"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-file --test file_tests -- test_normalize_collapse_dots",
+        "cargo clippy -p opencode-file -- -D warnings"
+      ],
+      "impl_notes": "Test various dot combinations including ./ ../ and combinations",
+      "dependencies": [
+        "T-020"
+      ]
+    },
+    {
+      "id": "T-022",
+      "priority": "P2",
+      "title": "Write unit test test_canonicalize_resolves_symlinks",
+      "description": "Write unit test test_canonicalize_resolves_symlinks - verify canonicalize() resolves symlinks and makes absolute",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify canonicalize() resolves symlinks to real path",
+        "AddUnitTest: verify canonicalize() returns absolute path"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-file --test file_tests -- test_canonicalize_resolves_symlinks",
+        "cargo clippy -p opencode-file -- -D warnings"
+      ],
+      "impl_notes": "Create symlink, canonicalize it, verify result is real path",
+      "dependencies": [
+        "T-021"
+      ]
+    },
+    {
+      "id": "T-023",
+      "priority": "P2",
+      "title": "Write unit test test_resolve_path_relative",
+      "description": "Write unit test test_resolve_path_relative - verify resolve_path() handles relative paths correctly",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify resolve_path() resolves ./ relative paths",
+        "AddUnitTest: verify resolve_path() resolves ../ relative paths",
+        "AddUnitTest: verify resolve_path() combines base and relative correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-file --test file_tests -- test_resolve_path_relative",
+        "cargo clippy -p opencode-file -- -D warnings"
+      ],
+      "impl_notes": "Test various combinations of base paths and relative paths",
+      "dependencies": [
+        "T-022"
+      ]
+    },
+    {
+      "id": "T-024",
+      "priority": "P2",
+      "title": "Write unit test test_create_dir_all_async",
+      "description": "Write unit test test_create_dir_all_async - verify create_dir_all() creates nested directories",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify create_dir_all() creates deeply nested directory structure",
+        "AddUnitTest: verify create_dir_all() succeeds if directory already exists"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-file --test file_tests -- test_create_dir_all_async",
+        "cargo clippy -p opencode-file -- -D warnings"
+      ],
+      "impl_notes": "Test creating 5+ levels deep directory structure",
+      "dependencies": [
+        "T-023"
+      ]
+    },
+    {
+      "id": "T-025",
+      "priority": "P2",
+      "title": "Write unit test test_exists_returns_bool",
+      "description": "Write unit test test_exists_returns_bool - verify exists() returns bool without throwing errors",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify exists() returns true for existing file",
+        "AddUnitTest: verify exists() returns false for non-existent path",
+        "AddErrorHandlingTest: verify exists() does not throw error for missing path"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-file --test file_tests -- test_exists_returns_bool",
+        "cargo clippy -p opencode-file -- -D warnings"
+      ],
+      "impl_notes": "Test with file, directory, and non-existent paths",
+      "dependencies": [
+        "T-024"
+      ]
+    },
+    {
+      "id": "T-026",
+      "priority": "P2",
+      "title": "Write unit test test_remove_file_not_found",
+      "description": "Write unit test test_remove_file_not_found - verify remove_file() returns NotFound error for non-existent paths",
+      "status": "todo",
+      "test_criteria": [
+        "AddErrorHandlingTest: verify FileError::NotFound returned for non-existent path",
+        "AddErrorHandlingTest: verify FileError::NotAFile returned when path is directory"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-file --test file_tests -- test_remove_file_not_found",
+        "cargo clippy -p opencode-file -- -D warnings"
+      ],
+      "impl_notes": "Test error cases for remove_file function",
+      "dependencies": [
+        "T-025"
+      ]
+    }
+  ]
+}

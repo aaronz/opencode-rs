@@ -1,0 +1,21 @@
+[package]
+name = "opencode-file"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+tokio.workspace = true
+notify = "6"
+walkdir.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+anyhow.workspace = true
+filedescriptor = "0.6"
+
+[dev-dependencies]
+tempfile.workspace = true
+tokio-test = "0.4"

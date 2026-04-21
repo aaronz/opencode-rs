@@ -17,6 +17,7 @@ members = [
     "crates/plugin",
     "crates/git",
     "crates/mcp",
+    "crates/file",
     "crates/sdk",
     "crates/util",
     "tests",
