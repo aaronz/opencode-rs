@@ -1,6 +1,8 @@
 use opencode_file::FileError;
+use opencode_file::FileService;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tempfile::TempDir;
 
 #[test]
 fn test_file_error_variants() {
@@ -79,4 +81,35 @@ fn test_file_error_different_variants_are_different() {
         FileError::NotADirectory(_) => {}
         _ => panic!("Expected NotADirectory"),
     }
+}
+
+#[test]
+fn test_file_service_creation() {
+    let svc = FileService::new();
+    assert!(svc.normalize_path(PathBuf::from("/a/b").as_path()).is_absolute());
+}
+
+#[test]
+fn test_file_service_thread_safety() {
+    let svc = Arc::new(FileService::new());
+    let svc2 = svc.clone();
+
+    let handle = std::thread::spawn(move || {
+        let svc = svc2;
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("test.txt");
+        std::fs::write(&path, "content").unwrap();
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(svc.exists(path.as_path()))
+    });
+
+    let tmp = TempDir::new().unwrap();
+    let path = tmp.path().join("test.txt");
+    std::fs::write(&path, "content").unwrap();
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let result = rt.block_on(svc.exists(path.as_path()));
+
+    let from_thread = handle.join().unwrap();
+    assert!(result);
+    assert!(from_thread);
 }
