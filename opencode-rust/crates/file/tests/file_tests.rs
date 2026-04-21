@@ -593,3 +593,46 @@ async fn test_create_dir_all_async_permission_error() {
         _ => panic!("Expected FileError::Io for permission errors"),
     }
 }
+
+#[tokio::test]
+async fn test_remove_file_deletes_existing_file() {
+    let svc = FileService::new();
+    let tmp = TempDir::new().unwrap();
+    let file = tmp.path().join("to_delete.txt");
+    tokio::fs::write(&file, "content").await.unwrap();
+    assert!(file.exists(), "File should exist before deletion");
+
+    let result = svc.remove_file(&file).await;
+    assert!(result.is_ok(), "remove_file should succeed for existing file");
+    assert!(!file.exists(), "File should not exist after deletion");
+}
+
+#[tokio::test]
+async fn test_remove_file_not_found_error() {
+    let svc = FileService::new();
+    let tmp = TempDir::new().unwrap();
+    let nonexistent = tmp.path().join("nonexistent.txt");
+
+    let result = svc.remove_file(&nonexistent).await;
+    assert!(result.is_err(), "remove_file should return error for non-existent path");
+    match result.unwrap_err() {
+        FileError::NotFound(p) => assert_eq!(p, nonexistent),
+        _ => panic!("Expected FileError::NotFound"),
+    }
+}
+
+#[tokio::test]
+async fn test_remove_file_not_a_file_error() {
+    let svc = FileService::new();
+    let tmp = TempDir::new().unwrap();
+    let dir = tmp.path().join("a_directory");
+    tokio::fs::create_dir(&dir).await.unwrap();
+    assert!(dir.is_dir(), "Path should be a directory");
+
+    let result = svc.remove_file(&dir).await;
+    assert!(result.is_err(), "remove_file should return error for directory");
+    match result.unwrap_err() {
+        FileError::NotAFile(p) => assert_eq!(p, dir),
+        _ => panic!("Expected FileError::NotAFile"),
+    }
+}

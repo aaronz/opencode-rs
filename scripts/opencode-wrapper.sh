@@ -178,10 +178,14 @@ run_opencode_with_session_export() {
     start_time=$(date +%s)
     ts_echo "[DEBUG] run_opencode_with_session_export 开始 | model=$model"
 
+    local opencode_cmd
+    opencode_cmd=$(command -v opencode 2>/dev/null || echo "$HOME/.opencode/bin/opencode")
+    ts_echo "[DEBUG] 使用 opencode: $opencode_cmd"
+
     local opencode_exit_code=0
     local opencode_output
 
-    opencode_output=$(timeout 600 opencode run -m "$model" --dangerously-skip-permissions "$prompt" --format json 2>&1) || opencode_exit_code=$?
+    opencode_output=$("$opencode_cmd" run -m "$model" --dangerously-skip-permissions "$prompt" --format json 2>&1) || opencode_exit_code=$?
 
     local elapsed=$(( $(date +%s) - start_time ))
     ts_echo "[DEBUG] opencode 完成 | elapsed=${elapsed}s | exit_code=$opencode_exit_code"
@@ -191,9 +195,7 @@ run_opencode_with_session_export() {
         ts_echo "[DEBUG] 已导出到: $export_file"
     fi
 
-    if [ $opencode_exit_code -eq 124 ]; then
-        ts_echo "⚠️  opencode 超时 (10分钟)，继续执行"
-    elif [ $opencode_exit_code -ne 0 ]; then
+    if [ $opencode_exit_code -ne 0 ]; then
         ts_echo "⚠️  opencode 异常退出: exit_code=$opencode_exit_code"
     fi
 

@@ -161,7 +161,7 @@
       "priority": "P0",
       "title": "Implement Debouncer struct for event collapsing",
       "description": "Implement Debouncer struct with delay: Duration, pending: Arc<Mutex<HashMap<PathBuf, tokio::time::Sleep>>>, queue() method to collapse rapid events. Thread-safe via Arc<Mutex<...>>.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify Debouncer can be instantiated with delay",
         "AddUnitTest: verify Debouncer::queue() collapses rapid events for same path",
@@ -181,7 +181,7 @@
       "priority": "P0",
       "title": "Implement watch() method on FileService",
       "description": "Implement watch() method on FileService - use notify::RecommendedWatcher, generate unique watch_id string, store watcher in registry, support debouncing. Return WatchId string.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify watch() registers watcher and returns unique watch_id",
         "AddUnitTest: verify callback fires when watched file changes",
@@ -201,7 +201,7 @@
       "priority": "P0",
       "title": "Implement unwatch() method on FileService",
       "description": "Implement unwatch() method on FileService - stop watcher by watch_id, remove from registry. Return FileError::WatchNotFound if not found.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify unwatch() removes watcher from registry",
         "AddErrorHandlingTest: verify FileError::WatchNotFound returned for invalid watch_id"
@@ -260,7 +260,7 @@
       "priority": "P1",
       "title": "Implement remove_file() async function",
       "description": "Implement remove_file() async function - delete a file (not directory). Return FileError::NotFound if path does not exist. Return FileError::NotAFile if path is a directory.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify remove_file() deletes existing file",
         "AddErrorHandlingTest: verify FileError::NotFound for non-existent paths",
