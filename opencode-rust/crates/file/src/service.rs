@@ -326,7 +326,12 @@ mod tests {
     async fn test_remove_file_not_found() {
         let svc = FileService::new();
         let tmp = TempDir::new().unwrap();
-        let result = svc.remove_file(&tmp.path().join("nonexistent.txt")).await;
+        let nonexistent = tmp.path().join("nonexistent.txt");
+        let result = svc.remove_file(&nonexistent).await;
         assert!(result.is_err());
+        match result.unwrap_err() {
+            FileError::NotFound(p) => assert_eq!(p, nonexistent),
+            _ => panic!("Expected FileError::NotFound"),
+        }
     }
 }

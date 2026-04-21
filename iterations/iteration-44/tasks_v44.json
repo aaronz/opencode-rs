@@ -492,7 +492,7 @@
       "priority": "P2",
       "title": "Write unit test test_remove_file_not_found",
       "description": "Write unit test test_remove_file_not_found - verify remove_file() returns NotFound error for non-existent paths",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddErrorHandlingTest: verify FileError::NotFound returned for non-existent path",
         "AddErrorHandlingTest: verify FileError::NotAFile returned when path is directory"
