@@ -1,0 +1,64 @@
+{
+  "tasks": [
+    {
+      "id": "P1.1",
+      "priority": "P1",
+      "title": "Add Missing Instance Isolation Test",
+      "description": "Add test_env_instance_isolation test to verify that EnvManager::set() does NOT affect std::env. FR-403.9 reference. This test ensures that EnvManager instance operations are properly isolated from the global std::env namespace.",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify EnvManager::set() isolation - test sets variable on EnvManager instance and confirms it's accessible via EnvManager::get() but NOT via std::env::var()",
+        "AddUnitTest: verify empty EnvManager instance returns None for unset keys",
+        "AddRegressionTest: ensure test_env_instance_isolation passes in isolation",
+        "RunTestSuite: execute cargo test -p opencode-core -- env to confirm no regressions"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core test_env_instance_isolation",
+        "cargo test -p opencode-core -- env",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Add test to #[cfg(test)] mod tests in opencode-rust/crates/core/src/env.rs. Test must verify: 1) env.set() works on instance, 2) env.get() returns correct value, 3) std::env::var() does NOT see the isolated variable. Status: \u23f3 Pending.",
+      "dependencies": []
+    },
+    {
+      "id": "P2.1",
+      "priority": "P2",
+      "title": "Review #[allow(dead_code)] on EnvManager struct",
+      "description": "Determine why EnvManager is marked #[allow(dead_code)] \u2014 either add actual use point or remove suppression. FR-405 reference. Technical debt cleanup for future sprint.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: grep codebase to find all EnvManager instantiation sites",
+        "AddUnitTest: verify each method on EnvManager has at least one call site",
+        "RunTestSuite: cargo build to confirm no dead code warnings if suppression is removed",
+        "AddRegressionTest: ensure all existing tests pass after changes"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core -- env",
+        "cargo clippy -p opencode-core -- -D warnings",
+        "cargo build --release"
+      ],
+      "impl_notes": "Options: 1) Add use point where EnvManager is used for subprocess env propagation, 2) Remove #[allow(dead_code)] if struct is truly internal-only and suppression is justified, 3) Document why suppression exists if kept. Status: \u23f3 Pending. Estimated effort: 15 minutes.",
+      "dependencies": []
+    },
+    {
+      "id": "P2.2",
+      "priority": "P2",
+      "title": "Review #[allow(dead_code)] on EnvManager impl block",
+      "description": "All EnvManager methods are used internally \u2014 either find use points or remove suppression. FR-405 reference. Technical debt cleanup for future sprint.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: grep for all EnvManager method calls (get, set, remove, clear, keys, etc.)",
+        "AddUnitTest: verify each method has at least one usage in the codebase",
+        "RunTestSuite: cargo clippy to detect any dead code issues",
+        "AddRegressionTest: ensure all existing env module tests pass"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core -- env",
+        "cargo clippy -p opencode-core -- -D warnings",
+        "cargo build --release"
+      ],
+      "impl_notes": "Options: 1) Remove #[allow(dead_code)] if all methods are called somewhere in the codebase, 2) Verify method usage via grep and add missing call sites, 3) Document why suppression is kept if methods are intended for future use. Status: \u23f3 Pending. Estimated effort: 15 minutes.",
+      "dependencies": []
+    }
+  ]
+}

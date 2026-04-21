@@ -138,4 +138,24 @@ mod tests {
         env.remove("NONEXISTENT_VAR_12345");
         assert_eq!(env.get("NONEXISTENT_VAR_12345"), None);
     }
+
+    /// Test that EnvManager::set() does NOT affect std::env (instance isolation)
+    #[test]
+    fn test_env_instance_isolation() {
+        let env = EnvManager::new();
+
+        env.set("ISOLATION_TEST_VAR".to_string(), "isolated_value".to_string());
+
+        assert_eq!(env.get("ISOLATION_TEST_VAR"), Some("isolated_value".to_string()));
+        assert!(std::env::var("ISOLATION_TEST_VAR").is_err());
+
+        env.remove("ISOLATION_TEST_VAR");
+    }
+
+    #[test]
+    fn test_env_empty_instance_returns_none() {
+        let env = EnvManager::new();
+        assert_eq!(env.get("__DOES_NOT_EXIST__"), None);
+        assert_eq!(env.get("__ANOTHER_MISSING__"), None);
+    }
 }
