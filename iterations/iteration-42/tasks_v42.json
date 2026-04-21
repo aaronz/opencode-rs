@@ -190,7 +190,7 @@
       "priority": "P2",
       "title": "Add list_incomplete_sessions",
       "description": "Add list_incomplete_sessions() -> Result<Vec<Uuid>, StorageError> method to StorageService that returns Vec of incomplete session IDs.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify list_incomplete_sessions returns Vec of incomplete session UUIDs",
         "AddUnitTest: verify list_incomplete_sessions returns empty Vec when no incomplete sessions exist",

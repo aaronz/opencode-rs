@@ -315,6 +315,23 @@ impl StorageService {
             .map_err(|e| StorageError::Internal(format!("Recovery error: {}", e)))?
             .ok_or_else(|| StorageError::SessionNotFound(id.to_string()))
     }
+
+    /// List all incomplete session IDs.
+    ///
+    /// An incomplete session is one that has crash dumps (was interrupted by a crash).
+    /// Returns Vec of session Uuids that have incomplete crash dumps.
+    pub async fn list_incomplete_sessions(&self) -> Result<Vec<uuid::Uuid>, StorageError> {
+        let crashes = self.crash_recovery.list_recent_crashes(1000);
+        let mut unique_session_ids: Vec<uuid::Uuid> = Vec::new();
+        for crash in crashes {
+            if let Ok(session_uuid) = uuid::Uuid::parse_str(&crash.session_id) {
+                if !unique_session_ids.contains(&session_uuid) {
+                    unique_session_ids.push(session_uuid);
+                }
+            }
+        }
+        Ok(unique_session_ids)
+    }
 }
 
 #[cfg(test)]
@@ -1194,6 +1211,104 @@ mod tests {
         // Zero offset should work normally
         let projects = service.list_projects(10, 0).await.unwrap();
         assert_eq!(projects.len(), 5, "Zero offset should work normally");
+
+        drop(temp_dir);
+    }
+
+    // =========================================================================
+    // FR-050: list_incomplete_sessions Tests
+    // =========================================================================
+
+    #[tokio::test]
+    async fn test_list_incomplete_sessions_returns_empty_vec_when_no_incomplete_sessions() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let crash_dir = temp_dir.path().join("crashes");
+        let service = StorageService::new(session_repo, project_repo, pool)
+            .with_crash_recovery_dump_dir(crash_dir);
+
+        let incomplete = service.list_incomplete_sessions().await.unwrap();
+        assert!(incomplete.is_empty(), "Expected empty Vec when no incomplete sessions exist");
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_list_incomplete_sessions_returns_incomplete_session_ids() {
+        use opencode_core::crash_recovery::CrashRecovery;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let crash_dir = temp_dir.path().join("crashes");
+        let service = StorageService::new(session_repo, project_repo, pool)
+            .with_crash_recovery_dump_dir(crash_dir.clone());
+
+        let session1_id = uuid::Uuid::parse_str("11111111-1111-1111-1111-111111111111").unwrap();
+        let session2_id = uuid::Uuid::parse_str("22222222-2222-2222-2222-222222222222").unwrap();
+
+        let crash_recovery = CrashRecovery::new().with_dump_dir(crash_dir);
+
+        let mut session1 = create_test_session();
+        session1.id = session1_id;
+        crash_recovery.set_active_session(session1);
+        crash_recovery.save_crash_dump(Some("panic 1".to_string()), None).unwrap();
+
+        let mut session2 = create_test_session();
+        session2.id = session2_id;
+        crash_recovery.set_active_session(session2);
+        crash_recovery.save_crash_dump(Some("panic 2".to_string()), None).unwrap();
+
+        let incomplete = service.list_incomplete_sessions().await.unwrap();
+        assert_eq!(incomplete.len(), 2);
+        assert!(incomplete.contains(&session1_id));
+        assert!(incomplete.contains(&session2_id));
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_list_incomplete_sessions_handles_duplicate_crashes() {
+        use opencode_core::crash_recovery::CrashRecovery;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let crash_dir = temp_dir.path().join("crashes");
+        let service = StorageService::new(session_repo, project_repo, pool)
+            .with_crash_recovery_dump_dir(crash_dir.clone());
+
+        let session_id = uuid::Uuid::parse_str("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa").unwrap();
+
+        let crash_recovery = CrashRecovery::new().with_dump_dir(crash_dir);
+
+        let mut session = create_test_session();
+        session.id = session_id;
+        crash_recovery.set_active_session(session);
+        crash_recovery.save_crash_dump(Some("panic 1".to_string()), None).unwrap();
+
+        let mut session2 = create_test_session();
+        session2.id = session_id;
+        crash_recovery.set_active_session(session2);
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        crash_recovery.save_crash_dump(Some("panic 2".to_string()), None).unwrap();
+
+        let incomplete = service.list_incomplete_sessions().await.unwrap();
+        assert_eq!(incomplete.len(), 1, "Should deduplicate same session with multiple crashes");
+        assert!(incomplete.contains(&session_id));
 
         drop(temp_dir);
     }

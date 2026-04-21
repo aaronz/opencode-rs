@@ -126,15 +126,20 @@
 
 ---
 
-### [ ] FR-050: Add list_incomplete_sessions
+### [x] FR-050: Add list_incomplete_sessions ✅ Done
 **Priority**: P2
 **Module**: `crates/storage/src/service.rs`
 **Dependencies**: None
 
 **Acceptance Criteria**:
-- [ ] `list_incomplete_sessions() -> Result<Vec<Uuid>, StorageError>` method exists
-- [ ] Returns Vec of incomplete session IDs
-- [ ] Empty list returned when no incomplete sessions exist
+- [x] `list_incomplete_sessions() -> Result<Vec<Uuid>, StorageError>` method exists
+- [x] Returns Vec of incomplete session IDs
+- [x] Empty list returned when no incomplete sessions exist
+
+**Tests Added**:
+- `test_list_incomplete_sessions_returns_empty_vec_when_no_incomplete_sessions`
+- `test_list_incomplete_sessions_returns_incomplete_session_ids`
+- `test_list_incomplete_sessions_handles_duplicate_crashes`
 
 ---
 
