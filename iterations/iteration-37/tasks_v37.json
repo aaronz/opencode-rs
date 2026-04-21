@@ -39,7 +39,7 @@
       "priority": "P0",
       "title": "Add comprehensive test module to global.rs",
       "description": "Add #[cfg(test)] mod tests with 5 unit tests covering: new GlobalState has no session, event_bus initialized, config accessible, can set current session, event_bus is Arc clonable and functional",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: new_global_state_has_no_session - assert state.current_session.is_none()",
         "AddUnitTest: event_bus_is_initialized - assert event_bus.subscriber_count() == 0",
@@ -62,7 +62,7 @@
       "priority": "P2",
       "title": "Add documentation comments to global.rs",
       "description": "Add module-level documentation and struct-level documentation to global.rs. Module docs explain GlobalState is a global state container for CLI/TUI runtime serving as DI container. Struct docs describe it owns Config, EventBus, and optional Session.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: cargo doc --no-deps -p opencode-core generates documentation without errors",
         "AddRegressionTest: documentation contains module and struct docs"

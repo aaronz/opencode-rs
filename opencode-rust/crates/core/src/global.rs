@@ -1,8 +1,55 @@
+//! Global state container for CLI/TUI runtime.
+//!
+//! This module provides [`GlobalState`], a lightweight dependency injection container
+//! for the TUI and CLI runtime paths. It owns the application [`Config`], an
+//! [`EventBus`] for pub/sub communication, and an optional active [`Session`].
+//!
+//! **Note**: The server path uses `ServerState` in `opencode-server` instead,
+//! which holds `Arc<StorageService>`, `Arc<ModelRegistry>`, etc.
+//!
+//! # Example
+//!
+//! ```rust
+//! use opencode_core::{Config, GlobalState};
+//!
+//! // At CLI/TUI startup:
+//! let config = Config::default();
+//! let global = GlobalState::new(config);
+//!
+//! // Access event bus:
+//! let bus = std::sync::Arc::clone(&global.event_bus);
+//!
+//! // Access config:
+//! let model = &global.config.model;
+//!
+//! // Set active session:
+//! let mut state = global;
+//! state.current_session = Some(opencode_core::Session::new());
+//! ```
+//!
+//! # Extension Pattern
+//!
+//! When adding new global runtime state, extend [`GlobalState`] following this pattern:
+//!
+//! ```rust,ignore
+//! pub struct GlobalState {
+//!     pub config: Config,
+//!     pub event_bus: Arc<EventBus>,
+//!     pub current_session: Option<Session>,
+//!     // Future additions:
+//!     pub tool_registry: Option<Arc<opencode_tools::ToolRegistry>>,
+//!     pub plugin_manager: Option<Arc<opencode_lsp::LspManager>>,
+//! }
+//! ```
+
 use crate::bus::EventBus;
 use crate::config::Config;
 use crate::session::Session;
 use std::sync::Arc;
 
+/// Global state container for CLI/TUI runtime.
+///
+/// Owns [`Config`], [`EventBus`], and optional active [`Session`].
 pub struct GlobalState {
     pub config: Config,
     pub event_bus: Arc<EventBus>,
