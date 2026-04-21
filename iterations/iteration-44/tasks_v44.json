@@ -22,7 +22,7 @@
       "priority": "P0",
       "title": "Create crates/file/src/lib.rs with module declarations and public exports",
       "description": "Create crates/file/src/lib.rs with module declarations (error, service, normalize, watch, copy) and public exports for all public types and functions",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: ensure lib.rs compiles and exports are accessible",
         "RunTestSuite: cargo check -p opencode-file"
