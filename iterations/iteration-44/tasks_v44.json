@@ -413,7 +413,7 @@
       "priority": "P2",
       "title": "Write unit test test_canonicalize_resolves_symlinks",
       "description": "Write unit test test_canonicalize_resolves_symlinks - verify canonicalize() resolves symlinks and makes absolute",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify canonicalize() resolves symlinks to real path",
         "AddUnitTest: verify canonicalize() returns absolute path"
@@ -432,7 +432,7 @@
       "priority": "P2",
       "title": "Write unit test test_resolve_path_relative",
       "description": "Write unit test test_resolve_path_relative - verify resolve_path() handles relative paths correctly",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify resolve_path() resolves ./ relative paths",
         "AddUnitTest: verify resolve_path() resolves ../ relative paths",

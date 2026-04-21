@@ -144,7 +144,7 @@
 - [ ] **T-022**: Write unit test `test_canonicalize_resolves_symlinks`
   - Verify canonicalize() resolves symlinks and makes absolute
 
-- [ ] **T-023**: Write unit test `test_resolve_path_relative`
+- [x] **T-023**: Write unit test `test_resolve_path_relative`
   - Verify resolve_path() handles relative paths correctly
 
 - [ ] **T-024**: Write unit test `test_create_dir_all_async`
