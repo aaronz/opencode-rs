@@ -39,7 +39,7 @@
       "priority": "P0",
       "title": "Add comprehensive test module to global.rs",
       "description": "Add #[cfg(test)] mod tests with 5 unit tests covering: new GlobalState has no session, event_bus initialized, config accessible, can set current session, event_bus is Arc clonable and functional",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: new_global_state_has_no_session - assert state.current_session.is_none()",
         "AddUnitTest: event_bus_is_initialized - assert event_bus.subscriber_count() == 0",
