@@ -20,11 +20,11 @@
       "impl_notes": "Add test to #[cfg(test)] mod tests in opencode-rust/crates/core/src/env.rs. Test must verify: 1) env.set() works on instance, 2) env.get() returns correct value, 3) std::env::var() does NOT see the isolated variable. Status: \u23f3 Pending.",
       "dependencies": []
     },
-{
+    {
       "id": "P2.1",
       "priority": "P2",
       "title": "Review #[allow(dead_code)] on EnvManager struct",
-      "description": "Determine why EnvManager is marked #[allow(dead_code)] — either add actual use point or remove suppression. FR-405 reference. Technical debt cleanup for future sprint.",
+      "description": "Determine why EnvManager is marked #[allow(dead_code)] \u2014 either add actual use point or remove suppression. FR-405 reference. Technical debt cleanup for future sprint.",
       "status": "done",
       "test_criteria": [
         "AddUnitTest: grep codebase to find all EnvManager instantiation sites",
