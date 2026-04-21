@@ -22,7 +22,7 @@
       "priority": "P1",
       "title": "Add subscriber_count() method to GlobalState",
       "description": "Add public subscriber_count() method to GlobalState that delegates to event_bus.subscriber_count(). Should be added after line 19 in global.rs.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify subscriber_count() returns correct count from event_bus",
         "AddUnitTest: verify method is callable from test context"

@@ -41,6 +41,12 @@ mod tests {
     }
 
     #[test]
+    fn subscriber_count_returns_correct_count() {
+        let state = GlobalState::new(Config::default());
+        assert_eq!(state.subscriber_count(), 0);
+    }
+
+    #[test]
     fn config_is_accessible() {
         let config = Config::default();
         let state = GlobalState::new(config);
