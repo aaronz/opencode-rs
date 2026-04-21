@@ -3402,8 +3402,10 @@ mod tests {
 
     #[test]
     fn test_config_validate_model_without_slash() {
-        let mut config = Config::default();
-        config.model = Some("invalid-model".to_string());
+        let config = Config {
+            model: Some("invalid-model".to_string()),
+            ..Default::default()
+        };
         let errors = config.validate();
         assert!(!errors.is_empty());
         assert!(errors.iter().any(|e| e.field == "model"));
@@ -3411,8 +3413,10 @@ mod tests {
 
     #[test]
     fn test_config_validate_temperature_out_of_range() {
-        let mut config = Config::default();
-        config.temperature = Some(5.0);
+        let config = Config {
+            temperature: Some(5.0),
+            ..Default::default()
+        };
         let errors = config.validate();
         assert!(!errors.is_empty());
         assert!(errors.iter().any(|e| e.field == "temperature"));
@@ -3767,8 +3771,7 @@ mod tests {
         };
         let resolved = config.resolve_path(None);
         std::env::remove_var("HOME");
-        if resolved.is_some() {
-            let path = resolved.unwrap();
+        if let Some(path) = resolved {
             if path.exists() {
                 assert!(path.to_string_lossy().contains("my-theme"));
             }

@@ -668,7 +668,7 @@ mod tests {
         let schema = get_builtin_schema();
         assert!(schema.is_object());
         // Verify it's a valid empty-ish schema structure
-        assert!(schema.get("type").is_some() || schema.as_object().map_or(false, |o| o.is_empty()));
+        assert!(schema.get("type").is_some() || schema.as_object().is_some_and(|o| o.is_empty()));
     }
 
     #[test]
