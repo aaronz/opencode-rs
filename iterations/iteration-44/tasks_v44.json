@@ -300,7 +300,7 @@
       "priority": "P1",
       "title": "Implement copy_dir() async function",
       "description": "Implement copy_dir() async function - use walkdir::WalkDir for recursive traversal, preserve directory structure, copy all files respecting permissions. Return total bytes copied. Return FileError::NotADirectory if source is not a directory.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify copy_dir() recursively copies directory tree",
         "AddUnitTest: verify copy_dir() preserves directory structure",
@@ -320,7 +320,7 @@
       "priority": "P1",
       "title": "Write unit test test_watch_fires_callback_on_file_change",
       "description": "Write unit test test_watch_fires_callback_on_file_change - verify watch() registers watcher and callback fires on file change",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify watch() registers watcher successfully",
         "AddIntegrationTest: verify callback is invoked when watched file changes"
