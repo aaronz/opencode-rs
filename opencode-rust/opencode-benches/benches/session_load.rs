@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use opencode_core::{Message, Session};
 use opencode_storage::database::StoragePool;
 use opencode_storage::migration::MigrationManager;
@@ -59,7 +59,8 @@ fn bench_session_save(c: &mut Criterion) {
                     let mut session = Session::new();
                     for i in 0..msg_count {
                         session.add_message(Message::user(format!("User message {}", i)));
-                        session.add_message(Message::assistant(format!("Assistant response {}", i)));
+                        session
+                            .add_message(Message::assistant(format!("Assistant response {}", i)));
                     }
                     let id = session.id;
                     rt.block_on(repo.save(&session)).unwrap();

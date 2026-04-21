@@ -1,12 +1,12 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use async_trait::async_trait;
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use opencode_core::OpenCodeError;
+use opencode_llm::provider::{sealed, Model};
 use opencode_llm::provider::{ChatMessage, Provider, StreamingCallback};
 use opencode_llm::provider_abstraction::{DynProvider, ProviderSpec};
 use opencode_llm::ProviderManager;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use async_trait::async_trait;
-use opencode_core::OpenCodeError;
-use opencode_llm::provider::{Model, sealed};
 
 struct MockStreamingProvider {
     first_token_delay_ms: u64,
@@ -16,7 +16,12 @@ struct MockStreamingProvider {
 }
 
 impl MockStreamingProvider {
-    fn new(first_token_delay_ms: u64, chunk_delay_ms: u64, chunks: Vec<String>, model_name: &str) -> Self {
+    fn new(
+        first_token_delay_ms: u64,
+        chunk_delay_ms: u64,
+        chunks: Vec<String>,
+        model_name: &str,
+    ) -> Self {
         Self {
             first_token_delay_ms,
             chunk_delay_ms,
@@ -265,12 +270,10 @@ fn bench_provider_anthropic(c: &mut Criterion) {
         };
 
         let provider = manager.create_provider(&spec).unwrap();
-        let messages = vec![
-            ChatMessage {
-                role: "user".to_string(),
-                content: "Hello, how are you?".to_string(),
-            },
-        ];
+        let messages = vec![ChatMessage {
+            role: "user".to_string(),
+            content: "Hello, how are you?".to_string(),
+        }];
 
         b.iter(|| {
             let result = rt.block_on(provider.chat(&messages));
@@ -330,17 +333,13 @@ mod tests {
         let collected = Arc::new(Mutex::new(Vec::new()));
         let collected_clone = collected.clone();
 
-        let callback: Box<dyn FnMut(String) + Send + Sync> =
-            Box::new(move |chunk: String| {
-                if let Ok(mut guard) = collected_clone.lock() {
-                    guard.push(chunk);
-                }
-            });
+        let callback: Box<dyn FnMut(String) + Send + Sync> = Box::new(move |chunk: String| {
+            if let Ok(mut guard) = collected_clone.lock() {
+                guard.push(chunk);
+            }
+        });
 
-        provider
-            .complete_streaming("test", callback)
-            .await
-            .unwrap();
+        provider.complete_streaming("test", callback).await.unwrap();
 
         let result = collected.lock().unwrap();
         assert_eq!(*result, vec!["a", "b", "c"]);

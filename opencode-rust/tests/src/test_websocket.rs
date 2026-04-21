@@ -232,7 +232,10 @@ async fn test_ws_multiple_streams() {
         .expect("Second client should connect to WebSocket endpoint");
 
     let connected_msg1 = ws1.next().await;
-    assert!(connected_msg1.is_some(), "First client should receive connected message");
+    assert!(
+        connected_msg1.is_some(),
+        "First client should receive connected message"
+    );
     let connected_text1 = connected_msg1
         .unwrap()
         .expect("Message should not be error")
@@ -252,7 +255,10 @@ async fn test_ws_multiple_streams() {
     );
 
     let connected_msg2 = ws2.next().await;
-    assert!(connected_msg2.is_some(), "Second client should receive connected message");
+    assert!(
+        connected_msg2.is_some(),
+        "Second client should receive connected message"
+    );
     let connected_text2 = connected_msg2
         .unwrap()
         .expect("Message should not be error")
@@ -520,7 +526,10 @@ async fn test_ws_long_response() {
         }
     }
 
-    assert!(received_messages >= 2, "Should handle multiple streaming messages");
+    assert!(
+        received_messages >= 2,
+        "Should handle multiple streaming messages"
+    );
 
     ws_close(&mut ws).await;
     server_handle.abort();
@@ -565,7 +574,8 @@ async fn test_ws_connection_drop() {
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let (ws_url2, server_handle2) = start_ws_test_server(0).await;
-    let ws_url_with_session2 = ws_url2.replace("/test-session", "?session_id=new-session-after-drop");
+    let ws_url_with_session2 =
+        ws_url2.replace("/test-session", "?session_id=new-session-after-drop");
 
     let result = tokio_tungstenite::connect_async(&ws_url_with_session2).await;
     assert!(

@@ -157,9 +157,15 @@ mod tests {
     fn test_env_instance_isolation() {
         let env = EnvManager::new();
 
-        env.set("ISOLATION_TEST_VAR".to_string(), "isolated_value".to_string());
+        env.set(
+            "ISOLATION_TEST_VAR".to_string(),
+            "isolated_value".to_string(),
+        );
 
-        assert_eq!(env.get("ISOLATION_TEST_VAR"), Some("isolated_value".to_string()));
+        assert_eq!(
+            env.get("ISOLATION_TEST_VAR"),
+            Some("isolated_value".to_string())
+        );
         assert!(std::env::var("ISOLATION_TEST_VAR").is_err());
 
         env.remove("ISOLATION_TEST_VAR");

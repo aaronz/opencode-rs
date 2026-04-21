@@ -1126,7 +1126,11 @@ async fn test_ws_memory_no_growth_on_repeated_streams() {
             .expect("Should connect to WebSocket");
 
         let connected_msg = ws.next().await;
-        assert!(connected_msg.is_some(), "Iteration {}: Should receive connected", iteration);
+        assert!(
+            connected_msg.is_some(),
+            "Iteration {}: Should receive connected",
+            iteration
+        );
         drop(connected_msg);
 
         ws_close(&mut ws).await;
@@ -1144,14 +1148,17 @@ async fn test_ws_session_hub_no_memory_leak_on_register_unregister() {
 
     let mut receivers = Vec::new();
     for i in 0..20 {
-        let receiver = hub.register_client(session_id, &format!("client-{}", i)).await;
+        let receiver = hub
+            .register_client(session_id, &format!("client-{}", i))
+            .await;
         receivers.push(receiver);
     }
 
     assert_eq!(hub.get_session_client_count(session_id).await, 20);
 
     for i in 0..20 {
-        hub.unregister_client(session_id, &format!("client-{}", i)).await;
+        hub.unregister_client(session_id, &format!("client-{}", i))
+            .await;
     }
 
     tokio::time::sleep(Duration::from_millis(10)).await;
@@ -1192,7 +1199,8 @@ async fn test_ws_reconnection_store_cleanup_on_repeated_records() {
 
     let entries_after = store.replay_from(session_id, 0);
     assert_eq!(
-        entries_after.len(), 10,
+        entries_after.len(),
+        10,
         "Should still respect limit after additional record"
     );
 
@@ -1201,7 +1209,10 @@ async fn test_ws_reconnection_store_cleanup_on_repeated_records() {
     assert!(validated.is_some());
 
     let entries_from_seq = store.replay_from(session_id, 40);
-    assert!(entries_from_seq.len() <= 10, "Should return at most 10 entries");
+    assert!(
+        entries_from_seq.len() <= 10,
+        "Should return at most 10 entries"
+    );
 }
 
 #[tokio::test]
@@ -1243,7 +1254,11 @@ async fn test_ws_multiple_clients_same_session_cleanup() {
             .expect(&format!("Should connect client {}", i));
 
         let connected_msg = ws.next().await;
-        assert!(connected_msg.is_some(), "Client {}: Should receive connected", i);
+        assert!(
+            connected_msg.is_some(),
+            "Client {}: Should receive connected",
+            i
+        );
         drop(connected_msg);
 
         clients.push(ws);
@@ -1270,7 +1285,9 @@ async fn test_ws_broadcast_channel_cleanup() {
 
     let mut receivers = Vec::new();
     for i in 0..10 {
-        let receiver = hub.register_client(session_id, &format!("client-{}", i)).await;
+        let receiver = hub
+            .register_client(session_id, &format!("client-{}", i))
+            .await;
         receivers.push(receiver);
     }
 
@@ -1280,7 +1297,8 @@ async fn test_ws_broadcast_channel_cleanup() {
     assert_eq!(hub.get_session_client_count(session_id).await, 9);
 
     for i in 1..10 {
-        hub.unregister_client(session_id, &format!("client-{}", i)).await;
+        hub.unregister_client(session_id, &format!("client-{}", i))
+            .await;
     }
 
     assert_eq!(hub.get_session_client_count(session_id).await, 0);

@@ -1428,8 +1428,8 @@ mod ws_lifecycle_tests {
     #[tokio::test]
     async fn test_ws_connection_guard_drop_behavior() {
         use super::WsConnectionGuard;
-        use crate::streaming::conn_state::ConnectionMonitor;
         use crate::routes::ws::session_hub::SessionHub;
+        use crate::streaming::conn_state::ConnectionMonitor;
         use std::sync::Arc;
 
         let conn_monitor = Arc::new(ConnectionMonitor::new());

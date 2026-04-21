@@ -112,7 +112,9 @@ mod tests {
         let state = GlobalState::new(Config::default());
         let bus_clone = Arc::clone(&state.event_bus);
         let mut rx = bus_clone.subscribe();
-        state.event_bus.publish(crate::bus::InternalEvent::ConfigUpdated);
+        state
+            .event_bus
+            .publish(crate::bus::InternalEvent::ConfigUpdated);
         assert!(rx.try_recv().is_ok());
     }
 }
