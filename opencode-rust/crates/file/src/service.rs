@@ -4,6 +4,7 @@ use notify::{recommended_watcher, Event, RecommendedWatcher, RecursiveMode, Watc
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::Mutex;
 
 pub struct FileService {
@@ -23,13 +24,12 @@ impl FileService {
         &self,
         path: &Path,
         debounce_ms: u64,
-        callback: impl Fn(PathBuf) + Send + 'static,
+        callback: impl Fn(PathBuf) + Clone + Send + 'static,
     ) -> Result<String, FileError> {
         let watch_id = uuid::Uuid::new_v4().to_string();
-        let pending: Arc<Mutex<HashMap<PathBuf, std::pin::Pin<Box<tokio::time::Sleep>>>>> =
-            Arc::new(Mutex::new(HashMap::new()));
+        let pending: Arc<Mutex<HashMap<PathBuf, u64>>> = Arc::new(Mutex::new(HashMap::new()));
         let pending_clone = pending.clone();
-        let delay = std::time::Duration::from_millis(debounce_ms);
+        let delay = Duration::from_millis(debounce_ms);
         let path_owned = path.to_path_buf();
 
         let watcher = recommended_watcher(move |res: Result<Event, notify::Error>| {
@@ -37,24 +37,36 @@ impl FileService {
                 for path in event.paths {
                     let pending2 = pending_clone.clone();
                     let delay = delay;
-                    let callback = &callback;
+                    let callback = callback.clone();
 
                     tokio::spawn(async move {
-                        {
+                        let seq = {
                             let mut guard = pending2.lock().await;
-                            if let Some(sleep) = guard.get_mut(&path) {
-                                sleep.abort();
-                            }
-                            let sleep = Box::pin(tokio::time::sleep(delay));
-                            guard.insert(path.clone(), sleep);
-                        }
+                            let counter = guard.entry(path.clone()).or_insert(0);
+                            *counter += 1;
+                            *counter
+                        };
 
                         tokio::time::sleep(delay).await;
-                        {
+
+                        let should_call = {
                             let mut guard = pending2.lock().await;
-                            guard.remove(&path);
+                            if let Some(counter) = guard.get(&path) {
+                                if *counter == seq {
+                                    guard.remove(&path);
+                                    true
+                                } else {
+                                    guard.remove(&path);
+                                    false
+                                }
+                            } else {
+                                false
+                            }
+                        };
+
+                        if should_call {
+                            callback(path);
                         }
-                        callback(path);
                     });
                 }
             }
@@ -91,14 +103,17 @@ impl FileService {
 
         if let Some(parent) = to.parent() {
             tokio::fs::create_dir_all(parent).await.map_err(|e| FileError::Io {
-                context: format!("Failed to create parent directory for {}", to.display()),
-                source: e,
+                context: format!(
+                    "Failed to create parent directory for {}",
+                    to.display()
+                ),
+                source: Arc::new(e),
             })?;
         }
 
         let bytes = tokio::fs::copy(from, to).await.map_err(|e| FileError::Io {
             context: format!("Failed to copy {} to {}", from.display(), to.display()),
-            source: e,
+            source: Arc::new(e),
         })?;
 
         Ok(bytes)
@@ -120,17 +135,17 @@ impl FileService {
             let source_path = entry.path();
             let relative_path = source_path.strip_prefix(from).map_err(|_| FileError::Io {
                 context: String::new(),
-                source: std::io::Error::new(
+                source: Arc::new(std::io::Error::new(
                     std::io::ErrorKind::InvalidInput,
                     "Failed to compute relative path",
-                ),
+                )),
             })?;
             let dest_path = to.join(relative_path);
 
             if source_path.is_dir() {
                 tokio::fs::create_dir_all(&dest_path).await.map_err(|e| FileError::Io {
                     context: format!("Failed to create directory {}", dest_path.display()),
-                    source: e,
+                    source: Arc::new(e),
                 })?;
             } else {
                 if let Some(parent) = dest_path.parent() {
@@ -139,7 +154,7 @@ impl FileService {
                             "Failed to create parent directory for {}",
                             dest_path.display()
                         ),
-                        source: e,
+                        source: Arc::new(e),
                     })?;
                 }
                 let bytes =
@@ -151,7 +166,7 @@ impl FileService {
                                 source_path.display(),
                                 dest_path.display()
                             ),
-                            source: e,
+                            source: Arc::new(e),
                         })?;
                 total_bytes += bytes;
             }
@@ -165,7 +180,7 @@ impl FileService {
             .await
             .map_err(|e| FileError::Io {
                 context: format!("Failed to create directory {}", path.display()),
-                source: e,
+                source: Arc::new(e),
             })?;
         Ok(())
     }
@@ -185,7 +200,7 @@ impl FileService {
             .await
             .map_err(|e| FileError::Io {
                 context: format!("Failed to remove file {}", path.display()),
-                source: e,
+                source: Arc::new(e),
             })?;
         Ok(())
     }
@@ -199,7 +214,7 @@ impl FileService {
             .await
             .map_err(|e| FileError::Io {
                 context: format!("Failed to canonicalize {}", path.display()),
-                source: e,
+                source: Arc::new(e),
             })
     }
 
@@ -265,14 +280,14 @@ mod tests {
         tokio::fs::write(&file, "content").await.unwrap();
 
         assert!(svc.exists(&file).await);
-        assert!(!svc.exists(tmp.path().join("nonexistent.txt")).await);
+        assert!(!svc.exists(&tmp.path().join("nonexistent.txt")).await);
     }
 
     #[tokio::test]
     async fn test_remove_file_not_found() {
         let svc = FileService::new();
         let tmp = TempDir::new().unwrap();
-        let result = svc.remove_file(tmp.path().join("nonexistent.txt")).await;
+        let result = svc.remove_file(&tmp.path().join("nonexistent.txt")).await;
         assert!(result.is_err());
     }
 }

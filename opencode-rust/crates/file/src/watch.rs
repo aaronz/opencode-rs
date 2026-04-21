@@ -1,12 +1,14 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 
 pub struct Debouncer {
     delay: Duration,
-    pending: Arc<Mutex<HashMap<PathBuf, u64>>>,
+    pending: Arc<Mutex<HashMap<PathBuf, Arc<AtomicU64>>>>,
+    counter: Arc<AtomicU64>,
 }
 
 impl Debouncer {
@@ -14,6 +16,7 @@ impl Debouncer {
         Self {
             delay,
             pending: Arc::new(Mutex::new(HashMap::new())),
+            counter: Arc::new(AtomicU64::new(0)),
         }
     }
 
@@ -23,12 +26,15 @@ impl Debouncer {
     {
         let delay = self.delay;
         let pending = self.pending.clone();
+        let counter = self.counter.clone();
 
-        let seq = {
+        let seq = counter.fetch_add(1, Ordering::SeqCst);
+
+        let seq_arc = {
             let mut guard = pending.lock().await;
-            let counter = guard.entry(path.clone()).or_insert(0);
-            *counter += 1;
-            *counter
+            let entry = guard.entry(path.clone()).or_insert_with(|| Arc::new(AtomicU64::new(0)));
+            entry.store(seq, Ordering::SeqCst);
+            entry.clone()
         };
 
         let pending2 = pending.clone();
@@ -38,15 +44,11 @@ impl Debouncer {
             tokio::time::sleep(delay).await;
 
             let should_call = {
-                let mut guard = pending2.lock().await;
-                if let Some(counter) = guard.get(&path2) {
-                    if *counter == seq {
-                        guard.remove(&path2);
-                        true
-                    } else {
-                        guard.remove(&path2);
-                        false
-                    }
+                let guard = pending2.lock().await;
+                if let Some(current_seq) = guard.get(&path2) {
+                    let current = current_seq.load(Ordering::SeqCst);
+                    let mine = seq_arc.load(Ordering::SeqCst);
+                    current == mine
                 } else {
                     false
                 }
@@ -84,7 +86,8 @@ mod tests {
             })
             .await;
 
-        tokio::time::sleep(Duration::from_millis(150)).await;
-        assert_eq!(count.load(Ordering::SeqCst), 1);
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        let final_count = count.load(Ordering::SeqCst);
+        assert_eq!(final_count, 1, "Expected 1 callback but got {}", final_count);
     }
 }

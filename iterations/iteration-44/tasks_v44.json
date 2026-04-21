@@ -41,7 +41,7 @@
       "priority": "P0",
       "title": "Implement FileError enum with 7 variants",
       "description": "Implement FileError enum in crates/file/src/error.rs with 7 variants: NotFound(PathBuf), NotAFile(PathBuf), NotADirectory(PathBuf), Io { context: String, source: std::io::Error }, Watch(String), WatchNotFound(String), PathTooLong(PathBuf). Use thiserror = \"2.0\" derive macros.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify each FileError variant can be constructed and displayed",
         "AddErrorHandlingTest: test error propagation and Display formatting"

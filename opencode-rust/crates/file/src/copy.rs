@@ -19,16 +19,16 @@ impl Copier {
         }
 
         if let Some(parent) = to.parent() {
-            fs::create_dir_all(parent).await.map_err(|e| FileError::Io {
-                context: format!("Failed to create parent directory for {}", to.display()),
-                source: e,
-            })?;
+            fs::create_dir_all(parent).await.map_err(|e| FileError::io(
+                format!("Failed to create parent directory for {}", to.display()),
+                e,
+            ))?;
         }
 
-        let bytes = fs::copy(from, to).await.map_err(|e| FileError::Io {
-            context: format!("Failed to copy {} to {}", from.display(), to.display()),
-            source: e,
-        })?;
+        let bytes = fs::copy(from, to).await.map_err(|e| FileError::io(
+            format!("Failed to copy {} to {}", from.display(), to.display()),
+            e,
+        ))?;
 
         Ok(bytes)
     }
@@ -45,41 +45,31 @@ impl Copier {
 
         for entry in WalkDir::new(from).into_iter().filter_map(|e| e.ok()) {
             let source_path = entry.path();
-            let relative_path = source_path.strip_prefix(from).map_err(|_| FileError::Io {
-                context: String::new(),
-                source: std::io::Error::new(
+            let relative_path = source_path.strip_prefix(from).map_err(|_| FileError::io(
+                "Failed to compute relative path",
+                std::io::Error::new(
                     std::io::ErrorKind::InvalidInput,
                     "Failed to compute relative path",
                 ),
-            })?;
+            ))?;
             let dest_path = to.join(relative_path);
 
             if source_path.is_dir() {
-                fs::create_dir_all(&dest_path).await.map_err(|e| FileError::Io {
-                    context: format!(
-                        "Failed to create directory {}",
-                        dest_path.display()
-                    ),
-                    source: e,
-                })?;
+                fs::create_dir_all(&dest_path).await.map_err(|e| FileError::io(
+                    format!("Failed to create directory {}", dest_path.display()),
+                    e,
+                ))?;
             } else {
                 if let Some(parent) = dest_path.parent() {
-                    fs::create_dir_all(parent).await.map_err(|e| FileError::Io {
-                        context: format!(
-                            "Failed to create parent directory for {}",
-                            dest_path.display()
-                        ),
-                        source: e,
-                    })?;
+                    fs::create_dir_all(parent).await.map_err(|e| FileError::io(
+                        format!("Failed to create parent directory for {}", dest_path.display()),
+                        e,
+                    ))?;
                 }
-                let bytes = fs::copy(source_path, &dest_path).await.map_err(|e| FileError::Io {
-                    context: format!(
-                        "Failed to copy {} to {}",
-                        source_path.display(),
-                        dest_path.display()
-                    ),
-                    source: e,
-                })?;
+                let bytes = fs::copy(source_path, &dest_path).await.map_err(|e| FileError::io(
+                    format!("Failed to copy {} to {}", source_path.display(), dest_path.display()),
+                    e,
+                ))?;
                 total_bytes += bytes;
             }
         }

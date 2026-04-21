@@ -30,7 +30,7 @@ impl Normalizer {
         if relative.is_absolute() {
             relative.to_path_buf()
         } else {
-            base.join(relative)
+            self.normalize(&base.join(relative))
         }
     }
 }
