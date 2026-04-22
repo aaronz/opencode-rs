@@ -64,6 +64,22 @@ impl LogQuery {
         self
     }
 
+    /// Create a query that filters by a specific session
+    pub fn for_session(session_id: impl Into<String>) -> Self {
+        Self {
+            session_id: Some(session_id.into()),
+            ..Default::default()
+        }
+    }
+
+    /// Create a query that filters by a specific log level
+    pub fn for_level(level: LogLevel) -> Self {
+        Self {
+            level: Some(level),
+            ..Default::default()
+        }
+    }
+
     /// Check if an event matches this query
     pub fn matches(&self, event: &LogEvent) -> bool {
         if let Some(ref session_id) = self.session_id {

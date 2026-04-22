@@ -92,7 +92,7 @@
       "priority": "P0",
       "title": "Implement LogQuery Struct",
       "description": "Create LogQuery with session_id, level, target, since, until, limit. Implement matches() method, Default, and helper methods for_session() and for_level().",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify LogQuery::matches returns true when event matches all set criteria",
         "AddUnitTest: verify LogQuery::matches returns false when event fails any criterion",
