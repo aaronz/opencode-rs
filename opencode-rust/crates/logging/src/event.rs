@@ -462,4 +462,110 @@ mod tests {
         assert!(matches!(redacted, SanitizedValue::Redacted(_)));
         assert!(matches!(nested, SanitizedValue::Nested(_)));
     }
+
+    #[test]
+    fn test_log_fields_default_creates_empty_struct() {
+        let fields = LogFields::default();
+
+        // All Option fields should be None
+        assert_eq!(fields.session_id, None);
+        assert_eq!(fields.tool_name, None);
+        assert_eq!(fields.latency_ms, None);
+        assert_eq!(fields.model, None);
+        assert_eq!(fields.provider, None);
+        assert_eq!(fields.token_count, None);
+        assert_eq!(fields.error_code, None);
+        assert_eq!(fields.file_path, None);
+        assert_eq!(fields.line, None);
+        // extra should be an empty HashMap
+        assert!(fields.extra.is_empty());
+    }
+
+    #[test]
+    fn test_log_fields_serialization_includes_all_fields() {
+        let mut fields = LogFields::default();
+        fields.session_id = Some("sess_abc123".to_string());
+        fields.tool_name = Some("read".to_string());
+        fields.latency_ms = Some(42);
+        fields.model = Some("gpt-4".to_string());
+        fields.provider = Some("openai".to_string());
+        fields.token_count = Some(1500);
+        fields.error_code = Some("ERR_NOT_FOUND".to_string());
+        fields.file_path = Some("/path/to/file.rs".to_string());
+        fields.line = Some(100);
+        fields.extra.insert("custom_key".to_string(), serde_json::json!("custom_value"));
+
+        let json = serde_json::to_string(&fields).unwrap();
+
+        // Verify all fields are present in serialized JSON
+        assert!(json.contains("\"session_id\":\"sess_abc123\""));
+        assert!(json.contains("\"tool_name\":\"read\""));
+        assert!(json.contains("\"latency_ms\":42"));
+        assert!(json.contains("\"model\":\"gpt-4\""));
+        assert!(json.contains("\"provider\":\"openai\""));
+        assert!(json.contains("\"token_count\":1500"));
+        assert!(json.contains("\"error_code\":\"ERR_NOT_FOUND\""));
+        assert!(json.contains("\"file_path\":\"/path/to/file.rs\""));
+        assert!(json.contains("\"line\":100"));
+        assert!(json.contains("\"custom_key\""));
+        assert!(json.contains("\"custom_value\""));
+    }
+
+    #[test]
+    fn test_log_fields_deserialization_populates_correct_fields() {
+        let json = r#"{
+            "session_id": "sess_xyz789",
+            "tool_name": "write",
+            "latency_ms": 100,
+            "model": "claude-3",
+            "provider": "anthropic",
+            "token_count": 2000,
+            "error_code": "ERR_PERMISSION",
+            "file_path": "/src/main.rs",
+            "line": 42,
+            "extra": {"nested": {"key": "value"}, "number": 123}
+        }"#;
+
+        let fields: LogFields = serde_json::from_str(json).unwrap();
+
+        assert_eq!(fields.session_id, Some("sess_xyz789".to_string()));
+        assert_eq!(fields.tool_name, Some("write".to_string()));
+        assert_eq!(fields.latency_ms, Some(100));
+        assert_eq!(fields.model, Some("claude-3".to_string()));
+        assert_eq!(fields.provider, Some("anthropic".to_string()));
+        assert_eq!(fields.token_count, Some(2000));
+        assert_eq!(fields.error_code, Some("ERR_PERMISSION".to_string()));
+        assert_eq!(fields.file_path, Some("/src/main.rs".to_string()));
+        assert_eq!(fields.line, Some(42));
+        assert_eq!(fields.extra.get("nested").unwrap().as_object().unwrap().get("key").unwrap().as_str().unwrap(), "value");
+        assert_eq!(fields.extra.get("number").unwrap().as_i64().unwrap(), 123);
+    }
+
+    #[test]
+    fn test_log_fields_extra_hashmap_stores_arbitrary_json() {
+        let mut fields = LogFields::default();
+
+        // Store various JSON value types in extra
+        fields.extra.insert("string_val".to_string(), serde_json::json!("hello"));
+        fields.extra.insert("number_val".to_string(), serde_json::json!(42));
+        fields.extra.insert("float_val".to_string(), serde_json::json!(3.14));
+        fields.extra.insert("bool_val".to_string(), serde_json::json!(true));
+        fields.extra.insert("null_val".to_string(), serde_json::json!(null));
+        fields.extra.insert("array_val".to_string(), serde_json::json!([1, 2, 3]));
+        fields.extra.insert("object_val".to_string(), serde_json::json!({"key": "value"}));
+
+        assert_eq!(fields.extra.len(), 7);
+        assert_eq!(fields.extra.get("string_val").unwrap().as_str().unwrap(), "hello");
+        assert_eq!(fields.extra.get("number_val").unwrap().as_i64().unwrap(), 42);
+        assert_eq!(fields.extra.get("float_val").unwrap().as_f64().unwrap(), 3.14);
+        assert_eq!(fields.extra.get("bool_val").unwrap().as_bool().unwrap(), true);
+        assert!(fields.extra.get("null_val").unwrap().is_null());
+        assert_eq!(fields.extra.get("array_val").unwrap().as_array().unwrap().len(), 3);
+        assert_eq!(fields.extra.get("object_val").unwrap().as_object().unwrap().get("key").unwrap().as_str().unwrap(), "value");
+
+        // Verify serialization round-trip
+        let json = serde_json::to_string(&fields).unwrap();
+        let deserialized: LogFields = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.extra.get("string_val").unwrap().as_str().unwrap(), "hello");
+    }
 }
