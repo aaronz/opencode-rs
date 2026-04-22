@@ -1,0 +1,168 @@
+{
+  "tasks": [
+    {
+      "id": "FR-001",
+      "priority": "P0",
+      "title": "FlagManager Instantiation and Initialization",
+      "description": "Find application entry point and instantiate FlagManager at application startup. Call flags.load_from_env() immediately after instantiation. Store FlagManager in globally accessible location (AppState, RuntimeContext).",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify FlagManager can be instantiated",
+        "AddUnitTest: verify load_from_env() populates flag values from environment",
+        "AddIntegrationTest: verify FlagManager is accessible from application context"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib -- flag_manager",
+        "cargo build --release"
+      ],
+      "impl_notes": "Find main.rs, lib.rs, or config init. Store FlagManager in AppState or RuntimeContext.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-002",
+      "priority": "P0",
+      "title": "Unit Tests for Boolean Flags",
+      "description": "Create unit tests for all boolean flags: new_manager_has_all_boolean_flags (check all 28 boolean flags including OPENCODE_EXPERIMENTAL, OPENCODE_DEBUG, OPENCODE_AUTO_SHARE), default_values_are_false_except_markdown (only OPENCODE_EXPERIMENTAL_MARKDOWN defaults to true), set_overrides_value, unknown_flag_returns_false, exa_enabled_when_experimental_is_true, plan_mode_enabled_when_experimental_is_true.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify new_manager_has_all_boolean_flags - all 28 boolean flags registered",
+        "AddUnitTest: verify default_values_are_false_except_markdown - only OPENCODE_EXPERIMENTAL_MARKDOWN defaults to true",
+        "AddUnitTest: verify set_overrides_value - Boolean set() correctly overrides default",
+        "AddUnitTest: verify unknown_flag_returns_false - Missing flags return false from is_enabled()",
+        "AddUnitTest: verify exa_enabled_when_experimental_is_true - opencode_enable_exa() works when experimental=true",
+        "AddUnitTest: verify plan_mode_enabled_when_experimental_is_true - opencode_experimental_plan_mode() works"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib -- boolean_flags",
+        "cargo test -p opencode-core --lib -- default_values",
+        "cargo test -p opencode-core --lib -- set_overrides",
+        "cargo test -p opencode-core --lib -- unknown_flag",
+        "cargo test -p opencode-core --lib -- exa_enabled",
+        "cargo test -p opencode-core --lib -- plan_mode"
+      ],
+      "impl_notes": "Test all 28 boolean flags: OPENCODE_EXPERIMENTAL, OPENCODE_DEBUG, OPENCODE_AUTO_SHARE, etc.",
+      "dependencies": [
+        "FR-001"
+      ]
+    },
+    {
+      "id": "FR-003",
+      "priority": "P0",
+      "title": "Unit Tests for String and Number Flags",
+      "description": "Create unit tests for string and number flags: opencode_client_defaults_to_cli (returns 'cli' by default), bash_timeout_has_default (returns Some(120_000)), string_flag_returns_none_when_not_set (get_string() returns None), number_flag_returns_none_when_not_set (get_number() returns None).",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify opencode_client_defaults_to_cli - opencode_client() returns 'cli' by default",
+        "AddUnitTest: verify bash_timeout_has_default - opencode_experimental_bash_timeout_ms() returns Some(120_000)",
+        "AddUnitTest: verify string_flag_returns_none_when_not_set - get_string() returns None when env not set",
+        "AddUnitTest: verify number_flag_returns_none_when_not_set - get_number() returns None when env not set"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib -- string_flags",
+        "cargo test -p opencode-core --lib -- number_flags",
+        "cargo test -p opencode-core --lib -- client_defaults"
+      ],
+      "impl_notes": "Test 11 string flags and 2 number flags.",
+      "dependencies": [
+        "FR-001"
+      ]
+    },
+    {
+      "id": "FR-004",
+      "priority": "P1",
+      "title": "Register OPENCODE_EXPERIMENTAL_EXA Flag",
+      "description": "Register OPENCODE_EXPERIMENTAL_EXA in FlagManager::new() with default false. OR remove the truthy('OPENCODE_EXPERIMENTAL_EXA') check if not needed. Verify opencode_enable_exa() method works correctly.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify OPENCODE_EXPERIMENTAL_EXA flag is registered with default false",
+        "AddUnitTest: verify opencode_enable_exa() returns correct value based on flag state",
+        "AddRegressionTest: ensure opencode_enable_exa() method works when experimental=true"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib -- exa_flag",
+        "cargo build --release"
+      ],
+      "impl_notes": "Either register the flag in FlagManager::new() or remove the truthy check.",
+      "dependencies": [
+        "FR-001"
+      ]
+    },
+    {
+      "id": "FR-005",
+      "priority": "P2",
+      "title": "Refactor load_from_env() to Use truthy() Helper",
+      "description": "Refactor load_from_env() to use truthy() helper instead of inline check. Change from flag.value = val == '1' || val.to_lowercase() == 'true' to flag.value = truthy(name). Remove duplicate truthy check code.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify load_from_env() uses truthy() helper for boolean parsing",
+        "AddRegressionTest: ensure boolean flags still load correctly from environment"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib -- load_from_env",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Replace inline boolean parsing with truthy(name) helper call.",
+      "dependencies": [
+        "FR-002"
+      ]
+    },
+    {
+      "id": "FR-006",
+      "priority": "P2",
+      "title": "Add Setter Methods for String and Number Flags",
+      "description": "Add set_string(&mut self, name: &str, value: Option<String>) method and set_number(&mut self, name: &str, value: Option<u64>) method. Methods should only update if flag exists (silent no-op otherwise).",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify set_string() updates string flag value when flag exists",
+        "AddUnitTest: verify set_string() is no-op when flag does not exist",
+        "AddUnitTest: verify set_number() updates number flag value when flag exists",
+        "AddUnitTest: verify set_number() is no-op when flag does not exist"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib -- set_string",
+        "cargo test -p opencode-core --lib -- set_number"
+      ],
+      "impl_notes": "Silent no-op when flag doesn't exist.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-007",
+      "priority": "P2",
+      "title": "Add Method to List All Flags",
+      "description": "Add all_flags(&self) -> &HashMap<String, Flag> getter, all_string_flags(&self) -> &HashMap<String, Option<String>> getter, and all_number_flags(&self) -> &HashMap<String, Option<u64>> getter. Useful for debugging and admin interfaces.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify all_flags() returns all boolean flags",
+        "AddUnitTest: verify all_string_flags() returns all string flags",
+        "AddUnitTest: verify all_number_flags() returns all number flags"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib -- all_flags"
+      ],
+      "impl_notes": "Getters for debugging and admin interfaces.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-008",
+      "priority": "P1",
+      "title": "Application Integration - Replace Hardcoded Feature Checks",
+      "description": "Audit codebase for hardcoded OPENCODE_* env var checks (grep). Replace hardcoded feature checks with FlagManager queries. Ensure all feature toggles use the flag system.",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify all OPENCODE_* env var checks use FlagManager",
+        "RunTestSuite: execute full test suite to ensure no regressions after replacing hardcoded checks"
+      ],
+      "test_commands": [
+        "grep -r 'OPENCODE_' --include='*.rs' | grep -v 'flag' | grep -v 'test'",
+        "cargo test --all",
+        "cargo build --release"
+      ],
+      "impl_notes": "Grep codebase for hardcoded env var checks and replace with FlagManager queries.",
+      "dependencies": [
+        "FR-001",
+        "FR-002",
+        "FR-003"
+      ]
+    }
+  ]
+}

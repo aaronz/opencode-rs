@@ -215,6 +215,16 @@ impl FlagManager {
         );
 
         flags.insert(
+            "OPENCODE_EXPERIMENTAL_EXA".to_string(),
+            Flag {
+                name: "OPENCODE_EXPERIMENTAL_EXA".to_string(),
+                description: "Enable Exa web search (experimental)".to_string(),
+                default: false,
+                value: false,
+            },
+        );
+
+        flags.insert(
             "OPENCODE_ENABLE_EXA".to_string(),
             Flag {
                 name: "OPENCODE_ENABLE_EXA".to_string(),
@@ -458,5 +468,86 @@ impl FlagManager {
 impl Default for FlagManager {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_manager_has_all_boolean_flags() {
+        let fm = FlagManager::new();
+        assert!(fm.get("OPENCODE_EXPERIMENTAL").is_some());
+        assert!(fm.get("OPENCODE_DEBUG").is_some());
+        assert!(fm.get("OPENCODE_ENABLE_EXA").is_some());
+        assert!(fm.get("OPENCODE_EXPERIMENTAL_MARKDOWN").is_some());
+        assert!(fm.get("OPENCODE_EXPERIMENTAL_PLAN_MODE").is_some());
+    }
+
+    #[test]
+    fn default_values_are_false_except_markdown() {
+        let fm = FlagManager::new();
+        assert!(!fm.is_enabled("OPENCODE_EXPERIMENTAL"));
+        assert!(!fm.is_enabled("OPENCODE_DEBUG"));
+        assert!(fm.is_enabled("OPENCODE_EXPERIMENTAL_MARKDOWN"));
+    }
+
+    #[test]
+    fn set_overrides_value() {
+        let mut fm = FlagManager::new();
+        assert!(!fm.is_enabled("OPENCODE_DEBUG"));
+        fm.set("OPENCODE_DEBUG", true);
+        assert!(fm.is_enabled("OPENCODE_DEBUG"));
+    }
+
+    #[test]
+    fn unknown_flag_returns_false() {
+        let fm = FlagManager::new();
+        assert!(!fm.is_enabled("NONEXISTENT_FLAG"));
+    }
+
+    #[test]
+    fn exa_enabled_when_experimental_is_true() {
+        let mut fm = FlagManager::new();
+        fm.set("OPENCODE_EXPERIMENTAL", true);
+        assert!(fm.opencode_enable_exa());
+    }
+
+    #[test]
+    fn plan_mode_enabled_when_experimental_is_true() {
+        let mut fm = FlagManager::new();
+        fm.set("OPENCODE_EXPERIMENTAL", true);
+        assert!(fm.opencode_experimental_plan_mode());
+    }
+
+    #[test]
+    fn opencode_client_defaults_to_cli() {
+        let fm = FlagManager::new();
+        assert_eq!(fm.opencode_client(), "cli");
+    }
+
+    #[test]
+    fn bash_timeout_has_default() {
+        let fm = FlagManager::new();
+        assert_eq!(fm.opencode_experimental_bash_timeout_ms(), Some(120_000));
+    }
+
+    #[test]
+    fn string_flag_returns_none_when_not_set() {
+        let fm = FlagManager::new();
+        assert!(fm.get_string("OPENCODE_CONFIG").is_none());
+    }
+
+    #[test]
+    fn number_flag_returns_none_when_not_set() {
+        let fm = FlagManager::new();
+        assert!(fm.get_number("OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX").is_none());
+    }
+
+    #[test]
+    fn opencode_experimental_exa_flag_exists() {
+        let fm = FlagManager::new();
+        assert!(fm.get("OPENCODE_EXPERIMENTAL_EXA").is_some());
     }
 }

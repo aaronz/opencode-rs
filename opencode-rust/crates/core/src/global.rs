@@ -44,23 +44,28 @@
 
 use crate::bus::EventBus;
 use crate::config::Config;
+use crate::flag::FlagManager;
 use crate::session::Session;
 use std::sync::Arc;
 
 /// Global state container for CLI/TUI runtime.
 ///
-/// Owns [`Config`], [`EventBus`], and optional active [`Session`].
+/// Owns [`Config`], [`EventBus`], [`FlagManager`], and optional active [`Session`].
 pub struct GlobalState {
     pub config: Config,
     pub event_bus: Arc<EventBus>,
+    pub flag_manager: FlagManager,
     pub current_session: Option<Session>,
 }
 
 impl GlobalState {
     pub fn new(config: Config) -> Self {
+        let mut flag_manager = FlagManager::new();
+        flag_manager.load_from_env();
         Self {
             config,
             event_bus: Arc::new(EventBus::new()),
+            flag_manager,
             current_session: None,
         }
     }
@@ -73,7 +78,6 @@ impl GlobalState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Arc;
 
     #[test]
     fn new_global_state_has_no_session() {
@@ -116,5 +120,11 @@ mod tests {
             .event_bus
             .publish(crate::bus::InternalEvent::ConfigUpdated);
         assert!(rx.try_recv().is_ok());
+    }
+
+    #[test]
+    fn flag_manager_is_initialized() {
+        let state = GlobalState::new(Config::default());
+        assert!(state.flag_manager.get("OPENCODE_EXPERIMENTAL").is_some());
     }
 }
