@@ -1799,4 +1799,49 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn verify_uvformat_name_returns_uvformat() {
+        let formatter = uvformat::UvformatFormatter::new();
+        assert_eq!(formatter.name(), "uvformat");
+    }
+
+    #[test]
+    fn verify_uvformat_extensions_includes_py_and_pyi() {
+        let formatter = uvformat::UvformatFormatter::new();
+        assert!(
+            formatter.extensions().contains(&".py"),
+            "uvformat should support .py"
+        );
+        assert!(
+            formatter.extensions().contains(&".pyi"),
+            "uvformat should support .pyi"
+        );
+        assert_eq!(formatter.extensions().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn verify_uvformat_enabled_checks_which_uv() {
+        use which::which;
+        let formatter = uvformat::UvformatFormatter::new();
+        let ctx = FormatterContext {
+            directory: PathBuf::from("/tmp"),
+            worktree: PathBuf::from("/tmp"),
+        };
+        let result = formatter.enabled(&ctx).await;
+        let uv_available = which("uv").is_ok();
+        let ruff_available = which("ruff").is_ok();
+        if uv_available && !ruff_available {
+            assert!(result.is_some(), "uvformat should be available when uv is installed and ruff is not");
+            let cmd = result.unwrap();
+            assert_eq!(cmd[0], "uv");
+            assert_eq!(cmd[1], "format");
+            assert_eq!(cmd[2], "$FILE");
+        } else {
+            assert!(
+                result.is_none(),
+                "uvformat should not be available when ruff is present or uv is not installed"
+            );
+        }
+    }
 }
