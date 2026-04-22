@@ -29,7 +29,7 @@
 - [ ] cargo_toml: Option<String>
 - [ ] Add derives: Debug, Clone, Default, Serialize, Deserialize
 
-### FR-005: ProjectInfo Struct (Replace Existing)
+### FR-005: ✅ Done
 - [x] Replace `name: String` with `name: Option<String>`
 - [x] Replace `language: String` with `project_type: ProjectType`
 - [x] Add `package_manager: PackageManager`

@@ -88,6 +88,279 @@ impl Default for ProjectInfo {
     }
 }
 
+use std::sync::Arc;
+use std::sync::Mutex;
+use tokio::sync::RwLock;
+use opencode_config::Config;
+
+#[derive(Debug, Clone)]
+pub struct ConfigService {
+    inner: Arc<RwLock<Config>>,
+}
+
+impl ConfigService {
+    pub fn new(config: Arc<RwLock<Config>>) -> Self {
+        Self { inner: config }
+    }
+
+    pub async fn get_config(&self) -> Config {
+        self.inner.read().await.clone()
+    }
+
+    pub fn get_config_sync(&self) -> Arc<RwLock<Config>> {
+        self.inner.clone()
+    }
+}
+
+pub struct ProjectService {
+    cache: Arc<Mutex<Option<ProjectInfo>>>,
+    #[allow(dead_code)]
+    config: Arc<ConfigService>,
+}
+
+unsafe impl Send for ProjectService {}
+unsafe impl Sync for ProjectService {}
+
+impl ProjectService {
+    pub fn new(config: Arc<ConfigService>) -> Self {
+        Self {
+            cache: Arc::new(Mutex::new(None)),
+            config,
+        }
+    }
+
+    pub async fn detect(&self, cwd: Option<&Path>) -> Result<ProjectInfo, ProjectError> {
+        let start_path = match cwd {
+            Some(p) => p.to_path_buf(),
+            None => std::env::current_dir().map_err(|e| ProjectError::ReadError(PathBuf::from("."), e))?,
+        };
+
+        let root = self.find_root(&start_path).await?;
+        let project_info = self.detect_project_info(&root).await?;
+        Ok(project_info)
+    }
+
+    async fn find_root(&self, start: &Path) -> Result<PathBuf, ProjectError> {
+        let mut current = start.to_path_buf();
+        let mut visited = std::collections::HashSet::new();
+
+        loop {
+            if !visited.insert(current.clone()) {
+                return Ok(current);
+            }
+
+            let git_path = current.join(".git");
+            let opencode_path = current.join(".opencode");
+
+            if git_path.exists() || opencode_path.exists() {
+                return Ok(current);
+            }
+
+            if !current.pop() {
+                break;
+            }
+        }
+
+        Ok(start.to_path_buf())
+    }
+
+    async fn detect_project_info(&self, root: &Path) -> Result<ProjectInfo, ProjectError> {
+        let project_type = self.detect_project_type(root);
+        let package_manager = self.detect_package_manager(root, project_type);
+        let is_worktree = self.check_is_worktree(root).await;
+        let vcs_root = self.find_vcs_root(root).await;
+        let name = self.extract_project_name(root, project_type).await;
+        let languages = Vec::new();
+        let is_monorepo = false;
+        let config = ProjectConfig::default();
+
+        Ok(ProjectInfo {
+            root: root.to_path_buf(),
+            name,
+            project_type,
+            package_manager,
+            languages,
+            is_monorepo,
+            is_worktree,
+            config,
+            vcs_root,
+        })
+    }
+
+    fn detect_project_type(&self, root: &Path) -> ProjectType {
+        if root.join("Cargo.toml").exists() {
+            return ProjectType::Rust;
+        }
+        if root.join("go.mod").exists() {
+            return ProjectType::Go;
+        }
+        if root.join("pyproject.toml").exists()
+            || root.join("requirements.txt").exists()
+            || root.join("setup.py").exists()
+        {
+            return ProjectType::Python;
+        }
+        if root.join("package.json").exists() {
+            return ProjectType::Node;
+        }
+        if root.join("pom.xml").exists() || root.join("build.gradle").exists() {
+            return ProjectType::Java;
+        }
+        if root.join("CMakeLists.txt").exists()
+            || root.join("Makefile").exists()
+            || root.join("compile_commands.json").exists()
+        {
+            return ProjectType::Cpp;
+        }
+        if root.join("Gemfile").exists() {
+            return ProjectType::Ruby;
+        }
+        if root.join("composer.json").exists() {
+            return ProjectType::Php;
+        }
+        if root.join("Package.swift").exists() {
+            return ProjectType::Swift;
+        }
+
+        for entry in std::fs::read_dir(root).ok().into_iter().flatten().flatten() {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if name.ends_with(".csproj") || name.ends_with(".sln") {
+                return ProjectType::Dotnet;
+            }
+        }
+
+        ProjectType::Unknown
+    }
+
+    fn detect_package_manager(&self, root: &Path, project_type: ProjectType) -> PackageManager {
+        match project_type {
+            ProjectType::Node => {
+                if root.join("pnpm-lock.yaml").exists() {
+                    return PackageManager::Pnpm;
+                }
+                if root.join("yarn.lock").exists() && !root.join("package-lock.json").exists() {
+                    return PackageManager::Yarn;
+                }
+                if root.join("bun.lockb").exists() {
+                    return PackageManager::Bun;
+                }
+                if root.join("package-lock.json").exists() {
+                    return PackageManager::Npm;
+                }
+                PackageManager::Npm
+            }
+            ProjectType::Rust => PackageManager::Cargo,
+            ProjectType::Go => PackageManager::Go,
+            ProjectType::Python => {
+                if root.join("pyproject.toml").exists() {
+                    PackageManager::Poetry
+                } else {
+                    PackageManager::Pip
+                }
+            }
+            ProjectType::Java => {
+                if root.join("pom.xml").exists() {
+                    PackageManager::Maven
+                } else {
+                    PackageManager::Gradle
+                }
+            }
+            _ => PackageManager::Unknown,
+        }
+    }
+
+    async fn check_is_worktree(&self, path: &Path) -> bool {
+        let data_dir = std::env::var("DATA").ok();
+        if let Some(data) = data_dir {
+            let worktree_path = PathBuf::from(data).join("worktree");
+            let worktree_str = worktree_path.to_string_lossy().into_owned();
+            let path_str = path.to_string_lossy().into_owned();
+            return path_str.starts_with(&worktree_str);
+        }
+        false
+    }
+
+    async fn find_vcs_root(&self, start: &Path) -> Option<PathBuf> {
+        let mut current = start.to_path_buf();
+
+        loop {
+            let git_path = current.join(".git");
+            if git_path.exists() {
+                return Some(current.clone());
+            }
+            if !current.pop() {
+                break;
+            }
+        }
+        None
+    }
+
+    async fn extract_project_name(&self, root: &Path, project_type: ProjectType) -> Option<String> {
+        match project_type {
+            ProjectType::Node => {
+                let pkg_path = root.join("package.json");
+                if let Ok(content) = tokio::fs::read_to_string(&pkg_path).await {
+                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                        return json.get("name").and_then(|n| n.as_str()).map(String::from);
+                    }
+                }
+            }
+            ProjectType::Rust => {
+                let cargo_path = root.join("Cargo.toml");
+                if let Ok(content) = tokio::fs::read_to_string(&cargo_path).await {
+                    if let Ok(toml) = content.parse::<toml::Value>() {
+                        return toml.get("package")
+                            .and_then(|p| p.get("name"))
+                            .and_then(|n| n.as_str())
+                            .map(String::from);
+                    }
+                }
+            }
+            _ => {}
+        }
+        None
+    }
+
+    pub async fn get(&self) -> Result<ProjectInfo, ProjectError> {
+        {
+            let cache = self.cache.lock().unwrap();
+            if let Some(info) = cache.as_ref() {
+                return Ok(info.clone());
+            }
+        }
+
+        let info = self.detect(None).await?;
+
+        {
+            let mut cache = self.cache.lock().unwrap();
+            *cache = Some(info.clone());
+        }
+
+        Ok(info)
+    }
+
+    pub fn invalidate(&self) {
+        let mut cache = self.cache.lock().unwrap();
+        *cache = None;
+    }
+
+    pub async fn is_worktree(&self, path: &Path) -> bool {
+        let data_dir = std::env::var("DATA").ok();
+        if let Some(data) = data_dir {
+            let worktree_path = PathBuf::from(data).join("worktree");
+            let worktree_str = worktree_path.to_string_lossy().into_owned();
+            let path_str = path.to_string_lossy().into_owned();
+            return path_str.starts_with(&worktree_str);
+        }
+        false
+    }
+
+    pub async fn root(&self) -> Result<PathBuf, ProjectError> {
+        let info = self.get().await?;
+        Ok(info.root)
+    }
+}
+
 #[allow(dead_code)]
 pub struct ProjectManager {
     current: Option<ProjectInfo>,
@@ -1168,5 +1441,118 @@ mod tests {
         assert_default::<ProjectConfig>();
         assert_serialize::<ProjectConfig>();
         assert_deserialize::<ProjectConfig>();
+    }
+
+    #[tokio::test]
+    async fn test_project_service_new_creates_instance_with_empty_cache() {
+        let config = Arc::new(RwLock::new(Config::default()));
+        let config_service = ConfigService::new(config);
+        let service = ProjectService::new(Arc::new(config_service));
+
+        let cache = service.cache.lock().unwrap();
+        assert!(cache.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_project_service_get_returns_cached_value_on_second_call() {
+        let tmp = TempDir::new().unwrap();
+        std::fs::write(tmp.path().join("Cargo.toml"), "[package]\nname = \"test\"").unwrap();
+
+        let config = Arc::new(RwLock::new(Config::default()));
+        let config_service = ConfigService::new(config);
+        let service = ProjectService::new(Arc::new(config_service));
+
+        let original_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(tmp.path()).unwrap();
+
+        let info1 = service.get().await.unwrap();
+        assert_eq!(info1.project_type, ProjectType::Rust);
+
+        let info2 = service.get().await.unwrap();
+        assert_eq!(info2.project_type, ProjectType::Rust);
+        assert_eq!(info1.root, info2.root);
+
+        std::env::set_current_dir(original_cwd).unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_project_service_invalidate_clears_the_cache() {
+        let tmp = TempDir::new().unwrap();
+        std::fs::write(tmp.path().join("Cargo.toml"), "[package]\nname = \"test\"").unwrap();
+
+        let config = Arc::new(RwLock::new(Config::default()));
+        let config_service = ConfigService::new(config);
+        let service = ProjectService::new(Arc::new(config_service));
+
+        let info1 = service.detect(Some(tmp.path())).await.unwrap();
+        assert_eq!(info1.project_type, ProjectType::Rust);
+
+        service.invalidate();
+
+        let cache = service.cache.lock().unwrap();
+        assert!(cache.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_project_service_is_worktree_returns_correct_boolean() {
+        let config = Arc::new(RwLock::new(Config::default()));
+        let config_service = ConfigService::new(config);
+        let service = ProjectService::new(Arc::new(config_service));
+
+        std::env::set_var("DATA", "/tmp/test_data");
+        let worktree_path = PathBuf::from("/tmp/test_data/worktree/project-123");
+        let is_wt = service.is_worktree(&worktree_path).await;
+        assert!(is_wt);
+
+        let normal_path = PathBuf::from("/home/user/project/src");
+        let is_normal = service.is_worktree(&normal_path).await;
+        assert!(!is_normal);
+
+        std::env::remove_var("DATA");
+    }
+
+    #[tokio::test]
+    async fn test_project_service_root_returns_pathbuf() {
+        let tmp = TempDir::new().unwrap();
+        std::fs::write(tmp.path().join("Cargo.toml"), "[package]\nname = \"test\"").unwrap();
+
+        let config = Arc::new(RwLock::new(Config::default()));
+        let config_service = ConfigService::new(config);
+        let service = ProjectService::new(Arc::new(config_service));
+
+        let root = service.root().await.unwrap();
+        assert!(root.is_absolute());
+    }
+
+    #[test]
+    fn test_project_service_is_send_and_sync() {
+        fn assert_send<T: Send>() {}
+        fn assert_sync<T: Sync>() {}
+        assert_send::<ProjectService>();
+        assert_sync::<ProjectService>();
+    }
+
+    #[test]
+    fn test_config_service_debug() {
+        let config = Arc::new(RwLock::new(Config::default()));
+        let config_service = ConfigService::new(config);
+        let debug_str = format!("{:?}", config_service);
+        assert!(debug_str.contains("ConfigService"));
+    }
+
+    #[tokio::test]
+    async fn test_config_service_get_config() {
+        let config = Arc::new(RwLock::new(Config::default()));
+        let config_service = ConfigService::new(config.clone());
+        let retrieved = config_service.get_config().await;
+        assert!(retrieved.schema.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_config_service_get_config_sync() {
+        let config = Arc::new(RwLock::new(Config::default()));
+        let config_service = ConfigService::new(config.clone());
+        let retrieved = config_service.get_config_sync();
+        assert!(Arc::ptr_eq(&retrieved, &config));
     }
 }

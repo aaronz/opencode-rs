@@ -105,7 +105,7 @@
       "priority": "P0",
       "title": "Define ProjectService Struct",
       "description": "Create struct with cache: Arc<Mutex<Option<ProjectInfo>>> and config: Arc<ConfigService>. Implement new(config: Arc<ConfigService>) -> Self. Implement async detect(cwd: Option<&Path>) -> Result<ProjectInfo, ProjectError>. Implement async get() -> Result<ProjectInfo, ProjectError>. Implement invalidate() -> (). Implement async is_worktree(path: &Path) -> bool. Implement async root() -> Result<PathBuf, ProjectError>.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify ProjectService::new() creates instance with empty cache",
         "AddUnitTest: verify ProjectService::get() returns cached value on second call",
