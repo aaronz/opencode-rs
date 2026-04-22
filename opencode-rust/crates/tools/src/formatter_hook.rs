@@ -2,16 +2,17 @@ use std::path::Path;
 use std::time::Duration;
 use tokio::process::Command;
 use tokio::time::timeout;
-use tracing::warn;
+use tracing::{instrument, warn};
 
 use opencode_config::{FormatterConfig, FormatterEntry};
 use opencode_format::entry_matches_file;
 
 const FORMAT_TIMEOUT: Duration = Duration::from_secs(10);
 
+#[instrument(skip(project_root))]
 pub async fn format_file_after_write(file_path: &str, project_root: &Path) {
     let config_path = project_root.join("opencode.json");
-    let formatters = if config_path.exists() {
+    let formatters: Vec<(String, FormatterEntry)> = if config_path.exists() {
         load_formatters_from_config(&config_path)
     } else {
         let config_path = project_root.join("opencode.jsonc");
@@ -26,13 +27,13 @@ pub async fn format_file_after_write(file_path: &str, project_root: &Path) {
         return;
     }
 
-    let matching: Vec<&FormatterEntry> = formatters
+    let matching: Vec<(&String, &FormatterEntry)> = formatters
         .iter()
-        .filter(|e| !e.disabled.unwrap_or(false))
-        .filter(|e| entry_matches_file(e, file_path))
+        .filter(|(_, e)| !e.disabled.unwrap_or(false))
+        .filter(|(_, e)| entry_matches_file(e, file_path))
         .collect();
 
-    for formatter in matching {
+    for (formatter_name, formatter) in matching {
         let Some(command) = formatter.command.as_ref() else {
             continue;
         };
@@ -41,6 +42,14 @@ pub async fn format_file_after_write(file_path: &str, project_root: &Path) {
         }
 
         let executable = &command[0];
+        let span = tracing::info_span!(
+            "formatter_hook_execution",
+            file_path,
+            formatter_name,
+            executable
+        );
+        let _span_guard = span.enter();
+
         let args: Vec<String> = command[1..]
             .iter()
             .map(|arg| arg.replace("$FILE", file_path))
@@ -97,7 +106,7 @@ fn load_formatters_from_config(path: &Path) -> Vec<FormatterEntry> {
     }
 
     match serde_json::from_value::<FormatterConfig>(formatter_val.clone()) {
-        Ok(FormatterConfig::Formatters(map)) => map.into_values().collect(),
+        Ok(FormatterConfig::Formatters(map)) => map.into_iter().collect(),
         _ => Vec::new(),
     }
 }

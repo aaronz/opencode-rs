@@ -778,7 +778,7 @@
       "priority": "P2",
       "title": "Add formatter name to success log",
       "description": "Add formatter name to success log messages for better observability",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: ensure log output includes formatter name"
       ],
@@ -796,7 +796,7 @@
       "priority": "P2",
       "title": "Add tracing spans for observability",
       "description": "Add tracing spans for observability in FormatService and formatter execution",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: ensure tracing spans are properly created",
         "AddIntegrationTest: verify tracing output in formatted output"
