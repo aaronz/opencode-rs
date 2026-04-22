@@ -8,7 +8,7 @@
 
 ## P0 Tasks (Blocking)
 
-### FR-002: Unit Tests for Boolean Flags
+### FR-002: ✅ Done
 - [x] `new_manager_has_all_boolean_flags`: Verify all 28 boolean flags registered
   - Check OPENCODE_EXPERIMENTAL, OPENCODE_DEBUG, OPENCODE_AUTO_SHARE, etc.
 - [x] `default_values_are_false_except_markdown`: Only OPENCODE_EXPERIMENTAL_MARKDOWN defaults to true
