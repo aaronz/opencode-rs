@@ -22,7 +22,7 @@
       "priority": "P0",
       "title": "Create format crate lib.rs with module exports",
       "description": "Create `crates/format/src/lib.rs` with module exports for FormatService, formatters, config, and error types",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify all public modules are exported",
         "AddIntegrationTest: verify lib.rs exports are accessible from other crates"

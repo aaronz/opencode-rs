@@ -6,6 +6,10 @@ authors.workspace = true
 license.workspace = true
 
 [dependencies]
+opencode-config.workspace = true
+opencode-core.workspace = true
+opencode-tools.workspace = true
+
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true
