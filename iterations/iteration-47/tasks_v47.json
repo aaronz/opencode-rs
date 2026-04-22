@@ -300,7 +300,7 @@
       "priority": "P0",
       "title": "Implement clang-format formatter (.c,.cc,.cpp,.h,...)",
       "description": "Implement clang-format formatter for C/C++. Detection: .clang-format config file. Extensions: .c, .cc, .cpp, .h, .hpp, and more",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify clang-format name returns 'clang-format'",
         "AddUnitTest: verify clang-format extensions includes C/C++ extensions",

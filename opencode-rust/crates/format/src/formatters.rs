@@ -319,10 +319,10 @@ pub mod clang_format {
             &self.extensions
         }
 
-        async fn enabled(&self, ctx: &FormatterContext) -> Option<Vec<String>> {
+async fn enabled(&self, ctx: &FormatterContext) -> Option<Vec<String>> {
             if has_binary("clang-format")
                 && (has_file_in_dir(&ctx.directory, ".clang-format")
-                    || has_file_in_dir(&ctx.directory, ".clang-format"))
+                    || has_file_in_dir(&ctx.directory, "_clang-format"))
             {
                 Some(vec![
                     "clang-format".to_string(),
@@ -1534,5 +1534,97 @@ mod tests {
         } else {
             assert!(result.is_none(), "zig should not be available when not installed");
         }
+    }
+
+    #[test]
+    fn verify_clang_format_name_returns_clang_format() {
+        let formatter = clang_format::ClangFormatFormatter::new();
+        assert_eq!(formatter.name(), "clang-format");
+    }
+
+    #[test]
+    fn verify_clang_format_extensions_includes_c_cpp_extensions() {
+        let formatter = clang_format::ClangFormatFormatter::new();
+        assert!(formatter.extensions().contains(&".c"), "clang-format should support .c");
+        assert!(formatter.extensions().contains(&".cc"), "clang-format should support .cc");
+        assert!(formatter.extensions().contains(&".cpp"), "clang-format should support .cpp");
+        assert!(formatter.extensions().contains(&".cxx"), "clang-format should support .cxx");
+        assert!(formatter.extensions().contains(&".h"), "clang-format should support .h");
+        assert!(formatter.extensions().contains(&".hpp"), "clang-format should support .hpp");
+        assert!(formatter.extensions().contains(&".m"), "clang-format should support .m");
+        assert!(formatter.extensions().contains(&".mm"), "clang-format should support .mm");
+        assert_eq!(formatter.extensions().len(), 8);
+    }
+
+    #[tokio::test]
+    async fn verify_clang_format_enabled_checks_for_clang_format_config() {
+        use which::which;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let clang_format_config = temp_dir.path().join(".clang-format");
+        std::fs::write(&clang_format_config, "---").unwrap();
+
+        let formatter = clang_format::ClangFormatFormatter::new();
+        let ctx = FormatterContext {
+            directory: temp_dir.path().to_path_buf(),
+            worktree: temp_dir.path().to_path_buf(),
+        };
+
+        let clang_format_available = which("clang-format").is_ok();
+        let result = formatter.enabled(&ctx).await;
+
+        if clang_format_available {
+            assert!(result.is_some(), "clang-format should be enabled when .clang-format exists and binary is available");
+            let cmd = result.unwrap();
+            assert_eq!(cmd[0], "clang-format");
+            assert_eq!(cmd[1], "-i");
+            assert_eq!(cmd[2], "$FILE");
+        } else {
+            assert!(result.is_none(), "clang-format should not be enabled when binary is not available");
+        }
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn verify_clang_format_enabled_checks_for_underscore_clang_format_config() {
+        use which::which;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let clang_format_config = temp_dir.path().join("_clang-format");
+        std::fs::write(&clang_format_config, "---").unwrap();
+
+        let formatter = clang_format::ClangFormatFormatter::new();
+        let ctx = FormatterContext {
+            directory: temp_dir.path().to_path_buf(),
+            worktree: temp_dir.path().to_path_buf(),
+        };
+
+        let clang_format_available = which("clang-format").is_ok();
+        let result = formatter.enabled(&ctx).await;
+
+        if clang_format_available {
+            assert!(result.is_some(), "clang-format should be enabled when _clang-format exists and binary is available");
+        } else {
+            assert!(result.is_none(), "clang-format should not be enabled when binary is not available");
+        }
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn verify_clang_format_disabled_without_config_file() {
+        let temp_dir = tempfile::tempdir().unwrap();
+
+        let formatter = clang_format::ClangFormatFormatter::new();
+        let ctx = FormatterContext {
+            directory: temp_dir.path().to_path_buf(),
+            worktree: temp_dir.path().to_path_buf(),
+        };
+
+        let result = formatter.enabled(&ctx).await;
+        assert!(result.is_none(), "clang-format should not be enabled without .clang-format config");
+
+        drop(temp_dir);
     }
 }
