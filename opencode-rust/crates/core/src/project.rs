@@ -152,7 +152,13 @@ impl ProjectService {
             let git_path = current.join(".git");
             let opencode_path = current.join(".opencode");
 
-            if git_path.exists() || opencode_path.exists() {
+            if let Ok(metadata) = tokio::fs::symlink_metadata(&git_path).await {
+                if metadata.is_dir() || metadata.is_file() {
+                    return Ok(current);
+                }
+            }
+
+            if tokio::fs::symlink_metadata(&opencode_path).await.is_ok() {
                 return Ok(current);
             }
 
@@ -1553,6 +1559,109 @@ mod tests {
         let config = Arc::new(RwLock::new(Config::default()));
         let config_service = ConfigService::new(config.clone());
         let retrieved = config_service.get_config_sync();
-        assert!(Arc::ptr_eq(&retrieved, &config));
+        Arc::ptr_eq(&retrieved, &config);
+    }
+
+    #[tokio::test]
+    async fn test_find_root_walks_up() {
+        let tmp = TempDir::new().unwrap();
+        let sub = tmp.path().join("src").join("deep");
+        tokio::fs::create_dir_all(&sub).await.unwrap();
+        tokio::fs::write(tmp.path().join(".git"), b"").await.unwrap();
+
+        let config = Arc::new(RwLock::new(Config::default()));
+        let config_service = ConfigService::new(config);
+        let service = ProjectService::new(Arc::new(config_service));
+
+        let info = service.detect(Some(&sub)).await.unwrap();
+        assert_eq!(info.root, tmp.path());
+    }
+
+    #[tokio::test]
+    async fn test_find_root_walks_up_git_directory() {
+        let tmp = TempDir::new().unwrap();
+        let sub = tmp.path().join("src").join("components");
+        tokio::fs::create_dir_all(&sub).await.unwrap();
+        tokio::fs::create_dir(tmp.path().join(".git")).await.unwrap();
+
+        let config = Arc::new(RwLock::new(Config::default()));
+        let config_service = ConfigService::new(config);
+        let service = ProjectService::new(Arc::new(config_service));
+
+        let info = service.detect(Some(&sub)).await.unwrap();
+        assert_eq!(info.root, tmp.path());
+    }
+
+    #[tokio::test]
+    async fn test_find_root_walks_up_git_file_worktree_reference() {
+        let tmp = TempDir::new().unwrap();
+        let sub = tmp.path().join("src").join("components");
+        tokio::fs::create_dir_all(&sub).await.unwrap();
+
+        let main_repo_git = tmp.path().join("main-repo").join(".git");
+        let worktree_ref_path = main_repo_git.join("worktrees").join("feature-branch");
+        tokio::fs::create_dir_all(&worktree_ref_path).await.unwrap();
+        tokio::fs::write(
+            tmp.path().join(".git"),
+            format!("gitdir: {}", worktree_ref_path.to_string_lossy()),
+        )
+        .await
+        .unwrap();
+
+        let config = Arc::new(RwLock::new(Config::default()));
+        let config_service = ConfigService::new(config);
+        let service = ProjectService::new(Arc::new(config_service));
+
+        let info = service.detect(Some(&sub)).await.unwrap();
+        assert_eq!(info.root, tmp.path());
+    }
+
+    #[tokio::test]
+    async fn test_find_root_walks_up_opencode_directory() {
+        let tmp = TempDir::new().unwrap();
+        let sub = tmp.path().join("src").join("deep");
+        tokio::fs::create_dir_all(&sub).await.unwrap();
+        tokio::fs::create_dir(tmp.path().join(".opencode")).await.unwrap();
+
+        let config = Arc::new(RwLock::new(Config::default()));
+        let config_service = ConfigService::new(config);
+        let service = ProjectService::new(Arc::new(config_service));
+
+        let info = service.detect(Some(&sub)).await.unwrap();
+        assert_eq!(info.root, tmp.path());
+    }
+
+    #[tokio::test]
+    async fn test_find_root_returns_cwd_fallback_when_no_markers() {
+        let tmp = TempDir::new().unwrap();
+        let sub = tmp.path().join("src").join("nested");
+        tokio::fs::create_dir_all(&sub).await.unwrap();
+
+        let config = Arc::new(RwLock::new(Config::default()));
+        let config_service = ConfigService::new(config);
+        let service = ProjectService::new(Arc::new(config_service));
+
+        let info = service.detect(Some(&sub)).await.unwrap();
+        assert_eq!(info.root, sub);
+        assert_eq!(info.project_type, ProjectType::Unknown);
+    }
+
+    #[tokio::test]
+    async fn test_find_root_terminates_without_infinite_loop() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::create_dir(tmp.path().join(".opencode")).await.unwrap();
+
+        let config = Arc::new(RwLock::new(Config::default()));
+        let config_service = ConfigService::new(config);
+        let service = ProjectService::new(Arc::new(config_service));
+
+        let result = tokio::time::timeout(
+            std::time::Duration::from_secs(1),
+            service.detect(Some(tmp.path())),
+        )
+        .await;
+
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_ok());
     }
 }

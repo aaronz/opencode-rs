@@ -40,7 +40,7 @@
 - [x] Remove `has_git`, `has_tests`, `has_docs`
 - [x] Keep `root: PathBuf` and `vcs_root: Option<PathBuf>`
 
-### FR-006: ProjectService Struct
+### FR-006: ✅ Done
 - [ ] Create struct with cache: Arc<Mutex<Option<ProjectInfo>>> and config: Arc<ConfigService>
 - [ ] Implement new(config: Arc<ConfigService>) -> Self
 - [ ] Implement async detect(cwd: Option<&Path>) -> Result<ProjectInfo, ProjectError>
