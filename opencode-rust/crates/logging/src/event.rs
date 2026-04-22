@@ -494,6 +494,130 @@ mod tests {
     }
 
     #[test]
+    fn test_error_frame_captures_file_path_and_line_number() {
+        let frame = ErrorFrame {
+            file: "/path/to/source.rs".to_string(),
+            line: 123,
+            function: "my_function".to_string(),
+        };
+
+        assert_eq!(frame.file, "/path/to/source.rs");
+        assert_eq!(frame.line, 123);
+        assert_eq!(frame.function, "my_function");
+    }
+
+    #[test]
+    fn test_error_context_stack_captures_full_trace() {
+        let error = ErrorContext::new("ERR_OUTER", "Outer error")
+            .with_stack_frame("main.rs", 10, "main")
+            .with_stack_frame("module.rs", 20, "call_a")
+            .with_stack_frame("helper.rs", 30, "call_b")
+            .with_stack_frame("core.rs", 40, "call_c");
+
+        assert_eq!(error.stack.len(), 4);
+        assert_eq!(error.stack[0].file, "main.rs");
+        assert_eq!(error.stack[0].line, 10);
+        assert_eq!(error.stack[1].file, "module.rs");
+        assert_eq!(error.stack[1].line, 20);
+        assert_eq!(error.stack[2].file, "helper.rs");
+        assert_eq!(error.stack[2].line, 30);
+        assert_eq!(error.stack[3].file, "core.rs");
+        assert_eq!(error.stack[3].line, 40);
+    }
+
+    #[test]
+    fn test_cause_chain_links_error_causes_root_to_immediate() {
+        let error = ErrorContext::new("ERR_TOP", "Top level error")
+            .with_cause("ERR_IO", "I/O error")
+            .with_cause("ERR_FILE_NOT_FOUND", "File not found")
+            .with_cause("ERR_ENOENT", "No such file or directory");
+
+        assert_eq!(error.cause_chain.len(), 3);
+        assert_eq!(error.cause_chain[0].code, "ERR_IO");
+        assert_eq!(error.cause_chain[0].message, "I/O error");
+        assert_eq!(error.cause_chain[1].code, "ERR_FILE_NOT_FOUND");
+        assert_eq!(error.cause_chain[1].message, "File not found");
+        assert_eq!(error.cause_chain[2].code, "ERR_ENOENT");
+        assert_eq!(error.cause_chain[2].message, "No such file or directory");
+    }
+
+    #[test]
+    fn test_context_hashmap_stores_additional_info() {
+        let mut context = HashMap::new();
+        context.insert("user_id".to_string(), "user_123".to_string());
+        context.insert("request_id".to_string(), "req_456".to_string());
+        context.insert("attempt".to_string(), "3".to_string());
+
+        let error = ErrorContext::new("ERR_RETRY", "Retry failed")
+            .with_context("user_id", "user_123")
+            .with_context("request_id", "req_456")
+            .with_context("attempt", "3");
+
+        assert_eq!(error.context.len(), 3);
+        assert_eq!(error.context.get("user_id"), Some(&"user_123".to_string()));
+        assert_eq!(error.context.get("request_id"), Some(&"req_456".to_string()));
+        assert_eq!(error.context.get("attempt"), Some(&"3".to_string()));
+    }
+
+    #[test]
+    fn test_error_frame_serialization_preserves_all_fields() {
+        let frame = ErrorFrame {
+            file: "/src/lib.rs".to_string(),
+            line: 42,
+            function: "test_function".to_string(),
+        };
+
+        let json = serde_json::to_string(&frame).unwrap();
+        let deserialized: ErrorFrame = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.file, "/src/lib.rs");
+        assert_eq!(deserialized.line, 42);
+        assert_eq!(deserialized.function, "test_function");
+    }
+
+    #[test]
+    fn test_cause_info_serialization_preserves_all_fields() {
+        let cause = CauseInfo {
+            code: "ERR_NETWORK".to_string(),
+            message: "Connection refused".to_string(),
+        };
+
+        let json = serde_json::to_string(&cause).unwrap();
+        let deserialized: CauseInfo = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.code, "ERR_NETWORK");
+        assert_eq!(deserialized.message, "Connection refused");
+    }
+
+    #[test]
+    fn test_error_context_serialization_preserves_all_fields() {
+        let error = ErrorContext::new("ERR_FULL", "Full error")
+            .with_stack_frame("main.rs", 1, "main")
+            .with_stack_frame("lib.rs", 2, "inner")
+            .with_cause("ERR_INNER", "Inner error")
+            .with_cause("ERR_ROOT", "Root cause")
+            .with_context("key1", "value1")
+            .with_context("key2", "value2");
+
+        let json = serde_json::to_string(&error).unwrap();
+        let deserialized: ErrorContext = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.code, "ERR_FULL");
+        assert_eq!(deserialized.message, "Full error");
+        assert_eq!(deserialized.stack.len(), 2);
+        assert_eq!(deserialized.stack[0].file, "main.rs");
+        assert_eq!(deserialized.stack[0].line, 1);
+        assert_eq!(deserialized.stack[1].file, "lib.rs");
+        assert_eq!(deserialized.stack[1].line, 2);
+        assert_eq!(deserialized.cause_chain.len(), 2);
+        assert_eq!(deserialized.cause_chain[0].code, "ERR_INNER");
+        assert_eq!(deserialized.cause_chain[1].code, "ERR_ROOT");
+        assert_eq!(deserialized.context.len(), 2);
+        assert_eq!(deserialized.context.get("key1"), Some(&"value1".to_string()));
+        assert_eq!(deserialized.context.get("key2"), Some(&"value2".to_string()));
+    }
+
+    #[test]
     fn test_sanitized_value() {
         let safe = SanitizedValue::safe("normal_value");
         let redacted = SanitizedValue::redacted("API key");

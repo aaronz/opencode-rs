@@ -901,7 +901,7 @@
       "priority": "P2",
       "title": "Implement matching_formatters_run_sequentially integration test",
       "description": "Add integration test: matching formatters run sequentially for the same file",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify multiple matching formatters run sequentially not in parallel"
       ],
@@ -918,7 +918,7 @@
       "priority": "P2",
       "title": "Implement formatter_state_isolated_per_directory integration test",
       "description": "Add integration test: formatter state isolated per directory",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify formatter state is isolated per directory"
       ],
