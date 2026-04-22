@@ -215,8 +215,6 @@ impl LogPanel {
         }
     }
 
-
-
     fn extract_error_context(&self, event: &LogEvent) -> Option<ErrorContext> {
         event
             .fields
@@ -259,7 +257,12 @@ impl LogPanel {
     }
 
     fn render_header_widget(&self) -> impl Widget {
-        let levels = [LogLevel::Info, LogLevel::Debug, LogLevel::Warn, LogLevel::Error];
+        let levels = [
+            LogLevel::Info,
+            LogLevel::Debug,
+            LogLevel::Warn,
+            LogLevel::Error,
+        ];
 
         let session_text = if let Some(ref sid) = self.session_id {
             format!("Session: {}", sid)
@@ -294,10 +297,7 @@ impl LogPanel {
                 } else {
                     Style::default().fg(Color::DarkGray)
                 };
-                Span::styled(
-                    format!("[{:?} ", Self::get_level_str(level).trim()),
-                    style,
-                )
+                Span::styled(format!("[{:?} ", Self::get_level_str(level).trim()), style)
             })
             .collect();
 
@@ -338,8 +338,8 @@ impl LogPanel {
             .map(|(i, event)| {
                 let global_idx = start + i;
                 let is_selected = global_idx == self.selected_index;
-                let is_expanded = self.expanded_error_index == Some(global_idx)
-                    && event.level == LogLevel::Error;
+                let is_expanded =
+                    self.expanded_error_index == Some(global_idx) && event.level == LogLevel::Error;
 
                 let level_str = Self::get_level_str(event.level);
                 let level_color = Self::get_level_color(event.level);
@@ -391,8 +391,7 @@ impl LogPanel {
             })
             .collect();
 
-        let list = List::new(items)
-            .block(Block::default().title("Logs").borders(Borders::ALL));
+        let list = List::new(items).block(Block::default().title("Logs").borders(Borders::ALL));
 
         list.render(area, buf);
     }
@@ -426,7 +425,12 @@ mod tests {
         panel.set_level_filter(Some(LogLevel::Error));
 
         panel.push_event(create_test_event(1, LogLevel::Info, "test", "info message"));
-        panel.push_event(create_test_event(2, LogLevel::Error, "test", "error message"));
+        panel.push_event(create_test_event(
+            2,
+            LogLevel::Error,
+            "test",
+            "error message",
+        ));
 
         assert_eq!(panel.events.len(), 2);
         assert_eq!(panel.filtered_events().len(), 1);
@@ -511,7 +515,12 @@ mod tests {
     fn test_scroll_to_bottom() {
         let mut panel = create_test_panel();
         for i in 1..=5 {
-            panel.push_event(create_test_event(i, LogLevel::Info, "test", &format!("msg{}", i)));
+            panel.push_event(create_test_event(
+                i,
+                LogLevel::Info,
+                "test",
+                &format!("msg{}", i),
+            ));
         }
 
         panel.scroll_to_bottom();
@@ -522,7 +531,12 @@ mod tests {
     fn test_scroll_to_top() {
         let mut panel = create_test_panel();
         for i in 1..=5 {
-            panel.push_event(create_test_event(i, LogLevel::Info, "test", &format!("msg{}", i)));
+            panel.push_event(create_test_event(
+                i,
+                LogLevel::Info,
+                "test",
+                &format!("msg{}", i),
+            ));
         }
         panel.selected_index = 4;
 
@@ -535,8 +549,18 @@ mod tests {
         let mut panel = create_test_panel();
         panel.set_search_query(Some("error".to_string()));
 
-        panel.push_event(create_test_event(1, LogLevel::Info, "test", "normal message"));
-        panel.push_event(create_test_event(2, LogLevel::Error, "test", "error occurred"));
+        panel.push_event(create_test_event(
+            1,
+            LogLevel::Info,
+            "test",
+            "normal message",
+        ));
+        panel.push_event(create_test_event(
+            2,
+            LogLevel::Error,
+            "test",
+            "error occurred",
+        ));
 
         assert_eq!(panel.filtered_events().len(), 1);
         assert!(panel.filtered_events()[0].message.contains("error"));
@@ -547,8 +571,18 @@ mod tests {
         let mut panel = create_test_panel();
         panel.set_target_filter(Some("llm".to_string()));
 
-        panel.push_event(create_test_event(1, LogLevel::Info, "llm.openai", "response"));
-        panel.push_event(create_test_event(2, LogLevel::Info, "tool.read", "read file"));
+        panel.push_event(create_test_event(
+            1,
+            LogLevel::Info,
+            "llm.openai",
+            "response",
+        ));
+        panel.push_event(create_test_event(
+            2,
+            LogLevel::Info,
+            "tool.read",
+            "read file",
+        ));
 
         assert_eq!(panel.filtered_events().len(), 1);
         assert_eq!(panel.filtered_events()[0].target, "llm.openai");
@@ -572,8 +606,18 @@ mod tests {
         let backend = TestBackend::new(80, 30);
         let mut terminal = Terminal::new(backend).unwrap();
         let mut panel = create_test_panel();
-        panel.push_event(create_test_event(1, LogLevel::Info, "agent", "Session started"));
-        panel.push_event(create_test_event(2, LogLevel::Debug, "tool.read", "Read 100 lines"));
+        panel.push_event(create_test_event(
+            1,
+            LogLevel::Info,
+            "agent",
+            "Session started",
+        ));
+        panel.push_event(create_test_event(
+            2,
+            LogLevel::Debug,
+            "tool.read",
+            "Read 100 lines",
+        ));
 
         terminal
             .draw(|f| {

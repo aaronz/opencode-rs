@@ -210,3 +210,78 @@ async fn test_log_llm_macro_with_various_providers() {
     assert!(targets.contains(&"llm.anthropic"));
     assert!(targets.contains(&"llm.ollama"));
 }
+
+#[tokio::test]
+async fn test_per_component_filter_exact_match_agent() {
+    let mut config = LoggingConfig::default();
+    config.level = LogLevel::Info;
+    config.targets.insert("agent".to_string(), LogLevel::Debug);
+    let logger = Logger::new(config).unwrap();
+
+    assert!(logger.should_log("agent", LogLevel::Debug));
+    assert!(logger.should_log("agent", LogLevel::Info));
+    assert!(!logger.should_log("agent", LogLevel::Trace));
+}
+
+#[tokio::test]
+async fn test_per_component_filter_prefix_wildcard() {
+    let mut config = LoggingConfig::default();
+    config.level = LogLevel::Info;
+    config.targets.insert("llm.*".to_string(), LogLevel::Debug);
+    let logger = Logger::new(config).unwrap();
+
+    assert!(logger.should_log("llm.openai", LogLevel::Debug));
+    assert!(logger.should_log("llm.openai", LogLevel::Info));
+    assert!(!logger.should_log("llm.openai", LogLevel::Trace));
+    assert!(logger.should_log("llm.anthropic", LogLevel::Debug));
+    assert!(!logger.should_log("llm.anthropic", LogLevel::Trace));
+}
+
+#[tokio::test]
+async fn test_per_component_filter_suffix_wildcard() {
+    let mut config = LoggingConfig::default();
+    config.level = LogLevel::Info;
+    config.targets.insert("*.read".to_string(), LogLevel::Debug);
+    let logger = Logger::new(config).unwrap();
+
+    assert!(logger.should_log("tool.read", LogLevel::Debug));
+    assert!(logger.should_log("tool.read", LogLevel::Info));
+    assert!(!logger.should_log("tool.read", LogLevel::Trace));
+    assert!(logger.should_log("file.read", LogLevel::Debug));
+    assert!(!logger.should_log("file.read", LogLevel::Trace));
+}
+
+#[tokio::test]
+async fn test_per_component_filter_priority_resolution_order() {
+    let mut config = LoggingConfig::default();
+    config.level = LogLevel::Info;
+    config.targets.insert("agent".to_string(), LogLevel::Error);
+    config.targets.insert("llm.*".to_string(), LogLevel::Debug);
+    config.targets.insert("*.read".to_string(), LogLevel::Trace);
+    let logger = Logger::new(config).unwrap();
+
+    assert!(logger.should_log("agent", LogLevel::Debug));
+    assert!(logger.should_log("agent", LogLevel::Info));
+    assert!(!logger.should_log("agent", LogLevel::Warn));
+    assert!(!logger.should_log("agent", LogLevel::Trace));
+
+    assert!(logger.should_log("llm.openai", LogLevel::Debug));
+    assert!(!logger.should_log("llm.openai", LogLevel::Trace));
+
+    assert!(logger.should_log("tool.read", LogLevel::Trace));
+    assert!(logger.should_log("tool.read", LogLevel::Debug));
+    assert!(logger.should_log("tool.read", LogLevel::Info));
+}
+
+#[tokio::test]
+async fn test_per_component_filter_fallback_to_global() {
+    let mut config = LoggingConfig::default();
+    config.level = LogLevel::Warn;
+    let logger = Logger::new(config).unwrap();
+
+    assert!(logger.should_log("unknown.target", LogLevel::Warn));
+    assert!(logger.should_log("unknown.target", LogLevel::Error));
+    assert!(!logger.should_log("unknown.target", LogLevel::Info));
+    assert!(!logger.should_log("unknown.target", LogLevel::Debug));
+    assert!(!logger.should_log("unknown.target", LogLevel::Trace));
+}

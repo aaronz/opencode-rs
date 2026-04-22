@@ -372,7 +372,7 @@
       "priority": "P1",
       "title": "Implement TUI Log Panel",
       "description": "Create LogPanel widget for ratatui with header (session, log count, buttons), log list, scroll navigation, level filter, component filter, text search, expandable error details.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify LogPanel renders with correct layout",
         "AddUnitTest: verify empty state shows placeholder message",
@@ -398,7 +398,7 @@
       "priority": "P2",
       "title": "Implement Per-Component Log Level Filtering",
       "description": "Implement glob-based target matching (exact, prefix*, *suffix). Filter resolution order: exact match, glob match, fallback to global level.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify exact match 'agent' -> agent",
         "AddUnitTest: verify prefix wildcard 'llm.*' matches 'llm.openai'",

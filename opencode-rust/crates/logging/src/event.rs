@@ -17,7 +17,9 @@ pub fn next_seq() -> u64 {
 }
 
 /// Log severity level
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum LogLevel {
     #[default]
@@ -555,7 +557,10 @@ mod tests {
 
         assert_eq!(error.context.len(), 3);
         assert_eq!(error.context.get("user_id"), Some(&"user_123".to_string()));
-        assert_eq!(error.context.get("request_id"), Some(&"req_456".to_string()));
+        assert_eq!(
+            error.context.get("request_id"),
+            Some(&"req_456".to_string())
+        );
         assert_eq!(error.context.get("attempt"), Some(&"3".to_string()));
     }
 
@@ -613,8 +618,14 @@ mod tests {
         assert_eq!(deserialized.cause_chain[0].code, "ERR_INNER");
         assert_eq!(deserialized.cause_chain[1].code, "ERR_ROOT");
         assert_eq!(deserialized.context.len(), 2);
-        assert_eq!(deserialized.context.get("key1"), Some(&"value1".to_string()));
-        assert_eq!(deserialized.context.get("key2"), Some(&"value2".to_string()));
+        assert_eq!(
+            deserialized.context.get("key1"),
+            Some(&"value1".to_string())
+        );
+        assert_eq!(
+            deserialized.context.get("key2"),
+            Some(&"value2".to_string())
+        );
     }
 
     #[test]
@@ -1031,8 +1042,14 @@ mod tests {
             tool_name: "write".to_string(),
             timestamp: Utc::now(),
             parameters: SanitizedValue::Nested(HashMap::from([
-                ("path".to_string(), SanitizedValue::Safe("/tmp/test.txt".to_string())),
-                ("api_key".to_string(), SanitizedValue::Redacted("<REDACTED>".to_string())),
+                (
+                    "path".to_string(),
+                    SanitizedValue::Safe("/tmp/test.txt".to_string()),
+                ),
+                (
+                    "api_key".to_string(),
+                    SanitizedValue::Redacted("<REDACTED>".to_string()),
+                ),
             ])),
             result: ToolResult {
                 success: true,
@@ -1046,12 +1063,12 @@ mod tests {
         let json = serde_json::to_string(&log).unwrap();
         let deserialized: ToolExecutionLog = serde_json::from_str(&json).unwrap();
 
-        assert!(matches!(
-            deserialized.parameters,
-            SanitizedValue::Nested(_)
-        ));
+        assert!(matches!(deserialized.parameters, SanitizedValue::Nested(_)));
         if let SanitizedValue::Nested(nested) = deserialized.parameters {
-            assert!(matches!(nested.get("api_key"), Some(SanitizedValue::Redacted(_))));
+            assert!(matches!(
+                nested.get("api_key"),
+                Some(SanitizedValue::Redacted(_))
+            ));
         }
     }
 
@@ -1066,7 +1083,9 @@ mod tests {
             result: ToolResult {
                 success: true,
                 message: "Found 5 matches".to_string(),
-                output: Some(serde_json::json!(["line 10", "line 25", "line 42", "line 58", "line 73"])),
+                output: Some(serde_json::json!([
+                    "line 10", "line 25", "line 42", "line 58", "line 73"
+                ])),
             },
             latency_ms: 120,
             error: None,
@@ -1091,9 +1110,11 @@ mod tests {
                 output: None,
             },
             latency_ms: 5,
-            error: Some(ErrorContext::new("ERR_NOT_FOUND", "File not found")
-                .with_stack_frame("reader.rs", 42, "read_file")
-                .with_context("path", "/nonexistent.txt")),
+            error: Some(
+                ErrorContext::new("ERR_NOT_FOUND", "File not found")
+                    .with_stack_frame("reader.rs", 42, "read_file")
+                    .with_context("path", "/nonexistent.txt"),
+            ),
         };
 
         assert!(log.result.success == false);
@@ -1102,7 +1123,10 @@ mod tests {
         assert_eq!(error.code, "ERR_NOT_FOUND");
         assert_eq!(error.message, "File not found");
         assert_eq!(error.stack.len(), 1);
-        assert_eq!(error.context.get("path"), Some(&"/nonexistent.txt".to_string()));
+        assert_eq!(
+            error.context.get("path"),
+            Some(&"/nonexistent.txt".to_string())
+        );
     }
 
     #[test]

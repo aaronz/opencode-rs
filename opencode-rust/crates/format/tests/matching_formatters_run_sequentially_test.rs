@@ -55,9 +55,7 @@ async fn matching_formatters_run_sequentially() {
     );
 
     let config = FormatterConfig::Formatters(formatters);
-    let _ = service
-        .init(temp.path(), config)
-        .await;
+    let _ = service.init(temp.path(), config).await;
 
     let result = service.file(&source_file).await;
     assert!(result.is_ok(), "file() should return success");
@@ -65,8 +63,12 @@ async fn matching_formatters_run_sequentially() {
     let content = std::fs::read_to_string(&order_file).unwrap();
     let lines: Vec<&str> = content.lines().collect();
 
-    assert_eq!(lines, vec!["first", "second", "third"],
-        "Formatters should run sequentially in sorted name order, but got: {:?}", lines);
+    assert_eq!(
+        lines,
+        vec!["first", "second", "third"],
+        "Formatters should run sequentially in sorted name order, but got: {:?}",
+        lines
+    );
 }
 
 #[tokio::test]
@@ -120,9 +122,7 @@ async fn matching_formatters_respects_name_sort_order() {
     );
 
     let config = FormatterConfig::Formatters(formatters);
-    let _ = service
-        .init(temp.path(), config)
-        .await;
+    let _ = service.init(temp.path(), config).await;
 
     let result = service.file(&source_file).await;
     assert!(result.is_ok());
@@ -130,8 +130,12 @@ async fn matching_formatters_respects_name_sort_order() {
     let content = std::fs::read_to_string(&order_file).unwrap();
     let lines: Vec<&str> = content.lines().collect();
 
-    assert_eq!(lines, vec!["a", "m", "z"],
-        "Formatters should run in alphabetical order by name, got: {:?}", lines);
+    assert_eq!(
+        lines,
+        vec!["a", "m", "z"],
+        "Formatters should run in alphabetical order by name, got: {:?}",
+        lines
+    );
 }
 
 #[tokio::test]
@@ -151,10 +155,7 @@ async fn matching_formatters_run_sequentially_one_at_a_time() {
             command: Some(vec![
                 "sh".to_string(),
                 "-c".to_string(),
-                format!(
-                    "touch \"{}\"; sleep 0.05",
-                    marker_file.display()
-                ),
+                format!("touch \"{}\"; sleep 0.05", marker_file.display()),
             ]),
             environment: None,
             extensions: Some(vec!["py".to_string()]),
@@ -179,15 +180,16 @@ async fn matching_formatters_run_sequentially_one_at_a_time() {
     );
 
     let config = FormatterConfig::Formatters(formatters);
-    let _ = service
-        .init(temp.path(), config)
-        .await;
+    let _ = service.init(temp.path(), config).await;
 
     let result = service.file(&source_file).await;
     assert!(result.is_ok());
 
     let order_file = temp.path().join("order.txt");
     let content = std::fs::read_to_string(&order_file).unwrap();
-    assert_eq!(content.trim(), "second",
-        "Second formatter should wait for marker created by first formatter");
+    assert_eq!(
+        content.trim(),
+        "second",
+        "Second formatter should wait for marker created by first formatter"
+    );
 }

@@ -41,19 +41,25 @@ fn render_panel_to_buffer(panel: LogPanel, width: u16, height: u16) -> Buffer {
 
 #[cfg(feature = "tui")]
 fn has_border(buffer: &Buffer) -> bool {
-    buffer.content.iter().any(|cell| cell.symbol() == "─" || cell.symbol() == "│")
+    buffer
+        .content
+        .iter()
+        .any(|cell| cell.symbol() == "─" || cell.symbol() == "│")
 }
 
 #[cfg(feature = "tui")]
 fn count_lines_with_content(buffer: &Buffer) -> usize {
-    buffer.content.iter().filter(|cell| cell.symbol() != " ").count()
+    buffer
+        .content
+        .iter()
+        .filter(|cell| cell.symbol() != " ")
+        .count()
 }
 
 #[cfg(feature = "tui")]
 #[test]
 fn test_log_panel_renders_with_correct_layout() {
-    let panel = create_test_panel()
-        .with_session_id("sess_test123");
+    let panel = create_test_panel().with_session_id("sess_test123");
 
     let buffer = render_panel_to_buffer(panel, 80, 20);
 
@@ -96,7 +102,12 @@ fn test_arrow_key_scroll_navigation_works() {
     let mut panel = create_test_panel();
 
     for i in 1..=10 {
-        panel.push_event(create_test_event(i, LogLevel::Info, "test", &format!("Message {}", i)));
+        panel.push_event(create_test_event(
+            i,
+            LogLevel::Info,
+            "test",
+            &format!("Message {}", i),
+        ));
     }
 
     panel.selected_index = 0;
@@ -137,10 +148,30 @@ fn test_ctrl_l_toggles_visibility() {
 fn test_text_search_filters_logs() {
     let mut panel = create_test_panel();
 
-    panel.push_event(create_test_event(1, LogLevel::Info, "test", "normal operation"));
-    panel.push_event(create_test_event(2, LogLevel::Error, "test", "error occurred"));
-    panel.push_event(create_test_event(3, LogLevel::Info, "test", "another normal message"));
-    panel.push_event(create_test_event(4, LogLevel::Warn, "test", "warning something"));
+    panel.push_event(create_test_event(
+        1,
+        LogLevel::Info,
+        "test",
+        "normal operation",
+    ));
+    panel.push_event(create_test_event(
+        2,
+        LogLevel::Error,
+        "test",
+        "error occurred",
+    ));
+    panel.push_event(create_test_event(
+        3,
+        LogLevel::Info,
+        "test",
+        "another normal message",
+    ));
+    panel.push_event(create_test_event(
+        4,
+        LogLevel::Warn,
+        "test",
+        "warning something",
+    ));
 
     panel.set_search_query(Some("error".to_string()));
 
@@ -182,13 +213,22 @@ fn test_error_details_expand_on_click() {
 fn test_auto_scroll_toggle_behavior() {
     let mut panel = create_test_panel();
 
-    assert!(panel.auto_scroll, "Auto-scroll should be enabled by default");
+    assert!(
+        panel.auto_scroll,
+        "Auto-scroll should be enabled by default"
+    );
 
     panel.toggle_auto_scroll();
-    assert!(!panel.auto_scroll, "Auto-scroll should be disabled after toggle");
+    assert!(
+        !panel.auto_scroll,
+        "Auto-scroll should be disabled after toggle"
+    );
 
     panel.toggle_auto_scroll();
-    assert!(panel.auto_scroll, "Auto-scroll should be enabled after second toggle");
+    assert!(
+        panel.auto_scroll,
+        "Auto-scroll should be enabled after second toggle"
+    );
 }
 
 #[cfg(feature = "tui")]
@@ -198,10 +238,18 @@ fn test_auto_scroll_goes_to_bottom_on_new_event() {
     panel.auto_scroll = true;
 
     for i in 1..=5 {
-        panel.push_event(create_test_event(i, LogLevel::Info, "test", &format!("Message {}", i)));
+        panel.push_event(create_test_event(
+            i,
+            LogLevel::Info,
+            "test",
+            &format!("Message {}", i),
+        ));
     }
 
-    assert_eq!(panel.selected_index, 4, "Auto-scroll should go to last message");
+    assert_eq!(
+        panel.selected_index, 4,
+        "Auto-scroll should go to last message"
+    );
 }
 
 #[cfg(feature = "tui")]
@@ -226,18 +274,28 @@ fn test_filter_by_level_shows_correct_events() {
     let mut panel = create_test_panel();
 
     panel.push_event(create_test_event(1, LogLevel::Info, "test", "Info message"));
-    panel.push_event(create_test_event(2, LogLevel::Debug, "test", "Debug message"));
+    panel.push_event(create_test_event(
+        2,
+        LogLevel::Debug,
+        "test",
+        "Debug message",
+    ));
     panel.push_event(create_test_event(3, LogLevel::Warn, "test", "Warn message"));
-    panel.push_event(create_test_event(4, LogLevel::Error, "test", "Error message"));
+    panel.push_event(create_test_event(
+        4,
+        LogLevel::Error,
+        "test",
+        "Error message",
+    ));
 
     panel.toggle_level_filter(LogLevel::Debug);
     panel.toggle_level_filter(LogLevel::Warn);
 
     let filtered = panel.filtered_events();
     assert_eq!(filtered.len(), 2);
-    assert!(filtered.iter().all(|e| {
-        e.level == LogLevel::Info || e.level == LogLevel::Error
-    }));
+    assert!(filtered
+        .iter()
+        .all(|e| { e.level == LogLevel::Info || e.level == LogLevel::Error }));
 }
 
 #[cfg(feature = "tui")]
@@ -245,9 +303,24 @@ fn test_filter_by_level_shows_correct_events() {
 fn test_target_filter_works() {
     let mut panel = create_test_panel();
 
-    panel.push_event(create_test_event(1, LogLevel::Info, "llm.openai", "OpenAI response"));
-    panel.push_event(create_test_event(2, LogLevel::Info, "llm.anthropic", "Anthropic response"));
-    panel.push_event(create_test_event(3, LogLevel::Info, "tool.read", "Read file"));
+    panel.push_event(create_test_event(
+        1,
+        LogLevel::Info,
+        "llm.openai",
+        "OpenAI response",
+    ));
+    panel.push_event(create_test_event(
+        2,
+        LogLevel::Info,
+        "llm.anthropic",
+        "Anthropic response",
+    ));
+    panel.push_event(create_test_event(
+        3,
+        LogLevel::Info,
+        "tool.read",
+        "Read file",
+    ));
 
     panel.set_target_filter(Some("llm".to_string()));
 
@@ -261,9 +334,24 @@ fn test_target_filter_works() {
 fn test_search_case_insensitive() {
     let mut panel = create_test_panel();
 
-    panel.push_event(create_test_event(1, LogLevel::Info, "test", "ERROR occurred"));
-    panel.push_event(create_test_event(2, LogLevel::Info, "test", "error occurred"));
-    panel.push_event(create_test_event(3, LogLevel::Info, "test", "Error occurred"));
+    panel.push_event(create_test_event(
+        1,
+        LogLevel::Info,
+        "test",
+        "ERROR occurred",
+    ));
+    panel.push_event(create_test_event(
+        2,
+        LogLevel::Info,
+        "test",
+        "error occurred",
+    ));
+    panel.push_event(create_test_event(
+        3,
+        LogLevel::Info,
+        "test",
+        "Error occurred",
+    ));
 
     panel.set_search_query(Some("ERROR".to_string()));
 
@@ -276,8 +364,18 @@ fn test_search_case_insensitive() {
 fn test_search_in_target() {
     let mut panel = create_test_panel();
 
-    panel.push_event(create_test_event(1, LogLevel::Info, "llm.openai", "response"));
-    panel.push_event(create_test_event(2, LogLevel::Info, "tool.read", "read file"));
+    panel.push_event(create_test_event(
+        1,
+        LogLevel::Info,
+        "llm.openai",
+        "response",
+    ));
+    panel.push_event(create_test_event(
+        2,
+        LogLevel::Info,
+        "tool.read",
+        "read file",
+    ));
 
     panel.set_search_query(Some("llm".to_string()));
 
@@ -310,7 +408,12 @@ fn test_scroll_to_top_and_bottom() {
     let mut panel = create_test_panel();
 
     for i in 1..=10 {
-        panel.push_event(create_test_event(i, LogLevel::Info, "test", &format!("Message {}", i)));
+        panel.push_event(create_test_event(
+            i,
+            LogLevel::Info,
+            "test",
+            &format!("Message {}", i),
+        ));
     }
 
     panel.scroll_to_bottom();
@@ -346,10 +449,30 @@ fn test_log_panel_with_session_id() {
 fn test_multiple_filters_combined() {
     let mut panel = create_test_panel();
 
-    panel.push_event(create_test_event(1, LogLevel::Info, "llm.openai", "info about llm"));
-    panel.push_event(create_test_event(2, LogLevel::Error, "llm.openai", "error about llm"));
-    panel.push_event(create_test_event(3, LogLevel::Info, "tool.read", "info about tool"));
-    panel.push_event(create_test_event(4, LogLevel::Error, "tool.read", "error about tool"));
+    panel.push_event(create_test_event(
+        1,
+        LogLevel::Info,
+        "llm.openai",
+        "info about llm",
+    ));
+    panel.push_event(create_test_event(
+        2,
+        LogLevel::Error,
+        "llm.openai",
+        "error about llm",
+    ));
+    panel.push_event(create_test_event(
+        3,
+        LogLevel::Info,
+        "tool.read",
+        "info about tool",
+    ));
+    panel.push_event(create_test_event(
+        4,
+        LogLevel::Error,
+        "tool.read",
+        "error about tool",
+    ));
 
     panel.set_target_filter(Some("llm".to_string()));
     panel.set_search_query(Some("error".to_string()));
@@ -364,7 +487,12 @@ fn test_multiple_filters_combined() {
 #[test]
 fn test_render_preserves_border_when_events_exist() {
     let mut panel = create_test_panel();
-    panel.push_event(create_test_event(1, LogLevel::Info, "agent", "Session started"));
+    panel.push_event(create_test_event(
+        1,
+        LogLevel::Info,
+        "agent",
+        "Session started",
+    ));
 
     let buffer = render_panel_to_buffer(panel, 80, 20);
 
@@ -380,7 +508,12 @@ fn test_empty_filtered_events_returns_empty_vec() {
     panel.toggle_level_filter(LogLevel::Warn);
     panel.toggle_level_filter(LogLevel::Error);
 
-    panel.push_event(create_test_event(1, LogLevel::Trace, "test", "trace message"));
+    panel.push_event(create_test_event(
+        1,
+        LogLevel::Trace,
+        "test",
+        "trace message",
+    ));
 
     let filtered = panel.filtered_events();
     assert!(filtered.is_empty());

@@ -98,7 +98,7 @@
 - [ ] disabling_ruff_removes_uv
 - [ ] disabling_uv_removes_ruff
 - [ ] matching_formatters_run_sequentially
-- [ ] formatter_state_isolated_per_directory
+- [x] formatter_state_isolated_per_directory
 - [ ] enabled_checks_run_in_parallel
 - [ ] file_placeholder_substituted
 - [ ] failed_formatter_does_not_panic
