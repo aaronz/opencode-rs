@@ -850,7 +850,7 @@
       "priority": "P2",
       "title": "Implement status_excludes_disabled_formatter integration test",
       "description": "Add integration test: status() excludes formatters marked as disabled",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify status() excludes formatters marked as disabled"
       ],
