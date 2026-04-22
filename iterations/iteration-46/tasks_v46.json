@@ -50,7 +50,7 @@
       "priority": "P0",
       "title": "Unit Tests for String and Number Flags",
       "description": "Create unit tests for string and number flags: opencode_client_defaults_to_cli (returns 'cli' by default), bash_timeout_has_default (returns Some(120_000)), string_flag_returns_none_when_not_set (get_string() returns None), number_flag_returns_none_when_not_set (get_number() returns None).",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify opencode_client_defaults_to_cli - opencode_client() returns 'cli' by default",
         "AddUnitTest: verify bash_timeout_has_default - opencode_experimental_bash_timeout_ms() returns Some(120_000)",
@@ -72,7 +72,7 @@
       "priority": "P1",
       "title": "Register OPENCODE_EXPERIMENTAL_EXA Flag",
       "description": "Register OPENCODE_EXPERIMENTAL_EXA in FlagManager::new() with default false. OR remove the truthy('OPENCODE_EXPERIMENTAL_EXA') check if not needed. Verify opencode_enable_exa() method works correctly.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify OPENCODE_EXPERIMENTAL_EXA flag is registered with default false",
         "AddUnitTest: verify opencode_enable_exa() returns correct value based on flag state",

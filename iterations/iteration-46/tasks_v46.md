@@ -17,7 +17,7 @@
 - [x] `exa_enabled_when_experimental_is_true`: opencode_enable_exa() works when experimental=true
 - [x] `plan_mode_enabled_when_experimental_is_true`: opencode_experimental_plan_mode() works
 
-### FR-003: Unit Tests for String and Number Flags
+### FR-003: ✅ Done
 - [ ] `opencode_client_defaults_to_cli`: opencode_client() returns "cli" by default
 - [ ] `bash_timeout_has_default`: opencode_experimental_bash_timeout_ms() returns Some(120_000)
 - [ ] `string_flag_returns_none_when_not_set`: get_string() returns None when env not set
@@ -33,10 +33,10 @@
 
 ## P1 Tasks (High Priority)
 
-### FR-004: Register OPENCODE_EXPERIMENTAL_EXA Flag
-- [ ] Register OPENCODE_EXPERIMENTAL_EXA in FlagManager::new() with default false
-- [ ] OR remove the truthy("OPENCODE_EXPERIMENTAL_EXA") check if not needed
-- [ ] Verify opencode_enable_exa() method works correctly
+### FR-004: ✅ Done
+- [x] Register OPENCODE_EXPERIMENTAL_EXA in FlagManager::new() with default false
+- [x] Remove the truthy("OPENCODE_EXPERIMENTAL_EXA") check and use self.get() instead
+- [x] Verify opencode_enable_exa() method works correctly
 
 ### FR-008: Application Integration - Replace Hardcoded Feature Checks
 - [ ] Audit codebase for hardcoded OPENCODE_* env var checks (grep)

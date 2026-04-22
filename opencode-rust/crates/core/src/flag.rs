@@ -441,7 +441,7 @@ impl FlagManager {
     pub fn opencode_enable_exa(&self) -> bool {
         self.get("OPENCODE_ENABLE_EXA").unwrap_or(false)
             || self.opencode_experimental()
-            || truthy("OPENCODE_EXPERIMENTAL_EXA")
+            || self.get("OPENCODE_EXPERIMENTAL_EXA").unwrap_or(false)
     }
 
     pub fn opencode_experimental_plan_mode(&self) -> bool {
@@ -581,5 +581,26 @@ mod tests {
     fn opencode_experimental_exa_flag_exists() {
         let fm = FlagManager::new();
         assert!(fm.get("OPENCODE_EXPERIMENTAL_EXA").is_some());
+    }
+
+    #[test]
+    fn opencode_experimental_exa_default_is_false() {
+        let fm = FlagManager::new();
+        assert_eq!(fm.get("OPENCODE_EXPERIMENTAL_EXA"), Some(false));
+    }
+
+    #[test]
+    fn opencode_enable_exa_returns_correct_value_based_on_flag_state() {
+        let mut fm = FlagManager::new();
+        assert!(!fm.opencode_enable_exa());
+        fm.set("OPENCODE_EXPERIMENTAL_EXA", true);
+        assert!(fm.opencode_enable_exa());
+    }
+
+    #[test]
+    fn opencode_enable_exa_works_when_experimental_is_true() {
+        let mut fm = FlagManager::new();
+        fm.set("OPENCODE_EXPERIMENTAL", true);
+        assert!(fm.opencode_enable_exa());
     }
 }
