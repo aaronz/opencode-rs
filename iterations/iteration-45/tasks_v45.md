@@ -23,22 +23,22 @@
 - [x] Add thiserror #[derive(Error)]
 - [x] Implement proper error messages with #[error()] attributes
 
-### FR-004: ProjectConfig Struct
+### FR-004: ✅ Done
 - [ ] Define struct with 4 fields: package_json, cargo_toml, start_command, install_command
 - [ ] package_json: Option<serde_json::Value>
 - [ ] cargo_toml: Option<String>
 - [ ] Add derives: Debug, Clone, Default, Serialize, Deserialize
 
 ### FR-005: ProjectInfo Struct (Replace Existing)
-- [ ] Replace `name: String` with `name: Option<String>`
-- [ ] Replace `language: String` with `project_type: ProjectType`
-- [ ] Add `package_manager: PackageManager`
-- [ ] Add `languages: Vec<String>`
-- [ ] Add `is_monorepo: bool`
-- [ ] Add `is_worktree: bool`
-- [ ] Add `config: ProjectConfig`
-- [ ] Remove `has_git`, `has_tests`, `has_docs`
-- [ ] Keep `root: PathBuf` and `vcs_root: Option<PathBuf>`
+- [x] Replace `name: String` with `name: Option<String>`
+- [x] Replace `language: String` with `project_type: ProjectType`
+- [x] Add `package_manager: PackageManager`
+- [x] Add `languages: Vec<String>`
+- [x] Add `is_monorepo: bool`
+- [x] Add `is_worktree: bool`
+- [x] Add `config: ProjectConfig`
+- [x] Remove `has_git`, `has_tests`, `has_docs`
+- [x] Keep `root: PathBuf` and `vcs_root: Option<PathBuf>`
 
 ### FR-006: ProjectService Struct
 - [ ] Create struct with cache: Arc<Mutex<Option<ProjectInfo>>> and config: Arc<ConfigService>

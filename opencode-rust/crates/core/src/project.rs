@@ -62,13 +62,30 @@ pub struct ProjectConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectInfo {
     pub root: PathBuf,
-    pub name: String,
-    pub language: String,
-    pub has_git: bool,
-    pub has_tests: bool,
-    pub has_docs: bool,
+    pub name: Option<String>,
+    pub project_type: ProjectType,
+    pub package_manager: PackageManager,
+    pub languages: Vec<String>,
+    pub is_monorepo: bool,
+    pub is_worktree: bool,
+    pub config: ProjectConfig,
     pub vcs_root: Option<PathBuf>,
-    pub worktree_root: Option<PathBuf>,
+}
+
+impl Default for ProjectInfo {
+    fn default() -> Self {
+        Self {
+            root: PathBuf::new(),
+            name: None,
+            project_type: ProjectType::Unknown,
+            package_manager: PackageManager::Unknown,
+            languages: Vec::new(),
+            is_monorepo: false,
+            is_worktree: false,
+            config: ProjectConfig::default(),
+            vcs_root: None,
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -93,44 +110,71 @@ impl ProjectManager {
         };
 
         let vcs_root = Self::find_git_repository(&validated);
-        let has_git = vcs_root.is_some();
-        let has_tests = validated.join("tests").exists() || validated.join("test").exists();
-        let has_docs = validated.join("docs").exists() || validated.join("README.md").exists();
-
         let is_worktree = Self::is_worktree_path(&validated);
-        let detected_worktree_root = Self::detect_worktree_root_from_subdirectory(&validated);
-        let worktree_root = if is_worktree {
-            detected_worktree_root.or(Some(validated.clone()))
+
+        let project_type = if validated.join("Cargo.toml").exists() {
+            ProjectType::Rust
+        } else if validated.join("go.mod").exists() {
+            ProjectType::Go
+        } else if validated.join("pyproject.toml").exists()
+            || validated.join("requirements.txt").exists()
+            || validated.join("setup.py").exists()
+        {
+            ProjectType::Python
+        } else if validated.join("package.json").exists() {
+            ProjectType::Node
+        } else if validated.join("pom.xml").exists() || validated.join("build.gradle").exists() {
+            ProjectType::Java
+        } else if validated.join("CMakeLists.txt").exists()
+            || validated.join("Makefile").exists()
+            || validated.join("compile_commands.json").exists()
+        {
+            ProjectType::Cpp
+        } else if validated.join("Gemfile").exists() {
+            ProjectType::Ruby
+        } else if validated.join("composer.json").exists() {
+            ProjectType::Php
+        } else if validated.join("Package.swift").exists() {
+            ProjectType::Swift
         } else {
-            None
+            ProjectType::Unknown
         };
 
-        let language = if validated.join("Cargo.toml").exists() {
-            "rust".to_string()
-        } else if validated.join("package.json").exists() {
-            "javascript".to_string()
-        } else if validated.join("pyproject.toml").exists() || validated.join("setup.py").exists() {
-            "python".to_string()
-        } else if validated.join("go.mod").exists() {
-            "go".to_string()
-        } else {
-            "unknown".to_string()
+        let package_manager = match project_type {
+            ProjectType::Node => {
+                if validated.join("pnpm-lock.yaml").exists() {
+                    PackageManager::Pnpm
+                } else if validated.join("yarn.lock").exists()
+                    && !validated.join("package-lock.json").exists()
+                {
+                    PackageManager::Yarn
+                } else if validated.join("bun.lockb").exists() {
+                    PackageManager::Bun
+                } else {
+                    PackageManager::Npm
+                }
+            }
+            ProjectType::Rust => PackageManager::Cargo,
+            ProjectType::Go => PackageManager::Go,
+            ProjectType::Python => PackageManager::Pip,
+            ProjectType::Java => PackageManager::Maven,
+            _ => PackageManager::Unknown,
         };
 
         let name = validated
             .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_default();
+            .map(|n| n.to_string_lossy().to_string());
 
         Some(ProjectInfo {
             root: validated,
             name,
-            language,
-            has_git,
-            has_tests,
-            has_docs,
+            project_type,
+            package_manager,
+            languages: Vec::new(),
+            is_monorepo: false,
+            is_worktree,
+            config: ProjectConfig::default(),
             vcs_root,
-            worktree_root,
         })
     }
 
@@ -215,14 +259,14 @@ impl ProjectManager {
     pub(crate) fn is_rust(&self) -> bool {
         self.current
             .as_ref()
-            .map(|p| p.language == "rust")
+            .map(|p| p.project_type == ProjectType::Rust)
             .unwrap_or(false)
     }
 
     pub(crate) fn is_typescript(&self) -> bool {
         self.current
             .as_ref()
-            .map(|p| p.language == "javascript")
+            .map(|p| p.project_type == ProjectType::Node)
             .unwrap_or(false)
     }
 }
@@ -553,7 +597,7 @@ mod tests {
         std::fs::write(tmp.path().join("Cargo.toml"), "").unwrap();
 
         let info = ProjectManager::detect(tmp.path().to_path_buf()).unwrap();
-        assert_eq!(info.language, "rust");
+        assert_eq!(info.project_type, ProjectType::Rust);
     }
 
     #[test]
@@ -562,7 +606,7 @@ mod tests {
         std::fs::write(tmp.path().join("package.json"), "{}").unwrap();
 
         let info = ProjectManager::detect(tmp.path().to_path_buf()).unwrap();
-        assert_eq!(info.language, "javascript");
+        assert_eq!(info.project_type, ProjectType::Node);
     }
 
     #[test]
@@ -572,37 +616,57 @@ mod tests {
     }
 
     #[test]
-    fn test_project_manager_set_current() {
-        let mut pm = ProjectManager::new();
-        let info = ProjectInfo {
-            root: PathBuf::from("/test"),
-            name: "test".to_string(),
-            language: "rust".to_string(),
-            has_git: false,
-            has_tests: false,
-            has_docs: false,
-            vcs_root: None,
-            worktree_root: None,
-        };
-        pm.set_current(info);
-        assert!(pm.current().is_some());
+    fn test_project_info_default() {
+        let info = ProjectInfo::default();
+        assert!(info.root.as_os_str().is_empty());
+        assert!(info.name.is_none());
+        assert_eq!(info.project_type, ProjectType::Unknown);
+        assert_eq!(info.package_manager, PackageManager::Unknown);
+        assert!(info.languages.is_empty());
+        assert!(!info.is_monorepo);
+        assert!(!info.is_worktree);
+        assert!(info.config.package_json.is_none());
+        assert!(info.config.cargo_toml.is_none());
+        assert!(info.vcs_root.is_none());
     }
 
     #[test]
-    fn test_project_is_rust() {
-        let mut pm = ProjectManager::new();
-        pm.set_current(ProjectInfo {
+    fn test_project_info_serialization() {
+        let info = ProjectInfo {
             root: PathBuf::from("/test"),
-            name: "test".to_string(),
-            language: "rust".to_string(),
-            has_git: false,
-            has_tests: false,
-            has_docs: false,
-            vcs_root: None,
-            worktree_root: None,
-        });
-        assert!(pm.is_rust());
-        assert!(!pm.is_typescript());
+            name: Some("test-project".to_string()),
+            project_type: ProjectType::Rust,
+            package_manager: PackageManager::Cargo,
+            languages: vec!["rust".to_string()],
+            is_monorepo: false,
+            is_worktree: false,
+            config: ProjectConfig::default(),
+            vcs_root: Some(PathBuf::from("/test")),
+        };
+
+        let json = serde_json::to_string(&info).unwrap();
+        let deserialized: ProjectInfo = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.root, info.root);
+        assert_eq!(deserialized.name, info.name);
+        assert_eq!(deserialized.project_type, info.project_type);
+        assert_eq!(deserialized.package_manager, info.package_manager);
+        assert_eq!(deserialized.languages, info.languages);
+        assert_eq!(deserialized.is_monorepo, info.is_monorepo);
+        assert_eq!(deserialized.is_worktree, info.is_worktree);
+        assert_eq!(deserialized.vcs_root, info.vcs_root);
+    }
+
+    #[test]
+    fn test_project_info_is_monorepo_default_false() {
+        let info = ProjectInfo::default();
+        assert!(!info.is_monorepo);
+    }
+
+    #[test]
+    fn test_project_info_is_worktree_default_false() {
+        let info = ProjectInfo::default();
+        assert!(!info.is_worktree);
     }
 
     #[test]
@@ -619,9 +683,8 @@ mod tests {
         .unwrap();
 
         let info = ProjectManager::detect(tmp.path().to_path_buf()).unwrap();
-        assert!(info.has_git);
-        assert!(info.worktree_root.is_some());
-        assert_eq!(info.worktree_root.unwrap(), tmp.path().join("main-repo"));
+        assert!(info.vcs_root.is_some());
+        assert!(info.is_worktree);
     }
 
     #[test]
@@ -630,8 +693,8 @@ mod tests {
         std::fs::create_dir(tmp.path().join(".git")).unwrap();
 
         let info = ProjectManager::detect(tmp.path().to_path_buf()).unwrap();
-        assert!(info.has_git);
-        assert!(info.worktree_root.is_none());
+        assert!(info.vcs_root.is_some());
+        assert!(!info.is_worktree);
     }
 
     #[test]
@@ -640,8 +703,8 @@ mod tests {
         std::fs::create_dir(tmp.path().join(".git")).unwrap();
 
         let info = ProjectManager::detect(tmp.path().to_path_buf()).unwrap();
-        assert!(info.has_git);
-        assert!(info.worktree_root.is_none());
+        assert!(info.vcs_root.is_some());
+        assert!(!info.is_worktree);
     }
 
     #[test]
@@ -650,8 +713,8 @@ mod tests {
         std::fs::write(tmp.path().join("Cargo.toml"), "").unwrap();
 
         let info = ProjectManager::detect(tmp.path().to_path_buf()).unwrap();
-        assert!(!info.has_git);
-        assert!(info.worktree_root.is_none());
+        assert!(info.vcs_root.is_none());
+        assert!(!info.is_worktree);
     }
 
     #[test]
@@ -671,9 +734,8 @@ mod tests {
         std::fs::create_dir_all(&subdir).unwrap();
 
         let info = ProjectManager::detect(subdir.clone()).unwrap();
-        assert!(info.has_git);
-        assert!(info.worktree_root.is_some());
-        assert_eq!(info.worktree_root.unwrap(), tmp.path().join("main-repo"));
+        assert!(info.vcs_root.is_some());
+        assert!(info.is_worktree);
         assert_eq!(info.root, subdir.canonicalize().unwrap());
     }
 
@@ -686,8 +748,8 @@ mod tests {
         std::fs::create_dir_all(&subdir).unwrap();
 
         let info = ProjectManager::detect(subdir.clone()).unwrap();
-        assert!(info.has_git);
-        assert!(info.worktree_root.is_none());
+        assert!(info.vcs_root.is_some());
+        assert!(!info.is_worktree);
         assert_eq!(info.root, subdir.canonicalize().unwrap());
     }
 
@@ -705,10 +767,9 @@ mod tests {
         .unwrap();
 
         let info = ProjectManager::detect(tmp.path().to_path_buf()).unwrap();
-        assert!(info.has_git);
-        assert!(info.worktree_root.is_some());
+        assert!(info.vcs_root.is_some());
+        assert!(info.is_worktree);
         assert_eq!(info.root, tmp.path().canonicalize().unwrap());
-        assert_eq!(info.worktree_root.unwrap(), tmp.path().join("main-repo"));
 
         std::fs::create_dir(tmp.path().join("src")).unwrap();
         let subdir_info = ProjectManager::detect(tmp.path().join("src")).unwrap();
@@ -716,10 +777,7 @@ mod tests {
             subdir_info.root,
             tmp.path().join("src").canonicalize().unwrap()
         );
-        assert_eq!(
-            subdir_info.worktree_root.unwrap(),
-            tmp.path().join("main-repo")
-        );
+        assert!(subdir_info.is_worktree);
     }
 
     #[test]

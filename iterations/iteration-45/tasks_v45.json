@@ -61,7 +61,7 @@
       "priority": "P0",
       "title": "Define ProjectConfig Struct",
       "description": "Define struct with 4 fields: package_json (Option<serde_json::Value>), cargo_toml (Option<String>), start_command (Option<String>), install_command (Option<String>). Add derives: Debug, Clone, Default, Serialize, Deserialize.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify ProjectConfig::default() returns all None fields",
         "AddUnitTest: verify ProjectConfig serialization/deserialization roundtrip",
@@ -81,7 +81,7 @@
       "priority": "P0",
       "title": "Define ProjectInfo Struct",
       "description": "Replace name: String with name: Option<String>. Replace language: String with project_type: ProjectType. Add package_manager: PackageManager, languages: Vec<String>, is_monorepo: bool, is_worktree: bool, config: ProjectConfig. Remove has_git, has_tests, has_docs. Keep root: PathBuf and vcs_root: Option<PathBuf>.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify ProjectInfo::default() produces valid struct",
         "AddUnitTest: verify ProjectInfo serialization includes all new fields",
