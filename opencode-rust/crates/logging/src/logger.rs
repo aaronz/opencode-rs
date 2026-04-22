@@ -292,7 +292,8 @@ impl Logger {
             {
                 let mut file_guard = self.file.write().await;
                 if let Some(ref mut file) = *file_guard {
-                    let _ = file.write_all(log_line_str.as_ref().map(|l| l.as_bytes()).unwrap_or(&[]));
+                    let _ =
+                        file.write_all(log_line_str.as_ref().map(|l| l.as_bytes()).unwrap_or(&[]));
                 }
             }
 

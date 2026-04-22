@@ -1,5 +1,6 @@
 pub mod codesearch;
 pub mod discovery;
+pub mod log_query;
 pub mod multiedit;
 pub mod registry;
 pub mod schema_validation;
@@ -39,6 +40,7 @@ mod write_test;
 
 pub use codesearch::CodeSearchTool;
 pub use discovery::{build_default_registry, register_custom_tools};
+pub use log_query::LogQueryTool;
 pub use multiedit::MultiEditTool;
 pub use registry::{ToolRegistry, ToolSource};
 pub use schema_validation::ToolSchema;

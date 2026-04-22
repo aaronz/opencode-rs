@@ -421,7 +421,7 @@
       "priority": "P2",
       "title": "Implement Size-Based Log Rotation",
       "description": "Implement file size check before write. Rotate: opencode.log -> opencode.log.1 -> opencode.log.2. Delete oldest when max_rotated_files exceeded.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify rotation triggered at max_file_size_mb",
         "AddUnitTest: verify rotated file numbering increments correctly",
@@ -442,7 +442,7 @@
       "priority": "P2",
       "title": "Implement Log Query Tool for Agent Self-Diagnosis",
       "description": "Create LogQueryTool struct implementing Tool trait. Define schema with session_id, level, target, since, until, limit. Return structured log events matching query.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify tool schema defines all query parameters",
         "AddUnitTest: verify execute returns matching LogEvents",

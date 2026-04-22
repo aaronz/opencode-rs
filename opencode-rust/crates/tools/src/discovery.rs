@@ -294,6 +294,9 @@ pub async fn build_default_registry(project_root: Option<PathBuf>) -> crate::Too
     registry
         .register(crate::truncation_dir::TruncationDirTool)
         .await;
+    registry
+        .register(crate::log_query::LogQueryTool::new())
+        .await;
 
     let _ = register_custom_tools(&registry, project_root).await;
 
