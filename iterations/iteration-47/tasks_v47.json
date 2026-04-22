@@ -244,7 +244,7 @@
       "priority": "P0",
       "title": "Implement oxfmt formatter (.js,.ts,...)",
       "description": "Implement oxfmt formatter (OpenCode experimental). Detection: OPENCODE_EXPERIMENTAL_OXFMT flag + package.json has oxfmt",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify oxfmt name returns 'oxfmt'",
         "AddUnitTest: verify oxfmt enabled() checks OPENCODE_EXPERIMENTAL_OXFMT env var and package.json"
@@ -262,7 +262,7 @@
       "priority": "P0",
       "title": "Implement biome formatter (.js,.ts,.html,.css,...)",
       "description": "Implement biome formatter. Detection: biome.json config + @biomejs/biome. Extensions: .js, .ts, .html, .css, and more",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify biome name returns 'biome'",
         "AddUnitTest: verify biome extensions includes common web extensions",

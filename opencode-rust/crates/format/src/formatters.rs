@@ -1433,4 +1433,71 @@ mod tests {
 
         drop(temp_dir);
     }
+
+    #[test]
+    fn verify_biome_name_returns_biome() {
+        let formatter = biome::BiomeFormatter::new();
+        assert_eq!(formatter.name(), "biome");
+    }
+
+    #[test]
+    fn verify_biome_extensions_includes_common_web_extensions() {
+        let formatter = biome::BiomeFormatter::new();
+        let extensions: Vec<&str> = formatter.extensions().to_vec();
+        assert!(extensions.contains(&".js"), "biome should support .js");
+        assert!(extensions.contains(&".jsx"), "biome should support .jsx");
+        assert!(extensions.contains(&".ts"), "biome should support .ts");
+        assert!(extensions.contains(&".tsx"), "biome should support .tsx");
+        assert!(extensions.contains(&".json"), "biome should support .json");
+        assert!(extensions.contains(&".css"), "biome should support .css");
+        assert!(extensions.contains(&".scss"), "biome should support .scss");
+        assert!(extensions.contains(&".html"), "biome should support .html");
+    }
+
+    #[tokio::test]
+    async fn verify_biome_enabled_checks_for_biome_json_and_biome_binary() {
+        use which::which;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let biome_json = temp_dir.path().join("biome.json");
+        std::fs::write(&biome_json, "{}").unwrap();
+
+        let formatter = biome::BiomeFormatter::new();
+        let ctx = FormatterContext {
+            directory: temp_dir.path().to_path_buf(),
+            worktree: temp_dir.path().to_path_buf(),
+        };
+
+        let biome_available = which("biome").is_ok();
+        let result = formatter.enabled(&ctx).await;
+
+        if biome_available {
+            assert!(result.is_some(), "biome should be enabled when biome.json exists and biome binary is available");
+            let cmd = result.unwrap();
+            assert_eq!(cmd[0], "biome");
+            assert_eq!(cmd[1], "format");
+            assert_eq!(cmd[2], "--write");
+            assert_eq!(cmd[3], "$FILE");
+        } else {
+            assert!(result.is_none(), "biome should not be enabled when biome binary is not available");
+        }
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn verify_biome_disabled_without_biome_json() {
+        let temp_dir = tempfile::tempdir().unwrap();
+
+        let formatter = biome::BiomeFormatter::new();
+        let ctx = FormatterContext {
+            directory: temp_dir.path().to_path_buf(),
+            worktree: temp_dir.path().to_path_buf(),
+        };
+
+        let result = formatter.enabled(&ctx).await;
+        assert!(result.is_none(), "biome should not be enabled without biome.json");
+
+        drop(temp_dir);
+    }
 }
