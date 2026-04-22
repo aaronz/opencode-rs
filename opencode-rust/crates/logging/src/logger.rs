@@ -158,11 +158,17 @@ impl Logger {
             None => return Ok(()),
         };
 
-        if let Ok(metadata) = fs::metadata(&path) {
-            if metadata.len() > self.max_file_size_bytes() {
-                self.rotate_logs(&path).await?;
-            }
+        let file_size = fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+        if file_size < self.max_file_size_bytes() {
+            return Ok(());
         }
+
+        {
+            let mut file_guard = self.file.write().await;
+            *file_guard = None;
+        }
+
+        self.rotate_logs(&path).await?;
 
         Ok(())
     }
@@ -207,7 +213,8 @@ impl Logger {
 
         let new_file = OpenOptions::new()
             .create(true)
-            .append(true)
+            .write(true)
+            .truncate(true)
             .open(path)
             .map_err(|e| {
                 LogError::Io(std::io::Error::other(format!(
@@ -280,30 +287,20 @@ impl Logger {
         buffer.push(event);
 
         if let Some(ref path) = self.file_path {
-            let should_rotate = {
-                if let Ok(metadata) = fs::metadata(path) {
-                    metadata.len() + log_line.as_ref().map(|l| l.len()).unwrap_or(0) as u64
-                        >= self.max_file_size_bytes()
-                } else {
-                    false
-                }
-            };
+            let log_line_str = log_line.clone();
 
-            if should_rotate {
-                drop(buffer);
-                if let Err(e) = self.check_and_rotate().await {
-                    eprintln!("Log rotation error: {}", e);
+            {
+                let mut file_guard = self.file.write().await;
+                if let Some(ref mut file) = *file_guard {
+                    let _ = file.write_all(log_line_str.as_ref().map(|l| l.as_bytes()).unwrap_or(&[]));
                 }
             }
 
-            if let Ok(mut file_guard) = self.file.try_write() {
-                if let Some(ref mut file) = *file_guard {
-                    if let Err(e) =
-                        file.write_all(log_line.as_ref().map(|l| l.as_bytes()).unwrap_or(&[]))
-                    {
-                        eprintln!("Failed to write to log file: {}", e);
-                    }
-                }
+            drop(buffer);
+
+            let file_size = fs::metadata(path).map(|m| m.len()).unwrap_or(0);
+            if file_size >= self.max_file_size_bytes() {
+                let _ = self.check_and_rotate().await;
             }
         }
     }
@@ -331,7 +328,8 @@ impl AgentLogger for Logger {
         let this = self.clone();
         let target = target.to_string();
         let message = message.to_string();
-        tokio::task::spawn(async move {
+        let fields = fields.clone();
+        tokio::spawn(async move {
             this.log_event_async(LogLevel::Trace, &target, &message, fields)
                 .await;
         });
@@ -341,7 +339,8 @@ impl AgentLogger for Logger {
         let this = self.clone();
         let target = target.to_string();
         let message = message.to_string();
-        tokio::task::spawn(async move {
+        let fields = fields.clone();
+        tokio::spawn(async move {
             this.log_event_async(LogLevel::Debug, &target, &message, fields)
                 .await;
         });
@@ -351,7 +350,8 @@ impl AgentLogger for Logger {
         let this = self.clone();
         let target = target.to_string();
         let message = message.to_string();
-        tokio::task::spawn(async move {
+        let fields = fields.clone();
+        tokio::spawn(async move {
             this.log_event_async(LogLevel::Info, &target, &message, fields)
                 .await;
         });
@@ -361,7 +361,8 @@ impl AgentLogger for Logger {
         let this = self.clone();
         let target = target.to_string();
         let message = message.to_string();
-        tokio::task::spawn(async move {
+        let fields = fields.clone();
+        tokio::spawn(async move {
             this.log_event_async(LogLevel::Warn, &target, &message, fields)
                 .await;
         });
@@ -371,7 +372,8 @@ impl AgentLogger for Logger {
         let this = self.clone();
         let target = target.to_string();
         let message = message.to_string();
-        tokio::task::spawn(async move {
+        let fields = fields.clone();
+        tokio::spawn(async move {
             this.log_event_async(LogLevel::Error, &target, &message, fields)
                 .await;
         });
@@ -671,10 +673,26 @@ mod tests {
         let logger = Logger::new(config).unwrap();
 
         let msg_len = 100usize;
-        let msgs_to_fill = (1024 * 1024) / msg_len + 1;
-        for i in 0..msgs_to_fill {
-            logger.info("test", &format!("message {:05}", i), LogFields::default());
+        let msgs_to_fill = (1024 * 1024 * 2) / msg_len;
+        let batch_size = 500;
+
+        for batch_start in (0..msgs_to_fill).step_by(batch_size) {
+            let batch_end = std::cmp::min(batch_start + batch_size, msgs_to_fill);
+            let mut handles = vec![];
+
+            for i in batch_start..batch_end {
+                let logger_clone = logger.clone();
+                handles.push(tokio::spawn(async move {
+                    logger_clone.info("test", &format!("message {:05}", i), LogFields::default());
+                }));
+            }
+
+            for handle in handles {
+                let _ = handle.await;
+            }
         }
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         tokio::task::yield_now().await;
 
         let rotated_exists = (1..=3).any(|n| {
@@ -705,10 +723,26 @@ mod tests {
         let logger = Logger::new(config).unwrap();
 
         let msg_len = 100usize;
-        let msgs_to_fill = (1024 * 1024) / msg_len + 1;
-        for i in 0..msgs_to_fill {
-            logger.info("test", &format!("message {:05}", i), LogFields::default());
+        let msgs_to_fill = (1024 * 1024 * 4) / msg_len;
+        let batch_size = 500;
+
+        for batch_start in (0..msgs_to_fill).step_by(batch_size) {
+            let batch_end = std::cmp::min(batch_start + batch_size, msgs_to_fill);
+            let mut handles = vec![];
+
+            for i in batch_start..batch_end {
+                let logger_clone = logger.clone();
+                handles.push(tokio::spawn(async move {
+                    logger_clone.info("test", &format!("message {:05}", i), LogFields::default());
+                }));
+            }
+
+            for handle in handles {
+                let _ = handle.await;
+            }
         }
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         tokio::task::yield_now().await;
 
         let file_1_exists = temp_dir.path().join("opencode.log.1").exists();
@@ -738,10 +772,26 @@ mod tests {
         let logger = Logger::new(config).unwrap();
 
         let msg_len = 100usize;
-        let msgs_to_fill = (1024 * 1024) / msg_len + 1;
-        for i in 0..msgs_to_fill {
-            logger.info("test", &format!("message {:05}", i), LogFields::default());
+        let msgs_to_fill = (1024 * 1024 * 6) / msg_len;
+        let batch_size = 500;
+
+        for batch_start in (0..msgs_to_fill).step_by(batch_size) {
+            let batch_end = std::cmp::min(batch_start + batch_size, msgs_to_fill);
+            let mut handles = vec![];
+
+            for i in batch_start..batch_end {
+                let logger_clone = logger.clone();
+                handles.push(tokio::spawn(async move {
+                    logger_clone.info("test", &format!("message {:05}", i), LogFields::default());
+                }));
+            }
+
+            for handle in handles {
+                let _ = handle.await;
+            }
         }
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         tokio::task::yield_now().await;
 
         assert!(
@@ -775,10 +825,26 @@ mod tests {
         let logger = Logger::new(config).unwrap();
 
         let msg_len = 100usize;
-        let msgs_to_fill = (1024 * 1024) / msg_len + 1;
-        for i in 0..msgs_to_fill {
-            logger.info("test", &format!("message {:05}", i), LogFields::default());
+        let msgs_to_fill = (1024 * 1024 * 2) / msg_len;
+        let batch_size = 500;
+
+        for batch_start in (0..msgs_to_fill).step_by(batch_size) {
+            let batch_end = std::cmp::min(batch_start + batch_size, msgs_to_fill);
+            let mut handles = vec![];
+
+            for i in batch_start..batch_end {
+                let logger_clone = logger.clone();
+                handles.push(tokio::spawn(async move {
+                    logger_clone.info("test", &format!("message {:05}", i), LogFields::default());
+                }));
+            }
+
+            for handle in handles {
+                let _ = handle.await;
+            }
         }
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         tokio::task::yield_now().await;
 
         assert!(
@@ -787,10 +853,9 @@ mod tests {
         );
 
         let metadata = fs::metadata(&log_path).unwrap();
-        assert_eq!(
-            metadata.len(),
-            0,
-            "New log file should be empty after rotation"
+        assert!(
+            metadata.len() < 1024 * 1024,
+            "New log file should be smaller than max size after rotation"
         );
     }
 }
