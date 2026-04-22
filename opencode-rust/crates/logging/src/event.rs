@@ -294,7 +294,12 @@ impl ErrorContext {
     }
 
     /// Add a stack frame
-    pub fn with_stack_frame(mut self, file: impl Into<String>, line: u32, function: impl Into<String>) -> Self {
+    pub fn with_stack_frame(
+        mut self,
+        file: impl Into<String>,
+        line: u32,
+        function: impl Into<String>,
+    ) -> Self {
         self.stack.push(ErrorFrame {
             file: file.into(),
             line,
@@ -400,20 +405,44 @@ mod tests {
 
     #[test]
     fn test_log_level_serialize_lowercase() {
-        assert_eq!(serde_json::to_string(&LogLevel::Trace).unwrap(), "\"trace\"");
-        assert_eq!(serde_json::to_string(&LogLevel::Debug).unwrap(), "\"debug\"");
+        assert_eq!(
+            serde_json::to_string(&LogLevel::Trace).unwrap(),
+            "\"trace\""
+        );
+        assert_eq!(
+            serde_json::to_string(&LogLevel::Debug).unwrap(),
+            "\"debug\""
+        );
         assert_eq!(serde_json::to_string(&LogLevel::Info).unwrap(), "\"info\"");
         assert_eq!(serde_json::to_string(&LogLevel::Warn).unwrap(), "\"warn\"");
-        assert_eq!(serde_json::to_string(&LogLevel::Error).unwrap(), "\"error\"");
+        assert_eq!(
+            serde_json::to_string(&LogLevel::Error).unwrap(),
+            "\"error\""
+        );
     }
 
     #[test]
     fn test_log_level_deserialize() {
-        assert_eq!(serde_json::from_str::<LogLevel>("\"trace\"").unwrap(), LogLevel::Trace);
-        assert_eq!(serde_json::from_str::<LogLevel>("\"debug\"").unwrap(), LogLevel::Debug);
-        assert_eq!(serde_json::from_str::<LogLevel>("\"info\"").unwrap(), LogLevel::Info);
-        assert_eq!(serde_json::from_str::<LogLevel>("\"warn\"").unwrap(), LogLevel::Warn);
-        assert_eq!(serde_json::from_str::<LogLevel>("\"error\"").unwrap(), LogLevel::Error);
+        assert_eq!(
+            serde_json::from_str::<LogLevel>("\"trace\"").unwrap(),
+            LogLevel::Trace
+        );
+        assert_eq!(
+            serde_json::from_str::<LogLevel>("\"debug\"").unwrap(),
+            LogLevel::Debug
+        );
+        assert_eq!(
+            serde_json::from_str::<LogLevel>("\"info\"").unwrap(),
+            LogLevel::Info
+        );
+        assert_eq!(
+            serde_json::from_str::<LogLevel>("\"warn\"").unwrap(),
+            LogLevel::Warn
+        );
+        assert_eq!(
+            serde_json::from_str::<LogLevel>("\"error\"").unwrap(),
+            LogLevel::Error
+        );
     }
 
     #[test]
@@ -458,16 +487,20 @@ mod tests {
         assert_eq!(error.stack.len(), 1);
         assert_eq!(error.stack[0].line, 42);
         assert_eq!(error.cause_chain.len(), 1);
-        assert_eq!(error.context.get("file_path"), Some(&"/tmp/test.txt".to_string()));
+        assert_eq!(
+            error.context.get("file_path"),
+            Some(&"/tmp/test.txt".to_string())
+        );
     }
 
     #[test]
     fn test_sanitized_value() {
         let safe = SanitizedValue::safe("normal_value");
         let redacted = SanitizedValue::redacted("API key");
-        let nested = SanitizedValue::nested(HashMap::from([
-            ("password".to_string(), SanitizedValue::redacted("hidden")),
-        ]));
+        let nested = SanitizedValue::nested(HashMap::from([(
+            "password".to_string(),
+            SanitizedValue::redacted("hidden"),
+        )]));
 
         assert!(matches!(safe, SanitizedValue::Safe(_)));
         assert!(matches!(redacted, SanitizedValue::Redacted(_)));
@@ -504,7 +537,9 @@ mod tests {
         fields.error_code = Some("ERR_NOT_FOUND".to_string());
         fields.file_path = Some("/path/to/file.rs".to_string());
         fields.line = Some(100);
-        fields.extra.insert("custom_key".to_string(), serde_json::json!("custom_value"));
+        fields
+            .extra
+            .insert("custom_key".to_string(), serde_json::json!("custom_value"));
 
         let json = serde_json::to_string(&fields).unwrap();
 
@@ -548,7 +583,19 @@ mod tests {
         assert_eq!(fields.error_code, Some("ERR_PERMISSION".to_string()));
         assert_eq!(fields.file_path, Some("/src/main.rs".to_string()));
         assert_eq!(fields.line, Some(42));
-        assert_eq!(fields.extra.get("nested").unwrap().as_object().unwrap().get("key").unwrap().as_str().unwrap(), "value");
+        assert_eq!(
+            fields
+                .extra
+                .get("nested")
+                .unwrap()
+                .as_object()
+                .unwrap()
+                .get("key")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "value"
+        );
         assert_eq!(fields.extra.get("number").unwrap().as_i64().unwrap(), 123);
     }
 
@@ -557,27 +604,83 @@ mod tests {
         let mut fields = LogFields::default();
 
         // Store various JSON value types in extra
-        fields.extra.insert("string_val".to_string(), serde_json::json!("hello"));
-        fields.extra.insert("number_val".to_string(), serde_json::json!(42));
-        fields.extra.insert("float_val".to_string(), serde_json::json!(3.14));
-        fields.extra.insert("bool_val".to_string(), serde_json::json!(true));
-        fields.extra.insert("null_val".to_string(), serde_json::json!(null));
-        fields.extra.insert("array_val".to_string(), serde_json::json!([1, 2, 3]));
-        fields.extra.insert("object_val".to_string(), serde_json::json!({"key": "value"}));
+        fields
+            .extra
+            .insert("string_val".to_string(), serde_json::json!("hello"));
+        fields
+            .extra
+            .insert("number_val".to_string(), serde_json::json!(42));
+        fields
+            .extra
+            .insert("float_val".to_string(), serde_json::json!(3.14));
+        fields
+            .extra
+            .insert("bool_val".to_string(), serde_json::json!(true));
+        fields
+            .extra
+            .insert("null_val".to_string(), serde_json::json!(null));
+        fields
+            .extra
+            .insert("array_val".to_string(), serde_json::json!([1, 2, 3]));
+        fields.extra.insert(
+            "object_val".to_string(),
+            serde_json::json!({"key": "value"}),
+        );
 
         assert_eq!(fields.extra.len(), 7);
-        assert_eq!(fields.extra.get("string_val").unwrap().as_str().unwrap(), "hello");
-        assert_eq!(fields.extra.get("number_val").unwrap().as_i64().unwrap(), 42);
-        assert_eq!(fields.extra.get("float_val").unwrap().as_f64().unwrap(), 3.14);
-        assert_eq!(fields.extra.get("bool_val").unwrap().as_bool().unwrap(), true);
+        assert_eq!(
+            fields.extra.get("string_val").unwrap().as_str().unwrap(),
+            "hello"
+        );
+        assert_eq!(
+            fields.extra.get("number_val").unwrap().as_i64().unwrap(),
+            42
+        );
+        assert_eq!(
+            fields.extra.get("float_val").unwrap().as_f64().unwrap(),
+            3.14
+        );
+        assert_eq!(
+            fields.extra.get("bool_val").unwrap().as_bool().unwrap(),
+            true
+        );
         assert!(fields.extra.get("null_val").unwrap().is_null());
-        assert_eq!(fields.extra.get("array_val").unwrap().as_array().unwrap().len(), 3);
-        assert_eq!(fields.extra.get("object_val").unwrap().as_object().unwrap().get("key").unwrap().as_str().unwrap(), "value");
+        assert_eq!(
+            fields
+                .extra
+                .get("array_val")
+                .unwrap()
+                .as_array()
+                .unwrap()
+                .len(),
+            3
+        );
+        assert_eq!(
+            fields
+                .extra
+                .get("object_val")
+                .unwrap()
+                .as_object()
+                .unwrap()
+                .get("key")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "value"
+        );
 
         // Verify serialization round-trip
         let json = serde_json::to_string(&fields).unwrap();
         let deserialized: LogFields = serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized.extra.get("string_val").unwrap().as_str().unwrap(), "hello");
+        assert_eq!(
+            deserialized
+                .extra
+                .get("string_val")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "hello"
+        );
     }
 
     #[test]
@@ -641,10 +744,8 @@ mod tests {
     #[test]
     fn test_parent_seq_links_events_in_chains() {
         let event1 = LogEvent::new(1, LogLevel::Info, "test", "first");
-        let event2 = LogEvent::new(2, LogLevel::Info, "test", "second")
-            .with_parent_seq(event1.seq);
-        let event3 = LogEvent::new(3, LogLevel::Info, "test", "third")
-            .with_parent_seq(event2.seq);
+        let event2 = LogEvent::new(2, LogLevel::Info, "test", "second").with_parent_seq(event1.seq);
+        let event3 = LogEvent::new(3, LogLevel::Info, "test", "third").with_parent_seq(event2.seq);
 
         assert!(event1.parent_seq.is_none());
         assert_eq!(event2.parent_seq, Some(1));
@@ -654,8 +755,8 @@ mod tests {
 
     #[test]
     fn test_span_id_format_trace_id_span_id() {
-        let event = LogEvent::new(1, LogLevel::Debug, "test", "debug")
-            .with_span_id("abcd1234:span5678");
+        let event =
+            LogEvent::new(1, LogLevel::Debug, "test", "debug").with_span_id("abcd1234:span5678");
 
         assert_eq!(event.span_id, Some("abcd1234:span5678".to_string()));
         let json = serde_json::to_string(&event).unwrap();

@@ -108,7 +108,9 @@ mod tests {
 
         config.targets.insert("agent".to_string(), LogLevel::Debug);
         config.targets.insert("llm.*".to_string(), LogLevel::Info);
-        config.targets.insert("tool.read".to_string(), LogLevel::Trace);
+        config
+            .targets
+            .insert("tool.read".to_string(), LogLevel::Trace);
         config.targets.insert("tool.*".to_string(), LogLevel::Debug);
         config.targets.insert("error".to_string(), LogLevel::Error);
 
@@ -147,7 +149,10 @@ mod tests {
         let config: LoggingConfig = toml::from_str(toml_content).expect("Failed to parse TOML");
 
         assert_eq!(config.level, LogLevel::Debug);
-        assert_eq!(config.file_path, Some(PathBuf::from("/var/log/opencode.log")));
+        assert_eq!(
+            config.file_path,
+            Some(PathBuf::from("/var/log/opencode.log"))
+        );
         assert_eq!(config.max_file_size_mb, 100);
         assert_eq!(config.max_rotated_files, 10);
         assert!(config.show_in_tui);
@@ -228,9 +233,14 @@ mod tests {
 
     #[test]
     fn test_tui_position_serde_roundtrip() {
-        for position in &[TuiLogPosition::Bottom, TuiLogPosition::Right, TuiLogPosition::Overlay] {
+        for position in &[
+            TuiLogPosition::Bottom,
+            TuiLogPosition::Right,
+            TuiLogPosition::Overlay,
+        ] {
             let json = serde_json::to_string(position).expect("Failed to serialize");
-            let deserialized: TuiLogPosition = serde_json::from_str(&json).expect("Failed to deserialize");
+            let deserialized: TuiLogPosition =
+                serde_json::from_str(&json).expect("Failed to deserialize");
             assert_eq!(*position, deserialized);
         }
     }

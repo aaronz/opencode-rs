@@ -37,6 +37,7 @@ impl ChildLogger {
         &self.context
     }
 
+    #[allow(clippy::field_reassign_with_default)]
     fn merge_fields(&self, fields: LogFields) -> LogFields {
         let caller_fields = fields;
         let ctx = &self.context;
@@ -129,7 +130,13 @@ impl Logger {
         level >= self.config.level
     }
 
-    async fn log_event_async(&self, level: LogLevel, target: &str, message: &str, fields: LogFields) {
+    async fn log_event_async(
+        &self,
+        level: LogLevel,
+        target: &str,
+        message: &str,
+        fields: LogFields,
+    ) {
         if !self.should_log(target, level) {
             return;
         }
@@ -175,7 +182,8 @@ impl AgentLogger for Logger {
         let target = target.to_string();
         let message = message.to_string();
         tokio::task::spawn(async move {
-            this.log_event_async(LogLevel::Trace, &target, &message, fields).await;
+            this.log_event_async(LogLevel::Trace, &target, &message, fields)
+                .await;
         });
     }
 
@@ -184,7 +192,8 @@ impl AgentLogger for Logger {
         let target = target.to_string();
         let message = message.to_string();
         tokio::task::spawn(async move {
-            this.log_event_async(LogLevel::Debug, &target, &message, fields).await;
+            this.log_event_async(LogLevel::Debug, &target, &message, fields)
+                .await;
         });
     }
 
@@ -193,7 +202,8 @@ impl AgentLogger for Logger {
         let target = target.to_string();
         let message = message.to_string();
         tokio::task::spawn(async move {
-            this.log_event_async(LogLevel::Info, &target, &message, fields).await;
+            this.log_event_async(LogLevel::Info, &target, &message, fields)
+                .await;
         });
     }
 
@@ -202,7 +212,8 @@ impl AgentLogger for Logger {
         let target = target.to_string();
         let message = message.to_string();
         tokio::task::spawn(async move {
-            this.log_event_async(LogLevel::Warn, &target, &message, fields).await;
+            this.log_event_async(LogLevel::Warn, &target, &message, fields)
+                .await;
         });
     }
 
@@ -211,7 +222,8 @@ impl AgentLogger for Logger {
         let target = target.to_string();
         let message = message.to_string();
         tokio::task::spawn(async move {
-            this.log_event_async(LogLevel::Error, &target, &message, fields).await;
+            this.log_event_async(LogLevel::Error, &target, &message, fields)
+                .await;
         });
     }
 
@@ -308,7 +320,9 @@ fn glob_match_pattern(pattern: &str, target: &str) -> bool {
     let mut t_star_idx: Option<usize> = None;
 
     while t_idx < text_chars.len() {
-        if p_idx < pattern_chars.len() && (pattern_chars[p_idx] == text_chars[t_idx] || pattern_chars[p_idx] == '*') {
+        if p_idx < pattern_chars.len()
+            && (pattern_chars[p_idx] == text_chars[t_idx] || pattern_chars[p_idx] == '*')
+        {
             if pattern_chars[p_idx] == '*' {
                 star_idx = Some(p_idx);
                 t_star_idx = Some(t_idx);
@@ -408,10 +422,16 @@ mod tests {
         assert_eq!(all_events.len(), 2);
 
         let child1_event = &all_events[0];
-        assert_eq!(child1_event.fields.session_id, Some("session_1".to_string()));
+        assert_eq!(
+            child1_event.fields.session_id,
+            Some("session_1".to_string())
+        );
 
         let grandchild_event = &all_events[1];
-        assert_eq!(grandchild_event.fields.session_id, Some("session_1".to_string()));
+        assert_eq!(
+            grandchild_event.fields.session_id,
+            Some("session_1".to_string())
+        );
         assert_eq!(grandchild_event.fields.tool_name, Some("tool1".to_string()));
     }
 

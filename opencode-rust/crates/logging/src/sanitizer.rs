@@ -42,9 +42,10 @@ impl Sanitizer {
 
     pub fn is_secret_key(&self, key: &str) -> bool {
         let key_lower = key.to_lowercase();
-        SECRET_PATTERNS.iter().any(|pattern| {
-            key_lower.contains(pattern)
-        }) || key_lower.ends_with("_key")
+        SECRET_PATTERNS
+            .iter()
+            .any(|pattern| key_lower.contains(pattern))
+            || key_lower.ends_with("_key")
             || key_lower.ends_with("_token")
             || key_lower.ends_with("_secret")
     }

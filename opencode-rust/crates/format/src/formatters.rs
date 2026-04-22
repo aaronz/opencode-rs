@@ -2202,7 +2202,10 @@ mod tests {
         let result = formatter.enabled(&ctx).await;
         let terraform_available = which("terraform").is_ok();
         if terraform_available {
-            assert!(result.is_some(), "terraform should be available when installed");
+            assert!(
+                result.is_some(),
+                "terraform should be available when installed"
+            );
             let cmd = result.unwrap();
             assert_eq!(cmd[0], "terraform");
             assert_eq!(cmd[1], "fmt");
@@ -2543,7 +2546,10 @@ mod tests {
         let result = formatter.enabled(&ctx).await;
         let rustfmt_available = which("rustfmt").is_ok();
         if rustfmt_available {
-            assert!(result.is_some(), "rustfmt should be available when installed");
+            assert!(
+                result.is_some(),
+                "rustfmt should be available when installed"
+            );
             let cmd = result.unwrap();
             assert_eq!(cmd[0], "rustfmt");
             assert_eq!(cmd[1], "$FILE");
@@ -2566,7 +2572,10 @@ mod tests {
         let result = formatter.enabled(&ctx).await;
         let nixfmt_available = which("nixfmt").is_ok();
         if nixfmt_available {
-            assert!(result.is_some(), "nixfmt should be available when installed");
+            assert!(
+                result.is_some(),
+                "nixfmt should be available when installed"
+            );
             let cmd = result.unwrap();
             assert_eq!(cmd[0], "nixfmt");
             assert_eq!(cmd[1], "$FILE");
@@ -2640,7 +2649,10 @@ mod tests {
         let result = formatter.enabled(&ctx).await;
         let pint_available = which("pint").is_ok();
         if pint_available {
-            assert!(result.is_some(), "pint should be available when binary exists");
+            assert!(
+                result.is_some(),
+                "pint should be available when binary exists"
+            );
         } else {
             assert!(
                 result.is_none(),
@@ -2678,7 +2690,10 @@ mod tests {
         let result = formatter.enabled(&ctx).await;
         let ormolu_available = which("ormolu").is_ok();
         if ormolu_available {
-            assert!(result.is_some(), "ormolu should be available when installed");
+            assert!(
+                result.is_some(),
+                "ormolu should be available when installed"
+            );
             let cmd = result.unwrap();
             assert_eq!(cmd[0], "ormolu");
             assert_eq!(cmd[1], "-m");
@@ -2734,7 +2749,10 @@ mod tests {
         let result = formatter.enabled(&ctx).await;
         let cljfmt_available = which("cljfmt").is_ok();
         if cljfmt_available {
-            assert!(result.is_some(), "cljfmt should be available when installed");
+            assert!(
+                result.is_some(),
+                "cljfmt should be available when installed"
+            );
             let cmd = result.unwrap();
             assert_eq!(cmd[0], "cljfmt");
             assert_eq!(cmd[1], "fix");

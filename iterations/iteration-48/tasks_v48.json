@@ -240,7 +240,7 @@
       "priority": "P1",
       "title": "Implement log_tool! Macro",
       "description": "Implement log_tool! macro that expands to logger.info with target 'tool.{name}', formatted message, and field construction. Support field syntax like latency_ms = 45.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify macro expands to correct info! call",
         "AddUnitTest: verify field syntax parses correctly",

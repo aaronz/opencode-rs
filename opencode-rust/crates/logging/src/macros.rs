@@ -7,7 +7,7 @@ macro_rules! log_fields {
         {
             let mut fields = $crate::event::LogFields::default();
             $(
-                fields.$field = Some($value as _);
+                fields.$field = ::std::option::Option::Some($value.into());
             )*
             fields
         }
@@ -22,8 +22,8 @@ macro_rules! log_tool {
             &format!("Tool {} completed", $status),
             {
                 let mut fields = $crate::event::LogFields::default();
-                fields.session_id = Some($tool.into());
-                fields.tool_name = Some($tool.into());
+                fields.session_id = ::std::option::Option::Some($tool.to_string());
+                fields.tool_name = ::std::option::Option::Some($tool.to_string());
                 fields
             }
         )
@@ -34,10 +34,10 @@ macro_rules! log_tool {
             &format!("Tool {} completed", $status),
             {
                 let mut fields = $crate::event::LogFields::default();
-                fields.session_id = Some($tool.into());
-                fields.tool_name = Some($tool.into());
+                fields.session_id = ::std::option::Option::Some($tool.to_string());
+                fields.tool_name = ::std::option::Option::Some($tool.to_string());
                 $(
-                    fields.$field = Some($value as _);
+                    fields.$field = ::std::option::Option::Some($value.into());
                 )*
                 fields
             }
@@ -52,12 +52,12 @@ macro_rules! log_llm {
             &format!("llm.{}", $provider),
             &format!("LLM request completed: {}", $status),
             $crate::event::LogFields {
-                provider: Some($provider.to_string()),
-                model: Some($model.to_string()),
-                token_count: Some($tokens),
-                latency_ms: Some($latency),
-                ..Default::default()
-            }
+                provider: ::std::option::Option::Some($provider.to_string()),
+                model: ::std::option::Option::Some($model.to_string()),
+                token_count: ::std::option::Option::Some($tokens),
+                latency_ms: ::std::option::Option::Some($latency),
+                ..$crate::event::LogFields::default()
+            },
         )
     };
 }
@@ -72,7 +72,7 @@ mod tests {
 
     #[test]
     fn test_log_fields_named() {
-        let fields = log_fields!(latency_ms = 42u64);
+        let fields = log_fields!(latency_ms = 42i64);
         assert_eq!(fields.latency_ms, Some(42));
     }
 }

@@ -1,9 +1,9 @@
 #[cfg(feature = "tui")]
-use ratatui::{Frame, Terminal, backend::Backend, widgets::Widget};
-#[cfg(feature = "tui")]
 use ratatui::style::{Color, Style};
 #[cfg(feature = "tui")]
-use ratatui::text::{Text, Span, Line};
+use ratatui::text::{Line, Span, Text};
+#[cfg(feature = "tui")]
+use ratatui::{backend::Backend, widgets::Widget, Frame, Terminal};
 
 #[cfg(feature = "tui")]
 use crate::event::{LogEvent, LogLevel};
@@ -16,13 +16,11 @@ pub struct LogRenderer;
 #[cfg(feature = "tui")]
 impl LogRenderer {
     pub fn render_panel(frame: &mut Frame<'_>, panel: &LogPanel, area: ratatui::layout::Rect) {
-        use ratatui::widgets::{Block, Borders, Paragraph, List, ListItem};
+        use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
 
         let title = format!("Logs ({})", panel.events.len());
 
-        let block = Block::default()
-            .title(title.as_str())
-            .borders(Borders::ALL);
+        let block = Block::default().title(title.as_str()).borders(Borders::ALL);
 
         let items: Vec<ListItem> = panel
             .filtered_events()
@@ -55,8 +53,7 @@ impl LogRenderer {
             })
             .collect();
 
-        let list = List::new(items)
-            .block(block);
+        let list = List::new(items).block(block);
 
         frame.render_widget(list, area);
     }
@@ -65,12 +62,9 @@ impl LogRenderer {
     pub fn render_empty_state(frame: &mut Frame<'_>, area: ratatui::layout::Rect) {
         use ratatui::widgets::{Block, Borders, Paragraph};
 
-        let block = Block::default()
-            .title("Logs (0)")
-            .borders(Borders::ALL);
+        let block = Block::default().title("Logs (0)").borders(Borders::ALL);
 
-        let para = Paragraph::new("No logs yet")
-            .block(block);
+        let para = Paragraph::new("No logs yet").block(block);
 
         frame.render_widget(para, area);
     }

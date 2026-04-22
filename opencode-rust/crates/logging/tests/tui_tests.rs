@@ -1,9 +1,9 @@
 #[cfg(feature = "tui")]
-use opencode_logging::tui::log_panel::LogPanel;
+use opencode_logging::config::TuiLogPosition;
 #[cfg(feature = "tui")]
 use opencode_logging::event::{LogEvent, LogLevel};
 #[cfg(feature = "tui")]
-use opencode_logging::config::TuiLogPosition;
+use opencode_logging::tui::log_panel::LogPanel;
 
 #[cfg(feature = "tui")]
 #[test]

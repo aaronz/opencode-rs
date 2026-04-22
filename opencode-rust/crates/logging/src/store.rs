@@ -5,9 +5,9 @@ use std::collections::VecDeque;
 use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection};
 
-use crate::event::{LogEvent, LogLevel, LogFields};
-use crate::query::LogQuery;
 use crate::error::LogError;
+use crate::event::{LogEvent, LogFields, LogLevel};
+use crate::query::LogQuery;
 
 pub struct SessionLogBuffer {
     events: VecDeque<LogEvent>,
@@ -44,10 +44,7 @@ impl SessionLogBuffer {
     }
 
     pub fn get_by_level(&self, level: LogLevel) -> Vec<&LogEvent> {
-        self.events
-            .iter()
-            .filter(|e| e.level == level)
-            .collect()
+        self.events.iter().filter(|e| e.level == level).collect()
     }
 
     pub fn len(&self) -> usize {
@@ -154,7 +151,8 @@ impl LogStore {
             sql.push_str(&format!(" LIMIT {}", limit));
         }
 
-        let params_refs: Vec<&dyn rusqlite::ToSql> = params_vec.iter().map(|p| p.as_ref()).collect();
+        let params_refs: Vec<&dyn rusqlite::ToSql> =
+            params_vec.iter().map(|p| p.as_ref()).collect();
 
         let mut stmt = self.conn.prepare(&sql)?;
         let rows = stmt.query_map(params_refs.as_slice(), |row| {
@@ -282,14 +280,38 @@ mod tests {
             )
             .unwrap();
 
-        assert!(schema_sql.contains("seq INTEGER PRIMARY KEY"), "seq column should be primary key");
-        assert!(schema_sql.contains("timestamp TEXT NOT NULL"), "timestamp column should exist");
-        assert!(schema_sql.contains("level TEXT NOT NULL"), "level column should exist");
-        assert!(schema_sql.contains("target TEXT NOT NULL"), "target column should exist");
-        assert!(schema_sql.contains("message TEXT NOT NULL"), "message column should exist");
-        assert!(schema_sql.contains("fields TEXT NOT NULL"), "fields column should exist");
-        assert!(schema_sql.contains("span_id TEXT"), "span_id column should exist");
-        assert!(schema_sql.contains("parent_seq INTEGER"), "parent_seq column should exist");
+        assert!(
+            schema_sql.contains("seq INTEGER PRIMARY KEY"),
+            "seq column should be primary key"
+        );
+        assert!(
+            schema_sql.contains("timestamp TEXT NOT NULL"),
+            "timestamp column should exist"
+        );
+        assert!(
+            schema_sql.contains("level TEXT NOT NULL"),
+            "level column should exist"
+        );
+        assert!(
+            schema_sql.contains("target TEXT NOT NULL"),
+            "target column should exist"
+        );
+        assert!(
+            schema_sql.contains("message TEXT NOT NULL"),
+            "message column should exist"
+        );
+        assert!(
+            schema_sql.contains("fields TEXT NOT NULL"),
+            "fields column should exist"
+        );
+        assert!(
+            schema_sql.contains("span_id TEXT"),
+            "span_id column should exist"
+        );
+        assert!(
+            schema_sql.contains("parent_seq INTEGER"),
+            "parent_seq column should exist"
+        );
     }
 
     #[test]
@@ -304,7 +326,9 @@ mod tests {
         store.append(&event).unwrap();
 
         // Query the event back
-        let results = store.query(&LogQuery::new().with_session_id("sess_123")).unwrap();
+        let results = store
+            .query(&LogQuery::new().with_session_id("sess_123"))
+            .unwrap();
 
         assert_eq!(results.len(), 1);
         let retrieved = &results[0];
@@ -340,27 +364,49 @@ mod tests {
         let (_temp_dir, store) = create_test_db();
 
         // Insert events for different sessions
-        store.append(&LogEvent::new(1, LogLevel::Info, "test", "msg1").with_session_id("sess_a")).unwrap();
-        store.append(&LogEvent::new(2, LogLevel::Info, "test", "msg2").with_session_id("sess_b")).unwrap();
-        store.append(&LogEvent::new(3, LogLevel::Info, "test", "msg3").with_session_id("sess_a")).unwrap();
-        store.append(&LogEvent::new(4, LogLevel::Info, "test", "msg4").with_session_id("sess_c")).unwrap();
+        store
+            .append(&LogEvent::new(1, LogLevel::Info, "test", "msg1").with_session_id("sess_a"))
+            .unwrap();
+        store
+            .append(&LogEvent::new(2, LogLevel::Info, "test", "msg2").with_session_id("sess_b"))
+            .unwrap();
+        store
+            .append(&LogEvent::new(3, LogLevel::Info, "test", "msg3").with_session_id("sess_a"))
+            .unwrap();
+        store
+            .append(&LogEvent::new(4, LogLevel::Info, "test", "msg4").with_session_id("sess_c"))
+            .unwrap();
 
-        let results = store.query(&LogQuery::new().with_session_id("sess_a")).unwrap();
+        let results = store
+            .query(&LogQuery::new().with_session_id("sess_a"))
+            .unwrap();
 
         assert_eq!(results.len(), 2);
-        assert!(results.iter().all(|e| e.fields.session_id.as_ref().unwrap() == "sess_a"));
+        assert!(results
+            .iter()
+            .all(|e| e.fields.session_id.as_ref().unwrap() == "sess_a"));
     }
 
     #[test]
     fn test_log_store_query_returns_filtered_results_by_level() {
         let (_temp_dir, store) = create_test_db();
 
-        store.append(&LogEvent::new(1, LogLevel::Info, "test", "info")).unwrap();
-        store.append(&LogEvent::new(2, LogLevel::Error, "test", "error")).unwrap();
-        store.append(&LogEvent::new(3, LogLevel::Debug, "test", "debug")).unwrap();
-        store.append(&LogEvent::new(4, LogLevel::Warn, "test", "warn")).unwrap();
+        store
+            .append(&LogEvent::new(1, LogLevel::Info, "test", "info"))
+            .unwrap();
+        store
+            .append(&LogEvent::new(2, LogLevel::Error, "test", "error"))
+            .unwrap();
+        store
+            .append(&LogEvent::new(3, LogLevel::Debug, "test", "debug"))
+            .unwrap();
+        store
+            .append(&LogEvent::new(4, LogLevel::Warn, "test", "warn"))
+            .unwrap();
 
-        let results = store.query(&LogQuery::new().with_level(LogLevel::Error)).unwrap();
+        let results = store
+            .query(&LogQuery::new().with_level(LogLevel::Error))
+            .unwrap();
 
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].message, "error");
@@ -370,9 +416,20 @@ mod tests {
     fn test_log_store_query_returns_filtered_results_by_target() {
         let (_temp_dir, store) = create_test_db();
 
-        store.append(&LogEvent::new(1, LogLevel::Info, "llm.openai", "response")).unwrap();
-        store.append(&LogEvent::new(2, LogLevel::Info, "llm.anthropic", "response")).unwrap();
-        store.append(&LogEvent::new(3, LogLevel::Info, "tool.read", "read")).unwrap();
+        store
+            .append(&LogEvent::new(1, LogLevel::Info, "llm.openai", "response"))
+            .unwrap();
+        store
+            .append(&LogEvent::new(
+                2,
+                LogLevel::Info,
+                "llm.anthropic",
+                "response",
+            ))
+            .unwrap();
+        store
+            .append(&LogEvent::new(3, LogLevel::Info, "tool.read", "read"))
+            .unwrap();
 
         let results = store.query(&LogQuery::new().with_target("llm.*")).unwrap();
 
@@ -385,14 +442,20 @@ mod tests {
         let (_temp_dir, store) = create_test_db();
         let now = chrono::Utc::now();
 
-        store.append(&LogEvent::new(1, LogLevel::Info, "test", "old")).unwrap();
-        store.append(&LogEvent::new(2, LogLevel::Info, "test", "recent")).unwrap();
+        store
+            .append(&LogEvent::new(1, LogLevel::Info, "test", "old"))
+            .unwrap();
+        store
+            .append(&LogEvent::new(2, LogLevel::Info, "test", "recent"))
+            .unwrap();
 
-        let results = store.query(
-            &LogQuery::new()
-                .with_since(now - chrono::Duration::minutes(1))
-                .with_until(now + chrono::Duration::minutes(1)),
-        ).unwrap();
+        let results = store
+            .query(
+                &LogQuery::new()
+                    .with_since(now - chrono::Duration::minutes(1))
+                    .with_until(now + chrono::Duration::minutes(1)),
+            )
+            .unwrap();
 
         assert_eq!(results.len(), 2);
     }
@@ -402,7 +465,14 @@ mod tests {
         let (_temp_dir, store) = create_test_db();
 
         for i in 1..=10 {
-            store.append(&LogEvent::new(i, LogLevel::Info, "test", format!("msg{}", i))).unwrap();
+            store
+                .append(&LogEvent::new(
+                    i,
+                    LogLevel::Info,
+                    "test",
+                    format!("msg{}", i),
+                ))
+                .unwrap();
         }
 
         let results = store.query(&LogQuery::new().with_limit(3)).unwrap();
@@ -414,15 +484,27 @@ mod tests {
     fn test_log_store_query_with_multiple_filters() {
         let (_temp_dir, store) = create_test_db();
 
-        store.append(&LogEvent::new(1, LogLevel::Error, "tool.read", "err").with_session_id("sess_x")).unwrap();
-        store.append(&LogEvent::new(2, LogLevel::Info, "tool.read", "ok").with_session_id("sess_x")).unwrap();
-        store.append(&LogEvent::new(3, LogLevel::Error, "tool.write", "err").with_session_id("sess_y")).unwrap();
+        store
+            .append(
+                &LogEvent::new(1, LogLevel::Error, "tool.read", "err").with_session_id("sess_x"),
+            )
+            .unwrap();
+        store
+            .append(&LogEvent::new(2, LogLevel::Info, "tool.read", "ok").with_session_id("sess_x"))
+            .unwrap();
+        store
+            .append(
+                &LogEvent::new(3, LogLevel::Error, "tool.write", "err").with_session_id("sess_y"),
+            )
+            .unwrap();
 
-        let results = store.query(
-            &LogQuery::new()
-                .with_session_id("sess_x")
-                .with_level(LogLevel::Error),
-        ).unwrap();
+        let results = store
+            .query(
+                &LogQuery::new()
+                    .with_session_id("sess_x")
+                    .with_level(LogLevel::Error),
+            )
+            .unwrap();
 
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].seq, 1);
@@ -434,10 +516,20 @@ mod tests {
 
         // Insert events for different sessions
         for i in 1..=5 {
-            store.append(&LogEvent::new(i, LogLevel::Info, "test", format!("sess_a_msg{}", i)).with_session_id("sess_a")).unwrap();
+            store
+                .append(
+                    &LogEvent::new(i, LogLevel::Info, "test", format!("sess_a_msg{}", i))
+                        .with_session_id("sess_a"),
+                )
+                .unwrap();
         }
         for i in 6..=8 {
-            store.append(&LogEvent::new(i, LogLevel::Info, "test", format!("sess_b_msg{}", i)).with_session_id("sess_b")).unwrap();
+            store
+                .append(
+                    &LogEvent::new(i, LogLevel::Info, "test", format!("sess_b_msg{}", i))
+                        .with_session_id("sess_b"),
+                )
+                .unwrap();
         }
 
         let results = store.recent("sess_a", 3).unwrap();
@@ -453,7 +545,9 @@ mod tests {
     fn test_log_store_recent_returns_empty_for_nonexistent_session() {
         let (_temp_dir, store) = create_test_db();
 
-        store.append(&LogEvent::new(1, LogLevel::Info, "test", "msg").with_session_id("sess_a")).unwrap();
+        store
+            .append(&LogEvent::new(1, LogLevel::Info, "test", "msg").with_session_id("sess_a"))
+            .unwrap();
 
         let results = store.recent("nonexistent", 10).unwrap();
 
@@ -465,7 +559,12 @@ mod tests {
         let (_temp_dir, store) = create_test_db();
 
         for i in 1..=10 {
-            store.append(&LogEvent::new(i, LogLevel::Info, "test", format!("msg{}", i)).with_session_id("sess_a")).unwrap();
+            store
+                .append(
+                    &LogEvent::new(i, LogLevel::Info, "test", format!("msg{}", i))
+                        .with_session_id("sess_a"),
+                )
+                .unwrap();
         }
 
         let results = store.recent("sess_a", 3).unwrap();
@@ -479,13 +578,21 @@ mod tests {
         let db_path = temp_dir.path().join("test.db");
         let store = LogStore::new(&db_path).unwrap();
 
-        store.append(&LogEvent::new(1, LogLevel::Info, "test", "old")).unwrap();
-        store.append(&LogEvent::new(2, LogLevel::Info, "test", "recent")).unwrap();
+        store
+            .append(&LogEvent::new(1, LogLevel::Info, "test", "old"))
+            .unwrap();
+        store
+            .append(&LogEvent::new(2, LogLevel::Info, "test", "recent"))
+            .unwrap();
 
-        let deleted = store.prune(chrono::Utc::now() - chrono::Duration::seconds(1)).unwrap();
+        let deleted = store
+            .prune(chrono::Utc::now() - chrono::Duration::seconds(1))
+            .unwrap();
         assert_eq!(deleted, 0);
 
-        let deleted = store.prune(chrono::Utc::now() + chrono::Duration::days(1)).unwrap();
+        let deleted = store
+            .prune(chrono::Utc::now() + chrono::Duration::days(1))
+            .unwrap();
         assert_eq!(deleted, 2);
 
         let remaining = store.query(&LogQuery::new()).unwrap();
@@ -497,10 +604,19 @@ mod tests {
         let (_temp_dir, store) = create_test_db();
 
         for i in 1..=5 {
-            store.append(&LogEvent::new(i, LogLevel::Info, "test", format!("msg{}", i))).unwrap();
+            store
+                .append(&LogEvent::new(
+                    i,
+                    LogLevel::Info,
+                    "test",
+                    format!("msg{}", i),
+                ))
+                .unwrap();
         }
 
-        let deleted = store.prune(chrono::Utc::now() + chrono::Duration::seconds(1)).unwrap();
+        let deleted = store
+            .prune(chrono::Utc::now() + chrono::Duration::seconds(1))
+            .unwrap();
         assert_eq!(deleted, 5);
     }
 
@@ -510,10 +626,16 @@ mod tests {
         let db_path = temp_dir.path().join("test.db");
         let store = LogStore::new(&db_path).unwrap();
 
-        store.append(&LogEvent::new(1, LogLevel::Info, "test", "keep")).unwrap();
-        store.append(&LogEvent::new(2, LogLevel::Info, "test", "keep2")).unwrap();
+        store
+            .append(&LogEvent::new(1, LogLevel::Info, "test", "keep"))
+            .unwrap();
+        store
+            .append(&LogEvent::new(2, LogLevel::Info, "test", "keep2"))
+            .unwrap();
 
-        let deleted = store.prune(chrono::Utc::now() - chrono::Duration::seconds(1)).unwrap();
+        let deleted = store
+            .prune(chrono::Utc::now() - chrono::Duration::seconds(1))
+            .unwrap();
         assert_eq!(deleted, 0);
 
         let remaining = store.query(&LogQuery::new()).unwrap();
@@ -524,9 +646,13 @@ mod tests {
     fn test_log_store_query_empty_when_no_matches() {
         let (_temp_dir, store) = create_test_db();
 
-        store.append(&LogEvent::new(1, LogLevel::Info, "test", "msg").with_session_id("sess_a")).unwrap();
+        store
+            .append(&LogEvent::new(1, LogLevel::Info, "test", "msg").with_session_id("sess_a"))
+            .unwrap();
 
-        let results = store.query(&LogQuery::new().with_session_id("nonexistent")).unwrap();
+        let results = store
+            .query(&LogQuery::new().with_session_id("nonexistent"))
+            .unwrap();
 
         assert!(results.is_empty());
     }
@@ -536,7 +662,14 @@ mod tests {
         let (_temp_dir, store) = create_test_db();
 
         for i in 1..=5 {
-            store.append(&LogEvent::new(i, LogLevel::Info, "test", format!("msg{}", i))).unwrap();
+            store
+                .append(&LogEvent::new(
+                    i,
+                    LogLevel::Info,
+                    "test",
+                    format!("msg{}", i),
+                ))
+                .unwrap();
         }
 
         let results = store.query(&LogQuery::new()).unwrap();
@@ -575,7 +708,12 @@ mod tests {
         let mut buffer = SessionLogBuffer::new(10);
 
         for i in 1..=5 {
-            buffer.push(LogEvent::new(0, LogLevel::Info, "test", format!("event_{}", i)));
+            buffer.push(LogEvent::new(
+                0,
+                LogLevel::Info,
+                "test",
+                format!("event_{}", i),
+            ));
         }
 
         let range = buffer.get_range(2, 4);
@@ -658,19 +796,37 @@ mod tests {
 
         let start = Instant::now();
         for i in 0..10000 {
-            buffer.push(LogEvent::new(0, LogLevel::Info, "test", format!("event_{}", i)));
+            buffer.push(LogEvent::new(
+                0,
+                LogLevel::Info,
+                "test",
+                format!("event_{}", i),
+            ));
         }
         let duration_full = start.elapsed();
 
         buffer.clear();
         let start = Instant::now();
         for i in 0..10000 {
-            buffer.push(LogEvent::new(0, LogLevel::Info, "test", format!("event_{}", i)));
+            buffer.push(LogEvent::new(
+                0,
+                LogLevel::Info,
+                "test",
+                format!("event_{}", i),
+            ));
         }
         let duration_after_clear = start.elapsed();
 
-        assert!(duration_full.as_millis() < 100, "Push at capacity took too long: {:?}", duration_full);
-        assert!(duration_after_clear.as_millis() < 100, "Push after clear took too long: {:?}", duration_after_clear);
+        assert!(
+            duration_full.as_millis() < 100,
+            "Push at capacity took too long: {:?}",
+            duration_full
+        );
+        assert!(
+            duration_after_clear.as_millis() < 100,
+            "Push after clear took too long: {:?}",
+            duration_after_clear
+        );
     }
 
     #[test]
@@ -685,7 +841,12 @@ mod tests {
         assert_eq!(seqs, vec![1, 2, 3]);
 
         for i in 4..=15 {
-            buffer.push(LogEvent::new(0, LogLevel::Info, "test", format!("event_{}", i)));
+            buffer.push(LogEvent::new(
+                0,
+                LogLevel::Info,
+                "test",
+                format!("event_{}", i),
+            ));
         }
 
         let seqs: Vec<_> = buffer.iter().map(|e| e.seq).collect();

@@ -1,10 +1,10 @@
 #[cfg(feature = "tui")]
-use ratatui::{Frame, Terminal, backend::Backend};
+use ratatui::{backend::Backend, Frame, Terminal};
 
 #[cfg(feature = "tui")]
-use crate::event::{LogEvent, LogLevel};
-#[cfg(feature = "tui")]
 use crate::config::TuiLogPosition;
+#[cfg(feature = "tui")]
+use crate::event::{LogEvent, LogLevel};
 
 #[cfg(feature = "tui")]
 pub struct LogPanel {

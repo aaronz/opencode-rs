@@ -1,9 +1,9 @@
-use opencode_logging::event::{LogEvent, LogLevel};
-use opencode_logging::logger::Logger;
 use opencode_logging::config::LoggingConfig;
-use opencode_logging::query::LogQuery;
-use opencode_logging::log_tool;
+use opencode_logging::event::{LogEvent, LogLevel};
 use opencode_logging::log_fields;
+use opencode_logging::log_tool;
+use opencode_logging::logger::Logger;
+use opencode_logging::query::LogQuery;
 use opencode_logging::AgentLogger;
 
 #[tokio::test]
@@ -28,7 +28,13 @@ async fn test_log_tool_macro_field_syntax() {
     let config = LoggingConfig::default();
     let logger = Logger::new(config).unwrap();
 
-    log_tool!(logger, "write", "failed", latency_ms = 100, error_code = "ERR_WRITE");
+    log_tool!(
+        logger,
+        "write",
+        "failed",
+        latency_ms = 100,
+        error_code = "ERR_WRITE"
+    );
     tokio::task::yield_now().await;
 
     let events = logger.query_logs(LogQuery::new()).await.unwrap();
@@ -61,7 +67,7 @@ async fn test_log_tool_macro_message_format() {
     let config = LoggingConfig::default();
     let logger = Logger::new(config).unwrap();
 
-    log_tool!(logger, "read", "completed", );
+    log_tool!(logger, "read", "completed",);
     tokio::task::yield_now().await;
 
     let events = logger.query_logs(LogQuery::new()).await.unwrap();
@@ -113,11 +119,11 @@ async fn test_log_query_matching() {
         .with_session_id("sess_123")
         .with_level(LogLevel::Error);
 
-    let matching_event = LogEvent::new(1, LogLevel::Error, "test", "error")
-        .with_session_id("sess_123");
+    let matching_event =
+        LogEvent::new(1, LogLevel::Error, "test", "error").with_session_id("sess_123");
 
-    let non_matching_event = LogEvent::new(2, LogLevel::Info, "test", "info")
-        .with_session_id("sess_123");
+    let non_matching_event =
+        LogEvent::new(2, LogLevel::Info, "test", "info").with_session_id("sess_123");
 
     assert!(query.matches(&matching_event));
     assert!(!query.matches(&non_matching_event));

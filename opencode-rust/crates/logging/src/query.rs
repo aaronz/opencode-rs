@@ -135,7 +135,9 @@ fn glob_match(pattern: &str, text: &str) -> bool {
     let mut t_star_idx: Option<usize> = None;
 
     while t_idx < text_chars.len() {
-        if p_idx < pattern_chars.len() && (pattern_chars[p_idx] == text_chars[t_idx] || pattern_chars[p_idx] == '*') {
+        if p_idx < pattern_chars.len()
+            && (pattern_chars[p_idx] == text_chars[t_idx] || pattern_chars[p_idx] == '*')
+        {
             if pattern_chars[p_idx] == '*' {
                 star_idx = Some(p_idx);
                 t_star_idx = Some(t_idx);
@@ -174,12 +176,11 @@ mod tests {
     #[test]
     fn test_query_by_session() {
         let query = LogQuery::new().with_session_id("sess_123");
-        let event = LogEvent::new(1, LogLevel::Info, "test", "message")
-            .with_session_id("sess_123");
+        let event = LogEvent::new(1, LogLevel::Info, "test", "message").with_session_id("sess_123");
         assert!(query.matches(&event));
 
-        let event2 = LogEvent::new(2, LogLevel::Info, "test", "message")
-            .with_session_id("sess_456");
+        let event2 =
+            LogEvent::new(2, LogLevel::Info, "test", "message").with_session_id("sess_456");
         assert!(!query.matches(&event2));
     }
 

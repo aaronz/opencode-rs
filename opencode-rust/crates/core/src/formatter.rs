@@ -83,12 +83,20 @@ impl FormatterEngine {
 
         for (formatter_name, formatter) in matched {
             let Some(command) = formatter.command.as_ref() else {
-                warn!(file_path, formatter = formatter_name, "formatter missing command; skipping");
+                warn!(
+                    file_path,
+                    formatter = formatter_name,
+                    "formatter missing command; skipping"
+                );
                 continue;
             };
 
             if command.is_empty() {
-                warn!(file_path, formatter = formatter_name, "formatter command is empty; skipping");
+                warn!(
+                    file_path,
+                    formatter = formatter_name,
+                    "formatter command is empty; skipping"
+                );
                 continue;
             }
 
@@ -108,7 +116,12 @@ impl FormatterEngine {
             match cmd.spawn() {
                 Ok(mut child) => match timeout(self.timeout, child.wait()).await {
                     Ok(Ok(status)) if status.success() => {
-                        info!(file_path, formatter = formatter_name, executable, "formatter executed successfully");
+                        info!(
+                            file_path,
+                            formatter = formatter_name,
+                            executable,
+                            "formatter executed successfully"
+                        );
                     }
                     Ok(Ok(status)) => {
                         warn!(

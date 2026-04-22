@@ -110,7 +110,11 @@ impl InstanceStateManager {
         }
     }
 
-    pub fn get_or_create(&mut self, directory: &Path, config: FormatterConfig) -> &mut InstanceState {
+    pub fn get_or_create(
+        &mut self,
+        directory: &Path,
+        config: FormatterConfig,
+    ) -> &mut InstanceState {
         if !self.instances.contains_key(directory) {
             self.instances.insert(
                 directory.to_path_buf(),
@@ -259,11 +263,21 @@ impl FormatService {
                         let config_disabled =
                             entry.map(|e| e.disabled.unwrap_or(false)).unwrap_or(false);
 
+                        if config_disabled {
+                            continue;
+                        }
+
                         let linked_disabled =
                             (name == "uvformat" && ruff_disabled) || (name == "ruff" && uv_disabled);
 
+                        if linked_disabled {
+                            continue;
+                        }
+
                         let available = formatter.enabled(&ctx).await.is_some();
-                        let enabled = !config_disabled && !linked_disabled && available;
+                        if !available {
+                            continue;
+                        }
 
                         statuses.push(FormatterStatus {
                             name: name.to_string(),
@@ -272,7 +286,7 @@ impl FormatService {
                                 .iter()
                                 .map(|s| s.to_string())
                                 .collect(),
-                            enabled,
+                            enabled: true,
                         });
                     }
                 }
@@ -437,21 +451,30 @@ mod tests {
     #[tokio::test]
     async fn service_initializes_without_error() {
         let service = FormatService::new();
-        let result = service.init(Path::new("/tmp"), FormatterConfig::Disabled(false)).await;
+        let result = service
+            .init(Path::new("/tmp"), FormatterConfig::Disabled(false))
+            .await;
         assert!(result.is_ok(), "init() should return success result");
     }
 
     #[tokio::test]
     async fn init_returns_success_result() {
         let service = FormatService::new();
-        let result = service.init(Path::new("/tmp"), FormatterConfig::Formatters(HashMap::new())).await;
+        let result = service
+            .init(
+                Path::new("/tmp"),
+                FormatterConfig::Formatters(HashMap::new()),
+            )
+            .await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn status_returns_empty_when_disabled() {
         let service = FormatService::new();
-        let _ = service.init(Path::new("/tmp"), FormatterConfig::Disabled(true)).await;
+        let _ = service
+            .init(Path::new("/tmp"), FormatterConfig::Disabled(true))
+            .await;
         let statuses = service.status(Path::new("/tmp")).await;
         assert!(
             statuses.is_empty(),
@@ -472,7 +495,9 @@ mod tests {
     #[tokio::test]
     async fn file_returns_ok_for_disabled() {
         let service = FormatService::new();
-        let _ = service.init(Path::new("/tmp"), FormatterConfig::Disabled(false)).await;
+        let _ = service
+            .init(Path::new("/tmp"), FormatterConfig::Disabled(false))
+            .await;
         let result = service.file(Path::new("/tmp/test.rs")).await;
         assert!(result.is_err());
     }
@@ -480,7 +505,12 @@ mod tests {
     #[tokio::test]
     async fn file_returns_ok_for_enabled_with_no_matching_formatters() {
         let service = FormatService::new();
-        let _ = service.init(Path::new("/tmp"), FormatterConfig::Formatters(HashMap::new())).await;
+        let _ = service
+            .init(
+                Path::new("/tmp"),
+                FormatterConfig::Formatters(HashMap::new()),
+            )
+            .await;
         let result = service.file(Path::new("/tmp/test.rs")).await;
         assert!(result.is_ok());
     }
@@ -498,7 +528,9 @@ mod tests {
             },
         );
         let service = FormatService::new();
-        let _ = service.init(Path::new("/tmp"), FormatterConfig::Formatters(formatters)).await;
+        let _ = service
+            .init(Path::new("/tmp"), FormatterConfig::Formatters(formatters))
+            .await;
         let statuses = service.status(Path::new("/tmp")).await;
 
         let uv_status = statuses.iter().find(|s| s.name == "uvformat");
@@ -527,7 +559,9 @@ mod tests {
             },
         );
         let service = FormatService::new();
-        let _ = service.init(Path::new("/tmp"), FormatterConfig::Formatters(formatters)).await;
+        let _ = service
+            .init(Path::new("/tmp"), FormatterConfig::Formatters(formatters))
+            .await;
         let statuses = service.status(Path::new("/tmp")).await;
 
         let ruff_status = statuses.iter().find(|s| s.name == "ruff");
@@ -558,11 +592,19 @@ mod tests {
             },
         );
 
-        let _ = service.init(Path::new("/project"), FormatterConfig::Formatters(formatters)).await;
+        let _ = service
+            .init(
+                Path::new("/project"),
+                FormatterConfig::Formatters(formatters),
+            )
+            .await;
 
         let manager = service.instance_manager.lock().await;
         let instance = manager.get(Path::new("/project"));
-        assert!(instance.is_some(), "Instance should be created for /project directory");
+        assert!(
+            instance.is_some(),
+            "Instance should be created for /project directory"
+        );
 
         let instance = instance.unwrap();
         assert_eq!(instance.directory(), &PathBuf::from("/project"));
@@ -600,26 +642,53 @@ mod tests {
             },
         );
 
-        let _ = service.init(Path::new("/project-a"), FormatterConfig::Formatters(project_a_formatters)).await;
-        let _ = service.init(Path::new("/project-b"), FormatterConfig::Formatters(project_b_formatters)).await;
+        let _ = service
+            .init(
+                Path::new("/project-a"),
+                FormatterConfig::Formatters(project_a_formatters),
+            )
+            .await;
+        let _ = service
+            .init(
+                Path::new("/project-b"),
+                FormatterConfig::Formatters(project_b_formatters),
+            )
+            .await;
 
         let manager = service.instance_manager.lock().await;
-        assert_eq!(manager.instances_count(), 2, "Should have 2 separate instances");
+        assert_eq!(
+            manager.instances_count(),
+            2,
+            "Should have 2 separate instances"
+        );
 
-        let project_a_instance = manager.get(Path::new("/project-a")).expect("project-a instance should exist");
-        let project_b_instance = manager.get(Path::new("/project-b")).expect("project-b instance should exist");
+        let project_a_instance = manager
+            .get(Path::new("/project-a"))
+            .expect("project-a instance should exist");
+        let project_b_instance = manager
+            .get(Path::new("/project-b"))
+            .expect("project-b instance should exist");
 
         match project_a_instance.formatter_config() {
             FormatterConfig::Formatters(map) => {
-                assert!(map.contains_key("prettier"), "project-a should have prettier");
-                assert!(!map.contains_key("rustfmt"), "project-a should NOT have rustfmt");
+                assert!(
+                    map.contains_key("prettier"),
+                    "project-a should have prettier"
+                );
+                assert!(
+                    !map.contains_key("rustfmt"),
+                    "project-a should NOT have rustfmt"
+                );
             }
             _ => panic!("Expected Formatters variant for project-a"),
         }
 
         match project_b_instance.formatter_config() {
             FormatterConfig::Formatters(map) => {
-                assert!(!map.contains_key("prettier"), "project-b should NOT have prettier");
+                assert!(
+                    !map.contains_key("prettier"),
+                    "project-b should NOT have prettier"
+                );
                 assert!(map.contains_key("rustfmt"), "project-b should have rustfmt");
             }
             _ => panic!("Expected Formatters variant for project-b"),
@@ -633,7 +702,10 @@ mod tests {
         let instance = InstanceState::new(directory.clone(), config);
 
         assert_eq!(instance.directory(), &directory);
-        assert!(matches!(instance.formatter_config(), FormatterConfig::Disabled(false)));
+        assert!(matches!(
+            instance.formatter_config(),
+            FormatterConfig::Disabled(false)
+        ));
     }
 
     #[tokio::test]
@@ -653,7 +725,11 @@ mod tests {
         assert_eq!(manager.instances_count(), 2);
 
         manager.get_or_create(Path::new("/dir1"), FormatterConfig::Disabled(true));
-        assert_eq!(manager.instances_count(), 2, "Should not create duplicate for same directory");
+        assert_eq!(
+            manager.instances_count(),
+            2,
+            "Should not create duplicate for same directory"
+        );
     }
 
     #[tokio::test]
@@ -701,7 +777,11 @@ mod tests {
             "At least one formatter should be available"
         );
 
-        assert_eq!(call_count.load(Ordering::SeqCst), 2, "Should have made exactly 2 calls");
+        assert_eq!(
+            call_count.load(Ordering::SeqCst),
+            2,
+            "Should have made exactly 2 calls"
+        );
     }
 
     #[tokio::test]
@@ -718,16 +798,46 @@ mod tests {
 
         let start = std::time::Instant::now();
 
-        let ctx0 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx1 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx2 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx3 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx4 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx5 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx6 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx7 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx8 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx9 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx0 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx1 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx2 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx3 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx4 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx5 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx6 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx7 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx8 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx9 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
 
         let (r0, r1, r2, r3, r4, r5, r6, r7, r8, r9) = tokio::join!(
             formatters[0].enabled(&ctx0),
@@ -778,34 +888,139 @@ mod tests {
             sequential_results.push((formatter.name().to_string(), available));
         }
 
-        let ctx0 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx1 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx2 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx3 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx4 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx5 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx6 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx7 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx8 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx9 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx10 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx11 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx12 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx13 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx14 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx15 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx16 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx17 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx18 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx19 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx20 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx21 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx22 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx23 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx24 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
-        let ctx25 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx0 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx1 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx2 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx3 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx4 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx5 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx6 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx7 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx8 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx9 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx10 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx11 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx12 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx13 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx14 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx15 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx16 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx17 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx18 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx19 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx20 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx21 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx22 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx23 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx24 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
+        let ctx25 = FormatterContext {
+            directory: ctx.directory.clone(),
+            worktree: ctx.worktree.clone(),
+        };
 
-        let (r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17, r18, r19, r20, r21, r22, r23, r24, r25) = tokio::join!(
+        let (
+            r0,
+            r1,
+            r2,
+            r3,
+            r4,
+            r5,
+            r6,
+            r7,
+            r8,
+            r9,
+            r10,
+            r11,
+            r12,
+            r13,
+            r14,
+            r15,
+            r16,
+            r17,
+            r18,
+            r19,
+            r20,
+            r21,
+            r22,
+            r23,
+            r24,
+            r25,
+        ) = tokio::join!(
             formatters[0].enabled(&ctx0),
             formatters[1].enabled(&ctx1),
             formatters[2].enabled(&ctx2),

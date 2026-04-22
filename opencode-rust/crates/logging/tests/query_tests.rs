@@ -11,12 +11,10 @@ fn test_query_default() {
 #[test]
 fn test_query_by_session() {
     let query = LogQuery::new().with_session_id("sess_123");
-    let event = LogEvent::new(1, LogLevel::Info, "test", "message")
-        .with_session_id("sess_123");
+    let event = LogEvent::new(1, LogLevel::Info, "test", "message").with_session_id("sess_123");
     assert!(query.matches(&event));
 
-    let event2 = LogEvent::new(2, LogLevel::Info, "test", "message")
-        .with_session_id("sess_456");
+    let event2 = LogEvent::new(2, LogLevel::Info, "test", "message").with_session_id("sess_456");
     assert!(!query.matches(&event2));
 }
 
@@ -66,20 +64,20 @@ fn test_query_combined_filters() {
         .with_level(LogLevel::Error)
         .with_target("tool.*");
 
-    let matching = LogEvent::new(1, LogLevel::Error, "tool.read", "failed")
-        .with_session_id("sess_123");
+    let matching =
+        LogEvent::new(1, LogLevel::Error, "tool.read", "failed").with_session_id("sess_123");
     assert!(query.matches(&matching));
 
-    let wrong_session = LogEvent::new(2, LogLevel::Error, "tool.read", "failed")
-        .with_session_id("sess_456");
+    let wrong_session =
+        LogEvent::new(2, LogLevel::Error, "tool.read", "failed").with_session_id("sess_456");
     assert!(!query.matches(&wrong_session));
 
-    let wrong_level = LogEvent::new(3, LogLevel::Info, "tool.read", "ok")
-        .with_session_id("sess_123");
+    let wrong_level =
+        LogEvent::new(3, LogLevel::Info, "tool.read", "ok").with_session_id("sess_123");
     assert!(!query.matches(&wrong_level));
 
-    let wrong_target = LogEvent::new(4, LogLevel::Error, "llm.openai", "error")
-        .with_session_id("sess_123");
+    let wrong_target =
+        LogEvent::new(4, LogLevel::Error, "llm.openai", "error").with_session_id("sess_123");
     assert!(!query.matches(&wrong_target));
 }
 
@@ -90,8 +88,7 @@ fn test_matches_returns_true_when_all_criteria_match() {
         .with_level(LogLevel::Info)
         .with_target("agent");
 
-    let event = LogEvent::new(1, LogLevel::Info, "agent", "message")
-        .with_session_id("sess_abc");
+    let event = LogEvent::new(1, LogLevel::Info, "agent", "message").with_session_id("sess_abc");
 
     assert!(query.matches(&event));
 }
@@ -102,16 +99,16 @@ fn test_matches_returns_false_when_any_criterion_fails() {
         .with_session_id("sess_abc")
         .with_level(LogLevel::Error);
 
-    let wrong_session = LogEvent::new(1, LogLevel::Error, "agent", "message")
-        .with_session_id("sess_xyz");
+    let wrong_session =
+        LogEvent::new(1, LogLevel::Error, "agent", "message").with_session_id("sess_xyz");
     assert!(!query.matches(&wrong_session));
 
-    let wrong_level = LogEvent::new(2, LogLevel::Info, "agent", "message")
-        .with_session_id("sess_abc");
+    let wrong_level =
+        LogEvent::new(2, LogLevel::Info, "agent", "message").with_session_id("sess_abc");
     assert!(!query.matches(&wrong_level));
 
-    let both_wrong = LogEvent::new(3, LogLevel::Warn, "agent", "message")
-        .with_session_id("sess_xyz");
+    let both_wrong =
+        LogEvent::new(3, LogLevel::Warn, "agent", "message").with_session_id("sess_xyz");
     assert!(!query.matches(&both_wrong));
 }
 
@@ -121,12 +118,12 @@ fn test_for_session_creates_query_for_specific_session() {
 
     assert_eq!(query.session_id, Some("sess_xyz".to_string()));
 
-    let matching_event = LogEvent::new(1, LogLevel::Info, "test", "msg")
-        .with_session_id("sess_xyz");
+    let matching_event =
+        LogEvent::new(1, LogLevel::Info, "test", "msg").with_session_id("sess_xyz");
     assert!(query.matches(&matching_event));
 
-    let non_matching_event = LogEvent::new(2, LogLevel::Info, "test", "msg")
-        .with_session_id("sess_abc");
+    let non_matching_event =
+        LogEvent::new(2, LogLevel::Info, "test", "msg").with_session_id("sess_abc");
     assert!(!query.matches(&non_matching_event));
 }
 

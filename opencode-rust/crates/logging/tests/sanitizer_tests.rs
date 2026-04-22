@@ -1,5 +1,5 @@
-use opencode_logging::sanitizer::Sanitizer;
 use opencode_logging::event::SanitizedValue;
+use opencode_logging::sanitizer::Sanitizer;
 use std::collections::HashMap;
 
 #[test]
@@ -116,12 +116,10 @@ fn test_sanitize_nested_structures_correctly() {
                         _ => panic!("Expected Redacted variant for nested password"),
                     }
                     match nested_map.get("deep") {
-                        Some(SanitizedValue::Nested(deep_map)) => {
-                            match deep_map.get("token") {
-                                Some(SanitizedValue::Redacted(s)) => assert_eq!(s, "[REDACTED]"),
-                                _ => panic!("Expected Redacted variant for deep token"),
-                            }
-                        }
+                        Some(SanitizedValue::Nested(deep_map)) => match deep_map.get("token") {
+                            Some(SanitizedValue::Redacted(s)) => assert_eq!(s, "[REDACTED]"),
+                            _ => panic!("Expected Redacted variant for deep token"),
+                        },
                         _ => panic!("Expected Nested variant for deep"),
                     }
                 }
@@ -210,7 +208,10 @@ fn test_sanitize_params() {
     let mut params = HashMap::new();
     params.insert("file_path".to_string(), serde_json::json!("/tmp/test.txt"));
     params.insert("api_key".to_string(), serde_json::json!("sk-12345"));
-    params.insert("content".to_string(), serde_json::json!("some text content"));
+    params.insert(
+        "content".to_string(),
+        serde_json::json!("some text content"),
+    );
 
     let result = sanitizer.sanitize_params(&params);
     assert!(matches!(result, SanitizedValue::Nested(_)));

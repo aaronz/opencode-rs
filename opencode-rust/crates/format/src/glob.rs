@@ -71,7 +71,10 @@ mod tests {
         let patterns = vec![".ts".to_string(), ".tsx".to_string()];
         assert!(matches_patterns(&patterns, "app.ts"));
         assert!(matches_patterns(&patterns, "app.tsx"));
-        assert!(!matches_patterns(&patterns, "app.js"), "should not match js");
+        assert!(
+            !matches_patterns(&patterns, "app.js"),
+            "should not match js"
+        );
     }
 
     #[test]
@@ -79,7 +82,10 @@ mod tests {
         let patterns = vec!["ts".to_string(), "tsx".to_string()];
         assert!(matches_patterns(&patterns, "app.ts"));
         assert!(matches_patterns(&patterns, "app.tsx"));
-        assert!(!matches_patterns(&patterns, "app.js"), "should not match js");
+        assert!(
+            !matches_patterns(&patterns, "app.js"),
+            "should not match js"
+        );
     }
 
     #[test]
@@ -99,7 +105,10 @@ mod tests {
     fn test_empty_pattern_in_list() {
         let patterns = vec!["ts".to_string(), "".to_string()];
         assert!(matches_patterns(&patterns, "app.ts"));
-        assert!(!matches_patterns(&patterns, "app.js"), "empty pattern should not match");
+        assert!(
+            !matches_patterns(&patterns, "app.js"),
+            "empty pattern should not match"
+        );
     }
 
     #[test]
