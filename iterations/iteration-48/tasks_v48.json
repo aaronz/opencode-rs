@@ -398,7 +398,7 @@
       "priority": "P2",
       "title": "Implement Per-Component Log Level Filtering",
       "description": "Implement glob-based target matching (exact, prefix*, *suffix). Filter resolution order: exact match, glob match, fallback to global level.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify exact match 'agent' -> agent",
         "AddUnitTest: verify prefix wildcard 'llm.*' matches 'llm.openai'",
@@ -421,7 +421,7 @@
       "priority": "P2",
       "title": "Implement Size-Based Log Rotation",
       "description": "Implement file size check before write. Rotate: opencode.log -> opencode.log.1 -> opencode.log.2. Delete oldest when max_rotated_files exceeded.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify rotation triggered at max_file_size_mb",
         "AddUnitTest: verify rotated file numbering increments correctly",

@@ -935,7 +935,7 @@
       "priority": "P2",
       "title": "Implement enabled_checks_run_in_parallel integration test",
       "description": "Add integration test: enabled checks run in parallel",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify enabled checks run in parallel using tokio::join!"
       ],
