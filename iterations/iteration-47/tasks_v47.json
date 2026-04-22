@@ -490,7 +490,7 @@
       "priority": "P0",
       "title": "Implement terraform formatter (.tf,.tfvars)",
       "description": "Implement terraform formatter. Detection: `which terraform`. Extensions: .tf, .tfvars",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify terraform name returns 'terraform'",
         "AddUnitTest: verify terraform extensions includes .tf and .tfvars",
@@ -509,7 +509,7 @@
       "priority": "P0",
       "title": "Implement latexindent formatter (.tex)",
       "description": "Implement latexindent formatter for LaTeX. Detection: `which latexindent`. Extensions: .tex",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify latexindent name returns 'latexindent'",
         "AddUnitTest: verify latexindent extensions includes .tex",

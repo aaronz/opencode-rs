@@ -2219,4 +2219,46 @@ mod tests {
 
         drop(temp_dir);
     }
+
+    #[test]
+    fn verify_latexindent_name_returns_latexindent() {
+        let formatter = latexindent::LatexindentFormatter::new();
+        assert_eq!(formatter.name(), "latexindent");
+    }
+
+    #[test]
+    fn verify_latexindent_extensions_includes_tex() {
+        let formatter = latexindent::LatexindentFormatter::new();
+        assert!(
+            formatter.extensions().contains(&".tex"),
+            "latexindent should support .tex"
+        );
+        assert_eq!(formatter.extensions().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn verify_latexindent_enabled_checks_which_latexindent() {
+        use which::which;
+        let formatter = latexindent::LatexindentFormatter::new();
+        let ctx = FormatterContext {
+            directory: PathBuf::from("/tmp"),
+            worktree: PathBuf::from("/tmp"),
+        };
+        let result = formatter.enabled(&ctx).await;
+        let latexindent_available = which("latexindent").is_ok();
+        if latexindent_available {
+            assert!(
+                result.is_some(),
+                "latexindent should be available when installed"
+            );
+            let cmd = result.unwrap();
+            assert_eq!(cmd[0], "latexindent");
+            assert_eq!(cmd[1], "$FILE");
+        } else {
+            assert!(
+                result.is_none(),
+                "latexindent should not be available when not installed"
+            );
+        }
+    }
 }
