@@ -349,7 +349,7 @@
       "priority": "P1",
       "title": "Implement ErrorContext, ErrorFrame, CauseInfo",
       "description": "Create ErrorFrame (file, line, function), CauseInfo (code, message), ErrorContext (code, message, stack: Vec<ErrorFrame>, cause_chain: Vec<CauseInfo>, context).",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify ErrorFrame captures file path and line number",
         "AddUnitTest: verify ErrorContext stack captures full trace",
@@ -372,7 +372,7 @@
       "priority": "P1",
       "title": "Implement TUI Log Panel",
       "description": "Create LogPanel widget for ratatui with header (session, log count, buttons), log list, scroll navigation, level filter, component filter, text search, expandable error details.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify LogPanel renders with correct layout",
         "AddUnitTest: verify empty state shows placeholder message",

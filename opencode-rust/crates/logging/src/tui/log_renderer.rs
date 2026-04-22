@@ -1,12 +1,12 @@
 #[cfg(feature = "tui")]
 use ratatui::style::{Color, Style};
 #[cfg(feature = "tui")]
-use ratatui::text::{Line, Span, Text};
+use ratatui::text::{Line, Span};
 #[cfg(feature = "tui")]
-use ratatui::{backend::Backend, widgets::Widget, Frame, Terminal};
+use ratatui::Frame;
 
 #[cfg(feature = "tui")]
-use crate::event::{LogEvent, LogLevel};
+use crate::event::LogLevel;
 #[cfg(feature = "tui")]
 use crate::tui::log_panel::LogPanel;
 
@@ -16,16 +16,22 @@ pub struct LogRenderer;
 #[cfg(feature = "tui")]
 impl LogRenderer {
     pub fn render_panel(frame: &mut Frame<'_>, panel: &LogPanel, area: ratatui::layout::Rect) {
-        use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
+        use ratatui::widgets::{Block, Borders, List, ListItem};
 
-        let title = format!("Logs ({})", panel.events.len());
+        if !panel.visible {
+            return;
+        }
+
+        let title = format!("Logs ({})", panel.filtered_events().len());
 
         let block = Block::default().title(title.as_str()).borders(Borders::ALL);
 
         let items: Vec<ListItem> = panel
             .filtered_events()
             .iter()
-            .map(|e| {
+            .enumerate()
+            .map(|(idx, e)| {
+                let is_selected = idx == panel.selected_index;
                 let level_str = match e.level {
                     LogLevel::Trace => "TRACE",
                     LogLevel::Debug => "DEBUG",
@@ -49,7 +55,13 @@ impl LogRenderer {
                     Span::raw(format!(" {}  {}", e.target, e.message)),
                 ]);
 
-                ListItem::new(line)
+                let style = if is_selected {
+                    Style::default().bg(Color::DarkGray)
+                } else {
+                    Style::default()
+                };
+
+                ListItem::new(line).style(style)
             })
             .collect();
 
@@ -64,7 +76,9 @@ impl LogRenderer {
 
         let block = Block::default().title("Logs (0)").borders(Borders::ALL);
 
-        let para = Paragraph::new("No logs yet").block(block);
+        let para = Paragraph::new("No logs yet")
+            .style(Style::default().fg(Color::DarkGray))
+            .block(block);
 
         frame.render_widget(para, area);
     }
@@ -73,11 +87,8 @@ impl LogRenderer {
 #[cfg(test)]
 #[cfg(feature = "tui")]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_renderer_imports() {
-        // Just verify the module compiles with tui feature
         assert!(true);
     }
 }
