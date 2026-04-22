@@ -2494,4 +2494,44 @@ mod tests {
 
         drop(temp_dir);
     }
+
+    #[test]
+    fn verify_ormolu_name_returns_ormolu() {
+        let formatter = ormolu::OrmoluFormatter::new();
+        assert_eq!(formatter.name(), "ormolu");
+    }
+
+    #[test]
+    fn verify_ormolu_extensions_includes_hs() {
+        let formatter = ormolu::OrmoluFormatter::new();
+        assert!(
+            formatter.extensions().contains(&".hs"),
+            "ormolu should support .hs"
+        );
+        assert_eq!(formatter.extensions().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn verify_ormolu_enabled_checks_which_ormolu() {
+        use which::which;
+        let formatter = ormolu::OrmoluFormatter::new();
+        let ctx = FormatterContext {
+            directory: PathBuf::from("/tmp"),
+            worktree: PathBuf::from("/tmp"),
+        };
+        let result = formatter.enabled(&ctx).await;
+        let ormolu_available = which("ormolu").is_ok();
+        if ormolu_available {
+            assert!(result.is_some(), "ormolu should be available when installed");
+            let cmd = result.unwrap();
+            assert_eq!(cmd[0], "ormolu");
+            assert_eq!(cmd[1], "-m");
+            assert_eq!(cmd[2], "$FILE");
+        } else {
+            assert!(
+                result.is_none(),
+                "ormolu should not be available when not installed"
+            );
+        }
+    }
 }
