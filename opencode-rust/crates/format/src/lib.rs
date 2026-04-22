@@ -9,11 +9,13 @@ pub use config::FormatConfig;
 
 pub mod config;
 pub mod formatters;
+pub mod glob;
 pub mod service;
 
 pub use formatters::{
     all_formatters, formatter_names, Formatter, FormatterContext, FormatterStatus,
 };
+pub use glob::{entry_matches_file, matches_patterns};
 pub use service::{FormatService, FormatServiceState, InstanceState, InstanceStateManager};
 
 #[cfg(test)]

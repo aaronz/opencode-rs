@@ -150,7 +150,7 @@ impl FormatterEngine {
     }
 }
 
-fn formatter_matches_file(formatter: &FormatterEntry, file_path: &str) -> bool {
+pub fn formatter_matches_file(formatter: &FormatterEntry, file_path: &str) -> bool {
     let Some(patterns) = formatter.extensions.as_ref() else {
         return false;
     };

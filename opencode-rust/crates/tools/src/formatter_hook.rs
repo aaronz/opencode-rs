@@ -4,7 +4,8 @@ use tokio::process::Command;
 use tokio::time::timeout;
 use tracing::warn;
 
-use opencode_core::config::{FormatterConfig, FormatterEntry};
+use opencode_config::{FormatterConfig, FormatterEntry};
+use opencode_format::entry_matches_file;
 
 pub async fn format_file_after_write(file_path: &str, project_root: &Path) {
     let config_path = project_root.join("opencode.json");
@@ -97,18 +98,4 @@ fn load_formatters_from_config(path: &Path) -> Vec<FormatterEntry> {
         Ok(FormatterConfig::Formatters(map)) => map.into_values().collect(),
         _ => Vec::new(),
     }
-}
-
-fn entry_matches_file(entry: &FormatterEntry, file_path: &str) -> bool {
-    let Some(patterns) = entry.extensions.as_ref() else {
-        return false;
-    };
-
-    let path = Path::new(file_path);
-    let extension = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-
-    patterns.iter().any(|p| {
-        let p = p.trim();
-        p == extension || p.trim_start_matches('.') == extension
-    })
 }
