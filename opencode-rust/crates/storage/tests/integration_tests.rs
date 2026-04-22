@@ -13,6 +13,7 @@ fn test_session_model_serialization() {
         created_at: Utc::now(),
         updated_at: Utc::now(),
         data: r#"{"id":"test","messages":[]}"#.to_string(),
+        project_path: None,
     };
 
     let json = serde_json::to_string(&model).expect("Should serialize");

@@ -147,7 +147,7 @@
       "priority": "P1",
       "title": "Application Integration - Replace Hardcoded Feature Checks",
       "description": "Audit codebase for hardcoded OPENCODE_* env var checks (grep). Replace hardcoded feature checks with FlagManager queries. Ensure all feature toggles use the flag system.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify all OPENCODE_* env var checks use FlagManager",
         "RunTestSuite: execute full test suite to ensure no regressions after replacing hardcoded checks"
