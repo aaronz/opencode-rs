@@ -73,7 +73,7 @@
 
 ## P1 Tasks (High Priority)
 
-### FR-009: Package Manager Detection for Node Projects
+### FR-009: ✅ Done
 - [x] Check for pnpm-lock.yaml → Pnpm
 - [x] Check for yarn.lock (without package-lock.json) → Yarn
 - [x] Check for bun.lockb → Bun

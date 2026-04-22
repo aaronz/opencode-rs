@@ -174,11 +174,11 @@
         "FR-007"
       ]
     },
-{
+    {
       "id": "FR-009",
       "priority": "P1",
       "title": "Package Manager Detection for Node Projects",
-      "description": "Check for pnpm-lock.yaml → Pnpm. Check for yarn.lock (without package-lock.json) → Yarn. Check for bun.lockb → Bun. Check for package-lock.json → Npm. Default fallback → Npm.",
+      "description": "Check for pnpm-lock.yaml \u2192 Pnpm. Check for yarn.lock (without package-lock.json) \u2192 Yarn. Check for bun.lockb \u2192 Bun. Check for package-lock.json \u2192 Npm. Default fallback \u2192 Npm.",
       "status": "done",
       "test_criteria": [
         "AddUnitTest: verify pnpm-lock.yaml detection returns Pnpm",
