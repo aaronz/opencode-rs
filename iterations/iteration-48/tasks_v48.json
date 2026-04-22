@@ -46,7 +46,7 @@
       "priority": "P0",
       "title": "Implement LogFields Struct",
       "description": "Create LogFields struct with all optional fields: session_id, tool_name, latency_ms, model, provider, token_count, error_code, file_path, line, extra. Implement Default and serde support.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify LogFields::default() creates empty struct with no fields set",
         "AddUnitTest: verify serialization includes all fields when set",

@@ -48,11 +48,11 @@
 ### Task 0.3: Implement LogFields Struct
 **FR:** FR-002
 **File:** `crates/logging/src/event.rs`
-**Status:** Not started
+**Status:** ✅ Done
 **Priority:** P0
 
 **Subtasks:**
-- [ ] Create `LogFields` struct with all optional fields:
+- [x] Create `LogFields` struct with all optional fields:
   - `session_id: Option<String>`
   - `tool_name: Option<String>`
   - `latency_ms: Option<u64>`
@@ -63,12 +63,12 @@
   - `file_path: Option<String>`
   - `line: Option<u32>`
   - `extra: HashMap<String, serde_json::Value>`
-- [ ] Implement `Default` for LogFields
-- [ ] Implement `serde::Serialize` and `serde::Deserialize`
+- [x] Implement `Default` for LogFields
+- [x] Implement `serde::Serialize` and `serde::Deserialize`
 
 **Verification:**
-- `cargo test -p opencode-logging log_fields` passes
-- Default construction works
+- `cargo test -p opencode-logging log_fields` passes ✅
+- Default construction works ✅
 
 ---
 
