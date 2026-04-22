@@ -83,12 +83,32 @@ impl FormatService {
                     state_guard.commands.clear();
                 }
                 FormatterConfig::Formatters(formatters) => {
+                    for formatter in all_formatters() {
+                        state_guard.register_formatter(formatter);
+                    }
+
+                    let mut ruff_disabled = false;
+                    let mut uv_disabled = false;
+
                     for (name, entry) in formatters {
                         if entry.disabled.unwrap_or(false) {
                             state_guard.set_command(name.clone(), None);
                         } else {
                             state_guard.set_command(name.clone(), entry.command.clone());
                         }
+                        if name == "ruff" && entry.disabled.unwrap_or(false) {
+                            ruff_disabled = true;
+                        }
+                        if name == "uvformat" && entry.disabled.unwrap_or(false) {
+                            uv_disabled = true;
+                        }
+                    }
+
+                    if ruff_disabled {
+                        state_guard.set_command("uvformat".to_string(), None);
+                    }
+                    if uv_disabled {
+                        state_guard.set_command("ruff".to_string(), None);
                     }
                 }
             }
@@ -136,13 +156,26 @@ impl FormatService {
                 }
             }
             FormatterConfig::Formatters(config_formatters) => {
+                let ruff_disabled = config_formatters
+                    .get("ruff")
+                    .map(|e| e.disabled.unwrap_or(false))
+                    .unwrap_or(false);
+                let uv_disabled = config_formatters
+                    .get("uvformat")
+                    .map(|e| e.disabled.unwrap_or(false))
+                    .unwrap_or(false);
+
                 for formatter in state.formatters.values() {
                     let name = formatter.name();
                     let entry = config_formatters.get(name);
                     let config_disabled =
                         entry.map(|e| e.disabled.unwrap_or(false)).unwrap_or(false);
+
+                    let linked_disabled =
+                        (name == "uvformat" && ruff_disabled) || (name == "ruff" && uv_disabled);
+
                     let available = formatter.enabled(&ctx).await.is_some();
-                    let enabled = !config_disabled && available;
+                    let enabled = !config_disabled && !linked_disabled && available;
 
                     statuses.push(FormatterStatus {
                         name: name.to_string(),
@@ -308,5 +341,63 @@ mod tests {
         let _ = service.init().await;
         let result = service.file(Path::new("/tmp/test.rs")).await;
         assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn disabling_ruff_removes_uv() {
+        let mut formatters = HashMap::new();
+        formatters.insert(
+            "ruff".to_string(),
+            FormatterEntry {
+                disabled: Some(true),
+                command: None,
+                environment: None,
+                extensions: None,
+            },
+        );
+        let service = FormatService::new(FormatterConfig::Formatters(formatters));
+        let _ = service.init().await;
+        let statuses = service.status().await;
+
+        let uv_status = statuses.iter().find(|s| s.name == "uvformat");
+        assert!(
+            uv_status.map(|s| !s.enabled).unwrap_or(false),
+            "uvformat should be disabled when ruff is disabled"
+        );
+
+        let ruff_status = statuses.iter().find(|s| s.name == "ruff");
+        assert!(
+            ruff_status.map(|s| !s.enabled).unwrap_or(false),
+            "ruff should be disabled"
+        );
+    }
+
+    #[tokio::test]
+    async fn disabling_uv_removes_ruff() {
+        let mut formatters = HashMap::new();
+        formatters.insert(
+            "uvformat".to_string(),
+            FormatterEntry {
+                disabled: Some(true),
+                command: None,
+                environment: None,
+                extensions: None,
+            },
+        );
+        let service = FormatService::new(FormatterConfig::Formatters(formatters));
+        let _ = service.init().await;
+        let statuses = service.status().await;
+
+        let ruff_status = statuses.iter().find(|s| s.name == "ruff");
+        assert!(
+            ruff_status.map(|s| !s.enabled).unwrap_or(false),
+            "ruff should be disabled when uvformat is disabled"
+        );
+
+        let uv_status = statuses.iter().find(|s| s.name == "uvformat");
+        assert!(
+            uv_status.map(|s| !s.enabled).unwrap_or(false),
+            "uvformat should be disabled"
+        );
     }
 }

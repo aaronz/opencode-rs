@@ -661,7 +661,7 @@
       "priority": "P0",
       "title": "Implement dfmt formatter (.d)",
       "description": "Implement dfmt formatter for D. Detection: `which dfmt`. Extensions: .d",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify dfmt name returns 'dfmt'",
         "AddUnitTest: verify dfmt extensions includes .d",
@@ -680,7 +680,7 @@
       "priority": "P1",
       "title": "Implement ruff/uv linked disabling",
       "description": "When ruff is disabled, also disable uv. When uv is disabled, also disable ruff. Add tests for linked disabling",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify disabling ruff removes uv from status()",
         "AddUnitTest: verify disabling uv removes ruff from status()",
