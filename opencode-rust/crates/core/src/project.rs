@@ -34,6 +34,23 @@ pub enum PackageManager {
     Unknown,
 }
 
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum ProjectError {
+    #[error("No project found from: {0}")]
+    NotFound(PathBuf),
+
+    #[error("Failed to read project file: {0}")]
+    ReadError(PathBuf, #[source] std::io::Error),
+
+    #[error("Failed to parse config: {0}")]
+    ParseError(String, #[source] serde_json::Error),
+
+    #[error("Ambiguous project: multiple roots found")]
+    Ambiguous,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectInfo {
     pub root: PathBuf,
@@ -987,5 +1004,39 @@ mod tests {
         assert_eq::<PackageManager>();
         assert_serialize::<PackageManager>();
         assert_deserialize::<PackageManager>();
+    }
+
+    #[test]
+    fn test_project_error_display_not_found() {
+        let err = ProjectError::NotFound(PathBuf::from("/some/path"));
+        assert_eq!(err.to_string(), "No project found from: /some/path");
+    }
+
+    #[test]
+    fn test_project_error_display_read_error() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "file not found");
+        let err = ProjectError::ReadError(PathBuf::from("/some/file"), io_err);
+        assert_eq!(err.to_string(), "Failed to read project file: /some/file");
+    }
+
+    #[test]
+    fn test_project_error_display_parse_error() {
+        let json_err = serde_json::from_str::<serde_json::Value>("invalid").unwrap_err();
+        let err = ProjectError::ParseError("package.json".to_string(), json_err);
+        let msg = err.to_string();
+        assert!(msg.contains("Failed to parse config:"));
+        assert!(msg.contains("package.json"));
+    }
+
+    #[test]
+    fn test_project_error_display_ambiguous() {
+        let err = ProjectError::Ambiguous;
+        assert_eq!(err.to_string(), "Ambiguous project: multiple roots found");
+    }
+
+    #[test]
+    fn test_project_error_implements_error_trait() {
+        fn assert_error<T: std::error::Error>() {}
+        assert_error::<ProjectError>();
     }
 }

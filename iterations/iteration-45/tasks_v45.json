@@ -24,7 +24,7 @@
       "priority": "P0",
       "title": "Define PackageManager Enum",
       "description": "Define enum with 11 variants: Npm, Yarn, Pnpm, Bun, Cargo, Pip, Poetry, Go, Maven, Gradle, Unknown. Add derives: Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize. Add serde rename_all = \"lowercase\"",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify PackageManager enum has exactly 11 variants",
         "AddUnitTest: verify PackageManager::Pnpm serialization to \"pnpm\"",
@@ -42,7 +42,7 @@
       "priority": "P0",
       "title": "Define ProjectError Enum",
       "description": "Define enum with 4 variants: NotFound, ReadError, ParseError, Ambiguous. Add thiserror #[derive(Error)]. Implement proper error messages with #[error()] attributes.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify ProjectError::NotFound displays as 'not found'",
         "AddUnitTest: verify ProjectError::ReadError with context displays correctly",

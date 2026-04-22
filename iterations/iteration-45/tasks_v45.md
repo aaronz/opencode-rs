@@ -13,15 +13,15 @@
 - [ ] Add derives: Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize
 - [ ] Add serde rename_all = "lowercase"
 
-### FR-002: PackageManager Enum
+### FR-002: ✅ Done
 - [ ] Define enum with 11 variants: Npm, Yarn, Pnpm, Bun, Cargo, Pip, Poetry, Go, Maven, Gradle, Unknown
 - [ ] Add derives: Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize
 - [ ] Add serde rename_all = "lowercase"
 
-### FR-003: ProjectError Enum
-- [ ] Define enum with 4 variants: NotFound, ReadError, ParseError, Ambiguous
-- [ ] Add thiserror #[derive(Error)]
-- [ ] Implement proper error messages with #[error()] attributes
+### FR-003: ✅ Done
+- [x] Define enum with 4 variants: NotFound, ReadError, ParseError, Ambiguous
+- [x] Add thiserror #[derive(Error)]
+- [x] Implement proper error messages with #[error()] attributes
 
 ### FR-004: ProjectConfig Struct
 - [ ] Define struct with 4 fields: package_json, cargo_toml, start_command, install_command
