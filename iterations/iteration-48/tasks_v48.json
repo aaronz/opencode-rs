@@ -139,7 +139,7 @@
       "priority": "P0",
       "title": "Implement LogStore (SQLite Persistence)",
       "description": "Create LogStore with SQLite Connection. Implement new(), schema creation, append(), query(), recent(), prune(). Handle database errors gracefully.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify new() creates database and schema",
         "AddUnitTest: verify append() inserts LogEvent correctly",
@@ -163,7 +163,7 @@
       "priority": "P0",
       "title": "Implement AgentLogger Trait",
       "description": "Define AgentLogger trait with trace/debug/info/warn/error methods, with_context() returning ChildLogger, and async query(). Implement AgentLoggerImpl.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify all log levels emit correctly",
         "AddUnitTest: verify ChildLogger context chaining works",

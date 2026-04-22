@@ -4583,6 +4583,7 @@ name = "opencode-logging"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "chrono",
  "ratatui 0.28.1",
  "rstest",

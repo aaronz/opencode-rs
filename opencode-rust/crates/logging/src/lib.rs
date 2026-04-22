@@ -20,7 +20,7 @@ pub use event::{
     CauseInfo, ErrorContext, ErrorFrame, LogEvent, LogFields, LogLevel, ReasoningLog,
     SanitizedValue, ToolConsideration, ToolExecutionLog, ToolResult,
 };
-pub use logger::AgentLogger;
+pub use logger::{AgentLogger, AgentLoggerImpl, ChildLogger};
 pub use query::LogQuery;
 pub use sanitizer::Sanitizer;
 pub use store::{LogStore, SessionLogBuffer};
