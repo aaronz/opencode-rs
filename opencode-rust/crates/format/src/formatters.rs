@@ -2046,4 +2046,44 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn verify_dart_name_returns_dart() {
+        let formatter = dart::DartFormatter::new();
+        assert_eq!(formatter.name(), "dart");
+    }
+
+    #[test]
+    fn verify_dart_extensions_includes_dart() {
+        let formatter = dart::DartFormatter::new();
+        assert!(
+            formatter.extensions().contains(&".dart"),
+            "dart should support .dart"
+        );
+        assert_eq!(formatter.extensions().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn verify_dart_enabled_checks_which_dart() {
+        use which::which;
+        let formatter = dart::DartFormatter::new();
+        let ctx = FormatterContext {
+            directory: PathBuf::from("/tmp"),
+            worktree: PathBuf::from("/tmp"),
+        };
+        let result = formatter.enabled(&ctx).await;
+        let dart_available = which("dart").is_ok();
+        if dart_available {
+            assert!(result.is_some(), "dart should be available when installed");
+            let cmd = result.unwrap();
+            assert_eq!(cmd[0], "dart");
+            assert_eq!(cmd[1], "format");
+            assert_eq!(cmd[2], "$FILE");
+        } else {
+            assert!(
+                result.is_none(),
+                "dart should not be available when not installed"
+            );
+        }
+    }
 }

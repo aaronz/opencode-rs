@@ -452,7 +452,7 @@
       "priority": "P0",
       "title": "Implement dart formatter (.dart)",
       "description": "Implement dart formatter. Detection: `which dart`. Extensions: .dart",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify dart name returns 'dart'",
         "AddUnitTest: verify dart extensions includes .dart",
