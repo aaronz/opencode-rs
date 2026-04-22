@@ -115,7 +115,7 @@
       "priority": "P0",
       "title": "Implement SessionLogBuffer (Ring Buffer)",
       "description": "Create SessionLogBuffer with fixed capacity. Implement O(1) push with oldest eviction, get_range, get_by_level, len, is_empty. Add tests for ring buffer behavior.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify O(1) insertion performance for push()",
         "AddUnitTest: verify oldest event evicted when capacity exceeded",

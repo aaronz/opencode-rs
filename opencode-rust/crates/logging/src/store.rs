@@ -257,4 +257,116 @@ mod tests {
         assert_eq!(errors.len(), 1);
         assert_eq!(errors[0].message, "error1");
     }
+
+    #[test]
+    fn test_session_log_buffer_len_and_is_empty() {
+        let mut buffer = SessionLogBuffer::new(5);
+
+        assert_eq!(buffer.len(), 0);
+        assert!(buffer.is_empty());
+
+        buffer.push(LogEvent::new(0, LogLevel::Info, "test", "first"));
+        assert_eq!(buffer.len(), 1);
+        assert!(!buffer.is_empty());
+
+        buffer.push(LogEvent::new(0, LogLevel::Info, "test", "second"));
+        buffer.push(LogEvent::new(0, LogLevel::Info, "test", "third"));
+        assert_eq!(buffer.len(), 3);
+
+        buffer.push(LogEvent::new(0, LogLevel::Info, "test", "fourth"));
+        buffer.push(LogEvent::new(0, LogLevel::Info, "test", "fifth"));
+        buffer.push(LogEvent::new(0, LogLevel::Info, "test", "sixth"));
+        assert_eq!(buffer.len(), 5);
+        assert!(!buffer.is_empty());
+    }
+
+    #[test]
+    fn test_session_log_buffer_wraparound_at_capacity_boundary() {
+        let capacity = 3;
+        let mut buffer = SessionLogBuffer::new(capacity);
+
+        buffer.push(LogEvent::new(0, LogLevel::Info, "test", "event_1"));
+        buffer.push(LogEvent::new(0, LogLevel::Info, "test", "event_2"));
+        buffer.push(LogEvent::new(0, LogLevel::Info, "test", "event_3"));
+
+        assert_eq!(buffer.len(), 3);
+
+        buffer.push(LogEvent::new(0, LogLevel::Info, "test", "event_4"));
+
+        assert_eq!(buffer.len(), 3);
+        let messages: Vec<_> = buffer.iter().map(|e| e.message.clone()).collect();
+        assert!(!messages.contains(&"event_1".to_string()));
+        assert!(messages.contains(&"event_2".to_string()));
+        assert!(messages.contains(&"event_3".to_string()));
+        assert!(messages.contains(&"event_4".to_string()));
+
+        buffer.push(LogEvent::new(0, LogLevel::Info, "test", "event_5"));
+        buffer.push(LogEvent::new(0, LogLevel::Info, "test", "event_6"));
+
+        let messages: Vec<_> = buffer.iter().map(|e| e.message.clone()).collect();
+        assert!(!messages.contains(&"event_1".to_string()));
+        assert!(!messages.contains(&"event_2".to_string()));
+        assert!(!messages.contains(&"event_3".to_string()));
+        assert!(messages.contains(&"event_4".to_string()));
+        assert!(messages.contains(&"event_5".to_string()));
+        assert!(messages.contains(&"event_6".to_string()));
+    }
+
+    #[test]
+    fn test_session_log_buffer_o1_insertion_performance() {
+        use std::time::Instant;
+
+        let mut buffer = SessionLogBuffer::new(10000);
+
+        let start = Instant::now();
+        for i in 0..10000 {
+            buffer.push(LogEvent::new(0, LogLevel::Info, "test", format!("event_{}", i)));
+        }
+        let duration_full = start.elapsed();
+
+        buffer.clear();
+        let start = Instant::now();
+        for i in 0..10000 {
+            buffer.push(LogEvent::new(0, LogLevel::Info, "test", format!("event_{}", i)));
+        }
+        let duration_after_clear = start.elapsed();
+
+        assert!(duration_full.as_millis() < 100, "Push at capacity took too long: {:?}", duration_full);
+        assert!(duration_after_clear.as_millis() < 100, "Push after clear took too long: {:?}", duration_after_clear);
+    }
+
+    #[test]
+    fn test_session_log_buffer_sequence_number_assignment() {
+        let mut buffer = SessionLogBuffer::new(10);
+
+        buffer.push(LogEvent::new(0, LogLevel::Info, "test", "first"));
+        buffer.push(LogEvent::new(0, LogLevel::Info, "test", "second"));
+        buffer.push(LogEvent::new(0, LogLevel::Info, "test", "third"));
+
+        let seqs: Vec<_> = buffer.iter().map(|e| e.seq).collect();
+        assert_eq!(seqs, vec![1, 2, 3]);
+
+        for i in 4..=15 {
+            buffer.push(LogEvent::new(0, LogLevel::Info, "test", format!("event_{}", i)));
+        }
+
+        let seqs: Vec<_> = buffer.iter().map(|e| e.seq).collect();
+        assert_eq!(seqs, vec![6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+    }
+
+    #[test]
+    fn test_session_log_buffer_preserves_explicit_seq() {
+        let mut buffer = SessionLogBuffer::new(5);
+
+        buffer.push(LogEvent::new(100, LogLevel::Info, "test", "event_100"));
+        buffer.push(LogEvent::new(101, LogLevel::Info, "test", "event_101"));
+
+        let seqs: Vec<_> = buffer.iter().map(|e| e.seq).collect();
+        assert_eq!(seqs, vec![100, 101]);
+
+        buffer.push(LogEvent::new(0, LogLevel::Info, "test", "auto_seq"));
+
+        let last_seq = buffer.iter().last().unwrap().seq;
+        assert_eq!(last_seq, 1);
+    }
 }

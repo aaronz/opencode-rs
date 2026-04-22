@@ -126,21 +126,21 @@
 ### Task 0.6: Implement SessionLogBuffer (Ring Buffer)
 **FR:** FR-006
 **File:** `crates/logging/src/store.rs`
-**Status:** Not started
+**Status:** ✅ Done
 **Priority:** P0
 
 **Subtasks:**
-- [ ] Create `SessionLogBuffer` struct with `capacity: usize`
-- [ ] Implement `push(&mut self, event: LogEvent)` - O(1) insert with oldest eviction
-- [ ] Implement `get_range(&self, from_seq: u64, to_seq: u64) -> Vec<&LogEvent>`
-- [ ] Implement `get_by_level(&self, level: LogLevel) -> Vec<&LogEvent>`
-- [ ] Implement `len()` and `is_empty()` methods
-- [ ] Add tests for ring buffer behavior (eviction, wraparound)
+- [x] Create `SessionLogBuffer` struct with `capacity: usize`
+- [x] Implement `push(&mut self, event: LogEvent)` - O(1) insert with oldest eviction
+- [x] Implement `get_range(&self, from_seq: u64, to_seq: u64) -> Vec<&LogEvent>`
+- [x] Implement `get_by_level(&self, level: LogLevel) -> Vec<&LogEvent>`
+- [x] Implement `len()` and `is_empty()` methods
+- [x] Add tests for ring buffer behavior (eviction, wraparound)
 
 **Verification:**
-- `cargo test -p opencode-logging session_log_buffer` passes
-- O(1) insertion confirmed
-- Oldest event evicted when capacity exceeded
+- `cargo test -p opencode-logging session_log_buffer` passes ✅
+- O(1) insertion confirmed ✅
+- Oldest event evicted when capacity exceeded ✅
 
 ---
 
