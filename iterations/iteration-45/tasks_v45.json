@@ -5,7 +5,7 @@
       "priority": "P0",
       "title": "Define ProjectType Enum",
       "description": "Define enum with 11 variants: Node, Rust, Python, Go, Java, Cpp, Ruby, Php, Dotnet, Swift, Unknown. Add derives: Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize. Add serde rename_all = \"lowercase\"",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify ProjectType enum has exactly 11 variants",
         "AddUnitTest: verify ProjectType::Rust serialization to lowercase string",
@@ -24,7 +24,7 @@
       "priority": "P0",
       "title": "Define PackageManager Enum",
       "description": "Define enum with 11 variants: Npm, Yarn, Pnpm, Bun, Cargo, Pip, Poetry, Go, Maven, Gradle, Unknown. Add derives: Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize. Add serde rename_all = \"lowercase\"",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify PackageManager enum has exactly 11 variants",
         "AddUnitTest: verify PackageManager::Pnpm serialization to \"pnpm\"",

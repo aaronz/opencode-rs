@@ -8,7 +8,7 @@
 
 ## P0 Tasks (Blocking)
 
-### FR-001: ProjectType Enum
+### FR-001: ✅ Done
 - [ ] Define enum with 11 variants: Node, Rust, Python, Go, Java, Cpp, Ruby, Php, Dotnet, Swift, Unknown
 - [ ] Add derives: Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize
 - [ ] Add serde rename_all = "lowercase"

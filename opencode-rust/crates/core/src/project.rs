@@ -18,6 +18,22 @@ pub enum ProjectType {
     Unknown,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PackageManager {
+    Npm,
+    Yarn,
+    Pnpm,
+    Bun,
+    Cargo,
+    Pip,
+    Poetry,
+    Go,
+    Maven,
+    Gradle,
+    Unknown,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectInfo {
     pub root: PathBuf,
@@ -924,5 +940,52 @@ mod tests {
         assert_eq::<ProjectType>();
         assert_serialize::<ProjectType>();
         assert_deserialize::<ProjectType>();
+    }
+
+    #[test]
+    fn test_package_manager_enum_variants() {
+        assert_eq!(PackageManager::Npm, PackageManager::Npm);
+        assert_eq!(PackageManager::Yarn, PackageManager::Yarn);
+        assert_eq!(PackageManager::Pnpm, PackageManager::Pnpm);
+        assert_eq!(PackageManager::Bun, PackageManager::Bun);
+        assert_eq!(PackageManager::Cargo, PackageManager::Cargo);
+        assert_eq!(PackageManager::Pip, PackageManager::Pip);
+        assert_eq!(PackageManager::Poetry, PackageManager::Poetry);
+        assert_eq!(PackageManager::Go, PackageManager::Go);
+        assert_eq!(PackageManager::Maven, PackageManager::Maven);
+        assert_eq!(PackageManager::Gradle, PackageManager::Gradle);
+        assert_eq!(PackageManager::Unknown, PackageManager::Unknown);
+    }
+
+    #[test]
+    fn test_package_manager_pnpm_serialization() {
+        let pnpm = PackageManager::Pnpm;
+        let json = serde_json::to_string(&pnpm).unwrap();
+        assert_eq!(json, "\"pnpm\"");
+    }
+
+    #[test]
+    fn test_package_manager_cargo_deserialization() {
+        let cargo: PackageManager = serde_json::from_str("\"cargo\"").unwrap();
+        assert_eq!(cargo, PackageManager::Cargo);
+    }
+
+    #[test]
+    fn test_package_manager_derives() {
+        fn assert_debug<T: std::fmt::Debug>() {}
+        fn assert_clone<T: Clone>() {}
+        fn assert_copy<T: Copy>() {}
+        fn assert_partial_eq<T: PartialEq>() {}
+        fn assert_eq<T: Eq>() {}
+        fn assert_serialize<T: serde::Serialize>() {}
+        fn assert_deserialize<T: for<'de> serde::Deserialize<'de>>() {}
+
+        assert_debug::<PackageManager>();
+        assert_clone::<PackageManager>();
+        assert_copy::<PackageManager>();
+        assert_partial_eq::<PackageManager>();
+        assert_eq::<PackageManager>();
+        assert_serialize::<PackageManager>();
+        assert_deserialize::<PackageManager>();
     }
 }
