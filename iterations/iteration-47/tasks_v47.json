@@ -338,7 +338,7 @@
       "priority": "P0",
       "title": "Implement ruff formatter (.py,.pyi)",
       "description": "Implement ruff formatter for Python. Detection: `which ruff` + ruff config. Extensions: .py, .pyi",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify ruff name returns 'ruff'",
         "AddUnitTest: verify ruff extensions includes .py and .pyi",

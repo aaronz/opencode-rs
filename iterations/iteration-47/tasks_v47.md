@@ -33,8 +33,8 @@
 - [ ] **biome** (.js,.ts,.html,.css,...) - biome.json config + @biomejs/biome
 - [ ] **zig** (.zig,.zon) - `which zig`
 - [ ] **clang-format** (.c,.cc,.cpp,.h,...) - .clang-format config file
-- [ ] **ktlint** (.kt,.kts) - `which ktlint`
-- [ ] **ruff** (.py,.pyi) - `which ruff` + ruff config
+- [x] **ktlint** (.kt,.kts) - `which ktlint`
+- [x] **ruff** (.py,.pyi) - `which ruff` + ruff config
 - [ ] **uvformat** (.py,.pyi) - `which uv` (fallback when ruff absent)
 - [ ] **air** (.R) - `which air` + validates R formatter
 - [ ] **rubocop** (.rb,.rake,...) - `which rubocop`

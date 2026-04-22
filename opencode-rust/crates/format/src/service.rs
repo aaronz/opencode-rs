@@ -139,7 +139,8 @@ impl FormatService {
                 for formatter in state.formatters.values() {
                     let name = formatter.name();
                     let entry = config_formatters.get(name);
-                    let config_disabled = entry.map(|e| e.disabled.unwrap_or(false)).unwrap_or(false);
+                    let config_disabled =
+                        entry.map(|e| e.disabled.unwrap_or(false)).unwrap_or(false);
                     let available = formatter.enabled(&ctx).await.is_some();
                     let enabled = !config_disabled && available;
 
@@ -276,7 +277,10 @@ mod tests {
         let service = FormatService::new(FormatterConfig::Disabled(true));
         let _ = service.init().await;
         let statuses = service.status().await;
-        assert!(statuses.is_empty(), "Expected empty status when formatter is disabled");
+        assert!(
+            statuses.is_empty(),
+            "Expected empty status when formatter is disabled"
+        );
     }
 
     #[tokio::test]

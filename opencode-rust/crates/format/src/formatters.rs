@@ -319,7 +319,7 @@ pub mod clang_format {
             &self.extensions
         }
 
-async fn enabled(&self, ctx: &FormatterContext) -> Option<Vec<String>> {
+        async fn enabled(&self, ctx: &FormatterContext) -> Option<Vec<String>> {
             if has_binary("clang-format")
                 && (has_file_in_dir(&ctx.directory, ".clang-format")
                     || has_file_in_dir(&ctx.directory, "_clang-format"))
@@ -1324,7 +1324,10 @@ mod tests {
             assert_eq!(cmd[0], "mix");
             assert_eq!(cmd[1], "format");
         } else {
-            assert!(result.is_none(), "mix should not be available when not installed");
+            assert!(
+                result.is_none(),
+                "mix should not be available when not installed"
+            );
         }
     }
 
@@ -1340,10 +1343,19 @@ mod tests {
         let extensions: Vec<&str> = formatter.extensions().to_vec();
         assert!(extensions.contains(&".js"), "prettier should support .js");
         assert!(extensions.contains(&".ts"), "prettier should support .ts");
-        assert!(extensions.contains(&".html"), "prettier should support .html");
+        assert!(
+            extensions.contains(&".html"),
+            "prettier should support .html"
+        );
         assert!(extensions.contains(&".css"), "prettier should support .css");
-        assert!(extensions.contains(&".json"), "prettier should support .json");
-        assert!(extensions.contains(&".yaml"), "prettier should support .yaml");
+        assert!(
+            extensions.contains(&".json"),
+            "prettier should support .json"
+        );
+        assert!(
+            extensions.contains(&".yaml"),
+            "prettier should support .yaml"
+        );
         assert!(extensions.contains(&".md"), "prettier should support .md");
     }
 
@@ -1375,7 +1387,10 @@ mod tests {
         };
         let rt = tokio::runtime::Runtime::new().unwrap();
         let result = rt.block_on(formatter.enabled(&ctx));
-        assert!(result.is_none(), "prettier should not be enabled without package.json");
+        assert!(
+            result.is_none(),
+            "prettier should not be enabled without package.json"
+        );
     }
 
     #[test]
@@ -1407,11 +1422,17 @@ mod tests {
 
         std::env::remove_var("OPENCODE_EXPERIMENTAL_OXFMT");
         let result = formatter.enabled(&ctx).await;
-        assert!(result.is_none(), "oxfmt should not be enabled without env var");
+        assert!(
+            result.is_none(),
+            "oxfmt should not be enabled without env var"
+        );
 
         std::env::set_var("OPENCODE_EXPERIMENTAL_OXFMT", "1");
         let result = formatter.enabled(&ctx).await;
-        assert!(result.is_some(), "oxfmt should be enabled with env var and package.json");
+        assert!(
+            result.is_some(),
+            "oxfmt should be enabled with env var and package.json"
+        );
         std::env::remove_var("OPENCODE_EXPERIMENTAL_OXFMT");
 
         drop(temp_dir);
@@ -1428,7 +1449,10 @@ mod tests {
             worktree: temp_dir.path().to_path_buf(),
         };
         let result = formatter.enabled(&ctx).await;
-        assert!(result.is_none(), "oxfmt should not be enabled without package.json");
+        assert!(
+            result.is_none(),
+            "oxfmt should not be enabled without package.json"
+        );
         std::env::remove_var("OPENCODE_EXPERIMENTAL_OXFMT");
 
         drop(temp_dir);
@@ -1472,14 +1496,20 @@ mod tests {
         let result = formatter.enabled(&ctx).await;
 
         if biome_available {
-            assert!(result.is_some(), "biome should be enabled when biome.json exists and biome binary is available");
+            assert!(
+                result.is_some(),
+                "biome should be enabled when biome.json exists and biome binary is available"
+            );
             let cmd = result.unwrap();
             assert_eq!(cmd[0], "biome");
             assert_eq!(cmd[1], "format");
             assert_eq!(cmd[2], "--write");
             assert_eq!(cmd[3], "$FILE");
         } else {
-            assert!(result.is_none(), "biome should not be enabled when biome binary is not available");
+            assert!(
+                result.is_none(),
+                "biome should not be enabled when biome binary is not available"
+            );
         }
 
         drop(temp_dir);
@@ -1496,7 +1526,10 @@ mod tests {
         };
 
         let result = formatter.enabled(&ctx).await;
-        assert!(result.is_none(), "biome should not be enabled without biome.json");
+        assert!(
+            result.is_none(),
+            "biome should not be enabled without biome.json"
+        );
 
         drop(temp_dir);
     }
@@ -1510,8 +1543,14 @@ mod tests {
     #[test]
     fn verify_zig_extensions_includes_zig_and_zon() {
         let formatter = zig::ZigFormatter::new();
-        assert!(formatter.extensions().contains(&".zig"), "zig should support .zig");
-        assert!(formatter.extensions().contains(&".zon"), "zig should support .zon");
+        assert!(
+            formatter.extensions().contains(&".zig"),
+            "zig should support .zig"
+        );
+        assert!(
+            formatter.extensions().contains(&".zon"),
+            "zig should support .zon"
+        );
         assert_eq!(formatter.extensions().len(), 2);
     }
 
@@ -1532,7 +1571,10 @@ mod tests {
             assert_eq!(cmd[1], "fmt");
             assert_eq!(cmd[2], "$FILE");
         } else {
-            assert!(result.is_none(), "zig should not be available when not installed");
+            assert!(
+                result.is_none(),
+                "zig should not be available when not installed"
+            );
         }
     }
 
@@ -1545,14 +1587,38 @@ mod tests {
     #[test]
     fn verify_clang_format_extensions_includes_c_cpp_extensions() {
         let formatter = clang_format::ClangFormatFormatter::new();
-        assert!(formatter.extensions().contains(&".c"), "clang-format should support .c");
-        assert!(formatter.extensions().contains(&".cc"), "clang-format should support .cc");
-        assert!(formatter.extensions().contains(&".cpp"), "clang-format should support .cpp");
-        assert!(formatter.extensions().contains(&".cxx"), "clang-format should support .cxx");
-        assert!(formatter.extensions().contains(&".h"), "clang-format should support .h");
-        assert!(formatter.extensions().contains(&".hpp"), "clang-format should support .hpp");
-        assert!(formatter.extensions().contains(&".m"), "clang-format should support .m");
-        assert!(formatter.extensions().contains(&".mm"), "clang-format should support .mm");
+        assert!(
+            formatter.extensions().contains(&".c"),
+            "clang-format should support .c"
+        );
+        assert!(
+            formatter.extensions().contains(&".cc"),
+            "clang-format should support .cc"
+        );
+        assert!(
+            formatter.extensions().contains(&".cpp"),
+            "clang-format should support .cpp"
+        );
+        assert!(
+            formatter.extensions().contains(&".cxx"),
+            "clang-format should support .cxx"
+        );
+        assert!(
+            formatter.extensions().contains(&".h"),
+            "clang-format should support .h"
+        );
+        assert!(
+            formatter.extensions().contains(&".hpp"),
+            "clang-format should support .hpp"
+        );
+        assert!(
+            formatter.extensions().contains(&".m"),
+            "clang-format should support .m"
+        );
+        assert!(
+            formatter.extensions().contains(&".mm"),
+            "clang-format should support .mm"
+        );
         assert_eq!(formatter.extensions().len(), 8);
     }
 
@@ -1574,13 +1640,19 @@ mod tests {
         let result = formatter.enabled(&ctx).await;
 
         if clang_format_available {
-            assert!(result.is_some(), "clang-format should be enabled when .clang-format exists and binary is available");
+            assert!(
+                result.is_some(),
+                "clang-format should be enabled when .clang-format exists and binary is available"
+            );
             let cmd = result.unwrap();
             assert_eq!(cmd[0], "clang-format");
             assert_eq!(cmd[1], "-i");
             assert_eq!(cmd[2], "$FILE");
         } else {
-            assert!(result.is_none(), "clang-format should not be enabled when binary is not available");
+            assert!(
+                result.is_none(),
+                "clang-format should not be enabled when binary is not available"
+            );
         }
 
         drop(temp_dir);
@@ -1604,9 +1676,15 @@ mod tests {
         let result = formatter.enabled(&ctx).await;
 
         if clang_format_available {
-            assert!(result.is_some(), "clang-format should be enabled when _clang-format exists and binary is available");
+            assert!(
+                result.is_some(),
+                "clang-format should be enabled when _clang-format exists and binary is available"
+            );
         } else {
-            assert!(result.is_none(), "clang-format should not be enabled when binary is not available");
+            assert!(
+                result.is_none(),
+                "clang-format should not be enabled when binary is not available"
+            );
         }
 
         drop(temp_dir);
@@ -1623,7 +1701,10 @@ mod tests {
         };
 
         let result = formatter.enabled(&ctx).await;
-        assert!(result.is_none(), "clang-format should not be enabled without .clang-format config");
+        assert!(
+            result.is_none(),
+            "clang-format should not be enabled without .clang-format config"
+        );
 
         drop(temp_dir);
     }
@@ -1659,13 +1740,63 @@ mod tests {
         let result = formatter.enabled(&ctx).await;
         let ktlint_available = which("ktlint").is_ok();
         if ktlint_available {
-            assert!(result.is_some(), "ktlint should be available when installed");
+            assert!(
+                result.is_some(),
+                "ktlint should be available when installed"
+            );
             let cmd = result.unwrap();
             assert_eq!(cmd[0], "ktlint");
             assert_eq!(cmd[1], "--format");
             assert_eq!(cmd[2], "$FILE");
         } else {
-            assert!(result.is_none(), "ktlint should not be available when not installed");
+            assert!(
+                result.is_none(),
+                "ktlint should not be available when not installed"
+            );
+        }
+    }
+
+    #[test]
+    fn verify_ruff_name_returns_ruff() {
+        let formatter = ruff::RuffFormatter::new();
+        assert_eq!(formatter.name(), "ruff");
+    }
+
+    #[test]
+    fn verify_ruff_extensions_includes_py_and_pyi() {
+        let formatter = ruff::RuffFormatter::new();
+        assert!(
+            formatter.extensions().contains(&".py"),
+            "ruff should support .py"
+        );
+        assert!(
+            formatter.extensions().contains(&".pyi"),
+            "ruff should support .pyi"
+        );
+        assert_eq!(formatter.extensions().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn verify_ruff_enabled_checks_which_ruff() {
+        use which::which;
+        let formatter = ruff::RuffFormatter::new();
+        let ctx = FormatterContext {
+            directory: PathBuf::from("/tmp"),
+            worktree: PathBuf::from("/tmp"),
+        };
+        let result = formatter.enabled(&ctx).await;
+        let ruff_available = which("ruff").is_ok();
+        if ruff_available {
+            assert!(result.is_some(), "ruff should be available when installed");
+            let cmd = result.unwrap();
+            assert_eq!(cmd[0], "ruff");
+            assert_eq!(cmd[1], "format");
+            assert_eq!(cmd[2], "$FILE");
+        } else {
+            assert!(
+                result.is_none(),
+                "ruff should not be available when not installed"
+            );
         }
     }
 }
