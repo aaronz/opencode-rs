@@ -969,7 +969,7 @@
       "priority": "P2",
       "title": "Implement failed_formatter_does_not_panic integration test",
       "description": "Add integration test: failed formatter does not panic the system",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddErrorHandlingTest: verify formatter failure returns error not panic",
         "AddRegressionTest: ensure system remains stable when formatter fails"

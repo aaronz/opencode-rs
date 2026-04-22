@@ -2,7 +2,7 @@
 
 use std::fmt::Debug;
 use std::fs::{self, File, OpenOptions};
-use std::io::{self, Write};
+use std::io::Write;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -136,7 +136,7 @@ impl Logger {
                     .create(true)
                     .append(true)
                     .open(p)
-                    .map_err(|e| LogError::Io(format!("Failed to open log file: {}", e)))?;
+                    .map_err(|e| LogError::Io(std::io::Error::new(std::io::ErrorKind::Other, format!("Failed to open log file: {}", e))))?;
                 Ok(Some(file))
             }
             None => Ok(None),
@@ -181,7 +181,7 @@ impl Logger {
                 };
 
                 fs::rename(&existing, &new_path).map_err(|e| {
-                    LogError::Io(format!("Failed to rotate log file {}: {}", old_path, e))
+                    LogError::Io(std::io::Error::new(std::io::ErrorKind::Other, format!("Failed to rotate log file {}: {}", old_path, e)))
                 })?;
             }
         }
@@ -191,7 +191,7 @@ impl Logger {
         }
         let backup_path = format!("{}.1", path.display());
         fs::rename(path, &backup_path).map_err(|e| {
-            LogError::Io(format!("Failed to rotate log file to {}: {}", backup_path, e))
+            LogError::Io(std::io::Error::new(std::io::ErrorKind::Other, format!("Failed to rotate log file to {}: {}", backup_path, e)))
         })?;
 
         let new_file = OpenOptions::new()
@@ -199,7 +199,7 @@ impl Logger {
             .write(true)
             .append(true)
             .open(path)
-            .map_err(|e| LogError::Io(format!("Failed to create new log file: {}", e)))?;
+            .map_err(|e| LogError::Io(std::io::Error::new(std::io::ErrorKind::Other, format!("Failed to create new log file: {}", e))))?;
 
         let mut file_guard = self.file.write().await;
         *file_guard = Some(new_file);
