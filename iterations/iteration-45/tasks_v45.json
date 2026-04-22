@@ -42,7 +42,7 @@
       "priority": "P0",
       "title": "Define ProjectError Enum",
       "description": "Define enum with 4 variants: NotFound, ReadError, ParseError, Ambiguous. Add thiserror #[derive(Error)]. Implement proper error messages with #[error()] attributes.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify ProjectError::NotFound displays as 'not found'",
         "AddUnitTest: verify ProjectError::ReadError with context displays correctly",
@@ -61,7 +61,7 @@
       "priority": "P0",
       "title": "Define ProjectConfig Struct",
       "description": "Define struct with 4 fields: package_json (Option<serde_json::Value>), cargo_toml (Option<String>), start_command (Option<String>), install_command (Option<String>). Add derives: Debug, Clone, Default, Serialize, Deserialize.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify ProjectConfig::default() returns all None fields",
         "AddUnitTest: verify ProjectConfig serialization/deserialization roundtrip",

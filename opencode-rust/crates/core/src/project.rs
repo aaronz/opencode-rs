@@ -51,6 +51,14 @@ pub enum ProjectError {
     Ambiguous,
 }
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ProjectConfig {
+    pub package_json: Option<serde_json::Value>,
+    pub cargo_toml: Option<String>,
+    pub start_command: Option<String>,
+    pub install_command: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectInfo {
     pub root: PathBuf,
@@ -1038,5 +1046,69 @@ mod tests {
     fn test_project_error_implements_error_trait() {
         fn assert_error<T: std::error::Error>() {}
         assert_error::<ProjectError>();
+    }
+
+    #[test]
+    fn test_project_config_default() {
+        let config = ProjectConfig::default();
+        assert!(config.package_json.is_none());
+        assert!(config.cargo_toml.is_none());
+        assert!(config.start_command.is_none());
+        assert!(config.install_command.is_none());
+    }
+
+    #[test]
+    fn test_project_config_serialization_roundtrip() {
+        let config = ProjectConfig {
+            package_json: Some(serde_json::json!({"name": "test-project", "version": "1.0.0"})),
+            cargo_toml: Some("[package]\nname = \"test\"".to_string()),
+            start_command: Some("npm start".to_string()),
+            install_command: Some("npm install".to_string()),
+        };
+
+        let json = serde_json::to_string(&config).unwrap();
+        let deserialized: ProjectConfig = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.package_json.as_ref().unwrap()["name"], "test-project");
+        assert_eq!(deserialized.cargo_toml.as_ref().unwrap(), "[package]\nname = \"test\"");
+        assert_eq!(deserialized.start_command.as_ref().unwrap(), "npm start");
+        assert_eq!(deserialized.install_command.as_ref().unwrap(), "npm install");
+    }
+
+    #[test]
+    fn test_project_config_clone() {
+        let config = ProjectConfig {
+            package_json: Some(serde_json::json!({"name": "clone-test"})),
+            cargo_toml: Some("cargo_toml".to_string()),
+            start_command: Some("start".to_string()),
+            install_command: Some("install".to_string()),
+        };
+        let cloned = config.clone();
+        assert_eq!(cloned.package_json, config.package_json);
+        assert_eq!(cloned.cargo_toml, config.cargo_toml);
+        assert_eq!(cloned.start_command, config.start_command);
+        assert_eq!(cloned.install_command, config.install_command);
+    }
+
+    #[test]
+    fn test_project_config_debug() {
+        let config = ProjectConfig::default();
+        let debug_str = format!("{:?}", config);
+        assert!(debug_str.contains("ProjectConfig"));
+    }
+
+    #[test]
+    fn test_project_config_derives() {
+        fn assert_debug<T: std::fmt::Debug>() {}
+        fn assert_clone<T: Clone>() {}
+        fn assert_default<T: Default>() {}
+        fn assert_serialize<T: serde::Serialize>() {}
+        fn assert_deserialize<T: for<'de> serde::Deserialize<'de>>() {}
+
+        assert_debug::<ProjectConfig>();
+        assert_clone::<ProjectConfig>();
+        assert_default::<ProjectConfig>();
+        assert_serialize::<ProjectConfig>();
+        assert_deserialize::<ProjectConfig>();
     }
 }
