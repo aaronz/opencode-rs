@@ -357,7 +357,7 @@
       "priority": "P0",
       "title": "Implement uvformat formatter (.py,.pyi)",
       "description": "Implement uvformat formatter for Python (fallback when ruff absent). Detection: `which uv`. Extensions: .py, .pyi",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify uvformat name returns 'uvformat'",
         "AddUnitTest: verify uvformat extensions includes .py and .pyi",
@@ -377,7 +377,7 @@
       "priority": "P0",
       "title": "Implement air formatter (.R)",
       "description": "Implement air formatter for R. Detection: `which air` + validates R formatter. Extensions: .R",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify air name returns 'air'",
         "AddUnitTest: verify air extensions includes .R",

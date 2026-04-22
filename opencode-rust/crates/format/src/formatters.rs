@@ -1844,4 +1844,49 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn verify_air_name_returns_air() {
+        let formatter = air::AirFormatter::new();
+        assert_eq!(formatter.name(), "air");
+    }
+
+    #[test]
+    fn verify_air_extensions_includes_r() {
+        let formatter = air::AirFormatter::new();
+        assert!(
+            formatter.extensions().contains(&".R"),
+            "air should support .R"
+        );
+        assert!(
+            formatter.extensions().contains(&".r"),
+            "air should support .r"
+        );
+        assert_eq!(formatter.extensions().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn verify_air_enabled_checks_which_air() {
+        use which::which;
+        let formatter = air::AirFormatter::new();
+        let ctx = FormatterContext {
+            directory: PathBuf::from("/tmp"),
+            worktree: PathBuf::from("/tmp"),
+        };
+        let result = formatter.enabled(&ctx).await;
+        let air_available = which("air").is_ok();
+        if air_available {
+            assert!(result.is_some(), "air should be available when installed");
+            let cmd = result.unwrap();
+            assert_eq!(cmd[0], "air");
+            assert_eq!(cmd[1], "fmt");
+            assert_eq!(cmd[2], "-w");
+            assert_eq!(cmd[3], "$FILE");
+        } else {
+            assert!(
+                result.is_none(),
+                "air should not be available when not installed"
+            );
+        }
+    }
 }
