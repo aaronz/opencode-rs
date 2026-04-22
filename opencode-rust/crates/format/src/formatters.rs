@@ -2590,4 +2590,44 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn verify_dfmt_name_returns_dfmt() {
+        let formatter = dfmt::DfmtFormatter::new();
+        assert_eq!(formatter.name(), "dfmt");
+    }
+
+    #[test]
+    fn verify_dfmt_extensions_includes_d() {
+        let formatter = dfmt::DfmtFormatter::new();
+        assert!(
+            formatter.extensions().contains(&".d"),
+            "dfmt should support .d"
+        );
+        assert_eq!(formatter.extensions().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn verify_dfmt_enabled_checks_which_dfmt() {
+        use which::which;
+        let formatter = dfmt::DfmtFormatter::new();
+        let ctx = FormatterContext {
+            directory: PathBuf::from("/tmp"),
+            worktree: PathBuf::from("/tmp"),
+        };
+        let result = formatter.enabled(&ctx).await;
+        let dfmt_available = which("dfmt").is_ok();
+        if dfmt_available {
+            assert!(result.is_some(), "dfmt should be available when installed");
+            let cmd = result.unwrap();
+            assert_eq!(cmd[0], "dfmt");
+            assert_eq!(cmd[1], "--align-switch-cases");
+            assert_eq!(cmd[2], "$FILE");
+        } else {
+            assert!(
+                result.is_none(),
+                "dfmt should not be available when not installed"
+            );
+        }
+    }
 }

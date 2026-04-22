@@ -642,7 +642,7 @@
       "priority": "P0",
       "title": "Implement cljfmt formatter (.clj,.cljs,...)",
       "description": "Implement cljfmt formatter for Clojure. Detection: `which cljfmt`. Extensions: .clj, .cljs, .cljc, .edn",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify cljfmt name returns 'cljfmt'",
         "AddUnitTest: verify cljfmt extensions includes Clojure extensions",
@@ -661,7 +661,7 @@
       "priority": "P0",
       "title": "Implement dfmt formatter (.d)",
       "description": "Implement dfmt formatter for D. Detection: `which dfmt`. Extensions: .d",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify dfmt name returns 'dfmt'",
         "AddUnitTest: verify dfmt extensions includes .d",
