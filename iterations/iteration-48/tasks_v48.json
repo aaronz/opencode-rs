@@ -5,7 +5,7 @@
       "priority": "P0",
       "title": "Create Logging Crate Structure",
       "description": "Create the foundational logging crate with directory structure, Cargo.toml dependencies, and module declarations for the opencode-logging package.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify crate builds successfully with cargo build -p opencode-logging",
         "AddUnitTest: verify no compiler warnings in release build",
@@ -25,7 +25,7 @@
       "priority": "P0",
       "title": "Implement LogLevel Enum with TRACE",
       "description": "Create LogLevel enum with variants: Trace, Debug, Info, Warn, Error. Implement From<LogLevel> for tracing::Level conversion. Add serde Serialize/Deserialize support.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify LogLevel::Trace converts to tracing::Level::TRACE",
         "AddUnitTest: verify all level variants serialize to lowercase string",

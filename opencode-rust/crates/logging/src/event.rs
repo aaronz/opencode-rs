@@ -3,6 +3,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use tracing::Level as TracingLevel;
 
 /// Log severity level
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
@@ -14,6 +15,32 @@ pub enum LogLevel {
     Info,
     Warn,
     Error,
+}
+
+impl LogLevel {
+    /// Returns the ordinal value of the log level (0-based, matching severity)
+    /// Trace=0, Debug=1, Info=2, Warn=3, Error=4
+    pub fn ordinal(&self) -> u8 {
+        match self {
+            LogLevel::Trace => 0,
+            LogLevel::Debug => 1,
+            LogLevel::Info => 2,
+            LogLevel::Warn => 3,
+            LogLevel::Error => 4,
+        }
+    }
+}
+
+impl From<LogLevel> for TracingLevel {
+    fn from(level: LogLevel) -> Self {
+        match level {
+            LogLevel::Trace => TracingLevel::TRACE,
+            LogLevel::Debug => TracingLevel::DEBUG,
+            LogLevel::Info => TracingLevel::INFO,
+            LogLevel::Warn => TracingLevel::WARN,
+            LogLevel::Error => TracingLevel::ERROR,
+        }
+    }
 }
 
 impl std::fmt::Display for LogLevel {
@@ -333,6 +360,50 @@ impl SanitizedValue {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_log_level_ordinal() {
+        assert_eq!(LogLevel::Trace.ordinal(), 0);
+        assert_eq!(LogLevel::Debug.ordinal(), 1);
+        assert_eq!(LogLevel::Info.ordinal(), 2);
+        assert_eq!(LogLevel::Warn.ordinal(), 3);
+        assert_eq!(LogLevel::Error.ordinal(), 4);
+    }
+
+    #[test]
+    fn test_log_level_ordering() {
+        assert!(LogLevel::Trace < LogLevel::Debug);
+        assert!(LogLevel::Debug < LogLevel::Info);
+        assert!(LogLevel::Info < LogLevel::Warn);
+        assert!(LogLevel::Warn < LogLevel::Error);
+    }
+
+    #[test]
+    fn test_log_level_to_tracing_level() {
+        assert_eq!(tracing::Level::from(LogLevel::Trace), tracing::Level::TRACE);
+        assert_eq!(tracing::Level::from(LogLevel::Debug), tracing::Level::DEBUG);
+        assert_eq!(tracing::Level::from(LogLevel::Info), tracing::Level::INFO);
+        assert_eq!(tracing::Level::from(LogLevel::Warn), tracing::Level::WARN);
+        assert_eq!(tracing::Level::from(LogLevel::Error), tracing::Level::ERROR);
+    }
+
+    #[test]
+    fn test_log_level_serialize_lowercase() {
+        assert_eq!(serde_json::to_string(&LogLevel::Trace).unwrap(), "\"trace\"");
+        assert_eq!(serde_json::to_string(&LogLevel::Debug).unwrap(), "\"debug\"");
+        assert_eq!(serde_json::to_string(&LogLevel::Info).unwrap(), "\"info\"");
+        assert_eq!(serde_json::to_string(&LogLevel::Warn).unwrap(), "\"warn\"");
+        assert_eq!(serde_json::to_string(&LogLevel::Error).unwrap(), "\"error\"");
+    }
+
+    #[test]
+    fn test_log_level_deserialize() {
+        assert_eq!(serde_json::from_str::<LogLevel>("\"trace\"").unwrap(), LogLevel::Trace);
+        assert_eq!(serde_json::from_str::<LogLevel>("\"debug\"").unwrap(), LogLevel::Debug);
+        assert_eq!(serde_json::from_str::<LogLevel>("\"info\"").unwrap(), LogLevel::Info);
+        assert_eq!(serde_json::from_str::<LogLevel>("\"warn\"").unwrap(), LogLevel::Warn);
+        assert_eq!(serde_json::from_str::<LogLevel>("\"error\"").unwrap(), LogLevel::Error);
+    }
 
     #[test]
     fn test_log_level_display() {
