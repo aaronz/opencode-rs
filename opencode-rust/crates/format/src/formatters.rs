@@ -2534,4 +2534,60 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn verify_cljfmt_name_returns_cljfmt() {
+        let formatter = cljfmt::CljfmtFormatter::new();
+        assert_eq!(formatter.name(), "cljfmt");
+    }
+
+    #[test]
+    fn verify_cljfmt_extensions_includes_clojure_extensions() {
+        let formatter = cljfmt::CljfmtFormatter::new();
+        assert!(
+            formatter.extensions().contains(&".clj"),
+            "cljfmt should support .clj"
+        );
+        assert!(
+            formatter.extensions().contains(&".cljs"),
+            "cljfmt should support .cljs"
+        );
+        assert!(
+            formatter.extensions().contains(&".cljc"),
+            "cljfmt should support .cljc"
+        );
+        assert!(
+            formatter.extensions().contains(&".edn"),
+            "cljfmt should support .edn"
+        );
+        assert!(
+            formatter.extensions().contains(&".clojure"),
+            "cljfmt should support .clojure"
+        );
+        assert_eq!(formatter.extensions().len(), 5);
+    }
+
+    #[tokio::test]
+    async fn verify_cljfmt_enabled_checks_which_cljfmt() {
+        use which::which;
+        let formatter = cljfmt::CljfmtFormatter::new();
+        let ctx = FormatterContext {
+            directory: PathBuf::from("/tmp"),
+            worktree: PathBuf::from("/tmp"),
+        };
+        let result = formatter.enabled(&ctx).await;
+        let cljfmt_available = which("cljfmt").is_ok();
+        if cljfmt_available {
+            assert!(result.is_some(), "cljfmt should be available when installed");
+            let cmd = result.unwrap();
+            assert_eq!(cmd[0], "cljfmt");
+            assert_eq!(cmd[1], "fix");
+            assert_eq!(cmd[2], "$FILE");
+        } else {
+            assert!(
+                result.is_none(),
+                "cljfmt should not be available when not installed"
+            );
+        }
+    }
 }

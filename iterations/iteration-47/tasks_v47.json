@@ -623,7 +623,7 @@
       "priority": "P0",
       "title": "Implement ormolu formatter (.hs)",
       "description": "Implement ormolu formatter for Haskell. Detection: `which ormolu`. Extensions: .hs",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify ormolu name returns 'ormolu'",
         "AddUnitTest: verify ormolu extensions includes .hs",
@@ -642,7 +642,7 @@
       "priority": "P0",
       "title": "Implement cljfmt formatter (.clj,.cljs,...)",
       "description": "Implement cljfmt formatter for Clojure. Detection: `which cljfmt`. Extensions: .clj, .cljs, .cljc, .edn",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify cljfmt name returns 'cljfmt'",
         "AddUnitTest: verify cljfmt extensions includes Clojure extensions",
