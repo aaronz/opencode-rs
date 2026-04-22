@@ -528,7 +528,7 @@
       "priority": "P0",
       "title": "Implement gleam formatter (.gleam)",
       "description": "Implement gleam formatter. Detection: `which gleam`. Extensions: .gleam",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify gleam name returns 'gleam'",
         "AddUnitTest: verify gleam extensions includes .gleam",
@@ -547,7 +547,7 @@
       "priority": "P0",
       "title": "Implement shfmt formatter (.sh,.bash)",
       "description": "Implement shfmt formatter for shell scripts. Detection: `which shfmt`. Extensions: .sh, .bash",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify shfmt name returns 'shfmt'",
         "AddUnitTest: verify shfmt extensions includes .sh and .bash",

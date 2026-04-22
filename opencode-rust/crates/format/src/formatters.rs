@@ -2300,4 +2300,47 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn verify_shfmt_name_returns_shfmt() {
+        let formatter = shfmt::ShfmtFormatter::new();
+        assert_eq!(formatter.name(), "shfmt");
+    }
+
+    #[test]
+    fn verify_shfmt_extensions_includes_sh_and_bash() {
+        let formatter = shfmt::ShfmtFormatter::new();
+        assert!(
+            formatter.extensions().contains(&".sh"),
+            "shfmt should support .sh"
+        );
+        assert!(
+            formatter.extensions().contains(&".bash"),
+            "shfmt should support .bash"
+        );
+    }
+
+    #[tokio::test]
+    async fn verify_shfmt_enabled_checks_which_shfmt() {
+        use which::which;
+        let formatter = shfmt::ShfmtFormatter::new();
+        let ctx = FormatterContext {
+            directory: PathBuf::from("/tmp"),
+            worktree: PathBuf::from("/tmp"),
+        };
+        let result = formatter.enabled(&ctx).await;
+        let shfmt_available = which("shfmt").is_ok();
+        if shfmt_available {
+            assert!(result.is_some(), "shfmt should be available when installed");
+            let cmd = result.unwrap();
+            assert_eq!(cmd[0], "shfmt");
+            assert_eq!(cmd[1], "-w");
+            assert_eq!(cmd[2], "$FILE");
+        } else {
+            assert!(
+                result.is_none(),
+                "shfmt should not be available when not installed"
+            );
+        }
+    }
 }
