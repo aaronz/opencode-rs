@@ -5,21 +5,9 @@
 pub use opencode_config::{FormatterConfig, FormatterEntry};
 pub use opencode_core::formatter::{FormatterEngine, FormatterError};
 
-pub mod service {
-    pub struct FormatService;
+pub mod service;
 
-    impl FormatService {
-        pub fn new() -> Self {
-            Self
-        }
-    }
-
-    impl Default for FormatService {
-        fn default() -> Self {
-            Self::new()
-        }
-    }
-}
+pub use service::{FormatService, FormatterContext, FormatterStatus, FormatServiceState};
 
 #[cfg(test)]
 mod tests {
@@ -27,7 +15,7 @@ mod tests {
 
     #[test]
     fn format_service_creates() {
-        let _service = service::FormatService::new();
+        let _service = service::FormatService::new(FormatterConfig::Disabled(false));
         assert!(true);
     }
 
