@@ -585,7 +585,7 @@
       "priority": "P0",
       "title": "Implement rustfmt formatter (.rs)",
       "description": "Implement rustfmt formatter. Detection: `which rustfmt`. Extensions: .rs",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify rustfmt name returns 'rustfmt'",
         "AddUnitTest: verify rustfmt extensions includes .rs",

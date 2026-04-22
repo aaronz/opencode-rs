@@ -2360,6 +2360,45 @@ mod tests {
         assert_eq!(formatter.extensions().len(), 1);
     }
 
+    #[test]
+    fn verify_rustfmt_name_returns_rustfmt() {
+        let formatter = rustfmt::RustfmtFormatter::new();
+        assert_eq!(formatter.name(), "rustfmt");
+    }
+
+    #[test]
+    fn verify_rustfmt_extensions_includes_rs() {
+        let formatter = rustfmt::RustfmtFormatter::new();
+        assert!(
+            formatter.extensions().contains(&".rs"),
+            "rustfmt should support .rs"
+        );
+        assert_eq!(formatter.extensions().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn verify_rustfmt_enabled_checks_which_rustfmt() {
+        use which::which;
+        let formatter = rustfmt::RustfmtFormatter::new();
+        let ctx = FormatterContext {
+            directory: PathBuf::from("/tmp"),
+            worktree: PathBuf::from("/tmp"),
+        };
+        let result = formatter.enabled(&ctx).await;
+        let rustfmt_available = which("rustfmt").is_ok();
+        if rustfmt_available {
+            assert!(result.is_some(), "rustfmt should be available when installed");
+            let cmd = result.unwrap();
+            assert_eq!(cmd[0], "rustfmt");
+            assert_eq!(cmd[1], "$FILE");
+        } else {
+            assert!(
+                result.is_none(),
+                "rustfmt should not be available when not installed"
+            );
+        }
+    }
+
     #[tokio::test]
     async fn verify_nixfmt_enabled_checks_which_nixfmt() {
         use which::which;
