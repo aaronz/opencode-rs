@@ -31,7 +31,7 @@ uuid = { workspace = true }
 chrono = { workspace = true }
 tracing = { workspace = true }
 mdns-sd = "0.11"
-rand = "0.8"
+rand = "0.9"
 base64 = "0.22"
 regex-lite = "0.1"
 url = "2"

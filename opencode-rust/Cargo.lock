@@ -856,7 +856,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d8144c22e24bbcf26ade86cb6501a0916c46b7e4787abdb0045a467eb1645a1d"
 dependencies = [
  "ambient-authority",
- "rand 0.8.5",
+ "rand 0.8.6",
 ]
 
 [[package]]
@@ -4312,7 +4312,7 @@ dependencies = [
  "jsonwebtoken",
  "opencode-core",
  "opencode-storage",
- "rand 0.8.5",
+ "rand 0.9.4",
  "reqwest",
  "serde",
  "serde_json",
@@ -4444,7 +4444,7 @@ dependencies = [
  "notify",
  "opencode-config",
  "opencode-permission",
- "rand 0.8.5",
+ "rand 0.9.4",
  "regex",
  "reqwest",
  "rstest",
@@ -4566,7 +4566,7 @@ dependencies = [
  "futures-util",
  "opencode-config",
  "opencode-core",
- "rand 0.8.5",
+ "rand 0.9.4",
  "reqwest",
  "serde",
  "serde_json",
@@ -4720,7 +4720,7 @@ dependencies = [
  "opencode-permission",
  "opencode-storage",
  "opencode-tools",
- "rand 0.8.5",
+ "rand 0.9.4",
  "regex-lite",
  "reqwest",
  "serde",
@@ -4818,7 +4818,7 @@ name = "opencode-util"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "rand 0.8.5",
+ "rand 0.9.4",
  "reqwest",
  "serde",
  "serde_json",
@@ -5038,7 +5038,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d5285893bb5eb82e6aaf5d59ee909a06a16737a8970984dd7746ba9283498d6"
 dependencies = [
  "phf_shared 0.10.0",
- "rand 0.8.5",
+ "rand 0.8.6",
 ]
 
 [[package]]
@@ -5048,7 +5048,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3c80231409c20246a13fddb31776fb942c38553c51e871f8cbd687a4cfb5843d"
 dependencies = [
  "phf_shared 0.11.3",
- "rand 0.8.5",
+ "rand 0.8.6",
 ]
 
 [[package]]
@@ -5539,9 +5539,9 @@ dependencies = [
 
 [[package]]
 name = "rand"
-version = "0.8.5"
+version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34af8d1a0e25924bc5b7c43c079c942339d8f0a8b57c39049bef581b46327404"
+checksum = "5ca0ecfa931c29007047d1bc58e623ab12e5590e8c7cc53200d5202b69266d8a"
 dependencies = [
  "libc",
  "rand_chacha 0.3.1",
@@ -7438,7 +7438,7 @@ dependencies = [
  "http 1.4.0",
  "httparse",
  "log",
- "rand 0.8.5",
+ "rand 0.8.6",
  "sha1",
  "thiserror 1.0.69",
  "utf-8",

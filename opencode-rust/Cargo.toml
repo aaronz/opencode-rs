@@ -59,7 +59,7 @@ bcrypt = "0.15"
 
 # Encryption dependencies
 aes-gcm = "0.10"
-rand = "0.8"
+rand = "0.9"
 
 # Test dependencies
 tempfile = "3"
