@@ -2006,4 +2006,57 @@ mod tests {
 
         assert_eq!(info.project_type, ProjectType::Rust);
     }
+
+    #[tokio::test]
+    async fn test_detect_node_project_with_pnpm() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("package.json"), "{}").await.unwrap();
+        tokio::fs::write(tmp.path().join("pnpm-lock.yaml"), "").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Node);
+        assert_eq!(info.package_manager, PackageManager::Pnpm);
+    }
+
+    #[tokio::test]
+    async fn test_detect_node_project_with_yarn() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("package.json"), "{}").await.unwrap();
+        tokio::fs::write(tmp.path().join("yarn.lock"), "").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Node);
+        assert_eq!(info.package_manager, PackageManager::Yarn);
+    }
+
+    #[tokio::test]
+    async fn test_detect_node_project_with_bun() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("package.json"), "{}").await.unwrap();
+        tokio::fs::write(tmp.path().join("bun.lockb"), "").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Node);
+        assert_eq!(info.package_manager, PackageManager::Bun);
+    }
+
+    #[tokio::test]
+    async fn test_yarn_not_selected_when_package_lock_exists() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("package.json"), "{}").await.unwrap();
+        tokio::fs::write(tmp.path().join("yarn.lock"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("package-lock.json"), "").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Node);
+        assert_eq!(info.package_manager, PackageManager::Npm);
+    }
 }

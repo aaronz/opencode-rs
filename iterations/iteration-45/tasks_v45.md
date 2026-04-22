@@ -56,7 +56,7 @@
 - [ ] Check for .opencode directory (opencode sandbox)
 - [ ] Return root path or cwd as fallback with ProjectType::Unknown
 
-### FR-008: Type Detection with Priority ✅ Done
+### FR-008: ✅ Done
 - [x] Check Cargo.toml → Rust
 - [x] Check go.mod → Go
 - [x] Check pyproject.toml OR requirements.txt OR setup.py → Python
@@ -74,11 +74,11 @@
 ## P1 Tasks (High Priority)
 
 ### FR-009: Package Manager Detection for Node Projects
-- [ ] Check for pnpm-lock.yaml → Pnpm
-- [ ] Check for yarn.lock (without package-lock.json) → Yarn
-- [ ] Check for bun.lockb → Bun
-- [ ] Check for package-lock.json → Npm
-- [ ] Default fallback → Npm
+- [x] Check for pnpm-lock.yaml → Pnpm
+- [x] Check for yarn.lock (without package-lock.json) → Yarn
+- [x] Check for bun.lockb → Bun
+- [x] Check for package-lock.json → Npm
+- [x] Default fallback → Npm
 
 ### FR-010: Sandbox Worktree Detection
 - [ ] Get DATA directory from environment/config
