@@ -503,7 +503,7 @@ pub mod rubocop {
     impl RubocopFormatter {
         pub fn new() -> Self {
             Self {
-                extensions: vec![".rb", ".rake", ".rakefile", ".Gemfile"],
+                extensions: vec![".rb", ".rake", ".builder", ".gemspec", ".podspec", ".rabl", ".rake", ".rbi"],
             }
         }
     }
@@ -1886,6 +1886,69 @@ mod tests {
             assert!(
                 result.is_none(),
                 "air should not be available when not installed"
+            );
+        }
+    }
+
+    #[test]
+    fn verify_rubocop_name_returns_rubocop() {
+        let formatter = rubocop::RubocopFormatter::new();
+        assert_eq!(formatter.name(), "rubocop");
+    }
+
+    #[test]
+    fn verify_rubocop_extensions_includes_ruby_extensions() {
+        let formatter = rubocop::RubocopFormatter::new();
+        assert!(
+            formatter.extensions().contains(&".rb"),
+            "rubocop should support .rb"
+        );
+        assert!(
+            formatter.extensions().contains(&".rake"),
+            "rubocop should support .rake"
+        );
+        assert!(
+            formatter.extensions().contains(&".builder"),
+            "rubocop should support .builder"
+        );
+        assert!(
+            formatter.extensions().contains(&".gemspec"),
+            "rubocop should support .gemspec"
+        );
+        assert!(
+            formatter.extensions().contains(&".podspec"),
+            "rubocop should support .podspec"
+        );
+        assert!(
+            formatter.extensions().contains(&".rabl"),
+            "rubocop should support .rabl"
+        );
+        assert!(
+            formatter.extensions().contains(&".rbi"),
+            "rubocop should support .rbi"
+        );
+    }
+
+    #[tokio::test]
+    async fn verify_rubocop_enabled_checks_which_rubocop() {
+        use which::which;
+        let formatter = rubocop::RubocopFormatter::new();
+        let ctx = FormatterContext {
+            directory: PathBuf::from("/tmp"),
+            worktree: PathBuf::from("/tmp"),
+        };
+        let result = formatter.enabled(&ctx).await;
+        let rubocop_available = which("rubocop").is_ok();
+        if rubocop_available {
+            assert!(result.is_some(), "rubocop should be available when installed");
+            let cmd = result.unwrap();
+            assert_eq!(cmd[0], "rubocop");
+            assert_eq!(cmd[1], "-A");
+            assert_eq!(cmd[2], "$FILE");
+        } else {
+            assert!(
+                result.is_none(),
+                "rubocop should not be available when not installed"
             );
         }
     }
