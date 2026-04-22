@@ -452,7 +452,7 @@
       "priority": "P0",
       "title": "Implement dart formatter (.dart)",
       "description": "Implement dart formatter. Detection: `which dart`. Extensions: .dart",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify dart name returns 'dart'",
         "AddUnitTest: verify dart extensions includes .dart",
@@ -471,7 +471,7 @@
       "priority": "P0",
       "title": "Implement ocamlformat formatter (.ml,.mli)",
       "description": "Implement ocamlformat formatter for OCaml. Detection: .ocamlformat config file. Extensions: .ml, .mli",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify ocamlformat name returns 'ocamlformat'",
         "AddUnitTest: verify ocamlformat extensions includes .ml and .mli",

@@ -2086,4 +2086,79 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn verify_ocamlformat_name_returns_ocamlformat() {
+        let formatter = ocamlformat::OcamlformatFormatter::new();
+        assert_eq!(formatter.name(), "ocamlformat");
+    }
+
+    #[test]
+    fn verify_ocamlformat_extensions_includes_ml_and_mli() {
+        let formatter = ocamlformat::OcamlformatFormatter::new();
+        assert!(
+            formatter.extensions().contains(&".ml"),
+            "ocamlformat should support .ml"
+        );
+        assert!(
+            formatter.extensions().contains(&".mli"),
+            "ocamlformat should support .mli"
+        );
+        assert_eq!(formatter.extensions().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn verify_ocamlformat_enabled_checks_for_ocamlformat_config() {
+        use which::which;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let ocamlformat_config = temp_dir.path().join(".ocamlformat");
+        std::fs::write(&ocamlformat_config, "---").unwrap();
+
+        let formatter = ocamlformat::OcamlformatFormatter::new();
+        let ctx = FormatterContext {
+            directory: temp_dir.path().to_path_buf(),
+            worktree: temp_dir.path().to_path_buf(),
+        };
+
+        let ocamlformat_available = which("ocamlformat").is_ok();
+        let result = formatter.enabled(&ctx).await;
+
+        if ocamlformat_available {
+            assert!(
+                result.is_some(),
+                "ocamlformat should be enabled when .ocamlformat exists and binary is available"
+            );
+            let cmd = result.unwrap();
+            assert_eq!(cmd[0], "ocamlformat");
+            assert_eq!(cmd[1], "-i");
+            assert_eq!(cmd[2], "$FILE");
+        } else {
+            assert!(
+                result.is_none(),
+                "ocamlformat should not be enabled when binary is not available"
+            );
+        }
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn verify_ocamlformat_disabled_without_config_file() {
+        let temp_dir = tempfile::tempdir().unwrap();
+
+        let formatter = ocamlformat::OcamlformatFormatter::new();
+        let ctx = FormatterContext {
+            directory: temp_dir.path().to_path_buf(),
+            worktree: temp_dir.path().to_path_buf(),
+        };
+
+        let result = formatter.enabled(&ctx).await;
+        assert!(
+            result.is_none(),
+            "ocamlformat should not be enabled without .ocamlformat config"
+        );
+
+        drop(temp_dir);
+    }
 }
