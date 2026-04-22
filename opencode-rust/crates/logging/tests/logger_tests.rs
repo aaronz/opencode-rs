@@ -260,12 +260,14 @@ async fn test_per_component_filter_priority_resolution_order() {
     config.targets.insert("*.read".to_string(), LogLevel::Trace);
     let logger = Logger::new(config).unwrap();
 
-    assert!(logger.should_log("agent", LogLevel::Debug));
-    assert!(logger.should_log("agent", LogLevel::Info));
+    assert!(logger.should_log("agent", LogLevel::Error));
     assert!(!logger.should_log("agent", LogLevel::Warn));
+    assert!(!logger.should_log("agent", LogLevel::Info));
+    assert!(!logger.should_log("agent", LogLevel::Debug));
     assert!(!logger.should_log("agent", LogLevel::Trace));
 
     assert!(logger.should_log("llm.openai", LogLevel::Debug));
+    assert!(logger.should_log("llm.openai", LogLevel::Info));
     assert!(!logger.should_log("llm.openai", LogLevel::Trace));
 
     assert!(logger.should_log("tool.read", LogLevel::Trace));
