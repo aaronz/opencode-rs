@@ -92,3 +92,36 @@ async fn status_excludes_disabled_formatter() {
         "status() should exclude formatters marked as disabled"
     );
 }
+
+#[tokio::test]
+async fn disabling_ruff_removes_uv() {
+    let service = FormatService::new();
+
+    let mut formatters = HashMap::new();
+    formatters.insert(
+        "ruff".to_string(),
+        FormatterEntry {
+            disabled: Some(true),
+            command: None,
+            environment: None,
+            extensions: None,
+        },
+    );
+
+    let config = FormatterConfig::Formatters(formatters);
+    let _ = service.init(Path::new("/tmp/test-project"), config).await;
+
+    let statuses = service.status(Path::new("/tmp/test-project")).await;
+
+    let uv_status = statuses.iter().find(|s| s.name == "uvformat");
+    assert!(
+        uv_status.map(|s| !s.enabled).unwrap_or(false),
+        "uvformat should be disabled when ruff is disabled"
+    );
+
+    let ruff_status = statuses.iter().find(|s| s.name == "ruff");
+    assert!(
+        ruff_status.is_none(),
+        "ruff should be excluded when explicitly disabled"
+    );
+}

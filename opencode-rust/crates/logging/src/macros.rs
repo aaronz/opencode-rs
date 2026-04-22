@@ -3,11 +3,20 @@ macro_rules! log_fields {
     () => {
         $crate::event::LogFields::default()
     };
-    ($($field:ident = $value:expr),*) => {
+    ($($field:ident),* $(,)?) => {
         {
             let mut fields = $crate::event::LogFields::default();
             $(
-                fields.$field = ::std::option::Option::Some($value.into());
+                fields.$field = ::std::option::Option::Some(::std::string::ToString::to_string(&::std::string:: stringify!($field)));
+            )*
+            fields
+        }
+    };
+    ($($field:ident = $value:expr),* $(,)?) => {
+        {
+            let mut fields = $crate::event::LogFields::default();
+            $(
+                fields.$field = ::std::option::Option::Some($value);
             )*
             fields
         }
