@@ -33,8 +33,8 @@ impl FormatServiceState {
         self.formatters.insert(name, formatter);
     }
 
-    pub fn get_formatter(&self, name: &str) -> Option<&Box<dyn Formatter>> {
-        self.formatters.get(name)
+    pub fn get_formatter(&self, name: &str) -> Option<&dyn Formatter> {
+        self.formatters.get(name).map(|b| b.as_ref())
     }
 
     pub fn set_command(&mut self, name: String, command: Option<Vec<String>>) {

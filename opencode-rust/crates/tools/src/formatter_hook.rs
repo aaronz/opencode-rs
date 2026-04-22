@@ -7,6 +7,8 @@ use tracing::warn;
 use opencode_config::{FormatterConfig, FormatterEntry};
 use opencode_format::entry_matches_file;
 
+const FORMAT_TIMEOUT: Duration = Duration::from_secs(10);
+
 pub async fn format_file_after_write(file_path: &str, project_root: &Path) {
     let config_path = project_root.join("opencode.json");
     let formatters = if config_path.exists() {
@@ -52,7 +54,7 @@ pub async fn format_file_after_write(file_path: &str, project_root: &Path) {
 
         match cmd.spawn() {
             Ok(mut child) => {
-                match timeout(Duration::from_secs(10), child.wait()).await {
+                match timeout(FORMAT_TIMEOUT, child.wait()).await {
                     Ok(Ok(status)) if !status.success() => {
                         warn!(file_path, executable, %status, "formatter failed; write already completed");
                     }

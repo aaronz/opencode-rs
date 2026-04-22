@@ -740,7 +740,7 @@
       "priority": "P2",
       "title": "Unify glob pattern matching",
       "description": "Port glob pattern support from formatter.rs to formatter_hook.rs. Remove duplicate extension matching logic",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify glob patterns work consistently across formatter modules",
         "AddRegressionTest: ensure existing extension matching still works after refactor"
@@ -759,7 +759,7 @@
       "priority": "P2",
       "title": "Extract hardcoded Duration::from_secs(10) to constant",
       "description": "Extract hardcoded Duration::from_secs(10) to a named constant for timeout configuration",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: ensure timeout behavior unchanged after constant extraction",
         "AddUnitTest: verify constant is properly defined and used"

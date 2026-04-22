@@ -9,6 +9,8 @@ use tracing::{info, warn};
 
 use crate::config::{FormatterConfig, FormatterEntry};
 
+const FORMAT_TIMEOUT: Duration = Duration::from_secs(10);
+
 #[derive(Debug, thiserror::Error)]
 pub enum FormatterError {
     #[error("Formatter disabled")]
@@ -36,7 +38,7 @@ impl FormatterEngine {
 
         Self {
             config,
-            timeout: Duration::from_secs(10),
+            timeout: FORMAT_TIMEOUT,
             enabled,
         }
     }
@@ -335,5 +337,10 @@ mod tests {
 
         assert!(result.is_ok());
         assert!(!marker.exists());
+    }
+
+    #[test]
+    fn format_timeout_constant_is_ten_seconds() {
+        assert_eq!(FORMAT_TIMEOUT, Duration::from_secs(10));
     }
 }

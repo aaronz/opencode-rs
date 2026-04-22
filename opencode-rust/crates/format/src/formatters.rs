@@ -71,6 +71,12 @@ pub mod gofmt {
         extensions: Vec<&'static str>,
     }
 
+    impl Default for GofmtFormatter {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl GofmtFormatter {
         pub fn new() -> Self {
             Self {
@@ -106,6 +112,12 @@ pub mod mix {
         extensions: Vec<&'static str>,
     }
 
+    impl Default for MixFormatter {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl MixFormatter {
         pub fn new() -> Self {
             Self {
@@ -139,6 +151,12 @@ pub mod prettier {
 
     pub struct PrettierFormatter {
         extensions: Vec<&'static str>,
+    }
+
+    impl Default for PrettierFormatter {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl PrettierFormatter {
@@ -183,6 +201,12 @@ pub mod oxfmt {
         extensions: Vec<&'static str>,
     }
 
+    impl Default for OxfmtFormatter {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl OxfmtFormatter {
         pub fn new() -> Self {
             Self {
@@ -218,6 +242,12 @@ pub mod biome {
 
     pub struct BiomeFormatter {
         extensions: Vec<&'static str>,
+    }
+
+    impl Default for BiomeFormatter {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl BiomeFormatter {
@@ -262,6 +292,12 @@ pub mod zig {
         extensions: Vec<&'static str>,
     }
 
+    impl Default for ZigFormatter {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl ZigFormatter {
         pub fn new() -> Self {
             Self {
@@ -299,6 +335,12 @@ pub mod clang_format {
 
     pub struct ClangFormatFormatter {
         extensions: Vec<&'static str>,
+    }
+
+    impl Default for ClangFormatFormatter {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl ClangFormatFormatter {
@@ -343,6 +385,12 @@ pub mod ktlint {
         extensions: Vec<&'static str>,
     }
 
+    impl Default for KtlintFormatter {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl KtlintFormatter {
         pub fn new() -> Self {
             Self {
@@ -380,6 +428,12 @@ pub mod ruff {
 
     pub struct RuffFormatter {
         extensions: Vec<&'static str>,
+    }
+
+    impl Default for RuffFormatter {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl RuffFormatter {
@@ -421,6 +475,12 @@ pub mod uvformat {
         extensions: Vec<&'static str>,
     }
 
+    impl Default for UvformatFormatter {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl UvformatFormatter {
         pub fn new() -> Self {
             Self {
@@ -458,6 +518,12 @@ pub mod air {
 
     pub struct AirFormatter {
         extensions: Vec<&'static str>,
+    }
+
+    impl Default for AirFormatter {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl AirFormatter {
@@ -498,6 +564,12 @@ pub mod rubocop {
 
     pub struct RubocopFormatter {
         extensions: Vec<&'static str>,
+    }
+
+    impl Default for RubocopFormatter {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl RubocopFormatter {
@@ -541,6 +613,12 @@ pub mod standardrb {
         extensions: Vec<&'static str>,
     }
 
+    impl Default for StandardrbFormatter {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl StandardrbFormatter {
         pub fn new() -> Self {
             Self {
@@ -580,6 +658,12 @@ pub mod htmlbeautifier {
         extensions: Vec<&'static str>,
     }
 
+    impl Default for HtmlBeautifierFormatter {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl HtmlBeautifierFormatter {
         pub fn new() -> Self {
             Self {
@@ -613,6 +697,12 @@ pub mod dart {
 
     pub struct DartFormatter {
         extensions: Vec<&'static str>,
+    }
+
+    impl Default for DartFormatter {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl DartFormatter {
@@ -654,6 +744,12 @@ pub mod ocamlformat {
         extensions: Vec<&'static str>,
     }
 
+    impl Default for OcamlformatFormatter {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl OcamlformatFormatter {
         pub fn new() -> Self {
             Self {
@@ -691,6 +787,12 @@ pub mod terraform {
 
     pub struct TerraformFormatter {
         extensions: Vec<&'static str>,
+    }
+
+    impl Default for TerraformFormatter {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl TerraformFormatter {
@@ -732,6 +834,12 @@ pub mod latexindent {
         extensions: Vec<&'static str>,
     }
 
+    impl Default for LatexindentFormatter {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl LatexindentFormatter {
         pub fn new() -> Self {
             Self {
@@ -767,6 +875,12 @@ pub mod gleam {
         extensions: Vec<&'static str>,
     }
 
+    impl Default for GleamFormatter {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl GleamFormatter {
         pub fn new() -> Self {
             Self {
@@ -800,6 +914,12 @@ pub mod shfmt {
 
     pub struct ShfmtFormatter {
         extensions: Vec<&'static str>,
+    }
+
+    impl Default for ShfmtFormatter {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl ShfmtFormatter {
@@ -841,6 +961,12 @@ pub mod nixfmt {
         extensions: Vec<&'static str>,
     }
 
+    impl Default for NixfmtFormatter {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl NixfmtFormatter {
         pub fn new() -> Self {
             Self {
@@ -874,6 +1000,12 @@ pub mod rustfmt {
 
     pub struct RustfmtFormatter {
         extensions: Vec<&'static str>,
+    }
+
+    impl Default for RustfmtFormatter {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl RustfmtFormatter {
@@ -911,6 +1043,12 @@ pub mod pint {
         extensions: Vec<&'static str>,
     }
 
+    impl Default for PintFormatter {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl PintFormatter {
         pub fn new() -> Self {
             Self {
@@ -944,6 +1082,12 @@ pub mod ormolu {
 
     pub struct OrmoluFormatter {
         extensions: Vec<&'static str>,
+    }
+
+    impl Default for OrmoluFormatter {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl OrmoluFormatter {
@@ -985,6 +1129,12 @@ pub mod cljfmt {
         extensions: Vec<&'static str>,
     }
 
+    impl Default for CljfmtFormatter {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl CljfmtFormatter {
         pub fn new() -> Self {
             Self {
@@ -1022,6 +1172,12 @@ pub mod dfmt {
 
     pub struct DfmtFormatter {
         extensions: Vec<&'static str>,
+    }
+
+    impl Default for DfmtFormatter {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl DfmtFormatter {
