@@ -433,7 +433,7 @@
       "priority": "P0",
       "title": "Implement htmlbeautifier formatter (.erb,.html.erb)",
       "description": "Implement htmlbeautifier formatter for ERB. Detection: `which htmlbeautifier`. Extensions: .erb, .html.erb",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify htmlbeautifier name returns 'htmlbeautifier'",
         "AddUnitTest: verify htmlbeautifier extensions includes .erb and .html.erb",

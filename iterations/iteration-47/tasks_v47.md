@@ -39,7 +39,7 @@
 - [ ] **air** (.R) - `which air` + validates R formatter
 - [ ] **rubocop** (.rb,.rake,...) - `which rubocop`
 - [ ] **standardrb** (.rb,...) - `which standardrb`
-- [ ] **htmlbeautifier** (.erb,.html.erb) - `which htmlbeautifier`
+- [x] **htmlbeautifier** (.erb,.html.erb) - `which htmlbeautifier`
 - [ ] **dart** (.dart) - `which dart`
 - [ ] **ocamlformat** (.ml,.mli) - .ocamlformat config file
 - [ ] **terraform** (.tf,.tfvars) - `which terraform`

@@ -2003,4 +2003,47 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn verify_htmlbeautifier_name_returns_htmlbeautifier() {
+        let formatter = htmlbeautifier::HtmlBeautifierFormatter::new();
+        assert_eq!(formatter.name(), "htmlbeautifier");
+    }
+
+    #[test]
+    fn verify_htmlbeautifier_extensions_includes_erb_and_html_erb() {
+        let formatter = htmlbeautifier::HtmlBeautifierFormatter::new();
+        assert!(
+            formatter.extensions().contains(&".erb"),
+            "htmlbeautifier should support .erb"
+        );
+        assert!(
+            formatter.extensions().contains(&".html.erb"),
+            "htmlbeautifier should support .html.erb"
+        );
+        assert_eq!(formatter.extensions().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn verify_htmlbeautifier_enabled_checks_which_htmlbeautifier() {
+        use which::which;
+        let formatter = htmlbeautifier::HtmlBeautifierFormatter::new();
+        let ctx = FormatterContext {
+            directory: PathBuf::from("/tmp"),
+            worktree: PathBuf::from("/tmp"),
+        };
+        let result = formatter.enabled(&ctx).await;
+        let htmlbeautifier_available = which("htmlbeautifier").is_ok();
+        if htmlbeautifier_available {
+            assert!(result.is_some(), "htmlbeautifier should be available when installed");
+            let cmd = result.unwrap();
+            assert_eq!(cmd[0], "htmlbeautifier");
+            assert_eq!(cmd[1], "$FILE");
+        } else {
+            assert!(
+                result.is_none(),
+                "htmlbeautifier should not be available when not installed"
+            );
+        }
+    }
 }
