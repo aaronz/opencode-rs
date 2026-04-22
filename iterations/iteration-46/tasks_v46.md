@@ -47,7 +47,7 @@
 
 ## P2 Tasks (Medium Priority)
 
-### FR-005: Refactor load_from_env() to Use truthy() Helper
+### FR-005: ✅ Done
 - [ ] Current: `flag.value = val == "1" || val.to_lowercase() == "true";`
 - [ ] Change to: `flag.value = truthy(name);`
 - [ ] Remove duplicate truthy check code

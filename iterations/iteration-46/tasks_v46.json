@@ -111,7 +111,7 @@
       "priority": "P2",
       "title": "Add Setter Methods for String and Number Flags",
       "description": "Add set_string(&mut self, name: &str, value: Option<String>) method and set_number(&mut self, name: &str, value: Option<u64>) method. Methods should only update if flag exists (silent no-op otherwise).",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify set_string() updates string flag value when flag exists",
         "AddUnitTest: verify set_string() is no-op when flag does not exist",

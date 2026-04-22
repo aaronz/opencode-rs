@@ -389,6 +389,18 @@ impl FlagManager {
         }
     }
 
+    pub fn set_string(&mut self, name: &str, value: Option<String>) {
+        if let Some(v) = self.string_flags.get_mut(name) {
+            *v = value;
+        }
+    }
+
+    pub fn set_number(&mut self, name: &str, value: Option<u64>) {
+        if let Some(v) = self.number_flags.get_mut(name) {
+            *v = value;
+        }
+    }
+
     pub fn is_enabled(&self, name: &str) -> bool {
         self.get(name).unwrap_or(false)
     }
@@ -649,5 +661,33 @@ struct EnvVarGuard {
         assert!(!fm.is_enabled("OPENCODE_EXPERIMENTAL"));
         fm.load_from_env();
         assert!(fm.is_enabled("OPENCODE_EXPERIMENTAL"));
+    }
+
+    #[test]
+    fn set_string_updates_string_flag_value_when_flag_exists() {
+        let mut fm = FlagManager::new();
+        assert!(fm.get_string("OPENCODE_CONFIG").is_none());
+        fm.set_string("OPENCODE_CONFIG", Some("test_value".to_string()));
+        assert_eq!(fm.get_string("OPENCODE_CONFIG"), Some("test_value".to_string()));
+    }
+
+    #[test]
+    fn set_string_is_no_op_when_flag_does_not_exist() {
+        let mut fm = FlagManager::new();
+        fm.set_string("NONEXISTENT_FLAG", Some("value".to_string()));
+    }
+
+    #[test]
+    fn set_number_updates_number_flag_value_when_flag_exists() {
+        let mut fm = FlagManager::new();
+        assert!(fm.get_number("OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX").is_none());
+        fm.set_number("OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX", Some(5000));
+        assert_eq!(fm.get_number("OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX"), Some(5000));
+    }
+
+    #[test]
+    fn set_number_is_no_op_when_flag_does_not_exist() {
+        let mut fm = FlagManager::new();
+        fm.set_number("NONEXISTENT_FLAG", Some(100));
     }
 }
