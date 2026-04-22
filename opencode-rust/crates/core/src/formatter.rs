@@ -47,7 +47,7 @@ impl FormatterEngine {
         self.enabled
     }
 
-    pub fn match_formatters(&self, file_path: &str) -> Vec<&FormatterEntry> {
+    pub fn match_formatters(&self, file_path: &str) -> Vec<(&str, &FormatterEntry)> {
         if !self.is_enabled() {
             return vec![];
         }
@@ -61,7 +61,10 @@ impl FormatterEngine {
 
         matches.sort_by(|(left_name, _), (right_name, _)| left_name.cmp(right_name));
 
-        matches.into_iter().map(|(_, entry)| entry).collect()
+        matches
+            .into_iter()
+            .map(|(name, entry)| (name.as_str(), entry))
+            .collect()
     }
 
     pub async fn format_file(
@@ -78,14 +81,14 @@ impl FormatterEngine {
             return Err(FormatterError::NoMatch(file_path.to_string()));
         }
 
-        for formatter in matched {
+        for (formatter_name, formatter) in matched {
             let Some(command) = formatter.command.as_ref() else {
-                warn!(file_path, "formatter missing command; skipping");
+                warn!(file_path, formatter = formatter_name, "formatter missing command; skipping");
                 continue;
             };
 
             if command.is_empty() {
-                warn!(file_path, "formatter command is empty; skipping");
+                warn!(file_path, formatter = formatter_name, "formatter command is empty; skipping");
                 continue;
             }
 
@@ -105,11 +108,12 @@ impl FormatterEngine {
             match cmd.spawn() {
                 Ok(mut child) => match timeout(self.timeout, child.wait()).await {
                     Ok(Ok(status)) if status.success() => {
-                        info!(file_path, executable, "formatter executed successfully");
+                        info!(file_path, formatter = formatter_name, executable, "formatter executed successfully");
                     }
                     Ok(Ok(status)) => {
                         warn!(
                             file_path,
+                            formatter = formatter_name,
                             executable,
                             status = %status,
                             "formatter failed with non-zero status; continuing"
@@ -118,6 +122,7 @@ impl FormatterEngine {
                     Ok(Err(err)) => {
                         warn!(
                             file_path,
+                            formatter = formatter_name,
                             executable,
                             error = %err,
                             "formatter process wait failed; continuing"
@@ -127,6 +132,7 @@ impl FormatterEngine {
                         let _ = child.kill().await;
                         warn!(
                             file_path,
+                            formatter = formatter_name,
                             executable,
                             timeout = ?self.timeout,
                             "formatter timed out; continuing"
@@ -136,6 +142,7 @@ impl FormatterEngine {
                 Err(err) => {
                     warn!(
                         file_path,
+                        formatter = formatter_name,
                         executable,
                         error = %err,
                         "failed to spawn formatter command; continuing"
@@ -220,7 +227,7 @@ mod tests {
 
         assert_eq!(matched.len(), 1);
         assert_eq!(
-            matched[0].extensions.as_ref().unwrap(),
+            matched[0].1.extensions.as_ref().unwrap(),
             &vec!["ts".to_string(), "tsx".to_string()]
         );
     }

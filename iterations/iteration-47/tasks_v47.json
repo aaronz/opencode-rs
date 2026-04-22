@@ -778,7 +778,7 @@
       "priority": "P2",
       "title": "Add formatter name to success log",
       "description": "Add formatter name to success log messages for better observability",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: ensure log output includes formatter name"
       ],

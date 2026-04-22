@@ -332,7 +332,7 @@ impl FormatService {
 
                     matched.sort_by(|(left_name, _), (right_name, _)| left_name.cmp(right_name));
 
-                    for (_, entry) in matched {
+                    for (formatter_name, entry) in matched.iter() {
                         if let Some(command) = entry.command.as_ref() {
                             if command.is_empty() {
                                 continue;
@@ -351,13 +351,57 @@ impl FormatService {
                                 cmd.envs(env);
                             }
 
-                            if let Err(e) = cmd.spawn() {
-                                tracing::warn!(
-                                    file_path = %file_path_str,
-                                    executable,
-                                    error = %e,
-                                    "failed to spawn formatter"
-                                );
+                            match cmd.spawn() {
+                                Ok(mut child) => {
+                                    use tokio::time::{timeout, Duration};
+                                    const FORMAT_TIMEOUT: Duration = Duration::from_secs(10);
+                                    match timeout(FORMAT_TIMEOUT, child.wait()).await {
+                                        Ok(Ok(status)) if status.success() => {
+                                            tracing::info!(
+                                                file_path = %file_path_str,
+                                                formatter = %formatter_name,
+                                                executable,
+                                                "formatter executed successfully"
+                                            );
+                                        }
+                                        Ok(Ok(status)) => {
+                                            tracing::warn!(
+                                                file_path = %file_path_str,
+                                                formatter = %formatter_name,
+                                                executable,
+                                                status = %status,
+                                                "formatter failed with non-zero status"
+                                            );
+                                        }
+                                        Ok(Err(e)) => {
+                                            tracing::warn!(
+                                                file_path = %file_path_str,
+                                                formatter = %formatter_name,
+                                                executable,
+                                                error = %e,
+                                                "formatter wait failed"
+                                            );
+                                        }
+                                        Err(_) => {
+                                            let _ = child.kill().await;
+                                            tracing::warn!(
+                                                file_path = %file_path_str,
+                                                formatter = %formatter_name,
+                                                executable,
+                                                "formatter timed out"
+                                            );
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    tracing::warn!(
+                                        file_path = %file_path_str,
+                                        formatter = %formatter_name,
+                                        executable,
+                                        error = %e,
+                                        "failed to spawn formatter"
+                                    );
+                                }
                             }
                         }
                     }
