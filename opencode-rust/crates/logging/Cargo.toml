@@ -25,5 +25,6 @@ uuid.workspace = true
 ratatui = { version = "0.28", optional = true }
 
 [dev-dependencies]
+toml = "0.8"
 tempfile.workspace = true
 rstest.workspace = true

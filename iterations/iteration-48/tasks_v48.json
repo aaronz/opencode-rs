@@ -163,7 +163,7 @@
       "priority": "P0",
       "title": "Implement AgentLogger Trait",
       "description": "Define AgentLogger trait with trace/debug/info/warn/error methods, with_context() returning ChildLogger, and async query(). Implement AgentLoggerImpl.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify all log levels emit correctly",
         "AddUnitTest: verify ChildLogger context chaining works",
@@ -191,7 +191,7 @@
       "priority": "P1",
       "title": "Implement LoggingConfig",
       "description": "Create LoggingConfig struct with level, targets, file_path, max_file_size_mb, max_rotated_files, show_in_tui, tui_position, memory_buffer_size, retention_days. Implement Default and TOML deserialization.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify Default provides sensible values",
         "AddUnitTest: verify TOML deserialization parses all fields",
