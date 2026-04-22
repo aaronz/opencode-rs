@@ -489,7 +489,7 @@
       "priority": "P1",
       "title": "Sanitizer Tests",
       "description": "Test all sanitizer patterns in crates/logging/tests/sanitizer_tests.rs: api_key, password, token, *_key, *_token, *_secret, authorization, nested structures.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify api_key exact match redacted",
         "AddUnitTest: verify password exact match redacted",
@@ -514,7 +514,7 @@
       "priority": "P1",
       "title": "Query Tests",
       "description": "Test query by session_id, level, target, time range, combined queries, limit parameter in crates/logging/tests/query_tests.rs.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify query by session_id returns only that session's logs",
         "AddUnitTest: verify query by level returns only matching severity",

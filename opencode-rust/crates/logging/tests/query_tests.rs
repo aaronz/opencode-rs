@@ -151,3 +151,123 @@ fn test_empty_query_matches_all_events() {
         .with_session_id("sess_123");
     assert!(query.matches(&another_event));
 }
+
+#[test]
+fn test_query_by_session_id_returns_only_that_session_logs() {
+    let query = LogQuery::new().with_session_id("sess_abc");
+
+    let matching_event =
+        LogEvent::new(1, LogLevel::Info, "test", "msg").with_session_id("sess_abc");
+    let non_matching_event =
+        LogEvent::new(2, LogLevel::Info, "test", "msg").with_session_id("sess_xyz");
+
+    assert!(query.matches(&matching_event));
+    assert!(!query.matches(&non_matching_event));
+}
+
+#[test]
+fn test_query_by_level_returns_only_matching_severity() {
+    let query = LogQuery::new().with_level(LogLevel::Warn);
+
+    let warn_event = LogEvent::new(1, LogLevel::Warn, "test", "warning");
+    let info_event = LogEvent::new(2, LogLevel::Info, "test", "info");
+    let error_event = LogEvent::new(3, LogLevel::Error, "test", "error");
+
+    assert!(query.matches(&warn_event));
+    assert!(!query.matches(&info_event));
+    assert!(!query.matches(&error_event));
+}
+
+#[test]
+fn test_query_by_target_returns_matching_components() {
+    let query = LogQuery::new().with_target("tool.*");
+
+    let read_event = LogEvent::new(1, LogLevel::Info, "tool.read", "read");
+    let write_event = LogEvent::new(2, LogLevel::Info, "tool.write", "write");
+    let agent_event = LogEvent::new(3, LogLevel::Info, "agent", "agent");
+
+    assert!(query.matches(&read_event));
+    assert!(query.matches(&write_event));
+    assert!(!query.matches(&agent_event));
+}
+
+#[test]
+fn test_query_by_time_range_filters_correctly() {
+    let now = chrono::Utc::now();
+    let query = LogQuery::new()
+        .with_since(now - chrono::Duration::hours(1))
+        .with_until(now + chrono::Duration::hours(1));
+
+    let event = LogEvent::new(1, LogLevel::Info, "test", "message");
+    assert!(query.matches(&event));
+
+    let old_event = LogEvent::new(2, LogLevel::Info, "test", "old")
+        .with_timestamp(now - chrono::Duration::hours(2));
+    assert!(!query.matches(&old_event));
+
+    let future_event = LogEvent::new(3, LogLevel::Info, "test", "future")
+        .with_timestamp(now + chrono::Duration::hours(2));
+    assert!(!query.matches(&future_event));
+}
+
+#[test]
+fn test_query_combined_queries_match_all_criteria() {
+    let query = LogQuery::new()
+        .with_session_id("sess_123")
+        .with_level(LogLevel::Error)
+        .with_target("tool.*");
+
+    let fully_matching = LogEvent::new(1, LogLevel::Error, "tool.read", "error")
+        .with_session_id("sess_123");
+    assert!(query.matches(&fully_matching));
+
+    let wrong_session = LogEvent::new(2, LogLevel::Error, "tool.read", "error")
+        .with_session_id("sess_other");
+    assert!(!query.matches(&wrong_session));
+
+    let wrong_level = LogEvent::new(3, LogLevel::Info, "tool.read", "ok")
+        .with_session_id("sess_123");
+    assert!(!query.matches(&wrong_level));
+
+    let wrong_target = LogEvent::new(4, LogLevel::Error, "llm.openai", "error")
+        .with_session_id("sess_123");
+    assert!(!query.matches(&wrong_target));
+}
+
+#[test]
+fn test_query_limit_parameter_caps_result_count() {
+    let query = LogQuery::new().with_limit(10);
+    assert_eq!(query.limit, Some(10));
+}
+
+#[test]
+fn test_query_since_equals_until() {
+    let now = chrono::Utc::now();
+    let query = LogQuery::new()
+        .with_since(now)
+        .with_until(now);
+
+    let event_at_exact_time = LogEvent::new(1, LogLevel::Info, "test", "message")
+        .with_timestamp(now);
+    assert!(query.matches(&event_at_exact_time));
+
+    let event_before = LogEvent::new(2, LogLevel::Info, "test", "before")
+        .with_timestamp(now - chrono::Duration::seconds(1));
+    assert!(!query.matches(&event_before));
+
+    let event_after = LogEvent::new(3, LogLevel::Info, "test", "after")
+        .with_timestamp(now + chrono::Duration::seconds(1));
+    assert!(!query.matches(&event_after));
+}
+
+#[test]
+fn test_query_limit_zero() {
+    let query = LogQuery::new().with_limit(0);
+    assert_eq!(query.limit, Some(0));
+}
+
+#[test]
+fn test_query_limit_greater_than_results() {
+    let query = LogQuery::new().with_limit(100);
+    assert_eq!(query.limit, Some(100));
+}

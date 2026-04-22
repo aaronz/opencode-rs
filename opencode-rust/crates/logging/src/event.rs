@@ -193,6 +193,12 @@ impl LogEvent {
         self
     }
 
+    /// Set a custom timestamp for this event
+    pub fn with_timestamp(mut self, timestamp: DateTime<Utc>) -> Self {
+        self.timestamp = timestamp;
+        self
+    }
+
     /// Add an extra field to this event
     pub fn with_extra(mut self, key: impl Into<String>, value: serde_json::Value) -> Self {
         self.fields.extra.insert(key.into(), value);
