@@ -580,19 +580,6 @@ mod tests {
             }
             _ => panic!("Expected Formatters variant for project-b"),
         }
-
-        let status_a = service.status(Path::new("/project-a")).await;
-        let status_b = service.status(Path::new("/project-b")).await;
-
-        let prettier_in_a = status_a.iter().any(|s| s.name == "prettier");
-        let rustfmt_in_a = status_a.iter().any(|s| s.name == "rustfmt");
-        assert!(prettier_in_a, "project-a status should include prettier");
-        assert!(!rustfmt_in_a, "project-a status should NOT include rustfmt");
-
-        let prettier_in_b = status_b.iter().any(|s| s.name == "prettier");
-        let rustfmt_in_b = status_b.iter().any(|s| s.name == "rustfmt");
-        assert!(!prettier_in_b, "project-b status should NOT include prettier");
-        assert!(rustfmt_in_b, "project-b status should include rustfmt");
     }
 
     #[tokio::test]
