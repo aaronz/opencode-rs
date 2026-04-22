@@ -1191,4 +1191,35 @@ mod tests {
         let formatter = rustfmt::RustfmtFormatter::new();
         assert_eq!(formatter.name(), "rustfmt");
     }
+
+    #[test]
+    fn formatter_status_creation_with_name_extensions_enabled() {
+        let status = FormatterStatus {
+            name: "gofmt".to_string(),
+            extensions: vec![".go".to_string()],
+            enabled: true,
+        };
+        assert_eq!(status.name, "gofmt");
+        assert_eq!(status.extensions, vec![".go"]);
+        assert!(status.enabled);
+    }
+
+    #[test]
+    fn formatter_status_serialization_to_json() {
+        let status = FormatterStatus {
+            name: "prettier".to_string(),
+            extensions: vec![".js".to_string(), ".ts".to_string()],
+            enabled: false,
+        };
+        let json = serde_json::to_string(&status).unwrap();
+        assert!(json.contains("\"name\":\"prettier\""));
+        assert!(json.contains("\".js\""));
+        assert!(json.contains("\".ts\""));
+        assert!(json.contains("\"enabled\":false"));
+
+        let deserialized: FormatterStatus = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.name, "prettier");
+        assert_eq!(deserialized.extensions, vec![".js", ".ts"]);
+        assert!(!deserialized.enabled);
+    }
 }

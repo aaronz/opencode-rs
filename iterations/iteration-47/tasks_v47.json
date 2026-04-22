@@ -83,7 +83,7 @@
       "priority": "P0",
       "title": "Create config.rs for config integration",
       "description": "Create `crates/format/src/config.rs` for integration with existing config system. Support formatter: true/false, disabled formatters list, per-formatter settings",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify config parsing for formatter: true",
         "AddUnitTest: verify config parsing for formatter: false",
@@ -103,7 +103,7 @@
       "priority": "P0",
       "title": "Define FormatterStatus struct",
       "description": "Define FormatterStatus struct with fields: name, extensions, enabled. Used for status() API response",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify FormatterStatus struct creation with name, extensions, enabled",
         "AddUnitTest: verify FormatterStatus serialization to JSON"
