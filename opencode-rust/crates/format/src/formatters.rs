@@ -2261,4 +2261,43 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn verify_gleam_name_returns_gleam() {
+        let formatter = gleam::GleamFormatter::new();
+        assert_eq!(formatter.name(), "gleam");
+    }
+
+    #[test]
+    fn verify_gleam_extensions_includes_gleam() {
+        let formatter = gleam::GleamFormatter::new();
+        assert!(
+            formatter.extensions().contains(&".gleam"),
+            "gleam should support .gleam"
+        );
+        assert_eq!(formatter.extensions().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn verify_gleam_enabled_checks_which_gleam() {
+        use which::which;
+        let formatter = gleam::GleamFormatter::new();
+        let ctx = FormatterContext {
+            directory: PathBuf::from("/tmp"),
+            worktree: PathBuf::from("/tmp"),
+        };
+        let result = formatter.enabled(&ctx).await;
+        let gleam_available = which("gleam").is_ok();
+        if gleam_available {
+            assert!(result.is_some(), "gleam should be available when installed");
+            let cmd = result.unwrap();
+            assert_eq!(cmd[0], "gleam");
+            assert_eq!(cmd[1], "format");
+        } else {
+            assert!(
+                result.is_none(),
+                "gleam should not be available when not installed"
+            );
+        }
+    }
 }

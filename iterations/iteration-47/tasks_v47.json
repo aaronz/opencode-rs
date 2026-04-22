@@ -509,7 +509,7 @@
       "priority": "P0",
       "title": "Implement latexindent formatter (.tex)",
       "description": "Implement latexindent formatter for LaTeX. Detection: `which latexindent`. Extensions: .tex",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify latexindent name returns 'latexindent'",
         "AddUnitTest: verify latexindent extensions includes .tex",
@@ -528,7 +528,7 @@
       "priority": "P0",
       "title": "Implement gleam formatter (.gleam)",
       "description": "Implement gleam formatter. Detection: `which gleam`. Extensions: .gleam",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify gleam name returns 'gleam'",
         "AddUnitTest: verify gleam extensions includes .gleam",
