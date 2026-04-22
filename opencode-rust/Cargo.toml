@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/config",
     "crates/core",
+    "crates/format",
     "crates/cli",
     "crates/llm",
     "crates/tools",
@@ -91,6 +92,7 @@ opencode-plugin = { path = "crates/plugin" }
 opencode-sdk = { path = "crates/sdk" }
 opencode-git = { path = "crates/git" }
 opencode-util = { path = "crates/util" }
+opencode-format = { path = "crates/format" }
 
 # Server dependencies
 actix-web = "4"

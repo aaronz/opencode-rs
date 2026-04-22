@@ -1,0 +1,985 @@
+{
+  "tasks": [
+    {
+      "id": "FR-001",
+      "priority": "P0",
+      "title": "Create format crate Cargo.toml",
+      "description": "Create `crates/format/Cargo.toml` with dependencies for format service including tokio, serde, tracing, etc.",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify Cargo.toml parses correctly",
+        "AddRegressionTest: ensure all declared dependencies are valid crates.io packages"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-format",
+        "cargo metadata --manifest-path crates/format/Cargo.toml"
+      ],
+      "impl_notes": "Use workspace dependencies where possible. Follow existing crate patterns in crates/core",
+      "dependencies": []
+    },
+    {
+      "id": "FR-002",
+      "priority": "P0",
+      "title": "Create format crate lib.rs with module exports",
+      "description": "Create `crates/format/src/lib.rs` with module exports for FormatService, formatters, config, and error types",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify all public modules are exported",
+        "AddIntegrationTest: verify lib.rs exports are accessible from other crates"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-format",
+        "cargo test -p opencode-format --lib"
+      ],
+      "impl_notes": "Follow existing lib.rs patterns in other crates",
+      "dependencies": [
+        "FR-001"
+      ]
+    },
+    {
+      "id": "FR-003",
+      "priority": "P0",
+      "title": "Create FormatService in service.rs",
+      "description": "Create `crates/format/src/service.rs` implementing FormatService with init(), status(), file() methods and Effect/Layer integration",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify FormatService initializes without error",
+        "AddUnitTest: verify init() returns success result",
+        "AddIntegrationTest: verify FormatService integrates with Effect/Layer"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- service_initializes_without_error",
+        "cargo build -p opencode-format"
+      ],
+      "impl_notes": "Use Effect/Layer pattern for dependency injection. Include proper error handling",
+      "dependencies": [
+        "FR-001",
+        "FR-002"
+      ]
+    },
+    {
+      "id": "FR-004",
+      "priority": "P0",
+      "title": "Create formatters.rs with built-in formatters",
+      "description": "Create `crates/format/src/formatters.rs` with all 25+ built-in formatters: gofmt, mix, prettier, oxfmt, biome, zig, clang-format, ktlint, ruff, uvformat, air, rubocop, standardrb, htmlbeautifier, dart, ocamlformat, terraform, latexindent, gleam, shfmt, nixfmt, rustfmt, pint, ormolu, cljfmt, dfmt",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify each formatter has correct name and extensions",
+        "AddUnitTest: verify formatter detection logic for gofmt",
+        "AddUnitTest: verify formatter detection logic for rustfmt",
+        "AddRegressionTest: ensure all 25+ formatters are defined"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- formatters",
+        "cargo build -p opencode-format"
+      ],
+      "impl_notes": "Each formatter must implement Formatter trait with name(), extensions(), environment(), enabled() methods",
+      "dependencies": [
+        "FR-002"
+      ]
+    },
+    {
+      "id": "FR-005",
+      "priority": "P0",
+      "title": "Create config.rs for config integration",
+      "description": "Create `crates/format/src/config.rs` for integration with existing config system. Support formatter: true/false, disabled formatters list, per-formatter settings",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify config parsing for formatter: true",
+        "AddUnitTest: verify config parsing for formatter: false",
+        "AddUnitTest: verify disabled formatters list is parsed correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- config",
+        "cargo build -p opencode-format"
+      ],
+      "impl_notes": "Integrate with existing config.rs patterns in core",
+      "dependencies": [
+        "FR-002"
+      ]
+    },
+    {
+      "id": "FR-006",
+      "priority": "P0",
+      "title": "Define FormatterStatus struct",
+      "description": "Define FormatterStatus struct with fields: name, extensions, enabled. Used for status() API response",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify FormatterStatus struct creation with name, extensions, enabled",
+        "AddUnitTest: verify FormatterStatus serialization to JSON"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- FormatterStatus",
+        "cargo build -p opencode-format"
+      ],
+      "impl_notes": "Use serde derive macros for JSON serialization",
+      "dependencies": [
+        "FR-003"
+      ]
+    },
+    {
+      "id": "FR-007",
+      "priority": "P0",
+      "title": "Define FormatterContext struct",
+      "description": "Define FormatterContext struct with fields: directory, worktree. Passed to formatters to determine context",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify FormatterContext struct creation",
+        "AddUnitTest: verify directory and worktree fields are accessible"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- FormatterContext",
+        "cargo build -p opencode-format"
+      ],
+      "impl_notes": "Include appropriate Clone, Debug derive",
+      "dependencies": [
+        "FR-003"
+      ]
+    },
+    {
+      "id": "FR-008",
+      "priority": "P0",
+      "title": "Define Formatter trait",
+      "description": "Define Formatter trait with required methods: name() -> String, extensions() -> Vec<&str>, environment() -> Option<HashMap<String,String>>, enabled(ctx: &FormatterContext) -> bool",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify Formatter trait is object-safe",
+        "AddUnitTest: verify trait methods are implemented for sample formatter",
+        "AddIntegrationTest: verify trait objects can be stored in Vec"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- Formatter",
+        "cargo build -p opencode-format"
+      ],
+      "impl_notes": "Consider using async_trait if formatters may need async operations",
+      "dependencies": [
+        "FR-006",
+        "FR-007"
+      ]
+    },
+    {
+      "id": "FR-009",
+      "priority": "P0",
+      "title": "Implement status() returning Vec<FormatterStatus>",
+      "description": "Implement status() method on FormatService that returns Vec<FormatterStatus> for all enabled formatters",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify status() returns empty list when formatter: false",
+        "AddUnitTest: verify status() returns all 25+ formatters when formatter: true",
+        "AddUnitTest: verify status() excludes formatters marked disabled: true",
+        "AddIntegrationTest: verify status() output matches TypeScript status() returns empty list when no formatters"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- status_empty_when_disabled",
+        "cargo test -p opencode-format -- status_includes_gofmt_when_all_enabled",
+        "cargo test -p opencode-format -- status_excludes_disabled_formatter"
+      ],
+      "impl_notes": "status() should reflect current config state including disabled list",
+      "dependencies": [
+        "FR-003",
+        "FR-004",
+        "FR-008"
+      ]
+    },
+    {
+      "id": "FR-010",
+      "priority": "P0",
+      "title": "Implement gofmt formatter (.go)",
+      "description": "Implement gofmt formatter for .go files. Detection: `which gofmt`. Extensions: .go",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify gofmt name returns 'gofmt'",
+        "AddUnitTest: verify gofmt extensions includes '.go'",
+        "AddUnitTest: verify gofmt enabled() checks which gofmt"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- gofmt"
+      ],
+      "impl_notes": "Use which crate or Command::new(\"which\") for binary detection",
+      "dependencies": [
+        "FR-008"
+      ]
+    },
+    {
+      "id": "FR-011",
+      "priority": "P0",
+      "title": "Implement mix formatter (.ex,.exs,.eex,.heex)",
+      "description": "Implement mix formatter for Elixir files. Detection: `which mix`. Extensions: .ex, .exs, .eex, .heex",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify mix name returns 'mix'",
+        "AddUnitTest: verify mix extensions includes all Elixir extensions",
+        "AddUnitTest: verify mix enabled() checks which mix"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- mix"
+      ],
+      "impl_notes": "Elixir formatter for Phoenix/HEEx templates",
+      "dependencies": [
+        "FR-008"
+      ]
+    },
+    {
+      "id": "FR-012",
+      "priority": "P0",
+      "title": "Implement prettier formatter (.js,.ts,.html,.css,.json,.yaml,.md,...)",
+      "description": "Implement prettier formatter for web languages. Detection: package.json has prettier dep. Extensions: .js, .ts, .html, .css, .json, .yaml, .md, and more",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify prettier name returns 'prettier'",
+        "AddUnitTest: verify prettier extensions includes common web extensions",
+        "AddUnitTest: verify prettier enabled() checks package.json for prettier dependency"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- prettier"
+      ],
+      "impl_notes": "Must check package.json dependencies/devDependencies",
+      "dependencies": [
+        "FR-008"
+      ]
+    },
+    {
+      "id": "FR-013",
+      "priority": "P0",
+      "title": "Implement oxfmt formatter (.js,.ts,...)",
+      "description": "Implement oxfmt formatter (OpenCode experimental). Detection: OPENCODE_EXPERIMENTAL_OXFMT flag + package.json has oxfmt",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify oxfmt name returns 'oxfmt'",
+        "AddUnitTest: verify oxfmt enabled() checks OPENCODE_EXPERIMENTAL_OXFMT env var and package.json"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- oxfmt"
+      ],
+      "impl_notes": "Only enabled when experimental flag is set",
+      "dependencies": [
+        "FR-008"
+      ]
+    },
+    {
+      "id": "FR-014",
+      "priority": "P0",
+      "title": "Implement biome formatter (.js,.ts,.html,.css,...)",
+      "description": "Implement biome formatter. Detection: biome.json config + @biomejs/biome. Extensions: .js, .ts, .html, .css, and more",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify biome name returns 'biome'",
+        "AddUnitTest: verify biome extensions includes common web extensions",
+        "AddUnitTest: verify biome enabled() checks for biome.json and @biomejs/biome"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- biome"
+      ],
+      "impl_notes": "Biome is a modern linter/formatter for web languages",
+      "dependencies": [
+        "FR-008"
+      ]
+    },
+    {
+      "id": "FR-015",
+      "priority": "P0",
+      "title": "Implement zig formatter (.zig,.zon)",
+      "description": "Implement zig formatter. Detection: `which zig`. Extensions: .zig, .zon",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify zig name returns 'zig'",
+        "AddUnitTest: verify zig extensions includes .zig and .zon",
+        "AddUnitTest: verify zig enabled() checks which zig"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- zig"
+      ],
+      "impl_notes": "Zig package manager uses .zon files",
+      "dependencies": [
+        "FR-008"
+      ]
+    },
+    {
+      "id": "FR-016",
+      "priority": "P0",
+      "title": "Implement clang-format formatter (.c,.cc,.cpp,.h,...)",
+      "description": "Implement clang-format formatter for C/C++. Detection: .clang-format config file. Extensions: .c, .cc, .cpp, .h, .hpp, and more",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify clang-format name returns 'clang-format'",
+        "AddUnitTest: verify clang-format extensions includes C/C++ extensions",
+        "AddUnitTest: verify clang-format enabled() checks for .clang-format config"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- clang_format"
+      ],
+      "impl_notes": "Check for .clang-format or _clang-format in project root",
+      "dependencies": [
+        "FR-008"
+      ]
+    },
+    {
+      "id": "FR-017",
+      "priority": "P0",
+      "title": "Implement ktlint formatter (.kt,.kts)",
+      "description": "Implement ktlint formatter for Kotlin. Detection: `which ktlint`. Extensions: .kt, .kts",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify ktlint name returns 'ktlint'",
+        "AddUnitTest: verify ktlint extensions includes .kt and .kts",
+        "AddUnitTest: verify ktlint enabled() checks which ktlint"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- ktlint"
+      ],
+      "impl_notes": "Kotlin linter and formatter",
+      "dependencies": [
+        "FR-008"
+      ]
+    },
+    {
+      "id": "FR-018",
+      "priority": "P0",
+      "title": "Implement ruff formatter (.py,.pyi)",
+      "description": "Implement ruff formatter for Python. Detection: `which ruff` + ruff config. Extensions: .py, .pyi",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify ruff name returns 'ruff'",
+        "AddUnitTest: verify ruff extensions includes .py and .pyi",
+        "AddUnitTest: verify ruff enabled() checks which ruff"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- ruff"
+      ],
+      "impl_notes": "Ruff is a fast Python linter written in Rust",
+      "dependencies": [
+        "FR-008"
+      ]
+    },
+    {
+      "id": "FR-019",
+      "priority": "P0",
+      "title": "Implement uvformat formatter (.py,.pyi)",
+      "description": "Implement uvformat formatter for Python (fallback when ruff absent). Detection: `which uv`. Extensions: .py, .pyi",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify uvformat name returns 'uvformat'",
+        "AddUnitTest: verify uvformat extensions includes .py and .pyi",
+        "AddUnitTest: verify uvformat enabled() checks which uv"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- uvformat"
+      ],
+      "impl_notes": "Fallback to uv when ruff is not available",
+      "dependencies": [
+        "FR-008",
+        "FR-018"
+      ]
+    },
+    {
+      "id": "FR-020",
+      "priority": "P0",
+      "title": "Implement air formatter (.R)",
+      "description": "Implement air formatter for R. Detection: `which air` + validates R formatter. Extensions: .R",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify air name returns 'air'",
+        "AddUnitTest: verify air extensions includes .R",
+        "AddUnitTest: verify air enabled() checks which air and validates R formatter"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- air"
+      ],
+      "impl_notes": "R formatter with validation",
+      "dependencies": [
+        "FR-008"
+      ]
+    },
+    {
+      "id": "FR-021",
+      "priority": "P0",
+      "title": "Implement rubocop formatter (.rb,.rake,...)",
+      "description": "Implement rubocop formatter for Ruby. Detection: `which rubocop`. Extensions: .rb, .rake, .builder, .gemspec, .podspec, .rabl, .rake, .rbi",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify rubocop name returns 'rubocop'",
+        "AddUnitTest: verify rubocop extensions includes Ruby extensions",
+        "AddUnitTest: verify rubocop enabled() checks which rubocop"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- rubocop"
+      ],
+      "impl_notes": "Ruby linter and formatter",
+      "dependencies": [
+        "FR-008"
+      ]
+    },
+    {
+      "id": "FR-022",
+      "priority": "P0",
+      "title": "Implement standardrb formatter (.rb,...)",
+      "description": "Implement standardrb formatter for Ruby. Detection: `which standardrb`. Extensions: .rb, and other Ruby extensions",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify standardrb name returns 'standardrb'",
+        "AddUnitTest: verify standardrb enabled() checks which standardrb"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- standardrb"
+      ],
+      "impl_notes": "Standard Ruby formatter",
+      "dependencies": [
+        "FR-008"
+      ]
+    },
+    {
+      "id": "FR-023",
+      "priority": "P0",
+      "title": "Implement htmlbeautifier formatter (.erb,.html.erb)",
+      "description": "Implement htmlbeautifier formatter for ERB. Detection: `which htmlbeautifier`. Extensions: .erb, .html.erb",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify htmlbeautifier name returns 'htmlbeautifier'",
+        "AddUnitTest: verify htmlbeautifier extensions includes .erb and .html.erb",
+        "AddUnitTest: verify htmlbeautifier enabled() checks which htmlbeautifier"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- htmlbeautifier"
+      ],
+      "impl_notes": "ERB/HTML template beautifier",
+      "dependencies": [
+        "FR-008"
+      ]
+    },
+    {
+      "id": "FR-024",
+      "priority": "P0",
+      "title": "Implement dart formatter (.dart)",
+      "description": "Implement dart formatter. Detection: `which dart`. Extensions: .dart",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify dart name returns 'dart'",
+        "AddUnitTest: verify dart extensions includes .dart",
+        "AddUnitTest: verify dart enabled() checks which dart"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- dart"
+      ],
+      "impl_notes": "Dart/Flutter formatter",
+      "dependencies": [
+        "FR-008"
+      ]
+    },
+    {
+      "id": "FR-025",
+      "priority": "P0",
+      "title": "Implement ocamlformat formatter (.ml,.mli)",
+      "description": "Implement ocamlformat formatter for OCaml. Detection: .ocamlformat config file. Extensions: .ml, .mli",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify ocamlformat name returns 'ocamlformat'",
+        "AddUnitTest: verify ocamlformat extensions includes .ml and .mli",
+        "AddUnitTest: verify ocamlformat enabled() checks for .ocamlformat config"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- ocamlformat"
+      ],
+      "impl_notes": "OCaml code formatter",
+      "dependencies": [
+        "FR-008"
+      ]
+    },
+    {
+      "id": "FR-026",
+      "priority": "P0",
+      "title": "Implement terraform formatter (.tf,.tfvars)",
+      "description": "Implement terraform formatter. Detection: `which terraform`. Extensions: .tf, .tfvars",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify terraform name returns 'terraform'",
+        "AddUnitTest: verify terraform extensions includes .tf and .tfvars",
+        "AddUnitTest: verify terraform enabled() checks which terraform"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- terraform"
+      ],
+      "impl_notes": "HashiCorp Terraform formatter",
+      "dependencies": [
+        "FR-008"
+      ]
+    },
+    {
+      "id": "FR-027",
+      "priority": "P0",
+      "title": "Implement latexindent formatter (.tex)",
+      "description": "Implement latexindent formatter for LaTeX. Detection: `which latexindent`. Extensions: .tex",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify latexindent name returns 'latexindent'",
+        "AddUnitTest: verify latexindent extensions includes .tex",
+        "AddUnitTest: verify latexindent enabled() checks which latexindent"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- latexindent"
+      ],
+      "impl_notes": "LaTeX formatter and indentor",
+      "dependencies": [
+        "FR-008"
+      ]
+    },
+    {
+      "id": "FR-028",
+      "priority": "P0",
+      "title": "Implement gleam formatter (.gleam)",
+      "description": "Implement gleam formatter. Detection: `which gleam`. Extensions: .gleam",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify gleam name returns 'gleam'",
+        "AddUnitTest: verify gleam extensions includes .gleam",
+        "AddUnitTest: verify gleam enabled() checks which gleam"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- gleam"
+      ],
+      "impl_notes": "Gleam language formatter",
+      "dependencies": [
+        "FR-008"
+      ]
+    },
+    {
+      "id": "FR-029",
+      "priority": "P0",
+      "title": "Implement shfmt formatter (.sh,.bash)",
+      "description": "Implement shfmt formatter for shell scripts. Detection: `which shfmt`. Extensions: .sh, .bash",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify shfmt name returns 'shfmt'",
+        "AddUnitTest: verify shfmt extensions includes .sh and .bash",
+        "AddUnitTest: verify shfmt enabled() checks which shfmt"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- shfmt"
+      ],
+      "impl_notes": "Shell script formatter",
+      "dependencies": [
+        "FR-008"
+      ]
+    },
+    {
+      "id": "FR-030",
+      "priority": "P0",
+      "title": "Implement nixfmt formatter (.nix)",
+      "description": "Implement nixfmt formatter for Nix. Detection: `which nixfmt`. Extensions: .nix",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify nixfmt name returns 'nixfmt'",
+        "AddUnitTest: verify nixfmt extensions includes .nix",
+        "AddUnitTest: verify nixfmt enabled() checks which nixfmt"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- nixfmt"
+      ],
+      "impl_notes": "Nix language formatter",
+      "dependencies": [
+        "FR-008"
+      ]
+    },
+    {
+      "id": "FR-031",
+      "priority": "P0",
+      "title": "Implement rustfmt formatter (.rs)",
+      "description": "Implement rustfmt formatter. Detection: `which rustfmt`. Extensions: .rs",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify rustfmt name returns 'rustfmt'",
+        "AddUnitTest: verify rustfmt extensions includes .rs",
+        "AddUnitTest: verify rustfmt enabled() checks which rustfmt"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- rustfmt"
+      ],
+      "impl_notes": "Rust code formatter",
+      "dependencies": [
+        "FR-008"
+      ]
+    },
+    {
+      "id": "FR-032",
+      "priority": "P0",
+      "title": "Implement pint formatter (.php)",
+      "description": "Implement pint formatter for Laravel/PHP. Detection: composer.json has laravel/pint. Extensions: .php",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify pint name returns 'pint'",
+        "AddUnitTest: verify pint extensions includes .php",
+        "AddUnitTest: verify pint enabled() checks composer.json for laravel/pint"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- pint"
+      ],
+      "impl_notes": "Laravel Pint PHP formatter",
+      "dependencies": [
+        "FR-008"
+      ]
+    },
+    {
+      "id": "FR-033",
+      "priority": "P0",
+      "title": "Implement ormolu formatter (.hs)",
+      "description": "Implement ormolu formatter for Haskell. Detection: `which ormolu`. Extensions: .hs",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify ormolu name returns 'ormolu'",
+        "AddUnitTest: verify ormolu extensions includes .hs",
+        "AddUnitTest: verify ormolu enabled() checks which ormolu"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- ormolu"
+      ],
+      "impl_notes": "Haskell code formatter",
+      "dependencies": [
+        "FR-008"
+      ]
+    },
+    {
+      "id": "FR-034",
+      "priority": "P0",
+      "title": "Implement cljfmt formatter (.clj,.cljs,...)",
+      "description": "Implement cljfmt formatter for Clojure. Detection: `which cljfmt`. Extensions: .clj, .cljs, .cljc, .edn",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify cljfmt name returns 'cljfmt'",
+        "AddUnitTest: verify cljfmt extensions includes Clojure extensions",
+        "AddUnitTest: verify cljfmt enabled() checks which cljfmt"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- cljfmt"
+      ],
+      "impl_notes": "Clojure code formatter",
+      "dependencies": [
+        "FR-008"
+      ]
+    },
+    {
+      "id": "FR-035",
+      "priority": "P0",
+      "title": "Implement dfmt formatter (.d)",
+      "description": "Implement dfmt formatter for D. Detection: `which dfmt`. Extensions: .d",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify dfmt name returns 'dfmt'",
+        "AddUnitTest: verify dfmt extensions includes .d",
+        "AddUnitTest: verify dfmt enabled() checks which dfmt"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- dfmt"
+      ],
+      "impl_notes": "D language formatter",
+      "dependencies": [
+        "FR-008"
+      ]
+    },
+    {
+      "id": "FR-036",
+      "priority": "P1",
+      "title": "Implement ruff/uv linked disabling",
+      "description": "When ruff is disabled, also disable uv. When uv is disabled, also disable ruff. Add tests for linked disabling",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify disabling ruff removes uv from status()",
+        "AddUnitTest: verify disabling uv removes ruff from status()",
+        "AddIntegrationTest: verify config_object_keeps_all_builtins with linked formatters"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- disabling_ruff_removes_uv",
+        "cargo test -p opencode-format -- disabling_uv_removes_ruff"
+      ],
+      "impl_notes": "Implement mutual dependency between ruff and uv formatters",
+      "dependencies": [
+        "FR-009",
+        "FR-018",
+        "FR-019"
+      ]
+    },
+    {
+      "id": "FR-037",
+      "priority": "P1",
+      "title": "Integrate FormatService with InstanceState",
+      "description": "Integrate FormatService with InstanceState. Implement per-directory formatter state scoping",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify FormatService uses InstanceState for configuration",
+        "AddUnitTest: verify formatter state is scoped per directory",
+        "AddIntegrationTest: verify formatter_state_isolated_per_directory"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- formatter_state_isolated_per_directory"
+      ],
+      "impl_notes": "Each directory may have different formatter configurations",
+      "dependencies": [
+        "FR-003",
+        "FR-009"
+      ]
+    },
+    {
+      "id": "FR-038",
+      "priority": "P2",
+      "title": "Implement parallel enabled() checks with tokio::join!",
+      "description": "Use tokio::join! for parallel availability checks. Verify formatter availability in parallel",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify enabled_checks_run_in_parallel using tokio::join!",
+        "AddRegressionTest: ensure parallel checks produce same results as sequential"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- enabled_checks_run_in_parallel"
+      ],
+      "impl_notes": "Use tokio::join! to check multiple formatters concurrently",
+      "dependencies": [
+        "FR-008"
+      ]
+    },
+    {
+      "id": "FR-039",
+      "priority": "P2",
+      "title": "Unify glob pattern matching",
+      "description": "Port glob pattern support from formatter.rs to formatter_hook.rs. Remove duplicate extension matching logic",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify glob patterns work consistently across formatter modules",
+        "AddRegressionTest: ensure existing extension matching still works after refactor"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- glob",
+        "cargo build -p opencode-format"
+      ],
+      "impl_notes": "Remove code duplication between formatter.rs and formatter_hook.rs",
+      "dependencies": [
+        "FR-004"
+      ]
+    },
+    {
+      "id": "FR-040",
+      "priority": "P2",
+      "title": "Extract hardcoded Duration::from_secs(10) to constant",
+      "description": "Extract hardcoded Duration::from_secs(10) to a named constant for timeout configuration",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: ensure timeout behavior unchanged after constant extraction",
+        "AddUnitTest: verify constant is properly defined and used"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format",
+        "cargo clippy -p opencode-format -- -D warnings"
+      ],
+      "impl_notes": "Add FORMAT_TIMEOUT constant with documentation",
+      "dependencies": [
+        "FR-003"
+      ]
+    },
+    {
+      "id": "FR-041",
+      "priority": "P2",
+      "title": "Add formatter name to success log",
+      "description": "Add formatter name to success log messages for better observability",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: ensure log output includes formatter name"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format",
+        "cargo clippy -p opencode-format -- -D warnings"
+      ],
+      "impl_notes": "Include formatter name in log statements",
+      "dependencies": [
+        "FR-003"
+      ]
+    },
+    {
+      "id": "FR-042",
+      "priority": "P2",
+      "title": "Add tracing spans for observability",
+      "description": "Add tracing spans for observability in FormatService and formatter execution",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: ensure tracing spans are properly created",
+        "AddIntegrationTest: verify tracing output in formatted output"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format",
+        "cargo clippy -p opencode-format -- -D warnings"
+      ],
+      "impl_notes": "Use tracing crate for structured logging",
+      "dependencies": [
+        "FR-003"
+      ]
+    },
+    {
+      "id": "FR-043",
+      "priority": "P2",
+      "title": "Implement status_empty_when_disabled integration test",
+      "description": "Add integration test: status() returns empty list when formatter: false",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify status() returns empty list when formatter: false"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- status_empty_when_disabled"
+      ],
+      "impl_notes": "From Test Mapping table",
+      "dependencies": [
+        "FR-009"
+      ]
+    },
+    {
+      "id": "FR-044",
+      "priority": "P2",
+      "title": "Implement status_includes_gofmt_when_all_enabled integration test",
+      "description": "Add integration test: status() returns built-in formatters when formatter is true",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify status() includes gofmt when formatter: true"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- status_includes_gofmt_when_all_enabled"
+      ],
+      "impl_notes": "From Test Mapping table",
+      "dependencies": [
+        "FR-009",
+        "FR-010"
+      ]
+    },
+    {
+      "id": "FR-045",
+      "priority": "P2",
+      "title": "Implement status_excludes_disabled_formatter integration test",
+      "description": "Add integration test: status() excludes formatters marked as disabled",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify status() excludes formatters marked as disabled"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- status_excludes_disabled_formatter"
+      ],
+      "impl_notes": "From Test Mapping table",
+      "dependencies": [
+        "FR-009"
+      ]
+    },
+    {
+      "id": "FR-046",
+      "priority": "P2",
+      "title": "Implement disabling_ruff_removes_uv integration test",
+      "description": "Add integration test: disabling_ruff_removes_uv",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify disabling ruff removes uv from available formatters"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- disabling_ruff_removes_uv"
+      ],
+      "impl_notes": "From Test Mapping table",
+      "dependencies": [
+        "FR-036"
+      ]
+    },
+    {
+      "id": "FR-047",
+      "priority": "P2",
+      "title": "Implement disabling_uv_removes_ruff integration test",
+      "description": "Add integration test: disabling_uv_removes_ruff",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify disabling uv removes ruff from available formatters"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- disabling_uv_removes_ruff"
+      ],
+      "impl_notes": "From Test Mapping table",
+      "dependencies": [
+        "FR-036"
+      ]
+    },
+    {
+      "id": "FR-048",
+      "priority": "P2",
+      "title": "Implement matching_formatters_run_sequentially integration test",
+      "description": "Add integration test: matching formatters run sequentially for the same file",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify multiple matching formatters run sequentially not in parallel"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- matching_formatters_run_sequentially"
+      ],
+      "impl_notes": "From Test Mapping table",
+      "dependencies": [
+        "FR-003"
+      ]
+    },
+    {
+      "id": "FR-049",
+      "priority": "P2",
+      "title": "Implement formatter_state_isolated_per_directory integration test",
+      "description": "Add integration test: formatter state isolated per directory",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify formatter state is isolated per directory"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- formatter_state_isolated_per_directory"
+      ],
+      "impl_notes": "From Test Mapping table",
+      "dependencies": [
+        "FR-037"
+      ]
+    },
+    {
+      "id": "FR-050",
+      "priority": "P2",
+      "title": "Implement enabled_checks_run_in_parallel integration test",
+      "description": "Add integration test: enabled checks run in parallel",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify enabled checks run in parallel using tokio::join!"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- enabled_checks_run_in_parallel"
+      ],
+      "impl_notes": "From Test Mapping table",
+      "dependencies": [
+        "FR-038"
+      ]
+    },
+    {
+      "id": "FR-051",
+      "priority": "P2",
+      "title": "Implement file_placeholder_substituted integration test",
+      "description": "Add integration test: file placeholder is substituted correctly in formatter commands",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify file placeholder {} is substituted with actual file path"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- file_placeholder_substituted"
+      ],
+      "impl_notes": "Verify formatter receives correct file path",
+      "dependencies": [
+        "FR-003"
+      ]
+    },
+    {
+      "id": "FR-052",
+      "priority": "P2",
+      "title": "Implement failed_formatter_does_not_panic integration test",
+      "description": "Add integration test: failed formatter does not panic the system",
+      "status": "todo",
+      "test_criteria": [
+        "AddErrorHandlingTest: verify formatter failure returns error not panic",
+        "AddRegressionTest: ensure system remains stable when formatter fails"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-format -- failed_formatter_does_not_panic"
+      ],
+      "impl_notes": "Error handling test for robustness",
+      "dependencies": [
+        "FR-003"
+      ]
+    }
+  ]
+}
