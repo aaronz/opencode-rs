@@ -28,7 +28,7 @@
 
 - [x] **gofmt** (.go) - `which gofmt`
 - [x] **mix** (.ex,.exs,.eex,.heex) - `which mix`
-- [ ] **prettier** (.js,.ts,.html,.css,.json,.yaml,.md,...) - package.json has prettier dep
+- [x] **prettier** (.js,.ts,.html,.css,.json,.yaml,.md,...) - package.json has prettier dep
 - [ ] **oxfmt** (.js,.ts,...) - OPENCODE_EXPERIMENTAL_OXFMT flag + package.json
 - [ ] **biome** (.js,.ts,.html,.css,...) - biome.json config + @biomejs/biome
 - [ ] **zig** (.zig,.zon) - `which zig`

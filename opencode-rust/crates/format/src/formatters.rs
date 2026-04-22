@@ -1327,4 +1327,54 @@ mod tests {
             assert!(result.is_none(), "mix should not be available when not installed");
         }
     }
+
+    #[test]
+    fn verify_prettier_name_returns_prettier() {
+        let formatter = prettier::PrettierFormatter::new();
+        assert_eq!(formatter.name(), "prettier");
+    }
+
+    #[test]
+    fn verify_prettier_extensions_includes_common_web_extensions() {
+        let formatter = prettier::PrettierFormatter::new();
+        let extensions: Vec<&str> = formatter.extensions().to_vec();
+        assert!(extensions.contains(&".js"), "prettier should support .js");
+        assert!(extensions.contains(&".ts"), "prettier should support .ts");
+        assert!(extensions.contains(&".html"), "prettier should support .html");
+        assert!(extensions.contains(&".css"), "prettier should support .css");
+        assert!(extensions.contains(&".json"), "prettier should support .json");
+        assert!(extensions.contains(&".yaml"), "prettier should support .yaml");
+        assert!(extensions.contains(&".md"), "prettier should support .md");
+    }
+
+    #[test]
+    fn verify_prettier_extensions_count() {
+        let formatter = prettier::PrettierFormatter::new();
+        let extensions: Vec<&str> = formatter.extensions().to_vec();
+        assert!(
+            extensions.len() >= 10,
+            "prettier should support at least 10 extensions, got {}: {:?}",
+            extensions.len(),
+            extensions
+        );
+    }
+
+    #[test]
+    fn verify_prettier_module_exists() {
+        let formatter = prettier::PrettierFormatter::new();
+        assert_eq!(formatter.name(), "prettier");
+        assert!(!formatter.extensions().is_empty());
+    }
+
+    #[test]
+    fn verify_prettier_uses_package_json_detection() {
+        let formatter = prettier::PrettierFormatter::new();
+        let ctx = FormatterContext {
+            directory: PathBuf::from("/tmp/non_existent_project"),
+            worktree: PathBuf::from("/tmp/non_existent_project"),
+        };
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let result = rt.block_on(formatter.enabled(&ctx));
+        assert!(result.is_none(), "prettier should not be enabled without package.json");
+    }
 }

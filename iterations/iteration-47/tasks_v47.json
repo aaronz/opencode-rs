@@ -225,7 +225,7 @@
       "priority": "P0",
       "title": "Implement prettier formatter (.js,.ts,.html,.css,.json,.yaml,.md,...)",
       "description": "Implement prettier formatter for web languages. Detection: package.json has prettier dep. Extensions: .js, .ts, .html, .css, .json, .yaml, .md, and more",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify prettier name returns 'prettier'",
         "AddUnitTest: verify prettier extensions includes common web extensions",
