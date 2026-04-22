@@ -24,7 +24,34 @@ async fn enabled_checks_run_in_parallel() {
 
     let results: Vec<_> = match formatters.len() {
         26 => {
-            let (r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17, r18, r19, r20, r21, r22, r23, r24, r25) = tokio::join!(
+            let (
+                r0,
+                r1,
+                r2,
+                r3,
+                r4,
+                r5,
+                r6,
+                r7,
+                r8,
+                r9,
+                r10,
+                r11,
+                r12,
+                r13,
+                r14,
+                r15,
+                r16,
+                r17,
+                r18,
+                r19,
+                r20,
+                r21,
+                r22,
+                r23,
+                r24,
+                r25,
+            ) = tokio::join!(
                 formatters[0].enabled(&contexts[0]),
                 formatters[1].enabled(&contexts[1]),
                 formatters[2].enabled(&contexts[2]),
@@ -52,7 +79,10 @@ async fn enabled_checks_run_in_parallel() {
                 formatters[24].enabled(&contexts[24]),
                 formatters[25].enabled(&contexts[25]),
             );
-            vec![r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17, r18, r19, r20, r21, r22, r23, r24, r25]
+            vec![
+                r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17,
+                r18, r19, r20, r21, r22, r23, r24, r25,
+            ]
         }
         _ => panic!("Expected 26 formatters, got {}", formatters.len()),
     };

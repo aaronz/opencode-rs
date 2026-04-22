@@ -17,7 +17,11 @@ async fn failed_formatter_does_not_panic() {
         "failing_formatter".to_string(),
         FormatterEntry {
             disabled: Some(false),
-            command: Some(vec!["sh".to_string(), "-c".to_string(), "exit 1".to_string()]),
+            command: Some(vec![
+                "sh".to_string(),
+                "-c".to_string(),
+                "exit 1".to_string(),
+            ]),
             environment: None,
             extensions: Some(vec!["js".to_string()]),
         },
@@ -75,7 +79,11 @@ async fn system_remains_stable_after_formatter_failure() {
         "broken_formatter".to_string(),
         FormatterEntry {
             disabled: Some(false),
-            command: Some(vec!["sh".to_string(), "-c".to_string(), "exit 127".to_string()]),
+            command: Some(vec![
+                "sh".to_string(),
+                "-c".to_string(),
+                "exit 127".to_string(),
+            ]),
             environment: None,
             extensions: Some(vec!["ts".to_string()]),
         },
@@ -85,7 +93,10 @@ async fn system_remains_stable_after_formatter_failure() {
     let _ = service.init(temp.path(), config).await;
 
     let first_result = service.file(&source_file).await;
-    assert!(first_result.is_ok(), "First call should succeed despite formatter failure");
+    assert!(
+        first_result.is_ok(),
+        "First call should succeed despite formatter failure"
+    );
 
     let second_result = service.file(&source_file).await;
     assert!(
@@ -113,7 +124,11 @@ async fn multiple_failed_formatters_do_not_panic() {
         "fail_first".to_string(),
         FormatterEntry {
             disabled: Some(false),
-            command: Some(vec!["sh".to_string(), "-c".to_string(), "exit 1".to_string()]),
+            command: Some(vec![
+                "sh".to_string(),
+                "-c".to_string(),
+                "exit 1".to_string(),
+            ]),
             environment: None,
             extensions: Some(vec!["js".to_string()]),
         },
@@ -122,7 +137,11 @@ async fn multiple_failed_formatters_do_not_panic() {
         "fail_second".to_string(),
         FormatterEntry {
             disabled: Some(false),
-            command: Some(vec!["sh".to_string(), "-c".to_string(), "exit 2".to_string()]),
+            command: Some(vec![
+                "sh".to_string(),
+                "-c".to_string(),
+                "exit 2".to_string(),
+            ]),
             environment: None,
             extensions: Some(vec!["js".to_string()]),
         },

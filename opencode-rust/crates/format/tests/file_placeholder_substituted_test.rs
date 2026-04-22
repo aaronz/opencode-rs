@@ -63,10 +63,7 @@ async fn file_placeholder_substituted_with_special_chars_in_path() {
             command: Some(vec![
                 "sh".to_string(),
                 "-c".to_string(),
-                format!(
-                    "cp \"$1\" \"{}\"",
-                    marker_file.display()
-                ),
+                format!("cp \"$1\" \"{}\"", marker_file.display()),
                 "sh".to_string(),
                 "$FILE".to_string(),
             ]),

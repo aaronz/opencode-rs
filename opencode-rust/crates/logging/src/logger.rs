@@ -136,7 +136,12 @@ impl Logger {
                     .create(true)
                     .append(true)
                     .open(p)
-                    .map_err(|e| LogError::Io(std::io::Error::new(std::io::ErrorKind::Other, format!("Failed to open log file: {}", e))))?;
+                    .map_err(|e| {
+                        LogError::Io(std::io::Error::other(format!(
+                            "Failed to open log file: {}",
+                            e
+                        )))
+                    })?;
                 Ok(Some(file))
             }
             None => Ok(None),
@@ -154,7 +159,7 @@ impl Logger {
         };
 
         if let Ok(metadata) = fs::metadata(&path) {
-            if metadata.len() >= self.max_file_size_bytes() {
+            if metadata.len() > self.max_file_size_bytes() {
                 self.rotate_logs(&path).await?;
             }
         }
@@ -181,7 +186,10 @@ impl Logger {
                 };
 
                 fs::rename(&existing, &new_path).map_err(|e| {
-                    LogError::Io(std::io::Error::new(std::io::ErrorKind::Other, format!("Failed to rotate log file {}: {}", old_path, e)))
+                    LogError::Io(std::io::Error::other(format!(
+                        "Failed to rotate log file {}: {}",
+                        old_path, e
+                    )))
                 })?;
             }
         }
@@ -191,15 +199,22 @@ impl Logger {
         }
         let backup_path = format!("{}.1", path.display());
         fs::rename(path, &backup_path).map_err(|e| {
-            LogError::Io(std::io::Error::new(std::io::ErrorKind::Other, format!("Failed to rotate log file to {}: {}", backup_path, e)))
+            LogError::Io(std::io::Error::other(format!(
+                "Failed to rotate log file to {}: {}",
+                backup_path, e
+            )))
         })?;
 
         let new_file = OpenOptions::new()
             .create(true)
-            .write(true)
             .append(true)
             .open(path)
-            .map_err(|e| LogError::Io(std::io::Error::new(std::io::ErrorKind::Other, format!("Failed to create new log file: {}", e))))?;
+            .map_err(|e| {
+                LogError::Io(std::io::Error::other(format!(
+                    "Failed to create new log file: {}",
+                    e
+                )))
+            })?;
 
         let mut file_guard = self.file.write().await;
         *file_guard = Some(new_file);
@@ -233,33 +248,42 @@ impl Logger {
         }
 
         let seq = self.next_seq.fetch_add(1, Ordering::SeqCst);
+        let timestamp = chrono::Utc::now();
+        let target_str = target.to_string();
+        let message_str = message.to_string();
+        let level_str = format!("{:?}", level);
 
         let event = LogEvent {
             seq,
-            timestamp: chrono::Utc::now(),
+            timestamp,
             level,
-            target: target.to_string(),
-            message: message.to_string(),
+            target: target_str.clone(),
+            message: message_str.clone(),
             fields,
             span_id: None,
             parent_seq: None,
+        };
+
+        let log_line = if self.file_path.is_some() {
+            Some(format!(
+                "[{}] {} {}: {}\n",
+                event.timestamp.to_rfc3339(),
+                level_str,
+                target_str,
+                message_str
+            ))
+        } else {
+            None
         };
 
         let mut buffer = self.buffer.write().await;
         buffer.push(event);
 
         if let Some(ref path) = self.file_path {
-            let log_line = format!(
-                "[{}] {} {}: {}\n",
-                event.timestamp.to_rfc3339(),
-                format!("{:?}", event.level),
-                event.target,
-                event.message
-            );
-
             let should_rotate = {
                 if let Ok(metadata) = fs::metadata(path) {
-                    metadata.len() + log_line.len() as u64 >= self.max_file_size_bytes()
+                    metadata.len() + log_line.as_ref().map(|l| l.len()).unwrap_or(0) as u64
+                        >= self.max_file_size_bytes()
                 } else {
                     false
                 }
@@ -274,7 +298,9 @@ impl Logger {
 
             if let Ok(mut file_guard) = self.file.try_write() {
                 if let Some(ref mut file) = *file_guard {
-                    if let Err(e) = file.write_all(log_line.as_bytes()) {
+                    if let Err(e) =
+                        file.write_all(log_line.as_ref().map(|l| l.as_bytes()).unwrap_or(&[]))
+                    {
                         eprintln!("Failed to write to log file: {}", e);
                     }
                 }
