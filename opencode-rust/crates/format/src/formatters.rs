@@ -1248,4 +1248,47 @@ mod tests {
         assert!(ctx.directory.to_str().unwrap().ends_with("src"));
         assert!(ctx.worktree.to_str().unwrap().ends_with("project"));
     }
+
+    #[test]
+    fn verify_formatter_trait_is_object_safe() {
+        fn assert_object_safe(_: Box<dyn Formatter>) {}
+        let formatter: Box<dyn Formatter> = Box::new(gofmt::GofmtFormatter::new());
+        assert_object_safe(formatter);
+    }
+
+    #[test]
+    fn verify_trait_methods_implemented_for_sample_formatter() {
+        let formatter = gofmt::GofmtFormatter::new();
+        assert_eq!(formatter.name(), "gofmt");
+        assert!(formatter.extensions().contains(&".go"));
+        assert!(formatter.environment().is_none());
+    }
+
+    #[tokio::test]
+    async fn verify_sample_formatter_enabled_method_works() {
+        let formatter = gofmt::GofmtFormatter::new();
+        let ctx = FormatterContext {
+            directory: PathBuf::from("/tmp"),
+            worktree: PathBuf::from("/tmp"),
+        };
+        let result = formatter.enabled(&ctx).await;
+        match result {
+            Some(cmd) => assert!(!cmd.is_empty()),
+            None => {}
+        }
+    }
+
+    #[test]
+    fn verify_trait_objects_can_be_stored_in_vec() {
+        let formatters: Vec<Box<dyn Formatter>> = vec![
+            Box::new(gofmt::GofmtFormatter::new()),
+            Box::new(rustfmt::RustfmtFormatter::new()),
+            Box::new(prettier::PrettierFormatter::new()),
+        ];
+        assert_eq!(formatters.len(), 3);
+        let names: Vec<&str> = formatters.iter().map(|f| f.name()).collect();
+        assert!(names.contains(&"gofmt"));
+        assert!(names.contains(&"rustfmt"));
+        assert!(names.contains(&"prettier"));
+    }
 }

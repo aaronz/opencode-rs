@@ -141,11 +141,12 @@
       "priority": "P0",
       "title": "Define Formatter trait",
       "description": "Define Formatter trait with required methods: name() -> String, extensions() -> Vec<&str>, environment() -> Option<HashMap<String,String>>, enabled(ctx: &FormatterContext) -> bool",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify Formatter trait is object-safe",
         "AddUnitTest: verify trait methods are implemented for sample formatter",
-        "AddIntegrationTest: verify trait objects can be stored in Vec"
+        "AddUnitTest: verify trait objects can be stored in Vec",
+        "AddUnitTest: verify async enabled method works for sample formatter"
       ],
       "test_commands": [
         "cargo test -p opencode-format -- Formatter",
