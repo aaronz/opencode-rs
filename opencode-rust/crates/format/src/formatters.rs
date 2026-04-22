@@ -1952,4 +1952,55 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn verify_standardrb_name_returns_standardrb() {
+        let formatter = standardrb::StandardrbFormatter::new();
+        assert_eq!(formatter.name(), "standardrb");
+    }
+
+    #[test]
+    fn verify_standardrb_extensions_includes_ruby_extensions() {
+        let formatter = standardrb::StandardrbFormatter::new();
+        assert!(
+            formatter.extensions().contains(&".rb"),
+            "standardrb should support .rb"
+        );
+        assert!(
+            formatter.extensions().contains(&".rake"),
+            "standardrb should support .rake"
+        );
+        assert!(
+            formatter.extensions().contains(&".rakefile"),
+            "standardrb should support .rakefile"
+        );
+        assert!(
+            formatter.extensions().contains(&".Gemfile"),
+            "standardrb should support .Gemfile"
+        );
+    }
+
+    #[tokio::test]
+    async fn verify_standardrb_enabled_checks_which_standardrb() {
+        use which::which;
+        let formatter = standardrb::StandardrbFormatter::new();
+        let ctx = FormatterContext {
+            directory: PathBuf::from("/tmp"),
+            worktree: PathBuf::from("/tmp"),
+        };
+        let result = formatter.enabled(&ctx).await;
+        let standardrb_available = which("standardrb").is_ok();
+        if standardrb_available {
+            assert!(result.is_some(), "standardrb should be available when installed");
+            let cmd = result.unwrap();
+            assert_eq!(cmd[0], "standardrb");
+            assert_eq!(cmd[1], "--autocorrect");
+            assert_eq!(cmd[2], "$FILE");
+        } else {
+            assert!(
+                result.is_none(),
+                "standardrb should not be available when not installed"
+            );
+        }
+    }
 }

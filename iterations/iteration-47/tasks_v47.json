@@ -396,7 +396,7 @@
       "priority": "P0",
       "title": "Implement rubocop formatter (.rb,.rake,...)",
       "description": "Implement rubocop formatter for Ruby. Detection: `which rubocop`. Extensions: .rb, .rake, .builder, .gemspec, .podspec, .rabl, .rake, .rbi",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify rubocop name returns 'rubocop'",
         "AddUnitTest: verify rubocop extensions includes Ruby extensions",
@@ -415,7 +415,7 @@
       "priority": "P0",
       "title": "Implement standardrb formatter (.rb,...)",
       "description": "Implement standardrb formatter for Ruby. Detection: `which standardrb`. Extensions: .rb, and other Ruby extensions",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify standardrb name returns 'standardrb'",
         "AddUnitTest: verify standardrb enabled() checks which standardrb"
