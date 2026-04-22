@@ -952,7 +952,7 @@
       "priority": "P2",
       "title": "Implement file_placeholder_substituted integration test",
       "description": "Add integration test: file placeholder is substituted correctly in formatter commands",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify file placeholder {} is substituted with actual file path"
       ],

@@ -1,6 +1,9 @@
 //! Core Logger trait and implementation.
 
 use std::fmt::Debug;
+use std::fs::{self, File, OpenOptions};
+use std::io::{self, Write};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
@@ -79,6 +82,8 @@ pub struct Logger {
     config: LoggingConfig,
     buffer: Arc<RwLock<SessionLogBuffer>>,
     next_seq: Arc<AtomicU64>,
+    file_path: Option<PathBuf>,
+    file: Arc<RwLock<Option<File>>>,
 }
 
 impl Debug for Logger {
@@ -95,6 +100,8 @@ impl Clone for Logger {
             config: self.config.clone(),
             buffer: Arc::clone(&self.buffer),
             next_seq: Arc::clone(&self.next_seq),
+            file_path: self.file_path.clone(),
+            file: Arc::clone(&self.file),
         }
     }
 }
@@ -103,17 +110,101 @@ impl Logger {
     pub fn new(config: LoggingConfig) -> Result<Self, LogError> {
         let buffer = SessionLogBuffer::new(config.memory_buffer_size);
 
-        if let Some(ref path) = config.file_path {
+        let file_path = config.file_path.clone();
+
+        if let Some(ref path) = file_path {
             if let Some(dir) = path.parent() {
                 std::fs::create_dir_all(dir).ok();
             }
         }
 
+        let file = Self::open_log_file(file_path.as_ref())?;
+
         Ok(Self {
             config,
             buffer: Arc::new(RwLock::new(buffer)),
             next_seq: Arc::new(AtomicU64::new(1)),
+            file_path,
+            file: Arc::new(RwLock::new(file)),
         })
+    }
+
+    fn open_log_file(path: Option<&PathBuf>) -> Result<Option<File>, LogError> {
+        match path {
+            Some(p) => {
+                let file = OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(p)
+                    .map_err(|e| LogError::Io(format!("Failed to open log file: {}", e)))?;
+                Ok(Some(file))
+            }
+            None => Ok(None),
+        }
+    }
+
+    fn max_file_size_bytes(&self) -> u64 {
+        (self.config.max_file_size_mb * 1024 * 1024) as u64
+    }
+
+    async fn check_and_rotate(&self) -> Result<(), LogError> {
+        let path = match &self.file_path {
+            Some(p) => p.clone(),
+            None => return Ok(()),
+        };
+
+        if let Ok(metadata) = fs::metadata(&path) {
+            if metadata.len() >= self.max_file_size_bytes() {
+                self.rotate_logs(&path).await?;
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn rotate_logs(&self, path: &PathBuf) -> Result<(), LogError> {
+        let max_rotated = self.config.max_rotated_files;
+
+        for n in (1..=max_rotated).rev() {
+            let old_path = if n == 1 {
+                format!("{}.1", path.display())
+            } else {
+                format!("{}.{}", path.display(), n)
+            };
+
+            let existing = PathBuf::from(&old_path);
+            if existing.exists() {
+                let new_path = if n == max_rotated {
+                    existing.clone()
+                } else {
+                    PathBuf::from(format!("{}.{}", path.display(), n + 1))
+                };
+
+                fs::rename(&existing, &new_path).map_err(|e| {
+                    LogError::Io(format!("Failed to rotate log file {}: {}", old_path, e))
+                })?;
+            }
+        }
+
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).ok();
+        }
+        let backup_path = format!("{}.1", path.display());
+        fs::rename(path, &backup_path).map_err(|e| {
+            LogError::Io(format!("Failed to rotate log file to {}: {}", backup_path, e))
+        })?;
+
+        let new_file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .append(true)
+            .open(path)
+            .map_err(|e| LogError::Io(format!("Failed to create new log file: {}", e)))?;
+
+        let mut file_guard = self.file.write().await;
+        *file_guard = Some(new_file);
+
+        Ok(())
     }
 
     pub fn should_log(&self, target: &str, level: LogLevel) -> bool {
@@ -156,6 +247,39 @@ impl Logger {
 
         let mut buffer = self.buffer.write().await;
         buffer.push(event);
+
+        if let Some(ref path) = self.file_path {
+            let log_line = format!(
+                "[{}] {} {}: {}\n",
+                event.timestamp.to_rfc3339(),
+                format!("{:?}", event.level),
+                event.target,
+                event.message
+            );
+
+            let should_rotate = {
+                if let Ok(metadata) = fs::metadata(path) {
+                    metadata.len() + log_line.len() as u64 >= self.max_file_size_bytes()
+                } else {
+                    false
+                }
+            };
+
+            if should_rotate {
+                drop(buffer);
+                if let Err(e) = self.check_and_rotate().await {
+                    eprintln!("Log rotation error: {}", e);
+                }
+            }
+
+            if let Ok(mut file_guard) = self.file.try_write() {
+                if let Some(ref mut file) = *file_guard {
+                    if let Err(e) = file.write_all(log_line.as_bytes()) {
+                        eprintln!("Failed to write to log file: {}", e);
+                    }
+                }
+            }
+        }
     }
 
     pub async fn query_logs(&self, criteria: LogQuery) -> Result<Vec<LogEvent>, LogError> {
@@ -350,6 +474,8 @@ fn glob_match_pattern(pattern: &str, target: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use tempfile::TempDir;
 
     #[test]
     fn test_glob_match_pattern() {
@@ -504,5 +630,141 @@ mod tests {
 
         let child_only = child.query(LogQuery::new()).await.unwrap();
         assert_eq!(child_only.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_rotation_triggered_at_max_file_size() {
+        let temp_dir = TempDir::new().unwrap();
+        let log_path = temp_dir.path().join("opencode.log");
+
+        let mut config = LoggingConfig::default();
+        config.file_path = Some(log_path.clone());
+        config.max_file_size_mb = 1;
+        config.max_rotated_files = 3;
+
+        let logger = Logger::new(config).unwrap();
+
+        let msg_len = 100usize;
+        let msgs_to_fill = (1024 * 1024) / msg_len + 1;
+        for i in 0..msgs_to_fill {
+            logger.info("test", &format!("message {:05}", i), LogFields::default());
+        }
+        tokio::task::yield_now().await;
+
+        let rotated_exists = (1..=3).any(|n| {
+            let rotated_path = temp_dir.path().join(format!("opencode.log.{}", n));
+            rotated_path.exists()
+        });
+        assert!(
+            rotated_exists,
+            "At least one rotated file should exist when exceeding max size"
+        );
+
+        assert!(
+            log_path.exists(),
+            "New log file should be created after rotation"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_rotated_file_numbering_increments_correctly() {
+        let temp_dir = TempDir::new().unwrap();
+        let log_path = temp_dir.path().join("opencode.log");
+
+        let mut config = LoggingConfig::default();
+        config.file_path = Some(log_path.clone());
+        config.max_file_size_mb = 1;
+        config.max_rotated_files = 3;
+
+        let logger = Logger::new(config).unwrap();
+
+        let msg_len = 100usize;
+        let msgs_to_fill = (1024 * 1024) / msg_len + 1;
+        for i in 0..msgs_to_fill {
+            logger.info("test", &format!("message {:05}", i), LogFields::default());
+        }
+        tokio::task::yield_now().await;
+
+        let file_1_exists = temp_dir.path().join("opencode.log.1").exists();
+        let file_2_exists = temp_dir.path().join("opencode.log.2").exists();
+        let file_3_exists = temp_dir.path().join("opencode.log.3").exists();
+
+        assert!(
+            file_1_exists,
+            "opencode.log.1 should exist after first rotation"
+        );
+        assert!(
+            file_2_exists,
+            "opencode.log.2 should exist after second rotation"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_oldest_file_deleted_when_max_rotated_files_exceeded() {
+        let temp_dir = TempDir::new().unwrap();
+        let log_path = temp_dir.path().join("opencode.log");
+
+        let mut config = LoggingConfig::default();
+        config.file_path = Some(log_path.clone());
+        config.max_file_size_mb = 1;
+        config.max_rotated_files = 3;
+
+        let logger = Logger::new(config).unwrap();
+
+        let msg_len = 100usize;
+        let msgs_to_fill = (1024 * 1024) / msg_len + 1;
+        for i in 0..msgs_to_fill {
+            logger.info("test", &format!("message {:05}", i), LogFields::default());
+        }
+        tokio::task::yield_now().await;
+
+        assert!(
+            temp_dir.path().join("opencode.log.1").exists(),
+            "opencode.log.1 should exist"
+        );
+        assert!(
+            temp_dir.path().join("opencode.log.2").exists(),
+            "opencode.log.2 should exist"
+        );
+        assert!(
+            temp_dir.path().join("opencode.log.3").exists(),
+            "opencode.log.3 should exist"
+        );
+        assert!(
+            !temp_dir.path().join("opencode.log.4").exists(),
+            "opencode.log.4 should NOT exist (oldest deleted)"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_new_log_file_created_after_rotation() {
+        let temp_dir = TempDir::new().unwrap();
+        let log_path = temp_dir.path().join("opencode.log");
+
+        let mut config = LoggingConfig::default();
+        config.file_path = Some(log_path.clone());
+        config.max_file_size_mb = 1;
+        config.max_rotated_files = 3;
+
+        let logger = Logger::new(config).unwrap();
+
+        let msg_len = 100usize;
+        let msgs_to_fill = (1024 * 1024) / msg_len + 1;
+        for i in 0..msgs_to_fill {
+            logger.info("test", &format!("message {:05}", i), LogFields::default());
+        }
+        tokio::task::yield_now().await;
+
+        assert!(
+            log_path.exists(),
+            "opencode.log should exist after rotation"
+        );
+
+        let metadata = fs::metadata(&log_path).unwrap();
+        assert_eq!(
+            metadata.len(),
+            0,
+            "New log file should be empty after rotation"
+        );
     }
 }
