@@ -538,7 +538,7 @@
       "priority": "P1",
       "title": "TUI Tests",
       "description": "Test log panel rendering, empty state, filter behavior, scroll behavior in crates/logging/tests/tui_tests.rs.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify log panel renders with border",
         "AddUnitTest: verify empty state shows visible placeholder",
