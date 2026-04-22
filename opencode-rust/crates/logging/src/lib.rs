@@ -23,7 +23,7 @@ pub use event::{
 pub use logger::{AgentLogger, AgentLoggerImpl, ChildLogger};
 pub use query::LogQuery;
 pub use sanitizer::Sanitizer;
-pub use store::{LogStore, ReasoningLogQuery, ReasoningLogStore, SessionLogBuffer};
+pub use store::{LogStore, ReasoningLogQuery, ReasoningLogStore, SessionLogBuffer, ToolExecutionLogQuery, ToolExecutionLogStore};
 
 #[cfg(feature = "tui")]
 pub use tui::log_panel::LogPanel;

@@ -1,8 +1,9 @@
 use opencode_logging::config::LoggingConfig;
-use opencode_logging::event::{LogEvent, LogFields, LogLevel, ReasoningLog, ToolConsideration};
+use opencode_logging::event::{LogEvent, LogFields, LogLevel, ReasoningLog, SanitizedValue, ToolConsideration, ToolExecutionLog, ToolResult};
 use opencode_logging::logger::Logger;
 use opencode_logging::query::LogQuery;
-use opencode_logging::store::{LogStore, ReasoningLogQuery, ReasoningLogStore};
+use opencode_logging::sanitizer::Sanitizer;
+use opencode_logging::store::{LogStore, ReasoningLogQuery, ReasoningLogStore, ToolExecutionLogStore};
 use opencode_logging::AgentLogger;
 
 fn create_test_db() -> (tempfile::TempDir, LogStore) {
@@ -603,4 +604,256 @@ fn test_reasoning_log_persistence_multiple_sessions_isolated() {
 
     let all_results = store.query(&ReasoningLogQuery::for_session("sess_a")).unwrap();
     assert_eq!(all_results.len(), 3);
+}
+
+fn create_tool_exec_test_db() -> (tempfile::TempDir, ToolExecutionLogStore) {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let db_path = temp_dir.path().join("tool_exec.db");
+    let store = ToolExecutionLogStore::new(&db_path).unwrap();
+    (temp_dir, store)
+}
+
+#[test]
+fn tool_sanitization() {
+    let (_temp_dir, store) = create_tool_exec_test_db();
+
+    let sanitizer = Sanitizer::new();
+
+    let mut params = std::collections::HashMap::new();
+    params.insert("api_key".to_string(), serde_json::json!("secret123"));
+    params.insert("password".to_string(), serde_json::json!("pass456"));
+    params.insert("file_path".to_string(), serde_json::json!("/some/safe/path.txt"));
+    params.insert("action".to_string(), serde_json::json!("read"));
+
+    let sanitized_params = sanitizer.sanitize_params(&params);
+
+    let tool_log = ToolExecutionLog {
+        execution_id: "exec_sanitization_test_001".to_string(),
+        session_id: "sess_sanitization_test".to_string(),
+        tool_name: "test_tool".to_string(),
+        timestamp: chrono::Utc::now(),
+        parameters: sanitized_params,
+        result: ToolResult {
+            success: true,
+            message: "Success".to_string(),
+            output: None,
+        },
+        latency_ms: 100,
+        error: None,
+    };
+
+    store.append(&tool_log).unwrap();
+
+    let retrieved = store.get("exec_sanitization_test_001").unwrap().unwrap();
+
+    assert!(matches!(retrieved.parameters, SanitizedValue::Nested(_)));
+
+    if let SanitizedValue::Nested(nested) = &retrieved.parameters {
+        assert!(matches!(
+            nested.get("api_key"),
+            Some(SanitizedValue::Redacted(_))
+        ));
+        assert!(matches!(
+            nested.get("password"),
+            Some(SanitizedValue::Redacted(_))
+        ));
+        assert!(matches!(
+            nested.get("file_path"),
+            Some(SanitizedValue::Safe(_))
+        ));
+        assert!(matches!(
+            nested.get("action"),
+            Some(SanitizedValue::Safe(_))
+        ));
+
+        if let SanitizedValue::Redacted(api_key_redacted) = nested.get("api_key").unwrap() {
+            assert_eq!(api_key_redacted, "[REDACTED]");
+        }
+        if let SanitizedValue::Redacted(password_redacted) = nested.get("password").unwrap() {
+            assert_eq!(password_redacted, "[REDACTED]");
+        }
+        if let SanitizedValue::Safe(file_path) = nested.get("file_path").unwrap() {
+            assert_eq!(file_path, "/some/safe/path.txt");
+        }
+        if let SanitizedValue::Safe(action) = nested.get("action").unwrap() {
+            assert_eq!(action, "read");
+        }
+    }
+}
+
+#[test]
+fn tool_sanitization_query_by_session() {
+    let (_temp_dir, store) = create_tool_exec_test_db();
+
+    let sanitizer = Sanitizer::new();
+
+    let mut params1 = std::collections::HashMap::new();
+    params1.insert("api_key".to_string(), serde_json::json!("key1"));
+    params1.insert("data".to_string(), serde_json::json!("value1"));
+    let sanitized1 = sanitizer.sanitize_params(&params1);
+
+    let tool_log1 = ToolExecutionLog {
+        execution_id: "exec_session_test_001".to_string(),
+        session_id: "sess_api_keys".to_string(),
+        tool_name: "api_tool".to_string(),
+        timestamp: chrono::Utc::now(),
+        parameters: sanitized1,
+        result: ToolResult {
+            success: true,
+            message: "OK".to_string(),
+            output: None,
+        },
+        latency_ms: 50,
+        error: None,
+    };
+    store.append(&tool_log1).unwrap();
+
+    let mut params2 = std::collections::HashMap::new();
+    params2.insert("password".to_string(), serde_json::json!("secret2"));
+    params2.insert("name".to_string(), serde_json::json!("test2"));
+    let sanitized2 = sanitizer.sanitize_params(&params2);
+
+    let tool_log2 = ToolExecutionLog {
+        execution_id: "exec_session_test_002".to_string(),
+        session_id: "sess_api_keys".to_string(),
+        tool_name: "auth_tool".to_string(),
+        timestamp: chrono::Utc::now(),
+        parameters: sanitized2,
+        result: ToolResult {
+            success: true,
+            message: "OK".to_string(),
+            output: None,
+        },
+        latency_ms: 30,
+        error: None,
+    };
+    store.append(&tool_log2).unwrap();
+
+    let mut params3 = std::collections::HashMap::new();
+    params3.insert("token".to_string(), serde_json::json!("abc123"));
+    params3.insert("action".to_string(), serde_json::json!("login"));
+    let sanitized3 = sanitizer.sanitize_params(&params3);
+
+    let tool_log3 = ToolExecutionLog {
+        execution_id: "exec_session_test_003".to_string(),
+        session_id: "sess_other".to_string(),
+        tool_name: "login_tool".to_string(),
+        timestamp: chrono::Utc::now(),
+        parameters: sanitized3,
+        result: ToolResult {
+            success: true,
+            message: "OK".to_string(),
+            output: None,
+        },
+        latency_ms: 40,
+        error: None,
+    };
+    store.append(&tool_log3).unwrap();
+
+    let sess_api_results = store.get_by_session("sess_api_keys").unwrap();
+    assert_eq!(sess_api_results.len(), 2);
+
+    for log in &sess_api_results {
+        if let SanitizedValue::Nested(nested) = &log.parameters {
+            if log.tool_name == "api_tool" {
+                assert!(matches!(
+                    nested.get("api_key"),
+                    Some(SanitizedValue::Redacted(_))
+                ));
+                assert!(matches!(
+                    nested.get("data"),
+                    Some(SanitizedValue::Safe(_))
+                ));
+            }
+            if log.tool_name == "auth_tool" {
+                assert!(matches!(
+                    nested.get("password"),
+                    Some(SanitizedValue::Redacted(_))
+                ));
+                assert!(matches!(
+                    nested.get("name"),
+                    Some(SanitizedValue::Safe(_))
+                ));
+            }
+        }
+    }
+}
+
+#[test]
+fn tool_sanitization_all_secret_patterns() {
+    let (_temp_dir, store) = create_tool_exec_test_db();
+
+    let sanitizer = Sanitizer::new();
+
+    let mut params = std::collections::HashMap::new();
+    params.insert("api_key".to_string(), serde_json::json!("sk-12345"));
+    params.insert("password".to_string(), serde_json::json!("my_pass"));
+    params.insert("token".to_string(), serde_json::json!("tok_abc"));
+    params.insert("secret".to_string(), serde_json::json!("my_secret"));
+    params.insert("authorization".to_string(), serde_json::json!("Bearer xyz"));
+    params.insert("private_key".to_string(), serde_json::json!("key_data"));
+    params.insert("access_key".to_string(), serde_json::json!("access_data"));
+    params.insert("username".to_string(), serde_json::json!("john"));
+    params.insert("safe_field".to_string(), serde_json::json!("visible_value"));
+
+    let sanitized_params = sanitizer.sanitize_params(&params);
+
+    let tool_log = ToolExecutionLog {
+        execution_id: "exec_all_patterns_001".to_string(),
+        session_id: "sess_patterns".to_string(),
+        tool_name: "multi_tool".to_string(),
+        timestamp: chrono::Utc::now(),
+        parameters: sanitized_params,
+        result: ToolResult {
+            success: true,
+            message: "OK".to_string(),
+            output: None,
+        },
+        latency_ms: 60,
+        error: None,
+    };
+
+    store.append(&tool_log).unwrap();
+
+    let retrieved = store.get("exec_all_patterns_001").unwrap().unwrap();
+
+    if let SanitizedValue::Nested(nested) = &retrieved.parameters {
+        assert!(matches!(
+            nested.get("api_key"),
+            Some(SanitizedValue::Redacted(_))
+        ));
+        assert!(matches!(
+            nested.get("password"),
+            Some(SanitizedValue::Redacted(_))
+        ));
+        assert!(matches!(
+            nested.get("token"),
+            Some(SanitizedValue::Redacted(_))
+        ));
+        assert!(matches!(
+            nested.get("secret"),
+            Some(SanitizedValue::Redacted(_))
+        ));
+        assert!(matches!(
+            nested.get("authorization"),
+            Some(SanitizedValue::Redacted(_))
+        ));
+        assert!(matches!(
+            nested.get("private_key"),
+            Some(SanitizedValue::Redacted(_))
+        ));
+        assert!(matches!(
+            nested.get("access_key"),
+            Some(SanitizedValue::Redacted(_))
+        ));
+
+        assert!(matches!(
+            nested.get("username"),
+            Some(SanitizedValue::Safe(_))
+        ));
+        assert!(matches!(
+            nested.get("safe_field"),
+            Some(SanitizedValue::Safe(_))
+        ));
+    }
 }

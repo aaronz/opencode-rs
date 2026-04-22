@@ -604,7 +604,7 @@
       "priority": "P1",
       "title": "Reasoning Log Persistence",
       "description": "Integration test: create ReasoningLog entry, store in LogStore, query and retrieve, verify all fields preserved including tools_considered.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: create ReasoningLog with 3 tool considerations",
         "AddIntegrationTest: store in LogStore",
@@ -627,7 +627,7 @@
       "priority": "P1",
       "title": "Tool Execution Sanitization",
       "description": "Integration test: execute tool with parameters containing secrets (api_key, password), verify parameters sanitized in ToolExecutionLog, verify secret values redacted.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: create tool parameters with {api_key: secret123, password: pass456}",
         "AddIntegrationTest: execute via AgentLogger",

@@ -6,7 +6,10 @@ use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection};
 
 use crate::error::LogError;
-use crate::event::{LogEvent, LogFields, LogLevel, ReasoningLog, ToolConsideration};
+use crate::event::{
+    ErrorContext, LogEvent, LogFields, LogLevel, ReasoningLog, SanitizedValue, ToolConsideration,
+    ToolExecutionLog, ToolResult,
+};
 use crate::query::LogQuery;
 
 pub struct SessionLogBuffer {
@@ -370,6 +373,233 @@ impl ReasoningLogQuery {
             session_id: Some(session_id.into()),
             ..Default::default()
         }
+    }
+
+    pub fn with_since(mut self, since: DateTime<Utc>) -> Self {
+        self.since = Some(since);
+        self
+    }
+
+    pub fn with_until(mut self, until: DateTime<Utc>) -> Self {
+        self.until = Some(until);
+        self
+    }
+
+    pub fn with_limit(mut self, limit: usize) -> Self {
+        self.limit = Some(limit);
+        self
+    }
+}
+
+pub struct ToolExecutionLogStore {
+    conn: Connection,
+}
+
+impl ToolExecutionLogStore {
+    pub fn new(path: &std::path::Path) -> Result<Self, LogError> {
+        let conn = Connection::open(path)?;
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS tool_execution_logs (
+                execution_id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                tool_name TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                parameters TEXT NOT NULL,
+                result TEXT NOT NULL,
+                latency_ms INTEGER NOT NULL,
+                error TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_tool_exec_session ON tool_execution_logs(session_id, timestamp);
+            ",
+        )?;
+
+        Ok(Self { conn })
+    }
+
+    pub fn append(&self, log: &ToolExecutionLog) -> Result<(), LogError> {
+        let parameters_json =
+            serde_json::to_string(&log.parameters).map_err(|e| LogError::Serialization(e.to_string()))?;
+        let result_json =
+            serde_json::to_string(&log.result).map_err(|e| LogError::Serialization(e.to_string()))?;
+        let error_json = match &log.error {
+            Some(e) => serde_json::to_string(e).map_err(|e| LogError::Serialization(e.to_string()))?,
+            None => serde_json::Value::Null.to_string(),
+        };
+
+        self.conn.execute(
+            "INSERT INTO tool_execution_logs (execution_id, session_id, tool_name, timestamp, parameters, result, latency_ms, error)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                log.execution_id,
+                log.session_id,
+                log.tool_name,
+                log.timestamp.to_rfc3339(),
+                parameters_json,
+                result_json,
+                log.latency_ms as i64,
+                error_json,
+            ],
+        )?;
+
+        Ok(())
+    }
+
+    pub fn query(&self, criteria: &ToolExecutionLogQuery) -> Result<Vec<ToolExecutionLog>, LogError> {
+        let mut sql = String::from("SELECT execution_id, session_id, tool_name, timestamp, parameters, result, latency_ms, error FROM tool_execution_logs WHERE 1=1");
+        let mut params_vec: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+
+        if let Some(ref session_id) = criteria.session_id {
+            sql.push_str(" AND session_id = ?");
+            params_vec.push(Box::new(session_id.clone()));
+        }
+
+        if let Some(ref tool_name) = criteria.tool_name {
+            sql.push_str(" AND tool_name = ?");
+            params_vec.push(Box::new(tool_name.clone()));
+        }
+
+        if let Some(ref since) = criteria.since {
+            sql.push_str(" AND timestamp >= ?");
+            params_vec.push(Box::new(since.to_rfc3339()));
+        }
+
+        if let Some(ref until) = criteria.until {
+            sql.push_str(" AND timestamp <= ?");
+            params_vec.push(Box::new(until.to_rfc3339()));
+        }
+
+        sql.push_str(" ORDER BY timestamp DESC");
+
+        if let Some(limit) = criteria.limit {
+            sql.push_str(&format!(" LIMIT {}", limit));
+        }
+
+        let params_refs: Vec<&dyn rusqlite::ToSql> =
+            params_vec.iter().map(|p| p.as_ref()).collect();
+
+        let mut stmt = self.conn.prepare(&sql)?;
+        let rows = stmt.query_map(params_refs.as_slice(), |row| {
+            let execution_id: String = row.get(0)?;
+            let session_id: String = row.get(1)?;
+            let tool_name: String = row.get(2)?;
+            let timestamp_str: String = row.get(3)?;
+            let parameters_str: String = row.get(4)?;
+            let result_str: String = row.get(5)?;
+            let latency_ms: i64 = row.get(6)?;
+            let error_str: Option<String> = row.get(7)?;
+
+            let timestamp = DateTime::parse_from_rfc3339(&timestamp_str)
+                .map(|dt| dt.with_timezone(&Utc))
+                .unwrap_or_else(|_| Utc::now());
+            let parameters: SanitizedValue =
+                serde_json::from_str(&parameters_str).unwrap_or(SanitizedValue::Nested(Default::default()));
+            let result: ToolResult =
+                serde_json::from_str(&result_str).unwrap_or(ToolResult {
+                    success: false,
+                    message: "Deserialization failed".to_string(),
+                    output: None,
+                });
+            let error: Option<ErrorContext> = error_str
+                .and_then(|s| {
+                    if s == "null" || s.is_empty() {
+                        None
+                    } else {
+                        serde_json::from_str(&s).ok()
+                    }
+                });
+
+            Ok(ToolExecutionLog {
+                execution_id,
+                session_id,
+                tool_name,
+                timestamp,
+                parameters,
+                result,
+                latency_ms: latency_ms as u64,
+                error,
+            })
+        })?;
+
+        let mut logs = Vec::new();
+        for log in rows.flatten() {
+            logs.push(log);
+        }
+
+        Ok(logs)
+    }
+
+    pub fn get(&self, execution_id: &str) -> Result<Option<ToolExecutionLog>, LogError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT execution_id, session_id, tool_name, timestamp, parameters, result, latency_ms, error FROM tool_execution_logs WHERE execution_id = ?",
+        )?;
+
+        let mut rows = stmt.query(params![execution_id])?;
+        if let Some(row) = rows.next()? {
+            let timestamp_str: String = row.get(3)?;
+            let parameters_str: String = row.get(4)?;
+            let result_str: String = row.get(5)?;
+            let error_str: Option<String> = row.get(7)?;
+
+            let timestamp = DateTime::parse_from_rfc3339(&timestamp_str)
+                .map(|dt| dt.with_timezone(&Utc))
+                .unwrap_or_else(|_| Utc::now());
+            let parameters: SanitizedValue =
+                serde_json::from_str(&parameters_str).unwrap_or(SanitizedValue::Nested(Default::default()));
+            let result: ToolResult =
+                serde_json::from_str(&result_str).unwrap_or(ToolResult {
+                    success: false,
+                    message: "Deserialization failed".to_string(),
+                    output: None,
+                });
+            let error: Option<ErrorContext> = error_str
+                .and_then(|s| {
+                    if s == "null" || s.is_empty() {
+                        None
+                    } else {
+                        serde_json::from_str(&s).ok()
+                    }
+                });
+
+            Ok(Some(ToolExecutionLog {
+                execution_id: row.get(0)?,
+                session_id: row.get(1)?,
+                tool_name: row.get(2)?,
+                timestamp,
+                parameters,
+                result,
+                latency_ms: row.get::<_, i64>(6)? as u64,
+                error,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn get_by_session(&self, session_id: &str) -> Result<Vec<ToolExecutionLog>, LogError> {
+        self.query(&ToolExecutionLogQuery::for_session(session_id))
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ToolExecutionLogQuery {
+    pub session_id: Option<String>,
+    pub tool_name: Option<String>,
+    pub since: Option<DateTime<Utc>>,
+    pub until: Option<DateTime<Utc>>,
+    pub limit: Option<usize>,
+}
+
+impl ToolExecutionLogQuery {
+    pub fn for_session(session_id: impl Into<String>) -> Self {
+        Self {
+            session_id: Some(session_id.into()),
+            ..Default::default()
+        }
+    }
+
+    pub fn with_tool_name(mut self, tool_name: impl Into<String>) -> Self {
+        self.tool_name = Some(tool_name.into());
+        self
     }
 
     pub fn with_since(mut self, since: DateTime<Utc>) -> Self {
