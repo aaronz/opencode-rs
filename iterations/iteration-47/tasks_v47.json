@@ -206,7 +206,7 @@
       "priority": "P0",
       "title": "Implement mix formatter (.ex,.exs,.eex,.heex)",
       "description": "Implement mix formatter for Elixir files. Detection: `which mix`. Extensions: .ex, .exs, .eex, .heex",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify mix name returns 'mix'",
         "AddUnitTest: verify mix extensions includes all Elixir extensions",

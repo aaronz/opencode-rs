@@ -1291,4 +1291,40 @@ mod tests {
         assert!(names.contains(&"rustfmt"));
         assert!(names.contains(&"prettier"));
     }
+
+    #[test]
+    fn verify_mix_name_returns_mix() {
+        let formatter = mix::MixFormatter::new();
+        assert_eq!(formatter.name(), "mix");
+    }
+
+    #[test]
+    fn verify_mix_extensions_includes_all_elixir_extensions() {
+        let formatter = mix::MixFormatter::new();
+        assert!(formatter.extensions().contains(&".ex"));
+        assert!(formatter.extensions().contains(&".exs"));
+        assert!(formatter.extensions().contains(&".eex"));
+        assert!(formatter.extensions().contains(&".heex"));
+        assert_eq!(formatter.extensions().len(), 4);
+    }
+
+    #[tokio::test]
+    async fn verify_mix_enabled_checks_which_mix() {
+        use which::which;
+        let formatter = mix::MixFormatter::new();
+        let ctx = FormatterContext {
+            directory: PathBuf::from("/tmp"),
+            worktree: PathBuf::from("/tmp"),
+        };
+        let result = formatter.enabled(&ctx).await;
+        let mix_available = which("mix").is_ok();
+        if mix_available {
+            assert!(result.is_some(), "mix should be available when installed");
+            let cmd = result.unwrap();
+            assert_eq!(cmd[0], "mix");
+            assert_eq!(cmd[1], "format");
+        } else {
+            assert!(result.is_none(), "mix should not be available when not installed");
+        }
+    }
 }
