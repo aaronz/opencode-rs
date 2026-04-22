@@ -702,7 +702,7 @@
       "priority": "P1",
       "title": "Integrate FormatService with InstanceState",
       "description": "Integrate FormatService with InstanceState. Implement per-directory formatter state scoping",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify FormatService uses InstanceState for configuration",
         "AddUnitTest: verify formatter state is scoped per directory",
@@ -722,7 +722,7 @@
       "priority": "P2",
       "title": "Implement parallel enabled() checks with tokio::join!",
       "description": "Use tokio::join! for parallel availability checks. Verify formatter availability in parallel",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify enabled_checks_run_in_parallel using tokio::join!",
         "AddRegressionTest: ensure parallel checks produce same results as sequential"

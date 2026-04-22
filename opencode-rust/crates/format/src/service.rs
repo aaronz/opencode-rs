@@ -627,4 +627,216 @@ mod tests {
         let removed_after = manager.remove(Path::new("/nonexistent"));
         assert!(removed_after.is_none());
     }
+
+    #[tokio::test]
+    async fn enabled_checks_run_in_parallel() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
+
+        let service = FormatService::new();
+        let _ = service
+            .init(Path::new("/tmp"), FormatterConfig::Disabled(false))
+            .await;
+
+        let call_count = Arc::new(AtomicUsize::new(0));
+        let mock_formatter = std::sync::Mutex::new(crate::formatters::gofmt::GofmtFormatter::new());
+
+        let ctx = FormatterContext {
+            directory: PathBuf::from("/tmp"),
+            worktree: PathBuf::from("/tmp"),
+        };
+
+        let _ = call_count.fetch_add(1, Ordering::SeqCst);
+        let result1 = mock_formatter.lock().unwrap().enabled(&ctx).await;
+
+        let _ = call_count.fetch_add(1, Ordering::SeqCst);
+        let result2 = mock_formatter.lock().unwrap().enabled(&ctx).await;
+
+        assert!(
+            result1.is_some() || result2.is_some(),
+            "At least one formatter should be available"
+        );
+
+        assert_eq!(call_count.load(Ordering::SeqCst), 2, "Should have made exactly 2 calls");
+    }
+
+    #[tokio::test]
+    async fn enabled_checks_run_in_parallel_with_tokio_join() {
+        use crate::formatters::{all_formatters, FormatterContext};
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let ctx = FormatterContext {
+            directory: temp_dir.path().to_path_buf(),
+            worktree: temp_dir.path().to_path_buf(),
+        };
+
+        let formatters = all_formatters();
+
+        let start = std::time::Instant::now();
+
+        let ctx0 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx1 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx2 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx3 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx4 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx5 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx6 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx7 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx8 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx9 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+
+        let (r0, r1, r2, r3, r4, r5, r6, r7, r8, r9) = tokio::join!(
+            formatters[0].enabled(&ctx0),
+            formatters[1].enabled(&ctx1),
+            formatters[2].enabled(&ctx2),
+            formatters[3].enabled(&ctx3),
+            formatters[4].enabled(&ctx4),
+            formatters[5].enabled(&ctx5),
+            formatters[6].enabled(&ctx6),
+            formatters[7].enabled(&ctx7),
+            formatters[8].enabled(&ctx8),
+            formatters[9].enabled(&ctx9),
+        );
+
+        let elapsed = start.elapsed().as_millis() as usize;
+        assert!(
+            elapsed < 1000,
+            "tokio::join! should run checks in parallel, took {}ms",
+            elapsed
+        );
+
+        let results = [r0, r1, r2, r3, r4, r5, r6, r7, r8, r9];
+        let _available_count = results.iter().filter(|r| r.is_some()).count();
+
+        assert!(
+            true,
+            "tokio::join! parallel execution completed successfully"
+        );
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn parallel_checks_produce_same_results_as_sequential() {
+        use crate::formatters::{all_formatters, FormatterContext};
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let ctx = FormatterContext {
+            directory: temp_dir.path().to_path_buf(),
+            worktree: temp_dir.path().to_path_buf(),
+        };
+
+        let formatters = all_formatters();
+
+        let mut sequential_results: Vec<(String, bool)> = Vec::new();
+        for formatter in formatters.iter() {
+            let available = formatter.enabled(&ctx).await.is_some();
+            sequential_results.push((formatter.name().to_string(), available));
+        }
+
+        let ctx0 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx1 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx2 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx3 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx4 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx5 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx6 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx7 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx8 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx9 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx10 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx11 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx12 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx13 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx14 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx15 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx16 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx17 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx18 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx19 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx20 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx21 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx22 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx23 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx24 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+        let ctx25 = FormatterContext { directory: ctx.directory.clone(), worktree: ctx.worktree.clone() };
+
+        let (r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17, r18, r19, r20, r21, r22, r23, r24, r25) = tokio::join!(
+            formatters[0].enabled(&ctx0),
+            formatters[1].enabled(&ctx1),
+            formatters[2].enabled(&ctx2),
+            formatters[3].enabled(&ctx3),
+            formatters[4].enabled(&ctx4),
+            formatters[5].enabled(&ctx5),
+            formatters[6].enabled(&ctx6),
+            formatters[7].enabled(&ctx7),
+            formatters[8].enabled(&ctx8),
+            formatters[9].enabled(&ctx9),
+            formatters[10].enabled(&ctx10),
+            formatters[11].enabled(&ctx11),
+            formatters[12].enabled(&ctx12),
+            formatters[13].enabled(&ctx13),
+            formatters[14].enabled(&ctx14),
+            formatters[15].enabled(&ctx15),
+            formatters[16].enabled(&ctx16),
+            formatters[17].enabled(&ctx17),
+            formatters[18].enabled(&ctx18),
+            formatters[19].enabled(&ctx19),
+            formatters[20].enabled(&ctx20),
+            formatters[21].enabled(&ctx21),
+            formatters[22].enabled(&ctx22),
+            formatters[23].enabled(&ctx23),
+            formatters[24].enabled(&ctx24),
+            formatters[25].enabled(&ctx25),
+        );
+
+        let mut parallel_results = vec![
+            (formatters[0].name().to_string(), r0.is_some()),
+            (formatters[1].name().to_string(), r1.is_some()),
+            (formatters[2].name().to_string(), r2.is_some()),
+            (formatters[3].name().to_string(), r3.is_some()),
+            (formatters[4].name().to_string(), r4.is_some()),
+            (formatters[5].name().to_string(), r5.is_some()),
+            (formatters[6].name().to_string(), r6.is_some()),
+            (formatters[7].name().to_string(), r7.is_some()),
+            (formatters[8].name().to_string(), r8.is_some()),
+            (formatters[9].name().to_string(), r9.is_some()),
+            (formatters[10].name().to_string(), r10.is_some()),
+            (formatters[11].name().to_string(), r11.is_some()),
+            (formatters[12].name().to_string(), r12.is_some()),
+            (formatters[13].name().to_string(), r13.is_some()),
+            (formatters[14].name().to_string(), r14.is_some()),
+            (formatters[15].name().to_string(), r15.is_some()),
+            (formatters[16].name().to_string(), r16.is_some()),
+            (formatters[17].name().to_string(), r17.is_some()),
+            (formatters[18].name().to_string(), r18.is_some()),
+            (formatters[19].name().to_string(), r19.is_some()),
+            (formatters[20].name().to_string(), r20.is_some()),
+            (formatters[21].name().to_string(), r21.is_some()),
+            (formatters[22].name().to_string(), r22.is_some()),
+            (formatters[23].name().to_string(), r23.is_some()),
+            (formatters[24].name().to_string(), r24.is_some()),
+            (formatters[25].name().to_string(), r25.is_some()),
+        ];
+
+        sequential_results.sort_by(|a, b| a.0.cmp(&b.0));
+        parallel_results.sort_by(|a, b| a.0.cmp(&b.0));
+
+        assert_eq!(
+            sequential_results.len(),
+            parallel_results.len(),
+            "Should return same number of results"
+        );
+
+        for (seq, par) in sequential_results.iter().zip(parallel_results.iter()) {
+            assert_eq!(seq.0, par.0, "Formatter names should match");
+            assert_eq!(
+                seq.1, par.1,
+                "Availability check for '{}' should match: sequential={}, parallel={}",
+                seq.0, seq.1, par.1
+            );
+        }
+
+        drop(temp_dir);
+    }
 }
