@@ -103,7 +103,7 @@
       "priority": "P0",
       "title": "Define FormatterStatus struct",
       "description": "Define FormatterStatus struct with fields: name, extensions, enabled. Used for status() API response",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify FormatterStatus struct creation with name, extensions, enabled",
         "AddUnitTest: verify FormatterStatus serialization to JSON"
@@ -122,7 +122,7 @@
       "priority": "P0",
       "title": "Define FormatterContext struct",
       "description": "Define FormatterContext struct with fields: directory, worktree. Passed to formatters to determine context",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify FormatterContext struct creation",
         "AddUnitTest: verify directory and worktree fields are accessible"

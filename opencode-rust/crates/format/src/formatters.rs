@@ -1222,4 +1222,30 @@ mod tests {
         assert_eq!(deserialized.extensions, vec![".js", ".ts"]);
         assert!(!deserialized.enabled);
     }
+
+    #[test]
+    fn formatter_context_struct_creation() {
+        let directory = PathBuf::from("/project/src");
+        let worktree = PathBuf::from("/project");
+        let ctx = FormatterContext {
+            directory: directory.clone(),
+            worktree: worktree.clone(),
+        };
+        assert_eq!(ctx.directory, directory);
+        assert_eq!(ctx.worktree, worktree);
+    }
+
+    #[test]
+    fn formatter_context_directory_and_worktree_accessible() {
+        let directory = PathBuf::from("/home/user/project/src");
+        let worktree = PathBuf::from("/home/user/project");
+        let ctx = FormatterContext {
+            directory: directory.clone(),
+            worktree: worktree.clone(),
+        };
+        assert_eq!(ctx.directory, PathBuf::from("/home/user/project/src"));
+        assert_eq!(ctx.worktree, PathBuf::from("/home/user/project"));
+        assert!(ctx.directory.to_str().unwrap().ends_with("src"));
+        assert!(ctx.worktree.to_str().unwrap().ends_with("project"));
+    }
 }
