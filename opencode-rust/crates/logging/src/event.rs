@@ -873,4 +873,160 @@ mod tests {
         assert_eq!(deserialized.completion_tokens, 67890);
         assert_eq!(deserialized.latency_ms, 999);
     }
+
+    #[test]
+    fn test_tool_execution_log_serialization() {
+        let log = ToolExecutionLog {
+            execution_id: "sess_123:read:7000000000".to_string(),
+            session_id: "sess_123".to_string(),
+            tool_name: "read".to_string(),
+            timestamp: Utc::now(),
+            parameters: SanitizedValue::Safe("{\"path\":\"/tmp/test.txt\"}".to_string()),
+            result: ToolResult {
+                success: true,
+                message: "File read successfully".to_string(),
+                output: Some(serde_json::json!({"lines": 42})),
+            },
+            latency_ms: 45,
+            error: None,
+        };
+
+        let json = serde_json::to_string(&log).unwrap();
+        assert!(json.contains("\"execution_id\":\"sess_123:read:7000000000\""));
+        assert!(json.contains("\"session_id\":\"sess_123\""));
+        assert!(json.contains("\"tool_name\":\"read\""));
+        assert!(json.contains("\"latency_ms\":45"));
+        assert!(json.contains("\"success\":true"));
+    }
+
+    #[test]
+    fn test_tool_execution_log_with_sanitized_parameters() {
+        let log = ToolExecutionLog {
+            execution_id: "sess_abc:write:8000000000".to_string(),
+            session_id: "sess_abc".to_string(),
+            tool_name: "write".to_string(),
+            timestamp: Utc::now(),
+            parameters: SanitizedValue::Nested(HashMap::from([
+                ("path".to_string(), SanitizedValue::Safe("/tmp/test.txt".to_string())),
+                ("api_key".to_string(), SanitizedValue::Redacted("<REDACTED>".to_string())),
+            ])),
+            result: ToolResult {
+                success: true,
+                message: "Write completed".to_string(),
+                output: None,
+            },
+            latency_ms: 30,
+            error: None,
+        };
+
+        let json = serde_json::to_string(&log).unwrap();
+        let deserialized: ToolExecutionLog = serde_json::from_str(&json).unwrap();
+
+        assert!(matches!(
+            deserialized.parameters,
+            SanitizedValue::Nested(_)
+        ));
+        if let SanitizedValue::Nested(nested) = deserialized.parameters {
+            assert!(matches!(nested.get("api_key"), Some(SanitizedValue::Redacted(_))));
+        }
+    }
+
+    #[test]
+    fn test_tool_execution_log_captures_result() {
+        let log = ToolExecutionLog {
+            execution_id: "sess_xyz:grep:9000000000".to_string(),
+            session_id: "sess_xyz".to_string(),
+            tool_name: "grep".to_string(),
+            timestamp: Utc::now(),
+            parameters: SanitizedValue::Safe("{\"pattern\":\"fn.*$\"}".to_string()),
+            result: ToolResult {
+                success: true,
+                message: "Found 5 matches".to_string(),
+                output: Some(serde_json::json!(["line 10", "line 25", "line 42", "line 58", "line 73"])),
+            },
+            latency_ms: 120,
+            error: None,
+        };
+
+        assert!(log.result.success);
+        assert_eq!(log.result.message, "Found 5 matches");
+        assert!(log.result.output.is_some());
+    }
+
+    #[test]
+    fn test_tool_execution_log_with_error_context() {
+        let log = ToolExecutionLog {
+            execution_id: "sess_err:read:10000000000".to_string(),
+            session_id: "sess_err".to_string(),
+            tool_name: "read".to_string(),
+            timestamp: Utc::now(),
+            parameters: SanitizedValue::Safe("{\"path\":\"/nonexistent.txt\"}".to_string()),
+            result: ToolResult {
+                success: false,
+                message: "File not found".to_string(),
+                output: None,
+            },
+            latency_ms: 5,
+            error: Some(ErrorContext::new("ERR_NOT_FOUND", "File not found")
+                .with_stack_frame("reader.rs", 42, "read_file")
+                .with_context("path", "/nonexistent.txt")),
+        };
+
+        assert!(log.result.success == false);
+        assert!(log.error.is_some());
+        let error = log.error.unwrap();
+        assert_eq!(error.code, "ERR_NOT_FOUND");
+        assert_eq!(error.message, "File not found");
+        assert_eq!(error.stack.len(), 1);
+        assert_eq!(error.context.get("path"), Some(&"/nonexistent.txt".to_string()));
+    }
+
+    #[test]
+    fn test_tool_execution_log_deserialization() {
+        let json = r#"{
+            "execution_id": "sess_test:bash:11000000000",
+            "session_id": "sess_test",
+            "tool_name": "bash",
+            "timestamp": "2026-04-22T10:30:00Z",
+            "parameters": {"Safe": "{\"command\":\"ls -la\"}"},
+            "result": {
+                "success": true,
+                "message": "Command executed",
+                "output": null
+            },
+            "latency_ms": 50,
+            "error": null
+        }"#;
+
+        let log: ToolExecutionLog = serde_json::from_str(json).unwrap();
+        assert_eq!(log.execution_id, "sess_test:bash:11000000000");
+        assert_eq!(log.session_id, "sess_test");
+        assert_eq!(log.tool_name, "bash");
+        assert_eq!(log.latency_ms, 50);
+        assert!(log.error.is_none());
+    }
+
+    #[test]
+    fn test_tool_execution_log_execution_id_format() {
+        let log = ToolExecutionLog {
+            execution_id: "my_session:my_tool:1234567890".to_string(),
+            session_id: "my_session".to_string(),
+            tool_name: "my_tool".to_string(),
+            timestamp: Utc::now(),
+            parameters: SanitizedValue::Safe("{}".to_string()),
+            result: ToolResult {
+                success: true,
+                message: "OK".to_string(),
+                output: None,
+            },
+            latency_ms: 0,
+            error: None,
+        };
+
+        let parts: Vec<&str> = log.execution_id.split(':').collect();
+        assert_eq!(parts.len(), 3);
+        assert_eq!(parts[0], "my_session");
+        assert_eq!(parts[1], "my_tool");
+        assert_eq!(parts[2], "1234567890");
+    }
 }

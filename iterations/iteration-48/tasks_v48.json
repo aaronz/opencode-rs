@@ -304,7 +304,7 @@
       "priority": "P1",
       "title": "Implement ReasoningLog and ToolConsideration",
       "description": "Create ToolConsideration struct (tool_name, reason, selected) and ReasoningLog struct (step_id, session_id, timestamp, prompt, response, tools_considered, decision, prompt_tokens, completion_tokens, latency_ms).",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify ToolConsideration serialization works",
         "AddUnitTest: verify ReasoningLog with tools_considered serializes correctly",
@@ -327,7 +327,7 @@
       "priority": "P1",
       "title": "Implement ToolExecutionLog",
       "description": "Create ToolExecutionLog struct (execution_id, session_id, tool_name, timestamp, parameters: SanitizedValue, result, latency_ms, error). Use SanitizedValue for parameter sanitization.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify ToolExecutionLog serializes correctly",
         "AddUnitTest: verify parameters use SanitizedValue type",
