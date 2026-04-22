@@ -327,7 +327,7 @@
       "priority": "P1",
       "title": "Implement ToolExecutionLog",
       "description": "Create ToolExecutionLog struct (execution_id, session_id, tool_name, timestamp, parameters: SanitizedValue, result, latency_ms, error). Use SanitizedValue for parameter sanitization.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify ToolExecutionLog serializes correctly",
         "AddUnitTest: verify parameters use SanitizedValue type",
@@ -349,7 +349,7 @@
       "priority": "P1",
       "title": "Implement ErrorContext, ErrorFrame, CauseInfo",
       "description": "Create ErrorFrame (file, line, function), CauseInfo (code, message), ErrorContext (code, message, stack: Vec<ErrorFrame>, cause_chain: Vec<CauseInfo>, context).",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify ErrorFrame captures file path and line number",
         "AddUnitTest: verify ErrorContext stack captures full trace",
