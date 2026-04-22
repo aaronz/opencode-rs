@@ -3,7 +3,18 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tracing::Level as TracingLevel;
+
+/// Global sequence number generator for LogEvent instances.
+/// Sequences start at 1 and increment monotonically.
+static SEQ_GENERATOR: AtomicU64 = AtomicU64::new(1);
+
+/// Generate the next unique sequence number.
+/// Sequences start at 1 and are guaranteed to be unique and incrementing.
+pub fn next_seq() -> u64 {
+    SEQ_GENERATOR.fetch_add(1, Ordering::Relaxed)
+}
 
 /// Log severity level
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
@@ -567,5 +578,87 @@ mod tests {
         let json = serde_json::to_string(&fields).unwrap();
         let deserialized: LogFields = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.extra.get("string_val").unwrap().as_str().unwrap(), "hello");
+    }
+
+    #[test]
+    fn test_sequence_numbers_unique_and_incrementing() {
+        let seq1 = next_seq();
+        let seq2 = next_seq();
+        let seq3 = next_seq();
+
+        assert!(seq2 > seq1);
+        assert!(seq3 > seq2);
+        assert_eq!(seq2 - seq1, 1);
+        assert_eq!(seq3 - seq2, 1);
+    }
+
+    #[test]
+    fn test_timestamp_is_high_precision_utc() {
+        let before = Utc::now();
+        let event = LogEvent::new(1, LogLevel::Info, "test", "message");
+        let after = Utc::now();
+
+        assert!(event.timestamp >= before);
+        assert!(event.timestamp <= after);
+        assert_eq!(event.timestamp.timezone(), chrono::Utc);
+    }
+
+    #[test]
+    fn test_log_event_new_constructor() {
+        let event = LogEvent::new(42, LogLevel::Error, "my.target", "Error occurred");
+
+        assert_eq!(event.seq, 42);
+        assert_eq!(event.level, LogLevel::Error);
+        assert_eq!(event.target, "my.target");
+        assert_eq!(event.message, "Error occurred");
+        assert!(event.span_id.is_none());
+        assert!(event.parent_seq.is_none());
+        assert_eq!(event.fields.session_id, None);
+    }
+
+    #[test]
+    fn test_log_event_serialization_includes_all_fields() {
+        let event = LogEvent::new(1, LogLevel::Info, "test", "message")
+            .with_session_id("sess_123")
+            .with_span_id("trace_abc:span_42")
+            .with_parent_seq(0)
+            .with_tool_name("test_tool")
+            .with_latency_ms(100);
+
+        let json = serde_json::to_string(&event).unwrap();
+
+        assert!(json.contains(r#""seq":1"#));
+        assert!(json.contains(r#""level":"info""#));
+        assert!(json.contains(r#""target":"test""#));
+        assert!(json.contains(r#""message":"message""#));
+        assert!(json.contains(r#""session_id":"sess_123""#));
+        assert!(json.contains(r#""span_id":"trace_abc:span_42""#));
+        assert!(json.contains(r#""parent_seq":0"#));
+        assert!(json.contains(r#""tool_name":"test_tool""#));
+        assert!(json.contains(r#""latency_ms":100"#));
+    }
+
+    #[test]
+    fn test_parent_seq_links_events_in_chains() {
+        let event1 = LogEvent::new(1, LogLevel::Info, "test", "first");
+        let event2 = LogEvent::new(2, LogLevel::Info, "test", "second")
+            .with_parent_seq(event1.seq);
+        let event3 = LogEvent::new(3, LogLevel::Info, "test", "third")
+            .with_parent_seq(event2.seq);
+
+        assert!(event1.parent_seq.is_none());
+        assert_eq!(event2.parent_seq, Some(1));
+        assert_eq!(event3.parent_seq, Some(2));
+        assert_eq!(event3.parent_seq, Some(event2.seq));
+    }
+
+    #[test]
+    fn test_span_id_format_trace_id_span_id() {
+        let event = LogEvent::new(1, LogLevel::Debug, "test", "debug")
+            .with_span_id("abcd1234:span5678");
+
+        assert_eq!(event.span_id, Some("abcd1234:span5678".to_string()));
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(json.contains(r#""span_id":"abcd1234:span5678""#));
     }
 }

@@ -68,7 +68,7 @@
       "priority": "P0",
       "title": "Implement LogEvent Struct",
       "description": "Create LogEvent with seq (atomic u64), timestamp (DateTime<Utc>), level, target, message, fields, span_id, parent_seq. Add constructor and sequence number generation.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify sequence numbers are unique and incrementing",
         "AddUnitTest: verify timestamp is high-precision UTC",
