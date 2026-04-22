@@ -442,7 +442,7 @@
       "priority": "P2",
       "title": "Implement Log Query Tool for Agent Self-Diagnosis",
       "description": "Create LogQueryTool struct implementing Tool trait. Define schema with session_id, level, target, since, until, limit. Return structured log events matching query.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify tool schema defines all query parameters",
         "AddUnitTest: verify execute returns matching LogEvents",
@@ -465,7 +465,7 @@
       "priority": "P1",
       "title": "Logger Tests",
       "description": "Test LogEvent serialization, level filtering, query matching, ChildLogger context chaining in crates/logging/tests/logger_tests.rs.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify LogEvent round-trip serialization",
         "AddUnitTest: verify level filtering excludes non-matching levels",

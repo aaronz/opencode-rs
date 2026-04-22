@@ -1,10 +1,141 @@
 use opencode_logging::config::LoggingConfig;
-use opencode_logging::event::{LogEvent, LogLevel};
+use opencode_logging::event::{LogEvent, LogFields, LogLevel};
 use opencode_logging::log_llm;
 use opencode_logging::log_tool;
 use opencode_logging::logger::Logger;
 use opencode_logging::query::LogQuery;
 use opencode_logging::AgentLogger;
+
+#[tokio::test]
+async fn test_log_event_round_trip_serialization() {
+    let event = LogEvent::new(1, LogLevel::Info, "test.target", "Test message")
+        .with_session_id("sess_123")
+        .with_span_id("trace_abc:span_42")
+        .with_parent_seq(0)
+        .with_tool_name("test_tool")
+        .with_latency_ms(100);
+
+    let json = serde_json::to_string(&event).unwrap();
+    let deserialized: LogEvent = serde_json::from_str(&json).unwrap();
+
+    assert_eq!(deserialized.seq, event.seq);
+    assert_eq!(deserialized.level, event.level);
+    assert_eq!(deserialized.target, event.target);
+    assert_eq!(deserialized.message, event.message);
+    assert_eq!(deserialized.fields.session_id, event.fields.session_id);
+    assert_eq!(deserialized.span_id, event.span_id);
+    assert_eq!(deserialized.parent_seq, event.parent_seq);
+    assert_eq!(deserialized.fields.tool_name, event.fields.tool_name);
+    assert_eq!(deserialized.fields.latency_ms, event.fields.latency_ms);
+}
+
+#[tokio::test]
+async fn test_level_filtering_excludes_non_matching_levels() {
+    let mut config = LoggingConfig::default();
+    config.level = LogLevel::Debug;
+    let logger = Logger::new(config).unwrap();
+
+    logger.info("test", "info message", LogFields::default());
+    logger.debug("test", "debug message", LogFields::default());
+    logger.warn("test", "warn message", LogFields::default());
+    logger.error("test", "error message", LogFields::default());
+    tokio::task::yield_now().await;
+
+    let all_events = logger.query_logs(LogQuery::new()).await.unwrap();
+    assert_eq!(all_events.len(), 4);
+
+    let error_query = LogQuery::new().with_level(LogLevel::Error);
+    let error_events = logger.query_logs(error_query).await.unwrap();
+    assert_eq!(error_events.len(), 1);
+    assert_eq!(error_events[0].level, LogLevel::Error);
+
+    let warn_query = LogQuery::new().with_level(LogLevel::Warn);
+    let warn_events = logger.query_logs(warn_query).await.unwrap();
+    assert_eq!(warn_events.len(), 1);
+    assert_eq!(warn_events[0].level, LogLevel::Warn);
+}
+
+#[tokio::test]
+async fn test_query_matching_all_field_combinations() {
+    let event = LogEvent::new(1, LogLevel::Error, "agent.test", "Test message")
+        .with_session_id("sess_abc")
+        .with_tool_name("read")
+        .with_latency_ms(42);
+
+    let session_query = LogQuery::new().with_session_id("sess_abc");
+    assert!(session_query.matches(&event));
+
+    let session_mismatch = LogQuery::new().with_session_id("sess_xyz");
+    assert!(!session_mismatch.matches(&event));
+
+    let level_query = LogQuery::new().with_level(LogLevel::Error);
+    assert!(level_query.matches(&event));
+
+    let level_mismatch = LogQuery::new().with_level(LogLevel::Info);
+    assert!(!level_mismatch.matches(&event));
+
+    let target_query = LogQuery::new().with_target("agent.*");
+    assert!(target_query.matches(&event));
+
+    let target_mismatch = LogQuery::new().with_target("llm.*");
+    assert!(!target_mismatch.matches(&event));
+
+    let combined_query = LogQuery::new()
+        .with_session_id("sess_abc")
+        .with_level(LogLevel::Error)
+        .with_target("agent.*");
+    assert!(combined_query.matches(&event));
+
+    let combined_mismatch = LogQuery::new()
+        .with_session_id("sess_abc")
+        .with_level(LogLevel::Error)
+        .with_target("llm.*");
+    assert!(!combined_mismatch.matches(&event));
+}
+
+#[tokio::test]
+async fn test_child_logger_inherits_and_extends_parent_context() {
+    let config = LoggingConfig::default();
+    let logger = Logger::new(config).unwrap();
+
+    let parent_context = LogFields::with_session_id("parent_session");
+    let child_logger = logger.with_context(parent_context);
+
+    child_logger.info("test", "child message", LogFields::default());
+    tokio::task::yield_now().await;
+
+    let events = logger.query_logs(LogQuery::new()).await.unwrap();
+    assert_eq!(events.len(), 1);
+    assert_eq!(
+        events[0].fields.session_id,
+        Some("parent_session".to_string())
+    );
+
+    let grandchild_context = LogFields::default().with_tool_name("grandchild_tool");
+    let grandchild_logger = child_logger.with_context(grandchild_context);
+
+    grandchild_logger.info("test", "grandchild message", LogFields::default());
+    tokio::task::yield_now().await;
+
+    let events = logger.query_logs(LogQuery::new()).await.unwrap();
+    assert_eq!(events.len(), 2);
+
+    let parent_event = &events[0];
+    assert_eq!(
+        parent_event.fields.session_id,
+        Some("parent_session".to_string())
+    );
+
+    let grandchild_event = &events[1];
+    assert_eq!(
+        grandchild_event.fields.session_id,
+        Some("parent_session".to_string())
+    );
+    assert_eq!(
+        grandchild_event.fields.tool_name,
+        Some("grandchild_tool".to_string())
+    );
+}
 
 #[tokio::test]
 async fn test_log_tool_macro_expands_to_info_call() {
