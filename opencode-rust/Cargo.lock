@@ -4579,6 +4579,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "opencode-logging"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "ratatui 0.28.1",
+ "rstest",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
 name = "opencode-lsp"
 version = "0.1.0"
 dependencies = [

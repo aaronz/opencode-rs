@@ -1,0 +1,394 @@
+//! Log event structures for the OpenCode logging system.
+
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+/// Log severity level
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum LogLevel {
+    #[default]
+    Trace,
+    Debug,
+    Info,
+    Warn,
+    Error,
+}
+
+impl std::fmt::Display for LogLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LogLevel::Trace => write!(f, "TRACE"),
+            LogLevel::Debug => write!(f, "DEBUG"),
+            LogLevel::Info => write!(f, "INFO"),
+            LogLevel::Warn => write!(f, "WARN"),
+            LogLevel::Error => write!(f, "ERROR"),
+        }
+    }
+}
+
+/// Structured fields for log events
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct LogFields {
+    /// Session identifier
+    pub session_id: Option<String>,
+    /// Tool name if applicable
+    pub tool_name: Option<String>,
+    /// Operation latency in milliseconds
+    pub latency_ms: Option<u64>,
+    /// LLM model name
+    pub model: Option<String>,
+    /// LLM provider name
+    pub provider: Option<String>,
+    /// Token count for LLM operations
+    pub token_count: Option<u64>,
+    /// Error code for errors
+    pub error_code: Option<String>,
+    /// File path for file operations
+    pub file_path: Option<String>,
+    /// Line number for location context
+    pub line: Option<u32>,
+    /// Additional flattened fields
+    #[serde(default)]
+    pub extra: HashMap<String, serde_json::Value>,
+}
+
+impl LogFields {
+    /// Create a new LogFields with only session_id set
+    pub fn with_session_id(session_id: impl Into<String>) -> Self {
+        Self {
+            session_id: Some(session_id.into()),
+            ..Default::default()
+        }
+    }
+
+    /// Add a tool_name to the fields
+    pub fn with_tool_name(mut self, tool_name: impl Into<String>) -> Self {
+        self.tool_name = Some(tool_name.into());
+        self
+    }
+
+    /// Add latency_ms to the fields
+    pub fn with_latency_ms(mut self, latency_ms: u64) -> Self {
+        self.latency_ms = Some(latency_ms);
+        self
+    }
+
+    /// Add an extra field
+    pub fn with_extra(mut self, key: impl Into<String>, value: serde_json::Value) -> Self {
+        self.extra.insert(key.into(), value);
+        self
+    }
+}
+
+/// A single log event
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LogEvent {
+    /// Unique sequence number for ordering
+    pub seq: u64,
+    /// High-precision timestamp
+    pub timestamp: DateTime<Utc>,
+    /// Log severity level
+    pub level: LogLevel,
+    /// Target component (e.g., "agent", "tool.read", "llm.openai")
+    pub target: String,
+    /// Human-readable message
+    pub message: String,
+    /// Structured fields for querying
+    pub fields: LogFields,
+    /// Span context for trace correlation
+    pub span_id: Option<String>,
+    /// Parent log event ID for causality chains
+    pub parent_seq: Option<u64>,
+}
+
+impl LogEvent {
+    /// Create a new LogEvent
+    pub fn new(
+        seq: u64,
+        level: LogLevel,
+        target: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self {
+            seq,
+            timestamp: Utc::now(),
+            level,
+            target: target.into(),
+            message: message.into(),
+            fields: LogFields::default(),
+            span_id: None,
+            parent_seq: None,
+        }
+    }
+
+    /// Set the session_id for this event
+    pub fn with_session_id(mut self, session_id: impl Into<String>) -> Self {
+        self.fields.session_id = Some(session_id.into());
+        self
+    }
+
+    /// Set the span_id for this event
+    pub fn with_span_id(mut self, span_id: impl Into<String>) -> Self {
+        self.span_id = Some(span_id.into());
+        self
+    }
+
+    /// Set the parent_seq for this event
+    pub fn with_parent_seq(mut self, parent_seq: u64) -> Self {
+        self.parent_seq = Some(parent_seq);
+        self
+    }
+
+    /// Set the tool_name for this event
+    pub fn with_tool_name(mut self, tool_name: impl Into<String>) -> Self {
+        self.fields.tool_name = Some(tool_name.into());
+        self
+    }
+
+    /// Set the latency_ms for this event
+    pub fn with_latency_ms(mut self, latency_ms: u64) -> Self {
+        self.fields.latency_ms = Some(latency_ms);
+        self
+    }
+
+    /// Add an extra field to this event
+    pub fn with_extra(mut self, key: impl Into<String>, value: serde_json::Value) -> Self {
+        self.fields.extra.insert(key.into(), value);
+        self
+    }
+}
+
+/// Tool consideration during reasoning
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolConsideration {
+    /// Tool name
+    pub tool_name: String,
+    /// Reason for considering this tool
+    pub reason: String,
+    /// Whether this tool was selected
+    pub selected: bool,
+}
+
+/// Reasoning log for agent decision-making
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReasoningLog {
+    /// Unique step identifier
+    pub step_id: String,
+    /// Session identifier
+    pub session_id: String,
+    /// Timestamp
+    pub timestamp: DateTime<Utc>,
+    /// Prompt sent to LLM
+    pub prompt: String,
+    /// Response received (sanitized)
+    pub response: String,
+    /// Tools considered and reasoning
+    pub tools_considered: Vec<ToolConsideration>,
+    /// Final decision and reasoning
+    pub decision: String,
+    /// Tokens used for prompt
+    pub prompt_tokens: u64,
+    /// Tokens used for completion
+    pub completion_tokens: u64,
+    /// Total latency
+    pub latency_ms: u64,
+}
+
+/// Tool result wrapper
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolResult {
+    /// Whether the tool succeeded
+    pub success: bool,
+    /// Result message or error
+    pub message: String,
+    /// Output data if any
+    pub output: Option<serde_json::Value>,
+}
+
+/// Error frame in a stack trace
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ErrorFrame {
+    /// File name
+    pub file: String,
+    /// Line number
+    pub line: u32,
+    /// Function name
+    pub function: String,
+}
+
+/// Cause information in error chain
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CauseInfo {
+    /// Error code
+    pub code: String,
+    /// Error message
+    pub message: String,
+}
+
+/// Error context for error logging
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ErrorContext {
+    /// Error code for programmatic detection
+    pub code: String,
+    /// Human-readable message
+    pub message: String,
+    /// Full stack trace or error chain
+    pub stack: Vec<ErrorFrame>,
+    /// Causality chain (original → wrapping)
+    pub cause_chain: Vec<CauseInfo>,
+    /// Additional context
+    #[serde(default)]
+    pub context: HashMap<String, String>,
+}
+
+impl ErrorContext {
+    /// Create a new ErrorContext with just code and message
+    pub fn new(code: impl Into<String>, message: impl Into<String>) -> Self {
+        Self {
+            code: code.into(),
+            message: message.into(),
+            stack: Vec::new(),
+            cause_chain: Vec::new(),
+            context: HashMap::new(),
+        }
+    }
+
+    /// Add a stack frame
+    pub fn with_stack_frame(mut self, file: impl Into<String>, line: u32, function: impl Into<String>) -> Self {
+        self.stack.push(ErrorFrame {
+            file: file.into(),
+            line,
+            function: function.into(),
+        });
+        self
+    }
+
+    /// Add a cause to the chain
+    pub fn with_cause(mut self, code: impl Into<String>, message: impl Into<String>) -> Self {
+        self.cause_chain.push(CauseInfo {
+            code: code.into(),
+            message: message.into(),
+        });
+        self
+    }
+
+    /// Add context
+    pub fn with_context(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        self.context.insert(key.into(), value.into());
+        self
+    }
+}
+
+/// Tool execution log
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolExecutionLog {
+    /// Unique execution identifier
+    pub execution_id: String,
+    /// Session identifier
+    pub session_id: String,
+    /// Tool name
+    pub tool_name: String,
+    /// Execution timestamp
+    pub timestamp: DateTime<Utc>,
+    /// Tool parameters (sanitized)
+    pub parameters: SanitizedValue,
+    /// Execution result
+    pub result: ToolResult,
+    /// Execution latency
+    pub latency_ms: u64,
+    /// Error if any
+    pub error: Option<ErrorContext>,
+}
+
+/// Sanitized value for secret redaction
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SanitizedValue {
+    /// Safe string value
+    Safe(String),
+    /// Redacted value
+    Redacted(String),
+    /// Nested map with sanitized values
+    Nested(HashMap<String, SanitizedValue>),
+}
+
+impl SanitizedValue {
+    /// Create a safe value
+    pub fn safe(value: impl Into<String>) -> Self {
+        SanitizedValue::Safe(value.into())
+    }
+
+    /// Create a redacted value
+    pub fn redacted(reason: impl Into<String>) -> Self {
+        SanitizedValue::Redacted(reason.into())
+    }
+
+    /// Create a nested value
+    pub fn nested(values: HashMap<String, SanitizedValue>) -> Self {
+        SanitizedValue::Nested(values)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_log_level_display() {
+        assert_eq!(LogLevel::Trace.to_string(), "TRACE");
+        assert_eq!(LogLevel::Debug.to_string(), "DEBUG");
+        assert_eq!(LogLevel::Info.to_string(), "INFO");
+        assert_eq!(LogLevel::Warn.to_string(), "WARN");
+        assert_eq!(LogLevel::Error.to_string(), "ERROR");
+    }
+
+    #[test]
+    fn test_log_event_creation() {
+        let event = LogEvent::new(1, LogLevel::Info, "test.target", "Test message");
+        assert_eq!(event.seq, 1);
+        assert_eq!(event.level, LogLevel::Info);
+        assert_eq!(event.target, "test.target");
+        assert_eq!(event.message, "Test message");
+    }
+
+    #[test]
+    fn test_log_event_builder() {
+        let event = LogEvent::new(1, LogLevel::Info, "tool.read", "File read")
+            .with_session_id("sess_123")
+            .with_tool_name("read")
+            .with_latency_ms(42);
+
+        assert_eq!(event.fields.session_id, Some("sess_123".to_string()));
+        assert_eq!(event.fields.tool_name, Some("read".to_string()));
+        assert_eq!(event.fields.latency_ms, Some(42));
+    }
+
+    #[test]
+    fn test_error_context_builder() {
+        let error = ErrorContext::new("ERR_NOT_FOUND", "File not found")
+            .with_stack_frame("main.rs", 42, "main")
+            .with_cause("ERR_IO", "Failed to open file")
+            .with_context("file_path", "/tmp/test.txt");
+
+        assert_eq!(error.code, "ERR_NOT_FOUND");
+        assert_eq!(error.message, "File not found");
+        assert_eq!(error.stack.len(), 1);
+        assert_eq!(error.stack[0].line, 42);
+        assert_eq!(error.cause_chain.len(), 1);
+        assert_eq!(error.context.get("file_path"), Some(&"/tmp/test.txt".to_string()));
+    }
+
+    #[test]
+    fn test_sanitized_value() {
+        let safe = SanitizedValue::safe("normal_value");
+        let redacted = SanitizedValue::redacted("API key");
+        let nested = SanitizedValue::nested(HashMap::from([
+            ("password".to_string(), SanitizedValue::redacted("hidden")),
+        ]));
+
+        assert!(matches!(safe, SanitizedValue::Safe(_)));
+        assert!(matches!(redacted, SanitizedValue::Redacted(_)));
+        assert!(matches!(nested, SanitizedValue::Nested(_)));
+    }
+}
