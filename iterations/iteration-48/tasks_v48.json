@@ -489,7 +489,7 @@
       "priority": "P1",
       "title": "Sanitizer Tests",
       "description": "Test all sanitizer patterns in crates/logging/tests/sanitizer_tests.rs: api_key, password, token, *_key, *_token, *_secret, authorization, nested structures.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify api_key exact match redacted",
         "AddUnitTest: verify password exact match redacted",
