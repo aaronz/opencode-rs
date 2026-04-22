@@ -832,7 +832,7 @@
       "priority": "P2",
       "title": "Implement status_includes_gofmt_when_all_enabled integration test",
       "description": "Add integration test: status() returns built-in formatters when formatter is true",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify status() includes gofmt when formatter: true"
       ],

@@ -20,6 +20,25 @@ async fn status_empty_when_disabled() {
 }
 
 #[tokio::test]
+async fn status_includes_gofmt_when_all_enabled() {
+    let service = FormatService::new();
+
+    let config = FormatterConfig::Disabled(false);
+    let _ = service.init(Path::new("/tmp/test-project"), config).await;
+
+    let statuses = service.status(Path::new("/tmp/test-project")).await;
+
+    let gofmt_status = statuses.iter().find(|s| s.name == "gofmt");
+    assert!(
+        gofmt_status.is_some(),
+        "status() should include gofmt when formatter: true"
+    );
+
+    let gofmt = gofmt_status.unwrap();
+    assert_eq!(gofmt.extensions, vec![".go"]);
+}
+
+#[tokio::test]
 async fn status_returns_formatters_when_enabled() {
     use opencode_format::FormatService;
 

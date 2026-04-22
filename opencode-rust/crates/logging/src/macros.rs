@@ -7,7 +7,7 @@ macro_rules! log_fields {
         {
             let mut fields = $crate::event::LogFields::default();
             $(
-                fields.$field = Some($value.into());
+                fields.$field = Some($value as _);
             )*
             fields
         }
@@ -20,14 +20,27 @@ macro_rules! log_tool {
         $logger.info(
             &format!("tool.{}", $tool),
             &format!("Tool {} completed", $status),
-            log_fields!(session_id = $tool.into(), tool_name = $tool.into())
+            {
+                let mut fields = $crate::event::LogFields::default();
+                fields.session_id = Some($tool.into());
+                fields.tool_name = Some($tool.into());
+                fields
+            }
         )
     };
-    ($logger:expr, $tool:expr, $status:expr, $($field:tt)*) => {
+    ($logger:expr, $tool:expr, $status:expr, $($field:ident = $value:expr),* $(,)?) => {
         $logger.info(
             &format!("tool.{}", $tool),
             &format!("Tool {} completed", $status),
-            log_fields!(session_id = $tool.into(), tool_name = $tool.into(), $($field)*)
+            {
+                let mut fields = $crate::event::LogFields::default();
+                fields.session_id = Some($tool.into());
+                fields.tool_name = Some($tool.into());
+                $(
+                    fields.$field = Some($value as _);
+                )*
+                fields
+            }
         )
     };
 }

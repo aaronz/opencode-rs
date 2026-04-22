@@ -74,13 +74,13 @@ pub struct LogFields {
     /// Tool name if applicable
     pub tool_name: Option<String>,
     /// Operation latency in milliseconds
-    pub latency_ms: Option<u64>,
+    pub latency_ms: Option<i64>,
     /// LLM model name
     pub model: Option<String>,
     /// LLM provider name
     pub provider: Option<String>,
     /// Token count for LLM operations
-    pub token_count: Option<u64>,
+    pub token_count: Option<i64>,
     /// Error code for errors
     pub error_code: Option<String>,
     /// File path for file operations
@@ -108,7 +108,7 @@ impl LogFields {
     }
 
     /// Add latency_ms to the fields
-    pub fn with_latency_ms(mut self, latency_ms: u64) -> Self {
+    pub fn with_latency_ms(mut self, latency_ms: i64) -> Self {
         self.latency_ms = Some(latency_ms);
         self
     }
@@ -186,7 +186,7 @@ impl LogEvent {
     }
 
     /// Set the latency_ms for this event
-    pub fn with_latency_ms(mut self, latency_ms: u64) -> Self {
+    pub fn with_latency_ms(mut self, latency_ms: i64) -> Self {
         self.fields.latency_ms = Some(latency_ms);
         self
     }
