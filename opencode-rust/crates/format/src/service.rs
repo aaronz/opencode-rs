@@ -267,8 +267,8 @@ impl FormatService {
                             continue;
                         }
 
-                        let linked_disabled =
-                            (name == "uvformat" && ruff_disabled) || (name == "ruff" && uv_disabled);
+                        let linked_disabled = (name == "uvformat" && ruff_disabled)
+                            || (name == "ruff" && uv_disabled);
 
                         let available = formatter.enabled(&ctx).await.is_some();
                         let enabled = !linked_disabled && available;

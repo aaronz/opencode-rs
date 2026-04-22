@@ -94,7 +94,8 @@ impl Logger {
             .with_thread_ids(false)
             .with_file(true)
             .with_line_number(true)
-            .with_span_events(FmtSpan::CLOSE);
+            .with_span_events(FmtSpan::CLOSE)
+            .with_writer(std::io::stderr);
 
         if let Some(file_path) = &self.file_path {
             if let Some(parent) = file_path.parent() {

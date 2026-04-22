@@ -867,7 +867,7 @@
       "priority": "P2",
       "title": "Implement disabling_ruff_removes_uv integration test",
       "description": "Add integration test: disabling_ruff_removes_uv",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify disabling ruff removes uv from available formatters"
       ],
@@ -884,7 +884,7 @@
       "priority": "P2",
       "title": "Implement disabling_uv_removes_ruff integration test",
       "description": "Add integration test: disabling_uv_removes_ruff",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify disabling uv removes ruff from available formatters"
       ],

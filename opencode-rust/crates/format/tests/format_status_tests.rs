@@ -125,3 +125,36 @@ async fn disabling_ruff_removes_uv() {
         "ruff should be excluded when explicitly disabled"
     );
 }
+
+#[tokio::test]
+async fn disabling_uv_removes_ruff() {
+    let service = FormatService::new();
+
+    let mut formatters = HashMap::new();
+    formatters.insert(
+        "uvformat".to_string(),
+        FormatterEntry {
+            disabled: Some(true),
+            command: None,
+            environment: None,
+            extensions: None,
+        },
+    );
+
+    let config = FormatterConfig::Formatters(formatters);
+    let _ = service.init(Path::new("/tmp/test-project"), config).await;
+
+    let statuses = service.status(Path::new("/tmp/test-project")).await;
+
+    let ruff_status = statuses.iter().find(|s| s.name == "ruff");
+    assert!(
+        ruff_status.map(|s| !s.enabled).unwrap_or(false),
+        "ruff should be disabled when uvformat is disabled"
+    );
+
+    let uv_status = statuses.iter().find(|s| s.name == "uvformat");
+    assert!(
+        uv_status.is_none(),
+        "uvformat should be excluded when explicitly disabled"
+    );
+}
