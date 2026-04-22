@@ -114,7 +114,7 @@ pub mod mix {
         }
     }
 
-        #[async_trait::async_trait]
+    #[async_trait::async_trait]
     impl Formatter for MixFormatter {
         fn name(&self) -> &str {
             "mix"
@@ -145,14 +145,14 @@ pub mod prettier {
         pub fn new() -> Self {
             Self {
                 extensions: vec![
-                    ".js", ".jsx", ".ts", ".tsx", ".html", ".css", ".scss", ".json", ".yaml", ".md",
-                    ".yml", ".vue", ".svelte", ".mdx",
+                    ".js", ".jsx", ".ts", ".tsx", ".html", ".css", ".scss", ".json", ".yaml",
+                    ".md", ".yml", ".vue", ".svelte", ".mdx",
                 ],
             }
         }
     }
 
-        #[async_trait::async_trait]
+    #[async_trait::async_trait]
     impl Formatter for PrettierFormatter {
         fn name(&self) -> &str {
             "prettier"
@@ -164,7 +164,11 @@ pub mod prettier {
 
         async fn enabled(&self, ctx: &FormatterContext) -> Option<Vec<String>> {
             if has_package_json_dep(&ctx.directory, "prettier") {
-                Some(vec!["prettier".to_string(), "--write".to_string(), "$FILE".to_string()])
+                Some(vec![
+                    "prettier".to_string(),
+                    "--write".to_string(),
+                    "$FILE".to_string(),
+                ])
             } else {
                 None
             }
@@ -187,7 +191,7 @@ pub mod oxfmt {
         }
     }
 
-        #[async_trait::async_trait]
+    #[async_trait::async_trait]
     impl Formatter for OxfmtFormatter {
         fn name(&self) -> &str {
             "oxfmt"
@@ -226,7 +230,7 @@ pub mod biome {
         }
     }
 
-        #[async_trait::async_trait]
+    #[async_trait::async_trait]
     impl Formatter for BiomeFormatter {
         fn name(&self) -> &str {
             "biome"
@@ -238,7 +242,12 @@ pub mod biome {
 
         async fn enabled(&self, ctx: &FormatterContext) -> Option<Vec<String>> {
             if has_binary("biome") && has_file_in_dir(&ctx.directory, "biome.json") {
-                Some(vec!["biome".to_string(), "format".to_string(), "--write".to_string(), "$FILE".to_string()])
+                Some(vec![
+                    "biome".to_string(),
+                    "format".to_string(),
+                    "--write".to_string(),
+                    "$FILE".to_string(),
+                ])
             } else {
                 None
             }
@@ -261,7 +270,7 @@ pub mod zig {
         }
     }
 
-        #[async_trait::async_trait]
+    #[async_trait::async_trait]
     impl Formatter for ZigFormatter {
         fn name(&self) -> &str {
             "zig"
@@ -273,7 +282,11 @@ pub mod zig {
 
         async fn enabled(&self, _ctx: &FormatterContext) -> Option<Vec<String>> {
             if has_binary("zig") {
-                Some(vec!["zig".to_string(), "fmt".to_string(), "$FILE".to_string()])
+                Some(vec![
+                    "zig".to_string(),
+                    "fmt".to_string(),
+                    "$FILE".to_string(),
+                ])
             } else {
                 None
             }
@@ -291,14 +304,12 @@ pub mod clang_format {
     impl ClangFormatFormatter {
         pub fn new() -> Self {
             Self {
-                extensions: vec![
-                    ".c", ".cc", ".cpp", ".cxx", ".h", ".hpp", ".m", ".mm",
-                ],
+                extensions: vec![".c", ".cc", ".cpp", ".cxx", ".h", ".hpp", ".m", ".mm"],
             }
         }
     }
 
-        #[async_trait::async_trait]
+    #[async_trait::async_trait]
     impl Formatter for ClangFormatFormatter {
         fn name(&self) -> &str {
             "clang-format"
@@ -313,7 +324,11 @@ pub mod clang_format {
                 && (has_file_in_dir(&ctx.directory, ".clang-format")
                     || has_file_in_dir(&ctx.directory, ".clang-format"))
             {
-                Some(vec!["clang-format".to_string(), "-i".to_string(), "$FILE".to_string()])
+                Some(vec![
+                    "clang-format".to_string(),
+                    "-i".to_string(),
+                    "$FILE".to_string(),
+                ])
             } else {
                 None
             }
@@ -348,7 +363,11 @@ pub mod ktlint {
 
         async fn enabled(&self, _ctx: &FormatterContext) -> Option<Vec<String>> {
             if has_binary("ktlint") {
-                Some(vec!["ktlint".to_string(), "--format".to_string(), "$FILE".to_string()])
+                Some(vec![
+                    "ktlint".to_string(),
+                    "--format".to_string(),
+                    "$FILE".to_string(),
+                ])
             } else {
                 None
             }
@@ -383,7 +402,11 @@ pub mod ruff {
 
         async fn enabled(&self, _ctx: &FormatterContext) -> Option<Vec<String>> {
             if has_binary("ruff") {
-                Some(vec!["ruff".to_string(), "format".to_string(), "$FILE".to_string()])
+                Some(vec![
+                    "ruff".to_string(),
+                    "format".to_string(),
+                    "$FILE".to_string(),
+                ])
             } else {
                 None
             }
@@ -418,7 +441,11 @@ pub mod uvformat {
 
         async fn enabled(&self, _ctx: &FormatterContext) -> Option<Vec<String>> {
             if has_binary("uv") && !has_binary("ruff") {
-                Some(vec!["uv".to_string(), "format".to_string(), "$FILE".to_string()])
+                Some(vec![
+                    "uv".to_string(),
+                    "format".to_string(),
+                    "$FILE".to_string(),
+                ])
             } else {
                 None
             }
@@ -453,7 +480,12 @@ pub mod air {
 
         async fn enabled(&self, _ctx: &FormatterContext) -> Option<Vec<String>> {
             if has_binary("air") {
-                Some(vec!["air".to_string(), "fmt".to_string(), "-w".to_string(), "$FILE".to_string()])
+                Some(vec![
+                    "air".to_string(),
+                    "fmt".to_string(),
+                    "-w".to_string(),
+                    "$FILE".to_string(),
+                ])
             } else {
                 None
             }
@@ -488,7 +520,11 @@ pub mod rubocop {
 
         async fn enabled(&self, _ctx: &FormatterContext) -> Option<Vec<String>> {
             if has_binary("rubocop") {
-                Some(vec!["rubocop".to_string(), "-A".to_string(), "$FILE".to_string()])
+                Some(vec![
+                    "rubocop".to_string(),
+                    "-A".to_string(),
+                    "$FILE".to_string(),
+                ])
             } else {
                 None
             }
@@ -523,7 +559,11 @@ pub mod standardrb {
 
         async fn enabled(&self, _ctx: &FormatterContext) -> Option<Vec<String>> {
             if has_binary("standardrb") {
-                Some(vec!["standardrb".to_string(), "--autocorrect".to_string(), "$FILE".to_string()])
+                Some(vec![
+                    "standardrb".to_string(),
+                    "--autocorrect".to_string(),
+                    "$FILE".to_string(),
+                ])
             } else {
                 None
             }
@@ -593,7 +633,11 @@ pub mod dart {
 
         async fn enabled(&self, _ctx: &FormatterContext) -> Option<Vec<String>> {
             if has_binary("dart") {
-                Some(vec!["dart".to_string(), "format".to_string(), "$FILE".to_string()])
+                Some(vec![
+                    "dart".to_string(),
+                    "format".to_string(),
+                    "$FILE".to_string(),
+                ])
             } else {
                 None
             }
@@ -628,7 +672,11 @@ pub mod ocamlformat {
 
         async fn enabled(&self, ctx: &FormatterContext) -> Option<Vec<String>> {
             if has_file_in_dir(&ctx.directory, ".ocamlformat") && has_binary("ocamlformat") {
-                Some(vec!["ocamlformat".to_string(), "-i".to_string(), "$FILE".to_string()])
+                Some(vec![
+                    "ocamlformat".to_string(),
+                    "-i".to_string(),
+                    "$FILE".to_string(),
+                ])
             } else {
                 None
             }
@@ -663,7 +711,11 @@ pub mod terraform {
 
         async fn enabled(&self, _ctx: &FormatterContext) -> Option<Vec<String>> {
             if has_binary("terraform") {
-                Some(vec!["terraform".to_string(), "fmt".to_string(), "$FILE".to_string()])
+                Some(vec![
+                    "terraform".to_string(),
+                    "fmt".to_string(),
+                    "$FILE".to_string(),
+                ])
             } else {
                 None
             }
@@ -768,7 +820,11 @@ pub mod shfmt {
 
         async fn enabled(&self, _ctx: &FormatterContext) -> Option<Vec<String>> {
             if has_binary("shfmt") {
-                Some(vec!["shfmt".to_string(), "-w".to_string(), "$FILE".to_string()])
+                Some(vec![
+                    "shfmt".to_string(),
+                    "-w".to_string(),
+                    "$FILE".to_string(),
+                ])
             } else {
                 None
             }
@@ -908,7 +964,11 @@ pub mod ormolu {
 
         async fn enabled(&self, _ctx: &FormatterContext) -> Option<Vec<String>> {
             if has_binary("ormolu") {
-                Some(vec!["ormolu".to_string(), "-m".to_string(), "$FILE".to_string()])
+                Some(vec![
+                    "ormolu".to_string(),
+                    "-m".to_string(),
+                    "$FILE".to_string(),
+                ])
             } else {
                 None
             }
@@ -943,7 +1003,11 @@ pub mod cljfmt {
 
         async fn enabled(&self, _ctx: &FormatterContext) -> Option<Vec<String>> {
             if has_binary("cljfmt") {
-                Some(vec!["cljfmt".to_string(), "fix".to_string(), "$FILE".to_string()])
+                Some(vec![
+                    "cljfmt".to_string(),
+                    "fix".to_string(),
+                    "$FILE".to_string(),
+                ])
             } else {
                 None
             }
@@ -978,7 +1042,11 @@ pub mod dfmt {
 
         async fn enabled(&self, _ctx: &FormatterContext) -> Option<Vec<String>> {
             if has_binary("dfmt") {
-                Some(vec!["dfmt".to_string(), "--align-switch-cases".to_string(), "$FILE".to_string()])
+                Some(vec![
+                    "dfmt".to_string(),
+                    "--align-switch-cases".to_string(),
+                    "$FILE".to_string(),
+                ])
             } else {
                 None
             }
@@ -1019,10 +1087,32 @@ pub fn all_formatters() -> Vec<Box<dyn Formatter>> {
 
 pub fn formatter_names() -> Vec<&'static str> {
     vec![
-        "gofmt", "mix", "prettier", "oxfmt", "biome", "zig", "clang-format", "ktlint", "ruff",
-        "uvformat", "air", "rubocop", "standardrb", "htmlbeautifier", "dart", "ocamlformat",
-        "terraform", "latexindent", "gleam", "shfmt", "nixfmt", "rustfmt", "pint", "ormolu",
-        "cljfmt", "dfmt",
+        "gofmt",
+        "mix",
+        "prettier",
+        "oxfmt",
+        "biome",
+        "zig",
+        "clang-format",
+        "ktlint",
+        "ruff",
+        "uvformat",
+        "air",
+        "rubocop",
+        "standardrb",
+        "htmlbeautifier",
+        "dart",
+        "ocamlformat",
+        "terraform",
+        "latexindent",
+        "gleam",
+        "shfmt",
+        "nixfmt",
+        "rustfmt",
+        "pint",
+        "ormolu",
+        "cljfmt",
+        "dfmt",
     ]
 }
 

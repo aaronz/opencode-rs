@@ -103,7 +103,11 @@ impl FormatService {
                 for (name, formatter) in &state.formatters {
                     statuses.push(FormatterStatus {
                         name: name.clone(),
-                        extensions: formatter.extensions().iter().map(|s| s.to_string()).collect(),
+                        extensions: formatter
+                            .extensions()
+                            .iter()
+                            .map(|s| s.to_string())
+                            .collect(),
                         enabled: false,
                     });
                 }
@@ -112,13 +116,15 @@ impl FormatService {
             FormatterConfig::Formatters(config_formatters) => {
                 for (name, formatter) in &state.formatters {
                     let entry = config_formatters.get(name);
-                    let enabled = entry
-                        .map(|e| !e.disabled.unwrap_or(false))
-                        .unwrap_or(false);
+                    let enabled = entry.map(|e| !e.disabled.unwrap_or(false)).unwrap_or(false);
 
                     statuses.push(FormatterStatus {
                         name: name.clone(),
-                        extensions: formatter.extensions().iter().map(|s| s.to_string()).collect(),
+                        extensions: formatter
+                            .extensions()
+                            .iter()
+                            .map(|s| s.to_string())
+                            .collect(),
                         enabled,
                     });
                 }
@@ -209,9 +215,9 @@ impl FormatService {
             FormatterConfig::Disabled(value) => {
                 opencode_core::formatter::FormatterEngine::new(FormatterConfig::Disabled(*value))
             }
-            FormatterConfig::Formatters(map) => {
-                opencode_core::formatter::FormatterEngine::new(FormatterConfig::Formatters(map.clone()))
-            }
+            FormatterConfig::Formatters(map) => opencode_core::formatter::FormatterEngine::new(
+                FormatterConfig::Formatters(map.clone()),
+            ),
         }
     }
 }

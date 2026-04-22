@@ -5,10 +5,15 @@
 pub use opencode_config::{FormatterConfig, FormatterEntry};
 pub use opencode_core::formatter::{FormatterEngine, FormatterError};
 
-pub mod service;
-pub mod formatters;
+pub use config::FormatConfig;
 
-pub use formatters::{all_formatters, formatter_names, Formatter, FormatterContext, FormatterStatus};
+pub mod config;
+pub mod formatters;
+pub mod service;
+
+pub use formatters::{
+    all_formatters, formatter_names, Formatter, FormatterContext, FormatterStatus,
+};
 pub use service::{FormatService, FormatServiceState};
 
 #[cfg(test)]
