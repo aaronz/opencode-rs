@@ -97,7 +97,7 @@ opencode-format = { path = "crates/format" }
 # Server dependencies
 actix-web = "4"
 actix-cors = "0.7"
-actix-web-lab = "0.20"
+actix-web-lab = "0.26"
 
 # Utility dependencies
 regex = "1"
