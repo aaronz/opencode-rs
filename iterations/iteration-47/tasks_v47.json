@@ -262,7 +262,7 @@
       "priority": "P0",
       "title": "Implement biome formatter (.js,.ts,.html,.css,...)",
       "description": "Implement biome formatter. Detection: biome.json config + @biomejs/biome. Extensions: .js, .ts, .html, .css, and more",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify biome name returns 'biome'",
         "AddUnitTest: verify biome extensions includes common web extensions",
@@ -281,7 +281,7 @@
       "priority": "P0",
       "title": "Implement zig formatter (.zig,.zon)",
       "description": "Implement zig formatter. Detection: `which zig`. Extensions: .zig, .zon",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify zig name returns 'zig'",
         "AddUnitTest: verify zig extensions includes .zig and .zon",
