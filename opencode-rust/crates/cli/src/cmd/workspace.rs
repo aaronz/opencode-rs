@@ -193,9 +193,11 @@ mod workspace_tests {
 
     #[test]
     fn test_load_workspace_sessions_empty() {
-        std::env::remove_var("OPENCODE_DATA_DIR");
+        let tmp = tempfile::tempdir().unwrap();
+        std::env::set_var("OPENCODE_DATA_DIR", tmp.path().to_str().unwrap());
         let sessions = load_workspace_sessions();
         assert!(sessions.is_empty());
+        std::env::remove_var("OPENCODE_DATA_DIR");
     }
 }
 

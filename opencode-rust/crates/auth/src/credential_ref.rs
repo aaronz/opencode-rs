@@ -485,7 +485,12 @@ mod tests {
 
     #[test]
     fn test_credential_ref_resolve_ref_not_found() {
-        let resolver = DefaultCredentialResolver::new();
+        let tmp = tempfile::tempdir().unwrap();
+        let store = CredentialStore::with_paths(
+            tmp.path().join("credentials.enc.json"),
+            tmp.path().join("credentials.key"),
+        );
+        let resolver = DefaultCredentialResolver::with_store(store);
         let ref_not_found = CredentialRef::Ref("nonexistent-id".to_string());
         let result = resolver.resolve(&ref_not_found);
         assert!(result.is_err());
@@ -499,7 +504,12 @@ mod tests {
 
     #[test]
     fn test_credential_ref_store_error() {
-        let resolver = DefaultCredentialResolver::new();
+        let tmp = tempfile::tempdir().unwrap();
+        let store = CredentialStore::with_paths(
+            tmp.path().join("credentials.enc.json"),
+            tmp.path().join("credentials.key"),
+        );
+        let resolver = DefaultCredentialResolver::with_store(store);
         let ref_store = CredentialRef::Ref("test-id".to_string());
         let result = resolver.resolve(&ref_store);
         match result {
