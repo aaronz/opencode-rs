@@ -2016,6 +2016,50 @@ mod tests {
     }
 
     #[test]
+    fn verify_terraform_name_returns_terraform() {
+        let formatter = terraform::TerraformFormatter::new();
+        assert_eq!(formatter.name(), "terraform");
+    }
+
+    #[test]
+    fn verify_terraform_extensions_includes_tf_and_tfvars() {
+        let formatter = terraform::TerraformFormatter::new();
+        assert!(
+            formatter.extensions().contains(&".tf"),
+            "terraform should support .tf"
+        );
+        assert!(
+            formatter.extensions().contains(&".tfvars"),
+            "terraform should support .tfvars"
+        );
+        assert_eq!(formatter.extensions().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn verify_terraform_enabled_checks_which_terraform() {
+        use which::which;
+        let formatter = terraform::TerraformFormatter::new();
+        let ctx = FormatterContext {
+            directory: PathBuf::from("/tmp"),
+            worktree: PathBuf::from("/tmp"),
+        };
+        let result = formatter.enabled(&ctx).await;
+        let terraform_available = which("terraform").is_ok();
+        if terraform_available {
+            assert!(result.is_some(), "terraform should be available when installed");
+            let cmd = result.unwrap();
+            assert_eq!(cmd[0], "terraform");
+            assert_eq!(cmd[1], "fmt");
+            assert_eq!(cmd[2], "$FILE");
+        } else {
+            assert!(
+                result.is_none(),
+                "terraform should not be available when not installed"
+            );
+        }
+    }
+
+    #[test]
     fn verify_htmlbeautifier_name_returns_htmlbeautifier() {
         let formatter = htmlbeautifier::HtmlBeautifierFormatter::new();
         assert_eq!(formatter.name(), "htmlbeautifier");
