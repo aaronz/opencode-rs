@@ -271,16 +271,16 @@
 ### Task 1.4: Implement log_llm! Macro
 **FR:** FR-013
 **File:** `crates/logging/src/macros.rs`
-**Status:** Not started
+**Status:** ✅ Done
 **Priority:** P1
 
 **Subtasks:**
-- [ ] Implement `log_llm!` macro with signature:
+- [x] Implement `log_llm!` macro with signature:
   ```rust
   log_llm!($logger:expr, $provider:expr, $model:expr, $tokens:expr, $latency:expr, $status:expr)
   ```
-- [ ] Macro expands to call to $logger.info with target `llm.$provider`
-- [ ] Sets provider, model, token_count, latency_ms fields
+- [x] Macro expands to call to $logger.info with target `llm.$provider`
+- [x] Sets provider, model, token_count, latency_ms fields
 
 **Verification:**
 - `cargo test -p opencode-logging log_llm_macro` passes

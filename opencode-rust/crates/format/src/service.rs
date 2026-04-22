@@ -270,14 +270,8 @@ impl FormatService {
                         let linked_disabled =
                             (name == "uvformat" && ruff_disabled) || (name == "ruff" && uv_disabled);
 
-                        if linked_disabled {
-                            continue;
-                        }
-
                         let available = formatter.enabled(&ctx).await.is_some();
-                        if !available {
-                            continue;
-                        }
+                        let enabled = !linked_disabled && available;
 
                         statuses.push(FormatterStatus {
                             name: name.to_string(),
@@ -286,7 +280,7 @@ impl FormatService {
                                 .iter()
                                 .map(|s| s.to_string())
                                 .collect(),
-                            enabled: true,
+                            enabled,
                         });
                     }
                 }
@@ -541,8 +535,8 @@ mod tests {
 
         let ruff_status = statuses.iter().find(|s| s.name == "ruff");
         assert!(
-            ruff_status.map(|s| !s.enabled).unwrap_or(false),
-            "ruff should be disabled"
+            ruff_status.is_none(),
+            "ruff should be excluded when explicitly disabled"
         );
     }
 
@@ -572,8 +566,8 @@ mod tests {
 
         let uv_status = statuses.iter().find(|s| s.name == "uvformat");
         assert!(
-            uv_status.map(|s| !s.enabled).unwrap_or(false),
-            "uvformat should be disabled"
+            uv_status.is_none(),
+            "uvformat should be excluded when explicitly disabled"
         );
     }
 

@@ -262,7 +262,7 @@
       "priority": "P1",
       "title": "Implement log_llm! Macro",
       "description": "Implement log_llm! macro that expands to logger.info with target 'llm.$provider', setting provider, model, token_count, latency_ms fields.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify macro expands to correct logger.info call",
         "AddUnitTest: verify target format is llm.{provider}",
