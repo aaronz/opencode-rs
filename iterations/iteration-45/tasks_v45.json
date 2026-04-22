@@ -1,0 +1,379 @@
+{
+  "tasks": [
+    {
+      "id": "FR-001",
+      "priority": "P0",
+      "title": "Define ProjectType Enum",
+      "description": "Define enum with 11 variants: Node, Rust, Python, Go, Java, Cpp, Ruby, Php, Dotnet, Swift, Unknown. Add derives: Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize. Add serde rename_all = \"lowercase\"",
+      "status": "in_progress",
+      "test_criteria": [
+        "AddUnitTest: verify ProjectType enum has exactly 11 variants",
+        "AddUnitTest: verify ProjectType::Rust serialization to lowercase string",
+        "AddUnitTest: verify ProjectType::Unknown deserialization from \"unknown\"",
+        "AddRegressionTest: ensure all derives (Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize) work correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib -- test_project_type_enum_variants",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Use thiserror-free enum. Ensure serde rename_all = \"lowercase\" is applied correctly.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-002",
+      "priority": "P0",
+      "title": "Define PackageManager Enum",
+      "description": "Define enum with 11 variants: Npm, Yarn, Pnpm, Bun, Cargo, Pip, Poetry, Go, Maven, Gradle, Unknown. Add derives: Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize. Add serde rename_all = \"lowercase\"",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify PackageManager enum has exactly 11 variants",
+        "AddUnitTest: verify PackageManager::Pnpm serialization to \"pnpm\"",
+        "AddUnitTest: verify PackageManager::Cargo deserialization from \"cargo\""
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib -- test_package_manager_enum_variants",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Ensure serde rename_all = \"lowercase\" is applied correctly.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-003",
+      "priority": "P0",
+      "title": "Define ProjectError Enum",
+      "description": "Define enum with 4 variants: NotFound, ReadError, ParseError, Ambiguous. Add thiserror #[derive(Error)]. Implement proper error messages with #[error()] attributes.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify ProjectError::NotFound displays as 'not found'",
+        "AddUnitTest: verify ProjectError::ReadError with context displays correctly",
+        "AddUnitTest: verify ProjectError::ParseError displays with parsing context",
+        "AddErrorHandlingTest: verify ProjectError implements std::error::Error trait"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib -- test_project_error_display",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Use thiserror for Error derive. Add context fields where appropriate.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-004",
+      "priority": "P0",
+      "title": "Define ProjectConfig Struct",
+      "description": "Define struct with 4 fields: package_json (Option<serde_json::Value>), cargo_toml (Option<String>), start_command (Option<String>), install_command (Option<String>). Add derives: Debug, Clone, Default, Serialize, Deserialize.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify ProjectConfig::default() returns all None fields",
+        "AddUnitTest: verify ProjectConfig serialization/deserialization roundtrip",
+        "AddUnitTest: verify ProjectConfig Clone and Debug derives work"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib -- test_project_config",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "package_json uses serde_json::Value for flexible JSON handling.",
+      "dependencies": [
+        "FR-001"
+      ]
+    },
+    {
+      "id": "FR-005",
+      "priority": "P0",
+      "title": "Define ProjectInfo Struct",
+      "description": "Replace name: String with name: Option<String>. Replace language: String with project_type: ProjectType. Add package_manager: PackageManager, languages: Vec<String>, is_monorepo: bool, is_worktree: bool, config: ProjectConfig. Remove has_git, has_tests, has_docs. Keep root: PathBuf and vcs_root: Option<PathBuf>.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify ProjectInfo::default() produces valid struct",
+        "AddUnitTest: verify ProjectInfo serialization includes all new fields",
+        "AddRegressionTest: ensure existing code using ProjectInfo.name still compiles (now Option<String>)",
+        "AddUnitTest: verify is_monorepo and is_worktree default to false"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib -- test_project_info",
+        "cargo build -p opencode-core",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "This is a breaking change replacing existing ProjectInfo. Update all call sites.",
+      "dependencies": [
+        "FR-001",
+        "FR-002",
+        "FR-004"
+      ]
+    },
+    {
+      "id": "FR-006",
+      "priority": "P0",
+      "title": "Define ProjectService Struct",
+      "description": "Create struct with cache: Arc<Mutex<Option<ProjectInfo>>> and config: Arc<ConfigService>. Implement new(config: Arc<ConfigService>) -> Self. Implement async detect(cwd: Option<&Path>) -> Result<ProjectInfo, ProjectError>. Implement async get() -> Result<ProjectInfo, ProjectError>. Implement invalidate() -> (). Implement async is_worktree(path: &Path) -> bool. Implement async root() -> Result<PathBuf, ProjectError>.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify ProjectService::new() creates instance with empty cache",
+        "AddUnitTest: verify ProjectService::get() returns cached value on second call",
+        "AddUnitTest: verify ProjectService::invalidate() clears the cache",
+        "AddUnitTest: verify ProjectService::is_worktree() returns correct boolean",
+        "AddUnitTest: verify ProjectService::root() returns PathBuf",
+        "AddRegressionTest: ensure ProjectService is Send + Sync safe"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib -- test_project_service",
+        "cargo test -p opencode-core --lib -- test_project_service_cache",
+        "cargo test -p opencode-core --lib -- test_project_service_invalidate",
+        "cargo test -p opencode-core --lib -- test_project_service_root",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Use Arc<Mutex<Option<ProjectInfo>>> for thread-safe caching. All async methods must be Send + Sync safe.",
+      "dependencies": [
+        "FR-003",
+        "FR-005"
+      ]
+    },
+    {
+      "id": "FR-007",
+      "priority": "P0",
+      "title": "Async Detection with Walk-Up Root Finding",
+      "description": "Implement walk-up algorithm starting from cwd. Check for .git directory (git root). Check for .git file (git worktree reference). Check for .opencode directory (opencode sandbox). Return root path or cwd as fallback with ProjectType::Unknown.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify walk-up finds .git directory root",
+        "AddUnitTest: verify walk-up finds .git file worktree reference",
+        "AddUnitTest: verify walk-up finds .opencode directory",
+        "AddUnitTest: verify walk-up returns cwd as fallback when no markers found",
+        "AddRegressionTest: verify walk-up terminates and does not infinite loop"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib -- test_find_root_walks_up",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Walk up directory tree until root is found or filesystem boundary reached.",
+      "dependencies": [
+        "FR-006"
+      ]
+    },
+    {
+      "id": "FR-008",
+      "priority": "P0",
+      "title": "Type Detection with Priority",
+      "description": "Check Cargo.toml \u2192 Rust. Check go.mod \u2192 Go. Check pyproject.toml OR requirements.txt OR setup.py \u2192 Python. Check package.json \u2192 Node. Check pom.xml OR build.gradle \u2192 Java. Check CMakeLists.txt OR Makefile OR compile_commands.json \u2192 Cpp. Check Gemfile \u2192 Ruby. Check composer.json \u2192 Php. Check *.csproj OR *.sln \u2192 Dotnet. Check Package.swift \u2192 Swift. No match \u2192 Unknown.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify Cargo.toml detection returns Rust",
+        "AddUnitTest: verify package.json detection returns Node",
+        "AddUnitTest: verify type_priority: Rust before Node when both markers exist",
+        "AddUnitTest: verify unknown type when no markers found",
+        "AddRegressionTest: verify detection follows exact priority order"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib -- test_detect_rust_project",
+        "cargo test -p opencode-core --lib -- test_detect_node_project",
+        "cargo test -p opencode-core --lib -- test_detect_type_priority",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Priority order is critical: Rust > Go > Python > Node > Java > Cpp > Ruby > Php > Dotnet > Swift > Unknown",
+      "dependencies": [
+        "FR-001",
+        "FR-007"
+      ]
+    },
+    {
+      "id": "FR-009",
+      "priority": "P1",
+      "title": "Package Manager Detection for Node Projects",
+      "description": "Check for pnpm-lock.yaml \u2192 Pnpm. Check for yarn.lock (without package-lock.json) \u2192 Yarn. Check for bun.lockb \u2192 Bun. Check for package-lock.json \u2192 Npm. Default fallback \u2192 Npm.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify pnpm-lock.yaml detection returns Pnpm",
+        "AddUnitTest: verify yarn.lock (no package-lock.json) returns Yarn",
+        "AddUnitTest: verify bun.lockb detection returns Bun",
+        "AddUnitTest: verify package-lock.json detection returns Npm",
+        "AddUnitTest: verify Yarn not selected when both yarn.lock and package-lock.json exist"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib -- test_detect_node_project_with_pnpm",
+        "cargo test -p opencode-core --lib -- test_detect_node_project_with_yarn",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Check yarn.lock only when package-lock.json does NOT exist.",
+      "dependencies": [
+        "FR-002",
+        "FR-008"
+      ]
+    },
+    {
+      "id": "FR-010",
+      "priority": "P1",
+      "title": "Sandbox Worktree Detection",
+      "description": "Get DATA directory from environment/config. Check if path starts with $DATA/worktree/. Return true if inside sandbox.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify is_worktree returns true for path inside $DATA/worktree/",
+        "AddUnitTest: verify is_worktree returns false for path outside $DATA/worktree/",
+        "AddErrorHandlingTest: verify is_worktree handles missing DATA env var gracefully"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib -- test_is_worktree_detects_sandbox",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "DATA directory path obtained from config service or environment variable.",
+      "dependencies": [
+        "FR-006"
+      ]
+    },
+    {
+      "id": "FR-011",
+      "priority": "P1",
+      "title": "Monorepo Detection",
+      "description": "Check package.json for \"workspaces\" field (Node monorepo). Parse Cargo.toml for [workspace] section with members (Rust monorepo). Check for multiple go.mod files in subdirectories (Go monorepo).",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify Node monorepo detection via package.json workspaces",
+        "AddUnitTest: verify Rust monorepo detection via [workspace] members",
+        "AddUnitTest: verify Go monorepo detection via multiple go.mod files",
+        "AddUnitTest: verify non-monorepo returns false for all detection methods"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib -- test_detect_monorepo_workspace",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Monorepo detection should set ProjectInfo.is_monorepo field.",
+      "dependencies": [
+        "FR-008",
+        "FR-014"
+      ]
+    },
+    {
+      "id": "FR-012",
+      "priority": "P1",
+      "title": "Language Detection via Walkdir",
+      "description": "Use walkdir::WalkDir to scan project files. Count source files by extension. Return sorted list of detected languages. Limit depth to avoid node_modules, target, etc.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify walkdir detects .rs files as Rust",
+        "AddUnitTest: verify walkdir detects .js and .ts files as JavaScript/TypeScript",
+        "AddUnitTest: verify walkdir ignores node_modules and target directories",
+        "AddUnitTest: verify returned languages list is sorted alphabetically",
+        "AddRegressionTest: verify performance with large directory structures"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib -- test_language_detection_walkdir",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Set walkdir depth limit (e.g., 10) and ignore common non-source directories.",
+      "dependencies": [
+        "FR-007"
+      ]
+    },
+    {
+      "id": "FR-013",
+      "priority": "P1",
+      "title": "Project Name Extraction",
+      "description": "Extract name from package.json for Node projects. Extract name from Cargo.toml for Rust projects. Return None if not found.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify name extraction from package.json \"name\" field",
+        "AddUnitTest: verify name extraction from Cargo.toml [package] section",
+        "AddUnitTest: verify None returned when no name field exists",
+        "AddRegressionTest: verify name extraction handles malformed files gracefully"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib -- test_project_name_extraction",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Return Option<String> to handle missing names gracefully.",
+      "dependencies": [
+        "FR-008",
+        "FR-014"
+      ]
+    },
+    {
+      "id": "FR-014",
+      "priority": "P1",
+      "title": "TOML Parsing for Cargo.toml",
+      "description": "Use toml crate to parse Cargo.toml. Extract [package] section name. Extract [workspace] section members. Store raw TOML string in ProjectConfig.cargo_toml.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify toml parsing extracts [package] name",
+        "AddUnitTest: verify toml parsing extracts [workspace] members",
+        "AddUnitTest: verify raw TOML string stored in ProjectConfig.cargo_toml",
+        "AddErrorHandlingTest: verify error handling for malformed TOML",
+        "AddErrorHandlingTest: verify error handling for missing Cargo.toml"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib -- test_toml_parsing",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Use toml crate. Store both parsed data and raw string.",
+      "dependencies": [
+        "FR-004"
+      ]
+    },
+    {
+      "id": "FR-015",
+      "priority": "P1",
+      "title": "Cache Invalidation",
+      "description": "Implement invalidate() method. Clear Arc<Mutex<Option<ProjectInfo>>> cache. Ensure thread-safe implementation.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify invalidate() clears cached ProjectInfo",
+        "AddUnitTest: verify get() re-detects project after invalidate()",
+        "AddRegressionTest: verify concurrent invalidate() and get() calls are safe"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib -- test_project_service_invalidate",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "Lock mutex, set Option<ProjectInfo> to None.",
+      "dependencies": [
+        "FR-006"
+      ]
+    },
+    {
+      "id": "FR-016",
+      "priority": "P2",
+      "title": "Root Shorthand Method",
+      "description": "Implement root() async method. Return cached ProjectInfo.root if available. Call get() internally if cache empty. Return ProjectError::NotFound if no project.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify root() returns cached ProjectInfo.root",
+        "AddUnitTest: verify root() calls get() when cache empty",
+        "AddErrorHandlingTest: verify root() returns NotFound error when no project detected",
+        "AddRegressionTest: verify root() does not trigger infinite recursion"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core --lib -- test_project_service_root",
+        "cargo clippy -p opencode-core -- -D warnings"
+      ],
+      "impl_notes": "root() is a convenience method that unwraps get().project_info.root",
+      "dependencies": [
+        "FR-006",
+        "FR-015"
+      ]
+    },
+    {
+      "id": "P2-001",
+      "priority": "P2",
+      "title": "Crate Separation to crates/project/",
+      "description": "Consider crate separation to crates/project/. Move all project-related modules to a new crate for better code organization.",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify all project module imports work after crate separation",
+        "AddRegressionTest: verify no circular dependencies introduced",
+        "RunTestSuite: run full test suite after crate separation"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-project",
+        "cargo test -p opencode-project",
+        "cargo test --all",
+        "cargo clippy --all -- -D warnings"
+      ],
+      "impl_notes": "Optional refactoring task. Only proceed if time permits and no P0/P1 tasks are blocked.",
+      "dependencies": [
+        "FR-001",
+        "FR-002",
+        "FR-003",
+        "FR-004",
+        "FR-005",
+        "FR-006"
+      ]
+    }
+  ]
+}

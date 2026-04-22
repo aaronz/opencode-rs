@@ -2,6 +2,22 @@ use serde::{Deserialize, Serialize};
 use std::io;
 use std::path::{Path, PathBuf};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ProjectType {
+    Node,
+    Rust,
+    Python,
+    Go,
+    Java,
+    Cpp,
+    Ruby,
+    Php,
+    Dotnet,
+    Swift,
+    Unknown,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectInfo {
     pub root: PathBuf,
@@ -861,5 +877,52 @@ mod tests {
         );
 
         assert_eq!(validate_workspace(&non_existent).unwrap_err().code(), 7011);
+    }
+
+    #[test]
+    fn test_project_type_enum_variants() {
+        assert_eq!(ProjectType::Node, ProjectType::Node);
+        assert_eq!(ProjectType::Rust, ProjectType::Rust);
+        assert_eq!(ProjectType::Python, ProjectType::Python);
+        assert_eq!(ProjectType::Go, ProjectType::Go);
+        assert_eq!(ProjectType::Java, ProjectType::Java);
+        assert_eq!(ProjectType::Cpp, ProjectType::Cpp);
+        assert_eq!(ProjectType::Ruby, ProjectType::Ruby);
+        assert_eq!(ProjectType::Php, ProjectType::Php);
+        assert_eq!(ProjectType::Dotnet, ProjectType::Dotnet);
+        assert_eq!(ProjectType::Swift, ProjectType::Swift);
+        assert_eq!(ProjectType::Unknown, ProjectType::Unknown);
+    }
+
+    #[test]
+    fn test_project_type_serialize_to_lowercase() {
+        let rust = ProjectType::Rust;
+        let json = serde_json::to_string(&rust).unwrap();
+        assert_eq!(json, "\"rust\"");
+    }
+
+    #[test]
+    fn test_project_type_deserialize_from_unknown() {
+        let unknown: ProjectType = serde_json::from_str("\"unknown\"").unwrap();
+        assert_eq!(unknown, ProjectType::Unknown);
+    }
+
+    #[test]
+    fn test_project_type_derives() {
+        fn assert_debug<T: std::fmt::Debug>() {}
+        fn assert_clone<T: Clone>() {}
+        fn assert_copy<T: Copy>() {}
+        fn assert_partial_eq<T: PartialEq>() {}
+        fn assert_eq<T: Eq>() {}
+        fn assert_serialize<T: serde::Serialize>() {}
+        fn assert_deserialize<T: for<'de> serde::Deserialize<'de>>() {}
+
+        assert_debug::<ProjectType>();
+        assert_clone::<ProjectType>();
+        assert_copy::<ProjectType>();
+        assert_partial_eq::<ProjectType>();
+        assert_eq::<ProjectType>();
+        assert_serialize::<ProjectType>();
+        assert_deserialize::<ProjectType>();
     }
 }
