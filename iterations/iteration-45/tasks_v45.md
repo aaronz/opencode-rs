@@ -49,25 +49,25 @@
 - [ ] Implement async is_worktree(path: &Path) -> bool
 - [ ] Implement async root() -> Result<PathBuf, ProjectError>
 
-### FR-007: Async Detection with Walk-Up Root Finding
+### FR-007: ✅ Done
 - [ ] Implement walk-up algorithm starting from cwd
 - [ ] Check for .git directory (git root)
 - [ ] Check for .git file (git worktree reference)
 - [ ] Check for .opencode directory (opencode sandbox)
 - [ ] Return root path or cwd as fallback with ProjectType::Unknown
 
-### FR-008: Type Detection with Priority
-- [ ] Check Cargo.toml → Rust
-- [ ] Check go.mod → Go
-- [ ] Check pyproject.toml OR requirements.txt OR setup.py → Python
-- [ ] Check package.json → Node
-- [ ] Check pom.xml OR build.gradle → Java
-- [ ] Check CMakeLists.txt OR Makefile OR compile_commands.json → Cpp
-- [ ] Check Gemfile → Ruby
-- [ ] Check composer.json → Php
-- [ ] Check *.csproj OR *.sln → Dotnet
-- [ ] Check Package.swift → Swift
-- [ ] No match → Unknown
+### FR-008: Type Detection with Priority ✅ Done
+- [x] Check Cargo.toml → Rust
+- [x] Check go.mod → Go
+- [x] Check pyproject.toml OR requirements.txt OR setup.py → Python
+- [x] Check package.json → Node
+- [x] Check pom.xml OR build.gradle → Java
+- [x] Check CMakeLists.txt OR Makefile OR compile_commands.json → Cpp
+- [x] Check Gemfile → Ruby
+- [x] Check composer.json → Php
+- [x] Check *.csproj OR *.sln → Dotnet
+- [x] Check Package.swift → Swift
+- [x] No match → Unknown
 
 ---
 

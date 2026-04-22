@@ -224,15 +224,16 @@ impl ProjectService {
         if root.join("composer.json").exists() {
             return ProjectType::Php;
         }
-        if root.join("Package.swift").exists() {
-            return ProjectType::Swift;
-        }
 
         for entry in std::fs::read_dir(root).ok().into_iter().flatten().flatten() {
             let name = entry.file_name().to_string_lossy().into_owned();
             if name.ends_with(".csproj") || name.ends_with(".sln") {
                 return ProjectType::Dotnet;
             }
+        }
+
+        if root.join("Package.swift").exists() {
+            return ProjectType::Swift;
         }
 
         ProjectType::Unknown
@@ -1663,5 +1664,346 @@ mod tests {
 
         assert!(result.is_ok());
         assert!(result.unwrap().is_ok());
+    }
+
+    fn create_project_service(tmp: &tempfile::TempDir) -> ProjectService {
+        let config = Arc::new(RwLock::new(Config::default()));
+        let config_service = ConfigService::new(config);
+        ProjectService::new(Arc::new(config_service))
+    }
+
+    #[tokio::test]
+    async fn test_detect_rust_project() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("Cargo.toml"), "[package]\nname = \"test\"").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Rust);
+        assert_eq!(info.package_manager, PackageManager::Cargo);
+    }
+
+    #[tokio::test]
+    async fn test_detect_node_project() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("package.json"), "{}").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Node);
+        assert_eq!(info.package_manager, PackageManager::Npm);
+    }
+
+    #[tokio::test]
+    async fn test_detect_type_priority() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("Cargo.toml"), "[package]\nname = \"test\"").await.unwrap();
+        tokio::fs::write(tmp.path().join("package.json"), "{}").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Rust);
+    }
+
+    #[tokio::test]
+    async fn test_detect_unknown_type() {
+        let tmp = TempDir::new().unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Unknown);
+    }
+
+    #[tokio::test]
+    async fn test_detect_go_project() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("go.mod"), "module test").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Go);
+        assert_eq!(info.package_manager, PackageManager::Go);
+    }
+
+    #[tokio::test]
+    async fn test_detect_python_project_pyproject() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("pyproject.toml"), "").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Python);
+        assert_eq!(info.package_manager, PackageManager::Poetry);
+    }
+
+    #[tokio::test]
+    async fn test_detect_python_project_requirements() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("requirements.txt"), "").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Python);
+        assert_eq!(info.package_manager, PackageManager::Pip);
+    }
+
+    #[tokio::test]
+    async fn test_detect_java_project_maven() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("pom.xml"), "").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Java);
+        assert_eq!(info.package_manager, PackageManager::Maven);
+    }
+
+    #[tokio::test]
+    async fn test_detect_java_project_gradle() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("build.gradle"), "").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Java);
+        assert_eq!(info.package_manager, PackageManager::Gradle);
+    }
+
+    #[tokio::test]
+    async fn test_detect_cpp_project_cmake() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("CMakeLists.txt"), "").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Cpp);
+    }
+
+    #[tokio::test]
+    async fn test_detect_cpp_project_makefile() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("Makefile"), "").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Cpp);
+    }
+
+    #[tokio::test]
+    async fn test_detect_ruby_project() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("Gemfile"), "").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Ruby);
+    }
+
+    #[tokio::test]
+    async fn test_detect_php_project() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("composer.json"), "{}").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Php);
+    }
+
+    #[tokio::test]
+    async fn test_detect_dotnet_project_csproj() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("TestProject.csproj"), "").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Dotnet);
+    }
+
+    #[tokio::test]
+    async fn test_detect_dotnet_project_sln() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("Solution.sln"), "").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Dotnet);
+    }
+
+    #[tokio::test]
+    async fn test_detect_swift_project() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("Package.swift"), "").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Swift);
+    }
+
+    #[tokio::test]
+    async fn test_type_priority_regression_rust_before_go() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("Cargo.toml"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("go.mod"), "").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Rust);
+    }
+
+    #[tokio::test]
+    async fn test_type_priority_regression_rust_before_python() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("Cargo.toml"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("pyproject.toml"), "").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Rust);
+    }
+
+    #[tokio::test]
+    async fn test_type_priority_regression_go_before_python() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("go.mod"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("pyproject.toml"), "").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Go);
+    }
+
+    #[tokio::test]
+    async fn test_type_priority_regression_go_before_node() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("go.mod"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("package.json"), "{}").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Go);
+    }
+
+    #[tokio::test]
+    async fn test_type_priority_regression_python_before_node() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("pyproject.toml"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("package.json"), "{}").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Python);
+    }
+
+    #[tokio::test]
+    async fn test_type_priority_regression_node_before_java() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("package.json"), "{}").await.unwrap();
+        tokio::fs::write(tmp.path().join("pom.xml"), "").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Node);
+    }
+
+    #[tokio::test]
+    async fn test_type_priority_regression_java_before_cpp() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("pom.xml"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("CMakeLists.txt"), "").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Java);
+    }
+
+    #[tokio::test]
+    async fn test_type_priority_regression_cpp_before_ruby() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("CMakeLists.txt"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("Gemfile"), "").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Cpp);
+    }
+
+    #[tokio::test]
+    async fn test_type_priority_regression_ruby_before_php() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("Gemfile"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("composer.json"), "{}").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Ruby);
+    }
+
+    #[tokio::test]
+    async fn test_type_priority_regression_php_before_dotnet() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("composer.json"), "{}").await.unwrap();
+        tokio::fs::write(tmp.path().join("Test.csproj"), "").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Php);
+    }
+
+    #[tokio::test]
+    async fn test_type_priority_regression_dotnet_before_swift() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("Test.csproj"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("Package.swift"), "").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Dotnet);
+    }
+
+    #[tokio::test]
+    async fn test_type_priority_all_markers_rust_wins() {
+        let tmp = TempDir::new().unwrap();
+        tokio::fs::write(tmp.path().join("Cargo.toml"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("go.mod"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("pyproject.toml"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("package.json"), "{}").await.unwrap();
+        tokio::fs::write(tmp.path().join("pom.xml"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("CMakeLists.txt"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("Gemfile"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("composer.json"), "{}").await.unwrap();
+        tokio::fs::write(tmp.path().join("Test.csproj"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("Package.swift"), "").await.unwrap();
+
+        let service = create_project_service(&tmp);
+        let info = service.detect(Some(tmp.path())).await.unwrap();
+
+        assert_eq!(info.project_type, ProjectType::Rust);
     }
 }

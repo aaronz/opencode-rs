@@ -132,7 +132,7 @@
       "priority": "P0",
       "title": "Async Detection with Walk-Up Root Finding",
       "description": "Implement walk-up algorithm starting from cwd. Check for .git directory (git root). Check for .git file (git worktree reference). Check for .opencode directory (opencode sandbox). Return root path or cwd as fallback with ProjectType::Unknown.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify walk-up finds .git directory root",
         "AddUnitTest: verify walk-up finds .git file worktree reference",
@@ -149,12 +149,12 @@
         "FR-006"
       ]
     },
-    {
+{
       "id": "FR-008",
       "priority": "P0",
       "title": "Type Detection with Priority",
-      "description": "Check Cargo.toml \u2192 Rust. Check go.mod \u2192 Go. Check pyproject.toml OR requirements.txt OR setup.py \u2192 Python. Check package.json \u2192 Node. Check pom.xml OR build.gradle \u2192 Java. Check CMakeLists.txt OR Makefile OR compile_commands.json \u2192 Cpp. Check Gemfile \u2192 Ruby. Check composer.json \u2192 Php. Check *.csproj OR *.sln \u2192 Dotnet. Check Package.swift \u2192 Swift. No match \u2192 Unknown.",
-      "status": "todo",
+      "description": "Check Cargo.toml → Rust. Check go.mod → Go. Check pyproject.toml OR requirements.txt OR setup.py → Python. Check package.json → Node. Check pom.xml OR build.gradle → Java. Check CMakeLists.txt OR Makefile OR compile_commands.json → Cpp. Check Gemfile → Ruby. Check composer.json → Php. Check *.csproj OR *.sln → Dotnet. Check Package.swift → Swift. No match → Unknown.",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify Cargo.toml detection returns Rust",
         "AddUnitTest: verify package.json detection returns Node",
