@@ -9,13 +9,13 @@
 ## P0 Tasks (Blocking)
 
 ### FR-002: Unit Tests for Boolean Flags
-- [ ] `new_manager_has_all_boolean_flags`: Verify all 28 boolean flags registered
+- [x] `new_manager_has_all_boolean_flags`: Verify all 28 boolean flags registered
   - Check OPENCODE_EXPERIMENTAL, OPENCODE_DEBUG, OPENCODE_AUTO_SHARE, etc.
-- [ ] `default_values_are_false_except_markdown`: Only OPENCODE_EXPERIMENTAL_MARKDOWN defaults to true
-- [ ] `set_overrides_value`: Boolean set() correctly overrides default
-- [ ] `unknown_flag_returns_false`: Missing flags return false from is_enabled()
-- [ ] `exa_enabled_when_experimental_is_true`: opencode_enable_exa() works when experimental=true
-- [ ] `plan_mode_enabled_when_experimental_is_true`: opencode_experimental_plan_mode() works
+- [x] `default_values_are_false_except_markdown`: Only OPENCODE_EXPERIMENTAL_MARKDOWN defaults to true
+- [x] `set_overrides_value`: Boolean set() correctly overrides default
+- [x] `unknown_flag_returns_false`: Missing flags return false from is_enabled()
+- [x] `exa_enabled_when_experimental_is_true`: opencode_enable_exa() works when experimental=true
+- [x] `plan_mode_enabled_when_experimental_is_true`: opencode_experimental_plan_mode() works
 
 ### FR-003: Unit Tests for String and Number Flags
 - [ ] `opencode_client_defaults_to_cli`: opencode_client() returns "cli" by default
@@ -23,7 +23,7 @@
 - [ ] `string_flag_returns_none_when_not_set`: get_string() returns None when env not set
 - [ ] `number_flag_returns_none_when_not_set`: get_number() returns None when env not set
 
-### FR-001: FlagManager Instantiation and Initialization
+### FR-001: ✅ Done
 - [ ] Find application entry point (main.rs, lib.rs, or config init)
 - [ ] Instantiate FlagManager at application startup
 - [ ] Call flags.load_from_env() immediately after instantiation
@@ -69,12 +69,12 @@
 
 | Test | Feature | Status |
 |------|---------|--------|
-| new_manager_has_all_boolean_flags | All 28 flags registered | ⬜ |
-| default_values_are_false_except_markdown | Default values | ⬜ |
-| set_overrides_value | Boolean setter | ⬜ |
-| unknown_flag_returns_false | Fallback behavior | ⬜ |
-| exa_enabled_when_experimental_is_true | Convenience method | ⬜ |
-| plan_mode_enabled_when_experimental_is_true | Convenience method | ⬜ |
+| new_manager_has_all_boolean_flags | All 28 flags registered | ✅ |
+| default_values_are_false_except_markdown | Default values | ✅ |
+| set_overrides_value | Boolean setter | ✅ |
+| unknown_flag_returns_false | Fallback behavior | ✅ |
+| exa_enabled_when_experimental_is_true | Convenience method | ✅ |
+| plan_mode_enabled_when_experimental_is_true | Convenience method | ✅ |
 | opencode_client_defaults_to_cli | String flag default | ⬜ |
 | bash_timeout_has_default | Number flag default | ⬜ |
 | string_flag_returns_none_when_not_set | String flag behavior | ⬜ |

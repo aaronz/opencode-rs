@@ -23,7 +23,7 @@
       "priority": "P0",
       "title": "Unit Tests for Boolean Flags",
       "description": "Create unit tests for all boolean flags: new_manager_has_all_boolean_flags (check all 28 boolean flags including OPENCODE_EXPERIMENTAL, OPENCODE_DEBUG, OPENCODE_AUTO_SHARE), default_values_are_false_except_markdown (only OPENCODE_EXPERIMENTAL_MARKDOWN defaults to true), set_overrides_value, unknown_flag_returns_false, exa_enabled_when_experimental_is_true, plan_mode_enabled_when_experimental_is_true.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify new_manager_has_all_boolean_flags - all 28 boolean flags registered",
         "AddUnitTest: verify default_values_are_false_except_markdown - only OPENCODE_EXPERIMENTAL_MARKDOWN defaults to true",

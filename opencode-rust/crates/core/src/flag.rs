@@ -478,11 +478,43 @@ mod tests {
     #[test]
     fn new_manager_has_all_boolean_flags() {
         let fm = FlagManager::new();
-        assert!(fm.get("OPENCODE_EXPERIMENTAL").is_some());
-        assert!(fm.get("OPENCODE_DEBUG").is_some());
-        assert!(fm.get("OPENCODE_ENABLE_EXA").is_some());
-        assert!(fm.get("OPENCODE_EXPERIMENTAL_MARKDOWN").is_some());
-        assert!(fm.get("OPENCODE_EXPERIMENTAL_PLAN_MODE").is_some());
+        let expected_flags = [
+            "OPENCODE_EXPERIMENTAL",
+            "OPENCODE_DEBUG",
+            "OPENCODE_AUTO_SHARE",
+            "OPENCODE_DISABLE_AUTOUPDATE",
+            "OPENCODE_ALWAYS_NOTIFY_UPDATE",
+            "OPENCODE_DISABLE_PRUNE",
+            "OPENCODE_DISABLE_TERMINAL_TITLE",
+            "OPENCODE_DISABLE_DEFAULT_PLUGINS",
+            "OPENCODE_DISABLE_LSP_DOWNLOAD",
+            "OPENCODE_ENABLE_EXPERIMENTAL_MODELS",
+            "OPENCODE_DISABLE_AUTOCOMPACT",
+            "OPENCODE_DISABLE_MODELS_FETCH",
+            "OPENCODE_DISABLE_CLAUDE_CODE",
+            "OPENCODE_ENABLE_QUESTION_TOOL",
+            "OPENCODE_EXPERIMENTAL_FILEWATCHER",
+            "OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER",
+            "OPENCODE_EXPERIMENTAL_ICON_DISCOVERY",
+            "OPENCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT",
+            "OPENCODE_EXPERIMENTAL_EXA",
+            "OPENCODE_ENABLE_EXA",
+            "OPENCODE_EXPERIMENTAL_OXFMT",
+            "OPENCODE_EXPERIMENTAL_LSP_TY",
+            "OPENCODE_EXPERIMENTAL_LSP_TOOL",
+            "OPENCODE_DISABLE_FILETIME_CHECK",
+            "OPENCODE_EXPERIMENTAL_PLAN_MODE",
+            "OPENCODE_EXPERIMENTAL_WORKSPACES",
+            "OPENCODE_EXPERIMENTAL_MARKDOWN",
+            "OPENCODE_EXPERIMENTAL_VARIANT_REASONING",
+            "OPENCODE_DISABLE_CHANNEL_DB",
+            "OPENCODE_SKIP_MIGRATIONS",
+            "OPENCODE_STRICT_CONFIG_DEPS",
+        ];
+        assert_eq!(expected_flags.len(), 31);
+        for flag in expected_flags {
+            assert!(fm.get(flag).is_some(), "Missing flag: {}", flag);
+        }
     }
 
     #[test]
