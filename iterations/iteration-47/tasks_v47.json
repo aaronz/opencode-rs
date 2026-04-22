@@ -163,7 +163,7 @@
       "priority": "P0",
       "title": "Implement status() returning Vec<FormatterStatus>",
       "description": "Implement status() method on FormatService that returns Vec<FormatterStatus> for all enabled formatters",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify status() returns empty list when formatter: false",
         "AddUnitTest: verify status() returns all 25+ formatters when formatter: true",
@@ -187,7 +187,7 @@
       "priority": "P0",
       "title": "Implement gofmt formatter (.go)",
       "description": "Implement gofmt formatter for .go files. Detection: `which gofmt`. Extensions: .go",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify gofmt name returns 'gofmt'",
         "AddUnitTest: verify gofmt extensions includes '.go'",

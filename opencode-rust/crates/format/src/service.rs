@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use tokio::sync::Mutex;
@@ -7,7 +7,7 @@ use tokio::sync::Mutex;
 use opencode_config::{FormatterConfig, FormatterEntry};
 use opencode_core::effect::{Effect, EffectError, EffectResult};
 
-pub use super::formatters::{Formatter, FormatterContext, FormatterStatus};
+use super::formatters::{all_formatters, Formatter, FormatterContext, FormatterStatus};
 
 pub struct FormatServiceState {
     formatters: HashMap<String, Box<dyn Formatter>>,
@@ -71,7 +71,15 @@ impl FormatService {
             let mut state_guard = state.lock().await;
 
             match &config {
-                FormatterConfig::Disabled(_) => {
+                FormatterConfig::Disabled(false) => {
+                    state_guard.commands.clear();
+                    for formatter in all_formatters() {
+                        let name = formatter.name().to_string();
+                        state_guard.register_formatter(formatter);
+                        state_guard.set_command(name, None);
+                    }
+                }
+                FormatterConfig::Disabled(true) => {
                     state_guard.commands.clear();
                 }
                 FormatterConfig::Formatters(formatters) => {
@@ -94,15 +102,30 @@ impl FormatService {
     pub async fn status(&self) -> Vec<FormatterStatus> {
         let state = self.state.lock().await;
         let mut statuses = Vec::new();
+        let ctx = FormatterContext {
+            directory: PathBuf::from("/tmp"),
+            worktree: PathBuf::from("/tmp"),
+        };
 
         match &self.config {
             FormatterConfig::Disabled(false) => {
-                return statuses;
+                for formatter in state.formatters.values() {
+                    let enabled = formatter.enabled(&ctx).await.is_some();
+                    statuses.push(FormatterStatus {
+                        name: formatter.name().to_string(),
+                        extensions: formatter
+                            .extensions()
+                            .iter()
+                            .map(|s| s.to_string())
+                            .collect(),
+                        enabled,
+                    });
+                }
             }
             FormatterConfig::Disabled(true) => {
-                for (name, formatter) in &state.formatters {
+                for formatter in state.formatters.values() {
                     statuses.push(FormatterStatus {
-                        name: name.clone(),
+                        name: formatter.name().to_string(),
                         extensions: formatter
                             .extensions()
                             .iter()
@@ -111,15 +134,17 @@ impl FormatService {
                         enabled: false,
                     });
                 }
-                return statuses;
             }
             FormatterConfig::Formatters(config_formatters) => {
-                for (name, formatter) in &state.formatters {
+                for formatter in state.formatters.values() {
+                    let name = formatter.name();
                     let entry = config_formatters.get(name);
-                    let enabled = entry.map(|e| !e.disabled.unwrap_or(false)).unwrap_or(false);
+                    let config_disabled = entry.map(|e| e.disabled.unwrap_or(false)).unwrap_or(false);
+                    let available = formatter.enabled(&ctx).await.is_some();
+                    let enabled = !config_disabled && available;
 
                     statuses.push(FormatterStatus {
-                        name: name.clone(),
+                        name: name.to_string(),
                         extensions: formatter
                             .extensions()
                             .iter()
@@ -248,10 +273,10 @@ mod tests {
 
     #[tokio::test]
     async fn status_returns_empty_when_disabled() {
-        let service = FormatService::new(FormatterConfig::Disabled(false));
+        let service = FormatService::new(FormatterConfig::Disabled(true));
         let _ = service.init().await;
-        let status = service.status().await;
-        assert!(status.is_empty());
+        let statuses = service.status().await;
+        assert!(statuses.is_empty(), "Expected empty status when formatter is disabled");
     }
 
     #[tokio::test]

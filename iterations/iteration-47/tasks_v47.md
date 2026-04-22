@@ -26,7 +26,7 @@
 
 ### Implement All 25+ Built-in Formatters
 
-- [ ] **gofmt** (.go) - `which gofmt`
+- [x] **gofmt** (.go) - `which gofmt`
 - [ ] **mix** (.ex,.exs,.eex,.heex) - `which mix`
 - [ ] **prettier** (.js,.ts,.html,.css,.json,.yaml,.md,...) - package.json has prettier dep
 - [ ] **oxfmt** (.js,.ts,...) - OPENCODE_EXPERIMENTAL_OXFMT flag + package.json
