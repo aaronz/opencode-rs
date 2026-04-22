@@ -762,4 +762,115 @@ mod tests {
         let json = serde_json::to_string(&event).unwrap();
         assert!(json.contains(r#""span_id":"abcd1234:span5678""#));
     }
+
+    #[test]
+    fn test_tool_consideration_serialization() {
+        let tc = ToolConsideration {
+            tool_name: "read".to_string(),
+            reason: "Most appropriate for file operations".to_string(),
+            selected: true,
+        };
+
+        let json = serde_json::to_string(&tc).unwrap();
+        assert!(json.contains("\"tool_name\":\"read\""));
+        assert!(json.contains("\"reason\":\"Most appropriate for file operations\""));
+        assert!(json.contains("\"selected\":true"));
+
+        let deserialized: ToolConsideration = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.tool_name, "read");
+        assert_eq!(deserialized.reason, "Most appropriate for file operations");
+        assert!(deserialized.selected);
+    }
+
+    #[test]
+    fn test_reasoning_log_with_tools_considered_serializes() {
+        let reasoning = ReasoningLog {
+            step_id: "step_001".to_string(),
+            session_id: "sess_abc123".to_string(),
+            timestamp: Utc::now(),
+            prompt: "What file should I read?".to_string(),
+            response: "Read the config file".to_string(),
+            tools_considered: vec![
+                ToolConsideration {
+                    tool_name: "read".to_string(),
+                    reason: "Appropriate for reading files".to_string(),
+                    selected: true,
+                },
+                ToolConsideration {
+                    tool_name: "grep".to_string(),
+                    reason: "Good for searching content".to_string(),
+                    selected: false,
+                },
+            ],
+            decision: "Selected read tool".to_string(),
+            prompt_tokens: 1500,
+            completion_tokens: 100,
+            latency_ms: 250,
+        };
+
+        let json = serde_json::to_string(&reasoning).unwrap();
+        assert!(json.contains("\"step_id\":\"step_001\""));
+        assert!(json.contains("\"session_id\":\"sess_abc123\""));
+        assert!(json.contains("\"prompt_tokens\":1500"));
+        assert!(json.contains("\"completion_tokens\":100"));
+        assert!(json.contains("\"latency_ms\":250"));
+        assert!(json.contains("\"tools_considered\""));
+        assert!(json.contains("\"decision\":\"Selected read tool\""));
+        assert!(json.contains("\"tool_name\":\"read\""));
+        assert!(json.contains("\"tool_name\":\"grep\""));
+    }
+
+    #[test]
+    fn test_reasoning_log_deserialization_preserves_all_fields() {
+        let json = r#"{
+            "step_id": "step_002",
+            "session_id": "sess_xyz789",
+            "timestamp": "2026-04-22T10:30:00Z",
+            "prompt": "Analyze the code",
+            "response": "Found 5 issues",
+            "tools_considered": [
+                {"tool_name": "grep", "reason": "Search for patterns", "selected": true}
+            ],
+            "decision": "Using grep for analysis",
+            "prompt_tokens": 2000,
+            "completion_tokens": 150,
+            "latency_ms": 300
+        }"#;
+
+        let reasoning: ReasoningLog = serde_json::from_str(json).unwrap();
+        assert_eq!(reasoning.step_id, "step_002");
+        assert_eq!(reasoning.session_id, "sess_xyz789");
+        assert_eq!(reasoning.prompt, "Analyze the code");
+        assert_eq!(reasoning.response, "Found 5 issues");
+        assert_eq!(reasoning.tools_considered.len(), 1);
+        assert_eq!(reasoning.tools_considered[0].tool_name, "grep");
+        assert!(reasoning.tools_considered[0].selected);
+        assert_eq!(reasoning.decision, "Using grep for analysis");
+        assert_eq!(reasoning.prompt_tokens, 2000);
+        assert_eq!(reasoning.completion_tokens, 150);
+        assert_eq!(reasoning.latency_ms, 300);
+    }
+
+    #[test]
+    fn test_reasoning_log_token_counts_and_latency_captured() {
+        let reasoning = ReasoningLog {
+            step_id: "step_003".to_string(),
+            session_id: "sess_token_test".to_string(),
+            timestamp: Utc::now(),
+            prompt: "Test prompt".to_string(),
+            response: "Test response".to_string(),
+            tools_considered: vec![],
+            decision: "No tools needed".to_string(),
+            prompt_tokens: 12345,
+            completion_tokens: 67890,
+            latency_ms: 999,
+        };
+
+        let json = serde_json::to_string(&reasoning).unwrap();
+        let deserialized: ReasoningLog = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.prompt_tokens, 12345);
+        assert_eq!(deserialized.completion_tokens, 67890);
+        assert_eq!(deserialized.latency_ms, 999);
+    }
 }

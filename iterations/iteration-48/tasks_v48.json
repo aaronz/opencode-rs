@@ -283,7 +283,7 @@
       "priority": "P2",
       "title": "Implement log_fields! Macro",
       "description": "Implement log_fields! macro with two forms: field-only (log_fields!(session_id, tool_name)) and key-value (log_fields!(latency_ms = 45)). Support expressions not just literals.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify field-only form compiles and returns LogFields",
         "AddUnitTest: verify key-value form parses and sets values",
@@ -304,7 +304,7 @@
       "priority": "P1",
       "title": "Implement ReasoningLog and ToolConsideration",
       "description": "Create ToolConsideration struct (tool_name, reason, selected) and ReasoningLog struct (step_id, session_id, timestamp, prompt, response, tools_considered, decision, prompt_tokens, completion_tokens, latency_ms).",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify ToolConsideration serialization works",
         "AddUnitTest: verify ReasoningLog with tools_considered serializes correctly",

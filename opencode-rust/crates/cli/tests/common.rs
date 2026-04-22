@@ -64,6 +64,8 @@ impl TestHarness {
         cmd.env("OPENCODE_DATA_DIR", self.temp_dir.path().join("data"))
             .env("OPENCODE_CONFIG_DIR", self.temp_dir.path().join("config"))
             .env("NO_COLOR", "1")
+            .env("RUST_LOG", "off")
+            .env("OPENCODE_LOG_LEVEL", "off")
             .current_dir(self.temp_dir.path());
         cmd
     }
