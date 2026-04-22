@@ -48,7 +48,7 @@
 - [ ] **shfmt** (.sh,.bash) - `which shfmt`
 - [x] **nixfmt** (.nix) - `which nixfmt`
 - [ ] **rustfmt** (.rs) - `which rustfmt`
-- [ ] **pint** (.php) - composer.json has laravel/pint
+- [x] **pint** (.php) - composer.json has laravel/pint
 - [ ] **ormolu** (.hs) - `which ormolu`
 - [ ] **cljfmt** (.clj,.cljs,...) - `which cljfmt`
 - [ ] **dfmt** (.d) - `which dfmt`

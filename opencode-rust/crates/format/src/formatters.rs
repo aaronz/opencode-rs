@@ -2421,4 +2421,77 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn verify_pint_name_returns_pint() {
+        let formatter = pint::PintFormatter::new();
+        assert_eq!(formatter.name(), "pint");
+    }
+
+    #[test]
+    fn verify_pint_extensions_includes_php() {
+        let formatter = pint::PintFormatter::new();
+        assert!(
+            formatter.extensions().contains(&".php"),
+            "pint should support .php"
+        );
+        assert_eq!(formatter.extensions().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn verify_pint_enabled_checks_composer_json_for_laravel_pint() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let composer_json = temp_dir.path().join("composer.json");
+        std::fs::write(
+            &composer_json,
+            r#"{"name": "test/laravel-project", "require": {"laravel/pint": "^1.0"}}"#,
+        )
+        .unwrap();
+
+        let formatter = pint::PintFormatter::new();
+        let ctx = FormatterContext {
+            directory: temp_dir.path().to_path_buf(),
+            worktree: temp_dir.path().to_path_buf(),
+        };
+
+        let result = formatter.enabled(&ctx).await;
+        assert!(
+            result.is_some(),
+            "pint should be enabled when composer.json has laravel/pint"
+        );
+        let cmd = result.unwrap();
+        assert_eq!(cmd[0], "pint");
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn verify_pint_disabled_without_laravel_pint_in_composer_json() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let composer_json = temp_dir.path().join("composer.json");
+        std::fs::write(
+            &composer_json,
+            r#"{"name": "test/project", "require": {"php": "^8.1"}}"#,
+        )
+        .unwrap();
+
+        let formatter = pint::PintFormatter::new();
+        let ctx = FormatterContext {
+            directory: temp_dir.path().to_path_buf(),
+            worktree: temp_dir.path().to_path_buf(),
+        };
+
+        let result = formatter.enabled(&ctx).await;
+        let pint_available = which("pint").is_ok();
+        if pint_available {
+            assert!(result.is_some(), "pint should be available when binary exists");
+        } else {
+            assert!(
+                result.is_none(),
+                "pint should not be enabled without laravel/pint in composer.json"
+            );
+        }
+
+        drop(temp_dir);
+    }
 }

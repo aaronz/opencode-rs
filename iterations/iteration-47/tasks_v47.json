@@ -585,7 +585,7 @@
       "priority": "P0",
       "title": "Implement rustfmt formatter (.rs)",
       "description": "Implement rustfmt formatter. Detection: `which rustfmt`. Extensions: .rs",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify rustfmt name returns 'rustfmt'",
         "AddUnitTest: verify rustfmt extensions includes .rs",
@@ -604,7 +604,7 @@
       "priority": "P0",
       "title": "Implement pint formatter (.php)",
       "description": "Implement pint formatter for Laravel/PHP. Detection: composer.json has laravel/pint. Extensions: .php",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify pint name returns 'pint'",
         "AddUnitTest: verify pint extensions includes .php",
