@@ -470,6 +470,18 @@ impl FlagManager {
         self.get_number("OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS")
             .or(Some(120000)) // Default 2 minutes
     }
+
+    pub fn all_flags(&self) -> &HashMap<String, Flag> {
+        &self.flags
+    }
+
+    pub fn all_string_flags(&self) -> &HashMap<String, Option<String>> {
+        &self.string_flags
+    }
+
+    pub fn all_number_flags(&self) -> &HashMap<String, Option<u64>> {
+        &self.number_flags
+    }
 }
 
 impl Default for FlagManager {
@@ -689,5 +701,34 @@ struct EnvVarGuard {
     fn set_number_is_no_op_when_flag_does_not_exist() {
         let mut fm = FlagManager::new();
         fm.set_number("NONEXISTENT_FLAG", Some(100));
+    }
+
+    #[test]
+    fn all_flags_returns_all_boolean_flags() {
+        let fm = FlagManager::new();
+        let flags = fm.all_flags();
+        assert!(flags.contains_key("OPENCODE_EXPERIMENTAL"));
+        assert!(flags.contains_key("OPENCODE_DEBUG"));
+        assert!(flags.contains_key("OPENCODE_EXPERIMENTAL_MARKDOWN"));
+        assert_eq!(flags.len(), 31);
+    }
+
+    #[test]
+    fn all_string_flags_returns_all_string_flags() {
+        let fm = FlagManager::new();
+        let string_flags = fm.all_string_flags();
+        assert!(string_flags.contains_key("OPENCODE_CLIENT"));
+        assert!(string_flags.contains_key("OPENCODE_CONFIG"));
+        assert!(string_flags.contains_key("OPENCODE_DB"));
+        assert_eq!(string_flags.len(), 11);
+    }
+
+    #[test]
+    fn all_number_flags_returns_all_number_flags() {
+        let fm = FlagManager::new();
+        let number_flags = fm.all_number_flags();
+        assert!(number_flags.contains_key("OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS"));
+        assert!(number_flags.contains_key("OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX"));
+        assert_eq!(number_flags.len(), 2);
     }
 }

@@ -52,16 +52,16 @@
 - [ ] Change to: `flag.value = truthy(name);`
 - [ ] Remove duplicate truthy check code
 
-### FR-006: Add Setter Methods for String and Number Flags
+### FR-006: ✅ Done
 - [ ] Add `set_string(&mut self, name: &str, value: Option<String>)` method
 - [ ] Add `set_number(&mut self, name: &str, value: Option<u64>)` method
 - [ ] Methods should only update if flag exists (silent no-op otherwise)
 
-### FR-007: Add Method to List All Flags
-- [ ] Add `all_flags(&self) -> &HashMap<String, Flag>` getter
-- [ ] Add `all_string_flags(&self) -> &HashMap<String, Option<String>>` getter
-- [ ] Add `all_number_flags(&self) -> &HashMap<String, Option<u64>>` getter
-- [ ] Useful for debugging and admin interfaces
+### FR-007: ✅ Done
+- [x] Add `all_flags(&self) -> &HashMap<String, Flag>` getter
+- [x] Add `all_string_flags(&self) -> &HashMap<String, Option<String>>` getter
+- [x] Add `all_number_flags(&self) -> &HashMap<String, Option<u64>>` getter
+- [x] Useful for debugging and admin interfaces
 
 ---
 

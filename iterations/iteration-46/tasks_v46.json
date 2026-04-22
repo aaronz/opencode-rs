@@ -111,7 +111,7 @@
       "priority": "P2",
       "title": "Add Setter Methods for String and Number Flags",
       "description": "Add set_string(&mut self, name: &str, value: Option<String>) method and set_number(&mut self, name: &str, value: Option<u64>) method. Methods should only update if flag exists (silent no-op otherwise).",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify set_string() updates string flag value when flag exists",
         "AddUnitTest: verify set_string() is no-op when flag does not exist",
@@ -130,7 +130,7 @@
       "priority": "P2",
       "title": "Add Method to List All Flags",
       "description": "Add all_flags(&self) -> &HashMap<String, Flag> getter, all_string_flags(&self) -> &HashMap<String, Option<String>> getter, and all_number_flags(&self) -> &HashMap<String, Option<u64>> getter. Useful for debugging and admin interfaces.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify all_flags() returns all boolean flags",
         "AddUnitTest: verify all_string_flags() returns all string flags",
