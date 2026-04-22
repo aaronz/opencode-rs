@@ -893,13 +893,20 @@ impl PluginManager {
         name: &str,
         args: Value,
     ) -> Result<String, PluginError> {
+        tracing::debug!(tool = %name, args_len = args.to_string().len(), "Executing plugin tool");
+
         let result;
         {
             let tools = self.plugin_tools.read().await;
             let tool = tools.get(name).ok_or_else(|| {
+                tracing::warn!(tool = %name, "Plugin tool not found");
                 PluginError::ToolRegistration(format!("tool '{}' not found", name))
             })?;
             result = tool.execute(args);
+        }
+        match &result {
+            Ok(_) => tracing::info!(tool = %name, "Plugin tool execution succeeded"),
+            Err(e) => tracing::error!(tool = %name, error = %e, "Plugin tool execution failed"),
         }
         result.map_err(PluginError::ToolRegistration)
     }

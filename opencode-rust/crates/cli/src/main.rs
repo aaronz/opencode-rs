@@ -51,6 +51,7 @@ use opencode_core::Config;
 use opencode_llm::ModelRegistry;
 use opencode_plugin::PluginManager;
 use opencode_tui::App;
+use opencode_util::logging::{log_file_path, Logger};
 use serde_json::json;
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -272,6 +273,12 @@ pub struct TuiArgs {
 }
 
 fn main() -> ExitCode {
+    if let Err(e) = Logger::new().with_file(log_file_path()).init() {
+        eprintln!("Warning: Failed to initialize logging: {}", e);
+    }
+
+    tracing::info!(log_path = %log_file_path().display(), "OpenCode RS starting");
+
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,
         Err(err) => {

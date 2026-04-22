@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::sync::OnceLock;
 use tracing::Level;
+use tracing_appender::non_blocking::WorkerGuard;
 use tracing_appender::rolling::{RollingFileAppender, Rotation as LogRotation};
 use tracing_subscriber::{
     fmt::{self, format::FmtSpan},
@@ -8,6 +10,8 @@ use tracing_subscriber::{
     util::SubscriberInitExt,
     EnvFilter,
 };
+
+static FILE_LOG_GUARD: OnceLock<WorkerGuard> = OnceLock::new();
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -93,9 +97,13 @@ impl Logger {
             .with_span_events(FmtSpan::CLOSE);
 
         if let Some(file_path) = &self.file_path {
+            if let Some(parent) = file_path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+
             let file_appender =
                 RollingFileAppender::new(LogRotation::DAILY, file_path, "opencode.log");
-            let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+            let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
 
             let file_layer = fmt::layer()
                 .with_target(true)
@@ -104,6 +112,8 @@ impl Logger {
                 .with_line_number(true)
                 .with_span_events(FmtSpan::CLOSE)
                 .with_writer(non_blocking);
+
+            let _ = FILE_LOG_GUARD.set(guard);
 
             tracing_subscriber::registry()
                 .with(env_filter)

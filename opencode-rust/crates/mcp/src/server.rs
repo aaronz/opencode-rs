@@ -123,42 +123,54 @@ impl McpServer {
     }
 
     async fn handle_tools_call(&self, id: Option<Value>, params: Option<Value>) -> JsonRpcResponse {
+        tracing::debug!(method = "tools/call", "Handling MCP tools call");
+
         let params = match params {
             Some(p) => p,
             None => {
-                return JsonRpcResponse::error(id, INVALID_PARAMS, "Missing params".to_string())
+                tracing::warn!(method = "tools/call", "Missing params");
+                return JsonRpcResponse::error(id, INVALID_PARAMS, "Missing params".to_string());
             }
         };
 
         let tool_name = match params.get("name").and_then(|n| n.as_str()) {
             Some(name) => name.to_string(),
             None => {
-                return JsonRpcResponse::error(id, INVALID_PARAMS, "Missing tool name".to_string())
+                tracing::warn!(method = "tools/call", "Missing tool name in params");
+                return JsonRpcResponse::error(id, INVALID_PARAMS, "Missing tool name".to_string());
             }
         };
 
         let arguments = params.get("arguments").cloned().unwrap_or(Value::Null);
+        tracing::debug!(tool = %tool_name, args_len = arguments.to_string().len(), "Executing MCP tool");
 
         let tools = self.tools.read().await;
         match tools.get(&tool_name) {
             Some(tool) => match tool.execute(arguments) {
                 Ok(result) => {
+                    tracing::info!(tool = %tool_name, "MCP tool execution succeeded");
                     let result_value = serde_json::to_value(result).unwrap_or(Value::Null);
                     JsonRpcResponse::success(id, result_value)
                 }
-                Err(e) => JsonRpcResponse::success(
-                    id,
-                    serde_json::json!({
-                        "content": [{ "type": "text", "text": e }],
-                        "isError": true
-                    }),
-                ),
+                Err(e) => {
+                    tracing::error!(tool = %tool_name, error = %e, "MCP tool execution failed");
+                    JsonRpcResponse::success(
+                        id,
+                        serde_json::json!({
+                            "content": [{ "type": "text", "text": e }],
+                            "isError": true
+                        }),
+                    )
+                }
             },
-            None => JsonRpcResponse::error(
-                id,
-                METHOD_NOT_FOUND,
-                format!("Tool not found: {}", tool_name),
-            ),
+            None => {
+                tracing::warn!(tool = %tool_name, "MCP tool not found");
+                JsonRpcResponse::error(
+                    id,
+                    METHOD_NOT_FOUND,
+                    format!("Tool not found: {}", tool_name),
+                )
+            }
         }
     }
 

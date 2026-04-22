@@ -386,14 +386,21 @@ impl ToolRegistry {
         args: serde_json::Value,
         ctx: Option<ToolContext>,
     ) -> Result<ToolResult, OpenCodeError> {
+        let session_id = ctx
+            .as_ref()
+            .map(|c| c.session_id.as_str())
+            .unwrap_or("none");
+        tracing::debug!(tool = %name, session_id = %session_id, args_len = args.to_string().len(), "Executing tool");
+
         if self.is_disabled(name) {
+            tracing::warn!(tool = %name, "Tool execution skipped - tool is disabled");
             return Err(OpenCodeError::Tool(format!("Tool '{}' is disabled", name)));
         }
 
-        let tool = self
-            .get(name)
-            .await
-            .ok_or_else(|| OpenCodeError::Tool(format!("Tool '{}' not found", name)))?;
+        let tool = self.get(name).await.ok_or_else(|| {
+            tracing::error!(tool = %name, "Tool not found in registry");
+            OpenCodeError::Tool(format!("Tool '{}' not found", name))
+        })?;
 
         let is_safe = tool.is_safe();
 
@@ -404,7 +411,15 @@ impl ToolRegistry {
             }
         }
 
+        let start = Instant::now();
         let result = tool.execute(args.clone(), ctx).await?;
+        let elapsed = start.elapsed();
+
+        if result.success {
+            tracing::info!(tool = %name, latency_ms = elapsed.as_millis() as u64, "Tool execution succeeded");
+        } else {
+            tracing::warn!(tool = %name, latency_ms = elapsed.as_millis() as u64, error = ?result.error, "Tool execution returned error");
+        }
 
         if is_safe && result.success {
             let dependencies = tool.get_dependencies(&args);
@@ -416,6 +431,7 @@ impl ToolRegistry {
     }
 
     pub async fn execute_parallel(&self, calls: Vec<ToolCall>) -> Vec<ToolCallResult> {
+        tracing::debug!(call_count = calls.len(), "Executing tools in parallel");
         let mut handles = Vec::new();
 
         for call in calls {
@@ -426,7 +442,11 @@ impl ToolRegistry {
             let ctx = call.ctx;
 
             handles.push(tokio::spawn(async move {
+                let session_id = ctx.as_ref().map(|c| c.session_id.as_str()).unwrap_or("none");
+                tracing::debug!(tool = %name, session_id = %session_id, "Executing tool in parallel");
+
                 if disabled.contains(&name) {
+                    tracing::warn!(tool = %name, "Parallel tool execution skipped - tool is disabled");
                     return ToolCallResult {
                         name: name.clone(),
                         result: Err(OpenCodeError::Tool(format!("Tool '{}' is disabled", name))),
@@ -439,8 +459,21 @@ impl ToolRegistry {
                 };
 
                 let result = match tool {
-                    Some(t) => t.execute(args, ctx).await,
-                    None => Err(OpenCodeError::Tool(format!("Tool '{}' not found", name))),
+                    Some(t) => {
+                        let start = Instant::now();
+                        let r = t.execute(args, ctx).await;
+                        let elapsed = start.elapsed();
+                        match &r {
+                            Ok(res) if res.success => tracing::debug!(tool = %name, latency_ms = elapsed.as_millis() as u64, "Parallel tool execution succeeded"),
+                            Ok(_) => tracing::warn!(tool = %name, latency_ms = elapsed.as_millis() as u64, "Parallel tool execution returned error"),
+                            Err(e) => tracing::error!(tool = %name, error = %e, "Parallel tool execution failed"),
+                        }
+                        r
+                    },
+                    None => {
+                        tracing::error!(tool = %name, "Parallel tool execution failed - tool not found");
+                        Err(OpenCodeError::Tool(format!("Tool '{}' not found", name)))
+                    },
                 };
 
                 ToolCallResult { name, result }
@@ -454,6 +487,10 @@ impl ToolRegistry {
             }
         }
 
+        tracing::debug!(
+            result_count = results.len(),
+            "Parallel tool execution completed"
+        );
         results
     }
 }

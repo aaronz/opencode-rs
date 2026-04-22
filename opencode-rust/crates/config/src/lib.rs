@@ -1044,9 +1044,13 @@ pub enum LegacyProvider {
 
 impl Config {
     pub fn load(path: &PathBuf) -> Result<Self, ConfigError> {
+        tracing::info!(path = %path.display(), "Loading configuration");
+
         let mut config = if !path.exists() {
+            tracing::info!("Config file not found, using defaults");
             Config::default()
         } else {
+            tracing::debug!(path = %path.display(), "Reading config file");
             let content = std::fs::read_to_string(path)?;
             let content = Self::substitute_variables(&content, path.parent())?;
             let ext = path.extension().and_then(|s| s.to_str());
@@ -1063,6 +1067,7 @@ impl Config {
         Self::log_schema_validation(&config);
 
         config.apply_env_overrides();
+        tracing::info!("Configuration loaded successfully");
         Ok(config)
     }
 

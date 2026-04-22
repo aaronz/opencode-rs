@@ -479,8 +479,11 @@ async fn handle_ws_message(
     state: &Arc<ServerState>,
     tx: &mpsc::Sender<StreamMessage>,
 ) {
+    tracing::debug!(payload_len = text.len(), "Received WebSocket message");
+
     match serde_json::from_str::<WsClientMessage>(text) {
         Ok(WsClientMessage::Ping) => {
+            tracing::debug!("WebSocket ping received");
             let _ = tx
                 .send(StreamMessage::Heartbeat {
                     timestamp: chrono::Utc::now().timestamp(),
@@ -488,11 +491,15 @@ async fn handle_ws_message(
                 .await;
         }
         Ok(WsClientMessage::Close) => {
+            tracing::info!("WebSocket close received");
             let _ = session.clone().close(None).await;
         }
         Ok(WsClientMessage::Resume { session_id, token }) => {
+            tracing::debug!(session_id = %session_id, "WebSocket resume request");
+
             match state.reconnection_store.validate_token(&session_id, &token) {
                 Some(sequence) => {
+                    tracing::info!(session_id = %session_id, sequence = sequence, "Resuming session from token");
                     for ReplayEntry { message, .. } in
                         state.reconnection_store.replay_from(&session_id, sequence)
                     {
@@ -500,6 +507,7 @@ async fn handle_ws_message(
                     }
                 }
                 None => {
+                    tracing::warn!(session_id = %session_id, "Invalid reconnect token");
                     let _ = tx
                         .send(StreamMessage::Error {
                             session_id: Some(session_id),
@@ -517,12 +525,19 @@ async fn handle_ws_message(
             agent_type: _,
             model,
         }) => {
-            info!("WebSocket run: session={}", session_id);
+            tracing::info!(session_id = %session_id, message_len = message.len(), "WebSocket run request");
 
             let mut core_session = match state.storage.load_session(&session_id).await {
-                Ok(Some(s)) => s,
-                Ok(None) => Session::new(),
+                Ok(Some(s)) => {
+                    tracing::debug!(session_id = %session_id, "Loaded existing session");
+                    s
+                }
+                Ok(None) => {
+                    tracing::debug!(session_id = %session_id, "Creating new session");
+                    Session::new()
+                }
                 Err(e) => {
+                    tracing::error!(session_id = %session_id, error = %e, "Failed to load session");
                     let _ = tx
                         .send(StreamMessage::Error {
                             session_id: Some(session_id),
@@ -538,7 +553,7 @@ async fn handle_ws_message(
             core_session.add_message(CoreMessage::user(message.clone()));
 
             if let Err(e) = state.storage.save_session(&core_session).await {
-                warn!("Failed to save session: {}", e);
+                tracing::warn!(session_id = %session_id, error = %e, "Failed to save session");
             }
 
             let _ = tx
@@ -564,6 +579,7 @@ async fn handle_ws_message(
                 .await;
         }
         Err(e) => {
+            tracing::warn!(error = %e, "Failed to parse WebSocket message");
             let _ = tx
                 .send(StreamMessage::Error {
                     session_id: None,

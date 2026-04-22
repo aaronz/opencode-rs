@@ -121,19 +121,28 @@ impl ApprovalQueue {
     }
 
     pub fn check(&self, tool_name: &str) -> ApprovalResult {
+        tracing::debug!(tool = %tool_name, scope = ?self.scope, "Checking tool permission");
+
         let decision = match self.scope {
-            PermissionScope::Full => ApprovalResult::AutoApprove,
+            PermissionScope::Full => {
+                tracing::debug!(tool = %tool_name, "Permission granted - Full scope");
+                ApprovalResult::AutoApprove
+            }
             PermissionScope::ReadOnly => {
                 if is_read_tool(tool_name) {
+                    tracing::debug!(tool = %tool_name, "Permission granted - read tool in ReadOnly scope");
                     ApprovalResult::AutoApprove
                 } else {
+                    tracing::warn!(tool = %tool_name, "Permission requires approval - non-read tool in ReadOnly scope");
                     ApprovalResult::RequireApproval
                 }
             }
             PermissionScope::Restricted => {
                 if is_safe_tool(tool_name) {
+                    tracing::debug!(tool = %tool_name, "Permission granted - safe tool in Restricted scope");
                     ApprovalResult::AutoApprove
                 } else {
+                    tracing::warn!(tool = %tool_name, "Permission requires approval - unsafe tool in Restricted scope");
                     ApprovalResult::RequireApproval
                 }
             }

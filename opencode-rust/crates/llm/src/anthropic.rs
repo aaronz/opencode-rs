@@ -92,6 +92,8 @@ impl Provider for AnthropicProvider {
         prompt: &str,
         _context: Option<&str>,
     ) -> Result<String, OpenCodeError> {
+        tracing::debug!(provider = "anthropic", model = %self.model, prompt_len = prompt.len(), "Starting Anthropic completion");
+
         let messages = vec![AnthropicMessage {
             role: "user".to_string(),
             content: prompt.to_string(),
@@ -129,14 +131,15 @@ impl Provider for AnthropicProvider {
             req = req.header(key, value);
         }
 
-        let response = req
-            .send()
-            .await
-            .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
+        let response = req.send().await.map_err(|e| {
+            tracing::error!(provider = "anthropic", error = %e, "Anthropic request failed");
+            OpenCodeError::Llm(e.to_string())
+        })?;
 
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
+            tracing::error!(provider = "anthropic", status = %status, error = %error_text, "Anthropic API error");
             return Err(OpenCodeError::Llm(format!(
                 "Anthropic API error {}: {}",
                 status, error_text
@@ -146,7 +149,10 @@ impl Provider for AnthropicProvider {
         let result: AnthropicResponse = response
             .json()
             .await
-            .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
+            .map_err(|e| {
+                tracing::error!(provider = "anthropic", error = %e, "Failed to parse Anthropic response");
+                OpenCodeError::Llm(e.to_string())
+            })?;
 
         let content = result
             .content
@@ -154,6 +160,7 @@ impl Provider for AnthropicProvider {
             .map(|c| c.text.clone())
             .unwrap_or_default();
 
+        tracing::info!(provider = "anthropic", model = %self.model, response_len = content.len(), "Anthropic completion successful");
         Ok(content)
     }
 

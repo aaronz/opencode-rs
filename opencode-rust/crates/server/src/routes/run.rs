@@ -115,9 +115,12 @@ async fn run_prompt_with_agent_execution(
     req: web::Json<RunRequest>,
     session_id: String,
 ) -> Result<Vec<ExecuteEvent>, HttpResponse> {
+    tracing::debug!(session_id = %session_id, prompt_len = req.prompt.len(), "Starting prompt execution");
+
     let config = match state.config.read() {
         Ok(cfg) => cfg.clone(),
         Err(_) => {
+            tracing::error!("Failed to acquire config read lock");
             return Err(json_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "config_lock_error",
@@ -133,15 +136,21 @@ async fn run_prompt_with_agent_execution(
         .unwrap_or_else(|| "gpt-4o".to_string());
     let (provider_id, model_name) =
         resolve_model_and_provider(&state, Some(selected_model.clone()));
+
+    tracing::info!(provider = %provider_id, model = %model_name, "Using provider and model");
+
     let provider = match build_provider(&provider_id, &model_name, &config) {
         Ok(provider) => provider,
         Err(err) => {
+            tracing::error!(error = %err, "Failed to build provider");
             return Err(err.to_response());
         }
     };
 
     let selected_agent = req.agent.clone().unwrap_or_else(|| "general".to_string());
     let agent_type = agent_type_from_string(&selected_agent);
+
+    tracing::info!(agent_type = ?agent_type, "Selected agent type");
 
     let ctx = ExecutionContext::new(state.tool_registry.clone(), Arc::from(provider), agent_type);
 
@@ -150,6 +159,7 @@ async fn run_prompt_with_agent_execution(
     let mut session = match state.storage.load_session(&session_id).await {
         Ok(Some(s)) => s,
         Ok(None) => {
+            tracing::warn!(session_id = %session_id, "Session not found");
             return Err(json_error(
                 StatusCode::NOT_FOUND,
                 "session_not_found",
@@ -157,6 +167,7 @@ async fn run_prompt_with_agent_execution(
             ));
         }
         Err(e) => {
+            tracing::error!(session_id = %session_id, error = %e, "Failed to load session");
             return Err(json_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "storage_error",
@@ -164,6 +175,8 @@ async fn run_prompt_with_agent_execution(
             ));
         }
     };
+
+    tracing::info!(session_id = %session_id, message_count = session.messages.len(), "Session loaded");
 
     let mut events = Vec::new();
 
@@ -178,6 +191,7 @@ async fn run_prompt_with_agent_execution(
     .await
     {
         Ok(response) => {
+            tracing::info!(session_id = %session_id, response_len = response.content.len(), "Agent execution completed");
             events.push(ExecuteEvent::message("assistant", &response.content));
             events.push(ExecuteEvent::complete(serde_json::json!({
                 "session_id": session.id.to_string(),
@@ -185,14 +199,17 @@ async fn run_prompt_with_agent_execution(
             })));
         }
         Err(OpenCodeError::InternalError(msg)) => {
+            tracing::error!(session_id = %session_id, error = %msg, "Internal error during agent execution");
             events.push(ExecuteEvent::error("INTERNAL_ERROR", msg));
         }
         Err(e) => {
+            tracing::error!(session_id = %session_id, error = %e, "Execution error");
             events.push(ExecuteEvent::error("EXECUTION_ERROR", e.to_string()));
         }
     }
 
     if let Err(e) = state.storage.save_session(&session).await {
+        tracing::error!(session_id = %session_id, error = %e, "Failed to save session");
         return Err(json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "storage_error",
@@ -200,6 +217,7 @@ async fn run_prompt_with_agent_execution(
         ));
     }
 
+    tracing::info!(session_id = %session_id, "Session saved successfully");
     Ok(events)
 }
 
@@ -230,6 +248,12 @@ pub async fn run_prompt(
     req: HttpRequest,
     body: web::Json<RunRequest>,
 ) -> impl Responder {
+    tracing::debug!(
+        prompt_len = body.prompt.len(),
+        stream = body.stream,
+        "Received run prompt request"
+    );
+
     let mut validator = RequestValidator::new();
     validator.validate_required_string("prompt", Some(&body.prompt));
     if let Some(ref agent) = body.agent {
@@ -245,12 +269,16 @@ pub async fn run_prompt(
         validator.validate_optional_string("model", Some(model), 100);
     }
     if let Err(errors) = validator.validate() {
+        tracing::warn!(errors = ?errors, "Request validation failed");
         return errors.to_response();
     }
 
     let mut session = Session::new();
     session.add_message(Message::user(&body.prompt));
+    tracing::info!(session_id = %session.id, "Created new session for prompt");
+
     if let Err(e) = state.storage.save_session(&session).await {
+        tracing::error!(session_id = %session.id, error = %e, "Failed to save new session");
         return json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "storage_error",
@@ -259,9 +287,11 @@ pub async fn run_prompt(
     }
 
     if body.stream || accepts_sse(&req) {
+        tracing::debug!(session_id = %session.id, "Using streaming response");
         return run_prompt_streaming(state, body, session.id.to_string()).await;
     }
 
+    tracing::debug!(session_id = %session.id, "Using blocking response");
     let events_result = run_prompt_with_agent_execution(state, body, session.id.to_string()).await;
 
     match events_result {

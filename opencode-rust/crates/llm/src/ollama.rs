@@ -81,6 +81,8 @@ impl Provider for OllamaProvider {
         prompt: &str,
         _context: Option<&str>,
     ) -> Result<String, OpenCodeError> {
+        tracing::debug!(provider = "ollama", model = %self.model, prompt_len = prompt.len(), "Starting Ollama completion");
+
         let request = OllamaGenerateRequest {
             model: self.model.clone(),
             prompt: prompt.to_string(),
@@ -93,26 +95,33 @@ impl Provider for OllamaProvider {
             .json(&request)
             .send()
             .await
-            .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
+            .map_err(|e| {
+                tracing::error!(provider = "ollama", error = %e, "Ollama request failed");
+                OpenCodeError::Llm(e.to_string())
+            })?;
 
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
+            tracing::error!(provider = "ollama", status = %status, error = %error_text, "Ollama API error");
             return Err(OpenCodeError::Llm(format!(
                 "Ollama API error {}: {}",
                 status, error_text
             )));
         }
 
-        let result: OllamaGenerateResponse = response
-            .json()
-            .await
-            .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
+        let result: OllamaGenerateResponse = response.json().await.map_err(|e| {
+            tracing::error!(provider = "ollama", error = %e, "Failed to parse Ollama response");
+            OpenCodeError::Llm(e.to_string())
+        })?;
 
+        tracing::info!(provider = "ollama", model = %self.model, response_len = result.response.len(), "Ollama completion successful");
         Ok(result.response)
     }
 
     async fn chat(&self, messages: &[ChatMessage]) -> Result<ChatResponse, OpenCodeError> {
+        tracing::debug!(provider = "ollama", model = %self.model, message_count = messages.len(), "Starting Ollama chat");
+
         let request = OllamaChatRequest {
             model: self.model.clone(),
             messages: messages
@@ -131,11 +140,15 @@ impl Provider for OllamaProvider {
             .json(&request)
             .send()
             .await
-            .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
+            .map_err(|e| {
+                tracing::error!(provider = "ollama", error = %e, "Ollama chat request failed");
+                OpenCodeError::Llm(e.to_string())
+            })?;
 
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
+            tracing::error!(provider = "ollama", status = %status, error = %error_text, "Ollama chat API error");
             return Err(OpenCodeError::Llm(format!(
                 "Ollama API error {}: {}",
                 status, error_text
@@ -145,13 +158,16 @@ impl Provider for OllamaProvider {
         let result: OllamaChatResponse = response
             .json()
             .await
-            .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
+            .map_err(|e| {
+                tracing::error!(provider = "ollama", error = %e, "Failed to parse Ollama chat response");
+                OpenCodeError::Llm(e.to_string())
+            })?;
 
-        Ok(ChatResponse {
-            content: result.message.content,
-            model: result.model.unwrap_or_else(|| self.model.clone()),
-            usage: None,
-        })
+        tracing::info!(provider = "ollama", model = %self.model, response_len = result.message.content.len(), "Ollama chat successful");
+        Ok(ChatResponse::new(
+            result.message.content,
+            result.model.unwrap_or_default(),
+        ))
     }
 
     async fn complete_streaming(

@@ -46,17 +46,27 @@ impl StorageService {
     }
 
     pub async fn save_session(&self, session: &Session) -> Result<(), OpenCodeError> {
-        self.session_repo
-            .save(session)
-            .await
-            .map_err(OpenCodeError::from)
+        tracing::debug!(session_id = %session.id, message_count = session.messages.len(), "Saving session");
+        self.session_repo.save(session).await.map_err(|e| {
+            tracing::error!(session_id = %session.id, error = %e, "Failed to save session");
+            OpenCodeError::from(e)
+        })?;
+        tracing::info!(session_id = %session.id, "Session saved successfully");
+        Ok(())
     }
 
     pub async fn load_session(&self, id: &str) -> Result<Option<Session>, OpenCodeError> {
-        self.session_repo
-            .find_by_id(id)
-            .await
-            .map_err(OpenCodeError::from)
+        tracing::debug!(session_id = %id, "Loading session");
+        let result = self.session_repo.find_by_id(id).await.map_err(|e| {
+            tracing::error!(session_id = %id, error = %e, "Failed to load session");
+            OpenCodeError::from(e)
+        })?;
+
+        match &result {
+            Some(_) => tracing::debug!(session_id = %id, "Session loaded successfully"),
+            None => tracing::debug!(session_id = %id, "Session not found"),
+        }
+        Ok(result)
     }
 
     pub async fn get_session_messages_paginated(
@@ -87,10 +97,13 @@ impl StorageService {
     }
 
     pub async fn delete_session(&self, id: &str) -> Result<(), OpenCodeError> {
-        self.session_repo
-            .delete(id)
-            .await
-            .map_err(OpenCodeError::from)
+        tracing::info!(session_id = %id, "Deleting session");
+        self.session_repo.delete(id).await.map_err(|e| {
+            tracing::error!(session_id = %id, error = %e, "Failed to delete session");
+            OpenCodeError::from(e)
+        })?;
+        tracing::info!(session_id = %id, "Session deleted successfully");
+        Ok(())
     }
 
     pub async fn list_sessions(
@@ -98,14 +111,21 @@ impl StorageService {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<SessionInfo>, OpenCodeError> {
+        tracing::debug!(limit = limit, offset = offset, "Listing sessions");
         self.session_repo
             .find_all(limit, offset)
             .await
-            .map_err(OpenCodeError::from)
+            .map_err(|e| {
+                tracing::error!(error = %e, "Failed to list sessions");
+                OpenCodeError::from(e)
+            })
     }
 
     pub async fn count_sessions(&self) -> Result<usize, OpenCodeError> {
-        self.session_repo.count().await.map_err(OpenCodeError::from)
+        self.session_repo.count().await.map_err(|e| {
+            tracing::error!(error = %e, "Failed to count sessions");
+            OpenCodeError::from(e)
+        })
     }
 
     pub async fn save_project(&self, project: &ProjectModel) -> Result<(), OpenCodeError> {

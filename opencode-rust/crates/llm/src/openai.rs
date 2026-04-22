@@ -379,6 +379,8 @@ impl Provider for OpenAiProvider {
         prompt: &str,
         _context: Option<&str>,
     ) -> Result<String, OpenCodeError> {
+        tracing::debug!(provider = "openai", model = %self.model, prompt_len = prompt.len(), "Starting LLM completion");
+
         if self.uses_browser_auth() {
             return self.complete_browser_auth(prompt).await;
         }
@@ -411,24 +413,25 @@ impl Provider for OpenAiProvider {
             req = req.header(key, value);
         }
 
-        let response = req
-            .send()
-            .await
-            .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
+        let response = req.send().await.map_err(|e| {
+            tracing::error!(provider = "openai", error = %e, "LLM request failed");
+            OpenCodeError::Llm(e.to_string())
+        })?;
 
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
+            tracing::error!(provider = "openai", status = %status, error = %error_text, "LLM API error");
             return Err(OpenCodeError::Llm(format!(
                 "OpenAI API error {}: {}",
                 status, error_text
             )));
         }
 
-        let completion: ChatCompletion = response
-            .json()
-            .await
-            .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
+        let completion: ChatCompletion = response.json().await.map_err(|e| {
+            tracing::error!(provider = "openai", error = %e, "Failed to parse LLM response");
+            OpenCodeError::Llm(e.to_string())
+        })?;
 
         let content = completion
             .choices
@@ -436,6 +439,7 @@ impl Provider for OpenAiProvider {
             .map(|c| c.message.content.clone())
             .unwrap_or_default();
 
+        tracing::info!(provider = "openai", model = %self.model, response_len = content.len(), "LLM completion successful");
         Ok(content)
     }
 
