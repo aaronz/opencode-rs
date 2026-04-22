@@ -244,7 +244,7 @@
       "priority": "P0",
       "title": "Implement oxfmt formatter (.js,.ts,...)",
       "description": "Implement oxfmt formatter (OpenCode experimental). Detection: OPENCODE_EXPERIMENTAL_OXFMT flag + package.json has oxfmt",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify oxfmt name returns 'oxfmt'",
         "AddUnitTest: verify oxfmt enabled() checks OPENCODE_EXPERIMENTAL_OXFMT env var and package.json"

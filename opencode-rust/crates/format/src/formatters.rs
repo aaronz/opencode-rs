@@ -1377,4 +1377,60 @@ mod tests {
         let result = rt.block_on(formatter.enabled(&ctx));
         assert!(result.is_none(), "prettier should not be enabled without package.json");
     }
+
+    #[test]
+    fn verify_oxfmt_name_returns_oxfmt() {
+        let formatter = oxfmt::OxfmtFormatter::new();
+        assert_eq!(formatter.name(), "oxfmt");
+    }
+
+    #[test]
+    fn verify_oxfmt_extensions() {
+        let formatter = oxfmt::OxfmtFormatter::new();
+        assert!(formatter.extensions().contains(&".js"));
+        assert!(formatter.extensions().contains(&".ts"));
+        assert!(formatter.extensions().contains(&".tsx"));
+        assert!(formatter.extensions().contains(&".jsx"));
+    }
+
+    #[tokio::test]
+    async fn verify_oxfmt_enabled_checks_env_and_package_json() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let package_json = temp_dir.path().join("package.json");
+        std::fs::write(&package_json, r#"{"name": "test"}"#).unwrap();
+
+        let formatter = oxfmt::OxfmtFormatter::new();
+        let ctx = FormatterContext {
+            directory: temp_dir.path().to_path_buf(),
+            worktree: temp_dir.path().to_path_buf(),
+        };
+
+        std::env::remove_var("OPENCODE_EXPERIMENTAL_OXFMT");
+        let result = formatter.enabled(&ctx).await;
+        assert!(result.is_none(), "oxfmt should not be enabled without env var");
+
+        std::env::set_var("OPENCODE_EXPERIMENTAL_OXFMT", "1");
+        let result = formatter.enabled(&ctx).await;
+        assert!(result.is_some(), "oxfmt should be enabled with env var and package.json");
+        std::env::remove_var("OPENCODE_EXPERIMENTAL_OXFMT");
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn verify_oxfmt_disabled_without_package_json() {
+        let temp_dir = tempfile::tempdir().unwrap();
+
+        std::env::set_var("OPENCODE_EXPERIMENTAL_OXFMT", "1");
+        let formatter = oxfmt::OxfmtFormatter::new();
+        let ctx = FormatterContext {
+            directory: temp_dir.path().to_path_buf(),
+            worktree: temp_dir.path().to_path_buf(),
+        };
+        let result = formatter.enabled(&ctx).await;
+        assert!(result.is_none(), "oxfmt should not be enabled without package.json");
+        std::env::remove_var("OPENCODE_EXPERIMENTAL_OXFMT");
+
+        drop(temp_dir);
+    }
 }
