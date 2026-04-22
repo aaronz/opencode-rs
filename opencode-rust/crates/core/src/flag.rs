@@ -394,21 +394,16 @@ impl FlagManager {
     }
 
     pub fn load_from_env(&mut self) {
-        // Load boolean flags
         for (name, flag) in self.flags.iter_mut() {
-            if let Ok(val) = env::var(name) {
-                flag.value = val == "1" || val.to_lowercase() == "true";
-            }
+            flag.value = truthy(name);
         }
 
-        // Load string flags
         for (name, value) in self.string_flags.iter_mut() {
             if let Ok(val) = env::var(name) {
                 *value = Some(val);
             }
         }
 
-        // Load number flags
         for (name, value) in self.number_flags.iter_mut() {
             if let Ok(val) = env::var(name) {
                 if let Ok(parsed) = val.parse::<u64>() {
@@ -602,5 +597,57 @@ mod tests {
         let mut fm = FlagManager::new();
         fm.set("OPENCODE_EXPERIMENTAL", true);
         assert!(fm.opencode_enable_exa());
+    }
+
+struct EnvVarGuard {
+        vars: Vec<(String, Option<String>)>,
+    }
+
+    impl EnvVarGuard {
+        fn new() -> Self {
+            Self { vars: Vec::new() }
+        }
+        fn set(&mut self, key: &str, value: &str) {
+            let prev = std::env::var(key).ok();
+            std::env::set_var(key, value);
+            self.vars.push((key.to_string(), prev));
+        }
+    }
+
+    impl Drop for EnvVarGuard {
+        fn drop(&mut self) {
+            for (key, old_value) in self.vars.drain(..) {
+                match old_value {
+                    Some(v) => std::env::set_var(&key, v),
+                    None => std::env::remove_var(&key),
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn load_from_env_uses_truthy_helper() {
+        let mut guard = EnvVarGuard::new();
+        guard.set("OPENCODE_DEBUG", "1");
+        guard.set("OPENCODE_EXPERIMENTAL", "true");
+        guard.set("OPENCODE_DISABLE_AUTOUPDATE", "TRUE");
+
+        let mut fm = FlagManager::new();
+        fm.load_from_env();
+
+        assert!(fm.is_enabled("OPENCODE_DEBUG"));
+        assert!(fm.is_enabled("OPENCODE_EXPERIMENTAL"));
+        assert!(fm.is_enabled("OPENCODE_DISABLE_AUTOUPDATE"));
+    }
+
+    #[test]
+    fn load_from_env_boolean_flags_from_environment() {
+        let mut guard = EnvVarGuard::new();
+        guard.set("OPENCODE_EXPERIMENTAL", "true");
+
+        let mut fm = FlagManager::new();
+        assert!(!fm.is_enabled("OPENCODE_EXPERIMENTAL"));
+        fm.load_from_env();
+        assert!(fm.is_enabled("OPENCODE_EXPERIMENTAL"));
     }
 }

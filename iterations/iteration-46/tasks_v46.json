@@ -92,7 +92,7 @@
       "priority": "P2",
       "title": "Refactor load_from_env() to Use truthy() Helper",
       "description": "Refactor load_from_env() to use truthy() helper instead of inline check. Change from flag.value = val == '1' || val.to_lowercase() == 'true' to flag.value = truthy(name). Remove duplicate truthy check code.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify load_from_env() uses truthy() helper for boolean parsing",
         "AddRegressionTest: ensure boolean flags still load correctly from environment"

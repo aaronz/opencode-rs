@@ -51,6 +51,7 @@ use std::sync::Arc;
 /// Global state container for CLI/TUI runtime.
 ///
 /// Owns [`Config`], [`EventBus`], [`FlagManager`], and optional active [`Session`].
+#[allow(private_interfaces)]
 pub struct GlobalState {
     pub config: Config,
     pub event_bus: Arc<EventBus>,
