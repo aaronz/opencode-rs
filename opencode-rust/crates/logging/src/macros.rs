@@ -16,11 +16,18 @@ macro_rules! log_fields {
 
 #[macro_export]
 macro_rules! log_tool {
-    ($logger:expr, $tool:expr, $status:expr, $fields:expr) => {
+    ($logger:expr, $tool:expr, $status:expr) => {
         $logger.info(
             &format!("tool.{}", $tool),
             &format!("Tool {} completed", $status),
-            $fields
+            log_fields!(session_id = $tool.into(), tool_name = $tool.into())
+        )
+    };
+    ($logger:expr, $tool:expr, $status:expr, $($field:tt)*) => {
+        $logger.info(
+            &format!("tool.{}", $tool),
+            &format!("Tool {} completed", $status),
+            log_fields!(session_id = $tool.into(), tool_name = $tool.into(), $($field)*)
         )
     };
 }

@@ -92,7 +92,7 @@
 
 ### Integration Tests
 
-- [ ] status_empty_when_disabled
+- [x] status_empty_when_disabled
 - [ ] status_includes_gofmt_when_all_enabled
 - [ ] status_excludes_disabled_formatter
 - [ ] disabling_ruff_removes_uv

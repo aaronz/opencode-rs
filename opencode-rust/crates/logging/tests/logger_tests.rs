@@ -3,6 +3,8 @@ use opencode_logging::logger::Logger;
 use opencode_logging::config::LoggingConfig;
 use opencode_logging::query::LogQuery;
 use opencode_logging::log_tool;
+use opencode_logging::log_fields;
+use opencode_logging::AgentLogger;
 
 #[tokio::test]
 async fn test_log_tool_macro_expands_to_info_call() {
