@@ -4,6 +4,7 @@ members = [
     "crates/config",
     "crates/core",
     "crates/format",
+    "crates/logging",
     "crates/cli",
     "crates/llm",
     "crates/tools",
@@ -93,11 +94,12 @@ opencode-sdk = { path = "crates/sdk" }
 opencode-git = { path = "crates/git" }
 opencode-util = { path = "crates/util" }
 opencode-format = { path = "crates/format" }
+opencode-logging = { path = "crates/logging" }
 
 # Server dependencies
 actix-web = "4"
 actix-cors = "0.7"
-actix-web-lab = "0.20"
+actix-web-lab = "0.26"
 
 # Utility dependencies
 regex = "1"

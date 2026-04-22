@@ -1,0 +1,650 @@
+{
+  "tasks": [
+    {
+      "id": "0.1",
+      "priority": "P0",
+      "title": "Create Logging Crate Structure",
+      "description": "Create the foundational logging crate with directory structure, Cargo.toml dependencies, and module declarations for the opencode-logging package.",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify crate builds successfully with cargo build -p opencode-logging",
+        "AddUnitTest: verify no compiler warnings in release build",
+        "AddUnitTest: verify all module exports are accessible from lib.rs",
+        "AddRegressionTest: ensure workspace Cargo.toml includes the new crate"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-logging",
+        "cargo build -p opencode-logging --release",
+        "cargo test -p opencode-logging -- --test-threads=1"
+      ],
+      "impl_notes": "Create directory structure crates/logging/src/ and crates/logging/tests/. Cargo.toml should include: tracing, chrono, serde, serde_json, thiserror, tokio. Add crate to workspace Cargo.toml.",
+      "dependencies": []
+    },
+    {
+      "id": "0.2",
+      "priority": "P0",
+      "title": "Implement LogLevel Enum with TRACE",
+      "description": "Create LogLevel enum with variants: Trace, Debug, Info, Warn, Error. Implement From<LogLevel> for tracing::Level conversion. Add serde Serialize/Deserialize support.",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify LogLevel::Trace converts to tracing::Level::TRACE",
+        "AddUnitTest: verify all level variants serialize to lowercase string",
+        "AddUnitTest: verify deserialization works for all variants",
+        "AddUnitTest: verify level ordering (Trace < Debug < Info < Warn < Error)",
+        "RunTestSuite: cargo test -p opencode-logging log_level"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-logging log_level"
+      ],
+      "impl_notes": "LogLevel ordering must match severity: Trace=0, Debug=1, Info=2, Warn=3, Error=4. Implement ordinal() method for comparisons.",
+      "dependencies": [
+        "0.1"
+      ]
+    },
+    {
+      "id": "0.3",
+      "priority": "P0",
+      "title": "Implement LogFields Struct",
+      "description": "Create LogFields struct with all optional fields: session_id, tool_name, latency_ms, model, provider, token_count, error_code, file_path, line, extra. Implement Default and serde support.",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify LogFields::default() creates empty struct with no fields set",
+        "AddUnitTest: verify serialization includes all fields when set",
+        "AddUnitTest: verify deserialization populates correct fields",
+        "AddUnitTest: verify extra HashMap can store arbitrary JSON values",
+        "RunTestSuite: cargo test -p opencode-logging log_fields"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-logging log_fields"
+      ],
+      "impl_notes": "All fields are Option<T>. extra is a HashMap<String, serde_json::Value> for extensibility.",
+      "dependencies": [
+        "0.1",
+        "0.2"
+      ]
+    },
+    {
+      "id": "0.4",
+      "priority": "P0",
+      "title": "Implement LogEvent Struct",
+      "description": "Create LogEvent with seq (atomic u64), timestamp (DateTime<Utc>), level, target, message, fields, span_id, parent_seq. Add constructor and sequence number generation.",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify sequence numbers are unique and incrementing",
+        "AddUnitTest: verify timestamp is high-precision UTC",
+        "AddUnitTest: verify LogEvent::new() constructor works",
+        "AddUnitTest: verify serialization includes all fields",
+        "AddUnitTest: verify parent_seq can link events in chains",
+        "RunTestSuite: cargo test -p opencode-logging log_event"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-logging log_event"
+      ],
+      "impl_notes": "Use std::sync::atomic::AtomicU64 for sequence generation. seq starts at 1. span_id format should be trace_id:span_id.",
+      "dependencies": [
+        "0.1",
+        "0.2",
+        "0.3"
+      ]
+    },
+    {
+      "id": "0.5",
+      "priority": "P0",
+      "title": "Implement LogQuery Struct",
+      "description": "Create LogQuery with session_id, level, target, since, until, limit. Implement matches() method, Default, and helper methods for_session() and for_level().",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify LogQuery::matches returns true when event matches all set criteria",
+        "AddUnitTest: verify LogQuery::matches returns false when event fails any criterion",
+        "AddUnitTest: verify LogQuery::for_session creates query for specific session",
+        "AddUnitTest: verify LogQuery::for_level creates query for specific level",
+        "AddUnitTest: verify empty query matches all events",
+        "RunTestSuite: cargo test -p opencode-logging log_query"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-logging log_query"
+      ],
+      "impl_notes": "matches() should return true only if ALL set fields match. None fields should be ignored (wildcard).",
+      "dependencies": [
+        "0.1",
+        "0.4"
+      ]
+    },
+    {
+      "id": "0.6",
+      "priority": "P0",
+      "title": "Implement SessionLogBuffer (Ring Buffer)",
+      "description": "Create SessionLogBuffer with fixed capacity. Implement O(1) push with oldest eviction, get_range, get_by_level, len, is_empty. Add tests for ring buffer behavior.",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify O(1) insertion performance for push()",
+        "AddUnitTest: verify oldest event evicted when capacity exceeded",
+        "AddUnitTest: verify get_range returns correct sequence range",
+        "AddUnitTest: verify get_by_level filters correctly",
+        "AddUnitTest: verify len() and is_empty() return correct values",
+        "AddUnitTest: verify wraparound behavior at capacity boundary",
+        "RunTestSuite: cargo test -p opencode-logging session_log_buffer"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-logging session_log_buffer"
+      ],
+      "impl_notes": "Use VecDeque for O(1) push/pop. Capacity should be configurable via constructor. Eviction must be deterministic.",
+      "dependencies": [
+        "0.4",
+        "0.5"
+      ]
+    },
+    {
+      "id": "0.7",
+      "priority": "P0",
+      "title": "Implement LogStore (SQLite Persistence)",
+      "description": "Create LogStore with SQLite Connection. Implement new(), schema creation, append(), query(), recent(), prune(). Handle database errors gracefully.",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify new() creates database and schema",
+        "AddUnitTest: verify append() inserts LogEvent correctly",
+        "AddUnitTest: verify query() returns filtered results",
+        "AddUnitTest: verify recent() returns session's latest logs",
+        "AddUnitTest: verify prune() removes old logs and returns count",
+        "AddUnitTest: verify index improves query performance",
+        "RunTestSuite: cargo test -p opencode-logging log_store"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-logging log_store"
+      ],
+      "impl_notes": "Schema: logs(seq, timestamp, level, target, message, fields_json, span_id, parent_seq, session_id). Index on (session_id, timestamp). Use rusqlite.",
+      "dependencies": [
+        "0.4",
+        "0.5"
+      ]
+    },
+    {
+      "id": "0.8",
+      "priority": "P0",
+      "title": "Implement AgentLogger Trait",
+      "description": "Define AgentLogger trait with trace/debug/info/warn/error methods, with_context() returning ChildLogger, and async query(). Implement AgentLoggerImpl.",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify all log levels emit correctly",
+        "AddUnitTest: verify ChildLogger context chaining works",
+        "AddUnitTest: verify with_context() creates child with merged fields",
+        "AddUnitTest: verify query() returns matching events",
+        "AddUnitTest: verify trait objects work across implementations",
+        "RunTestSuite: cargo test -p opencode-logging agent_logger"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-logging agent_logger"
+      ],
+      "impl_notes": "AgentLogger should be async trait. ChildLogger wraps parent fields + additional context. Implement Debug for testing.",
+      "dependencies": [
+        "0.1",
+        "0.2",
+        "0.3",
+        "0.4",
+        "0.5",
+        "0.6",
+        "0.7"
+      ]
+    },
+    {
+      "id": "1.1",
+      "priority": "P1",
+      "title": "Implement LoggingConfig",
+      "description": "Create LoggingConfig struct with level, targets, file_path, max_file_size_mb, max_rotated_files, show_in_tui, tui_position, memory_buffer_size, retention_days. Implement Default and TOML deserialization.",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify Default provides sensible values",
+        "AddUnitTest: verify TOML deserialization parses all fields",
+        "AddUnitTest: verify TuiLogPosition enum variants (Bottom, Right, Overlay)",
+        "AddUnitTest: verify targets HashMap allows per-component levels",
+        "RunTestSuite: cargo test -p opencode-logging logging_config"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-logging logging_config"
+      ],
+      "impl_notes": "max_file_size_mb default 50, max_rotated_files default 5, memory_buffer_size default 10000, retention_days default 30.",
+      "dependencies": [
+        "0.1",
+        "0.2",
+        "0.8"
+      ]
+    },
+    {
+      "id": "1.2",
+      "priority": "P1",
+      "title": "Implement SanitizedValue for Secret Redaction",
+      "description": "Create SanitizedValue enum (Safe, Redacted, Nested) and Sanitizer struct. Implement redaction for api_key, password, token, secret, authorization, *_key, *_token, *_secret patterns.",
+      "status": "done",
+      "test_criteria": [
+        "AddUnitTest: verify api_key exact match redacted",
+        "AddUnitTest: verify password exact match redacted",
+        "AddUnitTest: verify token exact match redacted",
+        "AddUnitTest: verify authorization exact match redacted",
+        "AddUnitTest: verify *_key suffix pattern redacted",
+        "AddUnitTest: verify *_token suffix pattern redacted",
+        "AddUnitTest: verify *_secret suffix pattern redacted",
+        "AddUnitTest: verify nested structures handled correctly",
+        "RunTestSuite: cargo test -p opencode-logging sanitizer"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-logging sanitizer"
+      ],
+      "impl_notes": "Redacted value should be [REDACTED]. Nested should recursively sanitize HashMap values. Case-insensitive matching.",
+      "dependencies": [
+        "0.1",
+        "0.3"
+      ]
+    },
+    {
+      "id": "1.3",
+      "priority": "P1",
+      "title": "Implement log_tool! Macro",
+      "description": "Implement log_tool! macro that expands to logger.info with target 'tool.{name}', formatted message, and field construction. Support field syntax like latency_ms = 45.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify macro expands to correct info! call",
+        "AddUnitTest: verify field syntax parses correctly",
+        "AddUnitTest: verify target format is tool.{tool_name}",
+        "AddUnitTest: verify message format is Tool {status} completed",
+        "RunTestSuite: cargo test -p opencode-logging log_tool_macro"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-logging log_tool_macro"
+      ],
+      "impl_notes": "Macro signature: log_tool!($logger, $tool, $status, $($field:tt)*). Should call log_fields! internally.",
+      "dependencies": [
+        "0.8",
+        "1.5"
+      ]
+    },
+    {
+      "id": "1.4",
+      "priority": "P1",
+      "title": "Implement log_llm! Macro",
+      "description": "Implement log_llm! macro that expands to logger.info with target 'llm.$provider', setting provider, model, token_count, latency_ms fields.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify macro expands to correct logger.info call",
+        "AddUnitTest: verify target format is llm.{provider}",
+        "AddUnitTest: verify all LLM fields populated correctly",
+        "RunTestSuite: cargo test -p opencode-logging log_llm_macro"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-logging log_llm_macro"
+      ],
+      "impl_notes": "Macro signature: log_llm!($logger, $provider, $model, $tokens, $latency, $status).",
+      "dependencies": [
+        "0.8",
+        "1.5"
+      ]
+    },
+    {
+      "id": "1.5",
+      "priority": "P2",
+      "title": "Implement log_fields! Macro",
+      "description": "Implement log_fields! macro with two forms: field-only (log_fields!(session_id, tool_name)) and key-value (log_fields!(latency_ms = 45)). Support expressions not just literals.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify field-only form compiles and returns LogFields",
+        "AddUnitTest: verify key-value form parses and sets values",
+        "AddUnitTest: verify expression evaluation works (not just literals)",
+        "AddUnitTest: verify all LogFields optional fields supported",
+        "RunTestSuite: cargo test -p opencode-logging log_fields_macro"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-logging log_fields_macro"
+      ],
+      "impl_notes": "Field-only sets field to Some(field_name.to_string()). Key-value sets to Some(value).",
+      "dependencies": [
+        "0.3"
+      ]
+    },
+    {
+      "id": "1.6",
+      "priority": "P1",
+      "title": "Implement ReasoningLog and ToolConsideration",
+      "description": "Create ToolConsideration struct (tool_name, reason, selected) and ReasoningLog struct (step_id, session_id, timestamp, prompt, response, tools_considered, decision, prompt_tokens, completion_tokens, latency_ms).",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify ToolConsideration serialization works",
+        "AddUnitTest: verify ReasoningLog with tools_considered serializes correctly",
+        "AddUnitTest: verify deserialization preserves all fields",
+        "AddUnitTest: verify token counts and latency captured correctly",
+        "RunTestSuite: cargo test -p opencode-logging reasoning_log"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-logging reasoning_log"
+      ],
+      "impl_notes": "decision field captures why this tool was chosen over others. tools_considered is Vec for multi-option reasoning.",
+      "dependencies": [
+        "0.1",
+        "0.3",
+        "0.4"
+      ]
+    },
+    {
+      "id": "1.7",
+      "priority": "P1",
+      "title": "Implement ToolExecutionLog",
+      "description": "Create ToolExecutionLog struct (execution_id, session_id, tool_name, timestamp, parameters: SanitizedValue, result, latency_ms, error). Use SanitizedValue for parameter sanitization.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify ToolExecutionLog serializes correctly",
+        "AddUnitTest: verify parameters use SanitizedValue type",
+        "AddUnitTest: verify result field captures tool output",
+        "AddUnitTest: verify error field is Option<ErrorContext>",
+        "RunTestSuite: cargo test -p opencode-logging tool_execution_log"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-logging tool_execution_log"
+      ],
+      "impl_notes": "result should be ToolResult from opencode-core. execution_id format: {session_id}:{tool_name}:{timestamp_ns}.",
+      "dependencies": [
+        "1.2",
+        "1.8"
+      ]
+    },
+    {
+      "id": "1.8",
+      "priority": "P1",
+      "title": "Implement ErrorContext, ErrorFrame, CauseInfo",
+      "description": "Create ErrorFrame (file, line, function), CauseInfo (code, message), ErrorContext (code, message, stack: Vec<ErrorFrame>, cause_chain: Vec<CauseInfo>, context).",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify ErrorFrame captures file path and line number",
+        "AddUnitTest: verify ErrorContext stack captures full trace",
+        "AddUnitTest: verify cause_chain links error causes",
+        "AddUnitTest: verify context HashMap stores additional info",
+        "AddUnitTest: verify serialization preserves all fields",
+        "RunTestSuite: cargo test -p opencode-logging error_context"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-logging error_context"
+      ],
+      "impl_notes": "stack should capture at capture point, not at display. cause_chain is ordered from root cause to immediate cause.",
+      "dependencies": [
+        "0.1",
+        "0.3"
+      ]
+    },
+    {
+      "id": "1.9",
+      "priority": "P1",
+      "title": "Implement TUI Log Panel",
+      "description": "Create LogPanel widget for ratatui with header (session, log count, buttons), log list, scroll navigation, level filter, component filter, text search, expandable error details.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify LogPanel renders with correct layout",
+        "AddUnitTest: verify empty state shows placeholder message",
+        "AddUnitTest: verify filter buttons toggle correctly",
+        "AddUnitTest: verify arrow key scroll navigation works",
+        "AddUnitTest: verify Ctrl+L toggles visibility",
+        "AddUnitTest: verify text search filters logs",
+        "AddUnitTest: verify error details expand on click",
+        "AddUnitTest: verify auto-scroll toggle behavior",
+        "RunTestSuite: cargo test -p opencode-logging --features tui log_panel"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-logging --features tui log_panel"
+      ],
+      "impl_notes": "Use ratatui Widget trait. Layout: header row, separator, scrollable log list. Level buttons: INFO DEBUG WARN ERROR. Component filter dropdown.",
+      "dependencies": [
+        "0.4",
+        "0.5"
+      ]
+    },
+    {
+      "id": "2.1",
+      "priority": "P2",
+      "title": "Implement Per-Component Log Level Filtering",
+      "description": "Implement glob-based target matching (exact, prefix*, *suffix). Filter resolution order: exact match, glob match, fallback to global level.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify exact match 'agent' -> agent",
+        "AddUnitTest: verify prefix wildcard 'llm.*' matches 'llm.openai'",
+        "AddUnitTest: verify suffix wildcard '*.read' matches 'tool.read'",
+        "AddUnitTest: verify priority resolution order is correct",
+        "AddUnitTest: verify fallback to global level works",
+        "RunTestSuite: cargo test -p opencode-logging per_component_filter"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-logging per_component_filter"
+      ],
+      "impl_notes": "Wildcard glob pattern matching. Check exact first, then prefix glob, then suffix glob. Default to global if no match.",
+      "dependencies": [
+        "0.5",
+        "1.1"
+      ]
+    },
+    {
+      "id": "2.2",
+      "priority": "P2",
+      "title": "Implement Size-Based Log Rotation",
+      "description": "Implement file size check before write. Rotate: opencode.log -> opencode.log.1 -> opencode.log.2. Delete oldest when max_rotated_files exceeded.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify rotation triggered at max_file_size_mb",
+        "AddUnitTest: verify rotated file numbering increments correctly",
+        "AddUnitTest: verify oldest file deleted when max_rotated_files exceeded",
+        "AddUnitTest: verify new log file created after rotation",
+        "RunTestSuite: cargo test -p opencode-logging log_rotation"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-logging log_rotation"
+      ],
+      "impl_notes": "Check file size before each write. When rotating: rename existing to .1, .1 to .2, etc. Delete file.n+1 where n=max_rotated_files.",
+      "dependencies": [
+        "1.1"
+      ]
+    },
+    {
+      "id": "2.3",
+      "priority": "P2",
+      "title": "Implement Log Query Tool for Agent Self-Diagnosis",
+      "description": "Create LogQueryTool struct implementing Tool trait. Define schema with session_id, level, target, since, until, limit. Return structured log events matching query.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify tool schema defines all query parameters",
+        "AddUnitTest: verify execute returns matching LogEvents",
+        "AddUnitTest: verify ISO 8601 date parsing works for since/until",
+        "AddUnitTest: verify results are structured JSON",
+        "RunTestSuite: cargo test -p opencode-tools log_query_tool"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-tools log_query_tool"
+      ],
+      "impl_notes": "Tool should be registered in crates/tools/src/lib.rs. Return format: {events: [...], count: N}. Use opencode-core Tool trait.",
+      "dependencies": [
+        "0.5",
+        "0.7",
+        "0.8"
+      ]
+    },
+    {
+      "id": "T.1",
+      "priority": "P1",
+      "title": "Logger Tests",
+      "description": "Test LogEvent serialization, level filtering, query matching, ChildLogger context chaining in crates/logging/tests/logger_tests.rs.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify LogEvent round-trip serialization",
+        "AddUnitTest: verify level filtering excludes non-matching levels",
+        "AddUnitTest: verify query matching for all field combinations",
+        "AddUnitTest: verify ChildLogger inherits and extends parent context",
+        "RunTestSuite: cargo test -p opencode-logging --test logger_tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-logging --test logger_tests"
+      ],
+      "impl_notes": "Use tempfile for test database. Test concurrent access to LogStore.",
+      "dependencies": [
+        "0.4",
+        "0.5",
+        "0.7",
+        "0.8"
+      ]
+    },
+    {
+      "id": "T.2",
+      "priority": "P1",
+      "title": "Sanitizer Tests",
+      "description": "Test all sanitizer patterns in crates/logging/tests/sanitizer_tests.rs: api_key, password, token, *_key, *_token, *_secret, authorization, nested structures.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify api_key exact match redacted",
+        "AddUnitTest: verify password exact match redacted",
+        "AddUnitTest: verify token exact match redacted",
+        "AddUnitTest: verify authorization exact match redacted",
+        "AddUnitTest: verify *_key suffix pattern redacted",
+        "AddUnitTest: verify *_token suffix pattern redacted",
+        "AddUnitTest: verify *_secret suffix pattern redacted",
+        "AddUnitTest: verify nested HashMap values sanitized recursively",
+        "RunTestSuite: cargo test -p opencode-logging --test sanitizer_tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-logging --test sanitizer_tests"
+      ],
+      "impl_notes": "Test edge cases: empty string, partial matches, case sensitivity.",
+      "dependencies": [
+        "1.2"
+      ]
+    },
+    {
+      "id": "T.3",
+      "priority": "P1",
+      "title": "Query Tests",
+      "description": "Test query by session_id, level, target, time range, combined queries, limit parameter in crates/logging/tests/query_tests.rs.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify query by session_id returns only that session's logs",
+        "AddUnitTest: verify query by level returns only matching severity",
+        "AddUnitTest: verify query by target returns matching components",
+        "AddUnitTest: verify query by time range filters correctly",
+        "AddUnitTest: verify combined queries match all criteria",
+        "AddUnitTest: verify limit parameter caps result count",
+        "RunTestSuite: cargo test -p opencode-logging --test query_tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-logging --test query_tests"
+      ],
+      "impl_notes": "Test boundary conditions: since == until, limit = 0, limit > results.",
+      "dependencies": [
+        "0.5",
+        "0.7"
+      ]
+    },
+    {
+      "id": "T.4",
+      "priority": "P1",
+      "title": "TUI Tests",
+      "description": "Test log panel rendering, empty state, filter behavior, scroll behavior in crates/logging/tests/tui_tests.rs.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify log panel renders with border",
+        "AddUnitTest: verify empty state shows visible placeholder",
+        "AddUnitTest: verify level filter buttons work",
+        "AddUnitTest: verify component filter dropdown works",
+        "AddUnitTest: verify scroll up/down behavior",
+        "AddUnitTest: verify auto-scroll toggle",
+        "RunTestSuite: cargo test -p opencode-logging --test tui_tests --features tui"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-logging --test tui_tests --features tui"
+      ],
+      "impl_notes": "Use ratatui TestBackend for rendering tests. Test Ctrl+L keybinding.",
+      "dependencies": [
+        "1.9"
+      ]
+    },
+    {
+      "id": "I.1",
+      "priority": "P1",
+      "title": "Log Store Query by Session",
+      "description": "Integration test: insert logs with different session_ids, query by session_id, verify only matching logs returned.",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: insert 10 logs with session_a and 5 logs with session_b",
+        "AddIntegrationTest: query by session_a returns exactly 10 logs",
+        "AddIntegrationTest: query by session_b returns exactly 5 logs",
+        "AddIntegrationTest: query without session_id returns all logs",
+        "RunTestSuite: cargo test -p opencode-logging --test integration_tests"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-logging --test integration_tests"
+      ],
+      "impl_notes": "Use temporary database for isolation. Clean up after test.",
+      "dependencies": [
+        "0.7"
+      ]
+    },
+    {
+      "id": "I.2",
+      "priority": "P1",
+      "title": "Log Rotation",
+      "description": "Integration test: configure small max_file_size_mb, write logs until rotation triggered, verify rotated files created, verify oldest deleted.",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: configure max_file_size_mb = 1",
+        "AddIntegrationTest: write 100 logs of ~2KB each",
+        "AddIntegrationTest: verify rotation occurs and creates opencode.log.1",
+        "AddIntegrationTest: verify opencode.log.2 created after more writes",
+        "AddIntegrationTest: verify oldest file deleted when max_rotated_files exceeded",
+        "RunTestSuite: cargo test -p opencode-logging --test integration_tests log_rotation"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-logging --test integration_tests log_rotation"
+      ],
+      "impl_notes": "Clean up test files after each run. Use unique temp directory per test.",
+      "dependencies": [
+        "2.2"
+      ]
+    },
+    {
+      "id": "I.3",
+      "priority": "P1",
+      "title": "Reasoning Log Persistence",
+      "description": "Integration test: create ReasoningLog entry, store in LogStore, query and retrieve, verify all fields preserved including tools_considered.",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: create ReasoningLog with 3 tool considerations",
+        "AddIntegrationTest: store in LogStore",
+        "AddIntegrationTest: query returns the ReasoningLog",
+        "AddIntegrationTest: verify tools_considered preserved with selected flags",
+        "AddIntegrationTest: verify prompt_tokens, completion_tokens, latency_ms correct",
+        "RunTestSuite: cargo test -p opencode-logging --test integration_tests reasoning_persistence"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-logging --test integration_tests reasoning_persistence"
+      ],
+      "impl_notes": "ReasoningLog may need separate table or stored as JSON in logs table.",
+      "dependencies": [
+        "1.6",
+        "0.7"
+      ]
+    },
+    {
+      "id": "I.4",
+      "priority": "P1",
+      "title": "Tool Execution Sanitization",
+      "description": "Integration test: execute tool with parameters containing secrets (api_key, password), verify parameters sanitized in ToolExecutionLog, verify secret values redacted.",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: create tool parameters with {api_key: secret123, password: pass456}",
+        "AddIntegrationTest: execute via AgentLogger",
+        "AddIntegrationTest: query ToolExecutionLog from LogStore",
+        "AddIntegrationTest: verify parameters show [REDACTED] for api_key and password",
+        "AddIntegrationTest: verify non-secret fields show actual values",
+        "RunTestSuite: cargo test -p opencode-logging --test integration_tests tool_sanitization"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-logging --test integration_tests tool_sanitization"
+      ],
+      "impl_notes": "Sanitizer must be applied before LogStore::append().",
+      "dependencies": [
+        "1.2",
+        "1.7",
+        "0.8"
+      ]
+    }
+  ]
+}
