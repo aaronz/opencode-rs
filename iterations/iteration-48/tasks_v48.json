@@ -582,7 +582,7 @@
       "priority": "P1",
       "title": "Log Rotation",
       "description": "Integration test: configure small max_file_size_mb, write logs until rotation triggered, verify rotated files created, verify oldest deleted.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: configure max_file_size_mb = 1",
         "AddIntegrationTest: write 100 logs of ~2KB each",

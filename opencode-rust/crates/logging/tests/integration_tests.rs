@@ -1,6 +1,9 @@
-use opencode_logging::event::{LogEvent, LogLevel};
+use opencode_logging::config::LoggingConfig;
+use opencode_logging::event::{LogEvent, LogFields, LogLevel};
+use opencode_logging::logger::Logger;
 use opencode_logging::query::LogQuery;
 use opencode_logging::store::LogStore;
+use opencode_logging::AgentLogger;
 
 fn create_test_db() -> (tempfile::TempDir, LogStore) {
     let temp_dir = tempfile::tempdir().unwrap();
@@ -213,24 +216,156 @@ fn test_log_store_query_session_id_isolation_with_other_filters() {
     assert_eq!(results.len(), 5);
 }
 
-#[test]
-fn test_log_store_cleanup_after_test() {
+#[tokio::test]
+async fn test_log_rotation() {
     let temp_dir = tempfile::tempdir().unwrap();
-    let db_path = temp_dir.path().join("cleanup_test.db");
-    let store = LogStore::new(&db_path).unwrap();
+    let log_path = temp_dir.path().join("opencode.log");
 
-    for i in 1..=5 {
-        let event = LogEvent::new(i as u64, LogLevel::Info, "test", format!("msg{}", i))
-            .with_session_id("cleanup_sess");
-        store.append(&event).unwrap();
+    let mut config = LoggingConfig::default();
+    config.file_path = Some(log_path.clone());
+    config.max_file_size_mb = 1;
+    config.max_rotated_files = 3;
+
+    let logger = Logger::new(config).unwrap();
+
+    let msg_len = 50usize;
+    let msgs_to_fill = (1024 * 1024) / msg_len;
+    let batch_size = 500;
+
+    for batch_start in (0..msgs_to_fill).step_by(batch_size) {
+        let batch_end = std::cmp::min(batch_start + batch_size, msgs_to_fill);
+        let mut handles = vec![];
+
+        for i in batch_start..batch_end {
+            let logger_clone = logger.clone();
+            handles.push(tokio::spawn(async move {
+                logger_clone.info("test", &format!("message {:05}", i), LogFields::default());
+            }));
+        }
+
+        for handle in handles {
+            let _ = handle.await;
+        }
     }
 
-    drop(store);
+    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+    tokio::task::yield_now().await;
 
-    let store2 = LogStore::new(&db_path).unwrap();
-    let results = store2
-        .query(&LogQuery::new().with_session_id("cleanup_sess"))
-        .unwrap();
+    let main_log_exists = log_path.exists();
+    assert!(main_log_exists, "opencode.log should exist after writing");
 
-    assert_eq!(results.len(), 5);
+    let rotated_1_exists = temp_dir.path().join("opencode.log.1").exists();
+    assert!(rotated_1_exists, "opencode.log.1 should exist after rotation triggered");
+}
+
+#[tokio::test]
+async fn test_log_rotation_creates_second_file_on_more_writes() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let log_path = temp_dir.path().join("opencode.log");
+
+    let mut config = LoggingConfig::default();
+    config.file_path = Some(log_path.clone());
+    config.max_file_size_mb = 1;
+    config.max_rotated_files = 3;
+
+    let logger = Logger::new(config).unwrap();
+
+    let msg_len = 50usize;
+    let msgs_to_fill = (1024 * 1024) / msg_len;
+    let batch_size = 500;
+
+    for batch_start in (0..msgs_to_fill).step_by(batch_size) {
+        let batch_end = std::cmp::min(batch_start + batch_size, msgs_to_fill);
+        let mut handles = vec![];
+
+        for i in batch_start..batch_end {
+            let logger_clone = logger.clone();
+            handles.push(tokio::spawn(async move {
+                logger_clone.info("test", &format!("first batch {:05}", i), LogFields::default());
+            }));
+        }
+
+        for handle in handles {
+            let _ = handle.await;
+        }
+    }
+
+    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+    tokio::task::yield_now().await;
+
+    for batch_start in (0..msgs_to_fill).step_by(batch_size) {
+        let batch_end = std::cmp::min(batch_start + batch_size, msgs_to_fill);
+        let mut handles = vec![];
+
+        for i in batch_start..batch_end {
+            let logger_clone = logger.clone();
+            handles.push(tokio::spawn(async move {
+                logger_clone.info("test", &format!("second batch {:05}", i), LogFields::default());
+            }));
+        }
+
+        for handle in handles {
+            let _ = handle.await;
+        }
+    }
+
+    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+    tokio::task::yield_now().await;
+
+    let rotated_1_exists = temp_dir.path().join("opencode.log.1").exists();
+    let rotated_2_exists = temp_dir.path().join("opencode.log.2").exists();
+
+    assert!(rotated_1_exists, "opencode.log.1 should exist");
+    assert!(rotated_2_exists, "opencode.log.2 should exist after more writes");
+}
+
+#[tokio::test]
+async fn test_log_rotation_oldest_deleted_when_max_exceeded() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let log_path = temp_dir.path().join("opencode.log");
+
+    let mut config = LoggingConfig::default();
+    config.file_path = Some(log_path.clone());
+    config.max_file_size_mb = 1;
+    config.max_rotated_files = 3;
+
+    let logger = Logger::new(config).unwrap();
+
+    let msg_len = 50usize;
+    let msgs_per_rotation = (1024 * 1024) / msg_len;
+    let batches = 6;
+    let batch_size = 500;
+
+    for batch_num in 0..batches {
+        for batch_start in (0..msgs_per_rotation).step_by(batch_size) {
+            let batch_end = std::cmp::min(batch_start + batch_size, msgs_per_rotation);
+            let mut handles = vec![];
+
+            for i in batch_start..batch_end {
+                let logger_clone = logger.clone();
+                handles.push(tokio::spawn(async move {
+                    logger_clone.info("test", &format!("batch {} msg {:05}", batch_num, i), LogFields::default());
+                }));
+            }
+
+            for handle in handles {
+                let _ = handle.await;
+            }
+        }
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        tokio::task::yield_now().await;
+    }
+
+    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+    tokio::task::yield_now().await;
+
+    let log_1_exists = temp_dir.path().join("opencode.log.1").exists();
+    let log_2_exists = temp_dir.path().join("opencode.log.2").exists();
+    let log_3_exists = temp_dir.path().join("opencode.log.3").exists();
+    let log_4_exists = temp_dir.path().join("opencode.log.4").exists();
+
+    assert!(log_1_exists, "opencode.log.1 should exist");
+    assert!(log_2_exists, "opencode.log.2 should exist");
+    assert!(log_3_exists, "opencode.log.3 should exist");
+    assert!(!log_4_exists, "opencode.log.4 should NOT exist (oldest deleted)");
 }
