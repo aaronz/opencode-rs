@@ -604,7 +604,7 @@
       "priority": "P1",
       "title": "Reasoning Log Persistence",
       "description": "Integration test: create ReasoningLog entry, store in LogStore, query and retrieve, verify all fields preserved including tools_considered.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: create ReasoningLog with 3 tool considerations",
         "AddIntegrationTest: store in LogStore",

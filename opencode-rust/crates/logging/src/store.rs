@@ -6,7 +6,7 @@ use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection};
 
 use crate::error::LogError;
-use crate::event::{LogEvent, LogFields, LogLevel};
+use crate::event::{LogEvent, LogFields, LogLevel, ReasoningLog, ToolConsideration};
 use crate::query::LogQuery;
 
 pub struct SessionLogBuffer {
@@ -203,6 +203,188 @@ impl LogStore {
             params![older_than.to_rfc3339()],
         )?;
         Ok(deleted as u64)
+    }
+}
+
+pub struct ReasoningLogStore {
+    conn: Connection,
+}
+
+impl ReasoningLogStore {
+    pub fn new(path: &std::path::Path) -> Result<Self, LogError> {
+        let conn = Connection::open(path)?;
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS reasoning_logs (
+                step_id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                prompt TEXT NOT NULL,
+                response TEXT NOT NULL,
+                tools_considered TEXT NOT NULL,
+                decision TEXT NOT NULL,
+                prompt_tokens INTEGER NOT NULL,
+                completion_tokens INTEGER NOT NULL,
+                latency_ms INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_reasoning_session ON reasoning_logs(session_id, timestamp);
+            ",
+        )?;
+
+        Ok(Self { conn })
+    }
+
+    pub fn append(&self, reasoning: &ReasoningLog) -> Result<(), LogError> {
+        let tools_json = serde_json::to_string(&reasoning.tools_considered)
+            .map_err(|e| LogError::Serialization(e.to_string()))?;
+
+        self.conn.execute(
+            "INSERT INTO reasoning_logs (step_id, session_id, timestamp, prompt, response, tools_considered, decision, prompt_tokens, completion_tokens, latency_ms)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            params![
+                reasoning.step_id,
+                reasoning.session_id,
+                reasoning.timestamp.to_rfc3339(),
+                reasoning.prompt,
+                reasoning.response,
+                tools_json,
+                reasoning.decision,
+                reasoning.prompt_tokens as i64,
+                reasoning.completion_tokens as i64,
+                reasoning.latency_ms as i64,
+            ],
+        )?;
+
+        Ok(())
+    }
+
+    pub fn query(&self, criteria: &ReasoningLogQuery) -> Result<Vec<ReasoningLog>, LogError> {
+        let mut sql = String::from("SELECT step_id, session_id, timestamp, prompt, response, tools_considered, decision, prompt_tokens, completion_tokens, latency_ms FROM reasoning_logs WHERE 1=1");
+        let mut params_vec: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+
+        if let Some(ref session_id) = criteria.session_id {
+            sql.push_str(" AND session_id = ?");
+            params_vec.push(Box::new(session_id.clone()));
+        }
+
+        if let Some(ref since) = criteria.since {
+            sql.push_str(" AND timestamp >= ?");
+            params_vec.push(Box::new(since.to_rfc3339()));
+        }
+
+        if let Some(ref until) = criteria.until {
+            sql.push_str(" AND timestamp <= ?");
+            params_vec.push(Box::new(until.to_rfc3339()));
+        }
+
+        sql.push_str(" ORDER BY timestamp DESC");
+
+        if let Some(limit) = criteria.limit {
+            sql.push_str(&format!(" LIMIT {}", limit));
+        }
+
+        let params_refs: Vec<&dyn rusqlite::ToSql> =
+            params_vec.iter().map(|p| p.as_ref()).collect();
+
+        let mut stmt = self.conn.prepare(&sql)?;
+        let rows = stmt.query_map(params_refs.as_slice(), |row| {
+            let timestamp_str: String = row.get(2)?;
+            let tools_str: String = row.get(5)?;
+
+            let timestamp = DateTime::parse_from_rfc3339(&timestamp_str)
+                .map(|dt| dt.with_timezone(&Utc))
+                .unwrap_or_else(|_| Utc::now());
+            let tools_considered: Vec<ToolConsideration> =
+                serde_json::from_str(&tools_str).unwrap_or_default();
+
+            Ok(ReasoningLog {
+                step_id: row.get(0)?,
+                session_id: row.get(1)?,
+                timestamp,
+                prompt: row.get(3)?,
+                response: row.get(4)?,
+                tools_considered,
+                decision: row.get(6)?,
+                prompt_tokens: row.get::<_, i64>(7)? as u64,
+                completion_tokens: row.get::<_, i64>(8)? as u64,
+                latency_ms: row.get::<_, i64>(9)? as u64,
+            })
+        })?;
+
+        let mut logs = Vec::new();
+        for log in rows.flatten() {
+            logs.push(log);
+        }
+
+        Ok(logs)
+    }
+
+    pub fn get(&self, step_id: &str) -> Result<Option<ReasoningLog>, LogError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT step_id, session_id, timestamp, prompt, response, tools_considered, decision, prompt_tokens, completion_tokens, latency_ms FROM reasoning_logs WHERE step_id = ?",
+        )?;
+
+        let mut rows = stmt.query(params![step_id])?;
+        if let Some(row) = rows.next()? {
+            let timestamp_str: String = row.get(2)?;
+            let tools_str: String = row.get(5)?;
+
+            let timestamp = DateTime::parse_from_rfc3339(&timestamp_str)
+                .map(|dt| dt.with_timezone(&Utc))
+                .unwrap_or_else(|_| Utc::now());
+            let tools_considered: Vec<ToolConsideration> =
+                serde_json::from_str(&tools_str).unwrap_or_default();
+
+            Ok(Some(ReasoningLog {
+                step_id: row.get(0)?,
+                session_id: row.get(1)?,
+                timestamp,
+                prompt: row.get(3)?,
+                response: row.get(4)?,
+                tools_considered,
+                decision: row.get(6)?,
+                prompt_tokens: row.get::<_, i64>(7)? as u64,
+                completion_tokens: row.get::<_, i64>(8)? as u64,
+                latency_ms: row.get::<_, i64>(9)? as u64,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn get_by_session(&self, session_id: &str) -> Result<Vec<ReasoningLog>, LogError> {
+        self.query(&ReasoningLogQuery::for_session(session_id))
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ReasoningLogQuery {
+    pub session_id: Option<String>,
+    pub since: Option<DateTime<Utc>>,
+    pub until: Option<DateTime<Utc>>,
+    pub limit: Option<usize>,
+}
+
+impl ReasoningLogQuery {
+    pub fn for_session(session_id: impl Into<String>) -> Self {
+        Self {
+            session_id: Some(session_id.into()),
+            ..Default::default()
+        }
+    }
+
+    pub fn with_since(mut self, since: DateTime<Utc>) -> Self {
+        self.since = Some(since);
+        self
+    }
+
+    pub fn with_until(mut self, until: DateTime<Utc>) -> Self {
+        self.until = Some(until);
+        self
+    }
+
+    pub fn with_limit(mut self, limit: usize) -> Self {
+        self.limit = Some(limit);
+        self
     }
 }
 
@@ -867,5 +1049,238 @@ mod tests {
 
         let last_seq = buffer.iter().last().unwrap().seq;
         assert_eq!(last_seq, 1);
+    }
+
+    #[test]
+    fn test_reasoning_log_store_new_creates_table_and_index() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("reasoning.db");
+        let store = ReasoningLogStore::new(&db_path).unwrap();
+
+        assert!(db_path.exists());
+
+        let conn = Connection::open(&db_path).unwrap();
+        let table_exists: bool = conn
+            .query_row(
+                "SELECT COUNT(*) > 0 FROM sqlite_master WHERE type='table' AND name='reasoning_logs'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(table_exists, "reasoning_logs table should exist");
+    }
+
+    #[test]
+    fn test_reasoning_log_store_append_and_get() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("reasoning.db");
+        let store = ReasoningLogStore::new(&db_path).unwrap();
+
+        let reasoning = ReasoningLog {
+            step_id: "step_001".to_string(),
+            session_id: "sess_test".to_string(),
+            timestamp: chrono::Utc::now(),
+            prompt: "What should I do?".to_string(),
+            response: "You should read the file".to_string(),
+            tools_considered: vec![
+                ToolConsideration {
+                    tool_name: "read".to_string(),
+                    reason: "Appropriate for reading files".to_string(),
+                    selected: true,
+                },
+                ToolConsideration {
+                    tool_name: "grep".to_string(),
+                    reason: "Good for searching".to_string(),
+                    selected: false,
+                },
+            ],
+            decision: "Using read tool".to_string(),
+            prompt_tokens: 100,
+            completion_tokens: 50,
+            latency_ms: 150,
+        };
+
+        store.append(&reasoning).unwrap();
+
+        let retrieved = store.get("step_001").unwrap().unwrap();
+        assert_eq!(retrieved.step_id, "step_001");
+        assert_eq!(retrieved.session_id, "sess_test");
+        assert_eq!(retrieved.prompt, "What should I do?");
+        assert_eq!(retrieved.response, "You should read the file");
+        assert_eq!(retrieved.tools_considered.len(), 2);
+        assert_eq!(retrieved.tools_considered[0].tool_name, "read");
+        assert!(retrieved.tools_considered[0].selected);
+        assert_eq!(retrieved.tools_considered[1].tool_name, "grep");
+        assert!(!retrieved.tools_considered[1].selected);
+        assert_eq!(retrieved.decision, "Using read tool");
+        assert_eq!(retrieved.prompt_tokens, 100);
+        assert_eq!(retrieved.completion_tokens, 50);
+        assert_eq!(retrieved.latency_ms, 150);
+    }
+
+    #[test]
+    fn test_reasoning_log_store_query_by_session() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("reasoning.db");
+        let store = ReasoningLogStore::new(&db_path).unwrap();
+
+        for i in 1..=3 {
+            let reasoning = ReasoningLog {
+                step_id: format!("step_a_{}", i),
+                session_id: "sess_a".to_string(),
+                timestamp: chrono::Utc::now(),
+                prompt: format!("Prompt {}", i),
+                response: format!("Response {}", i),
+                tools_considered: vec![],
+                decision: format!("Decision {}", i),
+                prompt_tokens: 100 * i,
+                completion_tokens: 50 * i,
+                latency_ms: 10 * i,
+            };
+            store.append(&reasoning).unwrap();
+        }
+
+        for i in 1..=2 {
+            let reasoning = ReasoningLog {
+                step_id: format!("step_b_{}", i),
+                session_id: "sess_b".to_string(),
+                timestamp: chrono::Utc::now(),
+                prompt: format!("Prompt B {}", i),
+                response: format!("Response B {}", i),
+                tools_considered: vec![],
+                decision: format!("Decision B {}", i),
+                prompt_tokens: 200 * i,
+                completion_tokens: 75 * i,
+                latency_ms: 20 * i,
+            };
+            store.append(&reasoning).unwrap();
+        }
+
+        let results = store.get_by_session("sess_a").unwrap();
+        assert_eq!(results.len(), 3);
+
+        let results_b = store.get_by_session("sess_b").unwrap();
+        assert_eq!(results_b.len(), 2);
+    }
+
+    #[test]
+    fn test_reasoning_log_store_query_with_limit() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("reasoning.db");
+        let store = ReasoningLogStore::new(&db_path).unwrap();
+
+        for i in 1..=5 {
+            let reasoning = ReasoningLog {
+                step_id: format!("step_limit_{}", i),
+                session_id: "sess_limit".to_string(),
+                timestamp: chrono::Utc::now(),
+                prompt: format!("Prompt {}", i),
+                response: format!("Response {}", i),
+                tools_considered: vec![],
+                decision: format!("Decision {}", i),
+                prompt_tokens: 100,
+                completion_tokens: 50,
+                latency_ms: 100,
+            };
+            store.append(&reasoning).unwrap();
+        }
+
+        let results = store
+            .query(&ReasoningLogQuery::for_session("sess_limit").with_limit(3))
+            .unwrap();
+        assert_eq!(results.len(), 3);
+    }
+
+    #[test]
+    fn test_reasoning_log_store_get_nonexistent() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("reasoning.db");
+        let store = ReasoningLogStore::new(&db_path).unwrap();
+
+        let result = store.get("nonexistent").unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_reasoning_log_store_tools_considered_with_selected_flags() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("reasoning.db");
+        let store = ReasoningLogStore::new(&db_path).unwrap();
+
+        let reasoning = ReasoningLog {
+            step_id: "step_tools".to_string(),
+            session_id: "sess_tools".to_string(),
+            timestamp: chrono::Utc::now(),
+            prompt: "Which tool to use?".to_string(),
+            response: "Using bash".to_string(),
+            tools_considered: vec![
+                ToolConsideration {
+                    tool_name: "read".to_string(),
+                    reason: "Good for reading".to_string(),
+                    selected: false,
+                },
+                ToolConsideration {
+                    tool_name: "bash".to_string(),
+                    reason: "Can execute commands".to_string(),
+                    selected: true,
+                },
+                ToolConsideration {
+                    tool_name: "grep".to_string(),
+                    reason: "Good for search".to_string(),
+                    selected: false,
+                },
+            ],
+            decision: "Selected bash tool".to_string(),
+            prompt_tokens: 500,
+            completion_tokens: 100,
+            latency_ms: 300,
+        };
+
+        store.append(&reasoning).unwrap();
+
+        let retrieved = store.get("step_tools").unwrap().unwrap();
+        assert_eq!(retrieved.tools_considered.len(), 3);
+
+        let selected_count = retrieved
+            .tools_considered
+            .iter()
+            .filter(|t| t.selected)
+            .count();
+        assert_eq!(selected_count, 1);
+        assert_eq!(retrieved.tools_considered.iter().find(|t| t.selected).unwrap().tool_name, "bash");
+
+        let unselected_count = retrieved
+            .tools_considered
+            .iter()
+            .filter(|t| !t.selected)
+            .count();
+        assert_eq!(unselected_count, 2);
+    }
+
+    #[test]
+    fn test_reasoning_log_store_token_counts_and_latency_preserved() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("reasoning.db");
+        let store = ReasoningLogStore::new(&db_path).unwrap();
+
+        let reasoning = ReasoningLog {
+            step_id: "step_tokens".to_string(),
+            session_id: "sess_tokens".to_string(),
+            timestamp: chrono::Utc::now(),
+            prompt: "Test prompt".to_string(),
+            response: "Test response".to_string(),
+            tools_considered: vec![],
+            decision: "Decision".to_string(),
+            prompt_tokens: 15000,
+            completion_tokens: 7500,
+            latency_ms: 2500,
+        };
+
+        store.append(&reasoning).unwrap();
+
+        let retrieved = store.get("step_tokens").unwrap().unwrap();
+        assert_eq!(retrieved.prompt_tokens, 15000);
+        assert_eq!(retrieved.completion_tokens, 7500);
+        assert_eq!(retrieved.latency_ms, 2500);
     }
 }

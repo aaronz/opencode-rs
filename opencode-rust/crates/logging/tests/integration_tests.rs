@@ -1,8 +1,8 @@
 use opencode_logging::config::LoggingConfig;
-use opencode_logging::event::{LogEvent, LogFields, LogLevel};
+use opencode_logging::event::{LogEvent, LogFields, LogLevel, ReasoningLog, ToolConsideration};
 use opencode_logging::logger::Logger;
 use opencode_logging::query::LogQuery;
-use opencode_logging::store::LogStore;
+use opencode_logging::store::{LogStore, ReasoningLogQuery, ReasoningLogStore};
 use opencode_logging::AgentLogger;
 
 fn create_test_db() -> (tempfile::TempDir, LogStore) {
@@ -368,4 +368,239 @@ async fn test_log_rotation_oldest_deleted_when_max_exceeded() {
     assert!(log_2_exists, "opencode.log.2 should exist");
     assert!(log_3_exists, "opencode.log.3 should exist");
     assert!(!log_4_exists, "opencode.log.4 should NOT exist (oldest deleted)");
+}
+
+fn create_reasoning_test_db() -> (tempfile::TempDir, ReasoningLogStore) {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let db_path = temp_dir.path().join("reasoning.db");
+    let store = ReasoningLogStore::new(&db_path).unwrap();
+    (temp_dir, store)
+}
+
+#[test]
+fn test_reasoning_log_persistence_create_with_3_tool_considerations() {
+    let (_temp_dir, store) = create_reasoning_test_db();
+
+    let reasoning = ReasoningLog {
+        step_id: "step_001".to_string(),
+        session_id: "sess_reasoning_001".to_string(),
+        timestamp: chrono::Utc::now(),
+        prompt: "What tool should I use to read a file?".to_string(),
+        response: "I should use the read tool".to_string(),
+        tools_considered: vec![
+            ToolConsideration {
+                tool_name: "read".to_string(),
+                reason: "Most appropriate for reading file contents".to_string(),
+                selected: true,
+            },
+            ToolConsideration {
+                tool_name: "grep".to_string(),
+                reason: "Can read but grep is for searching".to_string(),
+                selected: false,
+            },
+            ToolConsideration {
+                tool_name: "bash".to_string(),
+                reason: "Too complex for simple file reading".to_string(),
+                selected: false,
+            },
+        ],
+        decision: "Selected read tool as the most appropriate for the task".to_string(),
+        prompt_tokens: 1500,
+        completion_tokens: 100,
+        latency_ms: 250,
+    };
+
+    store.append(&reasoning).unwrap();
+
+    let retrieved = store.get("step_001").unwrap().unwrap();
+    assert_eq!(retrieved.tools_considered.len(), 3);
+}
+
+#[test]
+fn test_reasoning_log_persistence_store_in_logstore() {
+    let (_temp_dir, store) = create_reasoning_test_db();
+
+    let reasoning = ReasoningLog {
+        step_id: "step_002".to_string(),
+        session_id: "sess_reasoning_002".to_string(),
+        timestamp: chrono::Utc::now(),
+        prompt: "Analyze the codebase".to_string(),
+        response: "Found 5 issues".to_string(),
+        tools_considered: vec![
+            ToolConsideration {
+                tool_name: "grep".to_string(),
+                reason: "Good for searching patterns".to_string(),
+                selected: true,
+            },
+            ToolConsideration {
+                tool_name: "read".to_string(),
+                reason: "Good for reading files".to_string(),
+                selected: false,
+            },
+        ],
+        decision: "Using grep to search for issues".to_string(),
+        prompt_tokens: 2000,
+        completion_tokens: 150,
+        latency_ms: 300,
+    };
+
+    let result = store.append(&reasoning);
+    assert!(result.is_ok(), "Store append should succeed");
+}
+
+#[test]
+fn test_reasoning_log_persistence_query_returns_reasoning_log() {
+    let (_temp_dir, store) = create_reasoning_test_db();
+
+    let reasoning = ReasoningLog {
+        step_id: "step_003".to_string(),
+        session_id: "sess_query_test".to_string(),
+        timestamp: chrono::Utc::now(),
+        prompt: "Find all test files".to_string(),
+        response: "Found 3 test files".to_string(),
+        tools_considered: vec![
+            ToolConsideration {
+                tool_name: "grep".to_string(),
+                reason: "Good pattern matching".to_string(),
+                selected: true,
+            },
+        ],
+        decision: "Using grep with pattern *_test.rs".to_string(),
+        prompt_tokens: 1800,
+        completion_tokens: 80,
+        latency_ms: 200,
+    };
+
+    store.append(&reasoning).unwrap();
+
+    let results = store.get_by_session("sess_query_test").unwrap();
+    assert_eq!(results.len(), 1);
+
+    let retrieved = &results[0];
+    assert_eq!(retrieved.step_id, "step_003");
+    assert_eq!(retrieved.session_id, "sess_query_test");
+}
+
+#[test]
+fn test_reasoning_log_persistence_verify_tools_considered_preserved_with_selected_flags() {
+    let (_temp_dir, store) = create_reasoning_test_db();
+
+    let reasoning = ReasoningLog {
+        step_id: "step_004".to_string(),
+        session_id: "sess_tools_flag_test".to_string(),
+        timestamp: chrono::Utc::now(),
+        prompt: "Which tool is best?".to_string(),
+        response: "The bash tool".to_string(),
+        tools_considered: vec![
+            ToolConsideration {
+                tool_name: "read".to_string(),
+                reason: "For reading".to_string(),
+                selected: false,
+            },
+            ToolConsideration {
+                tool_name: "bash".to_string(),
+                reason: "Can execute commands".to_string(),
+                selected: true,
+            },
+            ToolConsideration {
+                tool_name: "write".to_string(),
+                reason: "For writing".to_string(),
+                selected: false,
+            },
+        ],
+        decision: "Selected bash".to_string(),
+        prompt_tokens: 500,
+        completion_tokens: 30,
+        latency_ms: 100,
+    };
+
+    store.append(&reasoning).unwrap();
+
+    let retrieved = store.get("step_004").unwrap().unwrap();
+    let selected_tools: Vec<_> = retrieved
+        .tools_considered
+        .iter()
+        .filter(|t| t.selected)
+        .collect();
+    let unselected_tools: Vec<_> = retrieved
+        .tools_considered
+        .iter()
+        .filter(|t| !t.selected)
+        .collect();
+
+    assert_eq!(selected_tools.len(), 1);
+    assert_eq!(selected_tools[0].tool_name, "bash");
+    assert_eq!(unselected_tools.len(), 2);
+    assert!(unselected_tools.iter().all(|t| t.tool_name != "bash"));
+}
+
+#[test]
+fn test_reasoning_log_persistence_verify_prompt_tokens_completion_tokens_latency_ms_correct() {
+    let (_temp_dir, store) = create_reasoning_test_db();
+
+    let reasoning = ReasoningLog {
+        step_id: "step_005".to_string(),
+        session_id: "sess_token_test".to_string(),
+        timestamp: chrono::Utc::now(),
+        prompt: "Count lines in file".to_string(),
+        response: "The file has 100 lines".to_string(),
+        tools_considered: vec![],
+        decision: "No tools needed".to_string(),
+        prompt_tokens: 12345,
+        completion_tokens: 67890,
+        latency_ms: 999,
+    };
+
+    store.append(&reasoning).unwrap();
+
+    let retrieved = store.get("step_005").unwrap().unwrap();
+    assert_eq!(retrieved.prompt_tokens, 12345);
+    assert_eq!(retrieved.completion_tokens, 67890);
+    assert_eq!(retrieved.latency_ms, 999);
+}
+
+#[test]
+fn test_reasoning_log_persistence_multiple_sessions_isolated() {
+    let (_temp_dir, store) = create_reasoning_test_db();
+
+    for i in 1..=3 {
+        let reasoning = ReasoningLog {
+            step_id: format!("step_session_a_{}", i),
+            session_id: "sess_a".to_string(),
+            timestamp: chrono::Utc::now(),
+            prompt: format!("Prompt A {}", i),
+            response: format!("Response A {}", i),
+            tools_considered: vec![],
+            decision: format!("Decision A {}", i),
+            prompt_tokens: 100 * i,
+            completion_tokens: 50 * i,
+            latency_ms: 10 * i,
+        };
+        store.append(&reasoning).unwrap();
+    }
+
+    for i in 1..=2 {
+        let reasoning = ReasoningLog {
+            step_id: format!("step_session_b_{}", i),
+            session_id: "sess_b".to_string(),
+            timestamp: chrono::Utc::now(),
+            prompt: format!("Prompt B {}", i),
+            response: format!("Response B {}", i),
+            tools_considered: vec![],
+            decision: format!("Decision B {}", i),
+            prompt_tokens: 200 * i,
+            completion_tokens: 75 * i,
+            latency_ms: 20 * i,
+        };
+        store.append(&reasoning).unwrap();
+    }
+
+    let results_a = store.get_by_session("sess_a").unwrap();
+    let results_b = store.get_by_session("sess_b").unwrap();
+
+    assert_eq!(results_a.len(), 3);
+    assert_eq!(results_b.len(), 2);
+
+    let all_results = store.query(&ReasoningLogQuery::for_session("sess_a")).unwrap();
+    assert_eq!(all_results.len(), 3);
 }
