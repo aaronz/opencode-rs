@@ -1,36 +1,13 @@
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 
-use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
 use opencode_config::{FormatterConfig, FormatterEntry};
 use opencode_core::effect::{Effect, EffectError, EffectResult};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FormatterStatus {
-    pub name: String,
-    pub extensions: Vec<String>,
-    pub enabled: bool,
-}
-
-#[derive(Debug, Clone)]
-pub struct FormatterContext {
-    pub directory: PathBuf,
-    pub worktree: PathBuf,
-}
-
-#[async_trait]
-pub trait Formatter: Send + Sync {
-    fn name(&self) -> &str;
-    fn extensions(&self) -> &[&str];
-    fn environment(&self) -> Option<&HashMap<String, String>> {
-        None
-    }
-    async fn enabled(&self, ctx: &FormatterContext) -> Option<Vec<String>>;
-}
+pub use super::formatters::{Formatter, FormatterContext, FormatterStatus};
 
 pub struct FormatServiceState {
     formatters: HashMap<String, Box<dyn Formatter>>,

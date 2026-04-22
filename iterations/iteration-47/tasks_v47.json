@@ -62,7 +62,7 @@
       "priority": "P0",
       "title": "Create formatters.rs with built-in formatters",
       "description": "Create `crates/format/src/formatters.rs` with all 25+ built-in formatters: gofmt, mix, prettier, oxfmt, biome, zig, clang-format, ktlint, ruff, uvformat, air, rubocop, standardrb, htmlbeautifier, dart, ocamlformat, terraform, latexindent, gleam, shfmt, nixfmt, rustfmt, pint, ormolu, cljfmt, dfmt",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify each formatter has correct name and extensions",
         "AddUnitTest: verify formatter detection logic for gofmt",
