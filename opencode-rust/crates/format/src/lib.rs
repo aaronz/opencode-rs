@@ -14,7 +14,7 @@ pub mod service;
 pub use formatters::{
     all_formatters, formatter_names, Formatter, FormatterContext, FormatterStatus,
 };
-pub use service::{FormatService, FormatServiceState};
+pub use service::{FormatService, FormatServiceState, InstanceState, InstanceStateManager};
 
 #[cfg(test)]
 mod tests {
@@ -22,7 +22,7 @@ mod tests {
 
     #[test]
     fn format_service_creates() {
-        let _service = service::FormatService::new(FormatterConfig::Disabled(false));
+        let _service = service::FormatService::new();
         assert!(true);
     }
 

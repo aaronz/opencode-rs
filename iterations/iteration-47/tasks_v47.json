@@ -680,7 +680,7 @@
       "priority": "P1",
       "title": "Implement ruff/uv linked disabling",
       "description": "When ruff is disabled, also disable uv. When uv is disabled, also disable ruff. Add tests for linked disabling",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify disabling ruff removes uv from status()",
         "AddUnitTest: verify disabling uv removes ruff from status()",
@@ -702,7 +702,7 @@
       "priority": "P1",
       "title": "Integrate FormatService with InstanceState",
       "description": "Integrate FormatService with InstanceState. Implement per-directory formatter state scoping",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify FormatService uses InstanceState for configuration",
         "AddUnitTest: verify formatter state is scoped per directory",

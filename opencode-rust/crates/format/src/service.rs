@@ -50,25 +50,109 @@ impl FormatServiceState {
     }
 }
 
-pub struct FormatService {
-    config: FormatterConfig,
-    state: Arc<Mutex<FormatServiceState>>,
+impl std::fmt::Debug for FormatServiceState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FormatServiceState")
+            .field("formatters", &self.formatters.keys().collect::<Vec<_>>())
+            .field("commands", &self.commands)
+            .finish()
+    }
 }
 
-impl FormatService {
-    pub fn new(config: FormatterConfig) -> Self {
+#[derive(Debug, Clone)]
+pub struct InstanceState {
+    directory: PathBuf,
+    formatter_config: FormatterConfig,
+    service_state: Arc<Mutex<FormatServiceState>>,
+}
+
+impl InstanceState {
+    pub fn new(directory: PathBuf, config: FormatterConfig) -> Self {
         Self {
-            config,
-            state: Arc::new(Mutex::new(FormatServiceState::new())),
+            directory,
+            formatter_config: config,
+            service_state: Arc::new(Mutex::new(FormatServiceState::new())),
         }
     }
 
-    pub async fn init(&self) -> EffectResult<()> {
-        let config = self.config.clone();
-        let state = self.state.clone();
+    pub fn directory(&self) -> &PathBuf {
+        &self.directory
+    }
+
+    pub fn formatter_config(&self) -> &FormatterConfig {
+        &self.formatter_config
+    }
+
+    pub fn service_state(&self) -> &Arc<Mutex<FormatServiceState>> {
+        &self.service_state
+    }
+
+    pub fn set_formatter_config(&mut self, config: FormatterConfig) {
+        self.formatter_config = config;
+    }
+}
+
+#[derive(Debug)]
+pub struct InstanceStateManager {
+    instances: HashMap<PathBuf, InstanceState>,
+}
+
+impl Default for InstanceStateManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl InstanceStateManager {
+    pub fn new() -> Self {
+        Self {
+            instances: HashMap::new(),
+        }
+    }
+
+    pub fn get_or_create(&mut self, directory: &Path, config: FormatterConfig) -> &mut InstanceState {
+        if !self.instances.contains_key(directory) {
+            self.instances.insert(
+                directory.to_path_buf(),
+                InstanceState::new(directory.to_path_buf(), config),
+            );
+        }
+        self.instances.get_mut(directory).unwrap()
+    }
+
+    pub fn get(&self, directory: &Path) -> Option<&InstanceState> {
+        self.instances.get(directory)
+    }
+
+    pub fn remove(&mut self, directory: &Path) -> Option<InstanceState> {
+        self.instances.remove(directory)
+    }
+
+    pub fn instances_count(&self) -> usize {
+        self.instances.len()
+    }
+}
+
+pub struct FormatService {
+    instance_manager: Arc<Mutex<InstanceStateManager>>,
+}
+
+impl FormatService {
+    pub fn new() -> Self {
+        Self {
+            instance_manager: Arc::new(Mutex::new(InstanceStateManager::new())),
+        }
+    }
+
+    pub async fn init(&self, directory: &Path, config: FormatterConfig) -> EffectResult<()> {
+        let instance_manager = self.instance_manager.clone();
+        let directory = directory.to_path_buf();
+        let config = config.clone();
 
         Effect::new(move || async move {
-            let mut state_guard = state.lock().await;
+            let mut manager = instance_manager.lock().await;
+            let instance = manager.get_or_create(&directory, config.clone());
+            let mut state_guard = instance.service_state.lock().await;
 
             match &config {
                 FormatterConfig::Disabled(false) => {
@@ -119,73 +203,78 @@ impl FormatService {
         .await
     }
 
-    pub async fn status(&self) -> Vec<FormatterStatus> {
-        let state = self.state.lock().await;
+    pub async fn status(&self, directory: &Path) -> Vec<FormatterStatus> {
+        let instance_manager = self.instance_manager.lock().await;
         let mut statuses = Vec::new();
-        let ctx = FormatterContext {
-            directory: PathBuf::from("/tmp"),
-            worktree: PathBuf::from("/tmp"),
-        };
 
-        match &self.config {
-            FormatterConfig::Disabled(false) => {
-                for formatter in state.formatters.values() {
-                    let enabled = formatter.enabled(&ctx).await.is_some();
-                    statuses.push(FormatterStatus {
-                        name: formatter.name().to_string(),
-                        extensions: formatter
-                            .extensions()
-                            .iter()
-                            .map(|s| s.to_string())
-                            .collect(),
-                        enabled,
-                    });
+        if let Some(instance) = instance_manager.get(directory) {
+            let state = instance.service_state.lock().await;
+            let config = instance.formatter_config.clone();
+            let ctx = FormatterContext {
+                directory: directory.to_path_buf(),
+                worktree: directory.to_path_buf(),
+            };
+
+            match &config {
+                FormatterConfig::Disabled(false) => {
+                    for formatter in state.formatters.values() {
+                        let enabled = formatter.enabled(&ctx).await.is_some();
+                        statuses.push(FormatterStatus {
+                            name: formatter.name().to_string(),
+                            extensions: formatter
+                                .extensions()
+                                .iter()
+                                .map(|s| s.to_string())
+                                .collect(),
+                            enabled,
+                        });
+                    }
                 }
-            }
-            FormatterConfig::Disabled(true) => {
-                for formatter in state.formatters.values() {
-                    statuses.push(FormatterStatus {
-                        name: formatter.name().to_string(),
-                        extensions: formatter
-                            .extensions()
-                            .iter()
-                            .map(|s| s.to_string())
-                            .collect(),
-                        enabled: false,
-                    });
+                FormatterConfig::Disabled(true) => {
+                    for formatter in state.formatters.values() {
+                        statuses.push(FormatterStatus {
+                            name: formatter.name().to_string(),
+                            extensions: formatter
+                                .extensions()
+                                .iter()
+                                .map(|s| s.to_string())
+                                .collect(),
+                            enabled: false,
+                        });
+                    }
                 }
-            }
-            FormatterConfig::Formatters(config_formatters) => {
-                let ruff_disabled = config_formatters
-                    .get("ruff")
-                    .map(|e| e.disabled.unwrap_or(false))
-                    .unwrap_or(false);
-                let uv_disabled = config_formatters
-                    .get("uvformat")
-                    .map(|e| e.disabled.unwrap_or(false))
-                    .unwrap_or(false);
+                FormatterConfig::Formatters(config_formatters) => {
+                    let ruff_disabled = config_formatters
+                        .get("ruff")
+                        .map(|e| e.disabled.unwrap_or(false))
+                        .unwrap_or(false);
+                    let uv_disabled = config_formatters
+                        .get("uvformat")
+                        .map(|e| e.disabled.unwrap_or(false))
+                        .unwrap_or(false);
 
-                for formatter in state.formatters.values() {
-                    let name = formatter.name();
-                    let entry = config_formatters.get(name);
-                    let config_disabled =
-                        entry.map(|e| e.disabled.unwrap_or(false)).unwrap_or(false);
+                    for formatter in state.formatters.values() {
+                        let name = formatter.name();
+                        let entry = config_formatters.get(name);
+                        let config_disabled =
+                            entry.map(|e| e.disabled.unwrap_or(false)).unwrap_or(false);
 
-                    let linked_disabled =
-                        (name == "uvformat" && ruff_disabled) || (name == "ruff" && uv_disabled);
+                        let linked_disabled =
+                            (name == "uvformat" && ruff_disabled) || (name == "ruff" && uv_disabled);
 
-                    let available = formatter.enabled(&ctx).await.is_some();
-                    let enabled = !config_disabled && !linked_disabled && available;
+                        let available = formatter.enabled(&ctx).await.is_some();
+                        let enabled = !config_disabled && !linked_disabled && available;
 
-                    statuses.push(FormatterStatus {
-                        name: name.to_string(),
-                        extensions: formatter
-                            .extensions()
-                            .iter()
-                            .map(|s| s.to_string())
-                            .collect(),
-                        enabled,
-                    });
+                        statuses.push(FormatterStatus {
+                            name: name.to_string(),
+                            extensions: formatter
+                                .extensions()
+                                .iter()
+                                .map(|s| s.to_string())
+                                .collect(),
+                            enabled,
+                        });
+                    }
                 }
             }
         }
@@ -195,10 +284,22 @@ impl FormatService {
     }
 
     pub async fn file(&self, filepath: &Path) -> EffectResult<()> {
-        let config = self.config.clone();
+        let instance_manager = self.instance_manager.clone();
         let filepath = filepath.to_path_buf();
 
+        let directory = filepath
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| PathBuf::from("/"));
+
         Effect::new(move || async move {
+            let manager = instance_manager.lock().await;
+            let config = if let Some(instance) = manager.get(&directory) {
+                instance.formatter_config.clone()
+            } else {
+                return Ok(());
+            };
+
             match &config {
                 FormatterConfig::Disabled(false) => {
                     return Err(EffectError::Generic("Formatter disabled".to_string()));
@@ -270,46 +371,44 @@ impl FormatService {
     }
 
     pub fn engine(&self) -> opencode_core::formatter::FormatterEngine {
-        match &self.config {
-            FormatterConfig::Disabled(value) => {
-                opencode_core::formatter::FormatterEngine::new(FormatterConfig::Disabled(*value))
-            }
-            FormatterConfig::Formatters(map) => opencode_core::formatter::FormatterEngine::new(
-                FormatterConfig::Formatters(map.clone()),
-            ),
-        }
+        opencode_core::formatter::FormatterEngine::new(FormatterConfig::Disabled(true))
+    }
+
+    pub fn instance_manager(&self) -> &Arc<Mutex<InstanceStateManager>> {
+        &self.instance_manager
     }
 }
 
 impl Default for FormatService {
     fn default() -> Self {
-        Self::new(FormatterConfig::Disabled(false))
+        Self::new()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     #[tokio::test]
     async fn service_initializes_without_error() {
-        let service = FormatService::new(FormatterConfig::Disabled(false));
-        let result = service.init().await;
+        let service = FormatService::new();
+        let result = service.init(Path::new("/tmp"), FormatterConfig::Disabled(false)).await;
         assert!(result.is_ok(), "init() should return success result");
     }
 
     #[tokio::test]
     async fn init_returns_success_result() {
-        let service = FormatService::new(FormatterConfig::Formatters(HashMap::new()));
-        let result = service.init().await;
+        let service = FormatService::new();
+        let result = service.init(Path::new("/tmp"), FormatterConfig::Formatters(HashMap::new())).await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn status_returns_empty_when_disabled() {
-        let service = FormatService::new(FormatterConfig::Disabled(true));
-        let _ = service.init().await;
-        let statuses = service.status().await;
+        let service = FormatService::new();
+        let _ = service.init(Path::new("/tmp"), FormatterConfig::Disabled(true)).await;
+        let statuses = service.status(Path::new("/tmp")).await;
         assert!(
             statuses.is_empty(),
             "Expected empty status when formatter is disabled"
@@ -322,23 +421,22 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn format_service_creates_with_config() {
-        let config = FormatterConfig::Disabled(false);
-        let _service = FormatService::new(config);
+    async fn format_service_creates_with_new() {
+        let _service = FormatService::new();
     }
 
     #[tokio::test]
     async fn file_returns_ok_for_disabled() {
-        let service = FormatService::new(FormatterConfig::Disabled(false));
-        let _ = service.init().await;
+        let service = FormatService::new();
+        let _ = service.init(Path::new("/tmp"), FormatterConfig::Disabled(false)).await;
         let result = service.file(Path::new("/tmp/test.rs")).await;
         assert!(result.is_err());
     }
 
     #[tokio::test]
     async fn file_returns_ok_for_enabled_with_no_matching_formatters() {
-        let service = FormatService::new(FormatterConfig::Formatters(HashMap::new()));
-        let _ = service.init().await;
+        let service = FormatService::new();
+        let _ = service.init(Path::new("/tmp"), FormatterConfig::Formatters(HashMap::new())).await;
         let result = service.file(Path::new("/tmp/test.rs")).await;
         assert!(result.is_ok());
     }
@@ -355,9 +453,9 @@ mod tests {
                 extensions: None,
             },
         );
-        let service = FormatService::new(FormatterConfig::Formatters(formatters));
-        let _ = service.init().await;
-        let statuses = service.status().await;
+        let service = FormatService::new();
+        let _ = service.init(Path::new("/tmp"), FormatterConfig::Formatters(formatters)).await;
+        let statuses = service.status(Path::new("/tmp")).await;
 
         let uv_status = statuses.iter().find(|s| s.name == "uvformat");
         assert!(
@@ -384,9 +482,9 @@ mod tests {
                 extensions: None,
             },
         );
-        let service = FormatService::new(FormatterConfig::Formatters(formatters));
-        let _ = service.init().await;
-        let statuses = service.status().await;
+        let service = FormatService::new();
+        let _ = service.init(Path::new("/tmp"), FormatterConfig::Formatters(formatters)).await;
+        let statuses = service.status(Path::new("/tmp")).await;
 
         let ruff_status = statuses.iter().find(|s| s.name == "ruff");
         assert!(
@@ -399,5 +497,147 @@ mod tests {
             uv_status.map(|s| !s.enabled).unwrap_or(false),
             "uvformat should be disabled"
         );
+    }
+
+    #[tokio::test]
+    async fn format_service_uses_instance_state_for_configuration() {
+        let service = FormatService::new();
+
+        let mut formatters = HashMap::new();
+        formatters.insert(
+            "prettier".to_string(),
+            FormatterEntry {
+                disabled: Some(false),
+                command: Some(vec!["prettier".to_string(), "--write".to_string()]),
+                environment: None,
+                extensions: Some(vec![".js".to_string()]),
+            },
+        );
+
+        let _ = service.init(Path::new("/project"), FormatterConfig::Formatters(formatters)).await;
+
+        let manager = service.instance_manager.lock().await;
+        let instance = manager.get(Path::new("/project"));
+        assert!(instance.is_some(), "Instance should be created for /project directory");
+
+        let instance = instance.unwrap();
+        assert_eq!(instance.directory(), &PathBuf::from("/project"));
+        match instance.formatter_config() {
+            FormatterConfig::Formatters(map) => {
+                assert!(map.contains_key("prettier"), "prettier should be in config");
+            }
+            _ => panic!("Expected Formatters variant"),
+        }
+    }
+
+    #[tokio::test]
+    async fn formatter_state_isolated_per_directory() {
+        let service = FormatService::new();
+
+        let mut project_a_formatters = HashMap::new();
+        project_a_formatters.insert(
+            "prettier".to_string(),
+            FormatterEntry {
+                disabled: Some(false),
+                command: Some(vec!["prettier".to_string(), "--write".to_string()]),
+                environment: None,
+                extensions: Some(vec![".js".to_string(), ".ts".to_string()]),
+            },
+        );
+
+        let mut project_b_formatters = HashMap::new();
+        project_b_formatters.insert(
+            "rustfmt".to_string(),
+            FormatterEntry {
+                disabled: Some(false),
+                command: Some(vec!["rustfmt".to_string()]),
+                environment: None,
+                extensions: Some(vec![".rs".to_string()]),
+            },
+        );
+
+        let _ = service.init(Path::new("/project-a"), FormatterConfig::Formatters(project_a_formatters)).await;
+        let _ = service.init(Path::new("/project-b"), FormatterConfig::Formatters(project_b_formatters)).await;
+
+        let manager = service.instance_manager.lock().await;
+        assert_eq!(manager.instances_count(), 2, "Should have 2 separate instances");
+
+        let project_a_instance = manager.get(Path::new("/project-a")).expect("project-a instance should exist");
+        let project_b_instance = manager.get(Path::new("/project-b")).expect("project-b instance should exist");
+
+        match project_a_instance.formatter_config() {
+            FormatterConfig::Formatters(map) => {
+                assert!(map.contains_key("prettier"), "project-a should have prettier");
+                assert!(!map.contains_key("rustfmt"), "project-a should NOT have rustfmt");
+            }
+            _ => panic!("Expected Formatters variant for project-a"),
+        }
+
+        match project_b_instance.formatter_config() {
+            FormatterConfig::Formatters(map) => {
+                assert!(!map.contains_key("prettier"), "project-b should NOT have prettier");
+                assert!(map.contains_key("rustfmt"), "project-b should have rustfmt");
+            }
+            _ => panic!("Expected Formatters variant for project-b"),
+        }
+
+        let status_a = service.status(Path::new("/project-a")).await;
+        let status_b = service.status(Path::new("/project-b")).await;
+
+        let prettier_in_a = status_a.iter().any(|s| s.name == "prettier");
+        let rustfmt_in_a = status_a.iter().any(|s| s.name == "rustfmt");
+        assert!(prettier_in_a, "project-a status should include prettier");
+        assert!(!rustfmt_in_a, "project-a status should NOT include rustfmt");
+
+        let prettier_in_b = status_b.iter().any(|s| s.name == "prettier");
+        let rustfmt_in_b = status_b.iter().any(|s| s.name == "rustfmt");
+        assert!(!prettier_in_b, "project-b status should NOT include prettier");
+        assert!(rustfmt_in_b, "project-b status should include rustfmt");
+    }
+
+    #[tokio::test]
+    async fn instance_state_stores_directory_correctly() {
+        let directory = PathBuf::from("/test/path");
+        let config = FormatterConfig::Disabled(false);
+        let instance = InstanceState::new(directory.clone(), config);
+
+        assert_eq!(instance.directory(), &directory);
+        assert!(matches!(instance.formatter_config(), FormatterConfig::Disabled(false)));
+    }
+
+    #[tokio::test]
+    async fn instance_state_manager_get_or_create() {
+        let mut manager = InstanceStateManager::new();
+        let config = FormatterConfig::Disabled(false);
+
+        manager.get_or_create(Path::new("/dir1"), config.clone());
+        assert_eq!(manager.instances_count(), 1);
+
+        {
+            let instance1 = manager.get(Path::new("/dir1")).unwrap();
+            assert_eq!(instance1.directory(), &PathBuf::from("/dir1"));
+        }
+
+        manager.get_or_create(Path::new("/dir2"), FormatterConfig::Disabled(true));
+        assert_eq!(manager.instances_count(), 2);
+
+        manager.get_or_create(Path::new("/dir1"), FormatterConfig::Disabled(true));
+        assert_eq!(manager.instances_count(), 2, "Should not create duplicate for same directory");
+    }
+
+    #[tokio::test]
+    async fn instance_state_manager_remove() {
+        let mut manager = InstanceStateManager::new();
+        let config = FormatterConfig::Disabled(false);
+
+        manager.get_or_create(Path::new("/dir1"), config);
+        assert_eq!(manager.instances_count(), 1);
+
+        let removed = manager.remove(Path::new("/dir1"));
+        assert!(removed.is_some());
+        assert_eq!(manager.instances_count(), 0);
+
+        let removed_after = manager.remove(Path::new("/nonexistent"));
+        assert!(removed_after.is_none());
     }
 }
