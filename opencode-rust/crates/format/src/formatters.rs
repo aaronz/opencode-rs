@@ -2343,4 +2343,43 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn verify_nixfmt_name_returns_nixfmt() {
+        let formatter = nixfmt::NixfmtFormatter::new();
+        assert_eq!(formatter.name(), "nixfmt");
+    }
+
+    #[test]
+    fn verify_nixfmt_extensions_includes_nix() {
+        let formatter = nixfmt::NixfmtFormatter::new();
+        assert!(
+            formatter.extensions().contains(&".nix"),
+            "nixfmt should support .nix"
+        );
+        assert_eq!(formatter.extensions().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn verify_nixfmt_enabled_checks_which_nixfmt() {
+        use which::which;
+        let formatter = nixfmt::NixfmtFormatter::new();
+        let ctx = FormatterContext {
+            directory: PathBuf::from("/tmp"),
+            worktree: PathBuf::from("/tmp"),
+        };
+        let result = formatter.enabled(&ctx).await;
+        let nixfmt_available = which("nixfmt").is_ok();
+        if nixfmt_available {
+            assert!(result.is_some(), "nixfmt should be available when installed");
+            let cmd = result.unwrap();
+            assert_eq!(cmd[0], "nixfmt");
+            assert_eq!(cmd[1], "$FILE");
+        } else {
+            assert!(
+                result.is_none(),
+                "nixfmt should not be available when not installed"
+            );
+        }
+    }
 }

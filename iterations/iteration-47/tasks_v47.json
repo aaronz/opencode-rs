@@ -566,7 +566,7 @@
       "priority": "P0",
       "title": "Implement nixfmt formatter (.nix)",
       "description": "Implement nixfmt formatter for Nix. Detection: `which nixfmt`. Extensions: .nix",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify nixfmt name returns 'nixfmt'",
         "AddUnitTest: verify nixfmt extensions includes .nix",

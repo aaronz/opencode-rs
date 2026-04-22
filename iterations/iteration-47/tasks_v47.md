@@ -46,7 +46,7 @@
 - [ ] **latexindent** (.tex) - `which latexindent`
 - [ ] **gleam** (.gleam) - `which gleam`
 - [ ] **shfmt** (.sh,.bash) - `which shfmt`
-- [ ] **nixfmt** (.nix) - `which nixfmt`
+- [x] **nixfmt** (.nix) - `which nixfmt`
 - [ ] **rustfmt** (.rs) - `which rustfmt`
 - [ ] **pint** (.php) - composer.json has laravel/pint
 - [ ] **ormolu** (.hs) - `which ormolu`
