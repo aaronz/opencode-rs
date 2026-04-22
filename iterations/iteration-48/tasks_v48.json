@@ -561,7 +561,7 @@
       "priority": "P1",
       "title": "Log Store Query by Session",
       "description": "Integration test: insert logs with different session_ids, query by session_id, verify only matching logs returned.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: insert 10 logs with session_a and 5 logs with session_b",
         "AddIntegrationTest: query by session_a returns exactly 10 logs",
