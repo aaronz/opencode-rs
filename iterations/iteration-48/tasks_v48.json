@@ -139,7 +139,7 @@
       "priority": "P0",
       "title": "Implement LogStore (SQLite Persistence)",
       "description": "Create LogStore with SQLite Connection. Implement new(), schema creation, append(), query(), recent(), prune(). Handle database errors gracefully.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify new() creates database and schema",
         "AddUnitTest: verify append() inserts LogEvent correctly",
