@@ -191,7 +191,7 @@
       "priority": "P1",
       "title": "Implement LoggingConfig",
       "description": "Create LoggingConfig struct with level, targets, file_path, max_file_size_mb, max_rotated_files, show_in_tui, tui_position, memory_buffer_size, retention_days. Implement Default and TOML deserialization.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify Default provides sensible values",
         "AddUnitTest: verify TOML deserialization parses all fields",
@@ -214,7 +214,7 @@
       "priority": "P1",
       "title": "Implement SanitizedValue for Secret Redaction",
       "description": "Create SanitizedValue enum (Safe, Redacted, Nested) and Sanitizer struct. Implement redaction for api_key, password, token, secret, authorization, *_key, *_token, *_secret patterns.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify api_key exact match redacted",
         "AddUnitTest: verify password exact match redacted",

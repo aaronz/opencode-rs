@@ -224,20 +224,20 @@
 ### Task 1.2: Implement SanitizedValue for Secret Redaction
 **FR:** FR-011
 **File:** `crates/logging/src/sanitizer.rs`
-**Status:** Not started
+**Status:** ✅ Done
 **Priority:** P1
 
 **Subtasks:**
-- [ ] Create `SanitizedValue` enum:
+- [x] Create `SanitizedValue` enum:
   - `Safe(String)`
   - `Redacted(String)`
   - `Nested(HashMap<String, SanitizedValue>)`
-- [ ] Create `Sanitizer` struct with redaction rules
-- [ ] Implement `sanitize_value(&self, key: &str, value: &serde_json::Value) -> SanitizedValue`
-- [ ] Implement redaction for patterns:
+- [x] Create `Sanitizer` struct with redaction rules
+- [x] Implement `sanitize_value(&self, key: &str, value: &serde_json::Value) -> SanitizedValue`
+- [x] Implement redaction for patterns:
   - Exact: `api_key`, `password`, `token`, `secret`, `authorization`
   - Suffix: `*_key`, `*_token`, `*_secret`
-- [ ] Implement `sanitize_parameters(&self, params: &serde_json::Value) -> SanitizedValue`
+- [x] Implement `sanitize_parameters(&self, params: &serde_json::Value) -> SanitizedValue`
 
 **Verification:**
 - `cargo test -p opencode-logging sanitizer` passes

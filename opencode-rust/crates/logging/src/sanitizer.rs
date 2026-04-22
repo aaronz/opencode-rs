@@ -24,7 +24,7 @@ impl Sanitizer {
 
     pub fn sanitize_value(&self, key: &str, value: &serde_json::Value) -> SanitizedValue {
         if self.is_secret_key(key) {
-            return SanitizedValue::redacted(format!("{} detected", key));
+            return SanitizedValue::Redacted("[REDACTED]".to_string());
         }
 
         match value {
