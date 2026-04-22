@@ -88,10 +88,10 @@ impl Default for ProjectInfo {
     }
 }
 
+use opencode_config::Config;
 use std::sync::Arc;
 use std::sync::Mutex;
 use tokio::sync::RwLock;
-use opencode_config::Config;
 
 #[derive(Debug, Clone)]
 pub struct ConfigService {
@@ -132,7 +132,8 @@ impl ProjectService {
     pub async fn detect(&self, cwd: Option<&Path>) -> Result<ProjectInfo, ProjectError> {
         let start_path = match cwd {
             Some(p) => p.to_path_buf(),
-            None => std::env::current_dir().map_err(|e| ProjectError::ReadError(PathBuf::from("."), e))?,
+            None => std::env::current_dir()
+                .map_err(|e| ProjectError::ReadError(PathBuf::from("."), e))?,
         };
 
         let root = self.find_root(&start_path).await?;
@@ -316,7 +317,8 @@ impl ProjectService {
                 let cargo_path = root.join("Cargo.toml");
                 if let Ok(content) = tokio::fs::read_to_string(&cargo_path).await {
                     if let Ok(toml) = content.parse::<toml::Value>() {
-                        return toml.get("package")
+                        return toml
+                            .get("package")
                             .and_then(|p| p.get("name"))
                             .and_then(|n| n.as_str())
                             .map(String::from);
@@ -1407,10 +1409,19 @@ mod tests {
         let json = serde_json::to_string(&config).unwrap();
         let deserialized: ProjectConfig = serde_json::from_str(&json).unwrap();
 
-        assert_eq!(deserialized.package_json.as_ref().unwrap()["name"], "test-project");
-        assert_eq!(deserialized.cargo_toml.as_ref().unwrap(), "[package]\nname = \"test\"");
+        assert_eq!(
+            deserialized.package_json.as_ref().unwrap()["name"],
+            "test-project"
+        );
+        assert_eq!(
+            deserialized.cargo_toml.as_ref().unwrap(),
+            "[package]\nname = \"test\""
+        );
         assert_eq!(deserialized.start_command.as_ref().unwrap(), "npm start");
-        assert_eq!(deserialized.install_command.as_ref().unwrap(), "npm install");
+        assert_eq!(
+            deserialized.install_command.as_ref().unwrap(),
+            "npm install"
+        );
     }
 
     #[test]
@@ -1568,7 +1579,9 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let sub = tmp.path().join("src").join("deep");
         tokio::fs::create_dir_all(&sub).await.unwrap();
-        tokio::fs::write(tmp.path().join(".git"), b"").await.unwrap();
+        tokio::fs::write(tmp.path().join(".git"), b"")
+            .await
+            .unwrap();
 
         let config = Arc::new(RwLock::new(Config::default()));
         let config_service = ConfigService::new(config);
@@ -1583,7 +1596,9 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let sub = tmp.path().join("src").join("components");
         tokio::fs::create_dir_all(&sub).await.unwrap();
-        tokio::fs::create_dir(tmp.path().join(".git")).await.unwrap();
+        tokio::fs::create_dir(tmp.path().join(".git"))
+            .await
+            .unwrap();
 
         let config = Arc::new(RwLock::new(Config::default()));
         let config_service = ConfigService::new(config);
@@ -1622,7 +1637,9 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let sub = tmp.path().join("src").join("deep");
         tokio::fs::create_dir_all(&sub).await.unwrap();
-        tokio::fs::create_dir(tmp.path().join(".opencode")).await.unwrap();
+        tokio::fs::create_dir(tmp.path().join(".opencode"))
+            .await
+            .unwrap();
 
         let config = Arc::new(RwLock::new(Config::default()));
         let config_service = ConfigService::new(config);
@@ -1650,7 +1667,9 @@ mod tests {
     #[tokio::test]
     async fn test_find_root_terminates_without_infinite_loop() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::create_dir(tmp.path().join(".opencode")).await.unwrap();
+        tokio::fs::create_dir(tmp.path().join(".opencode"))
+            .await
+            .unwrap();
 
         let config = Arc::new(RwLock::new(Config::default()));
         let config_service = ConfigService::new(config);
@@ -1675,7 +1694,9 @@ mod tests {
     #[tokio::test]
     async fn test_detect_rust_project() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("Cargo.toml"), "[package]\nname = \"test\"").await.unwrap();
+        tokio::fs::write(tmp.path().join("Cargo.toml"), "[package]\nname = \"test\"")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -1687,7 +1708,9 @@ mod tests {
     #[tokio::test]
     async fn test_detect_node_project() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("package.json"), "{}").await.unwrap();
+        tokio::fs::write(tmp.path().join("package.json"), "{}")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -1699,8 +1722,12 @@ mod tests {
     #[tokio::test]
     async fn test_detect_type_priority() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("Cargo.toml"), "[package]\nname = \"test\"").await.unwrap();
-        tokio::fs::write(tmp.path().join("package.json"), "{}").await.unwrap();
+        tokio::fs::write(tmp.path().join("Cargo.toml"), "[package]\nname = \"test\"")
+            .await
+            .unwrap();
+        tokio::fs::write(tmp.path().join("package.json"), "{}")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -1721,7 +1748,9 @@ mod tests {
     #[tokio::test]
     async fn test_detect_go_project() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("go.mod"), "module test").await.unwrap();
+        tokio::fs::write(tmp.path().join("go.mod"), "module test")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -1733,7 +1762,9 @@ mod tests {
     #[tokio::test]
     async fn test_detect_python_project_pyproject() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("pyproject.toml"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("pyproject.toml"), "")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -1745,7 +1776,9 @@ mod tests {
     #[tokio::test]
     async fn test_detect_python_project_requirements() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("requirements.txt"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("requirements.txt"), "")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -1757,7 +1790,9 @@ mod tests {
     #[tokio::test]
     async fn test_detect_java_project_maven() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("pom.xml"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("pom.xml"), "")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -1769,7 +1804,9 @@ mod tests {
     #[tokio::test]
     async fn test_detect_java_project_gradle() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("build.gradle"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("build.gradle"), "")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -1781,7 +1818,9 @@ mod tests {
     #[tokio::test]
     async fn test_detect_cpp_project_cmake() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("CMakeLists.txt"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("CMakeLists.txt"), "")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -1792,7 +1831,9 @@ mod tests {
     #[tokio::test]
     async fn test_detect_cpp_project_makefile() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("Makefile"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("Makefile"), "")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -1803,7 +1844,9 @@ mod tests {
     #[tokio::test]
     async fn test_detect_ruby_project() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("Gemfile"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("Gemfile"), "")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -1814,7 +1857,9 @@ mod tests {
     #[tokio::test]
     async fn test_detect_php_project() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("composer.json"), "{}").await.unwrap();
+        tokio::fs::write(tmp.path().join("composer.json"), "{}")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -1825,7 +1870,9 @@ mod tests {
     #[tokio::test]
     async fn test_detect_dotnet_project_csproj() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("TestProject.csproj"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("TestProject.csproj"), "")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -1836,7 +1883,9 @@ mod tests {
     #[tokio::test]
     async fn test_detect_dotnet_project_sln() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("Solution.sln"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("Solution.sln"), "")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -1847,7 +1896,9 @@ mod tests {
     #[tokio::test]
     async fn test_detect_swift_project() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("Package.swift"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("Package.swift"), "")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -1858,8 +1909,12 @@ mod tests {
     #[tokio::test]
     async fn test_type_priority_regression_rust_before_go() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("Cargo.toml"), "").await.unwrap();
-        tokio::fs::write(tmp.path().join("go.mod"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("Cargo.toml"), "")
+            .await
+            .unwrap();
+        tokio::fs::write(tmp.path().join("go.mod"), "")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -1870,8 +1925,12 @@ mod tests {
     #[tokio::test]
     async fn test_type_priority_regression_rust_before_python() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("Cargo.toml"), "").await.unwrap();
-        tokio::fs::write(tmp.path().join("pyproject.toml"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("Cargo.toml"), "")
+            .await
+            .unwrap();
+        tokio::fs::write(tmp.path().join("pyproject.toml"), "")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -1882,8 +1941,12 @@ mod tests {
     #[tokio::test]
     async fn test_type_priority_regression_go_before_python() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("go.mod"), "").await.unwrap();
-        tokio::fs::write(tmp.path().join("pyproject.toml"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("go.mod"), "")
+            .await
+            .unwrap();
+        tokio::fs::write(tmp.path().join("pyproject.toml"), "")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -1894,8 +1957,12 @@ mod tests {
     #[tokio::test]
     async fn test_type_priority_regression_go_before_node() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("go.mod"), "").await.unwrap();
-        tokio::fs::write(tmp.path().join("package.json"), "{}").await.unwrap();
+        tokio::fs::write(tmp.path().join("go.mod"), "")
+            .await
+            .unwrap();
+        tokio::fs::write(tmp.path().join("package.json"), "{}")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -1906,8 +1973,12 @@ mod tests {
     #[tokio::test]
     async fn test_type_priority_regression_python_before_node() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("pyproject.toml"), "").await.unwrap();
-        tokio::fs::write(tmp.path().join("package.json"), "{}").await.unwrap();
+        tokio::fs::write(tmp.path().join("pyproject.toml"), "")
+            .await
+            .unwrap();
+        tokio::fs::write(tmp.path().join("package.json"), "{}")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -1918,8 +1989,12 @@ mod tests {
     #[tokio::test]
     async fn test_type_priority_regression_node_before_java() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("package.json"), "{}").await.unwrap();
-        tokio::fs::write(tmp.path().join("pom.xml"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("package.json"), "{}")
+            .await
+            .unwrap();
+        tokio::fs::write(tmp.path().join("pom.xml"), "")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -1930,8 +2005,12 @@ mod tests {
     #[tokio::test]
     async fn test_type_priority_regression_java_before_cpp() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("pom.xml"), "").await.unwrap();
-        tokio::fs::write(tmp.path().join("CMakeLists.txt"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("pom.xml"), "")
+            .await
+            .unwrap();
+        tokio::fs::write(tmp.path().join("CMakeLists.txt"), "")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -1942,8 +2021,12 @@ mod tests {
     #[tokio::test]
     async fn test_type_priority_regression_cpp_before_ruby() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("CMakeLists.txt"), "").await.unwrap();
-        tokio::fs::write(tmp.path().join("Gemfile"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("CMakeLists.txt"), "")
+            .await
+            .unwrap();
+        tokio::fs::write(tmp.path().join("Gemfile"), "")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -1954,8 +2037,12 @@ mod tests {
     #[tokio::test]
     async fn test_type_priority_regression_ruby_before_php() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("Gemfile"), "").await.unwrap();
-        tokio::fs::write(tmp.path().join("composer.json"), "{}").await.unwrap();
+        tokio::fs::write(tmp.path().join("Gemfile"), "")
+            .await
+            .unwrap();
+        tokio::fs::write(tmp.path().join("composer.json"), "{}")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -1966,8 +2053,12 @@ mod tests {
     #[tokio::test]
     async fn test_type_priority_regression_php_before_dotnet() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("composer.json"), "{}").await.unwrap();
-        tokio::fs::write(tmp.path().join("Test.csproj"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("composer.json"), "{}")
+            .await
+            .unwrap();
+        tokio::fs::write(tmp.path().join("Test.csproj"), "")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -1978,8 +2069,12 @@ mod tests {
     #[tokio::test]
     async fn test_type_priority_regression_dotnet_before_swift() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("Test.csproj"), "").await.unwrap();
-        tokio::fs::write(tmp.path().join("Package.swift"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("Test.csproj"), "")
+            .await
+            .unwrap();
+        tokio::fs::write(tmp.path().join("Package.swift"), "")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -1990,16 +2085,36 @@ mod tests {
     #[tokio::test]
     async fn test_type_priority_all_markers_rust_wins() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("Cargo.toml"), "").await.unwrap();
-        tokio::fs::write(tmp.path().join("go.mod"), "").await.unwrap();
-        tokio::fs::write(tmp.path().join("pyproject.toml"), "").await.unwrap();
-        tokio::fs::write(tmp.path().join("package.json"), "{}").await.unwrap();
-        tokio::fs::write(tmp.path().join("pom.xml"), "").await.unwrap();
-        tokio::fs::write(tmp.path().join("CMakeLists.txt"), "").await.unwrap();
-        tokio::fs::write(tmp.path().join("Gemfile"), "").await.unwrap();
-        tokio::fs::write(tmp.path().join("composer.json"), "{}").await.unwrap();
-        tokio::fs::write(tmp.path().join("Test.csproj"), "").await.unwrap();
-        tokio::fs::write(tmp.path().join("Package.swift"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("Cargo.toml"), "")
+            .await
+            .unwrap();
+        tokio::fs::write(tmp.path().join("go.mod"), "")
+            .await
+            .unwrap();
+        tokio::fs::write(tmp.path().join("pyproject.toml"), "")
+            .await
+            .unwrap();
+        tokio::fs::write(tmp.path().join("package.json"), "{}")
+            .await
+            .unwrap();
+        tokio::fs::write(tmp.path().join("pom.xml"), "")
+            .await
+            .unwrap();
+        tokio::fs::write(tmp.path().join("CMakeLists.txt"), "")
+            .await
+            .unwrap();
+        tokio::fs::write(tmp.path().join("Gemfile"), "")
+            .await
+            .unwrap();
+        tokio::fs::write(tmp.path().join("composer.json"), "{}")
+            .await
+            .unwrap();
+        tokio::fs::write(tmp.path().join("Test.csproj"), "")
+            .await
+            .unwrap();
+        tokio::fs::write(tmp.path().join("Package.swift"), "")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -2010,8 +2125,12 @@ mod tests {
     #[tokio::test]
     async fn test_detect_node_project_with_pnpm() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("package.json"), "{}").await.unwrap();
-        tokio::fs::write(tmp.path().join("pnpm-lock.yaml"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("package.json"), "{}")
+            .await
+            .unwrap();
+        tokio::fs::write(tmp.path().join("pnpm-lock.yaml"), "")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -2023,8 +2142,12 @@ mod tests {
     #[tokio::test]
     async fn test_detect_node_project_with_yarn() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("package.json"), "{}").await.unwrap();
-        tokio::fs::write(tmp.path().join("yarn.lock"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("package.json"), "{}")
+            .await
+            .unwrap();
+        tokio::fs::write(tmp.path().join("yarn.lock"), "")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -2036,8 +2159,12 @@ mod tests {
     #[tokio::test]
     async fn test_detect_node_project_with_bun() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("package.json"), "{}").await.unwrap();
-        tokio::fs::write(tmp.path().join("bun.lockb"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("package.json"), "{}")
+            .await
+            .unwrap();
+        tokio::fs::write(tmp.path().join("bun.lockb"), "")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();
@@ -2049,9 +2176,15 @@ mod tests {
     #[tokio::test]
     async fn test_yarn_not_selected_when_package_lock_exists() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::write(tmp.path().join("package.json"), "{}").await.unwrap();
-        tokio::fs::write(tmp.path().join("yarn.lock"), "").await.unwrap();
-        tokio::fs::write(tmp.path().join("package-lock.json"), "").await.unwrap();
+        tokio::fs::write(tmp.path().join("package.json"), "{}")
+            .await
+            .unwrap();
+        tokio::fs::write(tmp.path().join("yarn.lock"), "")
+            .await
+            .unwrap();
+        tokio::fs::write(tmp.path().join("package-lock.json"), "")
+            .await
+            .unwrap();
 
         let service = create_project_service(&tmp);
         let info = service.detect(Some(tmp.path())).await.unwrap();

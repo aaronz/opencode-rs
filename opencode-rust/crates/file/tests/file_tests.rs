@@ -529,7 +529,11 @@ async fn test_watch_fires_callback_on_file_change() {
     std::thread::sleep(Duration::from_millis(1500));
 
     let count_after = call_count.load(Ordering::SeqCst);
-    assert!(count_after >= 1, "Callback should have been called at least once, got {}", count_after);
+    assert!(
+        count_after >= 1,
+        "Callback should have been called at least once, got {}",
+        count_after
+    );
 
     svc.unwatch(&watch_id).await.unwrap();
 }
@@ -567,7 +571,10 @@ async fn test_exists_returns_bool() {
     let file = tmp.path().join("exists.txt");
     tokio::fs::write(&file, "content").await.unwrap();
 
-    assert!(svc.exists(&file).await, "exists() should return true for existing file");
+    assert!(
+        svc.exists(&file).await,
+        "exists() should return true for existing file"
+    );
     assert!(
         !svc.exists(&tmp.path().join("nonexistent.txt")).await,
         "exists() should return false for non-existent path"
@@ -581,10 +588,16 @@ async fn test_exists_does_not_throw_error_on_missing_path() {
     let missing_path = tmp.path().join("this_file_does_not_exist.txt");
 
     let result = tokio::fs::metadata(&missing_path).await;
-    assert!(result.is_err(), "metadata() should return error for missing path");
+    assert!(
+        result.is_err(),
+        "metadata() should return error for missing path"
+    );
 
     let exists_result = svc.exists(&missing_path).await;
-    assert!(!exists_result, "exists() should return false, not throw error");
+    assert!(
+        !exists_result,
+        "exists() should return false, not throw error"
+    );
 }
 
 #[tokio::test]
@@ -594,7 +607,10 @@ async fn test_create_dir_all_async_creates_nested_directories() {
     let path = tmp.path().join("nested").join("deeply").join("dir");
 
     svc.create_dir_all(&path).await.unwrap();
-    assert!(path.exists(), "create_dir_all should create nested directories");
+    assert!(
+        path.exists(),
+        "create_dir_all should create nested directories"
+    );
     assert!(path.is_dir(), "created path should be a directory");
 }
 
@@ -606,14 +622,22 @@ async fn test_create_dir_all_async_succeeds_silently_if_exists() {
 
     tokio::fs::create_dir_all(&path).await.unwrap();
     let result = svc.create_dir_all(&path).await;
-    assert!(result.is_ok(), "create_dir_all should succeed silently if directory exists");
+    assert!(
+        result.is_ok(),
+        "create_dir_all should succeed silently if directory exists"
+    );
 }
 
 #[tokio::test]
 async fn test_create_dir_all_async_permission_error() {
     let svc = FileService::new();
-    let result = svc.create_dir_all(Path::new("/nonexistent/root/deep/path")).await;
-    assert!(result.is_err(), "create_dir_all should return error for permission denied");
+    let result = svc
+        .create_dir_all(Path::new("/nonexistent/root/deep/path"))
+        .await;
+    assert!(
+        result.is_err(),
+        "create_dir_all should return error for permission denied"
+    );
     match result.unwrap_err() {
         FileError::Io { .. } => {}
         _ => panic!("Expected FileError::Io for permission errors"),
@@ -629,7 +653,10 @@ async fn test_remove_file_deletes_existing_file() {
     assert!(file.exists(), "File should exist before deletion");
 
     let result = svc.remove_file(&file).await;
-    assert!(result.is_ok(), "remove_file should succeed for existing file");
+    assert!(
+        result.is_ok(),
+        "remove_file should succeed for existing file"
+    );
     assert!(!file.exists(), "File should not exist after deletion");
 }
 
@@ -640,7 +667,10 @@ async fn test_remove_file_not_found_error() {
     let nonexistent = tmp.path().join("nonexistent.txt");
 
     let result = svc.remove_file(&nonexistent).await;
-    assert!(result.is_err(), "remove_file should return error for non-existent path");
+    assert!(
+        result.is_err(),
+        "remove_file should return error for non-existent path"
+    );
     match result.unwrap_err() {
         FileError::NotFound(p) => assert_eq!(p, nonexistent),
         _ => panic!("Expected FileError::NotFound"),
@@ -656,7 +686,10 @@ async fn test_remove_file_not_a_file_error() {
     assert!(dir.is_dir(), "Path should be a directory");
 
     let result = svc.remove_file(&dir).await;
-    assert!(result.is_err(), "remove_file should return error for directory");
+    assert!(
+        result.is_err(),
+        "remove_file should return error for directory"
+    );
     match result.unwrap_err() {
         FileError::NotAFile(p) => assert_eq!(p, dir),
         _ => panic!("Expected FileError::NotAFile"),
@@ -699,7 +732,10 @@ async fn test_copy_file_not_found_error() {
     let dst = tmp.path().join("dest.txt");
 
     let result = svc.copy_file(&missing, &dst).await;
-    assert!(result.is_err(), "copy_file should return error for missing source");
+    assert!(
+        result.is_err(),
+        "copy_file should return error for missing source"
+    );
     match result.unwrap_err() {
         FileError::NotFound(p) => assert_eq!(p, missing),
         _ => panic!("Expected FileError::NotFound"),
@@ -714,8 +750,12 @@ async fn test_copy_dir_recursive() {
     let dst = tmp.path().join("dest");
 
     tokio::fs::create_dir_all(&src).await.unwrap();
-    tokio::fs::write(src.join("file1.txt"), "content1").await.unwrap();
-    tokio::fs::write(src.join("file2.txt"), "content2").await.unwrap();
+    tokio::fs::write(src.join("file1.txt"), "content1")
+        .await
+        .unwrap();
+    tokio::fs::write(src.join("file2.txt"), "content2")
+        .await
+        .unwrap();
     tokio::fs::create_dir_all(src.join("subdir")).await.unwrap();
     tokio::fs::write(src.join("subdir").join("file3.txt"), "content3")
         .await
@@ -723,8 +763,14 @@ async fn test_copy_dir_recursive() {
 
     let n = svc.copy_dir(&src, &dst).await.unwrap();
     assert!(n > 0, "Should copy some bytes");
-    assert!(dst.join("file1.txt").exists(), "file1.txt should exist in dest");
-    assert!(dst.join("file2.txt").exists(), "file2.txt should exist in dest");
+    assert!(
+        dst.join("file1.txt").exists(),
+        "file1.txt should exist in dest"
+    );
+    assert!(
+        dst.join("file2.txt").exists(),
+        "file2.txt should exist in dest"
+    );
     assert!(
         dst.join("subdir").join("file3.txt").exists(),
         "subdir/file3.txt should exist in dest"
@@ -745,8 +791,12 @@ async fn test_copy_dir_preserves_directory_structure() {
 
     tokio::fs::create_dir_all(src.join("a/b/c")).await.unwrap();
     tokio::fs::write(src.join("a/file.txt"), "a").await.unwrap();
-    tokio::fs::write(src.join("a/b/file.txt"), "b").await.unwrap();
-    tokio::fs::write(src.join("a/b/c/file.txt"), "c").await.unwrap();
+    tokio::fs::write(src.join("a/b/file.txt"), "b")
+        .await
+        .unwrap();
+    tokio::fs::write(src.join("a/b/c/file.txt"), "c")
+        .await
+        .unwrap();
 
     svc.copy_dir(&src, &dst).await.unwrap();
 
@@ -775,7 +825,10 @@ async fn test_copy_dir_not_a_directory_error() {
     tokio::fs::write(&file, "content").await.unwrap();
 
     let result = svc.copy_dir(&file, &tmp.path().join("dest")).await;
-    assert!(result.is_err(), "copy_dir should return error for file source");
+    assert!(
+        result.is_err(),
+        "copy_dir should return error for file source"
+    );
     match result.unwrap_err() {
         FileError::NotADirectory(p) => assert_eq!(p, file),
         _ => panic!("Expected FileError::NotADirectory"),

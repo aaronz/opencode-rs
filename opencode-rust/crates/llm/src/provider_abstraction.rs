@@ -287,6 +287,8 @@ pub enum ProviderSpec {
     Groq { api_key: String, model: String },
     #[serde(rename = "minimax")]
     MiniMax { api_key: String, model: String },
+    #[serde(rename = "minimax-cn")]
+    MiniMaxCn { api_key: String, model: String },
     #[serde(rename = "qwen")]
     Qwen { api_key: String, model: String },
 }
@@ -305,6 +307,7 @@ impl ProviderSpec {
             Self::Mistral { .. } => "mistral",
             Self::Groq { .. } => "groq",
             Self::MiniMax { .. } => "minimax",
+            Self::MiniMaxCn { .. } => "minimax-cn",
             Self::Qwen { .. } => "qwen",
         }
     }
@@ -322,6 +325,7 @@ impl ProviderSpec {
             Self::Mistral { model, .. } => model,
             Self::Groq { model, .. } => model,
             Self::MiniMax { model, .. } => model,
+            Self::MiniMaxCn { model, .. } => model,
             Self::Qwen { model, .. } => model,
         }
     }
@@ -540,6 +544,7 @@ impl ProviderManager {
         self.register_factory(Box::new(LmStudioProviderFactory));
         self.register_factory(Box::new(LocalInferenceProviderFactory));
         self.register_factory(Box::new(MiniMaxProviderFactory));
+        self.register_factory(Box::new(MiniMaxCnProviderFactory));
         self.register_factory(Box::new(QwenProviderFactory));
     }
 
@@ -863,6 +868,39 @@ impl ProviderFactory for MiniMaxProviderFactory {
     }
 }
 
+pub struct MiniMaxCnProviderFactory;
+
+impl sealed::Sealed for MiniMaxCnProviderFactory {}
+impl ProviderFactory for MiniMaxCnProviderFactory {
+    fn name(&self) -> &str {
+        "minimax-cn"
+    }
+
+    fn create(&self, config: &ProviderConfig) -> Result<DynProvider, LlmError> {
+        match &config.spec {
+            ProviderSpec::MiniMaxCn { api_key, model } => {
+                let provider = crate::minimax::MiniMaxProvider::with_base_url(
+                    api_key.clone(),
+                    model.clone(),
+                    "https://api.minimaxi.com".to_string(),
+                );
+                let mut identity = ProviderIdentity::new("minimax-cn", Some(model));
+                identity.reasoning_budget = config.reasoning_budget;
+                identity.variant = config.variant.clone();
+                Ok(DynProvider::with_identity(provider, identity))
+            }
+            _ => Err(LlmError::Provider(format!(
+                "MiniMaxCn factory cannot create provider from {:?}",
+                config.spec
+            ))),
+        }
+    }
+
+    fn supports(&self, spec: &ProviderSpec) -> bool {
+        matches!(spec, ProviderSpec::MiniMaxCn { .. })
+    }
+}
+
 pub struct QwenProviderFactory;
 
 impl sealed::Sealed for QwenProviderFactory {}
@@ -938,6 +976,7 @@ impl ProviderFactory for DynamicProviderFactory {
             ProviderSpec::Mistral { .. } => "https://api.mistral.ai".to_string(),
             ProviderSpec::Groq { .. } => "https://api.groq.com".to_string(),
             ProviderSpec::MiniMax { .. } => "https://api.minimax.io/v1".to_string(),
+            ProviderSpec::MiniMaxCn { .. } => "https://api.minimaxi.com/v1".to_string(),
             ProviderSpec::Qwen { .. } => "https://dashscope.aliyuncs.com/api/v1".to_string(),
         };
 

@@ -51,6 +51,10 @@ impl ConnectProviderDialog {
             ("copilot".to_string(), "GitHub Copilot".to_string()),
             ("ai21".to_string(), "AI21".to_string()),
             ("minimax".to_string(), "MiniMax".to_string()),
+            (
+                "minimax-cn".to_string(),
+                "MiniMax CN (minimaxi.com)".to_string(),
+            ),
             ("qwen".to_string(), "Qwen".to_string()),
         ]
     }

@@ -593,7 +593,9 @@ mod tests {
     #[test]
     fn number_flag_returns_none_when_not_set() {
         let fm = FlagManager::new();
-        assert!(fm.get_number("OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX").is_none());
+        assert!(fm
+            .get_number("OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX")
+            .is_none());
     }
 
     #[test]
@@ -623,7 +625,7 @@ mod tests {
         assert!(fm.opencode_enable_exa());
     }
 
-struct EnvVarGuard {
+    struct EnvVarGuard {
         vars: Vec<(String, Option<String>)>,
     }
 
@@ -680,7 +682,10 @@ struct EnvVarGuard {
         let mut fm = FlagManager::new();
         assert!(fm.get_string("OPENCODE_CONFIG").is_none());
         fm.set_string("OPENCODE_CONFIG", Some("test_value".to_string()));
-        assert_eq!(fm.get_string("OPENCODE_CONFIG"), Some("test_value".to_string()));
+        assert_eq!(
+            fm.get_string("OPENCODE_CONFIG"),
+            Some("test_value".to_string())
+        );
     }
 
     #[test]
@@ -692,9 +697,14 @@ struct EnvVarGuard {
     #[test]
     fn set_number_updates_number_flag_value_when_flag_exists() {
         let mut fm = FlagManager::new();
-        assert!(fm.get_number("OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX").is_none());
+        assert!(fm
+            .get_number("OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX")
+            .is_none());
         fm.set_number("OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX", Some(5000));
-        assert_eq!(fm.get_number("OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX"), Some(5000));
+        assert_eq!(
+            fm.get_number("OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX"),
+            Some(5000)
+        );
     }
 
     #[test]

@@ -503,7 +503,9 @@ pub mod rubocop {
     impl RubocopFormatter {
         pub fn new() -> Self {
             Self {
-                extensions: vec![".rb", ".rake", ".builder", ".gemspec", ".podspec", ".rabl", ".rake", ".rbi"],
+                extensions: vec![
+                    ".rb", ".rake", ".builder", ".gemspec", ".podspec", ".rabl", ".rake", ".rbi",
+                ],
             }
         }
     }
@@ -1832,7 +1834,10 @@ mod tests {
         let uv_available = which("uv").is_ok();
         let ruff_available = which("ruff").is_ok();
         if uv_available && !ruff_available {
-            assert!(result.is_some(), "uvformat should be available when uv is installed and ruff is not");
+            assert!(
+                result.is_some(),
+                "uvformat should be available when uv is installed and ruff is not"
+            );
             let cmd = result.unwrap();
             assert_eq!(cmd[0], "uv");
             assert_eq!(cmd[1], "format");
@@ -1940,7 +1945,10 @@ mod tests {
         let result = formatter.enabled(&ctx).await;
         let rubocop_available = which("rubocop").is_ok();
         if rubocop_available {
-            assert!(result.is_some(), "rubocop should be available when installed");
+            assert!(
+                result.is_some(),
+                "rubocop should be available when installed"
+            );
             let cmd = result.unwrap();
             assert_eq!(cmd[0], "rubocop");
             assert_eq!(cmd[1], "-A");
@@ -1991,7 +1999,10 @@ mod tests {
         let result = formatter.enabled(&ctx).await;
         let standardrb_available = which("standardrb").is_ok();
         if standardrb_available {
-            assert!(result.is_some(), "standardrb should be available when installed");
+            assert!(
+                result.is_some(),
+                "standardrb should be available when installed"
+            );
             let cmd = result.unwrap();
             assert_eq!(cmd[0], "standardrb");
             assert_eq!(cmd[1], "--autocorrect");
@@ -2035,7 +2046,10 @@ mod tests {
         let result = formatter.enabled(&ctx).await;
         let htmlbeautifier_available = which("htmlbeautifier").is_ok();
         if htmlbeautifier_available {
-            assert!(result.is_some(), "htmlbeautifier should be available when installed");
+            assert!(
+                result.is_some(),
+                "htmlbeautifier should be available when installed"
+            );
             let cmd = result.unwrap();
             assert_eq!(cmd[0], "htmlbeautifier");
             assert_eq!(cmd[1], "$FILE");

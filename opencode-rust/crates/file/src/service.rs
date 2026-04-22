@@ -47,9 +47,11 @@ impl FileService {
                     let callback = callback_clone.clone();
                     let path_clone = path.clone();
 
-                    debouncer.queue(path_clone, move || {
-                        callback(path);
-                    }).await;
+                    debouncer
+                        .queue(path_clone, move || {
+                            callback(path);
+                        })
+                        .await;
                 }
             });
         });
@@ -114,10 +116,7 @@ impl FileService {
             tokio::fs::create_dir_all(parent)
                 .await
                 .map_err(|e| FileError::Io {
-                    context: format!(
-                        "Failed to create parent directory for {}",
-                        to.display()
-                    ),
+                    context: format!("Failed to create parent directory for {}", to.display()),
                     source: Arc::new(e),
                 })?;
         }
@@ -144,14 +143,13 @@ impl FileService {
 
         for entry in WalkDir::new(from).into_iter().filter_map(|e| e.ok()) {
             let source_path = entry.path();
-            let relative_path =
-                source_path.strip_prefix(from).map_err(|_| FileError::Io {
-                    context: String::new(),
-                    source: Arc::new(std::io::Error::new(
-                        std::io::ErrorKind::InvalidInput,
-                        "Failed to compute relative path",
-                    )),
-                })?;
+            let relative_path = source_path.strip_prefix(from).map_err(|_| FileError::Io {
+                context: String::new(),
+                source: Arc::new(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "Failed to compute relative path",
+                )),
+            })?;
             let dest_path = to.join(relative_path);
 
             if source_path.is_dir() {

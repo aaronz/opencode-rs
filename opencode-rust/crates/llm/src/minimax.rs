@@ -6,6 +6,7 @@ pub struct MiniMaxProvider {
     api_key: String,
     model: String,
     temperature: f32,
+    base_url: String,
 }
 
 impl MiniMaxProvider {
@@ -14,7 +15,24 @@ impl MiniMaxProvider {
             api_key,
             model,
             temperature: 0.7,
+            base_url: "https://api.minimax.io".to_string(),
         }
+    }
+
+    pub fn with_base_url(api_key: String, model: String, base_url: String) -> Self {
+        Self {
+            api_key,
+            model,
+            temperature: 0.7,
+            base_url,
+        }
+    }
+
+    fn chat_url(&self) -> String {
+        format!(
+            "{}/v1/chat/completions",
+            self.base_url.trim_end_matches('/')
+        )
     }
 }
 
@@ -24,7 +42,7 @@ impl sealed::Sealed for MiniMaxProvider {}
 impl Provider for MiniMaxProvider {
     async fn complete(&self, prompt: &str, context: Option<&str>) -> Result<String, OpenCodeError> {
         let client = reqwest::Client::new();
-        let url = "https://api.minimax.io/v1/chat/completions";
+        let url = self.chat_url();
 
         let messages = if let Some(ctx) = context {
             vec![
@@ -66,7 +84,7 @@ impl Provider for MiniMaxProvider {
         mut callback: StreamingCallback,
     ) -> Result<(), OpenCodeError> {
         let client = reqwest::Client::new();
-        let url = "https://api.minimax.io/v1/chat/completions";
+        let url = self.chat_url();
 
         let body = serde_json::json!({
             "model": self.model,
