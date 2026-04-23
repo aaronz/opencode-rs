@@ -6,7 +6,7 @@
   "test_cases": [
     {
       "id": "plugin_e2e_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Plugin loading and initialization",
       "description": "Test WASM plugin loads and registers tools",
       "modules": ["plugin"],
@@ -23,7 +23,7 @@
     },
     {
       "id": "plugin_e2e_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "Plugin lifecycle hooks",
       "description": "Test plugin lifecycle event callbacks",
       "modules": ["plugin"],
@@ -40,7 +40,7 @@
     },
     {
       "id": "plugin_sec_001",
-      "status": "not_started",
+      "status": "requires_code_change",
       "title": "CRITICAL: WASM plugin sandbox escapes must be prevented",
       "description": "Plugin must not escape WASM sandbox to access host resources",
       "modules": ["plugin"],
@@ -65,7 +65,7 @@
     },
     {
       "id": "plugin_sec_002",
-      "status": "not_started",
+      "status": "requires_code_change",
       "title": "Plugin resource limits",
       "description": "WASM execution must have bounded CPU/memory",
       "modules": ["plugin"],
@@ -85,7 +85,7 @@
     },
     {
       "id": "plugin_sec_003",
-      "status": "not_started",
+      "status": "completed",
       "title": "Plugin tool registration validation",
       "description": "Registered tools must have valid schemas",
       "modules": ["plugin"],
@@ -110,7 +110,7 @@
     },
     {
       "id": "plugin_state_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Plugin init called only once",
       "description": "plugin_init must not be called multiple times per instance",
       "modules": ["plugin"],
@@ -130,7 +130,7 @@
     },
     {
       "id": "plugin_state_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "Plugin cleanup on unload",
       "description": "Unloaded plugin must release all resources",
       "modules": ["plugin"],
@@ -151,7 +151,7 @@
     },
     {
       "id": "plugin_hooks_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "on_tool_call hook can block tool execution",
       "description": "Plugin hook must be able to deny tool calls",
       "modules": ["plugin"],
@@ -172,7 +172,7 @@
     },
     {
       "id": "plugin_hooks_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "on_message hook message modification",
       "description": "Plugin can modify messages via hook",
       "modules": ["plugin"],

@@ -6,7 +6,7 @@
   "test_cases": [
     {
       "id": "shell_e2e_001",
-      "status": "not_started",
+      "status": "requires_code_change",
       "title": "Shell command with environment variables",
       "description": "Test shell execution with custom env",
       "modules": ["shell"],
@@ -22,7 +22,7 @@
     },
     {
       "id": "pty_e2e_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "PTY command execution",
       "description": "Test PTY spawns and communicates",
       "modules": ["pty", "shell"],
@@ -41,7 +41,7 @@
     },
     {
       "id": "bus_e2e_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Event publish and subscribe",
       "description": "Test event bus pub/sub",
       "modules": ["bus"],
@@ -60,7 +60,7 @@
     },
     {
       "id": "sync_e2e_001",
-      "status": "not_started",
+      "status": "requires_code_change",
       "title": "SSE streaming updates",
       "description": "Test server-sent events for state sync",
       "modules": ["sync", "server"],
@@ -78,7 +78,7 @@
     },
     {
       "id": "shell_sec_001",
-      "status": "not_started",
+      "status": "requires_code_change",
       "title": "CRITICAL: Shell injection prevention",
       "description": "Shell execution must prevent command injection",
       "modules": ["shell"],
@@ -104,7 +104,7 @@
     },
     {
       "id": "shell_sec_002",
-      "status": "not_started",
+      "status": "requires_code_change",
       "title": "Shell environment variable sanitization",
       "description": "Dangerous env vars must be filtered",
       "modules": ["shell"],
@@ -128,7 +128,7 @@
     },
     {
       "id": "pty_sec_001",
-      "status": "not_started",
+      "status": "requires_code_change",
       "title": "PTY escape sequence handling",
       "description": "Malicious escape sequences in PTY output handled",
       "modules": ["pty"],
@@ -153,7 +153,7 @@
     },
     {
       "id": "pty_state_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "PTY cleanup on unexpected exit",
       "description": "PTY resources cleaned when child process crashes",
       "modules": ["pty"],
@@ -174,7 +174,7 @@
     },
     {
       "id": "bus_stability_001",
-      "status": "not_started",
+      "status": "requires_code_change",
       "title": "Event bus subscriber panic isolation",
       "description": "Panicking subscriber must not crash event bus",
       "modules": ["bus"],
@@ -195,7 +195,7 @@
     },
     {
       "id": "bus_stability_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "Event bus memory leak prevention",
       "description": "Subscribers must not accumulate if not unsubscribed",
       "modules": ["bus"],
@@ -215,7 +215,7 @@
     },
     {
       "id": "sync_001",
-      "status": "not_started",
+      "status": "requires_code_change",
       "title": "SSE reconnection with last-event-id",
       "description": "SSE client reconnects and resumes from last event",
       "modules": ["sync"],
@@ -238,7 +238,7 @@
     },
     {
       "id": "sync_002",
-      "status": "not_started",
+      "status": "requires_code_change",
       "title": "SSE heartbeat prevents connection timeout",
       "description": "SSE server sends heartbeat comments",
       "modules": ["sync"],

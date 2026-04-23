@@ -626,7 +626,7 @@ mod tests {
     }
 
     struct EnvVarGuard {
-        vars: Vec<(String, Option<String>)>,
+        vars: Vec<(String, Option<String>, String)>,
     }
 
     impl EnvVarGuard {
@@ -636,16 +636,19 @@ mod tests {
         fn set(&mut self, key: &str, value: &str) {
             let prev = std::env::var(key).ok();
             std::env::set_var(key, value);
-            self.vars.push((key.to_string(), prev));
+            self.vars.push((key.to_string(), prev, value.to_string()));
         }
     }
 
     impl Drop for EnvVarGuard {
         fn drop(&mut self) {
-            for (key, old_value) in self.vars.drain(..) {
-                match old_value {
-                    Some(v) => std::env::set_var(&key, v),
-                    None => std::env::remove_var(&key),
+            for (key, old_value, set_value) in self.vars.drain(..) {
+                let current = std::env::var(&key).ok();
+                if current == Some(set_value) {
+                    match old_value {
+                        Some(v) => std::env::set_var(&key, v),
+                        None => std::env::remove_var(&key),
+                    }
                 }
             }
         }

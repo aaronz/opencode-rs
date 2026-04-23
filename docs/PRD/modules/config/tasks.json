@@ -6,7 +6,7 @@
   "test_cases": [
     {
       "id": "config_e2e_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Config load from JSON file",
       "description": "Test loading config from JSON/JSONC file",
       "modules": ["config"],
@@ -24,7 +24,7 @@
     },
     {
       "id": "config_e2e_002",
-      "status": "not_started",
+      "status": "requires_code_change",
       "title": "Config deep merge on patch",
       "description": "Test partial config update does deep merge",
       "modules": ["config"],
@@ -40,7 +40,7 @@
     },
     {
       "id": "config_e2e_003",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Keychain secret resolution",
       "description": "Test keychain references resolved at load time",
       "modules": ["config", "auth"],
@@ -57,7 +57,7 @@
     },
     {
       "id": "config_e2e_004",
-      "status": "not_started",
+      "status": "completed",
       "title": "Config variable expansion",
       "description": "Test ${VAR} and ~ expansion in config values",
       "modules": ["config", "env"],
@@ -74,7 +74,7 @@
     },
     {
       "id": "config_e2e_005",
-      "status": "not_started",
+      "status": "completed",
       "title": "Config path resolution",
       "description": "Test Config::config_path() returns correct path",
       "modules": ["config", "global"],
@@ -90,7 +90,7 @@
     },
     {
       "id": "config_e2e_006",
-      "status": "not_started",
+      "status": "completed",
       "title": "Directory scanner for tools",
       "description": "Test DirectoryScanner finds tools in directories",
       "modules": ["config"],
@@ -107,7 +107,7 @@
     },
     {
       "id": "config_e2e_007",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Remote config cache",
       "description": "Test remote config fetching and caching",
       "modules": ["config"],
@@ -124,7 +124,7 @@
     },
     {
       "id": "config_e2e_008",
-      "status": "not_started",
+      "status": "completed",
       "title": "JSONC comment parsing",
       "description": "Test JSONC files with comments parse correctly",
       "modules": ["config"],
@@ -141,7 +141,7 @@
     },
     {
       "id": "config_val_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Config malformed JSONC recovery",
       "description": "CRITICAL: Config must handle malformed JSONC gracefully without crashing",
       "modules": ["config"],
@@ -176,7 +176,7 @@
     },
     {
       "id": "config_val_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "Config circular variable reference detection",
       "description": "CRITICAL: Config must detect and reject circular variable references to prevent infinite loop",
       "modules": ["config", "env"],
@@ -207,7 +207,7 @@
     },
     {
       "id": "config_val_003",
-      "status": "not_started",
+      "status": "completed",
       "title": "Config missing required environment variables",
       "description": "Config must handle missing env vars with clear error, not silent empty values",
       "modules": ["config", "env"],
@@ -236,7 +236,7 @@
     },
     {
       "id": "config_val_004",
-      "status": "not_started",
+      "status": "requires_code_change",
       "title": "Config schema validation - unknown fields",
       "description": "Config must validate schema and reject unknown fields if configured to",
       "modules": ["config"],
@@ -261,7 +261,7 @@
     },
     {
       "id": "config_val_005",
-      "status": "not_started",
+      "status": "requires_code_change",
       "title": "Config deep merge type conflict",
       "description": "Patch with wrong type for nested field must be rejected or handled",
       "modules": ["config"],
@@ -281,7 +281,7 @@
     },
     {
       "id": "config_val_006",
-      "status": "not_started",
+      "status": "completed",
       "title": "Config array merge behavior",
       "description": "Deep merge of arrays must be well-defined (replace vs append)",
       "modules": ["config"],
@@ -304,7 +304,7 @@
     },
     {
       "id": "config_reload_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Config hot-reload when file changes on disk",
       "description": "CRITICAL: Config should detect file changes and reload without restart",
       "modules": ["config"],
@@ -331,7 +331,7 @@
     },
     {
       "id": "config_reload_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "Config reload atomicity - no partial state",
       "description": "Config reload must be atomic - no intermediate partial state visible",
       "modules": ["config"],
@@ -350,7 +350,7 @@
     },
     {
       "id": "config_sec_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Config keychain unavailable handling",
       "description": "Config must handle keychain inaccessibility gracefully",
       "modules": ["config", "auth"],
@@ -379,7 +379,7 @@
     },
     {
       "id": "config_sec_002",
-      "status": "not_started",
+      "status": "requires_code_change",
       "title": "Config file permission validation",
       "description": "Config must validate file permissions (not world-readable)",
       "modules": ["config"],
@@ -405,7 +405,7 @@
     },
     {
       "id": "config_expand_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Variable expansion with nested quotes",
       "description": "Variable expansion must handle quotes within values correctly",
       "modules": ["config", "env"],
@@ -430,7 +430,7 @@
     },
     {
       "id": "config_expand_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "Config variable default values",
       "description": "Config should support default values for missing variables",
       "modules": ["config", "env"],

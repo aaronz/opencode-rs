@@ -6,7 +6,7 @@
   "test_cases": [
     {
       "id": "storage_e2e_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Session save and load roundtrip",
       "description": "Test session persists to SQLite and loads correctly",
       "modules": ["storage", "session"],

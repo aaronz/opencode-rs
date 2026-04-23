@@ -6,7 +6,7 @@
   "test_cases": [
     {
       "id": "permission_e2e_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Permission scope enforcement",
       "description": "Test AgentPermissionScope restricts tool execution",
       "modules": ["permission", "tool"],
@@ -24,7 +24,7 @@
     },
     {
       "id": "permission_e2e_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "Permission prompt and approval flow",
       "description": "Test permission requests and user approval",
       "modules": ["permission"],
@@ -41,7 +41,7 @@
     },
     {
       "id": "permission_sec_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Permission bypass via tool name confusion",
       "description": "CRITICAL: Tool name aliases must not bypass permission checks",
       "modules": ["permission", "tool"],
@@ -65,7 +65,7 @@
     },
     {
       "id": "permission_sec_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "Permission scope escalation prevention",
       "description": "CRITICAL: Scope must not be modifiable at runtime",
       "modules": ["permission"],
@@ -85,7 +85,7 @@
     },
     {
       "id": "permission_sec_003",
-      "status": "not_started",
+      "status": "completed",
       "title": "Permission prompt timeout",
       "description": "Unanswered permission prompts must timeout",
       "modules": ["permission"],
@@ -106,7 +106,7 @@
     },
     {
       "id": "permission_state_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Permission state persistence",
       "description": "Approved permissions must persist across sessions or not",
       "modules": ["permission"],
@@ -128,7 +128,7 @@
     },
     {
       "id": "permission_state_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "Permission approval idempotency",
       "description": "Multiple approvals of same operation handled",
       "modules": ["permission"],
@@ -147,7 +147,7 @@
     },
     {
       "id": "permission_scope_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Scope hierarchy enforcement",
       "description": "Nested scopes must inherit restrictions correctly",
       "modules": ["permission"],
@@ -168,7 +168,7 @@
     },
     {
       "id": "permission_scope_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "Scope bounds checking",
       "description": "Scope with file path must restrict to that path",
       "modules": ["permission"],
@@ -193,7 +193,7 @@
     },
     {
       "id": "permission_audit_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Permission decisions audit logged",
       "description": "All permission grants and denials logged",
       "modules": ["permission"],

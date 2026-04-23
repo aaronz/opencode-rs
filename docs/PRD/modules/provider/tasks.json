@@ -42,7 +42,7 @@
     },
     {
       "id": "provider_e2e_003",
-      "status": "not_started",
+      "status": "completed",
       "title": "Budget tracking per-request",
       "description": "Test BudgetTracker tracks token usage",
       "modules": ["provider", "budget"],
@@ -59,7 +59,7 @@
     },
     {
       "id": "provider_e2e_004",
-      "status": "not_started",
+      "status": "completed",
       "title": "Provider registry and model listing",
       "description": "Test ProviderRegistry and model enumeration",
       "modules": ["provider"],
@@ -76,7 +76,7 @@
     },
     {
       "id": "provider_e2e_005",
-      "status": "not_started",
+      "status": "completed",
       "title": "Anthropic reasoning budget configuration",
       "description": "Test Anthropic-specific reasoning budget settings",
       "modules": ["provider"],
@@ -127,7 +127,7 @@
     },
     {
       "id": "provider_e2e_008",
-      "status": "not_started",
+      "status": "completed",
       "title": "Message transform pipeline",
       "description": "Test TransformPipeline modifies messages correctly",
       "modules": ["provider"],
@@ -144,7 +144,7 @@
     },
     {
       "id": "provider_err_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "CRITICAL: Invalid API key returns clear error",
       "description": "Invalid credentials must produce actionable error",
       "modules": ["provider"],
@@ -169,7 +169,7 @@
     },
     {
       "id": "provider_err_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "Provider timeout handling",
       "description": "Requests must timeout and return error, not hang",
       "modules": ["provider"],
@@ -198,7 +198,7 @@
     },
     {
       "id": "provider_err_003",
-      "status": "not_started",
+      "status": "completed",
       "title": "Malformed response handling",
       "description": "Provider must handle malformed API responses gracefully",
       "modules": ["provider"],
@@ -228,7 +228,7 @@
     },
     {
       "id": "provider_err_004",
-      "status": "not_started",
+      "status": "completed",
       "title": "Rate limit Retry-After header parsing",
       "description": "Retry backoff must respect Retry-After header from provider",
       "modules": ["provider"],
@@ -270,7 +270,7 @@
     },
     {
       "id": "provider_budget_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Monthly budget reset",
       "description": "Budget must reset at correct time boundary",
       "modules": ["provider", "budget"],
@@ -312,7 +312,7 @@
     },
     {
       "id": "provider_conc_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Concurrent requests to same provider",
       "description": "Multiple simultaneous requests to same provider handled correctly",
       "modules": ["provider"],
@@ -354,7 +354,7 @@
     },
     {
       "id": "provider_transform_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Transform pipeline with multiple transforms",
       "description": "Multiple transforms compose correctly",
       "modules": ["provider"],
@@ -374,7 +374,7 @@
     },
     {
       "id": "provider_transform_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "Transform pipeline error propagation",
       "description": "Transform failure must error the request, not pass bad data",
       "modules": ["provider"],

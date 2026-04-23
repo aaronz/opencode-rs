@@ -6,7 +6,7 @@
   "test_cases": [
     {
       "id": "agent_e2e_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "BuildAgent.run() completes with tool execution",
       "description": "Test BuildAgent.run() executes tools and returns response. Critical: test the Agent::run() method directly, not internal run_loop.",
       "modules": ["agent", "session", "tool", "provider"],
@@ -33,7 +33,7 @@
     },
     {
       "id": "agent_e2e_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "PlanAgent enforces read-only constraints",
       "description": "PlanAgent must return false for dangerous operations. Critical: UI relies on these flags.",
       "modules": ["agent"],
@@ -56,7 +56,7 @@
     },
     {
       "id": "agent_e2e_003",
-      "status": "not_started",
+      "status": "completed",
       "title": "PrimaryAgentTracker single-active invariant",
       "description": "CRITICAL: Only ONE primary agent can be active. This is a core invariant - two simultaneous activations must error.",
       "modules": ["agent"],
@@ -82,7 +82,7 @@
     },
     {
       "id": "agent_e2e_004",
-      "status": "not_started",
+      "status": "completed",
       "title": "invoke_subagent creates isolated child with inherited permissions",
       "description": "CRITICAL: Subagent runs in isolation. Parent session must not be modified.",
       "modules": ["agent", "session"],
@@ -107,7 +107,7 @@
     },
     {
       "id": "agent_e2e_005",
-      "status": "not_started",
+      "status": "completed",
       "title": "System agents hidden from UI listings",
       "description": "CompactionAgent, TitleAgent, SummaryAgent must NOT appear in agent selection UI",
       "modules": ["agent"],
@@ -127,7 +127,7 @@
     },
     {
       "id": "agent_e2e_006",
-      "status": "not_started",
+      "status": "completed",
       "title": "Agent preferred_model affects provider selection",
       "description": "When agent has preferred_model, runtime should select that model. Critical for cost optimization.",
       "modules": ["agent", "provider"],
@@ -146,7 +146,7 @@
     },
     {
       "id": "agent_e2e_007",
-      "status": "not_started",
+      "status": "completed",
       "title": "AgentType serialization uses lowercase JSON",
       "description": "CRITICAL: AgentType must serialize to lowercase for API compatibility",
       "modules": ["agent"],
@@ -165,7 +165,7 @@
     },
     {
       "id": "agent_e2e_008",
-      "status": "not_started",
+      "status": "completed",
       "title": "TaskDelegate.delegate_task() full lifecycle",
       "description": "Test TaskDelegate coordinates task delegation to subagent with proper status tracking",
       "modules": ["agent"],
@@ -191,7 +191,7 @@
     },
     {
       "id": "agent_e2e_009",
-      "status": "not_started",
+      "status": "completed",
       "title": "AgentEvent emission during execution",
       "description": "BroadcastEventEmitter must deliver events in order to all subscribers",
       "modules": ["agent"],
@@ -212,7 +212,7 @@
     },
     {
       "id": "agent_e2e_010",
-      "status": "not_started",
+      "status": "completed",
       "title": "RuntimeConfig enforces iteration limits",
       "description": "When max_iterations reached, runtime must stop and return error",
       "modules": ["agent"],
@@ -233,7 +233,7 @@
     },
     {
       "id": "agent_e2e_011",
-      "status": "not_started",
+      "status": "completed",
       "title": "Agent execution handles provider errors gracefully",
       "description": "When LLM provider fails, error should propagate with context",
       "modules": ["agent", "provider"],
@@ -251,7 +251,7 @@
     },
     {
       "id": "agent_e2e_012",
-      "status": "not_started",
+      "status": "completed",
       "title": "Session lock prevents concurrent agent execution",
       "description": "CRITICAL: When agent is running, session should be locked to prevent concurrent modifications",
       "modules": ["agent", "session"],
@@ -271,7 +271,7 @@
     },
     {
       "id": "agent_e2e_013",
-      "status": "not_started",
+      "status": "completed",
       "title": "Agent handles parallel tool calls from single response",
       "description": "When provider returns multiple tool_calls in one response, agent must handle all correctly",
       "modules": ["agent", "tool", "provider"],
@@ -309,7 +309,7 @@
     },
     {
       "id": "agent_e2e_014",
-      "status": "not_started",
+      "status": "completed",
       "title": "Nested agent call during tool execution",
       "description": "When tool execution triggers another agent call, isolation is maintained",
       "modules": ["agent", "session", "tool"],
@@ -337,7 +337,7 @@
     },
     {
       "id": "agent_e2e_015",
-      "status": "not_started",
+      "status": "completed",
       "title": "Agent visibility respects permission scopes",
       "description": "Agent visibility may differ based on permission scope (ReadOnly vs ReadWrite)",
       "modules": ["agent"],
@@ -358,7 +358,7 @@
     },
     {
       "id": "agent_conc_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "PrimaryAgentTracker concurrent activation from multiple threads",
       "description": "CRITICAL: Verify single-active invariant holds under concurrent activation attempts. Race condition here could breach the core invariant.",
       "modules": ["agent"],
@@ -385,7 +385,7 @@
     },
     {
       "id": "agent_panic_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Session lock released on agent panic",
       "description": "CRITICAL: Session lock must always be released when agent.run() panics. Permanent deadlock otherwise.",
       "modules": ["agent", "session"],
@@ -411,7 +411,7 @@
     },
     {
       "id": "agent_panic_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "TaskDelegate cleanup on subagent panic",
       "description": "TaskDelegate must not leak tasks into active state when subagent panics",
       "modules": ["agent"],

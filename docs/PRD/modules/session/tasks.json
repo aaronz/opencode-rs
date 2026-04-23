@@ -6,7 +6,7 @@
   "test_cases": [
     {
       "id": "session_e2e_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Session creation with fork and lineage tracking",
       "description": "Test session fork preserves messages and maintains parent-child relationship",
       "modules": ["session", "agent"],
@@ -25,7 +25,7 @@
     },
     {
       "id": "session_e2e_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "Undo/redo message history",
       "description": "Test undo and redo operations on session messages",
       "modules": ["session"],
@@ -44,7 +44,7 @@
     },
     {
       "id": "session_e2e_003",
-      "status": "not_started",
+      "status": "completed",
       "title": "Session sharing with expiry",
       "description": "Test share link generation and expiry handling",
       "modules": ["session"],
@@ -62,7 +62,7 @@
     },
     {
       "id": "session_e2e_004",
-      "status": "not_started",
+      "status": "completed",
       "title": "Session export to JSON and Markdown",
       "description": "Test session serialization formats with credential redaction",
       "modules": ["session"],
@@ -88,7 +88,7 @@
     },
     {
       "id": "session_e2e_005",
-      "status": "not_started",
+      "status": "completed",
       "title": "Fork at message index boundary errors",
       "description": "Test fork_at_message handles out-of-bounds gracefully",
       "modules": ["session"],
@@ -108,7 +108,7 @@
     },
     {
       "id": "session_e2e_006",
-      "status": "not_started",
+      "status": "completed",
       "title": "Tool invocation recording",
       "description": "Test tool invocations are recorded in session with hash and latency",
       "modules": ["session", "tool"],
@@ -128,7 +128,7 @@
     },
     {
       "id": "session_e2e_007",
-      "status": "not_started",
+      "status": "completed",
       "title": "Session compaction via Compactor",
       "description": "Test Compactor reduces session size",
       "modules": ["session"],
@@ -146,7 +146,7 @@
     },
     {
       "id": "session_e2e_008",
-      "status": "not_started",
+      "status": "completed",
       "title": "Session state transitions",
       "description": "Test SessionState enum transitions",
       "modules": ["session"],
@@ -162,7 +162,7 @@
     },
     {
       "id": "session_conc_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Concurrent session fork and undo operations",
       "description": "CRITICAL: Verify session remains consistent under concurrent fork/undo operations",
       "modules": ["session"],
@@ -191,7 +191,7 @@
     },
     {
       "id": "session_state_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Session compaction during active agent iteration",
       "description": "CRITICAL: Verify session compaction does not corrupt state when agent is running",
       "modules": ["session", "agent"],
@@ -218,7 +218,7 @@
     },
     {
       "id": "session_state_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "Undo does not cross fork boundary",
       "description": "Undo must not remove messages from parent session",
       "modules": ["session"],
@@ -242,7 +242,7 @@
     },
     {
       "id": "session_state_003",
-      "status": "not_started",
+      "status": "completed",
       "title": "Storage file corruption recovery",
       "description": "CRITICAL: Verify system handles corrupted session storage gracefully",
       "modules": ["session", "storage"],
@@ -267,7 +267,7 @@
     },
     {
       "id": "session_state_004",
-      "status": "not_started",
+      "status": "completed",
       "title": "Message ordering guaranteed after fork and undo",
       "description": "Verify message ordering is preserved after complex fork/undo sequences",
       "modules": ["session"],
@@ -294,7 +294,7 @@
     },
     {
       "id": "session_state_005",
-      "status": "not_started",
+      "status": "completed",
       "title": "Concurrent session forks from same parent",
       "description": "Multiple forks created simultaneously from same parent must not interfere",
       "modules": ["session"],
@@ -322,7 +322,7 @@
     },
     {
       "id": "session_export_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Session export redaction completeness",
       "description": "Verify ALL sensitive content is redacted in exports, not just obvious API keys",
       "modules": ["session"],

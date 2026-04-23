@@ -6,7 +6,7 @@
   "test_cases": [
     {
       "id": "tool_e2e_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "ToolRegistry registration and lookup",
       "description": "Test registering tools and looking them up by name",
       "modules": ["tool"],
@@ -25,7 +25,7 @@
     },
     {
       "id": "tool_e2e_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "ReadTool file reading with schema validation",
       "description": "Test ReadTool executes correctly with valid arguments",
       "modules": ["tool", "file"],
@@ -42,7 +42,7 @@
     },
     {
       "id": "tool_e2e_003",
-      "status": "not_started",
+      "status": "completed",
       "title": "WriteTool file creation and overwrite protection",
       "description": "Test WriteTool creates files and handles existing files",
       "modules": ["tool", "file"],
@@ -59,7 +59,7 @@
     },
     {
       "id": "tool_e2e_004",
-      "status": "not_started",
+      "status": "completed",
       "title": "BashTool command execution with timeout",
       "description": "Test BashTool executes commands and respects timeout",
       "modules": ["tool", "shell"],
@@ -77,7 +77,7 @@
     },
     {
       "id": "tool_e2e_005",
-      "status": "not_started",
+      "status": "completed",
       "title": "GrepTool pattern search",
       "description": "Test GrepTool finds patterns in files",
       "modules": ["tool"],
@@ -94,7 +94,7 @@
     },
     {
       "id": "tool_e2e_006",
-      "status": "not_started",
+      "status": "completed",
       "title": "MultiEditTool atomic multi-file edits",
       "description": "Test MultiEditTool applies multiple edits atomically",
       "modules": ["tool", "file"],
@@ -111,7 +111,7 @@
     },
     {
       "id": "tool_e2e_007",
-      "status": "not_started",
+      "status": "completed",
       "title": "GlobTool pattern matching",
       "description": "Test GlobTool finds files by pattern",
       "modules": ["tool"],
@@ -146,7 +146,7 @@
     },
     {
       "id": "tool_e2e_009",
-      "status": "not_started",
+      "status": "completed",
       "title": "WebFetchTool URL content retrieval",
       "description": "Test WebFetchTool fetches web content",
       "modules": ["tool"],
@@ -163,7 +163,7 @@
     },
     {
       "id": "tool_e2e_010",
-      "status": "not_started",
+      "status": "completed",
       "title": "Tool safety classification",
       "description": "Test is_safe() returns correct values per tool",
       "modules": ["tool"],
@@ -180,7 +180,7 @@
     },
     {
       "id": "tool_sec_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "BashTool shell injection prevention",
       "description": "CRITICAL: BashTool must reject commands with shell injection payloads. RCE risk if bypassed.",
       "modules": ["tool", "shell"],
@@ -222,7 +222,7 @@
     },
     {
       "id": "tool_sec_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "BashTool path traversal prevention",
       "description": "BashTool must reject commands attempting to access files outside allowed scope",
       "modules": ["tool", "shell"],
@@ -253,7 +253,7 @@
     },
     {
       "id": "tool_sec_003",
-      "status": "not_started",
+      "status": "completed",
       "title": "WebFetchTool SSRF prevention",
       "description": "CRITICAL: WebFetchTool must reject requests to internal/sensitive addresses. SSRF risk.",
       "modules": ["tool"],
@@ -290,7 +290,7 @@
     },
     {
       "id": "tool_sec_004",
-      "status": "not_started",
+      "status": "completed",
       "title": "ReadTool symlink and special file handling",
       "description": "CRITICAL: ReadTool must not follow symlinks or read special files outside workspace scope",
       "modules": ["tool", "file"],
@@ -326,7 +326,7 @@
     },
     {
       "id": "tool_sec_005",
-      "status": "not_started",
+      "status": "requires_code_change",
       "title": "BashTool signal handling during execution",
       "description": "BashTool must handle signals (SIGINT, SIGTERM) during long-running commands",
       "modules": ["tool", "shell"],
@@ -352,7 +352,7 @@
     },
     {
       "id": "tool_sec_006",
-      "status": "not_started",
+      "status": "completed",
       "title": "WriteTool path traversal and overwrite protection",
       "description": "WriteTool must prevent writing outside workspace and handle dangerous overwrites",
       "modules": ["tool", "file"],
@@ -385,7 +385,7 @@
     },
     {
       "id": "tool_edge_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "ReadTool oversized file handling",
       "description": "ReadTool must handle oversized files without memory exhaustion",
       "modules": ["tool", "file"],
@@ -410,7 +410,7 @@
     },
     {
       "id": "tool_edge_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "GrepTool catastrophic backtracking prevention",
       "description": "GrepTool must prevent regex catastrophic backtracking (ReDoS)",
       "modules": ["tool"],
@@ -439,7 +439,7 @@
     },
     {
       "id": "tool_edge_003",
-      "status": "not_started",
+      "status": "completed",
       "title": "GlobTool symlink loop prevention",
       "description": "GlobTool must detect and prevent infinite loops from symlink cycles",
       "modules": ["tool", "file"],
@@ -464,7 +464,7 @@
     },
     {
       "id": "tool_edge_004",
-      "status": "not_started",
+      "status": "completed",
       "title": "BashTool empty and whitespace-only commands",
       "description": "BashTool must handle empty commands, whitespace, and special shell builtins",
       "modules": ["tool", "shell"],
@@ -490,7 +490,7 @@
     },
     {
       "id": "tool_multi_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "MultiEditTool partial failure atomicity",
       "description": "When MultiEditTool partially fails, verify ALL changes are rolled back",
       "modules": ["tool", "file"],
@@ -516,7 +516,7 @@
     },
     {
       "id": "tool_multi_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "MultiEditTool concurrent execution",
       "description": "Two MultiEditTool executions on overlapping files must not corrupt each other",
       "modules": ["tool", "file"],
@@ -542,7 +542,7 @@
     },
     {
       "id": "tool_registry_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "ToolRegistry handles duplicate registration gracefully",
       "description": "Registering the same tool twice must not panic or leak",
       "modules": ["tool"],
@@ -562,7 +562,7 @@
     },
     {
       "id": "tool_registry_002",
-      "status": "not_started",
+      "status": "requires_code_change",
       "title": "ToolRegistry unregister and reregister",
       "description": "Tools can be removed and re-added to registry",
       "modules": ["tool"],
