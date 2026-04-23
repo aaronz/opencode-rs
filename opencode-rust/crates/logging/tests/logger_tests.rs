@@ -10,7 +10,7 @@ async fn test_log_tool_macro_expands_to_info_call() {
     let config = LoggingConfig::default();
     let logger = Logger::new(config).unwrap();
 
-    log_tool!(logger, "read", "success", latency_ms = 45u64);
+    log_tool!(logger, "read", "success", latency_ms = 45i64);
     tokio::task::yield_now().await;
 
     let events = logger.query_logs(LogQuery::new()).await.unwrap();
@@ -31,7 +31,7 @@ async fn test_log_tool_macro_field_syntax() {
         logger,
         "write",
         "failed",
-        latency_ms = 100u64,
+        latency_ms = 100i64,
         error_code = "ERR_WRITE"
     );
     tokio::task::yield_now().await;
@@ -51,7 +51,7 @@ async fn test_log_tool_macro_target_format() {
     let config = LoggingConfig::default();
     let logger = Logger::new(config).unwrap();
 
-    log_tool!(logger, "bash", "success", latency_ms = 50u64);
+    log_tool!(logger, "bash", "success", latency_ms = 50i64);
     tokio::task::yield_now().await;
 
     let events = logger.query_logs(LogQuery::new()).await.unwrap();

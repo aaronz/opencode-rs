@@ -748,7 +748,7 @@ mod tests {
 
         let file_1_exists = temp_dir.path().join("opencode.log.1").exists();
         let file_2_exists = temp_dir.path().join("opencode.log.2").exists();
-        let file_3_exists = temp_dir.path().join("opencode.log.3").exists();
+        let _file_3_exists = temp_dir.path().join("opencode.log.3").exists();
 
         assert!(
             file_1_exists,

@@ -52,7 +52,7 @@ mod tests {
 
     #[test]
     fn test_log_fields_named() {
-        let fields = log_fields!(latency_ms = 42u64);
+        let fields = log_fields!(latency_ms = 42i64);
         assert_eq!(fields.latency_ms, Some(42));
     }
 }

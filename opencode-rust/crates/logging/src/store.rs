@@ -1286,7 +1286,7 @@ mod tests {
     fn test_reasoning_log_store_new_creates_table_and_index() {
         let temp_dir = tempfile::tempdir().unwrap();
         let db_path = temp_dir.path().join("reasoning.db");
-        let store = ReasoningLogStore::new(&db_path).unwrap();
+        let _store = ReasoningLogStore::new(&db_path).unwrap();
 
         assert!(db_path.exists());
 
