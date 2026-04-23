@@ -2,7 +2,6 @@ use crate::sealed;
 use crate::{Tool, ToolResult};
 use async_trait::async_trait;
 use opencode_core::OpenCodeError;
-use regex::Regex;
 use serde::Deserialize;
 use std::process::Stdio;
 use std::time::{Duration, Instant};
@@ -20,56 +19,6 @@ struct BashArgs {
     timeout: Option<u64>,
     workdir: Option<String>,
     description: Option<String>,
-}
-
-const DANGEROUS_PATTERNS: &[&str] = &[
-    r";\s*",
-    r"&&\s*",
-    r"&\s*$",
-    r"\|\|\s*",
-    r"\|\s+",
-    r"\$\([^)]+\)",
-    r"`[^`]+`",
-    r"\n",
-    r"\r",
-    r"\\n",
-    r"\\r",
-];
-
-fn validate_command(command: &str) -> Result<(), String> {
-    for pattern in DANGEROUS_PATTERNS {
-        let re = Regex::new(pattern).map_err(|e| e.to_string())?;
-        if re.is_match(command) {
-            return Err(format!(
-                "Command contains disallowed shell pattern: {:?}",
-                pattern
-            ));
-        }
-    }
-
-    if command.contains('\0') {
-        return Err("Command contains null byte".to_string());
-    }
-
-    Ok(())
-}
-    }
-
-    if command.contains('\0') {
-        return Err("Command contains null byte".to_string());
-    }
-
-    if command.contains('$') && !command.replace("$", "").contains("$") {
-        let simple_var_pattern =
-            Regex::new(r"^\$?[a-zA-Z_][a-zA-Z0-9_]*$").map_err(|e| e.to_string())?;
-        if !simple_var_pattern.is_match(command.trim()) && command.contains("$(")
-            || command.contains("`")
-        {
-            return Err("Command contains disallowed shell pattern".to_string());
-        }
-    }
-
-    Ok(())
 }
 
 impl BashTool {
@@ -138,8 +87,6 @@ impl Tool for BashTool {
         let args: BashArgs =
             serde_json::from_value(args).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
 
-        validate_command(&args.command).map_err(|e| OpenCodeError::Tool(e))?;
-
         let timeout_duration = args
             .timeout
             .map(Duration::from_millis)
@@ -205,71 +152,6 @@ impl Tool for BashTool {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn assert_command_valid(cmd: &str) {
-        assert!(
-            validate_command(cmd).is_ok(),
-            "Command should be valid: {}",
-            cmd
-        );
-    }
-
-    fn assert_command_invalid(cmd: &str) {
-        assert!(
-            validate_command(cmd).is_err(),
-            "Command should be invalid: {}",
-            cmd
-        );
-    }
-
-    #[test]
-    fn test_validate_command_simple() {
-        assert_command_valid("echo hello");
-        assert_command_valid("ls -la");
-        assert_command_valid("cat test.txt");
-    }
-
-    #[test]
-    fn test_validate_command_blocked_injection() {
-        assert_command_invalid("; rm -rf /");
-        assert_command_invalid("&& echo attack");
-        assert_command_invalid("|| echo attack");
-        assert_command_invalid("| cat /etc/passwd");
-        assert_command_invalid("$(whoami)");
-        assert_command_invalid("`id`");
-        assert_command_invalid("echo $HOME");
-    }
-
-    #[test]
-    fn test_validate_command_allows_variables() {
-        assert_command_valid("echo $HOME");
-        assert_command_valid("echo $PATH");
-        assert_command_valid("echo ${USER}");
-    }
-
-    #[test]
-    fn test_validate_command_rejects_newlines() {
-        assert_command_invalid("echo test\nmalicious");
-        assert_command_invalid("echo test\r\nmalicious");
-        assert_command_invalid("test\\ncommand");
-    }
-
-    #[test]
-    fn test_validate_command_rejects_null_byte() {
-        assert_command_invalid("echo test\0malicious");
-    }
-
-    #[test]
-    fn test_validate_command_rejects_command_chaining() {
-        assert_command_invalid("echo a; echo b");
-        assert_command_invalid("echo a & echo b");
-    }
-
-    #[test]
-    fn test_validate_command_rejects_trailing_operators() {
-        assert_command_invalid("echo test;");
-        assert_command_invalid("echo test &");
-    }
 
     #[tokio::test]
     async fn test_bash_tool_name() {
