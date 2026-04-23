@@ -62,10 +62,11 @@
     },
     {
       "id": "storage_e2e_004",
-      "status": "not_started",
+      "status": "completed",
       "title": "Concurrent session access",
       "description": "Test multiple concurrent operations on different sessions",
       "modules": ["storage"],
+      "test_file": "crates/storage/tests/storage_e2e_004.rs",
       "steps": [
         "Create 5 sessions concurrently",
         "Save all concurrently",
