@@ -6,7 +6,7 @@
   "test_cases": [
     {
       "id": "lsp_e2e_001",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "LSP server detection and launch",
       "description": "Test LspManager detects and launches LSP servers",
       "modules": ["lsp"],
@@ -23,7 +23,7 @@
     },
     {
       "id": "lsp_e2e_002",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "LSP diagnostics aggregation",
       "description": "Test DiagnosticAggregator collects from all servers",
       "modules": ["lsp"],
@@ -40,7 +40,7 @@
     },
     {
       "id": "lsp_e2e_003",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "LSP server crash recovery",
       "description": "Test LspManager restarts crashed servers",
       "modules": ["lsp"],
@@ -74,7 +74,7 @@
     },
     {
       "id": "lsp_stability_001",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "LSP server zombie process prevention",
       "description": "CRITICAL: Dead LSP servers must not become zombie processes",
       "modules": ["lsp"],
@@ -126,7 +126,7 @@
     },
     {
       "id": "lsp_perf_001",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "LSP timeout on slow server",
       "description": "LSP requests must timeout if server unresponsive",
       "modules": ["lsp"],
@@ -146,7 +146,7 @@
     },
     {
       "id": "lsp_perf_002",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "Large workspace diagnostics batching",
       "description": "Large workspace must batch diagnostics to avoid memory spike",
       "modules": ["lsp"],
@@ -189,7 +189,7 @@
     },
     {
       "id": "lsp_integ_002",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "LSP capability mismatch handling",
       "description": "Client/server capability mismatch handled gracefully",
       "modules": ["lsp"],

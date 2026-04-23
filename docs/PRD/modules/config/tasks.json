@@ -24,7 +24,7 @@
     },
     {
       "id": "config_e2e_002",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "Config deep merge on patch",
       "description": "Test partial config update does deep merge",
       "modules": ["config"],

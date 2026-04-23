@@ -6,7 +6,7 @@
   "test_cases": [
     {
       "id": "shell_e2e_001",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "Shell command with environment variables",
       "description": "Test shell execution with custom env",
       "modules": ["shell"],
@@ -78,7 +78,7 @@
     },
     {
       "id": "shell_sec_001",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "CRITICAL: Shell injection prevention",
       "description": "Shell execution must prevent command injection",
       "modules": ["shell"],
@@ -104,7 +104,7 @@
     },
     {
       "id": "shell_sec_002",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "Shell environment variable sanitization",
       "description": "Dangerous env vars must be filtered",
       "modules": ["shell"],
