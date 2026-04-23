@@ -114,10 +114,11 @@
     },
     {
       "id": "storage_e2e_007",
-      "status": "not_started",
+      "status": "completed",
       "title": "InMemory repository for testing",
       "description": "Test InMemorySessionRepository behaves correctly",
       "modules": ["storage"],
+      "test_file": "crates/storage/tests/storage_e2e_007.rs",
       "steps": [
         "Create InMemorySessionRepository",
         "Save and load sessions",
