@@ -1,9 +1,14 @@
 use opencode_logging::config::LoggingConfig;
-use opencode_logging::event::{LogEvent, LogFields, LogLevel, ReasoningLog, SanitizedValue, ToolConsideration, ToolExecutionLog, ToolResult};
+use opencode_logging::event::{
+    LogEvent, LogFields, LogLevel, ReasoningLog, SanitizedValue, ToolConsideration,
+    ToolExecutionLog, ToolResult,
+};
 use opencode_logging::logger::Logger;
 use opencode_logging::query::LogQuery;
 use opencode_logging::sanitizer::Sanitizer;
-use opencode_logging::store::{LogStore, ReasoningLogQuery, ReasoningLogStore, ToolExecutionLogStore};
+use opencode_logging::store::{
+    LogStore, ReasoningLogQuery, ReasoningLogStore, ToolExecutionLogStore,
+};
 use opencode_logging::AgentLogger;
 
 fn create_test_db() -> (tempfile::TempDir, LogStore) {
@@ -73,7 +78,11 @@ fn test_log_store_query_by_session_a_returns_exactly_10_logs() {
         .query(&LogQuery::new().with_session_id("session_a"))
         .unwrap();
 
-    assert_eq!(results.len(), 10, "Query by session_a should return exactly 10 logs");
+    assert_eq!(
+        results.len(),
+        10,
+        "Query by session_a should return exactly 10 logs"
+    );
 }
 
 #[test]
@@ -106,7 +115,11 @@ fn test_log_store_query_by_session_b_returns_exactly_5_logs() {
         .query(&LogQuery::new().with_session_id("session_b"))
         .unwrap();
 
-    assert_eq!(results.len(), 5, "Query by session_b should return exactly 5 logs");
+    assert_eq!(
+        results.len(),
+        5,
+        "Query by session_b should return exactly 5 logs"
+    );
 }
 
 #[test]
@@ -137,7 +150,11 @@ fn test_log_store_query_without_session_id_returns_all_logs() {
 
     let results = store.query(&LogQuery::new()).unwrap();
 
-    assert_eq!(results.len(), 15, "Query without session_id should return all 15 logs");
+    assert_eq!(
+        results.len(),
+        15,
+        "Query without session_id should return all 15 logs"
+    );
 }
 
 #[test]
@@ -145,15 +162,18 @@ fn test_log_store_query_session_with_mixed_levels() {
     let (_temp_dir, store) = create_test_db();
 
     for i in 1..=3 {
-        let event = LogEvent::new(i as u64, LogLevel::Error, "test", "error").with_session_id("sess_x");
+        let event =
+            LogEvent::new(i as u64, LogLevel::Error, "test", "error").with_session_id("sess_x");
         store.append(&event).unwrap();
     }
     for i in 4..=6 {
-        let event = LogEvent::new(i as u64, LogLevel::Info, "test", "info").with_session_id("sess_x");
+        let event =
+            LogEvent::new(i as u64, LogLevel::Info, "test", "info").with_session_id("sess_x");
         store.append(&event).unwrap();
     }
     for i in 7..=9 {
-        let event = LogEvent::new(i as u64, LogLevel::Debug, "test", "debug").with_session_id("sess_y");
+        let event =
+            LogEvent::new(i as u64, LogLevel::Debug, "test", "debug").with_session_id("sess_y");
         store.append(&event).unwrap();
     }
 
@@ -194,15 +214,18 @@ fn test_log_store_query_session_id_isolation_with_other_filters() {
     let (_temp_dir, store) = create_test_db();
 
     for i in 1..=5 {
-        let event = LogEvent::new(i as u64, LogLevel::Info, "tool.read", "read").with_session_id("sess_a");
+        let event =
+            LogEvent::new(i as u64, LogLevel::Info, "tool.read", "read").with_session_id("sess_a");
         store.append(&event).unwrap();
     }
     for i in 6..=10 {
-        let event = LogEvent::new(i as u64, LogLevel::Error, "tool.read", "error").with_session_id("sess_a");
+        let event = LogEvent::new(i as u64, LogLevel::Error, "tool.read", "error")
+            .with_session_id("sess_a");
         store.append(&event).unwrap();
     }
     for i in 11..=15 {
-        let event = LogEvent::new(i as u64, LogLevel::Info, "tool.read", "read").with_session_id("sess_b");
+        let event =
+            LogEvent::new(i as u64, LogLevel::Info, "tool.read", "read").with_session_id("sess_b");
         store.append(&event).unwrap();
     }
 
@@ -256,7 +279,10 @@ async fn test_log_rotation() {
     assert!(main_log_exists, "opencode.log should exist after writing");
 
     let rotated_1_exists = temp_dir.path().join("opencode.log.1").exists();
-    assert!(rotated_1_exists, "opencode.log.1 should exist after rotation triggered");
+    assert!(
+        rotated_1_exists,
+        "opencode.log.1 should exist after rotation triggered"
+    );
 }
 
 #[tokio::test]
@@ -282,7 +308,11 @@ async fn test_log_rotation_creates_second_file_on_more_writes() {
         for i in batch_start..batch_end {
             let logger_clone = logger.clone();
             handles.push(tokio::spawn(async move {
-                logger_clone.info("test", &format!("first batch {:05}", i), LogFields::default());
+                logger_clone.info(
+                    "test",
+                    &format!("first batch {:05}", i),
+                    LogFields::default(),
+                );
             }));
         }
 
@@ -301,7 +331,11 @@ async fn test_log_rotation_creates_second_file_on_more_writes() {
         for i in batch_start..batch_end {
             let logger_clone = logger.clone();
             handles.push(tokio::spawn(async move {
-                logger_clone.info("test", &format!("second batch {:05}", i), LogFields::default());
+                logger_clone.info(
+                    "test",
+                    &format!("second batch {:05}", i),
+                    LogFields::default(),
+                );
             }));
         }
 
@@ -317,7 +351,10 @@ async fn test_log_rotation_creates_second_file_on_more_writes() {
     let rotated_2_exists = temp_dir.path().join("opencode.log.2").exists();
 
     assert!(rotated_1_exists, "opencode.log.1 should exist");
-    assert!(rotated_2_exists, "opencode.log.2 should exist after more writes");
+    assert!(
+        rotated_2_exists,
+        "opencode.log.2 should exist after more writes"
+    );
 }
 
 #[tokio::test]
@@ -345,7 +382,11 @@ async fn test_log_rotation_oldest_deleted_when_max_exceeded() {
             for i in batch_start..batch_end {
                 let logger_clone = logger.clone();
                 handles.push(tokio::spawn(async move {
-                    logger_clone.info("test", &format!("batch {} msg {:05}", batch_num, i), LogFields::default());
+                    logger_clone.info(
+                        "test",
+                        &format!("batch {} msg {:05}", batch_num, i),
+                        LogFields::default(),
+                    );
                 }));
             }
 
@@ -368,7 +409,10 @@ async fn test_log_rotation_oldest_deleted_when_max_exceeded() {
     assert!(log_1_exists, "opencode.log.1 should exist");
     assert!(log_2_exists, "opencode.log.2 should exist");
     assert!(log_3_exists, "opencode.log.3 should exist");
-    assert!(!log_4_exists, "opencode.log.4 should NOT exist (oldest deleted)");
+    assert!(
+        !log_4_exists,
+        "opencode.log.4 should NOT exist (oldest deleted)"
+    );
 }
 
 fn create_reasoning_test_db() -> (tempfile::TempDir, ReasoningLogStore) {
@@ -459,13 +503,11 @@ fn test_reasoning_log_persistence_query_returns_reasoning_log() {
         timestamp: chrono::Utc::now(),
         prompt: "Find all test files".to_string(),
         response: "Found 3 test files".to_string(),
-        tools_considered: vec![
-            ToolConsideration {
-                tool_name: "grep".to_string(),
-                reason: "Good pattern matching".to_string(),
-                selected: true,
-            },
-        ],
+        tools_considered: vec![ToolConsideration {
+            tool_name: "grep".to_string(),
+            reason: "Good pattern matching".to_string(),
+            selected: true,
+        }],
         decision: "Using grep with pattern *_test.rs".to_string(),
         prompt_tokens: 1800,
         completion_tokens: 80,
@@ -602,7 +644,9 @@ fn test_reasoning_log_persistence_multiple_sessions_isolated() {
     assert_eq!(results_a.len(), 3);
     assert_eq!(results_b.len(), 2);
 
-    let all_results = store.query(&ReasoningLogQuery::for_session("sess_a")).unwrap();
+    let all_results = store
+        .query(&ReasoningLogQuery::for_session("sess_a"))
+        .unwrap();
     assert_eq!(all_results.len(), 3);
 }
 
@@ -622,7 +666,10 @@ fn tool_sanitization() {
     let mut params = std::collections::HashMap::new();
     params.insert("api_key".to_string(), serde_json::json!("secret123"));
     params.insert("password".to_string(), serde_json::json!("pass456"));
-    params.insert("file_path".to_string(), serde_json::json!("/some/safe/path.txt"));
+    params.insert(
+        "file_path".to_string(),
+        serde_json::json!("/some/safe/path.txt"),
+    );
     params.insert("action".to_string(), serde_json::json!("read"));
 
     let sanitized_params = sanitizer.sanitize_params(&params);
@@ -760,20 +807,14 @@ fn tool_sanitization_query_by_session() {
                     nested.get("api_key"),
                     Some(SanitizedValue::Redacted(_))
                 ));
-                assert!(matches!(
-                    nested.get("data"),
-                    Some(SanitizedValue::Safe(_))
-                ));
+                assert!(matches!(nested.get("data"), Some(SanitizedValue::Safe(_))));
             }
             if log.tool_name == "auth_tool" {
                 assert!(matches!(
                     nested.get("password"),
                     Some(SanitizedValue::Redacted(_))
                 ));
-                assert!(matches!(
-                    nested.get("name"),
-                    Some(SanitizedValue::Safe(_))
-                ));
+                assert!(matches!(nested.get("name"), Some(SanitizedValue::Safe(_))));
             }
         }
     }

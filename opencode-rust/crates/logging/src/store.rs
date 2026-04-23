@@ -417,12 +417,14 @@ impl ToolExecutionLogStore {
     }
 
     pub fn append(&self, log: &ToolExecutionLog) -> Result<(), LogError> {
-        let parameters_json =
-            serde_json::to_string(&log.parameters).map_err(|e| LogError::Serialization(e.to_string()))?;
-        let result_json =
-            serde_json::to_string(&log.result).map_err(|e| LogError::Serialization(e.to_string()))?;
+        let parameters_json = serde_json::to_string(&log.parameters)
+            .map_err(|e| LogError::Serialization(e.to_string()))?;
+        let result_json = serde_json::to_string(&log.result)
+            .map_err(|e| LogError::Serialization(e.to_string()))?;
         let error_json = match &log.error {
-            Some(e) => serde_json::to_string(e).map_err(|e| LogError::Serialization(e.to_string()))?,
+            Some(e) => {
+                serde_json::to_string(e).map_err(|e| LogError::Serialization(e.to_string()))?
+            }
             None => serde_json::Value::Null.to_string(),
         };
 
@@ -444,7 +446,10 @@ impl ToolExecutionLogStore {
         Ok(())
     }
 
-    pub fn query(&self, criteria: &ToolExecutionLogQuery) -> Result<Vec<ToolExecutionLog>, LogError> {
+    pub fn query(
+        &self,
+        criteria: &ToolExecutionLogQuery,
+    ) -> Result<Vec<ToolExecutionLog>, LogError> {
         let mut sql = String::from("SELECT execution_id, session_id, tool_name, timestamp, parameters, result, latency_ms, error FROM tool_execution_logs WHERE 1=1");
         let mut params_vec: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
 
@@ -491,22 +496,20 @@ impl ToolExecutionLogStore {
             let timestamp = DateTime::parse_from_rfc3339(&timestamp_str)
                 .map(|dt| dt.with_timezone(&Utc))
                 .unwrap_or_else(|_| Utc::now());
-            let parameters: SanitizedValue =
-                serde_json::from_str(&parameters_str).unwrap_or(SanitizedValue::Nested(Default::default()));
-            let result: ToolResult =
-                serde_json::from_str(&result_str).unwrap_or(ToolResult {
-                    success: false,
-                    message: "Deserialization failed".to_string(),
-                    output: None,
-                });
-            let error: Option<ErrorContext> = error_str
-                .and_then(|s| {
-                    if s == "null" || s.is_empty() {
-                        None
-                    } else {
-                        serde_json::from_str(&s).ok()
-                    }
-                });
+            let parameters: SanitizedValue = serde_json::from_str(&parameters_str)
+                .unwrap_or(SanitizedValue::Nested(Default::default()));
+            let result: ToolResult = serde_json::from_str(&result_str).unwrap_or(ToolResult {
+                success: false,
+                message: "Deserialization failed".to_string(),
+                output: None,
+            });
+            let error: Option<ErrorContext> = error_str.and_then(|s| {
+                if s == "null" || s.is_empty() {
+                    None
+                } else {
+                    serde_json::from_str(&s).ok()
+                }
+            });
 
             Ok(ToolExecutionLog {
                 execution_id,
@@ -543,22 +546,20 @@ impl ToolExecutionLogStore {
             let timestamp = DateTime::parse_from_rfc3339(&timestamp_str)
                 .map(|dt| dt.with_timezone(&Utc))
                 .unwrap_or_else(|_| Utc::now());
-            let parameters: SanitizedValue =
-                serde_json::from_str(&parameters_str).unwrap_or(SanitizedValue::Nested(Default::default()));
-            let result: ToolResult =
-                serde_json::from_str(&result_str).unwrap_or(ToolResult {
-                    success: false,
-                    message: "Deserialization failed".to_string(),
-                    output: None,
-                });
-            let error: Option<ErrorContext> = error_str
-                .and_then(|s| {
-                    if s == "null" || s.is_empty() {
-                        None
-                    } else {
-                        serde_json::from_str(&s).ok()
-                    }
-                });
+            let parameters: SanitizedValue = serde_json::from_str(&parameters_str)
+                .unwrap_or(SanitizedValue::Nested(Default::default()));
+            let result: ToolResult = serde_json::from_str(&result_str).unwrap_or(ToolResult {
+                success: false,
+                message: "Deserialization failed".to_string(),
+                output: None,
+            });
+            let error: Option<ErrorContext> = error_str.and_then(|s| {
+                if s == "null" || s.is_empty() {
+                    None
+                } else {
+                    serde_json::from_str(&s).ok()
+                }
+            });
 
             Ok(Some(ToolExecutionLog {
                 execution_id: row.get(0)?,
@@ -1477,7 +1478,15 @@ mod tests {
             .filter(|t| t.selected)
             .count();
         assert_eq!(selected_count, 1);
-        assert_eq!(retrieved.tools_considered.iter().find(|t| t.selected).unwrap().tool_name, "bash");
+        assert_eq!(
+            retrieved
+                .tools_considered
+                .iter()
+                .find(|t| t.selected)
+                .unwrap()
+                .tool_name,
+            "bash"
+        );
 
         let unselected_count = retrieved
             .tools_considered

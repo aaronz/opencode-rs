@@ -217,20 +217,20 @@ fn test_query_combined_queries_match_all_criteria() {
         .with_level(LogLevel::Error)
         .with_target("tool.*");
 
-    let fully_matching = LogEvent::new(1, LogLevel::Error, "tool.read", "error")
-        .with_session_id("sess_123");
+    let fully_matching =
+        LogEvent::new(1, LogLevel::Error, "tool.read", "error").with_session_id("sess_123");
     assert!(query.matches(&fully_matching));
 
-    let wrong_session = LogEvent::new(2, LogLevel::Error, "tool.read", "error")
-        .with_session_id("sess_other");
+    let wrong_session =
+        LogEvent::new(2, LogLevel::Error, "tool.read", "error").with_session_id("sess_other");
     assert!(!query.matches(&wrong_session));
 
-    let wrong_level = LogEvent::new(3, LogLevel::Info, "tool.read", "ok")
-        .with_session_id("sess_123");
+    let wrong_level =
+        LogEvent::new(3, LogLevel::Info, "tool.read", "ok").with_session_id("sess_123");
     assert!(!query.matches(&wrong_level));
 
-    let wrong_target = LogEvent::new(4, LogLevel::Error, "llm.openai", "error")
-        .with_session_id("sess_123");
+    let wrong_target =
+        LogEvent::new(4, LogLevel::Error, "llm.openai", "error").with_session_id("sess_123");
     assert!(!query.matches(&wrong_target));
 }
 
@@ -243,12 +243,10 @@ fn test_query_limit_parameter_caps_result_count() {
 #[test]
 fn test_query_since_equals_until() {
     let now = chrono::Utc::now();
-    let query = LogQuery::new()
-        .with_since(now)
-        .with_until(now);
+    let query = LogQuery::new().with_since(now).with_until(now);
 
-    let event_at_exact_time = LogEvent::new(1, LogLevel::Info, "test", "message")
-        .with_timestamp(now);
+    let event_at_exact_time =
+        LogEvent::new(1, LogLevel::Info, "test", "message").with_timestamp(now);
     assert!(query.matches(&event_at_exact_time));
 
     let event_before = LogEvent::new(2, LogLevel::Info, "test", "before")
