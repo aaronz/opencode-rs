@@ -1,0 +1,272 @@
+{
+  "$schema": "https://tasks.opencode.dev/schema",
+  "version": "1.0",
+  "module": "auth",
+  "description": "E2E test case designs for opencode-auth crate - Authentication and credentials",
+  "test_cases": [
+    {
+      "id": "auth_e2e_001",
+      "status": "not_started",
+      "title": "JWT token generation and validation",
+      "description": "Test JWT creation and verification",
+      "modules": ["auth"],
+      "steps": [
+        "Generate JWT with claims",
+        "Verify token signature",
+        "Verify claims extractable",
+        "Verify expired token rejected"
+      ],
+      "expected_outcomes": [
+        "Token generated successfully",
+        "Valid token passes verification",
+        "Expired tokens rejected"
+      ]
+    },
+    {
+      "id": "auth_e2e_002",
+      "status": "not_started",
+      "title": "API key storage and retrieval",
+      "description": "Test secure credential storage",
+      "modules": ["auth"],
+      "steps": ["Store API key with provider name", "Retrieve API key", "Delete API key", "Verify deletion"],
+      "expected_outcomes": [
+        "Key stored securely",
+        "Key retrievable by provider",
+        "Key deleted when requested"
+      ]
+    },
+    {
+      "id": "auth_jwt_001",
+      "status": "not_started",
+      "title": "JWT algorithm confusion attack",
+      "description": "CRITICAL: JWT must reject 'none' algorithm or algorithm mismatch",
+      "modules": ["auth"],
+      "risk_addressed": "Attacker forges tokens by changing algorithm header",
+      "preconditions": "JWT signer configured with RS256",
+      "test_data": [
+        {"token": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiIxMjN9.", "issue": "'none' algorithm"},
+        {"token": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjN9.", "issue": "HS256 when RS256 expected"}
+      ],
+      "steps": [
+        "Create token with tampered algorithm header",
+        "Verify token is rejected",
+        "Verify signature is validated against expected algorithm"
+      ],
+      "expected_outcomes": [
+        "'none' algorithm tokens rejected",
+        "Algorithm mismatch rejected",
+        "No key confusion possible"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "auth_jwt_002",
+      "status": "not_started",
+      "title": "JWT claims validation",
+      "description": "JWT must validate exp, nbf, iat, iss claims strictly",
+      "modules": ["auth"],
+      "risk_addressed": "Expired or not-yet-valid tokens accepted",
+      "test_data": [
+        {"claim": "exp", "value": "past timestamp", "issue": "token expired"},
+        {"claim": "nbf", "value": "future timestamp", "issue": "token not yet valid"},
+        {"claim": "iss", "value": "wrong issuer", "issue": "issuer mismatch"},
+        {"claim": "aud", "value": "wrong audience", "issue": "audience mismatch"}
+      ],
+      "steps": [
+        "Create token with each invalid claim",
+        "Attempt to validate token",
+        "Verify rejection for each"
+      ],
+      "expected_outcomes": [
+        "Expired token rejected",
+        "Not-yet-valid token rejected",
+        "Wrong issuer rejected",
+        "Wrong audience rejected"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "auth_jwt_003",
+      "status": "not_started",
+      "title": "JWT secret/key rotation",
+      "description": "Tokens signed with old key must be rejected after rotation",
+      "modules": ["auth"],
+      "risk_addressed": "Tokens signed with compromised old key still valid",
+      "preconditions": "JWT signed with key V1",
+      "steps": [
+        "Sign token with key V1",
+        "Rotate to key V2",
+        "Attempt to validate token signed with V1",
+        "Verify rejection"
+      ],
+      "expected_outcomes": [
+        "Token signed with old key rejected",
+        "New tokens signed with V2 accepted",
+        "Key ID (kid) claim used for correct key lookup"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "auth_cred_001",
+      "status": "not_started",
+      "title": "API key not logged or exposed",
+      "description": "CRITICAL: Stored API keys must never appear in logs",
+      "modules": ["auth"],
+      "risk_addressed": "API keys leaked in logs",
+      "preconditions": "API key stored for provider",
+      "steps": [
+        "Store API key",
+        "Perform operations with provider",
+        "Check application logs",
+        "Verify key does not appear in plaintext"
+      ],
+      "expected_outcomes": [
+        "API key not in logs",
+        "Key redacted in any error messages",
+        "Key only used for actual API calls"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "auth_cred_002",
+      "status": "not_started",
+      "title": "API key storage encryption",
+      "description": "API keys at rest must be encrypted, not plaintext",
+      "modules": ["auth"],
+      "risk_addressed": "API keys readable from storage file",
+      "preconditions": "Storage backend (SQLite or file)",
+      "steps": [
+        "Store API key for provider",
+        "Read storage file directly (simulate breach)",
+        "Verify key is not plaintext"
+      ],
+      "expected_outcomes": [
+        "Key encrypted at rest",
+        "Cannot read key from storage file",
+        "Encryption key derived from master password or keychain"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "auth_cred_003",
+      "status": "not_started",
+      "title": "API key deletion is permanent",
+      "description": "Deleted API keys must not be recoverable",
+      "modules": ["auth"],
+      "risk_addressed": "Deleted keys lingering in storage",
+      "preconditions": "API key stored",
+      "steps": [
+        "Delete API key",
+        "Attempt retrieval",
+        "Read raw storage",
+        "Verify key is gone"
+      ],
+      "expected_outcomes": [
+        "Key no longer retrievable",
+        "Key not in raw storage",
+        "Deletion is permanent"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "auth_oauth_001",
+      "status": "not_started",
+      "title": "OAuth state parameter validation",
+      "description": "CRITICAL: OAuth flow must validate state to prevent CSRF",
+      "modules": ["auth"],
+      "risk_addressed": "CSRF attack on OAuth callback",
+      "preconditions": "OAuth flow initiated",
+      "steps": [
+        "Initiate OAuth flow, capture state",
+        "Attacker's callback with wrong state",
+        "Verify callback rejected",
+        "Verify callback with correct state accepted"
+      ],
+      "expected_outcomes": [
+        "Wrong state rejected with error",
+        "Correct state accepted",
+        "State is single-use (replay prevented)"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "auth_oauth_002",
+      "status": "not_started",
+      "title": "OAuth token storage and refresh",
+      "description": "OAuth tokens stored securely and refreshed automatically",
+      "modules": ["auth"],
+      "risk_addressed": "OAuth tokens expired and not refreshed, causing auth failures",
+      "preconditions": "OAuth tokens stored with refresh token",
+      "steps": [
+        "Access token expires",
+        "Trigger new API call",
+        "Verify automatic refresh occurred",
+        "Verify new access token works"
+      ],
+      "expected_outcomes": [
+        "Refresh triggered automatically",
+        "New access token stored",
+        "API calls continue working"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "auth_oauth_003",
+      "status": "not_started",
+      "title": "OAuth refresh token rotation",
+      "description": "Refresh token rotation prevents replay of old tokens",
+      "modules": ["auth"],
+      "risk_addressed": "Stolen refresh token can be reused",
+      "preconditions": "OAuth tokens stored",
+      "steps": [
+        "Use refresh token to get new tokens",
+        "Attempt to use old refresh token",
+        "Verify old refresh token rejected"
+      ],
+      "expected_outcomes": [
+        "Old refresh token invalidated",
+        "New refresh token required for next refresh",
+        "Token replay prevented"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "auth_session_001",
+      "status": "not_started",
+      "title": "Session token binding to device/fingerprint",
+      "description": "Session tokens should be bindable to device ID",
+      "modules": ["auth"],
+      "risk_addressed": "Stolen session token used on different device",
+      "preconditions": "Session created",
+      "steps": [
+        "Create session with device binding",
+        "Use session on same device - verify works",
+        "Use session on different device - verify rejected or needs re-auth"
+      ],
+      "expected_outcomes": [
+        "Same device session works",
+        "Different device session rejected or flagged",
+        "Device ID validated per request"
+      ],
+      "priority": "medium"
+    }
+  ],
+  "test_metadata": {
+    "module": "auth",
+    "crate": "opencode-auth",
+    "source": "crates/auth/src/lib.rs",
+    "total_cases": 13,
+    "category": "security",
+    "critical_invariants": [
+      "JWT rejects algorithm confusion attacks",
+      "API keys never logged or stored plaintext",
+      "OAuth state parameter prevents CSRF",
+      "Refresh token rotation prevents replay"
+    ],
+    "high_risk_scenarios": [
+      "auth_jwt_001: JWT algorithm confusion (forged tokens)",
+      "auth_cred_001: API key leaked in logs",
+      "auth_oauth_001: OAuth CSRF attack"
+    ]
+  }
+}

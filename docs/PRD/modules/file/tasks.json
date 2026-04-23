@@ -1,0 +1,235 @@
+{
+  "$schema": "https://tasks.opencode.dev/schema",
+  "version": "1.0",
+  "module": "filesystem",
+  "description": "E2E test case designs for file operations - file/snapshot/patch/global/worktree utilities",
+  "test_cases": [
+    {
+      "id": "file_e2e_001",
+      "status": "not_started",
+      "title": "File snapshot and diff",
+      "description": "Test snapshot creation and diff generation",
+      "modules": ["file", "snapshot"],
+      "steps": [
+        "Create file with content A",
+        "Create snapshot",
+        "Modify file to content B",
+        "Generate diff",
+        "Restore snapshot",
+        "Verify content restored"
+      ],
+      "expected_outcomes": [
+        "Snapshot created successfully",
+        "Diff shows changes correctly",
+        "Restore recovers original content"
+      ]
+    },
+    {
+      "id": "snapshot_e2e_001",
+      "status": "not_started",
+      "title": "Snapshot persistence across restarts",
+      "description": "Test snapshots survive process restart",
+      "modules": ["snapshot", "storage"],
+      "steps": [
+        "Create snapshot of file",
+        "Store snapshot to disk",
+        "Restart process",
+        "Load snapshot from disk",
+        "Verify content matches"
+      ],
+      "expected_outcomes": [
+        "Snapshots persist correctly",
+        "Content verified after restart"
+      ]
+    },
+    {
+      "id": "patch_e2e_001",
+      "status": "not_started",
+      "title": "Apply unified diff patch",
+      "description": "Test patch application",
+      "modules": ["patch", "file"],
+      "steps": [
+        "Create file with original content",
+        "Create patch with modifications",
+        "Apply patch",
+        "Verify file updated correctly"
+      ],
+      "expected_outcomes": [
+        "Patch applied successfully",
+        "Original backup created"
+      ]
+    },
+    {
+      "id": "global_e2e_001",
+      "status": "not_started",
+      "title": "Global paths resolution",
+      "description": "Test path resolution for config, data, cache",
+      "modules": ["global"],
+      "steps": [
+        "Get config directory",
+        "Get data directory",
+        "Get cache directory",
+        "Verify all directories exist or created"
+      ],
+      "expected_outcomes": [
+        "Paths resolved correctly",
+        "Directories created if missing"
+      ]
+    },
+    {
+      "id": "worktree_e2e_001",
+      "status": "not_started",
+      "title": "Create and list worktrees",
+      "description": "Test git worktree operations",
+      "modules": ["worktree", "git"],
+      "steps": [
+        "Create worktree for feature branch",
+        "List worktrees",
+        "Verify feature worktree in list",
+        "Remove worktree"
+      ],
+      "expected_outcomes": [
+        "Worktree created successfully",
+        "Worktree listed correctly",
+        "Removal cleans up properly"
+      ]
+    },
+    {
+      "id": "filesystem_sec_001",
+      "status": "not_started",
+      "title": "Snapshot restore path traversal",
+      "description": "CRITICAL: Snapshot restore must not write outside target",
+      "modules": ["file", "snapshot"],
+      "risk_addressed": "Path traversal via snapshot restore",
+      "preconditions": "Snapshot contains path /etc/passwd",
+      "steps": [
+        "Create snapshot with malicious path ../../../etc/passwd",
+        "Attempt to restore without sandbox",
+        "Verify restore blocked OR writes within allowed dir"
+      ],
+      "expected_outcomes": [
+        "Path traversal blocked",
+        "Cannot write outside target directory",
+        "Error returned"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "filesystem_sec_002",
+      "status": "not_started",
+      "title": "Symlink in snapshot restore",
+      "description": "Snapshot containing symlinks must be handled safely",
+      "modules": ["file", "snapshot"],
+      "risk_addressed": "Symlink in snapshot writes outside workspace",
+      "preconditions": "Snapshot created with symlink",
+      "steps": [
+        "Create snapshot with symlink to /etc/passwd",
+        "Restore snapshot to workspace",
+        "Verify symlink not followed OR error returned"
+      ],
+      "expected_outcomes": [
+        "Symlink not resolved to external path",
+        "Error or symlink converted to regular file",
+        "Workspace not compromised"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "filesystem_patch_001",
+      "status": "not_started",
+      "title": "Patch application atomicity",
+      "description": "Failed patch must not modify target file",
+      "modules": ["patch"],
+      "risk_addressed": "Partial patch leaves file corrupted",
+      "preconditions": "Target file exists",
+      "steps": [
+        "Create patch that will partially apply",
+        "Apply patch - expect failure",
+        "Verify original file unchanged"
+      ],
+      "expected_outcomes": [
+        "Failed patch rolls back",
+        "Original file intact",
+        "No partial modification"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "filesystem_patch_002",
+      "status": "not_started",
+      "title": "Patch with conflicting hunks",
+      "description": "Patch with conflicts handled gracefully",
+      "modules": ["patch"],
+      "risk_addressed": "Unresolved conflicts left in file",
+      "preconditions": "File modified since patch created",
+      "steps": [
+        "Create patch from original file",
+        "Modify target file",
+        "Apply patch",
+        "Handle conflict"
+      ],
+      "expected_outcomes": [
+        "Conflict detected and reported",
+        "Original file backed up",
+        "User can resolve"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "filesystem_global_001",
+      "status": "not_started",
+      "title": "Global paths on different platforms",
+      "description": "Path resolution works across macOS, Linux, Windows",
+      "modules": ["global"],
+      "risk_addressed": "Hardcoded paths that work only on one OS",
+      "preconditions": "Running on target OS",
+      "steps": [
+        "Call config_dir()",
+        "Call data_dir()",
+        "Call cache_dir()",
+        "Verify paths match platform conventions"
+      ],
+      "expected_outcomes": [
+        "macOS: ~/Library/Application Support/opencode",
+        "Linux: ~/.config/opencode",
+        "Paths use correct separators for platform"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "filesystem_worktree_001",
+      "status": "not_started",
+      "title": "Worktree with dirty main branch",
+      "description": "Cannot create worktree when main branch has uncommitted changes",
+      "modules": ["worktree", "git"],
+      "risk_addressed": "Worktree creation fails silently or causes issues",
+      "preconditions": "Main branch has uncommitted changes",
+      "steps": [
+        "Make changes to main branch, don't commit",
+        "Attempt to create worktree",
+        "Verify error OR changes carried over"
+      ],
+      "expected_outcomes": [
+        "Error returned OR changes preserved in worktree",
+        "Main branch state not corrupted"
+      ],
+      "priority": "medium"
+    }
+  ],
+  "test_metadata": {
+    "module": "filesystem",
+    "crates": ["opencode-file", "opencode-snapshot", "opencode-patch", "opencode-global", "opencode-worktree"],
+    "total_cases": 12,
+    "category": "utility",
+    "critical_invariants": [
+      "Snapshot restore cannot write outside target",
+      "Symlinks in snapshots resolved safely",
+      "Failed patch does not corrupt file"
+    ],
+    "high_risk_scenarios": [
+      "filesystem_sec_001: Path traversal in restore",
+      "filesystem_sec_002: Symlink escape",
+      "filesystem_patch_001: Partial patch corruption"
+    ]
+  }
+}

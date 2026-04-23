@@ -1,0 +1,383 @@
+{
+  "$schema": "https://tasks.opencode.dev/schema",
+  "version": "1.0",
+  "module": "disaster_recovery",
+  "description": "Disaster recovery test case designs - backup/restore, failover, and business continuity",
+  "test_cases": [
+    {
+      "id": "dr_backup_001",
+      "status": "not_started",
+      "title": "Online backup while system operational",
+      "description": "Backup can run while system is accepting writes",
+      "modules": ["storage"],
+      "risk_addressed": "Backup is inconsistent if taken during writes",
+      "preconditions": "System operational with active sessions",
+      "steps": [
+        "System running normally",
+        "Start backup operation",
+        "While backup running, create/modify sessions",
+        "Complete backup",
+        "Verify backup is consistent"
+      ],
+      "expected_outcomes": [
+        "Backup completes successfully",
+        "Backup contains all sessions at backup start OR point-in-time",
+        "No corruption in backup",
+        "New sessions after backup start not in backup"
+      ],
+      "oracle_checks": [
+        "WAL snapshot taken for consistency",
+        "Backup is point-in-time consistent",
+        "Backup process does not block writes"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "dr_backup_002",
+      "status": "not_started",
+      "title": "Backup file integrity verification",
+      "description": "Backup can be verified for integrity",
+      "modules": ["storage"],
+      "risk_addressed": "Corrupted backup goes unnoticed",
+      "preconditions": "Backup completed",
+      "steps": [
+        "Create backup",
+        "Verify backup file exists",
+        "Run integrity check on backup",
+        "Verify OK"
+      ],
+      "expected_outcomes": [
+        "Backup passes integrity check",
+        "Corrupted backup (simulate bit flip) detected"
+      ],
+      "oracle_checks": [
+        "Checksum computed for backup",
+        "Backup is SQLite-valid (can open)",
+        "Schema matches expected version"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "dr_restore_001",
+      "status": "not_started",
+      "title": "Full restore from backup",
+      "description": "System restored from backup to clean state",
+      "modules": ["storage", "server"],
+      "risk_addressed": "Restore doesn't recover all data",
+      "preconditions": "Backup exists with known session count",
+      "steps": [
+        "Backup has 50 sessions",
+        "Corrupt current database",
+        "Restore from backup",
+        "Verify exactly 50 sessions restored",
+        "Verify each session content correct"
+      ],
+      "expected_outcomes": [
+        "All sessions restored",
+        "All session content intact",
+        "Session metadata (timestamps, etc) preserved",
+        "System operational after restore"
+      ],
+      "oracle_checks": [
+        "Restore to new location, not over live DB",
+        "Verification before overwrite",
+        "Point-in-time of backup matches"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "dr_restore_002",
+      "status": "not_started",
+      "title": "Partial restore - single session",
+      "description": "Can restore single session without full restore",
+      "modules": ["storage"],
+      "risk_addressed": "Must restore entire DB for one session",
+      "preconditions": "Backup with 100 sessions",
+      "steps": [
+        "Delete session S from live DB",
+        "Restore just session S from backup",
+        "Verify session S restored",
+        "Verify other 99 sessions unchanged"
+      ],
+      "expected_outcomes": [
+        "Session S restored to exact state",
+        "Other sessions not affected",
+        "No full restore required"
+      ],
+      "oracle_checks": [
+        "Session-level export/import available",
+        "No destructive operations on restore",
+        "Idempotent restore"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "dr_replication_001",
+      "status": "not_started",
+      "title": "Replication lag - eventual consistency",
+      "description": "Read replica has acceptable replication lag",
+      "modules": ["storage"],
+      "risk_addressed": "Replicated data too stale",
+      "preconditions": "Primary + replica configured",
+      "steps": [
+        "Write session to primary",
+        "Immediately read from replica",
+        "Measure replication lag",
+        "Repeat 100 times, measure p99 lag"
+      ],
+      "expected_outcomes": [
+        "p99 lag < 1 second for replica reads",
+        "No data loss on primary failure",
+        "Reads from replica are consistent"
+      ],
+      "oracle_checks": [
+        "WAL shipping configured",
+        "Replica lag monitored",
+        "Alerts on lag > threshold"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "dr_replication_002",
+      "status": "not_started",
+      "title": "Failover to replica",
+      "description": "Primary fails, replica promoted",
+      "modules": ["storage"],
+      "risk_addressed": "Failover doesn't work or loses data",
+      "preconditions": "Primary + replica healthy",
+      "steps": [
+        "Write X sessions to primary",
+        "Primary fails",
+        "Promote replica to primary",
+        "Verify X sessions accessible",
+        "Verify all session content correct"
+      ],
+      "expected_outcomes": [
+        "Failover completes < 30 seconds",
+        "All X sessions accessible",
+        "Zero data loss",
+        "Application reconnects automatically"
+      ],
+      "oracle_checks": [
+        "Replication sync before failover",
+        "VIP/endpoint updates correctly",
+        "No split-brain possible"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "dr_replication_003",
+      "status": "not_started",
+      "title": "Replica promoted while primary still up (split brain)",
+      "description": "Network partition causes both primaries",
+      "modules": ["storage"],
+      "risk_addressed": "Split brain - two primaries with divergent data",
+      "preconditions": "Primary and replica both think they're primary",
+      "steps": [
+        "Network partition between primary and replica",
+        "Both become primary (simulate)",
+        "Re-connect network",
+        "Detect split brain",
+        "Re-establish single primary"
+      ],
+      "expected_outcomes": [
+        "Split brain detected",
+        "Automatic resolution OR manual intervention",
+        "No data corruption",
+        "One primary survivors"
+      ],
+      "oracle_checks": [
+        "Consensus protocol (Raft/Paxos) prevents split brain",
+        "Fencing token prevents dual writes",
+        "Alert on split brain detection"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "dr_migration_001",
+      "status": "not_started",
+      "title": "Storage migration with rollback",
+      "description": "Failed migration rolls back cleanly",
+      "modules": ["storage"],
+      "risk_addressed": "Failed migration leaves DB unusable",
+      "preconditions": "Schema at version 1",
+      "steps": [
+        "Start migration to version 2",
+        "Migration fails at 50%",
+        "Verify rollback to version 1",
+        "Verify data intact",
+        "Retry migration"
+      ],
+      "expected_outcomes": [
+        "Migration failure detected",
+        "Rollback completes",
+        "Schema back to version 1",
+        "Data intact",
+        "Retry succeeds"
+      ],
+      "oracle_checks": [
+        "Migration in transaction",
+        "Rollback tested in staging first",
+        "Migration can be retried safely"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "dr_migration_002",
+      "status": "not_started",
+      "title": "Large migration - progress and resume",
+      "description": "Long migration can be paused and resumed",
+      "modules": ["storage"],
+      "risk_addressed": "Migration can't complete in maintenance window",
+      "preconditions": "Migration takes > 30 minutes",
+      "steps": [
+        "Start migration",
+        "Migration 50% complete",
+        "Process killed (simulate window close)",
+        "Resume migration",
+        "Migration completes"
+      ],
+      "expected_outcomes": [
+        "Migration can be paused",
+        "Resume picks up at 50%",
+        "No re-processing of completed work",
+        "Total time within window"
+      ],
+      "oracle_checks": [
+        "Migration is resumable (batch checkpoints)",
+        "Resume does not restart from beginning",
+        "Progress observable"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "dr_export_001",
+      "status": "not_started",
+      "title": "Full session export to portable format",
+      "description": "Sessions exportable for portability/backup",
+      "modules": ["session", "storage"],
+      "risk_addressed": "Can't export sessions for external backup",
+      "preconditions": "Multiple sessions exist",
+      "steps": [
+        "Export all sessions to JSON",
+        "Verify JSON is valid",
+        "Verify all sessions present",
+        "Delete all sessions",
+        "Import from JSON",
+        "Verify all sessions restored"
+      ],
+      "expected_outcomes": [
+        "Export produces valid JSON",
+        "All sessions exportable",
+        "Round-trip preserves all data",
+        "Import is idempotent"
+      ],
+      "oracle_checks": [
+        "JSON schema documented",
+        "Large exports streamed (not memory)",
+        "Export includes schema version"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "dr_export_002",
+      "status": "not_started",
+      "title": "Redaction on export for compliance",
+      "description": "Export can be redacted for GDPR compliance",
+      "modules": ["session"],
+      "risk_addressed": "Export contains PII that must be removed",
+      "preconditions": "Sessions with PII",
+      "steps": [
+        "Configure redaction rules (emails, API keys)",
+        "Export sessions",
+        "Verify PII redacted in export",
+        "Verify audit log of export"
+      ],
+      "expected_outcomes": [
+        "PII patterns redacted",
+        "Export still functional",
+        "Export audited"
+      ],
+      "oracle_checks": [
+        "Redaction rules configurable",
+        "No PII in exported JSON",
+        "Redaction verified before export"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "dr_network_001",
+      "status": "not_started",
+      "title": "Control plane unreachable - agent continues",
+      "description": "Agent operational without control plane",
+      "modules": ["control-plane"],
+      "risk_addressed": "Agent unusable when control plane down",
+      "preconditions": "Agent registered with control plane",
+      "steps": [
+        "Agent connected and operational",
+        "Control plane network partitioned",
+        "Verify agent continues accepting work",
+        "Verify pending tasks continue"
+      ],
+      "expected_outcomes": [
+        "Agent remains operational",
+        "No blocking on control plane calls",
+        "Work continues locally"
+      ],
+      "oracle_checks": [
+        "Control plane calls have timeout",
+        "Fallback mode when unreachable",
+        "Reconnect when available"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "dr_network_002",
+      "status": "not_started",
+      "title": "Reconnect after extended network partition",
+      "description": "Agent recovers after long disconnect",
+      "modules": ["control-plane"],
+      "risk_addressed": "Agent stuck after long partition",
+      "preconditions": "Network partitioned for 1 hour",
+      "steps": [
+        "Network partition starts",
+        "Wait 1 hour",
+        "Network restored",
+        "Verify agent reconnects",
+        "Verify state synchronized"
+      ],
+      "expected_outcomes": [
+        "Reconnection succeeds",
+        "State synchronized",
+        "No stale data issues"
+      ],
+      "oracle_checks": [
+        "Reconnect with exponential backoff",
+        "State reconciliation on reconnect",
+        "Conflict resolution for divergent state"
+      ],
+      "priority": "medium"
+    }
+  ],
+  "test_metadata": {
+    "module": "disaster_recovery",
+    "description": "Disaster recovery - backup, restore, failover, migration",
+    "total_cases": 13,
+    "category": "disaster_recovery",
+    "critical_invariants": [
+      "Backup is consistent",
+      "Failover is zero data loss",
+      "Split brain impossible OR detected immediately"
+    ],
+    "high_risk_scenarios": [
+      "dr_backup_001: Backup inconsistent",
+      "dr_restore_001: Restore loses data",
+      "dr_replication_002: Failover loses data",
+      "dr_replication_003: Split brain"
+    ],
+    "rto_rpo": {
+      "session_data": "RTO < 5min, RPO < 1min",
+      "full_system": "RTO < 30min, RPO < 1hr"
+    }
+  }
+}

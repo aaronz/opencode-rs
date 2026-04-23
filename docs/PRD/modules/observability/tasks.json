@@ -1,0 +1,427 @@
+{
+  "$schema": "https://tasks.opencode.dev/schema",
+  "version": "1.0",
+  "module": "observability",
+  "description": "Observability test case designs - logging, metrics, tracing, and alerting correctness",
+  "test_cases": [
+    {
+      "id": "obs_logging_001",
+      "status": "not_started",
+      "title": "Structured log fields present for all operations",
+      "description": "Every significant operation emits structured log with required fields",
+      "modules": ["agent", "session", "tool", "provider"],
+      "risk_addressed": "Operations invisible in logs - debugging impossible",
+      "preconditions": "Structured logging configured",
+      "steps": [
+        "Execute agent with tool call",
+        "Check log output for required fields",
+        "Verify trace correlation ID present"
+      ],
+      "expected_outcomes": [
+        "Log entry has: timestamp, level, message, correlation_id",
+        "Tool call has: tool_name, duration_ms, success",
+        "Agent iteration has: iteration_count, session_id"
+      ],
+      "oracle_checks": [
+        "No operations are silent",
+        "Correlation ID traces through all components",
+        "Log format is parseable (JSON)"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "obs_logging_002",
+      "status": "not_started",
+      "title": "Sensitive data never in logs",
+      "description": "API keys, tokens, passwords redacted in all log output",
+      "modules": ["auth", "provider", "config"],
+      "risk_addressed": "Credential leakage in logs",
+      "preconditions": "Provider with API key configured",
+      "test_data": [
+        {"operation": "provider_chat", "contains": "api_key", "expected": "REDACTED"},
+        {"operation": "config_load", "contains": "$keychain:api_key", "expected": "RESOLVED"},
+        {"operation": "session_export", "contains": "Authorization header", "expected": "REDACTED"}
+      ],
+      "steps": [
+        "Execute each operation",
+        "Check all log output",
+        "Verify sensitive data redacted"
+      ],
+      "expected_outcomes": [
+        "API keys show as [REDACTED]",
+        "Config values show as [KEYCHAIN_RESOLVED] not raw value",
+        "Auth headers redacted"
+      ],
+      "oracle_checks": [
+        "Redaction happens at log emission",
+        "Not at trace time (covers all outputs)",
+        "Error messages also redact"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "obs_logging_003",
+      "status": "not_started",
+      "title": "Error logs include stack trace in debug mode",
+      "description": "Error log contains sufficient context for debugging",
+      "modules": ["agent"],
+      "risk_addressed": "Errors undebuggable without stack trace",
+      "preconditions": "Agent returning error",
+      "steps": [
+        "Trigger agent error (invalid provider response)",
+        "Check error log",
+        "Verify stack trace OR structured error chain"
+      ],
+      "expected_outcomes": [
+        "Error log has: error_type, message, stack_trace (dev)",
+        "Error log has: error_type, message, error_id (prod)",
+        "Error chain preserved (cause visible)"
+      ],
+      "oracle_checks": [
+        "Error::from has proper context",
+        "anyhow::Error chain used",
+        "No error swallowed silently"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "obs_logging_004",
+      "status": "not_started",
+      "title": "Log level filtering works correctly",
+      "description": "Setting log level to INFO excludes DEBUG messages",
+      "modules": ["config"],
+      "risk_addressed": "DEBUG logs leak in production",
+      "preconditions": "Log level configurable",
+      "steps": [
+        "Set log level to INFO",
+        "Execute operations that emit DEBUG and INFO",
+        "Verify only INFO+ emitted"
+      ],
+      "expected_outcomes": [
+        "DEBUG messages not written",
+        "INFO messages written",
+        "WARN/ERROR always written"
+      ],
+      "oracle_checks": [
+        "Log level checked before expensive operations",
+        "DEBUG does not execute expensive formatting"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "obs_metrics_001",
+      "status": "not_started",
+      "title": "Token usage metrics accurate",
+      "description": "Token counts from provider match metrics",
+      "modules": ["provider"],
+      "risk_addressed": "Budget tracking inaccurate",
+      "preconditions": "Provider with usage tracking",
+      "test_data": [
+        {"input_tokens": 100, "output_tokens": 200, "total": 300}
+      ],
+      "steps": [
+        "Send request with known token count",
+        "Query metrics endpoint",
+        "Verify metrics match actual usage"
+      ],
+      "expected_outcomes": [
+        "input_tokens metric == actual",
+        "output_tokens metric == actual",
+        "total_tokens == input + output"
+      ],
+      "oracle_checks": [
+        "Tokens counted at serialization",
+        "No token counted twice",
+        "Streaming tokens counted incrementally"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "obs_metrics_002",
+      "status": "not_started",
+      "title": "Request latency histogram buckets",
+      "description": "Latency metrics available in correct histogram buckets",
+      "modules": ["server", "agent"],
+      "risk_addressed": "Latency spikes invisible in averages",
+      "preconditions": "Metrics endpoint exposed",
+      "steps": [
+        "Send requests with varied latency",
+        "Query histogram metrics",
+        "Verify buckets: 10ms, 50ms, 100ms, 500ms, 1s, 5s, 10s"
+      ],
+      "expected_outcomes": [
+        "Histogram buckets present",
+        "Counts sum to total requests",
+        "Can calculate p50, p95, p99 from histogram"
+      ],
+      "oracle_checks": [
+        "Histogram has p50/p95/p99 percentile labels",
+        "Bucket boundaries configurable",
+        "Cardinality bounded"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "obs_metrics_003",
+      "status": "not_started",
+      "title": "Error rate metrics track accurately",
+      "description": "Error count increments on failures",
+      "modules": ["server", "provider"],
+      "risk_addressed": "Error rates invisible in dashboards",
+      "preconditions": "Metrics endpoint exposed",
+      "test_data": [
+        {"requests": 100, "errors": 5, "expected_error_rate": 0.05}
+      ],
+      "steps": [
+        "Send 100 requests, 5 will error",
+        "Query error metrics",
+        "Verify error count = 5"
+      ],
+      "expected_outcomes": [
+        "error_total increments per error",
+        "error_rate calculable",
+        "Errors labeled by type"
+      ],
+      "oracle_checks": [
+        "Errors not double-counted",
+        "Success does not increment error counter",
+        "Error types are labeled"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "obs_metrics_004",
+      "status": "not_started",
+      "title": "Session count gauge accuracy",
+      "description": "Active session gauge reflects actual count",
+      "modules": ["session", "server"],
+      "risk_addressed": "Can't monitor session count",
+      "preconditions": "Metrics endpoint exposed",
+      "steps": [
+        "Create 5 sessions",
+        "Query session gauge",
+        "Delete 3 sessions",
+        "Query session gauge again"
+      ],
+      "expected_outcomes": [
+        "Gauge = 5 after creation",
+        "Gauge = 2 after deletion",
+        "No gauge drift over time"
+      ],
+      "oracle_checks": [
+        "Session creation increments",
+        "Session deletion decrements",
+        "No orphaned counts"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "obs_tracing_001",
+      "status": "not_started",
+      "title": "Trace context propagates across modules",
+      "description": "Single request trace spans all components",
+      "modules": ["agent", "session", "tool", "provider"],
+      "risk_addressed": "Can't trace request across components",
+      "preconditions": "Distributed tracing configured",
+      "steps": [
+        "Send agent request",
+        "Get trace ID",
+        "Query trace for all spans",
+        "Verify spans: API -> Agent -> Session -> Tool -> Provider"
+      ],
+      "expected_outcomes": [
+        "Single trace ID for entire request",
+        "Child spans for each component",
+        "Span relationships correct (parent/child)"
+      ],
+      "oracle_checks": [
+        "Trace ID injected into session context",
+        "Trace ID propagated to tool execution",
+        "Provider span child of agent span"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "obs_tracing_002",
+      "status": "not_started",
+      "title": "Span duration reflects actual operation time",
+      "description": "Span timings match real operation duration",
+      "modules": ["tool"],
+      "risk_addressed": "Trace timings misleading",
+      "preconditions": "Tool with known execution time",
+      "steps": [
+        "Execute tool with measured sleep",
+        "Check span duration",
+        "Verify span.duration_ms matches sleep time"
+      ],
+      "expected_outcomes": [
+        "Span duration within 10ms of actual time",
+        "No span duration = 0 for actual operations",
+        "No span duration = total when should be component"
+      ],
+      "oracle_checks": [
+        "Span started before operation",
+        "Span ended after operation",
+        "Span.end() called, not just dropped"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "obs_tracing_003",
+      "status": "not_started",
+      "title": "Trace sampling at high volume",
+      "description": "Head-based sampling doesn't break traces at high load",
+      "modules": ["server"],
+      "risk_addressed": "Traces lost at high volume",
+      "preconditions": "1% sampling rate configured",
+      "test_data": [
+        {"requests": 10000, "expected_traces": "~100"}
+      ],
+      "steps": [
+        "Send 10,000 requests",
+        "Collect traces",
+        "Verify ~100 traces collected",
+        "Verify each trace complete"
+      ],
+      "expected_outcomes": [
+        "Sampling rate approximately 1%",
+        "Sampled traces are complete",
+        "Unsampled requests have trace ID (for correlation)"
+      ],
+      "oracle_checks": [
+        "Sampling decision at request start",
+        "All spans of sampled request collected",
+        "Unsampled: at least trace ID emitted"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "obs_alert_001",
+      "status": "not_started",
+      "title": "Alert fires when error rate exceeds threshold",
+      "description": "Error rate alert triggers at configured threshold",
+      "modules": ["server"],
+      "risk_addressed": "Error rate alert doesn't fire when should",
+      "preconditions": "Alerting configured with 5% threshold",
+      "steps": [
+        "Set error injection rate to 10%",
+        "Send 100 requests",
+        "Verify alert fires within 1 minute"
+      ],
+      "expected_outcomes": [
+        "Alert fires",
+        "Alert contains: error_rate, threshold, duration",
+        "Alert recoverable (clears when error rate drops)"
+      ],
+      "oracle_checks": [
+        "Alert uses rolling window",
+        "Threshold comparison correct",
+        "Alert cooldown prevents flapping"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "obs_alert_002",
+      "status": "not_started",
+      "title": "Alert fires when latency exceeds p99 SLA",
+      "description": "Latency alert triggers at configured p99 threshold",
+      "modules": ["server"],
+      "risk_addressed": "Latency alert doesn't fire for slow requests",
+      "preconditions": "Alerting configured with p99 > 5s",
+      "steps": [
+        "Configure slow responses (mock delay 6s)",
+        "Send requests until p99 > 5s",
+        "Verify alert fires"
+      ],
+      "expected_outcomes": [
+        "Alert fires for p99 breach",
+        "Alert clears when latency normalizes"
+      ],
+      "oracle_checks": [
+        "p99 calculated over rolling window",
+        "No alert for p95 breach",
+        "Breach duration required before alert"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "obs_audit_001",
+      "status": "not_started",
+      "title": "Audit log for sensitive operations",
+      "description": "Permission grants, config changes, session deletes logged for audit",
+      "modules": ["permission", "config", "session"],
+      "risk_addressed": "Security events not auditable",
+      "preconditions": "Audit logging configured",
+      "test_data": [
+        {"operation": "permission_grant", "fields": "who, what, timestamp, result"},
+        {"operation": "config_change", "fields": "who, what, old_value, new_value"},
+        {"operation": "session_delete", "fields": "who, session_id, timestamp"}
+      ],
+      "steps": [
+        "Execute each sensitive operation",
+        "Query audit log",
+        "Verify all required fields present"
+      ],
+      "expected_outcomes": [
+        "Audit log entry has all required fields",
+        "Entry immutable (append-only)",
+        "Entry includes identity of requester"
+      ],
+      "oracle_checks": [
+        "Audit log separate from application log",
+        "Audit log has integrity check (hash)",
+        "Retention policy configured"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "obs_health_001",
+      "status": "not_started",
+      "title": "Health endpoint reflects true system state",
+      "description": "/health includes all dependencies",
+      "modules": ["server"],
+      "risk_addressed": "Health says UP when actually DOWN",
+      "steps": [
+        "Kill storage",
+        "GET /health",
+        "Verify status reflects storage DOWN",
+        "Restart storage",
+        "GET /health",
+        "Verify UP"
+      ],
+      "expected_outcomes": [
+        "Health endpoint checks all dependencies",
+        "Returns degraded when any dependency down",
+        "Response includes which component is unhealthy"
+      ],
+      "oracle_checks": [
+        "Health checks timeout (don't hang)",
+        "Health checks are non-blocking",
+        "Kubernetes-compatible response format"
+      ],
+      "priority": "high"
+    }
+  ],
+  "test_metadata": {
+    "module": "observability",
+    "description": "Observability - logging, metrics, tracing, alerting",
+    "total_cases": 15,
+    "category": "observability",
+    "critical_invariants": [
+      "No sensitive data in logs",
+      "All errors produce trace",
+      "Audit log for sensitive operations"
+    ],
+    "high_risk_scenarios": [
+      "obs_logging_002: Credential in logs",
+      "obs_metrics_001: Token count wrong = budget bypass",
+      "obs_tracing_001: No trace across components",
+      "obs_audit_001: Security events not auditable"
+    ],
+    "field_completeness": {
+      "log_entry": ["timestamp", "level", "message", "trace_id", "span_id"],
+      "tool_span": ["tool_name", "duration_ms", "success", "error"],
+      "audit_entry": ["timestamp", "actor", "action", "resource", "result"]
+    }
+  }
+}

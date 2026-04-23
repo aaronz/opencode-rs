@@ -1,0 +1,445 @@
+{
+  "$schema": "https://tasks.opencode.dev/schema",
+  "version": "1.0",
+  "module": "chaos",
+  "description": "Chaos engineering test case designs - system behavior under component failures and networkpartitioning",
+  "test_cases": [
+    {
+      "id": "chaos_provider_001",
+      "status": "not_started",
+      "title": "Provider becomes unavailable mid-request",
+      "description": "LLM provider fails during streaming response",
+      "modules": ["provider"],
+      "risk_addressed": "Agent hangs or crashes on provider failure",
+      "preconditions": "Agent mid-streaming-response",
+      "steps": [
+        "Start streaming request to provider",
+        "After 50% of response received, kill provider connection",
+        "Verify error returned to agent",
+        "Verify streaming terminates cleanly"
+      ],
+      "expected_outcomes": [
+        "Error returned to caller with partial content (if available)",
+        "No zombie connection left",
+        "Agent can retry or continue"
+      ],
+      "oracle_checks": [
+        "Timeout fires and closes connection",
+        "Partial content preserved in session",
+        "Retry possible without corruption"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "chaos_provider_002",
+      "status": "not_started",
+      "title": "Provider returns 500 error intermittently",
+      "description": "Provider is unstable - 50% of requests fail",
+      "modules": ["provider"],
+      "risk_addressed": "Agent gives up too early or retry storm",
+      "preconditions": "Provider configured with retries",
+      "steps": [
+        "Configure mock provider that fails 50% of requests",
+        "Agent sends 10 requests",
+        "Verify requests eventually succeed",
+        "Verify no retry storm (exponential backoff)"
+      ],
+      "expected_outcomes": [
+        "Requests eventually succeed via retries",
+        "Backoff applied between retries",
+        "Max retries respected"
+      ],
+      "oracle_checks": [
+        "Retry count decrements per attempt",
+        "Jitter added to backoff",
+        "Circuit breaker trips after repeated failures"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "chaos_network_001",
+      "status": "not_started",
+      "title": "Network partition during WebSocket session",
+      "description": "WebSocket client disconnected by network partition",
+      "modules": ["server", "session"],
+      "risk_addressed": "Session left in inconsistent state when client disconnects",
+      "preconditions": "WebSocket client connected",
+      "steps": [
+        "Client sends message to agent",
+        "Network partition occurs (iptables drop)",
+        "Client cannot receive response",
+        "Partition heals",
+        "Verify session state is consistent"
+      ],
+      "expected_outcomes": [
+        "Agent completes processing",
+        "Session state is consistent",
+        "On reconnect, client sees current state"
+      ],
+      "oracle_checks": [
+        "Response not lost (stored in session)",
+        "Reconnect resumes from consistent point",
+        "No duplicate message processing"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "chaos_network_002",
+      "status": "not_started",
+      "title": "High latency network (100ms, 500ms, 2s)",
+      "description": "Network latency degrades - verify timeouts work",
+      "modules": ["provider", "server"],
+      "risk_addressed": "System hangs on slow network",
+      "preconditions": "Network link with controllable latency",
+      "test_data": [
+        {"latency_ms": 100, "expected": "works"},
+        {"latency_ms": 500, "expected": "works with delays"},
+        {"latency_ms": 2000, "expected": "timeout or degrade gracefully"}
+      ],
+      "steps": [
+        "Configure network delay",
+        "Execute API calls",
+        "Verify timeouts fire correctly"
+      ],
+      "expected_outcomes": [
+        "100ms: normal operation",
+        "500ms: slower but functional",
+        "2000ms: timeout errors, not hang"
+      ],
+      "oracle_checks": [
+        "Timeout configured appropriately",
+        "No blocking calls without timeout",
+        "Graceful degradation"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "chaos_storage_001",
+      "status": "not_started",
+      "title": "SQLite database locked by another process",
+      "description": "Another process holds database lock",
+      "modules": ["storage"],
+      "risk_addressed": "Storage operations fail or hang",
+      "preconditions": "External process holds DB lock",
+      "steps": [
+        "Open SQLite database with exclusive lock from external process",
+        "Attempt opencode storage operation",
+        "Verify error returned OR waited with timeout"
+      ],
+      "expected_outcomes": [
+        "Error returned OR operation waits with timeout",
+        "No deadlock",
+        "Operation completes when lock released"
+      ],
+      "oracle_checks": [
+        "SQLite busy_timeout configured",
+        "Lock acquisition timeout enforced",
+        "Clear error message"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "chaos_storage_002",
+      "status": "not_started",
+      "title": "Disk becomes read-only mid-operation",
+      "description": "Filesystem becomes read-only (disk error)",
+      "modules": ["storage"],
+      "risk_addressed": "Data loss or crash on read-only disk",
+      "preconditions": "Storage in normal operation",
+      "steps": [
+        "Simulate disk becoming read-only (quota exceeded OR hardware error)",
+        "Attempt write operation",
+        "Verify error returned",
+        "Verify read operations still work",
+        "Verify system still operational"
+      ],
+      "expected_outcomes": [
+        "Write fails with clear error",
+        "Read operations continue",
+        "System does not crash",
+        "No data corruption"
+      ],
+      "oracle_checks": [
+        "Write errors return immediately",
+        "No retry loops on permanent failure",
+        "System remains consistent"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "chaos_lsp_001",
+      "status": "not_started",
+      "title": "LSP server repeatedly crashes",
+      "description": "rust-analyzer crashes 5 times in a row",
+      "modules": ["lsp"],
+      "risk_addressed": "Agent blocked waiting for LSP that keeps crashing",
+      "preconditions": "LSP server running",
+      "steps": [
+        "LSP server starts successfully",
+        "LSP server crashes",
+        "Verify restart occurs",
+        "Repeat 5 times rapidly",
+        "After 5th crash, verify backoff"
+      ],
+      "expected_outcomes": [
+        "First crash: restart immediately",
+        "Second crash: restart with small backoff",
+        "Fifth crash: longer backoff",
+        "Max restart attempts before giving up"
+      ],
+      "oracle_checks": [
+        "Exponential backoff on restart",
+        "Max restart attempts configured",
+        "Event logged on each restart"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "chaos_lsp_002",
+      "status": "not_started",
+      "title": "LSP server responds with malformed messages",
+      "description": "LSP server is buggy and sends garbage",
+      "modules": ["lsp"],
+      "risk_addressed": "LSP client crashes on malformed message",
+      "preconditions": "Mock LSP server sending malformed messages",
+      "test_data": [
+        {"msg": "not json", "count": 10},
+        {"msg": "invalid jsonrpc", "count": 10},
+        {"msg": "huge message (10MB)", "count": 5}
+      ],
+      "steps": [
+        "LSP server sends malformed messages",
+        "Verify client doesn't crash",
+        "Verify client continues processing"
+      ],
+      "expected_outcomes": [
+        "Malformed messages logged and ignored",
+        "No crash",
+        "Valid messages still processed"
+      ],
+      "oracle_checks": [
+        "Message parsing in try/catch",
+        "Size limit on incoming messages",
+        "Invalid messages don't break protocol"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "chaos_memory_001",
+      "status": "not_started",
+      "title": "Memory pressure - system near OOM",
+      "description": "System approaching memory limit",
+      "modules": ["agent", "session"],
+      "risk_addressed": "OOM kill or degradation under memory pressure",
+      "preconditions": "System at 80% memory",
+      "steps": [
+        "Pre-load system to 80% memory usage",
+        "Start new agent session",
+        "Verify session fails gracefully with memory error",
+        "Verify existing sessions not killed"
+      ],
+      "expected_outcomes": [
+        "New session rejected with clear error",
+        "Existing sessions unaffected",
+        "System remains stable"
+      ],
+      "oracle_checks": [
+        "Memory limit configured",
+        "Allocation checked before operation",
+        "OOM not triggered"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "chaos_memory_002",
+      "status": "not_started",
+      "title": "Sudden memory spike from single session",
+      "description": "One session consumes excessive memory",
+      "modules": ["session", "agent"],
+      "risk_addressed": "Single bad session causes OOM affecting all",
+      "preconditions": "Normal sessions running",
+      "steps": [
+        "Create session with malicious prompt causing infinite output",
+        "Start agent processing",
+        "Monitor memory",
+        "Verify session killed before affecting others"
+      ],
+      "expected_outcomes": [
+        "Problematic session terminated",
+        "Memory reclaimed",
+        "Other sessions unaffected"
+      ],
+      "oracle_checks": [
+        "Per-session memory limit",
+        "Session can be killed independently",
+        "Memory bounded per agent execution"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "chaos_cpu_001",
+      "status": "not_started",
+      "title": "CPU throttling on container",
+      "description": "Container CFS quota causes CPU throttling",
+      "modules": ["agent", "tool"],
+      "risk_addressed": "Agent slows to crawl under CPU throttling",
+      "preconditions": "Container with CFS CPU quota",
+      "test_data": [
+        {"quota_ms": 100, "period_ms": 100, "expected": "degraded"},
+        {"quota_ms": 500, "period_ms": 1000, "expected": "acceptable"}
+      ],
+      "steps": [
+        "Configure CPU throttling",
+        "Run agent with tool execution",
+        "Verify timeouts and backpressure applied"
+      ],
+      "expected_outcomes": [
+        "Tool timeouts enforced",
+        "Agent degrades gracefully",
+        "No infinite loops consuming CPU"
+      ],
+      "oracle_checks": [
+        "Tool execution has timeout",
+        "Agent iteration has max time",
+        "CPU throttling detected and logged"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "chaos_process_001",
+      "status": "not_started",
+      "title": "Opencode server process killed (SIGKILL)",
+      "description": "Server process killed by external factor",
+      "modules": ["server", "storage"],
+      "risk_addressed": "Data loss or corruption on unexpected kill",
+      "preconditions": "Server running with active sessions",
+      "steps": [
+        "Server running normally",
+        "SIGKILL sent to server process",
+        "Server restarted",
+        "Verify data integrity"
+      ],
+      "expected_outcomes": [
+        "WAL recovery on restart",
+        "No corruption",
+        "Active sessions lost (acceptable)",
+        "Storage consistent"
+      ],
+      "oracle_checks": [
+        "WAL mode enabled",
+        "WAL checkpoint on normal shutdown",
+        "Recovery on restart is automatic"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "chaos_process_002",
+      "status": "not_started",
+      "title": "Graceful shutdown blocked - force SIGTERM",
+      "description": "Shutdown handler takes too long - SIGTERM forces exit",
+      "modules": ["server"],
+      "risk_addressed": "SIGTERM timeout forces SIGKILL - same as chaos_process_001",
+      "preconditions": "Server shutting down, operations in progress",
+      "steps": [
+        "Server has long-running operation (LSP indexing)",
+        "SIGTERM sent",
+        "Shutdown exceeds timeout (30s)",
+        "SIGKILL sent",
+        "Server restarts",
+        "Verify state is consistent"
+      ],
+      "expected_outcomes": [
+        "Long operations have shutdown grace period",
+        "Grace period timeout triggers SIGKILL",
+        "Recovery produces consistent state"
+      ],
+      "oracle_checks": [
+        "Shutdown timeout configured",
+        "Critical operations can be cancelled",
+        "Non-critical ops aborted first"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "chaos_clock_001",
+      "status": "not_started",
+      "title": "System clock adjustment during operation",
+      "description": "Clock jumps forward or backward",
+      "modules": ["storage", "session"],
+      "risk_addressed": "Timestamps incorrect, session expiry wrong",
+      "preconditions": "Server running",
+      "test_data": [
+        {"jump": "+1 hour"},
+        {"jump": "-1 hour"},
+        {"jump": "+7 days"}
+      ],
+      "steps": [
+        "Create session with TTL",
+        "Jump clock forward/backward",
+        "Verify TTL behaves correctly",
+        "Verify timestamps are consistent"
+      ],
+      "expected_outcomes": [
+        "Forward jump: TTL shortens (expected)",
+        "Backward jump: TTL may lengthen OR error raised",
+        "Timestamps monotonic where required"
+      ],
+      "oracle_checks": [
+        "monotonic timestamps used for ordering",
+        "wall-clock only for display/expiry",
+        "NTP sync not causing jumps mid-operation"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "chaos_dns_001",
+      "status": "not_started",
+      "title": "DNS resolution failure for provider API",
+      "description": "Provider hostname unresolvable",
+      "modules": ["provider"],
+      "risk_addressed": "Agent hangs on DNS failure",
+      "preconditions": "Provider configured with hostname",
+      "steps": [
+        "Configure /etc/hosts to block provider domain",
+        "Attempt provider API call",
+        "Verify error returned quickly (not hang)",
+        "Restore DNS"
+      ],
+      "expected_outcomes": [
+        "DNS failure returns error within timeout",
+        "Error is descriptive (DNS failure, not generic)",
+        "Retry possible after DNS restored"
+      ],
+      "oracle_checks": [
+        "DNS timeout < 5s",
+        "No blocking DNS calls",
+        "Error cached to prevent repeated lookups"
+      ],
+      "priority": "high"
+    }
+  ],
+  "test_metadata": {
+    "module": "chaos",
+    "description": "Chaos engineering and fault tolerance testing",
+    "total_cases": 15,
+    "category": "chaos",
+    "critical_invariants": [
+      "Provider failure doesn't crash agent",
+      "OOM of one session doesn't affect others",
+      "SIGKILL leaves storage consistent",
+      "Network partition doesn't lose data"
+    ],
+    "high_risk_scenarios": [
+      "chaos_provider_001: Provider failure mid-stream",
+      "chaos_storage_002: Disk becomes read-only",
+      "chaos_memory_002: Single session memory spike",
+      "chaos_process_001: SIGKILL during write"
+    ],
+    "blast_radius": {
+      "provider_failure": "Limited to affected sessions",
+      "storage_locked": "All storage ops affected",
+      "memory_pressure": "New sessions rejected, existing ok",
+      "network_partition": "Reconnect/resume"
+    }
+  }
+}

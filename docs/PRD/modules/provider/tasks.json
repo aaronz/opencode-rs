@@ -1,0 +1,416 @@
+{
+  "$schema": "https://tasks.opencode.dev/schema",
+  "version": "1.0",
+  "module": "provider",
+  "description": "E2E test case designs for opencode-llm crate - Multi-provider LLM abstraction",
+  "test_cases": [
+    {
+      "id": "provider_e2e_001",
+      "status": "not_started",
+      "title": "Provider chat completion flow",
+      "description": "Test basic chat completion through Provider trait",
+      "modules": ["provider"],
+      "steps": [
+        "Create OpenAI provider with test API key",
+        "Send chat request with system and user messages",
+        "Verify ChatResponse contains content",
+        "Verify model field populated"
+      ],
+      "expected_outcomes": [
+        "Request succeeds with valid API key",
+        "Response content is non-empty",
+        "Usage stats included when available"
+      ]
+    },
+    {
+      "id": "provider_e2e_002",
+      "status": "not_started",
+      "title": "Provider retry logic on transient failures",
+      "description": "Test retry config handles 429/503 errors",
+      "modules": ["provider"],
+      "steps": [
+        "Configure RetryConfig with max_retries=3",
+        "Simulate 429 rate limit response",
+        "Execute chat request",
+        "Verify request retried up to max_retries"
+      ],
+      "expected_outcomes": [
+        "Retries occur on retryable errors",
+        "Non-retryable errors fail immediately",
+        "Exhausted retries return final error"
+      ]
+    },
+    {
+      "id": "provider_e2e_003",
+      "status": "not_started",
+      "title": "Budget tracking per-request",
+      "description": "Test BudgetTracker tracks token usage",
+      "modules": ["provider", "budget"],
+      "steps": [
+        "Create BudgetTracker with monthly limit",
+        "Execute request - verify usage recorded",
+        "Execute request - verify cumulative tracking",
+        "Exceed limit - verify BudgetExceededError"
+      ],
+      "expected_outcomes": [
+        "Usage correctly tracked per request",
+        "BudgetExceededError when limit reached"
+      ]
+    },
+    {
+      "id": "provider_e2e_004",
+      "status": "not_started",
+      "title": "Provider registry and model listing",
+      "description": "Test ProviderRegistry and model enumeration",
+      "modules": ["provider"],
+      "steps": [
+        "Create ProviderRegistry with multiple providers",
+        "Call get_models() - verify all models listed",
+        "Filter by provider type",
+        "Verify model metadata (name, status)"
+      ],
+      "expected_outcomes": [
+        "All registered models returned",
+        "Filtering works correctly"
+      ]
+    },
+    {
+      "id": "provider_e2e_005",
+      "status": "not_started",
+      "title": "Anthropic reasoning budget configuration",
+      "description": "Test Anthropic-specific reasoning budget settings",
+      "modules": ["provider"],
+      "steps": [
+        "Create Anthropic provider",
+        "Configure reasoning_budget for extended thinking",
+        "Execute chat with reasoning enabled",
+        "Verify response includes thinking content"
+      ],
+      "expected_outcomes": [
+        "Reasoning budget passed to API",
+        "Extended thinking responses work"
+      ]
+    },
+    {
+      "id": "provider_e2e_006",
+      "status": "not_started",
+      "title": "OAuth authentication flow",
+      "description": "Test OAuth token acquisition and refresh",
+      "modules": ["provider", "auth"],
+      "steps": [
+        "Initiate OAuth flow for Google/GitHub provider",
+        "Simulate callback with auth code",
+        "Verify tokens stored",
+        "Verify token refresh works"
+      ],
+      "expected_outcomes": [
+        "Tokens acquired successfully",
+        "Refresh updates stored tokens"
+      ]
+    },
+    {
+      "id": "provider_e2e_007",
+      "status": "not_started",
+      "title": "Provider model catalog fetching",
+      "description": "Test ProviderCatalogFetcher retrieves model list",
+      "modules": ["provider"],
+      "steps": [
+        "Create catalog fetcher for OpenAI",
+        "Fetch catalog",
+        "Verify models listed with metadata",
+        "Cache catalog and verify cache hit"
+      ],
+      "expected_outcomes": [
+        "Catalog fetched successfully",
+        "Caching reduces network calls"
+      ]
+    },
+    {
+      "id": "provider_e2e_008",
+      "status": "not_started",
+      "title": "Message transform pipeline",
+      "description": "Test TransformPipeline modifies messages correctly",
+      "modules": ["provider"],
+      "steps": [
+        "Create pipeline with system prompt prepend",
+        "Send messages through pipeline",
+        "Verify system prompt prepended",
+        "Verify other messages unchanged"
+      ],
+      "expected_outcomes": [
+        "Transforms applied in order",
+        "Original messages not mutated"
+      ]
+    },
+    {
+      "id": "provider_err_001",
+      "status": "not_started",
+      "title": "CRITICAL: Invalid API key returns clear error",
+      "description": "Invalid credentials must produce actionable error",
+      "modules": ["provider"],
+      "risk_addressed": "Silent failures or confusing errors when API key invalid",
+      "preconditions": "Provider configured with known-bad API key",
+      "steps": [
+        "Configure provider with 'invalid_key_123'",
+        "Execute chat request",
+        "Verify error is descriptive",
+        "Verify error distinguishes auth failure from network failure"
+      ],
+      "expected_outcomes": [
+        "Error message indicates authentication failure",
+        "Error does not expose sensitive info",
+        "Error type is distinct from network/timeout errors"
+      ],
+      "post_checks": [
+        "Can update to valid key without restart",
+        "Error logged with request ID for debugging"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "provider_err_002",
+      "status": "not_started",
+      "title": "Provider timeout handling",
+      "description": "Requests must timeout and return error, not hang",
+      "modules": ["provider"],
+      "risk_addressed": "Agent hangs indefinitely on slow provider",
+      "preconditions": "Provider configured",
+      "test_data": [
+        {"scenario": "provider_slow", "timeout_ms": 5000, "provider_delay_ms": 30000},
+        {"scenario": "network_slow", "timeout_ms": 5000, "network_delay_ms": 30000}
+      ],
+      "steps": [
+        "Configure provider with 5s timeout",
+        "Execute request that takes 30s to respond",
+        "Verify timeout error returned",
+        "Verify no zombie connection left"
+      ],
+      "expected_outcomes": [
+        "Timeout fires after configured duration",
+        "Error returned to caller",
+        "Connection properly closed"
+      ],
+      "post_checks": [
+        "Provider still usable for subsequent requests",
+        "No file descriptor leak"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "provider_err_003",
+      "status": "not_started",
+      "title": "Malformed response handling",
+      "description": "Provider must handle malformed API responses gracefully",
+      "modules": ["provider"],
+      "risk_addressed": "Crash or panic on malformed JSON from provider",
+      "preconditions": "Mock server configured",
+      "test_data": [
+        {"response": "not json at all", "issue": "invalid JSON"},
+        {"response": "{\"choices\": null}", "issue": "null field"},
+        {"response": "{\"choices\": [{}]}", "issue": "empty choice"},
+        {"response": "HTTP 200 but truncated chunked response", "issue": "incomplete response"}
+      ],
+      "steps": [
+        "Configure mock to return each malformed response",
+        "Execute chat request",
+        "Verify error returned, not panic"
+      ],
+      "expected_outcomes": [
+        "Malformed response returns error",
+        "Error message identifies parsing issue",
+        "No panic or crash"
+      ],
+      "post_checks": [
+        "Provider recovers for next request",
+        "Error logged for debugging"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "provider_err_004",
+      "status": "not_started",
+      "title": "Rate limit Retry-After header parsing",
+      "description": "Retry backoff must respect Retry-After header from provider",
+      "modules": ["provider"],
+      "risk_addressed": "Retries happen too fast, immediately hitting rate limit again",
+      "preconditions": "Provider with RetryConfig configured",
+      "steps": [
+        "Simulate 429 response with Retry-After: 60",
+        "Execute request",
+        "Verify retry happens after ~60 seconds, not immediately",
+        "Verify retry count decrements"
+      ],
+      "expected_outcomes": [
+        "Retry-After header respected",
+        "Retry delay is proportional to header value",
+        "Max retries still enforced"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "provider_err_005",
+      "status": "not_started",
+      "title": "Provider switch mid-conversation",
+      "description": "Switch provider mid-session must preserve context",
+      "modules": ["provider", "session"],
+      "risk_addressed": "Context lost when switching providers",
+      "preconditions": "Session with conversation history exists",
+      "steps": [
+        "Create session with messages",
+        "Switch provider from OpenAI to Anthropic mid-session",
+        "Send message via new provider",
+        "Verify context (previous messages) sent to new provider"
+      ],
+      "expected_outcomes": [
+        "All previous messages included in new request",
+        "Provider switch does not lose conversation history",
+        "Response generated with context"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "provider_budget_001",
+      "status": "not_started",
+      "title": "Monthly budget reset",
+      "description": "Budget must reset at correct time boundary",
+      "modules": ["provider", "budget"],
+      "risk_addressed": "Budget not resetting, blocking requests indefinitely",
+      "preconditions": "BudgetTracker with monthly billing cycle",
+      "steps": [
+        "Set budget to $1.00, consume $0.80",
+        "Simulate month boundary (advance clock or mock time)",
+        "Execute new request",
+        "Verify budget reset to $1.00"
+      ],
+      "expected_outcomes": [
+        "Budget resets at correct boundary",
+        "New requests allowed after reset",
+        "No carryover of used budget"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "provider_budget_002",
+      "status": "not_started",
+      "title": "Budget exceeded during streaming response",
+      "description": "Budget check timing during chunked responses",
+      "modules": ["provider"],
+      "risk_addressed": "Budget checked only at start, allowing overage during streaming",
+      "preconditions": "Budget near limit",
+      "steps": [
+        "Set budget limit to $0.01",
+        "Start streaming request (generates many tokens)",
+        "Verify BudgetExceededError fires mid-stream",
+        "Verify stream terminated cleanly"
+      ],
+      "expected_outcomes": [
+        "Budget checked per-chunk or per-token",
+        "Stream stops when budget exceeded",
+        "Error returned to caller mid-stream"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "provider_conc_001",
+      "status": "not_started",
+      "title": "Concurrent requests to same provider",
+      "description": "Multiple simultaneous requests to same provider handled correctly",
+      "modules": ["provider"],
+      "risk_addressed": "Race conditions in request tracking, connection pool exhaustion",
+      "preconditions": "Provider with limited connection pool",
+      "steps": [
+        "Create 20 concurrent chat requests",
+        "Execute all simultaneously",
+        "Verify all complete (success or error)",
+        "Verify no connection pool exhaustion panic"
+      ],
+      "expected_outcomes": [
+        "All requests handled",
+        "No deadlock or starvation",
+        "Rate limits applied correctly across requests"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "provider_conc_002",
+      "status": "not_started",
+      "title": "Request cancellation releases resources",
+      "description": "Cancelled request must release connection and not block others",
+      "modules": ["provider"],
+      "risk_addressed": "Cancelled requests holding connection, starving other requests",
+      "preconditions": "Provider with limited connections",
+      "steps": [
+        "Start 5 slow requests",
+        "Cancel 3 of them immediately",
+        "Start 3 new requests",
+        "Verify new requests proceed (not blocked by cancelled)"
+      ],
+      "expected_outcomes": [
+        "Cancelled requests release connections",
+        "New requests not starved",
+        "No resource leak from cancelled request"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "provider_transform_001",
+      "status": "not_started",
+      "title": "Transform pipeline with multiple transforms",
+      "description": "Multiple transforms compose correctly",
+      "modules": ["provider"],
+      "steps": [
+        "Create pipeline: [prepend system, append memory, truncate history]",
+        "Send 50-message conversation",
+        "Verify transforms applied in order",
+        "Verify final message count within limit"
+      ],
+      "expected_outcomes": [
+        "System prompt prepended first",
+        "Memory context appended",
+        "History truncated to max length",
+        "Original messages not mutated"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "provider_transform_002",
+      "status": "not_started",
+      "title": "Transform pipeline error propagation",
+      "description": "Transform failure must error the request, not pass bad data",
+      "modules": ["provider"],
+      "risk_addressed": "Transform failure silently passes through with corrupt data",
+      "preconditions": "Pipeline with a failing transform",
+      "steps": [
+        "Create pipeline where one transform errors",
+        "Execute request through pipeline",
+        "Verify error returned",
+        "Verify original request not sent to provider"
+      ],
+      "expected_outcomes": [
+        "Transform error propagated to caller",
+        "No request made to provider with bad data",
+        "Error is descriptive"
+      ],
+      "priority": "medium"
+    }
+  ],
+  "test_metadata": {
+    "module": "provider",
+    "crate": "opencode-llm",
+    "source": "crates/llm/src/lib.rs",
+    "total_cases": 18,
+    "category": "core",
+    "critical_invariants": [
+      "Invalid API key returns clear error (not silent)",
+      "Timeout releases resources, no zombie connections",
+      "Malformed response handled gracefully",
+      "Budget checked per-chunk during streaming"
+    ],
+    "high_risk_scenarios": [
+      "provider_err_001: Invalid API key confusing error",
+      "provider_err_002: Provider hang on timeout",
+      "provider_err_003: Crash on malformed response",
+      "provider_budget_002: Budget overage during streaming"
+    ]
+  }
+}

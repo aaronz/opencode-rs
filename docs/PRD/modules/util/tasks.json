@@ -1,0 +1,297 @@
+{
+  "$schema": "https://tasks.opencode.dev/schema",
+  "version": "1.0",
+  "module": "utilities",
+  "description": "E2E test case designs for utility modules - flag/env/effect/id/util",
+  "test_cases": [
+    {
+      "id": "flag_e2e_001",
+      "status": "not_started",
+      "title": "Feature flag evaluation",
+      "description": "Test flag enabled/disabled evaluation",
+      "modules": ["flag"],
+      "steps": [
+        "Set flag 'new-feature' to enabled",
+        "Evaluate flag",
+        "Set to disabled",
+        "Evaluate again"
+      ],
+      "expected_outcomes": [
+        "Flag value correctly returned",
+        "Changes reflect immediately"
+      ]
+    },
+    {
+      "id": "env_e2e_001",
+      "status": "not_started",
+      "title": "Environment variable resolution",
+      "description": "Test env var access with defaults",
+      "modules": ["env"],
+      "steps": [
+        "Get REQUIRED_VAR (not set) - verify error",
+        "Get OPTIONAL_VAR with default",
+        "Set variable and retry",
+        "Verify value retrieved"
+      ],
+      "expected_outcomes": [
+        "Missing required returns error",
+        "Optional with default works",
+        "Set value retrievable"
+      ]
+    },
+    {
+      "id": "effect_e2e_001",
+      "status": "not_started",
+      "title": "Effect pipeline composition",
+      "description": "Test Effect monad chaining",
+      "modules": ["effect"],
+      "steps": [
+        "Create Effect that reads file",
+        "Chain Effect that processes content",
+        "Execute pipeline",
+        "Verify result correct"
+      ],
+      "expected_outcomes": [
+        "Effects chain correctly",
+        "Errors propagate properly"
+      ]
+    },
+    {
+      "id": "id_e2e_001",
+      "status": "not_started",
+      "title": "ID generation uniqueness",
+      "description": "Test ID generation produces unique values",
+      "modules": ["id"],
+      "steps": [
+        "Generate 1000 IDs",
+        "Verify all unique",
+        "Verify format correct",
+        "Verify sortable"
+      ],
+      "expected_outcomes": [
+        "No collisions in 1000 generations",
+        "Format consistent"
+      ]
+    },
+    {
+      "id": "util_e2e_001",
+      "status": "not_started",
+      "title": "Structured logging output",
+      "description": "Test logging with structured fields",
+      "modules": ["util"],
+      "steps": [
+        "Configure logging",
+        "Log message with fields",
+        "Parse log output",
+        "Verify fields present"
+      ],
+      "expected_outcomes": [
+        "Logs written correctly",
+        "Fields serialized properly"
+      ]
+    },
+    {
+      "id": "flag_sec_001",
+      "status": "not_started",
+      "title": "Flag evaluation race condition",
+      "description": "Concurrent flag evaluations must be consistent",
+      "modules": ["flag"],
+      "risk_addressed": "Flag value changes mid-evaluation",
+      "preconditions": "Flag being evaluated by multiple threads",
+      "steps": [
+        "Set flag to enabled",
+        "Spawn 100 threads evaluating flag simultaneously",
+        "Thread A updates flag to disabled",
+        "Verify all evaluations are self-consistent"
+      ],
+      "expected_outcomes": [
+        "Each evaluation sees consistent value",
+        "No torn reads",
+        "No crash"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "flag_state_001",
+      "status": "not_started",
+      "title": "Flag change notification",
+      "description": "Flag changes trigger callbacks or events",
+      "modules": ["flag"],
+      "risk_addressed": "Flag changes not observed by dependent code",
+      "preconditions": "Flag system with listeners",
+      "steps": [
+        "Register listener for flag changes",
+        "Change flag value",
+        "Verify listener notified"
+      ],
+      "expected_outcomes": [
+        "Change detected and notified",
+        "Notification happens synchronously"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "env_sec_001",
+      "status": "not_started",
+      "title": "Environment variable injection prevention",
+      "description": "Env vars cannot inject via values with special characters",
+      "modules": ["env"],
+      "risk_addressed": "Malicious env var value causes injection",
+      "preconditions": "Env var with value containing shell metacharacters",
+      "test_data": [
+        {"var": "MALICIOUS", "value": "value; rm -rf /"},
+        {"var": "MALICIOUS", "value": "value$(whoami)"}
+      ],
+      "steps": [
+        "Set malicious env var",
+        "Read env var via system",
+        "Verify metacharacters not executed"
+      ],
+      "expected_outcomes": [
+        "Env var read as literal value",
+        "No command injection"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "env_001",
+      "status": "not_started",
+      "title": "Environment variable cache invalidation",
+      "description": "Env vars cached and must be refreshable",
+      "modules": ["env"],
+      "risk_addressed": "Stale env var values after process changes",
+      "preconditions": "Env var cached",
+      "steps": [
+        "Read env var HOME",
+        "Process changes HOME via setenv",
+        "Read HOME again",
+        "Verify new value returned"
+      ],
+      "expected_outcomes": [
+        "Cache invalidated on setenv",
+        "Fresh value returned"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "effect_001",
+      "status": "not_started",
+      "title": "Effect error handling and recovery",
+      "description": "Errors in Effect chain handled correctly",
+      "modules": ["effect"],
+      "risk_addressed": "Error in middle of chain leaves inconsistent state",
+      "preconditions": "Effect chain with potential failure",
+      "steps": [
+        "Create chain: read -> transform -> write",
+        "Transform step fails",
+        "Verify read completed but write not called",
+        "Verify error propagated"
+      ],
+      "expected_outcomes": [
+        "Error propagates up",
+        "Previous steps not rolled back (if not transactional)",
+        "Error type descriptive"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "effect_002",
+      "status": "not_started",
+      "title": "Effect resource cleanup",
+      "description": "Resources acquired by Effects released on completion/error",
+      "modules": ["effect"],
+      "risk_addressed": "File handles or memory leaked from Effects",
+      "preconditions": "Effect that acquires resources",
+      "steps": [
+        "Create Effect that opens file",
+        "Execute Effect successfully",
+        "Execute Effect that errors",
+        "Verify file handles released"
+      ],
+      "expected_outcomes": [
+        "File handles closed on success",
+        "File handles closed on error",
+        "No resource leak"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "id_001",
+      "status": "not_started",
+      "title": "ID collision resistance under load",
+      "description": "IDs remain unique under concurrent generation",
+      "modules": ["id"],
+      "risk_addressed": "ID collisions at high concurrency",
+      "preconditions": "None",
+      "steps": [
+        "Generate 100,000 IDs concurrently (100 threads x 1000)",
+        "Verify all unique"
+      ],
+      "expected_outcomes": [
+        "Zero collisions under max load",
+        "Generation remains fast"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "id_002",
+      "status": "not_started",
+      "title": "ID format immutability",
+      "description": "ID format must not change between versions",
+      "modules": ["id"],
+      "risk_addressed": "ID format change breaks stored references",
+      "preconditions": "IDs stored in database",
+      "steps": [
+        "Generate ID with current version",
+        "Upgrade library",
+        "Generate ID again",
+        "Verify format unchanged OR migration path exists"
+      ],
+      "expected_outcomes": [
+        "Format stable OR migration documented",
+        "Old IDs still parseable"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "util_001",
+      "status": "not_started",
+      "title": "Structured log field escaping",
+      "description": "Special characters in log fields escaped correctly",
+      "modules": ["util"],
+      "risk_addressed": "Log injection attack via structured fields",
+      "preconditions": "Logging system with structured fields",
+      "test_data": [
+        {"field": "message", "value": "test\nMALICIOUS: true"},
+        {"field": "message", "value": "{\"json\": \"injection\"}"}
+      ],
+      "steps": [
+        "Log message with special characters",
+        "Parse log output",
+        "Verify no injection"
+      ],
+      "expected_outcomes": [
+        "Special characters escaped",
+        "Log not parsable as multiple entries",
+        "No injection"
+      ],
+      "priority": "high"
+    }
+  ],
+  "test_metadata": {
+    "module": "utilities",
+    "crates": ["opencode-flag", "opencode-env", "opencode-effect", "opencode-id", "opencode-util"],
+    "total_cases": 16,
+    "category": "utility",
+    "critical_invariants": [
+      "Flag evaluation thread-safe",
+      "Environment variables read-only by default",
+      "Effect resources cleaned up"
+    ],
+    "high_risk_scenarios": [
+      "flag_sec_001: Flag race condition",
+      "id_001: ID collision under load",
+      "util_001: Log injection"
+    ]
+  }
+}

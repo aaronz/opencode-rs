@@ -1,0 +1,166 @@
+{
+  "$schema": "https://tasks.opencode.dev/schema",
+  "version": "1.0",
+  "module": "mcp",
+  "description": "E2E test case designs for opencode-mcp crate - Model Context Protocol",
+  "test_cases": [
+    {
+      "id": "mcp_e2e_001",
+      "status": "not_started",
+      "title": "MCP server connection",
+      "description": "Test MCP client connects to MCP server",
+      "modules": ["mcp"],
+      "steps": [
+        "Start MCP server",
+        "Create MCP client",
+        "Connect to server",
+        "List available tools"
+      ],
+      "expected_outcomes": [
+        "Connection established",
+        "Tools enumerated correctly"
+      ]
+    },
+    {
+      "id": "mcp_e2e_002",
+      "status": "not_started",
+      "title": "MCP tool invocation",
+      "description": "Test calling MCP tool through client",
+      "modules": ["mcp"],
+      "steps": [
+        "Connect to MCP server with tools",
+        "Call MCP tool via protocol",
+        "Verify tool result returned"
+      ],
+      "expected_outcomes": [
+        "Tool call sent correctly",
+        "Result returned through protocol"
+      ]
+    },
+    {
+      "id": "mcp_sec_001",
+      "status": "not_started",
+      "title": "MCP tool injection prevention",
+      "description": "CRITICAL: Malformed tool arguments must not inject commands",
+      "modules": ["mcp"],
+      "risk_addressed": "Injection attack via tool arguments",
+      "preconditions": "MCP server with tool that takes path argument",
+      "test_data": [
+        {"args": {"path": "; rm -rf /"}, "issue": "shell injection"},
+        {"args": {"path": "file.txt\nexploit"}, "issue": "newline injection"},
+        {"args": {"path": "$(whoami)"}, "issue": "command substitution"}
+      ],
+      "steps": [
+        "Send tool call with malicious arguments",
+        "Verify server does not execute injection",
+        "Verify error returned"
+      ],
+      "expected_outcomes": [
+        "Injection attempts sanitized",
+        "Error returned to caller",
+        "No command executed"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "mcp_sec_002",
+      "status": "not_started",
+      "title": "MCP server authentication",
+      "description": "MCP server must authenticate clients",
+      "modules": ["mcp"],
+      "risk_addressed": "Unauthorized MCP server access",
+      "preconditions": "MCP server with auth configured",
+      "steps": [
+        "Connect without token",
+        "Verify connection rejected",
+        "Connect with valid token",
+        "Verify connection accepted"
+      ],
+      "expected_outcomes": [
+        "Unauthenticated connections rejected",
+        "Authenticated connections accepted",
+        "Token validated per request"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "mcp_stability_001",
+      "status": "not_started",
+      "title": "MCP server crash recovery",
+      "description": "Client must handle server crash and reconnect",
+      "modules": ["mcp"],
+      "risk_addressed": "Agent hangs on MCP server crash",
+      "preconditions": "MCP client connected",
+      "steps": [
+        "Send request to MCP server",
+        "Server crashes",
+        "Verify client detects failure",
+        "Server restarts",
+        "Verify client reconnects"
+      ],
+      "expected_outcomes": [
+        "Failure detected and error returned",
+        "Client reconnects automatically",
+        "Pending requests retried"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "mcp_proto_001",
+      "status": "not_started",
+      "title": "MCP protocol version mismatch",
+      "description": "Client and server version mismatch handled gracefully",
+      "modules": ["mcp"],
+      "risk_addressed": "Crash or hang on protocol mismatch",
+      "preconditions": "Client and server with different MCP versions",
+      "steps": [
+        "Connect client v1 to server v2",
+        "Verify error or negotiation",
+        "Verify compatible version selected"
+      ],
+      "expected_outcomes": [
+        "Version mismatch handled",
+        "Either negotiated or error returned",
+        "No crash"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "mcp_proto_002",
+      "status": "not_started",
+      "title": "MCP streaming response handling",
+      "description": "Streaming tool results delivered completely",
+      "modules": ["mcp"],
+      "risk_addressed": "Partial streaming results accepted as complete",
+      "preconditions": "MCP server with streaming tool",
+      "steps": [
+        "Call tool that streams results",
+        "Verify complete stream received",
+        "Simulate stream truncation",
+        "Verify error on incomplete stream"
+      ],
+      "expected_outcomes": [
+        "Complete streams processed fully",
+        "Truncated streams detected",
+        "No partial data treated as complete"
+      ],
+      "priority": "medium"
+    }
+  ],
+  "test_metadata": {
+    "module": "mcp",
+    "crate": "opencode-mcp",
+    "source": "crates/mcp/src/lib.rs",
+    "total_cases": 8,
+    "category": "integration",
+    "critical_invariants": [
+      "Tool arguments sanitized, no injection",
+      "Server crash does not crash client",
+      "Streaming results complete"
+    ],
+    "high_risk_scenarios": [
+      "mcp_sec_001: Tool injection via arguments",
+      "mcp_stability_001: Client hang on server crash"
+    ]
+  }
+}

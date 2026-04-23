@@ -1,0 +1,489 @@
+{
+  "$schema": "https://tasks.opencode.dev/schema",
+  "version": "1.0",
+  "module": "cli",
+  "description": "E2E test case designs for opencode-cli crate - Command-line interface",
+  "test_cases": [
+    {
+      "id": "cli_e2e_001",
+      "status": "not_started",
+      "title": "CLI run command with prompt",
+      "description": "Test 'opencode run' with inline prompt",
+      "modules": ["cli", "agent", "session"],
+      "steps": [
+        "Run: opencode run --prompt 'Hello'",
+        "Verify agent responds",
+        "Verify NDJSON output format correct"
+      ],
+      "expected_outcomes": [
+        "Command completes successfully",
+        "Output is valid NDJSON",
+        "Error events properly formatted"
+      ]
+    },
+    {
+      "id": "cli_e2e_002",
+      "status": "not_started",
+      "title": "CLI session list and show",
+      "description": "Test session management commands",
+      "modules": ["cli", "session"],
+      "steps": [
+        "opencode session list",
+        "opencode session show {id}",
+        "opencode session delete {id}",
+        "Verify outputs correct"
+      ],
+      "expected_outcomes": [
+        "List shows all sessions",
+        "Show displays session details",
+        "Delete removes session"
+      ]
+    },
+    {
+      "id": "cli_e2e_003",
+      "status": "not_started",
+      "title": "CLI config get and set",
+      "description": "Test config subcommands",
+      "modules": ["cli", "config"],
+      "steps": [
+        "opencode config get model",
+        "opencode config set model gpt-4o",
+        "opencode config show"
+      ],
+      "expected_outcomes": [
+        "Get returns current value",
+        "Set updates config",
+        "Show displays full config"
+      ]
+    },
+    {
+      "id": "cli_e2e_004",
+      "status": "not_started",
+      "title": "CLI agent invocation",
+      "description": "Test 'opencode agent' command",
+      "modules": ["cli", "agent"],
+      "steps": [
+        "opencode agent plan 'Plan my project'",
+        "Verify plan agent responds",
+        "Verify output formatted correctly"
+      ],
+      "expected_outcomes": [
+        "Agent command works",
+        "Correct agent type invoked"
+      ]
+    },
+    {
+      "id": "cli_e2e_005",
+      "status": "not_started",
+      "title": "CLI web server mode",
+      "description": "Test 'opencode web' command",
+      "modules": ["cli", "server"],
+      "steps": [
+        "opencode web --port 3000",
+        "Verify server starts",
+        "Verify port binding"
+      ],
+      "expected_outcomes": [
+        "Server starts successfully",
+        "Port correctly bound"
+      ]
+    },
+    {
+      "id": "cli_e2e_006",
+      "status": "not_started",
+      "title": "CLI serve mode",
+      "description": "Test 'opencode serve' API server",
+      "modules": ["cli", "server"],
+      "steps": [
+        "opencode serve --port 8080",
+        "Verify API endpoints available",
+        "Verify health check works"
+      ],
+      "expected_outcomes": [
+        "API server starts",
+        "Endpoints accessible"
+      ]
+    },
+    {
+      "id": "cli_e2e_007",
+      "status": "not_started",
+      "title": "NDJSONSerializer output format",
+      "description": "Test NDJSONSerializer produces valid output",
+      "modules": ["cli"],
+      "steps": [
+        "Create serializer with stdout",
+        "Write start event",
+        "Write message event",
+        "Write done event",
+        "Parse output as NDJSON lines"
+      ],
+      "expected_outcomes": [
+        "Each event on separate line",
+        "Valid JSON per line"
+      ]
+    },
+    {
+      "id": "cli_e2e_008",
+      "status": "not_started",
+      "title": "CLI info command",
+      "description": "Test 'opencode info' displays system info",
+      "modules": ["cli"],
+      "steps": [
+        "opencode info",
+        "Verify version shown",
+        "Verify config path displayed"
+      ],
+      "expected_outcomes": [
+        "Info displayed correctly",
+        "Version matches package"
+      ]
+    },
+    {
+      "id": "cli_sig_001",
+      "status": "not_started",
+      "title": "SIGINT during agent run - graceful interrupt",
+      "description": "CRITICAL: Ctrl+C during agent execution must stop cleanly",
+      "modules": ["cli", "agent"],
+      "risk_addressed": "Zombie process or hung terminal after Ctrl+C",
+      "preconditions": "Agent running a long task",
+      "steps": [
+        "Run: opencode run --prompt 'write a long response'",
+        "After 1 second, send SIGINT (Ctrl+C)",
+        "Verify process exits within 2 seconds",
+        "Verify terminal is clean (no cursor left in weird state)"
+      ],
+      "expected_outcomes": [
+        "Process exits cleanly on SIGINT",
+        "Exit code is 0 or 130 (128 + SIGINT=2)",
+        "No zombie process left",
+        "Terminal state restored (echo enabled, etc.)"
+      ],
+      "post_checks": [
+        "New commands work in same terminal",
+        "No orphaned background processes"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "cli_sig_002",
+      "status": "not_started",
+      "title": "SIGTERM during agent run - graceful shutdown",
+      "description": "SIGTERM must gracefully stop the agent",
+      "modules": ["cli", "agent"],
+      "risk_addressed": "Process killed without cleanup on SIGTERM",
+      "preconditions": "Agent running",
+      "steps": [
+        "Run opencode run in background",
+        "Send SIGTERM",
+        "Verify graceful shutdown (not force kill)"
+      ],
+      "expected_outcomes": [
+        "Process exits within timeout (5s)",
+        "Exit code 0 or 143 (SIGTERM)",
+        "Session state preserved"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "cli_pipe_001",
+      "status": "not_started",
+      "title": "Pipe breakage during output",
+      "description": "CRITICAL: When output pipe breaks (e.g., `| head`), process must handle gracefully",
+      "modules": ["cli"],
+      "risk_addressed": "Broken pipe causes crash or error message to user",
+      "preconditions": "None",
+      "steps": [
+        "Run: opencode run --prompt 'Hello' | head -n 1",
+        "Verify only first line of output returned",
+        "Verify opencode exits with code 0"
+      ],
+      "expected_outcomes": [
+        "Broken pipe handled (EPIPE ignored)",
+        "Process exits cleanly",
+        "Exit code 0 (not 141 which is SIGPIPE)"
+      ],
+      "post_checks": [
+        "No error message printed to stderr about broken pipe",
+        "Terminal not left in weird state"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "cli_pipe_002",
+      "status": "not_started",
+      "title": "Stdin closed in non-interactive mode",
+      "description": "When stdin is closed, run command must not hang",
+      "modules": ["cli", "agent"],
+      "risk_addressed": "Process hangs waiting for stdin input",
+      "preconditions": "None",
+      "steps": [
+        "Run: echo '' | opencode run --prompt 'test'",
+        "Run: opencode run --prompt 'test' </dev/null",
+        "Verify both complete without hanging"
+      ],
+      "expected_outcomes": [
+        "No hang on closed stdin",
+        "Command completes or fails gracefully"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "cli_args_001",
+      "status": "not_started",
+      "title": "--help output correctness",
+      "description": "--help must display correct usage information",
+      "modules": ["cli"],
+      "steps": [
+        "Run: opencode --help",
+        "Run: opencode run --help",
+        "Run: opencode session --help",
+        "Run: opencode agent --help"
+      ],
+      "expected_outcomes": [
+        "Help text displayed for all commands",
+        "No panic or error on --help",
+        "Exit code 0",
+        "Usage syntax is correct"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "cli_args_002",
+      "status": "not_started",
+      "title": "--version output correctness",
+      "description": "--version must display correct version string",
+      "modules": ["cli"],
+      "steps": [
+        "Run: opencode --version",
+        "Verify output matches Cargo.toml version"
+      ],
+      "expected_outcomes": [
+        "Version displayed",
+        "Format: 'opencode X.Y.Z' or 'opencode version X.Y.Z'",
+        "Exit code 0"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "cli_args_003",
+      "status": "not_started",
+      "title": "Invalid argument combinations rejected",
+      "description": "CLI must reject mutually exclusive or conflicting arguments",
+      "modules": ["cli"],
+      "test_data": [
+        {"args": ["--prompt", "hello", "--file", "input.txt"], "issue": "both prompt and file"},
+        {"args": ["run", "--prompt", "", "--model", ""], "issue": "empty prompt and model"},
+        {"args": ["session", "delete", "--all", "session-id"], "issue": "delete all with specific id"}
+      ],
+      "steps": [
+        "For each invalid combination, run opencode",
+        "Verify error message is descriptive",
+        "Verify exit code is non-zero"
+      ],
+      "expected_outcomes": [
+        "Invalid combination returns error",
+        "Error message explains what went wrong",
+        "No panic or confusing error"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "cli_env_001",
+      "status": "not_started",
+      "title": "Environment variable override precedence",
+      "description": "CLI flags must override environment variables",
+      "modules": ["cli", "config"],
+      "preconditions": "OPENCODE_MODEL=gpt-4o in environment",
+      "steps": [
+        "Run: opencode run --model gpt-4o-mini --prompt 'test'",
+        "Verify gpt-4o-mini used (CLI override)",
+        "Run: opencode run --prompt 'test' (no --model flag)",
+        "Verify gpt-4o used (env var fallback)"
+      ],
+      "expected_outcomes": [
+        "CLI flag takes precedence over env var",
+        "Env var used when no CLI flag provided",
+        "Precedence order: CLI > env > config file > defaults"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "cli_env_002",
+      "status": "not_started",
+      "title": "Config file path override via CLI flag",
+      "description": "Config file path can be overridden via CLI flag",
+      "modules": ["cli", "config"],
+      "preconditions": "Default config.json exists",
+      "steps": [
+        "Create alternate config at /tmp/alt_config.json",
+        "Run: opencode --config /tmp/alt_config.json info",
+        "Verify alternate config used"
+      ],
+      "expected_outcomes": [
+        "CLI --config flag overrides default config path",
+        "Invalid config path produces clear error"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "cli_tty_001",
+      "status": "not_started",
+      "title": "Interactive mode when stdin is not a tty",
+      "description": "CLI must not enter interactive mode when stdin is pipe/file",
+      "modules": ["cli"],
+      "risk_addressed": "Process hangs waiting for interactive input from non-interactive stdin",
+      "preconditions": "None",
+      "steps": [
+        "Run: echo 'prompt' | opencode run",
+        "Run: opencode run < input_file.txt",
+        "Verify both complete (not interactive)"
+      ],
+      "expected_outcomes": [
+        "Non-tty stdin does not trigger interactive mode",
+        "Commands complete without waiting for input",
+        "No 'Press enter to continue' prompts"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "cli_tty_002",
+      "status": "not_started",
+      "title": "Interactive mode detection",
+      "description": "CLI should detect interactive terminal and behave accordingly",
+      "modules": ["cli"],
+      "steps": [
+        "Run opencode in real terminal (tty)",
+        "Verify interactive prompts work",
+        "Run opencode with piped input",
+        "Verify non-interactive mode (batch)"
+      ],
+      "expected_outcomes": [
+        "TTY detected: interactive prompts shown",
+        "Non-TTY: batch mode, no prompts"
+      ],
+      "priority": "low"
+    },
+    {
+      "id": "cli_output_001",
+      "status": "not_started",
+      "title": "ANSI escape code handling in output",
+      "description": "NDJSON output must not contain raw ANSI escape codes",
+      "modules": ["cli"],
+      "steps": [
+        "Run opencode run with --no-ansi",
+        "Verify output contains no ANSI escape sequences",
+        "Run with --ansi (if supported)",
+        "Verify ANSI codes only when enabled"
+      ],
+      "expected_outcomes": [
+        "--no-ansi produces clean output without \\x1b[",
+        "Default behavior is consistent"
+      ],
+      "priority": "low"
+    },
+    {
+      "id": "cli_output_002",
+      "status": "not_started",
+      "title": "Output stream large response handling",
+      "description": "NDJSON output must handle large agent responses without buffering issues",
+      "modules": ["cli"],
+      "risk_addressed": "Large output overwhelming stdout buffer",
+      "preconditions": "None",
+      "steps": [
+        "Run: opencode run --prompt 'Write a 1MB text file'",
+        "Verify output completes without deadlock",
+        "Verify stdout buffer does not fill and block agent"
+      ],
+      "expected_outcomes": [
+        "Large output streams without deadlock",
+        "No buffering deadlock (producer not blocked by full buffer)"
+      ],
+      "post_checks": [
+        "Output is complete (not truncated)",
+        "Exit code 0"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "cli_error_001",
+      "status": "not_started",
+      "title": "Error exit codes are correct",
+      "description": "CLI must return specific exit codes for different error types",
+      "modules": ["cli"],
+      "test_data": [
+        {"scenario": "invalid_args", "expected_code": 1},
+        {"scenario": "config_not_found", "expected_code": 1},
+        {"scenario": "session_not_found", "expected_code": 1},
+        {"scenario": "provider_error", "expected_code": 1},
+        {"scenario": "interrupt", "expected_code": 130}
+      ],
+      "steps": [
+        "Trigger each error scenario",
+        "Check exit code"
+      ],
+      "expected_outcomes": [
+        "Exit codes match expected values",
+        "130 for SIGINT (not 1)",
+        "Error messages go to stderr, not stdout"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "cli_desktop_001",
+      "status": "not_started",
+      "title": "Desktop mode browser auto-open",
+      "description": "opencode desktop command opens browser automatically",
+      "modules": ["cli", "server"],
+      "risk_addressed": "Browser does not open, or wrong URL",
+      "preconditions": "None (desktop mode)",
+      "steps": [
+        "Run: opencode desktop --port 3000",
+        "Wait 2 seconds",
+        "Verify browser opened with correct URL",
+        "Verify URL is http://localhost:3000"
+      ],
+      "expected_outcomes": [
+        "Browser launched",
+        "Correct URL opened",
+        "Server responds on that URL"
+      ],
+      "priority": "low"
+    },
+    {
+      "id": "cli_acp_001",
+      "status": "not_started",
+      "title": "ACP mode handshake and connect",
+      "description": "ACP protocol commands work correctly",
+      "modules": ["cli"],
+      "steps": [
+        "opencode acp status",
+        "opencode acp handshake --client-id test --capabilities chat,tasks",
+        "Verify status shows capabilities"
+      ],
+      "expected_outcomes": [
+        "ACP commands return structured output",
+        "Handshake returns connection info"
+      ],
+      "priority": "low"
+    }
+  ],
+  "test_metadata": {
+    "module": "cli",
+    "crate": "opencode-cli",
+    "source": "crates/cli/src/lib.rs",
+    "total_cases": 22,
+    "category": "infrastructure",
+    "critical_invariants": [
+      "SIGINT exits cleanly without zombie",
+      "Broken pipe handled gracefully",
+      "Non-tty stdin does not trigger interactive mode",
+      "Error exit codes are correct"
+    ],
+    "high_risk_scenarios": [
+      "cli_sig_001: SIGINT during long run (zombie/hung)",
+      "cli_pipe_001: Broken pipe crash",
+      "cli_tty_001: Non-tty stdin hang",
+      "cli_output_002: Large output buffering deadlock"
+    ]
+  }
+}

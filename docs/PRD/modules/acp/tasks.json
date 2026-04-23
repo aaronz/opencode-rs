@@ -1,0 +1,203 @@
+{
+  "$schema": "https://tasks.opencode.dev/schema",
+  "version": "1.0",
+  "module": "acp",
+  "description": "E2E test case designs for opencode-acp crate - Agent Communication Protocol",
+  "test_cases": [
+    {
+      "id": "acp_e2e_001",
+      "status": "not_started",
+      "title": "ACP handshake and connection",
+      "description": "Test ACP client performs handshake with server",
+      "modules": ["acp"],
+      "steps": [
+        "Start ACP server",
+        "Create ACP client",
+        "Perform handshake",
+        "Verify connection established"
+      ],
+      "expected_outcomes": [
+        "Handshake completes successfully",
+        "Capabilities exchanged"
+      ]
+    },
+    {
+      "id": "acp_e2e_002",
+      "status": "not_started",
+      "title": "ACP message routing",
+      "description": "Test messages routed correctly between agents",
+      "modules": ["acp"],
+      "steps": [
+        "Establish ACP connection",
+        "Send message to specific agent",
+        "Verify message delivered"
+      ],
+      "expected_outcomes": [
+        "Messages routed correctly",
+        "Unknown agents handled gracefully"
+      ]
+    },
+    {
+      "id": "acp_sec_001",
+      "status": "not_started",
+      "title": "ACP message replay prevention",
+      "description": "CRITICAL: Captured messages must not be replayable",
+      "modules": ["acp"],
+      "risk_addressed": "Replay attack captures valid message and re-sends",
+      "preconditions": "ACP connection established",
+      "steps": [
+        "Capture a message via MITM",
+        "Re-send the captured message",
+        "Verify message rejected as duplicate"
+      ],
+      "expected_outcomes": [
+        "Duplicate message rejected",
+        "Sequence number or nonce validated",
+        "Replay attack detected"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "acp_sec_002",
+      "status": "not_started",
+      "title": "ACP agent impersonation prevention",
+      "description": "Agents must authenticate to the ACP server",
+      "modules": ["acp"],
+      "risk_addressed": "Attacker impersonates valid agent",
+      "preconditions": "ACP server with auth",
+      "steps": [
+        "Connect without credentials",
+        "Attempt to send message as agent 'alice'",
+        "Verify rejected"
+      ],
+      "expected_outcomes": [
+        "Unauthenticated connections rejected",
+        "Impersonation attempt blocked",
+        "Auth required for message sending"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "acp_stability_001",
+      "status": "not_started",
+      "title": "ACP connection recovery after network glitch",
+      "description": "Connection must reconnect after temporary network loss",
+      "modules": ["acp"],
+      "risk_addressed": "Agent disconnected permanently on brief network issue",
+      "preconditions": "ACP client connected",
+      "steps": [
+        "Simulate 5-second network disconnect",
+        "Network restored",
+        "Verify automatic reconnection",
+        "Verify pending messages delivered"
+      ],
+      "expected_outcomes": [
+        "Reconnection occurs automatically",
+        "No messages lost during disconnect",
+        "Connection state consistent"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "acp_stability_002",
+      "status": "not_started",
+      "title": "ACP server restart handling",
+      "description": "Clients must reconnect and resync after server restart",
+      "modules": ["acp"],
+      "risk_addressed": "Agents stuck in invalid state after server restart",
+      "preconditions": "ACP client connected",
+      "steps": [
+        "Server restarts",
+        "Client detects disconnection",
+        "Server back online",
+        "Client reconnects",
+        "Verify session state recovered"
+      ],
+      "expected_outcomes": [
+        "Reconnection succeeds",
+        "Session state reconstructed",
+        "Pending operations resume"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "acp_proto_001",
+      "status": "not_started",
+      "title": "ACP malformed message handling",
+      "description": "Malformed messages handled without crashing",
+      "modules": ["acp"],
+      "risk_addressed": "Crash on malformed ACP message",
+      "preconditions": "ACP connection established",
+      "test_data": [
+        {"msg": "not json", "issue": "invalid JSON"},
+        {"msg": "{\"type\": \"unknown\"}", "issue": "unknown message type"},
+        {"msg": "{\"seq\": null}", "issue": "missing fields"}
+      ],
+      "steps": [
+        "Send malformed message",
+        "Verify error returned",
+        "Verify connection still alive"
+      ],
+      "expected_outcomes": [
+        "Malformed message rejected",
+        "Error logged",
+        "Connection not terminated"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "acp_routing_001",
+      "status": "not_started",
+      "title": "ACP agent not found handling",
+      "description": "Messages to unknown agents must return error",
+      "modules": ["acp"],
+      "risk_addressed": "Messages to unknown agents silently dropped",
+      "preconditions": "ACP connection established",
+      "steps": [
+        "Send message to agent 'nonexistent'",
+        "Verify error returned",
+        "Verify sender notified of failure"
+      ],
+      "expected_outcomes": [
+        "NotFound error returned",
+        "Sender receives error notification",
+        "No silent message loss"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "acp_routing_002",
+      "status": "not_started",
+      "title": "ACP message ordering guarantee",
+      "description": "Messages arrive in order for each agent pair",
+      "modules": ["acp"],
+      "risk_addressed": "Out-of-order messages cause incorrect behavior",
+      "preconditions": "ACP connection established",
+      "steps": [
+        "Send 10 messages rapidly to same agent",
+        "Verify receipt order matches send order"
+      ],
+      "expected_outcomes": [
+        "Messages received in order",
+        "No reordering"
+      ],
+      "priority": "medium"
+    }
+  ],
+  "test_metadata": {
+    "module": "acp",
+    "crate": "opencode-acp",
+    "source": "crates/acp/src/lib.rs",
+    "total_cases": 10,
+    "category": "integration",
+    "critical_invariants": [
+      "Message replay prevented",
+      "Agent impersonation blocked",
+      "Malformed messages don't crash server"
+    ],
+    "high_risk_scenarios": [
+      "acp_sec_001: Message replay attack",
+      "acp_sec_002: Agent impersonation"
+    ]
+  }
+}

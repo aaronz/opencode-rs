@@ -1,0 +1,461 @@
+{
+  "$schema": "https://tasks.opencode.dev/schema",
+  "version": "1.0",
+  "module": "agent",
+  "description": "E2E test case designs for opencode-agent crate - Agent orchestration and LLM integration",
+  "test_cases": [
+    {
+      "id": "agent_e2e_001",
+      "status": "not_started",
+      "title": "BuildAgent.run() completes with tool execution",
+      "description": "Test BuildAgent.run() executes tools and returns response. Critical: test the Agent::run() method directly, not internal run_loop.",
+      "modules": ["agent", "session", "tool", "provider"],
+      "steps": [
+        "Create Session with initial user message 'List files in /tmp'",
+        "Create BuildAgent instance",
+        "Create mock Provider that returns tool_call for bash ls /tmp",
+        "Call agent.run(&mut session, &provider, &tools)",
+        "Verify AgentResponse contains tool_calls",
+        "Execute tool call via ToolRegistry",
+        "Add tool result back to session",
+        "Call agent.run() again with tool result",
+        "Verify final response has no more tool_calls (user's turn)"
+      ],
+      "expected_outcomes": [
+        "First run returns AgentResponse with tool_calls",
+        "Tool calls parsed correctly with name and arguments",
+        "After tool execution and re-run, agent produces text response"
+      ],
+      "edge_cases": [
+        "Provider returns empty response (no tools, no text)",
+        "Provider errors - agent should return error"
+      ]
+    },
+    {
+      "id": "agent_e2e_002",
+      "status": "not_started",
+      "title": "PlanAgent enforces read-only constraints",
+      "description": "PlanAgent must return false for dangerous operations. Critical: UI relies on these flags.",
+      "modules": ["agent"],
+      "steps": [
+        "Create PlanAgent instance",
+        "Call can_execute_tools() - expect false",
+        "Call can_write_files() - expect false",
+        "Call can_run_commands() - expect false",
+        "Call is_visible() - expect true (should appear in UI)",
+        "Create PlanAgent.with_model('claude-3') - model override works",
+        "Verify all flags still match expected values"
+      ],
+      "expected_outcomes": [
+        "PlanAgent correctly reports can_execute_tools=false",
+        "PlanAgent correctly reports can_write_files=false",
+        "PlanAgent correctly reports can_run_commands=false",
+        "PlanAgent correctly reports is_visible=true",
+        "Model override does not affect permission flags"
+      ]
+    },
+    {
+      "id": "agent_e2e_003",
+      "status": "not_started",
+      "title": "PrimaryAgentTracker single-active invariant",
+      "description": "CRITICAL: Only ONE primary agent can be active. This is a core invariant - two simultaneous activations must error.",
+      "modules": ["agent"],
+      "steps": [
+        "Create PrimaryAgentTracker::new_active(AgentType::Build)",
+        "Verify state is Running and active_type is Some(Build)",
+        "Attempt activate(AgentType::Plan) - expect Err(RuntimeError::MultiplePrimaryAgents)",
+        "Verify error contains both current=Build and attempted=Plan",
+        "Call begin_transition() - expect Ok(Build), state becomes Transitioning",
+        "complete_transition(AgentType::Plan) - state becomes Running, active_type=Plan",
+        "deactivate() - expect Ok(Plan), state becomes Inactive"
+      ],
+      "expected_outcomes": [
+        "Single activation works",
+        "Second activation while active returns error with both types",
+        "Transition flow: Running -> Transitioning -> Running",
+        "Deactivation returns the deactivated agent type"
+      ],
+      "edge_cases": [
+        "deactivate() when already inactive -> Err(NoActivePrimaryAgent)",
+        "begin_transition() when not Running -> Err(AgentTransitionInProgress)"
+      ]
+    },
+    {
+      "id": "agent_e2e_004",
+      "status": "not_started",
+      "title": "invoke_subagent creates isolated child with inherited permissions",
+      "description": "CRITICAL: Subagent runs in isolation. Parent session must not be modified.",
+      "modules": ["agent", "session"],
+      "steps": [
+        "Create parent session with 2 messages",
+        "Create AgentRuntime with BuildAgent and permission_scope=ReadOnly",
+        "Create MockExploreAgent that adds a message to session",
+        "Call runtime.invoke_subagent(&explore, vec![msg], provider, tools)",
+        "Verify result.child_session_id != parent.id",
+        "Verify result.effective_permission_scope == ReadOnly",
+        "Load parent session - verify still has only 2 messages (UNCHANGED)"
+      ],
+      "expected_outcomes": [
+        "Child session has separate ID",
+        "Permissions inherited correctly",
+        "Parent session is NOT modified by subagent execution"
+      ],
+      "error_cases": [
+        "Subagent execution failure propagates as SubagentError",
+        "Invalid subagent context (empty messages) handled"
+      ]
+    },
+    {
+      "id": "agent_e2e_005",
+      "status": "not_started",
+      "title": "System agents hidden from UI listings",
+      "description": "CompactionAgent, TitleAgent, SummaryAgent must NOT appear in agent selection UI",
+      "modules": ["agent"],
+      "steps": [
+        "Create CompactionAgent - is_visible() returns false",
+        "Create TitleAgent - is_visible() returns false",
+        "Create SummaryAgent - is_visible() returns false",
+        "Create BuildAgent - is_visible() returns true",
+        "Create PlanAgent - is_visible() returns true",
+        "Filter all agents by is_visible() - should only get Build, Plan, General, etc."
+      ],
+      "expected_outcomes": [
+        "System agents return false for is_visible()",
+        "User-facing agents return true for is_visible()",
+        "UI can safely filter with is_visible() == true"
+      ]
+    },
+    {
+      "id": "agent_e2e_006",
+      "status": "not_started",
+      "title": "Agent preferred_model affects provider selection",
+      "description": "When agent has preferred_model, runtime should select that model. Critical for cost optimization.",
+      "modules": ["agent", "provider"],
+      "steps": [
+        "Create BuildAgent.with_model('gpt-4o-mini')",
+        "Verify preferred_model() returns Some('gpt-4o-mini')",
+        "Create PlanAgent without override",
+        "Verify preferred_model() returns None",
+        "Create AgentRuntime - verify agent_type matches",
+        "Verify runtime passes correct model hint to provider"
+      ],
+      "expected_outcomes": [
+        "Model override preserved after agent construction",
+        "Runtime uses preferred model when calling provider.chat()"
+      ]
+    },
+    {
+      "id": "agent_e2e_007",
+      "status": "not_started",
+      "title": "AgentType serialization uses lowercase JSON",
+      "description": "CRITICAL: AgentType must serialize to lowercase for API compatibility",
+      "modules": ["agent"],
+      "steps": [
+        "Serialize AgentType::Build to JSON -> '\"build\"'",
+        "Serialize AgentType::Plan to JSON -> '\"plan\"'",
+        "Deserialize '\"build\"' -> AgentType::Build",
+        "Deserialize '\"Build\"' -> should error (case sensitive)",
+        "Deserialize '\"explore\"' -> AgentType::Explore"
+      ],
+      "expected_outcomes": [
+        "All 10 AgentType variants serialize to lowercase",
+        "Roundtrip preserves original value",
+        "Uppercase/mixed case JSON returns error"
+      ]
+    },
+    {
+      "id": "agent_e2e_008",
+      "status": "not_started",
+      "title": "TaskDelegate.delegate_task() full lifecycle",
+      "description": "Test TaskDelegate coordinates task delegation to subagent with proper status tracking",
+      "modules": ["agent"],
+      "steps": [
+        "Create TaskDelegate",
+        "Create Task via Task::new(description, agent_type, delegator_type, context)",
+        "Verify task.status() == Pending",
+        "delegate_task(task, &subagent, provider, tools, runtime) -> Ok(TaskResult)",
+        "Verify result.status == Completed",
+        "Verify completed_tasks() contains the task",
+        "active_tasks() is empty after completion"
+      ],
+      "expected_outcomes": [
+        "Task starts Pending",
+        "Task transitions to InProgress during delegation",
+        "Task ends Completed with response",
+        "Task moved from active to completed"
+      ],
+      "error_cases": [
+        "delegate_task on already-terminal task -> Err(TaskNotDelegatable)",
+        "Subagent error -> result.status == Failed"
+      ]
+    },
+    {
+      "id": "agent_e2e_009",
+      "status": "not_started",
+      "title": "AgentEvent emission during execution",
+      "description": "BroadcastEventEmitter must deliver events in order to all subscribers",
+      "modules": ["agent"],
+      "steps": [
+        "Create BroadcastEventEmitter with buffer size 100",
+        "Subscribe to AgentEvent stream",
+        "Emit event: AgentStarted(AgentType::Build)",
+        "Emit event: ToolExecutionStarted('read', ...)",
+        "Emit event: ToolExecutionCompleted('read', ...)",
+        "Emit event: AgentCompleted",
+        "Verify subscriber receives all 4 events in order"
+      ],
+      "expected_outcomes": [
+        "All events delivered to subscriber",
+        "Event ordering preserved",
+        "Dropped subscriber receives no more events"
+      ]
+    },
+    {
+      "id": "agent_e2e_010",
+      "status": "not_started",
+      "title": "RuntimeConfig enforces iteration limits",
+      "description": "When max_iterations reached, runtime must stop and return error",
+      "modules": ["agent"],
+      "steps": [
+        "Create RuntimeConfig with max_iterations=2",
+        "Create AgentRuntime with this config",
+        "Mock provider that always returns tool_call",
+        "Call run_loop - expect error after 2 iterations",
+        "Verify error is MaxIterationsExceeded { limit: 2 }"
+      ],
+      "expected_outcomes": [
+        "Runtime stops after max_iterations",
+        "Error correctly indicates limit was reached"
+      ],
+      "edge_cases": [
+        "max_tool_results_per_iteration limit - when too many tool results in single iteration"
+      ]
+    },
+    {
+      "id": "agent_e2e_011",
+      "status": "not_started",
+      "title": "Agent execution handles provider errors gracefully",
+      "description": "When LLM provider fails, error should propagate with context",
+      "modules": ["agent", "provider"],
+      "steps": [
+        "Create mock Provider that returns Err(LlmError::RateLimited)",
+        "Create session with user message",
+        "Call agent.run()",
+        "Verify error is OpenCodeError::ProviderError or similar",
+        "Verify error message contains 'rate' or 'limit'"
+      ],
+      "expected_outcomes": [
+        "Provider error propagated to caller",
+        "Error type correctly identifies cause"
+      ]
+    },
+    {
+      "id": "agent_e2e_012",
+      "status": "not_started",
+      "title": "Session lock prevents concurrent agent execution",
+      "description": "CRITICAL: When agent is running, session should be locked to prevent concurrent modifications",
+      "modules": ["agent", "session"],
+      "steps": [
+        "Create AgentRuntime with session",
+        "Start agent.run() in background (don't await)",
+        "Attempt second agent.run() on same session",
+        "Verify second call fails with SessionLocked error"
+      ],
+      "expected_outcomes": [
+        "Concurrent execution blocked",
+        "Session remains consistent"
+      ],
+      "edge_cases": [
+        "After first agent completes, session unlocked for next execution"
+      ]
+    },
+    {
+      "id": "agent_e2e_013",
+      "status": "not_started",
+      "title": "Agent handles parallel tool calls from single response",
+      "description": "When provider returns multiple tool_calls in one response, agent must handle all correctly",
+      "modules": ["agent", "tool", "provider"],
+      "risk_addressed": "Provider returning >1 tool_calls (parallel tools) not handled correctly",
+      "preconditions": "ToolRegistry with ReadTool and BashTool registered",
+      "test_data": [
+        {
+          "provider_response": {
+            "tool_calls": [
+              {"name": "read", "arguments": {"path": "/tmp/file1.txt"}},
+              {"name": "read", "arguments": {"path": "/tmp/file2.txt"}}
+            ]
+          }
+        }
+      ],
+      "steps": [
+        "Create session with user message asking to read multiple files",
+        "Mock provider returns 2 tool_calls in single response",
+        "Call agent.run()",
+        "Verify both tool calls are returned in AgentResponse",
+        "Execute both tools, add results to session",
+        "Call agent.run() again",
+        "Verify agent synthesizes results correctly"
+      ],
+      "expected_outcomes": [
+        "AgentResponse contains both tool_calls",
+        "Both tools executed in correct order",
+        "Results synthesized into single coherent response"
+      ],
+      "post_checks": [
+        "Session contains both tool invocations",
+        "Final response references content from both files"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "agent_e2e_014",
+      "status": "not_started",
+      "title": "Nested agent call during tool execution",
+      "description": "When tool execution triggers another agent call, isolation is maintained",
+      "modules": ["agent", "session", "tool"],
+      "risk_addressed": "Tool execution modifying shared state that agent depends on",
+      "preconditions": "ToolRegistry with a tool that calls agent.run() internally",
+      "steps": [
+        "Create session with user message",
+        "Create BuildAgent",
+        "Mock provider returns tool_call for a nested-triggering tool",
+        "Call agent.run()",
+        "During tool execution, nested agent call happens",
+        "Verify outer agent's session is not modified by nested call",
+        "Verify nested call has its own session"
+      ],
+      "expected_outcomes": [
+        "Nested agent call creates isolated session",
+        "Outer agent's session state unchanged after nested call",
+        "Tool result returned to outer agent correctly"
+      ],
+      "post_checks": [
+        "Outer session message count unchanged by nested call",
+        "Nested call has separate message history"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "agent_e2e_015",
+      "status": "not_started",
+      "title": "Agent visibility respects permission scopes",
+      "description": "Agent visibility may differ based on permission scope (ReadOnly vs ReadWrite)",
+      "modules": ["agent"],
+      "steps": [
+        "Create BuildAgent - is_visible() should be true regardless of scope",
+        "Create AgentRuntime with permission_scope=ReadOnly",
+        "Verify BuildAgent.is_visible() returns true",
+        "Switch to permission_scope=ReadWrite",
+        "Verify BuildAgent.is_visible() returns true",
+        "Verify system agents (CompactionAgent etc) return false in both scopes"
+      ],
+      "expected_outcomes": [
+        "BuildAgent visible in all permission scopes",
+        "System agents hidden in all permission scopes",
+        "Permission scope does not affect visibility classification"
+      ],
+      "priority": "medium"
+    },
+    {
+      "id": "agent_conc_001",
+      "status": "not_started",
+      "title": "PrimaryAgentTracker concurrent activation from multiple threads",
+      "description": "CRITICAL: Verify single-active invariant holds under concurrent activation attempts. Race condition here could breach the core invariant.",
+      "modules": ["agent"],
+      "risk_addressed": "Race condition breaking the single-primary-agent invariant",
+      "preconditions": "PrimaryAgentTracker in Inactive state",
+      "steps": [
+        "Create PrimaryAgentTracker::new()",
+        "Spawn 100 threads simultaneously",
+        "Each thread calls activate() with random agent type (Build, Plan, Explore, etc.)",
+        "Collect all results",
+        "Verify exactly ONE call returned Ok, rest returned Err(MultiplePrimaryAgents)"
+      ],
+      "expected_outcomes": [
+        "Exactly one activation succeeded",
+        "All other activations failed with MultiplePrimaryAgents error",
+        "Error contains current and attempted agent types",
+        "State is consistent (Running with one active_type)"
+      ],
+      "post_checks": [
+        "Calling deactivate() returns the correct agent type",
+        "Subsequent activation works after deactivate"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "agent_panic_001",
+      "status": "not_started",
+      "title": "Session lock released on agent panic",
+      "description": "CRITICAL: Session lock must always be released when agent.run() panics. Permanent deadlock otherwise.",
+      "modules": ["agent", "session"],
+      "risk_addressed": "Session permanently locked after agent panic",
+      "preconditions": "AgentRuntime with session, mock provider configured",
+      "steps": [
+        "Mock provider that panics on chat() call",
+        "Call agent.run() wrapped in catch_unwind",
+        "Verify panic is caught and converted to Error",
+        "Immediately call agent.run() again on same session (without panic)",
+        "Verify second call succeeds (lock was released)"
+      ],
+      "expected_outcomes": [
+        "Panic caught and converted to Error result",
+        "Second call succeeds - lock was released",
+        "Session is not permanently locked"
+      ],
+      "post_checks": [
+        "Session can be used normally in subsequent calls",
+        "No zombie locks recorded in storage"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "agent_panic_002",
+      "status": "not_started",
+      "title": "TaskDelegate cleanup on subagent panic",
+      "description": "TaskDelegate must not leak tasks into active state when subagent panics",
+      "modules": ["agent"],
+      "risk_addressed": "Tasks stuck in active state forever after subagent panic",
+      "preconditions": "TaskDelegate with no active tasks",
+      "steps": [
+        "Create subagent that panics during execution",
+        "Start delegate_task() with this subagent",
+        "Verify panic is caught by TaskDelegate",
+        "Verify task is moved to completed_tasks() or error is returned",
+        "Verify active_tasks() is empty"
+      ],
+      "expected_outcomes": [
+        "Panic caught and converted to error result",
+        "Task not left in active state",
+        "Task appears in completed_tasks() with Failed status, or error returned"
+      ],
+      "post_checks": [
+        "TaskDelegate can accept new tasks after panic",
+        "No leaked state in TaskDelegate internal structures"
+      ],
+      "priority": "critical"
+    }
+  ],
+  "test_metadata": {
+    "module": "agent",
+    "crate": "opencode-agent",
+    "source": "crates/agent/src/lib.rs",
+    "total_cases": 18,
+    "category": "core",
+    "critical_invariants": [
+      "Only one primary agent active at a time",
+      "Subagent isolation (parent unchanged)",
+      "Session locked during execution",
+      "AgentType serialization is lowercase",
+      "Session lock released on panic",
+      "Tasks not leaked on subagent panic"
+    ],
+    "high_risk_scenarios": [
+      "agent_conc_001: Race condition in PrimaryAgentTracker",
+      "agent_panic_001: Session lock deadlock on panic",
+      "agent_panic_002: Task leak on subagent panic",
+      "agent_e2e_013: Parallel tool call handling",
+      "agent_e2e_014: Nested agent call isolation"
+    ]
+  }
+}
