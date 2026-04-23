@@ -54,7 +54,7 @@ git2 = "0.20"
 
 # Auth dependencies
 argon2 = "0.5"
-jsonwebtoken = "9"
+jsonwebtoken = "10"
 bcrypt = "0.15"
 
 # Encryption dependencies
