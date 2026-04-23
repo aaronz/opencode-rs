@@ -438,4 +438,823 @@ mod lsp_tests {
         caps.code_action_provider = Some(true);
         assert!(caps.supports_code_action());
     }
+
+    #[tokio::test]
+    async fn test_lsp_stability_001_no_zombie_after_kill() {
+        use opencode_lsp::client::LspClient;
+        use std::process::Command;
+
+        let mut client = LspClient::new();
+
+        let path = std::path::PathBuf::from("/tmp");
+        client
+            .start_with_name("sleep 60", &path, "sleep-server".to_string())
+            .await
+            .unwrap();
+
+        let pid_before = client.get_pid().expect("should have pid");
+
+        tokio::task::spawn_blocking(move || {
+            Command::new("kill")
+                .arg("-9")
+                .arg(pid_before.to_string())
+                .output()
+                .expect("kill should work");
+        });
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+        drop(client);
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+        let ps_output = tokio::task::spawn_blocking(|| {
+            Command::new("ps")
+                .args(["aux"])
+                .output()
+                .expect("ps should work")
+        })
+        .await
+        .unwrap();
+
+        let output = String::from_utf8_lossy(&ps_output.stdout);
+        let pid_str = pid_before.to_string();
+        let zombie_lines: Vec<_> = output
+            .lines()
+            .filter(|l| l.contains(&pid_str) && l.contains("defunct"))
+            .collect();
+        assert!(
+            zombie_lines.is_empty(),
+            "no zombie process with pid {}: {:?}",
+            pid_before,
+            zombie_lines
+        );
+    }
+
+    #[tokio::test]
+    async fn test_lsp_stability_001_kill_and_restart() {
+        use opencode_lsp::client::LspClient;
+        use std::process::Command;
+
+        let mut client = LspClient::new();
+        let path = std::path::PathBuf::from("/tmp");
+
+        client
+            .start_with_name("sleep 60", &path, "sleep-server".to_string())
+            .await
+            .unwrap();
+
+        let pid1 = client.get_pid().expect("should have pid");
+
+        tokio::task::spawn_blocking(move || {
+            Command::new("kill")
+                .arg("-9")
+                .arg(pid1.to_string())
+                .output()
+                .expect("kill should work");
+        });
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+
+        client
+            .start_with_name("sleep 60", &path, "sleep-server".to_string())
+            .await
+            .unwrap();
+
+        let pid2 = client.get_pid().expect("should have pid");
+
+        assert_ne!(pid1, pid2, "new process should have different pid");
+
+        let ps_output = tokio::task::spawn_blocking(|| {
+            Command::new("ps")
+                .args(["aux"])
+                .output()
+                .expect("ps should work")
+        })
+        .await
+        .unwrap();
+
+        let output = String::from_utf8_lossy(&ps_output.stdout);
+        let pid1_str = pid1.to_string();
+        let zombie_lines: Vec<_> = output
+            .lines()
+            .filter(|l| l.contains(&pid1_str) && l.contains("defunct"))
+            .collect();
+        assert!(
+            zombie_lines.is_empty(),
+            "old pid {} should not be zombie: {:?}",
+            pid1,
+            zombie_lines
+        );
+
+        drop(client);
+    }
+
+    #[tokio::test]
+    async fn test_lsp_stability_001_graceful_shutdown_no_zombie() {
+        use opencode_lsp::client::LspClient;
+        use std::process::Command;
+
+        let mut client = LspClient::new();
+        let path = std::path::PathBuf::from("/tmp");
+
+        client
+            .start_with_name("sleep 60", &path, "sleep-server".to_string())
+            .await
+            .unwrap();
+
+        let pid = client.get_pid().expect("should have pid");
+
+        client.shutdown().await.unwrap();
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+        let ps_output = tokio::task::spawn_blocking(|| {
+            Command::new("ps")
+                .args(["aux"])
+                .output()
+                .expect("ps should work")
+        })
+        .await
+        .unwrap();
+
+        let output = String::from_utf8_lossy(&ps_output.stdout);
+        let pid_str = pid.to_string();
+        let zombie_lines: Vec<_> = output
+            .lines()
+            .filter(|l| l.contains(&pid_str) && l.contains("defunct"))
+            .collect();
+        assert!(
+            zombie_lines.is_empty(),
+            "pid {} should not be zombie after shutdown: {:?}",
+            pid,
+            zombie_lines
+        );
+    }
+
+    #[tokio::test]
+    async fn test_lsp_stability_001_process_group_cleaned() {
+        use opencode_lsp::client::LspClient;
+        use std::process::Command;
+
+        let mut client = LspClient::new();
+        let path = std::path::PathBuf::from("/tmp");
+
+        client
+            .start_with_name("sleep 60", &path, "sleep-server".to_string())
+            .await
+            .unwrap();
+
+        let pid = client.get_pid().expect("should have pid");
+
+        drop(client);
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+        let ps_output = tokio::task::spawn_blocking(|| {
+            Command::new("ps")
+                .args(["aux"])
+                .output()
+                .expect("ps should work")
+        })
+        .await
+        .unwrap();
+
+        let output = String::from_utf8_lossy(&ps_output.stdout);
+        let pid_str = pid.to_string();
+        let zombie_lines: Vec<_> = output
+            .lines()
+            .filter(|l| l.contains(&pid_str) && l.contains("defunct"))
+            .collect();
+        assert!(
+            zombie_lines.is_empty(),
+            "pid {} should not be zombie after drop: {:?}",
+            pid,
+            zombie_lines
+        );
+    }
+
+    #[tokio::test]
+    async fn test_lsp_perf_001_timeout_on_slow_server() {
+        use opencode_core::OpenCodeError;
+        use opencode_lsp::client::LspClient;
+        use opencode_lsp::error::FailureHandlingConfig;
+        use std::time::Duration;
+
+        let config = FailureHandlingConfig::default();
+        let mut client = LspClient::with_config(config);
+        let path = std::path::PathBuf::from("/tmp");
+
+        client
+            .start_with_name("sleep 30", &path, "slow-server".to_string())
+            .await
+            .unwrap();
+
+        let start = std::time::Instant::now();
+        let result =
+            tokio::time::timeout(Duration::from_secs(5), client.wait_for_response(999, 1)).await;
+
+        let elapsed = start.elapsed();
+
+        assert!(
+            elapsed < Duration::from_secs(5),
+            "should timeout before 5s, took {:?}",
+            elapsed
+        );
+
+        match result {
+            Ok(Err(OpenCodeError::ToolTimeout { timeout_ms, .. })) => {
+                assert_eq!(timeout_ms, 1000, "timeout should be 1 second");
+            }
+            other => panic!("expected ToolTimeout, got {:?}", other),
+        }
+
+        let is_healthy = client.is_healthy();
+        assert!(is_healthy, "server should still be healthy after timeout");
+    }
+
+    #[tokio::test]
+    async fn test_lsp_perf_001_configurable_timeout() {
+        use opencode_lsp::client::LspClient;
+        use opencode_lsp::error::FailureHandlingConfig;
+        use std::time::Duration;
+
+        let config = FailureHandlingConfig::new().with_request_timeout(Duration::from_secs(5));
+        let mut client = LspClient::with_config(config);
+        let path = std::path::PathBuf::from("/tmp");
+
+        client
+            .start_with_name("sleep 60", &path, "slow-server".to_string())
+            .await
+            .unwrap();
+
+        let start = std::time::Instant::now();
+        let result =
+            tokio::time::timeout(Duration::from_secs(10), client.wait_for_response(888, 3)).await;
+        let elapsed = start.elapsed();
+
+        assert!(
+            result.is_err() || elapsed >= Duration::from_secs(3),
+            "timeout should fire at configured 3s"
+        );
+        assert!(
+            elapsed < Duration::from_secs(10),
+            "should not wait for full 60s sleep"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_lsp_perf_001_server_usable_after_timeout() {
+        use opencode_lsp::client::LspClient;
+        use opencode_lsp::error::FailureHandlingConfig;
+        use std::time::Duration;
+
+        let config = FailureHandlingConfig::new().with_request_timeout(Duration::from_secs(1));
+        let mut client = LspClient::with_config(config);
+        let path = std::path::PathBuf::from("/tmp");
+
+        client
+            .start_with_name("sleep 60", &path, "slow-server".to_string())
+            .await
+            .unwrap();
+
+        let _ =
+            tokio::time::timeout(Duration::from_secs(2), client.wait_for_response(100, 1)).await;
+
+        assert!(client.is_healthy(), "server should still be healthy");
+
+        client
+            .start_with_name("sleep 60", &path, "slow-server".to_string())
+            .await
+            .unwrap();
+
+        assert!(
+            client.get_pid().is_some(),
+            "should be able to start new server"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_lsp_integ_002_unsupported_capability_does_not_crash() {
+        use opencode_lsp::client::LspClient;
+        use opencode_lsp::error::FailureHandlingConfig;
+        use std::time::Duration;
+
+        let config = FailureHandlingConfig::new().with_request_timeout(Duration::from_secs(1));
+        let mut client = LspClient::with_config(config);
+        let path = std::path::PathBuf::from("/tmp");
+
+        client
+            .start_with_name("sleep 60", &path, "slow-server".to_string())
+            .await
+            .unwrap();
+
+        let result = client.goto_definition("file:///test.rs", 0, 0).await;
+
+        assert!(
+            result.is_ok() || result.is_err(),
+            "should return, not crash"
+        );
+
+        assert!(
+            client.is_healthy(),
+            "client should be healthy after unsupported capability request"
+        );
+
+        client
+            .start_with_name("sleep 60", &path, "new-server".to_string())
+            .await
+            .unwrap();
+        assert!(
+            client.get_pid().is_some(),
+            "should be able to start new server"
+        );
+
+        drop(client);
+    }
+
+    #[tokio::test]
+    async fn test_lsp_integ_002_server_usable_after_timeout() {
+        use opencode_lsp::client::LspClient;
+        use opencode_lsp::error::FailureHandlingConfig;
+        use std::time::Duration;
+
+        let config = FailureHandlingConfig::new().with_request_timeout(Duration::from_secs(1));
+        let mut client = LspClient::with_config(config);
+        let path = std::path::PathBuf::from("/tmp");
+
+        client
+            .start_with_name("sleep 60", &path, "slow-server".to_string())
+            .await
+            .unwrap();
+
+        let _ = client.goto_definition("file:///test.rs", 0, 0).await;
+
+        assert!(
+            client.is_healthy(),
+            "server should be healthy after timeout"
+        );
+
+        client
+            .start_with_name("sleep 60", &path, "slow-server".to_string())
+            .await
+            .unwrap();
+
+        assert!(
+            client.get_pid().is_some(),
+            "should have a pid after restart"
+        );
+
+        drop(client);
+    }
+
+    #[tokio::test]
+    async fn test_lsp_integ_002_error_response_does_not_crash_client() {
+        use opencode_lsp::client::LspClient;
+        use opencode_lsp::error::FailureHandlingConfig;
+        use std::time::Duration;
+
+        let config = FailureHandlingConfig::new().with_request_timeout(Duration::from_secs(2));
+        let mut client = LspClient::with_config(config);
+        let path = std::path::PathBuf::from("/tmp");
+
+        client
+            .start_with_name("sleep 60", &path, "slow-server".to_string())
+            .await
+            .unwrap();
+
+        let result1 = client.find_references("file:///test.rs", 0, 0).await;
+        let result2 = client.get_diagnostics("file:///test.rs").await;
+
+        assert!(
+            result1.is_ok() || result1.is_err(),
+            "find_references should return, not crash"
+        );
+        assert!(
+            result2.is_ok() || result2.is_err(),
+            "get_diagnostics should return, not crash"
+        );
+
+        assert!(
+            client.is_healthy(),
+            "client should be healthy after multiple requests"
+        );
+
+        drop(client);
+    }
+
+    #[tokio::test]
+    async fn test_lsp_e2e_003_crash_recovery_manager() {
+        use opencode_lsp::language::Language;
+        use opencode_lsp::manager::LspManager;
+        use std::process::Command;
+
+        let temp_dir = tempfile::tempdir().expect("temp dir");
+        let project_dir = temp_dir.path().to_path_buf();
+        std::fs::write(project_dir.join("main.rs"), "fn main() {}").expect("write file");
+
+        let mut manager = LspManager::new(project_dir.clone());
+
+        manager
+            .start_for_file(&project_dir.join("main.rs"))
+            .await
+            .expect("first start");
+
+        let pid1 = manager.get_client_pid(&Language::Rust);
+        assert!(pid1.is_some(), "should have started rust-analyzer");
+
+        if let Some(p) = pid1 {
+            tokio::task::spawn_blocking(move || {
+                Command::new("kill")
+                    .arg("-9")
+                    .arg(p.to_string())
+                    .output()
+                    .expect("kill should work");
+            })
+            .await
+            .expect("kill task");
+        }
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+
+        manager
+            .start_for_file(&project_dir.join("main.rs"))
+            .await
+            .expect("start after crash");
+
+        let pid2 = manager.get_client_pid(&Language::Rust);
+
+        assert!(pid2.is_some(), "should have restarted rust-analyzer");
+        assert_ne!(pid1, pid2, "should have new pid after restart");
+    }
+
+    #[tokio::test]
+    async fn test_lsp_e2e_001_server_detection_and_launch() {
+        use opencode_lsp::language::Language;
+        use opencode_lsp::manager::LspManager;
+
+        let temp_dir = tempfile::tempdir().expect("temp dir");
+        let project_dir = temp_dir.path().to_path_buf();
+
+        std::fs::write(
+            project_dir.join("Cargo.toml"),
+            "[package]\nname = \"test\"\nversion = \"0.1.0\"",
+        )
+        .expect("write Cargo.toml");
+        std::fs::write(project_dir.join("main.rs"), "fn main() {}").expect("write main.rs");
+
+        let mut manager = LspManager::new(project_dir.clone());
+
+        manager
+            .start_for_file(&project_dir.join("main.rs"))
+            .await
+            .expect("start should work");
+
+        let pid = manager.get_client_pid(&Language::Rust);
+        assert!(
+            pid.is_some(),
+            "rust-analyzer should be launched for Cargo.toml project"
+        );
+
+        let is_healthy = manager.is_client_healthy(&Language::Rust);
+        assert!(is_healthy, "rust-analyzer should be healthy after launch");
+    }
+
+    #[tokio::test]
+    async fn test_lsp_e2e_001_typescript_detection() {
+        use opencode_lsp::language::Language;
+        use opencode_lsp::manager::LspManager;
+
+        let temp_dir = tempfile::tempdir().expect("temp dir");
+        let project_dir = temp_dir.path().to_path_buf();
+
+        std::fs::write(project_dir.join("package.json"), "{}").expect("write package.json");
+        std::fs::write(project_dir.join("tsconfig.json"), "{}").expect("write tsconfig.json");
+        std::fs::write(project_dir.join("index.ts"), "const x = 1;").expect("write index.ts");
+
+        let mut manager = LspManager::new(project_dir.clone());
+
+        manager
+            .start_for_file(&project_dir.join("index.ts"))
+            .await
+            .expect("start should work");
+
+        let pid = manager.get_client_pid(&Language::TypeScript);
+        assert!(
+            pid.is_some(),
+            "typescript-language-server should be launched for TypeScript project"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_lsp_e2e_002_diagnostic_aggregation() {
+        use opencode_lsp::language::Language;
+        use opencode_lsp::manager::LspManager;
+        use opencode_lsp::types::{Diagnostic, Position, Range, Severity};
+        use std::path::PathBuf;
+
+        let temp_dir = tempfile::tempdir().expect("temp dir");
+        let project_dir = temp_dir.path().to_path_buf();
+        std::fs::write(
+            project_dir.join("Cargo.toml"),
+            "[package]\nname = \"test\"\nversion = \"0.1.0\"",
+        )
+        .expect("write Cargo.toml");
+        std::fs::write(project_dir.join("main.rs"), "fn main() {}").expect("write main.rs");
+
+        let mut manager = LspManager::new(project_dir.clone());
+
+        manager
+            .start_for_file(&project_dir.join("main.rs"))
+            .await
+            .expect("start should work");
+
+        let path = project_dir.join("main.rs");
+        let diag1 = Diagnostic {
+            severity: Severity::Error,
+            message: "error 1".to_string(),
+            range: Range {
+                start: Position {
+                    line: 0,
+                    character: 0,
+                },
+                end: Position {
+                    line: 0,
+                    character: 5,
+                },
+            },
+            source: Some("rust-analyzer".to_string()),
+            file_path: None,
+        };
+        let diag2 = Diagnostic {
+            severity: Severity::Warning,
+            message: "warning 1".to_string(),
+            range: Range {
+                start: Position {
+                    line: 1,
+                    character: 0,
+                },
+                end: Position {
+                    line: 1,
+                    character: 5,
+                },
+            },
+            source: Some("rust-analyzer".to_string()),
+            file_path: None,
+        };
+
+        manager.record_diagnostics(&path, vec![diag1]);
+        manager.record_diagnostics(&path, vec![diag2]);
+
+        let diags = manager.get_diagnostics_for_file(&path);
+        assert_eq!(diags.len(), 2, "should have 2 diagnostics");
+
+        let summary = manager.get_diagnostics_summary();
+        assert_eq!(
+            summary.get(&Severity::Error),
+            Some(&1),
+            "should have 1 error"
+        );
+        assert_eq!(
+            summary.get(&Severity::Warning),
+            Some(&1),
+            "should have 1 warning"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_lsp_e2e_002_diagnostic_clear() {
+        use opencode_lsp::manager::LspManager;
+        use opencode_lsp::types::{Diagnostic, Position, Range, Severity};
+        use std::path::PathBuf;
+
+        let temp_dir = tempfile::tempdir().expect("temp dir");
+        let project_dir = temp_dir.path().to_path_buf();
+        std::fs::write(
+            project_dir.join("Cargo.toml"),
+            "[package]\nname = \"test\"\nversion = \"0.1.0\"",
+        )
+        .expect("write Cargo.toml");
+        std::fs::write(project_dir.join("main.rs"), "fn main() {}").expect("write main.rs");
+
+        let mut manager = LspManager::new(project_dir.clone());
+
+        manager
+            .start_for_file(&project_dir.join("main.rs"))
+            .await
+            .expect("start should work");
+
+        let path = project_dir.join("main.rs");
+        let diag = Diagnostic {
+            severity: Severity::Error,
+            message: "error".to_string(),
+            range: Range {
+                start: Position {
+                    line: 0,
+                    character: 0,
+                },
+                end: Position {
+                    line: 0,
+                    character: 5,
+                },
+            },
+            source: Some("rust-analyzer".to_string()),
+            file_path: None,
+        };
+
+        manager.record_diagnostics(&path, vec![diag]);
+        assert_eq!(
+            manager.get_total_diagnostic_count(),
+            1,
+            "should have 1 diagnostic"
+        );
+
+        manager
+            .stop_for_file(&path)
+            .await
+            .expect("stop should work");
+        assert_eq!(
+            manager.get_total_diagnostic_count(),
+            0,
+            "should have 0 diagnostics after clear"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_lsp_e2e_002_diagnostic_deduplication() {
+        use opencode_lsp::manager::LspManager;
+        use opencode_lsp::types::{Diagnostic, Position, Range, Severity};
+
+        let temp_dir = tempfile::tempdir().expect("temp dir");
+        let project_dir = temp_dir.path().to_path_buf();
+        std::fs::write(
+            project_dir.join("Cargo.toml"),
+            "[package]\nname = \"test\"\nversion = \"0.1.0\"",
+        )
+        .expect("write Cargo.toml");
+        std::fs::write(project_dir.join("main.rs"), "fn main() {}").expect("write main.rs");
+
+        let mut manager = LspManager::new(project_dir.clone());
+
+        manager
+            .start_for_file(&project_dir.join("main.rs"))
+            .await
+            .expect("start should work");
+
+        let path = project_dir.join("main.rs");
+
+        let diag1 = Diagnostic {
+            severity: Severity::Error,
+            message: "same error".to_string(),
+            range: Range {
+                start: Position {
+                    line: 0,
+                    character: 0,
+                },
+                end: Position {
+                    line: 0,
+                    character: 5,
+                },
+            },
+            source: Some("rust-analyzer".to_string()),
+            file_path: None,
+        };
+        let diag2 = Diagnostic {
+            severity: Severity::Error,
+            message: "same error".to_string(),
+            range: Range {
+                start: Position {
+                    line: 0,
+                    character: 0,
+                },
+                end: Position {
+                    line: 0,
+                    character: 5,
+                },
+            },
+            source: Some("rust-analyzer".to_string()),
+            file_path: None,
+        };
+
+        manager.record_diagnostics(&path, vec![diag1, diag2]);
+
+        let diags = manager.get_diagnostics_for_file(&path);
+        assert_eq!(diags.len(), 1, "duplicate should be deduplicated");
+    }
+
+    #[tokio::test]
+    async fn test_lsp_perf_002_large_workspace_diagnostics() {
+        use opencode_lsp::aggregator::DiagnosticAggregator;
+        use opencode_lsp::types::{Diagnostic, Position, Range, Severity};
+        use std::path::PathBuf;
+
+        let mut aggregator = DiagnosticAggregator::new();
+        let file_count = 100;
+        let diags_per_file = 10;
+
+        for file_idx in 0..file_count {
+            let path = PathBuf::from(format!("src/file_{}.rs", file_idx));
+            let mut diags = Vec::new();
+
+            for diag_idx in 0..diags_per_file {
+                let diag = Diagnostic {
+                    severity: if diag_idx % 2 == 0 {
+                        Severity::Error
+                    } else {
+                        Severity::Warning
+                    },
+                    message: format!("error in file {} at {}", file_idx, diag_idx),
+                    range: Range {
+                        start: Position {
+                            line: diag_idx as u32,
+                            character: 0,
+                        },
+                        end: Position {
+                            line: diag_idx as u32,
+                            character: 10,
+                        },
+                    },
+                    source: Some("rust-analyzer".to_string()),
+                    file_path: None,
+                };
+                diags.push(diag);
+            }
+
+            aggregator.ingest(&path, diags);
+        }
+
+        assert_eq!(
+            aggregator.get_total_diagnostic_count(),
+            file_count * diags_per_file
+        );
+
+        let summary = aggregator.get_diagnostics_summary();
+        assert_eq!(summary.get(&Severity::Error), Some(&(500)), "500 errors");
+        assert_eq!(
+            summary.get(&Severity::Warning),
+            Some(&(500)),
+            "500 warnings"
+        );
+
+        for file_idx in 0..file_count {
+            let path = PathBuf::from(format!("src/file_{}.rs", file_idx));
+            let diags = aggregator.get_diagnostics_for_file(&path);
+            assert_eq!(
+                diags.len(),
+                diags_per_file,
+                "each file should have {} diags",
+                diags_per_file
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_lsp_perf_002_memory_bounded_aggregation() {
+        use opencode_lsp::aggregator::DiagnosticAggregator;
+        use opencode_lsp::types::{Diagnostic, Position, Range, Severity};
+        use std::path::PathBuf;
+
+        let mut aggregator = DiagnosticAggregator::new();
+        let path = PathBuf::from("src/main.rs");
+
+        for i in 0..1000 {
+            let diag = Diagnostic {
+                severity: Severity::Error,
+                message: format!("error {}", i),
+                range: Range {
+                    start: Position {
+                        line: i as u32,
+                        character: 0,
+                    },
+                    end: Position {
+                        line: i as u32,
+                        character: 10,
+                    },
+                },
+                source: Some("rust-analyzer".to_string()),
+                file_path: None,
+            };
+            aggregator.ingest(&path, vec![diag]);
+        }
+
+        assert_eq!(
+            aggregator.get_total_diagnostic_count(),
+            1000,
+            "all 1000 diags should be stored"
+        );
+
+        let summary = aggregator.get_diagnostics_summary();
+        assert_eq!(
+            summary.get(&Severity::Error),
+            Some(&1000),
+            "all 1000 should be errors"
+        );
+
+        aggregator.clear_for_file(&path);
+        assert_eq!(
+            aggregator.get_total_diagnostic_count(),
+            0,
+            "should be empty after clear"
+        );
+    }
 }

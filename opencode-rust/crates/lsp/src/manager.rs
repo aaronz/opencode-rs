@@ -47,7 +47,13 @@ impl LspManager {
             return Ok(());
         }
 
-        if !self.clients.contains_key(&language) {
+        if !self.clients.contains_key(&language)
+            || !self
+                .clients
+                .get(&language)
+                .map(|c| c.is_healthy())
+                .unwrap_or(false)
+        {
             let mut client = LspClient::new();
             if let Some(command) = language.server_command() {
                 client.start(command, &self.root).await?;
@@ -61,8 +67,10 @@ impl LspManager {
         if let Some(client) = self.clients.get_mut(&language) {
             let diagnostics = client
                 .get_diagnostics(path.to_string_lossy().as_ref())
-                .await?;
-            self.aggregator.ingest(path, diagnostics);
+                .await;
+            if let Ok(diags) = diagnostics {
+                self.aggregator.ingest(path, diags);
+            }
         }
 
         Ok(())
@@ -135,6 +143,17 @@ impl LspManager {
 
     pub fn get_diagnostics_summary(&self) -> HashMap<Severity, usize> {
         self.aggregator.get_diagnostics_summary()
+    }
+
+    pub fn get_client_pid(&self, language: &Language) -> Option<u32> {
+        self.clients.get(language).and_then(|c| c.get_pid())
+    }
+
+    pub fn is_client_healthy(&self, language: &Language) -> bool {
+        self.clients
+            .get(language)
+            .map(|c| c.is_healthy())
+            .unwrap_or(false)
     }
 }
 

@@ -63,6 +63,7 @@ impl LspClient {
     ) -> Result<(), OpenCodeError> {
         if let Some(mut old_process) = self.process.take() {
             let _ = old_process.kill().await;
+            let _ = old_process.wait().await;
         }
 
         let mut cmd = Command::new("sh");
@@ -74,6 +75,7 @@ impl LspClient {
             .current_dir(root_path);
 
         let mut child = cmd
+            .kill_on_drop(true)
             .spawn()
             .map_err(|e| OpenCodeError::Tui(format!("Failed to spawn LSP server: {}", e)))?;
 
@@ -435,7 +437,8 @@ impl LspClient {
             .send_notification("shutdown", serde_json::json!({}))
             .await;
         if let Some(mut process) = self.process.take() {
-            process.kill().await.ok();
+            let _ = process.kill().await;
+            let _ = process.wait().await;
         }
         self.is_running.store(false, Ordering::SeqCst);
         Ok(())
@@ -486,6 +489,10 @@ impl LspClient {
 
     pub fn get_config(&self) -> &FailureHandlingConfig {
         &self.config
+    }
+
+    pub fn get_pid(&self) -> Option<u32> {
+        self.process.as_ref().and_then(|p| p.id())
     }
 }
 

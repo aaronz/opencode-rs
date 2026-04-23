@@ -371,29 +371,50 @@ async fn test_bash_injection_prevention() {
     if tool_names.contains(&"bash") {
         use opencode_tools::bash::BashTool;
         let bash_tool = BashTool::new();
-        let malicious_commands = vec![
-            "cat /etc/passwd",
-            "echo 'hello'; rm -rf /",
-            "$(cat test.txt)",
+
+        let legitimate_commands = vec![
+            ("echo hello", true),
+            ("ls -la", true),
+            ("cat test.txt", true),
         ];
-        for cmd in malicious_commands {
+        for (cmd, should_succeed) in legitimate_commands {
             let result = bash_tool
                 .execute(
                     serde_json::json!({"command": cmd, "cwd": project.path().to_string_lossy()}),
                     None,
                 )
                 .await;
-            match result {
-                Ok(r) => {
-                    if r.success {
-                        assert!(
-                            !r.content.contains("root:"),
-                            "Bash injection should be prevented"
-                        );
-                    }
-                }
-                Err(_) => assert!(true, "Dangerous command should be rejected"),
-            }
+            assert!(result.is_ok(), "Legitimate command should succeed: {}", cmd);
+            assert!(
+                result.as_ref().unwrap().success,
+                "Legitimate command should succeed: {}",
+                cmd
+            );
+        }
+
+        let malicious_commands = vec![
+            ("cat /etc/passwd", "shell metacharacter"),
+            ("echo 'hello'; rm -rf /", "semicolon separator"),
+            ("$(cat test.txt)", "command substitution"),
+            ("`id`", "backtick substitution"),
+            ("echo $SHELL", "variable expansion"),
+            ("a' OR '1'='1", "SQL-like injection"),
+            ("cd / && ls", "command chaining"),
+            (" newline\nwhoami ", "newline injection"),
+        ];
+        for (cmd, description) in malicious_commands {
+            let result = bash_tool
+                .execute(
+                    serde_json::json!({"command": cmd, "cwd": project.path().to_string_lossy()}),
+                    None,
+                )
+                .await;
+            assert!(
+                result.is_err() || result.as_ref().map(|r| !r.success).unwrap_or(false),
+                "Dangerous command should be rejected: {} ({})",
+                cmd,
+                description
+            );
         }
     }
 }

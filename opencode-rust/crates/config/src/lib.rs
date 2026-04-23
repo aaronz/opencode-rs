@@ -1071,6 +1071,13 @@ impl Config {
         Ok(config)
     }
 
+    pub fn patch(&self, partial: &Config) -> Config {
+        let base_json = serde_json::to_value(self).unwrap_or_default();
+        let patch_json = serde_json::to_value(partial).unwrap_or_default();
+        let merged = merge::deep_merge(&base_json, &patch_json);
+        serde_json::from_value(merged).unwrap_or_else(|_| self.clone())
+    }
+
     fn parse_json_content(content: &str) -> Result<Self, ConfigError> {
         let value = if let Ok(v) = serde_json::from_str::<serde_json::Value>(content) {
             v

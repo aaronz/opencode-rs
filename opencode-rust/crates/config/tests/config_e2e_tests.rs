@@ -351,6 +351,43 @@ async fn config_validation_rejects_tui_fields_in_runtime() {
 }
 
 #[tokio::test]
+async fn config_e2e_002_deep_merge_on_patch() {
+    let base_config = Config {
+        log_level: Some(opencode_config::LogLevel::Info),
+        server: Some(opencode_config::ServerConfig {
+            port: Some(3000),
+            hostname: Some("localhost".to_string()),
+            mdns: Some(true),
+            mdns_domain: None,
+            cors: None,
+            desktop: None,
+            acp: None,
+        }),
+        model: Some("gpt-4".to_string()),
+        ..Default::default()
+    };
+
+    let patch_config = Config {
+        server: Some(opencode_config::ServerConfig {
+            port: Some(4000),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+
+    let result = base_config.patch(&patch_config);
+
+    assert_eq!(result.server.as_ref().unwrap().port, Some(4000));
+    assert_eq!(
+        result.server.as_ref().unwrap().hostname,
+        Some("localhost".to_string())
+    );
+    assert_eq!(result.server.as_ref().unwrap().mdns, Some(true));
+    assert_eq!(result.model, Some("gpt-4".to_string()));
+    assert_eq!(result.log_level, Some(opencode_config::LogLevel::Info));
+}
+
+#[tokio::test]
 async fn config_e2e_nested_config_loading() {
     let temp_dir = TempDir::new().unwrap();
     let config_path = temp_dir.path().join("config.json");
