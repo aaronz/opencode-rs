@@ -68,7 +68,10 @@ async fn create_test_state() -> TestState {
         audit_log: None,
     };
 
-    TestState { state, _temp_dir: temp_dir }
+    TestState {
+        state,
+        _temp_dir: temp_dir,
+    }
 }
 
 // ============================================================================
@@ -335,7 +338,10 @@ async fn test_session_list_messages_pagination() {
 
     // List messages with pagination
     let req = test::TestRequest::get()
-        .uri(&format!("/api/sessions/{}/messages?limit=10&offset=0", session_id))
+        .uri(&format!(
+            "/api/sessions/{}/messages?limit=10&offset=0",
+            session_id
+        ))
         .to_request();
 
     let resp = test::call_service(&app, req).await;
@@ -470,7 +476,10 @@ async fn test_session_command_empty_command_fails() {
         .to_request();
 
     let cmd_resp = test::call_service(&app, cmd_req).await;
-    assert!(cmd_resp.status() == StatusCode::BAD_REQUEST || cmd_resp.status() == StatusCode::UNPROCESSABLE_ENTITY);
+    assert!(
+        cmd_resp.status() == StatusCode::BAD_REQUEST
+            || cmd_resp.status() == StatusCode::UNPROCESSABLE_ENTITY
+    );
 }
 
 #[actix_web::test]
@@ -655,8 +664,14 @@ async fn test_provider_create_valid_request() {
     let body = test::read_body(resp).await;
     let json: serde_json::Value = serde_json::from_slice(&body).expect("Valid JSON");
 
-    assert_eq!(json.get("provider_id"), Some(&serde_json::json!("test-provider")));
-    assert_eq!(json.get("endpoint"), Some(&serde_json::json!("https://api.test.com")));
+    assert_eq!(
+        json.get("provider_id"),
+        Some(&serde_json::json!("test-provider"))
+    );
+    assert_eq!(
+        json.get("endpoint"),
+        Some(&serde_json::json!("https://api.test.com"))
+    );
 }
 
 #[actix_web::test]
@@ -883,7 +898,9 @@ async fn test_permissions_list_returns_permission_list() {
     )
     .await;
 
-    let req = test::TestRequest::get().uri("/api/permissions").to_request();
+    let req = test::TestRequest::get()
+        .uri("/api/permissions")
+        .to_request();
     let resp = test::call_service(&app, req).await;
 
     assert_eq!(resp.status(), StatusCode::OK);
@@ -1158,8 +1175,14 @@ async fn test_error_responses_have_consistent_format() {
     let json: serde_json::Value = serde_json::from_slice(&body).expect("Valid JSON");
 
     // Error responses should have error, message, and code fields
-    assert!(json.get("error").is_some(), "Error should have 'error' field");
-    assert!(json.get("message").is_some(), "Error should have 'message' field");
+    assert!(
+        json.get("error").is_some(),
+        "Error should have 'error' field"
+    );
+    assert!(
+        json.get("message").is_some(),
+        "Error should have 'message' field"
+    );
     assert!(json.get("code").is_some(), "Error should have 'code' field");
 }
 

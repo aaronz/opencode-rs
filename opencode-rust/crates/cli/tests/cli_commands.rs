@@ -379,9 +379,12 @@ fn test_shortcuts_set_requires_args() {
 fn test_shortcuts_set_with_args() {
     let harness = TestHarness::setup();
     let output = harness.run_cli(&[
-        "shortcuts", "set",
-        "--command", "palette.open",
-        "--shortcut", "Ctrl+Shift+P"
+        "shortcuts",
+        "set",
+        "--command",
+        "palette.open",
+        "--shortcut",
+        "Ctrl+Shift+P",
     ]);
 
     assert!(
@@ -528,10 +531,7 @@ fn test_bash_failing_command() {
     let harness = TestHarness::setup();
     let output = harness.run_cli(&["bash", "--command", "exit 1"]);
 
-    assert!(
-        !output.status.success(),
-        "bash exit 1 should fail"
-    );
+    assert!(!output.status.success(), "bash exit 1 should fail");
 }
 
 #[test]
@@ -704,10 +704,7 @@ fn test_invalid_flag_shows_error() {
     let output = harness.run_cli(&["--invalid-flag"]);
 
     // Should fail with error message
-    assert!(
-        !output.status.success(),
-        "invalid flag should fail"
-    );
+    assert!(!output.status.success(), "invalid flag should fail");
 }
 
 // ============================================================================
@@ -719,10 +716,7 @@ fn test_version_flag_takes_precedence() {
     let harness = TestHarness::setup();
     let output = harness.run_cli(&["--version"]);
 
-    assert!(
-        output.status.success(),
-        "--version should succeed"
-    );
+    assert!(output.status.success(), "--version should succeed");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("opencode-rs"));
@@ -736,17 +730,9 @@ fn test_help_with_command() {
     for cmd in &["agent", "db", "palette", "stats", "debug"] {
         let output = harness.run_cli(&[cmd, "--help"]);
 
-        assert!(
-            output.status.success(),
-            "{} --help should succeed",
-            cmd
-        );
+        assert!(output.status.success(), "{} --help should succeed", cmd);
 
         let stdout = String::from_utf8_lossy(&output.stdout);
-        assert!(
-            !stdout.is_empty(),
-            "{} --help should produce output",
-            cmd
-        );
+        assert!(!stdout.is_empty(), "{} --help should produce output", cmd);
     }
 }
