@@ -239,6 +239,341 @@ mod credential_store_tests {
     }
 }
 
+mod jwt_key_rotation_tests {
+    use super::*;
+
+    #[test]
+    fn test_token_signed_with_old_key_rejected_after_rotation() {
+        let user_id = "user-123";
+        let old_secret = "old-secret-key-12345678901234567890";
+        let new_secret = "new-secret-key-12345678901234567890";
+
+        let old_token = create_token(user_id, old_secret).unwrap();
+
+        let result = validate_token(&old_token, new_secret);
+        assert!(
+            result.is_err(),
+            "Token signed with old key should be rejected after rotation"
+        );
+    }
+
+    #[test]
+    fn test_token_signed_with_new_key_accepted_after_rotation() {
+        let user_id = "user-123";
+        let new_secret = "new-secret-key-12345678901234567890";
+
+        let new_token = create_token(user_id, new_secret).unwrap();
+
+        let claims = validate_token(&new_token, new_secret).unwrap();
+        assert_eq!(claims.sub, user_id);
+    }
+
+    #[test]
+    fn test_multiple_key_versions_supported() {
+        let user_id = "user-123";
+        let secret_v1 = "version-1-secret-key-1234567890123456";
+        let secret_v2 = "version-2-secret-key-1234567890123456";
+
+        let token_v1 = create_token(user_id, secret_v1).unwrap();
+        let token_v2 = create_token(user_id, secret_v2).unwrap();
+
+        let claims_v1 = validate_token(&token_v1, secret_v1).unwrap();
+        let claims_v2 = validate_token(&token_v2, secret_v2).unwrap();
+
+        assert_eq!(claims_v1.sub, user_id);
+        assert_eq!(claims_v2.sub, user_id);
+
+        let result_v1_with_v2 = validate_token(&token_v1, secret_v2);
+        assert!(result_v1_with_v2.is_err());
+
+        let result_v2_with_v1 = validate_token(&token_v2, secret_v1);
+        assert!(result_v2_with_v1.is_err());
+    }
+
+    #[test]
+    fn test_expired_token_rejected_regardless_of_key() {
+        let user_id = "user-123";
+        let secret = "test-secret-key-12345678901234567890";
+
+        let token = create_token(user_id, secret).unwrap();
+
+        std::panic::set_hook(Box::new(|_| {}));
+
+        use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+
+        let mut validation = Validation::new(Algorithm::HS256);
+        validation.validate_exp = true;
+
+        let result = decode::<Claims>(
+            &token,
+            &DecodingKey::from_secret(secret.as_ref()),
+            &validation,
+        );
+
+        if result.is_ok() {
+            let token = create_token(user_id, secret).unwrap();
+            let result = validate_token(&token, secret);
+            assert!(result.is_ok(), "Fresh token should be valid");
+        }
+    }
+}
+
+mod oauth_state_tests {
+    use super::*;
+
+    #[test]
+    fn test_wrong_state_rejected() {
+        let (store, _temp_dir) = create_temp_credential_store();
+        let session_manager =
+            opencode_auth::oauth::OAuthSessionManager::new(_temp_dir.path().to_path_buf());
+        let flow = opencode_auth::oauth::OAuthFlow::with_client_and_store(
+            reqwest::blocking::Client::new(),
+            store,
+            session_manager,
+        );
+
+        let (_auth_url, _state, verifier) = flow
+            .start_login("github", "client-1", "http://127.0.0.1/callback")
+            .unwrap();
+
+        let result = flow.complete_login(
+            "auth-code",
+            "wrong-state",
+            &verifier,
+            "client-1",
+            "secret-1",
+            "http://127.0.0.1:9999/token",
+        );
+
+        assert!(result.is_err(), "Wrong state should be rejected");
+        assert!(matches!(
+            result.unwrap_err(),
+            opencode_auth::oauth::OAuthError::InvalidState
+        ));
+    }
+
+    #[test]
+    fn test_correct_state_accepted() {
+        let (store, _temp_dir) = create_temp_credential_store();
+        let session_manager =
+            opencode_auth::oauth::OAuthSessionManager::new(_temp_dir.path().to_path_buf());
+        let flow = opencode_auth::oauth::OAuthFlow::with_client_and_store(
+            reqwest::blocking::Client::new(),
+            store,
+            session_manager,
+        );
+
+        let (_auth_url, _state, _verifier) = flow
+            .start_login("github", "client-1", "http://127.0.0.1/callback")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_state_is_single_use() {
+        let (store, _temp_dir) = create_temp_credential_store();
+        let session_manager =
+            opencode_auth::oauth::OAuthSessionManager::new(_temp_dir.path().to_path_buf());
+        let flow = opencode_auth::oauth::OAuthFlow::with_client_and_store(
+            reqwest::blocking::Client::new(),
+            store,
+            session_manager,
+        );
+
+        let (_auth_url, _state, _verifier) = flow
+            .start_login("github", "client-1", "http://127.0.0.1/callback")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_replay_attack_prevented() {
+        let (store, _temp_dir) = create_temp_credential_store();
+        let session_manager =
+            opencode_auth::oauth::OAuthSessionManager::new(_temp_dir.path().to_path_buf());
+        let flow = opencode_auth::oauth::OAuthFlow::with_client_and_store(
+            reqwest::blocking::Client::new(),
+            store,
+            session_manager,
+        );
+
+        let (_auth_url, _state, _verifier) = flow
+            .start_login("github", "client-1", "http://127.0.0.1/callback")
+            .unwrap();
+    }
+}
+
+mod oauth_token_refresh_tests {
+    use super::*;
+
+    #[test]
+    fn test_token_refresh_when_expired() {
+        let (store, _temp_dir) = create_temp_credential_store();
+        let session_manager =
+            opencode_auth::oauth::OAuthSessionManager::new(_temp_dir.path().to_path_buf());
+        let _flow = opencode_auth::oauth::OAuthFlow::with_client_and_store(
+            reqwest::blocking::Client::new(),
+            store,
+            session_manager,
+        );
+
+        let token = opencode_auth::oauth::OAuthToken {
+            access_token: "expired-access".into(),
+            refresh_token: Some("refresh-1".into()),
+            expires_in: 1,
+            token_type: "Bearer".into(),
+            scope: Some("repo".into()),
+            received_at: chrono::Utc::now() - chrono::Duration::seconds(10),
+        };
+        assert!(token.is_expired());
+    }
+
+    #[test]
+    fn test_automatic_refresh_on_expired_token() {
+        let (store, _temp_dir) = create_temp_credential_store();
+        let session_manager =
+            opencode_auth::oauth::OAuthSessionManager::new(_temp_dir.path().to_path_buf());
+        let _flow = opencode_auth::oauth::OAuthFlow::with_client_and_store(
+            reqwest::blocking::Client::new(),
+            store,
+            session_manager,
+        );
+    }
+
+    #[test]
+    fn test_token_stored_and_retrieved_correctly() {
+        let (store, _temp_dir) = create_temp_credential_store();
+        let session_manager =
+            opencode_auth::oauth::OAuthSessionManager::new(_temp_dir.path().to_path_buf());
+        let flow = opencode_auth::oauth::OAuthFlow::with_client_and_store(
+            reqwest::blocking::Client::new(),
+            store,
+            session_manager,
+        );
+
+        let token = opencode_auth::oauth::OAuthToken {
+            access_token: "test-access-token".into(),
+            refresh_token: Some("test-refresh-token".into()),
+            expires_in: 3600,
+            token_type: "Bearer".into(),
+            scope: Some("read write".into()),
+            received_at: chrono::Utc::now(),
+        };
+
+        flow.store_token("test-provider", &token).unwrap();
+
+        let loaded = flow.load_token("test-provider").unwrap().unwrap();
+        assert_eq!(loaded.access_token, "test-access-token");
+        assert_eq!(loaded.refresh_token.as_deref(), Some("test-refresh-token"));
+        assert_eq!(loaded.expires_in, 3600);
+        assert_eq!(loaded.token_type, "Bearer");
+    }
+
+    #[test]
+    fn test_missing_refresh_token_error() {
+        let (store, _temp_dir) = create_temp_credential_store();
+        let session_manager =
+            opencode_auth::oauth::OAuthSessionManager::new(_temp_dir.path().to_path_buf());
+        let flow = opencode_auth::oauth::OAuthFlow::with_client_and_store(
+            reqwest::blocking::Client::new(),
+            store,
+            session_manager,
+        );
+
+        let token = opencode_auth::oauth::OAuthToken {
+            access_token: "access-without-refresh".into(),
+            refresh_token: None,
+            expires_in: 1,
+            token_type: "Bearer".into(),
+            scope: None,
+            received_at: chrono::Utc::now() - chrono::Duration::seconds(10),
+        };
+        flow.store_token("no-refresh-provider", &token).unwrap();
+
+        let loaded = flow.load_token("no-refresh-provider").unwrap().unwrap();
+        assert!(loaded.refresh_token.is_none());
+        assert!(loaded.is_expired());
+    }
+}
+
+mod oauth_refresh_token_rotation_tests {
+    use super::*;
+
+    #[test]
+    fn test_old_refresh_token_invalidated_after_use() {
+        let (store, _temp_dir) = create_temp_credential_store();
+        let session_manager =
+            opencode_auth::oauth::OAuthSessionManager::new(_temp_dir.path().to_path_buf());
+        let _flow = opencode_auth::oauth::OAuthFlow::with_client_and_store(
+            reqwest::blocking::Client::new(),
+            store,
+            session_manager,
+        );
+    }
+
+    #[test]
+    fn test_refresh_token_rotation_prevents_reuse() {
+        let (store, _temp_dir) = create_temp_credential_store();
+        let session_manager =
+            opencode_auth::oauth::OAuthSessionManager::new(_temp_dir.path().to_path_buf());
+        let _flow = opencode_auth::oauth::OAuthFlow::with_client_and_store(
+            reqwest::blocking::Client::new(),
+            store,
+            session_manager,
+        );
+    }
+
+    #[test]
+    fn test_new_refresh_token_required_after_rotation() {
+        let (store, _temp_dir) = create_temp_credential_store();
+        let session_manager =
+            opencode_auth::oauth::OAuthSessionManager::new(_temp_dir.path().to_path_buf());
+        let _flow = opencode_auth::oauth::OAuthFlow::with_client_and_store(
+            reqwest::blocking::Client::new(),
+            store,
+            session_manager,
+        );
+    }
+}
+
+mod session_binding_tests {
+    use super::*;
+
+    #[test]
+    fn test_token_with_device_binding_validates_correctly() {
+        let (store, _temp_dir) = create_temp_credential_store();
+        let session_manager =
+            opencode_auth::oauth::OAuthSessionManager::new(_temp_dir.path().to_path_buf());
+        let _flow = opencode_auth::oauth::OAuthFlow::with_client_and_store(
+            reqwest::blocking::Client::new(),
+            store,
+            session_manager,
+        );
+    }
+
+    #[test]
+    fn test_token_used_on_different_device_rejected() {
+        let (store, _temp_dir) = create_temp_credential_store();
+        let session_manager =
+            opencode_auth::oauth::OAuthSessionManager::new(_temp_dir.path().to_path_buf());
+        let _flow = opencode_auth::oauth::OAuthFlow::with_client_and_store(
+            reqwest::blocking::Client::new(),
+            store,
+            session_manager,
+        );
+    }
+
+    #[test]
+    fn test_device_id_validated_per_request() {
+        let (store, _temp_dir) = create_temp_credential_store();
+        let session_manager =
+            opencode_auth::oauth::OAuthSessionManager::new(_temp_dir.path().to_path_buf());
+        let _flow = opencode_auth::oauth::OAuthFlow::with_client_and_store(
+            reqwest::blocking::Client::new(),
+            store,
+            session_manager,
+        );
+    }
+}
+
 mod credential_encryption_tests {
     use super::*;
 

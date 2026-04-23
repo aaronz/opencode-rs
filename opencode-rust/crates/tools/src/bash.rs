@@ -8,6 +8,63 @@ use std::time::{Duration, Instant};
 use tokio::process::Command;
 use tokio::time::timeout;
 
+const DANGEROUS_SHELL_CHARS: &[char] = &[';', '|', '&', '>', '<', '`', '\n', '\r'];
+
+fn is_shell_injection(command: &str) -> Option<String> {
+    if command.contains("&&") || command.contains("||") {
+        return Some("Logical operators (&&, ||) are not allowed".to_string());
+    }
+    if command.contains(";;") {
+        return Some("Case statement operator (;;) is not allowed".to_string());
+    }
+    if command.contains('\n') || command.contains('\r') {
+        return Some("Newline characters are not allowed".to_string());
+    }
+
+    for ch in DANGEROUS_SHELL_CHARS {
+        if command.contains(*ch) {
+            match ch {
+                ';' => return Some("Semicolons are not allowed".to_string()),
+                '|' => return Some("Pipes are not allowed".to_string()),
+                '&' => return Some("Background operators are not allowed".to_string()),
+                '>' => return Some("Output redirection is not allowed".to_string()),
+                '<' => return Some("Input redirection is not allowed".to_string()),
+                '`' => return Some("Backtick command substitution is not allowed".to_string()),
+                '\n' | '\r' => return Some("Newline characters are not allowed".to_string()),
+                _ => {}
+            }
+        }
+    }
+
+    if command.contains("$(") || command.contains("$('')") {
+        return Some("Command substitution $(...) is not allowed".to_string());
+    }
+
+    let has_backtick_sub = command.contains("`");
+    if has_backtick_sub {
+        return Some("Backtick command substitution is not allowed".to_string());
+    }
+
+    if command.contains("${") && command.contains("}") {
+        let re = regex::Regex::new(r"\$\{[^}]+\}").ok();
+        if let Some(re) = re {
+            if re.is_match(command) {
+                let simple_var_re = regex::Regex::new(r"\$[a-zA-Z_][a-zA-Z0-9_]*").ok();
+                if let Some(simple_var_re) = simple_var_re {
+                    let remaining: String = re.replace_all(command, "").to_string();
+                    if !simple_var_re.is_match(&remaining) {
+                        return Some(
+                            "Variable expansion with braces ${...} is not allowed".to_string(),
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    None
+}
+
 pub struct BashTool {
     default_timeout: Duration,
     max_output_length: usize,
@@ -38,11 +95,33 @@ impl Default for BashTool {
 
 impl sealed::Sealed for BashTool {}
 
+const DANGEROUS_ENV_VARS: &[&str] = &[
+    "LD_PRELOAD",
+    "LD_LIBRARY_PATH",
+    "LD_AUDIT",
+    "LD_DEBUG",
+    "LD_PROFILE",
+    "DYLD_INSERT_LIBRARIES",
+    "DYLD_LIBRARY_PATH",
+    "_ORIGINAL_RPATH",
+    "ORIGINAL_LD_LIBRARY_PATH",
+    "OPENCODE_INJECTED",
+];
+
+fn filter_dangerous_env_vars() -> Vec<(String, String)> {
+    std::env::vars()
+        .filter(|(key, _)| !DANGEROUS_ENV_VARS.iter().any(|&dangerous| key == dangerous))
+        .collect()
+}
+
 async fn run_command_with_timeout(
     command: &str,
     workdir: &str,
     timeout_duration: Duration,
 ) -> Result<(Vec<u8>, Vec<u8>, i32), String> {
+    let filtered_env = filter_dangerous_env_vars();
+    let env_slice: Vec<(String, String)> = filtered_env;
+
     let child = Command::new("sh")
         .arg("-c")
         .arg(command)
@@ -50,6 +129,7 @@ async fn run_command_with_timeout(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true)
+        .envs(env_slice.iter().map(|(k, v)| (k.as_str(), v.as_str())))
         .spawn()
         .map_err(|e| e.to_string())?;
 
@@ -96,6 +176,19 @@ impl Tool for BashTool {
         let description = args
             .description
             .unwrap_or_else(|| "Execute command".to_string());
+
+        if let Some(reason) = is_shell_injection(&args.command) {
+            return Ok(ToolResult {
+                success: false,
+                content: String::new(),
+                error: Some(format!("Shell injection detected: {}", reason)),
+                title: None,
+                metadata: Some(serde_json::json!({
+                    "description": description,
+                    "rejected": true
+                })),
+            });
+        }
 
         let start = Instant::now();
         let output_result =

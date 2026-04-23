@@ -53,7 +53,7 @@ pub use workflow::{
 };
 
 pub use merge::{git_merge, MergeResult};
-pub use push_pull::{git_pull, git_push, PullResult, PushResult};
+pub use push_pull::{git_fetch, git_pull, git_push, PullResult, PushResult};
 pub use rebase::{git_rebase, git_rebase_abort, git_rebase_status, RebaseResult, RebaseStatus};
 pub use stash::{git_stash, git_stash_drop, git_stash_list, git_stash_pop, StashEntry};
 
@@ -118,6 +118,24 @@ impl GitManager {
         .map_err(|e| OpenCodeError::Tool(format!("Failed to print diff: {}", e)))?;
 
         Ok(result)
+    }
+
+    pub fn redact_credentials_from_url(&self, url: &str) -> String {
+        if let Some(at_pos) = url.find('@') {
+            if let Some(protocol_pos) = url.find("://") {
+                if at_pos > protocol_pos + 3 {
+                    return format!("{}://{}", &url[..protocol_pos + 3], &url[at_pos + 1..]);
+                }
+            } else if url.starts_with("git@") {
+                if let Some(colon_pos) = url.find(':') {
+                    if colon_pos < at_pos {
+                        return format!("git@{}:{}", &url[4..colon_pos], &url[at_pos + 1..]);
+                    }
+                }
+            }
+        }
+
+        url.to_string()
     }
 }
 

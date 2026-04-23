@@ -2,7 +2,7 @@ use git2::{BranchType, Repository};
 use opencode_core::OpenCodeError;
 use std::path::Path;
 
-pub fn git_checkout(repo_path: &Path, branch: &str) -> Result<(), OpenCodeError> {
+pub fn git_checkout(repo_path: &Path, branch: &str, force: bool) -> Result<(), OpenCodeError> {
     if branch.is_empty() {
         return Err(OpenCodeError::ValidationError {
             field: "branch".to_string(),
@@ -23,7 +23,11 @@ pub fn git_checkout(repo_path: &Path, branch: &str) -> Result<(), OpenCodeError>
         .map_err(|e| OpenCodeError::Tool(format!("Failed to peel to commit: {}", e)))?;
 
     let mut checkout_builder = git2::build::CheckoutBuilder::new();
-    checkout_builder.safe();
+    if force {
+        checkout_builder.force();
+    } else {
+        checkout_builder.safe();
+    }
 
     repo.checkout_head(Some(&mut checkout_builder))
         .map_err(|e| OpenCodeError::Tool(format!("Failed to checkout current HEAD: {}", e)))?;
@@ -32,10 +36,15 @@ pub fn git_checkout(repo_path: &Path, branch: &str) -> Result<(), OpenCodeError>
     repo.set_head(&references_head)
         .map_err(|e| OpenCodeError::Tool(format!("Failed to set HEAD to '{}': {}", branch, e)))?;
 
-    repo.checkout_head(Some(&mut git2::build::CheckoutBuilder::new()))
-        .map_err(|e| {
-            OpenCodeError::Tool(format!("Failed to checkout branch '{}': {}", branch, e))
-        })?;
+    let mut final_checkout = git2::build::CheckoutBuilder::new();
+    if force {
+        final_checkout.force();
+    } else {
+        final_checkout.safe();
+    }
+    repo.checkout_head(Some(&mut final_checkout)).map_err(|e| {
+        OpenCodeError::Tool(format!("Failed to checkout branch '{}': {}", branch, e))
+    })?;
 
     Ok(())
 }
@@ -92,6 +101,67 @@ pub fn git_checkout_create(repo_path: &Path, name: &str) -> Result<(), OpenCodeE
         })?;
 
     Ok(())
+}
+
+pub fn git_checkout_commit(repo_path: &Path, commit_oid: &str) -> Result<(), OpenCodeError> {
+    if commit_oid.is_empty() {
+        return Err(OpenCodeError::ValidationError {
+            field: "commit_oid".to_string(),
+            message: "Commit OID cannot be empty".to_string(),
+        });
+    }
+
+    let repo = Repository::discover(repo_path)
+        .map_err(|e| OpenCodeError::Tool(format!("Failed to discover repository: {}", e)))?;
+
+    let oid = git2::Oid::from_str(commit_oid)
+        .map_err(|e| OpenCodeError::Tool(format!("Invalid commit OID '{}': {}", commit_oid, e)))?;
+
+    let commit = repo
+        .find_commit(oid)
+        .map_err(|e| OpenCodeError::Tool(format!("Commit '{}' not found: {}", commit_oid, e)))?;
+
+    let mut checkout_builder = git2::build::CheckoutBuilder::new();
+    checkout_builder.force();
+
+    repo.checkout_head(Some(&mut checkout_builder))
+        .map_err(|e| OpenCodeError::Tool(format!("Failed to checkout current HEAD: {}", e)))?;
+
+    repo.set_head_detached(oid).map_err(|e| {
+        OpenCodeError::Tool(format!(
+            "Failed to set HEAD to commit '{}': {}",
+            commit_oid, e
+        ))
+    })?;
+
+    repo.checkout_head(Some(&mut checkout_builder))
+        .map_err(|e| {
+            OpenCodeError::Tool(format!("Failed to checkout commit '{}': {}", commit_oid, e))
+        })?;
+
+    Ok(())
+}
+
+pub fn git_current_branch(repo_path: &Path) -> Result<String, OpenCodeError> {
+    let repo = Repository::discover(repo_path)
+        .map_err(|e| OpenCodeError::Tool(format!("Failed to discover repository: {}", e)))?;
+
+    let head = repo
+        .head()
+        .map_err(|e| OpenCodeError::Tool(format!("Failed to get HEAD: {}", e)))?;
+
+    if !head.is_branch() && !head.is_tag() {
+        return Err(OpenCodeError::Tool(
+            "Cannot get branch name: HEAD is in detached state".to_string(),
+        ));
+    }
+
+    let branch_name = head
+        .shorthand()
+        .ok_or_else(|| OpenCodeError::Tool("HEAD has no branch name".to_string()))?
+        .to_string();
+
+    Ok(branch_name)
 }
 
 pub fn git_checkout_file(
@@ -171,14 +241,14 @@ mod tests {
     #[test]
     fn test_git_checkout_empty_branch_error() {
         let temp_dir = create_test_repo();
-        let result = git_checkout(temp_dir.path(), "");
+        let result = git_checkout(temp_dir.path(), "", true);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_git_checkout_nonexistent_branch_error() {
         let temp_dir = create_test_repo();
-        let result = git_checkout(temp_dir.path(), "nonexistent-branch");
+        let result = git_checkout(temp_dir.path(), "nonexistent-branch", true);
         assert!(result.is_err());
     }
 
@@ -191,8 +261,8 @@ mod tests {
         repo.branch("feature-a", &head, false).unwrap();
         repo.branch("feature-b", &head, false).unwrap();
 
-        git_checkout(temp_dir.path(), "feature-a").unwrap();
-        git_checkout(temp_dir.path(), "feature-b").unwrap();
+        git_checkout(temp_dir.path(), "feature-a", true).unwrap();
+        git_checkout(temp_dir.path(), "feature-b", true).unwrap();
 
         let repo = Repository::open(temp_dir.path()).unwrap();
         let head_ref = repo.head().unwrap();
@@ -234,7 +304,7 @@ mod tests {
         let head = repo.head().unwrap().peel_to_commit().unwrap();
         repo.branch("existing-branch", &head, false).unwrap();
 
-        git_checkout(temp_dir.path(), "existing-branch").unwrap();
+        git_checkout(temp_dir.path(), "existing-branch", true).unwrap();
         git_checkout_create(temp_dir.path(), "another-feature").unwrap();
 
         let repo = Repository::open(temp_dir.path()).unwrap();

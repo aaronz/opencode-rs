@@ -1,6 +1,54 @@
-use git2::Repository;
+use git2::{FetchOptions, Repository};
 use opencode_core::OpenCodeError;
 use std::path::Path;
+
+pub fn git_fetch(repo_path: &Path, remote: &str) -> Result<(), OpenCodeError> {
+    if remote.is_empty() {
+        return Err(OpenCodeError::ValidationError {
+            field: "remote".to_string(),
+            message: "Remote name cannot be empty".to_string(),
+        });
+    }
+
+    let repo = Repository::discover(repo_path)
+        .map_err(|e| OpenCodeError::Tool(format!("Failed to discover repository: {}", e)))?;
+
+    let mut remote_obj = repo
+        .find_remote(remote)
+        .map_err(|e| OpenCodeError::Tool(format!("Remote '{}' not found: {}", remote, e)))?;
+
+    let mut fetch_options = FetchOptions::new();
+    let mut remote_callbacks = git2::RemoteCallbacks::new();
+    remote_callbacks.credentials(|_url, username_from_url, _cred_type| {
+        if let Some(username) = username_from_url {
+            git2::Cred::ssh_key_from_agent(username)
+        } else {
+            git2::Cred::ssh_key_from_agent("git")
+        }
+    });
+    fetch_options.remote_callbacks(remote_callbacks);
+
+    remote_obj
+        .fetch(
+            &["refs/heads/*:refs/heads/*"],
+            Some(&mut fetch_options),
+            None,
+        )
+        .map_err(|e| {
+            let msg = e.message();
+            if msg.contains("authentication") || msg.contains("auth") || msg.contains("credential")
+            {
+                OpenCodeError::ProviderAuthFailed(format!(
+                    "Authentication failed for remote '{}': {}",
+                    remote, msg
+                ))
+            } else {
+                OpenCodeError::Tool(format!("Fetch failed: {}", msg))
+            }
+        })?;
+
+    Ok(())
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PushResult {
