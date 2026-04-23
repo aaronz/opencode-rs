@@ -133,10 +133,12 @@
     },
     {
       "id": "storage_e2e_008",
-      "status": "not_started",
+      "status": "completed",
       "title": "Shareability verification",
       "description": "Test CompactionManager verifies shareability before compaction",
       "modules": ["storage"],
+      "test_file": "crates/storage/src/compaction.rs",
+      "test_modules": ["shareability_verification_tests"],
       "steps": [
         "Create sharable session",
         "Run shareability verification",
