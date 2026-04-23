@@ -3,8 +3,9 @@ use crate::{Tool, ToolResult};
 use async_trait::async_trait;
 use opencode_core::OpenCodeError;
 use serde::Deserialize;
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 use std::time::{Duration, Instant};
+use tokio::process::Command;
 use tokio::time::timeout;
 
 pub struct BashTool {
@@ -36,6 +37,33 @@ impl Default for BashTool {
 }
 
 impl sealed::Sealed for BashTool {}
+
+async fn run_command_with_timeout(
+    command: &str,
+    workdir: &str,
+    timeout_duration: Duration,
+) -> Result<(Vec<u8>, Vec<u8>, i32), String> {
+    let child = Command::new("sh")
+        .arg("-c")
+        .arg(command)
+        .current_dir(workdir)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+
+    let result = timeout(timeout_duration, child.wait_with_output()).await;
+
+    match result {
+        Ok(Ok(output)) => {
+            let status = output.status;
+            Ok((output.stdout, output.stderr, status.code().unwrap_or(-1)))
+        }
+        Ok(Err(e)) => Err(e.to_string()),
+        Err(_) => Err("Command timed out".to_string()),
+    }
+}
 
 #[async_trait]
 impl Tool for BashTool {
@@ -70,34 +98,25 @@ impl Tool for BashTool {
             .unwrap_or_else(|| "Execute command".to_string());
 
         let start = Instant::now();
-        let output = timeout(timeout_duration, async {
-            Command::new("sh")
-                .arg("-c")
-                .arg(&args.command)
-                .current_dir(&workdir)
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
-                .output()
-                .map_err(|e| OpenCodeError::Tool(e.to_string()))
-        })
-        .await;
+        let output_result =
+            run_command_with_timeout(&args.command, &workdir, timeout_duration).await;
 
         let elapsed = start.elapsed();
 
-        match output {
-            Ok(Ok(output)) => {
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                let stderr = String::from_utf8_lossy(&output.stderr);
+        match output_result {
+            Ok((stdout, stderr, exit_code)) => {
+                let stdout_str = String::from_utf8_lossy(&stdout);
+                let stderr_str = String::from_utf8_lossy(&stderr);
                 let mut result = String::new();
 
-                if !stdout.is_empty() {
-                    result.push_str(&stdout);
+                if !stdout_str.is_empty() {
+                    result.push_str(&stdout_str);
                 }
-                if !stderr.is_empty() {
+                if !stderr_str.is_empty() {
                     if !result.is_empty() {
                         result.push('\n');
                     }
-                    result.push_str(&stderr);
+                    result.push_str(&stderr_str);
                 }
 
                 if result.len() > self.max_output_length {
@@ -105,31 +124,27 @@ impl Tool for BashTool {
                     result.push_str("\n\n...(output truncated)");
                 }
 
-                let mut metadata = format!("Exit code: {}\n", output.status);
+                let mut metadata = format!("Exit code: {}\n", exit_code);
                 metadata.push_str(&format!("Time: {:.2}s\n", elapsed.as_secs_f64()));
                 metadata.push_str(&format!("Description: {}", description));
 
                 Ok(ToolResult {
-                    success: output.status.success(),
+                    success: exit_code == 0,
                     content: result,
-                    error: if !output.status.success() {
-                        Some(format!("Command failed with exit code {}", output.status))
+                    error: if exit_code != 0 {
+                        Some(format!("Command failed with exit code {}", exit_code))
                     } else {
                         None
                     },
                     title: None,
                     metadata: Some(serde_json::json!({
-                        "exitCode": output.status.code(),
+                        "exitCode": exit_code,
                         "time": elapsed.as_secs_f64(),
                         "description": description
                     })),
                 })
             }
-            Ok(Err(e)) => Err(e),
-            Err(_) => Err(OpenCodeError::Tool(format!(
-                "Command timed out after {:.2}s",
-                timeout_duration.as_secs_f64()
-            ))),
+            Err(e) => Err(OpenCodeError::Tool(e)),
         }
     }
 }
@@ -270,5 +285,85 @@ mod tests {
         assert!(metadata.get("exitCode").is_some());
         assert!(metadata.get("time").is_some());
         assert!(metadata.get("description").is_some());
+    }
+
+    #[tokio::test]
+    async fn test_bash_timeout_kills_sleep_command() {
+        let tool = BashTool::new();
+        let args = serde_json::json!({
+            "command": "sleep 60",
+            "timeout": 1000
+        });
+        let start = Instant::now();
+        let result = tool.execute(args, None).await;
+        let elapsed = start.elapsed();
+
+        assert!(result.is_err(), "Timeout should return error");
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("timed out"),
+            "Error should mention timeout"
+        );
+        assert!(
+            elapsed < Duration::from_secs(5),
+            "Command should be killed quickly, not wait for sleep to finish"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_bash_timeout_kills_process_tree() {
+        let tool = BashTool::new();
+        let args = serde_json::json!({
+            "command": "yes",
+            "timeout": 1000
+        });
+        let start = Instant::now();
+        let result = tool.execute(args, None).await;
+        let elapsed = start.elapsed();
+
+        assert!(result.is_err(), "Timeout should return error");
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("timed out"),
+            "Error should mention timeout"
+        );
+        assert!(
+            elapsed < Duration::from_secs(5),
+            "Process tree should be killed quickly"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_bash_timeout_error_message_format() {
+        let tool = BashTool::new();
+        let args = serde_json::json!({
+            "command": "sleep 60",
+            "timeout": 500
+        });
+        let result = tool.execute(args, None).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        let err_str = err.to_string();
+        assert!(
+            err_str.contains("timed out") || err_str.contains("Command timed out"),
+            "Error should indicate timeout"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_bash_tool_still_works_after_timeout() {
+        let tool = BashTool::new();
+
+        let args_timeout = serde_json::json!({
+            "command": "sleep 60",
+            "timeout": 500
+        });
+        let _ = tool.execute(args_timeout, None).await;
+
+        let args_normal = serde_json::json!({"command": "echo 'still works'"});
+        let result = tool.execute(args_normal, None).await.unwrap();
+
+        assert!(result.success, "Tool should still work after timeout");
+        assert!(result.content.contains("still works"));
     }
 }

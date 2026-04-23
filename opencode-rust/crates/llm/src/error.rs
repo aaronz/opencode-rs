@@ -35,6 +35,8 @@ pub enum LlmError {
     Auth(String),
     #[error("Unexpected error: {0}. If this persists, check provider status.")]
     Other(String),
+    #[error("Request was cancelled by caller.")]
+    Cancelled,
 }
 
 impl From<LlmError> for OpenCodeError {

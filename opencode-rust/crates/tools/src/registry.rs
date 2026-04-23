@@ -339,6 +339,16 @@ impl ToolRegistry {
         tools.get(name).map(|t| t.tool.clone_tool())
     }
 
+    pub async fn unregister(&self, name: &str) -> bool {
+        let mut tools = self.tools.write().await;
+        let removed = tools.remove(name).is_some();
+        if removed {
+            drop(tools);
+            self.invalidate_cache_for_tool(name).await;
+        }
+        removed
+    }
+
     pub async fn list_filtered(&self, model: Option<&ModelInfo>) -> Vec<(String, String, bool)> {
         let tools = self.tools.read().await;
 
@@ -2329,7 +2339,7 @@ mod tests {
         let args = serde_json::json!({
             "string": "hello",
             "integer": 42,
-            "float": 3.14,
+            "float": std::f64::consts::PI,
             "boolean": true,
             "array": [1, 2, 3]
         });
@@ -2380,5 +2390,251 @@ mod tests {
         let registry2 = ToolRegistry::new();
         let tools2 = registry2.list_filtered(None).await;
         assert_eq!(tools2.len(), 0, "Cloned registry should be independent");
+    }
+
+    #[tokio::test]
+    async fn test_unregister_removes_tool() {
+        #[derive(Clone)]
+        struct UnregisterTestTool;
+        impl crate::sealed::Sealed for UnregisterTestTool {}
+        #[async_trait]
+        impl Tool for UnregisterTestTool {
+            fn name(&self) -> &str {
+                "unregister_test_tool"
+            }
+            fn description(&self) -> &str {
+                "Unregister test tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("unregister_test"))
+            }
+        }
+
+        let registry = ToolRegistry::new();
+        registry.register(UnregisterTestTool).await;
+
+        let tool = registry.get("unregister_test_tool").await;
+        assert!(tool.is_some(), "Tool should be registered");
+
+        let removed = registry.unregister("unregister_test_tool").await;
+        assert!(removed, "unregister should return true for existing tool");
+
+        let tool = registry.get("unregister_test_tool").await;
+        assert!(tool.is_none(), "Tool should be removed after unregister");
+    }
+
+    #[tokio::test]
+    async fn test_unregister_nonexistent_returns_false() {
+        let registry = ToolRegistry::new();
+
+        let removed = registry.unregister("nonexistent_tool").await;
+        assert!(
+            !removed,
+            "unregister should return false for nonexistent tool"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_unregister_and_reregister() {
+        #[derive(Clone)]
+        struct ReregisterTool;
+        impl crate::sealed::Sealed for ReregisterTool {}
+        #[async_trait]
+        impl Tool for ReregisterTool {
+            fn name(&self) -> &str {
+                "reregister_tool"
+            }
+            fn description(&self) -> &str {
+                "Reregister tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("first_registration"))
+            }
+        }
+
+        let registry = ToolRegistry::new();
+        registry.register(ReregisterTool).await;
+
+        let result1 = registry
+            .execute("reregister_tool", serde_json::json!({}), None)
+            .await
+            .unwrap();
+        assert!(result1.content.contains("first_registration"));
+
+        registry.unregister("reregister_tool").await;
+
+        let tool = registry.get("reregister_tool").await;
+        assert!(tool.is_none(), "Tool should be removed after unregister");
+
+        let result2 = registry
+            .execute("reregister_tool", serde_json::json!({}), None)
+            .await;
+        assert!(
+            result2.is_err(),
+            "Execute should fail for unregistered tool"
+        );
+
+        #[derive(Clone)]
+        struct ReregisterToolV2;
+        impl crate::sealed::Sealed for ReregisterToolV2 {}
+        #[async_trait]
+        impl Tool for ReregisterToolV2 {
+            fn name(&self) -> &str {
+                "reregister_tool"
+            }
+            fn description(&self) -> &str {
+                "Reregister tool v2"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("second_registration"))
+            }
+        }
+
+        registry.register(ReregisterToolV2).await;
+
+        let tool = registry.get("reregister_tool").await;
+        assert!(tool.is_some(), "Tool should be re-registered");
+
+        let result3 = registry
+            .execute("reregister_tool", serde_json::json!({}), None)
+            .await
+            .unwrap();
+        assert!(result3.content.contains("second_registration"));
+    }
+
+    #[tokio::test]
+    async fn test_unregister_clears_from_list() {
+        #[derive(Clone)]
+        struct ListUnregisterToolA;
+        impl crate::sealed::Sealed for ListUnregisterToolA {}
+        #[async_trait]
+        impl Tool for ListUnregisterToolA {
+            fn name(&self) -> &str {
+                "list_tool_a"
+            }
+            fn description(&self) -> &str {
+                "List tool A"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("a"))
+            }
+        }
+
+        #[derive(Clone)]
+        struct ListUnregisterToolB;
+        impl crate::sealed::Sealed for ListUnregisterToolB {}
+        #[async_trait]
+        impl Tool for ListUnregisterToolB {
+            fn name(&self) -> &str {
+                "list_tool_b"
+            }
+            fn description(&self) -> &str {
+                "List tool B"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("b"))
+            }
+        }
+
+        let registry = ToolRegistry::new();
+        registry.register(ListUnregisterToolA).await;
+        registry.register(ListUnregisterToolB).await;
+
+        let tools = registry.list_filtered(None).await;
+        assert_eq!(tools.len(), 2);
+
+        registry.unregister("list_tool_a").await;
+
+        let tools = registry.list_filtered(None).await;
+        assert_eq!(tools.len(), 1);
+
+        let names: Vec<&str> = tools.iter().map(|(n, _, _)| n.as_str()).collect();
+        assert!(names.contains(&"list_tool_b"));
+        assert!(!names.contains(&"list_tool_a"));
+    }
+
+    #[tokio::test]
+    async fn test_unregister_invalidates_cache() {
+        #[derive(Clone)]
+        struct CacheUnregisterTool;
+        impl crate::sealed::Sealed for CacheUnregisterTool {}
+        #[async_trait]
+        impl Tool for CacheUnregisterTool {
+            fn name(&self) -> &str {
+                "cache_unregister_tool"
+            }
+            fn description(&self) -> &str {
+                "Cache unregister tool"
+            }
+            fn clone_tool(&self) -> Box<dyn Tool> {
+                Box::new(self.clone())
+            }
+            fn is_safe(&self) -> bool {
+                true
+            }
+            async fn execute(
+                &self,
+                _: serde_json::Value,
+                _: Option<ToolContext>,
+            ) -> Result<ToolResult, OpenCodeError> {
+                Ok(ToolResult::ok("cached_result"))
+            }
+        }
+
+        let registry = ToolRegistry::new();
+        registry.register(CacheUnregisterTool).await;
+
+        let args = serde_json::json!({});
+        registry
+            .execute("cache_unregister_tool", args.clone(), None)
+            .await
+            .unwrap();
+
+        let cached = registry
+            .get_cached_result("cache_unregister_tool", &args)
+            .await;
+        assert!(cached.is_some(), "Should have cached result");
+
+        registry.unregister("cache_unregister_tool").await;
+
+        let cached = registry
+            .get_cached_result("cache_unregister_tool", &args)
+            .await;
+        assert!(cached.is_none(), "Cache should be cleared after unregister");
     }
 }

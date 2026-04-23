@@ -128,10 +128,11 @@
     },
     {
       "id": "tool_e2e_008",
-      "status": "not_started",
+      "status": "completed",
       "title": "LspTool code navigation",
       "description": "Test LspTool provides go-to-definition and find-references",
       "modules": ["tool", "lsp"],
+      "test_file": "crates/tools/src/lsp_tool_test.rs",
       "steps": [
         "Start LSP server for Rust project",
         "Execute LspTool with goto_definition",
@@ -326,7 +327,7 @@
     },
     {
       "id": "tool_sec_005",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "BashTool signal handling during execution",
       "description": "BashTool must handle signals (SIGINT, SIGTERM) during long-running commands",
       "modules": ["tool", "shell"],
@@ -562,7 +563,7 @@
     },
     {
       "id": "tool_registry_002",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "ToolRegistry unregister and reregister",
       "description": "Tools can be removed and re-added to registry",
       "modules": ["tool"],

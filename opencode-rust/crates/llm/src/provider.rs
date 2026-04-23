@@ -2,12 +2,47 @@ use async_trait::async_trait;
 use opencode_core::{Message, OpenCodeError};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 pub mod sealed {
     pub trait Sealed {}
 }
 
 pub type StreamingCallback = Box<dyn FnMut(String) + Send>;
+
+#[derive(Debug, Clone)]
+pub struct CancellationToken {
+    cancelled: Arc<AtomicBool>,
+}
+
+impl CancellationToken {
+    pub fn new() -> Self {
+        Self {
+            cancelled: Arc::new(AtomicBool::new(false)),
+        }
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.cancelled.load(Ordering::SeqCst)
+    }
+
+    pub fn cancel(&self) {
+        self.cancelled.store(true, Ordering::SeqCst);
+    }
+}
+
+impl Default for CancellationToken {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl PartialEq for CancellationToken {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.cancelled, &other.cancelled)
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Model {
@@ -172,6 +207,51 @@ pub trait Provider: Send + Sync + sealed::Sealed {
 
     fn provider_name(&self) -> &str {
         "unknown"
+    }
+}
+
+impl CancellationToken {
+    pub fn wrap_provider<'a, P: Provider>(&self, provider: &'a P) -> CancellableProvider<'a, P> {
+        CancellableProvider {
+            inner: provider,
+            cancellation_token: self.clone(),
+        }
+    }
+}
+
+pub struct CancellableProvider<'a, P: Provider> {
+    inner: &'a P,
+    cancellation_token: CancellationToken,
+}
+
+impl<P: Provider> CancellableProvider<'_, P> {
+    pub async fn complete(
+        &self,
+        prompt: &str,
+        context: Option<&str>,
+    ) -> Result<String, OpenCodeError> {
+        if self.cancellation_token.is_cancelled() {
+            return Err(crate::error::LlmError::Cancelled.into());
+        }
+        self.inner.complete(prompt, context).await
+    }
+
+    pub async fn complete_streaming(
+        &self,
+        prompt: &str,
+        callback: StreamingCallback,
+    ) -> Result<(), OpenCodeError> {
+        if self.cancellation_token.is_cancelled() {
+            return Err(crate::error::LlmError::Cancelled.into());
+        }
+        self.inner.complete_streaming(prompt, callback).await
+    }
+
+    pub async fn chat(&self, messages: &[ChatMessage]) -> Result<ChatResponse, OpenCodeError> {
+        if self.cancellation_token.is_cancelled() {
+            return Err(crate::error::LlmError::Cancelled.into());
+        }
+        self.inner.chat(messages).await
     }
 }
 

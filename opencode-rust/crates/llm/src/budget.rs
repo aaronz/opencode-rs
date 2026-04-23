@@ -331,6 +331,77 @@ impl Clone for BudgetTracker {
     }
 }
 
+pub struct StreamingBudgetTracker<'a> {
+    tracker: &'a BudgetTracker,
+    accumulated_chars: usize,
+    accumulated_tokens: u64,
+    chars_per_token: f64,
+}
+
+impl<'a> StreamingBudgetTracker<'a> {
+    pub fn new(tracker: &'a BudgetTracker) -> Self {
+        Self {
+            tracker,
+            accumulated_chars: 0,
+            accumulated_tokens: 0,
+            chars_per_token: 4.0,
+        }
+    }
+
+    pub fn with_chars_per_token(mut self, chars_per_token: f64) -> Self {
+        self.chars_per_token = chars_per_token;
+        self
+    }
+
+    pub fn estimate_tokens(&self, text: &str) -> u64 {
+        (text.len() as f64 / self.chars_per_token).ceil() as u64
+    }
+
+    pub fn record_chunk(&mut self, text: &str) -> u64 {
+        let tokens = self.estimate_tokens(text);
+        self.accumulated_chars += text.len();
+        self.accumulated_tokens += tokens;
+        tokens
+    }
+
+    pub fn check_request_budget(&self, additional_tokens: u64) -> Result<(), BudgetExceededError> {
+        let total_tokens = self.accumulated_tokens + additional_tokens;
+        let cost = (total_tokens as f64 / 1000.0) * self.tracker.cost_per_1k_tokens;
+        let cost_microcents = (cost * 1_000_000.0).round() as u64;
+
+        let limit = self.tracker.request_budget.load(Ordering::Relaxed);
+        if limit > 0 && cost_microcents > limit {
+            return Err(BudgetExceededError {
+                limit_type: BudgetLimit::PerRequest(limit as f64 / 1_000_000.0),
+                request_cost: cost,
+                conversation_cost: self.tracker.total_cost_usd(),
+            });
+        }
+        Ok(())
+    }
+
+    pub fn check_conversation_budget(
+        &self,
+        additional_tokens: u64,
+    ) -> Result<(), BudgetExceededError> {
+        let additional_cost = (additional_tokens as f64 / 1000.0) * self.tracker.cost_per_1k_tokens;
+        self.tracker.check_conversation_budget(additional_cost)
+    }
+
+    pub fn check_budget(&self, additional_tokens: u64) -> Result<(), BudgetExceededError> {
+        self.check_request_budget(additional_tokens)?;
+        self.check_conversation_budget(additional_tokens)
+    }
+
+    pub fn accumulated(&self) -> u64 {
+        self.accumulated_tokens
+    }
+
+    pub fn estimate_total_cost(&self) -> f64 {
+        (self.accumulated_tokens as f64 / 1000.0) * self.tracker.cost_per_1k_tokens
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -473,5 +544,59 @@ mod tests {
         assert_eq!(deserialized.total_requests, 5);
         assert_eq!(deserialized.variant_costs.len(), 1);
         assert_eq!(deserialized.variant_costs[0].variant_id, "v1");
+    }
+
+    #[test]
+    fn test_streaming_budget_tracker_estimate_tokens() {
+        let tracker = BudgetTracker::new();
+        let mut stream_tracker = StreamingBudgetTracker::new(&tracker);
+
+        assert_eq!(stream_tracker.estimate_tokens("hello"), 2);
+        assert_eq!(stream_tracker.estimate_tokens("hello world"), 3);
+    }
+
+    #[test]
+    fn test_streaming_budget_tracker_record_chunk() {
+        let tracker = BudgetTracker::new();
+        let mut stream_tracker = StreamingBudgetTracker::new(&tracker);
+
+        stream_tracker.record_chunk("hello");
+        assert_eq!(stream_tracker.accumulated(), 2);
+
+        stream_tracker.record_chunk(" world");
+        assert_eq!(stream_tracker.accumulated(), 4);
+    }
+
+    #[test]
+    fn test_streaming_budget_tracker_custom_chars_per_token() {
+        let tracker = BudgetTracker::new();
+        let stream_tracker = StreamingBudgetTracker::new(&tracker).with_chars_per_token(5.0);
+
+        assert_eq!(stream_tracker.estimate_tokens("hello"), 1);
+        assert_eq!(stream_tracker.estimate_tokens("hello world"), 3);
+    }
+
+    #[test]
+    fn test_streaming_budget_tracker_check_request_budget() {
+        let tracker = BudgetTracker::with_reasoning_budget(None, 0.001);
+        let tracker = BudgetTracker::with_request_limit(tracker, 500);
+        let mut stream_tracker = StreamingBudgetTracker::new(&tracker);
+
+        let result = stream_tracker.check_request_budget(100);
+        assert!(result.is_ok());
+
+        let result = stream_tracker.check_request_budget(1000);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_streaming_budget_tracker_estimate_cost() {
+        let tracker = BudgetTracker::with_reasoning_budget(None, 0.001);
+        let mut stream_tracker = StreamingBudgetTracker::new(&tracker);
+
+        stream_tracker.record_chunk("hello world");
+
+        let cost = stream_tracker.estimate_total_cost();
+        assert!((cost - 0.000003).abs() < 0.000001);
     }
 }

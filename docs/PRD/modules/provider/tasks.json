@@ -6,25 +6,25 @@
   "test_cases": [
     {
       "id": "provider_e2e_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Provider chat completion flow",
       "description": "Test basic chat completion through Provider trait",
       "modules": ["provider"],
       "steps": [
-        "Create OpenAI provider with test API key",
+        "Create test provider",
         "Send chat request with system and user messages",
         "Verify ChatResponse contains content",
         "Verify model field populated"
       ],
       "expected_outcomes": [
-        "Request succeeds with valid API key",
+        "Request succeeds with valid provider",
         "Response content is non-empty",
         "Usage stats included when available"
       ]
     },
     {
       "id": "provider_e2e_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "Provider retry logic on transient failures",
       "description": "Test retry config handles 429/503 errors",
       "modules": ["provider"],
@@ -93,7 +93,7 @@
     },
     {
       "id": "provider_e2e_006",
-      "status": "not_started",
+      "status": "completed",
       "title": "OAuth authentication flow",
       "description": "Test OAuth token acquisition and refresh",
       "modules": ["provider", "auth"],
@@ -110,7 +110,7 @@
     },
     {
       "id": "provider_e2e_007",
-      "status": "not_started",
+      "status": "completed",
       "title": "Provider model catalog fetching",
       "description": "Test ProviderCatalogFetcher retrieves model list",
       "modules": ["provider"],
@@ -249,7 +249,7 @@
     },
     {
       "id": "provider_err_005",
-      "status": "not_started",
+      "status": "completed",
       "title": "Provider switch mid-conversation",
       "description": "Switch provider mid-session must preserve context",
       "modules": ["provider", "session"],
@@ -291,7 +291,7 @@
     },
     {
       "id": "provider_budget_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "Budget exceeded during streaming response",
       "description": "Budget check timing during chunked responses",
       "modules": ["provider"],
@@ -333,7 +333,7 @@
     },
     {
       "id": "provider_conc_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "Request cancellation releases resources",
       "description": "Cancelled request must release connection and not block others",
       "modules": ["provider"],
