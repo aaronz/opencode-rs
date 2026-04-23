@@ -6,9 +6,11 @@ use tempfile::TempDir;
 
 static BUILD: Once = Once::new();
 
+#[allow(dead_code)]
 pub static EMPTY_VEC: Vec<serde_json::Value> = Vec::new();
 
 pub struct TestHarness {
+    #[allow(dead_code)]
     pub workspace_root: PathBuf,
     pub binary_path: PathBuf,
     pub temp_dir: TempDir,
@@ -77,6 +79,7 @@ impl TestHarness {
             .expect("Failed to execute command")
     }
 
+    #[allow(dead_code)]
     pub fn run_cli_json(&self, args: &[&str]) -> serde_json::Value {
         let mut all_args = Vec::new();
         if !args.is_empty() {
@@ -103,6 +106,7 @@ impl TestHarness {
             .unwrap_or_else(|e| panic!("Failed to parse JSON output: {}\nOutput: {}", e, stdout))
     }
 
+    #[allow(dead_code)]
     pub fn setup_file(&self, path: &str, content: &str) -> PathBuf {
         let full_path = self.temp_dir.path().join(path);
         if let Some(parent) = full_path.parent() {
@@ -112,11 +116,13 @@ impl TestHarness {
         full_path
     }
 
+    #[allow(dead_code)]
     pub fn read_file(&self, path: &str) -> String {
         let full_path = self.temp_dir.path().join(path);
         std::fs::read_to_string(full_path).expect("Failed to read file")
     }
 
+    #[allow(dead_code)]
     pub fn create_session(&self, name: &str) -> String {
         let output = self.run_cli(&["session", "create", "--name", name]);
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -128,6 +134,7 @@ impl TestHarness {
             .unwrap_or_else(|| format!("session-{}", name))
     }
 
+    #[allow(dead_code)]
     pub fn send_message(&self, session_id: &str, content: &str) {
         self.run_cli(&[
             "session",
@@ -139,6 +146,7 @@ impl TestHarness {
         ]);
     }
 
+    #[allow(dead_code)]
     pub fn get_session_messages(&self, session_id: &str) -> Vec<serde_json::Value> {
         let output = self.run_cli(&["session", "show", "--id", session_id, "--json"]);
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -149,6 +157,7 @@ impl TestHarness {
             .unwrap_or_default()
     }
 
+    #[allow(dead_code)]
     pub fn wait_for_async<F>(&self, timeout_ms: u64, check: F) -> bool
     where
         F: Fn() -> bool,
@@ -165,6 +174,7 @@ impl TestHarness {
         false
     }
 
+    #[allow(dead_code)]
     pub fn setup_project(&self, name: &str) -> PathBuf {
         let project_path = self.temp_dir.path().join("projects").join(name);
         std::fs::create_dir_all(&project_path).unwrap();
@@ -175,6 +185,7 @@ impl TestHarness {
         project_path
     }
 
+    #[allow(dead_code)]
     pub fn create_mock_provider(&self, name: &str, models: &[&str]) {
         let provider_dir = self.temp_dir.path().join("providers");
         std::fs::create_dir_all(&provider_dir).unwrap();
