@@ -229,6 +229,7 @@ pub(crate) fn run(args: ProvidersArgs) {
     }
 }
 
+#[allow(clippy::items_after_test_module)]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -278,8 +279,10 @@ mod tests {
 
     #[test]
     fn test_provider_enabled_with_allowlist() {
-        let mut config = Config::default();
-        config.enabled_providers = Some(vec!["openai".to_string()]);
+        let config = Config {
+            enabled_providers: Some(vec!["openai".to_string()]),
+            ..Default::default()
+        };
         assert!(provider_enabled(&config, "openai"));
         assert!(!provider_enabled(&config, "anthropic"));
         assert!(!provider_enabled(&config, "ollama"));
@@ -287,8 +290,10 @@ mod tests {
 
     #[test]
     fn test_provider_enabled_with_denylist() {
-        let mut config = Config::default();
-        config.disabled_providers = Some(vec!["openai".to_string()]);
+        let config = Config {
+            disabled_providers: Some(vec!["openai".to_string()]),
+            ..Default::default()
+        };
         assert!(!provider_enabled(&config, "openai"));
         assert!(provider_enabled(&config, "anthropic"));
         assert!(provider_enabled(&config, "ollama"));
@@ -296,16 +301,20 @@ mod tests {
 
     #[test]
     fn test_provider_enabled_allowlist_takes_precedence() {
-        let mut config = Config::default();
-        config.enabled_providers = Some(vec!["openai".to_string()]);
-        config.disabled_providers = Some(vec!["openai".to_string()]);
+        let config = Config {
+            enabled_providers: Some(vec!["openai".to_string()]),
+            disabled_providers: Some(vec!["openai".to_string()]),
+            ..Default::default()
+        };
         assert!(!provider_enabled(&config, "openai"));
     }
 
     #[test]
     fn test_provider_enabled_multiple_in_allowlist() {
-        let mut config = Config::default();
-        config.enabled_providers = Some(vec!["openai".to_string(), "anthropic".to_string()]);
+        let config = Config {
+            enabled_providers: Some(vec!["openai".to_string(), "anthropic".to_string()]),
+            ..Default::default()
+        };
         assert!(provider_enabled(&config, "openai"));
         assert!(provider_enabled(&config, "anthropic"));
         assert!(!provider_enabled(&config, "ollama"));
@@ -313,8 +322,10 @@ mod tests {
 
     #[test]
     fn test_provider_enabled_multiple_in_denylist() {
-        let mut config = Config::default();
-        config.disabled_providers = Some(vec!["openai".to_string(), "anthropic".to_string()]);
+        let config = Config {
+            disabled_providers: Some(vec!["openai".to_string(), "anthropic".to_string()]),
+            ..Default::default()
+        };
         assert!(!provider_enabled(&config, "openai"));
         assert!(!provider_enabled(&config, "anthropic"));
         assert!(provider_enabled(&config, "ollama"));

@@ -51,6 +51,7 @@ struct ModelRow {
     max_input_tokens: u32,
 }
 
+#[allow(clippy::items_after_test_module)]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -217,7 +218,7 @@ mod tests {
     fn test_save_and_load_hidden_models() {
         let temp_dir = std::env::temp_dir();
         std::env::set_var("OPENCODE_CONFIG_DIR", temp_dir.to_string_lossy().as_ref());
-        let hidden_file = PathBuf::from(temp_dir).join("opencode-hidden-models.json");
+        let hidden_file = temp_dir.join("opencode-hidden-models.json");
         let _ = std::fs::remove_file(&hidden_file);
 
         let mut hidden = BTreeSet::new();

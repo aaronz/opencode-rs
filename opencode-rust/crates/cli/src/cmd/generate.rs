@@ -9,6 +9,7 @@ pub(crate) struct GenerateArgs {
     pub output: Option<String>,
 }
 
+#[allow(clippy::items_after_test_module)]
 #[cfg(test)]
 mod tests {
     use super::*;

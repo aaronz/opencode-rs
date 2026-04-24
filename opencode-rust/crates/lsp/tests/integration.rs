@@ -715,14 +715,11 @@ mod experimental_lsp_tool_tests {
         };
 
         let result = tool.execute(args).await;
-        match result {
-            Ok(content) => {
-                let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
-                if let Some(status) = parsed.get("status") {
-                    assert_eq!(status, "unavailable");
-                }
+        if let Ok(content) = result {
+            let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+            if let Some(status) = parsed.get("status") {
+                assert_eq!(status, "unavailable");
             }
-            Err(_) => {}
         }
     }
 
@@ -874,14 +871,11 @@ mod experimental_lsp_tool_tests {
         };
 
         let result = tool.execute(args).await;
-        match result {
-            Ok(content) => {
-                let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
-                if let Some(status) = parsed.get("status") {
-                    assert_eq!(status, "unavailable");
-                }
+        if let Ok(content) = result {
+            let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+            if let Some(status) = parsed.get("status") {
+                assert_eq!(status, "unavailable");
             }
-            Err(_) => {}
         }
     }
 
@@ -898,14 +892,11 @@ mod experimental_lsp_tool_tests {
         };
 
         let result = tool.execute(args).await;
-        match result {
-            Ok(content) => {
-                let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
-                if let Some(status) = parsed.get("status") {
-                    assert_eq!(status, "unavailable");
-                }
+        if let Ok(content) = result {
+            let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+            if let Some(status) = parsed.get("status") {
+                assert_eq!(status, "unavailable");
             }
-            Err(_) => {}
         }
     }
 
@@ -922,16 +913,13 @@ mod experimental_lsp_tool_tests {
         };
 
         let result = tool.execute(args).await;
-        match result {
-            Ok(content) => {
-                let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
-                assert!(parsed.get("file").is_some());
-                assert!(parsed.get("line").is_some());
-                assert!(parsed.get("column").is_some());
-                assert!(parsed.get("content").is_some());
-                assert!(parsed.get("has_info").is_some());
-            }
-            Err(_) => {}
+        if let Ok(content) = result {
+            let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+            assert!(parsed.get("file").is_some());
+            assert!(parsed.get("line").is_some());
+            assert!(parsed.get("column").is_some());
+            assert!(parsed.get("content").is_some());
+            assert!(parsed.get("has_info").is_some());
         }
     }
 
@@ -948,16 +936,13 @@ mod experimental_lsp_tool_tests {
         };
 
         let result = tool.execute(args).await;
-        match result {
-            Ok(content) => {
-                let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
-                assert!(parsed.get("file").is_some());
-                assert!(parsed.get("line").is_some());
-                assert!(parsed.get("column").is_some());
-                assert!(parsed.get("target_uri").is_some());
-                assert!(parsed.get("found").is_some());
-            }
-            Err(_) => {}
+        if let Ok(content) = result {
+            let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+            assert!(parsed.get("file").is_some());
+            assert!(parsed.get("line").is_some());
+            assert!(parsed.get("column").is_some());
+            assert!(parsed.get("target_uri").is_some());
+            assert!(parsed.get("found").is_some());
         }
     }
 
@@ -974,14 +959,11 @@ mod experimental_lsp_tool_tests {
         };
 
         let result = tool.execute(args).await;
-        match result {
-            Ok(content) => {
-                let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
-                assert!(parsed.get("symbol").is_some());
-                assert!(parsed.get("references").is_some());
-                assert!(parsed.get("total_count").is_some());
-            }
-            Err(_) => {}
+        if let Ok(content) = result {
+            let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+            assert!(parsed.get("symbol").is_some());
+            assert!(parsed.get("references").is_some());
+            assert!(parsed.get("total_count").is_some());
         }
     }
 
@@ -1113,13 +1095,10 @@ mod experimental_lsp_tool_tests {
         };
 
         let result = tool.execute(args).await;
-        match result {
-            Ok(content) => {
-                let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
-                assert_eq!(parsed.get("line").unwrap(), 1);
-                assert_eq!(parsed.get("column").unwrap(), 1);
-            }
-            Err(_) => {}
+        if let Ok(content) = result {
+            let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+            assert_eq!(parsed.get("line").unwrap(), 1);
+            assert_eq!(parsed.get("column").unwrap(), 1);
         }
     }
 
@@ -1152,12 +1131,9 @@ mod experimental_lsp_tool_tests {
         };
 
         let result = tool.execute(args).await;
-        match result {
-            Ok(content) => {
-                let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
-                assert!(parsed.get("status").is_some() || parsed.get("file").is_some());
-            }
-            Err(_) => {}
+        if let Ok(content) = result {
+            let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+            assert!(parsed.get("status").is_some() || parsed.get("file").is_some());
         }
     }
 
@@ -1174,15 +1150,12 @@ mod experimental_lsp_tool_tests {
         };
 
         let result = tool.execute(args).await;
-        match result {
-            Ok(content) => {
-                let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
-                if parsed.get("diagnostics").is_some() {
-                    let diagnostics = parsed.get("diagnostics").unwrap().as_array().unwrap();
-                    assert_eq!(diagnostics.len(), 0);
-                }
+        if let Ok(content) = result {
+            let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+            if parsed.get("diagnostics").is_some() {
+                let diagnostics = parsed.get("diagnostics").unwrap().as_array().unwrap();
+                assert_eq!(diagnostics.len(), 0);
             }
-            Err(_) => {}
         }
     }
 
@@ -1248,14 +1221,11 @@ mod experimental_lsp_tool_tests {
         };
 
         let result = tool.execute(args).await;
-        match result {
-            Ok(content) => {
-                let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
-                if let Some(symbol) = parsed.get("symbol") {
-                    assert_eq!(symbol, "my_important_symbol");
-                }
+        if let Ok(content) = result {
+            let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+            if let Some(symbol) = parsed.get("symbol") {
+                assert_eq!(symbol, "my_important_symbol");
             }
-            Err(_) => {}
         }
     }
 
@@ -1302,17 +1272,14 @@ mod experimental_lsp_tool_tests {
         };
 
         let result = tool.execute(args).await;
-        match result {
-            Ok(content) => {
-                let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
-                if parsed.get("found").is_some() {
-                    assert!(
-                        !parsed.get("found").unwrap().as_bool().unwrap(),
-                        "Expected found to be false for nonexistent file"
-                    );
-                }
+        if let Ok(content) = result {
+            let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+            if parsed.get("found").is_some() {
+                assert!(
+                    !parsed.get("found").unwrap().as_bool().unwrap(),
+                    "Expected found to be false for nonexistent file"
+                );
             }
-            Err(_) => {}
         }
     }
 

@@ -59,6 +59,7 @@ impl TempProject {
     }
 
     /// Asserts that a file does NOT exist at the specified relative path.
+    #[allow(dead_code)]
     pub fn assert_file_not_exists(&self, relative_path: &str) {
         let full_path = self.temp_dir.path().join(relative_path);
         assert!(

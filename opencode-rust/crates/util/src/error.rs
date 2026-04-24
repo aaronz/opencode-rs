@@ -176,7 +176,7 @@ mod tests {
 
     #[test]
     fn test_context_trait_extension() {
-        let result: Result<i32, std::io::Error> = Err(io::Error::new(io::ErrorKind::Other, "test"));
+        let result: Result<i32, std::io::Error> = Err(io::Error::other("test"));
         let with_ctx = result.context("context message");
         assert!(with_ctx.is_err());
         let wrapped_err = with_ctx.unwrap_err();

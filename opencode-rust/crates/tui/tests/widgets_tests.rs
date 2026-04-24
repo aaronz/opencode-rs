@@ -3,12 +3,13 @@ use opencode_tui::widgets::{
     MessageRole, ProgressBar, Scrollbar, Spinner, SpinnerState, ThinkingIndicator,
 };
 
+#[allow(clippy::assertions_on_constants)]
 #[test]
 fn test_code_block_new() {
     let code = "fn main() {}".to_string();
     let language = "rust".to_string();
     let _block = CodeBlock::new(code, language);
-    assert!(true, "CodeBlock created successfully");
+    // assert!(true, "CodeBlock created successfully");
 }
 
 #[test]
@@ -16,7 +17,7 @@ fn test_code_block_with_highlighter() {
     let code = "fn main() {}".to_string();
     let language = "rust".to_string();
     let _block = CodeBlock::new(code, language);
-    assert!(true, "CodeBlock with highlighter created");
+    // assert!(true, "CodeBlock with highlighter created");
 }
 
 #[test]
@@ -25,7 +26,7 @@ fn test_code_block_scroll() {
     block.scroll_up();
     block.scroll_down(5);
     block.set_language("python".to_string());
-    assert!(true, "Scroll operations work");
+    // assert!(true, "Scroll operations work");
 }
 
 #[test]
@@ -33,14 +34,14 @@ fn test_code_block_scroll_down_max() {
     let mut block = CodeBlock::new("line1\nline2".to_string(), "text".to_string());
     block.scroll_down(1);
     block.scroll_down(0);
-    assert!(true, "Scroll operations work with edge cases");
+    // assert!(true, "Scroll operations work with edge cases");
 }
 
 #[test]
 fn test_code_block_scroll_up_at_zero() {
     let mut block = CodeBlock::new("line1\nline2".to_string(), "text".to_string());
     block.scroll_up();
-    assert!(true, "Scroll up at zero doesn't go negative");
+    // assert!(true, "Scroll up at zero doesn't go negative");
 }
 
 #[test]
@@ -117,7 +118,7 @@ fn test_command_palette_move() {
     palette.move_down();
     palette.move_down();
     palette.move_up();
-    assert!(true, "Navigation works");
+    // assert!(true, "Navigation works");
 }
 
 #[test]
@@ -142,7 +143,7 @@ fn test_command_palette_move_up_at_zero() {
     }];
     let mut palette = CommandPalette::new(commands);
     palette.move_up();
-    assert!(true, "Move up at zero doesn't go negative");
+    // assert!(true, "Move up at zero doesn't go negative");
 }
 
 #[test]
@@ -150,7 +151,7 @@ fn test_command_palette_move_down_empty() {
     let commands = vec![];
     let mut palette = CommandPalette::new(commands);
     palette.move_down();
-    assert!(true, "Move down on empty palette doesn't panic");
+    // assert!(true, "Move down on empty palette doesn't panic");
 }
 
 #[test]
@@ -203,7 +204,7 @@ fn test_file_selection_list_new() {
         },
     ];
     let _list = FileSelectionList::new(items);
-    assert!(true, "FileSelectionList created");
+    // assert!(true, "FileSelectionList created");
 }
 
 #[test]
@@ -227,7 +228,7 @@ fn test_file_selection_list_operations() {
     list.move_down();
     list.move_up();
     list.select(0);
-    assert!(true, "FileSelectionList operations work");
+    // assert!(true, "FileSelectionList operations work");
 }
 
 #[test]
@@ -246,19 +247,19 @@ fn test_file_selection_list_len() {
 #[test]
 fn test_message_bubble_user() {
     let _bubble = MessageBubble::user("Hello".to_string());
-    assert!(true, "MessageBubble::user works");
+    // assert!(true, "MessageBubble::user works");
 }
 
 #[test]
 fn test_message_bubble_assistant() {
     let _bubble = MessageBubble::assistant("Hello".to_string());
-    assert!(true, "MessageBubble::assistant works");
+    // assert!(true, "MessageBubble::assistant works");
 }
 
 #[test]
 fn test_message_bubble_new() {
     let _bubble = MessageBubble::new("content".to_string(), MessageRole::System);
-    assert!(true, "MessageBubble::new works");
+    // assert!(true, "MessageBubble::new works");
 }
 
 #[test]
@@ -271,13 +272,13 @@ fn test_message_role_equality() {
 #[test]
 fn test_progress_bar_new() {
     let _pb = ProgressBar::new();
-    assert!(true, "ProgressBar created");
+    // assert!(true, "ProgressBar created");
 }
 
 #[test]
 fn test_progress_bar_with_total() {
     let _pb = ProgressBar::with_total(100);
-    assert!(true, "ProgressBar with total created");
+    // assert!(true, "ProgressBar with total created");
 }
 
 #[test]
@@ -298,25 +299,25 @@ fn test_progress_bar_no_total() {
 #[test]
 fn test_scrollbar_new() {
     let _sb = Scrollbar::new(100);
-    assert!(true, "Scrollbar created");
+    // assert!(true, "Scrollbar created");
 }
 
 #[test]
 fn test_scrollbar_with_position() {
     let _sb = Scrollbar::with_position(50);
-    assert!(true, "Scrollbar with position created");
+    // assert!(true, "Scrollbar with position created");
 }
 
 #[test]
 fn test_spinner_new() {
     let _spinner = Spinner::new("Loading");
-    assert!(true, "Spinner created");
+    // assert!(true, "Spinner created");
 }
 
 #[test]
 fn test_spinner_with_state() {
     let _spinner = Spinner::with_state("Done", SpinnerState::Completed);
-    assert!(true, "Spinner with state created");
+    // assert!(true, "Spinner with state created");
 }
 
 #[test]
@@ -324,16 +325,16 @@ fn test_spinner_tick() {
     let mut spinner = Spinner::new("Loading");
     spinner.tick();
     spinner.tick();
-    assert!(true, "Spinner tick works");
+    // assert!(true, "Spinner tick works");
 }
 
 #[test]
 fn test_spinner_state_changes() {
     let mut spinner = Spinner::new("Loading");
     spinner.set_completed();
-    assert!(true, "Spinner set_completed works");
+    // assert!(true, "Spinner set_completed works");
     spinner.set_error();
-    assert!(true, "Spinner set_error works");
+    // assert!(true, "Spinner set_error works");
 }
 
 #[test]
@@ -353,13 +354,13 @@ fn test_spinner_state_clone() {
 #[test]
 fn test_thinking_indicator_new() {
     let _indicator = ThinkingIndicator::new();
-    assert!(true, "ThinkingIndicator created");
+    // assert!(true, "ThinkingIndicator created");
 }
 
 #[test]
 fn test_thinking_indicator_with_label() {
     let _indicator = ThinkingIndicator::with_label("Analyzing");
-    assert!(true, "ThinkingIndicator with label created");
+    // assert!(true, "ThinkingIndicator with label created");
 }
 
 #[test]
@@ -367,14 +368,14 @@ fn test_thinking_indicator_tick() {
     let mut indicator = ThinkingIndicator::new();
     indicator.tick();
     indicator.tick();
-    assert!(true, "Thinking indicator tick works");
+    // assert!(true, "Thinking indicator tick works");
 }
 
 #[test]
 fn test_thinking_indicator_set_label() {
     let mut indicator = ThinkingIndicator::new();
     indicator.set_label("New Label".to_string());
-    assert!(true, "Label set successfully");
+    // assert!(true, "Label set successfully");
 }
 
 #[test]
@@ -395,13 +396,13 @@ fn test_progress_bar_set_total() {
 #[test]
 fn test_scrollbar_auto_state() {
     let _sb = Scrollbar::new(100);
-    assert!(true, "Auto scrollbar created");
+    // assert!(true, "Auto scrollbar created");
 }
 
 #[test]
 fn test_scrollbar_manual_state() {
     let _sb = Scrollbar::with_position(25);
-    assert!(true, "Manual scrollbar created");
+    // assert!(true, "Manual scrollbar created");
 }
 
 #[test]
@@ -456,5 +457,5 @@ fn test_command_item_without_shortcut() {
 #[test]
 fn test_spinner_with_color() {
     let _spinner = Spinner::new("Loading").with_color(ratatui::style::Color::Green);
-    assert!(true, "Spinner with color created");
+    // assert!(true, "Spinner with color created");
 }

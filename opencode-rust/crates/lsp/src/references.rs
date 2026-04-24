@@ -166,13 +166,13 @@ mod tests {
         };
 
         assert_eq!(params.uri, "file:///test.rs");
-        assert_eq!(params.context.include_declaration, true);
+        assert!(params.context.include_declaration);
     }
 
     #[test]
     fn test_references_context_new() {
         let context = ReferencesContext::new(false);
-        assert_eq!(context.include_declaration, false);
+        assert!(!context.include_declaration);
     }
 
     #[test]
@@ -424,7 +424,7 @@ impl MyStruct {
 
         assert_eq!(params.position.line, 5);
         assert_eq!(params.position.character, 10);
-        assert_eq!(params.context.include_declaration, false);
+        assert!(!params.context.include_declaration);
     }
 
     #[test]

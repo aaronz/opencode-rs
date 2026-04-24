@@ -589,7 +589,7 @@ Custom skill content"#,
         .unwrap();
         let sm = SkillManager::new().with_builtin_skills_path(skills_dir);
         let builtins = sm.load_builtin_skills();
-        assert!(builtins.len() >= 1);
+        assert!(!builtins.is_empty());
         assert!(builtins.iter().any(|s| s.name == "code-review"));
         assert!(builtins.iter().any(|s| s.name == "custom-skill"));
         let code_review = builtins.iter().find(|s| s.name == "code-review").unwrap();
@@ -754,12 +754,11 @@ Compat dup content"#,
         )
         .unwrap();
 
-        let mut sm = SkillManager::new();
         let global_path = global_dir.path().join("skills");
         std::fs::create_dir_all(&global_path).ok();
-        sm = SkillManager::new();
+        let sm = SkillManager::new();
         let compat_path = compat_dir.path().to_path_buf();
-        sm = sm.with_compat_paths(vec![compat_path]);
+        let sm = sm.with_compat_paths(vec![compat_path]);
 
         let skills = sm.list().unwrap();
         let dup_skill = skills.iter().find(|s| s.name == "dup-skill");
@@ -930,7 +929,7 @@ This skill follows the Claude-style SKILL.md format with YAML frontmatter."#,
         .unwrap();
 
         let sm = SkillManager::new().with_compat_paths(vec![]);
-        let discovered = sm.discover_in_dir(&temp_dir.path().to_path_buf()).unwrap();
+        let discovered = sm.discover_in_dir(temp_dir.path()).unwrap();
 
         let skill = discovered
             .iter()
@@ -963,7 +962,7 @@ Agent skill body for testing"#,
         .unwrap();
 
         let sm = SkillManager::new().with_compat_paths(vec![]);
-        let discovered = sm.discover_in_dir(&temp_dir.path().to_path_buf()).unwrap();
+        let discovered = sm.discover_in_dir(temp_dir.path()).unwrap();
 
         let skill = discovered.iter().find(|s| s.name == "agent-skill").unwrap();
         assert_eq!(skill.description, "Agent-style skill format");
@@ -1017,8 +1016,8 @@ MMM content"#,
         .unwrap();
 
         let sm = SkillManager::new().with_compat_paths(vec![]);
-        let discovered1 = sm.discover_in_dir(&temp_dir.path().to_path_buf()).unwrap();
-        let discovered2 = sm.discover_in_dir(&temp_dir.path().to_path_buf()).unwrap();
+        let discovered1 = sm.discover_in_dir(temp_dir.path()).unwrap();
+        let discovered2 = sm.discover_in_dir(temp_dir.path()).unwrap();
 
         assert_eq!(discovered1.len(), 3);
         assert_eq!(discovered2.len(), 3);
@@ -1076,7 +1075,7 @@ Test content"#,
         .unwrap();
 
         let sm = SkillManager::new().with_compat_paths(vec![]);
-        let discovered = sm.discover_in_dir(&temp_dir.path().to_path_buf()).unwrap();
+        let discovered = sm.discover_in_dir(temp_dir.path()).unwrap();
 
         assert_eq!(discovered.len(), 1);
         let skill = &discovered[0];
@@ -1199,7 +1198,7 @@ Unique content"#,
         .unwrap();
 
         let sm = SkillManager::new().with_compat_paths(vec![]);
-        let discovered = sm.discover_in_dir(&temp_dir.path().to_path_buf()).unwrap();
+        let discovered = sm.discover_in_dir(temp_dir.path()).unwrap();
 
         let unique_count = discovered
             .iter()
@@ -1228,7 +1227,7 @@ Nested content"#,
         .unwrap();
 
         let sm = SkillManager::new().with_compat_paths(vec![]);
-        let discovered = sm.discover_in_dir(&temp_dir.path().to_path_buf()).unwrap();
+        let discovered = sm.discover_in_dir(temp_dir.path()).unwrap();
 
         assert!(discovered.iter().any(|s| s.name == "nested-skill"));
     }

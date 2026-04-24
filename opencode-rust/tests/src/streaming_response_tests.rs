@@ -6,7 +6,7 @@ use std::time::Duration;
 
 #[tokio::test]
 async fn test_stream_message_token_sequence() {
-    let tokens = vec![
+    let tokens = [
         StreamMessage::Message {
             session_id: "stream-test".to_string(),
             content: "He".to_string(),

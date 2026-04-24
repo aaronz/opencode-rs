@@ -182,6 +182,7 @@ pub(crate) fn run(args: PluginArgs) {
     }
 }
 
+#[allow(clippy::items_after_test_module)]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -195,8 +196,10 @@ mod tests {
 
     #[test]
     fn test_plugin_install_already_installed() {
-        let mut config = Config::default();
-        config.plugin = Some(vec!["test-plugin".to_string()]);
+        let config = Config {
+            plugin: Some(vec!["test-plugin".to_string()]),
+            ..Default::default()
+        };
         let installed = get_installed_plugins(&config);
         assert!(installed.contains(&"test-plugin".to_string()));
     }

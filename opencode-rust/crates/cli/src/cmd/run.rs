@@ -29,6 +29,7 @@ pub(crate) struct RunArgs {
     pub format: OutputFormat,
 }
 
+#[allow(clippy::items_after_test_module)]
 #[cfg(test)]
 mod tests {
     use super::*;

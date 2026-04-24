@@ -319,7 +319,7 @@ fn test_server_message_all_variants_serialize() {
     for msg in variants {
         let json = serde_json::to_string(&msg).unwrap();
         let _parsed: ServerMessage = serde_json::from_str(&json).unwrap();
-        assert!(true, "Variant serialized and deserialized");
+        // assert!(true, "Variant serialized and deserialized");
     }
 }
 
@@ -349,7 +349,7 @@ fn test_server_request_all_variants_serialize() {
     for req in variants {
         let json = serde_json::to_string(&req).unwrap();
         let _parsed: ServerRequest = serde_json::from_str(&json).unwrap();
-        assert!(true, "Variant serialized and deserialized");
+        // assert!(true, "Variant serialized and deserialized");
     }
 }
 

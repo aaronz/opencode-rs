@@ -50,7 +50,7 @@ fn test_session_resume() {
         "Should resume correct session"
     );
     assert!(
-        resume_result["messages"].as_array().unwrap().len() > 0,
+        !resume_result["messages"].as_array().unwrap().is_empty(),
         "Should have messages"
     );
 }

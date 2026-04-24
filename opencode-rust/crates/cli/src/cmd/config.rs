@@ -27,6 +27,7 @@ pub(crate) struct ConfigArgs {
     pub value: Option<String>,
 }
 
+#[allow(clippy::items_after_test_module)]
 #[cfg(test)]
 mod tests {
     use super::*;

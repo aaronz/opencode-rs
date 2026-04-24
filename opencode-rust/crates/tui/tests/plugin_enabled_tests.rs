@@ -30,11 +30,13 @@ fn test_plugin_enabled_default_is_true() {
 
 #[test]
 fn test_plugin_enabled_true_allows_loading() {
-    let mut tui_config = TuiConfig::default();
-    tui_config.plugins = Some(TuiPluginConfig {
-        plugin_enabled: Some(true),
-        plugins: None,
-    });
+    let tui_config = TuiConfig {
+        plugins: Some(TuiPluginConfig {
+            plugin_enabled: Some(true),
+            plugins: None,
+        }),
+        ..Default::default()
+    };
     let plugin_enabled = tui_config
         .plugins
         .as_ref()
@@ -48,11 +50,13 @@ fn test_plugin_enabled_true_allows_loading() {
 
 #[test]
 fn test_plugin_enabled_false_prevents_loading() {
-    let mut tui_config = TuiConfig::default();
-    tui_config.plugins = Some(TuiPluginConfig {
-        plugin_enabled: Some(false),
-        plugins: None,
-    });
+    let tui_config = TuiConfig {
+        plugins: Some(TuiPluginConfig {
+            plugin_enabled: Some(false),
+            plugins: None,
+        }),
+        ..Default::default()
+    };
     let plugin_enabled = tui_config
         .plugins
         .as_ref()
@@ -66,11 +70,13 @@ fn test_plugin_enabled_false_prevents_loading() {
 
 #[test]
 fn test_plugin_enabled_none_defaults_to_true() {
-    let mut tui_config = TuiConfig::default();
-    tui_config.plugins = Some(TuiPluginConfig {
-        plugin_enabled: None,
-        plugins: None,
-    });
+    let tui_config = TuiConfig {
+        plugins: Some(TuiPluginConfig {
+            plugin_enabled: None,
+            plugins: None,
+        }),
+        ..Default::default()
+    };
     let plugin_enabled = tui_config
         .plugins
         .as_ref()
@@ -98,11 +104,13 @@ fn test_plugin_enabled_in_tui_config_not_opencode_config() {
 
 #[test]
 fn test_tui_config_serialization_with_plugin_enabled() {
-    let mut tui_config = TuiConfig::default();
-    tui_config.plugins = Some(TuiPluginConfig {
-        plugin_enabled: Some(false),
-        plugins: None,
-    });
+    let tui_config = TuiConfig {
+        plugins: Some(TuiPluginConfig {
+            plugin_enabled: Some(false),
+            plugins: None,
+        }),
+        ..Default::default()
+    };
 
     let json = serde_json::to_string(&tui_config).unwrap();
     assert!(

@@ -6,6 +6,7 @@ pub(crate) struct WorkspaceServeArgs {
     pub port: Option<u16>,
 }
 
+#[allow(clippy::items_after_test_module)]
 #[cfg(test)]
 mod tests {
     use super::*;

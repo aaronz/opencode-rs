@@ -29,6 +29,7 @@ fn run_async<T>(future: impl Future<Output = T>) -> T {
 }
 
 #[cfg(test)]
+#[allow(clippy::module_inception)]
 mod integration {
     use crate::registry::{McpPermission, McpRegistry, McpServerConfig};
     use crate::tool_bridge::McpToolAdapter;

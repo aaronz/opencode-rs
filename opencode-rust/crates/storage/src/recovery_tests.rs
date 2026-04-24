@@ -1,4 +1,5 @@
 #[cfg(test)]
+#[allow(clippy::module_inception)]
 mod recovery_tests {
     use crate::compaction::{CompactionManager, ShareabilityVerifier};
     use opencode_core::{checkpoint::CheckpointManager, config::ShareMode, Message, Session};

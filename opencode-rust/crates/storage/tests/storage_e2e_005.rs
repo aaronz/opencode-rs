@@ -1,7 +1,6 @@
 use chrono::Utc;
 use opencode_storage::models::ProjectModel;
 use opencode_storage::{InMemoryProjectRepository, ProjectRepository};
-use tokio;
 use uuid::Uuid;
 
 #[tokio::test]

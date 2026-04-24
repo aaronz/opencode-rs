@@ -251,6 +251,6 @@ mod tests {
         manager.set_responsive(false);
         let p = manager.get_proportions_for_width(80);
         assert_eq!(p.column_mode, ColumnMode::ThreeColumn);
-        assert!(manager.is_responsive() == false);
+        assert!(!manager.is_responsive());
     }
 }

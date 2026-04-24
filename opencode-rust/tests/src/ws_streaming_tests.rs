@@ -385,7 +385,7 @@ fn test_stream_message_from_tool_call_to_result_sequence() {
 
 #[test]
 fn test_stream_message_token_sequence_for_streaming() {
-    let tokens = vec![
+    let tokens = [
         StreamMessage::Message {
             session_id: "stream-test".to_string(),
             content: "He".to_string(),
@@ -1251,7 +1251,7 @@ async fn test_ws_multiple_clients_same_session_cleanup() {
     for i in 0..clients_count {
         let (mut ws, _) = tokio_tungstenite::connect_async(&ws_url_with_session)
             .await
-            .expect(&format!("Should connect client {}", i));
+            .unwrap_or_else(|_| panic!("Should connect client {}", i));
 
         let connected_msg = ws.next().await;
         assert!(

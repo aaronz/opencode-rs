@@ -675,7 +675,7 @@ mod tests {
         }
 
         let accounts = service.list_accounts(10, 0).await.unwrap();
-        assert!(accounts.len() > 0, "Should have saved some accounts");
+        assert!(!accounts.is_empty(), "Should have saved some accounts");
 
         drop(temp_dir);
     }
@@ -710,8 +710,6 @@ mod tests {
             result.is_ok(),
             "compact_session should succeed for existing session"
         );
-        let compaction_result = result.unwrap();
-        assert!(compaction_result.was_compacted || !compaction_result.was_compacted);
 
         drop(temp_dir);
     }
@@ -775,8 +773,6 @@ mod tests {
             result.is_ok(),
             "compact_session should succeed and delegate to CompactionManager"
         );
-        let compaction_result = result.unwrap();
-        assert!(compaction_result.was_compacted || !compaction_result.was_compacted);
 
         drop(temp_dir);
     }

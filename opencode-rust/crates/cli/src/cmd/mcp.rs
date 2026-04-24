@@ -27,6 +27,7 @@ pub(crate) enum McpAction {
     },
 }
 
+#[allow(clippy::items_after_test_module)]
 #[cfg(test)]
 mod tests {
     use super::*;

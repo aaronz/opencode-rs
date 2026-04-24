@@ -30,14 +30,12 @@ fn find_available_port_with_retry(max_attempts: u32) -> Option<u16> {
 fn test_dynamic_port_allocation_returns_valid_tcp_port() {
     let port = find_available_port().expect("Should allocate a valid port");
     assert!(port > 0, "Port should be greater than 0");
-    assert!(port <= 65535, "Port should be a valid TCP port");
 }
 
 #[test]
 fn test_find_available_port_with_retry_returns_valid_port() {
     let port = find_available_port_with_retry(3).expect("Should allocate a valid port");
     assert!(port > 0, "Port should be greater than 0");
-    assert!(port <= 65535, "Port should be a valid TCP port");
 }
 
 #[test]
@@ -54,6 +52,7 @@ fn test_dynamic_allocation_not_hardcoded_to_single_port() {
     );
 }
 
+#[allow(dead_code)]
 fn wait_for_server(host: &str, port: u16, timeout_ms: u64) -> bool {
     let start = std::time::Instant::now();
     let timeout = Duration::from_millis(timeout_ms);
@@ -182,6 +181,7 @@ fn desktop_web_different_ports() {
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
+    #[allow(clippy::zombie_processes)]
     let mut desktop_child = desktop_cmd
         .spawn()
         .expect("Failed to spawn desktop command");
@@ -204,6 +204,7 @@ fn desktop_web_different_ports() {
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
+    #[allow(clippy::zombie_processes)]
     let mut web_child = web_cmd.spawn().expect("Failed to spawn web command");
 
     let web_ready = harness.wait_for_async(5000, || {
@@ -238,18 +239,21 @@ fn test_parallel_desktop_web_instances_no_port_conflict() {
     cmd1.args(["web", "--port", &port1.to_string()])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    #[allow(clippy::zombie_processes)]
     let mut child1 = cmd1.spawn().expect("Failed to spawn web command 1");
 
     let mut cmd2 = harness.cmd();
     cmd2.args(["web", "--port", &port2.to_string()])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    #[allow(clippy::zombie_processes)]
     let mut child2 = cmd2.spawn().expect("Failed to spawn web command 2");
 
     let mut cmd3 = harness.cmd();
     cmd3.args(["web", "--port", &port3.to_string()])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    #[allow(clippy::zombie_processes)]
     let mut child3 = cmd3.spawn().expect("Failed to spawn web command 3");
 
     let ready1 = harness.wait_for_async(5000, || {

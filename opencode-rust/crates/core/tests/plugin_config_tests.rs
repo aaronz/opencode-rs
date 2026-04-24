@@ -34,9 +34,8 @@ mod plugin_config_tests {
 
         let config: TuiConfig = serde_json::from_str(json).unwrap();
         let plugins = config.plugins.unwrap();
-        assert_eq!(
+        assert!(
             plugins.plugin_enabled.unwrap_or(false),
-            true,
             "plugin_enabled should default to true"
         );
     }
@@ -70,9 +69,8 @@ mod plugin_config_tests {
 
         let config: TuiConfig = serde_json::from_str(json).unwrap();
         let plugins = config.plugins.unwrap();
-        assert_eq!(
-            plugins.plugin_enabled.unwrap_or(true),
-            false,
+        assert!(
+            !plugins.plugin_enabled.unwrap_or(true),
             "plugin_enabled should be false"
         );
     }

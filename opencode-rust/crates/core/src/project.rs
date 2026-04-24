@@ -1211,7 +1211,7 @@ mod tests {
         let outside = TempDir::new().unwrap();
         let link = workspace.path().join("link_to_outside");
         #[cfg(unix)]
-        std::os::unix::fs::symlink(&outside.path(), &link).unwrap();
+        std::os::unix::fs::symlink(outside.path(), &link).unwrap();
         #[cfg(windows)]
         std::os::windows::fs::symlink_dir(&outside.path(), &link).unwrap();
 
@@ -1571,7 +1571,7 @@ mod tests {
         let config = Arc::new(RwLock::new(Config::default()));
         let config_service = ConfigService::new(config.clone());
         let retrieved = config_service.get_config_sync();
-        Arc::ptr_eq(&retrieved, &config);
+        let _ = Arc::ptr_eq(&retrieved, &config);
     }
 
     #[tokio::test]

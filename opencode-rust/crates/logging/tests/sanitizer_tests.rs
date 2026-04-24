@@ -50,7 +50,7 @@ fn test_sanitize_exact_authorization() {
 fn test_sanitize_suffix_key_pattern() {
     let sanitizer = Sanitizer::new();
     let value = serde_json::json!("key_value_123");
-    for key in vec!["my_key", "some_key", "private_key", "access_key"] {
+    for key in ["my_key", "some_key", "private_key", "access_key"] {
         let result = sanitizer.sanitize_value(key, &value);
         match result {
             SanitizedValue::Redacted(s) => assert_eq!(s, "[REDACTED]"),
@@ -63,7 +63,7 @@ fn test_sanitize_suffix_key_pattern() {
 fn test_sanitize_suffix_token_pattern() {
     let sanitizer = Sanitizer::new();
     let value = serde_json::json!("token_value_456");
-    for key in vec!["my_token", "some_token", "auth_token", "bearer_token"] {
+    for key in ["my_token", "some_token", "auth_token", "bearer_token"] {
         let result = sanitizer.sanitize_value(key, &value);
         match result {
             SanitizedValue::Redacted(s) => assert_eq!(s, "[REDACTED]"),
@@ -76,7 +76,7 @@ fn test_sanitize_suffix_token_pattern() {
 fn test_sanitize_suffix_secret_pattern() {
     let sanitizer = Sanitizer::new();
     let value = serde_json::json!("secret_value_789");
-    for key in vec!["my_secret", "some_secret", "app_secret", "client_secret"] {
+    for key in ["my_secret", "some_secret", "app_secret", "client_secret"] {
         let result = sanitizer.sanitize_value(key, &value);
         match result {
             SanitizedValue::Redacted(s) => assert_eq!(s, "[REDACTED]"),

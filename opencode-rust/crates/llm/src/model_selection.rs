@@ -287,8 +287,10 @@ mod tests {
 
     #[test]
     fn test_model_selection_user_config_global_default() {
-        let mut config = UserModelConfig::default();
-        config.global_default = Some("gpt-4o".to_string());
+        let config = UserModelConfig {
+            global_default: Some("gpt-4o".to_string()),
+            ..Default::default()
+        };
 
         let selection = ModelSelection::with_user_config(ProviderType::Ollama, config);
 
@@ -299,11 +301,12 @@ mod tests {
 
     #[test]
     fn test_model_selection_provider_default_wins_over_global() {
-        let mut config = UserModelConfig::default();
-        config.global_default = Some("gpt-4o".to_string());
-        config
-            .provider_defaults
-            .insert("anthropic".to_string(), "claude-haiku-3".to_string());
+        let config = UserModelConfig {
+            global_default: Some("gpt-4o".to_string()),
+            provider_defaults: [("anthropic".to_string(), "claude-haiku-3".to_string())]
+                .into_iter()
+                .collect(),
+        };
 
         let selection = ModelSelection::with_user_config(ProviderType::Anthropic, config);
 
@@ -334,11 +337,12 @@ mod tests {
 
     #[test]
     fn test_model_selection_precedence_order_is_respected() {
-        let mut config = UserModelConfig::default();
-        config.global_default = Some("fallback-model".to_string());
-        config
-            .provider_defaults
-            .insert("openai".to_string(), "provider-default".to_string());
+        let config = UserModelConfig {
+            global_default: Some("fallback-model".to_string()),
+            provider_defaults: [("openai".to_string(), "provider-default".to_string())]
+                .into_iter()
+                .collect(),
+        };
 
         let selection = ModelSelection::with_user_config(ProviderType::OpenAI, config);
 
@@ -348,21 +352,24 @@ mod tests {
             ModelSelection::with_user_config(ProviderType::OpenAI, UserModelConfig::default());
         assert_eq!(selection_no_override.resolve_model(None), "gpt-4o");
 
-        let selection_with_config = ModelSelection::with_user_config(ProviderType::Anthropic, {
-            let mut c = UserModelConfig::default();
-            c.global_default = Some("global-fallback".to_string());
-            c
-        });
+        let selection_with_config = ModelSelection::with_user_config(
+            ProviderType::Anthropic,
+            UserModelConfig {
+                global_default: Some("global-fallback".to_string()),
+                ..Default::default()
+            },
+        );
         assert_eq!(selection_with_config.resolve_model(None), "global-fallback");
     }
 
     #[test]
     fn test_model_selection_anthropic_respects_user_config() {
-        let mut config = UserModelConfig::default();
-        config.provider_defaults.insert(
-            "anthropic".to_string(),
-            "claude-opus-4-20250514".to_string(),
-        );
+        let config = UserModelConfig {
+            provider_defaults: [("anthropic".to_string(), "claude-opus-4-20250514".to_string())]
+                .into_iter()
+                .collect(),
+            ..Default::default()
+        };
 
         let selection = ModelSelection::with_user_config(ProviderType::Anthropic, config);
 

@@ -44,6 +44,7 @@ pub(crate) struct PromptArgs {
     pub multiline: bool,
 }
 
+#[allow(clippy::items_after_test_module)]
 #[cfg(test)]
 mod tests {
     use super::*;

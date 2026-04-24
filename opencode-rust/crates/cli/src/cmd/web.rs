@@ -160,6 +160,7 @@ async fn run_web(args: WebArgs) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+#[allow(clippy::items_after_test_module)]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -259,6 +260,6 @@ mod tests {
         );
 
         let server_state = web_state.clone().into_server_state();
-        assert_eq!(server_state.acp_enabled, true);
+        assert!(server_state.acp_enabled);
     }
 }

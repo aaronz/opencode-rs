@@ -131,8 +131,10 @@ fn test_integration_model_selection_precedence_user_config_provider() {
 
 #[test]
 fn test_integration_model_selection_precedence_user_config_global() {
-    let mut config = UserModelConfig::default();
-    config.global_default = Some("gpt-4o".to_string());
+    let config = UserModelConfig {
+        global_default: Some("gpt-4o".to_string()),
+        ..Default::default()
+    };
 
     let selection = ModelSelection::with_user_config(ProviderType::Ollama, config);
 
@@ -160,8 +162,10 @@ fn test_integration_model_selection_precedence_provider_default() {
 
 #[test]
 fn test_integration_model_selection_precedence_full_chain() {
-    let mut config = UserModelConfig::default();
-    config.global_default = Some("fallback-global".to_string());
+    let mut config = UserModelConfig {
+        global_default: Some("fallback-global".to_string()),
+        ..Default::default()
+    };
     config
         .provider_defaults
         .insert("openai".to_string(), "fallback-provider".to_string());
@@ -174,8 +178,10 @@ fn test_integration_model_selection_precedence_full_chain() {
         "Explicit should take precedence over everything"
     );
 
-    let mut config_no_override = UserModelConfig::default();
-    config_no_override.global_default = Some("fallback-global".to_string());
+    let mut config_no_override = UserModelConfig {
+        global_default: Some("fallback-global".to_string()),
+        ..Default::default()
+    };
     config_no_override
         .provider_defaults
         .insert("openai".to_string(), "fallback-provider".to_string());
@@ -207,7 +213,7 @@ fn test_integration_model_selection_precedence_all_providers() {
             model,
             expected_default,
             "Provider {} should have default model {}",
-            format!("{:?}", provider_type),
+            format_args!("{:?}", provider_type),
             expected_default
         );
     }

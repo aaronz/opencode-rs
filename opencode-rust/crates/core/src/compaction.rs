@@ -831,7 +831,7 @@ mod tests {
         let before: usize = session
             .messages
             .iter()
-            .map(|m| (m.content.len() + 3) / 4)
+            .map(|m| m.content.len().div_ceil(4))
             .sum();
 
         let changed = Compactor::auto_compact_if_needed(
@@ -850,7 +850,7 @@ mod tests {
         let estimated: usize = session
             .messages
             .iter()
-            .map(|m| (m.content.len() + 3) / 4)
+            .map(|m| m.content.len().div_ceil(4))
             .sum();
         assert!(estimated < before);
     }

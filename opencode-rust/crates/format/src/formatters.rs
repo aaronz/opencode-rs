@@ -1430,9 +1430,8 @@ mod tests {
             worktree: PathBuf::from("/tmp"),
         };
         let result = formatter.enabled(&ctx).await;
-        match result {
-            Some(cmd) => assert!(!cmd.is_empty()),
-            None => {}
+        if let Some(cmd) = result {
+            assert!(!cmd.is_empty());
         }
     }
 

@@ -549,7 +549,7 @@ mod tests {
     #[test]
     fn test_streaming_budget_tracker_estimate_tokens() {
         let tracker = BudgetTracker::new();
-        let mut stream_tracker = StreamingBudgetTracker::new(&tracker);
+        let stream_tracker = StreamingBudgetTracker::new(&tracker);
 
         assert_eq!(stream_tracker.estimate_tokens("hello"), 2);
         assert_eq!(stream_tracker.estimate_tokens("hello world"), 3);
@@ -580,7 +580,7 @@ mod tests {
     fn test_streaming_budget_tracker_check_request_budget() {
         let tracker = BudgetTracker::with_reasoning_budget(None, 0.001);
         let tracker = BudgetTracker::with_request_limit(tracker, 500);
-        let mut stream_tracker = StreamingBudgetTracker::new(&tracker);
+        let stream_tracker = StreamingBudgetTracker::new(&tracker);
 
         let result = stream_tracker.check_request_budget(100);
         assert!(result.is_ok());

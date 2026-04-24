@@ -1017,7 +1017,7 @@ fn test_agent_conc_001_primary_agent_tracker_concurrent_activation() {
     let results: Arc<Mutex<Vec<(usize, AgentType, bool, Option<RuntimeError>)>>> =
         Arc::new(Mutex::new(Vec::new()));
 
-    let agent_types = vec![
+    let agent_types = [
         AgentType::Build,
         AgentType::Plan,
         AgentType::Explore,
@@ -1030,10 +1030,10 @@ fn test_agent_conc_001_primary_agent_tracker_concurrent_activation() {
         let tracker = Arc::clone(&tracker);
         let success_count = Arc::clone(&success_count);
         let results = Arc::clone(&results);
-        let agent_type = agent_types[i % agent_types.len()].clone();
+        let agent_type = agent_types[i % agent_types.len()];
 
         let handle = thread::spawn(move || {
-            let result = tracker.lock().unwrap().activate(agent_type.clone());
+            let result = tracker.lock().unwrap().activate(agent_type);
             let is_success = result.is_ok();
             if is_success {
                 success_count.fetch_add(1, Ordering::SeqCst);

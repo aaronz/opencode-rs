@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod tests {
+mod test_mod {
     use crate::auth_layered::{
         is_oauth_only_provider, AccessControlResult, AnthropicTransport, AuthMechanism,
         AwsSigV4Transport, CompositeCredentialResolver, CopilotOAuthCallback, CopilotOAuthRequest,

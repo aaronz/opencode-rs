@@ -4,9 +4,9 @@ use opencode_core::{
     checkpoint::CheckpointManager, message::Message, revert::RevertManager, Session,
 };
 use opencode_mcp::{JsonRpcRequest, JsonRpcResponse};
-use opencode_plugin::{Plugin, PluginConfig, PluginDomain, PluginError, PluginManager};
+use opencode_plugin::{Plugin, PluginError, PluginManager};
 use opencode_tools::build_default_registry;
-use opencode_tools::{Tool, ToolRegistry};
+use opencode_tools::ToolRegistry;
 use uuid::Uuid;
 
 #[tokio::test]
@@ -542,7 +542,7 @@ fn test_phase6_regression_truncate_preserves_recent() {
     session.truncate_for_context(10);
 
     assert!(session.messages.len() < original_len);
-    assert!(session.messages.len() >= 1);
+    assert!(!session.messages.is_empty());
 }
 
 #[tokio::test]

@@ -36,6 +36,7 @@ impl TestConfig {
         self
     }
 
+    #[allow(dead_code)]
     pub fn apply_env(&self) {
         std::env::set_var("OPENCODE_API_KEY", &self.api_key);
         std::env::set_var("OPENCODE_MODEL", &self.model);

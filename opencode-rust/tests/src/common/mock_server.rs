@@ -15,6 +15,7 @@ fn next_port() -> u16 {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct ReceivedRequest {
     pub method: String,
     pub path: String,
@@ -160,6 +161,7 @@ impl MockServer {
         ));
     }
 
+    #[allow(dead_code)]
     pub fn received_requests(&self) -> Vec<ReceivedRequest> {
         self.inner
             .received_requests
@@ -168,6 +170,7 @@ impl MockServer {
             .unwrap_or_default()
     }
 
+    #[allow(dead_code)]
     pub fn request_count(&self) -> usize {
         self.inner
             .received_requests

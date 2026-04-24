@@ -1101,7 +1101,7 @@ mod tests {
         buffer.push(LogEvent::new(0, LogLevel::Info, "test", "third"));
 
         assert_eq!(buffer.len(), 3);
-        assert_eq!(buffer.iter().nth(0).unwrap().message, "first");
+        assert_eq!(buffer.iter().next().unwrap().message, "first");
     }
 
     #[test]

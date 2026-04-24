@@ -470,7 +470,7 @@ fn test_session_lifecycle_revert_with_checkpoints() {
     session.add_message(Message::assistant("Response 1".to_string()));
     session.add_message(Message::user("Message 2".to_string()));
 
-    let state_after_msg2 = session.messages.len();
+    let _state_after_msg2 = session.messages.len();
 
     // Create checkpoint at current state
     let checkpoints_dir = project.path().join("checkpoints");

@@ -207,7 +207,7 @@ async fn test_agent_event_emitter_broadcast_channel_capacity() {
     }
 
     let mut count = 0;
-    while let Ok(_) = receiver.recv().await {
+    while receiver.recv().await.is_ok() {
         count += 1;
         if count >= 5 {
             break;
@@ -221,7 +221,7 @@ async fn test_broadcast_event_emitter_clone_preserves_sender() {
     let emitter1 = BroadcastEventEmitter::new(100);
     let emitter2 = emitter1.clone();
 
-    let mut receiver1 = emitter1.subscribe();
+    let _receiver1 = emitter1.subscribe();
     let mut receiver2 = emitter2.subscribe();
 
     emitter1.emit(AgentEvent::thinking("test"));

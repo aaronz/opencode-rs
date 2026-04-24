@@ -13,6 +13,7 @@ pub(crate) enum DebugAction {
     Agent,
 }
 
+#[allow(clippy::items_after_test_module)]
 #[cfg(test)]
 mod tests {
     use super::*;

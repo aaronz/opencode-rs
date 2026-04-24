@@ -533,8 +533,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_all_log_levels_emit_correctly() {
-        let mut config = LoggingConfig::default();
-        config.level = LogLevel::Trace;
+        let config = LoggingConfig {
+            level: LogLevel::Trace,
+            ..Default::default()
+        };
         let logger = Logger::new(config).unwrap();
 
         logger.trace("test", "trace message", LogFields::default());
@@ -595,17 +597,21 @@ mod tests {
         let config = LoggingConfig::default();
         let logger = Logger::new(config).unwrap();
 
-        let mut parent_fields = LogFields::default();
-        parent_fields.session_id = Some("parent_session".to_string());
-        parent_fields.tool_name = Some("parent_tool".to_string());
-        parent_fields.latency_ms = Some(100);
+        let parent_fields = LogFields {
+            session_id: Some("parent_session".to_string()),
+            tool_name: Some("parent_tool".to_string()),
+            latency_ms: Some(100),
+            ..Default::default()
+        };
 
         let child = logger.with_context(parent_fields);
 
-        let mut caller_fields = LogFields::default();
-        caller_fields.tool_name = Some("caller_tool".to_string());
-        caller_fields.latency_ms = Some(200);
-        caller_fields.error_code = Some("ERR_TEST".to_string());
+        let caller_fields = LogFields {
+            tool_name: Some("caller_tool".to_string()),
+            latency_ms: Some(200),
+            error_code: Some("ERR_TEST".to_string()),
+            ..Default::default()
+        };
 
         let merged = child.merge_fields(caller_fields);
 
@@ -666,10 +672,12 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let log_path = temp_dir.path().join("opencode.log");
 
-        let mut config = LoggingConfig::default();
-        config.file_path = Some(log_path.clone());
-        config.max_file_size_mb = 1;
-        config.max_rotated_files = 3;
+        let config = LoggingConfig {
+            file_path: Some(log_path.clone()),
+            max_file_size_mb: 1,
+            max_rotated_files: 3,
+            ..Default::default()
+        };
 
         let logger = Logger::new(config).unwrap();
 
@@ -716,10 +724,12 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let log_path = temp_dir.path().join("opencode.log");
 
-        let mut config = LoggingConfig::default();
-        config.file_path = Some(log_path.clone());
-        config.max_file_size_mb = 1;
-        config.max_rotated_files = 3;
+        let config = LoggingConfig {
+            file_path: Some(log_path.clone()),
+            max_file_size_mb: 1,
+            max_rotated_files: 3,
+            ..Default::default()
+        };
 
         let logger = Logger::new(config).unwrap();
 
@@ -765,10 +775,12 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let log_path = temp_dir.path().join("opencode.log");
 
-        let mut config = LoggingConfig::default();
-        config.file_path = Some(log_path.clone());
-        config.max_file_size_mb = 1;
-        config.max_rotated_files = 3;
+        let config = LoggingConfig {
+            file_path: Some(log_path.clone()),
+            max_file_size_mb: 1,
+            max_rotated_files: 3,
+            ..Default::default()
+        };
 
         let logger = Logger::new(config).unwrap();
 
@@ -818,10 +830,12 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let log_path = temp_dir.path().join("opencode.log");
 
-        let mut config = LoggingConfig::default();
-        config.file_path = Some(log_path.clone());
-        config.max_file_size_mb = 1;
-        config.max_rotated_files = 3;
+        let config = LoggingConfig {
+            file_path: Some(log_path.clone()),
+            max_file_size_mb: 1,
+            max_rotated_files: 3,
+            ..Default::default()
+        };
 
         let logger = Logger::new(config).unwrap();
 

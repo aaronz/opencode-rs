@@ -12,6 +12,7 @@ pub(crate) struct SessionInfo {
     pub name: String,
 }
 
+#[allow(clippy::items_after_test_module)]
 #[cfg(test)]
 mod tests {
     use super::*;

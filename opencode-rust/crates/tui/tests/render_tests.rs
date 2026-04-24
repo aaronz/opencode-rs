@@ -4,13 +4,13 @@ use opencode_tui::widgets::CodeBlock;
 #[test]
 fn test_markdown_renderer_new() {
     let _renderer = MarkdownRenderer::new();
-    assert!(true, "MarkdownRenderer created");
+    // assert!(true, "MarkdownRenderer created");
 }
 
 #[test]
 fn test_markdown_renderer_default() {
     let _renderer = MarkdownRenderer::default();
-    assert!(true, "MarkdownRenderer created via default");
+    // assert!(true, "MarkdownRenderer created via default");
 }
 
 #[test]
@@ -317,13 +317,13 @@ fn test_markdown_element_type_equality() {
 #[test]
 fn test_syntax_highlighter_new() {
     let _highlighter = SyntaxHighlighter::new();
-    assert!(true, "SyntaxHighlighter created");
+    // assert!(true, "SyntaxHighlighter created");
 }
 
 #[test]
 fn test_syntax_highlighter_default() {
     let _highlighter = SyntaxHighlighter::default();
-    assert!(true, "SyntaxHighlighter created via default");
+    // assert!(true, "SyntaxHighlighter created via default");
 }
 
 #[test]
@@ -411,7 +411,7 @@ fn test_syntax_highlighter_supported_languages_contains_common() {
 fn test_code_block_with_scroll() {
     let code = "#!/usr/bin/env python\nprint('hello')\n".to_string();
     let _block = CodeBlock::new(code, "python".to_string()).with_scroll(1);
-    assert!(true, "CodeBlock with scroll created");
+    // assert!(true, "CodeBlock with scroll created");
 }
 
 #[test]
@@ -423,7 +423,7 @@ fn test_code_block_scroll_operations() {
     block.scroll_up();
     block.scroll_down(10);
     block.scroll_down(2);
-    assert!(true, "Scroll operations executed");
+    // assert!(true, "Scroll operations executed");
 }
 
 #[test]

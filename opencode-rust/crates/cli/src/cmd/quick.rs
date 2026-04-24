@@ -28,6 +28,7 @@ pub(crate) enum QuickAction {
     ToggleSidebar,
 }
 
+#[allow(clippy::items_after_test_module)]
 #[cfg(test)]
 mod tests {
     use super::*;

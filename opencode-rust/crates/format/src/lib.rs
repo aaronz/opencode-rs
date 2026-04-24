@@ -25,7 +25,6 @@ mod tests {
     #[test]
     fn format_service_creates() {
         let _service = service::FormatService::new();
-        assert!(true);
     }
 
     #[test]

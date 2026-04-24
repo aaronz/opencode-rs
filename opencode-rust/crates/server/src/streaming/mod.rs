@@ -9,6 +9,12 @@ pub mod conn_state;
 pub mod heartbeat;
 pub mod stress_test;
 
+pub use conn_state::{
+    ConnectionEvent, ConnectionInfo, ConnectionMonitor, ConnectionStats, ConnectionStatus,
+    ConnectionType,
+};
+pub use stress_test::{ConnectionStressTester, StressTestConfig, StressTestResult};
+
 const DEFAULT_REPLAY_LIMIT: usize = 100;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -711,9 +717,3 @@ mod tests {
         assert_eq!(entries_b.len(), 1);
     }
 }
-
-pub use conn_state::{
-    ConnectionEvent, ConnectionInfo, ConnectionMonitor, ConnectionStats, ConnectionStatus,
-    ConnectionType,
-};
-pub use stress_test::{ConnectionStressTester, StressTestConfig, StressTestResult};

@@ -371,8 +371,8 @@ mod tests {
 
         let mut set: BTreeSet<SessionId> = BTreeSet::new();
         set.insert(id3);
-        set.insert(id1.clone());
-        set.insert(id2.clone());
+        set.insert(id1);
+        set.insert(id2);
 
         // Should be sortable without custom comparator
         let mut iter = set.iter();
@@ -390,9 +390,9 @@ mod tests {
         let id3 = SessionId::new();
 
         let mut map: BTreeMap<SessionId, String> = BTreeMap::new();
-        map.insert(id3.clone(), "third".to_string());
-        map.insert(id1.clone(), "first".to_string());
-        map.insert(id2.clone(), "second".to_string());
+        map.insert(id3, "third".to_string());
+        map.insert(id1, "first".to_string());
+        map.insert(id2, "second".to_string());
 
         // Keys should be stored in sorted order in BTreeMap
         let mut iter = map.keys();

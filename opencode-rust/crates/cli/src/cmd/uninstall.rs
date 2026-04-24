@@ -14,6 +14,7 @@ pub(crate) struct UninstallArgs {
     pub dry_run: bool,
 }
 
+#[allow(clippy::items_after_test_module)]
 #[cfg(test)]
 mod tests {
     use super::*;

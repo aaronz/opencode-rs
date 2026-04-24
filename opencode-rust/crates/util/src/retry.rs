@@ -174,7 +174,7 @@ mod tests {
     async fn test_retry_with_jitter() {
         let config = RetryConfig::new(3, Duration::from_millis(50)).with_no_jitter();
         let start = std::time::Instant::now();
-        retry(config, |_| async { Err::<i32, ()>(()) }).await;
+        let _ = retry(config, |_| async { Err::<i32, ()>(()) }).await;
         let elapsed = start.elapsed();
         // Without jitter, delays should be: 50ms, 100ms = ~150ms minimum
         assert!(elapsed.as_millis() >= 100);

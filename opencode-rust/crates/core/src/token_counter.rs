@@ -320,13 +320,13 @@ mod tests {
         }
         let tokens1 = counter.count_tokens(" the ");
         assert!(
-            tokens1 >= 1 && tokens1 <= 3,
+            (1..=3).contains(&tokens1),
             "expected 1-3 tokens for ' the ', got {}",
             tokens1
         );
         let tokens2 = counter.count_tokens("ing");
         assert!(
-            tokens2 >= 1 && tokens2 <= 2,
+            (1..=2).contains(&tokens2),
             "expected 1-2 tokens for 'ing', got {}",
             tokens2
         );
@@ -341,7 +341,7 @@ mod tests {
         let text = "The quick brown fox jumps over the lazy dog.";
         let tokens = counter.count_tokens(text);
         assert!(
-            tokens >= 9 && tokens <= 12,
+            (9..=12).contains(&tokens),
             "expected 9-12 tokens, got {}",
             tokens
         );
@@ -356,7 +356,7 @@ mod tests {
         let code = "fn main() {\n    println!(\"Hello, world!\");\n}";
         let tokens = counter.count_tokens(code);
         assert!(
-            tokens >= 8 && tokens <= 30,
+            (8..=30).contains(&tokens),
             "expected 8-30 tokens, got {}",
             tokens
         );
@@ -371,7 +371,7 @@ mod tests {
         let text = "你好世界";
         let tokens = counter.count_tokens(text);
         assert!(
-            tokens >= 4 && tokens <= 8,
+            (4..=8).contains(&tokens),
             "expected 4-8 tokens for Chinese, got {}",
             tokens
         );
@@ -386,19 +386,19 @@ mod tests {
         assert_eq!(counter.count_tokens(""), 0);
         let spaces = counter.count_tokens("   ");
         assert!(
-            spaces >= 1 && spaces <= 3,
+            (1..=3).contains(&spaces),
             "expected 1-3 tokens for spaces, got {}",
             spaces
         );
         let newlines = counter.count_tokens("\n\n");
         assert!(
-            newlines >= 1 && newlines <= 4,
+            (1..=4).contains(&newlines),
             "expected 1-4 tokens for newlines, got {}",
             newlines
         );
         let emoji = counter.count_tokens("🎉");
         assert!(
-            emoji >= 1 && emoji <= 4,
+            (1..=4).contains(&emoji),
             "expected 1-4 tokens for emoji, got {}",
             emoji
         );

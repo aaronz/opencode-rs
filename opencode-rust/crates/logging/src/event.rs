@@ -668,16 +668,18 @@ mod tests {
 
     #[test]
     fn test_log_fields_serialization_includes_all_fields() {
-        let mut fields = LogFields::default();
-        fields.session_id = Some("sess_abc123".to_string());
-        fields.tool_name = Some("read".to_string());
-        fields.latency_ms = Some(42);
-        fields.model = Some("gpt-4".to_string());
-        fields.provider = Some("openai".to_string());
-        fields.token_count = Some(1500);
-        fields.error_code = Some("ERR_NOT_FOUND".to_string());
-        fields.file_path = Some("/path/to/file.rs".to_string());
-        fields.line = Some(100);
+        let mut fields = LogFields {
+            session_id: Some("sess_abc123".to_string()),
+            tool_name: Some("read".to_string()),
+            latency_ms: Some(42),
+            model: Some("gpt-4".to_string()),
+            provider: Some("openai".to_string()),
+            token_count: Some(1500),
+            error_code: Some("ERR_NOT_FOUND".to_string()),
+            file_path: Some("/path/to/file.rs".to_string()),
+            line: Some(100),
+            ..Default::default()
+        };
         fields
             .extra
             .insert("custom_key".to_string(), serde_json::json!("custom_value"));
@@ -753,7 +755,7 @@ mod tests {
             .insert("number_val".to_string(), serde_json::json!(42));
         fields
             .extra
-            .insert("float_val".to_string(), serde_json::json!(3.14));
+            .insert("float_val".to_string(), serde_json::Value::from(std::f64::consts::PI));
         fields
             .extra
             .insert("bool_val".to_string(), serde_json::json!(true));
@@ -779,12 +781,9 @@ mod tests {
         );
         assert_eq!(
             fields.extra.get("float_val").unwrap().as_f64().unwrap(),
-            3.14
+            std::f64::consts::PI
         );
-        assert_eq!(
-            fields.extra.get("bool_val").unwrap().as_bool().unwrap(),
-            true
-        );
+        assert!(fields.extra.get("bool_val").unwrap().as_bool().unwrap());
         assert!(fields.extra.get("null_val").unwrap().is_null());
         assert_eq!(
             fields
@@ -1123,7 +1122,7 @@ mod tests {
             ),
         };
 
-        assert!(log.result.success == false);
+        assert!(!log.result.success);
         assert!(log.error.is_some());
         let error = log.error.unwrap();
         assert_eq!(error.code, "ERR_NOT_FOUND");

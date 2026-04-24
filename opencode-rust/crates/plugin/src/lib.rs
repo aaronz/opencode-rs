@@ -1583,7 +1583,7 @@ mod tests {
 
     #[test]
     fn test_plugin_capability_enum() {
-        let caps = vec![
+        let caps = [
             PluginCapability::ListenEvents,
             PluginCapability::RewritePrompt,
             PluginCapability::InjectShellEnv,
@@ -2034,7 +2034,7 @@ mod tests {
             fn on_start(&mut self) -> Result<(), PluginError> {
                 let order = self.call_count.fetch_add(1, Ordering::SeqCst);
                 let mut seq = self.call_sequence.lock().unwrap();
-                if seq.len() == order as usize {
+                if seq.len() == order {
                     seq.push(self.name.clone());
                 } else {
                     seq.push(format!("OUT_OF_ORDER:{}", self.name));
@@ -2135,7 +2135,7 @@ mod tests {
                 fn on_start(&mut self) -> Result<(), PluginError> {
                     let order = self.call_count.fetch_add(1, Ordering::SeqCst);
                     let mut seq = self.call_sequence.lock().unwrap();
-                    if seq.len() == order as usize {
+                    if seq.len() == order {
                         seq.push(self.name.clone());
                     } else {
                         seq.push(format!("OUT_OF_ORDER:{}", self.name));
@@ -2244,7 +2244,7 @@ mod tests {
             ) -> Result<(), PluginError> {
                 let order = self.call_count.fetch_add(1, Ordering::SeqCst);
                 let mut seq = self.call_sequence.lock().unwrap();
-                if seq.len() == order as usize {
+                if seq.len() == order {
                     seq.push(self.name.clone());
                 } else {
                     seq.push(format!("OUT_OF_ORDER:{}", self.name));
@@ -2350,7 +2350,7 @@ mod tests {
             fn on_message(&mut self, _content: &str, _session_id: &str) -> Result<(), PluginError> {
                 let order = self.call_count.fetch_add(1, Ordering::SeqCst);
                 let mut seq = self.call_sequence.lock().unwrap();
-                if seq.len() == order as usize {
+                if seq.len() == order {
                     seq.push(self.name.clone());
                 } else {
                     seq.push(format!("OUT_OF_ORDER:{}", self.name));
@@ -2455,7 +2455,7 @@ mod tests {
             fn on_session_end(&mut self, _session_id: &str) -> Result<(), PluginError> {
                 let order = self.call_count.fetch_add(1, Ordering::SeqCst);
                 let mut seq = self.call_sequence.lock().unwrap();
-                if seq.len() == order as usize {
+                if seq.len() == order {
                     seq.push(self.name.clone());
                 } else {
                     seq.push(format!("OUT_OF_ORDER:{}", self.name));
@@ -2578,7 +2578,7 @@ mod tests {
             fn on_start(&mut self) -> Result<(), PluginError> {
                 let order = self.start_count.fetch_add(1, Ordering::SeqCst);
                 let mut seq = self.start_seq.lock().unwrap();
-                if seq.len() == order as usize {
+                if seq.len() == order {
                     seq.push(self.name.clone());
                 }
                 Ok(())
@@ -2592,7 +2592,7 @@ mod tests {
             ) -> Result<(), PluginError> {
                 let order = self.tool_count.fetch_add(1, Ordering::SeqCst);
                 let mut seq = self.tool_seq.lock().unwrap();
-                if seq.len() == order as usize {
+                if seq.len() == order {
                     seq.push(self.name.clone());
                 }
                 Ok(())
@@ -2601,7 +2601,7 @@ mod tests {
             fn on_message(&mut self, _content: &str, _session_id: &str) -> Result<(), PluginError> {
                 let order = self.msg_count.fetch_add(1, Ordering::SeqCst);
                 let mut seq = self.msg_seq.lock().unwrap();
-                if seq.len() == order as usize {
+                if seq.len() == order {
                     seq.push(self.name.clone());
                 }
                 Ok(())
@@ -3664,7 +3664,7 @@ mod tests {
             fn on_start(&mut self) -> Result<(), PluginError> {
                 let order = self.call_count.fetch_add(1, Ordering::SeqCst);
                 let mut seq = self.call_sequence.lock().unwrap();
-                if seq.len() == order as usize {
+                if seq.len() == order {
                     seq.push(self.name.clone());
                 } else {
                     seq.push(format!("OUT_OF_ORDER:{}", self.name));
@@ -3824,7 +3824,7 @@ mod tests {
                 ) -> Result<(), PluginError> {
                     let order = self.call_count.fetch_add(1, Ordering::SeqCst);
                     let mut seq = self.call_sequence.lock().unwrap();
-                    if seq.len() == order as usize {
+                    if seq.len() == order {
                         seq.push(self.name.clone());
                     } else {
                         seq.push(format!("OUT_OF_ORDER:{}", self.name));
@@ -4208,15 +4208,15 @@ mod tests {
             let mut manager = PluginManager::new();
 
             for i in 0..50 {
-                register_priority_plugin(&mut manager, &format!("plugin-{}", i), i as i32);
+                register_priority_plugin(&mut manager, &format!("plugin-{}", i), i);
             }
 
             let names = manager.sorted_plugin_names();
             assert_eq!(names.len(), 50);
 
-            for i in 0..50 {
+            for (i, name) in names.iter().enumerate().take(50) {
                 assert_eq!(
-                    names[i],
+                    *name,
                     format!("plugin-{}", i),
                     "Position {} should be plugin-{}",
                     i,

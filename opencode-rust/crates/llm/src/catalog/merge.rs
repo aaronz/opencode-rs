@@ -323,8 +323,10 @@ mod tests {
         models.insert("gpt-4".to_string(), create_test_model("gpt-4", "GPT-4"));
         catalog.providers.get_mut("openai").unwrap().models = models;
 
-        let mut config = ProviderConfig::default();
-        config.name = Some("OpenAI Updated".to_string());
+        let config = ProviderConfig {
+            name: Some("OpenAI Updated".to_string()),
+            ..Default::default()
+        };
 
         let mut config_providers = BTreeMap::new();
         config_providers.insert("openai".to_string(), config);
@@ -342,10 +344,14 @@ mod tests {
     fn test_catalog_merger_with_config_override_base_url() {
         let catalog = create_test_catalog();
 
-        let mut config = ProviderConfig::default();
-        let mut options = opencode_config::ProviderOptions::default();
-        options.base_url = Some("https://custom.openai.com".to_string());
-        config.options = Some(options);
+        let options = opencode_config::ProviderOptions {
+            base_url: Some("https://custom.openai.com".to_string()),
+            ..Default::default()
+        };
+        let config = ProviderConfig {
+            options: Some(options),
+            ..Default::default()
+        };
 
         let mut config_providers = BTreeMap::new();
         config_providers.insert("openai".to_string(), config);
@@ -382,8 +388,10 @@ mod tests {
             },
         );
 
-        let mut config = ProviderConfig::default();
-        config.models = Some(model_config);
+        let config = ProviderConfig {
+            models: Some(model_config),
+            ..Default::default()
+        };
 
         let mut config_providers = BTreeMap::new();
         config_providers.insert("openai".to_string(), config);
@@ -399,11 +407,15 @@ mod tests {
     #[test]
     fn test_catalog_merger_creates_synthetic_provider() {
         let catalog = create_test_catalog();
-        let mut config = ProviderConfig::default();
-        config.name = Some("Custom Provider".to_string());
-        let mut options = opencode_config::ProviderOptions::default();
-        options.base_url = Some("https://custom.example.com".to_string());
-        config.options = Some(options);
+        let options = opencode_config::ProviderOptions {
+            base_url: Some("https://custom.example.com".to_string()),
+            ..Default::default()
+        };
+        let config = ProviderConfig {
+            name: Some("Custom Provider".to_string()),
+            options: Some(options),
+            ..Default::default()
+        };
 
         let mut config_providers = BTreeMap::new();
         config_providers.insert("custom".to_string(), config);
@@ -433,8 +445,10 @@ mod tests {
             },
         );
 
-        let mut config = ProviderConfig::default();
-        config.models = Some(model_config);
+        let config = ProviderConfig {
+            models: Some(model_config),
+            ..Default::default()
+        };
 
         let mut config_providers = BTreeMap::new();
         config_providers.insert("custom".to_string(), config);
@@ -475,8 +489,10 @@ mod tests {
             },
         );
 
-        let mut config = ProviderConfig::default();
-        config.models = Some(model_config);
+        let config = ProviderConfig {
+            models: Some(model_config),
+            ..Default::default()
+        };
 
         let mut config_providers = BTreeMap::new();
         config_providers.insert("custom".to_string(), config);

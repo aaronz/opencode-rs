@@ -215,8 +215,7 @@ fn test_oauth_flow_start_device_code_flow_returns_session() {
         Some("read:user"),
     );
 
-    if result.is_ok() {
-        let session = result.unwrap();
+    if let Ok(session) = result {
         assert!(!session.device_code.is_empty());
         assert!(!session.user_code.is_empty());
         assert!(!session.verification_uri.is_empty());

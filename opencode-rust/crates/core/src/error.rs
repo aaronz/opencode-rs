@@ -732,7 +732,7 @@ mod tests {
         for err in variants {
             let code = err.code();
             assert!(
-                code >= 1000 && code < 10000,
+                (1000..10000).contains(&code),
                 "Error code for {:?} should be in 1xxx-9xxx range, got: {}",
                 err,
                 code
@@ -796,7 +796,7 @@ mod tests {
         for err in variants {
             let status = err.http_status();
             assert!(
-                status >= 400 && status < 600,
+                (400..600).contains(&status),
                 "HTTP status for {:?} should be in 4xx-5xx range, got: {}",
                 err,
                 status

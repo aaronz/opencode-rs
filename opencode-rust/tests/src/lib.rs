@@ -1,4 +1,5 @@
 #[cfg(test)]
+#[allow(clippy::duplicate_mod)]
 pub mod common;
 
 // conventions tests are slow and problematic in CI

@@ -232,6 +232,7 @@ fn open_browser(_url: &str) -> std::io::Result<()> {
     Ok(())
 }
 
+#[allow(clippy::items_after_test_module)]
 #[cfg(test)]
 mod tests {
     use super::*;

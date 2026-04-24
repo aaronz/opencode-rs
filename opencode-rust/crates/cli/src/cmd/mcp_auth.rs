@@ -47,6 +47,7 @@ pub(crate) enum McpAuthAction {
     Cleanup,
 }
 
+#[allow(clippy::items_after_test_module)]
 #[cfg(test)]
 mod tests {
     use super::*;

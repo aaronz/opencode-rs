@@ -60,8 +60,7 @@ mod tests {
     fn create_test_state_with_api_key(api_key: Option<String>) -> crate::ServerState {
         let temp_dir = tempfile::tempdir().unwrap();
         let db_path = temp_dir.path().join("test.db");
-        let mut config = opencode_core::Config::default();
-        config.api_key = api_key;
+        let config = opencode_core::Config { api_key, ..Default::default() };
         crate::ServerState {
             storage: {
                 let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
@@ -1994,8 +1993,7 @@ mod security_tests {
     fn create_test_state_with_api_key(api_key: Option<String>) -> crate::ServerState {
         let temp_dir = tempfile::tempdir().unwrap();
         let db_path = temp_dir.path().join("test.db");
-        let mut config = opencode_core::Config::default();
-        config.api_key = api_key;
+        let config = opencode_core::Config { api_key, ..Default::default() };
         crate::ServerState {
             storage: {
                 let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
@@ -2661,8 +2659,7 @@ mod api_negative_tests {
     fn create_test_state_with_api_key(api_key: Option<String>) -> crate::ServerState {
         let temp_dir = tempfile::tempdir().unwrap();
         let db_path = temp_dir.path().join("test.db");
-        let mut config = opencode_core::Config::default();
-        config.api_key = api_key;
+        let config = opencode_core::Config { api_key, ..Default::default() };
         crate::ServerState {
             storage: {
                 let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
@@ -3351,8 +3348,7 @@ mod auth_negative_tests {
     fn create_test_state_with_api_key(api_key: Option<String>) -> crate::ServerState {
         let temp_dir = tempfile::tempdir().unwrap();
         let db_path = temp_dir.path().join("test.db");
-        let mut config = opencode_core::Config::default();
-        config.api_key = api_key;
+        let config = opencode_core::Config { api_key, ..Default::default() };
         crate::ServerState {
             storage: {
                 let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
@@ -4034,7 +4030,7 @@ mod auth_negative_tests {
 
     #[test]
     fn sse_streaming_tokens_format_correctly() {
-        let tokens = vec!["Hello", " ", "world", "!"];
+        let tokens = ["Hello", " ", "world", "!"];
         let sse_events: Vec<String> = tokens
             .iter()
             .map(|token| format!("data: {}\n\n", token))
@@ -4110,12 +4106,12 @@ mod auth_negative_tests {
 
     #[test]
     fn sse_streaming_multiple_events_in_sequence() {
-        let events = vec![
-            format!("data: Hello\n\n"),
-            format!("data:  \n\n"),
-            format!("data: world\n\n"),
-            format!("data: !\n\n"),
-            format!("data: [DONE]\n\n"),
+        let events = [
+            "data: Hello\n\n".to_string(),
+            "data:  \n\n".to_string(),
+            "data: world\n\n".to_string(),
+            "data: !\n\n".to_string(),
+            "data: [DONE]\n\n".to_string(),
         ];
 
         let concatenated: String = events.join("");

@@ -65,7 +65,7 @@ fn create_test_state() -> ServerState {
     let session_repo = Arc::new(SqliteSessionRepository::new(pool.clone()));
     let project_repo = Arc::new(SqliteProjectRepository::new(pool.clone()));
 
-    let state = opencode_server::ServerState {
+    opencode_server::ServerState {
         storage: Arc::new(opencode_storage::StorageService::new(
             session_repo,
             project_repo,
@@ -97,8 +97,7 @@ fn create_test_state() -> ServerState {
             opencode_permission::ApprovalQueue::default(),
         )),
         audit_log: None,
-    };
-    state
+    }
 }
 
 #[actix_web::test]

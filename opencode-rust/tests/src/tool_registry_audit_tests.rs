@@ -1,7 +1,7 @@
 use opencode_agent::{Agent, BuildAgent, GeneralAgent};
 use opencode_core::tool::{
     build_default_registry, ToolDefinition, ToolExecutor, ToolParameter,
-    ToolRegistry as CoreToolRegistry, ToolResult,
+    ToolRegistry as CoreToolRegistry,
 };
 use opencode_core::{Message, Session};
 use opencode_tools::registry::ToolSource;
@@ -337,7 +337,6 @@ mod core_tool_registry_tests {
                 description: "Tool requiring approval".to_string(),
                 parameters: vec![],
                 requires_approval: true,
-                ..Default::default()
             },
             executor,
         );
@@ -360,11 +359,11 @@ mod core_tool_registry_tests {
             executor.clone(),
         );
 
-        let (exec, disabled) = registry.get_executor_with_status("test_tool").unwrap();
+        let (_exec, disabled) = registry.get_executor_with_status("test_tool").unwrap();
         assert!(!disabled);
 
         registry.set_disabled(std::collections::HashSet::from(["test_tool".to_string()]));
-        let (exec_after, disabled_after) = registry.get_executor_with_status("test_tool").unwrap();
+        let (_exec_after, disabled_after) = registry.get_executor_with_status("test_tool").unwrap();
         assert!(disabled_after);
     }
 

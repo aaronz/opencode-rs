@@ -1,7 +1,7 @@
 use opencode_core::Session;
 use opencode_plugin::{
-    Plugin, PluginCapability, PluginConfig, PluginDomain, PluginError, PluginManager,
-    PluginPermissions, PluginTool, PluginToolDefinition,
+    Plugin, PluginError, PluginManager,
+    PluginTool, PluginToolDefinition,
 };
 use serde_json::Value;
 use std::sync::{Arc, Mutex};
@@ -97,8 +97,7 @@ impl Plugin for TestPlugin {
 fn test_plugin_hook_execution_on_init() {
     let mut manager = PluginManager::new();
 
-    let mut plugin = TestPlugin::new("test-init-plugin");
-    let init_before = plugin.init_called;
+    let plugin = TestPlugin::new("test-init-plugin");
 
     manager
         .register(Box::new(plugin))
@@ -222,7 +221,7 @@ fn test_plugin_registration_and_lookup() {
 fn test_plugin_config_retrieval() {
     let mut manager = PluginManager::new();
 
-    let mut plugin = TestPlugin::new("config-test-plugin");
+    let plugin = TestPlugin::new("config-test-plugin");
     manager
         .register(Box::new(plugin))
         .expect("Plugin should register");
@@ -259,7 +258,7 @@ fn test_plugin_sorted_execution_order() {
 fn test_plugin_hook_failure_is_contained() {
     let mut manager = PluginManager::new();
 
-    let mut plugin = TestPlugin::new("failure-test-plugin");
+    let plugin = TestPlugin::new("failure-test-plugin");
 
     manager
         .register(Box::new(plugin))
@@ -311,7 +310,7 @@ fn test_plugin_tool_registration_capability() {
 
 #[tokio::test]
 async fn test_plugin_async_tool_execution() {
-    let manager = PluginManager::new();
+    let _manager = PluginManager::new();
 
     let tool_def = PluginToolDefinition {
         name: "test_tool".to_string(),
@@ -329,7 +328,7 @@ async fn test_plugin_async_tool_execution() {
 
 #[test]
 fn test_plugin_session_lifecycle_integration() {
-    let project = crate::common::TempProject::new();
+    let _project = crate::common::TempProject::new();
 
     let mut session = Session::new();
     session.add_message(opencode_core::Message::user("Test message".to_string()));

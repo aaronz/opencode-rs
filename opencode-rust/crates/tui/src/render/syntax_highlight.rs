@@ -196,8 +196,8 @@ mod tests {
         let highlighter = SyntaxHighlighter::new();
         let languages = highlighter.supported_languages();
         assert!(!languages.is_empty());
-        assert!(languages.iter().any(|l| *l == "Rust"));
-        assert!(languages.iter().any(|l| *l == "JavaScript"));
+        assert!(languages.contains(&"Rust"));
+        assert!(languages.contains(&"JavaScript"));
     }
 
     #[test]

@@ -127,13 +127,12 @@ async fn test_null_byte_injection_rejected(
         .execute(serde_json::json!({"path": malicious_path}), None)
         .await;
 
-    match result {
-        Ok(r) => assert!(
+    if let Ok(r) = result {
+        assert!(
             !r.success || !r.content.contains("root:"),
             "Null byte injection '{}' should not read sensitive files",
             malicious_path
-        ),
-        Err(_) => assert!(true, "Tool should reject null byte injection"),
+        );
     }
 }
 
@@ -171,17 +170,14 @@ async fn test_tool_registry_rejects_dangerous_paths(
         .execute("read", serde_json::json!({"path": dangerous_path}), None)
         .await;
 
-    match result {
-        Ok(r) => {
-            if r.success {
-                assert!(
-                    !r.content.contains("root:") && !r.content.contains("BEGIN RSA"),
-                    "Should not read sensitive files: {}",
-                    dangerous_path
-                );
-            }
+    if let Ok(r) = result {
+        if r.success {
+            assert!(
+                !r.content.contains("root:") && !r.content.contains("BEGIN RSA"),
+                "Should not read sensitive files: {}",
+                dangerous_path
+            );
         }
-        Err(_) => assert!(true, "Tool should reject dangerous paths"),
     }
 }
 

@@ -86,8 +86,7 @@ async fn test_path_traversal_read_outside_project() {
         let result = tool
             .execute(serde_json::json!({"path": malicious_path}), None)
             .await;
-        if result.is_ok() {
-            let tool_result = result.unwrap();
+        if let Ok(tool_result) = result {
             assert!(
                 !tool_result.success
                     || !tool_result.content.contains("root:")
@@ -115,8 +114,7 @@ async fn test_path_traversal_write_outside_project() {
                 None,
             )
             .await;
-        if result.is_ok() {
-            let tool_result = result.unwrap();
+        if let Ok(tool_result) = result {
             if tool_result.success {
                 let file_path = std::path::Path::new(malicious_path);
                 if file_path.exists() {
@@ -141,12 +139,11 @@ async fn test_path_traversal_null_byte_injection() {
         let result = tool
             .execute(serde_json::json!({"path": malicious_path}), None)
             .await;
-        match result {
-            Ok(r) => assert!(
+        if let Ok(r) = result {
+            assert!(
                 !r.success || !r.content.contains("root:"),
                 "Null byte injection should not read sensitive files"
-            ),
-            Err(_) => assert!(true, "Tool should reject null byte injection"),
+            );
         }
     }
 }
@@ -324,17 +321,14 @@ async fn test_tool_registry_execute_rejects_dangerous_paths() {
         let result = registry
             .execute("read", serde_json::json!({"path": dangerous_path}), None)
             .await;
-        match result {
-            Ok(r) => {
-                if r.success {
-                    assert!(
-                        !r.content.contains("root:") && !r.content.contains("BEGIN RSA"),
-                        "Should not read sensitive files: {}",
-                        dangerous_path
-                    );
-                }
+        if let Ok(r) = result {
+            if r.success {
+                assert!(
+                    !r.content.contains("root:") && !r.content.contains("BEGIN RSA"),
+                    "Should not read sensitive files: {}",
+                    dangerous_path
+                );
             }
-            Err(_) => assert!(true, "Tool should reject dangerous paths"),
         }
     }
 }
@@ -432,16 +426,13 @@ async fn test_grep_injection_prevention() {
         let malicious_patterns = vec!["../../../etc/passwd", "(cat /etc/passwd)", "[^a-z]"];
         for pattern in malicious_patterns {
             let result = grep_tool.execute(serde_json::json!({"path": project.path().join("test.txt").to_string_lossy(), "pattern": pattern}), None).await;
-            match result {
-                Ok(r) => {
-                    if r.success {
-                        assert!(
-                            !r.content.contains("root:"),
-                            "Grep injection should be prevented"
-                        );
-                    }
+            if let Ok(r) = result {
+                if r.success {
+                    assert!(
+                        !r.content.contains("root:"),
+                        "Grep injection should be prevented"
+                    );
                 }
-                Err(_) => assert!(true, "Dangerous grep pattern should be rejected"),
             }
         }
     }
@@ -508,8 +499,7 @@ async fn test_tool_args_json_injection() {
         let args: Result<serde_json::Value, _> = serde_json::from_str(args_str);
         if let Ok(args) = args {
             let result = registry.execute("read", args, None).await;
-            if result.is_ok() {
-                let r = result.unwrap();
+            if let Ok(r) = result {
                 if r.success {
                     assert!(
                         !r.content.contains("root:"),
@@ -612,12 +602,11 @@ async fn test_regex_dos_prevention_in_tools() {
                     None,
                 )
                 .await;
-            match result {
-                Ok(r) => assert!(
+            if let Ok(r) = result {
+                assert!(
                     !r.content.contains("ReDoS"),
                     "Tool should handle or reject ReDoS patterns"
-                ),
-                Err(_) => assert!(true, "ReDoS patterns should be rejected"),
+                );
             }
         }
     }
@@ -919,8 +908,7 @@ mod test_request_validation {
             large_prompt
         );
         let result: Result<Value, _> = serde_json::from_str(&json);
-        if result.is_ok() {
-            let value = result.unwrap();
+        if let Ok(value) = result {
             if let Some(prompt) = value.get("prompt").and_then(|p| p.as_str()) {
                 assert!(
                     prompt.len() > 100000,
@@ -970,16 +958,13 @@ mod test_request_validation {
                 continue;
             }
             let result: Result<Value, _> = serde_json::from_str(json_str);
-            match result {
-                Ok(value) => {
-                    let json_bytes = serde_json::to_string(&value).unwrap().into_bytes();
-                    assert!(
-                        !json_bytes.contains(&0),
-                        "{}: null bytes should be rejected or escaped",
-                        description
-                    );
-                }
-                Err(_) => assert!(true, "{} should be rejected", description),
+            if let Ok(value) = result {
+                let json_bytes = serde_json::to_string(&value).unwrap().into_bytes();
+                assert!(
+                    !json_bytes.contains(&0),
+                    "{}: null bytes should be rejected or escaped",
+                    description
+                );
             }
         }
     }
@@ -1022,8 +1007,7 @@ mod test_request_validation {
 
         for (json_str, description) in enum_cases {
             let result: Result<Value, _> = serde_json::from_str(json_str);
-            if result.is_ok() {
-                let value = result.unwrap();
+            if let Ok(value) = result {
                 if let Some(mode) = value.get("mode").and_then(|m| m.as_str()) {
                     let valid_modes = ["build", "plan", "general"];
                     assert!(

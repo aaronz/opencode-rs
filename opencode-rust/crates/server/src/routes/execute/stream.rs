@@ -184,7 +184,6 @@ where
 ///
 /// Returns true if the string follows the SSE specification:
 /// - Each line is formatted as "field: value\n"
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -431,11 +430,11 @@ mod tests {
         }
 
         // Verify event sequence
-        let first_sse = String::from_utf8_lossy(&collected[0].as_ref().expect("Ok"));
+        let first_sse = String::from_utf8_lossy(collected[0].as_ref().expect("Ok"));
         assert!(first_sse.contains("event: message\n"));
         assert!(first_sse.contains("Hello"));
 
-        let tool_call_sse = String::from_utf8_lossy(&collected[2].as_ref().expect("Ok"));
+        let tool_call_sse = String::from_utf8_lossy(collected[2].as_ref().expect("Ok"));
         assert!(tool_call_sse.contains("event: tool_call\n"));
     }
 

@@ -245,10 +245,12 @@ async fn test_log_rotation() {
     let temp_dir = tempfile::tempdir().unwrap();
     let log_path = temp_dir.path().join("opencode.log");
 
-    let mut config = LoggingConfig::default();
-    config.file_path = Some(log_path.clone());
-    config.max_file_size_mb = 1;
-    config.max_rotated_files = 3;
+    let config = LoggingConfig {
+        file_path: Some(log_path.clone()),
+        max_file_size_mb: 1,
+        max_rotated_files: 3,
+        ..Default::default()
+    };
 
     let logger = Logger::new(config).unwrap();
 
@@ -290,10 +292,12 @@ async fn test_log_rotation_creates_second_file_on_more_writes() {
     let temp_dir = tempfile::tempdir().unwrap();
     let log_path = temp_dir.path().join("opencode.log");
 
-    let mut config = LoggingConfig::default();
-    config.file_path = Some(log_path.clone());
-    config.max_file_size_mb = 1;
-    config.max_rotated_files = 3;
+    let config = LoggingConfig {
+        file_path: Some(log_path.clone()),
+        max_file_size_mb: 1,
+        max_rotated_files: 3,
+        ..Default::default()
+    };
 
     let logger = Logger::new(config).unwrap();
 
@@ -362,10 +366,12 @@ async fn test_log_rotation_oldest_deleted_when_max_exceeded() {
     let temp_dir = tempfile::tempdir().unwrap();
     let log_path = temp_dir.path().join("opencode.log");
 
-    let mut config = LoggingConfig::default();
-    config.file_path = Some(log_path.clone());
-    config.max_file_size_mb = 1;
-    config.max_rotated_files = 3;
+    let config = LoggingConfig {
+        file_path: Some(log_path.clone()),
+        max_file_size_mb: 1,
+        max_rotated_files: 3,
+        ..Default::default()
+    };
 
     let logger = Logger::new(config).unwrap();
 

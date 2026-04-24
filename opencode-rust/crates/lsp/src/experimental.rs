@@ -350,7 +350,6 @@ mod tests {
     #[tokio::test]
     async fn test_experimental_tool_name() {
         let _tool = ExperimentalLspTool::new();
-        assert!(true, "ExperimentalLspTool can be created");
     }
 
     #[tokio::test]

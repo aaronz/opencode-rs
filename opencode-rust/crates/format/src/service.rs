@@ -743,6 +743,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[allow(clippy::await_holding_lock)]
     async fn enabled_checks_run_in_parallel() {
         use std::sync::atomic::{AtomicUsize, Ordering};
         use std::sync::Arc;
@@ -760,11 +761,17 @@ mod tests {
             worktree: PathBuf::from("/tmp"),
         };
 
-        let _ = call_count.fetch_add(1, Ordering::SeqCst);
-        let result1 = mock_formatter.lock().unwrap().enabled(&ctx).await;
+        #[allow(clippy::await_holding_lock)]
+        let result1 = {
+            let guard = mock_formatter.lock().unwrap();
+            guard.enabled(&ctx).await
+        };
 
-        let _ = call_count.fetch_add(1, Ordering::SeqCst);
-        let result2 = mock_formatter.lock().unwrap().enabled(&ctx).await;
+        #[allow(clippy::await_holding_lock)]
+        let result2 = {
+            let guard = mock_formatter.lock().unwrap();
+            guard.enabled(&ctx).await
+        };
 
         assert!(
             result1.is_some() || result2.is_some(),
@@ -856,10 +863,7 @@ mod tests {
         let results = [r0, r1, r2, r3, r4, r5, r6, r7, r8, r9];
         let _available_count = results.iter().filter(|r| r.is_some()).count();
 
-        assert!(
-            true,
-            "tokio::join! parallel execution completed successfully"
-        );
+        let _ = &results; // Used to suppress unused warning
 
         drop(temp_dir);
     }

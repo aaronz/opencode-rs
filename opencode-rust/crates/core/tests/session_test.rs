@@ -120,10 +120,9 @@ mod tests {
     #[test]
     fn test_session_compaction_status() {
         use opencode_core::compaction::CompactionTrigger;
-        use opencode_core::message::Message;
         use opencode_core::session::Session;
 
-        let mut session = Session::new();
+        let session = Session::new();
         let status = session.get_compaction_status();
         assert_eq!(status.trigger, CompactionTrigger::None);
         assert!(!status.needs_attention);
@@ -132,7 +131,6 @@ mod tests {
     #[test]
     fn test_command_expand_env_vars() {
         use opencode_core::command::{CommandDefinition, CommandVariables};
-        use std::path::Path;
 
         std::env::set_var("TEST_CMD_VAR", "hello_from_env");
         let def = CommandDefinition {
@@ -161,8 +159,10 @@ mod tests {
             model: None,
             template: "At cursor ${cursor}".to_string(),
         };
-        let mut vars = CommandVariables::default();
-        vars.cursor = "line:10,col:5".to_string();
+        let vars = CommandVariables {
+            cursor: "line:10,col:5".to_string(),
+            ..Default::default()
+        };
         let expanded = def.expand(&vars);
         assert!(expanded.contains("line:10,col:5"));
     }
@@ -314,7 +314,6 @@ mod tests {
 #[cfg(test)]
 mod id_visibility_tests {
     use opencode_core::{IdGenerator, IdParseError, ProjectId, SessionId, UserId};
-    use std::str::FromStr;
 
     #[test]
     fn test_id_generator_public_access() {
@@ -645,7 +644,7 @@ mod id_visibility_tests {
 
         let mut parent = Session::new();
         for c in ['A', 'B', 'C', 'D', 'E'] {
-            parent.add_message(opencode_core::message::Message::user(&c.to_string()));
+            parent.add_message(opencode_core::message::Message::user(c.to_string()));
         }
 
         let parent = Arc::new(parent);

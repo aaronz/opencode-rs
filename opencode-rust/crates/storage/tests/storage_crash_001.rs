@@ -14,8 +14,8 @@ async fn test_storage_crash_001_can_create_fresh_after_corruption() {
     }
 
     let corrupted_pool = StoragePool::new(&corrupted_db_path);
-    if corrupted_pool.is_ok() {
-        let result = corrupted_pool.unwrap().get().await;
+    if let Ok(pool) = corrupted_pool {
+        let result = pool.get().await;
         if let Err(e) = result {
             let err_str = format!("{}", e);
             assert!(

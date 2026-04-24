@@ -46,7 +46,7 @@ fn test_pkce_different_verifiers() {
 
 #[test]
 fn test_oauth_flow_init() {
-    let flow = OAuthFlow::new();
+    let _flow = OAuthFlow::new();
     let verifier = OAuthFlow::generate_code_verifier();
     assert!(
         !verifier.is_empty(),
@@ -66,7 +66,7 @@ fn test_localhost_callback_server_available() {
 
 #[test]
 fn test_oauth_token_expiration() {
-    use chrono::{Duration, Utc};
+    use chrono::Utc;
     use opencode_auth::oauth::OAuthToken;
 
     let token = OAuthToken {

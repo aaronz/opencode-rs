@@ -332,7 +332,7 @@ mod crash_recovery {
         );
 
         handler.start();
-        std::panic::take_hook();
+        let _ = std::panic::take_hook();
         handler.stop();
     }
 

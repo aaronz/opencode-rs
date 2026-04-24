@@ -16,6 +16,7 @@ pub(crate) struct UpgradeArgs {
     pub dry_run: bool,
 }
 
+#[allow(clippy::items_after_test_module)]
 #[cfg(test)]
 mod tests {
     use super::*;

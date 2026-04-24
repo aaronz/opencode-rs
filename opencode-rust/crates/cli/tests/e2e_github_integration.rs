@@ -40,7 +40,7 @@ fn spawn_mock_github_api(port: u16, response_body: String, status_code: u16) -> 
 #[test]
 fn test_github_repo_list_requires_token() {
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "-q",
             "--bin",
@@ -64,7 +64,7 @@ fn test_github_repo_list_requires_token() {
 #[test]
 fn test_github_issue_list_requires_token() {
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "-q",
             "--bin",
@@ -89,7 +89,7 @@ fn test_github_issue_list_requires_token() {
 #[test]
 fn test_github_issue_list_invalid_repo_format() {
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "-q",
             "--bin",
@@ -114,7 +114,7 @@ fn test_github_issue_list_invalid_repo_format() {
 #[test]
 fn test_github_help_shows_all_commands() {
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "-q",
             "--bin",
@@ -142,7 +142,7 @@ fn test_github_help_shows_all_commands() {
 #[test]
 fn test_github_login_starts_oauth_flow() {
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "-q",
             "--bin",
@@ -169,7 +169,7 @@ fn test_github_login_starts_oauth_flow() {
 #[test]
 fn test_github_install_requires_owner() {
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "-q",
             "--bin",
@@ -195,7 +195,7 @@ fn test_github_install_requires_owner() {
 #[test]
 fn test_github_workflow_requires_owner() {
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "-q",
             "--bin",
@@ -245,7 +245,7 @@ fn test_github_integration_repo_list_filters_pull_requests() {
     let _api_base = spawn_mock_github_api(9999, body, 200);
 
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "-q",
             "--bin",
@@ -282,7 +282,7 @@ fn test_github_integration_returns_api_error() {
     let _api_base = spawn_mock_github_api(9998, body, 404);
 
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "-q",
             "--bin",
@@ -315,7 +315,7 @@ fn test_github_integration_unauthorized() {
     let _api_base = spawn_mock_github_api(9997, body, 401);
 
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "-q",
             "--bin",
@@ -344,7 +344,7 @@ fn test_github_repo_list_empty_response() {
     let _api_base = spawn_mock_github_api(9996, body, 200);
 
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "-q",
             "--bin",
@@ -376,7 +376,7 @@ fn test_github_issue_list_empty_response() {
     let _api_base = spawn_mock_github_api(9995, body, 200);
 
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "-q",
             "--bin",
@@ -427,7 +427,7 @@ fn test_github_repo_list_displays_visibility() {
     let _api_base = spawn_mock_github_api(9994, body, 200);
 
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "-q",
             "--bin",
@@ -470,7 +470,7 @@ fn test_github_issue_list_displays_author() {
     let _api_base = spawn_mock_github_api(9993, body, 200);
 
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "-q",
             "--bin",
@@ -510,7 +510,7 @@ fn test_github_install_with_token_flag() {
     let _api_base = spawn_mock_github_api(9992, body, 200);
 
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "-q",
             "--bin",
@@ -544,7 +544,7 @@ fn test_github_install_with_token_flag() {
 #[test]
 fn test_github_workflow_generates_yaml() {
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "-q",
             "--bin",

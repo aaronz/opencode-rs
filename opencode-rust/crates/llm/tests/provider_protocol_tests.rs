@@ -54,7 +54,7 @@ fn test_model_registry_set_and_get_filter() {
     let mut registry = ModelRegistry::default();
     let filter = ProviderFilter::new(vec!["openai".to_string()], vec!["openai".to_string()]);
     registry.set_provider_filter(filter.clone());
-    assert!(!registry.get("gpt-4o").is_some() || registry.get("gpt-4o").is_none());
+    assert!(registry.get("gpt-4o").is_none());
 }
 
 #[test]

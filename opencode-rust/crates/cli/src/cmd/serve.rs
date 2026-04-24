@@ -25,6 +25,7 @@ pub(crate) struct ServeArgs {
     pub hostname: Option<String>,
 }
 
+#[allow(clippy::items_after_test_module)]
 #[cfg(test)]
 mod tests {
     use super::*;

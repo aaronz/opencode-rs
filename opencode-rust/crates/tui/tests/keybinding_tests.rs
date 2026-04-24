@@ -166,7 +166,7 @@ fn keybinding_multiple_conflicts_detected() {
     config.new_session = Some("Ctrl+a".to_string());
 
     let conflicts = config.detect_conflicts();
-    assert!(conflicts.len() >= 1);
+    assert!(!conflicts.is_empty());
 }
 
 #[test]

@@ -189,7 +189,7 @@ fn test_file_references_empty_at_no_ref() {
             || result.tokens.is_empty()
             || !result.has_files
             || matches!(
-                result.tokens.get(0),
+                result.tokens.first(),
                 Some(opencode_tui::input::parser::InputToken::Text(_))
             )
     );

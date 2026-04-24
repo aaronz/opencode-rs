@@ -211,7 +211,7 @@ mod merge_tests {
         index.add_path(std::path::Path::new("main.txt")).unwrap();
         let tree_id = index.write_tree().unwrap();
         let tree = repo.find_tree(tree_id).unwrap();
-        drop(tree_id);
+        let _ = tree_id;
         let signature = repo.signature().unwrap();
         repo.commit(
             Some("HEAD"),
@@ -245,7 +245,7 @@ mod merge_tests {
         index.add_path(std::path::Path::new("test.txt")).unwrap();
         let tree_id = index.write_tree().unwrap();
         let tree = repo.find_tree(tree_id).unwrap();
-        drop(tree_id);
+        let _ = tree_id;
         let signature = repo.signature().unwrap();
         let commit1_oid = repo
             .commit(
@@ -265,7 +265,7 @@ mod merge_tests {
         index.add_path(std::path::Path::new("test.txt")).unwrap();
         let tree_id = index.write_tree().unwrap();
         let tree = repo.find_tree(tree_id).unwrap();
-        drop(tree_id);
+        let _ = tree_id;
         let signature = repo.signature().unwrap();
         repo.commit(
             Some(&format!("refs/heads/{}", "feature")),
@@ -283,7 +283,7 @@ mod merge_tests {
         index.add_path(std::path::Path::new("test.txt")).unwrap();
         let tree_id = index.write_tree().unwrap();
         let tree = repo.find_tree(tree_id).unwrap();
-        drop(tree_id);
+        let _ = tree_id;
         let signature = repo.signature().unwrap();
         repo.commit(
             Some("HEAD"),
@@ -401,8 +401,7 @@ mod push_pull_tests {
         let temp_dir = create_test_repo();
 
         let result = git_push(temp_dir.path(), Some("origin"));
-        if result.is_ok() {
-            let push_result = result.unwrap();
+        if let Ok(push_result) = result {
             assert_eq!(push_result.refs_updated, 1);
             assert!(!push_result.summary.is_empty());
         }
@@ -428,7 +427,7 @@ mod push_pull_tests {
             Err(e) => {
                 let err_str = e.to_string();
                 if err_str.contains("not found") || err_str.contains("doesn't exist") {
-                    return;
+                    // Expected error, test passes
                 }
             }
         }
@@ -652,8 +651,8 @@ mod branch_operation_tests {
         drop(repo);
 
         let result = git_checkout(temp_dir.path(), "feature-dirty", false);
-        if result.is_err() {
-            let err_str = result.unwrap_err().to_string();
+        if let Err(e) = result {
+            let err_str = e.to_string();
             assert!(
                 err_str.contains("dirty")
                     || err_str.contains("uncommitted")
@@ -828,7 +827,7 @@ mod rebase_tests {
             Err(e) => {
                 let err_str = e.to_string();
                 if err_str.contains("conflict") || err_str.contains("CONFLICT") {
-                    return;
+                    // Expected conflict error
                 }
             }
         }
@@ -853,7 +852,8 @@ mod remote_operation_tests {
         let result = git_push(temp_dir.path(), Some("origin"));
         match result {
             Ok(push_result) => {
-                assert!(push_result.refs_updated >= 0);
+                // refs_updated is always >= 0 for unsigned type
+                let _ = push_result.refs_updated;
             }
             Err(e) => {
                 let err_str = e.to_string();

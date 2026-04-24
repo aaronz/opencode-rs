@@ -191,7 +191,7 @@ impl Default for ModelRegistry {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_model_visible, ModelRegistry};
+    use super::ModelRegistry;
     use crate::catalog::types::ModelStatus;
     use crate::provider_filter::ProviderFilter;
 

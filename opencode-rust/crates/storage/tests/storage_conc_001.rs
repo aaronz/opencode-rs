@@ -121,7 +121,7 @@ async fn test_storage_conc_001_session_loadable_after_concurrent_writes() {
         });
     }
 
-    while let Some(_) = join_set.join_next().await {}
+    while join_set.join_next().await.is_some() {}
 
     let loaded = repo
         .find_by_id("00000000-0000-0000-0000-000000000003")

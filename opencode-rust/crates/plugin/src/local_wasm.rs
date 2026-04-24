@@ -107,7 +107,7 @@ mod tests {
     fn test_load_plugin_with_invalid_wasm_handles_gracefully() {
         let mut temp_file = NamedTempFile::with_suffix(".wasm").unwrap();
         temp_file.write_all(b"not valid wasm").unwrap();
-        temp_file.flush();
+        let _ = temp_file.flush();
 
         let result = load_plugin(temp_file.path());
         assert!(result.is_err(), "Loading invalid WASM should fail");

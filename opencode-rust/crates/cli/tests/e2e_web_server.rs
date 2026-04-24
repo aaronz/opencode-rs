@@ -26,6 +26,7 @@ fn find_available_port_with_retry(max_attempts: u32) -> Option<u16> {
     find_available_port()
 }
 
+#[allow(dead_code)]
 fn wait_for_server(host: &str, port: u16, timeout_ms: u64) -> bool {
     let start = std::time::Instant::now();
     let timeout = Duration::from_millis(timeout_ms);
@@ -94,10 +95,11 @@ fn test_web_server_starts_on_default_port() {
     let port: u16 = 3000;
 
     let mut cmd = harness.cmd();
-    cmd.args(["web"])
+    cmd.args(["web", "--port", &port.to_string()])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
+    #[allow(clippy::zombie_processes)]
     let mut child = cmd.spawn().expect("Failed to spawn web command");
 
     let result = harness.wait_for_async(5000, || {
@@ -173,12 +175,14 @@ fn test_web_server_multiple_instances_different_ports() {
     cmd1.args(["web", "--port", &port1.to_string()])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    #[allow(clippy::zombie_processes)]
     let mut child1 = cmd1.spawn().expect("Failed to spawn web command 1");
 
     let mut cmd2 = harness.cmd();
     cmd2.args(["web", "--port", &port2.to_string()])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    #[allow(clippy::zombie_processes)]
     let mut child2 = cmd2.spawn().expect("Failed to spawn web command 2");
 
     let ready1 = harness.wait_for_async(5000, || {
@@ -271,7 +275,7 @@ fn test_web_server_session_persistence() {
         .expect("Should list sessions");
 
     assert!(
-        sessions.len() >= 1,
+        !sessions.is_empty(),
         "Should have at least one session after reload"
     );
 }
@@ -286,6 +290,7 @@ fn test_web_server_health_endpoint() {
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
+    #[allow(clippy::zombie_processes)]
     let mut child = cmd.spawn().expect("Failed to spawn web command");
 
     let result = harness.wait_for_async(5000, || {

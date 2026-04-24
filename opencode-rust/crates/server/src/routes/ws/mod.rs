@@ -1351,10 +1351,7 @@ mod ws_lifecycle_tests {
 
     #[test]
     fn test_ws_enables_true_full_duplex_communication() {
-        assert!(
-            true,
-            "WebSocket provides FULL DUPLEX: same connection for send and receive"
-        );
+        // WebSocket provides FULL DUPLEX: same connection for send and receive
     }
 
     #[tokio::test]

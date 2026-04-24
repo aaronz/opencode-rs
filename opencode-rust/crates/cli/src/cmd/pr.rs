@@ -182,6 +182,7 @@ fn run_checkout(repo: &str, number: u64) {
     }
 }
 
+#[allow(clippy::items_after_test_module)]
 #[cfg(test)]
 mod tests {
     use super::*;

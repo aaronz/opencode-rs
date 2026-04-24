@@ -998,9 +998,11 @@ mod tests {
 
     #[test]
     fn test_keybinding_config_detect_no_conflicts() {
-        let mut config = KeybindingConfig::default();
-        config.command_palette = Some("Ctrl+p".to_string());
-        config.timeline = Some("Ctrl+t".to_string());
+        let config = KeybindingConfig {
+            command_palette: Some("Ctrl+p".to_string()),
+            timeline: Some("Ctrl+t".to_string()),
+            ..Default::default()
+        };
 
         let conflicts = config.detect_conflicts();
         assert!(conflicts.is_empty());
@@ -1008,9 +1010,11 @@ mod tests {
 
     #[test]
     fn test_keybinding_config_detect_conflicts() {
-        let mut config = KeybindingConfig::default();
-        config.command_palette = Some("Ctrl+p".to_string());
-        config.timeline = Some("Ctrl+p".to_string()); // Same key!
+        let config = KeybindingConfig {
+            command_palette: Some("Ctrl+p".to_string()),
+            timeline: Some("Ctrl+p".to_string()), // Same key!
+            ..Default::default()
+        };
 
         let conflicts = config.detect_conflicts();
         assert_eq!(conflicts.len(), 1);
@@ -1020,10 +1024,12 @@ mod tests {
 
     #[test]
     fn test_keybinding_config_multiple_conflicts() {
-        let mut config = KeybindingConfig::default();
-        config.command_palette = Some("Ctrl+x".to_string());
-        config.timeline = Some("Ctrl+y".to_string());
-        config.new_session = Some("Ctrl+x".to_string()); // Conflicts with command_palette
+        let config = KeybindingConfig {
+            command_palette: Some("Ctrl+x".to_string()),
+            timeline: Some("Ctrl+y".to_string()),
+            new_session: Some("Ctrl+x".to_string()), // Conflicts with command_palette
+            ..Default::default()
+        };
 
         let conflicts = config.detect_conflicts();
         assert_eq!(conflicts.len(), 1);
@@ -1033,9 +1039,11 @@ mod tests {
 
     #[test]
     fn test_keybinding_config_empty_string_no_conflict() {
-        let mut config = KeybindingConfig::default();
-        config.command_palette = Some("".to_string()); // Empty means use default
-        config.timeline = Some("Ctrl+p".to_string());
+        let config = KeybindingConfig {
+            command_palette: Some("".to_string()),
+            timeline: Some("Ctrl+p".to_string()),
+            ..Default::default()
+        };
 
         let conflicts = config.detect_conflicts();
         assert!(conflicts.is_empty());

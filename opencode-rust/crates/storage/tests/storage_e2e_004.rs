@@ -2,7 +2,6 @@ use opencode_core::Message;
 use opencode_storage::database::StoragePool;
 use opencode_storage::{InMemoryProjectRepository, InMemorySessionRepository, StorageService};
 use std::sync::Arc;
-use tokio;
 
 #[tokio::test]
 async fn test_storage_e2e_004_concurrent_session_access() {
@@ -46,7 +45,7 @@ async fn test_storage_e2e_004_concurrent_session_access() {
     let mut load_handles = vec![];
     for (_, session_id, _) in &creation_results {
         let service = service.clone();
-        let id = session_id.clone();
+        let id = *session_id;
         let handle = tokio::spawn(async move { service.load_session(&id.to_string()).await });
         load_handles.push(handle);
     }

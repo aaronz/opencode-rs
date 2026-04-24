@@ -1,4 +1,5 @@
 #[cfg(test)]
+#[allow(clippy::module_inception)]
 mod snapshot_durability_tests {
     use opencode_core::checkpoint::CheckpointManager;
     use opencode_core::revert::RevertManager;

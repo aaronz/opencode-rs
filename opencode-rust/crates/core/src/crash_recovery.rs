@@ -696,7 +696,7 @@ mod tests {
         );
 
         handler.start();
-        take_hook();
+        let _ = take_hook();
 
         handler.stop();
     }

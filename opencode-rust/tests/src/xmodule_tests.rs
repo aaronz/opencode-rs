@@ -5,7 +5,6 @@ mod xmodule_agent_storage_001 {
     use opencode_storage::migration::MigrationManager;
     use opencode_storage::repository::SessionRepository;
     use opencode_storage::sqlite_repository::SqliteSessionRepository;
-    use tempfile::tempdir;
 
     fn create_temp_storage() -> (StoragePool, tempfile::TempDir) {
         let temp_dir = tempfile::tempdir().unwrap();
@@ -212,7 +211,6 @@ mod xmodule_session_compaction_001 {
     use opencode_storage::migration::MigrationManager;
     use opencode_storage::repository::SessionRepository;
     use opencode_storage::sqlite_repository::SqliteSessionRepository;
-    use tempfile::tempdir;
 
     fn create_temp_storage() -> (StoragePool, tempfile::TempDir) {
         let temp_dir = tempfile::tempdir().unwrap();
@@ -244,7 +242,7 @@ mod xmodule_session_compaction_001 {
 
         let mut updated = Session::new();
         updated.id = session.id;
-        updated.messages = vec![opencode_core::Message::user(format!("Compacted summary"))];
+        updated.messages = vec![opencode_core::Message::user("Compacted summary".to_string())];
         repo.save(&updated).await.unwrap();
 
         let loaded_after = repo.find_by_id(&session.id.to_string()).await.unwrap();
@@ -305,7 +303,6 @@ mod xmodule_storage_server_001 {
     use opencode_storage::migration::MigrationManager;
     use opencode_storage::repository::SessionRepository;
     use opencode_storage::sqlite_repository::SqliteSessionRepository;
-    use tempfile::tempdir;
 
     fn create_temp_storage() -> (StoragePool, tempfile::TempDir) {
         let temp_dir = tempfile::tempdir().unwrap();
@@ -427,7 +424,6 @@ mod xmodule_git_storage_001 {
 
 #[cfg(test)]
 mod xmodule_tool_shell_permission_001 {
-    use opencode_permission::PermissionScope;
 
     #[test]
     fn test_env_sanitization_before_fork() {
@@ -616,7 +612,6 @@ mod xmodule_server_cli_001 {
 #[cfg(test)]
 mod xmodule_session_project_001 {
     use std::fs;
-    use std::path::PathBuf;
 
     #[tokio::test]
     async fn test_stale_path_detected_after_project_move() {

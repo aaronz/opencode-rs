@@ -237,7 +237,7 @@ mod tests {
             .unwrap_or(0);
 
         assert!(
-            uptime >= 100 && uptime <= 101,
+            (100..=101).contains(&uptime),
             "Uptime should be approximately 100 seconds, got: {}",
             uptime
         );
@@ -296,7 +296,7 @@ mod tests {
             .unwrap_or(0);
 
         assert!(
-            calculated_uptime >= 3599 && calculated_uptime <= 3601,
+            (3599..=3601).contains(&calculated_uptime),
             "Uptime should be approximately 3600 seconds, got: {}",
             calculated_uptime
         );

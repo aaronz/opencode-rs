@@ -231,8 +231,7 @@ async fn config_expand_001_variable_expansion_quotes() {
     let result = Config::load(&config_path);
     std::env::remove_var("TEST_URL");
 
-    if result.is_ok() {
-        let config = result.unwrap();
+    if let Ok(config) = result {
         let hostname = config.server.as_ref().and_then(|s| s.hostname.clone());
         assert_eq!(hostname, Some("http://example.com/?a=1&b=2".to_string()));
     }
@@ -311,8 +310,8 @@ async fn config_validation_rejects_tui_fields_in_runtime() {
     std::fs::write(&config_path, content).unwrap();
 
     let result = Config::load(&config_path);
-    if result.is_err() {
-        let err_msg = format!("{}", result.unwrap_err());
+    if let Err(err) = result {
+        let err_msg = format!("{}", err);
         assert!(
             err_msg.contains("TUI") || err_msg.contains("runtime"),
             "Error should mention TUI/runtime field mismatch"

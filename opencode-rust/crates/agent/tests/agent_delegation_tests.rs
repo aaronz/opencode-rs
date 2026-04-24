@@ -36,7 +36,7 @@ fn test_task_id_debug_format() {
 #[test]
 fn test_task_id_clone_is_equal() {
     let id = TaskId::new();
-    let cloned = id.clone();
+    let cloned = id;
     assert_eq!(id, cloned);
 }
 

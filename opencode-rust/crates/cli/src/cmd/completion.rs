@@ -209,6 +209,7 @@ fn write_powershell_completions<W: Write>(w: &mut W) -> io::Result<()> {
     Ok(())
 }
 
+#[allow(clippy::items_after_test_module)]
 #[cfg(test)]
 mod tests {
     use super::*;

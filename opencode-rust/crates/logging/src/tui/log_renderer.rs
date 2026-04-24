@@ -89,6 +89,6 @@ impl LogRenderer {
 mod tests {
     #[test]
     fn test_renderer_imports() {
-        assert!(true);
+        // This test just verifies the module compiles correctly
     }
 }

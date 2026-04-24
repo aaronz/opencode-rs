@@ -525,15 +525,15 @@ mod tool_e2e_tests {
         std::fs::create_dir_all(&src_dir).unwrap();
         std::fs::create_dir_all(&tests_dir).unwrap();
         {
-            std::fs::File::create(&src_dir.join("main.rs"))
+            std::fs::File::create(src_dir.join("main.rs"))
                 .unwrap()
                 .write_all(b"fn main()")
                 .unwrap();
-            std::fs::File::create(&src_dir.join("lib.rs"))
+            std::fs::File::create(src_dir.join("lib.rs"))
                 .unwrap()
                 .write_all(b"lib")
                 .unwrap();
-            std::fs::File::create(&tests_dir.join("main.rs"))
+            std::fs::File::create(tests_dir.join("main.rs"))
                 .unwrap()
                 .write_all(b"test")
                 .unwrap();
@@ -581,11 +581,11 @@ mod tool_e2e_tests {
         std::fs::create_dir_all(&src_dir).unwrap();
         std::fs::create_dir_all(&tests_dir).unwrap();
         {
-            std::fs::File::create(&src_dir.join("main.rs"))
+            std::fs::File::create(src_dir.join("main.rs"))
                 .unwrap()
                 .write_all(b"fn main()")
                 .unwrap();
-            std::fs::File::create(&tests_dir.join("test.rs"))
+            std::fs::File::create(tests_dir.join("test.rs"))
                 .unwrap()
                 .write_all(b"test")
                 .unwrap();
@@ -1123,7 +1123,7 @@ mod tool_e2e_tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let src_dir = temp_dir.path().join("src");
         std::fs::create_dir_all(&src_dir).unwrap();
-        std::fs::File::create(&src_dir.join("main.rs"))
+        std::fs::File::create(src_dir.join("main.rs"))
             .unwrap()
             .write_all(b"fn main")
             .unwrap();
@@ -1154,7 +1154,7 @@ mod tool_e2e_tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let nested = temp_dir.path().join("a/b/c");
         std::fs::create_dir_all(&nested).unwrap();
-        std::fs::File::create(&nested.join("deep.rs"))
+        std::fs::File::create(nested.join("deep.rs"))
             .unwrap()
             .write_all(b"deep")
             .unwrap();

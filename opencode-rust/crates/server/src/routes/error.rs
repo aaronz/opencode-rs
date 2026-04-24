@@ -746,8 +746,8 @@ mod tests {
         ];
 
         for err in field_errors {
-            assert!(err.field.len() > 0, "Field name should not be empty");
-            assert!(err.message.len() > 0, "Error message should not be empty");
+            assert!(!err.field.is_empty(), "Field name should not be empty");
+            assert!(!err.message.is_empty(), "Error message should not be empty");
             assert!(
                 err.code >= 7001 && err.code <= 7003,
                 "Validation error code should be 7001-7003, got {}",
@@ -1038,7 +1038,7 @@ mod tests {
         for err in variants {
             let status = err.http_status();
             assert!(
-                status.is_success() == false && status.as_u16() >= 400 && status.as_u16() < 600,
+                !status.is_success() && status.as_u16() >= 400 && status.as_u16() < 600,
                 "HTTP status for {:?} should be in 4xx-5xx range, got: {}",
                 err,
                 status
@@ -1098,7 +1098,7 @@ mod tests {
             let code = err.code();
             let http_status = err.http_status();
             assert!(
-                (code >= 1000 && code < 10000) || code == 401 || code == 4040,
+                (1000..10000).contains(&code) || code == 401 || code == 4040,
                 "Error code for {:?} should be in 1xxx-9xxx range or 401/4040, got: {}",
                 err,
                 code
