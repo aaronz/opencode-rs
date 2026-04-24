@@ -92,7 +92,11 @@ pub fn levenshtein_distance(s1: &str, s2: &str) -> usize {
 
     for i in 1..=len1 {
         for j in 1..=len2 {
-            let cost = if s1_chars[i - 1] == s2_chars[j - 1] { 0 } else { 1 };
+            let cost = if s1_chars[i - 1] == s2_chars[j - 1] {
+                0
+            } else {
+                1
+            };
             matrix[i][j] = std::cmp::min(
                 std::cmp::min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1),
                 matrix[i - 1][j - 1] + cost,
@@ -152,10 +156,7 @@ pub fn validate_unknown_fields(
                 if let Some(suggestion) = find_similar_field(key, known_fields) {
                     errors.push(super::ValidationError {
                         field: key.clone(),
-                        message: format!(
-                            "Unknown field '{}'. Did you mean '{}'?",
-                            key, suggestion
-                        ),
+                        message: format!("Unknown field '{}'. Did you mean '{}'?", key, suggestion),
                         severity: super::ValidationSeverity::Error,
                     });
                 } else {
@@ -238,10 +239,7 @@ pub const KNOWN_CONFIG_FIELDS: &[&str] = &[
 ];
 
 #[allow(dead_code)]
-pub fn validate_config_unknown_fields(
-    value: &Value,
-    strict: bool,
-) -> Vec<super::ValidationError> {
+pub fn validate_config_unknown_fields(value: &Value, strict: bool) -> Vec<super::ValidationError> {
     validate_unknown_fields(value, KNOWN_CONFIG_FIELDS, strict)
 }
 
@@ -931,19 +929,28 @@ mod tests {
     #[test]
     fn find_similar_field_exact_match() {
         let fields = ["logLevel", "server", "model"];
-        assert_eq!(find_similar_field("logLevel", &fields), Some("logLevel".to_string()));
+        assert_eq!(
+            find_similar_field("logLevel", &fields),
+            Some("logLevel".to_string())
+        );
     }
 
     #[test]
     fn find_similar_field_typo_loglevel() {
         let fields = ["logLevel", "server", "model"];
-        assert_eq!(find_similar_field("loglevel", &fields), Some("logLevel".to_string()));
+        assert_eq!(
+            find_similar_field("loglevel", &fields),
+            Some("logLevel".to_string())
+        );
     }
 
     #[test]
     fn find_similar_field_typo_server() {
         let fields = ["logLevel", "server", "model"];
-        assert_eq!(find_similar_field("serverr", &fields), Some("server".to_string()));
+        assert_eq!(
+            find_similar_field("serverr", &fields),
+            Some("server".to_string())
+        );
     }
 
     #[test]

@@ -93,7 +93,10 @@ mod plugin_security_tests {
 
         let invalid_wasm = b"not valid wasm bytecode at all";
         let result = runtime.load_module_from_bytes(invalid_wasm.as_slice());
-        assert!(result.is_err(), "Malformed WASM should be rejected at load time");
+        assert!(
+            result.is_err(),
+            "Malformed WASM should be rejected at load time"
+        );
 
         let err = result.unwrap_err();
         assert!(
@@ -124,7 +127,10 @@ mod plugin_security_tests {
 
         let malformed = vec![0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00];
         let result = runtime.load_module_from_bytes(malformed.as_slice());
-        assert!(result.is_err(), "WASM with malformed sections should be rejected");
+        assert!(
+            result.is_err(),
+            "WASM with malformed sections should be rejected"
+        );
     }
 
     #[test]
@@ -170,7 +176,10 @@ mod plugin_security_tests {
         assert!(result.is_ok(), "Exported function should be callable");
 
         let result = instance.call("internal_func");
-        assert!(result.is_err(), "Unexported function should not be callable");
+        assert!(
+            result.is_err(),
+            "Unexported function should not be callable"
+        );
     }
 
     #[test]
@@ -220,7 +229,10 @@ mod plugin_security_tests {
         };
 
         let runtime = WasmRuntime::new(caps);
-        assert!(runtime.is_ok(), "Zero limits should be accepted in configuration");
+        assert!(
+            runtime.is_ok(),
+            "Zero limits should be accepted in configuration"
+        );
     }
 
     #[test]
@@ -237,7 +249,10 @@ mod plugin_security_tests {
         let module = runtime.load_module_from_bytes(&wasm_bytes).unwrap();
         let instance = runtime.instantiate_module(&module);
 
-        assert!(instance.is_ok(), "Plugin with timeout config should instantiate");
+        assert!(
+            instance.is_ok(),
+            "Plugin with timeout config should instantiate"
+        );
     }
 
     #[test]
@@ -252,7 +267,10 @@ mod plugin_security_tests {
         assert!(result.is_ok(), "Plugin should load valid WASM");
 
         let result = plugin.execute("run");
-        assert!(result.is_ok(), "Plugin execution should succeed for valid function");
+        assert!(
+            result.is_ok(),
+            "Plugin execution should succeed for valid function"
+        );
     }
 
     #[test]
@@ -294,10 +312,16 @@ mod plugin_security_tests {
         let wasm_bytes = wat::parse_str(wat_code).expect("failed to parse WAT");
 
         let module = runtime.load_module_from_bytes(&wasm_bytes);
-        assert!(module.is_ok(), "WASM with env.memory import should load (env module is allowed by wasmi)");
+        assert!(
+            module.is_ok(),
+            "WASM with env.memory import should load (env module is allowed by wasmi)"
+        );
 
         let instance = runtime.instantiate_module(&module.unwrap());
-        assert!(instance.is_ok(), "Instance should be created with minimal imports");
+        assert!(
+            instance.is_ok(),
+            "Instance should be created with minimal imports"
+        );
     }
 
     #[test]
@@ -325,7 +349,10 @@ mod plugin_security_tests {
     #[test]
     fn test_plugin_sec_002_network_not_allowed_by_default() {
         let caps = WasmCapabilities::default();
-        assert!(!caps.network_allowed, "Network should be disabled by default");
+        assert!(
+            !caps.network_allowed,
+            "Network should be disabled by default"
+        );
     }
 
     #[test]
@@ -414,13 +441,16 @@ mod plugin_security_gaps_documentation {
         let caps = WasmCapabilities::default();
         let runtime = WasmRuntime::new(caps).unwrap();
 
-        let valid_wasm = wat::parse_str(r#"
+        let valid_wasm = wat::parse_str(
+            r#"
             (module
                 (func (export "run") (result i32)
                     i32.const 42
                 )
             )
-        "#).expect("failed to parse WAT");
+        "#,
+        )
+        .expect("failed to parse WAT");
 
         let result = runtime.load_module_from_bytes(&valid_wasm);
         assert!(result.is_ok(), "Valid WASM should load - this passes");

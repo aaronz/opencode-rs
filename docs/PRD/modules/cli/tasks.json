@@ -6,10 +6,14 @@
   "test_cases": [
     {
       "id": "cli_e2e_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "CLI run command with prompt",
       "description": "Test 'opencode run' with inline prompt",
-      "modules": ["cli", "agent", "session"],
+      "modules": [
+        "cli",
+        "agent",
+        "session"
+      ],
       "steps": [
         "Run: opencode run --prompt 'Hello'",
         "Verify agent responds",
@@ -23,10 +27,13 @@
     },
     {
       "id": "cli_e2e_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "CLI session list and show",
       "description": "Test session management commands",
-      "modules": ["cli", "session"],
+      "modules": [
+        "cli",
+        "session"
+      ],
       "steps": [
         "opencode session list",
         "opencode session show {id}",
@@ -41,10 +48,13 @@
     },
     {
       "id": "cli_e2e_003",
-      "status": "not_started",
+      "status": "completed",
       "title": "CLI config get and set",
       "description": "Test config subcommands",
-      "modules": ["cli", "config"],
+      "modules": [
+        "cli",
+        "config"
+      ],
       "steps": [
         "opencode config get model",
         "opencode config set model gpt-4o",
@@ -58,10 +68,13 @@
     },
     {
       "id": "cli_e2e_004",
-      "status": "not_started",
+      "status": "completed",
       "title": "CLI agent invocation",
       "description": "Test 'opencode agent' command",
-      "modules": ["cli", "agent"],
+      "modules": [
+        "cli",
+        "agent"
+      ],
       "steps": [
         "opencode agent plan 'Plan my project'",
         "Verify plan agent responds",
@@ -74,10 +87,13 @@
     },
     {
       "id": "cli_e2e_005",
-      "status": "not_started",
+      "status": "completed",
       "title": "CLI web server mode",
       "description": "Test 'opencode web' command",
-      "modules": ["cli", "server"],
+      "modules": [
+        "cli",
+        "server"
+      ],
       "steps": [
         "opencode web --port 3000",
         "Verify server starts",
@@ -90,10 +106,13 @@
     },
     {
       "id": "cli_e2e_006",
-      "status": "not_started",
+      "status": "completed",
       "title": "CLI serve mode",
       "description": "Test 'opencode serve' API server",
-      "modules": ["cli", "server"],
+      "modules": [
+        "cli",
+        "server"
+      ],
       "steps": [
         "opencode serve --port 8080",
         "Verify API endpoints available",
@@ -106,10 +125,12 @@
     },
     {
       "id": "cli_e2e_007",
-      "status": "not_started",
+      "status": "completed",
       "title": "NDJSONSerializer output format",
       "description": "Test NDJSONSerializer produces valid output",
-      "modules": ["cli"],
+      "modules": [
+        "cli"
+      ],
       "steps": [
         "Create serializer with stdout",
         "Write start event",
@@ -124,10 +145,12 @@
     },
     {
       "id": "cli_e2e_008",
-      "status": "not_started",
+      "status": "completed",
       "title": "CLI info command",
       "description": "Test 'opencode info' displays system info",
-      "modules": ["cli"],
+      "modules": [
+        "cli"
+      ],
       "steps": [
         "opencode info",
         "Verify version shown",
@@ -140,10 +163,13 @@
     },
     {
       "id": "cli_sig_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "SIGINT during agent run - graceful interrupt",
       "description": "CRITICAL: Ctrl+C during agent execution must stop cleanly",
-      "modules": ["cli", "agent"],
+      "modules": [
+        "cli",
+        "agent"
+      ],
       "risk_addressed": "Zombie process or hung terminal after Ctrl+C",
       "preconditions": "Agent running a long task",
       "steps": [
@@ -166,10 +192,13 @@
     },
     {
       "id": "cli_sig_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "SIGTERM during agent run - graceful shutdown",
       "description": "SIGTERM must gracefully stop the agent",
-      "modules": ["cli", "agent"],
+      "modules": [
+        "cli",
+        "agent"
+      ],
       "risk_addressed": "Process killed without cleanup on SIGTERM",
       "preconditions": "Agent running",
       "steps": [
@@ -186,10 +215,12 @@
     },
     {
       "id": "cli_pipe_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Pipe breakage during output",
       "description": "CRITICAL: When output pipe breaks (e.g., `| head`), process must handle gracefully",
-      "modules": ["cli"],
+      "modules": [
+        "cli"
+      ],
       "risk_addressed": "Broken pipe causes crash or error message to user",
       "preconditions": "None",
       "steps": [
@@ -210,10 +241,13 @@
     },
     {
       "id": "cli_pipe_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "Stdin closed in non-interactive mode",
       "description": "When stdin is closed, run command must not hang",
-      "modules": ["cli", "agent"],
+      "modules": [
+        "cli",
+        "agent"
+      ],
       "risk_addressed": "Process hangs waiting for stdin input",
       "preconditions": "None",
       "steps": [
@@ -229,10 +263,12 @@
     },
     {
       "id": "cli_args_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "--help output correctness",
       "description": "--help must display correct usage information",
-      "modules": ["cli"],
+      "modules": [
+        "cli"
+      ],
       "steps": [
         "Run: opencode --help",
         "Run: opencode run --help",
@@ -249,10 +285,12 @@
     },
     {
       "id": "cli_args_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "--version output correctness",
       "description": "--version must display correct version string",
-      "modules": ["cli"],
+      "modules": [
+        "cli"
+      ],
       "steps": [
         "Run: opencode --version",
         "Verify output matches Cargo.toml version"
@@ -266,14 +304,41 @@
     },
     {
       "id": "cli_args_003",
-      "status": "not_started",
+      "status": "completed",
       "title": "Invalid argument combinations rejected",
       "description": "CLI must reject mutually exclusive or conflicting arguments",
-      "modules": ["cli"],
+      "modules": [
+        "cli"
+      ],
       "test_data": [
-        {"args": ["--prompt", "hello", "--file", "input.txt"], "issue": "both prompt and file"},
-        {"args": ["run", "--prompt", "", "--model", ""], "issue": "empty prompt and model"},
-        {"args": ["session", "delete", "--all", "session-id"], "issue": "delete all with specific id"}
+        {
+          "args": [
+            "--prompt",
+            "hello",
+            "--file",
+            "input.txt"
+          ],
+          "issue": "both prompt and file"
+        },
+        {
+          "args": [
+            "run",
+            "--prompt",
+            "",
+            "--model",
+            ""
+          ],
+          "issue": "empty prompt and model"
+        },
+        {
+          "args": [
+            "session",
+            "delete",
+            "--all",
+            "session-id"
+          ],
+          "issue": "delete all with specific id"
+        }
       ],
       "steps": [
         "For each invalid combination, run opencode",
@@ -292,7 +357,10 @@
       "status": "not_started",
       "title": "Environment variable override precedence",
       "description": "CLI flags must override environment variables",
-      "modules": ["cli", "config"],
+      "modules": [
+        "cli",
+        "config"
+      ],
       "preconditions": "OPENCODE_MODEL=gpt-4o in environment",
       "steps": [
         "Run: opencode run --model gpt-4o-mini --prompt 'test'",
@@ -312,7 +380,10 @@
       "status": "not_started",
       "title": "Config file path override via CLI flag",
       "description": "Config file path can be overridden via CLI flag",
-      "modules": ["cli", "config"],
+      "modules": [
+        "cli",
+        "config"
+      ],
       "preconditions": "Default config.json exists",
       "steps": [
         "Create alternate config at /tmp/alt_config.json",
@@ -327,10 +398,12 @@
     },
     {
       "id": "cli_tty_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Interactive mode when stdin is not a tty",
       "description": "CLI must not enter interactive mode when stdin is pipe/file",
-      "modules": ["cli"],
+      "modules": [
+        "cli"
+      ],
       "risk_addressed": "Process hangs waiting for interactive input from non-interactive stdin",
       "preconditions": "None",
       "steps": [
@@ -347,10 +420,12 @@
     },
     {
       "id": "cli_tty_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "Interactive mode detection",
       "description": "CLI should detect interactive terminal and behave accordingly",
-      "modules": ["cli"],
+      "modules": [
+        "cli"
+      ],
       "steps": [
         "Run opencode in real terminal (tty)",
         "Verify interactive prompts work",
@@ -365,10 +440,12 @@
     },
     {
       "id": "cli_output_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "ANSI escape code handling in output",
       "description": "NDJSON output must not contain raw ANSI escape codes",
-      "modules": ["cli"],
+      "modules": [
+        "cli"
+      ],
       "steps": [
         "Run opencode run with --no-ansi",
         "Verify output contains no ANSI escape sequences",
@@ -386,7 +463,9 @@
       "status": "not_started",
       "title": "Output stream large response handling",
       "description": "NDJSON output must handle large agent responses without buffering issues",
-      "modules": ["cli"],
+      "modules": [
+        "cli"
+      ],
       "risk_addressed": "Large output overwhelming stdout buffer",
       "preconditions": "None",
       "steps": [
@@ -409,13 +488,30 @@
       "status": "not_started",
       "title": "Error exit codes are correct",
       "description": "CLI must return specific exit codes for different error types",
-      "modules": ["cli"],
+      "modules": [
+        "cli"
+      ],
       "test_data": [
-        {"scenario": "invalid_args", "expected_code": 1},
-        {"scenario": "config_not_found", "expected_code": 1},
-        {"scenario": "session_not_found", "expected_code": 1},
-        {"scenario": "provider_error", "expected_code": 1},
-        {"scenario": "interrupt", "expected_code": 130}
+        {
+          "scenario": "invalid_args",
+          "expected_code": 1
+        },
+        {
+          "scenario": "config_not_found",
+          "expected_code": 1
+        },
+        {
+          "scenario": "session_not_found",
+          "expected_code": 1
+        },
+        {
+          "scenario": "provider_error",
+          "expected_code": 1
+        },
+        {
+          "scenario": "interrupt",
+          "expected_code": 130
+        }
       ],
       "steps": [
         "Trigger each error scenario",
@@ -433,7 +529,10 @@
       "status": "not_started",
       "title": "Desktop mode browser auto-open",
       "description": "opencode desktop command opens browser automatically",
-      "modules": ["cli", "server"],
+      "modules": [
+        "cli",
+        "server"
+      ],
       "risk_addressed": "Browser does not open, or wrong URL",
       "preconditions": "None (desktop mode)",
       "steps": [
@@ -451,10 +550,12 @@
     },
     {
       "id": "cli_acp_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "ACP mode handshake and connect",
       "description": "ACP protocol commands work correctly",
-      "modules": ["cli"],
+      "modules": [
+        "cli"
+      ],
       "steps": [
         "opencode acp status",
         "opencode acp handshake --client-id test --capabilities chat,tasks",

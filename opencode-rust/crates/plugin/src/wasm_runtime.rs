@@ -334,11 +334,7 @@ impl WasmInstance {
         Ok(())
     }
 
-    pub fn call_with_input(
-        &mut self,
-        func_name: &str,
-        input: &str,
-    ) -> Result<String, WasmError> {
+    pub fn call_with_input(&mut self, func_name: &str, input: &str) -> Result<String, WasmError> {
         let func = self
             .instance
             .get_func(&mut self.store, func_name)

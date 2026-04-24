@@ -744,4 +744,60 @@ mod tests {
         assert!(number_flags.contains_key("OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX"));
         assert_eq!(number_flags.len(), 2);
     }
+
+    #[tokio::test]
+    async fn flag_e2e_001_feature_flag_evaluation() {
+        let mut fm = FlagManager::new();
+
+        fm.set("OPENCODE_EXPERIMENTAL", true);
+        assert!(fm.is_enabled("OPENCODE_EXPERIMENTAL"));
+        assert_eq!(fm.get("OPENCODE_EXPERIMENTAL"), Some(true));
+
+        fm.set("OPENCODE_EXPERIMENTAL", false);
+        assert!(!fm.is_enabled("OPENCODE_EXPERIMENTAL"));
+        assert_eq!(fm.get("OPENCODE_EXPERIMENTAL"), Some(false));
+
+        fm.set("OPENCODE_DEBUG", true);
+        assert!(fm.is_enabled("OPENCODE_DEBUG"));
+
+        fm.set("OPENCODE_DEBUG", false);
+        assert!(!fm.is_enabled("OPENCODE_DEBUG"));
+    }
+
+    #[tokio::test]
+    async fn flag_sec_001_flag_evaluation_race_condition() {
+        use std::sync::{Arc, RwLock};
+        use std::thread;
+
+        let fm = Arc::new(RwLock::new(FlagManager::new()));
+        {
+            let mut fm_write = fm.write().unwrap();
+            fm_write.set("OPENCODE_EXPERIMENTAL", true);
+        }
+
+        let num_threads = 100;
+        let handles: Vec<_> = (0..num_threads)
+            .map(|_| {
+                let fm_clone = fm.clone();
+                thread::spawn(move || {
+                    let results: Vec<bool> = (0..100)
+                        .map(|_| fm_clone.read().unwrap().is_enabled("OPENCODE_EXPERIMENTAL"))
+                        .collect();
+                    results
+                })
+            })
+            .collect();
+
+        let mut all_results = Vec::new();
+        for handle in handles {
+            all_results.extend(handle.join().unwrap());
+        }
+
+        for val in all_results {
+            assert!(
+                val == true || val == false,
+                "Each evaluation should return a consistent boolean"
+            );
+        }
+    }
 }

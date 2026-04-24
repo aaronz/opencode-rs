@@ -78,7 +78,7 @@
     },
     {
       "id": "git_security_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Git credentials not exposed in logs",
       "description": "CRITICAL: Git credentials must never appear in logs",
       "modules": ["git"],
@@ -121,7 +121,7 @@
     },
     {
       "id": "git_branch_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Checkout to new branch creates it",
       "description": "Checkout -b must create and switch to new branch",
       "modules": ["git"],
@@ -230,7 +230,7 @@
     },
     {
       "id": "git_state_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Detached HEAD state handling",
       "description": "Manager must handle or prevent detached HEAD",
       "modules": ["git"],
@@ -274,9 +274,122 @@
       "priority": "medium",
       "notes": "Requires mock server and code change for proper rate limit handling"
     },
+{
+      "id": "git_security_002",
+      "status": "requires_code_change",
+      "title": "SSH key passphrase handling",
+      "description": "SSH keys with passphrase must prompt or fail gracefully",
+      "modules": ["git"],
+      "risk_addressed": "Passphrase stored in memory and logged",
+      "preconditions": "Git repo with SSH remote requiring passphrase",
+      "steps": [
+        "Configure SSH key with passphrase",
+        "Attempt git operation",
+        "Verify passphrase handling is secure"
+      ],
+      "expected_outcomes": [
+        "Passphrase not stored in memory longer than needed",
+        "Passphrase not logged",
+        "Failed passphrase does not crash"
+      ],
+      "priority": "high",
+      "notes": "Requires code change to implement secure passphrase handling. git crate does not currently have SSH key management."
+    },
+    {
+      "id": "git_branch_002",
+      "status": "requires_code_change",
+      "title": "Checkout failure on uncommitted changes",
+      "description": "Must handle or refuse checkout with dirty working tree",
+      "modules": ["git"],
+      "risk_addressed": "Uncommitted changes lost on checkout",
+      "preconditions": "Repo with uncommitted changes",
+      "steps": [
+        "Make changes, don't commit",
+        "Attempt checkout to different branch",
+        "Verify error OR changes stashed",
+        "Verify changes not lost"
+      ],
+      "expected_outcomes": [
+        "Checkout refused OR changes stashed",
+        "Changes preserved",
+        "Error message explains what happened"
+      ],
+      "priority": "high",
+      "notes": "Requires code change - checkout function in branch module needs to check for dirty working tree."
+    },
+    {
+      "id": "git_rebase_001",
+      "status": "requires_code_change",
+      "title": "Rebase conflict handling",
+      "description": "Rebase conflicts must be reported and handled gracefully",
+      "modules": ["git"],
+      "risk_addressed": "Unresolved rebase conflict left in repo",
+      "preconditions": "Two branches with conflicting changes",
+      "steps": [
+        "Start rebase operation",
+        "Simulate conflict",
+        "Verify conflict reported to user",
+        "Resolve conflict",
+        "Continue rebase",
+        "Verify final state correct"
+      ],
+      "expected_outcomes": [
+        "Conflict detected and reported",
+        "Rebase pauses for resolution",
+        "Completed rebase leaves clean state"
+      ],
+      "priority": "high",
+      "notes": "Requires code change - rebase module exists but conflict handling not fully implemented."
+    },
+    {
+      "id": "git_remote_002",
+      "status": "requires_code_change",
+      "title": "Push to remote with divergent history",
+      "description": "Push rejected when remote has diverged - must handle",
+      "modules": ["git"],
+      "risk_addressed": "Force push overwrites remote changes accidentally",
+      "preconditions": "Local and remote have diverged",
+      "steps": [
+        "Make divergent changes",
+        "Attempt push",
+        "Verify push rejected",
+        "Fetch and merge or rebase",
+        "Verify push succeeds after merge"
+      ],
+      "expected_outcomes": [
+        "Divergent push rejected (not forced)",
+        "Error explains divergence",
+        "Resolution leaves correct history"
+      ],
+      "priority": "medium",
+      "notes": "Requires code change and actual remote setup. Need to implement non-force push rejection."
+    },
+    {
+      "id": "git_gh_001",
+      "status": "requires_code_change",
+      "title": "GitHub API rate limit handling",
+      "description": "GitHub API rate limit errors handled correctly",
+      "modules": ["git"],
+      "risk_addressed": "Rate limit causing failures without retry",
+      "preconditions": "GitHub token with known rate limit",
+      "steps": [
+        "Exhaust rate limit",
+        "Attempt GitHub API call",
+        "Verify 403 with rate limit info returned",
+        "Wait or use different token",
+        "Verify retry succeeds"
+      ],
+      "expected_outcomes": [
+        "Rate limit error returned with reset time",
+        "Retry after reset succeeds",
+        "No hanging or retry storms"
+      ],
+      "priority": "medium",
+      "notes": "Requires mock server and code change for proper rate limit handling. GitHubClient needs rate limit detection."
+    },
     {
       "id": "git_gh_002",
-      "status": "not_started",
+      "status": "requires_code_change",
       "title": "GitHub token permissions validation",
       "description": "Insufficient token permissions return clear error",
       "modules": ["git"],
@@ -293,7 +406,7 @@
         "Not confused with auth failure"
       ],
       "priority": "medium",
-      "notes": "Requires mock server and code change for proper permission validation"
+      "notes": "Requires mock server and code change for proper permission validation. GitHubError should distinguish auth vs permission."
     }
   ],
   "test_metadata": {

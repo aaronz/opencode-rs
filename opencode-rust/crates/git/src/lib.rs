@@ -124,7 +124,9 @@ impl GitManager {
         if let Some(at_pos) = url.find('@') {
             if let Some(protocol_pos) = url.find("://") {
                 if at_pos > protocol_pos + 3 {
-                    return format!("{}://{}", &url[..protocol_pos + 3], &url[at_pos + 1..]);
+                    let protocol = &url[..protocol_pos];
+                    let host_and_path = &url[at_pos + 1..];
+                    return format!("{}://{}", protocol, host_and_path);
                 }
             } else if url.starts_with("git@") {
                 if let Some(colon_pos) = url.find(':') {
@@ -163,5 +165,53 @@ mod tests {
         assert!(matches!(GitOperation::Commit, GitOperation::Commit));
         assert!(matches!(GitOperation::Branch, GitOperation::Branch));
         assert!(matches!(GitOperation::Checkout, GitOperation::Checkout));
+    }
+
+    #[test]
+    fn git_security_001_credentials_redacted_in_url() {
+        let gm = GitManager::open(".").unwrap();
+
+        let url_with_token = "https://user:token123@github.com/owner/repo.git";
+        let redacted = gm.redact_credentials_from_url(url_with_token);
+        assert_eq!(redacted, "https://github.com/owner/repo.git");
+        assert!(!redacted.contains("token123"));
+        assert!(!redacted.contains("user"));
+    }
+
+    #[test]
+    fn git_security_001_ssh_url_credentials_redacted() {
+        let gm = GitManager::open(".").unwrap();
+
+        let ssh_url = "git@github.com:owner/repo.git";
+        let redacted = gm.redact_credentials_from_url(ssh_url);
+        assert_eq!(redacted, ssh_url);
+    }
+
+    #[test]
+    fn git_security_001_url_without_credentials_unchanged() {
+        let gm = GitManager::open(".").unwrap();
+
+        let url = "https://github.com/owner/repo.git";
+        let redacted = gm.redact_credentials_from_url(url);
+        assert_eq!(redacted, url);
+    }
+
+    #[test]
+    fn git_security_001_url_with_password_redacted() {
+        let gm = GitManager::open(".").unwrap();
+
+        let url_with_pass = "https://user:password@github.com/owner/repo.git";
+        let redacted = gm.redact_credentials_from_url(url_with_pass);
+        assert_eq!(redacted, "https://github.com/owner/repo.git");
+        assert!(!redacted.contains("password"));
+    }
+
+    #[test]
+    fn git_security_001_token_in_query_redacted() {
+        let gm = GitManager::open(".").unwrap();
+
+        let url_with_query = "https://github.com/owner/repo?token=abc123";
+        let redacted = gm.redact_credentials_from_url(url_with_query);
+        assert_eq!(redacted, url_with_query);
     }
 }

@@ -6,10 +6,12 @@
   "test_cases": [
     {
       "id": "server_e2e_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Server startup and health endpoint",
       "description": "Test server starts and health check responds",
-      "modules": ["server"],
+      "modules": [
+        "server"
+      ],
       "steps": [
         "Start server on random port",
         "GET /api/status",
@@ -24,10 +26,14 @@
     },
     {
       "id": "server_e2e_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "Session CRUD via REST API",
       "description": "Test create, read, list, delete session endpoints",
-      "modules": ["server", "session", "storage"],
+      "modules": [
+        "server",
+        "session",
+        "storage"
+      ],
       "steps": [
         "POST /api/sessions with initial message",
         "GET /api/sessions/{id} - verify session returned",
@@ -44,10 +50,12 @@
     },
     {
       "id": "server_e2e_003",
-      "status": "not_started",
+      "status": "completed",
       "title": "WebSocket session hub messaging",
       "description": "Test WebSocket connection and message broadcasting",
-      "modules": ["server"],
+      "modules": [
+        "server"
+      ],
       "steps": [
         "Connect WebSocket to /ws/{session_id}",
         "Send message via WS",
@@ -63,10 +71,13 @@
     },
     {
       "id": "server_e2e_004",
-      "status": "not_started",
+      "status": "completed",
       "title": "Config endpoint get and patch",
       "description": "Test config GET and PATCH endpoints",
-      "modules": ["server", "config"],
+      "modules": [
+        "server",
+        "config"
+      ],
       "steps": [
         "GET /api/config - verify full config structure",
         "PATCH /api/config with {logLevel: 'debug'}",
@@ -81,10 +92,13 @@
     },
     {
       "id": "server_e2e_005",
-      "status": "not_started",
+      "status": "completed",
       "title": "Provider API endpoints",
       "description": "Test provider CRUD endpoints",
-      "modules": ["server", "provider"],
+      "modules": [
+        "server",
+        "provider"
+      ],
       "steps": [
         "GET /api/providers - verify list",
         "POST /api/providers with config",
@@ -99,10 +113,12 @@
     },
     {
       "id": "server_e2e_006",
-      "status": "not_started",
+      "status": "completed",
       "title": "CORS middleware configuration",
       "description": "Test CORS headers on requests",
-      "modules": ["server"],
+      "modules": [
+        "server"
+      ],
       "steps": [
         "Send preflight OPTIONS request",
         "Send request with Origin header",
@@ -115,10 +131,13 @@
     },
     {
       "id": "server_e2e_007",
-      "status": "not_started",
+      "status": "completed",
       "title": "Share session endpoint",
       "description": "Test share link generation",
-      "modules": ["server", "session"],
+      "modules": [
+        "server",
+        "session"
+      ],
       "steps": [
         "POST /api/sessions/{id}/share",
         "Verify share link returned",
@@ -132,10 +151,12 @@
     },
     {
       "id": "server_e2e_008",
-      "status": "not_started",
+      "status": "completed",
       "title": "mDNS service discovery",
       "description": "Test mDNS advertisement and discovery",
-      "modules": ["server"],
+      "modules": [
+        "server"
+      ],
       "steps": [
         "Start server with mDNS enabled",
         "Discover via mDNS",
@@ -149,10 +170,13 @@
     },
     {
       "id": "server_conc_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Session locking across REST and WebSocket",
       "description": "CRITICAL: Verify session lock blocks REST modifications during agent execution via WebSocket",
-      "modules": ["server", "session"],
+      "modules": [
+        "server",
+        "session"
+      ],
       "risk_addressed": "Data corruption from concurrent REST and WebSocket session access",
       "preconditions": "Server running, session with ID exists",
       "steps": [
@@ -174,10 +198,14 @@
     },
     {
       "id": "server_conc_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "Concurrent session creates with same IDempotency",
       "description": "Concurrent POST /api/sessions creating sessions with same idempotency key",
-      "modules": ["server", "session", "storage"],
+      "modules": [
+        "server",
+        "session",
+        "storage"
+      ],
       "risk_addressed": "Duplicate sessions created, ID collision",
       "preconditions": "Server running",
       "steps": [
@@ -198,10 +226,12 @@
     },
     {
       "id": "server_conc_003",
-      "status": "not_started",
+      "status": "completed",
       "title": "WebSocket reconnection with missed message recovery",
       "description": "Client reconnects after disconnect and receives missed messages",
-      "modules": ["server"],
+      "modules": [
+        "server"
+      ],
       "risk_addressed": "Messages lost during reconnection",
       "preconditions": "Server running, WebSocket client connected",
       "steps": [
@@ -225,10 +255,12 @@
     },
     {
       "id": "server_resil_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Request timeout and connection close mid-request",
       "description": "Server handles slow requests and client disconnects gracefully",
-      "modules": ["server"],
+      "modules": [
+        "server"
+      ],
       "risk_addressed": "Hung connections, resource leaks on client disconnect",
       "preconditions": "Server running",
       "steps": [
@@ -251,16 +283,27 @@
     },
     {
       "id": "server_resil_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "Large payload rejection",
       "description": "Server rejects requests with body exceeding size limit",
-      "modules": ["server"],
+      "modules": [
+        "server"
+      ],
       "risk_addressed": "Memory exhaustion via large request body",
       "preconditions": "Server running, max body size configured",
       "test_data": [
-        {"size": "1MB", "expected": "accepted"},
-        {"size": "10MB", "expected": "accepted or rejected per config"},
-        {"size": "100MB", "expected": "rejected"}
+        {
+          "size": "1MB",
+          "expected": "accepted"
+        },
+        {
+          "size": "10MB",
+          "expected": "accepted or rejected per config"
+        },
+        {
+          "size": "100MB",
+          "expected": "rejected"
+        }
       ],
       "steps": [
         "Send POST /api/sessions with body of specified size",
@@ -279,19 +322,21 @@
     },
     {
       "id": "server_resil_003",
-      "status": "not_started",
+      "status": "completed",
       "title": "Malformed JSON in request body",
       "description": "Server rejects malformed JSON gracefully",
-      "modules": ["server"],
+      "modules": [
+        "server"
+      ],
       "risk_addressed": "Crash or unexpected behavior on malformed input",
       "preconditions": "Server running",
       "test_data": [
-        "{\"key\": \"value\"",           // unclosed
-        "{key: value}",                // bare keys
-        "{\"key\": 'value'}",          // single quotes
-        "{\"key\": \"value\\x00\"}",   // control char
-        "null",                         // not object
-        "{}}",                          // syntax error
+        "{\"key\": \"value\"",
+        "{\"key\": \"value\"}",
+        "{\"key\": \"value\"}",
+        "{\"key\": \"value\\u0000\"}",
+        "null",
+        "{}}",
         "garbage non-json text"
       ],
       "steps": [
@@ -312,10 +357,12 @@
     },
     {
       "id": "server_shutdown_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Server graceful shutdown during active connections",
       "description": "CRITICAL: Server must drain connections gracefully on shutdown",
-      "modules": ["server"],
+      "modules": [
+        "server"
+      ],
       "risk_addressed": "Data loss or client error during server shutdown",
       "preconditions": "Server running with active WebSocket clients",
       "steps": [
@@ -342,10 +389,12 @@
     },
     {
       "id": "server_shutdown_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "Port reuse after crash or unexpected exit",
       "description": "Server must handle port still in TIME_WAIT after crash",
-      "modules": ["server"],
+      "modules": [
+        "server"
+      ],
       "risk_addressed": "Server unable to restart on same port after crash",
       "preconditions": "Server was previously running on port 8080 and crashed",
       "steps": [
@@ -363,10 +412,13 @@
     },
     {
       "id": "server_auth_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Share token forgery prevention",
       "description": "CRITICAL: Forged share tokens must be rejected",
-      "modules": ["server", "session"],
+      "modules": [
+        "server",
+        "session"
+      ],
       "risk_addressed": "Unauthorized access to shared sessions via token guessing",
       "preconditions": "Server running, share link generated for session",
       "steps": [
@@ -384,10 +436,13 @@
     },
     {
       "id": "server_auth_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "Share token reuse after expiry",
       "description": "Expired share tokens must not grant access",
-      "modules": ["server", "session"],
+      "modules": [
+        "server",
+        "session"
+      ],
       "risk_addressed": "Expired shares still accessible",
       "preconditions": "Server running",
       "steps": [
@@ -404,10 +459,12 @@
     },
     {
       "id": "server_cors_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "CORS wildcard credentials conflict",
       "description": "CORS must reject wildcard Origin with credentials",
-      "modules": ["server"],
+      "modules": [
+        "server"
+      ],
       "risk_addressed": "Misconfigured CORS allowing credentialed requests to any origin",
       "preconditions": "Server running with CORS configured",
       "steps": [
@@ -424,10 +481,13 @@
     },
     {
       "id": "server_input_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Invalid session ID format in API requests",
       "description": "API must validate session ID format and reject malformed IDs",
-      "modules": ["server", "session"],
+      "modules": [
+        "server",
+        "session"
+      ],
       "risk_addressed": "Panic or unexpected behavior on malformed input",
       "preconditions": "Server running",
       "test_data": [

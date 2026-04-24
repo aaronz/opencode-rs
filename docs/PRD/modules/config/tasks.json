@@ -153,9 +153,9 @@
         {"file": "single_quotes.jsonc", "content": "{ 'key': 'value' }", "issue": "single quotes"},
         {"file": "bare_key.jsonc", "content": "{ key: \"value\" }", "issue": "bare key"},
         {"file": "comment_in_string.jsonc", "content": "{ \"url\": \"http://#comment/example.com\" }", "issue": "hash in URL"},
-        {"file": "control_char.jsonc", "content": "{ \"key\": \"value\\x00\" }", "issue": "null char"},
+        {"file": "control_char.jsonc", "content": "{ \"key\": \"value\\u0000\" }", "issue": "null char"},
         {"file": "mixed_tabs.jsonc", "content": "{\t\"key\": \"value\" }", "issue": "tab after brace"},
-        {"file": "binary_garbage.jsonc", "content": "\x00\x01\x02{ \"key\": \"value\" }", "issue": "leading garbage bytes"}
+        {"file": "binary_garbage.jsonc", "content": "\u0000\u0001\u0002{ \"key\": \"value\" }", "issue": "leading garbage bytes"}
       ],
       "steps": [
         "Write each malformed content to config.jsonc",

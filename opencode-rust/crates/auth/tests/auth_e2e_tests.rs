@@ -403,7 +403,14 @@ mod oauth_state_tests {
         );
 
         let token = flow
-            .complete_login("auth-code", &state, &verifier, "client-1", "secret-1", &endpoint)
+            .complete_login(
+                "auth-code",
+                &state,
+                &verifier,
+                "client-1",
+                "secret-1",
+                &endpoint,
+            )
             .unwrap();
 
         assert_eq!(token.access_token, "access-1");
@@ -454,7 +461,10 @@ mod oauth_state_tests {
             "secret-1",
             &endpoint,
         );
-        assert!(result2.is_err(), "Second use (replay) should fail - state already consumed");
+        assert!(
+            result2.is_err(),
+            "Second use (replay) should fail - state already consumed"
+        );
         assert!(matches!(
             result2.unwrap_err(),
             opencode_auth::oauth::OAuthError::InvalidState
@@ -601,7 +611,8 @@ mod oauth_token_refresh_tests {
             scope: Some("read".into()),
             received_at: chrono::Utc::now() - chrono::Duration::seconds(10),
         };
-        flow.store_token("auto-refresh-provider", &expired_token).unwrap();
+        flow.store_token("auto-refresh-provider", &expired_token)
+            .unwrap();
 
         let endpoint = spawn_mock_token_server(
             serde_json::json!({
@@ -614,12 +625,8 @@ mod oauth_token_refresh_tests {
             .to_string(),
         );
 
-        let result = flow.ensure_fresh_token(
-            "auto-refresh-provider",
-            "client-1",
-            "secret-1",
-            &endpoint,
-        );
+        let result =
+            flow.ensure_fresh_token("auto-refresh-provider", "client-1", "secret-1", &endpoint);
 
         assert!(result.is_ok(), "Should trigger automatic refresh");
         let new_token = result.unwrap().unwrap();

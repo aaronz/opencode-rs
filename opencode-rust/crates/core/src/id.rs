@@ -409,4 +409,88 @@ mod tests {
         let err = IdParseError::InvalidInt("not a number".parse::<NonZeroU64>().unwrap_err());
         assert!(err.to_string().contains("Invalid integer format"));
     }
+
+    #[tokio::test]
+    async fn test_id_collision_resistance_under_load() {
+        use std::collections::HashSet;
+        use tokio::task::JoinSet;
+
+        let num_threads = 100;
+        let ids_per_thread = 1000;
+        let mut join_set = JoinSet::new();
+
+        for _ in 0..num_threads {
+            join_set.spawn(async move {
+                let mut ids = Vec::with_capacity(ids_per_thread);
+                for _ in 0..ids_per_thread {
+                    ids.push(IdGenerator::new_uuid());
+                }
+                ids
+            });
+        }
+
+        let mut all_ids = Vec::with_capacity(num_threads * ids_per_thread);
+        while let Some(result) = join_set.join_next().await {
+            all_ids.extend(result.unwrap());
+        }
+
+        let unique_ids: HashSet<_> = all_ids.iter().collect();
+        assert_eq!(
+            unique_ids.len(),
+            num_threads * ids_per_thread,
+            "ID collision detected - {} duplicates found",
+            num_threads * ids_per_thread - unique_ids.len()
+        );
+    }
+
+    #[test]
+    fn test_id_uniqueness_1000_generations() {
+        use std::collections::HashSet;
+
+        let mut ids = Vec::with_capacity(1000);
+        for _ in 0..1000 {
+            ids.push(IdGenerator::new_uuid());
+        }
+
+        let unique_ids: HashSet<_> = ids.iter().collect();
+        assert_eq!(unique_ids.len(), 1000, "Collision in 1000 ID generations");
+    }
+
+    #[test]
+    fn test_session_id_uniqueness() {
+        use std::collections::HashSet;
+
+        let mut ids = Vec::with_capacity(1000);
+        for _ in 0..1000 {
+            ids.push(SessionId::new());
+        }
+
+        let unique_ids: HashSet<_> = ids.iter().collect();
+        assert_eq!(
+            unique_ids.len(),
+            1000,
+            "Collision in 1000 SessionId generations"
+        );
+    }
+
+    #[test]
+    fn test_id_format_immutability() {
+        let id1 = IdGenerator::new_uuid();
+        let id2 = IdGenerator::new_uuid();
+
+        assert_eq!(id1.len(), 36, "UUID format should always be 36 characters");
+        assert_eq!(id2.len(), 36);
+
+        assert!(
+            id1.chars().filter(|c| *c == '-').count() == 4,
+            "UUID should have 4 hyphens"
+        );
+        assert!(
+            id2.chars().filter(|c| *c == '-').count() == 4,
+            "UUID should have 4 hyphens"
+        );
+
+        let short1 = IdGenerator::new_short();
+        assert_eq!(short1.len(), 8, "Short ID should be 8 characters");
+    }
 }

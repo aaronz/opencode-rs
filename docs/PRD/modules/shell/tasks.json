@@ -135,9 +135,9 @@
       "risk_addressed": "Terminal escape sequence injection attack",
       "preconditions": "PTY reading output from untrusted source",
       "test_data": [
-        {"seq": "\x1b]0;malicious\x07", "issue": "window title escape"},
-        {"seq": "\x1b[31m", "issue": "color escape"},
-        {"seq": "\x1b[?1049h", "issue": "alternate screen buffer"}
+        {"seq": "\u001b]0;malicious\u0007", "issue": "window title escape"},
+        {"seq": "\u001b[31m", "issue": "color escape"},
+        {"seq": "\u001b[?1049h", "issue": "alternate screen buffer"}
       ],
       "steps": [
         "Execute command that outputs escape sequences",

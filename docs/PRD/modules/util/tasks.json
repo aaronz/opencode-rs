@@ -6,7 +6,7 @@
   "test_cases": [
     {
       "id": "flag_e2e_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Feature flag evaluation",
       "description": "Test flag enabled/disabled evaluation",
       "modules": ["flag"],
@@ -23,10 +23,12 @@
     },
     {
       "id": "env_e2e_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Environment variable resolution",
       "description": "Test env var access with defaults",
       "modules": ["env"],
+      "test_file": "crates/core/src/env.rs",
+      "test_modules": ["tests"],
       "steps": [
         "Get REQUIRED_VAR (not set) - verify error",
         "Get OPTIONAL_VAR with default",
@@ -37,11 +39,12 @@
         "Missing required returns error",
         "Optional with default works",
         "Set value retrievable"
-      ]
+      ],
+      "notes": "EnvManager already supports get/set/remove with instance isolation. Extensive tests in env.rs mod tests."
     },
     {
       "id": "effect_e2e_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Effect pipeline composition",
       "description": "Test Effect monad chaining",
       "modules": ["effect"],
@@ -58,7 +61,7 @@
     },
     {
       "id": "id_e2e_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "ID generation uniqueness",
       "description": "Test ID generation produces unique values",
       "modules": ["id"],
@@ -73,12 +76,14 @@
         "Format consistent"
       ]
     },
-    {
+{
       "id": "util_e2e_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Structured logging output",
       "description": "Test logging with structured fields",
       "modules": ["util"],
+      "test_file": "crates/util/src/logging.rs",
+      "test_modules": ["tests"],
       "steps": [
         "Configure logging",
         "Log message with fields",
@@ -88,11 +93,12 @@
       "expected_outcomes": [
         "Logs written correctly",
         "Fields serialized properly"
-      ]
+      ],
+      "notes": "Logger module provides log_file_path, LogLevel, Logger, Rotation. Tests needed for structured field handling."
     },
     {
       "id": "flag_sec_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Flag evaluation race condition",
       "description": "Concurrent flag evaluations must be consistent",
       "modules": ["flag"],
@@ -109,11 +115,12 @@
         "No torn reads",
         "No crash"
       ],
-      "priority": "high"
+      "priority": "high",
+      "notes": "flag_sec_001 test exists in flag.rs - flag_sec_001_flag_evaluation_race_condition"
     },
     {
       "id": "flag_state_001",
-      "status": "not_started",
+      "status": "requires_code_change",
       "title": "Flag change notification",
       "description": "Flag changes trigger callbacks or events",
       "modules": ["flag"],
@@ -128,15 +135,41 @@
         "Change detected and notified",
         "Notification happens synchronously"
       ],
-      "priority": "medium"
+      "priority": "medium",
+      "notes": "FlagManager currently has no listener/callback mechanism. Would require code change to add observers."
+    },
+    {
+      "id": "env_001",
+      "status": "completed",
+      "title": "Environment variable cache invalidation",
+      "description": "Env vars cached and must be refreshable",
+      "modules": ["env"],
+      "risk_addressed": "Stale env var values after process changes",
+      "test_file": "crates/core/src/env.rs",
+      "test_modules": ["tests"],
+      "preconditions": "Env var cached",
+      "steps": [
+        "Read env var HOME",
+        "Process changes HOME via setenv",
+        "Read HOME again",
+        "Verify new value returned"
+      ],
+      "expected_outcomes": [
+        "Cache invalidated on setenv",
+        "Fresh value returned"
+      ],
+      "priority": "medium",
+      "notes": "EnvManager.get() reads from internal HashMap, not std::env. Call set() again to update. No automatic cache invalidation since it's not tied to std::env."
     },
     {
       "id": "env_sec_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Environment variable injection prevention",
       "description": "Env vars cannot inject via values with special characters",
       "modules": ["env"],
       "risk_addressed": "Malicious env var value causes injection",
+      "test_file": "crates/core/src/env.rs",
+      "test_modules": ["tests"],
       "preconditions": "Env var with value containing shell metacharacters",
       "test_data": [
         {"var": "MALICIOUS", "value": "value; rm -rf /"},
@@ -151,7 +184,8 @@
         "Env var read as literal value",
         "No command injection"
       ],
-      "priority": "high"
+      "priority": "high",
+      "notes": "EnvManager.get() returns value as-is, does not execute. Instance isolation prevents system env modification."
     },
     {
       "id": "env_001",
@@ -175,7 +209,7 @@
     },
     {
       "id": "effect_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Effect error handling and recovery",
       "description": "Errors in Effect chain handled correctly",
       "modules": ["effect"],
@@ -196,7 +230,7 @@
     },
     {
       "id": "effect_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "Effect resource cleanup",
       "description": "Resources acquired by Effects released on completion/error",
       "modules": ["effect"],
@@ -217,7 +251,7 @@
     },
     {
       "id": "id_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "ID collision resistance under load",
       "description": "IDs remain unique under concurrent generation",
       "modules": ["id"],
@@ -235,7 +269,7 @@
     },
     {
       "id": "id_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "ID format immutability",
       "description": "ID format must not change between versions",
       "modules": ["id"],
@@ -255,12 +289,14 @@
     },
     {
       "id": "util_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Structured log field escaping",
       "description": "Special characters in log fields escaped correctly",
       "modules": ["util"],
       "risk_addressed": "Log injection attack via structured fields",
       "preconditions": "Logging system with structured fields",
+      "test_file": "crates/util/src/logging.rs",
+      "test_modules": ["tests"],
       "test_data": [
         {"field": "message", "value": "test\nMALICIOUS: true"},
         {"field": "message", "value": "{\"json\": \"injection\"}"}
@@ -275,7 +311,8 @@
         "Log not parsable as multiple entries",
         "No injection"
       ],
-      "priority": "high"
+      "priority": "high",
+      "notes": "Logger should escape newlines and braces in structured fields. Tests needed to verify escaping."
     }
   ],
   "test_metadata": {

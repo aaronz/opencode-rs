@@ -445,13 +445,19 @@ fn config_sec_002_file_permission_validation() {
     perms.set_mode(0o644);
     std::fs::set_permissions(&config_path, perms).unwrap();
     let config = Config::load(&config_path);
-    assert!(config.is_ok(), "0o644 (world-readable) should warn but load");
+    assert!(
+        config.is_ok(),
+        "0o644 (world-readable) should warn but load"
+    );
 
     let mut perms = std::fs::metadata(&config_path).unwrap().permissions();
     perms.set_mode(0o777);
     std::fs::set_permissions(&config_path, perms).unwrap();
     let config = Config::load(&config_path);
-    assert!(config.is_ok(), "0o777 (fully world-readable) should warn but load");
+    assert!(
+        config.is_ok(),
+        "0o777 (fully world-readable) should warn but load"
+    );
 
     let mut perms = std::fs::metadata(&config_path).unwrap().permissions();
     perms.set_mode(original_mode & 0o777);
@@ -473,7 +479,10 @@ async fn config_e2e_003_keychain_secret_resolution() {
             "Error should mention keychain issue"
         );
     } else {
-        assert_eq!(config.unwrap().model, Some("{keychain:api_key}".to_string()));
+        assert_eq!(
+            config.unwrap().model,
+            Some("{keychain:api_key}".to_string())
+        );
     }
 }
 

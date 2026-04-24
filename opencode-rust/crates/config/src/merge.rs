@@ -23,7 +23,11 @@ pub fn deep_merge(base: &Value, override_val: &Value) -> Result<Value, MergeType
     deep_merge_with_path(base, override_val, "$".to_string())
 }
 
-fn deep_merge_with_path(base: &Value, override_val: &Value, path: String) -> Result<Value, MergeTypeError> {
+fn deep_merge_with_path(
+    base: &Value,
+    override_val: &Value,
+    path: String,
+) -> Result<Value, MergeTypeError> {
     match (base, override_val) {
         (Value::Object(base_map), Value::Object(override_map)) => {
             let mut result = base_map.clone();
@@ -176,7 +180,7 @@ mod tests {
 
     #[test]
     fn test_merge_configs_returns_error_on_type_conflict() {
-        use crate::{ServerConfig, Config};
+        use crate::{Config, ServerConfig};
 
         let base = Config {
             server: Some(ServerConfig {

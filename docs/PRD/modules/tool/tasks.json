@@ -418,9 +418,9 @@
       "risk_addressed": "Denial of service via malicious regex",
       "preconditions": "ToolRegistry with GrepTool registered",
       "test_data": [
-        "(a+)+$ on 'aaaaaaaaaaaaaaaaaaX',  # exponential backtrack
-        "(a|a?)+$ on 'aaaaaaaaaaaaaaaaaaX',  # quadratic
-        "([a-zA-Z0-9]){100}$ on long input"  # polynomial
+        "(a+)+$ on aaaaaaaaaaaaaaaaaaX",
+        "(a|a?)+$ on aaaaaaaaaaaaaaaaaaX",
+        "([a-zA-Z0-9]){100}$ on long input"
       ],
       "steps": [
         "Execute GrepTool with ReDoS-prone regex on large input",

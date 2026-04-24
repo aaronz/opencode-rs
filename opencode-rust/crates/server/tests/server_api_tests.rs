@@ -1248,3 +1248,147 @@ async fn test_session_fork_rejects_invalid_message_index() {
     let status = fork_resp.status();
     assert!(status.is_client_error() || status.is_server_error());
 }
+
+// ============================================================================
+// Resiliency Tests - Malformed JSON Handling (server_resil_003)
+// ============================================================================
+
+#[actix_web::test]
+async fn test_server_resil_003_unclosed_bracket_rejected() {
+    let test_state = create_test_state().await;
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(test_state.state.clone()))
+            .service(web::scope("/api").configure(routes::config_routes))
+            .service(web::scope("/api").configure(routes::session::init)),
+    )
+    .await;
+
+    let req = test::TestRequest::post()
+        .uri("/api/sessions")
+        .append_header(("Content-Type", "application/json"))
+        .set_payload(r#"{"key": "value""#)
+        .to_request();
+
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+#[actix_web::test]
+async fn test_server_resil_003_bare_key_rejected() {
+    let test_state = create_test_state().await;
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(test_state.state.clone()))
+            .service(web::scope("/api").configure(routes::config_routes))
+            .service(web::scope("/api").configure(routes::session::init)),
+    )
+    .await;
+
+    let req = test::TestRequest::post()
+        .uri("/api/sessions")
+        .append_header(("Content-Type", "application/json"))
+        .set_payload(r#"{key: "value"}"#)
+        .to_request();
+
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+#[actix_web::test]
+async fn test_server_resil_003_null_body_rejected() {
+    let test_state = create_test_state().await;
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(test_state.state.clone()))
+            .service(web::scope("/api").configure(routes::config_routes)),
+    )
+    .await;
+
+    let req = test::TestRequest::post()
+        .uri("/api/sessions")
+        .append_header(("Content-Type", "application/json"))
+        .set_payload(r#"null"#)
+        .to_request();
+
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+#[actix_web::test]
+async fn test_server_resil_003_garbage_text_rejected() {
+    let test_state = create_test_state().await;
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(test_state.state.clone()))
+            .service(web::scope("/api").configure(routes::config_routes)),
+    )
+    .await;
+
+    let req = test::TestRequest::post()
+        .uri("/api/sessions")
+        .append_header(("Content-Type", "application/json"))
+        .set_payload("garbage non-json text")
+        .to_request();
+
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+// ============================================================================
+// Input Validation Tests - Invalid Session ID (server_input_001)
+// ============================================================================
+
+#[actix_web::test]
+async fn test_server_input_001_rejects_path_traversal() {
+    let test_state = create_test_state().await;
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(test_state.state.clone()))
+            .service(web::scope("/api").configure(routes::config_routes)),
+    )
+    .await;
+
+    let req = test::TestRequest::get()
+        .uri("/api/sessions/../../../etc/passwd")
+        .to_request();
+
+    let resp = test::call_service(&app, req).await;
+    assert!(resp.status().is_client_error() || resp.status() == StatusCode::NOT_FOUND);
+}
+
+#[actix_web::test]
+async fn test_server_input_001_rejects_long_invalid_id() {
+    let test_state = create_test_state().await;
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(test_state.state.clone()))
+            .service(web::scope("/api").configure(routes::config_routes)),
+    )
+    .await;
+
+    let req = test::TestRequest::get()
+        .uri("/api/sessions/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        .to_request();
+
+    let resp = test::call_service(&app, req).await;
+    assert!(resp.status().is_client_error() || resp.status() == StatusCode::NOT_FOUND);
+}
+
+#[actix_web::test]
+async fn test_server_input_001_rejects_script_tag() {
+    let test_state = create_test_state().await;
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(test_state.state.clone()))
+            .service(web::scope("/api").configure(routes::config_routes)),
+    )
+    .await;
+
+    let req = test::TestRequest::get()
+        .uri("/api/sessions/%3Cscript%3Ealert(1)%3C/script%3E")
+        .to_request();
+
+    let resp = test::call_service(&app, req).await;
+    assert!(resp.status().is_client_error() || resp.status() == StatusCode::NOT_FOUND);
+}

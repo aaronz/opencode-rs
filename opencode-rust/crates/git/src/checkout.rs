@@ -117,7 +117,7 @@ pub fn git_checkout_commit(repo_path: &Path, commit_oid: &str) -> Result<(), Ope
     let oid = git2::Oid::from_str(commit_oid)
         .map_err(|e| OpenCodeError::Tool(format!("Invalid commit OID '{}': {}", commit_oid, e)))?;
 
-    let commit = repo
+    let _commit = repo
         .find_commit(oid)
         .map_err(|e| OpenCodeError::Tool(format!("Commit '{}' not found: {}", commit_oid, e)))?;
 
@@ -358,5 +358,58 @@ mod tests {
 
         let content = std::fs::read_to_string(&file_path).unwrap();
         assert_eq!(content, "Hello, World!");
+    }
+
+    #[test]
+    fn test_git_checkout_to_new_branch_creates_it() {
+        use crate::branch::git_branch_list;
+
+        let temp_dir = create_test_repo();
+
+        git_checkout_create(temp_dir.path(), "new-branch").unwrap();
+
+        let repo = Repository::open(temp_dir.path()).unwrap();
+        let head_ref = repo.head().unwrap();
+        let current_branch = head_ref.shorthand().unwrap();
+        assert_eq!(current_branch, "new-branch");
+
+        let branches = git_branch_list(temp_dir.path()).unwrap();
+        assert!(branches.contains(&"new-branch".to_string()));
+    }
+
+    #[test]
+    fn test_git_current_branch_returns_name() {
+        let temp_dir = create_test_repo();
+
+        let branch_name = git_current_branch(temp_dir.path()).unwrap();
+        assert!(!branch_name.is_empty());
+    }
+
+    #[test]
+    fn test_git_current_branch_detached_head_error() {
+        let temp_dir = create_test_repo();
+
+        let repo = Repository::open(temp_dir.path()).unwrap();
+        let head = repo.head().unwrap().peel_to_commit().unwrap();
+        let oid = head.id();
+
+        repo.set_head_detached(oid).unwrap();
+
+        let result = git_current_branch(temp_dir.path());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_git_checkout_commit_detached_head() {
+        let temp_dir = create_test_repo();
+
+        let repo = Repository::open(temp_dir.path()).unwrap();
+        let head = repo.head().unwrap().peel_to_commit().unwrap();
+        let commit_oid = head.id().to_string();
+
+        git_checkout_commit(temp_dir.path(), &commit_oid).unwrap();
+
+        let repo = Repository::open(temp_dir.path()).unwrap();
+        assert!(!repo.head().unwrap().is_branch());
     }
 }
