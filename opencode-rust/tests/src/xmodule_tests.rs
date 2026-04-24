@@ -31,22 +31,35 @@ mod xmodule_agent_storage_001 {
 
         let mut session = create_test_session("00000000-0000-0000-0000-000000000001");
         for i in 0..10 {
-            session.messages.push(opencode_core::Message::user(format!("Message {}", i)));
+            session
+                .messages
+                .push(opencode_core::Message::user(format!("Message {}", i)));
         }
         repo.save(&session).await.unwrap();
 
         let mut session = create_test_session("00000000-0000-0000-0000-000000000002");
         for i in 0..10 {
-            session.messages.push(opencode_core::Message::user(format!("Message {}", i)));
+            session
+                .messages
+                .push(opencode_core::Message::user(format!("Message {}", i)));
         }
 
         let result = repo.save(&session).await;
 
-        let loaded = repo.find_by_id("00000000-0000-0000-0000-000000000002").await.unwrap();
+        let loaded = repo
+            .find_by_id("00000000-0000-0000-0000-000000000002")
+            .await
+            .unwrap();
         if result.is_ok() {
-            assert!(loaded.is_some(), "Storage should have full new state after successful save");
+            assert!(
+                loaded.is_some(),
+                "Storage should have full new state after successful save"
+            );
         } else {
-            assert!(loaded.is_none(), "Storage should have old state after failed save");
+            assert!(
+                loaded.is_none(),
+                "Storage should have old state after failed save"
+            );
         }
     }
 
@@ -60,17 +73,30 @@ mod xmodule_agent_storage_001 {
         let repo = SqliteSessionRepository::new(pool);
 
         let mut session = create_test_session("00000000-0000-0000-0000-000000000003");
-        session.messages.push(opencode_core::Message::user("Complete message 1".to_string()));
-        session.messages.push(opencode_core::Message::user("Complete message 2".to_string()));
+        session.messages.push(opencode_core::Message::user(
+            "Complete message 1".to_string(),
+        ));
+        session.messages.push(opencode_core::Message::user(
+            "Complete message 2".to_string(),
+        ));
         repo.save(&session).await.unwrap();
 
         let mut updated_session = create_test_session("00000000-0000-0000-0000-000000000003");
-        updated_session.messages.push(opencode_core::Message::user("Complete message 1".to_string()));
-        updated_session.messages.push(opencode_core::Message::user("Complete message 2".to_string()));
-        updated_session.messages.push(opencode_core::Message::user("Complete message 3".to_string()));
+        updated_session.messages.push(opencode_core::Message::user(
+            "Complete message 1".to_string(),
+        ));
+        updated_session.messages.push(opencode_core::Message::user(
+            "Complete message 2".to_string(),
+        ));
+        updated_session.messages.push(opencode_core::Message::user(
+            "Complete message 3".to_string(),
+        ));
         repo.save(&updated_session).await.unwrap();
 
-        let loaded = repo.find_by_id("00000000-0000-0000-0000-000000000003").await.unwrap();
+        let loaded = repo
+            .find_by_id("00000000-0000-0000-0000-000000000003")
+            .await
+            .unwrap();
         assert!(loaded.is_some());
         let loaded_session = loaded.unwrap();
         let msg_count = loaded_session.messages.len();
@@ -91,15 +117,25 @@ mod xmodule_agent_storage_001 {
         let repo = SqliteSessionRepository::new(pool);
 
         let mut session1 = create_test_session("00000000-0000-0000-0000-000000000010");
-        session1.messages.push(opencode_core::Message::user("Session 1 message".to_string()));
+        session1.messages.push(opencode_core::Message::user(
+            "Session 1 message".to_string(),
+        ));
         repo.save(&session1).await.unwrap();
 
         let mut session2 = create_test_session("00000000-0000-0000-0000-000000000011");
-        session2.messages.push(opencode_core::Message::user("Session 2 message".to_string()));
+        session2.messages.push(opencode_core::Message::user(
+            "Session 2 message".to_string(),
+        ));
         repo.save(&session2).await.unwrap();
 
-        let s1 = repo.find_by_id("00000000-0000-0000-0000-000000000010").await.unwrap();
-        let s2 = repo.find_by_id("00000000-0000-0000-0000-000000000011").await.unwrap();
+        let s1 = repo
+            .find_by_id("00000000-0000-0000-0000-000000000010")
+            .await
+            .unwrap();
+        let s2 = repo
+            .find_by_id("00000000-0000-0000-0000-000000000011")
+            .await
+            .unwrap();
 
         assert!(s1.is_some(), "Session 1 should be intact");
         assert!(s2.is_some(), "Session 2 should be intact");
@@ -135,7 +171,10 @@ mod xmodule_tool_permission_001 {
         let scope = PermissionScope::ReadOnly;
         let write_allowed = matches!(scope, PermissionScope::Full);
 
-        assert!(!write_allowed, "ReadOnly scope should deny write operations");
+        assert!(
+            !write_allowed,
+            "ReadOnly scope should deny write operations"
+        );
     }
 }
 
@@ -193,7 +232,9 @@ mod xmodule_session_compaction_001 {
 
         let mut session = Session::new();
         for i in 0..100 {
-            session.messages.push(opencode_core::Message::user(format!("Message {}", i)));
+            session
+                .messages
+                .push(opencode_core::Message::user(format!("Message {}", i)));
         }
         repo.save(&session).await.unwrap();
 
@@ -227,18 +268,33 @@ mod xmodule_session_compaction_001 {
 
         let mut session = Session::new();
         for i in 0..50 {
-            session.messages.push(opencode_core::Message::user(format!("Unique message {}", i)));
+            session.messages.push(opencode_core::Message::user(format!(
+                "Unique message {}",
+                i
+            )));
         }
         repo.save(&session).await.unwrap();
 
         let mut compacted = Session::new();
         compacted.id = session.id;
-        compacted.messages.push(opencode_core::Message::user("Summary of 50 messages".to_string()));
+        compacted.messages.push(opencode_core::Message::user(
+            "Summary of 50 messages".to_string(),
+        ));
         repo.save(&compacted).await.unwrap();
 
-        let loaded = repo.find_by_id(&session.id.to_string()).await.unwrap().unwrap();
-        let has_duplicates = loaded.messages.windows(2).any(|w| w[0].content == w[1].content);
-        assert!(!has_duplicates, "No message should appear twice after compaction");
+        let loaded = repo
+            .find_by_id(&session.id.to_string())
+            .await
+            .unwrap()
+            .unwrap();
+        let has_duplicates = loaded
+            .messages
+            .windows(2)
+            .any(|w| w[0].content == w[1].content);
+        assert!(
+            !has_duplicates,
+            "No message should appear twice after compaction"
+        );
     }
 }
 
@@ -268,13 +324,18 @@ mod xmodule_storage_server_001 {
         let repo = SqliteSessionRepository::new(pool);
 
         let mut session = Session::new();
-        session.messages.push(opencode_core::Message::user("Test message".to_string()));
+        session
+            .messages
+            .push(opencode_core::Message::user("Test message".to_string()));
 
         let save_result = repo.save(&session).await;
         assert!(save_result.is_ok(), "Save should complete before returning");
 
         let loaded = repo.find_by_id(&session.id.to_string()).await.unwrap();
-        assert!(loaded.is_some(), "Session should exist after save completes");
+        assert!(
+            loaded.is_some(),
+            "Session should exist after save completes"
+        );
     }
 
     #[tokio::test]
@@ -287,7 +348,9 @@ mod xmodule_storage_server_001 {
         let repo = SqliteSessionRepository::new(pool);
 
         let mut session = Session::new();
-        session.messages.push(opencode_core::Message::user("Data persists".to_string()));
+        session
+            .messages
+            .push(opencode_core::Message::user("Data persists".to_string()));
         repo.save(&session).await.unwrap();
 
         drop(repo);
@@ -296,7 +359,10 @@ mod xmodule_storage_server_001 {
         let new_repo = SqliteSessionRepository::new(new_pool);
 
         let loaded = new_repo.find_by_id(&session.id.to_string()).await.unwrap();
-        assert!(loaded.is_some(), "Data should persist after pool is dropped and recreated");
+        assert!(
+            loaded.is_some(),
+            "Data should persist after pool is dropped and recreated"
+        );
     }
 }
 
@@ -341,7 +407,10 @@ mod xmodule_git_storage_001 {
         let max_size = 50 * 1024 * 1024;
 
         let should_truncate = large_diff.len() > max_size;
-        assert!(should_truncate, "Large diff should be identified for truncation");
+        assert!(
+            should_truncate,
+            "Large diff should be identified for truncation"
+        );
     }
 
     #[test]
@@ -394,7 +463,10 @@ mod xmodule_cli_config_env_001 {
         let env_value = Some("gpt-4o");
         let config_value = Some("gpt-4");
 
-        let final_value = cli_value.or(env_value).or(config_value).unwrap_or("default");
+        let final_value = cli_value
+            .or(env_value)
+            .or(config_value)
+            .unwrap_or("default");
         assert_eq!(final_value, "gpt-4o-mini", "CLI flag should win");
     }
 
@@ -404,7 +476,10 @@ mod xmodule_cli_config_env_001 {
         let env_value = Some("gpt-4o");
         let config_value = Some("gpt-4");
 
-        let final_value = cli_value.or(env_value).or(config_value).unwrap_or("default");
+        let final_value = cli_value
+            .or(env_value)
+            .or(config_value)
+            .unwrap_or("default");
         assert_eq!(final_value, "gpt-4o", "Env var should win over config file");
     }
 
@@ -414,8 +489,14 @@ mod xmodule_cli_config_env_001 {
         let env_value: Option<&str> = None;
         let config_value = Some("gpt-4");
 
-        let final_value = cli_value.or(env_value).or(config_value).unwrap_or("default");
-        assert_eq!(final_value, "gpt-4", "Config file should be used when no override");
+        let final_value = cli_value
+            .or(env_value)
+            .or(config_value)
+            .unwrap_or("default");
+        assert_eq!(
+            final_value, "gpt-4",
+            "Config file should be used when no override"
+        );
     }
 
     #[test]
@@ -424,8 +505,14 @@ mod xmodule_cli_config_env_001 {
         let env_value: Option<&str> = None;
         let config_value: Option<&str> = None;
 
-        let final_value = cli_value.or(env_value).or(config_value).unwrap_or("default");
-        assert_eq!(final_value, "default", "Default should be used when no config");
+        let final_value = cli_value
+            .or(env_value)
+            .or(config_value)
+            .unwrap_or("default");
+        assert_eq!(
+            final_value, "default",
+            "Default should be used when no config"
+        );
     }
 }
 
@@ -456,8 +543,16 @@ mod xmodule_mcp_plugin_001 {
 
         for input in test_inputs {
             let parsed: Result<serde_json::Value, _> = serde_json::from_str(input);
-            let is_safe = parsed.is_err() || parsed.as_ref().map(|v| v.is_null() || v.is_array()).unwrap_or(false);
-            assert!(is_safe, "Malformed input {} should be handled safely", input);
+            let is_safe = parsed.is_err()
+                || parsed
+                    .as_ref()
+                    .map(|v| v.is_null() || v.is_array())
+                    .unwrap_or(false);
+            assert!(
+                is_safe,
+                "Malformed input {} should be handled safely",
+                input
+            );
         }
     }
 
@@ -483,7 +578,10 @@ mod xmodule_server_cli_001 {
     #[test]
     fn test_tls_certificate_validated() {
         let cert_validation_enabled = true;
-        assert!(cert_validation_enabled, "TLS certificate validation should be enabled");
+        assert!(
+            cert_validation_enabled,
+            "TLS certificate validation should be enabled"
+        );
     }
 
     #[test]
@@ -517,8 +615,8 @@ mod xmodule_server_cli_001 {
 
 #[cfg(test)]
 mod xmodule_session_project_001 {
-    use std::path::PathBuf;
     use std::fs;
+    use std::path::PathBuf;
 
     #[tokio::test]
     async fn test_stale_path_detected_after_project_move() {
@@ -537,7 +635,10 @@ mod xmodule_session_project_001 {
         let file_exists_at_old_path = original_path.join("test.txt").exists();
         let file_exists_at_new_path = moved_path.join("test.txt").exists();
 
-        assert!(!file_exists_at_old_path, "Old path should no longer exist after move");
+        assert!(
+            !file_exists_at_old_path,
+            "Old path should no longer exist after move"
+        );
         assert!(file_exists_at_new_path, "File should exist at new path");
 
         let resolved_path = if !file_exists_at_old_path && file_exists_at_new_path {
@@ -546,7 +647,11 @@ mod xmodule_session_project_001 {
             session_project_path
         };
 
-        assert_eq!(resolved_path, moved_path.to_string_lossy(), "Path should be resolved to new location");
+        assert_eq!(
+            resolved_path,
+            moved_path.to_string_lossy(),
+            "Path should be resolved to new location"
+        );
     }
 
     #[test]
@@ -573,15 +678,24 @@ mod xmodule_lsp_git_001 {
         let worktree_root = PathBuf::from("/repos/project-feature");
         let main_repo_root = PathBuf::from("/repos/project-main");
 
-        assert_ne!(worktree_root, main_repo_root, "Worktree should be separate from main repo");
+        assert_ne!(
+            worktree_root, main_repo_root,
+            "Worktree should be separate from main repo"
+        );
 
         let lsp_root = worktree_root.clone();
-        assert_eq!(lsp_root, worktree_root, "LSP should use worktree root, not main repo");
+        assert_eq!(
+            lsp_root, worktree_root,
+            "LSP should use worktree root, not main repo"
+        );
     }
 
     #[test]
     fn test_definitions_resolved_within_worktree_first() {
-        let worktree_files = vec!["/repos/project-feature/src/lib.rs", "/repos/project-feature/src/main.rs"];
+        let worktree_files = vec![
+            "/repos/project-feature/src/lib.rs",
+            "/repos/project-feature/src/main.rs",
+        ];
         let main_repo_files = vec!["/repos/project-main/src/lib.rs"];
 
         for file in worktree_files {
@@ -611,9 +725,11 @@ mod xmodule_lsp_git_001 {
         for (path, is_local) in references {
             let is_within_worktree = path.starts_with("/repos/project-feature");
             assert_eq!(
-                is_within_worktree, is_local,
+                is_within_worktree,
+                is_local,
                 "Reference {} should be {} within worktree",
-                path, if is_local { "local" } else { "external" }
+                path,
+                if is_local { "local" } else { "external" }
             );
         }
     }
@@ -648,13 +764,14 @@ mod xmodule_provider_budget_001 {
         let budget = 100;
         let current_usage = 0;
 
-        let can_proceed = |chunk_tokens: usize| -> bool {
-            current_usage + chunk_tokens <= budget
-        };
+        let can_proceed = |chunk_tokens: usize| -> bool { current_usage + chunk_tokens <= budget };
 
         assert!(can_proceed(50), "Should allow chunk within budget");
         assert!(can_proceed(50), "Should allow second chunk within budget");
-        assert!(!can_proceed(10), "Should reject chunk that would exceed budget");
+        assert!(
+            !can_proceed(10),
+            "Should reject chunk that would exceed budget"
+        );
     }
 
     #[test]
@@ -690,14 +807,20 @@ mod xmodule_agent_delegate_permission_001 {
     fn test_subagent_permissions_equal_parent() {
         let parent_scope = PermissionScope::ReadOnly;
 
-        let parent_can_read = matches!(parent_scope, PermissionScope::ReadOnly | PermissionScope::Full);
+        let parent_can_read = matches!(
+            parent_scope,
+            PermissionScope::ReadOnly | PermissionScope::Full
+        );
         let parent_can_write = matches!(parent_scope, PermissionScope::Full);
 
         assert!(parent_can_read, "ReadOnly should allow read");
         assert!(!parent_can_write, "ReadOnly should not allow write");
 
         let subagent_scope = parent_scope;
-        let subagent_can_read = matches!(subagent_scope, PermissionScope::ReadOnly | PermissionScope::Full);
+        let subagent_can_read = matches!(
+            subagent_scope,
+            PermissionScope::ReadOnly | PermissionScope::Full
+        );
         let subagent_can_write = matches!(subagent_scope, PermissionScope::Full);
 
         assert_eq!(
@@ -714,9 +837,8 @@ mod xmodule_agent_delegate_permission_001 {
     fn test_subagent_cannot_escalate() {
         let parent_scope = PermissionScope::ReadOnly;
 
-        let can_escalate = |scope: &PermissionScope| -> bool {
-            matches!(scope, PermissionScope::Full)
-        };
+        let can_escalate =
+            |scope: &PermissionScope| -> bool { matches!(scope, PermissionScope::Full) };
 
         assert!(
             !can_escalate(&parent_scope),
@@ -767,7 +889,10 @@ mod xmodule_storage_migration_auth_001 {
             }
         }
 
-        assert!(fallback_used, "Invalid format should trigger fallback handling");
+        assert!(
+            fallback_used,
+            "Invalid format should trigger fallback handling"
+        );
     }
 }
 
