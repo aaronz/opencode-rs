@@ -185,6 +185,13 @@ pub fn git_rebase_abort() -> Result<(), OpenCodeError> {
         std::fs::remove_file(&index_lock).ok();
     }
 
+    for rebase_file in &["rebase-orig-head", "rebase-head", "MERGE_HEAD"] {
+        let file_path = state.repo_path.join(".git").join(rebase_file);
+        if file_path.exists() {
+            std::fs::remove_file(&file_path).ok();
+        }
+    }
+
     let output = Command::new("git")
         .args(["rebase", "--abort"])
         .current_dir(&state.repo_path)
@@ -194,9 +201,10 @@ pub fn git_rebase_abort() -> Result<(), OpenCodeError> {
     if let Some(output) = output {
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            if !stderr.contains("No rebase in progress")
-                && !stderr.contains("There is no rebase")
-                && !stderr.contains("Unable to read current working directory")
+            let stderr_lower = stderr.to_lowercase();
+            if !stderr_lower.contains("no rebase in progress")
+                && !stderr_lower.contains("there is no rebase")
+                && !stderr_lower.contains("unable to read current working directory")
             {
                 return Err(OpenCodeError::Tool(format!(
                     "Failed to abort rebase: {}",
