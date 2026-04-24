@@ -50,8 +50,8 @@ jobs:
       - name: Run opencode-git tests (sequential)
         run: cd opencode-rust && RUST_TEST_THREADS=1 cargo test -p opencode-git --lib
 
-      - name: Run integration tests
-        run: cd opencode-rust && cargo test --test '*'
+      - name: Run integration tests (single-threaded to avoid race conditions)
+        run: cd opencode-rust && RUST_TEST_THREADS=1 cargo test --test '*'
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
