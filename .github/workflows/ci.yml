@@ -11,7 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
+      - name: Set up git config for tests
+        run: |
+          git config --global user.name "CI Bot"
+          git config --global user.email "ci@opencode.ai"
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         
