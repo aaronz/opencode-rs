@@ -137,8 +137,10 @@ pub fn git_rebase(repo_path: &Path, branch: &str) -> Result<RebaseResult, OpenCo
     }
 
     let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let output_combined = format!("{}{}", stdout, stderr);
 
-    if stderr.contains("CONFLICT") || stderr.contains("could not apply") {
+    if output_combined.contains("CONFLICT") || output_combined.contains("could not apply") {
         let mut conflicted_files = Vec::new();
 
         if let Ok(repo) = Repository::open(repo_path) {
