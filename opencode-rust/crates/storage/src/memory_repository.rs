@@ -626,7 +626,6 @@ mod session_repository_exists_tests {
 mod session_repository_list_by_project_tests {
     use super::*;
     use opencode_core::Session;
-    
 
     #[tokio::test]
     async fn test_in_memory_list_by_project_returns_sessions_for_given_project() {

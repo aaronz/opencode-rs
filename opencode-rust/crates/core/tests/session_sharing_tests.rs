@@ -2,7 +2,7 @@
 mod session_sharing_tests {
     use opencode_core::bus::EventBus;
     use opencode_core::message::Message;
-    
+
     use opencode_core::session_sharing::{SessionSharing, SharingError};
     use std::sync::Arc;
     use tempfile::TempDir;

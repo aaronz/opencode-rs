@@ -556,8 +556,6 @@ mod integration_tests {
 
 mod security_tests {
     use super::*;
-    
-    
 
     #[test]
     fn git_credentials_not_in_log_output() {

@@ -17,9 +17,9 @@ pub use directory_scanner::{
 };
 pub use jsonc::{is_jsonc_extension, parse_jsonc, JsoncError};
 pub use merge::deep_merge;
-pub use secret_storage::SecretStorage;
 use remote_cache::{load_cache, save_cache, RemoteConfigCache};
 use secret_storage::resolve_keychain_secret;
+pub use secret_storage::SecretStorage;
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]

@@ -948,10 +948,8 @@ mod lsp_tests {
 
     #[tokio::test]
     async fn test_lsp_e2e_002_diagnostic_aggregation() {
-        
         use opencode_lsp::manager::LspManager;
         use opencode_lsp::types::{Diagnostic, Position, Range, Severity};
-        
 
         let temp_dir = tempfile::tempdir().expect("temp dir");
         let project_dir = temp_dir.path().to_path_buf();
@@ -1026,7 +1024,6 @@ mod lsp_tests {
     async fn test_lsp_e2e_002_diagnostic_clear() {
         use opencode_lsp::manager::LspManager;
         use opencode_lsp::types::{Diagnostic, Position, Range, Severity};
-        
 
         let temp_dir = tempfile::tempdir().expect("temp dir");
         let project_dir = temp_dir.path().to_path_buf();

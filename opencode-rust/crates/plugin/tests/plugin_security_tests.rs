@@ -1,8 +1,6 @@
 #[cfg(test)]
 mod plugin_security_tests {
-    use opencode_plugin::wasm_runtime::{
-        WasmCapabilities, WasmError, WasmPlugin, WasmRuntime,
-    };
+    use opencode_plugin::wasm_runtime::{WasmCapabilities, WasmError, WasmPlugin, WasmRuntime};
     use std::io::Write;
     use tempfile::NamedTempFile;
 
@@ -131,10 +129,7 @@ mod plugin_security_tests {
 
         let malformed = b"NOT WEBASSEMBLY".to_vec();
         let result = runtime.load_module_from_bytes(malformed.as_slice());
-        assert!(
-            result.is_err(),
-            "Non-WASM bytes should be rejected"
-        );
+        assert!(result.is_err(), "Non-WASM bytes should be rejected");
     }
 
     #[test]
@@ -180,7 +175,11 @@ mod plugin_security_tests {
         if let Err(e) = &result {
             eprintln!("Error calling run: {:?}", e);
         }
-        assert!(result.is_ok(), "Exported function should be callable: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Exported function should be callable: {:?}",
+            result.err()
+        );
 
         let result = instance.call("internal_func");
         assert!(
@@ -319,10 +318,7 @@ mod plugin_security_tests {
         let wasm_bytes = wat::parse_str(wat_code).expect("failed to parse WAT");
 
         let module = runtime.load_module_from_bytes(&wasm_bytes);
-        assert!(
-            module.is_ok(),
-            "WASM with env.memory import should load"
-        );
+        assert!(module.is_ok(), "WASM with env.memory import should load");
 
         let instance_result = runtime.instantiate_module(&module.unwrap());
         assert!(

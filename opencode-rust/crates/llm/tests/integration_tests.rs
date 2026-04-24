@@ -1,6 +1,5 @@
 use opencode_llm::budget::{
-    BudgetExceededError, BudgetLimit, BudgetTracker, ConversationBudgetState,
-    Usage, VariantCost,
+    BudgetExceededError, BudgetLimit, BudgetTracker, ConversationBudgetState, Usage, VariantCost,
 };
 use opencode_llm::model_selection::{ModelSelection, ProviderType, UserModelConfig};
 use opencode_llm::provider_abstraction::{

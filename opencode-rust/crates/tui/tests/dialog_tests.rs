@@ -1,6 +1,4 @@
-use opencode_tui::dialogs::{
-    Dialog, DialogAction, HomeAction, HomeView, HomeViewSection,
-};
+use opencode_tui::dialogs::{Dialog, DialogAction, HomeAction, HomeView, HomeViewSection};
 
 #[test]
 fn test_dialog_action_variants() {

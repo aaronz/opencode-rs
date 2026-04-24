@@ -1033,8 +1033,6 @@ mod tool_e2e_tests {
 
     #[tokio::test]
     async fn test_tool_sec_006_write_within_worktree_allowed() {
-        
-
         let temp_dir = tempfile::tempdir().unwrap();
         let file_path = temp_dir.path().join("allowed.txt");
 

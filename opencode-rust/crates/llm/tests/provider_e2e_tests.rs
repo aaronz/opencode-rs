@@ -6,9 +6,7 @@ mod provider_tests {
     use opencode_llm::error::{with_retry, LlmError, RetryConfig};
     use opencode_llm::message_transform::{MessageTransform, TransformPipeline};
     use opencode_llm::provider::sealed::Sealed;
-    use opencode_llm::provider::{
-        ChatMessage, ChatResponse, Model, Provider, StreamingCallback,
-    };
+    use opencode_llm::provider::{ChatMessage, ChatResponse, Model, Provider, StreamingCallback};
     use std::sync::{Arc, Mutex};
 
     #[test]
@@ -995,7 +993,6 @@ mod provider_tests {
     #[test]
     fn test_provider_err_005_provider_switch_requires_context() {
         use opencode_llm::models::ModelRegistry;
-        
 
         let registry = ModelRegistry::new();
 
@@ -1544,8 +1541,6 @@ mod provider_tests {
 
     #[tokio::test]
     async fn test_provider_budget_002_streaming_with_mock_provider() {
-        
-
         let tracker = BudgetTracker::with_reasoning_budget(None, 0.001);
         let _tracker = BudgetTracker::with_request_limit(tracker, 100);
 

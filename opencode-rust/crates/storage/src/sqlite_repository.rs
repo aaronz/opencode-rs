@@ -720,7 +720,6 @@ mod session_repository_list_by_project_tests {
     use crate::database::StoragePool;
     use crate::MigrationManager;
     use opencode_core::Session;
-    
 
     fn create_temp_db() -> (StoragePool, tempfile::TempDir) {
         let temp_dir = tempfile::tempdir().unwrap();

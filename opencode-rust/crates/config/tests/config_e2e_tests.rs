@@ -482,8 +482,7 @@ fn config_e2e_003_keychain_resolve_success() {
     std::env::remove_var("OPENCODE_DATA_DIR");
 
     assert_eq!(
-        resolved,
-        "sk-test-12345",
+        resolved, "sk-test-12345",
         "Keychain reference should be resolved to actual secret value"
     );
 }

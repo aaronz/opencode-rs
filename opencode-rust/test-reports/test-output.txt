@@ -1,29 +1,82 @@
+   Compiling opencode-integration-tests v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/tests)
    Compiling opencode-cli v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/cli)
+   Compiling opencode-sdk v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/sdk)
    Compiling opencode-format v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/format)
-warning: unused variable: `session1`
-  --> crates/cli/tests/e2e_sidebar.rs:17:9
-   |
-17 |     let session1 = harness.create_session("sidebar-session-1");
-   |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_session1`
-   |
-   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused variable: `session2`
-  --> crates/cli/tests/e2e_sidebar.rs:18:9
-   |
-18 |     let session2 = harness.create_session("sidebar-session-2");
-   |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_session2`
-
-warning: `opencode-cli` (test "e2e_sidebar") generated 2 warnings (run `cargo fix --test "e2e_sidebar" -p opencode-cli` to apply 2 suggestions)
-warning: unused import: `std::fs`
- --> crates/cli/tests/e2e_file_management.rs:2:5
+   Compiling opencode-benches v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/opencode-benches)
+warning: unused import: `config::TestConfig`
+ --> tests/src/common/mod.rs:6:9
   |
-2 | use std::fs;
-  |     ^^^^^^^
+6 | pub use config::TestConfig;
+  |         ^^^^^^^^^^^^^^^^^^
   |
   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
 
-warning: `opencode-cli` (test "e2e_file_management") generated 1 warning (run `cargo fix --test "e2e_file_management" -p opencode-cli` to apply 1 suggestion)
+warning: unused import: `mock_llm::MockLLMProvider`
+ --> tests/src/common/mod.rs:7:9
+  |
+7 | pub use mock_llm::MockLLMProvider;
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `temp_project::TempProject`
+ --> tests/src/common/mod.rs:9:9
+  |
+9 | pub use temp_project::TempProject;
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `apply_env` is never used
+  --> tests/src/common/config.rs:39:12
+   |
+11 | impl TestConfig {
+   | --------------- method in this implementation
+...
+39 |     pub fn apply_env(&self) {
+   |            ^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: fields `method`, `path`, and `body` are never read
+  --> tests/src/common/mock_server.rs:19:9
+   |
+18 | pub struct ReceivedRequest {
+   |            --------------- fields in this struct
+19 |     pub method: String,
+   |         ^^^^^^
+20 |     pub path: String,
+   |         ^^^^
+21 |     pub body: String,
+   |         ^^^^
+   |
+   = note: `ReceivedRequest` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: methods `received_requests` and `request_count` are never used
+   --> tests/src/common/mock_server.rs:163:12
+    |
+ 43 | impl MockServer {
+    | --------------- methods in this implementation
+...
+163 |     pub fn received_requests(&self) -> Vec<ReceivedRequest> {
+    |            ^^^^^^^^^^^^^^^^^
+...
+171 |     pub fn request_count(&self) -> usize {
+    |            ^^^^^^^^^^^^^
+
+warning: method `assert_file_not_exists` is never used
+  --> tests/src/common/temp_project.rs:62:12
+   |
+10 | impl TempProject {
+   | ---------------- method in this implementation
+...
+62 |     pub fn assert_file_not_exists(&self, relative_path: &str) {
+   |            ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `opencode-integration-tests` (test "copilot_oauth_flow") generated 7 warnings (run `cargo fix --test "copilot_oauth_flow" -p opencode-integration-tests` to apply 3 suggestions)
+warning: unused import: `mock_server::MockServer`
+ --> tests/src/common/mod.rs:8:9
+  |
+8 | pub use mock_server::MockServer;
+  |         ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `opencode-integration-tests` (test "security_tests") generated 7 warnings (6 duplicates) (run `cargo fix --test "security_tests" -p opencode-integration-tests` to apply 1 suggestion)
 warning: function `wait_for_server` is never used
   --> crates/cli/tests/e2e_web_server.rs:29:4
    |
@@ -33,15 +86,6 @@ warning: function `wait_for_server` is never used
    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
 
 warning: `opencode-cli` (test "e2e_web_server") generated 1 warning
-warning: unused import: `std::time::Duration`
- --> crates/cli/tests/e2e_terminal_workflows.rs:3:5
-  |
-3 | use std::time::Duration;
-  |     ^^^^^^^^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: `opencode-cli` (test "e2e_terminal_workflows") generated 1 warning (run `cargo fix --test "e2e_terminal_workflows" -p opencode-cli` to apply 1 suggestion)
 warning: function `wait_for_server` is never used
   --> crates/cli/tests/e2e_desktop_web_smoke.rs:57:4
    |
@@ -64,91 +108,117 @@ warning: comparison is useless due to type limits
 40 |     assert!(port <= 65535, "Port should be a valid TCP port");
    |             ^^^^^^^^^^^^^
 
-warning: `opencode-cli` (test "e2e_desktop_web_smoke") generated 3 warnings
-warning: unused variable: `session1`
-  --> crates/cli/tests/e2e_session_persistence.rs:28:9
-   |
-28 |     let session1 = harness.create_session("session-1");
-   |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_session1`
-   |
-   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused variable: `session2`
-  --> crates/cli/tests/e2e_session_persistence.rs:29:9
-   |
-29 |     let session2 = harness.create_session("session-2");
-   |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_session2`
-
-warning: `opencode-cli` (test "e2e_session_persistence") generated 2 warnings (run `cargo fix --test "e2e_session_persistence" -p opencode-cli` to apply 2 suggestions)
-warning: unused import: `std::time::Duration`
- --> crates/cli/tests/e2e_session_undo_redo.rs:2:5
-  |
-2 | use std::time::Duration;
-  |     ^^^^^^^^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: `opencode-cli` (test "e2e_session_undo_redo") generated 1 warning (run `cargo fix --test "e2e_session_undo_redo" -p opencode-cli` to apply 1 suggestion)
    Compiling opencode-server v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/server)
-   Compiling opencode-integration-tests v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/tests)
-warning: unused import: `std::path::Path`
- --> crates/core/tests/filesystem_test.rs:3:9
-  |
-3 |     use std::path::Path;
-  |         ^^^^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: `opencode-core` (test "filesystem_test") generated 1 warning (run `cargo fix --test "filesystem_test" -p opencode-core` to apply 1 suggestion)
-warning: unused import: `opencode_core::session::Session`
- --> crates/core/tests/session_sharing_tests.rs:5:9
-  |
-5 |     use opencode_core::session::Session;
-  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: `opencode-core` (test "session_sharing_tests") generated 1 warning (run `cargo fix --test "session_sharing_tests" -p opencode-core` to apply 1 suggestion)
-warning: unused import: `std::sync::mpsc`
-   --> crates/git/tests/git_e2e_tests.rs:559:9
+   Compiling opencode-core v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/core)
+warning: `opencode-cli` (test "e2e_desktop_web_smoke") generated 3 warnings
+warning: `opencode-integration-tests` (test "parameterized_tests") generated 7 warnings (7 duplicates)
+warning: `opencode-integration-tests` (test "agent_tool_tests") generated 7 warnings (7 duplicates)
+warning: `opencode-integration-tests` (test "google_oauth_flow") generated 7 warnings (7 duplicates)
+warning: `opencode-integration-tests` (test "api_key_flow") generated 7 warnings (7 duplicates)
+   Compiling opencode-git v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/git)
+warning: unused import: `opencode_core::message::Message`
+   --> crates/core/tests/session_test.rs:123:13
     |
-559 |     use std::sync::mpsc;
-    |         ^^^^^^^^^^^^^^^
+123 |         use opencode_core::message::Message;
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     |
     = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
 
-warning: unused import: `std::thread`
-   --> crates/git/tests/git_e2e_tests.rs:560:9
+warning: unused import: `std::path::Path`
+   --> crates/core/tests/session_test.rs:135:13
     |
-560 |     use std::thread;
+135 |         use std::path::Path;
+    |             ^^^^^^^^^^^^^^^
+
+warning: unused import: `std::str::FromStr`
+   --> crates/core/tests/session_test.rs:317:9
+    |
+317 |     use std::str::FromStr;
+    |         ^^^^^^^^^^^^^^^^^
+
+warning: variable does not need to be mutable
+   --> crates/core/tests/session_test.rs:126:13
+    |
+126 |         let mut session = Session::new();
+    |             ----^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `opencode-core` (test "session_test") generated 4 warnings (run `cargo fix --test "session_test" -p opencode-core` to apply 4 suggestions)
+warning: value assigned to `sm` is never read
+   --> crates/core/src/skill.rs:757:22
+    |
+757 |         let mut sm = SkillManager::new();
+    |                      ^^^^^^^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused boxed `Fn` trait object that must be used
+   --> crates/core/src/crash_recovery.rs:699:9
+    |
+699 |         take_hook();
     |         ^^^^^^^^^^^
-
-warning: unused variable: `head_before`
-   --> crates/git/tests/git_e2e_tests.rs:621:13
     |
-621 |         let head_before = repo.head().unwrap().shorthand().unwrap().to_string();
-    |             ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_head_before`
-    |
-    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+    = note: closures are lazy and do nothing unless called
+    = note: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
 
-warning: unused variable: `client`
-   --> crates/git/tests/git_e2e_tests.rs:960:13
+warning: unused return value of `std::panic::take_hook` that must be used
+   --> crates/core/src/crash_recovery.rs:699:9
     |
-960 |         let client = GitHubClient::new("test-token", "https://github.com");
-    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_client`
-
-warning: unused variable: `client`
-   --> crates/git/tests/git_e2e_tests.rs:973:13
+699 |         take_hook();
+    |         ^^^^^^^^^^^
     |
-973 |         let client = GitHubClient::new("test-token", "https://github.com");
-    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_client`
-
-warning: unused variable: `client`
-   --> crates/git/tests/git_e2e_tests.rs:986:13
+help: use `let _ = ...` to ignore the resulting value
     |
-986 |         let client = GitHubClient::new("bad-token", "https://github.com");
-    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_client`
+699 |         let _ = take_hook();
+    |         +++++++
 
+warning: unused return value of `std::sync::Arc::<T, A>::ptr_eq` that must be used
+    --> crates/core/src/project.rs:1574:9
+     |
+1574 |         Arc::ptr_eq(&retrieved, &config);
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+help: use `let _ = ...` to ignore the resulting value
+     |
+1574 |         let _ = Arc::ptr_eq(&retrieved, &config);
+     |         +++++++
+
+warning: `opencode-core` (lib test) generated 4 warnings
+   Compiling opencode-plugin v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/plugin)
+warning: unused `Result` that must be used
+   --> crates/util/src/retry.rs:177:9
+    |
+177 |         retry(config, |_| async { Err::<i32, ()>(()) }).await;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+    = note: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+help: use `let _ = ...` to ignore the resulting value
+    |
+177 |         let _ = retry(config, |_| async { Err::<i32, ()>(()) }).await;
+    |         +++++++
+
+warning: `opencode-util` (lib test) generated 1 warning
+   Compiling opencode-util v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/util)
+warning: unused `std::result::Result` that must be used
+   --> crates/plugin/src/local_wasm.rs:110:9
+    |
+110 |         temp_file.flush();
+    |         ^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+    = note: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+help: use `let _ = ...` to ignore the resulting value
+    |
+110 |         let _ = temp_file.flush();
+    |         +++++++
+
+warning: `opencode-plugin` (lib test) generated 1 warning
+   Compiling opencode-agent v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/agent)
 warning: calls to `std::mem::drop` with a value that implements `Copy` does nothing
    --> crates/git/tests/git_e2e_tests.rs:214:9
     |
@@ -214,315 +284,13 @@ warning: comparison is useless due to type limits
     |
     = note: `#[warn(unused_comparisons)]` on by default
 
-warning: `opencode-git` (test "git_e2e_tests") generated 11 warnings (run `cargo fix --test "git_e2e_tests" -p opencode-git` to apply 6 suggestions)
-warning: unused variable: `x`
-   --> crates/core/src/effect.rs:226:24
-    |
-226 |             .and_then(|x| Effect::<i32>::failure(EffectError::Cancelled("stop".into())))
-    |                        ^ help: if this is intentional, prefix it with an underscore: `_x`
-    |
-    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused variable: `tmp`
-    --> crates/core/src/project.rs:1224:13
-     |
-1224 |         let tmp = TempDir::new().unwrap();
-     |             ^^^ help: if this is intentional, prefix it with an underscore: `_tmp`
-
-warning: unused variable: `tmp`
-    --> crates/core/src/project.rs:1688:31
-     |
-1688 |     fn create_project_service(tmp: &tempfile::TempDir) -> ProjectService {
-     |                               ^^^ help: if this is intentional, prefix it with an underscore: `_tmp`
-
-warning: variable does not need to be mutable
-   --> crates/core/src/share.rs:399:13
-    |
-399 |         let mut sm = ShareManager::new();
-    |             ----^^
-    |             |
-    |             help: remove this `mut`
-    |
-    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
-
-warning: value assigned to `sm` is never read
-   --> crates/core/src/skill.rs:757:22
-    |
-757 |         let mut sm = SkillManager::new();
-    |                      ^^^^^^^^^^^^^^^^^^^
-    |
-    = help: maybe it is overwritten before being read?
-    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused boxed `Fn` trait object that must be used
-   --> crates/core/src/crash_recovery.rs:699:9
-    |
-699 |         take_hook();
-    |         ^^^^^^^^^^^
-    |
-    = note: closures are lazy and do nothing unless called
-    = note: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused return value of `std::panic::take_hook` that must be used
-   --> crates/core/src/crash_recovery.rs:699:9
-    |
-699 |         take_hook();
-    |         ^^^^^^^^^^^
-    |
-help: use `let _ = ...` to ignore the resulting value
-    |
-699 |         let _ = take_hook();
-    |         +++++++
-
-warning: unused return value of `std::sync::Arc::<T, A>::ptr_eq` that must be used
-    --> crates/core/src/project.rs:1574:9
-     |
-1574 |         Arc::ptr_eq(&retrieved, &config);
-     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-     |
-help: use `let _ = ...` to ignore the resulting value
-     |
-1574 |         let _ = Arc::ptr_eq(&retrieved, &config);
-     |         +++++++
-
-warning: `opencode-core` (lib test) generated 8 warnings (run `cargo fix --lib -p opencode-core --tests` to apply 4 suggestions)
-warning: unused variable: `storage_path`
-  --> crates/cli/tests/e2e_session_sharing.rs:19:9
-   |
-19 |     let storage_path = temp_dir.path().join("opencode.db");
-   |         ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_storage_path`
-   |
-   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
-
-warning: `opencode-cli` (test "e2e_session_sharing") generated 1 warning (run `cargo fix --test "e2e_session_sharing" -p opencode-cli` to apply 1 suggestion)
-   Compiling opencode-core v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/core)
-warning: unused import: `config::TestConfig`
- --> tests/src/common/mod.rs:6:9
-  |
-6 | pub use config::TestConfig;
-  |         ^^^^^^^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused import: `mock_llm::MockLLMProvider`
- --> tests/src/common/mod.rs:7:9
-  |
-7 | pub use mock_llm::MockLLMProvider;
-  |         ^^^^^^^^^^^^^^^^^^^^^^^^^
-
-warning: unused import: `mock_server::MockServer`
- --> tests/src/common/mod.rs:8:9
-  |
-8 | pub use mock_server::MockServer;
-  |         ^^^^^^^^^^^^^^^^^^^^^^^
-
-warning: method `apply_env` is never used
-  --> tests/src/common/config.rs:39:12
-   |
-11 | impl TestConfig {
-   | --------------- method in this implementation
-...
-39 |     pub fn apply_env(&self) {
-   |            ^^^^^^^^^
-   |
-   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
-
-warning: fields `method`, `path`, and `body` are never read
-  --> tests/src/common/mock_server.rs:19:9
-   |
-18 | pub struct ReceivedRequest {
-   |            --------------- fields in this struct
-19 |     pub method: String,
-   |         ^^^^^^
-20 |     pub path: String,
-   |         ^^^^
-21 |     pub body: String,
-   |         ^^^^
-   |
-   = note: `ReceivedRequest` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
-
-warning: methods `received_requests` and `request_count` are never used
-   --> tests/src/common/mock_server.rs:163:12
-    |
- 43 | impl MockServer {
-    | --------------- methods in this implementation
-...
-163 |     pub fn received_requests(&self) -> Vec<ReceivedRequest> {
-    |            ^^^^^^^^^^^^^^^^^
-...
-171 |     pub fn request_count(&self) -> usize {
-    |            ^^^^^^^^^^^^^
-
-warning: method `assert_file_not_exists` is never used
-  --> tests/src/common/temp_project.rs:62:12
-   |
-10 | impl TempProject {
-   | ---------------- method in this implementation
-...
-62 |     pub fn assert_file_not_exists(&self, relative_path: &str) {
-   |            ^^^^^^^^^^^^^^^^^^^^^^
-
-warning: `opencode-integration-tests` (test "parameterized_tests") generated 7 warnings (run `cargo fix --test "parameterized_tests" -p opencode-integration-tests` to apply 3 suggestions)
-warning: unused import: `temp_project::TempProject`
- --> tests/src/common/mod.rs:9:9
-  |
-9 | pub use temp_project::TempProject;
-  |         ^^^^^^^^^^^^^^^^^^^^^^^^^
-
-warning: `opencode-integration-tests` (test "copilot_oauth_flow") generated 7 warnings (6 duplicates) (run `cargo fix --test "copilot_oauth_flow" -p opencode-integration-tests` to apply 1 suggestion)
-warning: unused import: `TuiPluginConfig`
- --> crates/core/tests/plugin_config_tests.rs:1:40
-  |
-1 | use opencode_core::config::{TuiConfig, TuiPluginConfig};
-  |                                        ^^^^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: `opencode-core` (test "plugin_config_tests") generated 1 warning (run `cargo fix --test "plugin_config_tests" -p opencode-core` to apply 1 suggestion)
-warning: unused import: `opencode_core::message::Message`
-   --> crates/core/tests/session_test.rs:123:13
-    |
-123 |         use opencode_core::message::Message;
-    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    |
-    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused import: `std::path::Path`
-   --> crates/core/tests/session_test.rs:135:13
-    |
-135 |         use std::path::Path;
-    |             ^^^^^^^^^^^^^^^
-
-warning: unused import: `std::str::FromStr`
-   --> crates/core/tests/session_test.rs:317:9
-    |
-317 |     use std::str::FromStr;
-    |         ^^^^^^^^^^^^^^^^^
-
-warning: variable does not need to be mutable
-   --> crates/core/tests/session_test.rs:126:13
-    |
-126 |         let mut session = Session::new();
-    |             ----^^^^^^^
-    |             |
-    |             help: remove this `mut`
-    |
-    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
-
-warning: `opencode-core` (test "session_test") generated 4 warnings (run `cargo fix --test "session_test" -p opencode-core` to apply 4 suggestions)
-warning: variable does not need to be mutable
-   --> tests/src/api_key_flow.rs:247:9
-    |
-247 |     let mut server = MockServer::start();
-    |         ----^^^^^^
-    |         |
-    |         help: remove this `mut`
-    |
-    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
-
-warning: variable does not need to be mutable
-   --> tests/src/google_oauth_flow.rs:395:9
-    |
-395 |     let mut server = MockServer::start();
-    |         ----^^^^^^
-    |         |
-    |         help: remove this `mut`
-    |
-    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
-
-warning: `opencode-integration-tests` (test "api_key_flow") generated 8 warnings (7 duplicates) (run `cargo fix --test "api_key_flow" -p opencode-integration-tests` to apply 1 suggestion)
-warning: unused `Result` that must be used
-   --> crates/util/src/retry.rs:177:9
-    |
-177 |         retry(config, |_| async { Err::<i32, ()>(()) }).await;
-    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    |
-    = note: this `Result` may be an `Err` variant, which should be handled
-    = note: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
-help: use `let _ = ...` to ignore the resulting value
-    |
-177 |         let _ = retry(config, |_| async { Err::<i32, ()>(()) }).await;
-    |         +++++++
-
-warning: `opencode-util` (lib test) generated 1 warning
-warning: unused import: `WasmInstance`
- --> crates/plugin/tests/plugin_security_tests.rs:4:38
-  |
-4 |         WasmCapabilities, WasmError, WasmInstance, WasmPlugin, WasmRuntime,
-  |                                      ^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: function `create_infinite_loop_wasm` is never used
-  --> crates/plugin/tests/plugin_security_tests.rs:20:8
-   |
-20 |     fn create_infinite_loop_wasm() -> Vec<u8> {
-   |        ^^^^^^^^^^^^^^^^^^^^^^^^^
-   |
-   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
-
-warning: function `create_memory_grow_wasm` is never used
-  --> crates/plugin/tests/plugin_security_tests.rs:33:8
-   |
-33 |     fn create_memory_grow_wasm() -> Vec<u8> {
-   |        ^^^^^^^^^^^^^^^^^^^^^^^
-
-warning: function `create_large_allocation_wasm` is never used
-  --> crates/plugin/tests/plugin_security_tests.rs:53:8
-   |
-53 |     fn create_large_allocation_wasm() -> Vec<u8> {
-   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-warning: unused `Result` that must be used
-  --> crates/plugin/tests/plugin_security_tests.rs:75:9
-   |
-75 |         file.flush();
-   |         ^^^^^^^^^^^^
-   |
-   = note: this `Result` may be an `Err` variant, which should be handled
-   = note: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
-help: use `let _ = ...` to ignore the resulting value
-   |
-75 |         let _ = file.flush();
-   |         +++++++
-
-warning: `opencode-plugin` (test "plugin_security_tests") generated 5 warnings (run `cargo fix --test "plugin_security_tests" -p opencode-plugin` to apply 1 suggestion)
-warning: unused import: `Logger`
- --> crates/util/tests/util_tests.rs:8:25
-  |
-8 |     logging::{LogLevel, Logger},
-  |                         ^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: `opencode-util` (test "util_tests") generated 1 warning (run `cargo fix --test "util_tests" -p opencode-util` to apply 1 suggestion)
-   Compiling opencode-plugin v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/plugin)
-   Compiling opencode-agent v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/agent)
-warning: unused imports: `PathBuf` and `Path`
- --> tests/src/conventions/config_ownership.rs:1:17
-  |
-1 | use std::path::{Path, PathBuf};
-  |                 ^^^^  ^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused imports: `PathBuf` and `Path`
- --> tests/src/conventions/route_conventions.rs:1:17
-  |
-1 | use std::path::{Path, PathBuf};
-  |                 ^^^^  ^^^^^^^
-
-warning: unused imports: `PathBuf` and `Path`
- --> tests/src/conventions/tui_conventions.rs:1:17
-  |
-1 | use std::path::{Path, PathBuf};
-  |                 ^^^^  ^^^^^^^
-
 warning: unused imports: `PluginConfig` and `PluginDomain`
  --> tests/src/phase6_regression_tests.rs:7:31
   |
 7 | use opencode_plugin::{Plugin, PluginConfig, PluginDomain, PluginError, PluginManager};
   |                               ^^^^^^^^^^^^  ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
 
 warning: unused imports: `PluginCapability`, `PluginConfig`, `PluginDomain`, and `PluginPermissions`
  --> tests/src/plugin_hook_tests.rs:3:13
@@ -580,32 +348,6 @@ warning: unused import: `Tool`
 9 | use opencode_tools::{Tool, ToolRegistry};
   |                      ^^^^
 
-warning: unused variable: `crate_name`
-   --> tests/src/conventions/visibility_audit.rs:266:10
-    |
-266 |     for (crate_name, crate_path) in crates {
-    |          ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_crate_name`
-    |
-    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused variable: `crate_name`
-   --> tests/src/conventions/visibility_audit.rs:323:10
-    |
-323 |     for (crate_name, crate_path) in crates {
-    |          ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_crate_name`
-
-warning: unused variable: `crate_name`
-   --> tests/src/conventions/visibility_audit.rs:387:10
-    |
-387 |     for (crate_name, crate_path) in crates {
-    |          ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_crate_name`
-
-warning: unused variable: `crate_name`
-   --> tests/src/conventions/visibility_audit.rs:443:10
-    |
-443 |     for (crate_name, crate_path) in crates {
-    |          ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_crate_name`
-
 warning: variable does not need to be mutable
    --> tests/src/event_emitter_tests.rs:224:9
     |
@@ -621,6 +363,8 @@ warning: unused variable: `receiver1`
     |
 224 |     let mut receiver1 = emitter1.subscribe();
     |         ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_receiver1`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
 
 warning: variable does not need to be mutable
    --> tests/src/plugin_hook_tests.rs:100:9
@@ -664,24 +408,6 @@ warning: unused variable: `project`
 332 |     let project = crate::common::TempProject::new();
     |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_project`
 
-warning: unused variable: `should_succeed`
-   --> tests/src/security_tests.rs:380:19
-    |
-380 |         for (cmd, should_succeed) in legitimate_commands {
-    |                   ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_should_succeed`
-
-warning: unused variable: `prompt`
-   --> tests/src/security_tests.rs:754:13
-    |
-754 |         let prompt = match value.get("prompt").and_then(|v| v.as_str()) {
-    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_prompt`
-
-warning: unused variable: `expect_invalid`
-   --> tests/src/security_tests.rs:903:24
-    |
-903 |         for (json_str, expect_invalid, description) in injection_cases {
-    |                        ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_expect_invalid`
-
 warning: unused variable: `state_after_msg2`
    --> tests/src/session_lifecycle_tests.rs:473:9
     |
@@ -700,147 +426,14 @@ warning: unused variable: `exec_after`
 367 |         let (exec_after, disabled_after) = registry.get_executor_with_status("test_tool").unwrap();
     |              ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_exec_after`
 
-warning: `opencode-integration-tests` (test "google_oauth_flow") generated 8 warnings (7 duplicates) (run `cargo fix --test "google_oauth_flow" -p opencode-integration-tests` to apply 1 suggestion)
-warning: `opencode-integration-tests` (lib test) generated 37 warnings (6 duplicates) (run `cargo fix --lib -p opencode-integration-tests --tests` to apply 30 suggestions)
+warning: `opencode-git` (test "git_e2e_tests") generated 5 warnings
    Compiling opencode-tui v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/tui)
-warning: unused variable: `should_succeed`
-   --> tests/src/security_tests.rs:380:19
-    |
-380 |         for (cmd, should_succeed) in legitimate_commands {
-    |                   ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_should_succeed`
-    |
-    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
-
-warning: `opencode-integration-tests` (test "agent_tool_tests") generated 7 warnings (7 duplicates)
-warning: `opencode-integration-tests` (test "security_tests") generated 10 warnings (9 duplicates) (run `cargo fix --test "security_tests" -p opencode-integration-tests` to apply 1 suggestion)
-warning: unused `std::result::Result` that must be used
-   --> crates/plugin/src/local_wasm.rs:110:9
-    |
-110 |         temp_file.flush();
-    |         ^^^^^^^^^^^^^^^^^
-    |
-    = note: this `Result` may be an `Err` variant, which should be handled
-    = note: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
-help: use `let _ = ...` to ignore the resulting value
-    |
-110 |         let _ = temp_file.flush();
-    |         +++++++
-
-warning: `opencode-plugin` (lib test) generated 1 warning
-warning: unused imports: `ModelInfo`, `ProviderInfo`, and `ProviderStatus`
- --> crates/tui/tests/dialog_tests.rs:2:66
-  |
-2 |     Dialog, DialogAction, HomeAction, HomeView, HomeViewSection, ModelInfo, ProviderInfo,
-  |                                                                  ^^^^^^^^^  ^^^^^^^^^^^^
-3 |     ProviderStatus,
-  |     ^^^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: `opencode-tui` (test "dialog_tests") generated 1 warning (run `cargo fix --test "dialog_tests" -p opencode-tui` to apply 1 suggestion)
-warning: unused variable: `launcher`
- --> crates/tui/tests/editor_launcher_tests.rs:6:9
-  |
-6 |     let launcher = EditorLauncher::new();
-  |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_launcher`
-  |
-  = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused variable: `launcher`
-  --> crates/tui/tests/editor_launcher_tests.rs:12:9
-   |
-12 |     let launcher = EditorLauncher::new().with_editor("vim".to_string());
-   |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_launcher`
-
-warning: `opencode-tui` (test "editor_launcher_tests") generated 2 warnings (run `cargo fix --test "editor_launcher_tests" -p opencode-tui` to apply 2 suggestions)
-warning: unused variable: `banner`
- --> crates/tui/tests/banner_right_panel_tests.rs:6:9
-  |
-6 |     let banner = Banner::new();
-  |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_banner`
-  |
-  = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused variable: `banner`
-  --> crates/tui/tests/banner_right_panel_tests.rs:12:9
-   |
-12 |     let banner = Banner::default();
-   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_banner`
-
-warning: unused variable: `banner`
-  --> crates/tui/tests/banner_right_panel_tests.rs:19:9
-   |
-19 |     let banner = Banner::with_custom(art);
-   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_banner`
-
-warning: unused variable: `banner`
-  --> crates/tui/tests/banner_right_panel_tests.rs:25:9
-   |
-25 |     let banner = Banner::new().with_model("gpt-4");
-   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_banner`
-
-warning: unused variable: `banner`
-  --> crates/tui/tests/banner_right_panel_tests.rs:31:9
-   |
-31 |     let banner = Banner::new().with_permission_mode("WorkspaceWrite");
-   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_banner`
-
-warning: unused variable: `banner`
-  --> crates/tui/tests/banner_right_panel_tests.rs:37:9
-   |
-37 |     let banner = Banner::new().with_directory("/home/user/project");
-   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_banner`
-
-warning: unused variable: `banner`
-  --> crates/tui/tests/banner_right_panel_tests.rs:43:9
-   |
-43 |     let banner = Banner::new().with_session_id("session-123");
-   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_banner`
-
-warning: unused variable: `banner`
-  --> crates/tui/tests/banner_right_panel_tests.rs:53:9
-   |
-53 |     let banner = Banner::new().with_shortcuts(shortcuts);
-   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_banner`
-
-warning: unused variable: `banner`
-  --> crates/tui/tests/banner_right_panel_tests.rs:59:9
-   |
-59 |     let banner = Banner::new()
-   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_banner`
-
-warning: unused variable: `panel`
-  --> crates/tui/tests/banner_right_panel_tests.rs:85:9
-   |
-85 |     let panel = RightPanel::new(theme);
-   |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_panel`
-
-warning: `opencode-tui` (test "banner_right_panel_tests") generated 10 warnings (run `cargo fix --test "banner_right_panel_tests" -p opencode-tui` to apply 10 suggestions)
-warning: unused variable: `spinner`
-   --> crates/tui/tests/widgets_tests.rs:312:9
-    |
-312 |     let spinner = Spinner::new("Loading");
-    |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_spinner`
-    |
-    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused variable: `spinner`
-   --> crates/tui/tests/widgets_tests.rs:458:9
-    |
-458 |     let spinner = Spinner::new("Loading").with_color(ratatui::style::Color::Green);
-    |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_spinner`
-
-warning: `opencode-tui` (test "widgets_tests") generated 2 warnings (run `cargo fix --test "widgets_tests" -p opencode-tui` to apply 2 suggestions)
+warning: `opencode-integration-tests` (lib test) generated 27 warnings (6 duplicates) (run `cargo fix --lib -p opencode-integration-tests --tests` to apply 20 suggestions)
    Compiling opencode-lsp v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/lsp)
-warning: unused variable: `tool_name`
-  --> crates/tui/tests/server_protocol_tests.rs:23:53
-   |
-23 |     assert!(matches!(msg, ServerMessage::ToolCall { tool_name, .. }));
-   |                                                     ^^^^^^^^^ help: try ignoring the field: `tool_name: _`
-   |
-   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
-
-warning: `opencode-tui` (test "server_protocol_tests") generated 1 warning (run `cargo fix --test "server_protocol_tests" -p opencode-tui` to apply 1 suggestion)
+   Compiling opencode-auth v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/auth)
+   Compiling opencode-mcp v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/mcp)
+   Compiling opencode-storage v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/storage)
+   Compiling opencode-tools v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/tools)
 warning: unused import: `Duration`
   --> crates/auth/tests/oauth_browser_tests.rs:69:18
    |
@@ -858,193 +451,7 @@ warning: unused variable: `flow`
    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
 
 warning: `opencode-auth` (test "oauth_browser_tests") generated 2 warnings (run `cargo fix --test "oauth_browser_tests" -p opencode-auth` to apply 2 suggestions)
-   Compiling opencode-auth v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/auth)
-   Compiling opencode-mcp v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/mcp)
-   Compiling opencode-storage v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/storage)
-warning: unused import: `opencode_lsp::language::Language`
-   --> crates/lsp/tests/lsp_e2e_tests.rs:951:13
-    |
-951 |         use opencode_lsp::language::Language;
-    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    |
-    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused import: `std::path::PathBuf`
-   --> crates/lsp/tests/lsp_e2e_tests.rs:954:13
-    |
-954 |         use std::path::PathBuf;
-    |             ^^^^^^^^^^^^^^^^^^
-
-warning: unused import: `std::path::PathBuf`
-    --> crates/lsp/tests/lsp_e2e_tests.rs:1029:13
-     |
-1029 |         use std::path::PathBuf;
-     |             ^^^^^^^^^^^^^^^^^^
-
-   Compiling opencode-tools v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/tools)
-warning: `opencode-lsp` (test "lsp_e2e_tests") generated 3 warnings (run `cargo fix --test "lsp_e2e_tests" -p opencode-lsp` to apply 3 suggestions)
-warning: unused import: `tempfile::tempdir`
- --> crates/storage/tests/storage_conc_001.rs:6:5
-  |
-6 | use tempfile::tempdir;
-  |     ^^^^^^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: `opencode-storage` (test "storage_conc_001") generated 1 warning (run `cargo fix --test "storage_conc_001" -p opencode-storage` to apply 1 suggestion)
-warning: unused import: `tempfile::tempdir`
- --> crates/storage/tests/storage_crash_002.rs:6:5
-  |
-6 | use tempfile::tempdir;
-  |     ^^^^^^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused import: `ToolResult`
- --> crates/tools/tests/tool_e2e_tests.rs:5:45
-  |
-5 |     use opencode_tools::{Tool, ToolContext, ToolResult};
-  |                                             ^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused import: `std::io::Write`
-    --> crates/tools/tests/tool_e2e_tests.rs:1036:13
-     |
-1036 |         use std::io::Write;
-     |             ^^^^^^^^^^^^^^
-
-warning: unused variable: `file2_path`
-    --> crates/tools/tests/tool_e2e_tests.rs:1310:13
-     |
-1310 |         let file2_path = file2.to_string_lossy().to_string();
-     |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_file2_path`
-     |
-     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
-
-warning: `opencode-storage` (test "storage_crash_002") generated 1 warning (run `cargo fix --test "storage_crash_002" -p opencode-storage` to apply 1 suggestion)
-warning: `opencode-tools` (test "tool_e2e_tests") generated 3 warnings (run `cargo fix --test "tool_e2e_tests" -p opencode-tools` to apply 3 suggestions)
-warning: unused import: `tempfile::tempdir`
- --> crates/storage/tests/storage_query_002.rs:6:5
-  |
-6 | use tempfile::tempdir;
-  |     ^^^^^^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: `opencode-storage` (test "storage_query_002") generated 1 warning (run `cargo fix --test "storage_query_002" -p opencode-storage` to apply 1 suggestion)
-warning: unused import: `tempfile::tempdir`
- --> crates/storage/tests/storage_conc_002.rs:6:5
-  |
-6 | use tempfile::tempdir;
-  |     ^^^^^^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: `opencode-storage` (test "storage_conc_002") generated 1 warning (run `cargo fix --test "storage_conc_002" -p opencode-storage` to apply 1 suggestion)
    Compiling opencode-llm v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/llm)
-warning: unused import: `tempfile::tempdir`
- --> crates/storage/tests/storage_query_001.rs:6:5
-  |
-6 | use tempfile::tempdir;
-  |     ^^^^^^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: `opencode-storage` (test "storage_query_001") generated 1 warning (run `cargo fix --test "storage_query_001" -p opencode-storage` to apply 1 suggestion)
-warning: unused variable: `i`
-  --> crates/storage/tests/storage_backup_001.rs:67:9
-   |
-67 |     for i in 0..10 {
-   |         ^ help: if this is intentional, prefix it with an underscore: `_i`
-   |
-   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
-
-warning: function `create_temp_db` is never used
- --> crates/storage/tests/storage_backup_001.rs:9:4
-  |
-9 | fn create_temp_db() -> (StoragePool, tempfile::TempDir) {
-  |    ^^^^^^^^^^^^^^
-  |
-  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
-
-warning: `opencode-storage` (test "storage_backup_001") generated 2 warnings (run `cargo fix --test "storage_backup_001" -p opencode-storage` to apply 1 suggestion)
-warning: unused import: `uuid::Uuid`
-   --> crates/storage/src/memory_repository.rs:629:9
-    |
-629 |     use uuid::Uuid;
-    |         ^^^^^^^^^^
-    |
-    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused import: `uuid::Uuid`
-   --> crates/storage/src/sqlite_repository.rs:723:9
-    |
-723 |     use uuid::Uuid;
-    |         ^^^^^^^^^^
-
-warning: unused variable: `i`
-    --> crates/storage/src/service.rs:1254:13
-     |
-1254 |         for i in 0..5 {
-     |             ^ help: if this is intentional, prefix it with an underscore: `_i`
-     |
-     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused variable: `i`
-    --> crates/storage/src/service.rs:1444:13
-     |
-1444 |         for i in 0..10 {
-     |             ^ help: if this is intentional, prefix it with an underscore: `_i`
-
-warning: unused variable: `i`
-   --> crates/storage/src/sqlite_repository.rs:808:13
-    |
-808 |         for i in 0..5 {
-    |             ^ help: if this is intentional, prefix it with an underscore: `_i`
-
-warning: variable does not need to be mutable
-  --> crates/storage/src/crash_recovery_tests.rs:94:13
-   |
-94 |         let mut session = create_session_with_tool_invocations();
-   |             ----^^^^^^^
-   |             |
-   |             help: remove this `mut`
-   |
-   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
-
-warning: variable does not need to be mutable
-   --> crates/storage/src/recovery_tests.rs:126:13
-    |
-126 |         let mut session = create_test_session();
-    |             ----^^^^^^^
-    |             |
-    |             help: remove this `mut`
-
-warning: variable does not need to be mutable
-   --> crates/storage/src/recovery_tests.rs:179:13
-    |
-179 |         let mut session = create_test_session();
-    |             ----^^^^^^^
-    |             |
-    |             help: remove this `mut`
-
-warning: variable does not need to be mutable
-  --> crates/storage/src/snapshot_durability_tests.rs:30:13
-   |
-30 |         let mut session = create_test_session();
-   |             ----^^^^^^^
-   |             |
-   |             help: remove this `mut`
-
-warning: variable does not need to be mutable
-   --> crates/storage/src/snapshot_durability_tests.rs:418:13
-    |
-418 |         let mut revert_manager2 = RevertManager::new(10);
-    |             ----^^^^^^^^^^^^^^^
-    |             |
-    |             help: remove this `mut`
-
 warning: unused boxed `std::ops::Fn` trait object that must be used
    --> crates/storage/src/crash_recovery_tests.rs:335:9
     |
@@ -1065,239 +472,7 @@ help: use `let _ = ...` to ignore the resulting value
 335 |         let _ = std::panic::take_hook();
     |         +++++++
 
-warning: unused import: `ProviderConfig`
-  --> crates/llm/tests/provider_e2e_tests.rs:10:53
-   |
-10 |         ChatMessage, ChatResponse, Model, Provider, ProviderConfig, StreamingCallback,
-   |                                                     ^^^^^^^^^^^^^^
-   |
-   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused import: `ProviderSpec`
-   --> crates/llm/tests/provider_e2e_tests.rs:366:67
-    |
-366 |         use opencode_llm::provider_abstraction::{ProviderManager, ProviderSpec};
-    |                                                                   ^^^^^^^^^^^^
-
-warning: unused import: `GoogleOAuthStore`
-   --> crates/llm/tests/provider_e2e_tests.rs:799:62
-    |
-799 |         use opencode_llm::auth_layered::{GoogleOAuthService, GoogleOAuthStore};
-    |                                                              ^^^^^^^^^^^^^^^^
-
-warning: unused import: `CopilotOAuthStore`
-   --> crates/llm/tests/provider_e2e_tests.rs:892:63
-    |
-892 |         use opencode_llm::auth_layered::{CopilotOAuthService, CopilotOAuthStore};
-    |                                                               ^^^^^^^^^^^^^^^^^
-
-warning: unused imports: `ProviderIdentity` and `ProviderSpec`
-   --> crates/llm/tests/provider_e2e_tests.rs:997:50
-    |
-997 |         use opencode_llm::provider_abstraction::{ProviderIdentity, ProviderSpec};
-    |                                                  ^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^
-
-warning: unused import: `ProviderIdentity`
-    --> crates/llm/tests/provider_e2e_tests.rs:1104:50
-     |
-1104 |         use opencode_llm::provider_abstraction::{ProviderIdentity, ProviderManager, ProviderSpec};
-     |                                                  ^^^^^^^^^^^^^^^^
-
-warning: unused import: `opencode_llm::budget::StreamingBudgetTracker`
-    --> crates/llm/tests/provider_e2e_tests.rs:1546:13
-     |
-1546 |         use opencode_llm::budget::StreamingBudgetTracker;
-     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-warning: use of deprecated method `opencode_llm::ProviderIdentity::with_reasoning_budget`: Variant/Reasoning budget is experimental. Enable the `experimental-variant-reasoning` feature flag to use.
-   --> crates/llm/tests/provider_e2e_tests.rs:609:14
-    |
-609 |             .with_reasoning_budget(ReasoningBudget::High);
-    |              ^^^^^^^^^^^^^^^^^^^^^
-    |
-    = note: `#[warn(deprecated)]` on by default
-
-warning: unused variable: `prompt`
-    --> crates/llm/tests/provider_e2e_tests.rs:1162:13
-     |
-1162 |             prompt: &str,
-     |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_prompt`
-     |
-     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused variable: `prompt`
-    --> crates/llm/tests/provider_e2e_tests.rs:1172:13
-     |
-1172 |             prompt: &str,
-     |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_prompt`
-
-warning: variable does not need to be mutable
-    --> crates/llm/tests/provider_e2e_tests.rs:1533:13
-     |
-1533 |         let mut stream_tracker = StreamingBudgetTracker::new(&tracker);
-     |             ----^^^^^^^^^^^^^^
-     |             |
-     |             help: remove this `mut`
-     |
-     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused variable: `tracker`
-    --> crates/llm/tests/provider_e2e_tests.rs:1549:13
-     |
-1549 |         let tracker = BudgetTracker::with_request_limit(tracker, 100);
-     |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_tracker`
-
-warning: unused imports: `DynProvider` and `ProviderSpec`
- --> crates/llm/tests/agent_override_tests.rs:2:5
-  |
-2 |     DynProvider, ProviderIdentity, ProviderManager, ProviderSpec, ReasoningBudget,
-  |     ^^^^^^^^^^^                                     ^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused import: `RequestBudgetState`
- --> crates/llm/tests/integration_tests.rs:2:79
-  |
-2 |     BudgetExceededError, BudgetLimit, BudgetTracker, ConversationBudgetState, RequestBudgetState,
-  |                                                                               ^^^^^^^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: use of deprecated associated function `opencode_llm::ReasoningBudget::from_str`: Variant/Reasoning budget is experimental. Enable the `experimental-variant-reasoning` feature flag to use.
-   --> crates/llm/tests/agent_override_tests.rs:116:26
-    |
-116 |         ReasoningBudget::from_str("none"),
-    |                          ^^^^^^^^
-    |
-    = note: `#[warn(deprecated)]` on by default
-
-warning: use of deprecated associated function `opencode_llm::ReasoningBudget::from_str`: Variant/Reasoning budget is experimental. Enable the `experimental-variant-reasoning` feature flag to use.
-   --> crates/llm/tests/agent_override_tests.rs:120:26
-    |
-120 |         ReasoningBudget::from_str("minimal"),
-    |                          ^^^^^^^^
-
-warning: use of deprecated associated function `opencode_llm::ReasoningBudget::from_str`: Variant/Reasoning budget is experimental. Enable the `experimental-variant-reasoning` feature flag to use.
-   --> crates/llm/tests/agent_override_tests.rs:123:33
-    |
-123 |     assert_eq!(ReasoningBudget::from_str("low"), Some(ReasoningBudget::Low));
-    |                                 ^^^^^^^^
-
-warning: use of deprecated associated function `opencode_llm::ReasoningBudget::from_str`: Variant/Reasoning budget is experimental. Enable the `experimental-variant-reasoning` feature flag to use.
-   --> crates/llm/tests/agent_override_tests.rs:125:26
-    |
-125 |         ReasoningBudget::from_str("medium"),
-    |                          ^^^^^^^^
-
-warning: use of deprecated associated function `opencode_llm::ReasoningBudget::from_str`: Variant/Reasoning budget is experimental. Enable the `experimental-variant-reasoning` feature flag to use.
-   --> crates/llm/tests/agent_override_tests.rs:129:26
-    |
-129 |         ReasoningBudget::from_str("high"),
-    |                          ^^^^^^^^
-
-warning: use of deprecated associated function `opencode_llm::ReasoningBudget::from_str`: Variant/Reasoning budget is experimental. Enable the `experimental-variant-reasoning` feature flag to use.
-   --> crates/llm/tests/agent_override_tests.rs:133:26
-    |
-133 |         ReasoningBudget::from_str("xhigh"),
-    |                          ^^^^^^^^
-
-warning: use of deprecated associated function `opencode_llm::ReasoningBudget::from_str`: Variant/Reasoning budget is experimental. Enable the `experimental-variant-reasoning` feature flag to use.
-   --> crates/llm/tests/agent_override_tests.rs:136:33
-    |
-136 |     assert_eq!(ReasoningBudget::from_str("max"), Some(ReasoningBudget::Max));
-    |                                 ^^^^^^^^
-
-warning: use of deprecated method `opencode_llm::ProviderIdentity::with_reasoning_budget`: Variant/Reasoning budget is experimental. Enable the `experimental-variant-reasoning` feature flag to use.
-  --> crates/llm/tests/integration_tests.rs:94:48
-   |
-94 |         ProviderIdentity::openai("o1-preview").with_reasoning_budget(ReasoningBudget::High);
-   |                                                ^^^^^^^^^^^^^^^^^^^^^
-   |
-   = note: `#[warn(deprecated)]` on by default
-
-warning: use of deprecated associated function `opencode_llm::ReasoningBudget::from_str`: Variant/Reasoning budget is experimental. Enable the `experimental-variant-reasoning` feature flag to use.
-   --> crates/llm/tests/agent_override_tests.rs:137:33
-    |
-137 |     assert_eq!(ReasoningBudget::from_str("invalid"), None);
-    |                                 ^^^^^^^^
-
-warning: use of deprecated associated function `opencode_llm::ReasoningBudget::from_str`: Variant/Reasoning budget is experimental. Enable the `experimental-variant-reasoning` feature flag to use.
-   --> crates/llm/tests/agent_override_tests.rs:143:26
-    |
-143 |         ReasoningBudget::from_str("HIGH"),
-    |                          ^^^^^^^^
-
-warning: use of deprecated associated function `opencode_llm::ReasoningBudget::from_str`: Variant/Reasoning budget is experimental. Enable the `experimental-variant-reasoning` feature flag to use.
-   --> crates/llm/tests/agent_override_tests.rs:147:26
-    |
-147 |         ReasoningBudget::from_str("High"),
-    |                          ^^^^^^^^
-
-warning: use of deprecated associated function `opencode_llm::ReasoningBudget::from_str`: Variant/Reasoning budget is experimental. Enable the `experimental-variant-reasoning` feature flag to use.
-   --> crates/llm/tests/agent_override_tests.rs:150:33
-    |
-150 |     assert_eq!(ReasoningBudget::from_str("Max"), Some(ReasoningBudget::Max));
-    |                                 ^^^^^^^^
-
-warning: use of deprecated method `opencode_llm::ProviderIdentity::with_reasoning_budget`: Variant/Reasoning budget is experimental. Enable the `experimental-variant-reasoning` feature flag to use.
-   --> crates/llm/tests/agent_override_tests.rs:155:55
-    |
-155 |     let identity = ProviderIdentity::openai("gpt-4o").with_reasoning_budget(ReasoningBudget::High);
-    |                                                       ^^^^^^^^^^^^^^^^^^^^^
-
-warning: use of deprecated method `opencode_llm::ProviderIdentity::with_reasoning_budget`: Variant/Reasoning budget is experimental. Enable the `experimental-variant-reasoning` feature flag to use.
-   --> crates/llm/tests/agent_override_tests.rs:175:10
-    |
-175 |         .with_reasoning_budget(ReasoningBudget::Max);
-    |          ^^^^^^^^^^^^^^^^^^^^^
-
-warning: use of deprecated method `opencode_llm::ProviderIdentity::with_reasoning_budget`: Variant/Reasoning budget is experimental. Enable the `experimental-variant-reasoning` feature flag to use.
-   --> crates/llm/tests/agent_override_tests.rs:188:10
-    |
-188 |         .with_reasoning_budget(ReasoningBudget::High);
-    |          ^^^^^^^^^^^^^^^^^^^^^
-
-warning: use of deprecated method `opencode_llm::ProviderIdentity::with_reasoning_budget`: Variant/Reasoning budget is experimental. Enable the `experimental-variant-reasoning` feature flag to use.
-   --> crates/llm/tests/agent_override_tests.rs:259:10
-    |
-259 |         .with_reasoning_budget(ReasoningBudget::Max);
-    |          ^^^^^^^^^^^^^^^^^^^^^
-
-warning: use of deprecated method `opencode_llm::ProviderIdentity::with_reasoning_budget`: Variant/Reasoning budget is experimental. Enable the `experimental-variant-reasoning` feature flag to use.
-   --> crates/llm/tests/agent_override_tests.rs:278:48
-    |
-278 |         ProviderIdentity::openai("o1-preview").with_reasoning_budget(ReasoningBudget::High);
-    |                                                ^^^^^^^^^^^^^^^^^^^^^
-
-warning: use of deprecated method `opencode_llm::ProviderIdentity::with_reasoning_budget`: Variant/Reasoning budget is experimental. Enable the `experimental-variant-reasoning` feature flag to use.
-   --> crates/llm/tests/agent_override_tests.rs:299:10
-    |
-299 |         .with_reasoning_budget(ReasoningBudget::Max);
-    |          ^^^^^^^^^^^^^^^^^^^^^
-
-warning: use of deprecated method `opencode_llm::ProviderIdentity::with_reasoning_budget`: Variant/Reasoning budget is experimental. Enable the `experimental-variant-reasoning` feature flag to use.
-   --> crates/llm/tests/agent_override_tests.rs:320:52
-    |
-320 |         ProviderIdentity::google("gemini-1.5-pro").with_reasoning_budget(ReasoningBudget::Low);
-    |                                                    ^^^^^^^^^^^^^^^^^^^^^
-
-warning: use of deprecated associated function `opencode_llm::ReasoningBudget::from_str`: Variant/Reasoning budget is experimental. Enable the `experimental-variant-reasoning` feature flag to use.
-   --> crates/llm/tests/integration_tests.rs:449:30
-    |
-449 |             ReasoningBudget::from_str(name),
-    |                              ^^^^^^^^
-
-warning: use of deprecated associated function `opencode_llm::ReasoningBudget::from_str`: Variant/Reasoning budget is experimental. Enable the `experimental-variant-reasoning` feature flag to use.
-   --> crates/llm/tests/integration_tests.rs:457:26
-    |
-457 |         ReasoningBudget::from_str("invalid"),
-    |                          ^^^^^^^^
-
-   Compiling opencode-control-plane v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/control-plane)
-warning: `opencode-llm` (test "integration_tests") generated 4 warnings (run `cargo fix --test "integration_tests" -p opencode-llm` to apply 1 suggestion)
-warning: `opencode-llm` (test "agent_override_tests") generated 19 warnings (run `cargo fix --test "agent_override_tests" -p opencode-llm` to apply 1 suggestion)
-warning: `opencode-llm` (test "provider_e2e_tests") generated 12 warnings (run `cargo fix --test "provider_e2e_tests" -p opencode-llm` to apply 11 suggestions)
-warning: `opencode-storage` (lib test) generated 12 warnings (run `cargo fix --lib -p opencode-storage --tests` to apply 10 suggestions)
+warning: `opencode-storage` (lib test) generated 2 warnings
 warning: unused import: `is_model_visible`
    --> crates/llm/src/models.rs:194:17
     |
@@ -1325,78 +500,79 @@ warning: variable does not need to be mutable
     |             help: remove this `mut`
 
 warning: `opencode-llm` (lib test) generated 3 warnings (run `cargo fix --lib -p opencode-llm --tests` to apply 3 suggestions)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 55.42s
+   Compiling opencode-config v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/config)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 30s
      Running unittests src/lib.rs (target/debug/deps/opencode_agent-d4f77816c6b15d3d)
 
 running 164 tests
 test agent::tests::test_agent_type_display ... ok
 test agent::tests::test_agent_response_clone ... ok
-test agent::tests::test_messages_to_llm_format_empty ... ok
-test agent::tests::test_messages_to_llm_format_with_messages ... ok
 test build_agent::tests::test_build_agent_with_empty_agents_md ... ok
 test build_agent::tests::test_build_agent_with_agents_md_content ... ok
 test build_agent::tests::test_build_agent_with_skill_prompt_and_agents_md ... ok
 test build_agent::tests::test_build_agent_without_agents_md_content ... ok
-test agent::tests::test_tool_call_clone ... ok
-test agent::tests::test_agent_type_serialization ... ok
-test agent::tests::test_agent_response_serialization ... ok
 test debug_agent::tests::test_debug_agent_default ... ok
-test agent::tests::test_tool_call_serialization ... ok
-test delegation::tests::test_delegation_error_display ... ok
 test delegation::tests::test_delegation_status_summary ... ok
-test delegation::tests::test_task_creation ... ok
+test agent::tests::test_messages_to_llm_format_empty ... ok
+test agent::tests::test_messages_to_llm_format_with_messages ... ok
 test delegation::tests::test_task_delegate_empty ... ok
 test delegation::tests::test_task_delegate_status_summary ... ok
+test delegation::tests::test_delegation_error_display ... ok
+test delegation::tests::test_task_creation ... ok
 test delegation::tests::test_task_id_display ... ok
 test delegation::tests::test_task_duration ... ok
 test delegation::tests::test_task_id_new ... ok
-test delegation::tests::test_task_is_terminal ... ok
+test agent::tests::test_tool_call_clone ... ok
 test delegation::tests::test_task_latest_progress ... ok
-test delegation::tests::test_task_mark_completed ... ok
+test delegation::tests::test_task_is_terminal ... ok
 test delegation::tests::test_task_mark_started ... ok
 test delegation::tests::test_task_progress_creation ... ok
-test delegation::tests::test_task_result_failure ... ok
 test delegation::tests::test_task_progress_with_percentage ... ok
+test delegation::tests::test_task_result_failure ... ok
 test delegation::tests::test_task_result_success ... ok
 test delegation::tests::test_task_result_with_summary ... ok
 test delegation::tests::test_task_status_display ... ok
-test events::emitter_tests::test_broadcast_event_emitter_creation ... ok
-test events::emitter_tests::test_broadcast_event_emitter_cloneable ... ok
+test delegation::tests::test_task_mark_completed ... ok
+test agent::tests::test_agent_type_serialization ... ok
+test agent::tests::test_agent_response_serialization ... ok
+test agent::tests::test_tool_call_serialization ... ok
 test events::tests::test_agent_event_complete_serialization ... ok
-test events::emitter_tests::test_broadcast_event_emitter_subscribe ... ok
-test events::emitter_tests::test_broadcast_event_emitter_multiple_subscribers ... ok
-test events::emitter_tests::test_broadcast_event_emitter_all_event_types ... ok
 test events::tests::test_agent_event_error_serialization ... ok
-test events::emitter_tests::test_broadcast_event_emitter_emit_and_receive ... ok
-test events::tests::test_agent_event_message_serialization ... ok
 test events::tests::test_agent_event_thinking_serialization ... ok
-test events::emitter_tests::test_broadcast_event_emitter_receiver_lag ... ok
+test events::tests::test_agent_event_message_serialization ... ok
 test events::tests::test_agent_event_token_serialization ... ok
 test events::tests::test_agent_event_tool_call_serialization ... ok
 test events::tests::test_agent_event_tool_result_serialization ... ok
 test events::tests::test_events_are_cloneable ... ok
-test events::tests::test_events_are_debug ... ok
 test events::tests::test_all_variants_defined ... ok
+test events::emitter_tests::test_broadcast_event_emitter_cloneable ... ok
+test events::emitter_tests::test_broadcast_event_emitter_creation ... ok
+test events::tests::test_events_are_debug ... ok
 test explore_agent::tests::test_explore_agent_default ... ok
 test explore_agent::tests::test_explore_agent_new ... ok
 test explore_agent::tests::test_explore_agent_preferred_model ... ok
+test events::emitter_tests::test_broadcast_event_emitter_subscribe ... ok
+test events::emitter_tests::test_broadcast_event_emitter_multiple_subscribers ... ok
+test events::emitter_tests::test_broadcast_event_emitter_all_event_types ... ok
+test events::emitter_tests::test_broadcast_event_emitter_emit_and_receive ... ok
 test explore_agent::tests::test_explore_agent_properties ... ok
+test events::emitter_tests::test_broadcast_event_emitter_receiver_lag ... ok
 test explore_agent::tests::test_explore_agent_with_model ... ok
 test general_agent::tests::test_general_agent_composed_system_prompt_with_empty_skill ... ok
 test general_agent::tests::test_general_agent_composed_system_prompt_with_skill ... ok
-test general_agent::tests::test_general_agent_composed_system_prompt_without_skill ... ok
 test general_agent::tests::test_general_agent_default ... ok
+test general_agent::tests::test_general_agent_composed_system_prompt_without_skill ... ok
+test general_agent::tests::test_general_agent_new ... ok
 test general_agent::tests::test_general_agent_preferred_model ... ok
 test general_agent::tests::test_general_agent_properties ... ok
 test general_agent::tests::test_general_agent_with_model ... ok
 test general_agent::tests::test_general_agent_with_skill_prompt ... ok
-test plan_agent::tests::test_plan_agent_composed_system_prompt_with_empty_skill ... ok
 test plan_agent::tests::test_plan_agent_composed_system_prompt_with_skill ... ok
+test plan_agent::tests::test_plan_agent_composed_system_prompt_with_empty_skill ... ok
 test plan_agent::tests::test_plan_agent_composed_system_prompt_without_skill ... ok
 test plan_agent::tests::test_plan_agent_default ... ok
 test plan_agent::tests::test_plan_agent_new ... ok
 test plan_agent::tests::test_plan_agent_preferred_model ... ok
-test general_agent::tests::test_general_agent_new ... ok
 test plan_agent::tests::test_plan_agent_properties ... ok
 test plan_agent::tests::test_plan_agent_with_model ... ok
 test plan_agent::tests::test_plan_agent_with_skill_prompt ... ok
@@ -1406,48 +582,48 @@ test review_agent::tests::test_review_agent_default ... ok
 test review_agent::tests::test_review_agent_performance_focus ... ok
 test review_agent::tests::test_review_agent_security_focus ... ok
 test runtime::tests::test_hidden_subagent_after_deactivate_preserves_inactive ... ok
+test runtime::tests::test_permission_inheritance_none_parent_readonly_subagent ... ok
+test runtime::tests::test_permission_inheritance_multilevel_none_blocks_all ... ok
+test runtime::tests::test_permission_inheritance_multilevel_chain_full_readonly_none ... ok
+test runtime::tests::test_permission_inheritance_none_parent_restricts_any_subagent ... ok
 test runtime::tests::test_permission_inheritance_full_parent_full_subagent ... ok
 test runtime::tests::test_permission_inheritance_full_parent_readonly_subagent ... ok
-test runtime::tests::test_permission_inheritance_multilevel_chain_full_readonly_none ... ok
-test runtime::tests::test_permission_inheritance_multilevel_none_blocks_all ... ok
 test runtime::tests::test_permission_inheritance_none_parent_restricted_subagent ... ok
-test runtime::tests::test_permission_inheritance_none_parent_readonly_subagent ... ok
-test runtime::tests::test_permission_inheritance_none_parent_restricts_any_subagent ... ok
-test runtime::tests::test_permission_inheritance_readonly_parent_readonly_subagent ... ok
-test runtime::tests::test_permission_inheritance_restricted_parent_full_subagent ... ok
 test runtime::tests::test_permission_inheritance_readonly_parent_restricts_full_subagent ... ok
-test runtime::tests::test_permission_inheritance_restricted_parent_readonly_subagent ... ok
+test runtime::tests::test_permission_inheritance_readonly_parent_readonly_subagent ... ok
 test runtime::tests::test_permission_inheritance_readonly_subagent_cannot_escalate ... ok
-test runtime::tests::test_permission_inheritance_subagent_cannot_exceed_parent ... ok
+test runtime::tests::test_permission_inheritance_restricted_parent_full_subagent ... ok
+test runtime::tests::test_permission_inheritance_restricted_parent_readonly_subagent ... ok
 test runtime::tests::test_permission_inheritance_subagent_inherits_parent_permissions ... ok
+test runtime::tests::test_permission_inheritance_subagent_cannot_exceed_parent ... ok
 test runtime::tests::test_permission_scope_intersection_full_none ... ok
-test runtime::tests::test_permission_scope_intersection_full_restricted ... ok
 test runtime::tests::test_permission_scope_intersection_none_readonly ... ok
+test runtime::tests::test_permission_scope_intersection_full_restricted ... ok
 test runtime::tests::test_permission_scope_intersection_none_restricted ... ok
+test runtime::tests::test_permission_scope_intersection_restricted_none ... ok
+test runtime::tests::test_primary_agent_hidden_agent_types_not_treated_as_primary ... ok
 test runtime::tests::test_permission_scope_intersection_readonly_full ... ok
 test runtime::tests::test_permission_scope_intersection_readonly_none ... ok
 test runtime::tests::test_permission_scope_intersection_readonly_restricted ... ok
-test runtime::tests::test_primary_agent_hidden_agent_types_not_treated_as_primary ... ok
-test runtime::tests::test_permission_scope_intersection_restricted_none ... ok
 test runtime::tests::test_permission_scope_intersection_restricted_readonly ... ok
-test runtime::tests::test_primary_agent_switching_still_fails_with_hidden_types ... ok
 test runtime::tests::test_primary_agent_hidden_agents_are_not_visible ... ok
-test runtime::tests::test_primary_agent_tracker_cannot_activate_second ... ok
+test runtime::tests::test_primary_agent_switching_still_fails_with_hidden_types ... ok
 test runtime::tests::test_primary_agent_tracker_activate ... ok
+test runtime::tests::test_primary_agent_tracker_cannot_activate_second ... ok
 test runtime::tests::test_primary_agent_tracker_cannot_deactivate_inactive ... ok
 test runtime::tests::test_primary_agent_tracker_cannot_switch_during_transition ... ok
 test runtime::tests::test_primary_agent_tracker_deactivate ... ok
-test runtime::tests::test_primary_agent_tracker_new_is_inactive ... ok
-test runtime::tests::test_primary_agent_tracker_transition ... ok
 test runtime::tests::test_primary_invariant_activate_after_transition_then_deactivate ... ok
+test runtime::tests::test_primary_agent_tracker_transition ... ok
+test runtime::tests::test_primary_agent_tracker_new_is_inactive ... ok
 test runtime::tests::test_primary_invariant_activate_from_inactive_succeeds ... ok
 test runtime::tests::test_primary_invariant_activate_from_running_fails_with_error ... ok
 test runtime::tests::test_primary_invariant_activate_from_transitioning_fails ... ok
 test runtime::tests::test_primary_invariant_agent_transition_in_progress_error ... ok
 test runtime::tests::test_primary_invariant_agents_have_descriptions ... ok
 test runtime::tests::test_primary_invariant_begin_transition_from_inactive_fails ... ok
-test runtime::tests::test_primary_invariant_begin_transition_from_running_succeeds ... ok
 test runtime::tests::test_primary_invariant_begin_transition_from_transitioning_fails ... ok
+test runtime::tests::test_primary_invariant_begin_transition_from_running_succeeds ... ok
 test runtime::tests::test_primary_invariant_cannot_skip_transitioning ... ok
 test runtime::tests::test_primary_invariant_complete_transition_restores_running ... ok
 test runtime::tests::test_primary_invariant_deactivate_from_inactive_fails ... ok
@@ -1457,25 +633,25 @@ test runtime::tests::test_primary_invariant_debug_clone_behavior ... ok
 test runtime::tests::test_primary_invariant_exactly_one_through_full_cycle ... ok
 test runtime::tests::test_primary_invariant_inactive_state_requires_no_agent_type ... ok
 test runtime::tests::test_primary_invariant_multiple_primary_agents_error_contains_both_types ... ok
-test runtime::tests::test_runtime_cannot_activate_second_primary_agent ... ok
 test runtime::tests::test_primary_invariant_no_active_primary_agent_error ... ok
-test runtime::tests::test_runtime_old_tests_still_work ... ok
 test runtime::tests::test_primary_invariant_transitioning_state_preserves_agent_type ... ok
 test runtime::tests::test_primary_invariant_runtime_agent_type_reflected_in_errors ... ok
-test runtime::tests::test_subagent_child_context_isolated ... ok
 test runtime::tests::test_runtime_activate_after_deactivate ... ok
+test runtime::tests::test_runtime_cannot_activate_second_primary_agent ... ok
 test runtime::tests::test_runtime_deactivate_properly_transitions ... ok
-test runtime::tests::test_runtime_starts_with_exactly_one_primary_agent ... ok
+test runtime::tests::test_runtime_old_tests_still_work ... ok
 test runtime::tests::test_runtime_switch_primary_agent_transitions_properly ... ok
+test runtime::tests::test_runtime_starts_with_exactly_one_primary_agent ... ok
 test runtime::tests::test_runtime_with_permission_scope ... ok
 test runtime::tests::test_subagent_context_messages_added ... ok
+test runtime::tests::test_subagent_child_context_isolated ... ok
 test runtime::tests::test_subagent_preserves_parent_context ... ok
 test runtime::tests::test_subagent_result_handoff ... ok
-test runtime::tests::test_subagent_spawn_isolated_context ... ok
 test system_agents::compaction_tests::test_compaction_agent_default ... ok
 test system_agents::compaction_tests::test_compaction_agent_new ... ok
 test system_agents::compaction_tests::test_compaction_agent_preferred_model ... ok
 test system_agents::compaction_tests::test_compaction_agent_properties ... ok
+test runtime::tests::test_subagent_spawn_isolated_context ... ok
 test system_agents::compaction_tests::test_compaction_agent_with_model ... ok
 test system_agents::summary_tests::test_summary_agent_default ... ok
 test system_agents::summary_tests::test_summary_agent_new ... ok
@@ -1487,44 +663,44 @@ test system_agents::title_tests::test_title_agent_new ... ok
 test system_agents::title_tests::test_title_agent_preferred_model ... ok
 test system_agents::title_tests::test_title_agent_properties ... ok
 test system_agents::title_tests::test_title_agent_with_model ... ok
-test skills_actions::tests::skills_actions_enable_and_disable ... ok
 test skills_actions::tests::skills_actions_list_builtin_skills ... ok
-test runtime::tests::test_visible_agent_switch_then_hidden_subagent ... ok
+test skills_actions::tests::skills_actions_enable_and_disable ... ok
 test runtime::tests::test_hidden_agent_subagent_does_not_affect_primary_invariant ... ok
+test runtime::tests::test_visible_agent_switch_then_hidden_subagent ... ok
 test runtime::tests::test_hidden_subagent_preserves_primary_after_switch ... ok
 test runtime::tests::test_multiple_hidden_subagents_preserve_invariant ... ok
 
-test result: ok. 164 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.85s
+test result: ok. 164 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.80s
 
      Running tests/agent_delegation_tests.rs (target/debug/deps/agent_delegation_tests-d8c68aa4ae10e16b)
 
 running 35 tests
+test test_agent_type_all_variants_have_display ... ok
+test test_agent_type_all_variants_serialize_to_lowercase ... ok
+test test_runtime_config_debug ... ok
 test test_runtime_config_default ... ok
 test test_runtime_config_with_custom_values ... ok
-test test_agent_type_all_variants_have_display ... ok
-test test_runtime_config_debug ... ok
-test test_agent_type_all_variants_serialize_to_lowercase ... ok
-test test_task_context_preserved ... ok
-test test_task_delegator_type_preserved ... ok
 test test_agent_type_deserialize_from_lowercase ... ok
+test test_task_context_preserved ... ok
 test test_task_delegate_new ... ok
+test test_task_delegator_type_preserved ... ok
 test test_task_id_clone_is_equal ... ok
 test test_task_id_debug_format ... ok
 test test_task_id_default_creates_new_id ... ok
 test test_task_id_display_format ... ok
-test test_agent_runtime_new ... ok
 test test_task_id_new_creates_unique_ids ... ok
 test test_task_id_with_uuid_conversion ... ok
-test test_task_latest_progress ... ok
+test test_agent_runtime_new ... ok
 test test_task_is_terminal ... ok
-test test_task_mark_started ... ok
+test test_task_latest_progress ... ok
 test test_task_mark_failed ... ok
+test test_task_mark_started ... ok
 test test_task_new_with_all_parameters ... ok
 test test_task_progress_history_maintained ... ok
 test test_task_progress_new_with_percentage ... ok
 test test_task_progress_new_without_percentage ... ok
-test test_task_progress_timestamp_is_set ... ok
 test test_task_progress_serialization ... ok
+test test_task_progress_timestamp_is_set ... ok
 test test_task_record_progress ... ok
 test test_task_status_all_variants_have_display ... ok
 test test_task_status_display_cancelled ... ok
@@ -1540,19 +716,19 @@ test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fin
      Running tests/agent_integration.rs (target/debug/deps/agent_integration-629da1cb2f112c66)
 
 running 37 tests
-test test_agent_type_equality ... ok
 test test_agent_type_display ... ok
 test test_build_agent_can_write ... ok
-test test_build_agent_name ... ok
+test test_agent_type_equality ... ok
 test test_build_agent_default_no_model_override ... ok
+test test_build_agent_name ... ok
 test test_build_agent_type ... ok
 test test_build_agent_with_model_override ... ok
 test test_compaction_agent_default_no_model_override ... ok
 test test_compaction_agent_with_model_override ... ok
 test test_debug_agent_default_no_model_override ... ok
 test test_debug_agent_with_model_override ... ok
-test test_explore_agent_with_model_override ... ok
 test test_explore_agent_default_no_model_override ... ok
+test test_explore_agent_with_model_override ... ok
 test test_general_agent_default_no_model_override ... ok
 test test_general_agent_with_model_override ... ok
 test test_hidden_agent_compaction_not_visible ... ok
@@ -1586,11 +762,11 @@ running 53 tests
 test test_agent_runtime_deactivate_and_activate ... ok
 test test_agent_e2e_002_plan_agent_enforces_read_only_constraints ... ok
 test test_agent_runtime_run_loop_agent_type_mismatch ... ok
+test test_agent_runtime_run_loop_no_active_agent ... ok
 test test_agent_e2e_014_nested_agent_call_isolation ... ok
+test test_agent_e2e_013_parallel_tool_calls_handling ... ok
 test test_agent_panic_002_task_delegate_cleanup_on_error ... ok
 test test_agent_e2e_008_task_delegate_lifecycle ... ok
-test test_agent_e2e_013_parallel_tool_calls_handling ... ok
-test test_agent_runtime_run_loop_no_active_agent ... ok
 test test_agent_runtime_session_id_preserved ... ok
 test test_primary_agent_tracker_activate_while_transitioning_fails ... ok
 test test_primary_agent_tracker_begin_transition_from_inactive_fails ... ok
@@ -1608,56 +784,56 @@ test test_primary_agent_tracker_single_activation_succeeds ... ok
 test test_primary_agent_tracker_transition_flow ... ok
 test test_runtime_config_debug_format ... ok
 test test_runtime_config_max_iterations_custom ... ok
-test test_runtime_config_max_tool_results_per_iteration_default ... ok
 test test_runtime_config_max_iterations_default ... ok
+test test_runtime_config_max_tool_results_per_iteration_default ... ok
 test test_runtime_config_permission_scope_default ... ok
-test test_runtime_error_display_multiple_primary_agents ... ok
 test test_runtime_error_display_max_iterations ... ok
+test test_runtime_error_display_multiple_primary_agents ... ok
+test test_agent_conc_001_primary_agent_tracker_concurrent_activation ... ok
 test test_runtime_error_display_no_active ... ok
 test test_runtime_error_display_permission_denied ... ok
 test test_runtime_error_display_session_locked ... ok
 test test_runtime_error_display_tool_execution_failed ... ok
 test test_task_delegate_completed_tasks_starts_empty ... ok
 test test_task_delegate_get_active_task_mut_exists ... ok
-test test_task_delegate_get_active_task_nonexistent ... ok
 test test_task_delegate_get_completed_task_nonexistent ... ok
-test test_agent_conc_001_primary_agent_tracker_concurrent_activation ... ok
 test test_task_delegate_new_has_no_active_tasks ... ok
+test test_task_delegate_get_active_task_nonexistent ... ok
 test test_task_mark_completed_sets_completed_at ... ok
-test test_task_mark_failed_sets_completed_at ... ok
 test test_task_mark_started_sets_status_and_timestamp ... ok
-test test_task_progress_history_records_all_progress ... ok
 test test_task_result_failure ... ok
-test test_task_result_success ... ok
 test test_task_status_completed_is_terminal ... ok
 test test_task_status_failed_is_terminal ... ok
 test test_task_status_pending_is_not_terminal ... ok
+test test_task_mark_failed_sets_completed_at ... ok
+test test_task_progress_history_records_all_progress ... ok
+test test_task_result_success ... ok
 test test_task_duration_after_start_and_fail ... ok
 test test_agent_runtime_with_config_uses_provided_values ... ok
-test test_agent_panic_001_session_lock_released_on_error ... ok
 test test_agent_e2e_001_build_agent_run_completes ... ok
+test test_agent_panic_001_session_lock_released_on_error ... ok
 
-test result: ok. 53 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s
+test result: ok. 53 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
 
      Running tests/agent_visibility_tests.rs (target/debug/deps/agent_visibility_tests-d60f35413c29c1c4)
 
 running 18 tests
 test test_agent_visibility_build_is_visible ... ok
-test test_agent_visibility_all_visible_agents_in_selection_list ... ok
-test test_agent_visibility_compaction_type_matches ... ok
 test test_agent_visibility_build_type_matches ... ok
+test test_agent_visibility_all_visible_agents_in_selection_list ... ok
 test test_agent_visibility_compaction_is_hidden ... ok
+test test_agent_visibility_compaction_type_matches ... ok
 test test_agent_visibility_explore_agent_is_visible ... ok
 test test_agent_visibility_general_agent_is_visible ... ok
-test test_agent_visibility_hidden_agents_not_in_selection ... ok
 test test_agent_visibility_no_hidden_agent_in_selection_list ... ok
+test test_agent_visibility_hidden_agents_not_in_selection ... ok
 test test_agent_visibility_plan_is_visible ... ok
 test test_agent_visibility_plan_type_matches ... ok
 test test_agent_visibility_state_persists_after_creation ... ok
 test test_agent_visibility_state_persists_with_model_override ... ok
 test test_agent_visibility_summary_is_hidden ... ok
-test test_agent_visibility_title_is_hidden ... ok
 test test_agent_visibility_summary_type_matches ... ok
+test test_agent_visibility_title_is_hidden ... ok
 test test_agent_visibility_title_type_matches ... ok
 test test_agent_visibility_ui_correct_agent_list ... ok
 
@@ -1667,22 +843,22 @@ test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fin
 
 running 19 tests
 test test_subagent_exec_error_propagation_no_active_primary_agent ... ok
-test test_subagent_exec_error_propagation_subagent_error_returns_err ... ok
-test test_subagent_exec_context_isolation_child_messages_empty_initial ... ok
+test test_subagent_exec_context_isolation_child_has_separate_id ... ok
 test test_subagent_exec_multiple_subagents_sequential ... ok
-test test_subagent_exec_error_propagation_error_type_is_correct ... ok
 test test_subagent_exec_error_propagation_parent_context_preserved_on_error ... ok
 test test_subagent_exec_context_isolation_parent_session_unchanged ... ok
 test test_subagent_exec_context_isolation_lineage_path_set ... ok
-test test_subagent_exec_context_isolation_child_has_separate_id ... ok
+test test_subagent_exec_context_isolation_child_messages_empty_initial ... ok
+test test_subagent_exec_error_propagation_error_type_is_correct ... ok
 test test_subagent_exec_context_isolation_parent_messages_not_visible_to_child ... ok
+test test_subagent_exec_error_propagation_subagent_error_returns_err ... ok
 test test_subagent_exec_permission_scope_full_parent ... ok
+test test_subagent_exec_permission_scope_none_parent_restricts_fully ... ok
 test test_subagent_exec_permission_scope_readonly_parent_restricts ... ok
 test test_subagent_exec_permission_scope_restricted_parent ... ok
-test test_subagent_exec_permission_scope_none_parent_restricts_fully ... ok
-test test_subagent_exec_result_handoff_includes_child_session_id ... ok
 test test_subagent_exec_result_handoff_empty_tool_calls ... ok
 test test_subagent_exec_result_handoff_includes_agent_type ... ok
+test test_subagent_exec_result_handoff_includes_child_session_id ... ok
 test test_subagent_exec_result_handoff_returns_correct_content ... ok
 test test_subagent_exec_result_handoff_with_context_messages ... ok
 
@@ -1691,55 +867,57 @@ test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fin
      Running unittests src/lib.rs (target/debug/deps/opencode_auth-fd23055d0c477d63)
 
 running 76 tests
-test credential_ref::tests::test_credential_ref_display_errors ... ok
-test credential_ref::tests::test_credential_ref_literal ... ok
 test credential_ref::tests::test_credential_resolution_error_display ... ok
+test credential_ref::tests::test_credential_ref_display_errors ... ok
 test credential_ref::tests::test_credential_ref_env_not_set ... ok
+test credential_ref::tests::test_credential_ref_literal ... ok
 test credential_ref::tests::test_credential_ref_file_not_found ... ok
-test credential_ref::tests::test_credential_ref_store_error ... ok
-test credential_ref::tests::test_credential_ref_resolve_ref_not_found ... ok
 test credential_ref::tests::test_credential_type_default ... ok
-test credential_ref::tests::test_credential_store_entry_serialization ... ok
+test credential_ref::tests::test_credential_ref_resolve_ref_not_found ... ok
+test credential_ref::tests::test_credential_ref_store_error ... ok
 test credential_ref::tests::test_credential_type_variants ... ok
+test credential_ref::tests::test_credential_store_entry_serialization ... ok
 test credential_store::tests::delete_named_returns_false_for_nonexistent ... ok
 test credential_ref::tests::test_credential_store_rollback_with_none_does_nothing ... ok
-test credential_store::tests::delete_removes_credential ... ok
 test credential_ref::tests::test_credential_store_rotate_nonexistent ... ok
 test credential_ref::tests::test_credential_store_rollback_with_some ... ok
 test credential_ref::tests::test_credential_store_rotate ... ok
-test credential_store::tests::delete_provider_removes_all_named_credentials ... ok
+test credential_store::tests::delete_removes_credential ... ok
 test credential_ref::tests::test_credential_store_rollback ... ok
-test credential_store::tests::non_password_store_has_no_salt ... ok
+test credential_store::tests::delete_provider_removes_all_named_credentials ... ok
 test credential_store::tests::list_credentials_lists_all_stored_credentials_for_provider ... ok
+test credential_store::tests::non_password_store_has_no_salt ... ok
 test credential_store::tests::delete_named_removes_specific_named_credential ... ok
 test credential_store::tests::load_named_loads_specific_named_credential ... ok
-test jwt::tests::test_claims_struct ... ok
-test credential_store::tests::stored_file_is_encrypted_payload ... ok
 test credential_store::tests::store_named_overwrites_existing_name ... ok
+test jwt::tests::test_claims_struct ... ok
 test jwt::tests::test_validate_token_empty ... ok
-test credential_store::tests::stores_and_loads_credential ... ok
 test credential_store::tests::store_uses_default_name ... ok
+test credential_store::tests::stored_file_is_encrypted_payload ... ok
 test jwt::tests::test_validate_token_malformed_token ... ok
-test credential_store::tests::store_named_stores_multiple_credentials_per_provider ... ok
 test jwt::tests::test_validate_token_invalid_secret ... ok
+test credential_store::tests::stores_and_loads_credential ... ok
 test jwt::tests::test_create_and_validate_token ... ok
+test credential_store::tests::store_named_stores_multiple_credentials_per_provider ... ok
 test manager::tests::test_auth_manager_login_user_not_found ... ok
 test manager::tests::test_auth_manager_verify_token_invalid ... ok
 test manager::tests::test_auth_manager_verify_token_wrong_secret ... ok
-test oauth::tests::complete_login_exchanges_code_and_validates_state ... ok
-test oauth::tests::complete_login_fails_when_state_mismatches ... ok
+test manager::tests::test_auth_manager_register ... ok
+test manager::tests::test_auth_manager_register_without_email ... ok
 test oauth::tests::generates_pkce_code_challenge ... ok
 test oauth::tests::start_login_persists_session_and_state ... ok
-test oauth::tests::stores_loads_and_refreshes_token ... ok
+test oauth::tests::complete_login_fails_when_state_mismatches ... ok
 test oauth::tests::test_device_code_response_struct ... ok
 test oauth::tests::test_device_code_session_expiration ... ok
 test oauth::tests::test_device_code_session_not_expired ... ok
 test oauth::tests::test_load_token_for_provider ... ok
-test oauth::tests::test_load_token_for_provider_not_found ... ok
+test oauth::tests::complete_login_exchanges_code_and_validates_state ... ok
 test oauth::tests::test_oauth_error_display ... ok
+test oauth::tests::test_load_token_for_provider_not_found ... ok
 test oauth::tests::test_oauth_error_from_open_code_error ... ok
 test oauth::tests::test_oauth_session_equality ... ok
 test oauth::tests::test_oauth_session_struct ... ok
+test oauth::tests::stores_loads_and_refreshes_token ... ok
 test oauth::tests::test_parse_callback_request_invalid ... ok
 test oauth::tests::test_parse_callback_request_valid ... ok
 test oauth::tests::test_parse_callback_request_with_error ... ok
@@ -1747,28 +925,26 @@ test oauth::tests::test_provider_authorize_url_github ... ok
 test oauth::tests::test_provider_authorize_url_https ... ok
 test oauth::tests::test_provider_authorize_url_openai ... ok
 test oauth::tests::test_provider_authorize_url_unknown ... ok
-test oauth::tests::test_session_expired_after_24_hours ... ok
-test oauth::tests::test_session_manager_clear_session ... ok
 test oauth::tests::test_session_manager_default_path ... ok
+test oauth::tests::test_session_manager_clear_session ... ok
 test oauth::tests::test_session_manager_file_path ... ok
 test oauth::tests::test_session_manager_load_no_sessions ... ok
+test oauth::tests::test_session_expired_after_24_hours ... ok
 test oauth::tests::test_session_manager_save_and_load_session ... ok
-test manager::tests::test_auth_manager_register ... ok
-test manager::tests::test_auth_manager_register_without_email ... ok
 test credential_store::tests::password_stores_have_salt ... ok
-test password::tests::test_hash_password_success ... ok
+test manager::tests::test_auth_manager_login_and_verify_token ... ok
 test password::tests::test_verify_password_invalid_hash ... ok
 test manager::tests::test_auth_manager_login_wrong_password ... ok
-test manager::tests::test_auth_manager_login_and_verify_token ... ok
 test manager::tests::test_auth_manager_login ... ok
-test password::tests::test_different_passwords_different_hashes ... ok
+test password::tests::test_hash_password_success ... ok
 test password::tests::test_verify_password_correct ... ok
-test credential_store::tests::password_must_be_correct_to_decrypt ... ok
 test credential_store::tests::stores_and_loads_credential_with_password ... ok
+test password::tests::test_different_passwords_different_hashes ... ok
+test credential_store::tests::password_must_be_correct_to_decrypt ... ok
 test password::tests::test_verify_password_incorrect ... ok
 test credential_store::tests::argon2_derives_consistent_key ... ok
 
-test result: ok. 76 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.77s
+test result: ok. 76 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.42s
 
      Running tests/auth_e2e_tests.rs (target/debug/deps/auth_e2e_tests-4916f7f38c2287a0)
 
@@ -1776,45 +952,45 @@ running 34 tests
 test credential_store_tests::test_load_nonexistent_credential ... ok
 test credential_encryption_tests::test_stored_credentials_encrypted ... ok
 test credential_store_tests::test_store_and_load_credential ... ok
+test credential_store_tests::test_store_named_credential ... ok
 test credential_store_tests::test_credential_with_metadata ... ok
-test credential_store_tests::test_delete_credential ... ok
+test jwt_key_rotation_tests::test_multiple_key_versions_supported ... ok
 test credential_store_tests::test_store_multiple_providers ... ok
 test jwt_key_rotation_tests::test_expired_token_rejected_regardless_of_key ... ok
 test jwt_key_rotation_tests::test_token_signed_with_new_key_accepted_after_rotation ... ok
-test jwt_tests::test_claims_struct_fields ... ok
-test jwt_key_rotation_tests::test_multiple_key_versions_supported ... ok
-test jwt_key_rotation_tests::test_token_signed_with_old_key_rejected_after_rotation ... ok
-test credential_store_tests::test_update_existing_credential ... ok
-test jwt_tests::test_create_and_validate_token ... ok
 test credential_store_tests::test_list_credentials_for_provider ... ok
+test jwt_key_rotation_tests::test_token_signed_with_old_key_rejected_after_rotation ... ok
+test jwt_tests::test_create_and_validate_token ... ok
+test credential_store_tests::test_update_existing_credential ... ok
 test jwt_tests::test_validate_token_empty ... ok
+test jwt_tests::test_claims_struct_fields ... ok
+test credential_store_tests::test_delete_credential ... ok
 test jwt_tests::test_validate_token_malformed_token ... ok
 test jwt_tests::test_validate_token_invalid_secret ... ok
-test credential_store_tests::test_store_named_credential ... ok
 test credential_encryption_tests::test_store_with_password_different_encryption ... ok
 test credential_encryption_tests::test_load_with_wrong_password_fails ... ok
-test oauth_refresh_token_rotation_tests::test_new_refresh_token_required_after_rotation ... ok
 test oauth_refresh_token_rotation_tests::test_old_refresh_token_invalidated_after_use ... ok
+test oauth_refresh_token_rotation_tests::test_new_refresh_token_required_after_rotation ... ok
 test oauth_refresh_token_rotation_tests::test_refresh_token_rotation_prevents_reuse ... ok
 test oauth_state_tests::test_wrong_state_rejected ... ok
-test session_binding_tests::test_token_used_on_different_device_rejected ... ok
-test session_binding_tests::test_device_id_validated_per_request ... ok
-test session_binding_tests::test_token_with_device_binding_validates_correctly ... ok
-test oauth_state_tests::test_replay_attack_prevented ... ok
+test oauth_token_refresh_tests::test_missing_refresh_token_error ... ok
 test oauth_state_tests::test_state_is_single_use ... ok
 test oauth_state_tests::test_correct_state_accepted ... ok
-test oauth_token_refresh_tests::test_missing_refresh_token_error ... ok
 test oauth_token_refresh_tests::test_automatic_refresh_on_expired_token ... ok
+test oauth_state_tests::test_replay_attack_prevented ... ok
 test oauth_token_refresh_tests::test_token_refresh_when_expired ... ok
+test session_binding_tests::test_device_id_validated_per_request ... ok
+test session_binding_tests::test_token_with_device_binding_validates_correctly ... ok
+test session_binding_tests::test_token_used_on_different_device_rejected ... ok
 test oauth_token_refresh_tests::test_token_stored_and_retrieved_correctly ... ok
 
-test result: ok. 34 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.00s
+test result: ok. 34 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.54s
 
      Running tests/oauth_browser_tests.rs (target/debug/deps/oauth_browser_tests-2382d7dacdd8c8c4)
 
 running 10 tests
-test test_oauth_token_expires_at_calculation ... ok
 test test_oauth_token_expired ... ok
+test test_oauth_token_expires_at_calculation ... ok
 test test_oauth_token_expiration ... ok
 test test_localhost_callback_server_available ... ok
 test test_pkce_code_verifier_generation ... ok
@@ -1824,14 +1000,14 @@ test test_pkce_s256_method ... ok
 test test_pkce_different_verifiers ... ok
 test test_oauth_flow_init ... ok
 
-test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.17s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.56s
 
      Running unittests src/lib.rs (target/debug/deps/opencode_benches-0fb57317fcbf1ecb)
 
 running 5 tests
 test tests::test_benchmark_result_detect_regression ... ok
-test tests::test_benchmark_report_from_baseline ... ok
 test tests::test_benchmark_result_no_regression ... ok
+test tests::test_benchmark_report_from_baseline ... ok
 test tests::test_baseline_compare ... ok
 test session_load::tests::test_create_test_session ... ok
 
@@ -1850,82 +1026,82 @@ test cmd::account::tests::test_account_args_login ... ok
 test cmd::account::tests::test_account_args_status ... ok
 test cmd::account::tests::test_account_args_logout ... ok
 test cmd::account::tests::test_account_args_with_json ... ok
+test cmd::agent::tests::test_agent_action_list ... ok
 test cmd::acp::tests::test_acp_action_start ... ok
 test cmd::acp::tests::test_acp_action_status ... ok
-test cmd::acp::tests::test_acp_action_handshake_default_version ... ok
-test cmd::acp::tests::test_acp_action_connect ... ok
-test cmd::acp::tests::test_acp_args_default ... ok
-test cmd::acp::tests::test_acp_action_handshake ... ok
-test cmd::acp::tests::test_acp_args_with_action ... ok
 test cmd::acp::tests::test_acp_args_with_json ... ok
-test cmd::agent::tests::test_agent_action_list ... ok
-test cmd::acp::tests::test_acp_args_with_server ... ok
-test cmd::agent::tests::test_agent_action_run_fields ... ok
+test cmd::acp::tests::test_acp_args_with_action ... ok
 test cmd::agent::tests::test_agent_args_no_action ... ok
-test cmd::attach::tests::test_attach_args_default ... ok
-test cmd::attach::tests::test_attach_args_with_session_id ... ok
-test cmd::attach::tests::test_attach_args_with_url ... ok
-test cmd::attach::tests::test_attach_args_with_directory ... ok
-test cmd::bash::tests::test_bash_args_all_fields ... ok
-test cmd::attach::tests::test_attach_args_full ... ok
+test cmd::acp::tests::test_acp_args_default ... ok
+test cmd::agent::tests::test_agent_action_run_fields ... ok
+test cmd::acp::tests::test_acp_action_connect ... ok
+test cmd::acp::tests::test_acp_action_handshake_default_version ... ok
+test cmd::acp::tests::test_acp_args_with_server ... ok
 test cmd::bash::tests::test_bash_args_command_only ... ok
-test cmd::bash::tests::test_bash_args_basic ... ok
-test cmd::bash::tests::test_bash_args_with_json_and_timeout ... ok
-test cmd::bash::tests::test_bash_args_with_timeout ... ok
+test cmd::attach::tests::test_attach_args_default ... ok
+test cmd::bash::tests::test_bash_args_all_fields ... ok
+test cmd::attach::tests::test_attach_args_with_url ... ok
+test cmd::attach::tests::test_attach_args_with_session_id ... ok
 test cmd::bash::tests::test_bash_args_with_json ... ok
-test cmd::bash::tests::test_looks_interactive_false ... ok
+test cmd::bash::tests::test_bash_args_with_timeout ... ok
+test cmd::bash::tests::test_bash_args_with_json_and_timeout ... ok
+test cmd::acp::tests::test_acp_action_handshake ... ok
+test cmd::bash::tests::test_bash_args_basic ... ok
 test cmd::bash::tests::test_looks_interactive_with_read ... ok
+test cmd::bash::tests::test_looks_interactive_false ... ok
 test cmd::bash::tests::test_looks_interactive_with_read_space ... ok
 test cmd::bash::tests::test_looks_interactive_with_various_read_patterns ... ok
 test cmd::completion::tests::test_shell_display ... ok
-test cmd::completion::tests::test_shell_from_str_bash ... ok
 test cmd::completion::tests::test_shell_from_str_fish ... ok
-test cmd::completion::tests::test_all_shells_generate_output ... ok
 test cmd::completion::tests::test_shell_from_str_powershell ... ok
-test cmd::completion::tests::test_bash_completions_contains_commands ... ok
-test cmd::completion::tests::test_fish_completions_contains_commands ... ok
-test cmd::completion::tests::test_powershell_completions_contains_commands ... ok
+test cmd::completion::tests::test_shell_from_str_bash ... ok
+test cmd::attach::tests::test_attach_args_with_directory ... ok
 test cmd::completion::tests::test_shell_from_str_pwsh ... ok
 test cmd::completion::tests::test_shell_from_str_zsh ... ok
-test cmd::completion::tests::test_shell_from_str_unknown ... ok
-test cmd::completion::tests::test_zsh_completions_contains_commands ... ok
-test cmd::config::tests::test_config_args_default ... ok
 test cmd::config::tests::test_config_args_multiple_flags ... ok
+test cmd::config::tests::test_config_args_default ... ok
 test cmd::config::tests::test_config_args_with_json ... ok
+test cmd::completion::tests::test_shell_from_str_unknown ... ok
+test cmd::attach::tests::test_attach_args_full ... ok
 test cmd::config::tests::test_config_args_with_keybinds ... ok
 test cmd::config::tests::test_config_args_with_migrate ... ok
-test cmd::config::tests::test_config_args_with_providers ... ok
 test cmd::config::tests::test_config_args_with_models ... ok
+test cmd::config::tests::test_config_args_with_providers ... ok
 test cmd::config::tests::test_config_args_with_remove ... ok
+test cmd::completion::tests::test_all_shells_generate_output ... ok
+test cmd::completion::tests::test_bash_completions_contains_commands ... ok
+test cmd::completion::tests::test_powershell_completions_contains_commands ... ok
+test cmd::completion::tests::test_zsh_completions_contains_commands ... ok
 test cmd::config::tests::test_config_args_with_show_value ... ok
+test cmd::completion::tests::test_fish_completions_contains_commands ... ok
 test cmd::config::tests::test_config_args_with_value ... ok
 test cmd::db::tests::test_db_args_backup ... ok
 test cmd::db::tests::test_db_args_init ... ok
 test cmd::db::tests::test_db_args_migrate ... ok
+test cmd::debug::tests::test_debug_action_config ... ok
 test cmd::debug::tests::test_debug_action_agent ... ok
 test cmd::debug::tests::test_debug_action_lsp ... ok
-test cmd::debug::tests::test_debug_action_config ... ok
-test cmd::debug::tests::test_debug_args_with_agent ... ok
 test cmd::debug::tests::test_debug_args_with_config ... ok
+test cmd::debug::tests::test_debug_args_with_agent ... ok
 test cmd::debug::tests::test_debug_args_with_lsp ... ok
-test cmd::desktop::tests::test_desktop_args_fields_default ... ok
 test cmd::desktop::tests::test_desktop_args_with_acp_enabled ... ok
-test cmd::desktop::tests::test_desktop_args_with_all_options ... ok
 test cmd::desktop::tests::test_desktop_args_with_hostname ... ok
-test cmd::desktop::tests::test_desktop_args_with_long_port ... ok
 test cmd::desktop::tests::test_desktop_args_with_no_browser ... ok
+test cmd::desktop::tests::test_desktop_args_with_long_port ... ok
+test cmd::desktop::tests::test_desktop_args_fields_default ... ok
+test cmd::desktop::tests::test_desktop_args_with_all_options ... ok
 test cmd::desktop::tests::test_desktop_args_with_port ... ok
-test cmd::desktop::tests::test_desktop_config_acp_enabled_default_true ... ok
-test cmd::desktop::tests::test_desktop_config_acp_enabled_from_desktop_cfg ... ok
-test cmd::desktop::tests::test_desktop_config_acp_enabled_from_server_acp ... ok
 test cmd::desktop::tests::test_desktop_config_auto_open_browser_default_true ... ok
 test cmd::desktop::tests::test_desktop_config_auto_open_browser_from_config ... ok
-test cmd::desktop::tests::test_desktop_config_precedence_config_over_defaults ... ok
 test cmd::desktop::tests::test_desktop_config_precedence_default_fallback ... ok
+test cmd::desktop::tests::test_desktop_config_acp_enabled_from_server_acp ... ok
+test cmd::desktop::tests::test_desktop_config_acp_enabled_default_true ... ok
+test cmd::desktop::tests::test_desktop_config_precedence_config_over_defaults ... ok
+test cmd::desktop::tests::test_desktop_config_acp_enabled_from_desktop_cfg ... ok
 test cmd::export::tests::test_export_args_default ... ok
-test cmd::export::tests::test_export_args_with_output ... ok
 test cmd::export::tests::test_export_args_full ... ok
 test cmd::export::tests::test_export_args_with_format ... ok
+test cmd::export::tests::test_export_args_with_output ... ok
 test cmd::files::tests::test_files_action_list ... ok
 test cmd::files::tests::test_files_action_list_fields ... ok
 test cmd::files::tests::test_files_action_read ... ok
@@ -1935,19 +1111,19 @@ test cmd::generate::tests::test_generate_args_full ... ok
 test cmd::generate::tests::test_generate_args_with_output ... ok
 test cmd::generate::tests::test_generate_args_with_template ... ok
 test cmd::github::tests::test_github_action_install_fields ... ok
-test cmd::github::tests::test_github_action_issue_list ... ok
 test cmd::github::tests::test_github_action_repo_list ... ok
+test cmd::github::tests::test_github_action_issue_list ... ok
 test cmd::github::tests::test_github_action_workflow ... ok
 test cmd::github::tests::test_github_args_default ... ok
 test cmd::github::tests::test_invalid_repo_format_no_slash ... ok
 test cmd::github::tests::test_invalid_repo_format_too_many_slashes ... ok
-test cmd::github::tests::test_parse_repo_owner_format ... ok
-test cmd::github::tests::test_parse_repo_with_org_format ... ok
 test cmd::gitlab::tests::test_gitlab_action_install_fields ... ok
 test cmd::gitlab::tests::test_gitlab_args_login ... ok
 test cmd::gitlab::tests::test_gitlab_experimental_warning_not_empty ... ok
 test cmd::import::tests::test_import_args_full ... ok
 test cmd::import::tests::test_import_args_with_format ... ok
+test cmd::github::tests::test_parse_repo_with_org_format ... ok
+test cmd::github::tests::test_parse_repo_owner_format ... ok
 test cmd::import::tests::test_import_args_with_input ... ok
 test cmd::list::tests::test_list_args_default ... ok
 test cmd::list::tests::test_list_args_with_all ... ok
@@ -1957,32 +1133,26 @@ test cmd::list::tests::test_list_args_with_json_and_limit ... ok
 test cmd::list::tests::test_list_args_with_limit ... ok
 test cmd::mcp::tests::test_mcp_action_install ... ok
 test cmd::mcp::tests::test_mcp_args_default ... ok
-test cmd::mcp_auth::tests::test_mcp_auth_action_login_fields ... ok
 test cmd::mcp_auth::tests::test_mcp_auth_args_list ... ok
-test cmd::desktop::tests::test_desktop_config_loading_empty_config ... ok
+test cmd::mcp_auth::tests::test_mcp_auth_action_login_fields ... ok
 test cmd::models::tests::test_models_action_visibility_hide ... ok
-test cmd::desktop::tests::test_desktop_config_loading_partial_config ... ok
-test cmd::models::tests::test_model_row_serialization ... ok
-test cmd::models::tests::test_models_action_visibility_list_hidden ... ok
 test cmd::models::tests::test_models_action_visibility_show ... ok
-test cmd::models::tests::test_models_args_full ... ok
-test cmd::desktop::tests::test_desktop_config_loading_from_file ... ok
-test cmd::models::tests::test_models_args_with_json ... ok
 test cmd::models::tests::test_models_args_default ... ok
+test cmd::models::tests::test_models_action_visibility_list_hidden ... ok
+test cmd::models::tests::test_models_args_full ... ok
+test cmd::models::tests::test_models_args_with_json ... ok
 test cmd::models::tests::test_models_args_with_provider ... ok
 test cmd::models::tests::test_models_args_with_switch ... ok
 test cmd::models::tests::test_models_args_with_visibility ... ok
-test cmd::desktop::tests::test_desktop_config_precedence_cli_over_config ... ok
 test cmd::palette::tests::test_palette_action_open ... ok
 test cmd::palette::tests::test_palette_action_search_fields ... ok
 test cmd::palette::tests::test_palette_args_no_action ... ok
 test cmd::plugin::tests::test_plugin_install_adds_to_list ... ok
-test cmd::plugin::tests::test_plugin_remove_nonexistent ... ok
-test cmd::plugin::tests::test_plugin_install_already_installed ... ok
 test cmd::plugin::tests::test_plugin_search_filters_by_query ... ok
-test cmd::pr::tests::test_pr_action_create_fields ... ok
-test cmd::pr::tests::test_pr_action_checkout_fields ... ok
+test cmd::plugin::tests::test_plugin_remove_nonexistent ... ok
 test cmd::plugin::tests::test_plugin_search_no_query_returns_all ... ok
+test cmd::pr::tests::test_pr_action_checkout_fields ... ok
+test cmd::pr::tests::test_pr_action_create_fields ... ok
 test cmd::pr::tests::test_pr_action_fetch_fields ... ok
 test cmd::pr::tests::test_pr_args_list ... ok
 test cmd::project::tests::test_project_action_create ... ok
@@ -1990,57 +1160,60 @@ test cmd::project::tests::test_project_action_create_without_path ... ok
 test cmd::project::tests::test_project_action_current ... ok
 test cmd::project::tests::test_project_action_delete ... ok
 test cmd::project::tests::test_project_action_delete_no_confirm ... ok
+test cmd::plugin::tests::test_plugin_install_already_installed ... ok
+test cmd::models::tests::test_model_row_serialization ... ok
 test cmd::project::tests::test_project_action_edit ... ok
 test cmd::project::tests::test_project_action_edit_partial ... ok
 test cmd::project::tests::test_project_action_list ... ok
 test cmd::project::tests::test_project_action_rename ... ok
 test cmd::project::tests::test_project_action_show ... ok
-test cmd::project::tests::test_project_action_switch ... ok
 test cmd::project::tests::test_project_action_show_no_json ... ok
-test cmd::project::tests::test_project_args_with_action ... ok
-test cmd::project::tests::test_project_args_default ... ok
+test cmd::project::tests::test_project_action_switch ... ok
 test cmd::project::tests::test_project_info_creation ... ok
+test cmd::project::tests::test_project_args_default ... ok
 test cmd::project::tests::test_project_info_minimal ... ok
+test cmd::project::tests::test_project_args_with_action ... ok
 test cmd::project::tests::test_project_state_default ... ok
-test cmd::models::tests::test_save_and_load_hidden_models ... ok
-test cmd::project::tests::test_project_state_with_projects ... ok
 test cmd::project::tests::test_session_info_creation ... ok
 test cmd::prompt::tests::test_prompt_args_async_and_terminal ... ok
-test cmd::prompt::tests::test_prompt_args_cancel ... ok
 test cmd::prompt::tests::test_prompt_args_default ... ok
+test cmd::prompt::tests::test_prompt_args_cancel ... ok
 test cmd::prompt::tests::test_prompt_args_history_flags ... ok
 test cmd::prompt::tests::test_prompt_args_multiline ... ok
 test cmd::prompt::tests::test_prompt_args_queue_status ... ok
 test cmd::prompt::tests::test_prompt_args_shell ... ok
 test cmd::prompt::tests::test_prompt_args_with_content ... ok
 test cmd::prompt::tests::test_prompt_args_with_context ... ok
-test cmd::prompt::tests::test_prompt_args_with_json ... ok
 test cmd::prompt::tests::test_prompt_args_with_session ... ok
-test cmd::prompt::tests::test_prompt_queue_path_default ... ok
+test cmd::prompt::tests::test_prompt_args_with_json ... ok
+test cmd::project::tests::test_project_state_with_projects ... ok
 test cmd::providers::tests::test_provider_enabled_allowlist_takes_precedence ... ok
-test cmd::providers::tests::test_provider_enabled_multiple_in_denylist ... ok
-test cmd::prompt::tests::test_prompt_queue_path_with_data_dir ... ok
 test cmd::providers::tests::test_provider_enabled_multiple_in_allowlist ... ok
+test cmd::providers::tests::test_provider_enabled_multiple_in_denylist ... ok
 test cmd::providers::tests::test_provider_enabled_no_restrictions ... ok
+test cmd::prompt::tests::test_prompt_queue_path_default ... ok
 test cmd::providers::tests::test_provider_enabled_with_allowlist ... ok
 test cmd::providers::tests::test_provider_enabled_with_denylist ... ok
-test cmd::providers::tests::test_provider_name_mixed_case ... ok
-test cmd::providers::tests::test_provider_name_ollama ... ok
 test cmd::providers::tests::test_provider_name_anthropic ... ok
-test cmd::providers::tests::test_provider_name_unknown ... ok
 test cmd::providers::tests::test_provider_name_empty ... ok
+test cmd::prompt::tests::test_prompt_queue_path_with_data_dir ... ok
+test cmd::providers::tests::test_provider_name_ollama ... ok
 test cmd::providers::tests::test_provider_name_openai ... ok
-test cmd::providers::tests::test_providers_args_default ... ok
+test cmd::providers::tests::test_provider_name_unknown ... ok
 test cmd::providers::tests::test_provider_name_unknown_single_char ... ok
+test cmd::providers::tests::test_providers_args_default ... ok
+test cmd::providers::tests::test_provider_name_mixed_case ... ok
 test cmd::providers::tests::test_providers_args_with_browser ... ok
 test cmd::providers::tests::test_providers_args_with_json ... ok
-test cmd::providers::tests::test_providers_login_json_shape ... ok
 test cmd::providers::tests::test_providers_args_with_login ... ok
+test cmd::providers::tests::test_providers_args_with_test_connection ... ok
+test cmd::models::tests::test_save_and_load_hidden_models ... ok
+test cmd::providers::tests::test_providers_login_json_shape ... ok
+test cmd::desktop::tests::test_desktop_config_loading_empty_config ... ok
 test cmd::quick::tests::test_quick_action_debug ... ok
 test cmd::quick::tests::test_quick_action_new_session ... ok
-test cmd::providers::tests::test_providers_args_with_test_connection ... ok
-test cmd::quick::tests::test_quick_action_settings ... ok
 test cmd::quick::tests::test_quick_action_new_session_various_names ... ok
+test cmd::quick::tests::test_quick_action_settings ... ok
 test cmd::quick::tests::test_quick_action_switch_model ... ok
 test cmd::quick::tests::test_quick_action_switch_model_various_models ... ok
 test cmd::quick::tests::test_quick_action_toggle_sidebar ... ok
@@ -2049,18 +1222,20 @@ test cmd::quick::tests::test_quick_args_with_action ... ok
 test cmd::run::tests::test_run_args_default ... ok
 test cmd::run::tests::test_run_args_full ... ok
 test cmd::run::tests::test_run_args_with_agent ... ok
+test cmd::run::tests::test_run_args_with_json_format ... ok
 test cmd::run::tests::test_run_args_with_attach ... ok
 test cmd::run::tests::test_run_args_with_continue_session ... ok
-test cmd::run::tests::test_run_args_with_json_format ... ok
 test cmd::run::tests::test_run_args_with_model ... ok
 test cmd::run::tests::test_run_args_with_ndjson_format ... ok
 test cmd::run::tests::test_run_args_with_prompt ... ok
 test cmd::run::tests::test_run_args_with_title ... ok
 test cmd::run::tests::test_run_args_with_yes ... ok
+test cmd::desktop::tests::test_desktop_config_precedence_cli_over_config ... ok
 test cmd::serve::tests::test_serve_args_default ... ok
 test cmd::serve::tests::test_serve_args_full ... ok
 test cmd::serve::tests::test_serve_args_with_different_hostnames ... ok
 test cmd::serve::tests::test_serve_args_with_hostname ... ok
+test cmd::desktop::tests::test_desktop_config_loading_from_file ... ok
 test cmd::serve::tests::test_serve_args_with_port ... ok
 test cmd::serve::tests::test_serve_args_with_various_ports ... ok
 test cmd::session::tests::test_session_action_create ... ok
@@ -2070,33 +1245,33 @@ test cmd::session::tests::test_session_action_delete_no_id ... ok
 test cmd::session::tests::test_session_action_diff ... ok
 test cmd::session::tests::test_session_action_diff_default_context ... ok
 test cmd::session::tests::test_session_action_export ... ok
-test cmd::session::tests::test_session_action_message ... ok
+test cmd::desktop::tests::test_desktop_config_loading_partial_config ... ok
 test cmd::session::tests::test_session_action_list ... ok
+test cmd::session::tests::test_session_action_message ... ok
 test cmd::session::tests::test_session_action_redo ... ok
 test cmd::session::tests::test_session_action_review ... ok
-test cmd::session::tests::test_append_session_message_returns_false_for_invalid_uuid ... ok
 test cmd::session::tests::test_session_action_review_default_format ... ok
 test cmd::session::tests::test_session_action_show ... ok
 test cmd::session::tests::test_session_action_show_no_json ... ok
-test cmd::session::tests::test_session_action_undo ... ok
 test cmd::session::tests::test_session_action_undo_default_steps ... ok
+test cmd::session::tests::test_session_action_undo ... ok
 test cmd::session::tests::test_session_args_default ... ok
 test cmd::session::tests::test_session_args_with_fork ... ok
-test cmd::session::tests::test_session_args_with_id ... ok
 test cmd::session::tests::test_session_args_with_json ... ok
+test cmd::session::tests::test_session_args_with_id ... ok
 test cmd::session::tests::test_session_args_with_message ... ok
 test cmd::session::tests::test_session_args_with_new ... ok
 test cmd::session::tests::test_session_args_with_share ... ok
 test cmd::session::tests::test_session_message_creation ... ok
 test cmd::session::tests::test_session_message_serialization ... ok
-test cmd::session::tests::test_session_record_creation ... ok
 test cmd::session::tests::test_session_record_serialization ... ok
+test cmd::session::tests::test_session_record_creation ... ok
 test cmd::session::tests::test_session_record_with_multiple_messages ... ok
-test cmd::shortcuts::tests::test_shortcuts_action_list_fields ... ok
 test cmd::shortcuts::tests::test_shortcuts_action_exec ... ok
+test cmd::shortcuts::tests::test_shortcuts_action_list_fields ... ok
 test cmd::shortcuts::tests::test_shortcuts_action_list_no_json ... ok
-test cmd::shortcuts::tests::test_shortcuts_action_reset_without_command ... ok
 test cmd::shortcuts::tests::test_shortcuts_action_reset_with_command ... ok
+test cmd::shortcuts::tests::test_shortcuts_action_reset_without_command ... ok
 test cmd::shortcuts::tests::test_shortcuts_action_set_fields ... ok
 test cmd::shortcuts::tests::test_shortcuts_action_set_various_commands ... ok
 test cmd::shortcuts::tests::test_shortcuts_args_no_action ... ok
@@ -2126,73 +1301,74 @@ test cmd::ui::tests::test_ui_action_sidebar ... ok
 test cmd::uninstall::tests::test_uninstall_args_default ... ok
 test cmd::ui::tests::test_ui_args_creation ... ok
 test cmd::uninstall::tests::test_uninstall_args_force_and_dry_run ... ok
+test cmd::session::tests::test_append_session_message_returns_false_for_invalid_uuid ... ok
 test cmd::uninstall::tests::test_uninstall_args_force_and_json ... ok
 test cmd::uninstall::tests::test_uninstall_args_full ... ok
 test cmd::uninstall::tests::test_uninstall_args_with_dry_run ... ok
-test cmd::uninstall::tests::test_uninstall_args_with_force ... ok
 test cmd::uninstall::tests::test_uninstall_args_with_json ... ok
+test cmd::uninstall::tests::test_uninstall_args_with_force ... ok
 test cmd::upgrade::tests::test_upgrade_args_default ... ok
-test cmd::upgrade::tests::test_upgrade_args_with_dry_run ... ok
 test cmd::upgrade::tests::test_upgrade_args_full ... ok
+test cmd::upgrade::tests::test_upgrade_args_with_force ... ok
+test cmd::upgrade::tests::test_upgrade_args_with_dry_run ... ok
+test cmd::upgrade::tests::test_upgrade_args_with_json ... ok
 test cmd::upgrade::tests::test_upgrade_args_with_version ... ok
 test cmd::web::tests::test_web_args_default ... ok
-test cmd::upgrade::tests::test_upgrade_args_with_force ... ok
-test cmd::upgrade::tests::test_upgrade_args_with_json ... ok
-test cmd::web::tests::test_web_args_with_port ... ok
 test cmd::web::tests::test_web_args_with_all_options ... ok
 test cmd::web::tests::test_web_args_with_hostname ... ok
+test cmd::web::tests::test_web_args_with_port ... ok
 test cmd::workspace::tests::test_session_info_creation ... ok
 test cmd::workspace::tests::test_session_info_serialization ... ok
 test cmd::workspace::tests::test_session_info_deserialization ... ok
-test cmd::workspace::workspace_tests::test_workspace_action_context_no_json ... ok
 test cmd::workspace::workspace_tests::test_workspace_action_context ... ok
-test cmd::workspace::workspace_tests::test_workspace_action_sessions_no_json ... ok
+test cmd::workspace::workspace_tests::test_workspace_action_context_no_json ... ok
 test cmd::workspace::workspace_tests::test_workspace_action_sessions_fields ... ok
+test cmd::workspace::workspace_tests::test_workspace_action_sessions_no_json ... ok
 test cmd::workspace::workspace_tests::test_workspace_action_status_fields ... ok
 test cmd::workspace::workspace_tests::test_workspace_action_status_with_json ... ok
 test cmd::workspace::workspace_tests::test_workspace_args_no_action ... ok
-test cmd::workspace::workspace_tests::test_load_workspace_sessions_empty ... ok
+test cmd::workspace::workspace_tests::test_workspace_args_with_action ... ok
 test cmd::workspace::workspace_tests::test_workspace_sessions_path_default ... ok
 test cmd::workspace_serve::tests::test_workspace_serve_args_default ... ok
-test cmd::workspace::workspace_tests::test_workspace_args_with_action ... ok
-test cmd::workspace_serve::tests::test_workspace_serve_args_with_different_port ... ok
 test cmd::workspace::workspace_tests::test_workspace_sessions_path_with_data_dir ... ok
+test cmd::workspace::workspace_tests::test_load_workspace_sessions_empty ... ok
+test cmd::workspace_serve::tests::test_workspace_serve_args_with_different_port ... ok
 test cmd::workspace_serve::tests::test_workspace_serve_args_with_port ... ok
-test output::ndjson::tests::test_ndjson_each_event_on_separate_line ... ok
-test output::ndjson::tests::test_ndjson_serializer_multiple_events ... ok
-test output::ndjson::tests::test_ndjson_serializer_tool_call ... ok
 test output::ndjson::tests::test_ndjson_serializer_write_chunk ... ok
-test output::ndjson::tests::test_ndjson_serializer_tool_result ... ok
+test output::ndjson::tests::test_ndjson_serializer_write_message ... ok
 test output::ndjson::tests::test_ndjson_serializer_write_done ... ok
 test output::ndjson::tests::test_ndjson_serializer_write_error ... ok
-test output::ndjson::tests::test_ndjson_serializer_write_message ... ok
+test output::ndjson::tests::test_ndjson_serializer_tool_result ... ok
+test output::ndjson::tests::test_ndjson_serializer_tool_call ... ok
+test output::ndjson::tests::test_ndjson_each_event_on_separate_line ... ok
+test output::ndjson::tests::test_ndjson_serializer_multiple_events ... ok
 test output::ndjson::tests::test_ndjson_serializer_write_start ... ok
 test tests::test_ndjson_serializer_flush ... ok
 test output::ndjson::tests::test_ndjson_valid_json_per_line ... ok
-test tests::test_ndjson_serializer_write_done ... ok
-test tests::test_ndjson_serializer_write_error ... ok
-test tests::test_ndjson_serializer_write_message ... ok
-test tests::test_ndjson_serializer_write_start ... ok
 test tests::test_ndjson_serializer_write_chunk ... ok
+test tests::test_ndjson_serializer_write_error ... ok
+test tests::test_ndjson_serializer_write_done ... ok
+test tests::test_ndjson_serializer_write_message ... ok
 test tests::test_ndjson_serializer_write_tool_call ... ok
+test tests::test_ndjson_serializer_write_start ... ok
 test tests::test_ndjson_serializer_write_tool_result ... ok
-test cmd::web::tests::test_web_server_state_creation ... ok
 test cmd::web::tests::test_web_server_state_into_server_state ... ok
+test cmd::web::tests::test_web_server_state_creation ... ok
 
-test result: ok. 332 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 332 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
 
      Running unittests src/main.rs (target/debug/deps/opencode_rs-f5dc5ed85f9c529e)
 
 running 324 tests
 test cmd::account::tests::test_account_args_login ... ok
-test cmd::account::tests::test_account_args_status ... ok
 test cmd::account::tests::test_account_args_logout ... ok
+test cmd::account::tests::test_account_args_status ... ok
 test cmd::account::tests::test_account_args_with_json ... ok
 test cmd::acp::tests::test_acp_action_connect ... ok
 test cmd::acp::tests::test_acp_action_handshake_default_version ... ok
+test cmd::acp::tests::test_acp_action_handshake ... ok
 test cmd::acp::tests::test_acp_action_start ... ok
 test cmd::acp::tests::test_acp_action_status ... ok
-test cmd::acp::tests::test_acp_action_handshake ... ok
 test cmd::acp::tests::test_acp_args_default ... ok
 test cmd::acp::tests::test_acp_args_with_action ... ok
 test cmd::acp::tests::test_acp_args_with_json ... ok
@@ -2201,34 +1377,34 @@ test cmd::agent::tests::test_agent_action_list ... ok
 test cmd::agent::tests::test_agent_action_run_fields ... ok
 test cmd::agent::tests::test_agent_args_no_action ... ok
 test cmd::attach::tests::test_attach_args_default ... ok
-test cmd::attach::tests::test_attach_args_with_url ... ok
-test cmd::attach::tests::test_attach_args_with_session_id ... ok
 test cmd::attach::tests::test_attach_args_with_directory ... ok
-test cmd::bash::tests::test_bash_args_all_fields ... ok
+test cmd::attach::tests::test_attach_args_with_session_id ... ok
 test cmd::attach::tests::test_attach_args_full ... ok
+test cmd::attach::tests::test_attach_args_with_url ... ok
+test cmd::bash::tests::test_bash_args_all_fields ... ok
 test cmd::bash::tests::test_bash_args_basic ... ok
 test cmd::bash::tests::test_bash_args_command_only ... ok
 test cmd::bash::tests::test_bash_args_with_json ... ok
-test cmd::bash::tests::test_bash_args_with_timeout ... ok
 test cmd::bash::tests::test_bash_args_with_json_and_timeout ... ok
+test cmd::bash::tests::test_bash_args_with_timeout ... ok
 test cmd::bash::tests::test_looks_interactive_false ... ok
 test cmd::bash::tests::test_looks_interactive_with_read ... ok
 test cmd::bash::tests::test_looks_interactive_with_read_space ... ok
 test cmd::bash::tests::test_looks_interactive_with_various_read_patterns ... ok
 test cmd::completion::tests::test_shell_display ... ok
-test cmd::completion::tests::test_all_shells_generate_output ... ok
 test cmd::completion::tests::test_shell_from_str_bash ... ok
-test cmd::completion::tests::test_bash_completions_contains_commands ... ok
-test cmd::completion::tests::test_powershell_completions_contains_commands ... ok
-test cmd::completion::tests::test_fish_completions_contains_commands ... ok
 test cmd::completion::tests::test_shell_from_str_fish ... ok
+test cmd::completion::tests::test_all_shells_generate_output ... ok
+test cmd::completion::tests::test_bash_completions_contains_commands ... ok
 test cmd::completion::tests::test_shell_from_str_powershell ... ok
+test cmd::completion::tests::test_fish_completions_contains_commands ... ok
 test cmd::completion::tests::test_shell_from_str_pwsh ... ok
-test cmd::completion::tests::test_shell_from_str_zsh ... ok
+test cmd::completion::tests::test_powershell_completions_contains_commands ... ok
 test cmd::completion::tests::test_shell_from_str_unknown ... ok
+test cmd::completion::tests::test_shell_from_str_zsh ... ok
 test cmd::config::tests::test_config_args_default ... ok
-test cmd::config::tests::test_config_args_multiple_flags ... ok
 test cmd::completion::tests::test_zsh_completions_contains_commands ... ok
+test cmd::config::tests::test_config_args_multiple_flags ... ok
 test cmd::config::tests::test_config_args_with_json ... ok
 test cmd::config::tests::test_config_args_with_keybinds ... ok
 test cmd::config::tests::test_config_args_with_migrate ... ok
@@ -2254,80 +1430,80 @@ test cmd::desktop::tests::test_desktop_args_with_long_port ... ok
 test cmd::desktop::tests::test_desktop_args_with_no_browser ... ok
 test cmd::desktop::tests::test_desktop_args_with_port ... ok
 test cmd::desktop::tests::test_desktop_config_acp_enabled_from_desktop_cfg ... ok
+test cmd::desktop::tests::test_desktop_config_acp_enabled_default_true ... ok
 test cmd::desktop::tests::test_desktop_config_acp_enabled_from_server_acp ... ok
 test cmd::desktop::tests::test_desktop_config_auto_open_browser_default_true ... ok
-test cmd::desktop::tests::test_desktop_config_acp_enabled_default_true ... ok
 test cmd::desktop::tests::test_desktop_config_auto_open_browser_from_config ... ok
 test cmd::desktop::tests::test_desktop_config_precedence_default_fallback ... ok
-test cmd::desktop::tests::test_desktop_config_precedence_config_over_defaults ... ok
 test cmd::export::tests::test_export_args_default ... ok
 test cmd::export::tests::test_export_args_full ... ok
 test cmd::export::tests::test_export_args_with_format ... ok
-test cmd::files::tests::test_files_action_read ... ok
-test cmd::generate::tests::test_generate_args_default ... ok
-test cmd::files::tests::test_files_action_list ... ok
 test cmd::export::tests::test_export_args_with_output ... ok
+test cmd::desktop::tests::test_desktop_config_precedence_config_over_defaults ... ok
 test cmd::files::tests::test_files_action_list_fields ... ok
+test cmd::files::tests::test_files_action_read ... ok
 test cmd::files::tests::test_files_action_search ... ok
+test cmd::files::tests::test_files_action_list ... ok
+test cmd::generate::tests::test_generate_args_default ... ok
 test cmd::generate::tests::test_generate_args_full ... ok
 test cmd::generate::tests::test_generate_args_with_output ... ok
-test cmd::github::tests::test_github_action_install_fields ... ok
 test cmd::generate::tests::test_generate_args_with_template ... ok
+test cmd::github::tests::test_github_action_install_fields ... ok
 test cmd::github::tests::test_github_action_issue_list ... ok
 test cmd::github::tests::test_github_action_repo_list ... ok
 test cmd::github::tests::test_github_action_workflow ... ok
 test cmd::github::tests::test_github_args_default ... ok
 test cmd::github::tests::test_invalid_repo_format_no_slash ... ok
+test cmd::github::tests::test_invalid_repo_format_too_many_slashes ... ok
+test cmd::desktop::tests::test_desktop_config_loading_partial_config ... ok
 test cmd::github::tests::test_parse_repo_owner_format ... ok
+test cmd::desktop::tests::test_desktop_config_precedence_cli_over_config ... ok
+test cmd::desktop::tests::test_desktop_config_loading_empty_config ... ok
 test cmd::github::tests::test_parse_repo_with_org_format ... ok
 test cmd::gitlab::tests::test_gitlab_action_install_fields ... ok
-test cmd::github::tests::test_invalid_repo_format_too_many_slashes ... ok
 test cmd::gitlab::tests::test_gitlab_args_login ... ok
+test cmd::desktop::tests::test_desktop_config_loading_from_file ... ok
 test cmd::gitlab::tests::test_gitlab_experimental_warning_not_empty ... ok
 test cmd::import::tests::test_import_args_full ... ok
 test cmd::import::tests::test_import_args_with_format ... ok
 test cmd::import::tests::test_import_args_with_input ... ok
+test cmd::list::tests::test_list_args_with_all ... ok
 test cmd::list::tests::test_list_args_default ... ok
 test cmd::list::tests::test_list_args_with_all_and_limit ... ok
-test cmd::list::tests::test_list_args_with_all ... ok
 test cmd::list::tests::test_list_args_with_json ... ok
 test cmd::list::tests::test_list_args_with_json_and_limit ... ok
 test cmd::list::tests::test_list_args_with_limit ... ok
 test cmd::mcp::tests::test_mcp_action_install ... ok
 test cmd::mcp::tests::test_mcp_args_default ... ok
 test cmd::mcp_auth::tests::test_mcp_auth_action_login_fields ... ok
-test cmd::models::tests::test_models_action_visibility_hide ... ok
-test cmd::desktop::tests::test_desktop_config_precedence_cli_over_config ... ok
-test cmd::models::tests::test_models_args_with_json ... ok
 test cmd::mcp_auth::tests::test_mcp_auth_args_list ... ok
-test cmd::desktop::tests::test_desktop_config_loading_partial_config ... ok
-test cmd::models::tests::test_models_args_with_provider ... ok
-test cmd::desktop::tests::test_desktop_config_loading_from_file ... ok
-test cmd::desktop::tests::test_desktop_config_loading_empty_config ... ok
-test cmd::models::tests::test_models_args_default ... ok
-test cmd::models::tests::test_models_args_full ... ok
+test cmd::models::tests::test_models_action_visibility_hide ... ok
 test cmd::models::tests::test_models_action_visibility_list_hidden ... ok
+test cmd::models::tests::test_models_args_full ... ok
 test cmd::models::tests::test_models_action_visibility_show ... ok
+test cmd::models::tests::test_models_args_with_json ... ok
+test cmd::models::tests::test_models_args_default ... ok
+test cmd::models::tests::test_models_args_with_provider ... ok
+test cmd::models::tests::test_models_args_with_visibility ... ok
 test cmd::models::tests::test_models_args_with_switch ... ok
 test cmd::models::tests::test_model_row_serialization ... ok
-test cmd::models::tests::test_models_args_with_visibility ... ok
 test cmd::palette::tests::test_palette_action_open ... ok
 test cmd::palette::tests::test_palette_action_search_fields ... ok
 test cmd::palette::tests::test_palette_args_no_action ... ok
 test cmd::plugin::tests::test_plugin_install_adds_to_list ... ok
 test cmd::plugin::tests::test_plugin_remove_nonexistent ... ok
 test cmd::plugin::tests::test_plugin_search_filters_by_query ... ok
-test cmd::pr::tests::test_pr_action_checkout_fields ... ok
-test cmd::models::tests::test_save_and_load_hidden_models ... ok
-test cmd::plugin::tests::test_plugin_install_already_installed ... ok
 test cmd::plugin::tests::test_plugin_search_no_query_returns_all ... ok
+test cmd::pr::tests::test_pr_action_checkout_fields ... ok
 test cmd::pr::tests::test_pr_action_create_fields ... ok
 test cmd::pr::tests::test_pr_action_fetch_fields ... ok
+test cmd::plugin::tests::test_plugin_install_already_installed ... ok
 test cmd::pr::tests::test_pr_args_list ... ok
 test cmd::project::tests::test_project_action_create ... ok
 test cmd::project::tests::test_project_action_create_without_path ... ok
 test cmd::project::tests::test_project_action_current ... ok
 test cmd::project::tests::test_project_action_delete ... ok
+test cmd::models::tests::test_save_and_load_hidden_models ... ok
 test cmd::project::tests::test_project_action_delete_no_confirm ... ok
 test cmd::project::tests::test_project_action_edit ... ok
 test cmd::project::tests::test_project_action_edit_partial ... ok
@@ -2338,13 +1514,13 @@ test cmd::project::tests::test_project_action_show_no_json ... ok
 test cmd::project::tests::test_project_action_switch ... ok
 test cmd::project::tests::test_project_args_default ... ok
 test cmd::project::tests::test_project_args_with_action ... ok
-test cmd::project::tests::test_project_info_minimal ... ok
 test cmd::project::tests::test_project_info_creation ... ok
+test cmd::project::tests::test_project_info_minimal ... ok
 test cmd::project::tests::test_project_state_default ... ok
 test cmd::project::tests::test_project_state_with_projects ... ok
-test cmd::project::tests::test_session_info_creation ... ok
-test cmd::prompt::tests::test_prompt_args_async_and_terminal ... ok
 test cmd::prompt::tests::test_prompt_args_cancel ... ok
+test cmd::prompt::tests::test_prompt_args_async_and_terminal ... ok
+test cmd::project::tests::test_session_info_creation ... ok
 test cmd::prompt::tests::test_prompt_args_default ... ok
 test cmd::prompt::tests::test_prompt_args_history_flags ... ok
 test cmd::prompt::tests::test_prompt_args_multiline ... ok
@@ -2352,33 +1528,33 @@ test cmd::prompt::tests::test_prompt_args_queue_status ... ok
 test cmd::prompt::tests::test_prompt_args_shell ... ok
 test cmd::prompt::tests::test_prompt_args_with_content ... ok
 test cmd::prompt::tests::test_prompt_args_with_context ... ok
-test cmd::prompt::tests::test_prompt_args_with_session ... ok
 test cmd::prompt::tests::test_prompt_args_with_json ... ok
+test cmd::prompt::tests::test_prompt_args_with_session ... ok
 test cmd::prompt::tests::test_prompt_queue_path_default ... ok
 test cmd::prompt::tests::test_prompt_queue_path_with_data_dir ... ok
-test cmd::providers::tests::test_provider_enabled_multiple_in_allowlist ... ok
 test cmd::providers::tests::test_provider_enabled_allowlist_takes_precedence ... ok
+test cmd::providers::tests::test_provider_enabled_multiple_in_allowlist ... ok
 test cmd::providers::tests::test_provider_enabled_multiple_in_denylist ... ok
 test cmd::providers::tests::test_provider_enabled_no_restrictions ... ok
 test cmd::providers::tests::test_provider_enabled_with_allowlist ... ok
 test cmd::providers::tests::test_provider_enabled_with_denylist ... ok
 test cmd::providers::tests::test_provider_name_anthropic ... ok
 test cmd::providers::tests::test_provider_name_empty ... ok
-test cmd::providers::tests::test_provider_name_mixed_case ... ok
 test cmd::providers::tests::test_provider_name_ollama ... ok
+test cmd::providers::tests::test_provider_name_mixed_case ... ok
 test cmd::providers::tests::test_provider_name_openai ... ok
 test cmd::providers::tests::test_provider_name_unknown ... ok
 test cmd::providers::tests::test_provider_name_unknown_single_char ... ok
 test cmd::providers::tests::test_providers_args_default ... ok
 test cmd::providers::tests::test_providers_args_with_browser ... ok
 test cmd::providers::tests::test_providers_args_with_json ... ok
-test cmd::providers::tests::test_providers_args_with_test_connection ... ok
 test cmd::providers::tests::test_providers_args_with_login ... ok
+test cmd::providers::tests::test_providers_args_with_test_connection ... ok
 test cmd::providers::tests::test_providers_login_json_shape ... ok
 test cmd::quick::tests::test_quick_action_debug ... ok
 test cmd::quick::tests::test_quick_action_new_session ... ok
-test cmd::quick::tests::test_quick_action_settings ... ok
 test cmd::quick::tests::test_quick_action_new_session_various_names ... ok
+test cmd::quick::tests::test_quick_action_settings ... ok
 test cmd::quick::tests::test_quick_action_switch_model ... ok
 test cmd::quick::tests::test_quick_action_switch_model_various_models ... ok
 test cmd::quick::tests::test_quick_action_toggle_sidebar ... ok
@@ -2410,9 +1586,9 @@ test cmd::session::tests::test_session_action_diff_default_context ... ok
 test cmd::session::tests::test_session_action_export ... ok
 test cmd::session::tests::test_session_action_list ... ok
 test cmd::session::tests::test_session_action_message ... ok
-test cmd::session::tests::test_append_session_message_returns_false_for_invalid_uuid ... ok
 test cmd::session::tests::test_session_action_redo ... ok
 test cmd::session::tests::test_session_action_review ... ok
+test cmd::session::tests::test_append_session_message_returns_false_for_invalid_uuid ... ok
 test cmd::session::tests::test_session_action_review_default_format ... ok
 test cmd::session::tests::test_session_action_show ... ok
 test cmd::session::tests::test_session_action_show_no_json ... ok
@@ -2429,8 +1605,8 @@ test cmd::session::tests::test_session_message_creation ... ok
 test cmd::session::tests::test_session_message_serialization ... ok
 test cmd::session::tests::test_session_record_creation ... ok
 test cmd::session::tests::test_session_record_serialization ... ok
-test cmd::shortcuts::tests::test_shortcuts_action_exec ... ok
 test cmd::session::tests::test_session_record_with_multiple_messages ... ok
+test cmd::shortcuts::tests::test_shortcuts_action_exec ... ok
 test cmd::shortcuts::tests::test_shortcuts_action_list_fields ... ok
 test cmd::shortcuts::tests::test_shortcuts_action_list_no_json ... ok
 test cmd::shortcuts::tests::test_shortcuts_action_reset_with_command ... ok
@@ -2457,17 +1633,17 @@ test cmd::thread::tests::test_thread_args_with_session_id ... ok
 test cmd::ui::tests::test_sidebar_action_recent ... ok
 test cmd::ui::tests::test_sidebar_action_recent_no_limit ... ok
 test cmd::ui::tests::test_sidebar_action_sessions_fields ... ok
-test cmd::ui::tests::test_sidebar_action_toggle ... ok
 test cmd::ui::tests::test_sidebar_action_sessions_no_json ... ok
-test cmd::ui::tests::test_sidebar_args_creation ... ok
+test cmd::ui::tests::test_sidebar_action_toggle ... ok
 test cmd::ui::tests::test_ui_action_sidebar ... ok
+test cmd::ui::tests::test_sidebar_args_creation ... ok
 test cmd::ui::tests::test_ui_args_creation ... ok
 test cmd::uninstall::tests::test_uninstall_args_default ... ok
-test cmd::uninstall::tests::test_uninstall_args_full ... ok
 test cmd::uninstall::tests::test_uninstall_args_force_and_dry_run ... ok
 test cmd::uninstall::tests::test_uninstall_args_force_and_json ... ok
-test cmd::uninstall::tests::test_uninstall_args_with_dry_run ... ok
+test cmd::uninstall::tests::test_uninstall_args_full ... ok
 test cmd::uninstall::tests::test_uninstall_args_with_force ... ok
+test cmd::uninstall::tests::test_uninstall_args_with_dry_run ... ok
 test cmd::uninstall::tests::test_uninstall_args_with_json ... ok
 test cmd::upgrade::tests::test_upgrade_args_default ... ok
 test cmd::upgrade::tests::test_upgrade_args_full ... ok
@@ -2480,8 +1656,8 @@ test cmd::web::tests::test_web_args_with_all_options ... ok
 test cmd::web::tests::test_web_args_with_hostname ... ok
 test cmd::web::tests::test_web_args_with_port ... ok
 test cmd::workspace::tests::test_session_info_creation ... ok
-test cmd::workspace::tests::test_session_info_deserialization ... ok
 test cmd::workspace::tests::test_session_info_serialization ... ok
+test cmd::workspace::tests::test_session_info_deserialization ... ok
 test cmd::workspace::workspace_tests::test_workspace_action_context ... ok
 test cmd::workspace::workspace_tests::test_workspace_action_context_no_json ... ok
 test cmd::workspace::workspace_tests::test_workspace_action_sessions_fields ... ok
@@ -2489,167 +1665,167 @@ test cmd::workspace::workspace_tests::test_workspace_action_sessions_no_json ...
 test cmd::workspace::workspace_tests::test_workspace_action_status_fields ... ok
 test cmd::workspace::workspace_tests::test_workspace_action_status_with_json ... ok
 test cmd::workspace::workspace_tests::test_workspace_args_no_action ... ok
+test cmd::workspace::workspace_tests::test_load_workspace_sessions_empty ... ok
 test cmd::workspace::workspace_tests::test_workspace_args_with_action ... ok
 test cmd::workspace::workspace_tests::test_workspace_sessions_path_default ... ok
 test cmd::workspace::workspace_tests::test_workspace_sessions_path_with_data_dir ... ok
-test cmd::workspace_serve::tests::test_workspace_serve_args_with_different_port ... ok
 test cmd::workspace_serve::tests::test_workspace_serve_args_default ... ok
+test cmd::workspace_serve::tests::test_workspace_serve_args_with_different_port ... ok
 test cmd::workspace_serve::tests::test_workspace_serve_args_with_port ... ok
-test cmd::workspace::workspace_tests::test_load_workspace_sessions_empty ... ok
-test output::ndjson::tests::test_ndjson_serializer_multiple_events ... ok
-test output::ndjson::tests::test_ndjson_each_event_on_separate_line ... ok
 test output::ndjson::tests::test_ndjson_serializer_tool_call ... ok
-test output::ndjson::tests::test_ndjson_serializer_tool_result ... ok
 test output::ndjson::tests::test_ndjson_serializer_write_chunk ... ok
+test output::ndjson::tests::test_ndjson_serializer_tool_result ... ok
 test output::ndjson::tests::test_ndjson_serializer_write_done ... ok
-test output::ndjson::tests::test_ndjson_serializer_write_message ... ok
-test output::ndjson::tests::test_ndjson_valid_json_per_line ... ok
+test output::ndjson::tests::test_ndjson_each_event_on_separate_line ... ok
+test output::ndjson::tests::test_ndjson_serializer_multiple_events ... ok
 test output::ndjson::tests::test_ndjson_serializer_write_error ... ok
+test output::ndjson::tests::test_ndjson_serializer_write_message ... ok
 test output::ndjson::tests::test_ndjson_serializer_write_start ... ok
+test output::ndjson::tests::test_ndjson_valid_json_per_line ... ok
 test cmd::web::tests::test_web_server_state_creation ... ok
 test cmd::web::tests::test_web_server_state_into_server_state ... ok
 
-test result: ok. 324 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 324 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
 
      Running tests/cli_commands.rs (target/debug/deps/cli_commands-3a5cba330dfd9255)
 
 running 56 tests
-    Finished `release` profile [optimized] target(s) in 0.46s
+    Finished `release` profile [optimized] target(s) in 0.65s
 test common::tests::test_harness_setup ... ok
+test test_bash_interactive_command_rejected ... ok
 test test_agent_run_requires_args ... ok
 test test_agent_list_exits_successfully ... ok
-test test_bash_interactive_command_rejected ... ok
+test test_bash_requires_command ... ok
 test test_config_show_models ... ok
 test test_config_show_keybinds ... ok
-test test_config_show_providers ... ok
 test test_db_backup_exits_successfully ... ok
+test test_config_show_providers ... ok
 test test_db_help_shows_options ... ok
-test test_db_init_exits_successfully ... ok
 test test_db_migrate_exits_successfully ... ok
 test test_debug_agent_exits_successfully ... ok
-test test_completion_all_shells_valid ... ok
+test test_db_init_exits_successfully ... ok
 test test_debug_config_exits_successfully ... ok
 test test_debug_help_shows_options ... ok
 test test_debug_lsp_exits_successfully ... ok
-test test_list_with_all ... ok
+test test_completion_all_shells_valid ... ok
 test test_invalid_flag_shows_error ... ok
-test test_list_with_json ... ok
-test test_palette_execute_requires_command ... ok
 test test_list_with_limit ... ok
+test test_list_with_all ... ok
+test test_list_with_json ... ok
 test test_palette_execute_with_command ... ok
-test test_palette_help_shows_options ... ok
+test test_palette_execute_requires_command ... ok
 test test_palette_open_exits_successfully ... ok
-test test_palette_recent ... ok
-test test_help_with_command ... ok
-test test_palette_recent_json ... ok
+test test_palette_help_shows_options ... ok
 test test_palette_search_json ... ok
+test test_palette_recent ... ok
 test test_palette_search_with_query ... ok
-test test_bash_failing_command ... ok
-test test_permissions_grant_requires_path ... ok
+test test_palette_recent_json ... ok
 test test_permissions_grant_with_path ... ok
-test test_bash_simple_command ... ok
-test test_bash_requires_command ... ok
-test test_bash_with_timeout ... ok
+test test_permissions_grant_requires_path ... ok
 test test_palette_search_without_args ... ok
-test test_bash_failing_command_with_json ... ok
 test test_permissions_list ... ok
-test test_permissions_no_action_fails ... ok
-test test_shortcuts_exec_with_shortcut ... ok
-test test_shortcuts_help_shows_options ... ok
+test test_help_with_command ... ok
+test test_bash_failing_command ... ok
+test test_bash_failing_command_with_json ... ok
+test test_bash_simple_command ... ok
 test test_shortcuts_exec_requires_shortcut ... ok
-test test_permissions_revoke_with_path ... ok
-test test_bash_with_json ... ok
-test test_permissions_revoke_requires_path ... ok
+test test_permissions_no_action_fails ... ok
 test test_permissions_list_json ... ok
-test test_shortcuts_set_requires_args ... ok
-test test_shortcuts_reset_with_command ... ok
+test test_permissions_revoke_requires_path ... ok
+test test_bash_with_json ... ok
+test test_bash_with_timeout ... ok
 test test_shortcuts_list ... ok
+test test_permissions_revoke_with_path ... ok
+test test_shortcuts_help_shows_options ... ok
+test test_shortcuts_exec_with_shortcut ... ok
+test test_shortcuts_set_requires_args ... ok
 test test_shortcuts_list_json ... ok
-test test_stats_json ... ok
-test test_shortcuts_set_with_args ... ok
 test test_stats_exits_successfully ... ok
 test test_shortcuts_reset_without_args ... ok
+test test_shortcuts_reset_with_command ... ok
+test test_stats_json ... ok
 test test_stats_short_flag ... ok
+test test_shortcuts_set_with_args ... ok
 test test_version_flag_takes_precedence ... ok
 
-test result: ok. 56 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.87s
+test result: ok. 56 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.10s
 
      Running tests/cli_contract.rs (target/debug/deps/cli_contract-27121e5d9b45b245)
 
 running 40 tests
-    Finished `release` profile [optimized] target(s) in 0.27s
+    Finished `release` profile [optimized] target(s) in 0.23s
 test cli_contract_config_show_matches_opencode_cli_format ... ok
 test cli_contract_config_json_exits_with_code_zero ... ok
-test cli_contract_config_show_contains_config_path ... ok
-test cli_contract_config_exits_with_code_zero ... ok
-test cli_contract_config_json_output_is_valid_json ... ok
-test cli_contract_help_contains_required_sections ... ok
-test cli_contract_config_show_exits_with_code_zero ... ok
 test cli_contract_config_show_output_goes_to_stdout_not_stderr ... ok
-test cli_contract_help_output_goes_to_stdout_not_stderr ... ok
+test cli_contract_config_exits_with_code_zero ... ok
+test cli_contract_config_show_exits_with_code_zero ... ok
+test cli_contract_config_json_output_is_valid_json ... ok
+test cli_contract_config_show_contains_config_path ... ok
+test cli_contract_help_contains_required_sections ... ok
 test cli_contract_help_shows_tui_as_default_command ... ok
-test cli_contract_help_exits_with_code_zero ... ok
+test cli_contract_help_output_goes_to_stdout_not_stderr ... ok
+test cli_contract_invalid_option_shows_help_suggestion ... ok
+test cli_contract_config_show_output_format_lines_consistent ... ok
 test cli_contract_help_output_matches_expected_format ... ok
 test cli_contract_invalid_option_does_not_panic ... ok
-test cli_contract_invalid_option_exits_with_nonzero_code ... ok
-test cli_contract_config_show_output_format_lines_consistent ... ok
-test cli_contract_invalid_option_shows_help_suggestion ... ok
+test cli_contract_help_exits_with_code_zero ... ok
 test cli_contract_invalid_option_error_message_format ... ok
-test cli_contract_config_show_output_format_is_stable ... ok
+test cli_contract_invalid_option_exits_with_nonzero_code ... ok
 test cli_contract_invalid_short_option_exits_with_nonzero_code ... ok
 test cli_contract_invalid_option_shows_usage_tip ... ok
 test cli_contract_verbose_flag_does_not_interfere_with_help ... ok
-test cli_contract_verbose_help_contains_expected_content ... ok
 test cli_contract_verbose_help_exits_with_code_zero ... ok
 test cli_contract_verbose_help_output_goes_to_stdout_not_stderr ... ok
+test cli_contract_verbose_help_contains_expected_content ... ok
+test cli_contract_config_show_output_format_is_stable ... ok
 test cli_contract_verbose_help_shows_verbose_flag_in_options ... ok
 test cli_contract_version_contains_three_version_components ... ok
-test cli_contract_workspace_help_exits_with_code_zero ... ok
-test cli_contract_version_output_goes_to_stdout_not_stderr ... ok
 test cli_contract_version_exits_with_code_zero ... ok
+test cli_contract_version_output_goes_to_stdout_not_stderr ... ok
+test cli_contract_workspace_help_exits_with_code_zero ... ok
 test cli_contract_version_format_matches_expected_pattern ... ok
-test cli_contract_verbose_help_matches_plain_help_output ... ok
-test common::tests::test_harness_setup ... ok
-test cli_contract_workspace_help_output_matches_expected_format ... ok
-test cli_contract_workspace_sessions_help_exits_with_code_zero ... ok
 test cli_contract_workspace_help_output_goes_to_stdout_not_stderr ... ok
-test cli_contract_workspace_help_shows_workspace_as_title ... ok
+test common::tests::test_harness_setup ... ok
+test cli_contract_verbose_help_matches_plain_help_output ... ok
+test cli_contract_workspace_help_output_matches_expected_format ... ok
 test cli_contract_workspace_help_shows_available_subcommands ... ok
+test cli_contract_workspace_sessions_help_exits_with_code_zero ... ok
+test cli_contract_workspace_help_shows_workspace_as_title ... ok
 test cli_contract_workspace_sessions_help_output_goes_to_stdout ... ok
 test cli_contract_version_is_stable_across_runs ... ok
 test cli_contract_invalid_option_various_patterns ... ok
 
-test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.64s
+test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.65s
 
      Running tests/cli_signal_tests.rs (target/debug/deps/cli_signal_tests-59179c862dd90ca7)
 
 running 19 tests
-    Finished `release` profile [optimized] target(s) in 0.28s
+    Finished `release` profile [optimized] target(s) in 0.22s
 test common::tests::test_harness_setup ... ok
-config show stdout: Config path: /var/folders/nz/6ybnjjls2rnc1wr5vjwlv8q00000gn/T/.tmpPEzZBR/config/config.json
+config show stdout: Config path: /var/folders/nz/6ybnjjls2rnc1wr5vjwlv8q00000gn/T/.tmpGLIWjg/config/config.json
 
-test test_invalid_argument_combination_rejected ... ok
 test test_config_show_command ... ok
-test test_agent_help_flag_shows_agent_usage ... ok
-test test_help_flag_shows_usage ... ok
 test test_ndjson_output_format ... ok
+test test_agent_help_flag_shows_agent_usage ... ok
 config get stderr: error: unexpected argument 'model' found
 
 Usage: opencode-rs config [OPTIONS] [VALUE]
 
 For more information, try '--help'.
 
-test test_json_output_format ... ok
 test test_config_get_command ... ok
+test test_help_flag_shows_usage ... ok
+test test_invalid_argument_combination_rejected ... ok
+test test_json_output_format ... ok
 test test_no_ansi_flag_produces_clean_output ... ok
-test test_run_help_flag_shows_run_usage ... ok
-test test_run_command_with_empty_stdin_completes ... ok
 test test_non_tty_stdin_does_not_trigger_interactive_mode ... ok
-test test_session_help_flag_shows_session_usage ... ok
 test test_run_command_with_broken_pipe ... ok
+test test_run_command_with_empty_stdin_completes ... ok
+test test_session_help_flag_shows_session_usage ... ok
+test test_run_help_flag_shows_run_usage ... ok
 test test_version_flag_shows_version ... ok
-test test_sigterm_during_run_command_exits_cleanly ... ok
 test test_sigint_during_run_command_exits_cleanly ... ok
+test test_sigterm_during_run_command_exits_cleanly ... ok
 test test_acp_status_command ... ok
 info stderr: Warning: LLM provider not initialized: No API key found. Set OPENCODE_API_KEY or OPENAI_API_KEY
 Error running TUI: Failed to initialize input reader
@@ -2657,56 +1833,56 @@ Error running TUI: Failed to initialize input reader
 info stdout: [1 q[?25h[2J[17;90H[;m┌Welcome to OpenCode───────────────────────────────────────┐[18;90H│[;mVersion [1m[;m0.1.0[18;149H[22m[;m│[19;90H│[19;149H│[20;90H│[;mModel: [;mNot configured[20;114H[;m|[20;117H[;mDir: [;m.[20;149H│[21;90H│[21;149H│[22;90H│[;mSessions: [1m[;m0[22;104H[22m[;m|[22;107H[;mMessages: [1m[;m0[22;149H[22m[;m│[23;90H│[23;149H│[24;90H│[1m[;mQuick Actions[24;149H[22m[;m│[25;90H│[1m[;m[n] [;mNew Session[25;149H[22m[;m│[26;90H│[1m[;m[c] [22m[;mContinue Last Session[26;149H[;m│[27;90H│[1m[;m[s] [22m[;mView All Sessions[27;149H[;m│[28;90H│[1m[;m[,] [22m[;mSettings[28;149H[;m│[29;90H│[1m[;m[q] [22m[;mQuit[29;149H[;m│[30;90H│[30;149H│[31;90H│[1m[;mRecent Sessions[31;149H[22m[;m│[32;90H│[;mNo recent sessions[32;149H[;m│[33;90H│[33;149H│[34;90H│[34;149H│[35;90H│[35;149H│[36;90H│[36;149H│[37;90H│[37;149H│[38;90H│[38;149H│[39;90H│[39;149H│[40;90H│[40;149H│[41;90H[;mTab[;m Switch section [;m↑↓[;m Navigate [;mEnter[;m Select [;mEsc[;m Start chatti[m[m[m[0m[?25l[?25h
 test test_info_command_displays_version ... ok
 
-test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.79s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s
 
      Running tests/common.rs (target/debug/deps/common-4c59bc80e7a259a1)
 
 running 1 test
-    Finished `release` profile [optimized] target(s) in 0.28s
+    Finished `release` profile [optimized] target(s) in 0.22s
 test tests::test_harness_setup ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
 
      Running tests/completion.rs (target/debug/deps/completion-fa2e4c9eb4edffbf)
 
 running 10 tests
-    Finished `release` profile [optimized] target(s) in 0.27s
+    Finished `release` profile [optimized] target(s) in 0.22s
 test common::tests::test_harness_setup ... ok
 test test_bash_completion_includes_all_cli_commands ... ok
-test test_fish_completion_generates_valid_script ... ok
-test test_fish_completion_includes_all_cli_commands ... ok
-test test_powershell_completion_generates_valid_script ... ok
-test test_powershell_completion_includes_all_cli_commands ... ok
 test test_bash_completion_generates_valid_script ... ok
+test test_fish_completion_generates_valid_script ... ok
 test test_completion_bash_is_default ... ok
+test test_powershell_completion_includes_all_cli_commands ... ok
+test test_powershell_completion_generates_valid_script ... ok
 test test_zsh_completion_includes_all_cli_commands ... ok
 test test_zsh_completion_generates_valid_script ... ok
+test test_fish_completion_includes_all_cli_commands ... ok
 
-test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.62s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.71s
 
      Running tests/e2e_command_palette.rs (target/debug/deps/e2e_command_palette-6a0b8a5873edf7b9)
 
 running 5 tests
-    Finished `release` profile [optimized] target(s) in 0.26s
+    Finished `release` profile [optimized] target(s) in 0.22s
 test common::tests::test_harness_setup ... ok
+test test_command_palette_execute ... ok
 test test_command_palette_open ... ok
 test test_command_palette_search ... ok
-test test_command_palette_execute ... ok
 test test_command_palette_recent ... ok
 
-test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.71s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.70s
 
      Running tests/e2e_core_flow.rs (target/debug/deps/e2e_core_flow-7733b95493c6af64)
 
 running 15 tests
+test acp_handshake_connection_establishes_correctly ... ok
 test acp_handshake_confirm_rejected_when_not_confirmed ... ok
+test acp_handshake_invalid_version_rejected ... ok
+test acp_handshake_different_client_ids ... ok
 test acp_handshake_confirm_rejected_with_empty_session ... ok
 test acp_handshake_capabilities_negotiated_properly ... ok
-test acp_handshake_invalid_version_rejected ... ok
 test acp_handshake_confirm_with_valid_session ... ok
-test acp_handshake_connection_establishes_correctly ... ok
-test acp_handshake_different_client_ids ... ok
-    Finished `release` profile [optimized] target(s) in 0.27s
+    Finished `release` profile [optimized] target(s) in 0.23s
 test common::tests::test_harness_setup ... ok
 test test_cli_account_status ... ok
 test test_cli_mcp_list ... ok
@@ -2716,7 +1892,7 @@ test test_cli_list_sessions ... ok
 test test_cli_providers_openai_browser_login_action ... ok
 test test_cli_providers_list ... ok
 
-test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.76s
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.72s
 
      Running tests/e2e_desktop_web_smoke.rs (target/debug/deps/e2e_desktop_web_smoke-0f5e0f4c1ef76515)
 
@@ -2725,26 +1901,61 @@ test test_dynamic_port_allocation_returns_valid_tcp_port ... ok
 test test_dynamic_allocation_not_hardcoded_to_single_port ... ok
 test desktop_web_session_sharing_via_share_server ... ok
 test test_find_available_port_with_retry_returns_valid_port ... ok
-    Finished `release` profile [optimized] target(s) in 0.27s
+    Finished `release` profile [optimized] target(s) in 0.22s
 test common::tests::test_harness_setup ... ok
 test desktop_command_help_shows_options ... ok
 test web_command_help_shows_options ... ok
+test test_parallel_desktop_web_instances_no_port_conflict ... ok
 test desktop_smoke_starts_without_error ... ok
 test web_smoke_starts_without_error ... ok
-test test_parallel_desktop_web_instances_no_port_conflict ... ok
 test desktop_web_different_ports ... ok
 
-test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.26s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.91s
 
      Running tests/e2e_file_management.rs (target/debug/deps/e2e_file_management-6b0998b4bf34f3ce)
 
 running 5 tests
+    Finished `release` profile [optimized] target(s) in 0.22s
+test common::tests::test_harness_setup ... ok
+test test_file_read_content ... ok
+test test_file_filter_by_extension ... ok
+test test_file_search ... ok
+test test_file_tree_navigation ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.68s
+
+     Running tests/e2e_github_integration.rs (target/debug/deps/e2e_github_integration-056d02d8561c5bce)
+
+running 16 tests
+test test_github_help_shows_all_commands ... ok
+test test_github_install_requires_owner ... ok
+test test_github_issue_list_requires_token ... ok
+test test_github_issue_list_invalid_repo_format ... ok
+test test_github_integration_repo_list_filters_pull_requests ... ok
+test test_github_issue_list_displays_author ... ok
+test test_github_integration_returns_api_error ... ok
+test test_github_issue_list_empty_response ... ok
+test test_github_integration_unauthorized ... ok
+test test_github_workflow_requires_owner ... ok
+test test_github_repo_list_requires_token ... ok
+test test_github_workflow_generates_yaml ... ok
+test test_github_repo_list_empty_response ... ok
+test test_github_repo_list_displays_visibility ... ok
+test test_github_install_with_token_flag ... ok
+test test_github_login_starts_oauth_flow ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 31.23s
+
+     Running tests/e2e_keyboard_shortcuts.rs (target/debug/deps/e2e_keyboard_shortcuts-345b0ad0f859c6c9)
+
+running 5 tests
+   Compiling opencode-config v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/config)
    Compiling opencode-core v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/core)
    Compiling opencode-tools v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/tools)
-   Compiling opencode-llm v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/llm)
    Compiling opencode-storage v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/storage)
-   Compiling opencode-control-plane v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/control-plane)
+   Compiling opencode-llm v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/llm)
    Compiling opencode-lsp v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/lsp)
+   Compiling opencode-control-plane v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/control-plane)
    Compiling opencode-git v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/git)
    Compiling opencode-auth v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/auth)
    Compiling opencode-mcp v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/mcp)
@@ -2753,677 +1964,3 @@ running 5 tests
    Compiling opencode-tui v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/tui)
    Compiling opencode-server v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/server)
    Compiling opencode-cli v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/cli)
-    Finished `release` profile [optimized] target(s) in 58.57s
-test common::tests::test_harness_setup ... ok
-test test_file_filter_by_extension has been running for over 60 seconds
-test test_file_read_content has been running for over 60 seconds
-test test_file_search has been running for over 60 seconds
-test test_file_tree_navigation has been running for over 60 seconds
-test test_file_read_content ... ok
-test test_file_search ... ok
-test test_file_filter_by_extension ... ok
-test test_file_tree_navigation ... ok
-
-test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 62.05s
-
-     Running tests/e2e_github_integration.rs (target/debug/deps/e2e_github_integration-056d02d8561c5bce)
-
-running 16 tests
-test test_github_issue_list_invalid_repo_format ... ok
-test test_github_help_shows_all_commands ... ok
-test test_github_issue_list_requires_token ... ok
-test test_github_integration_returns_api_error ... ok
-test test_github_integration_repo_list_filters_pull_requests ... ok
-test test_github_integration_unauthorized ... ok
-test test_github_install_requires_owner ... ok
-test test_github_issue_list_empty_response ... ok
-test test_github_issue_list_displays_author ... ok
-test test_github_workflow_generates_yaml ... ok
-test test_github_workflow_requires_owner ... ok
-test test_github_repo_list_requires_token ... ok
-test test_github_repo_list_empty_response ... ok
-test test_github_repo_list_displays_visibility ... ok
-test test_github_install_with_token_flag ... ok
-test test_github_login_starts_oauth_flow ... ok
-
-test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 26.68s
-
-     Running tests/e2e_keyboard_shortcuts.rs (target/debug/deps/e2e_keyboard_shortcuts-345b0ad0f859c6c9)
-
-running 5 tests
-   Compiling opencode-storage v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/storage)
-   Compiling opencode-auth v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/auth)
-   Compiling opencode-server v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/server)
-   Compiling opencode-tui v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/tui)
-   Compiling opencode-cli v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/cli)
-    Finished `release` profile [optimized] target(s) in 54.18s
-test common::tests::test_harness_setup ... ok
-test test_keyboard_shortcut_execute ... ok
-test test_keyboard_shortcut_display ... ok
-test test_keyboard_shortcut_reset ... ok
-test test_keyboard_shortcut_custom ... ok
-
-test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 54.50s
-
-     Running tests/e2e_model_visibility.rs (target/debug/deps/e2e_model_visibility-457a30a39901c9d3)
-
-running 4 tests
-    Finished `release` profile [optimized] target(s) in 0.52s
-test common::tests::test_harness_setup ... ok
-test test_model_visibility_list_hidden ... ok
-test test_model_visibility_hide_show ... ok
-test test_model_visibility_show_restores ... ok
-
-test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.31s
-
-     Running tests/e2e_model_workflows.rs (target/debug/deps/e2e_model_workflows-c7b40bbc0b988547)
-
-running 14 tests
-    Finished `release` profile [optimized] target(s) in 0.41s
-test common::tests::test_harness_setup ... ok
-test test_tui_close_model_dialog_returns_closed_status ... ok
-test test_tui_cancel_model_switch_without_existing_selection_returns_null_active_model ... ok
-test test_model_selection_dialog ... ok
-test test_tui_unknown_action_returns_explicit_error ... ok
-test test_provider_connection_error ... ok
-test test_provider_list_contains_real_status_fields ... ok
-test test_tui_confirm_model_switch_requires_model_argument ... ok
-test test_models_list_contains_registry_fields ... ok
-test test_tui_confirm_model_switch_rejects_unknown_model ... ok
-test test_model_switch ... ok
-test test_tui_confirm_model_switch_persists_selection ... ok
-test test_tui_cancel_model_switch_ignores_invalid_pending_model ... ok
-test test_tui_cancel_model_switch_keeps_existing_selection ... ok
-
-test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.03s
-
-     Running tests/e2e_plugin.rs (target/debug/deps/e2e_plugin-d449508985273dd4)
-
-running 8 tests
-    Finished `release` profile [optimized] target(s) in 0.50s
-test common::tests::test_harness_setup ... ok
-test test_plugin_list_shows_installed_plugins ... ok
-test test_plugin_install_already_installed_fails ... ok
-test test_plugin_install_persists_to_config ... ok
-test test_plugin_remove_removes_from_config ... ok
-test test_plugin_search_filters_by_query ... ok
-test test_plugin_search_with_no_query_returns_all_discovered ... ok
-test test_plugin_remove_nonexistent_fails ... ok
-
-test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.04s
-
-     Running tests/e2e_projects_edit.rs (target/debug/deps/e2e_projects_edit-e0da7a175bd86888)
-
-running 4 tests
-    Finished `release` profile [optimized] target(s) in 0.28s
-test common::tests::test_harness_setup ... ok
-test test_project_edit_settings ... ok
-test test_project_rename ... ok
-test test_project_edit_description ... ok
-
-test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.70s
-
-     Running tests/e2e_projects_management.rs (target/debug/deps/e2e_projects_management-f1518dcd87a871c7)
-
-running 5 tests
-    Finished `release` profile [optimized] target(s) in 0.49s
-test common::tests::test_harness_setup ... ok
-test test_project_create ... ok
-test test_project_list ... ok
-test test_project_delete ... ok
-test test_project_switch ... ok
-
-test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.11s
-
-     Running tests/e2e_projects_workspace.rs (target/debug/deps/e2e_projects_workspace-bcbc90e2eb8169a9)
-
-running 4 tests
-    Finished `release` profile [optimized] target(s) in 0.37s
-test common::tests::test_harness_setup ... ok
-test test_workspace_context ... ok
-test test_workspace_new_session ... ok
-test test_workspace_persistence ... ok
-
-test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.90s
-
-     Running tests/e2e_prompt_async.rs (target/debug/deps/e2e_prompt_async-4b72cffba775195b)
-
-running 4 tests
-    Finished `release` profile [optimized] target(s) in 0.42s
-test common::tests::test_harness_setup ... ok
-test test_prompt_async_submit_while_processing ... ok
-test test_prompt_async_cancel ... ok
-test test_prompt_async_queue ... ok
-
-test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.65s
-
-     Running tests/e2e_prompt_history.rs (target/debug/deps/e2e_prompt_history-9dbcf9c02dfaeeea)
-
-running 5 tests
-    Finished `release` profile [optimized] target(s) in 0.34s
-test common::tests::test_harness_setup ... ok
-test test_prompt_history_up_navigation ... ok
-test test_prompt_history_persistence ... ok
-test test_prompt_history_navigation ... ok
-test test_prompt_history_down_navigation ... ok
-
-test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.92s
-
-     Running tests/e2e_prompt_mentions.rs (target/debug/deps/e2e_prompt_mentions-273b8960669abb6e)
-
-running 5 tests
-    Finished `release` profile [optimized] target(s) in 0.30s
-test common::tests::test_harness_setup ... ok
-test test_prompt_mention_multiple ... ok
-test test_prompt_mention_file ... ok
-test test_prompt_mention_agent ... ok
-test test_prompt_mention_session ... ok
-
-test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.78s
-
-     Running tests/e2e_prompt_multiline.rs (target/debug/deps/e2e_prompt_multiline-9e3b75ae29e28ba6)
-
-running 4 tests
-    Finished `release` profile [optimized] target(s) in 0.26s
-test common::tests::test_harness_setup ... ok
-test test_prompt_multiline_submit ... ok
-test test_prompt_multiline_with_code ... ok
-test test_prompt_multiline_input ... ok
-
-test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s
-
-     Running tests/e2e_prompt_shell.rs (target/debug/deps/e2e_prompt_shell-4854836edec2ead8)
-
-running 5 tests
-    Finished `release` profile [optimized] target(s) in 0.27s
-test common::tests::test_harness_setup ... ok
-test test_prompt_shell_command ... ok
-test test_prompt_shell_in_terminal_panel ... ok
-test test_prompt_shell_with_args ... ok
-test test_prompt_shell_output_displayed ... ok
-
-test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.75s
-
-     Running tests/e2e_prompt_submission.rs (target/debug/deps/e2e_prompt_submission-dd5c9d331b11909a)
-
-running 5 tests
-    Finished `release` profile [optimized] target(s) in 0.26s
-test common::tests::test_harness_setup ... ok
-test test_prompt_with_context ... ok
-test test_prompt_empty_content ... ok
-test test_prompt_submission ... ok
-test test_prompt_cancellation ... ok
-
-test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.72s
-
-     Running tests/e2e_quick_actions.rs (target/debug/deps/e2e_quick_actions-db57cbb1caa9b3a0)
-
-running 5 tests
-    Blocking waiting for file lock on package cache
-    Finished `release` profile [optimized] target(s) in 0.28s
-test common::tests::test_harness_setup ... ok
-test test_quick_action_open_settings ... ok
-test test_quick_action_toggle_sidebar ... ok
-test test_quick_action_switch_model ... ok
-test test_quick_action_new_session ... ok
-
-test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.76s
-
-     Running tests/e2e_run_command.rs (target/debug/deps/e2e_run_command-ceef822c48729a59)
-
-running 2 tests
-    Finished `release` profile [optimized] target(s) in 0.37s
-test common::tests::test_harness_setup ... ok
-test test_run_prompt_mode_returns_structured_output ... ok
-
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.85s
-
-     Running tests/e2e_session_persistence.rs (target/debug/deps/e2e_session_persistence-aa789489926c4bb8)
-
-running 5 tests
-    Finished `release` profile [optimized] target(s) in 0.34s
-test common::tests::test_harness_setup ... ok
-test test_session_persistence_after_reload ... ok
-test test_session_list_shows_all_sessions ... ok
-test test_session_delete_removes_session ... ok
-test test_session_show_by_id ... ok
-
-test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.39s
-
-     Running tests/e2e_session_sharing.rs (target/debug/deps/e2e_session_sharing-cf703ea6a19f2d8c)
-
-running 6 tests
-test test_session_sharing_multiple_sessions ... ok
-test test_session_sharing_unique_ids ... ok
-test test_session_sharing_serialization_roundtrip ... ok
-test test_session_sharing_state_sync ... ok
-test test_session_sharing_message_content_preserved ... ok
-    Finished `release` profile [optimized] target(s) in 0.44s
-test common::tests::test_harness_setup ... ok
-
-test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
-
-     Running tests/e2e_session_undo_redo.rs (target/debug/deps/e2e_session_undo_redo-564ba047edf2d071)
-
-running 8 tests
-    Finished `release` profile [optimized] target(s) in 0.73s
-test common::tests::test_harness_setup ... ok
-test test_session_redo_nothing ... ok
-test test_session_undo_nothing ... ok
-test test_session_undo_persistence ... ok
-test test_session_undo_redo_clears_redo_history ... ok
-test test_session_redo_after_undo ... ok
-test test_session_undo_single_message ... ok
-test test_session_undo_multiple_messages ... ok
-
-test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.88s
-
-     Running tests/e2e_session_workflows.rs (target/debug/deps/e2e_session_workflows-614e30d93b7d0723)
-
-running 7 tests
-    Finished `release` profile [optimized] target(s) in 0.48s
-test common::tests::test_harness_setup ... ok
-test test_session_create_new ... ok
-test test_session_share ... ok
-test test_session_list ... ok
-test test_session_resume ... ok
-test test_session_persistence ... ok
-test test_session_fork ... ok
-
-test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s
-
-     Running tests/e2e_settings_workflows.rs (target/debug/deps/e2e_settings_workflows-4d9de9889eb49665)
-
-running 6 tests
-    Finished `release` profile [optimized] target(s) in 0.75s
-test common::tests::test_harness_setup ... ok
-test test_settings_models ... ok
-test test_settings_providers ... ok
-test test_settings_keybinds ... ok
-test test_settings_validation ... ok
-test test_settings_general ... ok
-
-test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.48s
-
-     Running tests/e2e_sharing_modes.rs (target/debug/deps/e2e_sharing_modes-2d79a0347ab6862c)
-
-running 12 tests
-test test_access_control_is_properly_enforced_collaborative ... ok
-test test_read_only_sharing_mode_works ... ok
-test test_collaborative_mode_supports_concurrent_access ... ok
-test test_add_allowed_operation_extends_permissions ... ok
-test test_access_control_is_properly_enforced_read_only ... ok
-test test_manual_mode_allows_read_only ... ok
-test test_disabled_mode_denies_all_operations ... ok
-test test_access_control_is_properly_enforced_controlled ... ok
-test test_controlled_mode_access_control ... ok
-test test_sharing_modes_serialization ... ok
-test test_update_share_mode_changes_permissions ... ok
-    Finished `release` profile [optimized] target(s) in 0.71s
-test common::tests::test_harness_setup ... ok
-
-test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.94s
-
-     Running tests/e2e_sidebar.rs (target/debug/deps/e2e_sidebar-6984ad705601a15a)
-
-running 4 tests
-    Finished `release` profile [optimized] target(s) in 0.71s
-test common::tests::test_harness_setup ... ok
-test test_sidebar_toggle ... ok
-test test_sidebar_sessions_list ... ok
-test test_sidebar_recent_sessions ... ok
-
-test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.28s
-
-     Running tests/e2e_terminal.rs (target/debug/deps/e2e_terminal-3eb89c58ed3fadab)
-
-running 5 tests
-    Finished `release` profile [optimized] target(s) in 0.69s
-test common::tests::test_harness_setup ... ok
-test test_terminal_close_tab ... ok
-test test_terminal_panel_open ... ok
-test test_terminal_list_tabs ... ok
-test test_terminal_execute_command ... ok
-
-test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.37s
-
-     Running tests/e2e_terminal_workflows.rs (target/debug/deps/e2e_terminal_workflows-5973f17ccd856a99)
-
-running 5 tests
-    Finished `release` profile [optimized] target(s) in 0.50s
-test common::tests::test_harness_setup ... ok
-test test_terminal_interactive_detection ... ok
-test test_terminal_output ... ok
-test test_terminal_execute ... ok
-test test_terminal_timeout ... ok
-
-test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.15s
-
-     Running tests/e2e_web_server.rs (target/debug/deps/e2e_web_server-090f69eb60d40b6e)
-
-running 11 tests
-test test_web_server_session_sharing_enabled ... ok
-test test_web_server_session_sharing_between_instances ... ok
-test test_web_server_session_persistence ... ok
-    Finished `release` profile [optimized] target(s) in 0.34s
-test common::tests::test_harness_setup ... ok
-test test_web_command_help_shows_web_options ... ok
-test test_web_server_endpoints_defined_in_help ... ok
-test test_web_server_starts_on_default_port ... ok
-test test_web_server_multiple_instances_different_ports ... ok
-test test_web_server_custom_hostname ... ok
-test test_web_server_starts_on_specified_port ... ok
-test test_web_server_health_endpoint ... ok
-
-test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.99s
-
-     Running unittests src/lib.rs (target/debug/deps/opencode_config-8a092dc818eaee8e)
-
-running 245 tests
-test directory_scanner::tests::test_is_tool_file ... ok
-test directory_scanner::tests::test_resolve_theme_path_with_json_suffix ... ok
-test directory_scanner::tests::test_resolve_theme_path ... ok
-test directory_scanner::tests::test_resolve_theme_path_not_found ... ok
-test directory_scanner::tests::test_scan_plugins ... ok
-test directory_scanner::tests::test_scan_agents ... ok
-test directory_scanner::tests::test_scan_skills_nonexistent_dir ... ok
-test directory_scanner::tests::test_scan_commands_pattern_no_match ... ok
-test directory_scanner::tests::test_scan_commands ... ok
-test directory_scanner::tests::test_scan_commands_with_pattern ... ok
-test directory_scanner::tests::test_scan_skills ... ok
-test directory_scanner::tests::test_scan_skills_no_skill_md ... ok
-test directory_scanner::tests::test_scan_modes_no_frontmatter ... ok
-test directory_scanner::tests::test_scan_tools_invalid_regex ... ok
-test directory_scanner::tests::test_scan_themes ... ok
-test jsonc::tests::test_error_type_is_jsonc_error ... ok
-test jsonc::tests::test_invalid_json_syntax_error_message ... ok
-test jsonc::tests::test_is_jsonc_extension ... ok
-test jsonc::tests::test_invalid_jsonc_produces_clear_error ... ok
-test jsonc::tests::test_json_value_to_serde_value_boolean ... ok
-test jsonc::tests::test_json_value_to_serde_value_null ... ok
-test jsonc::tests::test_jsonc_error_extract_source_line ... ok
-test jsonc::tests::test_json_value_to_serde_value_string ... ok
-test jsonc::tests::test_json_value_to_serde_value_object ... ok
-test jsonc::tests::test_jsonc_error_extract_source_line_empty_source ... ok
-test directory_scanner::tests::test_scan_modes_with_frontmatter ... ok
-test jsonc::tests::test_jsonc_error_extract_source_line_line_zero ... ok
-test jsonc::tests::test_jsonc_error_generate_context_brace ... ok
-test jsonc::tests::test_jsonc_error_generate_context_bracket ... ok
-test jsonc::tests::test_jsonc_error_generate_context_comment ... ok
-test jsonc::tests::test_jsonc_error_generate_context_default ... ok
-test jsonc::tests::test_jsonc_error_generate_context_double_quote ... ok
-test jsonc::tests::test_jsonc_error_generate_context_invalid_escape ... ok
-test directory_scanner::tests::test_scan_all ... ok
-test jsonc::tests::test_jsonc_error_generate_context_missing_colon ... ok
-test jsonc::tests::test_jsonc_error_generate_context_missing_comma ... ok
-test jsonc::tests::test_jsonc_error_generate_context_trailing_comma ... ok
-test jsonc::tests::test_jsonc_error_generate_context_unexpected_token ... ok
-test jsonc::tests::test_jsonc_error_generate_context_unterminated_string ... ok
-test jsonc::tests::test_jsonc_error_io_with_file_path ... ok
-test jsonc::tests::test_jsonc_error_with_source ... ok
-test jsonc::tests::test_jsonc_error_with_file_path ... ok
-test jsonc::tests::test_mixed_comments_invalid_json_after_stripping ... ok
-test jsonc::tests::test_parse_jsonc_file_not_found ... ok
-test jsonc::tests::test_parse_jsonc_with_comments ... ok
-test jsonc::tests::test_preserve_strings_with_slashes ... ok
-test jsonc::tests::test_strip_jsonc_comments_empty_string ... ok
-test jsonc::tests::test_strip_jsonc_comments_escaped_quote ... ok
-test jsonc::tests::test_strip_jsonc_comments_no_comments ... ok
-test jsonc::tests::test_strip_jsonc_comments_multiline_at_end ... ok
-test jsonc::tests::test_strip_jsonc_comments_string_with_slashes ... ok
-test jsonc::tests::test_strip_jsonc_only_slash ... ok
-test jsonc::tests::test_strip_multi_line_comments ... ok
-test jsonc::tests::test_strip_single_line_comments ... ok
-test jsonc::tests::test_unterminated_multiline_comment_error ... ok
-test jsonc::tests::test_parse_jsonc_file ... ok
-test merge::tests::test_deep_merge_non_objects ... ok
-test merge::tests::test_deep_merge_arrays_replace ... ok
-test merge::tests::test_deep_merge_objects ... ok
-test merge::tests::test_deep_merge_same_type_allowed ... ok
-test merge::tests::test_deep_merge_type_conflict_array_to_object ... ok
-test merge::tests::test_deep_merge_type_conflict_object_to_primitive ... ok
-test merge::tests::test_deep_merge_type_conflict_nested ... ok
-test jsonc::tests::test_parse_jsonc_file_with_comments ... ok
-test merge::tests::test_deep_merge_type_conflict_primitive_to_object ... ok
-test remote_cache::tests::cache_expiration_check ... ok
-test remote_cache::tests::test_build_remote_url ... ok
-test merge::tests::test_merge_configs_returns_error_on_type_conflict ... ok
-test schema::tests::cache_file_name_invalid_url ... ok
-test schema::tests::cache_file_name_with_special_chars ... ok
-test schema::tests::cache_file_name_no_extension ... ok
-test schema::tests::cache_file_name_with_url ... ok
-test remote_cache::tests::cache_roundtrip ... ok
-test schema::tests::find_similar_field_exact_match ... ok
-test schema::tests::find_similar_field_typo_loglevel ... ok
-test schema::tests::get_builtin_schema_returns_valid_json ... ok
-test schema::tests::find_similar_field_no_match ... ok
-test schema::tests::find_similar_field_typo_server ... ok
-test schema::tests::cache_round_trip_works ... ok
-test schema::tests::levenshtein_distance_complete_change ... ok
-test schema::tests::levenshtein_distance_same ... ok
-test schema::tests::levenshtein_distance_one_char ... ok
-test schema::tests::levenshtein_distance_empty ... ok
-test schema::tests::pointer_to_path_empty ... ok
-test schema::tests::pointer_to_path_nested ... ok
-test schema::tests::pointer_to_path_simple ... ok
-test directory_scanner::tests::test_scan_tools_no_name_in_export ... ok
-test schema::tests::pointer_to_path_with_tilde ... ok
-test directory_scanner::tests::test_scan_tools_javascript ... ok
-test schema::tests::pointer_to_path_with_tilde_encoding ... ok
-test schema::tests::schema_error_display ... ok
-test schema::tests::schema_validation_error_struct ... ok
-test schema::tests::schema_fallback_on_malformed_builtin_schema ... ok
-test schema::tests::schema_validation_result_default ... ok
-test schema::tests::validate_tui_config_no_errors ... ok
-test schema::tests::validate_tui_config_scroll_acceleration_speed_excessive ... ok
-test schema::tests::validate_tui_config_scroll_acceleration_speed_negative ... ok
-test schema::tests::validate_tui_config_scroll_speed_excessively_high ... ok
-test schema::tests::validate_tui_config_scroll_speed_zero ... ok
-test schema::tests::schema_cache_dir_with_env_override ... ok
-test schema::tests::validate_tui_schema_keybinds_not_object ... ok
-test schema::tests::validate_tui_schema_reports_type_errors ... ok
-test schema::tests::validate_tui_schema_theme_not_object ... ok
-test schema::tests::validate_tui_schema_unknown_field ... ok
-test schema::tests::validate_tui_schema_valid_cases ... ok
-test schema::tests::validate_unknown_fields_nested_object_not_checked ... ok
-test schema::tests::validate_unknown_fields_lenient_with_typo ... ok
-test schema::tests::validate_unknown_fields_valid_config ... ok
-test schema::tests::validate_unknown_fields_strict_with_typo ... ok
-test secret_storage::tests::test_default_secrets_path_with_data_dir ... ok
-test secret_storage::tests::test_get_secret_invalid_json ... ok
-test secret_storage::tests::test_default_secrets_path_fallback ... ok
-test directory_scanner::tests::test_scan_tools_typescript ... ok
-test secret_storage::tests::test_get_secret_success ... ok
-test secret_storage::tests::test_get_secret_not_string_value ... ok
-test secret_storage::tests::test_secret_storage_error_display ... ok
-test secret_storage::tests::test_secret_not_found ... ok
-test secret_storage::tests::test_secret_storage_new ... ok
-test tests::test_acp_config_default ... ok
-test tests::test_agent_map_config_get_agent ... ok
-test secret_storage::tests::test_resolve_keychain_secret ... ok
-test schema::tests::validate_unknown_fields_strict_unknown_field ... ok
-test tests::test_agent_config_all_fields ... ok
-test secret_storage::tests::test_resolve_keychain_secret_not_found ... ok
-test tests::test_agent_map_config_get_default_agent_nonexistent ... ok
-test tests::test_agent_map_config_get_default_agent ... ok
-test tests::test_agents_md_config_to_scan_config ... ok
-test tests::test_agents_md_config_to_scan_defaults ... ok
-test tests::test_auto_update_serialization_bool ... ok
-test tests::test_auto_update_serialization_string ... ok
-test tests::test_cli_override_config ... ok
-test tests::test_command_config ... ok
-test tests::test_compaction_config ... ok
-test tests::test_config_batch_tool_enabled ... ok
-test tests::test_config_error_from_string ... ok
-test tests::test_config_get_disabled_tools_permission_action_deny ... ok
-test tests::test_config_get_disabled_tools_permission_extra ... ok
-test tests::test_config_get_disabled_tools_permission_object_deny ... ok
-test tests::test_config_get_provider ... ok
-test tests::test_config_get_provider_filter_none ... ok
-test tests::test_config_get_provider_filter ... ok
-test tests::test_config_is_valid ... ok
-test tests::test_config_is_not_valid ... ok
-test tests::test_config_migrate_from_ts_format_autoupdate_notify ... ok
-test tests::test_config_migrate_from_ts_format ... ok
-test tests::test_config_open_telemetry_enabled ... ok
-test directory_scanner::tests::test_scan_tools_multiple ... ok
-test tests::test_config_provider_enabled_empty_enabled_list ... ok
-test tests::test_config_load_nonexistent_file ... ok
-test tests::test_config_validate_agent_temperature_out_of_range ... ok
-test tests::test_config_validate_agent_top_p_out_of_range ... ok
-test tests::test_config_validate_compaction_reserved_high ... ok
-test tests::test_config_validate_disabled_and_enabled_conflict ... ok
-test tests::test_config_load_json5_file ... ok
-test tests::test_config_validate_model_without_slash ... ok
-test tests::test_config_validate_server_port_low ... ok
-test tests::test_config_validate_temperature_out_of_range ... ok
-test tests::test_contains_keychain_reference ... ok
-test tests::test_default_config ... ok
-test tests::test_content_hash_is_deterministic ... ok
-test tests::test_deprecated_mode_field_still_parses ... ok
-test tests::test_config_save_jsonc ... ok
-test tests::test_config_save_json ... ok
-test tests::test_deprecated_tools_empty_array ... ok
-test tests::test_deprecated_tools_field_migration_content ... ok
-test tests::test_deprecated_tools_field_migrates_to_permission ... ok
-test tests::test_deprecated_tools_field_still_parses ... ok
-test tests::test_deprecated_tools_merges_with_existing_permission ... ok
-test tests::test_deprecated_mode_field_emits_warning ... ok
-test tests::test_desktop_config_default ... ok
-test tests::test_deprecated_tools_preserves_other_fields ... ok
-test tests::test_config_save_creates_parent_dirs ... ok
-test tests::test_deprecated_tools_emits_warning ... ok
-test tests::test_deprecated_mode_agent_mode_field_emits_warning ... ok
-test tests::test_enterprise_config ... ok
-test tests::test_env_variable_expansion ... ok
-test tests::test_formatter_config_disabled ... ok
-test tests::test_experimental_config ... ok
-test tests::test_diff_style_serialization ... ok
-test tests::test_formatter_config_formatters ... ok
-test tests::test_deprecated_tools_migration_emits_warning ... ok
-test tests::test_jsonc_parsing_with_comments ... ok
-test tests::test_json_parsing ... ok
-test tests::test_keybind_config_detect_conflicts ... ok
-test tests::test_keybind_config_merge_custom ... ok
-test tests::test_keybind_config_merge_with_defaults ... ok
-test tests::test_keybind_config_no_conflicts ... ok
-test tests::test_log_level_serialization ... ok
-test tests::test_keybind_config_serialization ... ok
-test tests::test_lsp_config_disabled ... ok
-test tests::test_lsp_config_servers ... ok
-test tests::test_mcp_config_local ... ok
-test tests::test_mcp_config_remote ... ok
-test tests::test_mcp_config_simple ... ok
-test tests::test_mcp_oauth_union_config ... ok
-test tests::test_mcp_oauth_union_disabled ... ok
-test tests::test_model_config_extra ... ok
-test tests::test_permission_action_serialization ... ok
-test tests::test_permission_rule_action ... ok
-test tests::test_permission_rule_object ... ok
-test tests::test_precedence_cli_overrides_env ... ok
-test tests::test_precedence_provider_api_keys_from_env ... ok
-test tests::test_provider_config_sanitize_for_logging ... ok
-test tests::test_provider_enabled ... ok
-test tests::test_provider_options_sanitize_for_logging_redacts_api_key ... ok
-test tests::test_redact_keychain_references ... ok
-test tests::test_redact_keychain_references_multiple ... ok
-test tests::test_redact_keychain_references_no_match ... ok
-test tests::test_scroll_acceleration_default ... ok
-test tests::test_scroll_acceleration_deserialize_map ... ok
-test tests::test_scroll_acceleration_deserialize_map_unknown_key ... ok
-test tests::test_scroll_acceleration_from_f32 ... ok
-test tests::test_server_config_default ... ok
-test tests::test_share_mode_serialization ... ok
-test tests::test_share_mode_variants ... ok
-test tests::test_skills_config ... ok
-test tests::test_theme_config_resolve_path_not_exists ... ok
-test tests::test_theme_config_with_scan_dirs ... ok
-test tests::test_timeout_config_serialization ... ok
-test tests::test_theme_config_resolve_path_relative ... ok
-test tests::test_tui_config_default ... ok
-test tests::test_tui_config_deserialization ... ok
-test tests::test_theme_config_resolve_path_tilde ... ok
-test tests::test_tui_config_scroll_acceleration_legacy_number ... ok
-test tests::test_theme_config_resolve_path_absolute ... ok
-test tests::test_tui_plugin_config_default ... ok
-test tests::test_validate_runtime_no_tui_fields_empty ... ok
-test tests::test_validate_runtime_no_tui_fields_with_tui_fields ... ok
-test tests::test_validate_tui_config_no_runtime_fields ... ok
-test tests::test_validate_tui_config_with_runtime_fields ... ok
-test tests::test_validation_error_is_error ... ok
-test tests::test_validation_error_is_warning ... ok
-test tests::test_validation_result_default ... ok
-test tests::test_variable_expansion_basic ... ok
-test tests::test_variable_expansion_nested ... ok
-test tests::test_variant_config_extra ... ok
-test tests::test_verify_integrity_with_matching_hash ... ok
-test tests::test_watcher_config ... ok
-test tests::test_verify_integrity_with_mismatched_hash ... ok
-test tests::test_precedence_env_overrides_config_file ... ok
-test schema::tests::invalid_schema_url_does_not_panic_or_fail_loading_semantics ... ok
-test schema::tests::fetch_schema_network_failure_is_graceful ... ok
-test schema::tests::offline_mode_falls_back_cache_then_builtin ... ok
-test schema::tests::validation_errors_include_field_paths ... ok
-test tests::test_precedence_full_chain_integration ... ok
-
-test result: ok. 245 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.88s
-
-     Running tests/circular_variable_tests.rs (target/debug/deps/circular_variable_tests-069a6f8f6d1cf136)
-
-running 22 tests
-test test_circular_error_message_shows_variables_in_cycle ... ok
-test test_env_variable_circular_self_reference ... ok
-test test_env_variable_circular_chain ... ok
-test test_env_variable_expansion_normal ... ok
-test test_circular_error_message_shows_chain ... ok
-test test_env_variable_circular_indirect ... ok
-test test_variable_expansion_basic ... ok
-test test_variable_expansion_in_nested_object ... ok
-test test_variable_expansion_in_array ... ok
-test test_variable_expansion_indirect_circular ... ok
-test test_variable_expansion_circular_reference ... ok
-test test_variable_expansion_multiple_in_string ... ok
-test test_variable_expansion_nested ... ok
-test test_variable_expansion_non_string_no_change ... ok
-test test_variable_expansion_partial_string_preserved ... ok
-test test_variable_expansion_self_reference ... ok
-test test_variable_expansion_undefined_variable ... ok
-test test_file_variable_circular_self_reference ... ok
-test test_nested_env_in_file_circular ... ok
-test test_file_variable_expansion_normal ... ok
-test test_file_variable_circular_chain ... ok
-test test_file_variable_circular_indirect ... ok
-
-test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-
-     Running tests/config_e2e_tests.rs (target/debug/deps/config_e2e_tests-6ce4cedf21305bce)
-
-running 25 tests
-test config_e2e_003_keychain_resolve_placeholder_when_not_found ... ok
-test config_e2e_003_keychain_resolve_success ... ok
-test config_e2e_005_config_path_resolution ... ok
-test config_e2e_003_keychain_multiple_references ... ok
-test config_e2e_003_keychain_secret_resolution ... ok
-test config_e2e_002_deep_merge_on_patch ... ok
-test config_e2e_004_env_variable_expansion ... ok
-test config_e2e_004_server_port_loading ... ok
-test config_e2e_001_load_json_file ... ok
-test config_expand_001_variable_expansion_quotes ... ok
-test config_e2e_load_empty_config ... ok
-test config_e2e_008_jsonc_comment_parsing ... ok
-test config_e2e_nested_config_loading ... ok
-test config_jsonc_single_line_comments ... ok
-test config_jsonc_block_comments ... ok
-test config_val_006_array_merge_behavior ... ok
-test conferror: test failed, to rerun pass `-p opencode-config --test config_e2e_tests`
-
-Caused by:
-  process didn't exit successfully: `/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/target/debug/deps/config_e2e_tests-6ce4cedf21305bce --nocapture` (signal: 9, SIGKILL: kill)
-jects_tui_fields_in_runtime ... ok
-test config_val_001_malformed_json_recovery ... ok
-test config_e2e_006_directory_scanner ... ok
-test config_e2e_003_config_file_unchanged_after_keychain_resolution has been running for over 60 seconds
-error: test failed, to rerun pass `-p opencode-config --test config_e2e_tests`
-
-Caused by:
-  process didn't exit successfully: `/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/target/debug/deps/config_e2e_tests-6ce4cedf21305bce --nocapture` (signal: 9, SIGKILL: kill)

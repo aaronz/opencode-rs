@@ -1,8 +1,6 @@
 #![allow(deprecated)]
 
-use opencode_llm::provider_abstraction::{
-    ProviderIdentity, ProviderManager, ReasoningBudget,
-};
+use opencode_llm::provider_abstraction::{ProviderIdentity, ProviderManager, ReasoningBudget};
 
 #[test]
 fn test_agent_override_takes_precedence_over_provider_default() {
