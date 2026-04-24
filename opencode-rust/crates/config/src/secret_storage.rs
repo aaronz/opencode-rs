@@ -33,7 +33,6 @@ impl SecretStorage {
         }
     }
 
-    #[cfg(test)]
     pub fn with_path(path: PathBuf) -> Self {
         Self { secrets_path: path }
     }
@@ -61,7 +60,12 @@ impl Default for SecretStorage {
 }
 
 pub fn resolve_keychain_secret(secret_name: &str) -> Option<String> {
-    let storage = SecretStorage::new();
+    let secrets_path = if let Ok(data_dir) = std::env::var("OPENCODE_DATA_DIR") {
+        std::path::PathBuf::from(data_dir).join(SECRET_FILE_NAME)
+    } else {
+        SecretStorage::new().secrets_path
+    };
+    let storage = SecretStorage::with_path(secrets_path);
     storage.get_secret(secret_name).ok()
 }
 
