@@ -1,0 +1,21 @@
+[profile.default]
+retries = 2
+fail-fast = false
+
+# Slow test overrides
+[[profile.default.overrides]]
+filter = "test(/::slow(::)?)/"
+threads = 1
+
+[[profile.default.overrides]]
+filter = "test(/::db(::)?)/"
+threads = 1
+
+[profile.ci]
+retries = 2
+fail-fast = false
+split-by = "crate"
+
+[profile.ci.overrides]
+filter = "test(/::integration(::)?)/"
+threads = 4
