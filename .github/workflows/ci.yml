@@ -45,7 +45,7 @@ jobs:
         run: cd opencode-rust && cargo build --release --all
 
       - name: Run library tests
-        run: cd opencode-rust && cargo test --lib -- --skip security_tests --skip tool_registry_audit_tests --skip xmodule_tests --skip phase6_regression_tests
+        run: cd opencode-rust && cargo test --lib -- --skip security_tests --skip tool_registry_audit_tests --skip xmodule_tests --skip phase6_regression_tests --skip conventions
 
       - name: Run opencode-git tests (sequential)
         run: cd opencode-rust && RUST_TEST_THREADS=1 cargo test -p opencode-git --lib

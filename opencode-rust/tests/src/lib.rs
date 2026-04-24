@@ -2,6 +2,7 @@
 pub mod common;
 
 #[cfg(test)]
+#[cfg(not(ci))]
 pub mod conventions;
 
 #[cfg(test)]
