@@ -3,7 +3,6 @@ use opencode_storage::database::StoragePool;
 use opencode_storage::migration::MigrationManager;
 use opencode_storage::repository::SessionRepository;
 use opencode_storage::sqlite_repository::SqliteSessionRepository;
-use tempfile::tempdir;
 use tokio::time::{sleep, Duration};
 
 fn create_temp_db() -> (StoragePool, tempfile::TempDir) {

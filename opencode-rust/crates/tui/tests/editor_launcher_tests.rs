@@ -3,13 +3,13 @@ use std::env;
 
 #[test]
 fn test_editor_launcher_new() {
-    let launcher = EditorLauncher::new();
+    let _launcher = EditorLauncher::new();
     assert!(true, "EditorLauncher created");
 }
 
 #[test]
 fn test_editor_launcher_with_editor() {
-    let launcher = EditorLauncher::new().with_editor("vim".to_string());
+    let _launcher = EditorLauncher::new().with_editor("vim".to_string());
     assert!(true, "EditorLauncher with editor created");
 }
 

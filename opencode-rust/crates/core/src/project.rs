@@ -1221,7 +1221,7 @@ mod tests {
 
     #[test]
     fn test_workspace_error_codes() {
-        let tmp = TempDir::new().unwrap();
+        let _tmp = TempDir::new().unwrap();
         let non_existent = PathBuf::from("/nonexistent/path");
 
         assert_eq!(
@@ -1685,7 +1685,7 @@ mod tests {
         assert!(result.unwrap().is_ok());
     }
 
-    fn create_project_service(tmp: &tempfile::TempDir) -> ProjectService {
+    fn create_project_service(_tmp: &tempfile::TempDir) -> ProjectService {
         let config = Arc::new(RwLock::new(Config::default()));
         let config_service = ConfigService::new(config);
         ProjectService::new(Arc::new(config_service))

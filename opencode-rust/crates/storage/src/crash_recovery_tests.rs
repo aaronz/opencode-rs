@@ -91,7 +91,7 @@ mod crash_recovery {
         let tmp = tempdir().unwrap();
         let recovery = create_test_recovery(&tmp);
 
-        let mut session = create_session_with_tool_invocations();
+        let session = create_session_with_tool_invocations();
         let original_id = session.id;
         let original_message_count = session.messages.len();
         let original_tool_count = session.tool_invocations.len();

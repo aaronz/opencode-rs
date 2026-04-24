@@ -244,7 +244,7 @@ fn test_api_key_flow_invalid_key_not_persisted() {
 
 #[tokio::test]
 async fn test_api_key_flow_with_mock_server_validation() {
-    let mut server = MockServer::start();
+    let server = MockServer::start();
 
     server.mock(
         "GET",

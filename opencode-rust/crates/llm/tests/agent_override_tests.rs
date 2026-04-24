@@ -1,5 +1,7 @@
+#![allow(deprecated)]
+
 use opencode_llm::provider_abstraction::{
-    DynProvider, ProviderIdentity, ProviderManager, ProviderSpec, ReasoningBudget,
+    ProviderIdentity, ProviderManager, ReasoningBudget,
 };
 
 #[test]

@@ -27,7 +27,7 @@ mod snapshot_durability_tests {
     fn snapshot_durability_checkpoint_survives_restart() {
         let tmp = TempDir::new().unwrap();
         let checkpoints_dir = tmp.path().to_path_buf();
-        let mut session = create_test_session();
+        let session = create_test_session();
         let original_id = session.id;
 
         let manager = CheckpointManager::new()
@@ -415,7 +415,7 @@ mod snapshot_durability_tests {
 
         drop(revert_manager);
 
-        let mut revert_manager2 = RevertManager::new(10);
+        let revert_manager2 = RevertManager::new(10);
         let result = revert_manager2.revert_to(&mut session, &point_id);
         assert!(result.is_err());
     }

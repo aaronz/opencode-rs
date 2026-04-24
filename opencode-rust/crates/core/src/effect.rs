@@ -223,7 +223,7 @@ mod tests {
     #[tokio::test]
     async fn test_effect_pipeline_error_in_middle() {
         let effect = Effect::success(10)
-            .and_then(|x| Effect::<i32>::failure(EffectError::Cancelled("stop".into())))
+            .and_then(|_x| Effect::<i32>::failure(EffectError::Cancelled("stop".into())))
             .and_then(|x| Effect::success(x + 5))
             .map(|x| x * 2);
         let result = effect.run().await;

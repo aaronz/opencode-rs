@@ -392,7 +392,7 @@ fn test_google_oauth_different_models_have_different_ids() {
 
 #[tokio::test]
 async fn test_google_oauth_mock_server_token_endpoint() {
-    let mut server = MockServer::start();
+    let server = MockServer::start();
 
     server.mock(
         "POST",

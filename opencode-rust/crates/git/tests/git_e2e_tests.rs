@@ -556,8 +556,8 @@ mod integration_tests {
 
 mod security_tests {
     use super::*;
-    use std::sync::mpsc;
-    use std::thread;
+    
+    
 
     #[test]
     fn git_credentials_not_in_log_output() {
@@ -618,7 +618,7 @@ mod branch_operation_tests {
         git_branch_create(temp_dir.path(), "feature-new").unwrap();
 
         let repo = git2::Repository::open(temp_dir.path()).unwrap();
-        let head_before = repo.head().unwrap().shorthand().unwrap().to_string();
+        let _head_before = repo.head().unwrap().shorthand().unwrap().to_string();
         drop(repo);
 
         let result = git_checkout(temp_dir.path(), "feature-new", true);
@@ -957,7 +957,7 @@ mod github_api_tests {
 
     #[test]
     fn github_client_handles_rate_limit_error() {
-        let client = GitHubClient::new("test-token", "https://github.com");
+        let _client = GitHubClient::new("test-token", "https://github.com");
 
         let error = GitHubError::Api {
             status: 403,
@@ -970,7 +970,7 @@ mod github_api_tests {
 
     #[test]
     fn github_client_handles_not_found() {
-        let client = GitHubClient::new("test-token", "https://github.com");
+        let _client = GitHubClient::new("test-token", "https://github.com");
 
         let error = GitHubError::Api {
             status: 404,
@@ -983,7 +983,7 @@ mod github_api_tests {
 
     #[test]
     fn github_client_handles_unauthorized() {
-        let client = GitHubClient::new("bad-token", "https://github.com");
+        let _client = GitHubClient::new("bad-token", "https://github.com");
 
         let error = GitHubError::Api {
             status: 401,

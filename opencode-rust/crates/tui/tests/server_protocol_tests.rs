@@ -20,7 +20,7 @@ fn test_server_message_tool_call() {
         args: serde_json::json!({"path": "test.txt"}),
         call_id: "call1".to_string(),
     };
-    assert!(matches!(msg, ServerMessage::ToolCall { tool_name, .. }));
+    assert!(matches!(msg, ServerMessage::ToolCall { tool_name: _, .. }));
 }
 
 #[test]

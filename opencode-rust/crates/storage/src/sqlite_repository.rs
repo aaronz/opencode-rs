@@ -720,7 +720,7 @@ mod session_repository_list_by_project_tests {
     use crate::database::StoragePool;
     use crate::MigrationManager;
     use opencode_core::Session;
-    use uuid::Uuid;
+    
 
     fn create_temp_db() -> (StoragePool, tempfile::TempDir) {
         let temp_dir = tempfile::tempdir().unwrap();
@@ -805,7 +805,7 @@ mod session_repository_list_by_project_tests {
             .unwrap();
         let repo = SqliteSessionRepository::new(pool);
 
-        for i in 0..5 {
+        for _i in 0..5 {
             let session = Session::default();
             repo.save(&session).await.unwrap();
             repo.set_project_path(&session.id.to_string(), "/path/to/project1")

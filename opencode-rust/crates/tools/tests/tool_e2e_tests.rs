@@ -2,7 +2,7 @@
 mod tool_e2e_tests {
     use opencode_tools::discovery::build_default_registry;
     use opencode_tools::ToolRegistry;
-    use opencode_tools::{Tool, ToolContext, ToolResult};
+    use opencode_tools::{Tool, ToolContext};
 
     #[tokio::test]
     async fn test_tool_e2e_001_registry_registration_and_lookup() {
@@ -1033,7 +1033,7 @@ mod tool_e2e_tests {
 
     #[tokio::test]
     async fn test_tool_sec_006_write_within_worktree_allowed() {
-        use std::io::Write;
+        
 
         let temp_dir = tempfile::tempdir().unwrap();
         let file_path = temp_dir.path().join("allowed.txt");
@@ -1307,7 +1307,7 @@ mod tool_e2e_tests {
             .await;
 
         let file1_path = file1.to_string_lossy().to_string();
-        let file2_path = file2.to_string_lossy().to_string();
+        let _file2_path = file2.to_string_lossy().to_string();
 
         let result1 = registry.execute(
             "multi_edit",

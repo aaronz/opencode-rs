@@ -1,5 +1,4 @@
 use crate::common::{TestHarness, EMPTY_VEC};
-use std::fs;
 
 mod common;
 

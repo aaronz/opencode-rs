@@ -14,8 +14,8 @@ fn test_sidebar_toggle() {
 fn test_sidebar_sessions_list() {
     let harness = TestHarness::setup();
 
-    let session1 = harness.create_session("sidebar-session-1");
-    let session2 = harness.create_session("sidebar-session-2");
+    let _session1 = harness.create_session("sidebar-session-1");
+    let _session2 = harness.create_session("sidebar-session-2");
 
     let output = harness.run_cli(&["ui", "sidebar", "sessions", "--json"]);
     assert!(output.status.success());

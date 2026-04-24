@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod plugin_security_tests {
     use opencode_plugin::wasm_runtime::{
-        WasmCapabilities, WasmError, WasmInstance, WasmPlugin, WasmRuntime,
+        WasmCapabilities, WasmError, WasmPlugin, WasmRuntime,
     };
     use std::io::Write;
     use tempfile::NamedTempFile;
@@ -17,6 +17,7 @@ mod plugin_security_tests {
         wat::parse_str(wat_code).expect("failed to parse WAT")
     }
 
+    #[allow(dead_code)]
     fn create_infinite_loop_wasm() -> Vec<u8> {
         let wat_code = r#"
             (module
@@ -30,6 +31,7 @@ mod plugin_security_tests {
         wat::parse_str(wat_code).expect("failed to parse WAT")
     }
 
+    #[allow(dead_code)]
     fn create_memory_grow_wasm() -> Vec<u8> {
         let wat_code = r#"
             (module
@@ -50,6 +52,7 @@ mod plugin_security_tests {
         wat::parse_str(wat_code).expect("failed to parse WAT")
     }
 
+    #[allow(dead_code)]
     fn create_large_allocation_wasm() -> Vec<u8> {
         let wat_code = r#"
             (module
@@ -72,7 +75,7 @@ mod plugin_security_tests {
     fn write_wasm_to_file(wasm_bytes: &[u8]) -> NamedTempFile {
         let mut file = NamedTempFile::with_suffix(".wasm").unwrap();
         file.write_all(wasm_bytes).unwrap();
-        file.flush();
+        let _ = file.flush();
         file
     }
 

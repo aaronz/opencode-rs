@@ -123,7 +123,7 @@ mod recovery_tests {
 
     #[test]
     fn test_recovery_checkpoint_creates_and_loads_session() {
-        let mut session = create_test_session();
+        let session = create_test_session();
         let original_id = session.id;
         let original_message_count = session.messages.len();
 
@@ -176,7 +176,7 @@ mod recovery_tests {
 
     #[test]
     fn test_recovery_checkpoint_preserves_session_id() {
-        let mut session = create_test_session();
+        let session = create_test_session();
         let original_id = session.id;
 
         let manager = CheckpointManager::new().with_max_checkpoints(5);

@@ -6,7 +6,7 @@ use opencode_storage::sqlite_repository::SqliteSessionRepository;
 use std::fs;
 use tempfile::tempdir;
 
-fn create_temp_db() -> (StoragePool, tempfile::TempDir) {
+fn _create_temp_db() -> (StoragePool, tempfile::TempDir) {
     let temp_dir = tempfile::tempdir().unwrap();
     let db_path = temp_dir.path().join("test.db");
     let pool = StoragePool::new(&db_path).expect("Failed to create temp database");
@@ -64,7 +64,7 @@ async fn test_storage_backup_001_backup_during_write() {
     let pool = StoragePool::new(&db_path).unwrap();
     let repo = SqliteSessionRepository::new(pool);
 
-    for i in 0..10 {
+    for _i in 0..10 {
         let mut session = Session::new();
         session.id = uuid::Uuid::new_v4();
         repo.save(&session).await.unwrap();

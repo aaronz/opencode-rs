@@ -7,7 +7,7 @@ mod provider_tests {
     use opencode_llm::message_transform::{MessageTransform, TransformPipeline};
     use opencode_llm::provider::sealed::Sealed;
     use opencode_llm::provider::{
-        ChatMessage, ChatResponse, Model, Provider, ProviderConfig, StreamingCallback,
+        ChatMessage, ChatResponse, Model, Provider, StreamingCallback,
     };
     use std::sync::{Arc, Mutex};
 
@@ -363,7 +363,7 @@ mod provider_tests {
 
     #[test]
     fn test_provider_e2e_004_provider_manager_lists_all_factories() {
-        use opencode_llm::provider_abstraction::{ProviderManager, ProviderSpec};
+        use opencode_llm::provider_abstraction::ProviderManager;
 
         let manager = ProviderManager::new();
         let providers = manager.list_providers();
@@ -602,6 +602,7 @@ mod provider_tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_provider_e2e_005_provider_identity_with_reasoning_budget() {
         use opencode_llm::provider_abstraction::{ProviderIdentity, ReasoningBudget};
 
@@ -796,7 +797,7 @@ mod provider_tests {
 
     #[test]
     fn test_provider_e2e_006_oauth_google_service_creation() {
-        use opencode_llm::auth_layered::{GoogleOAuthService, GoogleOAuthStore};
+        use opencode_llm::auth_layered::GoogleOAuthService;
 
         let service = GoogleOAuthService::new();
         let result = service.start_local_callback_listener();
@@ -889,7 +890,7 @@ mod provider_tests {
 
     #[test]
     fn test_provider_e2e_006_oauth_copilot_service_creation() {
-        use opencode_llm::auth_layered::{CopilotOAuthService, CopilotOAuthStore};
+        use opencode_llm::auth_layered::CopilotOAuthService;
 
         let service = CopilotOAuthService::new();
         let result = service.start_local_callback_listener();
@@ -994,7 +995,7 @@ mod provider_tests {
     #[test]
     fn test_provider_err_005_provider_switch_requires_context() {
         use opencode_llm::models::ModelRegistry;
-        use opencode_llm::provider_abstraction::{ProviderIdentity, ProviderSpec};
+        
 
         let registry = ModelRegistry::new();
 
@@ -1101,7 +1102,7 @@ mod provider_tests {
 
     #[test]
     fn test_provider_e2e_004_dyn_provider_identity() {
-        use opencode_llm::provider_abstraction::{ProviderIdentity, ProviderManager, ProviderSpec};
+        use opencode_llm::provider_abstraction::{ProviderManager, ProviderSpec};
 
         let manager = ProviderManager::new();
         let spec = ProviderSpec::OpenAI {
@@ -1159,7 +1160,7 @@ mod provider_tests {
     impl Provider for TestChatProvider {
         async fn complete(
             &self,
-            prompt: &str,
+            _prompt: &str,
             _context: Option<&str>,
         ) -> Result<String, OpenCodeError> {
             let mut count = self.call_count.lock().unwrap();
@@ -1169,7 +1170,7 @@ mod provider_tests {
 
         async fn complete_streaming(
             &self,
-            prompt: &str,
+            _prompt: &str,
             mut callback: StreamingCallback,
         ) -> Result<(), OpenCodeError> {
             callback(self.response.clone());
@@ -1530,7 +1531,7 @@ mod provider_tests {
 
         let tracker = BudgetTracker::with_reasoning_budget(None, 0.001);
         let tracker = BudgetTracker::with_request_limit(tracker, 5);
-        let mut stream_tracker = StreamingBudgetTracker::new(&tracker);
+        let stream_tracker = StreamingBudgetTracker::new(&tracker);
 
         let large_text = "this is a much longer piece of text that should exceed budget";
 
@@ -1543,10 +1544,10 @@ mod provider_tests {
 
     #[tokio::test]
     async fn test_provider_budget_002_streaming_with_mock_provider() {
-        use opencode_llm::budget::StreamingBudgetTracker;
+        
 
         let tracker = BudgetTracker::with_reasoning_budget(None, 0.001);
-        let tracker = BudgetTracker::with_request_limit(tracker, 100);
+        let _tracker = BudgetTracker::with_request_limit(tracker, 100);
 
         let received_chunks: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
         let received_chunks_clone = received_chunks.clone();

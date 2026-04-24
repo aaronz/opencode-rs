@@ -16,7 +16,7 @@ fn test_session_sharing_serialization_roundtrip() {
 #[test]
 fn test_session_sharing_unique_ids() {
     let temp_dir = tempfile::tempdir().unwrap();
-    let storage_path = temp_dir.path().join("opencode.db");
+    let _storage_path = temp_dir.path().join("opencode.db");
 
     let desktop_session_id = {
         let mut session = opencode_core::Session::new();

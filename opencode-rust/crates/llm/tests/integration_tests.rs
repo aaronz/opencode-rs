@@ -1,5 +1,5 @@
 use opencode_llm::budget::{
-    BudgetExceededError, BudgetLimit, BudgetTracker, ConversationBudgetState, RequestBudgetState,
+    BudgetExceededError, BudgetLimit, BudgetTracker, ConversationBudgetState,
     Usage, VariantCost,
 };
 use opencode_llm::model_selection::{ModelSelection, ProviderType, UserModelConfig};
@@ -86,6 +86,7 @@ fn test_integration_multiple_providers_different_types() {
     }
 }
 
+#[allow(deprecated)]
 #[test]
 fn test_integration_dyn_provider_with_reasoning_budget() {
     let manager = ProviderManager::new();
@@ -432,6 +433,7 @@ fn test_integration_provider_manager_list_providers() {
     );
 }
 
+#[allow(deprecated)]
 #[test]
 fn test_integration_reasoning_budget_for_all_providers() {
     let budgets = vec![

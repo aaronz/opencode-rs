@@ -377,7 +377,7 @@ async fn test_bash_injection_prevention() {
             ("ls -la", true),
             ("cat test.txt", true),
         ];
-        for (cmd, should_succeed) in legitimate_commands {
+        for (cmd, _should_succeed) in legitimate_commands {
             let result = bash_tool
                 .execute(
                     serde_json::json!({"command": cmd, "cwd": project.path().to_string_lossy()}),
@@ -751,7 +751,7 @@ mod test_request_validation {
             return false;
         }
 
-        let prompt = match value.get("prompt").and_then(|v| v.as_str()) {
+        let _prompt = match value.get("prompt").and_then(|v| v.as_str()) {
             Some(p) if !p.trim().is_empty() => p,
             _ => return false,
         };
@@ -900,7 +900,7 @@ mod test_request_validation {
             ),
         ];
 
-        for (json_str, expect_invalid, description) in injection_cases {
+        for (json_str, _expect_invalid, description) in injection_cases {
             let result: Result<Value, _> = serde_json::from_str(json_str);
             assert!(
                 result.is_err() || (result.is_ok() && !is_valid_request_json(&result.unwrap())),

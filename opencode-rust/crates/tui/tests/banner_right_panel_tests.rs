@@ -3,44 +3,44 @@ use opencode_tui::components::right_panel::{RightPanel, RightPanelTab};
 
 #[test]
 fn test_banner_new() {
-    let banner = Banner::new();
+    let _banner = Banner::new();
     assert!(true, "Banner created");
 }
 
 #[test]
 fn test_banner_default() {
-    let banner = Banner::default();
+    let _banner = Banner::default();
     assert!(true, "Banner created via default");
 }
 
 #[test]
 fn test_banner_with_custom_art() {
     let art = vec!["Custom", "Banner", "Art"];
-    let banner = Banner::with_custom(art);
+    let _banner = Banner::with_custom(art);
     assert!(true, "Banner with custom art created");
 }
 
 #[test]
 fn test_banner_with_model() {
-    let banner = Banner::new().with_model("gpt-4");
+    let _banner = Banner::new().with_model("gpt-4");
     assert!(true, "Banner with model created");
 }
 
 #[test]
 fn test_banner_with_permission_mode() {
-    let banner = Banner::new().with_permission_mode("WorkspaceWrite");
+    let _banner = Banner::new().with_permission_mode("WorkspaceWrite");
     assert!(true, "Banner with permission mode created");
 }
 
 #[test]
 fn test_banner_with_directory() {
-    let banner = Banner::new().with_directory("/home/user/project");
+    let _banner = Banner::new().with_directory("/home/user/project");
     assert!(true, "Banner with directory created");
 }
 
 #[test]
 fn test_banner_with_session_id() {
-    let banner = Banner::new().with_session_id("session-123");
+    let _banner = Banner::new().with_session_id("session-123");
     assert!(true, "Banner with session ID created");
 }
 
@@ -50,13 +50,13 @@ fn test_banner_with_shortcuts() {
         ("Ctrl+C".to_string(), "Copy".to_string()),
         ("Ctrl+V".to_string(), "Paste".to_string()),
     ];
-    let banner = Banner::new().with_shortcuts(shortcuts);
+    let _banner = Banner::new().with_shortcuts(shortcuts);
     assert!(true, "Banner with shortcuts created");
 }
 
 #[test]
 fn test_banner_chaining() {
-    let banner = Banner::new()
+    let _banner = Banner::new()
         .with_model("gpt-4")
         .with_permission_mode("WorkspaceWrite")
         .with_directory("/project")
@@ -82,7 +82,7 @@ fn test_startup_info_with_session() {
 #[test]
 fn test_right_panel_new() {
     let theme = opencode_tui::theme::Theme::default();
-    let panel = RightPanel::new(theme);
+    let _panel = RightPanel::new(theme);
     assert!(true, "RightPanel created");
 }
 

@@ -396,7 +396,7 @@ mod tests {
 
     #[test]
     fn test_export_markdown_with_forked_session() {
-        let mut sm = ShareManager::new();
+        let sm = ShareManager::new();
         let mut session = create_test_session();
         session.parent_session_id = Some("parent-session-id".to_string());
 

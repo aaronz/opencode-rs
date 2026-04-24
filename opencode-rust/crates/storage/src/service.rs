@@ -1251,7 +1251,7 @@ mod tests {
         let service = StorageService::new(session_repo, project_repo, pool);
 
         // Create 5 sessions
-        for i in 0..5 {
+        for _i in 0..5 {
             let session = create_test_session();
             service.save_session(&session).await.unwrap();
         }
@@ -1441,7 +1441,7 @@ mod session_repository_pagination_tests {
         let repo = InMemorySessionRepository::new();
 
         // Create 10 sessions
-        for i in 0..10 {
+        for _i in 0..10 {
             let session = create_test_session_for_pagination();
             repo.save(&session).await.unwrap();
         }

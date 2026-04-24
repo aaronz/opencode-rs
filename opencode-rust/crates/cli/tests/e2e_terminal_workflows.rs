@@ -1,6 +1,5 @@
 mod common;
 use common::TestHarness;
-use std::time::Duration;
 
 #[test]
 fn test_terminal_execute() {

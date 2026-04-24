@@ -5,7 +5,7 @@ use opencode_util::{
     fs::{atomic_write, ensure_dir, read_json, write_json},
     helpers::{wait_for, with_timeout, Lazy},
     iife,
-    logging::{LogLevel, Logger},
+    logging::LogLevel,
     retry::{retry, RetryConfig},
 };
 use std::sync::atomic::{AtomicU32, Ordering};

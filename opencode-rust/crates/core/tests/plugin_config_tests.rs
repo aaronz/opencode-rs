@@ -1,4 +1,4 @@
-use opencode_core::config::{TuiConfig, TuiPluginConfig};
+use opencode_core::config::TuiConfig;
 
 #[cfg(test)]
 mod plugin_config_tests {
