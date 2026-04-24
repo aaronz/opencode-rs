@@ -255,7 +255,7 @@ mod tests {
         index.add_path(std::path::Path::new("main.txt")).unwrap();
         let tree_id = index.write_tree().unwrap();
         let tree = repo.find_tree(tree_id).unwrap();
-        drop(tree_id);
+        let _ = tree_id;
         let signature = repo.signature().unwrap();
         repo.commit(
             Some("HEAD"),
@@ -291,7 +291,7 @@ mod tests {
         index.add_path(std::path::Path::new("test.txt")).unwrap();
         let tree_id = index.write_tree().unwrap();
         let tree = repo.find_tree(tree_id).unwrap();
-        drop(tree_id);
+        let _ = tree_id;
         let signature = repo.signature().unwrap();
         let commit1_oid = repo
             .commit(
@@ -314,7 +314,7 @@ mod tests {
         index.add_path(std::path::Path::new("test.txt")).unwrap();
         let tree_id = index.write_tree().unwrap();
         let tree = repo.find_tree(tree_id).unwrap();
-        drop(tree_id);
+        let _ = tree_id;
         let signature = repo.signature().unwrap();
         repo.commit(
             Some("HEAD"),

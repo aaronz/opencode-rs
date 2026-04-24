@@ -398,6 +398,7 @@ mod tests {
             .unwrap();
 
         drop(tree);
+        let _ = tree_id;
         let commit1 = repo.find_commit(commit1_oid).unwrap();
 
         create_test_branch_commit(&repo, "feature", &commit1, "test.txt", "feature version");
