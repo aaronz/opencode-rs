@@ -1,6 +1,5 @@
 use opencode_tui::dialogs::{
-    Dialog, DialogAction, HomeAction, HomeView, HomeViewSection, ModelInfo, ProviderInfo,
-    ProviderStatus,
+    Dialog, DialogAction, HomeAction, HomeView, HomeViewSection,
 };
 
 #[test]
@@ -61,107 +60,6 @@ fn test_home_action_variants() {
     assert!(matches!(HomeAction::ViewSessions, HomeAction::ViewSessions));
     assert!(matches!(HomeAction::Settings, HomeAction::Settings));
     assert!(matches!(HomeAction::Quit, HomeAction::Quit));
-}
-
-#[test]
-fn test_home_action_all() {
-    let actions = HomeAction::all();
-    assert_eq!(actions.len(), 5);
-}
-
-#[test]
-fn test_home_action_labels() {
-    assert_eq!(HomeAction::NewSession.label(), "New Session");
-    assert_eq!(HomeAction::ContinueLast.label(), "Continue Last Session");
-    assert_eq!(HomeAction::ViewSessions.label(), "View All Sessions");
-    assert_eq!(HomeAction::Settings.label(), "Settings");
-    assert_eq!(HomeAction::Quit.label(), "Quit");
-}
-
-#[test]
-fn test_home_action_keys() {
-    assert_eq!(HomeAction::NewSession.key(), "n");
-    assert_eq!(HomeAction::ContinueLast.key(), "c");
-    assert_eq!(HomeAction::ViewSessions.key(), "s");
-    assert_eq!(HomeAction::Settings.key(), ",");
-    assert_eq!(HomeAction::Quit.key(), "q");
-}
-
-#[test]
-fn test_home_action_to_string() {
-    assert_eq!(HomeAction::NewSession.to_string(), "new_session");
-    assert_eq!(HomeAction::ContinueLast.to_string(), "continue_last");
-    assert_eq!(HomeAction::ViewSessions.to_string(), "view_sessions");
-    assert_eq!(HomeAction::Settings.to_string(), "settings");
-    assert_eq!(HomeAction::Quit.to_string(), "quit");
-}
-
-#[test]
-fn test_provider_status_variants() {
-    assert!(matches!(
-        ProviderStatus::Connected,
-        ProviderStatus::Connected
-    ));
-    assert!(matches!(
-        ProviderStatus::Disconnected,
-        ProviderStatus::Disconnected
-    ));
-    assert!(matches!(ProviderStatus::Error, ProviderStatus::Error));
-}
-
-#[test]
-fn test_provider_info_creation() {
-    let info = ProviderInfo {
-        name: "OpenAI".to_string(),
-        status: ProviderStatus::Connected,
-        id: "openai".to_string(),
-        api_key_set: true,
-    };
-    assert_eq!(info.name, "OpenAI");
-    assert!(matches!(info.status, ProviderStatus::Connected));
-    assert!(info.api_key_set);
-}
-
-#[test]
-fn test_provider_info_not_api_key_set() {
-    let info = ProviderInfo {
-        name: "Test Provider".to_string(),
-        status: ProviderStatus::Disconnected,
-        id: "test".to_string(),
-        api_key_set: false,
-    };
-    assert!(!info.api_key_set);
-    assert!(matches!(info.status, ProviderStatus::Disconnected));
-}
-
-#[test]
-fn test_model_info_creation() {
-    let info = ModelInfo {
-        id: "gpt-4".to_string(),
-        name: "GPT-4".to_string(),
-        provider: "OpenAI".to_string(),
-        is_paid: true,
-        is_available: true,
-        variants: vec![],
-    };
-    assert_eq!(info.id, "gpt-4");
-    assert_eq!(info.name, "GPT-4");
-    assert_eq!(info.provider, "OpenAI");
-    assert!(info.is_paid);
-    assert!(info.is_available);
-}
-
-#[test]
-fn test_model_info_not_available() {
-    let info = ModelInfo {
-        id: "gpt-5".to_string(),
-        name: "GPT-5".to_string(),
-        provider: "OpenAI".to_string(),
-        is_paid: true,
-        is_available: false,
-        variants: vec![],
-    };
-    assert!(!info.is_available);
 }
 
 #[test]

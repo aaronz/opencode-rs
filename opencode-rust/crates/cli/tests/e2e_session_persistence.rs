@@ -25,8 +25,8 @@ fn test_session_persistence_after_reload() {
 fn test_session_list_shows_all_sessions() {
     let harness = TestHarness::setup();
 
-    let session1 = harness.create_session("session-1");
-    let session2 = harness.create_session("session-2");
+    let _session1 = harness.create_session("session-1");
+    let _session2 = harness.create_session("session-2");
 
     let output = harness.run_cli(&["list", "--json"]);
     assert!(output.status.success());
@@ -53,7 +53,7 @@ fn test_session_delete_removes_session() {
 }
 
 #[test]
-fn test_session_resume() {
+fn test_session_show_by_id() {
     let harness = TestHarness::setup();
     let session_id = harness.create_session("resume-test");
 

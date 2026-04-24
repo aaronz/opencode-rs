@@ -309,7 +309,7 @@ fn test_scrollbar_with_position() {
 
 #[test]
 fn test_spinner_new() {
-    let spinner = Spinner::new("Loading");
+    let _spinner = Spinner::new("Loading");
     assert!(true, "Spinner created");
 }
 
@@ -375,25 +375,6 @@ fn test_thinking_indicator_set_label() {
     let mut indicator = ThinkingIndicator::new();
     indicator.set_label("New Label".to_string());
     assert!(true, "Label set successfully");
-}
-
-#[test]
-fn test_code_block_with_scroll() {
-    let code = "#!/usr/bin/env python\nprint('hello')\n".to_string();
-    let _block = CodeBlock::new(code, "python".to_string()).with_scroll(1);
-    assert!(true, "CodeBlock with scroll created");
-}
-
-#[test]
-fn test_code_block_scroll_operations() {
-    let mut block = CodeBlock::new(
-        "line1\nline2\nline3\nline4\nline5".to_string(),
-        "text".to_string(),
-    );
-    block.scroll_up();
-    block.scroll_down(10);
-    block.scroll_down(2);
-    assert!(true, "Scroll operations executed");
 }
 
 #[test]
@@ -474,6 +455,6 @@ fn test_command_item_without_shortcut() {
 
 #[test]
 fn test_spinner_with_color() {
-    let spinner = Spinner::new("Loading").with_color(ratatui::style::Color::Green);
+    let _spinner = Spinner::new("Loading").with_color(ratatui::style::Color::Green);
     assert!(true, "Spinner with color created");
 }

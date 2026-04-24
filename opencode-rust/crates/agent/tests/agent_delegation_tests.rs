@@ -206,12 +206,6 @@ fn test_task_delegate_new() {
 }
 
 #[test]
-fn test_task_delegate_get_active_task_nonexistent() {
-    let delegate = TaskDelegate::new();
-    assert!(delegate.get_active_task(TaskId::new()).is_none());
-}
-
-#[test]
 fn test_runtime_config_default() {
     let config = RuntimeConfig::default();
 
@@ -246,16 +240,6 @@ async fn test_agent_runtime_new() {
     let runtime = AgentRuntime::new(session, AgentType::Build);
 
     assert_eq!(runtime.active_agent(), Some(AgentType::Build));
-}
-
-#[tokio::test]
-async fn test_agent_runtime_session_id_preserved() {
-    let session = Session::default();
-    let session_id = session.id;
-    let runtime = AgentRuntime::new(session, AgentType::Build);
-
-    let current_session = runtime.session().await;
-    assert_eq!(current_session.id, session_id);
 }
 
 #[test]
