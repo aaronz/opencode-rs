@@ -165,6 +165,9 @@ fn test_validation_in_progress_set_during_validation() {
 fn test_validation_in_progress_clears_after_validation_completes() {
     use opencode_llm::BrowserAuthModelInfo;
 
+    let temp_dir = tempfile::TempDir::new().unwrap();
+    std::env::set_var("OPENCODE_DATA_DIR", temp_dir.path().to_str().unwrap());
+
     let mut app = App::new();
     app.validation_in_progress = true;
     app.mode = AppMode::ConnectProgress;
@@ -462,6 +465,9 @@ use opencode_llm::BrowserAuthModelInfo;
 
 #[test]
 fn test_connect_model_dialog_shown_after_successful_validation() {
+    let temp_dir = tempfile::TempDir::new().unwrap();
+    std::env::set_var("OPENCODE_DATA_DIR", temp_dir.path().to_str().unwrap());
+
     let mut app = App::new();
     app.validation_in_progress = true;
     app.mode = AppMode::ConnectProgress;
@@ -499,6 +505,9 @@ fn test_connect_model_dialog_shown_after_successful_validation() {
 
 #[test]
 fn test_validated_credentials_and_models_passed_to_dialog() {
+    let temp_dir = tempfile::TempDir::new().unwrap();
+    std::env::set_var("OPENCODE_DATA_DIR", temp_dir.path().to_str().unwrap());
+
     let mut app = App::new();
     app.validation_in_progress = true;
     app.mode = AppMode::ConnectProgress;

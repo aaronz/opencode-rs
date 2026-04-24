@@ -271,16 +271,22 @@ mod tests {
     }
 
     #[test]
-    fn google_browser_selection_confirms() {
+    fn google_oauth_only_provider_shows_feedback_on_enter() {
         let mut dialog = ConnectMethodDialog::new(Theme::default(), "google".into());
+        assert!(dialog.methods.is_empty());
+        assert!(dialog.is_oauth_only);
         let action = dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
-        assert_eq!(action, DialogAction::Confirm("browser".into()));
+        assert_eq!(action, DialogAction::None);
+        assert!(dialog.show_feedback);
     }
 
     #[test]
-    fn copilot_browser_selection_confirms() {
+    fn copilot_oauth_only_provider_shows_feedback_on_enter() {
         let mut dialog = ConnectMethodDialog::new(Theme::default(), "copilot".into());
+        assert!(dialog.methods.is_empty());
+        assert!(dialog.is_oauth_only);
         let action = dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
-        assert_eq!(action, DialogAction::Confirm("browser".into()));
+        assert_eq!(action, DialogAction::None);
+        assert!(dialog.show_feedback);
     }
 }

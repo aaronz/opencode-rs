@@ -147,7 +147,7 @@ mod tests {
     #[test]
     fn connect_provider_dialog_navigation() {
         let mut dialog = ConnectProviderDialog::new(Theme::default());
-        assert_eq!(dialog.providers.len(), 18);
+        assert_eq!(dialog.providers.len(), 21);
 
         dialog.handle_input(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
         assert_eq!(dialog.selected_index, 1);

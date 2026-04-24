@@ -56,6 +56,9 @@ fn test_complete_api_key_to_model_selection_flow() {
 
 #[test]
 fn test_api_key_validation_transitions_to_connect_model() {
+    let temp_dir = tempfile::TempDir::new().unwrap();
+    std::env::set_var("OPENCODE_DATA_DIR", temp_dir.path().to_str().unwrap());
+
     let mut app = App::new();
     app.validation_in_progress = true;
     app.mode = AppMode::ConnectProgress;
