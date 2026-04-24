@@ -1964,3 +1964,634 @@ running 5 tests
    Compiling opencode-tui v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/tui)
    Compiling opencode-server v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/server)
    Compiling opencode-cli v0.1.0 (/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/crates/cli)
+    Finished `release` profile [optimized] target(s) in 54.71s
+test common::tests::test_harness_setup ... ok
+test test_keyboard_shortcut_display ... ok
+test test_keyboard_shortcut_execute ... ok
+test test_keyboard_shortcut_custom ... ok
+test test_keyboard_shortcut_reset ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 56.15s
+
+     Running tests/e2e_model_visibility.rs (target/debug/deps/e2e_model_visibility-457a30a39901c9d3)
+
+running 4 tests
+    Finished `release` profile [optimized] target(s) in 0.56s
+test common::tests::test_harness_setup ... ok
+test test_model_visibility_list_hidden ... ok
+test test_model_visibility_hide_show ... ok
+test test_model_visibility_show_restores ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.16s
+
+     Running tests/e2e_model_workflows.rs (target/debug/deps/e2e_model_workflows-c7b40bbc0b988547)
+
+running 14 tests
+    Finished `release` profile [optimized] target(s) in 0.22s
+test common::tests::test_harness_setup ... ok
+test test_model_selection_dialog ... ok
+test test_tui_close_model_dialog_returns_closed_status ... ok
+test test_tui_cancel_model_switch_without_existing_selection_returns_null_active_model ... ok
+test test_tui_unknown_action_returns_explicit_error ... ok
+test test_tui_confirm_model_switch_requires_model_argument ... ok
+test test_provider_connection_error ... ok
+test test_provider_list_contains_real_status_fields ... ok
+test test_tui_confirm_model_switch_rejects_unknown_model ... ok
+test test_models_list_contains_registry_fields ... ok
+test test_model_switch ... ok
+test test_tui_confirm_model_switch_persists_selection ... ok
+test test_tui_cancel_model_switch_ignores_invalid_pending_model ... ok
+test test_tui_cancel_model_switch_keeps_existing_selection ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.86s
+
+     Running tests/e2e_plugin.rs (target/debug/deps/e2e_plugin-d449508985273dd4)
+
+running 8 tests
+    Finished `release` profile [optimized] target(s) in 0.22s
+test common::tests::test_harness_setup ... ok
+test test_plugin_list_shows_installed_plugins ... ok
+test test_plugin_remove_nonexistent_fails ... ok
+test test_plugin_install_already_installed_fails ... ok
+test test_plugin_remove_removes_from_config ... ok
+test test_plugin_install_persists_to_config ... ok
+test test_plugin_search_with_no_query_returns_all_discovered ... ok
+test test_plugin_search_filters_by_query ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.04s
+
+     Running tests/e2e_projects_edit.rs (target/debug/deps/e2e_projects_edit-e0da7a175bd86888)
+
+running 4 tests
+    Finished `release` profile [optimized] target(s) in 0.23s
+test common::tests::test_harness_setup ... ok
+test test_project_edit_settings ... ok
+test test_project_edit_description ... ok
+test test_project_rename ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.14s
+
+     Running tests/e2e_projects_management.rs (target/debug/deps/e2e_projects_management-f1518dcd87a871c7)
+
+running 5 tests
+    Finished `release` profile [optimized] target(s) in 0.22s
+test common::tests::test_harness_setup ... ok
+test test_project_create ... ok
+test test_project_delete ... ok
+test test_project_list ... ok
+test test_project_switch ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.23s
+
+     Running tests/e2e_projects_workspace.rs (target/debug/deps/e2e_projects_workspace-bcbc90e2eb8169a9)
+
+running 4 tests
+    Finished `release` profile [optimized] target(s) in 0.22s
+test common::tests::test_harness_setup ... ok
+test test_workspace_context ... ok
+test test_workspace_new_session ... ok
+test test_workspace_persistence ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.14s
+
+     Running tests/e2e_prompt_async.rs (target/debug/deps/e2e_prompt_async-4b72cffba775195b)
+
+running 4 tests
+    Finished `release` profile [optimized] target(s) in 0.22s
+test common::tests::test_harness_setup ... ok
+test test_prompt_async_submit_while_processing ... ok
+test test_prompt_async_cancel ... ok
+test test_prompt_async_queue ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.31s
+
+     Running tests/e2e_prompt_history.rs (target/debug/deps/e2e_prompt_history-9dbcf9c02dfaeeea)
+
+running 5 tests
+    Finished `release` profile [optimized] target(s) in 0.23s
+test common::tests::test_harness_setup ... ok
+test test_prompt_history_up_navigation ... ok
+test test_prompt_history_persistence ... ok
+test test_prompt_history_down_navigation ... ok
+test test_prompt_history_navigation ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.13s
+
+     Running tests/e2e_prompt_mentions.rs (target/debug/deps/e2e_prompt_mentions-273b8960669abb6e)
+
+running 5 tests
+    Finished `release` profile [optimized] target(s) in 0.22s
+test common::tests::test_harness_setup ... ok
+test test_prompt_mention_file ... ok
+test test_prompt_mention_multiple ... ok
+test test_prompt_mention_agent ... ok
+test test_prompt_mention_session ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.20s
+
+     Running tests/e2e_prompt_multiline.rs (target/debug/deps/e2e_prompt_multiline-9e3b75ae29e28ba6)
+
+running 4 tests
+    Finished `release` profile [optimized] target(s) in 0.22s
+test common::tests::test_harness_setup ... ok
+test test_prompt_multiline_submit ... ok
+test test_prompt_multiline_with_code ... ok
+test test_prompt_multiline_input ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.25s
+
+     Running tests/e2e_prompt_shell.rs (target/debug/deps/e2e_prompt_shell-4854836edec2ead8)
+
+running 5 tests
+    Finished `release` profile [optimized] target(s) in 0.23s
+test common::tests::test_harness_setup ... ok
+test test_prompt_shell_command ... ok
+test test_prompt_shell_in_terminal_panel ... ok
+test test_prompt_shell_with_args ... ok
+test test_prompt_shell_output_displayed ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.34s
+
+     Running tests/e2e_prompt_submission.rs (target/debug/deps/e2e_prompt_submission-dd5c9d331b11909a)
+
+running 5 tests
+    Finished `release` profile [optimized] target(s) in 0.23s
+test common::tests::test_harness_setup ... ok
+test test_prompt_empty_content ... ok
+test test_prompt_with_context ... ok
+test test_prompt_submission ... ok
+test test_prompt_cancellation ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.36s
+
+     Running tests/e2e_quick_actions.rs (target/debug/deps/e2e_quick_actions-db57cbb1caa9b3a0)
+
+running 5 tests
+    Finished `release` profile [optimized] target(s) in 0.23s
+test common::tests::test_harness_setup ... ok
+test test_quick_action_toggle_sidebar ... ok
+test test_quick_action_open_settings ... ok
+test test_quick_action_switch_model ... ok
+test test_quick_action_new_session ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.10s
+
+     Running tests/e2e_run_command.rs (target/debug/deps/e2e_run_command-ceef822c48729a59)
+
+running 2 tests
+    Finished `release` profile [optimized] target(s) in 0.23s
+test common::tests::test_harness_setup ... ok
+test test_run_prompt_mode_returns_structured_output ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.36s
+
+     Running tests/e2e_session_persistence.rs (target/debug/deps/e2e_session_persistence-aa789489926c4bb8)
+
+running 5 tests
+    Finished `release` profile [optimized] target(s) in 0.22s
+test common::tests::test_harness_setup ... ok
+test test_session_delete_removes_session ... ok
+test test_session_list_shows_all_sessions ... ok
+test test_session_show_by_id ... ok
+test test_session_persistence_after_reload ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.43s
+
+     Running tests/e2e_session_sharing.rs (target/debug/deps/e2e_session_sharing-cf703ea6a19f2d8c)
+
+running 6 tests
+test test_session_sharing_multiple_sessions ... ok
+test test_session_sharing_serialization_roundtrip ... ok
+test test_session_sharing_message_content_preserved ... ok
+test test_session_sharing_state_sync ... ok
+test test_session_sharing_unique_ids ... ok
+    Finished `release` profile [optimized] target(s) in 0.22s
+test common::tests::test_harness_setup ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+
+     Running tests/e2e_session_undo_redo.rs (target/debug/deps/e2e_session_undo_redo-564ba047edf2d071)
+
+running 8 tests
+    Finished `release` profile [optimized] target(s) in 0.23s
+test common::tests::test_harness_setup ... ok
+test test_session_undo_nothing ... ok
+test test_session_redo_nothing ... ok
+test test_session_undo_persistence ... ok
+test test_session_undo_redo_clears_redo_history ... ok
+test test_session_undo_single_message ... ok
+test test_session_undo_multiple_messages ... ok
+test test_session_redo_after_undo ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.30s
+
+     Running tests/e2e_session_workflows.rs (target/debug/deps/e2e_session_workflows-614e30d93b7d0723)
+
+running 7 tests
+    Finished `release` profile [optimized] target(s) in 0.22s
+test common::tests::test_harness_setup ... ok
+test test_session_create_new ... ok
+test test_session_share ... ok
+test test_session_resume ... ok
+test test_session_list ... ok
+test test_session_persistence ... ok
+test test_session_fork ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.14s
+
+     Running tests/e2e_settings_workflows.rs (target/debug/deps/e2e_settings_workflows-4d9de9889eb49665)
+
+running 6 tests
+    Finished `release` profile [optimized] target(s) in 0.22s
+test common::tests::test_harness_setup ... ok
+test test_settings_validation ... ok
+test test_settings_models ... ok
+test test_settings_keybinds ... ok
+test test_settings_providers ... ok
+test test_settings_general ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.44s
+
+     Running tests/e2e_sharing_modes.rs (target/debug/deps/e2e_sharing_modes-2d79a0347ab6862c)
+
+running 12 tests
+test test_disabled_mode_denies_all_operations ... ok
+test test_add_allowed_operation_extends_permissions ... ok
+test test_access_control_is_properly_enforced_collaborative ... ok
+test test_access_control_is_properly_enforced_read_only ... ok
+test test_access_control_is_properly_enforced_controlled ... ok
+test test_read_only_sharing_mode_works ... ok
+test test_collaborative_mode_supports_concurrent_access ... ok
+test test_controlled_mode_access_control ... ok
+test test_manual_mode_allows_read_only ... ok
+test test_sharing_modes_serialization ... ok
+test test_update_share_mode_changes_permissions ... ok
+    Finished `release` profile [optimized] target(s) in 0.22s
+test common::tests::test_harness_setup ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+
+     Running tests/e2e_sidebar.rs (target/debug/deps/e2e_sidebar-6984ad705601a15a)
+
+running 4 tests
+    Finished `release` profile [optimized] target(s) in 0.22s
+test common::tests::test_harness_setup ... ok
+test test_sidebar_toggle ... ok
+test test_sidebar_sessions_list ... ok
+test test_sidebar_recent_sessions ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.27s
+
+     Running tests/e2e_terminal.rs (target/debug/deps/e2e_terminal-3eb89c58ed3fadab)
+
+running 5 tests
+    Finished `release` profile [optimized] target(s) in 0.22s
+test common::tests::test_harness_setup ... ok
+test test_terminal_close_tab ... ok
+test test_terminal_panel_open ... ok
+test test_terminal_list_tabs ... ok
+test test_terminal_execute_command ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.14s
+
+     Running tests/e2e_terminal_workflows.rs (target/debug/deps/e2e_terminal_workflows-5973f17ccd856a99)
+
+running 5 tests
+    Finished `release` profile [optimized] target(s) in 0.22s
+test common::tests::test_harness_setup ... ok
+test test_terminal_interactive_detection ... ok
+test test_terminal_output ... ok
+test test_terminal_execute ... ok
+test test_terminal_timeout ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.15s
+
+     Running tests/e2e_web_server.rs (target/debug/deps/e2e_web_server-090f69eb60d40b6e)
+
+running 11 tests
+test test_web_server_session_sharing_enabled ... ok
+test test_web_server_session_sharing_between_instances ... ok
+test test_web_server_session_persistence ... ok
+    Finished `release` profile [optimized] target(s) in 0.22s
+test common::tests::test_harness_setup ... ok
+test test_web_command_help_shows_web_options ... ok
+test test_web_server_endpoints_defined_in_help ... ok
+test test_web_server_custom_hostname ... ok
+test test_web_server_multiple_instances_different_ports ... ok
+test test_web_server_starts_on_default_port ... ok
+test test_web_server_starts_on_specified_port ... ok
+test test_web_server_health_endpoint ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.05s
+
+     Running unittests src/lib.rs (target/debug/deps/opencode_config-8a092dc818eaee8e)
+
+running 245 tests
+test directory_scanner::tests::test_is_tool_file ... ok
+test directory_scanner::tests::test_resolve_theme_path_not_found ... ok
+test directory_scanner::tests::test_resolve_theme_path ... ok
+test directory_scanner::tests::test_resolve_theme_path_with_json_suffix ... ok
+test directory_scanner::tests::test_scan_commands ... ok
+test directory_scanner::tests::test_scan_commands_pattern_no_match ... ok
+test directory_scanner::tests::test_scan_agents ... ok
+test directory_scanner::tests::test_scan_commands_with_pattern ... ok
+test directory_scanner::tests::test_scan_skills_nonexistent_dir ... ok
+test directory_scanner::tests::test_scan_skills_no_skill_md ... ok
+test directory_scanner::tests::test_scan_plugins ... ok
+test directory_scanner::tests::test_scan_skills ... ok
+test directory_scanner::tests::test_scan_themes ... ok
+test jsonc::tests::test_invalid_json_syntax_error_message ... ok
+test jsonc::tests::test_error_type_is_jsonc_error ... ok
+test jsonc::tests::test_is_jsonc_extension ... ok
+test jsonc::tests::test_json_value_to_serde_value_boolean ... ok
+test jsonc::tests::test_invalid_jsonc_produces_clear_error ... ok
+test jsonc::tests::test_json_value_to_serde_value_null ... ok
+test jsonc::tests::test_json_value_to_serde_value_string ... ok
+test jsonc::tests::test_jsonc_error_extract_source_line ... ok
+test jsonc::tests::test_json_value_to_serde_value_object ... ok
+test jsonc::tests::test_jsonc_error_extract_source_line_empty_source ... ok
+test jsonc::tests::test_jsonc_error_generate_context_brace ... ok
+test jsonc::tests::test_jsonc_error_generate_context_bracket ... ok
+test jsonc::tests::test_jsonc_error_extract_source_line_line_zero ... ok
+test jsonc::tests::test_jsonc_error_generate_context_comment ... ok
+test jsonc::tests::test_jsonc_error_generate_context_default ... ok
+test jsonc::tests::test_jsonc_error_generate_context_double_quote ... ok
+test jsonc::tests::test_jsonc_error_generate_context_invalid_escape ... ok
+test jsonc::tests::test_jsonc_error_generate_context_missing_colon ... ok
+test jsonc::tests::test_jsonc_error_generate_context_missing_comma ... ok
+test jsonc::tests::test_jsonc_error_generate_context_trailing_comma ... ok
+test directory_scanner::tests::test_scan_tools_invalid_regex ... ok
+test directory_scanner::tests::test_scan_modes_no_frontmatter ... ok
+test jsonc::tests::test_jsonc_error_generate_context_unexpected_token ... ok
+test jsonc::tests::test_jsonc_error_generate_context_unterminated_string ... ok
+test jsonc::tests::test_jsonc_error_with_source ... ok
+test jsonc::tests::test_mixed_comments_invalid_json_after_stripping ... ok
+test jsonc::tests::test_jsonc_error_io_with_file_path ... ok
+test jsonc::tests::test_parse_jsonc_file_not_found ... ok
+test jsonc::tests::test_parse_jsonc_file ... ok
+test jsonc::tests::test_parse_jsonc_with_comments ... ok
+test jsonc::tests::test_jsonc_error_with_file_path ... ok
+test jsonc::tests::test_strip_jsonc_comments_empty_string ... ok
+test jsonc::tests::test_preserve_strings_with_slashes ... ok
+test jsonc::tests::test_strip_jsonc_comments_escaped_quote ... ok
+test jsonc::tests::test_strip_jsonc_comments_no_comments ... ok
+test jsonc::tests::test_parse_jsonc_file_with_comments ... ok
+test jsonc::tests::test_strip_jsonc_comments_string_with_slashes ... ok
+test jsonc::tests::test_strip_jsonc_comments_multiline_at_end ... ok
+test jsonc::tests::test_strip_jsonc_only_slash ... ok
+test jsonc::tests::test_strip_multi_line_comments ... ok
+test jsonc::tests::test_strip_single_line_comments ... ok
+test jsonc::tests::test_unterminated_multiline_comment_error ... ok
+test merge::tests::test_deep_merge_non_objects ... ok
+test merge::tests::test_deep_merge_same_type_allowed ... ok
+test merge::tests::test_deep_merge_objects ... ok
+test merge::tests::test_deep_merge_type_conflict_nested ... ok
+test merge::tests::test_deep_merge_type_conflict_object_to_primitive ... ok
+test merge::tests::test_deep_merge_type_conflict_primitive_to_object ... ok
+test merge::tests::test_deep_merge_type_conflict_array_to_object ... ok
+test merge::tests::test_deep_merge_arrays_replace ... ok
+test remote_cache::tests::cache_expiration_check ... ok
+test merge::tests::test_merge_configs_returns_error_on_type_conflict ... ok
+test remote_cache::tests::test_build_remote_url ... ok
+test directory_scanner::tests::test_scan_modes_with_frontmatter ... ok
+test directory_scanner::tests::test_scan_all ... ok
+test schema::tests::cache_file_name_invalid_url ... ok
+test schema::tests::cache_file_name_with_special_chars ... ok
+test schema::tests::cache_file_name_with_url ... ok
+test schema::tests::cache_file_name_no_extension ... ok
+test schema::tests::find_similar_field_exact_match ... ok
+test schema::tests::cache_round_trip_works ... ok
+test schema::tests::find_similar_field_typo_loglevel ... ok
+test schema::tests::get_builtin_schema_returns_valid_json ... ok
+test directory_scanner::tests::test_scan_tools_no_name_in_export ... ok
+test remote_cache::tests::cache_roundtrip ... ok
+test schema::tests::levenshtein_distance_empty ... ok
+test schema::tests::levenshtein_distance_complete_change ... ok
+test schema::tests::levenshtein_distance_one_char ... ok
+test schema::tests::find_similar_field_typo_server ... ok
+test schema::tests::find_similar_field_no_match ... ok
+test schema::tests::levenshtein_distance_same ... ok
+test schema::tests::pointer_to_path_empty ... ok
+test schema::tests::pointer_to_path_nested ... ok
+test schema::tests::pointer_to_path_with_tilde_encoding ... ok
+test schema::tests::pointer_to_path_simple ... ok
+test schema::tests::pointer_to_path_with_tilde ... ok
+test directory_scanner::tests::test_scan_tools_javascript ... ok
+test schema::tests::schema_error_display ... ok
+test schema::tests::schema_validation_error_struct ... ok
+test schema::tests::schema_fallback_on_malformed_builtin_schema ... ok
+test directory_scanner::tests::test_scan_tools_typescript ... ok
+test schema::tests::schema_validation_result_default ... ok
+test schema::tests::validate_tui_config_no_errors ... ok
+test schema::tests::schema_cache_dir_with_env_override ... ok
+test schema::tests::validate_tui_config_scroll_acceleration_speed_excessive ... ok
+test schema::tests::validate_tui_config_scroll_acceleration_speed_negative ... ok
+test schema::tests::validate_tui_config_scroll_speed_excessively_high ... ok
+test schema::tests::validate_tui_config_scroll_speed_zero ... ok
+test schema::tests::validate_tui_schema_keybinds_not_object ... ok
+test schema::tests::validate_tui_schema_reports_type_errors ... ok
+test schema::tests::validate_tui_schema_theme_not_object ... ok
+test schema::tests::validate_tui_schema_unknown_field ... ok
+test schema::tests::validate_tui_schema_valid_cases ... ok
+test schema::tests::validate_unknown_fields_nested_object_not_checked ... ok
+test schema::tests::validate_unknown_fields_valid_config ... ok
+test schema::tests::validate_unknown_fields_lenient_with_typo ... ok
+test schema::tests::validate_unknown_fields_strict_with_typo ... ok
+test secret_storage::tests::test_default_secrets_path_with_data_dir ... ok
+test secret_storage::tests::test_get_secret_invalid_json ... ok
+test secret_storage::tests::test_get_secret_success ... ok
+test secret_storage::tests::test_get_secret_not_string_value ... ok
+test secret_storage::tests::test_resolve_keychain_secret ... ok
+test secret_storage::tests::test_secret_storage_error_display ... ok
+test secret_storage::tests::test_secret_not_found ... ok
+test secret_storage::tests::test_resolve_keychain_secret_not_found ... ok
+test schema::tests::validate_unknown_fields_strict_unknown_field ... ok
+test tests::test_acp_config_default ... ok
+test tests::test_agent_map_config_get_agent ... ok
+test secret_storage::tests::test_default_secrets_path_fallback ... ok
+test secret_storage::tests::test_secret_storage_new ... ok
+test tests::test_agent_map_config_get_default_agent_nonexistent ... ok
+test tests::test_agent_map_config_get_default_agent ... ok
+test tests::test_agents_md_config_to_scan_config ... ok
+test tests::test_agents_md_config_to_scan_defaults ... ok
+test tests::test_auto_update_serialization_bool ... ok
+test tests::test_cli_override_config ... ok
+test tests::test_auto_update_serialization_string ... ok
+test tests::test_config_error_from_string ... ok
+test tests::test_agent_config_all_fields ... ok
+test tests::test_command_config ... ok
+test tests::test_config_batch_tool_enabled ... ok
+test tests::test_config_get_disabled_tools_permission_action_deny ... ok
+test tests::test_config_get_disabled_tools_permission_object_deny ... ok
+test tests::test_config_get_disabled_tools_permission_extra ... ok
+test tests::test_compaction_config ... ok
+test tests::test_config_get_provider_filter_none ... ok
+test tests::test_config_get_provider ... ok
+test tests::test_config_get_provider_filter ... ok
+test tests::test_config_is_valid ... ok
+test tests::test_config_is_not_valid ... ok
+test tests::test_config_migrate_from_ts_format_autoupdate_notify ... ok
+test tests::test_config_open_telemetry_enabled ... ok
+test tests::test_config_migrate_from_ts_format ... ok
+test tests::test_config_provider_enabled_empty_enabled_list ... ok
+test tests::test_config_load_nonexistent_file ... ok
+test tests::test_config_validate_agent_temperature_out_of_range ... ok
+test tests::test_config_validate_agent_top_p_out_of_range ... ok
+test tests::test_config_validate_compaction_reserved_high ... ok
+test tests::test_config_load_json5_file ... ok
+test tests::test_config_validate_disabled_and_enabled_conflict ... ok
+test tests::test_config_validate_model_without_slash ... ok
+test tests::test_config_validate_temperature_out_of_range ... ok
+test tests::test_contains_keychain_reference ... ok
+test tests::test_config_validate_server_port_low ... ok
+test tests::test_content_hash_is_deterministic ... ok
+test tests::test_default_config ... ok
+test tests::test_config_save_jsonc ... ok
+test tests::test_config_save_json ... ok
+test tests::test_config_save_creates_parent_dirs ... ok
+test tests::test_deprecated_mode_field_still_parses ... ok
+test tests::test_deprecated_tools_empty_array ... ok
+test directory_scanner::tests::test_scan_tools_multiple ... ok
+test tests::test_deprecated_tools_field_migration_content ... ok
+test tests::test_deprecated_tools_field_migrates_to_permission ... ok
+test tests::test_deprecated_tools_field_still_parses ... ok
+test tests::test_deprecated_tools_merges_with_existing_permission ... ok
+test tests::test_desktop_config_default ... ok
+test tests::test_deprecated_mode_agent_mode_field_emits_warning ... ok
+test tests::test_deprecated_tools_preserves_other_fields ... ok
+test tests::test_diff_style_serialization ... ok
+test tests::test_deprecated_mode_field_emits_warning ... ok
+test tests::test_enterprise_config ... ok
+test tests::test_env_variable_expansion ... ok
+test tests::test_deprecated_tools_migration_emits_warning ... ok
+test tests::test_experimental_config ... ok
+test tests::test_formatter_config_disabled ... ok
+test tests::test_deprecated_tools_emits_warning ... ok
+test tests::test_formatter_config_formatters ... ok
+test tests::test_json_parsing ... ok
+test tests::test_jsonc_parsing_with_comments ... ok
+test tests::test_keybind_config_detect_conflicts ... ok
+test tests::test_keybind_config_merge_custom ... ok
+test tests::test_keybind_config_merge_with_defaults ... ok
+test tests::test_log_level_serialization ... ok
+test tests::test_keybind_config_no_conflicts ... ok
+test tests::test_keybind_config_serialization ... ok
+test tests::test_lsp_config_disabled ... ok
+test tests::test_lsp_config_servers ... ok
+test tests::test_mcp_config_local ... ok
+test tests::test_mcp_config_remote ... ok
+test tests::test_mcp_config_simple ... ok
+test tests::test_mcp_oauth_union_config ... ok
+test tests::test_mcp_oauth_union_disabled ... ok
+test tests::test_model_config_extra ... ok
+test tests::test_permission_action_serialization ... ok
+test tests::test_permission_rule_action ... ok
+test tests::test_precedence_cli_overrides_env ... ok
+test tests::test_permission_rule_object ... ok
+test tests::test_precedence_provider_api_keys_from_env ... ok
+test tests::test_provider_config_sanitize_for_logging ... ok
+test tests::test_provider_enabled ... ok
+test tests::test_provider_options_sanitize_for_logging_redacts_api_key ... ok
+test tests::test_redact_keychain_references ... ok
+test tests::test_redact_keychain_references_no_match ... ok
+test tests::test_redact_keychain_references_multiple ... ok
+test tests::test_scroll_acceleration_default ... ok
+test tests::test_scroll_acceleration_deserialize_map ... ok
+test tests::test_scroll_acceleration_from_f32 ... ok
+test tests::test_scroll_acceleration_deserialize_map_unknown_key ... ok
+test tests::test_server_config_default ... ok
+test tests::test_share_mode_serialization ... ok
+test tests::test_share_mode_variants ... ok
+test tests::test_skills_config ... ok
+test tests::test_theme_config_resolve_path_not_exists ... ok
+test tests::test_theme_config_with_scan_dirs ... ok
+test tests::test_timeout_config_serialization ... ok
+test tests::test_tui_config_default ... ok
+test tests::test_precedence_env_overrides_config_file ... ok
+test tests::test_tui_config_deserialization ... ok
+test tests::test_theme_config_resolve_path_absolute ... ok
+test tests::test_tui_config_scroll_acceleration_legacy_number ... ok
+test tests::test_tui_plugin_config_default ... ok
+test tests::test_theme_config_resolve_path_relative ... ok
+test tests::test_theme_config_resolve_path_tilde ... ok
+test tests::test_validate_runtime_no_tui_fields_empty ... ok
+test tests::test_validate_runtime_no_tui_fields_with_tui_fields ... ok
+test tests::test_validate_tui_config_no_runtime_fields ... ok
+test tests::test_validation_error_is_error ... ok
+test tests::test_validate_tui_config_with_runtime_fields ... ok
+test tests::test_validation_error_is_warning ... ok
+test tests::test_validation_result_default ... ok
+test tests::test_variable_expansion_basic ... ok
+test tests::test_variable_expansion_nested ... ok
+test tests::test_variant_config_extra ... ok
+test tests::test_watcher_config ... ok
+test tests::test_verify_integrity_with_matching_hash ... ok
+test tests::test_verify_integrity_with_mismatched_hash ... ok
+test schema::tests::invalid_schema_url_does_not_panic_or_fail_loading_semantics ... ok
+test schema::tests::fetch_schema_network_failure_is_graceful ... ok
+test schema::tests::offline_mode_falls_back_cache_then_builtin ... ok
+test schema::tests::validation_errors_include_field_paths ... ok
+test tests::test_precedence_full_chain_integration ... ok
+
+test result: ok. 245 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.64s
+
+     Running tests/circular_variable_tests.rs (target/debug/deps/circular_variable_tests-069a6f8f6d1cf136)
+
+running 22 tests
+test test_circular_error_message_shows_variables_in_cycle ... ok
+test test_env_variable_circular_chain ... ok
+test test_env_variable_expansion_normal ... ok
+test test_circular_error_message_shows_chain ... ok
+test test_env_variable_circular_indirect ... ok
+test test_env_variable_circular_self_reference ... ok
+test test_variable_expansion_basic ... ok
+test test_variable_expansion_circular_reference ... ok
+test test_variable_expansion_in_array ... ok
+test test_variable_expansion_in_nested_object ... ok
+test test_variable_expansion_indirect_circular ... ok
+test test_nested_env_in_file_circular ... ok
+test test_file_variable_expansion_normal ... ok
+test test_variable_expansion_multiple_in_string ... ok
+test test_file_variable_circular_self_reference ... ok
+test test_variable_expansion_nested ... ok
+test test_variable_expansion_non_string_no_change ... ok
+test test_variable_expansion_partial_string_preserved ... ok
+test test_variable_expansion_self_reference ... ok
+test test_variable_expansion_undefined_variable ... ok
+test test_file_variable_circular_indirect ... ok
+test test_file_variable_circular_chain ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/config_e2e_tests.rs (target/debug/deps/config_e2e_tests-6ce4cedf21305bce)
+
+running 25 tests
+test config_e2e_005_config_path_resolution ... ok
+test config_e2e_003_keychain_resolve_success ... ok
+test config_e2e_003_keychain_resolve_placeholder_when_not_found ... ok
+test config_e2e_003_keychain_secret_resolution ... ok
+test config_e2e_003_keychain_multiple_references ... ok
+test config_e2e_002_deep_merge_on_patch ... ok
+test config_e2e_004_env_variable_expansion ... ok
+test config_e2e_004_server_port_loading ... ok
+test config_e2e_001_load_json_file ... ok
+test config_e2e_load_empty_config ... ok
+test config_e2e_nested_config_loading ... ok
+test config_reload_002_atomic_reload ... ok
+test config_e2e_008_jsonc_comment_parsing ... ok
+test config_expand_001_variable_expansion_quotes ... ok
+test config_jsonc_block_comments ... ok
+test config_jsonc_single_line_comments ... ok
+test config_val_006_array_merge_behavior ... ok
+test config_reload_001_hot_reload_detect_change ... ok
+test config_val_002_circular_reference_detection ... ok
+test config_validation_rejects_tui_fields_in_runtime ... ok
+test config_val_003_missing_required_env_vars ... ok
+test config_sec_002_file_permission_validation ... ok
+test config_val_001_malformed_json_recovery ... ok
+test config_e2e_006_directory_scanner ... ok
+test config_e2e_003_config_file_unchanged_after_keychain_resolution has been running for over 60 seconds
+error: test failed, to rerun pass `-p opencode-config --test config_e2e_tests`
+
+Caused by:
+  process didn't exit successfully: `/Users/aaronzh/Documents/GitHub/opencode-rs/opencode-rust/target/debug/deps/config_e2e_tests-6ce4cedf21305bce --nocapture` (signal: 9, SIGKILL: kill)
