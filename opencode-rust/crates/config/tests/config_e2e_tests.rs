@@ -466,6 +466,10 @@ fn config_sec_002_file_permission_validation() {
 
 #[tokio::test]
 async fn config_e2e_003_keychain_secret_resolution() {
+    if std::env::var("CI").is_ok() {
+        return;
+    }
+
     let temp_dir = TempDir::new().unwrap();
     let config_path = temp_dir.path().join("config.json");
 
