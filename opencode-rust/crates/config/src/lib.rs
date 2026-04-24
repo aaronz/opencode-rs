@@ -16,6 +16,8 @@ pub use directory_scanner::{
     load_opencode_directory, DirectoryScanner, OpencodeDirectoryScan, ToolInfo,
 };
 pub use jsonc::{is_jsonc_extension, parse_jsonc, JsoncError};
+pub use merge::deep_merge;
+pub use secret_storage::SecretStorage;
 use remote_cache::{load_cache, save_cache, RemoteConfigCache};
 use secret_storage::resolve_keychain_secret;
 
