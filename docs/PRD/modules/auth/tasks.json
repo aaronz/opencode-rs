@@ -81,7 +81,7 @@
     },
     {
       "id": "auth_jwt_003",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "JWT secret/key rotation",
       "description": "Tokens signed with old key must be rejected after rotation",
       "modules": ["auth"],
@@ -165,7 +165,7 @@
     },
     {
       "id": "auth_oauth_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "OAuth state parameter validation",
       "description": "CRITICAL: OAuth flow must validate state to prevent CSRF",
       "modules": ["auth"],
@@ -187,7 +187,7 @@
     },
     {
       "id": "auth_oauth_002",
-      "status": "not_started",
+      "status": "completed",
       "title": "OAuth token storage and refresh",
       "description": "OAuth tokens stored securely and refreshed automatically",
       "modules": ["auth"],
@@ -209,7 +209,7 @@
     },
     {
       "id": "auth_oauth_003",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "OAuth refresh token rotation",
       "description": "Refresh token rotation prevents replay of old tokens",
       "modules": ["auth"],
@@ -230,7 +230,7 @@
     },
     {
       "id": "auth_session_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Session token binding to device/fingerprint",
       "description": "Session tokens should be bindable to device ID",
       "modules": ["auth"],
@@ -255,7 +255,7 @@
     "crate": "opencode-auth",
     "source": "crates/auth/src/lib.rs",
     "total_cases": 12,
-    "completed_cases": 8,
+    "completed_cases": 10,
     "category": "security",
     "critical_invariants": [
       "JWT rejects algorithm confusion attacks",

@@ -22,7 +22,7 @@ Starting implementation of tasks from docs/PRD/modules/
 - git: 5/14 (9 not_started)
 - plugin: 9/11 (2 requires_code_change)
 - shell: 3/13 (8 requires_code_change)
-- file: 0/12 (all requires_code_change)
+- file: 2/12 (2 completed: filesystem_sec_001, filesystem_sec_002)
 
 ### Phase 3: Not Started
 - disaster_recovery: 0/13
@@ -42,4 +42,8 @@ Completed shell module tasks:
 - shell_sec_002: Environment variable sanitization ✓
 - shell_e2e_001: Shell command with env vars ✓
 
-Next: pty_sec_001 (PTY escape sequence handling)
+Completed file module tasks:
+- filesystem_sec_001: Snapshot restore path traversal blocking ✓
+- filesystem_sec_002: Symlink in snapshot restore handling ✓
+
+Next: file module - filesystem_patch_001 (Patch application atomicity, high priority)

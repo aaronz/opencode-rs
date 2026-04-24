@@ -65,6 +65,186 @@ pub fn validate_tui_schema(value: &Value) -> Vec<String> {
     errors
 }
 
+#[allow(dead_code)]
+pub fn levenshtein_distance(s1: &str, s2: &str) -> usize {
+    let len1 = s1.len();
+    let len2 = s2.len();
+    if len1 == 0 {
+        return len2;
+    }
+    if len2 == 0 {
+        return len1;
+    }
+
+    let mut matrix = vec![vec![0usize; len2 + 1]; len1 + 1];
+
+    #[allow(clippy::needless_range_loop)]
+    for i in 0..=len1 {
+        matrix[i][0] = i;
+    }
+    #[allow(clippy::needless_range_loop)]
+    for j in 0..=len2 {
+        matrix[0][j] = j;
+    }
+
+    let s1_chars: Vec<char> = s1.chars().collect();
+    let s2_chars: Vec<char> = s2.chars().collect();
+
+    for i in 1..=len1 {
+        for j in 1..=len2 {
+            let cost = if s1_chars[i - 1] == s2_chars[j - 1] { 0 } else { 1 };
+            matrix[i][j] = std::cmp::min(
+                std::cmp::min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1),
+                matrix[i - 1][j - 1] + cost,
+            );
+        }
+    }
+
+    matrix[len1][len2]
+}
+
+#[allow(dead_code)]
+pub fn find_similar_field(name: &str, known_fields: &[&str]) -> Option<String> {
+    let mut best_match: Option<(usize, &str)> = None;
+    let name_lower = name.to_lowercase();
+
+    for field in known_fields {
+        let field_lower = field.to_lowercase();
+        if field_lower == name_lower {
+            return Some(field.to_string());
+        }
+
+        let dist = levenshtein_distance(&name_lower, &field_lower);
+        let threshold = (field.len().max(name.len()) / 3).max(1);
+
+        if dist <= threshold {
+            match &best_match {
+                Some((best_dist, _)) if dist < *best_dist => {
+                    best_match = Some((dist, field));
+                }
+                None => {
+                    best_match = Some((dist, field));
+                }
+                _ => {}
+            }
+        }
+    }
+
+    best_match.map(|(_, field)| field.to_string())
+}
+
+#[allow(dead_code)]
+pub fn validate_unknown_fields(
+    value: &Value,
+    known_fields: &[&str],
+    strict: bool,
+) -> Vec<super::ValidationError> {
+    let mut errors = Vec::new();
+    let Some(obj) = value.as_object() else {
+        return errors;
+    };
+
+    let known_set: std::collections::HashSet<&str> = known_fields.iter().cloned().collect();
+
+    for key in obj.keys() {
+        if !known_set.contains(key.as_str()) {
+            if strict {
+                if let Some(suggestion) = find_similar_field(key, known_fields) {
+                    errors.push(super::ValidationError {
+                        field: key.clone(),
+                        message: format!(
+                            "Unknown field '{}'. Did you mean '{}'?",
+                            key, suggestion
+                        ),
+                        severity: super::ValidationSeverity::Error,
+                    });
+                } else {
+                    errors.push(super::ValidationError {
+                        field: key.clone(),
+                        message: format!("Unknown field '{}'.", key),
+                        severity: super::ValidationSeverity::Error,
+                    });
+                }
+            } else if let Some(suggestion) = find_similar_field(key, known_fields) {
+                errors.push(super::ValidationError {
+                    field: key.clone(),
+                    message: format!(
+                        "Unknown field '{}'. Did you mean '{}'? This field will be ignored.",
+                        key, suggestion
+                    ),
+                    severity: super::ValidationSeverity::Warning,
+                });
+            } else {
+                errors.push(super::ValidationError {
+                    field: key.clone(),
+                    message: format!("Unknown field '{}'. This field will be ignored.", key),
+                    severity: super::ValidationSeverity::Warning,
+                });
+            }
+        }
+    }
+
+    errors
+}
+
+#[allow(dead_code)]
+pub const KNOWN_CONFIG_FIELDS: &[&str] = &[
+    "$schema",
+    "schema",
+    "logLevel",
+    "log_level",
+    "server",
+    "command",
+    "commands",
+    "skills",
+    "watcher",
+    "plugin",
+    "plugins",
+    "snapshot",
+    "share",
+    "autoshare",
+    "autoupdate",
+    "disabledProviders",
+    "disabled_providers",
+    "enabledProviders",
+    "enabled_providers",
+    "model",
+    "smallModel",
+    "small_model",
+    "defaultAgent",
+    "default_agent",
+    "username",
+    "agent",
+    "agents",
+    "provider",
+    "providers",
+    "mcp",
+    "formatter",
+    "lsp",
+    "instructions",
+    "agentsMd",
+    "agents_md",
+    "permission",
+    "permissions",
+    "enterprise",
+    "compaction",
+    "experimental",
+    "tui",
+    "apiKey",
+    "api_key",
+    "temperature",
+    "maxTokens",
+    "max_tokens",
+];
+
+#[allow(dead_code)]
+pub fn validate_config_unknown_fields(
+    value: &Value,
+    strict: bool,
+) -> Vec<super::ValidationError> {
+    validate_unknown_fields(value, KNOWN_CONFIG_FIELDS, strict)
+}
+
 #[derive(Debug, Clone)]
 pub struct SchemaValidationError {
     pub path: String,
@@ -725,5 +905,105 @@ mod tests {
         let result = SchemaValidationResult::default();
         assert!(!result.valid);
         assert!(result.errors.is_empty());
+    }
+
+    #[test]
+    fn levenshtein_distance_same() {
+        assert_eq!(levenshtein_distance("hello", "hello"), 0);
+    }
+
+    #[test]
+    fn levenshtein_distance_one_char() {
+        assert_eq!(levenshtein_distance("hello", "hallo"), 1);
+    }
+
+    #[test]
+    fn levenshtein_distance_empty() {
+        assert_eq!(levenshtein_distance("", "hello"), 5);
+        assert_eq!(levenshtein_distance("hello", ""), 5);
+    }
+
+    #[test]
+    fn levenshtein_distance_complete_change() {
+        assert_eq!(levenshtein_distance("abc", "xyz"), 3);
+    }
+
+    #[test]
+    fn find_similar_field_exact_match() {
+        let fields = ["logLevel", "server", "model"];
+        assert_eq!(find_similar_field("logLevel", &fields), Some("logLevel".to_string()));
+    }
+
+    #[test]
+    fn find_similar_field_typo_loglevel() {
+        let fields = ["logLevel", "server", "model"];
+        assert_eq!(find_similar_field("loglevel", &fields), Some("logLevel".to_string()));
+    }
+
+    #[test]
+    fn find_similar_field_typo_server() {
+        let fields = ["logLevel", "server", "model"];
+        assert_eq!(find_similar_field("serverr", &fields), Some("server".to_string()));
+    }
+
+    #[test]
+    fn find_similar_field_no_match() {
+        let fields = ["logLevel", "server", "model"];
+        assert_eq!(find_similar_field("xyzabc", &fields), None);
+    }
+
+    #[test]
+    fn validate_unknown_fields_strict_with_typo() {
+        let value = serde_json::json!({
+            "loglevel": "debug"
+        });
+        let errors = validate_config_unknown_fields(&value, true);
+        assert!(!errors.is_empty());
+        assert!(errors[0].severity == ValidationSeverity::Error);
+        assert!(errors[0].message.contains("Did you mean"));
+        assert!(errors[0].message.contains("logLevel"));
+    }
+
+    #[test]
+    fn validate_unknown_fields_strict_unknown_field() {
+        let value = serde_json::json!({
+            "completelyUnknownField": "value"
+        });
+        let errors = validate_config_unknown_fields(&value, true);
+        assert!(!errors.is_empty());
+        assert!(errors[0].severity == ValidationSeverity::Error);
+    }
+
+    #[test]
+    fn validate_unknown_fields_lenient_with_typo() {
+        let value = serde_json::json!({
+            "loglevel": "debug"
+        });
+        let errors = validate_config_unknown_fields(&value, false);
+        assert!(!errors.is_empty());
+        assert!(errors[0].severity == ValidationSeverity::Warning);
+        assert!(errors[0].message.contains("Did you mean"));
+    }
+
+    #[test]
+    fn validate_unknown_fields_valid_config() {
+        let value = serde_json::json!({
+            "logLevel": "debug",
+            "server": {"port": 3000},
+            "model": "gpt-4"
+        });
+        let errors = validate_config_unknown_fields(&value, true);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn validate_unknown_fields_nested_object_not_checked() {
+        let value = serde_json::json!({
+            "server": {
+                "unknownServerField": "value"
+            }
+        });
+        let errors = validate_config_unknown_fields(&value, true);
+        assert!(errors.is_empty());
     }
 }

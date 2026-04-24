@@ -1051,6 +1051,7 @@ impl Config {
             Config::default()
         } else {
             tracing::debug!(path = %path.display(), "Reading config file");
+            Self::check_file_permissions(path)?;
             let content = std::fs::read_to_string(path)?;
             let content = Self::substitute_variables(&content, path.parent())?;
             let ext = path.extension().and_then(|s| s.to_str());
@@ -1074,8 +1075,48 @@ impl Config {
     pub fn patch(&self, partial: &Config) -> Config {
         let base_json = serde_json::to_value(self).unwrap_or_default();
         let patch_json = serde_json::to_value(partial).unwrap_or_default();
-        let merged = merge::deep_merge(&base_json, &patch_json);
-        serde_json::from_value(merged).unwrap_or_else(|_| self.clone())
+        match merge::deep_merge(&base_json, &patch_json) {
+            Ok(merged) => serde_json::from_value(merged).unwrap_or_else(|_| self.clone()),
+            Err(e) => {
+                tracing::warn!(
+                    "Config patch type conflict at {}: {} -> {}, keeping original",
+                    e.path,
+                    e.base_type,
+                    e.override_type
+                );
+                self.clone()
+            }
+        }
+    }
+
+    fn check_file_permissions(path: &Path) -> Result<(), ConfigError> {
+        use std::os::unix::fs::PermissionsExt;
+
+        let metadata = std::fs::metadata(path).map_err(|e| {
+            ConfigError::Config(format!("Failed to read config file permissions: {}", e))
+        })?;
+
+        let mode = metadata.permissions().mode();
+        let world_readable = (mode & 0o007) != 0;
+        let group_readable = (mode & 0o070) != 0 && (mode & 0o007) == 0;
+
+        if world_readable {
+            tracing::warn!(
+                "Config file '{}' is world-readable (permissions: {:o}). \
+                Consider using more restrictive permissions (0o600) for sensitive data.",
+                path.display(),
+                mode & 0o777
+            );
+        } else if group_readable {
+            tracing::warn!(
+                "Config file '{}' is group-readable (permissions: {:o}). \
+                This may expose sensitive configuration to other users in the same group.",
+                path.display(),
+                mode & 0o777
+            );
+        }
+
+        Ok(())
     }
 
     fn parse_json_content(content: &str) -> Result<Self, ConfigError> {
@@ -1704,7 +1745,18 @@ impl Config {
                     serde_json::to_value(&merged).unwrap_or(Value::Object(serde_json::Map::new()));
                 let override_val =
                     serde_json::to_value(&cfg).unwrap_or(Value::Object(serde_json::Map::new()));
-                let merged_json = merge::deep_merge(&base, &override_val);
+                let merged_json = match merge::deep_merge(&base, &override_val) {
+                    Ok(m) => m,
+                    Err(e) => {
+                        tracing::warn!(
+                            "TUI config merge at {}: {} -> {}, keeping original",
+                            e.path,
+                            e.base_type,
+                            e.override_type
+                        );
+                        base
+                    }
+                };
                 merged = serde_json::from_value(merged_json).unwrap_or_default();
             }
         }
@@ -1885,7 +1937,18 @@ impl Config {
             .unwrap_or(Value::Object(serde_json::Map::new()));
         let override_val =
             serde_json::to_value(&file_tui).unwrap_or(Value::Object(serde_json::Map::new()));
-        let merged_tui = merge::deep_merge(&base, &override_val);
+        let merged_tui = match merge::deep_merge(&base, &override_val) {
+            Ok(merged) => merged,
+            Err(e) => {
+                tracing::warn!(
+                    "TUI config merge type conflict at {}: {} -> {}, keeping original",
+                    e.path,
+                    e.base_type,
+                    e.override_type
+                );
+                base
+            }
+        };
         result.tui = Some(serde_json::from_value(merged_tui).unwrap_or_default());
 
         result.apply_env_overrides();
@@ -2196,7 +2259,18 @@ impl Config {
     }
 
     fn merge_configs(base: Config, override_config: Config) -> Config {
-        merge::merge_configs(&base, &override_config)
+        match merge::merge_configs(&base, &override_config) {
+            Ok(merged) => merged,
+            Err(e) => {
+                tracing::warn!(
+                    "Config merge type conflict at {}: {} -> {}, keeping original value",
+                    e.path,
+                    e.base_type,
+                    e.override_type
+                );
+                base
+            }
+        }
     }
 
     fn apply_env_overrides(&mut self) {

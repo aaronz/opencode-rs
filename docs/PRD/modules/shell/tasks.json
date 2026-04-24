@@ -60,7 +60,7 @@
     },
     {
       "id": "sync_e2e_001",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "SSE streaming updates",
       "description": "Test server-sent events for state sync",
       "modules": ["sync", "server"],
@@ -128,7 +128,7 @@
     },
     {
       "id": "pty_sec_001",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "PTY escape sequence handling",
       "description": "Malicious escape sequences in PTY output handled",
       "modules": ["pty"],
@@ -174,7 +174,7 @@
     },
     {
       "id": "bus_stability_001",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "Event bus subscriber panic isolation",
       "description": "Panicking subscriber must not crash event bus",
       "modules": ["bus"],
@@ -215,7 +215,7 @@
     },
     {
       "id": "sync_001",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "SSE reconnection with last-event-id",
       "description": "SSE client reconnects and resumes from last event",
       "modules": ["sync"],
@@ -238,7 +238,7 @@
     },
     {
       "id": "sync_002",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "SSE heartbeat prevents connection timeout",
       "description": "SSE server sends heartbeat comments",
       "modules": ["sync"],

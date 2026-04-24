@@ -96,7 +96,7 @@ pub mod discovery;
 pub mod loader;
 pub mod local_wasm;
 pub mod registry;
-pub(crate) mod wasm_runtime;
+pub mod wasm_runtime;
 
 use async_trait::async_trait;
 use discovery::PluginDiscovery;

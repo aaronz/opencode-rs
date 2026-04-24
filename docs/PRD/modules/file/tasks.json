@@ -6,7 +6,7 @@
   "test_cases": [
     {
       "id": "file_e2e_001",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "File snapshot and diff",
       "description": "Test snapshot creation and diff generation",
       "modules": ["file", "snapshot"],
@@ -25,8 +25,8 @@
       ]
     },
     {
-      "id": "snapshot_e2e_001",
-      "status": "requires_code_change",
+      "id": "patch_e2e_001",
+      "status": "completed",
       "title": "Snapshot persistence across restarts",
       "description": "Test snapshots survive process restart",
       "modules": ["snapshot", "storage"],
@@ -44,7 +44,7 @@
     },
     {
       "id": "patch_e2e_001",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "Apply unified diff patch",
       "description": "Test patch application",
       "modules": ["patch", "file"],
@@ -61,7 +61,7 @@
     },
     {
       "id": "global_e2e_001",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "Global paths resolution",
       "description": "Test path resolution for config, data, cache",
       "modules": ["global"],
@@ -78,7 +78,7 @@
     },
     {
       "id": "worktree_e2e_001",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "Create and list worktrees",
       "description": "Test git worktree operations",
       "modules": ["worktree", "git"],
@@ -96,7 +96,7 @@
     },
     {
       "id": "filesystem_sec_001",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "Snapshot restore path traversal",
       "description": "CRITICAL: Snapshot restore must not write outside target",
       "modules": ["file", "snapshot"],
@@ -116,7 +116,7 @@
     },
     {
       "id": "filesystem_sec_002",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "Symlink in snapshot restore",
       "description": "Snapshot containing symlinks must be handled safely",
       "modules": ["file", "snapshot"],
@@ -136,7 +136,7 @@
     },
     {
       "id": "filesystem_patch_001",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "Patch application atomicity",
       "description": "Failed patch must not modify target file",
       "modules": ["patch"],
@@ -156,7 +156,7 @@
     },
     {
       "id": "filesystem_patch_002",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "Patch with conflicting hunks",
       "description": "Patch with conflicts handled gracefully",
       "modules": ["patch"],
@@ -177,7 +177,7 @@
     },
     {
       "id": "filesystem_global_001",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "Global paths on different platforms",
       "description": "Path resolution works across macOS, Linux, Windows",
       "modules": ["global"],
@@ -198,7 +198,7 @@
     },
     {
       "id": "filesystem_worktree_001",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "Worktree with dirty main branch",
       "description": "Cannot create worktree when main branch has uncommitted changes",
       "modules": ["worktree", "git"],

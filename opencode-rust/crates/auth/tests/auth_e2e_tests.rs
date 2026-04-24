@@ -2,6 +2,7 @@ use opencode_auth::credential_store::Credential;
 use opencode_auth::jwt::{create_token, validate_token, Claims};
 use opencode_auth::CredentialStore;
 use std::collections::HashMap;
+use std::io::{Read, Write};
 use tempfile::TempDir;
 
 fn create_temp_credential_store() -> (CredentialStore, TempDir) {
@@ -321,6 +322,29 @@ mod jwt_key_rotation_tests {
 mod oauth_state_tests {
     use super::*;
 
+    fn spawn_mock_token_server(response_body: String) -> String {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = format!("http://{}", listener.local_addr().unwrap());
+        let (tx, rx) = std::sync::mpsc::channel::<()>();
+
+        std::thread::spawn(move || {
+            tx.send(()).unwrap();
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut buffer = [0u8; 8192];
+            let _ = stream.read(&mut buffer).unwrap();
+
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                response_body.len(),
+                response_body
+            );
+            stream.write_all(response.as_bytes()).unwrap();
+        });
+
+        let _ = rx.recv();
+        addr
+    }
+
     #[test]
     fn test_wrong_state_rejected() {
         let (store, _temp_dir) = create_temp_credential_store();
@@ -363,9 +387,27 @@ mod oauth_state_tests {
             session_manager,
         );
 
-        let (_auth_url, _state, _verifier) = flow
+        let (_auth_url, state, verifier) = flow
             .start_login("github", "client-1", "http://127.0.0.1/callback")
             .unwrap();
+
+        let endpoint = spawn_mock_token_server(
+            serde_json::json!({
+                "access_token": "access-1",
+                "refresh_token": "refresh-1",
+                "expires_in": 1200,
+                "token_type": "Bearer",
+                "scope": "repo"
+            })
+            .to_string(),
+        );
+
+        let token = flow
+            .complete_login("auth-code", &state, &verifier, "client-1", "secret-1", &endpoint)
+            .unwrap();
+
+        assert_eq!(token.access_token, "access-1");
+        assert_eq!(token.refresh_token.as_deref(), Some("refresh-1"));
     }
 
     #[test]
@@ -379,9 +421,44 @@ mod oauth_state_tests {
             session_manager,
         );
 
-        let (_auth_url, _state, _verifier) = flow
+        let (_auth_url, state, verifier) = flow
             .start_login("github", "client-1", "http://127.0.0.1/callback")
             .unwrap();
+
+        let endpoint = spawn_mock_token_server(
+            serde_json::json!({
+                "access_token": "access-1",
+                "refresh_token": "refresh-1",
+                "expires_in": 1200,
+                "token_type": "Bearer",
+                "scope": "repo"
+            })
+            .to_string(),
+        );
+
+        let result1 = flow.complete_login(
+            "auth-code-1",
+            &state,
+            &verifier,
+            "client-1",
+            "secret-1",
+            &endpoint,
+        );
+        assert!(result1.is_ok(), "First use should succeed");
+
+        let result2 = flow.complete_login(
+            "auth-code-2",
+            &state,
+            &verifier,
+            "client-1",
+            "secret-1",
+            &endpoint,
+        );
+        assert!(result2.is_err(), "Second use (replay) should fail - state already consumed");
+        assert!(matches!(
+            result2.unwrap_err(),
+            opencode_auth::oauth::OAuthError::InvalidState
+        ));
     }
 
     #[test]
@@ -395,21 +472,78 @@ mod oauth_state_tests {
             session_manager,
         );
 
-        let (_auth_url, _state, _verifier) = flow
+        let (_auth_url, state, verifier) = flow
             .start_login("github", "client-1", "http://127.0.0.1/callback")
             .unwrap();
+
+        let endpoint = spawn_mock_token_server(
+            serde_json::json!({
+                "access_token": "access-token",
+                "refresh_token": "refresh-token",
+                "expires_in": 1200,
+                "token_type": "Bearer",
+                "scope": "repo"
+            })
+            .to_string(),
+        );
+
+        let first_result = flow.complete_login(
+            "stolen-auth-code",
+            &state,
+            &verifier,
+            "client-1",
+            "secret-1",
+            &endpoint,
+        );
+        assert!(first_result.is_ok(), "Legitimate first use should succeed");
+
+        let second_result = flow.complete_login(
+            "stolen-auth-code-replay",
+            &state,
+            &verifier,
+            "client-1",
+            "secret-1",
+            &endpoint,
+        );
+        assert!(
+            second_result.is_err(),
+            "Replay attack with same state should be rejected"
+        );
     }
 }
 
 mod oauth_token_refresh_tests {
     use super::*;
 
+    fn spawn_mock_token_server(response_body: String) -> String {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = format!("http://{}", listener.local_addr().unwrap());
+        let (tx, rx) = std::sync::mpsc::channel::<()>();
+
+        std::thread::spawn(move || {
+            tx.send(()).unwrap();
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut buffer = [0u8; 8192];
+            let _ = stream.read(&mut buffer).unwrap();
+
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                response_body.len(),
+                response_body
+            );
+            stream.write_all(response.as_bytes()).unwrap();
+        });
+
+        let _ = rx.recv();
+        addr
+    }
+
     #[test]
     fn test_token_refresh_when_expired() {
         let (store, _temp_dir) = create_temp_credential_store();
         let session_manager =
             opencode_auth::oauth::OAuthSessionManager::new(_temp_dir.path().to_path_buf());
-        let _flow = opencode_auth::oauth::OAuthFlow::with_client_and_store(
+        let flow = opencode_auth::oauth::OAuthFlow::with_client_and_store(
             reqwest::blocking::Client::new(),
             store,
             session_manager,
@@ -423,7 +557,29 @@ mod oauth_token_refresh_tests {
             scope: Some("repo".into()),
             received_at: chrono::Utc::now() - chrono::Duration::seconds(10),
         };
-        assert!(token.is_expired());
+        assert!(token.is_expired(), "Token should be expired");
+
+        flow.store_token("test-provider", &token).unwrap();
+
+        let endpoint = spawn_mock_token_server(
+            serde_json::json!({
+                "access_token": "refreshed-access",
+                "refresh_token": "refresh-2",
+                "expires_in": 3600,
+                "token_type": "Bearer",
+                "scope": "repo"
+            })
+            .to_string(),
+        );
+
+        let refreshed = flow
+            .ensure_fresh_token("test-provider", "client-1", "secret-1", &endpoint)
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(refreshed.access_token, "refreshed-access");
+        assert_eq!(refreshed.refresh_token.as_deref(), Some("refresh-2"));
+        assert!(!refreshed.is_expired());
     }
 
     #[test]
@@ -431,11 +587,44 @@ mod oauth_token_refresh_tests {
         let (store, _temp_dir) = create_temp_credential_store();
         let session_manager =
             opencode_auth::oauth::OAuthSessionManager::new(_temp_dir.path().to_path_buf());
-        let _flow = opencode_auth::oauth::OAuthFlow::with_client_and_store(
+        let flow = opencode_auth::oauth::OAuthFlow::with_client_and_store(
             reqwest::blocking::Client::new(),
             store,
             session_manager,
         );
+
+        let expired_token = opencode_auth::oauth::OAuthToken {
+            access_token: "old-expired-access".into(),
+            refresh_token: Some("original-refresh".into()),
+            expires_in: 1,
+            token_type: "Bearer".into(),
+            scope: Some("read".into()),
+            received_at: chrono::Utc::now() - chrono::Duration::seconds(10),
+        };
+        flow.store_token("auto-refresh-provider", &expired_token).unwrap();
+
+        let endpoint = spawn_mock_token_server(
+            serde_json::json!({
+                "access_token": "new-auto-access",
+                "refresh_token": "new-auto-refresh",
+                "expires_in": 3600,
+                "token_type": "Bearer",
+                "scope": "read"
+            })
+            .to_string(),
+        );
+
+        let result = flow.ensure_fresh_token(
+            "auto-refresh-provider",
+            "client-1",
+            "secret-1",
+            &endpoint,
+        );
+
+        assert!(result.is_ok(), "Should trigger automatic refresh");
+        let new_token = result.unwrap().unwrap();
+        assert_eq!(new_token.access_token, "new-auto-access");
+        assert!(!new_token.is_expired());
     }
 
     #[test]
@@ -465,6 +654,7 @@ mod oauth_token_refresh_tests {
         assert_eq!(loaded.refresh_token.as_deref(), Some("test-refresh-token"));
         assert_eq!(loaded.expires_in, 3600);
         assert_eq!(loaded.token_type, "Bearer");
+        assert_eq!(loaded.scope.as_deref(), Some("read write"));
     }
 
     #[test]
@@ -491,6 +681,18 @@ mod oauth_token_refresh_tests {
         let loaded = flow.load_token("no-refresh-provider").unwrap().unwrap();
         assert!(loaded.refresh_token.is_none());
         assert!(loaded.is_expired());
+
+        let result = flow.ensure_fresh_token(
+            "no-refresh-provider",
+            "client-1",
+            "secret-1",
+            "http://example.com/token",
+        );
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            opencode_auth::oauth::OAuthError::MissingRefreshToken
+        ));
     }
 }
 

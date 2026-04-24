@@ -7,7 +7,7 @@ use tokio::task::JoinHandle;
 use wasmtime::{Config, Engine, Instance, Linker, Memory, Module, Store};
 
 #[derive(Debug, thiserror::Error)]
-pub(crate) enum WasmError {
+pub enum WasmError {
     #[error("WASM compilation failed: {0}")]
     Compile(String),
     #[error("WASM instantiation failed: {0}")]
@@ -31,13 +31,13 @@ impl From<wasmtime::Error> for WasmError {
 }
 
 #[derive(Clone)]
-pub(crate) struct WasmCapabilities {
-    pub(crate) filesystem_scope: Option<String>,
-    pub(crate) network_allowed: bool,
-    pub(crate) allowed_env_vars: Vec<String>,
-    pub(crate) execution_timeout_secs: Option<u64>,
-    pub(crate) max_memory_bytes: Option<u64>,
-    pub(crate) max_cpu_time_secs: Option<u64>,
+pub struct WasmCapabilities {
+    pub filesystem_scope: Option<String>,
+    pub network_allowed: bool,
+    pub allowed_env_vars: Vec<String>,
+    pub execution_timeout_secs: Option<u64>,
+    pub max_memory_bytes: Option<u64>,
+    pub max_cpu_time_secs: Option<u64>,
 }
 
 impl Default for WasmCapabilities {
@@ -53,12 +53,12 @@ impl Default for WasmCapabilities {
     }
 }
 
-pub(crate) struct WasmRuntime {
+pub struct WasmRuntime {
     engine: Engine,
     capabilities: WasmCapabilities,
 }
 
-pub(crate) struct WasmInstance {
+pub struct WasmInstance {
     store: Store<WasmInstanceState>,
     instance: Instance,
 }
@@ -75,7 +75,7 @@ impl Default for WasmInstanceState {
     }
 }
 
-pub(crate) struct WasmPlugin {
+pub struct WasmPlugin {
     name: String,
     version: String,
     runtime: WasmRuntime,
@@ -182,7 +182,8 @@ pub(crate) enum WasmPluginEvent {
 }
 
 impl WasmRuntime {
-    pub(crate) fn new(capabilities: WasmCapabilities) -> Result<Self, WasmError> {
+    #[cfg(test)]
+    pub fn new(capabilities: WasmCapabilities) -> Result<Self, WasmError> {
         let mut config = Config::new();
         config.consume_fuel(true);
 
@@ -198,12 +199,33 @@ impl WasmRuntime {
         })
     }
 
-    pub(crate) fn load_module(&self, path: &Path) -> Result<Module, WasmError> {
+    #[cfg(not(test))]
+    pub fn new(capabilities: WasmCapabilities) -> Result<Self, WasmError> {
+        let mut config = Config::new();
+        config.consume_fuel(true);
+
+        if let Some(_timeout) = capabilities.execution_timeout_secs {
+            config.epoch_interruption(true);
+        }
+
+        let engine = Engine::new(&config).map_err(|e| WasmError::Compile(e.to_string()))?;
+
+        Ok(Self {
+            engine,
+            capabilities,
+        })
+    }
+
+    pub fn load_module(&self, path: &Path) -> Result<Module, WasmError> {
         let bytes = std::fs::read(path)?;
         Module::new(&self.engine, bytes).map_err(|e| WasmError::Compile(e.to_string()))
     }
 
-    pub(crate) fn instantiate_module(&self, module: &Module) -> Result<WasmInstance, WasmError> {
+    pub fn load_module_from_bytes(&self, bytes: &[u8]) -> Result<Module, WasmError> {
+        Module::new(&self.engine, bytes).map_err(|e| WasmError::Compile(e.to_string()))
+    }
+
+    pub fn instantiate_module(&self, module: &Module) -> Result<WasmInstance, WasmError> {
         let memory = Arc::new(Mutex::new(None));
         let state = WasmInstanceState { memory };
 
@@ -212,9 +234,6 @@ impl WasmRuntime {
         let mut linker = Linker::new(&self.engine);
 
         self.define_host_functions(&mut linker)?;
-
-        // Note: WASI filesystem integration requires wasmtime-wasi crate setup
-        // For now, we skip WASI dir pre-opening as it requires Store<WasiCtx>
 
         let instance = linker
             .instantiate(&mut store, module)
@@ -297,13 +316,13 @@ impl WasmRuntime {
         Ok(())
     }
 
-    pub(crate) fn capabilities(&self) -> &WasmCapabilities {
+    pub fn capabilities(&self) -> &WasmCapabilities {
         &self.capabilities
     }
 }
 
 impl WasmInstance {
-    pub(crate) fn call(&mut self, func_name: &str) -> Result<(), WasmError> {
+    pub fn call(&mut self, func_name: &str) -> Result<(), WasmError> {
         let func = self
             .instance
             .get_func(&mut self.store, func_name)
@@ -315,7 +334,7 @@ impl WasmInstance {
         Ok(())
     }
 
-    pub(crate) fn call_with_input(
+    pub fn call_with_input(
         &mut self,
         func_name: &str,
         input: &str,
@@ -357,7 +376,7 @@ impl WasmInstance {
 }
 
 impl WasmPlugin {
-    pub(crate) fn new(
+    pub fn new(
         name: String,
         version: String,
         capabilities: WasmCapabilities,
@@ -373,14 +392,14 @@ impl WasmPlugin {
         })
     }
 
-    pub(crate) fn load(&mut self, module_path: &Path) -> Result<(), WasmError> {
+    pub fn load(&mut self, module_path: &Path) -> Result<(), WasmError> {
         let module = self.runtime.load_module(module_path)?;
         let instance = self.runtime.instantiate_module(&module)?;
         self.instance = Some(instance);
         Ok(())
     }
 
-    pub(crate) fn execute(&mut self, func_name: &str) -> Result<(), WasmError> {
+    pub fn execute(&mut self, func_name: &str) -> Result<(), WasmError> {
         if let Some(ref mut instance) = self.instance {
             instance.call(func_name)?;
         } else {
@@ -389,7 +408,7 @@ impl WasmPlugin {
         Ok(())
     }
 
-    pub(crate) fn execute_with_input(
+    pub fn execute_with_input(
         &mut self,
         func_name: &str,
         input: &str,

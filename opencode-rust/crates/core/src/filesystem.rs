@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::fs;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
@@ -109,12 +111,58 @@ impl AppFileSystem {
         let child_path = Path::new(child);
         child_path.starts_with(parent_path) && child_path != parent_path
     }
+
+    pub fn restore_snapshot(
+        files: &HashMap<String, String>,
+        target_dir: &str,
+    ) -> Result<(), String> {
+        let target = Path::new(target_dir)
+            .canonicalize()
+            .map_err(|e| format!("Invalid target directory: {}", e))?;
+
+        for (relative_path, content) in files {
+            if relative_path.starts_with('/') {
+                return Err(format!("Absolute paths not allowed: {}", relative_path));
+            }
+
+            if relative_path.contains("..") {
+                return Err(format!("Path traversal attempt blocked: {}", relative_path));
+            }
+
+            let full_path = Path::new(target_dir).join(relative_path);
+
+            let write_path = if full_path.exists() {
+                let canonical = full_path
+                    .canonicalize()
+                    .map_err(|e| format!("Cannot resolve path {}: {}", full_path.display(), e))?;
+                if !canonical.starts_with(&target) {
+                    return Err(format!(
+                        "Path traversal attempt blocked: {} resolves outside {}",
+                        relative_path, target_dir
+                    ));
+                }
+                canonical
+            } else {
+                full_path.clone()
+            };
+
+            if let Some(parent) = write_path.parent() {
+                std::fs::create_dir_all(parent)
+                    .map_err(|e| format!("Failed to create directory: {}", e))?;
+            }
+
+            std::fs::write(&write_path, content)
+                .map_err(|e| format!("Failed to write {}: {}", relative_path, e))?;
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
+    use std::collections::HashMap;
 
     #[test]
     fn test_is_dir() {
@@ -122,6 +170,95 @@ mod tests {
         assert!(!AppFileSystem::is_file(
             "/tmp/nonexistent_file_for_test_12345"
         ));
+    }
+
+    #[test]
+    fn test_filesystem_sec_001_snapshot_restore_blocks_path_traversal() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let target_dir = temp_dir.path().to_str().unwrap();
+
+        let mut files = HashMap::new();
+        files.insert("../../../etc/passwd".to_string(), "malicious".to_string());
+
+        let result = AppFileSystem::restore_snapshot(&files, target_dir);
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err();
+        assert!(err_msg.contains("Path traversal") || err_msg.contains("blocked"));
+    }
+
+    #[test]
+    fn test_filesystem_sec_001_snapshot_restore_blocks_absolute_path() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let target_dir = temp_dir.path().to_str().unwrap();
+
+        let mut files = HashMap::new();
+        files.insert("/etc/passwd".to_string(), "malicious".to_string());
+
+        let result = AppFileSystem::restore_snapshot(&files, target_dir);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_filesystem_sec_002_snapshot_restore_with_symlink_in_path() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let target_dir = temp_dir.path().to_str().unwrap();
+
+        let mut files = HashMap::new();
+        files.insert("link_to_etc".to_string(), "content".to_string());
+
+        let result = AppFileSystem::restore_snapshot(&files, target_dir);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_filesystem_sec_001_snapshot_restore_allows_normal_paths() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let target_dir = temp_dir.path().to_str().unwrap();
+
+        let mut files = HashMap::new();
+        files.insert("subdir/file.txt".to_string(), "content".to_string());
+
+        let result = AppFileSystem::restore_snapshot(&files, target_dir);
+        assert!(result.is_ok());
+
+        let restored = temp_dir.path().join("subdir/file.txt");
+        assert!(restored.exists());
+        assert_eq!(fs::read_to_string(restored).unwrap(), "content");
+    }
+
+    #[test]
+    fn test_filesystem_sec_001_snapshot_restore_blocks_traversal_with_dots() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let target_dir = temp_dir.path().to_str().unwrap();
+
+        let mut files = HashMap::new();
+        files.insert("a/b/../../etc/passwd".to_string(), "malicious".to_string());
+
+        let result = AppFileSystem::restore_snapshot(&files, target_dir);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_filesystem_sec_001_snapshot_restore_multiple_files() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let target_dir = temp_dir.path().to_str().unwrap();
+
+        let mut files = HashMap::new();
+        files.insert("file1.txt".to_string(), "content1".to_string());
+        files.insert("subdir/file2.txt".to_string(), "content2".to_string());
+        files.insert("another_dir/file3.txt".to_string(), "content3".to_string());
+
+        let result = AppFileSystem::restore_snapshot(&files, target_dir);
+        assert!(result.is_ok());
+
+        assert_eq!(
+            fs::read_to_string(temp_dir.path().join("file1.txt")).unwrap(),
+            "content1"
+        );
+        assert_eq!(
+            fs::read_to_string(temp_dir.path().join("subdir/file2.txt")).unwrap(),
+            "content2"
+        );
     }
 
     #[test]

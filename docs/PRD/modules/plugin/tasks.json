@@ -40,7 +40,7 @@
     },
     {
       "id": "plugin_sec_001",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "CRITICAL: WASM plugin sandbox escapes must be prevented",
       "description": "Plugin must not escape WASM sandbox to access host resources",
       "modules": ["plugin"],
@@ -65,7 +65,7 @@
     },
     {
       "id": "plugin_sec_002",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "Plugin resource limits",
       "description": "WASM execution must have bounded CPU/memory",
       "modules": ["plugin"],

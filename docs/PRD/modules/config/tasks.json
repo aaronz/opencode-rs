@@ -236,7 +236,7 @@
     },
     {
       "id": "config_val_004",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "Config schema validation - unknown fields",
       "description": "Config must validate schema and reject unknown fields if configured to",
       "modules": ["config"],
@@ -261,7 +261,7 @@
     },
     {
       "id": "config_val_005",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "Config deep merge type conflict",
       "description": "Patch with wrong type for nested field must be rejected or handled",
       "modules": ["config"],
@@ -379,7 +379,7 @@
     },
     {
       "id": "config_sec_002",
-      "status": "requires_code_change",
+      "status": "completed",
       "title": "Config file permission validation",
       "description": "Config must validate file permissions (not world-readable)",
       "modules": ["config"],

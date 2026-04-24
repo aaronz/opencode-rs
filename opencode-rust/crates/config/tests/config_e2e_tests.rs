@@ -416,3 +416,153 @@ async fn config_e2e_nested_config_loading() {
     assert_eq!(config.server.as_ref().unwrap().port, Some(8080));
     assert!(config.agent.is_some());
 }
+
+#[test]
+fn config_sec_002_file_permission_validation() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let temp_dir = tempfile::TempDir::new().unwrap();
+    let config_path = temp_dir.path().join("config.json");
+
+    std::fs::write(&config_path, r#"{"logLevel": "info"}"#).unwrap();
+
+    let metadata = std::fs::metadata(&config_path).unwrap();
+    let original_mode = metadata.permissions().mode();
+
+    let mut perms = std::fs::metadata(&config_path).unwrap().permissions();
+    perms.set_mode(0o600);
+    std::fs::set_permissions(&config_path, perms).unwrap();
+    let config = Config::load(&config_path);
+    assert!(config.is_ok(), "0o600 should be accepted");
+
+    let mut perms = std::fs::metadata(&config_path).unwrap().permissions();
+    perms.set_mode(0o400);
+    std::fs::set_permissions(&config_path, perms).unwrap();
+    let config = Config::load(&config_path);
+    assert!(config.is_ok(), "0o400 should be accepted");
+
+    let mut perms = std::fs::metadata(&config_path).unwrap().permissions();
+    perms.set_mode(0o644);
+    std::fs::set_permissions(&config_path, perms).unwrap();
+    let config = Config::load(&config_path);
+    assert!(config.is_ok(), "0o644 (world-readable) should warn but load");
+
+    let mut perms = std::fs::metadata(&config_path).unwrap().permissions();
+    perms.set_mode(0o777);
+    std::fs::set_permissions(&config_path, perms).unwrap();
+    let config = Config::load(&config_path);
+    assert!(config.is_ok(), "0o777 (fully world-readable) should warn but load");
+
+    let mut perms = std::fs::metadata(&config_path).unwrap().permissions();
+    perms.set_mode(original_mode & 0o777);
+    std::fs::set_permissions(&config_path, perms).unwrap();
+}
+
+#[tokio::test]
+async fn config_e2e_003_keychain_secret_resolution() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_path = temp_dir.path().join("config.json");
+
+    std::fs::write(&config_path, r#"{"model": "{keychain:api_key}"}"#).unwrap();
+
+    let config = Config::load(&config_path);
+    if config.is_err() {
+        let err_msg = format!("{}", config.unwrap_err());
+        assert!(
+            err_msg.contains("keychain") || err_msg.contains("not found"),
+            "Error should mention keychain issue"
+        );
+    } else {
+        assert_eq!(config.unwrap().model, Some("{keychain:api_key}".to_string()));
+    }
+}
+
+#[test]
+fn config_e2e_003_keychain_resolve_placeholder_when_not_found() {
+    let temp_dir = tempfile::TempDir::new().unwrap();
+    let config_path = temp_dir.path().join("config.json");
+
+    std::fs::write(&config_path, r#"{"model": "{keychain:api_key}"}"#).unwrap();
+
+    let config = Config::load(&config_path).unwrap();
+
+    assert_eq!(
+        config.model,
+        Some("{keychain:api_key}".to_string()),
+        "Keychain reference should remain as placeholder when secret not found"
+    );
+}
+
+#[test]
+fn config_e2e_003_keychain_resolve_success() {
+    let temp_dir = tempfile::TempDir::new().unwrap();
+    let config_path = temp_dir.path().join("config.json");
+    let secrets_path = temp_dir.path().join("secrets.json");
+
+    std::fs::write(&secrets_path, r#"{"api_key": "sk-test-12345"}"#).unwrap();
+    std::fs::write(&config_path, r#"{"model": "{keychain:api_key}"}"#).unwrap();
+
+    std::env::set_var("OPENCODE_DATA_DIR", temp_dir.path().to_str().unwrap());
+
+    let config = Config::load(&config_path).unwrap();
+
+    std::env::remove_var("OPENCODE_DATA_DIR");
+
+    assert_eq!(
+        config.model,
+        Some("sk-test-12345".to_string()),
+        "Keychain reference should be resolved to actual secret value"
+    );
+}
+
+#[test]
+fn config_e2e_003_keychain_multiple_references() {
+    let temp_dir = tempfile::TempDir::new().unwrap();
+    let config_path = temp_dir.path().join("config.json");
+    let secrets_path = temp_dir.path().join("secrets.json");
+
+    std::fs::write(
+        &secrets_path,
+        r#"{"api_key": "sk-test", "other_key": "other-value"}"#,
+    )
+    .unwrap();
+    std::fs::write(
+        &config_path,
+        r#"{"model": "{keychain:api_key}", "apiKey": "{keychain:other_key}"}"#,
+    )
+    .unwrap();
+
+    std::env::set_var("OPENCODE_DATA_DIR", temp_dir.path().to_str().unwrap());
+
+    let config = Config::load(&config_path).unwrap();
+
+    std::env::remove_var("OPENCODE_DATA_DIR");
+
+    assert_eq!(config.model, Some("sk-test".to_string()));
+    assert_eq!(config.api_key, Some("other-value".to_string()));
+}
+
+#[test]
+fn config_e2e_003_config_file_unchanged_after_keychain_resolution() {
+    use std::fs;
+
+    let temp_dir = tempfile::TempDir::new().unwrap();
+    let config_path = temp_dir.path().join("config.json");
+    let secrets_path = temp_dir.path().join("secrets.json");
+
+    let original_content = r#"{"model": "{keychain:api_key}"}"#;
+    std::fs::write(&secrets_path, r#"{"api_key": "sk-test-12345"}"#).unwrap();
+    std::fs::write(&config_path, original_content).unwrap();
+
+    std::env::set_var("OPENCODE_DATA_DIR", temp_dir.path().to_str().unwrap());
+
+    let _config = Config::load(&config_path).unwrap();
+
+    std::env::remove_var("OPENCODE_DATA_DIR");
+
+    let read_content = fs::read_to_string(&config_path).unwrap();
+    assert_eq!(
+        read_content, original_content,
+        "Original config file should remain unchanged after keychain resolution"
+    );
+}
