@@ -22,7 +22,7 @@ fn create_test_session() -> Session {
 async fn setup_storage_service(temp_dir: &TempDir) -> opencode_storage::StorageService {
     let db_path = temp_dir.path().join("test.db");
     let pool = StoragePool::new(&db_path).expect("Should create pool");
-    let manager = MigrationManager::new(pool.clone(), 2);
+    let manager = MigrationManager::new(pool.clone(), 3);
     manager.migrate().await.expect("Should run migrations");
     let session_repo = std::sync::Arc::new(SqliteSessionRepository::new(pool.clone()));
     let project_repo = std::sync::Arc::new(SqliteProjectRepository::new(pool.clone()));

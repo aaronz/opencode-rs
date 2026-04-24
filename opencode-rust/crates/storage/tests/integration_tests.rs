@@ -149,7 +149,7 @@ async fn test_migration_manager_new() {
     let db_path = temp_dir.path().join("test.db");
 
     let pool = StoragePool::new(&db_path).expect("Should create pool");
-    let manager = MigrationManager::new(pool, 2);
+    let manager = MigrationManager::new(pool, 3);
 
     let result = manager.migrate().await;
     assert!(result.is_ok());
