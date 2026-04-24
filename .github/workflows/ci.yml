@@ -45,7 +45,7 @@ jobs:
         run: cd opencode-rust && cargo build --release --all
 
       - name: Run library tests
-        run: cd opencode-rust && cargo test --lib
+        run: cd opencode-rust && RUST_TEST_THREADS=1 cargo test --lib
 
       - name: Run integration tests
         run: cd opencode-rust && cargo test --test '*'
