@@ -6,7 +6,7 @@
   "test_cases": [
     {
       "id": "acp_e2e_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "ACP handshake and connection",
       "description": "Test ACP client performs handshake with server",
       "modules": ["acp"],
@@ -23,7 +23,7 @@
     },
     {
       "id": "acp_e2e_002",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "ACP message routing",
       "description": "Test messages routed correctly between agents",
       "modules": ["acp"],
@@ -39,7 +39,7 @@
     },
     {
       "id": "acp_sec_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "ACP message replay prevention",
       "description": "CRITICAL: Captured messages must not be replayable",
       "modules": ["acp"],
@@ -59,7 +59,7 @@
     },
     {
       "id": "acp_sec_002",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "ACP agent impersonation prevention",
       "description": "Agents must authenticate to the ACP server",
       "modules": ["acp"],
@@ -79,7 +79,7 @@
     },
     {
       "id": "acp_stability_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "ACP connection recovery after network glitch",
       "description": "Connection must reconnect after temporary network loss",
       "modules": ["acp"],
@@ -100,7 +100,7 @@
     },
     {
       "id": "acp_stability_002",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "ACP server restart handling",
       "description": "Clients must reconnect and resync after server restart",
       "modules": ["acp"],
@@ -122,7 +122,7 @@
     },
     {
       "id": "acp_proto_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "ACP malformed message handling",
       "description": "Malformed messages handled without crashing",
       "modules": ["acp"],
@@ -147,7 +147,7 @@
     },
     {
       "id": "acp_routing_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "ACP agent not found handling",
       "description": "Messages to unknown agents must return error",
       "modules": ["acp"],
@@ -167,7 +167,7 @@
     },
     {
       "id": "acp_routing_002",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "ACP message ordering guarantee",
       "description": "Messages arrive in order for each agent pair",
       "modules": ["acp"],

@@ -6,7 +6,7 @@
   "test_cases": [
     {
       "id": "chaos_provider_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Provider becomes unavailable mid-request",
       "description": "LLM provider fails during streaming response",
       "modules": ["provider"],
@@ -32,7 +32,7 @@
     },
     {
       "id": "chaos_provider_002",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Provider returns 500 error intermittently",
       "description": "Provider is unstable - 50% of requests fail",
       "modules": ["provider"],
@@ -58,7 +58,7 @@
     },
     {
       "id": "chaos_network_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Network partition during WebSocket session",
       "description": "WebSocket client disconnected by network partition",
       "modules": ["server", "session"],
@@ -85,7 +85,7 @@
     },
     {
       "id": "chaos_network_002",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "High latency network (100ms, 500ms, 2s)",
       "description": "Network latency degrades - verify timeouts work",
       "modules": ["provider", "server"],
@@ -115,7 +115,7 @@
     },
     {
       "id": "chaos_storage_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "SQLite database locked by another process",
       "description": "Another process holds database lock",
       "modules": ["storage"],
@@ -140,7 +140,7 @@
     },
     {
       "id": "chaos_storage_002",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Disk becomes read-only mid-operation",
       "description": "Filesystem becomes read-only (disk error)",
       "modules": ["storage"],
@@ -168,7 +168,7 @@
     },
     {
       "id": "chaos_lsp_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "LSP server repeatedly crashes",
       "description": "rust-analyzer crashes 5 times in a row",
       "modules": ["lsp"],
@@ -196,7 +196,7 @@
     },
     {
       "id": "chaos_lsp_002",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "LSP server responds with malformed messages",
       "description": "LSP server is buggy and sends garbage",
       "modules": ["lsp"],
@@ -226,7 +226,7 @@
     },
     {
       "id": "chaos_memory_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Memory pressure - system near OOM",
       "description": "System approaching memory limit",
       "modules": ["agent", "session"],
@@ -252,7 +252,7 @@
     },
     {
       "id": "chaos_memory_002",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Sudden memory spike from single session",
       "description": "One session consumes excessive memory",
       "modules": ["session", "agent"],
@@ -278,7 +278,7 @@
     },
     {
       "id": "chaos_cpu_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "CPU throttling on container",
       "description": "Container CFS quota causes CPU throttling",
       "modules": ["agent", "tool"],
@@ -307,7 +307,7 @@
     },
     {
       "id": "chaos_process_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Opencode server process killed (SIGKILL)",
       "description": "Server process killed by external factor",
       "modules": ["server", "storage"],
@@ -334,7 +334,7 @@
     },
     {
       "id": "chaos_process_002",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Graceful shutdown blocked - force SIGTERM",
       "description": "Shutdown handler takes too long - SIGTERM forces exit",
       "modules": ["server"],
@@ -362,7 +362,7 @@
     },
     {
       "id": "chaos_clock_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "System clock adjustment during operation",
       "description": "Clock jumps forward or backward",
       "modules": ["storage", "session"],
@@ -393,7 +393,7 @@
     },
     {
       "id": "chaos_dns_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "DNS resolution failure for provider API",
       "description": "Provider hostname unresolvable",
       "modules": ["provider"],

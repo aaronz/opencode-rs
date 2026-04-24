@@ -6,7 +6,7 @@
   "test_cases": [
     {
       "id": "controlplane_e2e_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Control plane registration",
       "description": "Test registration with control plane",
       "modules": ["control-plane"],
@@ -24,7 +24,7 @@
     },
     {
       "id": "install_e2e_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Version check and update",
       "description": "Test version checking against release server",
       "modules": ["installation"],
@@ -41,7 +41,7 @@
     },
     {
       "id": "npm_e2e_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "NPM package queries",
       "description": "Test npm registry queries",
       "modules": ["npm"],
@@ -58,7 +58,7 @@
     },
     {
       "id": "skill_e2e_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Skill registration and lookup",
       "description": "Test skills registered and discoverable",
       "modules": ["skill", "agent"],
@@ -76,7 +76,7 @@
     },
     {
       "id": "format_e2e_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Format code with language-specific formatter",
       "description": "Test formatting with rustfmt, prettier, etc.",
       "modules": ["format"],
@@ -93,7 +93,7 @@
     },
     {
       "id": "question_e2e_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Confirmation prompt handling",
       "description": "Test yes/no confirmation flow",
       "modules": ["question"],
@@ -111,7 +111,7 @@
     },
     {
       "id": "controlplane_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Control plane connection failure handling",
       "description": "Agent continues working when control plane unreachable",
       "modules": ["control-plane"],
@@ -132,7 +132,7 @@
     },
     {
       "id": "controlplane_002",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Instance heartbeat expiration",
       "description": "Offline instances removed from control plane",
       "modules": ["control-plane"],
@@ -152,7 +152,7 @@
     },
     {
       "id": "install_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Installation rollback on failure",
       "description": "Failed update must rollback to previous state",
       "modules": ["installation"],
@@ -173,7 +173,7 @@
     },
     {
       "id": "install_002",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Update signature verification",
       "description": "CRITICAL: Updates must be verified before install",
       "modules": ["installation"],
@@ -198,7 +198,7 @@
     },
     {
       "id": "npm_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "NPM registry authentication",
       "description": "Private packages require auth",
       "modules": ["npm"],
@@ -218,7 +218,7 @@
     },
     {
       "id": "npm_002",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "NPM dependency resolution with conflicts",
       "description": "Handles version conflicts in dependency tree",
       "modules": ["npm"],
@@ -238,7 +238,7 @@
     },
     {
       "id": "skill_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Skill action timeout",
       "description": "Skill actions must timeout if hung",
       "modules": ["skill"],
@@ -258,7 +258,7 @@
     },
     {
       "id": "format_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Format on unsupported language",
       "description": "Graceful handling of unknown language",
       "modules": ["format"],
@@ -276,7 +276,7 @@
     },
     {
       "id": "question_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Question timeout handling",
       "description": "Questions must timeout if unanswered",
       "modules": ["question"],

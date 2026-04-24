@@ -6,7 +6,7 @@
   "test_cases": [
     {
       "id": "dr_backup_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Online backup while system operational",
       "description": "Backup can run while system is accepting writes",
       "modules": ["storage"],
@@ -34,7 +34,7 @@
     },
     {
       "id": "dr_backup_002",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Backup file integrity verification",
       "description": "Backup can be verified for integrity",
       "modules": ["storage"],
@@ -59,7 +59,7 @@
     },
     {
       "id": "dr_restore_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Full restore from backup",
       "description": "System restored from backup to clean state",
       "modules": ["storage", "server"],
@@ -87,7 +87,7 @@
     },
     {
       "id": "dr_restore_002",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Partial restore - single session",
       "description": "Can restore single session without full restore",
       "modules": ["storage"],
@@ -113,7 +113,7 @@
     },
     {
       "id": "dr_replication_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Replication lag - eventual consistency",
       "description": "Read replica has acceptable replication lag",
       "modules": ["storage"],
@@ -139,7 +139,7 @@
     },
     {
       "id": "dr_replication_002",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Failover to replica",
       "description": "Primary fails, replica promoted",
       "modules": ["storage"],
@@ -167,7 +167,7 @@
     },
     {
       "id": "dr_replication_003",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Replica promoted while primary still up (split brain)",
       "description": "Network partition causes both primaries",
       "modules": ["storage"],
@@ -195,7 +195,7 @@
     },
     {
       "id": "dr_migration_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Storage migration with rollback",
       "description": "Failed migration rolls back cleanly",
       "modules": ["storage"],
@@ -224,7 +224,7 @@
     },
     {
       "id": "dr_migration_002",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Large migration - progress and resume",
       "description": "Long migration can be paused and resumed",
       "modules": ["storage"],
@@ -252,7 +252,7 @@
     },
     {
       "id": "dr_export_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Full session export to portable format",
       "description": "Sessions exportable for portability/backup",
       "modules": ["session", "storage"],
@@ -281,7 +281,7 @@
     },
     {
       "id": "dr_export_002",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Redaction on export for compliance",
       "description": "Export can be redacted for GDPR compliance",
       "modules": ["session"],
@@ -307,7 +307,7 @@
     },
     {
       "id": "dr_network_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Control plane unreachable - agent continues",
       "description": "Agent operational without control plane",
       "modules": ["control-plane"],
@@ -333,7 +333,7 @@
     },
     {
       "id": "dr_network_002",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Reconnect after extended network partition",
       "description": "Agent recovers after long disconnect",
       "modules": ["control-plane"],

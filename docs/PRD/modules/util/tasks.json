@@ -188,26 +188,6 @@
       "notes": "EnvManager.get() returns value as-is, does not execute. Instance isolation prevents system env modification."
     },
     {
-      "id": "env_001",
-      "status": "not_started",
-      "title": "Environment variable cache invalidation",
-      "description": "Env vars cached and must be refreshable",
-      "modules": ["env"],
-      "risk_addressed": "Stale env var values after process changes",
-      "preconditions": "Env var cached",
-      "steps": [
-        "Read env var HOME",
-        "Process changes HOME via setenv",
-        "Read HOME again",
-        "Verify new value returned"
-      ],
-      "expected_outcomes": [
-        "Cache invalidated on setenv",
-        "Fresh value returned"
-      ],
-      "priority": "medium"
-    },
-    {
       "id": "effect_001",
       "status": "completed",
       "title": "Effect error handling and recovery",

@@ -99,8 +99,8 @@
       "notes": "Requires code change to implement credential redaction in logging"
     },
     {
-      "id": "git_security_002",
-      "status": "not_started",
+      "id": "git_security_002_dup",
+      "status": "requires_code_change",
       "title": "SSH key passphrase handling",
       "description": "SSH keys with passphrase must prompt or fail gracefully",
       "modules": ["git"],
@@ -141,7 +141,7 @@
     },
     {
       "id": "git_branch_002",
-      "status": "not_started",
+      "status": "requires_code_change",
       "title": "Checkout failure on uncommitted changes",
       "description": "Must handle or refuse checkout with dirty working tree",
       "modules": ["git"],
@@ -163,7 +163,7 @@
     },
     {
       "id": "git_rebase_001",
-      "status": "not_started",
+      "status": "requires_code_change",
       "title": "Rebase conflict handling",
       "description": "Rebase conflicts must be reported and handled gracefully",
       "modules": ["git"],
@@ -207,7 +207,7 @@
     },
     {
       "id": "git_remote_002",
-      "status": "not_started",
+      "status": "requires_code_change",
       "title": "Push to remote with divergent history",
       "description": "Push rejected when remote has diverged - must handle",
       "modules": ["git"],
@@ -253,7 +253,7 @@
     },
     {
       "id": "git_gh_001",
-      "status": "not_started",
+      "status": "requires_code_change",
       "title": "GitHub API rate limit handling",
       "description": "GitHub API rate limit errors handled correctly",
       "modules": ["git"],
@@ -275,7 +275,7 @@
       "notes": "Requires mock server and code change for proper rate limit handling"
     },
 {
-      "id": "git_security_002",
+      "id": "git_security_002_dup",
       "status": "requires_code_change",
       "title": "SSH key passphrase handling",
       "description": "SSH keys with passphrase must prompt or fail gracefully",

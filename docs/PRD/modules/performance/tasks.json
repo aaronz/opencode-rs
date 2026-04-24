@@ -6,7 +6,7 @@
   "test_cases": [
     {
       "id": "perf_agent_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Agent response latency under load",
       "description": "Agent response time with N concurrent sessions",
       "modules": ["agent"],
@@ -38,7 +38,7 @@
     },
     {
       "id": "perf_storage_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Storage throughput - sessions per second",
       "description": "Storage layer can handle target session operations per second",
       "modules": ["storage"],
@@ -69,7 +69,7 @@
     },
     {
       "id": "perf_memory_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Memory usage under sustained session churn",
       "description": "Memory must not grow unbounded with session create/destroy",
       "modules": ["agent", "session", "storage"],
@@ -101,7 +101,7 @@
     },
     {
       "id": "perf_memory_002",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Session compaction memory spike",
       "description": "Compaction must not spike memory beyond limit",
       "modules": ["session", "storage"],
@@ -131,7 +131,7 @@
     },
     {
       "id": "perf_provider_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Provider streaming throughput",
       "description": "Streaming response processing keeps up with provider",
       "modules": ["provider"],
@@ -162,7 +162,7 @@
     },
     {
       "id": "perf_concurrent_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Maximum concurrent WebSocket connections",
       "description": "System supports target concurrent WebSocket connections",
       "modules": ["server"],
@@ -194,7 +194,7 @@
     },
     {
       "id": "perf_database_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "SQLite query latency - session list pagination",
       "description": "list_sessions with pagination completes in bounded time",
       "modules": ["storage"],
@@ -225,7 +225,7 @@
     },
     {
       "id": "perf_startup_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Cold start latency",
       "description": "System starts and accepts requests within SLA",
       "modules": ["server", "storage"],
@@ -256,7 +256,7 @@
     },
     {
       "id": "perf_tool_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Tool execution latency - hot path",
       "description": "Common tools (read, glob) have minimal latency",
       "modules": ["tool"],
@@ -288,7 +288,7 @@
     },
     {
       "id": "perf_lsp_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "LSP diagnostics latency",
       "description": "Diagnostics update within acceptable time of file change",
       "modules": ["lsp"],

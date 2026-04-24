@@ -6,7 +6,7 @@
   "test_cases": [
     {
       "id": "xmodule_agent_storage_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Agent crashes during session save - storage consistency",
       "description": "Agent crashes mid-execution while storage is writing - verify storage consistency",
       "modules": ["agent", "session", "storage"],
@@ -35,7 +35,7 @@
     },
     {
       "id": "xmodule_tool_permission_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Permission check race in parallel tool execution",
       "description": "Two tools executing simultaneously - permission check between them has race window",
       "modules": ["tool", "permission", "agent"],
@@ -62,7 +62,7 @@
     },
     {
       "id": "xmodule_provider_auth_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Provider retries expose auth token in logs",
       "description": "Failed provider request with auth header is retried - token may appear in retry logs",
       "modules": ["provider", "auth", "logging"],
@@ -89,7 +89,7 @@
     },
     {
       "id": "xmodule_session_compaction_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Session compaction loses messages during agent iteration",
       "description": "Compactor runs while agent is reading messages - race condition",
       "modules": ["session", "storage", "agent"],
@@ -117,7 +117,7 @@
     },
     {
       "id": "xmodule_storage_server_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Server crash leaves storage transaction uncommitted",
       "description": "HTTP request completes but storage commit happens after response sent - crash loses data",
       "modules": ["storage", "server", "session"],
@@ -145,7 +145,7 @@
     },
     {
       "id": "xmodule_config_provider_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Provider model change during active request",
       "description": "Config hot-reload changes provider model mid-streaming-response",
       "modules": ["config", "provider", "agent"],
@@ -174,7 +174,7 @@
     },
     {
       "id": "xmodule_git_storage_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Git operation creates large diff - storage pressure",
       "description": "Git commit with massive diff causes storage pressure",
       "modules": ["git", "storage", "session"],
@@ -202,7 +202,7 @@
     },
     {
       "id": "xmodule_tool_shell_permission_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Shell tool spawned with inherited dangerous env vars",
       "description": "BashTool inherits env vars from parent process - LD_PRELOAD attack vector",
       "modules": ["tool", "shell", "permission"],
@@ -230,7 +230,7 @@
     },
     {
       "id": "xmodule_mcp_plugin_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "MCP server provides malicious tool - plugin system exposure",
       "description": "MCP server registers tool with WASM plugin - escaped content attack",
       "modules": ["mcp", "plugin"],
@@ -258,7 +258,7 @@
     },
     {
       "id": "xmodule_acp_auth_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "ACP connection hijacking via token replay",
       "description": "ACP auth token captured and replayed by attacker",
       "modules": ["acp", "auth"],
@@ -285,7 +285,7 @@
     },
     {
       "id": "xmodule_server_cli_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "CLI connects to server - WebSocket upgrade hijacking",
       "description": "WebSocket upgrade request intercepted and hijacked",
       "modules": ["server", "cli"],
@@ -313,7 +313,7 @@
     },
     {
       "id": "xmodule_session_project_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Project path changed during active session",
       "description": "Project directory moved or renamed while agent has open file handles",
       "modules": ["session", "project", "tool"],
@@ -341,7 +341,7 @@
     },
     {
       "id": "xmodule_lsp_git_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "LSP server serves file from git worktree - path confusion",
       "description": "LSP configured for git worktree - goto-definition traverses to main repo",
       "modules": ["lsp", "git", "worktree"],
@@ -369,7 +369,7 @@
     },
     {
       "id": "xmodule_provider_budget_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Budget exhausted mid-streaming - partial charge",
       "description": "Provider streaming response consumes tokens, budget exhausted mid-stream",
       "modules": ["provider", "session", "auth"],
@@ -397,7 +397,7 @@
     },
     {
       "id": "xmodule_agent_delegate_permission_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Subagent escalation via delegated permission scope",
       "description": "Parent agent delegates to subagent - subagent tries to escalate permissions",
       "modules": ["agent", "permission", "session"],
@@ -425,7 +425,7 @@
     },
     {
       "id": "xmodule_storage_migration_auth_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Migration alters auth token storage format - tokens invalidated",
       "description": "Storage migration changes auth token schema - tokens unreadable after upgrade",
       "modules": ["storage", "auth", "config"],
@@ -452,7 +452,7 @@
     },
     {
       "id": "xmodule_cli_config_env_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "CLI flag overrides env var which overrides config - precedence clarity",
       "description": "Three-level config precedence: CLI flag > env var > config file",
       "modules": ["cli", "config", "env"],

@@ -354,7 +354,7 @@
     },
     {
       "id": "cli_env_001",
-      "status": "not_started",
+      "status": "completed",
       "title": "Environment variable override precedence",
       "description": "CLI flags must override environment variables",
       "modules": [
@@ -377,7 +377,7 @@
     },
     {
       "id": "cli_env_002",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Config file path override via CLI flag",
       "description": "Config file path can be overridden via CLI flag",
       "modules": [
@@ -460,7 +460,7 @@
     },
     {
       "id": "cli_output_002",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Output stream large response handling",
       "description": "NDJSON output must handle large agent responses without buffering issues",
       "modules": [
@@ -485,7 +485,7 @@
     },
     {
       "id": "cli_error_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Error exit codes are correct",
       "description": "CLI must return specific exit codes for different error types",
       "modules": [
@@ -526,7 +526,7 @@
     },
     {
       "id": "cli_desktop_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Desktop mode browser auto-open",
       "description": "opencode desktop command opens browser automatically",
       "modules": [

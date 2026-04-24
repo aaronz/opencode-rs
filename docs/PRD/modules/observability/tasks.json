@@ -6,7 +6,7 @@
   "test_cases": [
     {
       "id": "obs_logging_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Structured log fields present for all operations",
       "description": "Every significant operation emits structured log with required fields",
       "modules": ["agent", "session", "tool", "provider"],
@@ -31,7 +31,7 @@
     },
     {
       "id": "obs_logging_002",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Sensitive data never in logs",
       "description": "API keys, tokens, passwords redacted in all log output",
       "modules": ["auth", "provider", "config"],
@@ -61,7 +61,7 @@
     },
     {
       "id": "obs_logging_003",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Error logs include stack trace in debug mode",
       "description": "Error log contains sufficient context for debugging",
       "modules": ["agent"],
@@ -86,7 +86,7 @@
     },
     {
       "id": "obs_logging_004",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Log level filtering works correctly",
       "description": "Setting log level to INFO excludes DEBUG messages",
       "modules": ["config"],
@@ -110,7 +110,7 @@
     },
     {
       "id": "obs_metrics_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Token usage metrics accurate",
       "description": "Token counts from provider match metrics",
       "modules": ["provider"],
@@ -138,7 +138,7 @@
     },
     {
       "id": "obs_metrics_002",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Request latency histogram buckets",
       "description": "Latency metrics available in correct histogram buckets",
       "modules": ["server", "agent"],
@@ -163,7 +163,7 @@
     },
     {
       "id": "obs_metrics_003",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Error rate metrics track accurately",
       "description": "Error count increments on failures",
       "modules": ["server", "provider"],
@@ -191,7 +191,7 @@
     },
     {
       "id": "obs_metrics_004",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Session count gauge accuracy",
       "description": "Active session gauge reflects actual count",
       "modules": ["session", "server"],
@@ -217,7 +217,7 @@
     },
     {
       "id": "obs_tracing_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Trace context propagates across modules",
       "description": "Single request trace spans all components",
       "modules": ["agent", "session", "tool", "provider"],
@@ -243,7 +243,7 @@
     },
     {
       "id": "obs_tracing_002",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Span duration reflects actual operation time",
       "description": "Span timings match real operation duration",
       "modules": ["tool"],
@@ -268,7 +268,7 @@
     },
     {
       "id": "obs_tracing_003",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Trace sampling at high volume",
       "description": "Head-based sampling doesn't break traces at high load",
       "modules": ["server"],
@@ -297,7 +297,7 @@
     },
     {
       "id": "obs_alert_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Alert fires when error rate exceeds threshold",
       "description": "Error rate alert triggers at configured threshold",
       "modules": ["server"],
@@ -322,7 +322,7 @@
     },
     {
       "id": "obs_alert_002",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Alert fires when latency exceeds p99 SLA",
       "description": "Latency alert triggers at configured p99 threshold",
       "modules": ["server"],
@@ -346,7 +346,7 @@
     },
     {
       "id": "obs_audit_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Audit log for sensitive operations",
       "description": "Permission grants, config changes, session deletes logged for audit",
       "modules": ["permission", "config", "session"],
@@ -376,7 +376,7 @@
     },
     {
       "id": "obs_health_001",
-      "status": "not_started",
+      "status": "requires_infrastructure",
       "title": "Health endpoint reflects true system state",
       "description": "/health includes all dependencies",
       "modules": ["server"],
