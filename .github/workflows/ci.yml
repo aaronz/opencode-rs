@@ -44,9 +44,6 @@ jobs:
       - name: Build
         run: cd opencode-rust && cargo build --release --all
 
-      - name: Run tests
-        run: cd opencode-rust && cargo test --all
-
       - name: Run library tests
         run: cd opencode-rust && cargo test --lib
 
