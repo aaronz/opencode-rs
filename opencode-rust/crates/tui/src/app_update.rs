@@ -130,18 +130,9 @@ fn update_dialog(state: &mut AppState, action: DialogAction) -> ActionResult {
             dialog_go_home(state);
             ActionResult::Handled
         }
-        DialogAction::End => {
-            dialog_go_end(state);
-            ActionResult::Handled
-        }
-        DialogAction::PageUp => {
-            dialog_page_up(state);
-            ActionResult::Handled
-        }
-        DialogAction::PageDown => {
-            dialog_page_down(state);
-            ActionResult::Handled
-        }
+        DialogAction::End => dialog_go_end(state),
+        DialogAction::PageUp => dialog_page_up(state),
+        DialogAction::PageDown => dialog_page_down(state),
         DialogAction::InputChar(c) => {
             dialog_input_char(state, c);
             ActionResult::Handled
@@ -162,7 +153,10 @@ fn update_dialog(state: &mut AppState, action: DialogAction) -> ActionResult {
             dialog_filter(state, filter);
             ActionResult::Handled
         }
-        _ => ActionResult::NotHandled,
+        DialogAction::NavigateLeft => dialog_navigate_left(state),
+        DialogAction::NavigateRight => dialog_navigate_right(state),
+        DialogAction::Open(_) => ActionResult::NotHandled,
+        DialogAction::ConfirmWithData(_) => ActionResult::Handled,
     }
 }
 
@@ -270,6 +264,9 @@ fn update_connect(state: &mut AppState, action: crate::action::ConnectAction) ->
 
 fn close_current_dialog(state: &mut AppState) {
     match state.mode {
+        AppMode::ConnectProvider => {
+            state.mode = AppMode::Chat;
+        }
         AppMode::ConnectMethod => {
             state.mode = AppMode::ConnectProvider;
         }
@@ -284,6 +281,9 @@ fn close_current_dialog(state: &mut AppState) {
         }
         AppMode::ConnectApiKeyError => {
             state.mode = AppMode::ConnectApiKey;
+        }
+        AppMode::ModelSelection => {
+            state.mode = AppMode::Chat;
         }
         AppMode::ForkDialog => {
             state.mode = AppMode::Timeline;
@@ -332,9 +332,25 @@ fn dialog_cancel(state: &mut AppState) {
 fn dialog_go_home(state: &mut AppState) {
     state.dialog_selected_index = Some(0);
 }
-fn dialog_go_end(_state: &mut AppState) {}
-fn dialog_page_up(_state: &mut AppState) {}
-fn dialog_page_down(_state: &mut AppState) {}
+fn dialog_go_end(_state: &mut AppState) -> ActionResult {
+    ActionResult::NotHandled
+}
+
+fn dialog_page_up(_state: &mut AppState) -> ActionResult {
+    ActionResult::NotHandled
+}
+
+fn dialog_page_down(_state: &mut AppState) -> ActionResult {
+    ActionResult::NotHandled
+}
+
+fn dialog_navigate_left(_state: &mut AppState) -> ActionResult {
+    ActionResult::NotHandled
+}
+
+fn dialog_navigate_right(_state: &mut AppState) -> ActionResult {
+    ActionResult::NotHandled
+}
 fn dialog_input_char(state: &mut AppState, c: char) {
     state.input_buffer.push(c);
 }
@@ -536,5 +552,425 @@ mod tests {
         assert!(state.pending_connect_provider.is_none());
         assert!(state.pending_connect_method.is_none());
         assert!(state.pending_api_key_for_validation.is_none());
+    }
+
+    #[test]
+    fn test_update_fork_cancel() {
+        let mut state = AppState::new();
+        state.mode = AppMode::ForkDialog;
+
+        let result = update(&mut state, Action::Fork(ForkAction::Cancel));
+        assert_eq!(result, ActionResult::Handled);
+        assert_eq!(state.mode, AppMode::Timeline);
+    }
+
+    #[test]
+    fn test_update_fork_input_char() {
+        let mut state = AppState::new();
+        assert_eq!(state.input_buffer, "");
+
+        let result = update(&mut state, Action::Fork(ForkAction::InputChar('a')));
+        assert_eq!(result, ActionResult::Handled);
+        assert_eq!(state.input_buffer, "a");
+
+        update(&mut state, Action::Fork(ForkAction::InputChar('b')));
+        assert_eq!(state.input_buffer, "ab");
+    }
+
+    #[test]
+    fn test_update_fork_backspace() {
+        let mut state = AppState::new();
+        state.input_buffer = "hello".to_string();
+
+        let result = update(&mut state, Action::Fork(ForkAction::Backspace));
+        assert_eq!(result, ActionResult::Handled);
+        assert_eq!(state.input_buffer, "hell");
+    }
+
+    #[test]
+    fn test_update_fork_confirm() {
+        let mut state = AppState::new();
+        state.mode = AppMode::ForkDialog;
+
+        let result = update(&mut state, Action::Fork(ForkAction::Confirm));
+        assert_eq!(result, ActionResult::Handled);
+    }
+
+    #[test]
+    fn test_update_sessions_close() {
+        let mut state = AppState::new();
+        state.mode = AppMode::Sessions;
+
+        let result = update(&mut state, Action::Sessions(SessionsAction::Close));
+        assert_eq!(result, ActionResult::Handled);
+        assert_eq!(state.mode, AppMode::Chat);
+    }
+
+    #[test]
+    fn test_update_sessions_select_previous() {
+        let mut state = AppState::new();
+        let result = update(&mut state, Action::Sessions(SessionsAction::SelectPrevious));
+        assert_eq!(result, ActionResult::Handled);
+    }
+
+    #[test]
+    fn test_update_sessions_select_next() {
+        let mut state = AppState::new();
+        let result = update(&mut state, Action::Sessions(SessionsAction::SelectNext));
+        assert_eq!(result, ActionResult::Handled);
+    }
+
+    #[test]
+    fn test_update_sessions_confirm() {
+        let mut state = AppState::new();
+        let result = update(&mut state, Action::Sessions(SessionsAction::Confirm));
+        assert_eq!(result, ActionResult::Handled);
+    }
+
+    #[test]
+    fn test_update_sessions_create_new() {
+        let mut state = AppState::new();
+        let result = update(&mut state, Action::Sessions(SessionsAction::CreateNew));
+        assert_eq!(result, ActionResult::Handled);
+    }
+
+    #[test]
+    fn test_update_slash_command_cancel() {
+        let mut state = AppState::new();
+        state.mode = AppMode::SlashCommand;
+
+        let result = update(&mut state, Action::SlashCommand(SlashCommandAction::Cancel));
+        assert_eq!(result, ActionResult::Handled);
+        assert_eq!(state.mode, AppMode::Chat);
+    }
+
+    #[test]
+    fn test_update_slash_command_input_char() {
+        let mut state = AppState::new();
+        assert_eq!(state.input_buffer, "");
+
+        let result = update(
+            &mut state,
+            Action::SlashCommand(SlashCommandAction::InputChar('/')),
+        );
+        assert_eq!(result, ActionResult::Handled);
+        assert_eq!(state.input_buffer, "/");
+    }
+
+    #[test]
+    fn test_update_slash_command_backspace() {
+        let mut state = AppState::new();
+        state.input_buffer = "/help".to_string();
+
+        let result = update(
+            &mut state,
+            Action::SlashCommand(SlashCommandAction::Backspace),
+        );
+        assert_eq!(result, ActionResult::Handled);
+        assert_eq!(state.input_buffer, "/hel");
+    }
+
+    #[test]
+    fn test_update_slash_command_confirm() {
+        let mut state = AppState::new();
+        let result = update(
+            &mut state,
+            Action::SlashCommand(SlashCommandAction::Confirm),
+        );
+        assert_eq!(result, ActionResult::Handled);
+    }
+
+    #[test]
+    fn test_update_mode_show_home() {
+        let mut state = AppState::new();
+        state.mode = AppMode::Chat;
+
+        let result = update(&mut state, Action::ModeTransition(AppModeAction::ShowHome));
+        assert_eq!(result, ActionResult::Handled);
+        assert_eq!(state.mode, AppMode::Home);
+    }
+
+    #[test]
+    fn test_update_mode_show_timeline() {
+        let mut state = AppState::new();
+        state.mode = AppMode::Chat;
+
+        let result = update(
+            &mut state,
+            Action::ModeTransition(AppModeAction::ShowTimeline),
+        );
+        assert_eq!(result, ActionResult::Handled);
+        assert_eq!(state.mode, AppMode::Timeline);
+    }
+
+    #[test]
+    fn test_update_mode_show_settings() {
+        let mut state = AppState::new();
+        state.mode = AppMode::Home;
+
+        let result = update(
+            &mut state,
+            Action::ModeTransition(AppModeAction::ShowSettings),
+        );
+        assert_eq!(result, ActionResult::Handled);
+        assert_eq!(state.mode, AppMode::Settings);
+    }
+
+    #[test]
+    fn test_update_mode_show_sessions() {
+        let mut state = AppState::new();
+        state.mode = AppMode::Chat;
+
+        let result = update(
+            &mut state,
+            Action::ModeTransition(AppModeAction::ShowSessions),
+        );
+        assert_eq!(result, ActionResult::Handled);
+        assert_eq!(state.mode, AppMode::Sessions);
+    }
+
+    #[test]
+    fn test_update_mode_show_provider_management() {
+        let mut state = AppState::new();
+        state.mode = AppMode::Home;
+
+        let result = update(
+            &mut state,
+            Action::ModeTransition(AppModeAction::ShowProviderManagement),
+        );
+        assert_eq!(result, ActionResult::Handled);
+        assert_eq!(state.mode, AppMode::ProviderManagement);
+    }
+
+    #[test]
+    fn test_update_dialog_confirm() {
+        let mut state = AppState::new();
+        let result = update(&mut state, Action::Dialog(DialogAction::Confirm));
+        assert_eq!(result, ActionResult::Handled);
+    }
+
+    #[test]
+    fn test_update_dialog_cancel() {
+        let mut state = AppState::new();
+        state.mode = AppMode::ConnectMethod;
+
+        let result = update(&mut state, Action::Dialog(DialogAction::Cancel));
+        assert_eq!(result, ActionResult::Handled);
+        assert_eq!(state.mode, AppMode::ConnectProvider);
+    }
+
+    #[test]
+    fn test_update_dialog_go_home() {
+        let mut state = AppState::new();
+        state.dialog_selected_index = Some(5);
+
+        let result = update(&mut state, Action::Dialog(DialogAction::Home));
+        assert_eq!(result, ActionResult::Handled);
+        assert_eq!(state.dialog_selected_index, Some(0));
+    }
+
+    #[test]
+    fn test_update_dialog_go_end() {
+        let mut state = AppState::new();
+        let result = update(&mut state, Action::Dialog(DialogAction::End));
+        assert_eq!(result, ActionResult::NotHandled);
+    }
+
+    #[test]
+    fn test_update_dialog_page_up() {
+        let mut state = AppState::new();
+        let result = update(&mut state, Action::Dialog(DialogAction::PageUp));
+        assert_eq!(result, ActionResult::NotHandled);
+    }
+
+    #[test]
+    fn test_update_dialog_page_down() {
+        let mut state = AppState::new();
+        let result = update(&mut state, Action::Dialog(DialogAction::PageDown));
+        assert_eq!(result, ActionResult::NotHandled);
+    }
+
+    #[test]
+    fn test_update_dialog_clear() {
+        let mut state = AppState::new();
+        state.input_buffer = "hello world".to_string();
+
+        let result = update(&mut state, Action::Dialog(DialogAction::Clear));
+        assert_eq!(result, ActionResult::Handled);
+        assert_eq!(state.input_buffer, "");
+    }
+
+    #[test]
+    fn test_update_dialog_select() {
+        let mut state = AppState::new();
+
+        let result = update(&mut state, Action::Dialog(DialogAction::Select(3)));
+        assert_eq!(result, ActionResult::Handled);
+        assert_eq!(state.dialog_selected_index, Some(3));
+
+        update(&mut state, Action::Dialog(DialogAction::Select(7)));
+        assert_eq!(state.dialog_selected_index, Some(7));
+    }
+
+    #[test]
+    fn test_update_dialog_filter() {
+        let mut state = AppState::new();
+        assert!(state.dialog_filter.is_none());
+
+        let result = update(
+            &mut state,
+            Action::Dialog(DialogAction::Filter("test filter".to_string())),
+        );
+        assert_eq!(result, ActionResult::Handled);
+        assert_eq!(state.dialog_filter, Some("test filter".to_string()));
+    }
+
+    #[test]
+    fn test_update_dialog_close_current_dialog_fork() {
+        let mut state = AppState::new();
+        state.mode = AppMode::ForkDialog;
+
+        close_current_dialog(&mut state);
+        assert_eq!(state.mode, AppMode::Timeline);
+    }
+
+    #[test]
+    fn test_update_dialog_close_current_dialog_search() {
+        let mut state = AppState::new();
+        state.mode = AppMode::Search;
+
+        close_current_dialog(&mut state);
+        assert_eq!(state.mode, AppMode::Chat);
+    }
+
+    #[test]
+    fn test_update_dialog_close_current_dialog_release_notes() {
+        let mut state = AppState::new();
+        state.mode = AppMode::ReleaseNotes;
+
+        close_current_dialog(&mut state);
+        assert_eq!(state.mode, AppMode::Home);
+    }
+
+    #[test]
+    fn test_update_dialog_close_current_dialog_model_selection() {
+        let mut state = AppState::new();
+        state.mode = AppMode::ModelSelection;
+
+        close_current_dialog(&mut state);
+        assert_eq!(state.mode, AppMode::Chat);
+    }
+
+    #[test]
+    fn test_update_timeline_select_previous() {
+        let mut state = AppState::new();
+        let result = update(
+            &mut state,
+            Action::Timeline(crate::action::TimelineAction::SelectPrevious),
+        );
+        assert_eq!(result, ActionResult::Handled);
+    }
+
+    #[test]
+    fn test_update_timeline_select_next() {
+        let mut state = AppState::new();
+        let result = update(
+            &mut state,
+            Action::Timeline(crate::action::TimelineAction::SelectNext),
+        );
+        assert_eq!(result, ActionResult::Handled);
+    }
+
+    #[test]
+    fn test_update_timeline_fork_at_selected() {
+        let mut state = AppState::new();
+        let result = update(
+            &mut state,
+            Action::Timeline(crate::action::TimelineAction::ForkAtSelected),
+        );
+        assert_eq!(result, ActionResult::Handled);
+    }
+
+    #[test]
+    fn test_update_connect_select_method() {
+        let mut state = AppState::new();
+        assert!(state.pending_connect_method.is_none());
+
+        let result = update(
+            &mut state,
+            Action::Connect(crate::action::ConnectAction::SelectMethod(
+                "oauth".to_string(),
+            )),
+        );
+        assert_eq!(result, ActionResult::Handled);
+        assert_eq!(state.pending_connect_method, Some("oauth".to_string()));
+    }
+
+    #[test]
+    fn test_update_connect_confirm_api_key() {
+        let mut state = AppState::new();
+        assert!(state.pending_api_key_for_validation.is_none());
+
+        let result = update(
+            &mut state,
+            Action::Connect(crate::action::ConnectAction::ConfirmApiKey(
+                "sk-test123".to_string(),
+            )),
+        );
+        assert_eq!(result, ActionResult::Handled);
+        assert_eq!(
+            state.pending_api_key_for_validation,
+            Some("sk-test123".to_string())
+        );
+    }
+
+    #[test]
+    fn test_update_file_drop() {
+        use std::path::PathBuf;
+
+        let mut state = AppState::new();
+        assert!(state.pending_file_drop.is_none());
+
+        let paths = vec![
+            PathBuf::from("/path/to/file1.rs"),
+            PathBuf::from("/path/to/file2.rs"),
+        ];
+        let result = update(&mut state, Action::FileDrop(paths.clone()));
+        assert_eq!(result, ActionResult::Handled);
+        assert_eq!(state.pending_file_drop, Some(paths));
+    }
+
+    #[test]
+    fn test_update_dialog_navigate_left() {
+        let mut state = AppState::new();
+        let result = update(&mut state, Action::Dialog(DialogAction::NavigateLeft));
+        assert_eq!(result, ActionResult::NotHandled);
+    }
+
+    #[test]
+    fn test_update_dialog_navigate_right() {
+        let mut state = AppState::new();
+        let result = update(&mut state, Action::Dialog(DialogAction::NavigateRight));
+        assert_eq!(result, ActionResult::NotHandled);
+    }
+
+    #[test]
+    fn test_update_dialog_open_returns_not_handled() {
+        let mut state = AppState::new();
+        let result = update(
+            &mut state,
+            Action::Dialog(DialogAction::Open("test".to_string())),
+        );
+        assert_eq!(result, ActionResult::NotHandled);
+    }
+
+    #[test]
+    fn test_update_dialog_confirm_with_data() {
+        let mut state = AppState::new();
+        let result = update(
+            &mut state,
+            Action::Dialog(DialogAction::ConfirmWithData("data".to_string())),
+        );
+        assert_eq!(result, ActionResult::Handled);
     }
 }
