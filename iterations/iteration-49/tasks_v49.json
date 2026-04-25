@@ -219,7 +219,7 @@
       "priority": "P1",
       "title": "Extend providers login multi-provider",
       "description": "Extend cmd/providers.rs:142-145 which only supports OpenAI. Add Anthropic, Google AI Studio, Azure OpenAI, and custom provider support.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify Anthropic provider authentication",
         "AddUnitTest: verify Google AI Studio provider authentication",
