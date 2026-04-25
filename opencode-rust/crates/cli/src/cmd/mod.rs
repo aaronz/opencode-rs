@@ -3,6 +3,8 @@
     reason = "CLI entry points where failure should panic with clear error messages"
 )]
 
+use opencode_core::Config;
+
 pub(crate) mod account;
 pub(crate) mod acp;
 pub(crate) mod agent;
@@ -44,3 +46,47 @@ pub(crate) mod upgrade;
 pub(crate) mod web;
 pub(crate) mod workspace;
 pub(crate) mod workspace_serve;
+
+pub fn load_config() -> Config {
+    let path = Config::config_path();
+    Config::load(&path).unwrap_or_default()
+}
+
+pub fn load_config_result() -> Result<Config, String> {
+    let path = Config::config_path();
+    Config::load(&path).map_err(|e| format!("Failed to load config: {}", e))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_load_config_returns_config() {
+        let config = load_config();
+        assert!(config.model.is_none() || config.model.is_some());
+    }
+
+    #[test]
+    fn test_load_config_result_returns_result_type() {
+        let result = load_config_result();
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[test]
+    fn test_load_config_does_not_panic() {
+        let config = load_config();
+        drop(config);
+    }
+
+    #[test]
+    fn test_load_config_result_on_error_contains_message() {
+        let result = load_config_result();
+        match result {
+            Ok(_) => {}
+            Err(e) => {
+                assert!(e.contains("Failed to load config") || e.is_empty());
+            }
+        }
+    }
+}

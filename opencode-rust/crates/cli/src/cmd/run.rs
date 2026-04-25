@@ -4,6 +4,8 @@ use opencode_llm::provider_abstraction::ProviderManager;
 use opencode_llm::ProviderSpec;
 use opencode_tui::{App, OutputFormat};
 
+use crate::cmd::load_config;
+
 #[derive(Args, Debug)]
 pub(crate) struct RunArgs {
     #[arg(short, long)]
@@ -211,11 +213,6 @@ mod tests {
         assert_eq!(args.title.as_deref(), Some("Review PR"));
         matches!(args.format, OutputFormat::Json);
     }
-}
-
-fn load_config() -> Config {
-    let path = Config::config_path();
-    Config::load(&path).unwrap_or_default()
 }
 
 pub(crate) fn run(args: RunArgs) {

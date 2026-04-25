@@ -355,8 +355,8 @@ opencode auth login --provider anthropic
 
 ### FR-013: Agent Create Command
 
-**Priority:** P2 — Not Started
-**Status:** ❌ Gap: No `agent create` implementation
+**Priority:** P2 — Complete
+**Status:** ✅ Implemented: `cmd/agent.rs:375-415`
 
 The system MUST support creating custom agents:
 
@@ -365,9 +365,16 @@ opencode agent create --name my-agent --type custom
 ```
 
 **Required Actions:**
-- Create agent configuration
-- Register with AgentRegistry
-- Persist to config
+- Create agent configuration ✅
+- Register with AgentRegistry ✅
+- Persist to config ✅
+
+**Implementation Details:**
+- `create_agent()` function in `cmd/agent.rs:375-415` handles agent creation
+- Stores agent config in `config.agent.agents` HashMap
+- Persists to config file via `save_config()`
+- `AgentAction::Create` variant handles CLI input with name, agent_type, description, model options
+- Unit tests verify agent config creation, storage, and retrieval
 
 ---
 
@@ -747,7 +754,7 @@ opencode acp handshake --client-id <id> --capabilities chat,tasks
 | `opencode serve` | Headless API server | ✅ |
 | `opencode web` | Web interface server | ✅ |
 | `opencode attach` | Connect TUI to remote server | 🚧 FR-008 |
-| `opencode agent create` | Create custom agent | ❌ FR-013 |
+| `opencode agent create` | Create custom agent | ✅ FR-013 |
 | `opencode agent list` | List available agents | 🚧 FR-011 |
 | `opencode agent run` | Run specific agent | 🚧 FR-004 |
 | `opencode models` | List available models | ✅ |
@@ -839,7 +846,6 @@ opencode acp handshake --client-id <id> --capabilities chat,tasks
 | Feature | FR Number |
 |---------|-----------|
 | `auth login` (provider credentials) | FR-012 |
-| `agent create` | FR-013 |
 
 ---
 

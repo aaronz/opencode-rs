@@ -14,6 +14,7 @@ use opencode_llm::provider_abstraction::{ProviderManager, ProviderSpec, DynProvi
 use opencode_llm::{ChatMessage, ChatResponse, Model, Provider, StreamingCallback};
 use opencode_tools::ToolRegistry;
 
+use crate::cmd::load_config;
 use crate::output::NdjsonSerializer;
 
 struct ProviderWrapper {
@@ -352,11 +353,6 @@ mod tests {
         let agent = create_agent_by_type("custom");
         assert!(agent.is_none(), "Custom agent type should not be registered as a built-in");
     }
-}
-
-fn load_config() -> Config {
-    let path = get_config_path();
-    Config::load(&path).unwrap_or_default()
 }
 
 fn get_config_path() -> std::path::PathBuf {

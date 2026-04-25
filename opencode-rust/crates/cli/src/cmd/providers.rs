@@ -8,6 +8,8 @@ use serde_json::json;
 use std::io::Write;
 use std::process::Command;
 
+use super::load_config_result;
+
 #[derive(Args, Debug)]
 pub(crate) struct ProvidersArgs {
     #[arg(short, long)]
@@ -60,11 +62,6 @@ fn provider_name(id: &str) -> String {
             }
         }
     }
-}
-
-fn load_config() -> Result<Config, String> {
-    let path = Config::config_path();
-    Config::load(&path).map_err(|e| format!("Failed to load config: {}", e))
 }
 
 fn open_browser(url: &str) -> Result<(), String> {
@@ -205,7 +202,7 @@ fn provider_enabled(config: &Config, id: &str) -> bool {
 }
 
 pub(crate) fn run(args: ProvidersArgs) -> Result<(), String> {
-    let config = load_config()?;
+    let config = load_config_result()?;
     let registry = ModelRegistry::default();
     let provider_ids = registry.list_providers();
     let providers = provider_ids
@@ -600,7 +597,7 @@ mod tests {
 
     #[test]
     fn test_load_config_returns_result_type() {
-        let result = load_config();
+        let result = load_config_result();
         assert!(result.is_ok() || result.is_err(), "load_config should return a Result");
     }
 

@@ -3,6 +3,8 @@ use opencode_core::Config;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+use crate::cmd::load_config;
+
 #[derive(Args, Debug)]
 pub(crate) struct PluginArgs {
     #[command(subcommand)]
@@ -31,11 +33,6 @@ pub(crate) enum PluginCommand {
         #[arg(value_name = "QUERY")]
         query: Option<String>,
     },
-}
-
-fn load_config() -> Config {
-    let path = Config::config_path();
-    Config::load(&path).unwrap_or_default()
 }
 
 fn save_config(config: &Config) {

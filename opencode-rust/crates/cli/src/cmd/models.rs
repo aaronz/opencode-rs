@@ -8,6 +8,8 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use crate::cmd::load_config;
+
 #[derive(Args, Debug)]
 pub(crate) struct ModelsArgs {
     #[arg(short, long)]
@@ -289,11 +291,6 @@ fn save_hidden_models(hidden_models: &HashSet<String>) {
     if let Err(error) = config.save(&path) {
         eprintln!("Failed to save config: {}", error);
     }
-}
-
-fn load_config() -> Config {
-    let path = Config::config_path();
-    Config::load(&path).unwrap_or_default()
 }
 
 fn default_cache_path() -> PathBuf {

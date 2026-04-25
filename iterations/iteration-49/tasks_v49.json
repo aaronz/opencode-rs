@@ -364,7 +364,7 @@
       "priority": "P2",
       "title": "Implement agent create",
       "description": "Create agent configuration, register with AgentRegistry, persist to config.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify agent configuration creation",
         "AddUnitTest: verify AgentRegistry registration",
@@ -424,7 +424,7 @@
       "priority": "P2",
       "title": "Remove hardcoded cmd+k",
       "description": "Move keybinds from cmd/config.rs:217-218 to Config system.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify keybinds are read from Config",
         "AddRegressionTest: ensure keybinds still work from Config",

@@ -458,10 +458,13 @@ pub(crate) fn run(args: ConfigArgs) {
 
     if args.json > 0 {
         let result = if args.keybinds {
+            let keybinds = config.tui.as_ref().and_then(|t| t.keybinds.as_ref());
+            let commands = keybinds.and_then(|k| k.commands.as_deref());
+            let timeline = keybinds.and_then(|k| k.timeline.as_deref());
             serde_json::json!({
                 "keybinds": {
-                    "commands": "cmd+k",
-                    "timeline": "cmd+t"
+                    "commands": commands.unwrap_or("cmd+k"),
+                    "timeline": timeline.unwrap_or("cmd+t")
                 }
             })
         } else if args.models {

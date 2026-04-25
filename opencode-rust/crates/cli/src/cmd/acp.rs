@@ -5,6 +5,8 @@ use std::path::PathBuf;
 
 use opencode_core::config::{AcpConfig, AcpSession, Config, ServerConfig};
 
+use crate::cmd::load_config;
+
 #[derive(Args, Debug)]
 pub(crate) struct AcpArgs {
     #[command(subcommand)]
@@ -56,11 +58,6 @@ fn get_config_path() -> PathBuf {
         return dirs.config_dir().join("config.json");
     }
     PathBuf::from("~/.config/opencode/config.json")
-}
-
-fn load_config() -> Config {
-    let path = get_config_path();
-    Config::load(&path).unwrap_or_default()
 }
 
 fn save_config(config: &Config) -> Result<(), String> {
