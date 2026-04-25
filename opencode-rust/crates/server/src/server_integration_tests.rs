@@ -1766,7 +1766,7 @@ mod tests {
         let req = TestRequest::default().to_http_request();
         let resp = crate::routes::provider::get_provider(
             web::Data::new(create_test_state()),
-            web::Path::from("openai".to_string()),
+            web::Path::from("models-dev-openai".to_string()),
         )
         .await
         .respond_to(&req);
