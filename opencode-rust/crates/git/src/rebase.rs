@@ -1,16 +1,18 @@
 use git2::{BranchType, Repository};
-use once_cell::sync::Lazy;
 use opencode_core::OpenCodeError;
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::path::Path;
 use std::process::Command;
-use std::sync::Mutex;
 
-static REBASE_STATE: Lazy<Mutex<Option<RebaseState>>> = Lazy::new(|| Mutex::new(None));
+thread_local! {
+    static REBASE_STATE: RefCell<HashMap<std::path::PathBuf, RebaseState>> = RefCell::new(HashMap::new());
+}
 
+#[derive(Clone)]
 struct RebaseState {
     original_head: String,
     original_branch: String,
-    repo_path: std::path::PathBuf,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -75,13 +77,15 @@ pub fn git_rebase(repo_path: &Path, branch: &str) -> Result<RebaseResult, OpenCo
         .unwrap_or_else(|| "HEAD".to_string());
 
     {
-        let mut rebase_state = REBASE_STATE
-            .lock()
-            .map_err(|e| OpenCodeError::Tool(format!("Failed to acquire lock: {}", e)))?;
-        *rebase_state = Some(RebaseState {
-            original_head: original_head_str.clone(),
-            original_branch: current_branch_name.clone(),
-            repo_path: repo_path.to_path_buf(),
+        REBASE_STATE.with(|state| {
+            let mut rebase_state = state.borrow_mut();
+            rebase_state.insert(
+                repo_path_buf.clone(),
+                RebaseState {
+                    original_head: original_head_str.clone(),
+                    original_branch: current_branch_name.clone(),
+                },
+            );
         });
     }
 
@@ -171,30 +175,21 @@ pub fn git_rebase(repo_path: &Path, branch: &str) -> Result<RebaseResult, OpenCo
     Err(OpenCodeError::Tool(format!("Rebase failed: {}", stderr)))
 }
 
-pub fn git_rebase_abort() -> Result<(), OpenCodeError> {
-    let mut rebase_state = REBASE_STATE
-        .lock()
-        .map_err(|e| OpenCodeError::Tool(format!("Failed to acquire lock: {}", e)))?;
+pub fn git_rebase_abort(repo_path: &Path) -> Result<(), OpenCodeError> {
+    let repo_path_buf = repo_path.to_path_buf();
 
-    let state = rebase_state
-        .take()
-        .ok_or_else(|| OpenCodeError::Tool("No rebase in progress".to_string()))?;
+    let state = REBASE_STATE.with(|state| {
+        let mut rebase_state = state.borrow_mut();
+        rebase_state.remove(&repo_path_buf)
+    });
 
-    let index_lock = state.repo_path.join(".git").join("index.lock");
-    if index_lock.exists() {
-        std::fs::remove_file(&index_lock).ok();
-    }
+    state.ok_or_else(|| OpenCodeError::Tool("No rebase in progress".to_string()))?;
 
-    for rebase_file in &["rebase-orig-head", "rebase-head", "MERGE_HEAD"] {
-        let file_path = state.repo_path.join(".git").join(rebase_file);
-        if file_path.exists() {
-            std::fs::remove_file(&file_path).ok();
-        }
-    }
+    cleanup_rebase_files(repo_path);
 
     let output = Command::new("git")
         .args(["rebase", "--abort"])
-        .current_dir(&state.repo_path)
+        .current_dir(repo_path)
         .output()
         .ok();
 
@@ -217,20 +212,33 @@ pub fn git_rebase_abort() -> Result<(), OpenCodeError> {
     Ok(())
 }
 
-pub fn git_rebase_status() -> Result<Option<RebaseStatus>, OpenCodeError> {
-    let rebase_state = REBASE_STATE
-        .lock()
-        .map_err(|e| OpenCodeError::Tool(format!("Failed to acquire lock: {}", e)))?;
-
-    if let Some(state) = rebase_state.as_ref() {
-        Ok(Some(RebaseStatus {
-            original_head: state.original_head.clone(),
-            original_branch: state.original_branch.clone(),
-            repo_path: state.repo_path.clone(),
-        }))
-    } else {
-        Ok(None)
+fn cleanup_rebase_files(repo_path: &Path) {
+    let git_dir = repo_path.join(".git");
+    for rebase_file in &[
+        "rebase-orig-head",
+        "rebase-head",
+        "MERGE_HEAD",
+        "index.lock",
+    ] {
+        let file_path = git_dir.join(rebase_file);
+        if file_path.exists() {
+            std::fs::remove_file(&file_path).ok();
+        }
     }
+}
+
+pub fn git_rebase_status(repo_path: &Path) -> Result<Option<RebaseStatus>, OpenCodeError> {
+    let repo_path_buf = repo_path.to_path_buf();
+    let result = REBASE_STATE.with(|state| {
+        let rebase_state = state.borrow();
+        rebase_state.get(&repo_path_buf).cloned()
+    });
+
+    Ok(result.map(|state| RebaseStatus {
+        original_head: state.original_head,
+        original_branch: state.original_branch,
+        repo_path: repo_path_buf,
+    }))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -442,25 +450,32 @@ mod tests {
             RebaseResult::Conflict {
                 conflicted_files: _,
             } => {
-                let abort_result = git_rebase_abort();
+                let abort_result = git_rebase_abort(temp_dir.path());
                 assert!(abort_result.is_ok(), "abort failed: {:?}", abort_result);
             }
             RebaseResult::Completed { commit: _ } => {
-                let status = git_rebase_status().unwrap();
+                let status = git_rebase_status(temp_dir.path()).unwrap();
                 assert!(
                     status.is_none(),
-                    "rebase should be done, status: {:?}",
+                    "rebase should be done after completion, status: {:?}",
                     status
                 );
             }
-            RebaseResult::UpToDate { commit: _ } => {}
+            RebaseResult::UpToDate { commit: _ } => {
+                let status = git_rebase_status(temp_dir.path()).unwrap();
+                assert!(
+                    status.is_none(),
+                    "rebase should be done after up-to-date, status: {:?}",
+                    status
+                );
+            }
         }
     }
 
     #[test]
     fn test_git_rebase_abort_without_rebase_error() {
-        let _temp_dir = create_test_repo();
-        let result = git_rebase_abort();
+        let temp_dir = create_test_repo();
+        let result = git_rebase_abort(temp_dir.path());
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
