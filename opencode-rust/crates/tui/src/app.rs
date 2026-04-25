@@ -2659,7 +2659,13 @@ impl App {
                         std::process::exit(0);
                     }
                     KeyCode::Esc => {
-                        self.mode = AppMode::Chat;
+                        let mut app_state = action::AppState::new();
+                        app_state.mode = action::AppMode::SlashCommand;
+                        action::ActionHandler::handle(
+                            action::Action::SlashCommand(action::SlashCommandAction::Cancel),
+                            &mut app_state,
+                        );
+                        self.mode = app_state.mode;
                         self.command_palette_input.clear();
                     }
                     KeyCode::Enter => {
@@ -4816,7 +4822,13 @@ OpenCode Agent Configuration
             if key.kind == KeyEventKind::Press {
                 match key.code {
                     KeyCode::Esc => {
-                        self.mode = AppMode::Chat;
+                        let mut app_state = action::AppState::new();
+                        app_state.mode = action::AppMode::Sessions;
+                        action::ActionHandler::handle(
+                            action::Action::Sessions(action::SessionsAction::Close),
+                            &mut app_state,
+                        );
+                        self.mode = app_state.mode;
                     }
                     KeyCode::Up => {
                         let len = self.session_manager.len();

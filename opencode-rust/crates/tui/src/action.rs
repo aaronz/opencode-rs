@@ -16,6 +16,10 @@ pub enum Action {
 
     Fork(ForkAction),
 
+    Sessions(SessionsAction),
+
+    SlashCommand(SlashCommandAction),
+
     FileDrop(Vec<std::path::PathBuf>),
 }
 
@@ -61,6 +65,23 @@ pub enum TimelineAction {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ForkAction {
+    Cancel,
+    Confirm,
+    InputChar(char),
+    Backspace,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum SessionsAction {
+    Close,
+    SelectPrevious,
+    SelectNext,
+    Confirm,
+    CreateNew,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum SlashCommandAction {
     Cancel,
     Confirm,
     InputChar(char),
@@ -169,6 +190,12 @@ impl ActionHandler {
             Action::Input(input_action) => Self::handle_input_action(input_action, state),
             Action::Connect(connect_action) => Self::handle_connect_action(connect_action, state),
             Action::Fork(fork_action) => Self::handle_fork_action(fork_action, state),
+            Action::Sessions(sessions_action) => {
+                Self::handle_sessions_action(sessions_action, state)
+            }
+            Action::SlashCommand(slash_command_action) => {
+                Self::handle_slash_command_action(slash_command_action, state)
+            }
             Action::FileDrop(paths) => {
                 state.pending_file_drop = Some(paths);
                 ActionResult::Handled
@@ -382,6 +409,40 @@ impl ActionHandler {
                 ActionResult::Handled
             }
             ForkAction::Backspace => {
+                state.input_buffer.pop();
+                ActionResult::Handled
+            }
+        }
+    }
+
+    fn handle_sessions_action(action: SessionsAction, state: &mut AppState) -> ActionResult {
+        match action {
+            SessionsAction::Close => {
+                state.mode = AppMode::Chat;
+                ActionResult::Handled
+            }
+            SessionsAction::SelectPrevious => ActionResult::Handled,
+            SessionsAction::SelectNext => ActionResult::Handled,
+            SessionsAction::Confirm => ActionResult::Handled,
+            SessionsAction::CreateNew => ActionResult::Handled,
+        }
+    }
+
+    fn handle_slash_command_action(
+        action: SlashCommandAction,
+        state: &mut AppState,
+    ) -> ActionResult {
+        match action {
+            SlashCommandAction::Cancel => {
+                state.mode = AppMode::Chat;
+                ActionResult::Handled
+            }
+            SlashCommandAction::Confirm => ActionResult::Handled,
+            SlashCommandAction::InputChar(c) => {
+                state.input_buffer.push(c);
+                ActionResult::Handled
+            }
+            SlashCommandAction::Backspace => {
                 state.input_buffer.pop();
                 ActionResult::Handled
             }

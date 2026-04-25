@@ -1,4 +1,7 @@
-use crate::action::{Action, ActionResult, AppMode, AppState, DialogAction, ForkAction};
+use crate::action::{
+    Action, ActionResult, AppMode, AppState, DialogAction, ForkAction, SessionsAction,
+    SlashCommandAction,
+};
 
 pub fn update(state: &mut AppState, action: Action) -> ActionResult {
     match action {
@@ -12,6 +15,10 @@ pub fn update(state: &mut AppState, action: Action) -> ActionResult {
         Action::Input(input_action) => update_input(state, input_action),
         Action::Connect(connect_action) => update_connect(state, connect_action),
         Action::Fork(fork_action) => update_fork(state, fork_action),
+        Action::Sessions(sessions_action) => update_sessions(state, sessions_action),
+        Action::SlashCommand(slash_command_action) => {
+            update_slash_command(state, slash_command_action)
+        }
         Action::FileDrop(paths) => {
             state.pending_file_drop = Some(paths);
             ActionResult::Handled
@@ -31,6 +38,37 @@ fn update_fork(state: &mut AppState, action: ForkAction) -> ActionResult {
             ActionResult::Handled
         }
         ForkAction::Backspace => {
+            state.input_buffer.pop();
+            ActionResult::Handled
+        }
+    }
+}
+
+fn update_sessions(state: &mut AppState, action: SessionsAction) -> ActionResult {
+    match action {
+        SessionsAction::Close => {
+            state.mode = AppMode::Chat;
+            ActionResult::Handled
+        }
+        SessionsAction::SelectPrevious => ActionResult::Handled,
+        SessionsAction::SelectNext => ActionResult::Handled,
+        SessionsAction::Confirm => ActionResult::Handled,
+        SessionsAction::CreateNew => ActionResult::Handled,
+    }
+}
+
+fn update_slash_command(state: &mut AppState, action: SlashCommandAction) -> ActionResult {
+    match action {
+        SlashCommandAction::Cancel => {
+            state.mode = AppMode::Chat;
+            ActionResult::Handled
+        }
+        SlashCommandAction::Confirm => ActionResult::Handled,
+        SlashCommandAction::InputChar(c) => {
+            state.input_buffer.push(c);
+            ActionResult::Handled
+        }
+        SlashCommandAction::Backspace => {
             state.input_buffer.pop();
             ActionResult::Handled
         }
