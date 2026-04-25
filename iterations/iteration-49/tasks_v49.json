@@ -113,7 +113,7 @@
       "priority": "P1",
       "title": "Implement attach command",
       "description": "Fix cmd/attach.rs:83-90 which only prints URL/id. Connect via ACP protocol to remote session, handle local session attachment, manage session state transfer.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify ACP protocol connection establishment",
         "AddUnitTest: verify session state transfer correctness",
@@ -135,7 +135,7 @@
       "priority": "P1",
       "title": "Implement mcp add",
       "description": "Add 'Add' variant to McpAction enum in cmd/mcp.rs. Validate MCP server command exists, persist MCP server configuration, initialize MCP client connection.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify McpAction::Add variant exists and parses correctly",
         "AddUnitTest: verify MCP server command validation",
