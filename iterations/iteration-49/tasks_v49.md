@@ -159,14 +159,14 @@
 - **Priority:** P1
 - **Gap:** `main.rs` — not parsed before App init
 - **Actions:**
-  - [ ] Parse `OPENCODE_AUTO_SHARE`
-  - [ ] Parse `OPENCODE_CONFIG`
-  - [ ] Parse `OPENCODE_CONFIG_DIR`
-  - [ ] Parse `OPENCODE_DISABLE_AUTOUPDATE`
-  - [ ] Parse `OPENCODE_ENABLE_EXA`
-  - [ ] Parse `OPENCODE_SERVER_PASSWORD`
-  - [ ] Apply before Config loading
-- **Verify:** Check env vars are applied at startup
+  - [x] Parse `OPENCODE_AUTO_SHARE`
+  - [x] Parse `OPENCODE_CONFIG`
+  - [x] Parse `OPENCODE_CONFIG_DIR`
+  - [x] Parse `OPENCODE_DISABLE_AUTOUPDATE`
+  - [x] Parse `OPENCODE_ENABLE_EXA`
+  - [x] Parse `OPENCODE_SERVER_PASSWORD`
+  - [x] Apply before Config loading
+- **Verify:** ✅ All env vars parsed correctly via `env_parser::EnvVarConfig::parse()`, tests pass
 
 ### Task 15: Move model visibility to Config
 - **FR:** FR-020

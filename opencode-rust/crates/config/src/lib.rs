@@ -2785,6 +2785,26 @@ impl Config {
         self.save(&Self::config_path())
     }
 
+    pub fn get(&self, key: &str) -> Option<String> {
+        let parts: Vec<&str> = key.split('.').collect();
+        match parts.as_slice() {
+            ["agent", "model"] => {
+                self.agent
+                    .as_ref()
+                    .and_then(|a| a.get_default_agent())
+                    .and_then(|agent| agent.model.clone())
+            }
+            ["agent", name, "model"] => {
+                self.agent
+                    .as_ref()
+                    .and_then(|a| a.get_agent(name))
+                    .and_then(|agent| agent.model.clone())
+            }
+            ["model"] => self.model.clone(),
+            _ => None,
+        }
+    }
+
     pub fn migrate_from_ts_format(json_content: &str) -> Result<Self, ConfigError> {
         let json_value: serde_json::Value =
             serde_json::from_str(json_content).map_err(|e| ConfigError::Config(e.to_string()))?;
@@ -4579,5 +4599,66 @@ mod tests {
     fn test_config_hidden_models_default_empty() {
         let config = Config::default();
         assert!(config.hidden_models.is_none());
+    }
+
+    #[test]
+    fn test_config_get_agent_model_from_default_agent() {
+        let mut agents = HashMap::new();
+        agents.insert(
+            "build".to_string(),
+            AgentConfig {
+                model: Some("gpt-4o".to_string()),
+                ..Default::default()
+            },
+        );
+        let config = Config {
+            agent: Some(AgentMapConfig {
+                agents,
+                default_agent: Some("build".to_string()),
+            }),
+            ..Default::default()
+        };
+        assert_eq!(config.get("agent.model"), Some("gpt-4o".to_string()));
+    }
+
+    #[test]
+    fn test_config_get_agent_model_from_specific_agent() {
+        let mut agents = HashMap::new();
+        agents.insert(
+            "review".to_string(),
+            AgentConfig {
+                model: Some("claude-3-5-sonnet".to_string()),
+                ..Default::default()
+            },
+        );
+        let config = Config {
+            agent: Some(AgentMapConfig {
+                agents,
+                default_agent: Some("build".to_string()),
+            }),
+            ..Default::default()
+        };
+        assert_eq!(config.get("agent.review.model"), Some("claude-3-5-sonnet".to_string()));
+    }
+
+    #[test]
+    fn test_config_get_model_direct() {
+        let config = Config {
+            model: Some("openai/gpt-4o-mini".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(config.get("model"), Some("openai/gpt-4o-mini".to_string()));
+    }
+
+    #[test]
+    fn test_config_get_fallback_to_gpt_4o() {
+        let config = Config::default();
+        assert!(config.get("agent.model").is_none());
+    }
+
+    #[test]
+    fn test_config_get_unknown_key_returns_none() {
+        let config = Config::default();
+        assert_eq!(config.get("unknown.key"), None);
     }
 }

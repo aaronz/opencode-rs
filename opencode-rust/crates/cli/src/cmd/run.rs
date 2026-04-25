@@ -224,7 +224,7 @@ pub(crate) fn run(args: RunArgs) {
         let model = args
             .model
             .clone()
-            .or(config.model.clone())
+            .or_else(|| config.get("agent.model"))
             .unwrap_or_else(|| "gpt-4o".to_string());
 
         match args.format {

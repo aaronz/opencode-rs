@@ -281,7 +281,7 @@
       "priority": "P1",
       "title": "Parse environment variables",
       "description": "Fix main.rs where env vars are not parsed before App init. Parse OPENCODE_AUTO_SHARE, OPENCODE_CONFIG, OPENCODE_CONFIG_DIR, OPENCODE_DISABLE_AUTOUPDATE, OPENCODE_ENABLE_EXA, OPENCODE_SERVER_PASSWORD before Config loading.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify each env var is parsed correctly",
         "AddIntegrationTest: verify env vars are applied at startup",
@@ -301,7 +301,7 @@
       "priority": "P1",
       "title": "Move model visibility to Config",
       "description": "Fix cmd/models.rs:238-267 which uses flat JSON file. Update Config schema for model visibility, migrate existing visibility settings, deprecate flat JSON file.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify Config schema has model visibility",
         "AddUnitTest: verify migration from flat JSON works",
@@ -321,7 +321,7 @@
       "priority": "P1",
       "title": "Load default model from Config",
       "description": "Fix cmd/run.rs:226 which has hardcoded 'gpt-4o'. Replace with Config lookup using config.get('agent.model') with fallback.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify Config lookup for agent.model",
         "AddUnitTest: verify fallback to 'gpt-4o' when not set",
@@ -342,7 +342,7 @@
       "priority": "P2",
       "title": "Implement auth login",
       "description": "Support multiple providers (OpenAI, Anthropic) for auth login. Implement browser-based OAuth flow, secure credential storage, display login status.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify multi-provider support in auth",
         "AddUnitTest: verify OAuth flow for each provider",
