@@ -155,7 +155,7 @@
       "priority": "P1",
       "title": "Implement session review/diff",
       "description": "Fix cmd/session.rs:991-1011 which are stubs. Load session messages and context, implement file diff using session state changes, show review of modified files, format output for terminal.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify session message loading",
         "AddUnitTest: verify file diff computation",
@@ -175,7 +175,7 @@
       "priority": "P1",
       "title": "Implement session fork TUI integration",
       "description": "Fix cmd/session.rs:673-698 which prints JSON only. Create fork via SessionSharing, transfer session context properly, integrate with TUI for session management.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify SessionSharing fork creation",
         "AddUnitTest: verify session context transfer",

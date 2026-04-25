@@ -95,11 +95,12 @@
 - **Priority:** P1
 - **Gap:** `cmd/session.rs:991-1011` — stubs only
 - **Actions:**
-  - [ ] Load session messages and context
-  - [ ] Implement file diff using session state changes
-  - [ ] Show review of modified files
-  - [ ] Format output for terminal display
+  - [x] Load session messages and context
+  - [x] Implement file diff using session state changes
+  - [x] Show review of modified files
+  - [x] Format output for terminal display
 - **Verify:** `opencode session review <id> --file <path>`
+- **Status:** ✅ Done
 
 ### Task 9: Implement `session fork` TUI integration
 - **FR:** FR-014

@@ -291,8 +291,8 @@ pub enum McpAction {
 
 ### FR-010: Session Review and Diff Commands
 
-**Priority:** P1 — Incomplete (Stub)
-**Status:** 🚧 Gap: `cmd/session.rs:991-1011` — Stubs only
+**Priority:** P1 — Complete
+**Status:** ✅ Implemented: `cmd/session.rs:991-1011`
 
 The system MUST implement actual file review/diff functionality:
 
@@ -754,8 +754,8 @@ opencode acp handshake --client-id <id> --capabilities chat,tasks
 | `opencode auth login` | Add provider credentials | ❌ FR-012 |
 | `opencode session list` | List sessions | ✅ |
 | `opencode session export` | Export session to JSON | ✅ |
-| `opencode session review` | Review session changes | 🚧 FR-010 |
-| `opencode session diff` | Show session diff | 🚧 FR-010 |
+| `opencode session review` | Review session changes | ✅ FR-010 |
+| `opencode session diff` | Show session diff | ✅ FR-010 |
 | `opencode mcp add` | Add MCP server | 🚧 FR-009 |
 | `opencode mcp list` | List MCP servers | ✅ |
 | `opencode github install` | Install GitHub agent | 🚧 FR-015 |
@@ -812,6 +812,7 @@ opencode acp handshake --client-id <id> --capabilities chat,tasks
 | `web` command | FR-025 |
 | `desktop` command | FR-026 |
 | `acp status/connect/handshake` | FR-027 |
+| `session review/diff` | FR-010 |
 
 ### In Progress 🚧
 
@@ -823,7 +824,6 @@ opencode acp handshake --client-id <id> --capabilities chat,tasks
 | `account login/logout/status` | FR-007 | `cmd/account.rs` |
 | `attach` | FR-008 | `cmd/attach.rs:83-90` |
 | `mcp add` | FR-009 | `cmd/mcp.rs` |
-| `session review/diff` | FR-010 | `cmd/session.rs:991-1011` |
 | `agent list` | FR-011 | `cmd/agent.rs:48` |
 | `session fork` | FR-014 | `cmd/session.rs:673-698` |
 | `github install` persistence | FR-015 | `cmd/github.rs:189-211` |
