@@ -444,7 +444,7 @@
       "priority": "P2",
       "title": "Make GitHub API URL configurable",
       "description": "Read GitHub API URL from Config instead of hardcoding in cmd/github.rs:5-8.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify GitHub API URL is read from Config",
         "AddUnitTest: verify OPENCODE_GITHUB_API_URL env var works",

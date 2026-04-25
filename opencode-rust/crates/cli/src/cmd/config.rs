@@ -435,6 +435,34 @@ model = "gpt-4
         assert!(config.model.is_none());
         assert!(config.log_level.is_none());
     }
+
+    #[test]
+    fn test_keybinds_from_config_defaults() {
+        let config = Config::load(&PathBuf::from("/nonexistent/path")).unwrap_or_default();
+        let keybinds = config.tui.as_ref().and_then(|t| t.keybinds.as_ref());
+        let commands = keybinds.and_then(|k| k.commands.as_deref());
+        let timeline = keybinds.and_then(|k| k.timeline.as_deref());
+        assert_eq!(commands.unwrap_or("cmd+k"), "cmd+k");
+        assert_eq!(timeline.unwrap_or("cmd+t"), "cmd+t");
+    }
+
+    #[test]
+    fn test_keybinds_from_config_custom_values() {
+        let mut config = Config::default();
+        config.tui = Some(opencode_core::config::TuiConfig {
+            keybinds: Some(opencode_core::config::KeybindConfig {
+                commands: Some("ctrl+x".to_string()),
+                timeline: Some("ctrl+t".to_string()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        });
+        let keybinds = config.tui.as_ref().and_then(|t| t.keybinds.as_ref());
+        let commands = keybinds.and_then(|k| k.commands.as_deref());
+        let timeline = keybinds.and_then(|k| k.timeline.as_deref());
+        assert_eq!(commands.unwrap_or("cmd+k"), "ctrl+x");
+        assert_eq!(timeline.unwrap_or("cmd+t"), "ctrl+t");
+    }
 }
 
 pub(crate) fn run(args: ConfigArgs) {
