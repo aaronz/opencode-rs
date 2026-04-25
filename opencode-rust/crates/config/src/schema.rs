@@ -457,7 +457,7 @@ fn schema_cache_dir() -> PathBuf {
         return PathBuf::from(override_dir);
     }
 
-    if let Some(home) = dirs::home_dir() {
+    if let Some(home) = std::env::var("HOME").ok().map(PathBuf::from) {
         return home.join(".config").join("opencode").join("schemas");
     }
 

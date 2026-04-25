@@ -1490,9 +1490,13 @@ impl Config {
         Ok(())
     }
 
+    fn get_home_dir() -> Option<PathBuf> {
+        std::env::var("HOME").ok().map(PathBuf::from)
+    }
+
     fn resolve_file_variable_path(file_path: &str, config_dir: Option<&Path>) -> Option<PathBuf> {
         if file_path.starts_with('~') {
-            let home = dirs::home_dir().or_else(|| std::env::var("HOME").ok().map(PathBuf::from));
+            let home = Self::get_home_dir();
             let Some(home) = home else {
                 tracing::error!(
                     "Failed to expand home directory for file variable: {}",
@@ -1558,9 +1562,7 @@ impl Config {
     }
 
     fn warn_legacy_config_dir_if_exists() {
-        if let Some(home) =
-            dirs::home_dir().or_else(|| std::env::var("HOME").ok().map(PathBuf::from))
-        {
+        if let Some(home) = Self::get_home_dir() {
             let legacy_dir = home.join(".config").join("opencode-rs");
             if legacy_dir.exists() {
                 tracing::warn!(
@@ -1582,11 +1584,11 @@ impl Config {
     }
 
     fn default_tui_config_path() -> Option<PathBuf> {
-        dirs::home_dir().map(|home| home.join(".config/opencode/tui.json"))
+        Self::get_home_dir().map(|home| home.join(".config/opencode/tui.json"))
     }
 
     fn expand_tilde_path(path: &str) -> PathBuf {
-        let home = dirs::home_dir().or_else(|| std::env::var("HOME").ok().map(PathBuf::from));
+        let home = Self::get_home_dir();
 
         if path == "~" {
             return home.unwrap_or_else(|| PathBuf::from(path));
