@@ -5383,9 +5383,15 @@ OpenCode Agent Configuration
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
-                let action = self.settings_dialog.handle_input(key);
-                if action == DialogAction::Close {
-                    self.mode = AppMode::Chat
+                let dialog_action = self.settings_dialog.handle_input(key);
+                if dialog_action == DialogAction::Close {
+                    let mut app_state = action::AppState::new();
+                    app_state.mode = action::AppMode::Settings;
+                    crate::dialog_action_adapter::DialogActionAdapter::handle_dialog_action(
+                        dialog_action.clone(),
+                        &mut app_state,
+                    );
+                    self.mode = app_state.mode;
                 }
             }
         }
