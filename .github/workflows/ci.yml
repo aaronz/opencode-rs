@@ -39,7 +39,13 @@ jobs:
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Check formatting
-        run: cd opencode-rust && cargo fmt --all -- --check
+        run: |
+          cd opencode-rust
+          cargo fmt --all -- --check || {
+            echo "Formatting issues found. Running cargo fmt to show differences..."
+            cargo fmt --all -- --diff || true
+            exit 1
+          }
 
       - name: Build
         run: cd opencode-rust && cargo build --release --all
