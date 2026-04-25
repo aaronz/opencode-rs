@@ -225,7 +225,7 @@ fn close_current_dialog(state: &mut AppState) {
         AppMode::ConnectModel => {
             state.mode = AppMode::ConnectApiKey;
         }
-        AppMode::ValidationError => {
+        AppMode::ConnectApiKeyError => {
             state.mode = AppMode::ConnectApiKey;
         }
         AppMode::ForkDialog => {
@@ -234,10 +234,10 @@ fn close_current_dialog(state: &mut AppState) {
         AppMode::CommandPalette => {
             state.mode = AppMode::Chat;
         }
-        AppMode::SlashCommandDialog => {
+        AppMode::SlashCommand => {
             state.mode = AppMode::Chat;
         }
-        AppMode::SearchDialog => {
+        AppMode::Search => {
             state.mode = AppMode::Chat;
         }
         AppMode::FileSelection => {

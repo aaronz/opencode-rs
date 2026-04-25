@@ -21,6 +21,8 @@ pub mod action;
 
 pub mod app_update;
 
+pub mod dialog_action_adapter;
+
 pub mod app;
 pub mod cli;
 pub mod command;
@@ -44,7 +46,8 @@ pub mod shell_handler;
 pub mod theme;
 pub mod widgets;
 
-pub use app::{App, AppMode, MessageMeta};
+pub use action::AppMode;
+pub use app::{App, MessageMeta};
 pub use cli::{CliArgs, OutputFormat, PermissionMode};
 pub use command::{Command, CommandAction, CommandRegistry};
 pub use components::{

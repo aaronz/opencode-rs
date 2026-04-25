@@ -1,3 +1,5 @@
+use crate::action;
+use crate::action::AppMode;
 use crate::command::{CommandAction, CommandRegistry};
 use crate::components::{
     FileTree, InputWidget, Sidebar, SkillInfo, SkillsPanel, StatusBar, StatusPopoverType,
@@ -331,31 +333,6 @@ impl MessageMeta {
         self.duration_ms = Some(ms);
         self
     }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum AppMode {
-    Home,
-    Chat,
-    Timeline,
-    ForkDialog,
-    CommandPalette,
-    SlashCommand,
-    DiffReview,
-    Sessions,
-    Settings,
-    ModelSelection,
-    ProviderManagement,
-    ConnectProvider,
-    ConnectMethod,
-    ConnectApiKey,
-    ConnectProgress,
-    ConnectApiKeyError,
-    ConnectModel,
-    FileSelection,
-    DirectorySelection,
-    ReleaseNotes,
-    Search,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1727,6 +1704,7 @@ impl App {
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn handle_connect_model_cancel(&mut self) {
         self.pending_api_key_for_provider = None;
         self.pending_api_key_models.clear();
@@ -5551,10 +5529,21 @@ OpenCode Agent Configuration
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
                 if let Some(dialog) = self.connect_method_dialog.as_mut() {
-                    let action = dialog.handle_input(key);
-                    match action {
-                        DialogAction::Close => self.mode = AppMode::ConnectProvider,
-                        DialogAction::Confirm(method) => self.handle_connect_method_confirm(method),
+                    let dialog_action = dialog.handle_input(key);
+                    match dialog_action {
+                        DialogAction::Close => {
+                            let mut app_state = action::AppState::new();
+                            app_state.mode = action::AppMode::ConnectMethod;
+                            crate::dialog_action_adapter::DialogActionAdapter::handle_dialog_action(
+                                dialog_action.clone(),
+                                &mut app_state,
+                            );
+                            self.mode = app_state.mode;
+                            self.connect_method_dialog = None;
+                        }
+                        DialogAction::Confirm(method) => {
+                            self.handle_connect_method_confirm(method);
+                        }
                         _ => {}
                     }
                 }
@@ -5570,11 +5559,17 @@ OpenCode Agent Configuration
         if let Ok(Event::Key(key)) = event::read() {
             if key.kind == KeyEventKind::Press {
                 if let Some(dialog) = self.api_key_input_dialog.as_mut() {
-                    let action = dialog.handle_input(key);
-                    match action {
+                    let dialog_action = dialog.handle_input(key);
+                    match dialog_action {
                         DialogAction::Close => {
+                            let mut app_state = action::AppState::new();
+                            app_state.mode = action::AppMode::ConnectApiKey;
+                            crate::dialog_action_adapter::DialogActionAdapter::handle_dialog_action(
+                                dialog_action.clone(),
+                                &mut app_state,
+                            );
+                            self.mode = app_state.mode;
                             self.api_key_input_dialog = None;
-                            self.mode = AppMode::ConnectMethod;
                         }
                         DialogAction::Confirm(api_key) => {
                             self.api_key_input_dialog = None;
@@ -5607,13 +5602,19 @@ OpenCode Agent Configuration
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
                 if let Some(dialog) = self.validation_error_dialog.as_mut() {
-                    let action = dialog.handle_input(key);
-                    match action {
-                        DialogAction::Close => {
+                    let dialog_action = dialog.handle_input(key);
+                    match dialog_action {
+                        crate::dialogs::DialogAction::Close => {
+                            let mut app_state = action::AppState::new();
+                            app_state.mode = action::AppMode::ConnectApiKeyError;
+                            crate::dialog_action_adapter::DialogActionAdapter::handle_dialog_action(
+                                dialog_action.clone(),
+                                &mut app_state,
+                            );
+                            self.mode = app_state.mode;
                             self.validation_error_dialog = None;
-                            self.mode = AppMode::Chat;
                         }
-                        DialogAction::Confirm(value) if value == "retry" => {
+                        crate::dialogs::DialogAction::Confirm(value) if value == "retry" => {
                             self.validation_error_dialog = None;
                             self.start_api_key_input();
                         }
@@ -5632,9 +5633,18 @@ OpenCode Agent Configuration
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
                 if let Some(dialog) = self.connect_model_dialog.as_mut() {
-                    let action = dialog.handle_input(key);
-                    match action {
-                        DialogAction::Close => self.handle_connect_model_cancel(),
+                    let dialog_action = dialog.handle_input(key);
+                    match dialog_action {
+                        DialogAction::Close => {
+                            let mut app_state = action::AppState::new();
+                            app_state.mode = action::AppMode::ConnectModel;
+                            crate::dialog_action_adapter::DialogActionAdapter::handle_dialog_action(
+                                dialog_action.clone(),
+                                &mut app_state,
+                            );
+                            self.mode = app_state.mode;
+                            self.connect_model_dialog = None;
+                        }
                         DialogAction::Confirm(model_id) => {
                             if let Err(error) = self.handle_connect_model_confirm(model_id) {
                                 self.add_message(
