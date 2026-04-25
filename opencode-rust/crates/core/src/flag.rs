@@ -625,59 +625,33 @@ mod tests {
         assert!(fm.opencode_enable_exa());
     }
 
-    struct EnvVarGuard {
-        vars: Vec<(String, Option<String>, String)>,
-    }
-
-    impl EnvVarGuard {
-        fn new() -> Self {
-            Self { vars: Vec::new() }
-        }
-        fn set(&mut self, key: &str, value: &str) {
-            let prev = std::env::var(key).ok();
-            std::env::set_var(key, value);
-            self.vars.push((key.to_string(), prev, value.to_string()));
-        }
-    }
-
-    impl Drop for EnvVarGuard {
-        fn drop(&mut self) {
-            for (key, old_value, set_value) in self.vars.drain(..) {
-                let current = std::env::var(&key).ok();
-                if current == Some(set_value) {
-                    match old_value {
-                        Some(v) => std::env::set_var(&key, v),
-                        None => std::env::remove_var(&key),
-                    }
-                }
-            }
-        }
-    }
-
     #[test]
     fn load_from_env_uses_truthy_helper() {
-        let mut guard = EnvVarGuard::new();
-        guard.set("OPENCODE_DEBUG", "1");
-        guard.set("OPENCODE_EXPERIMENTAL", "true");
-        guard.set("OPENCODE_DISABLE_AUTOUPDATE", "TRUE");
+        temp_env::with_vars(
+            [
+                ("OPENCODE_DEBUG", Some("1")),
+                ("OPENCODE_EXPERIMENTAL", Some("true")),
+                ("OPENCODE_DISABLE_AUTOUPDATE", Some("TRUE")),
+            ],
+            || {
+                let mut fm = FlagManager::new();
+                fm.load_from_env();
 
-        let mut fm = FlagManager::new();
-        fm.load_from_env();
-
-        assert!(fm.is_enabled("OPENCODE_DEBUG"));
-        assert!(fm.is_enabled("OPENCODE_EXPERIMENTAL"));
-        assert!(fm.is_enabled("OPENCODE_DISABLE_AUTOUPDATE"));
+                assert!(fm.is_enabled("OPENCODE_DEBUG"));
+                assert!(fm.is_enabled("OPENCODE_EXPERIMENTAL"));
+                assert!(fm.is_enabled("OPENCODE_DISABLE_AUTOUPDATE"));
+            },
+        );
     }
 
     #[test]
     fn load_from_env_boolean_flags_from_environment() {
-        let mut guard = EnvVarGuard::new();
-        guard.set("OPENCODE_EXPERIMENTAL", "true");
-
-        let mut fm = FlagManager::new();
-        assert!(!fm.is_enabled("OPENCODE_EXPERIMENTAL"));
-        fm.load_from_env();
-        assert!(fm.is_enabled("OPENCODE_EXPERIMENTAL"));
+        temp_env::with_var("OPENCODE_EXPERIMENTAL", Some("true"), || {
+            let mut fm = FlagManager::new();
+            assert!(!fm.is_enabled("OPENCODE_EXPERIMENTAL"));
+            fm.load_from_env();
+            assert!(fm.is_enabled("OPENCODE_EXPERIMENTAL"));
+        });
     }
 
     #[test]

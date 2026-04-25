@@ -17,10 +17,11 @@ CONSTRAINTS="## 重要约束
 - 如遇不确定情况，使用你自己的最佳判断，无需等待用户输入"
 
 usage() {
-    echo "Usage: $0 [OPTIONS] --prompt 'YOUR_PROMPT_HERE'"
+    echo "Usage: $0 [OPTIONS]"
     echo ""
     echo "Options:"
-    echo "  --prompt, -p       Prompt to execute (required)"
+    echo "  --prompt, -p       Prompt to execute (required if no --prompt-file)"
+    echo "  --prompt-file, -f  Read prompt from file (required if no --prompt)"
     echo "  --loops, -n        Number of loops (default: 1)"
     echo "  --model, -m        Model to use (default: $MODEL)"
     echo "  --session-dir      Session export directory (default: $SESSION_DIR)"
@@ -37,11 +38,13 @@ usage() {
     echo "  $0 -p 'Continue work' -n 3 --share-session"
     echo "  $0 -p 'Debug task' -n 2 --verbose"
     echo "  $0 -p 'Task with logs' --print-logs --log-level DEBUG"
+    echo "  $0 --prompt-file ./task.txt -n 3"
     exit 1
 }
 
 LOOPS=1
 PROMPT=""
+PROMPT_FILE=""
 SHARE_SESSION="false"
 INITIAL_SESSION=""
 PRINT_LOGS="false"
@@ -51,6 +54,10 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --prompt|-p)
             PROMPT="$2"
+            shift 2
+            ;;
+        --prompt-file|-f)
+            PROMPT_FILE="$2"
             shift 2
             ;;
         --loops|-n)
@@ -102,9 +109,22 @@ done
 
 APPEND_CONSTRAINTS="${APPEND_CONSTRAINTS:-true}"
 
-if [ -z "$PROMPT" ]; then
-    echo "Error: --prompt is required"
+if [ "$1" = "help" ]; then
     usage
+fi
+
+if [ -z "$PROMPT" ] && [ -z "$PROMPT_FILE" ]; then
+    echo "Error: either --prompt or --prompt-file is required"
+    usage
+fi
+
+if [ -n "$PROMPT_FILE" ] && [ ! -f "$PROMPT_FILE" ]; then
+    echo "Error: prompt file not found: $PROMPT_FILE"
+    exit 1
+fi
+
+if [ -z "$PROMPT" ] && [ -n "$PROMPT_FILE" ]; then
+    PROMPT=$(cat "$PROMPT_FILE")
 fi
 
 if [ ! -x "$OPENCODE_PATH" ]; then

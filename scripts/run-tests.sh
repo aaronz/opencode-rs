@@ -16,16 +16,6 @@ export OUTPUT_DIR REPORT_FORMAT GENERATE_COVERAGE RUN_PACKAGE TEST_TIMEOUT
 
 mkdir -p "$OUTPUT_DIR"
 
-echo "========================================"
-echo "OpenCode RS Test Runner"
-echo "========================================"
-echo "Project: $PROJECT_DIR"
-echo "Output: $OUTPUT_DIR"
-echo "Format: $REPORT_FORMAT"
-echo "Category: $TEST_CATEGORY"
-echo "Coverage: $GENERATE_COVERAGE"
-echo ""
-
 TESTS_PASSED=0
 TESTS_FAILED=0
 TESTS_IGNORED=0
@@ -283,8 +273,6 @@ run_category_tests() {
 }
 
 main() {
-    echo "Starting test suite..."
-
     while [[ $# -gt 0 ]]; do
         case "$1" in
             -h|--help)
@@ -358,6 +346,17 @@ main() {
                 ;;
         esac
     done
+
+    echo "========================================"
+    echo "OpenCode RS Test Runner"
+    echo "========================================"
+    echo "Project: $PROJECT_DIR"
+    echo "Output: $OUTPUT_DIR"
+    echo "Format: $REPORT_FORMAT"
+    echo "Category: $TEST_CATEGORY"
+    echo "Coverage: $GENERATE_COVERAGE"
+    echo ""
+    echo "Starting test suite..."
 
     run_category_tests
 }

@@ -68,6 +68,7 @@ predicates = "3"
 walkdir = "2"
 mockall = "0.13"
 rstest = "0.23"
+temp-env = "0.3"
 
 # Benchmark dependencies
 criterion = "0.5"

@@ -2975,6 +2975,9 @@ mod tests {
 
     #[test]
     fn test_precedence_env_overrides_config_file() {
+        std::env::remove_var("OPENCODE_MODEL");
+        std::env::remove_var("OPENCODE_TEMPERATURE");
+
         let temp_dir = tempfile::tempdir().unwrap();
         let config_path = temp_dir.path().join("config.json");
         let config_content = serde_json::json!({
@@ -3001,6 +3004,9 @@ mod tests {
 
     #[test]
     fn test_precedence_cli_overrides_env() {
+        std::env::remove_var("OPENCODE_MODEL");
+        std::env::remove_var("OPENCODE_TEMPERATURE");
+
         std::env::set_var("OPENCODE_MODEL", "env-model");
         std::env::set_var("OPENCODE_TEMPERATURE", "0.8");
 

@@ -2,11 +2,47 @@
 
 Welcome to the OpenCode RS documentation. OpenCode RS is a Rust-based AI coding agent providing interactive developer assistance via TUI, HTTP API, and SDK.
 
-## Table of Contents
+## Documentation Structure
 
+This documentation is organized into two complementary views:
+
+| View | Description |
+|------|-------------|
+| **User Documentation** | OpenCode usage guides, configuration, and features (zh-cn) |
+| **PRD Documents** | Rust implementation guides, API references, and design documents |
+
+### Quick Navigation
+
+- [📖 User Docs (zh-cn)](https://github.com/anomalyco/opencode/tree/main/packages/web/src/content/docs/zh-cn) - User-facing documentation
+- [📋 PRD Documents](./PRD/) - Rust implementation guides
+- [🔗 Documentation Mapping](./MAPPING.md) - Links PRD docs to user docs
 - [Getting Started](./getting-started.md) - Installation, quick start, configuration
 - [SDK Guide](./sdk-guide.md) - Rust SDK for programmatic access
 - [Plugin Development](./plugin-dev.md) - WASM plugin system development
+
+---
+
+## User Documentation (zh-cn)
+
+The user documentation is maintained in the [main OpenCode repository](https://github.com/anomalyco/opencode/tree/main/packages/web/src/content/docs/zh-cn) and covers:
+
+| Topic | Description |
+|-------|-------------|
+| [index.mdx](https://github.com/anomalyco/opencode/blob/main/packages/web/src/content/docs/zh-cn/index.mdx) | Getting started, installation |
+| [agents.mdx](https://github.com/anomalyco/opencode/blob/main/packages/web/src/content/docs/zh-cn/agents.mdx) | Agent types, configuration |
+| [tools.mdx](https://github.com/anomalyco/opencode/blob/main/packages/web/src/content/docs/zh-cn/tools.mdx) | Built-in tools (26 tools) |
+| [cli.mdx](https://github.com/anomalyco/opencode/blob/main/packages/web/src/content/docs/zh-cn/cli.mdx) | CLI commands (22 commands) |
+| [config.mdx](https://github.com/anomalyco/opencode/blob/main/packages/web/src/content/docs/zh-cn/config.mdx) | Configuration schema |
+| [providers.mdx](https://github.com/anomalyco/opencode/blob/main/packages/web/src/content/docs/zh-cn/providers.mdx) | AI provider setup (75+ providers) |
+| [permissions.mdx](https://github.com/anomalyco/opencode/blob/main/packages/web/src/content/docs/zh-cn/permissions.mdx) | Permission system |
+| [skills.mdx](https://github.com/anomalyco/opencode/blob/main/packages/web/src/content/docs/zh-cn/skills.mdx) | Skills system |
+| [plugins.mdx](https://github.com/anomalyco/opencode/blob/main/packages/web/src/content/docs/zh-cn/plugins.mdx) | Plugin development |
+| [server.mdx](https://github.com/anomalyco/opencode/blob/main/packages/web/src/content/docs/zh-cn/server.mdx) | HTTP API reference |
+| [web.mdx](https://github.com/anomalyco/opencode/blob/main/packages/web/src/content/docs/zh-cn/web.mdx) | Web interface |
+
+See [MAPPING.md](./MAPPING.md) for complete PRD-to-user-doc mapping.
+
+---
 
 ## Crate API Reference
 
@@ -64,4 +100,5 @@ The OpenCode RS codebase is organized into the following crates:
 - [Main README](../README.md) - Project overview
 - [AGENTS.md](../AGENTS.md) - AI agent instructions
 - [ratatui-testing](../ratatui-testing/) - TUI testing framework
+- [Documentation Mapping](./MAPPING.md) - PRD to user docs mapping
 - [PRD Documents](./PRD/) - Product requirements and design documents

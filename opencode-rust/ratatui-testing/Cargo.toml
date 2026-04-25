@@ -5,6 +5,11 @@ edition = "2021"
 authors = ["OpenCode Rust Team"]
 license = "MIT"
 
+[features]
+default = []
+proptest = ["dep:proptest"]
+insta = ["dep:insta"]
+
 [dependencies]
 ratatui = "0.30"
 crossterm = "0.28"
@@ -16,6 +21,8 @@ portable-pty = "0.8"
 tokio = { version = "1.45", features = ["rt-multi-thread", "sync", "time", "macros", "process", "io-util"] }
 tracing = "0.1"
 tempfile = "3.14"
+proptest = { version = "1.5", optional = true }
+insta = { version = "1.40", optional = true }
 
 [dev-dependencies]
 similar-asserts = "1.5"

@@ -867,6 +867,24 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
 
+    struct DirGuard {
+        original: std::path::PathBuf,
+    }
+
+    impl DirGuard {
+        fn new(path: &std::path::Path) -> std::io::Result<Self> {
+            let original = std::env::current_dir()?;
+            std::env::set_current_dir(path)?;
+            Ok(Self { original })
+        }
+    }
+
+    impl Drop for DirGuard {
+        fn drop(&mut self) {
+            let _ = std::env::set_current_dir(&self.original);
+        }
+    }
+
     #[test]
     fn test_project_manager_new() {
         let pm = ProjectManager::new();
@@ -1073,12 +1091,10 @@ mod tests {
     #[test]
     fn test_normalize_path_relative() {
         let tmp = TempDir::new().unwrap();
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(tmp.path()).unwrap();
+        let _guard = DirGuard::new(tmp.path()).unwrap();
         let result = normalize_path(&PathBuf::from("."));
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), tmp.path().canonicalize().unwrap());
-        std::env::set_current_dir(original_dir).unwrap();
     }
 
     #[test]
@@ -1129,15 +1145,13 @@ mod tests {
     #[test]
     fn test_validate_workspace_relative_path() {
         let tmp = TempDir::new().unwrap();
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(tmp.path()).unwrap();
+        let _guard = DirGuard::new(tmp.path()).unwrap();
         let result = validate_workspace(&PathBuf::from("."));
         assert!(result.is_err());
         match result.unwrap_err() {
             WorkspaceValidationError::PathNotAbsolute(_) => {}
             e => panic!("Expected PathNotAbsolute, got: {}", e),
         }
-        std::env::set_current_dir(original_dir).unwrap();
     }
 
     #[test]
@@ -1164,8 +1178,7 @@ mod tests {
     #[test]
     fn test_resolve_relative_path() {
         let tmp = TempDir::new().unwrap();
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(tmp.path()).unwrap();
+        let _guard = DirGuard::new(tmp.path()).unwrap();
 
         let resolved = resolve_relative_path(&PathBuf::from("subdir")).unwrap();
         assert!(resolved.is_absolute());
@@ -1174,8 +1187,6 @@ mod tests {
         let absolute = PathBuf::from("/usr/local");
         let resolved = resolve_relative_path(&absolute).unwrap();
         assert_eq!(resolved, absolute);
-
-        std::env::set_current_dir(original_dir).unwrap();
     }
 
     #[test]
@@ -1480,8 +1491,7 @@ mod tests {
         let config_service = ConfigService::new(config);
         let service = ProjectService::new(Arc::new(config_service));
 
-        let original_cwd = std::env::current_dir().unwrap();
-        std::env::set_current_dir(tmp.path()).unwrap();
+        let _guard = DirGuard::new(tmp.path()).unwrap();
 
         let info1 = service.get().await.unwrap();
         assert_eq!(info1.project_type, ProjectType::Rust);
@@ -1489,8 +1499,6 @@ mod tests {
         let info2 = service.get().await.unwrap();
         assert_eq!(info2.project_type, ProjectType::Rust);
         assert_eq!(info1.root, info2.root);
-
-        std::env::set_current_dir(original_cwd).unwrap();
     }
 
     #[tokio::test]

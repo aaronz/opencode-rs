@@ -683,6 +683,55 @@ impl TestDsl {
 
         Ok(())
     }
+
+    pub fn render_to_string(&self) -> Option<String>
+    where
+        Self: Sized,
+    {
+        self.last_render.as_ref().map(|buf| {
+            buf.content
+                .chunks(buf.area.width as usize)
+                .map(|chunk| {
+                    chunk
+                        .iter()
+                        .map(|cell| cell.symbol().to_string())
+                        .collect::<String>()
+                        .trim_end()
+                        .to_string()
+                })
+                .collect::<Vec<_>>()
+                .join("\n")
+        })
+    }
+
+    pub fn render_widget_to_string<W: Widget + 'static>(
+        width: u16,
+        height: u16,
+        widget: W,
+    ) -> String {
+        let backend = TestBackend::new(width, height);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                f.render_widget(widget, Rect::new(0, 0, width, height));
+            })
+            .unwrap();
+        terminal
+            .backend()
+            .buffer()
+            .content
+            .chunks(width as usize)
+            .map(|chunk| {
+                chunk
+                    .iter()
+                    .map(|cell| cell.symbol().to_string())
+                    .collect::<String>()
+                    .trim_end()
+                    .to_string()
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
 }
 
 impl Default for TestDsl {
