@@ -26,7 +26,7 @@
       "priority": "P0",
       "title": "Implement config set",
       "description": "Fix cmd/config.rs:199-202 which always errors. Parse dot-notation key (e.g., 'agent.model'), validate value type matches expected type, persist to config file, reload config to apply changes.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify dot-notation key parsing works for nested keys",
         "AddUnitTest: verify type validation rejects mismatched types",
@@ -49,7 +49,7 @@
       "priority": "P0",
       "title": "Implement agent run",
       "description": "Fix cmd/agent.rs:48 which only prints debug. Query AgentRegistry for requested agent type, initialize LLM provider from Config, execute agent with provided prompt, stream output via NdjsonSerializer if --format set.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify AgentRegistry lookup returns correct agent",
         "AddUnitTest: verify NdjsonSerializer format flag works correctly",
@@ -73,7 +73,7 @@
       "priority": "P1",
       "title": "Implement agent list",
       "description": "Fix cmd/agent.rs:48 which is not implemented. Query AgentRegistry for all registered agents, display name/description/capabilities, support --verbose flag for detailed info.",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify AgentRegistry returns all registered agents",
         "AddUnitTest: verify verbose flag shows additional details",

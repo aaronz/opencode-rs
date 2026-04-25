@@ -50,10 +50,11 @@
 - **FR:** FR-011
 - **Priority:** P1
 - **Gap:** `cmd/agent.rs:48` — not implemented
+- **Status:** ✅ Done
 - **Actions:**
-  - [ ] Query AgentRegistry for all registered agents
-  - [ ] Display agent name, description, capabilities
-  - [ ] Support `--verbose` flag for detailed info
+  - [x] Query AgentRegistry for all registered agents
+  - [x] Display agent name, description, capabilities
+  - [x] Support `--verbose` flag for detailed info
 - **Verify:** `opencode agent list`
 
 ### Task 5: Implement `account login/logout/status`

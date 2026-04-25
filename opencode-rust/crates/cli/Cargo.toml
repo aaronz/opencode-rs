@@ -30,6 +30,7 @@ opencode-auth = { path = "../auth" }
 opencode-control-plane = { path = "../control-plane" }
 opencode-permission = { path = "../permission" }
 opencode-tools.workspace = true
+opencode-agent = { path = "../agent" }
 opencode-util.workspace = true
 clap = { version = "4.5", features = ["derive"] }
 tracing.workspace = true
@@ -45,6 +46,7 @@ reqwest.workspace = true
 base64 = "0.22"
 sha2 = "0.10"
 uuid.workspace = true
+async-trait = "0.1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 wry = { version = "0.24", optional = true }

@@ -4756,12 +4756,14 @@ dependencies = [
 name = "opencode-cli"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "base64 0.22.1",
  "chrono",
  "clap",
  "directories 5.0.1",
  "dirs 6.0.0",
  "once_cell",
+ "opencode-agent",
  "opencode-auth",
  "opencode-control-plane",
  "opencode-core",
