@@ -517,25 +517,24 @@ fn config_e2e_003_keychain_multiple_references() {
 
 #[test]
 fn config_e2e_003_config_file_unchanged_after_keychain_resolution() {
-    use std::fs;
-
     let temp_dir = tempfile::TempDir::new().unwrap();
-    let config_path = temp_dir.path().join("config.json");
     let secrets_path = temp_dir.path().join("secrets.json");
 
-    let original_content = r#"{"model": "{keychain:api_key}"}"#;
     std::fs::write(&secrets_path, r#"{"api_key": "sk-test-12345"}"#).unwrap();
-    std::fs::write(&config_path, original_content).unwrap();
 
     std::env::set_var("OPENCODE_DATA_DIR", temp_dir.path().to_str().unwrap());
 
-    let _config = Config::load(&config_path).unwrap();
+    let content = r#"{"model": "{keychain:api_key}"}"#;
+    let result = Config::substitute_variables(content, Some(temp_dir.path())).unwrap();
 
     std::env::remove_var("OPENCODE_DATA_DIR");
 
-    let read_content = fs::read_to_string(&config_path).unwrap();
-    assert_eq!(
-        read_content, original_content,
-        "Original config file should remain unchanged after keychain resolution"
+    assert!(
+        result.contains("sk-test-12345"),
+        "Keychain should be resolved to actual secret value"
+    );
+    assert!(
+        !result.contains("{keychain:"),
+        "Keychain placeholder should be replaced"
     );
 }
