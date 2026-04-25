@@ -1,8 +1,5 @@
 use opencode_core::Session;
-use opencode_plugin::{
-    Plugin, PluginError, PluginManager,
-    PluginTool, PluginToolDefinition,
-};
+use opencode_plugin::{Plugin, PluginError, PluginManager, PluginTool, PluginToolDefinition};
 use serde_json::Value;
 use std::sync::{Arc, Mutex};
 

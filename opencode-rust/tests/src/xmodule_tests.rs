@@ -242,7 +242,9 @@ mod xmodule_session_compaction_001 {
 
         let mut updated = Session::new();
         updated.id = session.id;
-        updated.messages = vec![opencode_core::Message::user("Compacted summary".to_string())];
+        updated.messages = vec![opencode_core::Message::user(
+            "Compacted summary".to_string(),
+        )];
         repo.save(&updated).await.unwrap();
 
         let loaded_after = repo.find_by_id(&session.id.to_string()).await.unwrap();
