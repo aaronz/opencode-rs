@@ -300,6 +300,7 @@ pub fn setup_github_workflow(
         workflow_path: template.workflow_path,
         secrets_required: template.secrets,
         commit_sha: commit.commit.sha,
+        workflow_yaml,
     })
 }
 
@@ -308,6 +309,7 @@ pub struct SetupResult {
     pub workflow_path: String,
     pub secrets_required: Vec<SecretRequirement>,
     pub commit_sha: String,
+    pub workflow_yaml: String,
 }
 
 #[derive(Debug, Error)]

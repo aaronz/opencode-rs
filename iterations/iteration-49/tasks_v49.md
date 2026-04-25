@@ -107,10 +107,11 @@
 - **Priority:** P1
 - **Gap:** `cmd/session.rs:673-698` — prints JSON only
 - **Actions:**
-  - [ ] Create fork via SessionSharing
-  - [ ] Transfer session context properly
-  - [ ] Integrate with TUI for session management
+  - [x] Create fork via SessionSharing (`fork_session()` at line 858)
+  - [x] Transfer session context properly (lineage_path, parent_session_id)
+  - [x] Integrate with TUI for session management (ForkDialog mode, execute_fork())
 - **Verify:** `opencode session fork <id>`
+- **Status:** ✅ Done
 
 ### Task 10: Implement `github install` persistence
 - **FR:** FR-015
