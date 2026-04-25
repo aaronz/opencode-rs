@@ -365,9 +365,12 @@ mod tests {
     #[test]
     fn test_model_selection_anthropic_respects_user_config() {
         let config = UserModelConfig {
-            provider_defaults: [("anthropic".to_string(), "claude-opus-4-20250514".to_string())]
-                .into_iter()
-                .collect(),
+            provider_defaults: [(
+                "anthropic".to_string(),
+                "claude-opus-4-20250514".to_string(),
+            )]
+            .into_iter()
+            .collect(),
             ..Default::default()
         };
 

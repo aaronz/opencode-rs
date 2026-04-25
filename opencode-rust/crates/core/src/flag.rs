@@ -794,10 +794,7 @@ mod tests {
         }
 
         for val in all_results {
-            assert!(
-                val,
-                "Each evaluation should return a consistent boolean"
-            );
+            assert!(val, "Each evaluation should return a consistent boolean");
         }
     }
 }

@@ -60,7 +60,10 @@ mod tests {
     fn create_test_state_with_api_key(api_key: Option<String>) -> crate::ServerState {
         let temp_dir = tempfile::tempdir().unwrap();
         let db_path = temp_dir.path().join("test.db");
-        let config = opencode_core::Config { api_key, ..Default::default() };
+        let config = opencode_core::Config {
+            api_key,
+            ..Default::default()
+        };
         crate::ServerState {
             storage: {
                 let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
@@ -1993,7 +1996,10 @@ mod security_tests {
     fn create_test_state_with_api_key(api_key: Option<String>) -> crate::ServerState {
         let temp_dir = tempfile::tempdir().unwrap();
         let db_path = temp_dir.path().join("test.db");
-        let config = opencode_core::Config { api_key, ..Default::default() };
+        let config = opencode_core::Config {
+            api_key,
+            ..Default::default()
+        };
         crate::ServerState {
             storage: {
                 let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
@@ -2659,7 +2665,10 @@ mod api_negative_tests {
     fn create_test_state_with_api_key(api_key: Option<String>) -> crate::ServerState {
         let temp_dir = tempfile::tempdir().unwrap();
         let db_path = temp_dir.path().join("test.db");
-        let config = opencode_core::Config { api_key, ..Default::default() };
+        let config = opencode_core::Config {
+            api_key,
+            ..Default::default()
+        };
         crate::ServerState {
             storage: {
                 let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
@@ -3348,7 +3357,10 @@ mod auth_negative_tests {
     fn create_test_state_with_api_key(api_key: Option<String>) -> crate::ServerState {
         let temp_dir = tempfile::tempdir().unwrap();
         let db_path = temp_dir.path().join("test.db");
-        let config = opencode_core::Config { api_key, ..Default::default() };
+        let config = opencode_core::Config {
+            api_key,
+            ..Default::default()
+        };
         crate::ServerState {
             storage: {
                 let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();

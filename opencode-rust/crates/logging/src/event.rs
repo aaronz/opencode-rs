@@ -753,9 +753,10 @@ mod tests {
         fields
             .extra
             .insert("number_val".to_string(), serde_json::json!(42));
-        fields
-            .extra
-            .insert("float_val".to_string(), serde_json::Value::from(std::f64::consts::PI));
+        fields.extra.insert(
+            "float_val".to_string(),
+            serde_json::Value::from(std::f64::consts::PI),
+        );
         fields
             .extra
             .insert("bool_val".to_string(), serde_json::json!(true));
