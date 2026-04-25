@@ -1,8 +1,11 @@
 use clap::Args;
+use opencode_auth::credential_store::CredentialStore;
 use opencode_core::Config;
+use opencode_llm::auth_method::{get_provider_auth_methods, AuthMethod};
 use opencode_llm::{ModelRegistry, OpenAiBrowserAuthService, OpenAiBrowserAuthStore};
 use serde::Serialize;
 use serde_json::json;
+use std::io::Write;
 use std::process::Command;
 
 #[derive(Args, Debug)]
@@ -87,6 +90,104 @@ fn open_browser(url: &str) -> Result<(), String> {
         })
 }
 
+fn prompt_for_api_key(provider: &str) -> Option<String> {
+    print!("Enter API key for {}: ", provider);
+    std::io::stdout().flush().ok()?;
+    let mut api_key = String::new();
+    std::io::stdin().read_line(&mut api_key).ok()?;
+    let api_key = api_key.trim().to_string();
+    if api_key.is_empty() {
+        None
+    } else {
+        Some(api_key)
+    }
+}
+
+fn store_api_key_credential(provider: &str, api_key: &str, base_url: Option<&str>) -> Result<(), String> {
+    let credential_store = CredentialStore::new();
+    let credential = opencode_auth::credential_store::Credential {
+        api_key: api_key.to_string(),
+        base_url: base_url.map(String::from),
+        metadata: std::collections::HashMap::new(),
+    };
+    credential_store
+        .store(provider, &credential)
+        .map_err(|e| format!("Failed to store credential: {}", e))
+}
+
+fn run_openai_browser_login() {
+    let service = OpenAiBrowserAuthService::new();
+    let listener = match service.start_local_callback_listener() {
+        Ok(listener) => listener,
+        Err(error) => {
+            eprintln!("Failed to start OpenAI browser login: {}", error);
+            std::process::exit(1);
+        }
+    };
+    let request = listener.request();
+    let url = service.build_authorize_url(&request);
+    println!(
+        "Open this URL if the browser does not launch automatically:\n{}",
+        url
+    );
+    let _ = open_browser(&url);
+
+    let callback = match listener.wait_for_callback() {
+        Ok(callback) => callback,
+        Err(error) => {
+            eprintln!(
+                "OpenAI browser login failed while waiting for callback: {}",
+                error
+            );
+            std::process::exit(1);
+        }
+    };
+
+    let session = match service.exchange_code(callback, &request) {
+        Ok(session) => session,
+        Err(error) => {
+            eprintln!(
+                "OpenAI browser login failed during token exchange: {}",
+                error
+            );
+            std::process::exit(1);
+        }
+    };
+
+    let store = OpenAiBrowserAuthStore::from_default_location();
+    if let Err(error) = store.save(&session) {
+        eprintln!("Failed to save OpenAI browser session: {}", error);
+        std::process::exit(1);
+    }
+
+    println!("OpenAI browser login successful");
+}
+
+fn run_api_key_login(provider: &str) {
+    let auth_methods = get_provider_auth_methods(provider);
+    let supports_browser = auth_methods.contains(&AuthMethod::Browser);
+
+    if supports_browser {
+        println!("Note: {} supports browser authentication. Use --browser flag for OAuth flow.", provider);
+        println!("Proceeding with API key login...\n");
+    }
+
+    let api_key = match prompt_for_api_key(provider) {
+        Some(key) => key,
+        None => {
+            eprintln!("API key is required. Login cancelled.");
+            std::process::exit(1);
+        }
+    };
+
+    if let Err(e) = store_api_key_credential(provider, &api_key, None) {
+        eprintln!("Failed to store credential: {}", e);
+        std::process::exit(1);
+    }
+
+    println!("{} login successful (API key stored)", provider);
+}
+
 fn provider_enabled(config: &Config, id: &str) -> bool {
     let enabled_by_allowlist = config
         .enabled_providers
@@ -127,10 +228,15 @@ pub(crate) fn run(args: ProvidersArgs) {
 
     if let Some(provider_id) = args.login.as_deref() {
         if args.json {
+            let auth_methods = get_provider_auth_methods(provider_id);
             let result = json!({
                 "action": "login",
                 "provider": provider_id,
-                "method": if args.browser { "browser" } else { "api_key" },
+                "method": if args.browser && auth_methods.contains(&AuthMethod::Browser) {
+                    "browser"
+                } else {
+                    "api_key"
+                },
             });
             println!(
                 "{}",
@@ -139,56 +245,20 @@ pub(crate) fn run(args: ProvidersArgs) {
             return;
         }
 
-        if provider_id != "openai" || !args.browser {
-            eprintln!("Only 'providers --login openai --browser' is currently implemented");
-            std::process::exit(1);
+        let auth_methods = get_provider_auth_methods(provider_id);
+        let supports_browser = auth_methods.contains(&AuthMethod::Browser);
+
+        if provider_id == "openai" && args.browser && supports_browser {
+            run_openai_browser_login();
+            return;
         }
 
-        let service = OpenAiBrowserAuthService::new();
-        let listener = match service.start_local_callback_listener() {
-            Ok(listener) => listener,
-            Err(error) => {
-                eprintln!("Failed to start OpenAI browser login: {}", error);
-                std::process::exit(1);
-            }
-        };
-        let request = listener.request();
-        let url = service.build_authorize_url(&request);
-        println!(
-            "Open this URL if the browser does not launch automatically:\n{}",
-            url
-        );
-        let _ = open_browser(&url);
-
-        let callback = match listener.wait_for_callback() {
-            Ok(callback) => callback,
-            Err(error) => {
-                eprintln!(
-                    "OpenAI browser login failed while waiting for callback: {}",
-                    error
-                );
-                std::process::exit(1);
-            }
-        };
-
-        let session = match service.exchange_code(callback, &request) {
-            Ok(session) => session,
-            Err(error) => {
-                eprintln!(
-                    "OpenAI browser login failed during token exchange: {}",
-                    error
-                );
-                std::process::exit(1);
-            }
-        };
-
-        let store = OpenAiBrowserAuthStore::from_default_location();
-        if let Err(error) = store.save(&session) {
-            eprintln!("Failed to save OpenAI browser session: {}", error);
-            std::process::exit(1);
+        if supports_browser && args.browser {
+            eprintln!("Browser authentication for {} is not yet implemented.", provider_id);
+            eprintln!("Falling back to API key authentication...");
         }
 
-        println!("OpenAI browser login successful");
+        run_api_key_login(provider_id);
         return;
     }
 
@@ -400,5 +470,130 @@ mod tests {
 
         assert!(args.browser);
         assert_eq!(args.login.as_deref(), Some("openai"));
+    }
+
+    #[test]
+    fn test_store_api_key_credential_anthropic() {
+        use tempfile::TempDir;
+        let dir = TempDir::new().unwrap();
+        let store_path = dir.path().join("credentials.enc.json");
+        let key_path = dir.path().join("credentials.key");
+        let store = CredentialStore::with_paths(store_path.clone(), key_path);
+
+        let result = store.store(
+            "anthropic",
+            &opencode_auth::credential_store::Credential {
+                api_key: "sk-ant-test-key".to_string(),
+                base_url: None,
+                metadata: std::collections::HashMap::new(),
+            },
+        );
+        assert!(result.is_ok(), "Should store anthropic credential successfully");
+
+        let loaded = store.load("anthropic");
+        assert!(loaded.is_ok());
+        let cred = loaded.unwrap().expect("Should have anthropic credential");
+        assert_eq!(cred.api_key, "sk-ant-test-key");
+    }
+
+    #[test]
+    fn test_store_api_key_credential_google() {
+        use tempfile::TempDir;
+        let dir = TempDir::new().unwrap();
+        let store_path = dir.path().join("credentials.enc.json");
+        let key_path = dir.path().join("credentials.key");
+        let store = CredentialStore::with_paths(store_path.clone(), key_path);
+
+        let result = store.store(
+            "google",
+            &opencode_auth::credential_store::Credential {
+                api_key: "AIza-test-key".to_string(),
+                base_url: None,
+                metadata: std::collections::HashMap::new(),
+            },
+        );
+        assert!(result.is_ok(), "Should store google credential successfully");
+
+        let loaded = store.load("google");
+        assert!(loaded.is_ok());
+        let cred = loaded.unwrap().expect("Should have google credential");
+        assert_eq!(cred.api_key, "AIza-test-key");
+    }
+
+    #[test]
+    fn test_store_api_key_credential_azure() {
+        use tempfile::TempDir;
+        let dir = TempDir::new().unwrap();
+        let store_path = dir.path().join("credentials.enc.json");
+        let key_path = dir.path().join("credentials.key");
+        let store = CredentialStore::with_paths(store_path.clone(), key_path);
+
+        let result = store.store(
+            "azure",
+            &opencode_auth::credential_store::Credential {
+                api_key: "azure-test-key".to_string(),
+                base_url: Some("https://test.openai.azure.com".to_string()),
+                metadata: std::collections::HashMap::new(),
+            },
+        );
+        assert!(result.is_ok(), "Should store azure credential successfully");
+
+        let loaded = store.load("azure");
+        assert!(loaded.is_ok());
+        let cred = loaded.unwrap().expect("Should have azure credential");
+        assert_eq!(cred.api_key, "azure-test-key");
+        assert_eq!(cred.base_url, Some("https://test.openai.azure.com".to_string()));
+    }
+
+    #[test]
+    fn test_store_api_key_credential_custom_provider() {
+        use tempfile::TempDir;
+        let dir = TempDir::new().unwrap();
+        let store_path = dir.path().join("credentials.enc.json");
+        let key_path = dir.path().join("credentials.key");
+        let store = CredentialStore::with_paths(store_path.clone(), key_path);
+
+        let result = store.store(
+            "custom-provider",
+            &opencode_auth::credential_store::Credential {
+                api_key: "custom-key-123".to_string(),
+                base_url: Some("https://custom.api.com".to_string()),
+                metadata: std::collections::HashMap::new(),
+            },
+        );
+        assert!(result.is_ok(), "Should store custom provider credential successfully");
+
+        let loaded = store.load("custom-provider");
+        assert!(loaded.is_ok());
+        let cred = loaded.unwrap().expect("Should have custom provider credential");
+        assert_eq!(cred.api_key, "custom-key-123");
+        assert_eq!(cred.base_url, Some("https://custom.api.com".to_string()));
+    }
+
+    #[test]
+    fn test_get_provider_auth_methods_anthropic() {
+        let methods = get_provider_auth_methods("anthropic");
+        assert!(methods.contains(&AuthMethod::ApiKey));
+        assert!(!methods.contains(&AuthMethod::Browser));
+    }
+
+    #[test]
+    fn test_get_provider_auth_methods_google() {
+        let methods = get_provider_auth_methods("google");
+        assert!(methods.contains(&AuthMethod::Browser));
+        assert!(!methods.contains(&AuthMethod::ApiKey));
+    }
+
+    #[test]
+    fn test_get_provider_auth_methods_azure() {
+        let methods = get_provider_auth_methods("azure");
+        assert!(methods.contains(&AuthMethod::ApiKey));
+    }
+
+    #[test]
+    fn test_get_provider_auth_methods_openai() {
+        let methods = get_provider_auth_methods("openai");
+        assert!(methods.contains(&AuthMethod::Browser));
+        assert!(methods.contains(&AuthMethod::ApiKey));
     }
 }
