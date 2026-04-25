@@ -5471,9 +5471,17 @@ OpenCode Agent Configuration
                 if matches!(key.code, KeyCode::Enter | KeyCode::Esc) {
                     self.load_provider_catalog();
                 }
-                let action = self.provider_management_dialog.handle_input(key);
-                match action {
-                    DialogAction::Close => self.mode = AppMode::Chat,
+                let dialog_action = self.provider_management_dialog.handle_input(key);
+                match dialog_action {
+                    DialogAction::Close => {
+                        let mut app_state = action::AppState::new();
+                        app_state.mode = action::AppMode::ProviderManagement;
+                        crate::dialog_action_adapter::DialogActionAdapter::handle_dialog_action(
+                            dialog_action.clone(),
+                            &mut app_state,
+                        );
+                        self.mode = app_state.mode;
+                    }
                     DialogAction::Navigate(nav) => {
                         self.add_message(format!("Navigating to: {}", nav), false);
                     }
@@ -5745,9 +5753,17 @@ OpenCode Agent Configuration
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
-                let action = self.file_selection_dialog.handle_input(key);
-                match action {
-                    DialogAction::Close => self.mode = AppMode::Chat,
+                let dialog_action = self.file_selection_dialog.handle_input(key);
+                match dialog_action {
+                    DialogAction::Close => {
+                        let mut app_state = action::AppState::new();
+                        app_state.mode = action::AppMode::FileSelection;
+                        crate::dialog_action_adapter::DialogActionAdapter::handle_dialog_action(
+                            dialog_action.clone(),
+                            &mut app_state,
+                        );
+                        self.mode = app_state.mode;
+                    }
                     DialogAction::Confirm(path) => {
                         let path_buf = std::path::PathBuf::from(&path);
                         let file_name = path_buf
@@ -5781,9 +5797,17 @@ OpenCode Agent Configuration
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
-                let action = self.directory_selection_dialog.handle_input(key);
-                match action {
-                    DialogAction::Close => self.mode = AppMode::Chat,
+                let dialog_action = self.directory_selection_dialog.handle_input(key);
+                match dialog_action {
+                    DialogAction::Close => {
+                        let mut app_state = action::AppState::new();
+                        app_state.mode = action::AppMode::DirectorySelection;
+                        crate::dialog_action_adapter::DialogActionAdapter::handle_dialog_action(
+                            dialog_action.clone(),
+                            &mut app_state,
+                        );
+                        self.mode = app_state.mode;
+                    }
                     DialogAction::Confirm(path) => {
                         self.add_message(format!("Selected directory: {}", path), false);
                         self.mode = AppMode::Chat;
@@ -5801,9 +5825,15 @@ OpenCode Agent Configuration
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
-                let action = self.release_notes_dialog.handle_input(key);
-                if action == DialogAction::Close {
-                    self.mode = AppMode::Chat
+                let dialog_action = self.release_notes_dialog.handle_input(key);
+                if dialog_action == DialogAction::Close {
+                    let mut app_state = action::AppState::new();
+                    app_state.mode = action::AppMode::ReleaseNotes;
+                    crate::dialog_action_adapter::DialogActionAdapter::handle_dialog_action(
+                        dialog_action.clone(),
+                        &mut app_state,
+                    );
+                    self.mode = app_state.mode;
                 }
             }
         }
