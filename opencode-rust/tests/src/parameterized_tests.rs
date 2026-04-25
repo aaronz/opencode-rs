@@ -14,7 +14,7 @@ async fn create_test_pool() -> (StoragePool, tempfile::TempDir) {
     let temp_dir = tempfile::tempdir().unwrap();
     let db_path = temp_dir.path().join("test_rstest.db");
     let pool = StoragePool::new(&db_path).expect("Failed to create storage pool");
-    let manager = MigrationManager::new(pool.clone(), 2);
+    let manager = MigrationManager::new(pool.clone(), 3);
     manager.migrate().await.expect("Failed to run migrations");
     (pool, temp_dir)
 }
