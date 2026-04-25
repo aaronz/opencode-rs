@@ -436,6 +436,9 @@ impl AppState {
 
     fn close_current_dialog(&mut self) {
         match self.mode {
+            AppMode::ConnectProvider => {
+                self.mode = AppMode::Chat;
+            }
             AppMode::ConnectMethod => {
                 self.mode = AppMode::ConnectProvider;
             }

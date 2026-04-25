@@ -5509,11 +5509,19 @@ OpenCode Agent Configuration
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
-                let action = self.connect_provider_dialog.handle_input(key);
-                match action {
-                    DialogAction::Close => self.mode = AppMode::Chat,
+                let dialog_action = self.connect_provider_dialog.handle_input(key);
+                match dialog_action {
+                    DialogAction::Close => {
+                        let mut app_state = action::AppState::new();
+                        app_state.mode = action::AppMode::ConnectProvider;
+                        crate::dialog_action_adapter::DialogActionAdapter::handle_dialog_action(
+                            dialog_action.clone(),
+                            &mut app_state,
+                        );
+                        self.mode = app_state.mode;
+                    }
                     DialogAction::Confirm(provider_id) => {
-                        self.handle_connect_provider_confirm(provider_id)
+                        self.handle_connect_provider_confirm(provider_id);
                     }
                     _ => {}
                 }
