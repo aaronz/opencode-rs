@@ -401,6 +401,13 @@ fn set_config_value(path: &PathBuf, key: &str, value: &str) -> Result<(), Config
         return Err(ConfigSetError::InvalidKey(key.to_string()));
     }
 
+    if !is_valid_config_key(parts[0]) {
+        return Err(ConfigSetError::InvalidKey(format!(
+            "Unknown config key: '{}'. Valid keys include: model, temperature, agent, provider, server, etc.",
+            parts[0]
+        )));
+    }
+
     let json_value = serde_json::to_value(&config)
         .map_err(|e| ConfigSetError::SerializationError(e.to_string()))?;
 
@@ -416,6 +423,44 @@ fn set_config_value(path: &PathBuf, key: &str, value: &str) -> Result<(), Config
 
     println!("Set {} to {}", key, value);
     Ok(())
+}
+
+fn is_valid_config_key(key: &str) -> bool {
+    matches!(
+        key,
+        "schema"
+            | "logLevel"
+            | "server"
+            | "command"
+            | "skills"
+            | "watcher"
+            | "plugin"
+            | "snapshot"
+            | "share"
+            | "autoshare"
+            | "autoupdate"
+            | "disabledProviders"
+            | "enabledProviders"
+            | "model"
+            | "smallModel"
+            | "defaultAgent"
+            | "username"
+            | "agent"
+            | "provider"
+            | "mcp"
+            | "formatter"
+            | "lsp"
+            | "instructions"
+            | "agentsMd"
+            | "permission"
+            | "enterprise"
+            | "compaction"
+            | "experimental"
+            | "tui"
+            | "apiKey"
+            | "temperature"
+            | "maxTokens"
+    )
 }
 
 fn set_nested_value(
