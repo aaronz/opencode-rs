@@ -19,6 +19,8 @@
 
 pub mod action;
 
+pub mod app_update;
+
 pub mod app;
 pub mod cli;
 pub mod command;
