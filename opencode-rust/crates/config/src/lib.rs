@@ -126,6 +126,9 @@ pub struct Config {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub experimental: Option<ExperimentalConfig>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub github: Option<GitHubConfig>,
+
     #[serde(skip)]
     pub tui: Option<TuiConfig>,
 
@@ -766,6 +769,12 @@ pub struct EnterpriseConfig {
     pub url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", rename = "remoteConfigDomain")]
     pub remote_config_domain: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+pub struct GitHubConfig {
+    #[serde(skip_serializing_if = "Option::is_none", rename = "apiUrl")]
+    pub api_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
@@ -2391,6 +2400,12 @@ impl Config {
                 }
             }
             self.experimental = Some(exp);
+        }
+
+        if let Ok(github_api_url) = std::env::var("OPENCODE_GITHUB_API_URL") {
+            let mut github_config = self.github.clone().unwrap_or_default();
+            github_config.api_url = Some(github_api_url);
+            self.github = Some(github_config);
         }
 
         let provider_api_keys = [

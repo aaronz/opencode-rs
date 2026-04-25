@@ -289,17 +289,17 @@ mod tests {
 
     #[test]
     fn test_get_api_base_falls_back_to_default() {
-        std::env::remove_var("OPENCODE_GITHUB_API_URL");
+        std::env::remove_var("OPENCODE_GITHUB_API_BASE");
         let result = get_api_base();
         assert_eq!(result, GITHUB_API_BASE);
     }
 
     #[test]
     fn test_get_api_base_reads_from_env_var() {
-        std::env::set_var("OPENCODE_GITHUB_API_URL", "https://github.example.com/api/v3");
+        std::env::set_var("OPENCODE_GITHUB_API_BASE", "https://github.example.com/api/v3");
         let result = get_api_base();
         assert_eq!(result, "https://github.example.com/api/v3");
-        std::env::remove_var("OPENCODE_GITHUB_API_URL");
+        std::env::remove_var("OPENCODE_GITHUB_API_BASE");
     }
 }
 
