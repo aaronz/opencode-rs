@@ -122,7 +122,7 @@ enum Commands {
     #[command(about = "Start desktop mode (TUI + server)")]
     Desktop(DesktopArgs),
 
-    #[command(about = "Manage accounts")]
+    #[command(about = "Manage accounts", alias = "auth")]
     Account(AccountArgs),
 
     #[command(about = "Show effective config")]
@@ -304,7 +304,12 @@ fn main() -> ExitCode {
         Some(Commands::Bash(args)) => bash::run(args),
         Some(Commands::Completion(args)) => completion::run(args),
         Some(Commands::Models(args)) => models::run(args),
-        Some(Commands::Providers(args)) => providers::run(args),
+        Some(Commands::Providers(args)) => {
+            if let Err(e) = providers::run(args) {
+                eprintln!("{}", e);
+                return ExitCode::FAILURE;
+            }
+        }
         Some(Commands::Mcp(args)) => mcp::run(args),
         Some(Commands::Session(args)) => session::run(args),
         Some(Commands::List(args)) => list::run(args),
