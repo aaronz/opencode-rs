@@ -183,6 +183,9 @@ fn test_app_transitions_to_chat_mode_after_selection() {
 
 #[test]
 fn test_complete_flow_validation_model_select_chat() {
+    let temp_dir = tempfile::TempDir::new().unwrap();
+    std::env::set_var("OPENCODE_DATA_DIR", temp_dir.path().to_str().unwrap());
+
     let mut app = App::new();
 
     app.validation_in_progress = true;
