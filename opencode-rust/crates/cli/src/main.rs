@@ -1,4 +1,5 @@
 mod cmd;
+mod env_parser;
 mod output;
 
 #[cfg(feature = "desktop")]
@@ -464,6 +465,17 @@ fn run_tui(args: TuiArgs) {
             }
         }
     }
+
+    let env_config = env_parser::EnvVarConfig::parse();
+
+    tracing::debug!(
+        auto_share = ?env_config.auto_share,
+        config_path = ?env_config.config_path,
+        config_dir = ?env_config.config_dir,
+        disable_autoupdate = ?env_config.disable_autoupdate,
+        enable_exa = ?env_config.enable_exa,
+        "Environment variable configuration parsed"
+    );
 
     let mut app = App::new();
 

@@ -4,7 +4,7 @@ use opencode_llm::catalog::fetcher::ProviderCatalogFetcher;
 use opencode_llm::ModelRegistry;
 use serde::Serialize;
 use serde_json::json;
-use std::collections::BTreeSet;
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -221,7 +221,7 @@ mod tests {
         let hidden_file = temp_dir.join("opencode-hidden-models.json");
         let _ = std::fs::remove_file(&hidden_file);
 
-        let mut hidden = BTreeSet::new();
+        let mut hidden = HashSet::new();
         hidden.insert("model-1".to_string());
         hidden.insert("model-2".to_string());
         save_hidden_models(&hidden);
@@ -245,25 +245,50 @@ fn hidden_models_path() -> PathBuf {
     std::env::temp_dir().join("opencode-hidden-models.json")
 }
 
-fn load_hidden_models() -> BTreeSet<String> {
-    let path = hidden_models_path();
-    if !path.exists() {
-        return BTreeSet::new();
+fn load_hidden_models() -> HashSet<String> {
+    let mut hidden: HashSet<String> = HashSet::new();
+    let flat_file_path = hidden_models_path();
+    let mut migrated_from_flat_file = false;
+
+    if flat_file_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&flat_file_path) {
+            if let Ok(models) = serde_json::from_str::<Vec<String>>(&content) {
+                for model in models {
+                    hidden.insert(model);
+                }
+                migrated_from_flat_file = true;
+            }
+        }
     }
 
-    std::fs::read_to_string(path)
-        .ok()
-        .and_then(|content| serde_json::from_str::<Vec<String>>(&content).ok())
-        .map(|models| models.into_iter().collect())
-        .unwrap_or_default()
+    if migrated_from_flat_file {
+        tracing::warn!(
+            "Deprecated hidden-models.json file detected at {}. \
+            Model visibility is now stored in config.json. \
+            The flat file will be ignored in future versions.",
+            flat_file_path.display()
+        );
+    }
+
+    let path = Config::config_path();
+    if let Ok(config) = Config::load(&path) {
+        if let Some(models) = config.hidden_models {
+            for model in models {
+                hidden.insert(model);
+            }
+        }
+    }
+
+    hidden
 }
 
-fn save_hidden_models(hidden_models: &BTreeSet<String>) {
-    let path = hidden_models_path();
-    let payload = hidden_models.iter().cloned().collect::<Vec<_>>();
-    let serialized =
-        serde_json::to_string_pretty(&payload).expect("failed to serialize hidden models");
-    std::fs::write(&path, serialized).expect("failed to write hidden models file");
+fn save_hidden_models(hidden_models: &HashSet<String>) {
+    let path = Config::config_path();
+    let mut config = Config::load(&path).unwrap_or_default();
+    config.hidden_models = Some(hidden_models.iter().cloned().collect::<Vec<_>>());
+    if let Err(error) = config.save(&path) {
+        eprintln!("Failed to save config: {}", error);
+    }
 }
 
 fn load_config() -> Config {

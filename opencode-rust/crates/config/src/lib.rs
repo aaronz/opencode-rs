@@ -137,6 +137,9 @@ pub struct Config {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<u32>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hidden_models: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -4544,5 +4547,37 @@ mod tests {
         let result = ValidationResult::default();
         assert!(!result.valid);
         assert!(result.errors.is_empty());
+    }
+
+    #[test]
+    fn test_config_hidden_models_schema() {
+        let config = Config {
+            hidden_models: Some(vec!["gpt-4o".to_string(), "claude-3-5-sonnet".to_string()]),
+            ..Default::default()
+        };
+
+        let json = serde_json::to_value(&config).unwrap();
+        assert!(json.get("hiddenModels").is_some());
+        let hidden = json.get("hiddenModels").unwrap().as_array().unwrap();
+        assert_eq!(hidden.len(), 2);
+        assert!(hidden.contains(&serde_json::json!("gpt-4o")));
+    }
+
+    #[test]
+    fn test_config_hidden_models_roundtrip() {
+        let config = Config {
+            hidden_models: Some(vec!["model-1".to_string(), "model-2".to_string()]),
+            ..Default::default()
+        };
+
+        let serialized = serde_json::to_string_pretty(&config).unwrap();
+        let deserialized: Config = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(deserialized.hidden_models, Some(vec!["model-1".to_string(), "model-2".to_string()]));
+    }
+
+    #[test]
+    fn test_config_hidden_models_default_empty() {
+        let config = Config::default();
+        assert!(config.hidden_models.is_none());
     }
 }

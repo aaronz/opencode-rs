@@ -4783,6 +4783,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "similar",
+ "temp-env 0.2.0",
  "tempfile",
  "tokio",
  "toml 0.8.23",
@@ -4865,7 +4866,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "temp-env",
+ "temp-env 0.3.6",
  "tempfile",
  "thiserror 2.0.18",
  "tiktoken-rs",
@@ -7577,6 +7578,15 @@ name = "target-lexicon"
 version = "0.13.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "adb6935a6f5c20170eeceb1a3835a49e12e19d792f6dd344ccc76a985ca5a6ca"
+
+[[package]]
+name = "temp-env"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "45107136c2ddf8c4b87453c02294fd0adf41751796e81e8ba3f7fd951977ab57"
+dependencies = [
+ "once_cell",
+]
 
 [[package]]
 name = "temp-env"

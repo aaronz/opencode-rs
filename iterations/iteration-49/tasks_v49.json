@@ -259,7 +259,7 @@
       "priority": "P1",
       "title": "Fix config migrate",
       "description": "Fix cmd/config.rs:204-208 which is stub that errors. Implement TOML to JSONC migration OR remove flag with deprecation notice.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify TOML to JSONC migration works",
         "AddUnitTest: verify deprecation warning is displayed",
@@ -301,7 +301,7 @@
       "priority": "P1",
       "title": "Move model visibility to Config",
       "description": "Fix cmd/models.rs:238-267 which uses flat JSON file. Update Config schema for model visibility, migrate existing visibility settings, deprecate flat JSON file.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify Config schema has model visibility",
         "AddUnitTest: verify migration from flat JSON works",

@@ -62,5 +62,6 @@ wry = { version = "0.24", optional = true }
 webkit2gtk = { version = "0.18", optional = true }
 
 [dev-dependencies]
+temp-env = "0.2"
 tempfile = "3"
 regex = "1"
