@@ -334,13 +334,113 @@ mod tests {
         assert!(arr.is_array());
         assert_eq!(arr.as_array().unwrap().len(), 3);
     }
+
+    #[test]
+    fn test_migrate_from_toml_basic() {
+        let toml_content = r#"
+model = "gpt-4o"
+logLevel = "debug"
+temperature = 0.7
+"#;
+        let toml_value: toml::Value = toml_content.parse().unwrap();
+        let config = migrate_from_toml(toml_value).unwrap();
+        assert_eq!(config.model, Some("gpt-4o".to_string()));
+        assert_eq!(config.log_level, Some(opencode_core::config::LogLevel::Debug));
+        assert_eq!(config.temperature, Some(0.7));
+    }
+
+    #[test]
+    fn test_migrate_from_toml_snake_case_keys() {
+        let toml_content = r#"
+model = "gpt-4"
+small_model = "gpt-3.5"
+default_agent = "build"
+api_key = "secret-key"
+max_tokens = 1000
+"#;
+        let toml_value: toml::Value = toml_content.parse().unwrap();
+        let config = migrate_from_toml(toml_value).unwrap();
+        assert_eq!(config.model, Some("gpt-4".to_string()));
+        assert_eq!(config.small_model, Some("gpt-3.5".to_string()));
+        assert_eq!(config.default_agent, Some("build".to_string()));
+        assert_eq!(config.api_key, Some("secret-key".to_string()));
+        assert_eq!(config.max_tokens, Some(1000));
+    }
+
+    #[test]
+    fn test_migrate_from_toml_with_providers() {
+        let toml_content = r#"
+[providers.openai]
+apiKey = "openai-key"
+baseUrl = "https://api.openai.com"
+
+[providers.anthropic]
+apiKey = "anthropic-key"
+"#;
+        let toml_value: toml::Value = toml_content.parse().unwrap();
+        let config = migrate_from_toml(toml_value).unwrap();
+        assert!(config.provider.is_some());
+        let providers = config.provider.unwrap();
+        assert!(providers.contains_key("openai"));
+        assert!(providers.contains_key("anthropic"));
+    }
+
+    #[test]
+    fn test_migrate_from_toml_share_mode() {
+        let toml_content = r#"
+share = "auto"
+"#;
+        let toml_value: toml::Value = toml_content.parse().unwrap();
+        let config = migrate_from_toml(toml_value).unwrap();
+        assert_eq!(config.share, Some(opencode_core::config::ShareMode::Auto));
+    }
+
+    #[test]
+    fn test_migrate_from_toml_autoupdate() {
+        let toml_content = r#"
+autoUpdate = true
+"#;
+        let toml_value: toml::Value = toml_content.parse().unwrap();
+        let config = migrate_from_toml(toml_value).unwrap();
+        assert_eq!(config.autoupdate, Some(opencode_core::config::AutoUpdate::Bool(true)));
+    }
+
+    #[test]
+    fn test_migrate_from_toml_disabled_providers() {
+        let toml_content = r#"
+disabledProviders = ["ollama", "local"]
+"#;
+        let toml_value: toml::Value = toml_content.parse().unwrap();
+        let config = migrate_from_toml(toml_value).unwrap();
+        assert_eq!(
+            config.disabled_providers,
+            Some(vec!["ollama".to_string(), "local".to_string()])
+        );
+    }
+
+    #[test]
+    fn test_migrate_from_toml_invalid_toml() {
+        let toml_content = r#"
+model = "gpt-4
+"#;
+        let toml_value: Result<toml::Value, _> = toml_content.parse();
+        assert!(toml_value.is_err());
+    }
+
+    #[test]
+    fn test_migrate_from_toml_empty() {
+        let toml_content = "";
+        let toml_value: toml::Value = toml_content.parse().unwrap();
+        let config = migrate_from_toml(toml_value).unwrap();
+        assert!(config.model.is_none());
+        assert!(config.log_level.is_none());
+    }
 }
 
 pub(crate) fn run(args: ConfigArgs) {
     if args.migrate {
-        eprintln!("TOML configuration format is no longer supported.");
-        eprintln!("Please manually convert your config.toml to config.jsonc format.");
-        std::process::exit(1);
+        run_migrate();
+        return;
     }
 
     let path = Config::config_path();
@@ -391,6 +491,195 @@ pub(crate) fn run(args: ConfigArgs) {
     if let Some(model) = config.model {
         println!("Model: {}", model);
     }
+}
+
+fn run_migrate() {
+    let config_dir = Config::config_path().parent().map(|p| p.to_path_buf());
+
+    let Some(config_dir) = config_dir else {
+        eprintln!("Error: Could not determine config directory");
+        std::process::exit(1);
+    };
+
+    let toml_path = config_dir.join("config.toml");
+
+    if !toml_path.exists() {
+        eprintln!(
+            "No config.toml found at {}. Nothing to migrate.",
+            toml_path.display()
+        );
+        return;
+    }
+
+    eprintln!("Found TOML config at {}. Starting migration...", toml_path.display());
+
+    let toml_content = match std::fs::read_to_string(&toml_path) {
+        Ok(content) => content,
+        Err(e) => {
+            eprintln!("Error reading config.toml: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    let toml_value: toml::Value = match toml_content.parse() {
+        Ok(value) => value,
+        Err(e) => {
+            eprintln!("Error parsing config.toml: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    let config = match migrate_from_toml(toml_value) {
+        Ok(config) => config,
+        Err(e) => {
+            eprintln!("Error migrating config: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    let jsonc_path = config_dir.join("config.jsonc");
+
+    if let Err(e) = config.save(&jsonc_path) {
+        eprintln!("Error saving migrated config to {}: {}", jsonc_path.display(), e);
+        std::process::exit(1);
+    }
+
+    eprintln!(
+        "Successfully migrated config from {} to {}",
+        toml_path.display(),
+        jsonc_path.display()
+    );
+
+    let backup_path = config_dir.join("config.toml.bak");
+    if let Err(e) = std::fs::rename(&toml_path, &backup_path) {
+        eprintln!(
+            "Warning: Could not backup old config to {}: {}",
+            backup_path.display(),
+            e
+        );
+    } else {
+        eprintln!("Backed up old config to {}", backup_path.display());
+    }
+}
+
+fn migrate_from_toml(toml_value: toml::Value) -> Result<Config, String> {
+    let table = toml_value
+        .as_table()
+        .ok_or_else(|| "TOML root must be a table".to_string())?;
+
+    let mut config = Config::default();
+
+    if let Some(v) = table.get("schema").and_then(|v| v.as_str()) {
+        config.schema = Some(v.to_string());
+    }
+
+    if let Some(v) = table.get("logLevel").or_else(|| table.get("log_level")).and_then(|v| v.as_str()) {
+        config.log_level = match v.to_lowercase().as_str() {
+            "trace" => Some(opencode_core::config::LogLevel::Trace),
+            "debug" => Some(opencode_core::config::LogLevel::Debug),
+            "info" => Some(opencode_core::config::LogLevel::Info),
+            "warn" | "warning" => Some(opencode_core::config::LogLevel::Warn),
+            "error" => Some(opencode_core::config::LogLevel::Error),
+            _ => None,
+        };
+    }
+
+    if let Some(v) = table.get("model").and_then(|v| v.as_str()) {
+        config.model = Some(v.to_string());
+    }
+
+    if let Some(v) = table.get("smallModel").or_else(|| table.get("small_model")).and_then(|v| v.as_str()) {
+        config.small_model = Some(v.to_string());
+    }
+
+    if let Some(v) = table.get("defaultAgent").or_else(|| table.get("default_agent")).and_then(|v| v.as_str()) {
+        config.default_agent = Some(v.to_string());
+    }
+
+    if let Some(v) = table.get("username").and_then(|v| v.as_str()) {
+        config.username = Some(v.to_string());
+    }
+
+    if let Some(v) = table.get("apiKey").or_else(|| table.get("api_key")).and_then(|v| v.as_str()) {
+        config.api_key = Some(v.to_string());
+    }
+
+    if let Some(v) = table.get("temperature").and_then(|v| v.as_float()) {
+        config.temperature = Some(v as f32);
+    }
+
+    if let Some(v) = table.get("maxTokens").or_else(|| table.get("max_tokens")).and_then(|v| v.as_integer()) {
+        config.max_tokens = Some(v as u32);
+    }
+
+    if let Some(share) = table.get("share").and_then(|v| v.as_str()) {
+        config.share = match share.to_lowercase().as_str() {
+            "manual" => Some(opencode_core::config::ShareMode::Manual),
+            "auto" => Some(opencode_core::config::ShareMode::Auto),
+            "disabled" => Some(opencode_core::config::ShareMode::Disabled),
+            _ => None,
+        };
+    }
+
+    if let Some(autoupdate) = table.get("autoUpdate").or_else(|| table.get("auto_update")) {
+        if let Some(b) = autoupdate.as_bool() {
+            config.autoupdate = Some(opencode_core::config::AutoUpdate::Bool(b));
+        } else if let Some(s) = autoupdate.as_str() {
+            config.autoupdate = Some(opencode_core::config::AutoUpdate::Notify(s.to_string()));
+        }
+    }
+
+    if let Some(v) = table.get("snapshot").and_then(|v| v.as_bool()) {
+        config.snapshot = Some(v);
+    }
+
+    if let Some(v) = table.get("autoshare").and_then(|v| v.as_bool()) {
+        config.autoshare = Some(v);
+    }
+
+    if let Some(disabled) = table.get("disabledProviders").or_else(|| table.get("disabled_providers")).and_then(|v| v.as_array()) {
+        config.disabled_providers = Some(
+            disabled
+                .iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect(),
+        );
+    }
+
+    if let Some(enabled) = table.get("enabledProviders").or_else(|| table.get("enabled_providers")).and_then(|v| v.as_array()) {
+        config.enabled_providers = Some(
+            enabled
+                .iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect(),
+        );
+    }
+
+    if let Some(providers) = table.get("providers").and_then(|v| v.as_table()) {
+        let mut provider_map = std::collections::HashMap::new();
+        for (name, provider_json) in providers {
+            if let Some(provider_obj) = provider_json.as_table() {
+                let mut provider_config = opencode_core::config::ProviderConfig {
+                    id: Some(name.clone()),
+                    ..Default::default()
+                };
+
+                let mut options = opencode_core::config::ProviderOptions::default();
+                if let Some(api_key) = provider_obj.get("apiKey").or_else(|| provider_obj.get("api_key")).and_then(|v| v.as_str()) {
+                    options.api_key = Some(api_key.to_string());
+                }
+                if let Some(base_url) = provider_obj.get("baseUrl").or_else(|| provider_obj.get("base_url")).and_then(|v| v.as_str()) {
+                    options.base_url = Some(base_url.to_string());
+                }
+                provider_config.options = Some(options);
+
+                provider_map.insert(name.clone(), provider_config);
+            }
+        }
+        config.provider = Some(provider_map);
+    }
+
+    Ok(config)
 }
 
 fn set_config_value(path: &PathBuf, key: &str, value: &str) -> Result<(), ConfigSetError> {
