@@ -1,5 +1,7 @@
 use clap::Args;
 use opencode_core::Config;
+use opencode_llm::provider_abstraction::ProviderManager;
+use opencode_llm::ProviderSpec;
 use opencode_tui::{App, OutputFormat};
 
 #[derive(Args, Debug)]
@@ -222,30 +224,13 @@ pub(crate) fn run(args: RunArgs) {
         let model = args
             .model
             .clone()
-            .or(config.model)
+            .or(config.model.clone())
             .unwrap_or_else(|| "gpt-4o".to_string());
 
         match args.format {
-            OutputFormat::Ndjson => {
-                let mut serializer = crate::output::NdjsonSerializer::stdout();
-                serializer.write_start(&model).ok();
-                serializer
-                    .write_message("system", "Mode: non-interactive")
-                    .ok();
-                serializer.write_message("user", &prompt).ok();
-                serializer.flush().ok();
-            }
-            OutputFormat::Json => {
-                let response = serde_json::json!({
-                    "model": model,
-                    "prompt": prompt,
-                    "response": "This is a placeholder response. Use TUI mode for actual LLM interaction."
-                });
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&response)
-                        .expect("failed to serialize JSON output")
-                );
+            OutputFormat::Ndjson | OutputFormat::Json => {
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                rt.block_on(run_llm(&config, &model, &prompt, args.format));
             }
             _ => {
                 println!("Mode: non-interactive");
@@ -264,5 +249,145 @@ pub(crate) fn run(args: RunArgs) {
 
     if let Err(e) = app.run() {
         eprintln!("Error running TUI: {}", e);
+    }
+}
+
+async fn run_llm(config: &Config, model: &str, prompt: &str, format: OutputFormat) {
+    let provider_manager = ProviderManager::new();
+
+    let (provider_type, model_name) = if model.contains('/') {
+        let parts: Vec<&str> = model.split('/').collect();
+        (parts[0].to_string(), parts[1].to_string())
+    } else {
+        ("openai".to_string(), model.to_string())
+    };
+
+    fn get_api_key(config: &Config, provider: &str) -> String {
+        std::env::var(format!("{}_API_KEY", provider.to_uppercase()))
+            .ok()
+            .or_else(|| {
+                config
+                    .get_provider(provider)
+                    .and_then(|p| p.options.as_ref())
+                    .and_then(|o| o.api_key.clone())
+            })
+            .unwrap_or_default()
+    }
+
+    let spec = match provider_type.as_str() {
+        "openai" => ProviderSpec::OpenAI {
+            api_key: get_api_key(config, "openai"),
+            model: model_name,
+            base_url: config
+                .get_provider("openai")
+                .and_then(|p| p.options.as_ref())
+                .and_then(|o| o.base_url.clone()),
+        },
+        "anthropic" => ProviderSpec::Anthropic {
+            api_key: get_api_key(config, "anthropic"),
+            model: model_name,
+            base_url: config
+                .get_provider("anthropic")
+                .and_then(|p| p.options.as_ref())
+                .and_then(|o| o.base_url.clone()),
+        },
+        "google" => ProviderSpec::Google {
+            api_key: get_api_key(config, "google"),
+            model: model_name,
+        },
+        "ollama" => ProviderSpec::Ollama {
+            base_url: config
+                .get_provider("ollama")
+                .and_then(|p| p.options.as_ref())
+                .and_then(|o| o.base_url.clone()),
+            model: model_name,
+        },
+        "lmstudio" => ProviderSpec::LmStudio {
+            base_url: config
+                .get_provider("lmstudio")
+                .and_then(|p| p.options.as_ref())
+                .and_then(|o| o.base_url.clone()),
+            model: model_name,
+        },
+        _ => ProviderSpec::OpenAI {
+            api_key: get_api_key(config, "openai"),
+            model: model.to_string(),
+            base_url: None,
+        },
+    };
+
+    let provider = match provider_manager.create_provider(&spec) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("Failed to create provider: {}", e);
+            return;
+        }
+    };
+
+    match format {
+        OutputFormat::Json => {
+            use std::sync::{Arc, Mutex};
+            let chunks = Arc::new(Mutex::new(Vec::<String>::new()));
+            let chunks_clone = chunks.clone();
+            let result = provider
+                .complete_streaming(prompt, Box::new(move |chunk| {
+                    chunks_clone.lock().unwrap().push(chunk);
+                }))
+                .await;
+
+            match result {
+                Ok(_) => {
+                    let content = chunks.lock().unwrap().join("");
+                    let response = serde_json::json!({
+                        "event": "done",
+                        "model": model,
+                        "content": content
+                    });
+                    println!("{}", serde_json::to_string(&response).unwrap());
+                }
+                Err(e) => {
+                    let response = serde_json::json!({
+                        "event": "error",
+                        "error": e.to_string()
+                    });
+                    println!("{}", serde_json::to_string(&response).unwrap());
+                }
+            }
+        }
+        OutputFormat::Ndjson => {
+            use std::sync::{Arc, Mutex};
+
+            let serializer = Arc::new(Mutex::new(crate::output::NdjsonSerializer::stdout()));
+            serializer.lock().unwrap().write_start(model).ok();
+
+            let serializer_clone = serializer.clone();
+            let result = provider
+                .complete_streaming(prompt, Box::new(move |chunk| {
+                    serializer_clone.lock().unwrap().write_chunk(&chunk).ok();
+                }))
+                .await;
+
+            match result {
+                Ok(_) => {
+                    serializer.lock().unwrap().write_done().ok();
+                }
+                Err(e) => {
+                    serializer.lock().unwrap().write_error(&e.to_string()).ok();
+                }
+            }
+
+            serializer.lock().unwrap().flush().ok();
+        }
+        _ => {
+            let result = provider
+                .complete_streaming(prompt, Box::new(|chunk| {
+                    print!("{}", chunk);
+                }))
+                .await;
+
+            if result.is_err() {
+                eprintln!("Error: {}", result.err().unwrap());
+            }
+        }
     }
 }

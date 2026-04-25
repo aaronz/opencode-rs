@@ -93,6 +93,7 @@ impl<W: Write> NdjsonSerializer<W> {
         writeln!(self.writer)
     }
 
+    #[allow(dead_code)]
     pub fn write_message(&mut self, role: &str, content: &str) -> io::Result<()> {
         let event = NdjEvent {
             event: "message",

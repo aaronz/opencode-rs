@@ -43,7 +43,9 @@ mod tests {
         }
         let output = String::from_utf8(buffer).unwrap();
         assert!(output.contains("\"event\":\"error\""));
-        assert!(output.contains("\"error\":\"something went wrong\""));
+        let parsed: serde_json::Value = serde_json::from_str(&output).unwrap();
+        assert_eq!(parsed["event"], "error");
+        assert_eq!(parsed["error"], "something went wrong");
     }
 
     #[test]

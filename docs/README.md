@@ -16,6 +16,7 @@ This documentation is organized into two complementary views:
 - [📖 User Docs (zh-cn)](https://github.com/anomalyco/opencode/tree/main/packages/web/src/content/docs/zh-cn) - User-facing documentation
 - [📋 PRD Documents](./PRD/) - Rust implementation guides
 - [🔗 Documentation Mapping](./MAPPING.md) - Links PRD docs to user docs
+- [Iteration Monitor](./PLAN/iteration-monitor.md) - Timed iteration monitor rules and current PRD tracking model
 - [Getting Started](./getting-started.md) - Installation, quick start, configuration
 - [SDK Guide](./sdk-guide.md) - Rust SDK for programmatic access
 - [Plugin Development](./plugin-dev.md) - WASM plugin system development

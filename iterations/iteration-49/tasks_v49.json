@@ -1,0 +1,465 @@
+{
+  "tasks": [
+    {
+      "id": "FR-006",
+      "priority": "P0",
+      "title": "Implement run --format ndjson/json",
+      "description": "Replace placeholder output in cmd/run.rs:228-255 with actual LLM integration. Load model from Config (not hardcoded 'gpt-4o'), initialize LLM provider from config, send prompt with streaming, write events via NdjsonSerializer, handle tool calls and results.",
+      "status": "in_progress",
+      "test_criteria": [
+        "AddUnitTest: verify Config model loading returns correct model",
+        "AddUnitTest: verify NdjsonSerializer outputs valid NDJSON lines",
+        "AddIntegrationTest: verify LLM provider receives correct prompt and returns streaming events",
+        "AddRegressionTest: ensure existing run command tests still pass after refactor"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- run_command",
+        "cargo test -p opencode-cli --test run_tests",
+        "cargo clippy -p opencode-cli -- -D warnings",
+        "cargo build -p opencode-cli --all-features"
+      ],
+      "impl_notes": "Use Config::get('agent.model') with fallback to 'gpt-4o'. Wire up LLM provider from config. Stream events as they're received.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-005",
+      "priority": "P0",
+      "title": "Implement config set",
+      "description": "Fix cmd/config.rs:199-202 which always errors. Parse dot-notation key (e.g., 'agent.model'), validate value type matches expected type, persist to config file, reload config to apply changes.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify dot-notation key parsing works for nested keys",
+        "AddUnitTest: verify type validation rejects mismatched types",
+        "AddIntegrationTest: verify config file is written and persisted correctly",
+        "AddRegressionTest: ensure 'config get' still works after 'config set'"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- config_command",
+        "cargo test -p opencode-cli --test config_tests",
+        "cargo clippy -p opencode-cli -- -D warnings",
+        "cargo build -p opencode-cli --all-features"
+      ],
+      "impl_notes": "Parse key path using split('.'). Validate value type before writing. Use Config system for persistence.",
+      "dependencies": [
+        "FR-021"
+      ]
+    },
+    {
+      "id": "FR-004",
+      "priority": "P0",
+      "title": "Implement agent run",
+      "description": "Fix cmd/agent.rs:48 which only prints debug. Query AgentRegistry for requested agent type, initialize LLM provider from Config, execute agent with provided prompt, stream output via NdjsonSerializer if --format set.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify AgentRegistry lookup returns correct agent",
+        "AddUnitTest: verify NdjsonSerializer format flag works correctly",
+        "AddIntegrationTest: verify agent execution produces correct output",
+        "AddRegressionTest: ensure agent list still works after run implementation"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- agent_command",
+        "cargo test -p opencode-cli --test agent_tests",
+        "cargo clippy -p opencode-cli -- -D warnings",
+        "cargo build -p opencode-cli --all-features"
+      ],
+      "impl_notes": "Query AgentRegistry by type string. Initialize LLM from Config. Stream output based on --format flag.",
+      "dependencies": [
+        "FR-006",
+        "FR-011"
+      ]
+    },
+    {
+      "id": "FR-011",
+      "priority": "P1",
+      "title": "Implement agent list",
+      "description": "Fix cmd/agent.rs:48 which is not implemented. Query AgentRegistry for all registered agents, display name/description/capabilities, support --verbose flag for detailed info.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify AgentRegistry returns all registered agents",
+        "AddUnitTest: verify verbose flag shows additional details",
+        "AddIntegrationTest: verify output format is readable",
+        "AddRegressionTest: ensure agent run still works after list implementation"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- agent_list",
+        "cargo test -p opencode-cli --test agent_tests",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Use AgentRegistry::list_agents() or similar. Format output with name, description, capabilities columns.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-007",
+      "priority": "P1",
+      "title": "Implement account login/logout/status",
+      "description": "Fix cmd/account.rs which returns 'not_implemented'. Integrate with opencode-auth crate, implement browser-based OAuth flow, store credentials securely, display authentication status.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify auth crate integration for login flow",
+        "AddUnitTest: verify credentials are stored securely",
+        "AddIntegrationTest: verify OAuth browser flow completes",
+        "AddRegressionTest: ensure account status shows correct state"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- account_command",
+        "cargo test -p opencode-cli --test account_tests",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Use opencode-auth crate. Implement browser-based OAuth. Store tokens securely (keyring/credential store).",
+      "dependencies": []
+    },
+    {
+      "id": "FR-008",
+      "priority": "P1",
+      "title": "Implement attach command",
+      "description": "Fix cmd/attach.rs:83-90 which only prints URL/id. Connect via ACP protocol to remote session, handle local session attachment, manage session state transfer.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify ACP protocol connection establishment",
+        "AddUnitTest: verify session state transfer correctness",
+        "AddIntegrationTest: verify attach command connects to remote session",
+        "AddRegressionTest: ensure existing attach functionality not broken"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- attach_command",
+        "cargo test -p opencode-cli --test attach_tests",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Use ACP protocol for connection. Handle session state serialization and transfer.",
+      "dependencies": [
+        "FR-017"
+      ]
+    },
+    {
+      "id": "FR-009",
+      "priority": "P1",
+      "title": "Implement mcp add",
+      "description": "Add 'Add' variant to McpAction enum in cmd/mcp.rs. Validate MCP server command exists, persist MCP server configuration, initialize MCP client connection.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify McpAction::Add variant exists and parses correctly",
+        "AddUnitTest: verify MCP server command validation",
+        "AddIntegrationTest: verify MCP client connection initialization",
+        "AddRegressionTest: ensure existing mcp commands still work"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- mcp_command",
+        "cargo test -p opencode-cli --test mcp_tests",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Add variant to McpAction enum. Validate command exists using which crate. Persist to config.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-010",
+      "priority": "P1",
+      "title": "Implement session review/diff",
+      "description": "Fix cmd/session.rs:991-1011 which are stubs. Load session messages and context, implement file diff using session state changes, show review of modified files, format output for terminal.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify session message loading",
+        "AddUnitTest: verify file diff computation",
+        "AddIntegrationTest: verify review output is formatted correctly",
+        "AddRegressionTest: ensure existing session commands still work"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- session_command",
+        "cargo test -p opencode-cli --test session_tests",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Load session from storage. Compute diff between session states. Format for terminal display.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-014",
+      "priority": "P1",
+      "title": "Implement session fork TUI integration",
+      "description": "Fix cmd/session.rs:673-698 which prints JSON only. Create fork via SessionSharing, transfer session context properly, integrate with TUI for session management.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify SessionSharing fork creation",
+        "AddUnitTest: verify session context transfer",
+        "AddIntegrationTest: verify TUI integration for fork operation",
+        "AddRegressionTest: ensure existing session fork still works"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- session_fork",
+        "cargo test -p opencode-cli --test session_tests",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Use SessionSharing for fork creation. Transfer context properly. Wire up TUI components.",
+      "dependencies": [
+        "FR-010"
+      ]
+    },
+    {
+      "id": "FR-015",
+      "priority": "P1",
+      "title": "Implement github install persistence",
+      "description": "Fix cmd/github.rs:189-211 which doesn't save workflow. Write workflow to .opencode/ directory, persist to workspace config, verify installation on subsequent runs.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify workflow file is written to .opencode/",
+        "AddUnitTest: verify workspace config persistence",
+        "AddIntegrationTest: verify installation persists across runs",
+        "AddRegressionTest: ensure existing github commands still work"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- github_command",
+        "cargo test -p opencode-cli --test github_tests",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Write workflow to .opencode/workflows/. Persist to workspace config. Check for existing installation.",
+      "dependencies": [
+        "FR-022"
+      ]
+    },
+    {
+      "id": "FR-016",
+      "priority": "P1",
+      "title": "Extend providers login multi-provider",
+      "description": "Extend cmd/providers.rs:142-145 which only supports OpenAI. Add Anthropic, Google AI Studio, Azure OpenAI, and custom provider support.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify Anthropic provider authentication",
+        "AddUnitTest: verify Google AI Studio provider authentication",
+        "AddUnitTest: verify Azure OpenAI provider authentication",
+        "AddIntegrationTest: verify multi-provider login flow",
+        "AddRegressionTest: ensure existing OpenAI login still works"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- providers_command",
+        "cargo test -p opencode-cli --test providers_tests",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Extend browser auth flow for each provider type. Use provider-specific OAuth endpoints.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-017",
+      "priority": "P1",
+      "title": "Implement acp handshake session storage",
+      "description": "Fix cmd/acp.rs:250-292 where session is not stored. Store ACP session after successful handshake, implement session recovery on reconnect, handle session expiration.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify session storage after handshake",
+        "AddUnitTest: verify session recovery on reconnect",
+        "AddUnitTest: verify session expiration handling",
+        "AddIntegrationTest: verify ACP handshake flow with storage",
+        "AddRegressionTest: ensure existing ACP commands still work"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- acp_command",
+        "cargo test -p opencode-cli --test acp_tests",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Store session in Config/Storage system. Implement recovery mechanism. Handle expiration gracefully.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-018",
+      "priority": "P1",
+      "title": "Fix config migrate",
+      "description": "Fix cmd/config.rs:204-208 which is stub that errors. Implement TOML to JSONC migration OR remove flag with deprecation notice.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify TOML to JSONC migration works",
+        "AddUnitTest: verify deprecation warning is displayed",
+        "AddErrorHandlingTest: verify migration handles invalid TOML",
+        "AddRegressionTest: ensure config get/set still works"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- config_migrate",
+        "cargo test -p opencode-cli --test config_tests",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Implement migration using toml crate for parsing, serialize as JSONC. Or emit deprecation warning and exit.",
+      "dependencies": [
+        "FR-005"
+      ]
+    },
+    {
+      "id": "FR-019",
+      "priority": "P1",
+      "title": "Parse environment variables",
+      "description": "Fix main.rs where env vars are not parsed before App init. Parse OPENCODE_AUTO_SHARE, OPENCODE_CONFIG, OPENCODE_CONFIG_DIR, OPENCODE_DISABLE_AUTOUPDATE, OPENCODE_ENABLE_EXA, OPENCODE_SERVER_PASSWORD before Config loading.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify each env var is parsed correctly",
+        "AddIntegrationTest: verify env vars are applied at startup",
+        "AddRegressionTest: ensure app starts without env vars set",
+        "AddErrorHandlingTest: verify invalid env var values are handled"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- env_parsing",
+        "cargo test -p opencode-cli --test main_tests",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Parse env vars before Config loading. Apply in order of precedence. Validate values.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-020",
+      "priority": "P1",
+      "title": "Move model visibility to Config",
+      "description": "Fix cmd/models.rs:238-267 which uses flat JSON file. Update Config schema for model visibility, migrate existing visibility settings, deprecate flat JSON file.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify Config schema has model visibility",
+        "AddUnitTest: verify migration from flat JSON works",
+        "AddIntegrationTest: verify visibility changes persist in Config",
+        "AddRegressionTest: ensure existing model commands still work"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- models_command",
+        "cargo test -p opencode-cli --test models_tests",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Update Config schema. Migrate data from flat JSON. Update models.rs to use Config.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-021",
+      "priority": "P1",
+      "title": "Load default model from Config",
+      "description": "Fix cmd/run.rs:226 which has hardcoded 'gpt-4o'. Replace with Config lookup using config.get('agent.model') with fallback.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify Config lookup for agent.model",
+        "AddUnitTest: verify fallback to 'gpt-4o' when not set",
+        "AddIntegrationTest: verify run command uses Config model",
+        "AddRegressionTest: ensure run command works without Config"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- run_command",
+        "cargo test -p opencode-cli --test run_tests",
+        "cargo clippy -p opencode-cli -- -D warnings",
+        "cargo build -p opencode-cli --all-features"
+      ],
+      "impl_notes": "Use Config::get('agent.model'). Fallback to 'gpt-4o' if not set. This is a prerequisite for FR-005.",
+      "dependencies": []
+    },
+    {
+      "id": "FR-012",
+      "priority": "P2",
+      "title": "Implement auth login",
+      "description": "Support multiple providers (OpenAI, Anthropic) for auth login. Implement browser-based OAuth flow, secure credential storage, display login status.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify multi-provider support in auth",
+        "AddUnitTest: verify OAuth flow for each provider",
+        "AddIntegrationTest: verify credential storage and retrieval",
+        "AddRegressionTest: ensure existing auth still works"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- auth_command",
+        "cargo test -p opencode-cli --test auth_tests",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Extend account implementation for multi-provider. Use opencode-auth crate.",
+      "dependencies": [
+        "FR-007"
+      ]
+    },
+    {
+      "id": "FR-013",
+      "priority": "P2",
+      "title": "Implement agent create",
+      "description": "Create agent configuration, register with AgentRegistry, persist to config.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify agent configuration creation",
+        "AddUnitTest: verify AgentRegistry registration",
+        "AddIntegrationTest: verify config persistence of new agent",
+        "AddRegressionTest: ensure existing agents still work"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- agent_create",
+        "cargo test -p opencode-cli --test agent_tests",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Create config struct for agent. Register with AgentRegistry. Persist to config file.",
+      "dependencies": [
+        "FR-011"
+      ]
+    },
+    {
+      "id": "TD-019",
+      "priority": "P2",
+      "title": "Fix provider browser unwrap",
+      "description": "Replace unwrap() in cmd/providers.rs:67-88 with proper error propagation.",
+      "status": "todo",
+      "test_criteria": [
+        "AddErrorHandlingTest: verify provider initialization handles errors",
+        "AddRegressionTest: ensure providers still work after fix",
+        "RunTestSuite: run cargo clippy to verify no unwrap warnings"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- providers_command",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Replace unwrap() with ? operator or proper error handling. Return meaningful errors.",
+      "dependencies": [
+        "FR-016"
+      ]
+    },
+    {
+      "id": "TD-020",
+      "priority": "P2",
+      "title": "Consolidate load_config()",
+      "description": "Create shared helper for config loading across multiple cmd files.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify shared helper function works",
+        "AddRegressionTest: ensure all commands work after refactor",
+        "RunTestSuite: run all command tests to verify no breakage"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Extract common config loading logic to shared function. Update all cmd files to use it.",
+      "dependencies": []
+    },
+    {
+      "id": "TD-021",
+      "priority": "P2",
+      "title": "Remove hardcoded cmd+k",
+      "description": "Move keybinds from cmd/config.rs:217-218 to Config system.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify keybinds are read from Config",
+        "AddRegressionTest: ensure keybinds still work from Config",
+        "RunTestSuite: run config tests to verify"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- config_command",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Add keybinds to Config schema. Read from Config instead of hardcoded values.",
+      "dependencies": [
+        "FR-005"
+      ]
+    },
+    {
+      "id": "FR-022",
+      "priority": "P2",
+      "title": "Make GitHub API URL configurable",
+      "description": "Read GitHub API URL from Config instead of hardcoding in cmd/github.rs:5-8.",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify GitHub API URL is read from Config",
+        "AddUnitTest: verify OPENCODE_GITHUB_API_URL env var works",
+        "AddRegressionTest: ensure GitHub commands still work",
+        "AddErrorHandlingTest: verify fallback to default URL"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- github_command",
+        "cargo test -p opencode-cli --test github_tests",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Add github.api_url to Config schema. Read from Config or env var. Fallback to default.",
+      "dependencies": []
+    }
+  ]
+}
