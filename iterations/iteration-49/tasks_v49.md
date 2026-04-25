@@ -118,10 +118,11 @@
 - **Priority:** P1
 - **Gap:** `cmd/github.rs:189-211` — workflow not saved
 - **Actions:**
-  - [ ] Write workflow to `.opencode/` directory
-  - [ ] Persist to workspace config
-  - [ ] Verify installation on subsequent runs
+  - [x] Write workflow to `.opencode/` directory
+  - [x] Persist to workspace config
+  - [x] Verify installation on subsequent runs
 - **Verify:** `opencode github install <workflow> --workspace .`
+- **Status:** ✅ Done
 
 ### Task 11: Extend `providers login` multi-provider
 - **FR:** FR-016

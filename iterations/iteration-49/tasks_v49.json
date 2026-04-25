@@ -197,7 +197,7 @@
       "priority": "P1",
       "title": "Implement github install persistence",
       "description": "Fix cmd/github.rs:189-211 which doesn't save workflow. Write workflow to .opencode/ directory, persist to workspace config, verify installation on subsequent runs.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify workflow file is written to .opencode/",
         "AddUnitTest: verify workspace config persistence",
