@@ -3539,7 +3539,7 @@ mod auth_negative_tests {
 
     async fn setup_storage_service(db_path: &std::path::Path) -> opencode_storage::StorageService {
         let pool = StoragePool::new(db_path).expect("Should create pool");
-        let manager = MigrationManager::new(pool.clone(), 2);
+        let manager = MigrationManager::new(pool.clone(), 3);
         manager.migrate().await.expect("Should run migrations");
         let session_repo = std::sync::Arc::new(SqliteSessionRepository::new(pool.clone()));
         let project_repo = std::sync::Arc::new(SqliteProjectRepository::new(pool.clone()));
@@ -3822,7 +3822,7 @@ mod auth_negative_tests {
         let db_path = temp_dir.path().join("session_counts_test.db");
 
         let pool = StoragePool::new(&db_path).expect("Should create pool");
-        let manager = MigrationManager::new(pool.clone(), 2);
+        let manager = MigrationManager::new(pool.clone(), 3);
         manager.migrate().await.expect("Should run migrations");
         let session_repo = Arc::new(SqliteSessionRepository::new(pool.clone()));
         let project_repo = Arc::new(SqliteProjectRepository::new(pool.clone()));
@@ -3895,7 +3895,7 @@ mod auth_negative_tests {
 
         let storage = {
             let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
-            let manager = opencode_storage::migration::MigrationManager::new(pool.clone(), 2);
+            let manager = opencode_storage::migration::MigrationManager::new(pool.clone(), 3);
             manager.migrate().await.expect("Should run migrations");
             let session_repo =
                 Arc::new(opencode_storage::SqliteSessionRepository::new(pool.clone()));
@@ -3968,7 +3968,7 @@ mod auth_negative_tests {
 
         let storage = {
             let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
-            let manager = opencode_storage::migration::MigrationManager::new(pool.clone(), 2);
+            let manager = opencode_storage::migration::MigrationManager::new(pool.clone(), 3);
             manager.migrate().await.expect("Should run migrations");
             let session_repo =
                 Arc::new(opencode_storage::SqliteSessionRepository::new(pool.clone()));
