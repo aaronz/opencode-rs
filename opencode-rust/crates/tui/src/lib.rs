@@ -17,6 +17,8 @@
     clippy::unnecessary_lazy_evaluations
 )]
 
+pub mod action;
+
 pub mod app;
 pub mod cli;
 pub mod command;
