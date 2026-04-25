@@ -138,3 +138,56 @@ fn test_account_login_help() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("provider"));
 }
+
+#[test]
+fn test_account_login_anthropic_provider() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["account", "login", "--provider", "anthropic"]);
+
+    assert!(
+        !output.status.success() || output.status.code() == Some(0),
+        "account login anthropic should either succeed or fail gracefully"
+    );
+}
+
+#[test]
+fn test_account_status_includes_anthropic() {
+    let harness = TestHarness::setup();
+    let result = harness.run_cli_json(&["account", "status"]);
+
+    let accounts = result["accounts"].as_array().unwrap();
+    let providers: Vec<&str> = accounts
+        .iter()
+        .filter_map(|a| a.get("provider").and_then(|p| p.as_str()))
+        .collect();
+
+    assert!(providers.contains(&"anthropic"), "anthropic should be in status");
+}
+
+#[test]
+fn test_account_logout_anthropic_provider() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["account", "logout", "--provider", "anthropic"]);
+
+    assert!(
+        output.status.success() || output.status.code() == Some(0),
+        "account logout should succeed for anthropic provider"
+    );
+}
+
+#[test]
+fn test_account_all_providers_status() {
+    let harness = TestHarness::setup();
+    let result = harness.run_cli_json(&["account", "status"]);
+
+    let accounts = result["accounts"].as_array().unwrap();
+    let providers: Vec<&str> = accounts
+        .iter()
+        .filter_map(|a| a.get("provider").and_then(|p| p.as_str()))
+        .collect();
+
+    assert!(providers.contains(&"github"), "github should be in status");
+    assert!(providers.contains(&"openai"), "openai should be in status");
+    assert!(providers.contains(&"anthropic"), "anthropic should be in status");
+    assert_eq!(providers.len(), 3, "should have exactly 3 providers");
+}

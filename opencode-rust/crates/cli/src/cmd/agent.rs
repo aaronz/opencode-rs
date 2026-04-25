@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::io;
 
 use async_trait::async_trait;
@@ -6,7 +7,8 @@ use opencode_agent::{
     Agent, AgentType, BuildAgent, DebugAgent, ExploreAgent, GeneralAgent, PlanAgent, RefactorAgent,
     ReviewAgent,
 };
-use opencode_core::{Config, Message, OpenCodeError, Session};
+use opencode_config::{AgentConfig, AgentMapConfig, Config};
+use opencode_core::{Message, OpenCodeError, Session};
 use opencode_llm::provider::sealed;
 use opencode_llm::provider_abstraction::{ProviderManager, ProviderSpec, DynProvider};
 use opencode_llm::{ChatMessage, ChatResponse, Model, Provider, StreamingCallback};
@@ -68,6 +70,16 @@ pub(crate) struct AgentArgs {
 #[derive(Subcommand, Debug)]
 pub(crate) enum AgentAction {
     List,
+    Create {
+        #[arg(short, long, help = "Name of the agent to create")]
+        name: String,
+        #[arg(short, long, help = "Type of agent (e.g., custom, build, plan)")]
+        agent_type: String,
+        #[arg(short, long, help = "Description for the agent")]
+        description: Option<String>,
+        #[arg(short, long, help = "Model to use for this agent")]
+        model: Option<String>,
+    },
     Run {
         #[arg(short = 'g', long)]
         agent_name: String,
@@ -200,11 +212,206 @@ mod tests {
             assert!(caps.contains("tools"));
         }
     }
+
+    #[test]
+    fn test_agent_action_create_fields() {
+        let action = AgentAction::Create {
+            name: "my-agent".to_string(),
+            agent_type: "custom".to_string(),
+            description: Some("My custom agent".to_string()),
+            model: Some("gpt-4o".to_string()),
+        };
+        match action {
+            AgentAction::Create { name, agent_type, description, model } => {
+                assert_eq!(name, "my-agent");
+                assert_eq!(agent_type, "custom");
+                assert_eq!(description, Some("My custom agent".to_string()));
+                assert_eq!(model, Some("gpt-4o".to_string()));
+            }
+            _ => panic!("Expected AgentAction::Create"),
+        }
+    }
+
+    #[test]
+    fn test_agent_action_create_without_optional_fields() {
+        let action = AgentAction::Create {
+            name: "minimal-agent".to_string(),
+            agent_type: "custom".to_string(),
+            description: None,
+            model: None,
+        };
+        match action {
+            AgentAction::Create { name, agent_type, description, model } => {
+                assert_eq!(name, "minimal-agent");
+                assert_eq!(agent_type, "custom");
+                assert!(description.is_none());
+                assert!(model.is_none());
+            }
+            _ => panic!("Expected AgentAction::Create"),
+        }
+    }
+
+    #[test]
+    fn test_agent_config_creation_with_description() {
+        let agent_config = AgentConfig {
+            description: Some("Test agent description".to_string()),
+            model: Some("gpt-4o".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(agent_config.description, Some("Test agent description".to_string()));
+        assert_eq!(agent_config.model, Some("gpt-4o".to_string()));
+    }
+
+    #[test]
+    fn test_agent_config_creation_minimal() {
+        let agent_config = AgentConfig::default();
+        assert!(agent_config.description.is_none());
+        assert!(agent_config.model.is_none());
+        assert!(agent_config.hidden.is_none());
+    }
+
+    #[test]
+    fn test_agent_map_config_agents_storage() {
+        use std::collections::HashMap;
+        let mut agents = HashMap::new();
+        agents.insert(
+            "test-agent".to_string(),
+            AgentConfig {
+                description: Some("A test agent".to_string()),
+                model: Some("gpt-4o".to_string()),
+                ..Default::default()
+            },
+        );
+
+        let agent_map = AgentMapConfig {
+            agents,
+            default_agent: None,
+        };
+
+        assert!(agent_map.get_agent("test-agent").is_some());
+        assert_eq!(
+            agent_map.get_agent("test-agent").unwrap().description.as_deref(),
+            Some("A test agent")
+        );
+    }
+
+    #[test]
+    fn test_agent_map_config_get_default_agent() {
+        use std::collections::HashMap;
+        let mut agents = HashMap::new();
+        agents.insert(
+            "default-agent".to_string(),
+            AgentConfig {
+                description: Some("Default agent".to_string()),
+                ..Default::default()
+            },
+        );
+        agents.insert(
+            "other-agent".to_string(),
+            AgentConfig {
+                description: Some("Other agent".to_string()),
+                ..Default::default()
+            },
+        );
+
+        let agent_map = AgentMapConfig {
+            agents,
+            default_agent: Some("default-agent".to_string()),
+        };
+
+        assert!(agent_map.get_default_agent().is_some());
+        assert_eq!(
+            agent_map.get_default_agent().unwrap().description.as_deref(),
+            Some("Default agent")
+        );
+    }
+
+    #[test]
+    fn test_agent_map_config_get_nonexistent_agent() {
+        let agent_map = AgentMapConfig {
+            agents: HashMap::new(),
+            default_agent: None,
+        };
+
+        assert!(agent_map.get_agent("nonexistent").is_none());
+        assert!(agent_map.get_default_agent().is_none());
+    }
+
+    #[test]
+    fn test_existing_agents_still_available() {
+        let existing_types = vec!["build", "plan", "general", "explore", "debug", "refactor", "review"];
+        for agent_type in existing_types {
+            let agent = create_agent_by_type(agent_type);
+            assert!(agent.is_some(), "Agent type '{}' should still be available", agent_type);
+            assert_eq!(agent.unwrap().name(), agent_type);
+        }
+    }
+
+    #[test]
+    fn test_custom_agent_type_not_registered_as_builder() {
+        let agent = create_agent_by_type("custom");
+        assert!(agent.is_none(), "Custom agent type should not be registered as a built-in");
+    }
 }
 
 fn load_config() -> Config {
-    let path = Config::config_path();
+    let path = get_config_path();
     Config::load(&path).unwrap_or_default()
+}
+
+fn get_config_path() -> std::path::PathBuf {
+    opencode_config::Config::config_path()
+}
+
+fn save_config(config: &Config) -> Result<(), String> {
+    let path = get_config_path();
+    let content = serde_json::to_string_pretty(config)
+        .map_err(|e| format!("Failed to serialize config: {}", e))?;
+    std::fs::write(&path, content)
+        .map_err(|e| format!("Failed to write config to {}: {}", path.display(), e))?;
+    Ok(())
+}
+
+fn create_agent(
+    name: &str,
+    agent_type: &str,
+    description: Option<&str>,
+    model: Option<&str>,
+) {
+    let mut config = load_config();
+
+    let agent_config = AgentConfig {
+        description: description.map(String::from),
+        model: model.map(String::from),
+        ..Default::default()
+    };
+
+    let mut agents_map: HashMap<String, AgentConfig> = config
+        .agent
+        .as_ref()
+        .map(|a| a.agents.clone())
+        .unwrap_or_default();
+
+    agents_map.insert(name.to_string(), agent_config);
+
+    let agent_map_config = AgentMapConfig {
+        agents: agents_map,
+        default_agent: config.agent.as_ref().and_then(|a| a.default_agent.clone()),
+    };
+    config.agent = Some(agent_map_config);
+
+    if let Err(e) = save_config(&config) {
+        eprintln!("Error: Failed to save agent configuration: {}", e);
+        std::process::exit(1);
+    }
+
+    println!("Created agent '{}' of type '{}'", name, agent_type);
+    if let Some(desc) = description {
+        println!("  Description: {}", desc);
+    }
+    if let Some(m) = model {
+        println!("  Model: {}", m);
+    }
 }
 
 fn create_agent_by_type(agent_type: &str) -> Option<Box<dyn Agent>> {
@@ -318,6 +525,14 @@ pub(crate) fn run(args: AgentArgs) {
     match &args.action {
         Some(AgentAction::List) => {
             list_agents(args.verbose);
+        }
+        Some(AgentAction::Create {
+            name,
+            agent_type,
+            description,
+            model,
+        }) => {
+            create_agent(name, agent_type, description.as_deref(), model.as_deref());
         }
         Some(AgentAction::Run {
             agent_name,

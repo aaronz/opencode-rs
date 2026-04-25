@@ -19,6 +19,7 @@ desktop = ["dep:wry", "dep:webkit2gtk"]
 
 [dependencies]
 opencode-core.workspace = true
+opencode-config.workspace = true
 opencode-llm.workspace = true
 opencode-git.workspace = true
 opencode-plugin = { path = "../plugin" }

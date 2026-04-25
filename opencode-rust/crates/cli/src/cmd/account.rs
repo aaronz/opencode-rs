@@ -6,16 +6,18 @@ use serde_json::json;
 const DEFAULT_CALLBACK_PORT: u16 = 54345;
 const CALLBACK_TIMEOUT_SECS: u64 = 300;
 
-const SUPPORTED_PROVIDERS: &[&str] = &["github", "openai"];
+const SUPPORTED_PROVIDERS: &[&str] = &["github", "openai", "anthropic"];
 
 const PROVIDER_CLIENT_IDS: &[(&str, &str)] = &[
     ("github", "Iv1.8a1f8c05dfd1c06e"),
     ("openai", "client_id_openai"),
+    ("anthropic", "anthropic_client_id"),
 ];
 
 const PROVIDER_TOKEN_URLS: &[(&str, &str)] = &[
     ("github", "https://github.com/login/oauth/access_token"),
     ("openai", "https://auth.openai.com/oauth/token"),
+    ("anthropic", "https://auth.anthropic.com/oauth/token"),
 ];
 
 fn get_provider_client_id(provider: &str) -> Option<&'static str> {
@@ -258,6 +260,7 @@ mod tests {
     fn test_supported_providers() {
         assert!(SUPPORTED_PROVIDERS.contains(&"github"));
         assert!(SUPPORTED_PROVIDERS.contains(&"openai"));
+        assert!(SUPPORTED_PROVIDERS.contains(&"anthropic"));
         assert!(!SUPPORTED_PROVIDERS.contains(&"unknown"));
     }
 
@@ -265,6 +268,7 @@ mod tests {
     fn test_get_provider_client_id() {
         assert_eq!(get_provider_client_id("github"), Some("Iv1.8a1f8c05dfd1c06e"));
         assert_eq!(get_provider_client_id("openai"), Some("client_id_openai"));
+        assert_eq!(get_provider_client_id("anthropic"), Some("anthropic_client_id"));
         assert_eq!(get_provider_client_id("unknown"), None);
     }
 
@@ -277,6 +281,10 @@ mod tests {
         assert_eq!(
             get_provider_token_url("openai"),
             Some("https://auth.openai.com/oauth/token")
+        );
+        assert_eq!(
+            get_provider_token_url("anthropic"),
+            Some("https://auth.anthropic.com/oauth/token")
         );
         assert_eq!(get_provider_token_url("unknown"), None);
     }
@@ -310,6 +318,49 @@ mod tests {
             action: AccountAction::Status,
         };
         assert!(args.json);
+    }
+
+    #[test]
+    fn test_anthropic_provider_support() {
+        let args = AccountArgs {
+            json: false,
+            action: AccountAction::Login { provider: "anthropic".to_string() },
+        };
+        match args.action {
+            AccountAction::Login { ref provider } => assert_eq!(provider, "anthropic"),
+            _ => panic!("Expected Login with anthropic"),
+        }
+    }
+
+    #[test]
+    fn test_all_providers_have_client_ids() {
+        for provider in SUPPORTED_PROVIDERS {
+            assert!(
+                get_provider_client_id(provider).is_some(),
+                "Provider {} should have a client ID",
+                provider
+            );
+        }
+    }
+
+    #[test]
+    fn test_all_providers_have_token_urls() {
+        for provider in SUPPORTED_PROVIDERS {
+            assert!(
+                get_provider_token_url(provider).is_some(),
+                "Provider {} should have a token URL",
+                provider
+            );
+        }
+    }
+
+    #[test]
+    fn test_multi_provider_status_check() {
+        let credential_store = CredentialStore::new();
+        for provider in SUPPORTED_PROVIDERS {
+            let result = credential_store.load(provider);
+            assert!(result.is_ok(), "Loading {} credentials should succeed", provider);
+        }
     }
 }
 

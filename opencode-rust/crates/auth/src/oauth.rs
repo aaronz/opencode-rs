@@ -566,6 +566,7 @@ impl OAuthFlow {
         let url = match provider {
             "github" => "https://github.com/login/oauth/authorize",
             "openai" => "https://auth.openai.com/oauth/authorize",
+            "anthropic" => "https://auth.anthropic.com/oauth/authorize",
             _ => {
                 return Err(OAuthError::UnknownProvider(provider.to_string()));
             }

@@ -4765,6 +4765,7 @@ dependencies = [
  "once_cell",
  "opencode-agent",
  "opencode-auth",
+ "opencode-config",
  "opencode-control-plane",
  "opencode-core",
  "opencode-git",
