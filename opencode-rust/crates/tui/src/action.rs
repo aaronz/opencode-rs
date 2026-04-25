@@ -1409,4 +1409,124 @@ mod tests {
         assert_eq!(InputChar('a'), InputChar('a'));
         assert_eq!(Backspace, Backspace);
     }
+
+    #[test]
+    fn test_input_buffer_unicode_handling() {
+        let mut state = AppState::new();
+        assert!(state.input_buffer.is_empty());
+
+        ActionHandler::handle(Action::Dialog(DialogAction::InputChar('a')), &mut state);
+        assert_eq!(state.input_buffer, "a");
+
+        ActionHandler::handle(Action::Dialog(DialogAction::InputChar('b')), &mut state);
+        assert_eq!(state.input_buffer, "ab");
+    }
+
+    #[test]
+    fn test_input_buffer_clear() {
+        let mut state = AppState::new();
+        state.input_buffer = "test content".to_string();
+
+        ActionHandler::handle(Action::Dialog(DialogAction::Clear), &mut state);
+        assert!(state.input_buffer.is_empty());
+    }
+
+    #[test]
+    fn test_close_current_dialog_all_dialog_modes() {
+        let mut state = AppState::new();
+
+        let dialog_modes = vec![
+            (AppMode::ConnectProvider, AppMode::Chat),
+            (AppMode::ConnectMethod, AppMode::ConnectProvider),
+            (AppMode::ConnectApiKey, AppMode::ConnectMethod),
+            (AppMode::ConnectProgress, AppMode::ConnectApiKey),
+            (AppMode::ConnectModel, AppMode::ConnectApiKey),
+            (AppMode::ConnectApiKeyError, AppMode::ConnectApiKey),
+            (AppMode::ForkDialog, AppMode::Timeline),
+            (AppMode::CommandPalette, AppMode::Chat),
+            (AppMode::SlashCommand, AppMode::Chat),
+            (AppMode::Search, AppMode::Chat),
+            (AppMode::FileSelection, AppMode::Chat),
+            (AppMode::DirectorySelection, AppMode::Chat),
+            (AppMode::DiffReview, AppMode::Chat),
+            (AppMode::ReleaseNotes, AppMode::Home),
+        ];
+
+        for (initial_mode, expected_mode) in dialog_modes {
+            state.mode = initial_mode.clone();
+            ActionHandler::handle(Action::Dialog(DialogAction::Close), &mut state);
+            assert_eq!(
+                state.mode, expected_mode,
+                "Close from {:?} should go to {:?}, got {:?}",
+                initial_mode, expected_mode, state.mode
+            );
+        }
+    }
+
+    #[test]
+    fn test_app_state_dialog_navigate_down_from_none() {
+        let mut state = AppState::new();
+        assert!(state.dialog_selected_index.is_none());
+
+        ActionHandler::handle(Action::Dialog(DialogAction::NavigateDown), &mut state);
+        assert_eq!(state.dialog_selected_index, Some(1));
+    }
+
+    #[test]
+    fn test_app_state_dialog_navigate_down_wraps() {
+        let mut state = AppState::new();
+        state.dialog_selected_index = Some(5);
+
+        ActionHandler::handle(Action::Dialog(DialogAction::NavigateDown), &mut state);
+        assert_eq!(state.dialog_selected_index, Some(6));
+    }
+
+    #[test]
+    fn test_app_state_dialog_select() {
+        let mut state = AppState::new();
+        assert!(state.dialog_selected_index.is_none());
+
+        ActionHandler::handle(Action::Dialog(DialogAction::Select(42)), &mut state);
+        assert_eq!(state.dialog_selected_index, Some(42));
+    }
+
+    #[test]
+    fn test_app_state_dialog_filter() {
+        let mut state = AppState::new();
+        assert!(state.dialog_filter.is_none());
+
+        ActionHandler::handle(
+            Action::Dialog(DialogAction::Filter("test filter".to_string())),
+            &mut state,
+        );
+        assert_eq!(state.dialog_filter, Some("test filter".to_string()));
+    }
+
+    #[test]
+    fn test_action_result_variants() {
+        assert_eq!(ActionResult::Handled, ActionResult::Handled);
+        assert_eq!(ActionResult::NotHandled, ActionResult::NotHandled);
+        assert_eq!(ActionResult::Quit, ActionResult::Quit);
+        assert_ne!(ActionResult::Handled, ActionResult::NotHandled);
+        assert_ne!(ActionResult::Handled, ActionResult::Quit);
+        assert_ne!(ActionResult::NotHandled, ActionResult::Quit);
+    }
+
+    #[test]
+    fn test_app_state_new_has_default_values() {
+        let state = AppState::new();
+        assert_eq!(state.mode, AppMode::Home);
+        assert!(!state.should_quit);
+        assert!(!state.show_metadata);
+        assert!(state.pending_file_drop.is_none());
+        assert!(state.pending_connect_provider.is_none());
+        assert!(state.pending_connect_method.is_none());
+        assert!(state.pending_api_key_for_validation.is_none());
+        assert!(!state.validation_in_progress);
+        assert!(state.timeline_selected_index.is_none());
+        assert!(state.dialog_selected_index.is_none());
+        assert!(state.dialog_filter.is_none());
+        assert_eq!(state.input_buffer, "");
+        assert_eq!(state.input_cursor_position, 0);
+    }
 }
