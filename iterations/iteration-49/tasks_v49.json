@@ -5,7 +5,7 @@
       "priority": "P0",
       "title": "Implement run --format ndjson/json",
       "description": "Replace placeholder output in cmd/run.rs:228-255 with actual LLM integration. Load model from Config (not hardcoded 'gpt-4o'), initialize LLM provider from config, send prompt with streaming, write events via NdjsonSerializer, handle tool calls and results.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify Config model loading returns correct model",
         "AddUnitTest: verify NdjsonSerializer outputs valid NDJSON lines",
@@ -26,7 +26,7 @@
       "priority": "P0",
       "title": "Implement config set",
       "description": "Fix cmd/config.rs:199-202 which always errors. Parse dot-notation key (e.g., 'agent.model'), validate value type matches expected type, persist to config file, reload config to apply changes.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify dot-notation key parsing works for nested keys",
         "AddUnitTest: verify type validation rejects mismatched types",
