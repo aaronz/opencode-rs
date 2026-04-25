@@ -25,12 +25,13 @@ impl SecretStorage {
 
     fn default_secrets_path() -> PathBuf {
         if let Ok(data_dir) = std::env::var("OPENCODE_DATA_DIR") {
-            PathBuf::from(data_dir).join(SECRET_FILE_NAME)
-        } else if let Some(home) = dirs::home_dir() {
-            home.join(".local/share/opencode").join(SECRET_FILE_NAME)
-        } else {
-            PathBuf::from(".opencode").join(SECRET_FILE_NAME)
+            return PathBuf::from(data_dir).join(SECRET_FILE_NAME);
         }
+        std::env::var("HOME")
+            .ok()
+            .map(|h| PathBuf::from(h).join(".local/share/opencode"))
+            .unwrap_or_else(|| PathBuf::from(".opencode"))
+            .join(SECRET_FILE_NAME)
     }
 
     pub fn with_path(path: PathBuf) -> Self {
