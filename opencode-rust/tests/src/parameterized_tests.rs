@@ -83,8 +83,8 @@ async fn test_path_traversal_rejected(
 #[tokio::test]
 async fn test_write_outside_project_rejected(
     #[values(
-        "/tmp/payload.txt",
-        "../../../tmp/payload.txt",
+        "/etc/test_payload.txt",
+        "../../../tmp/test_payload.txt",
         "/var/www/html/backdoor.php"
     )]
     malicious_path: &str,
