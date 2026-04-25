@@ -93,7 +93,7 @@
       "priority": "P1",
       "title": "Implement account login/logout/status",
       "description": "Fix cmd/account.rs which returns 'not_implemented'. Integrate with opencode-auth crate, implement browser-based OAuth flow, store credentials securely, display authentication status.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify auth crate integration for login flow",
         "AddUnitTest: verify credentials are stored securely",
@@ -113,7 +113,7 @@
       "priority": "P1",
       "title": "Implement attach command",
       "description": "Fix cmd/attach.rs:83-90 which only prints URL/id. Connect via ACP protocol to remote session, handle local session attachment, manage session state transfer.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify ACP protocol connection establishment",
         "AddUnitTest: verify session state transfer correctness",
