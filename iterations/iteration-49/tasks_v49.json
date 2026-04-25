@@ -281,7 +281,7 @@
       "priority": "P1",
       "title": "Parse environment variables",
       "description": "Fix main.rs where env vars are not parsed before App init. Parse OPENCODE_AUTO_SHARE, OPENCODE_CONFIG, OPENCODE_CONFIG_DIR, OPENCODE_DISABLE_AUTOUPDATE, OPENCODE_ENABLE_EXA, OPENCODE_SERVER_PASSWORD before Config loading.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify each env var is parsed correctly",
         "AddIntegrationTest: verify env vars are applied at startup",

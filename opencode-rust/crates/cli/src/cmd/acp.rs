@@ -239,15 +239,19 @@ mod tests {
 
     #[test]
     fn test_acp_session_is_expired() {
-        let mut session = AcpSession::default();
-        session.expires_at = Some(Utc::now() - chrono::Duration::hours(1));
+        let session = AcpSession {
+            expires_at: Some(Utc::now() - chrono::Duration::hours(1)),
+            ..Default::default()
+        };
         assert!(session.is_expired());
     }
 
     #[test]
     fn test_acp_session_not_expired() {
-        let mut session = AcpSession::default();
-        session.expires_at = Some(Utc::now() + chrono::Duration::hours(1));
+        let session = AcpSession {
+            expires_at: Some(Utc::now() + chrono::Duration::hours(1)),
+            ..Default::default()
+        };
         assert!(!session.is_expired());
     }
 
@@ -273,7 +277,7 @@ mod tests {
             "http://localhost:8080",
             "client1",
             "1.0",
-            &vec!["chat".to_string()],
+            &["chat".to_string()],
             &response,
         );
         assert!(result.is_ok());
@@ -303,7 +307,7 @@ mod tests {
             "http://localhost:8080",
             "client1",
             "1.0",
-            &vec![],
+            &[],
             &response,
         )
         .unwrap();
