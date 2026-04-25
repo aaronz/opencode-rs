@@ -406,7 +406,7 @@
       "priority": "P2",
       "title": "Consolidate load_config()",
       "description": "Create shared helper for config loading across multiple cmd files.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify shared helper function works",
         "AddRegressionTest: ensure all commands work after refactor",

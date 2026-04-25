@@ -1,3 +1,4 @@
+use crate::cmd::load_config;
 use clap::{Args, Subcommand};
 use opencode_auth::oauth::OAuthFlow;
 use opencode_git::{setup_github_workflow, GitHubAppClient, GitHubClient, WorkflowTemplate};
@@ -11,7 +12,16 @@ const GITHUB_DEVICE_CODE_URL: &str = "https://github.com/login/device/code";
 const GITHUB_TOKEN_URL: &str = "https://github.com/login/oauth/access_token";
 
 fn get_api_base() -> String {
-    std::env::var("OPENCODE_GITHUB_API_BASE").unwrap_or_else(|_| GITHUB_API_BASE.to_string())
+    if let Ok(url) = std::env::var("OPENCODE_GITHUB_API_BASE") {
+        return url;
+    }
+    let config = load_config();
+    if let Some(github_config) = &config.github {
+        if let Some(api_url) = &github_config.api_url {
+            return api_url.clone();
+        }
+    }
+    GITHUB_API_BASE.to_string()
 }
 
 #[derive(Args, Debug)]
@@ -300,6 +310,17 @@ mod tests {
         let result = get_api_base();
         assert_eq!(result, "https://github.example.com/api/v3");
         std::env::remove_var("OPENCODE_GITHUB_API_BASE");
+    }
+
+    #[test]
+    fn test_get_api_base_falls_back_to_config() {
+        std::env::remove_var("OPENCODE_GITHUB_API_BASE");
+        let config = load_config();
+        let expected = config.github.as_ref()
+            .and_then(|c| c.api_url.clone())
+            .unwrap_or_else(|| GITHUB_API_BASE.to_string());
+        let result = get_api_base();
+        assert_eq!(result, expected);
     }
 }
 
