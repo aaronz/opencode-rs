@@ -504,6 +504,7 @@ mod tests {
                 enabled: Some(false),
                 server_id: None,
                 version: None,
+                session: None,
             }),
             ..Default::default()
         };

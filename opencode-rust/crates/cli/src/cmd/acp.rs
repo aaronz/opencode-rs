@@ -1,5 +1,9 @@
+use chrono::Utc;
 use clap::{Args, Subcommand};
-use serde_json::json;
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+
+use opencode_core::config::{AcpConfig, AcpSession, Config, ServerConfig};
 
 #[derive(Args, Debug)]
 pub(crate) struct AcpArgs {
@@ -31,6 +35,93 @@ pub(crate) enum AcpAction {
         capabilities: Vec<String>,
     },
     Status,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AcpHandshakeResponse {
+    pub version: String,
+    pub server_id: String,
+    pub session_id: String,
+    pub accepted: bool,
+    pub error: Option<String>,
+}
+
+const DEFAULT_SESSION_EXPIRY_SECS: i64 = 3600;
+
+fn get_config_path() -> PathBuf {
+    if let Ok(config_dir) = std::env::var("OPENCODE_CONFIG_DIR") {
+        return PathBuf::from(config_dir).join("config.json");
+    }
+    if let Some(dirs) = directories::ProjectDirs::from("ai", "opencode", "opencode") {
+        return dirs.config_dir().join("config.json");
+    }
+    PathBuf::from("~/.config/opencode/config.json")
+}
+
+fn load_config() -> Config {
+    let path = get_config_path();
+    Config::load(&path).unwrap_or_default()
+}
+
+fn save_config(config: &Config) -> Result<(), String> {
+    let path = get_config_path();
+    let content = serde_json::to_string_pretty(config)
+        .map_err(|e| format!("Failed to serialize config: {}", e))?;
+    std::fs::write(&path, content)
+        .map_err(|e| format!("Failed to write config to {}: {}", path.display(), e))?;
+    Ok(())
+}
+
+fn store_acp_session(
+    config: &mut Config,
+    server_url: &str,
+    client_id: &str,
+    version: &str,
+    capabilities: &[String],
+    response: &AcpHandshakeResponse,
+) -> Result<(), String> {
+    let session = AcpSession {
+        session_id: response.session_id.clone(),
+        server_id: response.server_id.clone(),
+        server_url: server_url.to_string(),
+        client_id: client_id.to_string(),
+        version: version.to_string(),
+        capabilities: capabilities.to_vec(),
+        created_at: Utc::now(),
+        expires_at: Some(Utc::now() + chrono::Duration::seconds(DEFAULT_SESSION_EXPIRY_SECS)),
+    };
+
+    let server_config = config.server.get_or_insert_with(ServerConfig::default);
+    let acp_config = server_config.acp.get_or_insert_with(AcpConfig::default);
+    acp_config.session = Some(session);
+
+    save_config(config)
+}
+
+fn get_stored_session(config: &Config) -> Option<AcpSession> {
+    config
+        .server
+        .as_ref()?
+        .acp
+        .as_ref()?
+        .session
+        .clone()
+}
+
+fn clear_stored_session(config: &mut Config) {
+    if let Some(server_config) = &mut config.server {
+        if let Some(acp_config) = &mut server_config.acp {
+            acp_config.session = None;
+        }
+    }
+}
+
+fn is_session_expired(session: &AcpSession) -> bool {
+    if let Some(expires_at) = session.expires_at {
+        Utc::now() > expires_at
+    } else {
+        false
+    }
 }
 
 #[allow(clippy::items_after_test_module)]
@@ -145,6 +236,109 @@ mod tests {
             _ => panic!("Expected Start"),
         }
     }
+
+    #[test]
+    fn test_acp_session_is_expired() {
+        let mut session = AcpSession::default();
+        session.expires_at = Some(Utc::now() - chrono::Duration::hours(1));
+        assert!(session.is_expired());
+    }
+
+    #[test]
+    fn test_acp_session_not_expired() {
+        let mut session = AcpSession::default();
+        session.expires_at = Some(Utc::now() + chrono::Duration::hours(1));
+        assert!(!session.is_expired());
+    }
+
+    #[test]
+    fn test_acp_session_no_expiration() {
+        let session = AcpSession::default();
+        assert!(!session.is_expired());
+    }
+
+    #[test]
+    fn test_store_and_retrieve_session() {
+        let mut config = Config::default();
+        let response = AcpHandshakeResponse {
+            version: "1.0".to_string(),
+            server_id: "server1".to_string(),
+            session_id: "session123".to_string(),
+            accepted: true,
+            error: None,
+        };
+
+        let result = store_acp_session(
+            &mut config,
+            "http://localhost:8080",
+            "client1",
+            "1.0",
+            &vec!["chat".to_string()],
+            &response,
+        );
+        assert!(result.is_ok());
+
+        let stored = get_stored_session(&config);
+        assert!(stored.is_some());
+        let session = stored.unwrap();
+        assert_eq!(session.session_id, "session123");
+        assert_eq!(session.server_id, "server1");
+        assert_eq!(session.server_url, "http://localhost:8080");
+        assert_eq!(session.client_id, "client1");
+    }
+
+    #[test]
+    fn test_clear_stored_session() {
+        let mut config = Config::default();
+        let response = AcpHandshakeResponse {
+            version: "1.0".to_string(),
+            server_id: "server1".to_string(),
+            session_id: "session123".to_string(),
+            accepted: true,
+            error: None,
+        };
+
+        store_acp_session(
+            &mut config,
+            "http://localhost:8080",
+            "client1",
+            "1.0",
+            &vec![],
+            &response,
+        )
+        .unwrap();
+
+        clear_stored_session(&mut config);
+        let stored = get_stored_session(&config);
+        assert!(stored.is_none());
+    }
+
+    #[test]
+    fn test_session_expiration_check() {
+        let expired_session = AcpSession {
+            session_id: "expired".to_string(),
+            server_id: "server".to_string(),
+            server_url: "http://localhost:8080".to_string(),
+            client_id: "client".to_string(),
+            version: "1.0".to_string(),
+            capabilities: vec![],
+            created_at: Utc::now() - chrono::Duration::hours(2),
+            expires_at: Some(Utc::now() - chrono::Duration::hours(1)),
+        };
+        assert!(is_session_expired(&expired_session));
+
+        let valid_session = AcpSession {
+            session_id: "valid".to_string(),
+            server_id: "server".to_string(),
+            server_url: "http://localhost:8080".to_string(),
+            client_id: "client".to_string(),
+            version: "1.0".to_string(),
+            capabilities: vec![],
+            created_at: Utc::now(),
+            expires_at: Some(Utc::now() + chrono::Duration::hours(1)),
+        };
+        assert!(!is_session_expired(&valid_session));
+    }
 }
 
 pub fn run(args: AcpArgs) {
@@ -164,13 +358,13 @@ async fn run_acp(args: AcpArgs) -> Result<(), Box<dyn std::error::Error>> {
 
     if args.json {
         let result = match &args.action {
-            Some(AcpAction::Start) => json!({
+            Some(AcpAction::Start) => serde_json::json!({
                 "component": "acp",
                 "action": "start",
                 "status": "ready",
                 "version": "1.0"
             }),
-            Some(AcpAction::Connect { url }) => json!({
+            Some(AcpAction::Connect { url }) => serde_json::json!({
                 "component": "acp",
                 "action": "connect",
                 "url": url,
@@ -180,7 +374,7 @@ async fn run_acp(args: AcpArgs) -> Result<(), Box<dyn std::error::Error>> {
                 client_id,
                 version,
                 capabilities,
-            }) => json!({
+            }) => serde_json::json!({
                 "component": "acp",
                 "action": "handshake",
                 "client_id": client_id,
@@ -190,7 +384,7 @@ async fn run_acp(args: AcpArgs) -> Result<(), Box<dyn std::error::Error>> {
             }),
             Some(AcpAction::Status) => {
                 let status = get_acp_status(&server_url).await.unwrap_or_else(|_| {
-                    json!({
+                    serde_json::json!({
                         "status": "unavailable",
                         "version": "unknown",
                         "acp_enabled": false
@@ -202,7 +396,7 @@ async fn run_acp(args: AcpArgs) -> Result<(), Box<dyn std::error::Error>> {
                 );
                 return Ok(());
             }
-            None => json!({
+            None => serde_json::json!({
                 "component": "acp",
                 "status": "ready"
             }),
@@ -227,7 +421,7 @@ async fn run_acp(args: AcpArgs) -> Result<(), Box<dyn std::error::Error>> {
             println!("  Status: Connecting...");
 
             let connect_url = format!("{}/api/acp/connect", server_url);
-            let body = json!({ "url": url });
+            let body = serde_json::json!({ "url": url });
 
             match reqwest::Client::new()
                 .post(&connect_url)
@@ -258,8 +452,42 @@ async fn run_acp(args: AcpArgs) -> Result<(), Box<dyn std::error::Error>> {
             println!("  Capabilities: {:?}", capabilities);
             println!("  Status: Handshake initiated");
 
+            let mut config = load_config();
+
+            if let Some(existing_session) = get_stored_session(&config) {
+                if !is_session_expired(&existing_session)
+                    && existing_session.server_url == server_url
+                    && existing_session.client_id == *client_id
+                {
+                    println!(
+                        "  Status: Recovering existing session {}",
+                        existing_session.session_id
+                    );
+                    let verify_url = format!("{}/api/acp/status", server_url);
+                    match reqwest::Client::new().get(&verify_url).send().await {
+                        Ok(resp) if resp.status().is_success() => {
+                            println!("  Session ID: {} (recovered)", existing_session.session_id);
+                            println!("  Status: Session recovered successfully!");
+                            return Ok(());
+                        }
+                        Ok(resp) => {
+                            println!(
+                                "  Warning: Could not verify session - server returned {}",
+                                resp.status()
+                            );
+                        }
+                        Err(e) => {
+                            println!("  Warning: Could not verify session - {}", e);
+                        }
+                    }
+                } else if is_session_expired(&existing_session) {
+                    println!("  Status: Previous session has expired, creating new session");
+                    clear_stored_session(&mut config);
+                }
+            }
+
             let handshake_url = format!("{}/api/acp/handshake", server_url);
-            let body = json!({
+            let body = serde_json::json!({
                 "client_id": client_id,
                 "version": version,
                 "capabilities": capabilities
@@ -281,8 +509,32 @@ async fn run_acp(args: AcpArgs) -> Result<(), Box<dyn std::error::Error>> {
                         if response["accepted"] == true {
                             println!("  Status: Handshake successful!");
                             println!("  Session ID: {}", response["session_id"]);
+
+                            let handshake_response = AcpHandshakeResponse {
+                                version: response["version"].as_str().unwrap_or("1.0").to_string(),
+                                server_id: response["server_id"].as_str().unwrap_or("").to_string(),
+                                session_id: response["session_id"].as_str().unwrap_or("").to_string(),
+                                accepted: response["accepted"].as_bool().unwrap_or(false),
+                                error: response["error"].as_str().map(String::from),
+                            };
+
+                            if let Err(e) = store_acp_session(
+                                &mut config,
+                                &server_url,
+                                client_id,
+                                version,
+                                capabilities,
+                                &handshake_response,
+                            ) {
+                                println!("  Warning: Failed to store session: {}", e);
+                            } else {
+                                println!("  Session stored for future reconnection");
+                            }
                         } else {
-                            println!("  Status: Handshake failed - {}", response["error"]);
+                            println!(
+                                "  Status: Handshake failed - {}",
+                                response["error"].as_str().unwrap_or("Unknown error")
+                            );
                         }
                     }
                 }
@@ -294,19 +546,45 @@ async fn run_acp(args: AcpArgs) -> Result<(), Box<dyn std::error::Error>> {
         Some(AcpAction::Status) => {
             println!("ACP Protocol Manager - Status");
 
+            let config = load_config();
+
+            if let Some(session) = get_stored_session(&config) {
+                let expired = is_session_expired(&session);
+                println!("  Stored Session:");
+                println!("    Session ID: {}", session.session_id);
+                println!("    Server ID: {}", session.server_id);
+                println!("    Server URL: {}", session.server_url);
+                println!("    Client ID: {}", session.client_id);
+                println!("    Expired: {}", if expired { "Yes" } else { "No" });
+                if let Some(expires_at) = session.expires_at {
+                    let remaining = expires_at - Utc::now();
+                    if remaining.num_seconds() > 0 {
+                        println!(
+                            "    Time until expiration: {} seconds",
+                            remaining.num_seconds()
+                        );
+                    } else {
+                        println!("    Time until expiration: expired");
+                    }
+                }
+            } else {
+                println!("  No stored session found");
+            }
+
             match get_acp_status(&server_url).await {
                 Ok(status) => {
                     let status_val = status["status"].as_str().unwrap_or("unknown");
                     let version_val = status["version"].as_str().unwrap_or("unknown");
                     let acp_enabled = status["acp_enabled"].as_bool().unwrap_or(false);
 
-                    println!("  Status: {}", status_val);
-                    println!("  Version: {}", version_val);
-                    println!("  ACP Enabled: {}", acp_enabled);
+                    println!("  Server Status:");
+                    println!("    Status: {}", status_val);
+                    println!("    Version: {}", version_val);
+                    println!("    ACP Enabled: {}", acp_enabled);
                 }
                 Err(e) => {
-                    println!("  Status: Unavailable");
-                    println!("  Error: {}", e);
+                    println!("  Server Status: Unavailable");
+                    println!("    Error: {}", e);
                 }
             }
         }

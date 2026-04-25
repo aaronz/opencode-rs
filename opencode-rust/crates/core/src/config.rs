@@ -1,5 +1,5 @@
 pub use opencode_config::{
-    is_jsonc_extension, load_opencode_directory, parse_jsonc, AcpConfig, AgentConfig,
+    is_jsonc_extension, load_opencode_directory, parse_jsonc, AcpConfig, AcpSession, AgentConfig,
     AgentMapConfig, AgentsMdConfig, AutoUpdate, CliOverrideConfig, CommandConfig, CompactionConfig,
     Config, ConfigError, DesktopConfig, DiffStyle, DirectoryScanner, EnterpriseConfig,
     ExperimentalConfig, FormatterConfig, FormatterEntry, JsoncError, KeybindConfig, LegacyProvider,

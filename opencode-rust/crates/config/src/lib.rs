@@ -207,6 +207,51 @@ pub struct AcpConfig {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub version: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session: Option<AcpSession>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct AcpSession {
+    pub session_id: String,
+    pub server_id: String,
+    pub server_url: String,
+    pub client_id: String,
+    pub version: String,
+    pub capabilities: Vec<String>,
+    #[serde(with = "chrono::serde::ts_seconds")]
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    #[serde(with = "chrono::serde::ts_seconds_option")]
+    pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+impl Default for AcpSession {
+    fn default() -> Self {
+        Self {
+            session_id: String::new(),
+            server_id: String::new(),
+            server_url: String::new(),
+            client_id: String::new(),
+            version: String::from("1.0"),
+            capabilities: Vec::new(),
+            created_at: chrono::Utc::now(),
+            expires_at: None,
+        }
+    }
+}
+
+impl AcpSession {
+    pub fn is_expired(&self) -> bool {
+        if let Some(expires_at) = self.expires_at {
+            return chrono::Utc::now() > expires_at;
+        }
+        false
+    }
+
+    pub fn time_until_expiration(&self) -> Option<chrono::Duration> {
+        self.expires_at.map(|expires_at| expires_at - chrono::Utc::now())
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
