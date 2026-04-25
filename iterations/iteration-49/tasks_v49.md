@@ -195,11 +195,13 @@
 ### Task 17: Implement `auth login`
 - **FR:** FR-012
 - **Priority:** P2
+- **Status:** ✅ Done
 - **Actions:**
-  - [ ] Support multiple providers (OpenAI, Anthropic)
-  - [ ] Browser-based OAuth flow
-  - [ ] Secure credential storage
-  - [ ] Display login status
+  - [x] Support multiple providers (OpenAI, Anthropic, GitHub)
+  - [x] Browser-based OAuth flow
+  - [x] Secure credential storage
+  - [x] Display login status
+  - [x] Added `auth` alias so both `opencode auth login` and `opencode account login` work
 - **Verify:** `opencode auth login --provider openai`
 
 ### Task 18: Implement `agent create`

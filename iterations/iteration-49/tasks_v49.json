@@ -342,7 +342,7 @@
       "priority": "P2",
       "title": "Implement auth login",
       "description": "Support multiple providers (OpenAI, Anthropic) for auth login. Implement browser-based OAuth flow, secure credential storage, display login status.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify multi-provider support in auth",
         "AddUnitTest: verify OAuth flow for each provider",
@@ -350,11 +350,11 @@
         "AddRegressionTest: ensure existing auth still works"
       ],
       "test_commands": [
-        "cargo test -p opencode-cli -- auth_command",
-        "cargo test -p opencode-cli --test auth_tests",
+        "cargo test -p opencode-cli -- account",
+        "cargo test -p opencode-cli --test account_tests",
         "cargo clippy -p opencode-cli -- -D warnings"
       ],
-      "impl_notes": "Extend account implementation for multi-provider. Use opencode-auth crate.",
+      "impl_notes": "Implemented via account command with multi-provider support (github, openai, anthropic). Browser-based OAuth via opencode-auth crate. Credentials stored securely. Added 'auth' alias so both 'opencode auth login' and 'opencode account login' work.",
       "dependencies": [
         "FR-007"
       ]
@@ -386,7 +386,7 @@
       "priority": "P2",
       "title": "Fix provider browser unwrap",
       "description": "Replace unwrap() in cmd/providers.rs:67-88 with proper error propagation.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddErrorHandlingTest: verify provider initialization handles errors",
         "AddRegressionTest: ensure providers still work after fix",
@@ -406,7 +406,7 @@
       "priority": "P2",
       "title": "Consolidate load_config()",
       "description": "Create shared helper for config loading across multiple cmd files.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify shared helper function works",
         "AddRegressionTest: ensure all commands work after refactor",
