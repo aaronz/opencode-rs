@@ -2580,6 +2580,12 @@ impl App {
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
+                if let KeyCode::Char('c') = key.code {
+                    if key.modifiers.contains(KeyModifiers::CONTROL) {
+                        disable_raw_mode()?;
+                        std::process::exit(0);
+                    }
+                }
                 if let Some(action) = action::Action::from_key_event(&key) {
                     let mut app_state = action::AppState::new();
                     app_state.mode = action::AppMode::ForkDialog;
@@ -4714,6 +4720,12 @@ OpenCode Agent Configuration
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
+                if let KeyCode::Char('c') = key.code {
+                    if key.modifiers.contains(KeyModifiers::CONTROL) {
+                        disable_raw_mode()?;
+                        std::process::exit(0);
+                    }
+                }
                 if let Some(action) = action::Action::from_key_event(&key) {
                     let mut app_state = action::AppState::new();
                     app_state.mode = action::AppMode::Search;
@@ -4733,6 +4745,12 @@ OpenCode Agent Configuration
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
+                if let KeyCode::Char('c') = key.code {
+                    if key.modifiers.contains(KeyModifiers::CONTROL) {
+                        disable_raw_mode()?;
+                        std::process::exit(0);
+                    }
+                }
                 match key.code {
                     KeyCode::Esc => {
                         self.mode = AppMode::Chat;
@@ -4820,6 +4838,12 @@ OpenCode Agent Configuration
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
+                if let KeyCode::Char('c') = key.code {
+                    if key.modifiers.contains(KeyModifiers::CONTROL) {
+                        disable_raw_mode()?;
+                        std::process::exit(0);
+                    }
+                }
                 match key.code {
                     KeyCode::Esc => {
                         let mut app_state = action::AppState::new();
@@ -5383,6 +5407,12 @@ OpenCode Agent Configuration
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
+                if let KeyCode::Char('c') = key.code {
+                    if key.modifiers.contains(KeyModifiers::CONTROL) {
+                        disable_raw_mode()?;
+                        std::process::exit(0);
+                    }
+                }
                 let dialog_action = self.settings_dialog.handle_input(key);
                 if dialog_action == DialogAction::Close {
                     let mut app_state = action::AppState::new();
@@ -5404,6 +5434,12 @@ OpenCode Agent Configuration
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
+                if let KeyCode::Char('c') = key.code {
+                    if key.modifiers.contains(KeyModifiers::CONTROL) {
+                        disable_raw_mode()?;
+                        std::process::exit(0);
+                    }
+                }
                 if matches!(key.code, KeyCode::Enter | KeyCode::Esc) {
                     self.load_model_catalog();
                 }
@@ -5468,6 +5504,12 @@ OpenCode Agent Configuration
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
+                if let KeyCode::Char('c') = key.code {
+                    if key.modifiers.contains(KeyModifiers::CONTROL) {
+                        disable_raw_mode()?;
+                        std::process::exit(0);
+                    }
+                }
                 if matches!(key.code, KeyCode::Enter | KeyCode::Esc) {
                     self.load_provider_catalog();
                 }
@@ -5523,6 +5565,12 @@ OpenCode Agent Configuration
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
+                if let KeyCode::Char('c') = key.code {
+                    if key.modifiers.contains(KeyModifiers::CONTROL) {
+                        disable_raw_mode()?;
+                        std::process::exit(0);
+                    }
+                }
                 let dialog_action = self.connect_provider_dialog.handle_input(key);
                 match dialog_action {
                     DialogAction::Close => {
@@ -5550,6 +5598,12 @@ OpenCode Agent Configuration
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
+                if let KeyCode::Char('c') = key.code {
+                    if key.modifiers.contains(KeyModifiers::CONTROL) {
+                        disable_raw_mode()?;
+                        std::process::exit(0);
+                    }
+                }
                 if let Some(dialog) = self.connect_method_dialog.as_mut() {
                     let dialog_action = dialog.handle_input(key);
                     match dialog_action {
@@ -5580,6 +5634,12 @@ OpenCode Agent Configuration
     ) -> io::Result<()> {
         if let Ok(Event::Key(key)) = event::read() {
             if key.kind == KeyEventKind::Press {
+                if let KeyCode::Char('c') = key.code {
+                    if key.modifiers.contains(KeyModifiers::CONTROL) {
+                        disable_raw_mode()?;
+                        std::process::exit(0);
+                    }
+                }
                 if let Some(dialog) = self.api_key_input_dialog.as_mut() {
                     let dialog_action = dialog.handle_input(key);
                     match dialog_action {
@@ -5610,8 +5670,16 @@ OpenCode Agent Configuration
         _terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
-            if key.kind == KeyEventKind::Press && key.code == KeyCode::Esc {
-                self.mode = AppMode::Chat;
+            if key.kind == KeyEventKind::Press {
+                if let KeyCode::Char('c') = key.code {
+                    if key.modifiers.contains(KeyModifiers::CONTROL) {
+                        disable_raw_mode()?;
+                        std::process::exit(0);
+                    }
+                }
+                if key.code == KeyCode::Esc {
+                    self.mode = AppMode::Chat;
+                }
             }
         }
         Ok(())
@@ -5623,6 +5691,12 @@ OpenCode Agent Configuration
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
+                if let KeyCode::Char('c') = key.code {
+                    if key.modifiers.contains(KeyModifiers::CONTROL) {
+                        disable_raw_mode()?;
+                        std::process::exit(0);
+                    }
+                }
                 if let Some(dialog) = self.validation_error_dialog.as_mut() {
                     let dialog_action = dialog.handle_input(key);
                     match dialog_action {
@@ -5654,6 +5728,12 @@ OpenCode Agent Configuration
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
+                if let KeyCode::Char('c') = key.code {
+                    if key.modifiers.contains(KeyModifiers::CONTROL) {
+                        disable_raw_mode()?;
+                        std::process::exit(0);
+                    }
+                }
                 if let Some(dialog) = self.connect_model_dialog.as_mut() {
                     let dialog_action = dialog.handle_input(key);
                     match dialog_action {
@@ -5690,6 +5770,12 @@ OpenCode Agent Configuration
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
+                if let KeyCode::Char('c') = key.code {
+                    if key.modifiers.contains(KeyModifiers::CONTROL) {
+                        disable_raw_mode()?;
+                        std::process::exit(0);
+                    }
+                }
                 self.patch_preview.handle_key(key);
                 match self.patch_preview.decision() {
                     PatchDecision::Accepted => {
@@ -5753,6 +5839,12 @@ OpenCode Agent Configuration
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
+                if let KeyCode::Char('c') = key.code {
+                    if key.modifiers.contains(KeyModifiers::CONTROL) {
+                        disable_raw_mode()?;
+                        std::process::exit(0);
+                    }
+                }
                 let dialog_action = self.file_selection_dialog.handle_input(key);
                 match dialog_action {
                     DialogAction::Close => {
@@ -5797,6 +5889,12 @@ OpenCode Agent Configuration
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
+                if let KeyCode::Char('c') = key.code {
+                    if key.modifiers.contains(KeyModifiers::CONTROL) {
+                        disable_raw_mode()?;
+                        std::process::exit(0);
+                    }
+                }
                 let dialog_action = self.directory_selection_dialog.handle_input(key);
                 match dialog_action {
                     DialogAction::Close => {
@@ -5825,6 +5923,12 @@ OpenCode Agent Configuration
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
+                if let KeyCode::Char('c') = key.code {
+                    if key.modifiers.contains(KeyModifiers::CONTROL) {
+                        disable_raw_mode()?;
+                        std::process::exit(0);
+                    }
+                }
                 let dialog_action = self.release_notes_dialog.handle_input(key);
                 if dialog_action == DialogAction::Close {
                     let mut app_state = action::AppState::new();
