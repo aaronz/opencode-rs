@@ -103,7 +103,7 @@ async fn test_path_traversal_write_outside_project() {
     let _project = TempProject::new();
     let tool = WriteTool;
     let malicious_paths = vec![
-        "/tmp/payload.txt",
+        "/etc/payload.txt",
         "../../../tmp/payload.txt",
         "/var/www/html/backdoor.php",
     ];
@@ -448,7 +448,7 @@ async fn test_write_tool_path_validation() {
         .to_string_lossy()
         .to_string();
     let write_attempts = vec![
-        ("/tmp/outside.txt", false),
+        ("/var/test_outside.txt", false),
         ("../outside.txt", false),
         (inside_path.as_str(), true),
     ];
