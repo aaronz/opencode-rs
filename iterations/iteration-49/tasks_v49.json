@@ -321,7 +321,7 @@
       "priority": "P1",
       "title": "Load default model from Config",
       "description": "Fix cmd/run.rs:226 which has hardcoded 'gpt-4o'. Replace with Config lookup using config.get('agent.model') with fallback.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify Config lookup for agent.model",
         "AddUnitTest: verify fallback to 'gpt-4o' when not set",
@@ -364,7 +364,7 @@
       "priority": "P2",
       "title": "Implement agent create",
       "description": "Create agent configuration, register with AgentRegistry, persist to config.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify agent configuration creation",
         "AddUnitTest: verify AgentRegistry registration",

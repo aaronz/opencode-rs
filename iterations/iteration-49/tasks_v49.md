@@ -182,9 +182,10 @@
 - **FR:** FR-021
 - **Priority:** P1
 - **Gap:** `cmd/run.rs:226` — hardcoded "gpt-4o"
+- **Status:** ✅ Done
 - **Actions:**
-  - [ ] Replace hardcoded "gpt-4o" with Config lookup
-  - [ ] Use `config.get("agent.model")` with fallback
+  - [x] Replace hardcoded "gpt-4o" with Config lookup
+  - [x] Use `config.get("agent.model")` with fallback
 - **Verify:** `opencode run "test"` uses Config default
 
 ---
