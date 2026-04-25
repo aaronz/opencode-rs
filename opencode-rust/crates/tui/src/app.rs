@@ -2580,12 +2580,14 @@ impl App {
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
-                match key.code {
-                    KeyCode::Esc => {
-                        self.mode = AppMode::Timeline;
-                        self.fork_name_input.clear();
-                    }
-                    KeyCode::Enter => {
+                if let Some(action) = action::Action::from_key_event(&key) {
+                    let mut app_state = action::AppState::new();
+                    app_state.mode = action::AppMode::ForkDialog;
+                    app_state.input_buffer = self.fork_name_input.clone();
+                    action::ActionHandler::handle(action.clone(), &mut app_state);
+                    self.fork_name_input = app_state.input_buffer.clone();
+                    self.mode = app_state.mode;
+                    if action == action::Action::Fork(action::ForkAction::Confirm) {
                         let fork_point = self
                             .timeline_state
                             .selected()
@@ -2594,13 +2596,6 @@ impl App {
                         self.mode = AppMode::Chat;
                         self.fork_name_input.clear();
                     }
-                    KeyCode::Char(c) => {
-                        self.fork_name_input.push(c);
-                    }
-                    KeyCode::Backspace => {
-                        self.fork_name_input.pop();
-                    }
-                    _ => {}
                 }
             }
         }
@@ -4713,20 +4708,13 @@ OpenCode Agent Configuration
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
-                match key.code {
-                    KeyCode::Esc => {
-                        self.mode = AppMode::Chat;
-                    }
-                    KeyCode::Enter => {
-                        self.mode = AppMode::Chat;
-                    }
-                    KeyCode::Char(c) => {
-                        self.command_palette_input.push(c);
-                    }
-                    KeyCode::Backspace => {
-                        self.command_palette_input.pop();
-                    }
-                    _ => {}
+                if let Some(action) = action::Action::from_key_event(&key) {
+                    let mut app_state = action::AppState::new();
+                    app_state.mode = action::AppMode::Search;
+                    app_state.input_buffer = self.command_palette_input.clone();
+                    action::ActionHandler::handle(action.clone(), &mut app_state);
+                    self.command_palette_input = app_state.input_buffer.clone();
+                    self.mode = app_state.mode;
                 }
             }
         }

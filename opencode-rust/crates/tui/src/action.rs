@@ -14,6 +14,8 @@ pub enum Action {
 
     Connect(ConnectAction),
 
+    Fork(ForkAction),
+
     FileDrop(Vec<std::path::PathBuf>),
 }
 
@@ -55,6 +57,14 @@ pub enum TimelineAction {
     SelectNext,
     ToggleMetadata,
     ForkAtSelected,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ForkAction {
+    Cancel,
+    Confirm,
+    InputChar(char),
+    Backspace,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -158,6 +168,7 @@ impl ActionHandler {
             }
             Action::Input(input_action) => Self::handle_input_action(input_action, state),
             Action::Connect(connect_action) => Self::handle_connect_action(connect_action, state),
+            Action::Fork(fork_action) => Self::handle_fork_action(fork_action, state),
             Action::FileDrop(paths) => {
                 state.pending_file_drop = Some(paths);
                 ActionResult::Handled
@@ -354,6 +365,24 @@ impl ActionHandler {
                 } else {
                     state.connect_validation_failure(result.error_message);
                 }
+                ActionResult::Handled
+            }
+        }
+    }
+
+    fn handle_fork_action(action: ForkAction, state: &mut AppState) -> ActionResult {
+        match action {
+            ForkAction::Cancel => {
+                state.mode = AppMode::Timeline;
+                ActionResult::Handled
+            }
+            ForkAction::Confirm => ActionResult::Handled,
+            ForkAction::InputChar(c) => {
+                state.input_buffer.push(c);
+                ActionResult::Handled
+            }
+            ForkAction::Backspace => {
+                state.input_buffer.pop();
                 ActionResult::Handled
             }
         }
@@ -1121,5 +1150,69 @@ mod tests {
         let action = DialogAction::ConfirmWithData("test".to_string());
         let cloned = action.clone();
         assert_eq!(action, cloned);
+    }
+
+    #[test]
+    fn test_fork_action_cancel() {
+        let mut state = AppState::new();
+        state.mode = AppMode::ForkDialog;
+
+        ActionHandler::handle(Action::Fork(ForkAction::Cancel), &mut state);
+
+        assert_eq!(state.mode, AppMode::Timeline);
+    }
+
+    #[test]
+    fn test_fork_action_confirm() {
+        let mut state = AppState::new();
+        state.mode = AppMode::ForkDialog;
+
+        let result = ActionHandler::handle(Action::Fork(ForkAction::Confirm), &mut state);
+
+        assert_eq!(result, ActionResult::Handled);
+        assert_eq!(state.mode, AppMode::ForkDialog);
+    }
+
+    #[test]
+    fn test_fork_action_input_char() {
+        let mut state = AppState::new();
+        assert!(state.input_buffer.is_empty());
+
+        ActionHandler::handle(Action::Fork(ForkAction::InputChar('a')), &mut state);
+        assert_eq!(state.input_buffer, "a");
+
+        ActionHandler::handle(Action::Fork(ForkAction::InputChar('b')), &mut state);
+        assert_eq!(state.input_buffer, "ab");
+    }
+
+    #[test]
+    fn test_fork_action_backspace() {
+        let mut state = AppState::new();
+        state.input_buffer = "test".to_string();
+
+        ActionHandler::handle(Action::Fork(ForkAction::Backspace), &mut state);
+        assert_eq!(state.input_buffer, "tes");
+
+        ActionHandler::handle(Action::Fork(ForkAction::Backspace), &mut state);
+        assert_eq!(state.input_buffer, "te");
+    }
+
+    #[test]
+    fn test_fork_action_backspace_empty() {
+        let mut state = AppState::new();
+        assert!(state.input_buffer.is_empty());
+
+        ActionHandler::handle(Action::Fork(ForkAction::Backspace), &mut state);
+        assert!(state.input_buffer.is_empty());
+    }
+
+    #[test]
+    fn test_action_from_key_event_enter_maps_to_confirm() {
+        let key = crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Enter,
+            crossterm::event::KeyModifiers::empty(),
+        );
+        let action = Action::from_key_event(&key);
+        assert_eq!(action, Some(Action::Dialog(DialogAction::Confirm)));
     }
 }

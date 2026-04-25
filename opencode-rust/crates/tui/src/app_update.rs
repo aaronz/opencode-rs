@@ -1,4 +1,4 @@
-use crate::action::{Action, ActionResult, AppMode, AppState, DialogAction};
+use crate::action::{Action, ActionResult, AppMode, AppState, DialogAction, ForkAction};
 
 pub fn update(state: &mut AppState, action: Action) -> ActionResult {
     match action {
@@ -11,8 +11,27 @@ pub fn update(state: &mut AppState, action: Action) -> ActionResult {
         Action::Timeline(timeline_action) => update_timeline(state, timeline_action),
         Action::Input(input_action) => update_input(state, input_action),
         Action::Connect(connect_action) => update_connect(state, connect_action),
+        Action::Fork(fork_action) => update_fork(state, fork_action),
         Action::FileDrop(paths) => {
             state.pending_file_drop = Some(paths);
+            ActionResult::Handled
+        }
+    }
+}
+
+fn update_fork(state: &mut AppState, action: ForkAction) -> ActionResult {
+    match action {
+        ForkAction::Cancel => {
+            state.mode = AppMode::Timeline;
+            ActionResult::Handled
+        }
+        ForkAction::Confirm => ActionResult::Handled,
+        ForkAction::InputChar(c) => {
+            state.input_buffer.push(c);
+            ActionResult::Handled
+        }
+        ForkAction::Backspace => {
+            state.input_buffer.pop();
             ActionResult::Handled
         }
     }
