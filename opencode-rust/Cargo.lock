@@ -4782,12 +4782,14 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "similar",
  "tempfile",
  "tokio",
  "tracing",
  "tracing-subscriber",
  "uuid",
  "webkit2gtk",
+ "which 7.0.3",
  "wry",
 ]
 

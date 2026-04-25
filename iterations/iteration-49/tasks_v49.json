@@ -135,7 +135,7 @@
       "priority": "P1",
       "title": "Implement mcp add",
       "description": "Add 'Add' variant to McpAction enum in cmd/mcp.rs. Validate MCP server command exists, persist MCP server configuration, initialize MCP client connection.",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify McpAction::Add variant exists and parses correctly",
         "AddUnitTest: verify MCP server command validation",
@@ -155,7 +155,7 @@
       "priority": "P1",
       "title": "Implement session review/diff",
       "description": "Fix cmd/session.rs:991-1011 which are stubs. Load session messages and context, implement file diff using session state changes, show review of modified files, format output for terminal.",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify session message loading",
         "AddUnitTest: verify file diff computation",

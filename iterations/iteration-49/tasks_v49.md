@@ -83,11 +83,12 @@
 - **Priority:** P1
 - **Gap:** `cmd/mcp.rs` — Add variant missing
 - **Actions:**
-  - [ ] Add `Add` variant to `McpAction` enum
-  - [ ] Validate MCP server command exists
-  - [ ] Persist MCP server configuration
-  - [ ] Initialize MCP client connection
+  - [x] Add `Add` variant to `McpAction` enum
+  - [x] Validate MCP server command exists
+  - [x] Persist MCP server configuration
+  - [x] Initialize MCP client connection
 - **Verify:** `opencode mcp add --name my-server --command npx --args '["mcp", "serve"]'`
+- **Status:** ✅ Done
 
 ### Task 8: Implement `session review/diff`
 - **FR:** FR-010

@@ -6,6 +6,7 @@ use opencode_core::message::Message;
 use opencode_core::session::SessionInfo;
 use opencode_core::session_sharing::SessionSharing;
 use opencode_core::Session;
+use similar::{ChangeTag, TextDiff};
 use uuid::Uuid;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -666,6 +667,190 @@ fn redo_session(session_id: &str, steps: usize) {
     }
 }
 
+struct FileModification {
+    tool_name: String,
+    file_path: String,
+    old_content: Option<String>,
+    new_content: String,
+    #[allow(dead_code)]
+    timestamp: chrono::DateTime<chrono::Utc>,
+}
+
+fn review_session(session_id: &str, file_filter: Option<&str>, format: &str) {
+    let sharing = get_session_sharing();
+    let id = match Uuid::parse_str(session_id) {
+        Ok(id) => id,
+        Err(_) => {
+            eprintln!("Error: Invalid session ID format '{}'", session_id);
+            std::process::exit(1);
+        }
+    };
+
+    let session = match sharing.get_session(&id) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("Error: Session '{}' does not exist: {}", session_id, e);
+            std::process::exit(1);
+        }
+    };
+
+    let modifications = extract_file_modifications(&session);
+
+    let filtered: Vec<&FileModification> = if let Some(filter) = file_filter {
+        modifications.iter().filter(|m| m.file_path.contains(filter)).collect()
+    } else {
+        modifications.iter().collect()
+    };
+
+    if filtered.is_empty() {
+        println!("No file modifications found in session {}", session_id);
+        return;
+    }
+
+    match format {
+        "json" => {
+            let output: serde_json::Value = serde_json::json!({
+                "session_id": session_id,
+                "modifications": filtered.iter().map(|m| {
+                    serde_json::json!({
+                        "tool": m.tool_name,
+                        "file": m.file_path,
+                        "old_content": m.old_content,
+                        "new_content": m.new_content,
+                    })
+                }).collect::<Vec<_>>(),
+                "count": filtered.len()
+            });
+            println!("{}", serde_json::to_string_pretty(&output).unwrap());
+        }
+        _ => {
+            println!("Session Review: {}", session_id);
+            println!("{}", "=".repeat(60));
+            for (i, modif) in filtered.iter().enumerate() {
+                println!("\n[{}] {} - {}", i + 1, modif.tool_name, modif.file_path);
+                println!("{}", "-".repeat(40));
+                if let Some(ref old) = modif.old_content {
+                    println!("Old content ({} chars):", old.len());
+                    for line in old.lines().take(10) {
+                        println!("  {}", line);
+                    }
+                    if old.lines().count() > 10 {
+                        println!("  ... ({} more lines)", old.lines().count() - 10);
+                    }
+                }
+                println!("\nNew content ({} chars):", modif.new_content.len());
+                for line in modif.new_content.lines().take(10) {
+                    println!("  {}", line);
+                }
+                if modif.new_content.lines().count() > 10 {
+                    println!("  ... ({} more lines)", modif.new_content.lines().count() - 10);
+                }
+            }
+            println!("\n{}", "=".repeat(60));
+            println!("Total: {} file modification(s)", filtered.len());
+        }
+    }
+}
+
+fn diff_session(session_id: &str, file_path: &str, _context_lines: usize) {
+    let sharing = get_session_sharing();
+    let id = match Uuid::parse_str(session_id) {
+        Ok(id) => id,
+        Err(_) => {
+            eprintln!("Error: Invalid session ID format '{}'", session_id);
+            std::process::exit(1);
+        }
+    };
+
+    let session = match sharing.get_session(&id) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("Error: Session '{}' does not exist: {}", session_id, e);
+            std::process::exit(1);
+        }
+    };
+
+    let modifications = extract_file_modifications(&session);
+
+    let file_mods: Vec<&FileModification> = modifications
+        .iter()
+        .filter(|m| m.file_path == file_path)
+        .collect();
+
+    if file_mods.is_empty() {
+        eprintln!("No modifications found for file '{}' in session {}", file_path, session_id);
+        std::process::exit(1);
+    }
+
+    println!("Diff for {} in session {}", file_path, session_id);
+    println!("{}", "=".repeat(60));
+
+    for (i, modif) in file_mods.iter().enumerate() {
+        if i > 0 {
+            println!("\n---");
+        }
+
+        let old_content = modif.old_content.as_deref().unwrap_or("");
+        let new_content = &modif.new_content;
+
+        let diff = TextDiff::from_lines(old_content, new_content);
+
+        println!("Change #{}", i + 1);
+        for change in diff.iter_all_changes() {
+            let sign = match change.tag() {
+                ChangeTag::Delete => "-",
+                ChangeTag::Insert => "+",
+                ChangeTag::Equal => " ",
+            };
+            print!("{}{}", sign, change);
+        }
+    }
+    println!("{}", "=".repeat(60));
+}
+
+fn extract_file_modifications(session: &Session) -> Vec<FileModification> {
+    let mut modifications = Vec::new();
+
+    for invocation in &session.tool_invocations {
+        let tool_name = &invocation.tool_name;
+        if tool_name == "edit" || tool_name == "write" || tool_name == "apply_patch" {
+            if let Some(args) = invocation.arguments.get("file_path").or(invocation.arguments.get("path")) {
+                let file_path = args.as_str().unwrap_or("unknown").to_string();
+
+                let (old_content, new_content) = if tool_name == "edit" {
+                    let old = invocation.arguments.get("oldString")
+                        .and_then(|v| v.as_str())
+                        .map(String::from)
+                        .unwrap_or_default();
+                    let new = invocation.arguments.get("newString")
+                        .and_then(|v| v.as_str())
+                        .map(String::from)
+                        .unwrap_or_default();
+                    (Some(old), new)
+                } else if tool_name == "write" {
+                    let content = invocation.arguments.get("content")
+                        .and_then(|v| v.as_str())
+                        .map(String::from)
+                        .unwrap_or_default();
+                    (None, content)
+                } else {
+                    continue;
+                };
+
+                modifications.push(FileModification {
+                    tool_name: tool_name.clone(),
+                    file_path,
+                    old_content,
+                    new_content,
+                    timestamp: invocation.started_at,
+                });
+            }
+        }
+    }
+
+    modifications
+}
+
 #[expect(
     clippy::expect_used,
     reason = "CLI entry point where failure should panic"
@@ -990,10 +1175,7 @@ pub(crate) fn run(args: SessionArgs) {
         }
         Some(SessionAction::Review { file, format }) => {
             if let Some(id) = &args.id {
-                println!(
-                    "Reviewing session {} (file: {:?}, format: {})",
-                    id, file, format
-                );
+                review_session(id, file.as_deref(), &format);
             } else {
                 eprintln!("Error: Session ID required for review");
                 std::process::exit(1);
@@ -1001,10 +1183,7 @@ pub(crate) fn run(args: SessionArgs) {
         }
         Some(SessionAction::Diff { file, context }) => {
             if let Some(id) = &args.id {
-                println!(
-                    "Showing diff for {} in session {} (context: {})",
-                    file, id, context
-                );
+                diff_session(id, &file, context);
             } else {
                 eprintln!("Error: Session ID required for diff");
                 std::process::exit(1);
