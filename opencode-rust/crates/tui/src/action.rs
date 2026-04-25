@@ -1276,4 +1276,137 @@ mod tests {
         let action = Action::from_key_event(&key);
         assert_eq!(action, Some(Action::Dialog(DialogAction::Confirm)));
     }
+
+    #[test]
+    fn test_sessions_action_close() {
+        let mut state = AppState::new();
+        state.mode = AppMode::Sessions;
+
+        ActionHandler::handle(Action::Sessions(SessionsAction::Close), &mut state);
+
+        assert_eq!(state.mode, AppMode::Chat);
+    }
+
+    #[test]
+    fn test_sessions_action_select_previous() {
+        let mut state = AppState::new();
+        let result =
+            ActionHandler::handle(Action::Sessions(SessionsAction::SelectPrevious), &mut state);
+        assert_eq!(result, ActionResult::Handled);
+    }
+
+    #[test]
+    fn test_sessions_action_select_next() {
+        let mut state = AppState::new();
+        let result =
+            ActionHandler::handle(Action::Sessions(SessionsAction::SelectNext), &mut state);
+        assert_eq!(result, ActionResult::Handled);
+    }
+
+    #[test]
+    fn test_sessions_action_confirm() {
+        let mut state = AppState::new();
+        state.mode = AppMode::Sessions;
+
+        let result = ActionHandler::handle(Action::Sessions(SessionsAction::Confirm), &mut state);
+        assert_eq!(result, ActionResult::Handled);
+        assert_eq!(state.mode, AppMode::Sessions);
+    }
+
+    #[test]
+    fn test_sessions_action_create_new() {
+        let mut state = AppState::new();
+        let result = ActionHandler::handle(Action::Sessions(SessionsAction::CreateNew), &mut state);
+        assert_eq!(result, ActionResult::Handled);
+    }
+
+    #[test]
+    fn test_sessions_action_variants() {
+        use SessionsAction::*;
+        assert_eq!(Close, Close);
+        assert_eq!(SelectPrevious, SelectPrevious);
+        assert_eq!(SelectNext, SelectNext);
+        assert_eq!(Confirm, Confirm);
+        assert_eq!(CreateNew, CreateNew);
+    }
+
+    #[test]
+    fn test_slash_command_action_cancel() {
+        let mut state = AppState::new();
+        state.mode = AppMode::SlashCommand;
+
+        ActionHandler::handle(Action::SlashCommand(SlashCommandAction::Cancel), &mut state);
+
+        assert_eq!(state.mode, AppMode::Chat);
+    }
+
+    #[test]
+    fn test_slash_command_action_confirm() {
+        let mut state = AppState::new();
+        state.mode = AppMode::SlashCommand;
+
+        let result = ActionHandler::handle(
+            Action::SlashCommand(SlashCommandAction::Confirm),
+            &mut state,
+        );
+        assert_eq!(result, ActionResult::Handled);
+        assert_eq!(state.mode, AppMode::SlashCommand);
+    }
+
+    #[test]
+    fn test_slash_command_action_input_char() {
+        let mut state = AppState::new();
+        assert!(state.input_buffer.is_empty());
+
+        ActionHandler::handle(
+            Action::SlashCommand(SlashCommandAction::InputChar('/')),
+            &mut state,
+        );
+        assert_eq!(state.input_buffer, "/");
+
+        ActionHandler::handle(
+            Action::SlashCommand(SlashCommandAction::InputChar('p')),
+            &mut state,
+        );
+        assert_eq!(state.input_buffer, "/p");
+    }
+
+    #[test]
+    fn test_slash_command_action_backspace() {
+        let mut state = AppState::new();
+        state.input_buffer = "test".to_string();
+
+        ActionHandler::handle(
+            Action::SlashCommand(SlashCommandAction::Backspace),
+            &mut state,
+        );
+        assert_eq!(state.input_buffer, "tes");
+
+        ActionHandler::handle(
+            Action::SlashCommand(SlashCommandAction::Backspace),
+            &mut state,
+        );
+        assert_eq!(state.input_buffer, "te");
+    }
+
+    #[test]
+    fn test_slash_command_action_backspace_empty() {
+        let mut state = AppState::new();
+        assert!(state.input_buffer.is_empty());
+
+        ActionHandler::handle(
+            Action::SlashCommand(SlashCommandAction::Backspace),
+            &mut state,
+        );
+        assert!(state.input_buffer.is_empty());
+    }
+
+    #[test]
+    fn test_slash_command_action_variants() {
+        use SlashCommandAction::*;
+        assert_eq!(Cancel, Cancel);
+        assert_eq!(Confirm, Confirm);
+        assert_eq!(InputChar('a'), InputChar('a'));
+        assert_eq!(Backspace, Backspace);
+    }
 }
