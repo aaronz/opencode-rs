@@ -902,7 +902,7 @@
       "priority": "P2",
       "title": "Remove hardcoded default model",
       "description": "Default model from config (remove hardcoded gpt-4o) at cmd/run.rs:226",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify default model comes from config",
         "AddRegressionTest: ensure run command works without explicit model"
@@ -919,7 +919,7 @@
       "priority": "P0",
       "title": "Move protocol types to crates/acp/src/protocol.rs",
       "description": "Move protocol types from `crates/core/src/acp.rs` to `crates/acp/src/protocol.rs`",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddRegressionTest: ensure all protocol types still work after move",
         "RunTestSuite: cargo test -p opencode-core -p opencode-acp"
