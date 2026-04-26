@@ -902,7 +902,7 @@
       "priority": "P2",
       "title": "Remove hardcoded default model",
       "description": "Default model from config (remove hardcoded gpt-4o) at cmd/run.rs:226",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify default model comes from config",
         "AddRegressionTest: ensure run command works without explicit model"

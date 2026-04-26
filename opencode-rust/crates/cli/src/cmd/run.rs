@@ -298,16 +298,129 @@ mod tests {
         assert!(matches!(json_args.format, OutputFormat::Json));
         assert!(matches!(ndjson_args.format, OutputFormat::Ndjson));
     }
+
+    #[test]
+    fn test_get_default_model_prefers_cli_model() {
+        let args = RunArgs {
+            prompt: Some("test".to_string()),
+            agent: None,
+            model: Some("claude-3-5-sonnet".to_string()),
+            continue_session: None,
+            attach: None,
+            yes: false,
+            title: None,
+            format: OutputFormat::Text,
+        };
+        let config = Config::default();
+        let model = get_default_model(&args, &config);
+        assert_eq!(model, "claude-3-5-sonnet");
+    }
+
+    #[test]
+    fn test_get_default_model_uses_agent_model_from_config() {
+        let args = RunArgs {
+            prompt: Some("test".to_string()),
+            agent: None,
+            model: None,
+            continue_session: None,
+            attach: None,
+            yes: false,
+            title: None,
+            format: OutputFormat::Text,
+        };
+        let mut config = Config::default();
+        config.agent = Some(opencode_core::config::AgentMapConfig {
+            agents: std::collections::HashMap::new(),
+            default_agent: Some("default".to_string()),
+        });
+        config.agent.as_mut().unwrap().agents.insert(
+            "default".to_string(),
+            opencode_core::config::AgentConfig {
+                model: Some("anthropic/claude-3-5-sonnet".to_string()),
+                ..Default::default()
+            },
+        );
+        let model = get_default_model(&args, &config);
+        assert_eq!(model, "anthropic/claude-3-5-sonnet");
+    }
+
+    #[test]
+    fn test_get_default_model_uses_top_level_model_from_config() {
+        let args = RunArgs {
+            prompt: Some("test".to_string()),
+            agent: None,
+            model: None,
+            continue_session: None,
+            attach: None,
+            yes: false,
+            title: None,
+            format: OutputFormat::Text,
+        };
+        let mut config = Config::default();
+        config.model = Some("gpt-4o-mini".to_string());
+        let model = get_default_model(&args, &config);
+        assert_eq!(model, "gpt-4o-mini");
+    }
+
+    #[test]
+    fn test_get_default_model_falls_back_to_gpt_4o_when_not_set() {
+        let args = RunArgs {
+            prompt: Some("test".to_string()),
+            agent: None,
+            model: None,
+            continue_session: None,
+            attach: None,
+            yes: false,
+            title: None,
+            format: OutputFormat::Text,
+        };
+        let config = Config::default();
+        let model = get_default_model(&args, &config);
+        assert_eq!(model, "gpt-4o");
+    }
+
+    #[test]
+    fn test_get_default_model_prefers_agent_model_over_top_level_model() {
+        let args = RunArgs {
+            prompt: Some("test".to_string()),
+            agent: None,
+            model: None,
+            continue_session: None,
+            attach: None,
+            yes: false,
+            title: None,
+            format: OutputFormat::Text,
+        };
+        let mut config = Config::default();
+        config.model = Some("gpt-4o-mini".to_string());
+        config.agent = Some(opencode_core::config::AgentMapConfig {
+            agents: std::collections::HashMap::new(),
+            default_agent: Some("default".to_string()),
+        });
+        config.agent.as_mut().unwrap().agents.insert(
+            "default".to_string(),
+            opencode_core::config::AgentConfig {
+                model: Some("claude-3-5-sonnet".to_string()),
+                ..Default::default()
+            },
+        );
+        let model = get_default_model(&args, &config);
+        assert_eq!(model, "claude-3-5-sonnet");
+    }
+}
+
+fn get_default_model(args: &RunArgs, config: &Config) -> String {
+    args.model
+        .clone()
+        .or_else(|| config.get("agent.model"))
+        .or_else(|| config.get("model"))
+        .unwrap_or_else(|| "gpt-4o".to_string())
 }
 
 pub(crate) fn run(args: RunArgs) {
     if let Some(prompt) = args.prompt.clone() {
         let config = load_config();
-        let model = args
-            .model
-            .clone()
-            .or_else(|| config.get("agent.model"))
-            .unwrap_or_else(|| "gpt-4o".to_string());
+        let model = get_default_model(&args, &config);
 
         match args.format {
             OutputFormat::Ndjson | OutputFormat::Json => {
