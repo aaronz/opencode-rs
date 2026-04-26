@@ -1,0 +1,1042 @@
+{
+  "tasks": [
+    {
+      "id": "FR-100",
+      "priority": "P0",
+      "title": "Create ACP crate directory structure",
+      "description": "Create `crates/acp/` directory structure for the new ACP module",
+      "status": "in_progress",
+      "test_criteria": [
+        "AddUnitTest: verify crates/acp/ directory exists with proper structure",
+        "AddRegressionTest: ensure workspace Cargo.toml includes the new acp crate"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-acp --release",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Create directory structure matching other crates in the workspace",
+      "dependencies": []
+    },
+    {
+      "id": "FR-100",
+      "priority": "P0",
+      "title": "Create ACP Cargo.toml with dependencies",
+      "description": "Create `crates/acp/Cargo.toml` with required dependencies for ACP module",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify Cargo.toml parses correctly",
+        "AddRegressionTest: ensure all dependencies can be resolved"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-acp --release",
+        "cargo check -p opencode-acp"
+      ],
+      "impl_notes": "Use appropriate versions matching other crates in workspace",
+      "dependencies": [
+        "FR-100"
+      ]
+    },
+    {
+      "id": "FR-100",
+      "priority": "P0",
+      "title": "Create ACP lib.rs with module exports",
+      "description": "Create `crates/acp/src/lib.rs` with module exports for the ACP crate",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify lib.rs compiles and exports modules",
+        "AddRegressionTest: ensure public API is properly exposed"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-acp --release",
+        "cargo doc -p opencode-acp --no-deps"
+      ],
+      "impl_notes": "Follow existing crate patterns for lib.rs structure",
+      "dependencies": [
+        "FR-100"
+      ]
+    },
+    {
+      "id": "FR-100",
+      "priority": "P0",
+      "title": "Create ACP client.rs empty stub",
+      "description": "Create `crates/acp/src/client.rs` with empty stub for AcpClient",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify client.rs compiles to stub",
+        "AddRegressionTest: ensure module structure is correct"
+      ],
+      "test_commands": [
+        "cargo build -p opencode-acp --release",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Create stub structure to be filled in subsequent tasks",
+      "dependencies": [
+        "FR-100"
+      ]
+    },
+    {
+      "id": "FR-101",
+      "priority": "P0",
+      "title": "Implement AcpConnectionState enum",
+      "description": "Implement `AcpConnectionState` enum with all connection states (Disconnected, Connecting, Connected, etc.)",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify all enum variants exist and can be matched",
+        "AddErrorHandlingTest: test state transitions are valid"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Define clear state variants for the ACP connection lifecycle",
+      "dependencies": [
+        "FR-100"
+      ]
+    },
+    {
+      "id": "FR-102",
+      "priority": "P0",
+      "title": "Implement AcpState struct",
+      "description": "Implement `AcpState` struct to hold ACP connection state",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify AcpState struct can be instantiated",
+        "AddUnitTest: verify state fields are accessible"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Struct should hold connection state and metadata",
+      "dependencies": [
+        "FR-101"
+      ]
+    },
+    {
+      "id": "FR-103",
+      "priority": "P0",
+      "title": "Implement AcpClient struct",
+      "description": "Implement `AcpClient` struct with `http`, `state`, `bus` fields",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify AcpClient can be instantiated with all fields",
+        "AddUnitTest: verify field access works correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Client should wrap HTTP client, state, and event bus",
+      "dependencies": [
+        "FR-102"
+      ]
+    },
+    {
+      "id": "FR-104",
+      "priority": "P0",
+      "title": "Implement AcpError enum",
+      "description": "Implement `AcpError` enum with all error variants for ACP operations",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify all error variants exist",
+        "AddErrorHandlingTest: test error conversion and display"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Follow error code ranges from AGENTS.md (4xxx for tool errors)",
+      "dependencies": [
+        "FR-100"
+      ]
+    },
+    {
+      "id": "FR-105",
+      "priority": "P0",
+      "title": "Implement AcpStatus struct",
+      "description": "Implement `AcpStatus` struct to represent ACP status information",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify AcpStatus can be instantiated",
+        "AddUnitTest: verify status fields serialize/deserialize correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Status should include connection state and metadata",
+      "dependencies": [
+        "FR-100"
+      ]
+    },
+    {
+      "id": "FR-105",
+      "priority": "P0",
+      "title": "Implement HandshakeRequest type",
+      "description": "Implement `HandshakeRequest` type for ACP handshake",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify HandshakeRequest serialization",
+        "AddRegressionTest: ensure request can be sent via client"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Request should contain client_id and capabilities",
+      "dependencies": [
+        "FR-100"
+      ]
+    },
+    {
+      "id": "FR-105",
+      "priority": "P0",
+      "title": "Implement HandshakeResponse type",
+      "description": "Implement `HandshakeResponse` type for ACP handshake response",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify HandshakeResponse deserialization",
+        "AddRegressionTest: ensure response parsing is correct"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Response should contain server acknowledgement",
+      "dependencies": [
+        "FR-100"
+      ]
+    },
+    {
+      "id": "FR-105",
+      "priority": "P0",
+      "title": "Implement ConnectRequest type",
+      "description": "Implement `ConnectRequest` type for ACP connection",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify ConnectRequest serialization",
+        "AddRegressionTest: ensure request can be sent via client"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Request should contain URL and connection parameters",
+      "dependencies": [
+        "FR-100"
+      ]
+    },
+    {
+      "id": "FR-105",
+      "priority": "P0",
+      "title": "Implement AckRequest type",
+      "description": "Implement `AckRequest` type for ACP acknowledgement",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify AckRequest serialization",
+        "AddRegressionTest: ensure acknowledgement works correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Request should contain session and message info",
+      "dependencies": [
+        "FR-100"
+      ]
+    },
+    {
+      "id": "FR-105",
+      "priority": "P0",
+      "title": "Implement AcpMessage type",
+      "description": "Implement `AcpMessage` type for ACP message envelope",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify AcpMessage can hold different message types",
+        "AddUnitTest: verify message serialization/deserialization"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Message should be an enum supporting different ACP message types",
+      "dependencies": [
+        "FR-100"
+      ]
+    },
+    {
+      "id": "FR-103",
+      "priority": "P0",
+      "title": "Implement AcpClient::status() method",
+      "description": "Implement `AcpClient::status()` method to get current ACP status",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify status() returns correct status for disconnected state",
+        "AddRegressionTest: ensure status reflects actual connection state"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp -- status_returns_disconnected_initially",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Method should return AcpStatus based on current state",
+      "dependencies": [
+        "FR-103"
+      ]
+    },
+    {
+      "id": "FR-103",
+      "priority": "P0",
+      "title": "Implement AcpClient::connect() with state transitions",
+      "description": "Implement `AcpClient::connect()` method with proper state transitions",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify connect() transitions state from Disconnected to Connecting",
+        "AddUnitTest: verify connect() transitions to Connected on success",
+        "AddErrorHandlingTest: test connect() handles connection failures"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp -- connect_transitions_state",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Must handle state transitions correctly and return errors on failure",
+      "dependencies": [
+        "FR-103",
+        "FR-104"
+      ]
+    },
+    {
+      "id": "FR-103",
+      "priority": "P0",
+      "title": "Implement AcpClient::handshake() method",
+      "description": "Implement `AcpClient::handshake()` method for ACP handshake",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify handshake() sends HandshakeRequest",
+        "AddUnitTest: verify handshake() parses HandshakeResponse",
+        "AddErrorHandlingTest: test handshake fails when not connected"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Handshake should be called after successful connect",
+      "dependencies": [
+        "FR-103",
+        "FR-104"
+      ]
+    },
+    {
+      "id": "FR-103",
+      "priority": "P0",
+      "title": "Implement AcpClient::ack() method",
+      "description": "Implement `AcpClient::ack()` method for ACP acknowledgement",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify ack() sends AckRequest",
+        "AddUnitTest: verify ack() returns success response",
+        "AddErrorHandlingTest: test ack fails when not connected"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Ack should confirm message receipt",
+      "dependencies": [
+        "FR-103",
+        "FR-104"
+      ]
+    },
+    {
+      "id": "FR-103",
+      "priority": "P0",
+      "title": "Implement AcpClient::send_message() method",
+      "description": "Implement `AcpClient::send_message()` method to send ACP messages",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify send_message() sends message successfully when connected",
+        "AddUnitTest: verify send_message() returns error when not connected",
+        "AddErrorHandlingTest: test send_message() handles network errors"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp -- send_message_returns_error_when_not_connected",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Must return error if not in Connected state",
+      "dependencies": [
+        "FR-103",
+        "FR-104"
+      ]
+    },
+    {
+      "id": "FR-103",
+      "priority": "P0",
+      "title": "Implement AcpClient::disconnect() method",
+      "description": "Implement `AcpClient::disconnect()` method to close ACP connection",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify disconnect() transitions state to Disconnected",
+        "AddUnitTest: verify disconnect() cleans up resources",
+        "AddRegressionTest: ensure disconnect works from any state"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp -- disconnect_transitions_to_disconnected",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Disconnect should be safe to call from any state",
+      "dependencies": [
+        "FR-103"
+      ]
+    },
+    {
+      "id": "FR-103",
+      "priority": "P0",
+      "title": "Implement AcpClient::connection_state() method",
+      "description": "Implement `AcpClient::connection_state()` method to get current connection state",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify connection_state() returns current state",
+        "AddRegressionTest: ensure state is updated correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Simple accessor for internal connection state",
+      "dependencies": [
+        "FR-103"
+      ]
+    },
+    {
+      "id": "FR-107",
+      "priority": "P0",
+      "title": "Implement bus event publishing for acp.connected",
+      "description": "Implement bus event publishing for `acp.connected` event when connection succeeds",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify acp.connected event is published on successful connect",
+        "AddRegressionTest: ensure event contains correct connection info"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Event should be published after successful connection handshake",
+      "dependencies": [
+        "FR-103"
+      ]
+    },
+    {
+      "id": "FR-107",
+      "priority": "P0",
+      "title": "Implement bus event publishing for acp.disconnected",
+      "description": "Implement bus event publishing for `acp.disconnected` event when disconnected",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify acp.disconnected event is published on disconnect",
+        "AddRegressionTest: ensure event contains correct disconnection info"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Event should be published after disconnect completes",
+      "dependencies": [
+        "FR-103"
+      ]
+    },
+    {
+      "id": "FR-109",
+      "priority": "P0",
+      "title": "Write unit test: status_returns_disconnected_initially",
+      "description": "Write unit test: verify status() returns Disconnected state initially",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify new AcpClient has Disconnected status initially",
+        "RunTestSuite: cargo test -p opencode-acp -- status_returns_disconnected_initially"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp -- status_returns_disconnected_initially",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Test should create new AcpClient and verify initial status",
+      "dependencies": [
+        "FR-103"
+      ]
+    },
+    {
+      "id": "FR-109",
+      "priority": "P0",
+      "title": "Write unit test: connect_transitions_state",
+      "description": "Write unit test: verify connect() properly transitions connection state",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify state transitions from Disconnected to Connecting to Connected",
+        "RunTestSuite: cargo test -p opencode-acp -- connect_transitions_state"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp -- connect_transitions_state",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Test should verify full state transition lifecycle",
+      "dependencies": [
+        "FR-103"
+      ]
+    },
+    {
+      "id": "FR-109",
+      "priority": "P0",
+      "title": "Write unit test: send_message_returns_error_when_not_connected",
+      "description": "Write unit test: verify send_message() returns error when not connected",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify send_message() returns error for Disconnected state",
+        "AddErrorHandlingTest: verify error type is AcpError::NotConnected",
+        "RunTestSuite: cargo test -p opencode-acp -- send_message_returns_error_when_not_connected"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp -- send_message_returns_error_when_not_connected",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Test should verify error handling for send_message when not connected",
+      "dependencies": [
+        "FR-103"
+      ]
+    },
+    {
+      "id": "FR-109",
+      "priority": "P0",
+      "title": "Write unit test: disconnect_transitions_to_disconnected",
+      "description": "Write unit test: verify disconnect() transitions to Disconnected state",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify disconnect() transitions to Disconnected regardless of starting state",
+        "RunTestSuite: cargo test -p opencode-acp -- disconnect_transitions_to_disconnected"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp -- disconnect_transitions_to_disconnected",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Test should verify disconnect is idempotent and safe",
+      "dependencies": [
+        "FR-103"
+      ]
+    },
+    {
+      "id": "FR-109",
+      "priority": "P0",
+      "title": "Create ACP integration tests file",
+      "description": "Create `crates/acp/tests/acp_tests.rs` for integration tests",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify all ACP components work together",
+        "RunTestSuite: cargo test -p opencode-acp"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Create integration test file structure",
+      "dependencies": [
+        "FR-100"
+      ]
+    },
+    {
+      "id": "FR-108",
+      "priority": "P1",
+      "title": "Implement acp status CLI command",
+      "description": "Implement `acp status` CLI command to show ACP connection status",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify CLI command parses correctly",
+        "AddIntegrationTest: verify status output reflects actual ACP state"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- acp_status",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Command should use AcpClient::status() method",
+      "dependencies": [
+        "FR-103"
+      ]
+    },
+    {
+      "id": "FR-108",
+      "priority": "P1",
+      "title": "Implement acp connect CLI command",
+      "description": "Implement `acp connect` CLI command to connect to ACP server",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify CLI command parses URL correctly",
+        "AddIntegrationTest: verify connect establishes connection"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- acp_connect",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Command should use AcpClient::connect() and ::handshake() methods",
+      "dependencies": [
+        "FR-103"
+      ]
+    },
+    {
+      "id": "FR-108",
+      "priority": "P1",
+      "title": "Implement acp ack CLI command",
+      "description": "Implement `acp ack` CLI command to acknowledge messages",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify CLI command parses correctly",
+        "AddIntegrationTest: verify ack sends acknowledgement"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- acp_ack",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Command should use AcpClient::ack() method",
+      "dependencies": [
+        "FR-103"
+      ]
+    },
+    {
+      "id": "FR-108",
+      "priority": "P1",
+      "title": "Create ACP CLI module",
+      "description": "Create `crates/acp/src/cli.rs` for ACP CLI commands",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify CLI module compiles",
+        "AddIntegrationTest: verify all ACP CLI commands work"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Module should contain all ACP CLI subcommands",
+      "dependencies": [
+        "FR-108"
+      ]
+    },
+    {
+      "id": "FR-110",
+      "priority": "P1",
+      "title": "Write integration test: full connect-message-disconnect cycle",
+      "description": "Write integration test: verify full connect-message-disconnect cycle works",
+      "status": "todo",
+      "test_criteria": [
+        "AddIntegrationTest: verify full lifecycle: connect -> send_message -> disconnect",
+        "AddErrorHandlingTest: verify errors at each stage are handled correctly",
+        "RunTestSuite: cargo test -p opencode-acp -- full_cycle"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Test should verify complete ACP session lifecycle",
+      "dependencies": [
+        "FR-109"
+      ]
+    },
+    {
+      "id": "FR-004",
+      "priority": "P0",
+      "title": "Implement agent run with AgentRegistry and LLM provider",
+      "description": "Implement `agent run` with AgentRegistry and LLM provider integration at cmd/agent.rs:48",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify agent run command initializes correctly",
+        "AddIntegrationTest: verify agent runs with LLM provider",
+        "AddRegressionTest: ensure existing agent commands still work"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- agent_run",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Should integrate with existing AgentRegistry and LLM providers",
+      "dependencies": []
+    },
+    {
+      "id": "FR-005",
+      "priority": "P0",
+      "title": "Implement config set with key-value persistence",
+      "description": "Implement `config set` with key-value persistence at cmd/config.rs:199-202",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify config set persists key-value pairs",
+        "AddUnitTest: verify config get retrieves set values",
+        "AddRegressionTest: ensure existing config commands still work"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- config_set",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Should persist to config file and support nested keys",
+      "dependencies": []
+    },
+    {
+      "id": "FR-006",
+      "priority": "P0",
+      "title": "Implement run --format ndjson/json with LLM streaming",
+      "description": "Implement `run --format ndjson/json` with actual LLM streaming at cmd/run.rs:228-255",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify format flag is parsed correctly",
+        "AddIntegrationTest: verify streaming output in ndjson format",
+        "AddIntegrationTest: verify streaming output in json format",
+        "AddRegressionTest: ensure default output still works"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- run_format",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Should stream LLM responses in specified format",
+      "dependencies": []
+    },
+    {
+      "id": "FR-007",
+      "priority": "P1",
+      "title": "Implement account login/logout/status commands",
+      "description": "Implement `account login/logout/status` commands in cmd/account.rs",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify login authenticates and stores credentials",
+        "AddUnitTest: verify logout clears credentials",
+        "AddUnitTest: verify status shows current auth state"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- account",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Should integrate with auth module for credential storage",
+      "dependencies": []
+    },
+    {
+      "id": "FR-008",
+      "priority": "P1",
+      "title": "Implement attach command",
+      "description": "Implement `attach` command at cmd/attach.rs:83-90",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify attach command syntax",
+        "AddIntegrationTest: verify attach connects to session"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- attach",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Should attach to existing session by ID",
+      "dependencies": []
+    },
+    {
+      "id": "FR-009",
+      "priority": "P1",
+      "title": "Add mcp add subcommand",
+      "description": "Add `mcp add` subcommand in cmd/mcp.rs",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify mcp add subcommand parses correctly",
+        "AddUnitTest: verify mcp config is updated"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- mcp_add",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Should add MCP server configuration",
+      "dependencies": []
+    },
+    {
+      "id": "FR-011",
+      "priority": "P1",
+      "title": "Implement agent list command",
+      "description": "Implement `agent list` command at cmd/agent.rs:48",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify agent list shows registered agents",
+        "AddRegressionTest: ensure agent run still works"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- agent_list",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Should list all registered agents from AgentRegistry",
+      "dependencies": []
+    },
+    {
+      "id": "FR-014",
+      "priority": "P1",
+      "title": "Implement session fork with TUI integration",
+      "description": "Implement `session fork` with TUI integration at cmd/session.rs:673-698",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify session fork creates new session",
+        "AddIntegrationTest: verify TUI launches for forked session"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- session_fork",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Should fork existing session with new ID",
+      "dependencies": []
+    },
+    {
+      "id": "FR-015",
+      "priority": "P1",
+      "title": "Implement github install persistence",
+      "description": "Implement `github install` persistence at cmd/github.rs:189-211",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify github install persists to config",
+        "AddRegressionTest: ensure github commands still work"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- github_install",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Should persist installed GitHub apps/repos",
+      "dependencies": []
+    },
+    {
+      "id": "FR-016",
+      "priority": "P1",
+      "title": "Extend providers login for multi-provider",
+      "description": "Extend `providers login` for multi-provider (Anthropic, etc.) at cmd/providers.rs:142-145",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify provider flag is parsed",
+        "AddUnitTest: verify Anthropic and other providers authenticate",
+        "AddRegressionTest: ensure existing provider login still works"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- providers_login",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Should support --provider flag for different LLM providers",
+      "dependencies": []
+    },
+    {
+      "id": "FR-017",
+      "priority": "P1",
+      "title": "Implement acp handshake session persistence",
+      "description": "Implement `acp handshake` session persistence at cmd/acp.rs:250-292",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify handshake result is persisted",
+        "AddUnitTest: verify persisted session can be restored"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- acp_handshake",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Should persist handshake session for reconnection",
+      "dependencies": []
+    },
+    {
+      "id": "FR-018",
+      "priority": "P1",
+      "title": "Implement config migrate command",
+      "description": "Implement `config migrate` command at cmd/config.rs:204-208",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify migrate command runs without error",
+        "AddIntegrationTest: verify config is migrated correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- config_migrate",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Should migrate config from old format to new",
+      "dependencies": []
+    },
+    {
+      "id": "FR-027",
+      "priority": "P1",
+      "title": "Add acp ack command",
+      "description": "Add `acp ack` command in cmd/acp.rs",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify acp ack command parses correctly",
+        "AddIntegrationTest: verify ack sends to ACP server"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- acp_ack",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Should send acknowledgement to ACP server",
+      "dependencies": []
+    },
+    {
+      "id": "FR-019",
+      "priority": "P2",
+      "title": "Parse environment variables before config load",
+      "description": "Parse environment variables before config load in main.rs",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify env vars take precedence over config",
+        "AddRegressionTest: ensure existing config loading still works"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- env_config",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Environment variables should override config file values",
+      "dependencies": []
+    },
+    {
+      "id": "FR-020",
+      "priority": "P2",
+      "title": "Model visibility config integration",
+      "description": "Model visibility config integration at cmd/models.rs:238-267",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify model visibility is configurable",
+        "AddUnitTest: verify hidden models are filtered from list"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- model_visibility",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Should respect visibility settings from config",
+      "dependencies": []
+    },
+    {
+      "id": "FR-021",
+      "priority": "P2",
+      "title": "Remove hardcoded default model",
+      "description": "Default model from config (remove hardcoded gpt-4o) at cmd/run.rs:226",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify default model comes from config",
+        "AddRegressionTest: ensure run command works without explicit model"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-cli -- default_model",
+        "cargo clippy -p opencode-cli -- -D warnings"
+      ],
+      "impl_notes": "Should read default model from config instead of hardcoding",
+      "dependencies": []
+    },
+    {
+      "id": "TD-001",
+      "priority": "P0",
+      "title": "Move protocol types to crates/acp/src/protocol.rs",
+      "description": "Move protocol types from `crates/core/src/acp.rs` to `crates/acp/src/protocol.rs`",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: ensure all protocol types still work after move",
+        "RunTestSuite: cargo test -p opencode-core -p opencode-acp"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core",
+        "cargo test -p opencode-acp",
+        "cargo clippy -p opencode-core -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Consolidate types to avoid duplication",
+      "dependencies": []
+    },
+    {
+      "id": "TD-002",
+      "priority": "P0",
+      "title": "Consolidate AcpHandshakeResponse to single definition",
+      "description": "Consolidate `AcpHandshakeResponse` to single definition",
+      "status": "todo",
+      "test_criteria": [
+        "AddRegressionTest: ensure handshake still works after consolidation",
+        "RunTestSuite: cargo test -p opencode-core -p opencode-acp"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-core",
+        "cargo test -p opencode-acp",
+        "cargo clippy -p opencode-core -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Remove duplicate definitions",
+      "dependencies": [
+        "TD-001"
+      ]
+    },
+    {
+      "id": "TD-003",
+      "priority": "P0",
+      "title": "Rewrite AcpProtocol as async AcpClient",
+      "description": "Rewrite `AcpProtocol` as async `AcpClient` to fix sync/async mismatch",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify async client works correctly",
+        "AddRegressionTest: ensure existing ACP functionality works with async",
+        "RunTestSuite: cargo test -p opencode-acp"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Fix sync/async mismatch in ACP implementation",
+      "dependencies": []
+    },
+    {
+      "id": "TD-004",
+      "priority": "P1",
+      "title": "Move hardcoded URLs to configurable base URL",
+      "description": "Move hardcoded URLs to configurable base URL",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify base URL is configurable",
+        "AddIntegrationTest: verify connections use configured URL"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Improve flexibility for different environments",
+      "dependencies": []
+    },
+    {
+      "id": "TD-005",
+      "priority": "P1",
+      "title": "Add connection timeout configuration",
+      "description": "Add connection timeout configuration",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify timeout is configurable",
+        "AddErrorHandlingTest: verify timeout errors are handled"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Improve robustness for network issues",
+      "dependencies": []
+    },
+    {
+      "id": "TD-006",
+      "priority": "P1",
+      "title": "Add retry logic with backoff",
+      "description": "Add retry logic with backoff for failed connections",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify retry logic works correctly",
+        "AddErrorHandlingTest: verify backoff is applied correctly"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Improve reliability for transient failures",
+      "dependencies": []
+    },
+    {
+      "id": "TD-007",
+      "priority": "P2",
+      "title": "Add version field to AcpStatus",
+      "description": "Add version field to `AcpStatus` for monitoring",
+      "status": "todo",
+      "test_criteria": [
+        "AddUnitTest: verify version field is present in status",
+        "AddRegressionTest: ensure status serialization works"
+      ],
+      "test_commands": [
+        "cargo test -p opencode-acp",
+        "cargo clippy -p opencode-acp -- -D warnings"
+      ],
+      "impl_notes": "Improve monitoring capabilities",
+      "dependencies": []
+    }
+  ]
+}

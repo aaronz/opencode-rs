@@ -1,0 +1,251 @@
+use std::sync::Arc;
+use tokio::sync::Mutex;
+
+pub use crate::protocol::{AcpMessage, AckRequest, AcpStatus, HandshakeRequest, HandshakeResponse};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AcpConnectionState {
+    Disconnected,
+    Handshaking,
+    Connected,
+    Failed(String),
+}
+
+impl std::fmt::Display for AcpConnectionState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Disconnected => write!(f, "Disconnected"),
+            Self::Handshaking => write!(f, "Handshaking"),
+            Self::Connected => write!(f, "Connected"),
+            Self::Failed(msg) => write!(f, "Failed({})", msg),
+        }
+    }
+}
+
+struct AcpState {
+    connection_state: AcpConnectionState,
+    client_id: String,
+    server_id: Option<String>,
+    session_token: Option<String>,
+    capabilities: Vec<String>,
+    server_url: Option<String>,
+}
+
+impl AcpState {
+    fn new(client_id: String) -> Self {
+        Self {
+            connection_state: AcpConnectionState::Disconnected,
+            client_id,
+            server_id: None,
+            session_token: None,
+            capabilities: Vec::new(),
+            server_url: None,
+        }
+    }
+}
+
+pub struct AcpClient {
+    http: reqwest::Client,
+    state: Arc<Mutex<AcpState>>,
+}
+
+impl AcpClient {
+    pub fn new(http: reqwest::Client, client_id: String) -> Self {
+        Self {
+            http,
+            state: Arc::new(Mutex::new(AcpState::new(client_id))),
+        }
+    }
+
+    pub fn connection_state(&self) -> AcpConnectionState {
+        AcpConnectionState::Disconnected
+    }
+
+    pub async fn status(&self) -> Result<AcpStatus, crate::AcpError> {
+        let state = self.state.lock().await;
+        let connected = matches!(state.connection_state, AcpConnectionState::Connected);
+        Ok(AcpStatus {
+            connected,
+            client_id: Some(state.client_id.clone()),
+            capabilities: state.capabilities.clone(),
+            server_url: state.server_url.clone(),
+        })
+    }
+
+    pub async fn handshake(
+        &self,
+        server_url: &str,
+        client_id: String,
+        capabilities: Vec<String>,
+    ) -> Result<HandshakeResponse, crate::AcpError> {
+        let request = HandshakeRequest {
+            client_id,
+            capabilities,
+            version: "1.0".to_string(),
+        };
+
+        let response = self
+            .http
+            .post(format!("{}/api/acp/handshake", server_url))
+            .json(&request)
+            .send()
+            .await
+            .map_err(crate::AcpError::Http)?;
+
+        if !response.status().is_success() {
+            let error = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
+            return Err(crate::AcpError::ServerError(error));
+        }
+
+        response
+            .json::<HandshakeResponse>()
+            .await
+            .map_err(|e| crate::AcpError::InvalidResponse(e.to_string()))
+    }
+
+    pub async fn connect(
+        &self,
+        server_url: &str,
+        client_id: Option<String>,
+    ) -> Result<(), crate::AcpError> {
+        let mut state = self.state.lock().await;
+        state.connection_state = AcpConnectionState::Handshaking;
+        state.server_url = Some(server_url.to_string());
+        drop(state);
+
+        let cid = client_id.unwrap_or_else(|| {
+            std::env::var("OPENCODE_CLIENT_ID").unwrap_or_else(|_| uuid::Uuid::new_v4().to_string())
+        });
+
+        let response = self.handshake(server_url, cid, vec!["chat".to_string()]).await?;
+
+        let mut state = self.state.lock().await;
+        state.connection_state = AcpConnectionState::Connected;
+        state.server_id = Some(response.server_id);
+        state.session_token = response.session_token;
+        state.capabilities = response.accepted_capabilities;
+
+        Ok(())
+    }
+
+    pub async fn ack(
+        &self,
+        handshake_id: &str,
+        accepted: bool,
+    ) -> Result<(), crate::AcpError> {
+        let state = self.state.lock().await;
+        if !matches!(state.connection_state, AcpConnectionState::Connected) {
+            return Err(crate::AcpError::NotConnected);
+        }
+        drop(state);
+
+        let request = AckRequest {
+            handshake_id: handshake_id.to_string(),
+            accepted,
+        };
+
+        let server_url = self
+            .state
+            .lock()
+            .await
+            .server_url
+            .clone()
+            .ok_or(crate::AcpError::NotConnected)?;
+
+        let response = self
+            .http
+            .post(format!("{}/api/acp/ack", server_url))
+            .json(&request)
+            .send()
+            .await
+            .map_err(crate::AcpError::Http)?;
+
+        if !response.status().is_success() {
+            let error = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
+            return Err(crate::AcpError::ServerError(error));
+        }
+
+        Ok(())
+    }
+
+    pub async fn send_message(
+        &self,
+        to: &str,
+        message_type: &str,
+        payload: serde_json::Value,
+    ) -> Result<(), crate::AcpError> {
+        let state = self.state.lock().await;
+        if !matches!(state.connection_state, AcpConnectionState::Connected) {
+            return Err(crate::AcpError::NotConnected);
+        }
+        let client_id = state.client_id.clone();
+        let server_url = state
+            .server_url
+            .clone()
+            .ok_or(crate::AcpError::NotConnected)?;
+        drop(state);
+
+        let message = AcpMessage::new(client_id, to.to_string(), message_type.to_string(), payload);
+
+        let response = self
+            .http
+            .post(format!("{}/api/acp/message", server_url))
+            .json(&message)
+            .send()
+            .await
+            .map_err(crate::AcpError::Http)?;
+
+        if !response.status().is_success() {
+            let error = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
+            return Err(crate::AcpError::ServerError(error));
+        }
+
+        Ok(())
+    }
+
+    pub async fn disconnect(&self) -> Result<(), crate::AcpError> {
+        let mut state = self.state.lock().await;
+        state.connection_state = AcpConnectionState::Disconnected;
+        state.server_id = None;
+        state.session_token = None;
+        state.server_url = None;
+        Ok(())
+    }
+}
+
+pub mod error {
+    use thiserror::Error;
+
+    #[derive(Debug, Error)]
+    pub enum AcpError {
+        #[error("Not connected")]
+        NotConnected,
+
+        #[error("Handshake failed: {0}")]
+        HandshakeFailed(String),
+
+        #[error("Connection failed: {0}")]
+        ConnectionFailed(String),
+
+        #[error("Server returned error: {0}")]
+        ServerError(String),
+
+        #[error("Invalid response: {0}")]
+        InvalidResponse(String),
+
+        #[error("HTTP error: {0}")]
+        Http(#[from] reqwest::Error),
+
+        #[error("State error: {0}")]
+        State(String),
+    }
+}

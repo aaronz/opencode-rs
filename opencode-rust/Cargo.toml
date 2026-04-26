@@ -22,6 +22,7 @@ members = [
     "crates/file",
     "crates/sdk",
     "crates/util",
+    "crates/acp",
     "tests",
     "opencode-benches",
     "ratatui-testing",
@@ -96,6 +97,7 @@ opencode-git = { path = "crates/git" }
 opencode-util = { path = "crates/util" }
 opencode-format = { path = "crates/format" }
 opencode-logging = { path = "crates/logging" }
+opencode-acp = { path = "crates/acp" }
 
 # Server dependencies
 actix-web = "4"
