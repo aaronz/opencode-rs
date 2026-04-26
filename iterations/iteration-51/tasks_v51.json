@@ -487,7 +487,7 @@
       "priority": "P0",
       "title": "Write unit test: send_message_returns_error_when_not_connected",
       "description": "Write unit test: verify send_message() returns error when not connected",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify send_message() returns error for Disconnected state",
         "AddErrorHandlingTest: verify error type is AcpError::NotConnected",
