@@ -256,6 +256,7 @@ fn test_acp_state_instantiation() {
         capabilities: Vec::new(),
         server_url: None,
         base_url: None,
+        connection_timeout: None,
     };
     assert!(matches!(
         state.connection_state,
@@ -266,6 +267,8 @@ fn test_acp_state_instantiation() {
 
 #[test]
 fn test_acp_state_fields_accessible() {
+    use std::time::Duration;
+
     let mut state = AcpState {
         connection_state: AcpConnectionState::Disconnected,
         client_id: "client-123".to_string(),
@@ -274,6 +277,7 @@ fn test_acp_state_fields_accessible() {
         capabilities: vec!["chat".to_string(), "tasks".to_string()],
         server_url: Some("http://localhost:8080".to_string()),
         base_url: Some("http://localhost:8080".to_string()),
+        connection_timeout: Some(Duration::from_secs(30)),
     };
 
     assert_eq!(state.client_id, "client-123");
@@ -282,15 +286,18 @@ fn test_acp_state_fields_accessible() {
     assert_eq!(state.capabilities.len(), 2);
     assert_eq!(state.server_url, Some("http://localhost:8080".to_string()));
     assert_eq!(state.base_url, Some("http://localhost:8080".to_string()));
+    assert_eq!(state.connection_timeout, Some(Duration::from_secs(30)));
 
     state.connection_state = AcpConnectionState::Connected;
     state.capabilities.push("files".to_string());
+    state.connection_timeout = Some(Duration::from_secs(60));
 
     assert!(matches!(
         state.connection_state,
         AcpConnectionState::Connected
     ));
     assert_eq!(state.capabilities.len(), 3);
+    assert_eq!(state.connection_timeout, Some(Duration::from_secs(60)));
 }
 
 #[test]
@@ -298,6 +305,7 @@ fn test_acp_error_all_variants_exist() {
     let _ = AcpError::NotConnected;
     let _ = AcpError::HandshakeFailed("test".to_string());
     let _ = AcpError::ConnectionFailed("test".to_string());
+    let _ = AcpError::ConnectionTimeout { timeout: 30 };
     let _ = AcpError::ServerError("test".to_string());
     let _ = AcpError::InvalidResponse("test".to_string());
     let _ = AcpError::State("test".to_string());
@@ -1346,6 +1354,8 @@ async fn test_disconnect_clears_base_url() {
 
 #[test]
 fn test_acp_state_includes_base_url_field() {
+    use std::time::Duration;
+
     let state = AcpState {
         connection_state: AcpConnectionState::Connected,
         client_id: "test-client".to_string(),
@@ -1354,9 +1364,11 @@ fn test_acp_state_includes_base_url_field() {
         capabilities: vec!["chat".to_string()],
         server_url: Some("http://localhost:8080".to_string()),
         base_url: Some("http://custom-host:9000".to_string()),
+        connection_timeout: Some(Duration::from_secs(30)),
     };
 
     assert_eq!(state.base_url, Some("http://custom-host:9000".to_string()));
+    assert_eq!(state.connection_timeout, Some(Duration::from_secs(30)));
 }
 
 #[test]
@@ -1369,6 +1381,7 @@ fn test_acp_state_base_url_defaults_to_none() {
         capabilities: Vec::new(),
         server_url: None,
         base_url: None,
+        connection_timeout: None,
     };
 
     assert_eq!(state.base_url, None);
@@ -1414,4 +1427,116 @@ async fn test_handshake_uses_base_url_when_set() {
         .await;
 
     assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn test_set_connection_timeout_mutates_client() {
+    use std::time::Duration;
+
+    let http = reqwest::Client::new();
+    let bus: opencode_core::bus::SharedEventBus = Arc::new(opencode_core::bus::EventBus::new());
+    let client = AcpClient::new(http, "test-client".to_string(), bus);
+
+    assert_eq!(client.get_connection_timeout(), None);
+
+    client.set_connection_timeout(Duration::from_secs(30));
+
+    assert_eq!(client.get_connection_timeout(), Some(Duration::from_secs(30)));
+}
+
+#[tokio::test]
+async fn test_connection_timeout_default_is_none() {
+    let client = create_test_client();
+    assert_eq!(client.get_connection_timeout(), None);
+}
+
+#[test]
+fn test_acp_state_includes_connection_timeout_field() {
+    use std::time::Duration;
+
+    let state = AcpState {
+        connection_state: AcpConnectionState::Connected,
+        client_id: "test-client".to_string(),
+        server_id: Some("server-123".to_string()),
+        session_token: Some("token-456".to_string()),
+        capabilities: vec!["chat".to_string()],
+        server_url: Some("http://localhost:8080".to_string()),
+        base_url: Some("http://custom-host:9000".to_string()),
+        connection_timeout: Some(Duration::from_secs(30)),
+    };
+
+    assert_eq!(state.connection_timeout, Some(Duration::from_secs(30)));
+}
+
+#[test]
+fn test_acp_state_connection_timeout_defaults_to_none() {
+    let state = AcpState {
+        connection_state: AcpConnectionState::Disconnected,
+        client_id: "test-client".to_string(),
+        server_id: None,
+        session_token: None,
+        capabilities: Vec::new(),
+        server_url: None,
+        base_url: None,
+        connection_timeout: None,
+    };
+
+    assert_eq!(state.connection_timeout, None);
+}
+
+#[tokio::test]
+async fn test_handshake_with_custom_timeout() {
+    use std::time::Duration;
+    use wiremock::{
+        matchers::{method, path},
+        Mock, MockServer, ResponseTemplate,
+    };
+
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/api/acp/handshake"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(serde_json::json!({
+                    "server_id": "srv-timeout-test",
+                    "accepted_capabilities": ["chat"],
+                    "session_token": "tok-timeout-test"
+                }))
+                .set_delay(Duration::from_secs(1)),
+        )
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let http = reqwest::Client::new();
+    let bus: opencode_core::bus::SharedEventBus = Arc::new(opencode_core::bus::EventBus::new());
+    let client = AcpClient::new(http, "test-client".to_string(), bus);
+
+    client.set_connection_timeout(Duration::from_millis(500));
+
+    let result = client
+        .handshake(
+            &mock_server.uri(),
+            "my-client".to_string(),
+            vec!["chat".to_string()],
+        )
+        .await;
+
+    assert!(result.is_err());
+    assert!(
+        matches!(result.unwrap_err(), AcpError::ConnectionTimeout { timeout: _ })
+    );
+}
+
+#[tokio::test]
+async fn test_connection_timeout_error_display() {
+    let err = AcpError::ConnectionTimeout { timeout: 30 };
+    assert_eq!(err.to_string(), "Connection timeout after 30s");
+}
+
+#[tokio::test]
+async fn test_connection_timeout_error_display_zero() {
+    let err = AcpError::ConnectionTimeout { timeout: 0 };
+    assert_eq!(err.to_string(), "Connection timeout after 0s");
 }

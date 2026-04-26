@@ -1,4 +1,5 @@
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 pub use crate::protocol::{AckRequest, AcpMessage, AcpStatus, HandshakeRequest, HandshakeResponse};
 
@@ -30,6 +31,7 @@ pub struct AcpState {
     pub capabilities: Vec<String>,
     pub server_url: Option<String>,
     pub base_url: Option<String>,
+    pub connection_timeout: Option<Duration>,
 }
 
 impl AcpState {
@@ -42,6 +44,7 @@ impl AcpState {
             capabilities: Vec::new(),
             server_url: None,
             base_url: None,
+            connection_timeout: None,
         }
     }
 }
@@ -90,6 +93,15 @@ impl AcpClient {
         self.state.lock().unwrap().base_url.clone()
     }
 
+    pub fn set_connection_timeout(&self, timeout: Duration) {
+        let mut state = self.state.lock().unwrap();
+        state.connection_timeout = Some(timeout);
+    }
+
+    pub fn get_connection_timeout(&self) -> Option<Duration> {
+        self.state.lock().unwrap().connection_timeout
+    }
+
     pub fn connection_state(&self) -> AcpConnectionState {
         self.state.lock().unwrap().connection_state.clone()
     }
@@ -125,13 +137,29 @@ impl AcpClient {
         let url_base = base.as_deref().unwrap_or(server_url);
         let url = format!("{}/api/acp/handshake", url_base);
 
-        let response = self
-            .http
-            .post(&url)
-            .json(&request)
+        let mut req_builder = self.http.post(&url).json(&request);
+
+        if let Some(timeout) = self.state.lock().unwrap().connection_timeout {
+            req_builder = req_builder.timeout(timeout);
+        }
+
+        let response = req_builder
             .send()
             .await
-            .map_err(error::AcpError::Http)?;
+            .map_err(|e| {
+                if e.is_timeout() {
+                    let timeout_secs = self
+                        .state
+                        .lock()
+                        .unwrap()
+                        .connection_timeout
+                        .map(|d| d.as_secs())
+                        .unwrap_or(0);
+                    error::AcpError::ConnectionTimeout { timeout: timeout_secs }
+                } else {
+                    error::AcpError::Http(e)
+                }
+            })?;
 
         if !response.status().is_success() {
             let error = response
@@ -216,13 +244,29 @@ impl AcpClient {
 
         let url_base = base_url.ok_or(error::AcpError::NotConnected)?;
 
-        let response = self
+        let mut req_builder = self
             .http
             .post(format!("{}/api/acp/ack", url_base))
-            .json(&request)
-            .send()
-            .await
-            .map_err(error::AcpError::Http)?;
+            .json(&request);
+
+        if let Some(timeout) = self.state.lock().unwrap().connection_timeout {
+            req_builder = req_builder.timeout(timeout);
+        }
+
+        let response = req_builder.send().await.map_err(|e| {
+            if e.is_timeout() {
+                let timeout_secs = self
+                    .state
+                    .lock()
+                    .unwrap()
+                    .connection_timeout
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
+                error::AcpError::ConnectionTimeout { timeout: timeout_secs }
+            } else {
+                error::AcpError::Http(e)
+            }
+        })?;
 
         if !response.status().is_success() {
             let error = response
@@ -254,13 +298,29 @@ impl AcpClient {
         let url_base = base_url.ok_or(error::AcpError::NotConnected)?;
         let message = AcpMessage::new(client_id, to.to_string(), message_type.to_string(), payload);
 
-        let response = self
+        let mut req_builder = self
             .http
             .post(format!("{}/api/acp/message", url_base))
-            .json(&message)
-            .send()
-            .await
-            .map_err(error::AcpError::Http)?;
+            .json(&message);
+
+        if let Some(timeout) = self.state.lock().unwrap().connection_timeout {
+            req_builder = req_builder.timeout(timeout);
+        }
+
+        let response = req_builder.send().await.map_err(|e| {
+            if e.is_timeout() {
+                let timeout_secs = self
+                    .state
+                    .lock()
+                    .unwrap()
+                    .connection_timeout
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
+                error::AcpError::ConnectionTimeout { timeout: timeout_secs }
+            } else {
+                error::AcpError::Http(e)
+            }
+        })?;
 
         if !response.status().is_success() {
             let error = response
@@ -303,6 +363,9 @@ pub mod error {
 
         #[error("Connection failed: {0}")]
         ConnectionFailed(String),
+
+        #[error("Connection timeout after {timeout}s")]
+        ConnectionTimeout { timeout: u64 },
 
         #[error("Server returned error: {0}")]
         ServerError(String),

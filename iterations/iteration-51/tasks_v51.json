@@ -992,7 +992,7 @@
       "priority": "P1",
       "title": "Add connection timeout configuration",
       "description": "Add connection timeout configuration",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify timeout is configurable",
         "AddErrorHandlingTest: verify timeout errors are handled"

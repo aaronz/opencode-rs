@@ -349,6 +349,7 @@ async fn config_e2e_002_deep_merge_on_patch() {
             cors: None,
             desktop: None,
             acp: None,
+            password: None,
         }),
         model: Some("gpt-4".to_string()),
         ..Default::default()
