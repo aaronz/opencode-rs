@@ -22,13 +22,13 @@ impl std::fmt::Display for AcpConnectionState {
     }
 }
 
-struct AcpState {
-    connection_state: AcpConnectionState,
-    client_id: String,
-    server_id: Option<String>,
-    session_token: Option<String>,
-    capabilities: Vec<String>,
-    server_url: Option<String>,
+pub struct AcpState {
+    pub connection_state: AcpConnectionState,
+    pub client_id: String,
+    pub server_id: Option<String>,
+    pub session_token: Option<String>,
+    pub capabilities: Vec<String>,
+    pub server_url: Option<String>,
 }
 
 impl AcpState {

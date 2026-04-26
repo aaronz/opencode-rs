@@ -2,7 +2,7 @@ mod cli;
 pub mod client;
 pub mod protocol;
 
-pub use client::{AcpClient, AcpConnectionState};
+pub use client::{AcpClient, AcpConnectionState, AcpState};
 pub use protocol::{
     AckRequest, AcpMessage, AcpStatus, ConnectRequest, HandshakeRequest, HandshakeResponse,
 };

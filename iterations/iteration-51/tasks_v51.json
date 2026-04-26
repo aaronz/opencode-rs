@@ -98,7 +98,7 @@
       "priority": "P0",
       "title": "Implement AcpState struct",
       "description": "Implement `AcpState` struct to hold ACP connection state",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify AcpState struct can be instantiated",
         "AddUnitTest: verify state fields are accessible"
