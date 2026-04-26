@@ -133,6 +133,11 @@ impl AcpClient {
             state.capabilities = response.accepted_capabilities;
         }
 
+        self.bus.publish(opencode_core::bus::InternalEvent::AcpEventReceived {
+            agent_id: "self".to_string(),
+            event_type: "acp.connected".to_string(),
+        });
+
         Ok(())
     }
 
