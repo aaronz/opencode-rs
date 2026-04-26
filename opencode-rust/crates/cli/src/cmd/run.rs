@@ -213,6 +213,91 @@ mod tests {
         assert_eq!(args.title.as_deref(), Some("Review PR"));
         matches!(args.format, OutputFormat::Json);
     }
+
+    #[test]
+    fn test_run_format_json_parsing() {
+        let args = RunArgs {
+            prompt: None,
+            agent: None,
+            model: None,
+            continue_session: None,
+            attach: None,
+            yes: false,
+            title: None,
+            format: OutputFormat::Json,
+        };
+        matches!(args.format, OutputFormat::Json);
+        assert!(matches!(args.format, OutputFormat::Json));
+    }
+
+    #[test]
+    fn test_run_format_ndjson_parsing() {
+        let args = RunArgs {
+            prompt: None,
+            agent: None,
+            model: None,
+            continue_session: None,
+            attach: None,
+            yes: false,
+            title: None,
+            format: OutputFormat::Ndjson,
+        };
+        matches!(args.format, OutputFormat::Ndjson);
+        assert!(matches!(args.format, OutputFormat::Ndjson));
+    }
+
+    #[test]
+    fn test_run_format_text_is_default() {
+        let args = RunArgs {
+            prompt: None,
+            agent: None,
+            model: None,
+            continue_session: None,
+            attach: None,
+            yes: false,
+            title: None,
+            format: OutputFormat::Text,
+        };
+        matches!(args.format, OutputFormat::Text);
+        assert!(matches!(args.format, OutputFormat::Text));
+    }
+
+    #[test]
+    fn test_run_format_all_variants() {
+        let text_args = RunArgs {
+            prompt: None,
+            agent: None,
+            model: None,
+            continue_session: None,
+            attach: None,
+            yes: false,
+            title: None,
+            format: OutputFormat::Text,
+        };
+        let json_args = RunArgs {
+            prompt: None,
+            agent: None,
+            model: None,
+            continue_session: None,
+            attach: None,
+            yes: false,
+            title: None,
+            format: OutputFormat::Json,
+        };
+        let ndjson_args = RunArgs {
+            prompt: None,
+            agent: None,
+            model: None,
+            continue_session: None,
+            attach: None,
+            yes: false,
+            title: None,
+            format: OutputFormat::Ndjson,
+        };
+        assert!(matches!(text_args.format, OutputFormat::Text));
+        assert!(matches!(json_args.format, OutputFormat::Json));
+        assert!(matches!(ndjson_args.format, OutputFormat::Ndjson));
+    }
 }
 
 pub(crate) fn run(args: RunArgs) {

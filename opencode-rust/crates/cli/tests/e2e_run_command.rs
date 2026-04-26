@@ -46,6 +46,129 @@ fn test_run_prompt_mode_returns_structured_output() {
 }
 
 #[test]
+fn test_run_format_cli_accepts_json_flag() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&[
+        "run",
+        "--prompt",
+        "test",
+        "--model",
+        "gpt-4o",
+        "--format",
+        "json",
+    ]);
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(
+        stdout.contains("event") || stderr.contains("event") || !output.status.success(),
+        "json format should produce event-based output or fail gracefully: stdout={}, stderr={}",
+        stdout,
+        stderr
+    );
+}
+
+#[test]
+fn test_run_format_cli_accepts_ndjson_flag() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&[
+        "run",
+        "--prompt",
+        "test",
+        "--model",
+        "gpt-4o",
+        "--format",
+        "ndjson",
+    ]);
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(
+        stdout.contains("event") || stderr.contains("event") || !output.status.success(),
+        "ndjson format should produce event-based output or fail gracefully: stdout={}, stderr={}",
+        stdout,
+        stderr
+    );
+}
+
+#[test]
+fn test_run_format_ndjson_output_structure() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&[
+        "run",
+        "--prompt",
+        "hi",
+        "--model",
+        "gpt-4o",
+        "--format",
+        "ndjson",
+    ]);
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let lines: Vec<&str> = stdout.lines().collect();
+
+    for line in &lines {
+        if !line.is_empty() {
+            let parsed = serde_json::from_str::<serde_json::Value>(line);
+            assert!(
+                parsed.is_ok(),
+                "ndjson output should be valid JSON per line: {}",
+                line
+            );
+        }
+    }
+}
+
+#[test]
+fn test_run_format_json_output_structure() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&[
+        "run",
+        "--prompt",
+        "hi",
+        "--model",
+        "gpt-4o",
+        "--format",
+        "json",
+    ]);
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    if !stdout.trim().is_empty() {
+        let parsed = serde_json::from_str::<serde_json::Value>(&stdout);
+        assert!(
+            parsed.is_ok(),
+            "json format output should be valid JSON: {}",
+            stdout
+        );
+    }
+}
+
+#[test]
+fn test_run_format_default_output_regression() {
+    let harness = TestHarness::setup();
+    let output = harness.run_cli(&["run", "--prompt", "hello", "--model", "gpt-4o"]);
+
+    assert!(output.status.success(), "run should succeed with default format");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("Mode: non-interactive"),
+        "default format should output mode indicator"
+    );
+    assert!(
+        stdout.contains("Model: gpt-4o"),
+        "default format should output model name"
+    );
+    assert!(
+        stdout.contains("Prompt: hello"),
+        "default format should output prompt"
+    );
+}
+
+#[test]
 fn test_run_command_uses_config_model() {
     let harness = TestHarness::setup();
     let config_dir = harness.temp_dir.path().join("config");

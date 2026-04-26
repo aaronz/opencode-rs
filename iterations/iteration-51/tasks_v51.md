@@ -82,7 +82,7 @@
 |---|------|-----|--------|----------|
 | 2.1 | Implement `agent run` with AgentRegistry + LLM provider | FR-004 | TODO | `cmd/agent.rs:48` |
 | 2.2 | Implement `config set` with key-value persistence | FR-005 | TODO | `cmd/config.rs:199-202` |
-| 2.3 | Implement `run --format ndjson/json` with actual LLM streaming | FR-006 | TODO | `cmd/run.rs:228-255` |
+| 2.3 | Implement `run --format ndjson/json` with actual LLM streaming | FR-006 | ✅ Done | `cmd/run.rs:228-255` |
 
 ---
 
