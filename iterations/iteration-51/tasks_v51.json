@@ -937,7 +937,7 @@
       "priority": "P0",
       "title": "Consolidate AcpHandshakeResponse to single definition",
       "description": "Consolidate `AcpHandshakeResponse` to single definition",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddRegressionTest: ensure handshake still works after consolidation",
         "RunTestSuite: cargo test -p opencode-core -p opencode-acp"
@@ -957,7 +957,7 @@
       "priority": "P0",
       "title": "Rewrite AcpProtocol as async AcpClient",
       "description": "Rewrite `AcpProtocol` as async `AcpClient` to fix sync/async mismatch",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify async client works correctly",
         "AddRegressionTest: ensure existing ACP functionality works with async",

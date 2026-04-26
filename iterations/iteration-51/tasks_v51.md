@@ -119,7 +119,7 @@
 |---|------|--------|-------|
 | T1 | Move protocol types from `crates/core/src/acp.rs` to `crates/acp/src/protocol.rs` | TODO | Consolidate types |
 | T2 | Consolidate `AcpHandshakeResponse` to single definition | TODO | Remove duplication |
-| T3 | Rewrite `AcpProtocol` as async `AcpClient` | TODO | Fix sync/async mismatch |
+| T3 | Rewrite `AcpProtocol` as async `AcpClient` | ✅ Done | Fix sync/async mismatch |
 | T4 | Move hardcoded URLs to configurable base URL | TODO | Improve flexibility |
 | T5 | Add connection timeout configuration | TODO | Improve robustness |
 | T6 | Add retry logic with backoff | TODO | Improve reliability |

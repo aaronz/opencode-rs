@@ -49,7 +49,7 @@ pub(crate) struct ProvidersArgs {
     pub test_connection: Option<String>,
 
     #[arg(long)]
-    pub login: Option<String>,
+    pub login: bool,
 
     #[arg(long)]
     pub browser: bool,
@@ -527,7 +527,7 @@ mod tests {
         let args = ProvidersArgs {
             json: false,
             test_connection: None,
-            login: None,
+            login: false,
             browser: false,
             provider: None,
         };
@@ -543,7 +543,7 @@ mod tests {
         let args = ProvidersArgs {
             json: true,
             test_connection: None,
-            login: None,
+            login: false,
             browser: false,
             provider: None,
         };
@@ -555,7 +555,7 @@ mod tests {
         let args = ProvidersArgs {
             json: false,
             test_connection: Some("openai".to_string()),
-            login: None,
+            login: false,
             browser: false,
             provider: None,
         };
@@ -567,11 +567,11 @@ mod tests {
         let args = ProvidersArgs {
             json: false,
             test_connection: None,
-            login: Some("anthropic".to_string()),
+            login: true,
             browser: false,
             provider: None,
         };
-        assert_eq!(args.login.as_deref(), Some("anthropic"));
+        assert!(args.login);
     }
 
     #[test]
@@ -579,7 +579,7 @@ mod tests {
         let args = ProvidersArgs {
             json: false,
             test_connection: None,
-            login: Some("openai".to_string()),
+            login: true,
             browser: true,
             provider: None,
         };
@@ -591,7 +591,7 @@ mod tests {
         let args = ProvidersArgs {
             json: false,
             test_connection: None,
-            login: Some("openai".to_string()),
+            login: true,
             browser: true,
             provider: Some("anthropic".to_string()),
         };
@@ -604,13 +604,13 @@ mod tests {
         let args = ProvidersArgs {
             json: true,
             test_connection: None,
-            login: Some("openai".to_string()),
+            login: true,
             browser: true,
             provider: None,
         };
 
         assert!(args.browser);
-        assert_eq!(args.login.as_deref(), Some("openai"));
+        assert!(args.login);
     }
 
     #[test]
@@ -618,7 +618,7 @@ mod tests {
         let args = ProvidersArgs {
             json: false,
             test_connection: None,
-            login: Some("openai".to_string()),
+            login: true,
             browser: true,
             provider: Some("anthropic".to_string()),
         };
@@ -877,7 +877,7 @@ mod tests {
         let args = ProvidersArgs {
             json: false,
             test_connection: None,
-            login: Some("openai".to_string()),
+            login: true,
             browser: true,
             provider: Some("anthropic".to_string()),
         };
@@ -891,7 +891,7 @@ mod tests {
         let args = ProvidersArgs {
             json: false,
             test_connection: None,
-            login: Some("openai".to_string()),
+            login: true,
             browser: true,
             provider: None,
         };
@@ -905,14 +905,14 @@ mod tests {
         let args = ProvidersArgs {
             json: true,
             test_connection: Some("openai".to_string()),
-            login: Some("anthropic".to_string()),
+            login: true,
             browser: true,
             provider: Some("google".to_string()),
         };
 
         assert!(args.json);
         assert_eq!(args.test_connection.as_deref(), Some("openai"));
-        assert_eq!(args.login.as_deref(), Some("anthropic"));
+        assert!(args.login);
         assert!(args.browser);
         assert_eq!(args.provider.as_deref(), Some("google"));
     }
