@@ -47,13 +47,15 @@ impl AcpState {
 pub struct AcpClient {
     http: reqwest::Client,
     state: Arc<Mutex<AcpState>>,
+    bus: opencode_core::bus::SharedEventBus,
 }
 
 impl AcpClient {
-    pub fn new(http: reqwest::Client, client_id: String) -> Self {
+    pub fn new(http: reqwest::Client, client_id: String, bus: opencode_core::bus::SharedEventBus) -> Self {
         Self {
             http,
             state: Arc::new(Mutex::new(AcpState::new(client_id))),
+            bus,
         }
     }
 
@@ -218,6 +220,13 @@ impl AcpClient {
         state.server_id = None;
         state.session_token = None;
         state.server_url = None;
+        drop(state);
+
+        self.bus.publish(opencode_core::bus::InternalEvent::AcpEventReceived {
+            agent_id: "self".to_string(),
+            event_type: "acp.disconnected".to_string(),
+        });
+
         Ok(())
     }
 }

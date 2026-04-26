@@ -117,7 +117,7 @@
       "priority": "P0",
       "title": "Implement AcpClient struct",
       "description": "Implement `AcpClient` struct with `http`, `state`, `bus` fields",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify AcpClient can be instantiated with all fields",
         "AddUnitTest: verify field access works correctly"

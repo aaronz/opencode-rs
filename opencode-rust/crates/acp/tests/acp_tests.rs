@@ -1,10 +1,12 @@
+use std::sync::Arc;
 use opencode_acp::{
     AcpClient, AcpConnectionState, AcpError, AcpMessage, AcpState, HandshakeRequest,
 };
 
 fn create_test_client() -> AcpClient {
     let http = reqwest::Client::new();
-    AcpClient::new(http, "test-client".to_string())
+    let bus = Arc::new(opencode_core::bus::EventBus::new());
+    AcpClient::new(http, "test-client".to_string(), bus)
 }
 
 #[tokio::test]
