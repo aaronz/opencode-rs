@@ -5,7 +5,7 @@
       "priority": "P0",
       "title": "Create ACP crate directory structure",
       "description": "Create `crates/acp/` directory structure for the new ACP module",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify crates/acp/ directory exists with proper structure",
         "AddRegressionTest: ensure workspace Cargo.toml includes the new acp crate"
