@@ -478,3 +478,60 @@ async fn test_handshake_fails_on_invalid_response() {
     assert!(result.is_err());
     assert!(matches!(result.unwrap_err(), AcpError::InvalidResponse(_)));
 }
+
+#[tokio::test]
+async fn test_ack_sends_correct_request() {
+    use wiremock::{Mock, MockServer, ResponseTemplate, matchers::{method, path, body_json}};
+    use opencode_acp::AckRequest;
+
+    let mock_server = MockServer::start().await;
+
+    let expected_request = AckRequest {
+        handshake_id: "handshake-456".to_string(),
+        accepted: true,
+    };
+
+    Mock::given(method("POST"))
+        .and(path("/api/acp/ack"))
+        .and(body_json(&expected_request))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({ "ok": true })))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let client = create_test_client();
+
+    {
+        let mut state = client.state().lock().unwrap();
+        state.connection_state = opencode_acp::AcpConnectionState::Connected;
+        state.server_url = Some(mock_server.uri());
+    }
+
+    let result = client.ack("handshake-456", true).await;
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn test_ack_returns_success_response() {
+    use wiremock::{Mock, MockServer, ResponseTemplate, matchers::{method, path}};
+
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/api/acp/ack"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({ "ok": true })))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let client = create_test_client();
+
+    {
+        let mut state = client.state().lock().unwrap();
+        state.connection_state = opencode_acp::AcpConnectionState::Connected;
+        state.server_url = Some(mock_server.uri());
+    }
+
+    let result = client.ack("handshake-789", false).await;
+    assert!(result.is_ok());
+}

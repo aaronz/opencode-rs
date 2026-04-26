@@ -330,7 +330,7 @@
       "priority": "P0",
       "title": "Implement AcpClient::ack() method",
       "description": "Implement `AcpClient::ack()` method for ACP acknowledgement",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify ack() sends AckRequest",
         "AddUnitTest: verify ack() returns success response",

@@ -64,6 +64,10 @@ impl AcpClient {
         self.state.lock().unwrap().connection_state.clone()
     }
 
+    pub fn state(&self) -> &Arc<Mutex<AcpState>> {
+        &self.state
+    }
+
     pub async fn status(&self) -> Result<AcpStatus, error::AcpError> {
         let state = self.state.lock().unwrap();
         let connected = matches!(state.connection_state, AcpConnectionState::Connected);
