@@ -507,7 +507,7 @@
       "priority": "P0",
       "title": "Write unit test: disconnect_transitions_to_disconnected",
       "description": "Write unit test: verify disconnect() transitions to Disconnected state",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify disconnect() transitions to Disconnected regardless of starting state",
         "RunTestSuite: cargo test -p opencode-acp -- disconnect_transitions_to_disconnected"
@@ -516,7 +516,7 @@
         "cargo test -p opencode-acp -- disconnect_transitions_to_disconnected",
         "cargo clippy -p opencode-acp -- -D warnings"
       ],
-      "impl_notes": "Test should verify disconnect is idempotent and safe",
+      "impl_notes": "Test exists at crates/acp/tests/acp_tests.rs:68-73. Also has idempotent tests at lines 178-187.",
       "dependencies": [
         "FR-120"
       ]
