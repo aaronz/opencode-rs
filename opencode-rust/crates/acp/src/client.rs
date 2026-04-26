@@ -2,8 +2,9 @@ use std::sync::{Arc, Mutex};
 
 pub use crate::protocol::{AcpMessage, AckRequest, AcpStatus, HandshakeRequest, HandshakeResponse};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum AcpConnectionState {
+    #[default]
     Disconnected,
     Handshaking,
     Connected,
