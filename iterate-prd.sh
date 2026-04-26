@@ -14,6 +14,7 @@ parse_args() {
     PRD_INPUT=""
     LOG_FILE=""
     VERBOSE="false"
+    SHARE_SESSION="false"
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -39,6 +40,10 @@ parse_args() {
                 ;;
             --verbose|-v)
                 VERBOSE="true"
+                shift
+                ;;
+            --share|-S)
+                SHARE_SESSION="true"
                 shift
                 ;;
             *)

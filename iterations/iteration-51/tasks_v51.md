@@ -44,15 +44,15 @@
 
 | # | Task | FR | Status | Dependencies |
 |---|------|-----|--------|--------------|
-| 1.15 | Implement `AcpClient::status()` method | FR-103 | TODO | 1.7 |
-| 1.16 | Implement `AcpClient::connect()` with state transitions | FR-103 | TODO | 1.7, 1.8 |
-| 1.17 | Implement `AcpClient::handshake()` method | FR-103 | TODO | 1.7, 1.8 |
-| 1.18 | Implement `AcpClient::ack()` method | FR-103 | TODO | 1.7, 1.8 |
-| 1.19 | Implement `AcpClient::send_message()` method | FR-103 | TODO | 1.7, 1.8 |
-| 1.20 | Implement `AcpClient::disconnect()` method | FR-103 | TODO | 1.7, 1.8 |
-| 1.21 | Implement `AcpClient::connection_state()` method | FR-103 | TODO | 1.7 |
-| 1.22 | Implement bus event publishing for `acp.connected` | FR-107 | TODO | 1.16 |
-| 1.23 | Implement bus event publishing for `acp.disconnected` | FR-107 | TODO | 1.20 |
+| 1.15 | Implement `AcpClient::status()` method | FR-103 | ✅ Done | 1.7 |
+| 1.16 | Implement `AcpClient::connect()` with state transitions | FR-103 | ✅ Done | 1.7, 1.8 |
+| 1.17 | Implement `AcpClient::handshake()` method | FR-103 | ✅ Done | 1.7, 1.8 |
+| 1.18 | Implement `AcpClient::ack()` method | FR-103 | ✅ Done | 1.7, 1.8 |
+| 1.19 | Implement `AcpClient::send_message()` method | FR-103 | ✅ Done | 1.7, 1.8 |
+| 1.20 | Implement `AcpClient::disconnect()` method | FR-103 | ✅ Done | 1.7, 1.8 |
+| 1.21 | Implement `AcpClient::connection_state()` method | FR-103 | ✅ Done | 1.7 |
+| 1.22 | Implement bus event publishing for `acp.connected` | FR-107 | ✅ Done | 1.16 |
+| 1.23 | Implement bus event publishing for `acp.disconnected` | FR-107 | ✅ Done | 1.20 |
 
 ### P0 Tasks - ACP Tests
 
